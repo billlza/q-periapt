@@ -56,6 +56,15 @@ child can complete its original creation. An Active registration never recreates
 missing child state. No arbitrary staging orphan is selected as a key or deleted
 automatically. Expired inputs cannot authorize a new child creation.
 
+Between acceptance and child preparation, `refresh_roster` can commit a newer
+independently pinned roster for the exact same credential and admitted policy.
+It checks live signatures, validity and membership, refuses rollback or a
+different checkpoint at the same version, and preserves the original request
+and future journal ID. Retrying the same checkpoint makes no state write.
+Preparation fixes the child context, so refresh refuses after any child intent
+has committed. This transition does not renew expired credentials or policy;
+renewal of an accepted device before child preparation remains unimplemented.
+
 The original bootstrap inputs are retained inside the authenticated encrypted
 registration. Reopening does not need the test issuer directory or a fabricated
 old timestamp. Historical reconstruction uses the original context commitment and

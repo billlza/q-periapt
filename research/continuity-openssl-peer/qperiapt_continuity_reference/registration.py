@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 import os
 import threading
+from dataclasses import replace
 from .authority import authenticate_policy
 from .identity import verify_device
 from .journal import Journal, locked
@@ -120,6 +121,30 @@ class Registration:
                 image.admission = Admission(pin.checkpoint(), policy_head, os.urandom(32), certificate, roster)
                 snapshot, image = self._save(snapshot, image, 'acceptance-committed')
             self._alive(); return image.admission.journal
+        except BaseException: self._close_after_error(); raise
+
+    @coordinated
+    def refresh_roster(self, roster, pin, policy_pins, policy_materials, now, *, witness_pin=None):
+        """Adopt a current same-credential roster before an original child exists."""
+        try:
+            snapshot, image = self._image()
+            require(image.admission is not None, 'registration is not accepted')
+            require(image.child is None and not image.active, 'registration child was already prepared')
+            policy = authenticate_policy(policy_pins, policy_materials, now, witness_pin=witness_pin)
+            require(policy.family == self._intent.family
+                    and policy.version.to_bytes(8, 'big') + policy.digest == image.admission.policy,
+                    'roster refresh cannot change the admitted policy')
+            public = signer(image.seed).public()
+            device = verify_device(pin, image.admission.certificate, roster, policy.family, now)
+            self._intent.admit_device(device, public)
+            previous = image.admission.pin(self._intent)
+            require(pin.roster_version >= previous.roster_version, 'roster checkpoint cannot roll back')
+            if pin.roster_version == previous.roster_version:
+                require(pin.checkpoint() == previous.checkpoint(), 'different roster at the retained version')
+                self._alive(); return previous.checkpoint()
+            image.admission = replace(image.admission, checkpoint=pin.checkpoint(), roster=roster)
+            _, image = self._save(snapshot, image, 'roster-refreshed')
+            self._alive(); return image.admission.checkpoint
         except BaseException: self._close_after_error(); raise
 
     @coordinated

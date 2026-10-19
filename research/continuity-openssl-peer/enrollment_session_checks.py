@@ -97,6 +97,10 @@ def exercise(args, label):
         client = reopen()
         genesis = client.prepare(session_path, inputs, 150)
         require(client.prepare(session_path, inputs, 150) == genesis, 'original child preparation changed')
+        refuse('prepared-child-refuses-roster-retarget',
+               lambda: client.refresh_roster(encode(current), encode(policy_pins), encode(policy_materials), 150),
+               'child was already prepared')
+        client = reopen()
         if bridge is not None: call('enroll-original-child', 30, genesis, b'enrolled')
         with client.session(150, transport=transport()) as child:
             initial = child.initial(now=150); reply = call('reply', 4, initial)

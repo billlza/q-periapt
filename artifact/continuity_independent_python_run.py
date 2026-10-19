@@ -152,7 +152,8 @@ def qualify(args: argparse.Namespace) -> dict:
              "--native", str(args.native), "--output", str(output / "client-session")], "client-session")
         client_session = parse_strict_json_bytes(snapshot(output / "client-session/RESULT.json").data,
                                                 label="installed enrollment client session")
-        refusals = ["configuration-directory-alias", "closed-client-revokes-child", "nested-client-operation",
+        refusals = ["configuration-directory-alias", "prepared-child-refuses-roster-retarget",
+                    "closed-client-revokes-child", "nested-client-operation",
                     "callback-close-withholds-result", "outer-directory-admission", "repaired-path-does-not-revive-child"]
         require(client_session["completed"] is True and client_session["provider"] == "48.0.1"
                 and client_session["implementation"] == str(application / PACKAGE / "enrollment_client.py")

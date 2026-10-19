@@ -76,6 +76,9 @@ def main(argv=None):
     accept = commands.add_parser('accept', help='accept the approved result against independent current trust')
     for name in ('approved', 'issued', 'current', 'policy-pins', 'policy-materials'):
         accept.add_argument('--' + name, type=Path, required=True)
+    refresh = commands.add_parser('refresh-roster', help='adopt current same-credential membership before child preparation')
+    for name in ('current', 'policy-pins', 'policy-materials'):
+        refresh.add_argument('--' + name, type=Path, required=True)
     args = parser.parse_args(argv)
     owner = None
     try:
@@ -101,6 +104,11 @@ def main(argv=None):
                                    read_file(args.current, 128 * 1024), read_file(args.policy_pins, 16384),
                                    read_file(args.policy_materials, 128 * 1024), now)
             result = {'phase':'Accepted', 'journal':journal}
+        elif args.command == 'refresh-roster':
+            checkpoint = owner.refresh_roster(read_file(args.current, 128 * 1024),
+                                               read_file(args.policy_pins, 16384),
+                                               read_file(args.policy_materials, 128 * 1024), now)
+            result = {'phase':'Accepted', 'roster_checkpoint':checkpoint}
         else:
             result = owner.status()
         def public(value):

@@ -164,6 +164,20 @@ class EnrollmentClient:
             self.close(); raise
 
     @coordinated
+    def refresh_roster(self, current, policy_pins, policy_materials, now):
+        """Refresh independent membership before preparing this device's child."""
+        try:
+            self._alive()
+            membership = CurrentMembership.from_trusted(current, self._authority)
+            policy = PolicyInputs.from_trusted(policy_pins, policy_materials)
+            result = self._registration.refresh_roster(
+                membership.wire, membership.pin(self._original), policy.pins, policy.materials,
+                now, witness_pin=policy.witness)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
     def prepare(self, path, inputs, now):
         """Prepare or recover the same accepted child with independent trust inputs."""
         try:

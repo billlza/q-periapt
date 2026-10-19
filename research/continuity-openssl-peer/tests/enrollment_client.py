@@ -54,7 +54,7 @@ class ClientChecks(unittest.TestCase):
         return {str(p.relative_to(self.client_path)):hashlib.sha256(p.read_bytes()).hexdigest()
                 for p in self.client_path.rglob('*') if p.is_file()}
 
-    def kill_at(self, stage, occurrence=1, *, request=False, open_existing=False):
+    def kill_at(self, stage, occurrence=1, *, request=False, open_existing=False, membership=None):
         self.cut_count += 1
         marker = fixture.args.private_output / (self._testMethodName + '.cut-' + stage.replace(':','-') + str(self.cut_count))
         pid = os.fork()
@@ -85,6 +85,8 @@ class ClientChecks(unittest.TestCase):
             try:
                 child = self.reopen(cut) if request or open_existing else self.begin(cut)
                 if request: child.request(self.now)
+                if membership is not None:
+                    child.refresh_roster(wire(membership), wire(self.policy_pins), wire(self.policy_materials), self.now)
                 child.close()
             except BaseException:
                 os._exit(71)
@@ -103,6 +105,79 @@ class ClientChecks(unittest.TestCase):
         self.assertEqual(self.client.status()['public_key'], identity['public_key'])
         self.assertEqual(self.client.status()['operation'], bytes(self.offer_json['operation']))
         self.assertEqual(self.client.status()['phase'], 'Accepted')
+
+    def membership(self, version, include=True):
+        roster, digest = self.roster(version, include)
+        return dict(self.membership_json, roster={'checkpoint':{'version':version, 'digest':list(digest)},
+                                                 'bytes':fixture.b64(roster)})
+
+    def refresh(self, membership, now=None):
+        return self.client.refresh_roster(wire(membership), wire(self.policy_pins), wire(self.policy_materials),
+                                          self.now if now is None else now)
+
+    def test_unprepared_roster_refresh_preserves_identity_and_original_journal(self):
+        self.client = self.begin(); proof = self.client.request(self.now); self.issue_for(proof)
+        self.accept(); original = self.client.status()
+        target = self.membership(3)
+        expected = (3).to_bytes(8, 'big') + bytes(target['roster']['checkpoint']['digest'])
+        self.assertEqual(self.refresh(target), expected)
+        self.assertEqual(self.client.status(), original)
+        self.client.close(); self.client = self.reopen(); before = self.state()
+        # A freshly signed representation of the same checkpoint is a read-only retry.
+        self.assertEqual(self.refresh(self.membership(3)), expected)
+        self.assertEqual(self.state(), before)
+        self.assertEqual(self.client.request(self.now), proof)
+        self.assertEqual(self.client.status()['journal'], original['journal'])
+
+    def test_unprepared_roster_refresh_rejects_rollback_and_same_version_fork(self):
+        self.client = self.begin(); self.issue_for(self.client.request(self.now)); self.accept()
+        self.refresh(self.membership(3)); before = self.state()
+        with self.assertRaisesRegex(ValueError, 'roster checkpoint cannot roll back'):
+            self.refresh(self.membership_json)
+        self.assertEqual(self.state(), before); self.client = self.reopen()
+        self.start -= 1
+        fork = self.membership(3)
+        self.start += 1
+        with self.assertRaisesRegex(ValueError, 'different roster at the retained version'):
+            self.refresh(fork)
+        self.assertEqual(self.state(), before); self.client = self.reopen()
+        self.assertEqual(self.refresh(self.membership(3))[:8], (3).to_bytes(8, 'big'))
+
+    def test_roster_refresh_cannot_restore_revocation_or_extend_credential_validity(self):
+        self.client = self.begin(); self.issue_for(self.client.request(self.now)); self.accept()
+        before = self.state()
+        with self.assertRaisesRegex(ValueError, 'device absent from current roster'):
+            self.refresh(self.membership(3, False))
+        self.assertEqual(self.state(), before); self.client = self.reopen()
+        with self.assertRaisesRegex(ValueError, 'expired or premature authority'):
+            self.refresh(self.membership(3), self.end + 1)
+        self.assertEqual(self.state(), before); self.client = self.reopen()
+
+    def test_roster_refresh_kill_recovers_exact_committed_target(self):
+        self.client = self.begin(); proof = self.client.request(self.now); self.issue_for(proof)
+        self.accept(); identity = self.client.status(); self.client.close()
+        target = self.membership(3)
+        marker = self.kill_at('client-device:registration:roster-refreshed', open_existing=True, membership=target)
+        self.client = self.reopen()
+        self.assertEqual(hashlib.sha256((self.client_path / 'registration/head').read_bytes()).hexdigest(), marker['target'])
+        before = self.state()
+        self.assertEqual(self.refresh(target)[:8], (3).to_bytes(8, 'big'))
+        self.assertEqual(self.state(), before)
+        self.assertEqual(self.client.status(), identity)
+        self.assertEqual(self.client.request(self.now), proof)
+
+    def test_roster_refresh_cannot_change_policy_even_with_valid_new_signature(self):
+        self.client = self.begin(); self.issue_for(self.client.request(self.now)); self.accept()
+        before = self.state()
+        original = self.policy_root.public().open(self.policy.materials.policy, 4, 200)
+        body = original[:40] + (2).to_bytes(8, 'big') + original[48:]
+        pins = dict(self.policy_pins, policy_version=2,
+                    policy_digest=list(fixture.digest(b'SESSION-POLICY', body)))
+        materials = dict(self.policy_materials, policy=fixture.b64(self.policy_root.sign(4, body)))
+        with self.assertRaisesRegex(ValueError, 'cannot change the admitted policy'):
+            self.client.refresh_roster(wire(self.membership(3)), wire(pins), wire(materials), self.now)
+        self.assertEqual(self.state(), before); self.client = self.reopen()
+        self.assertEqual(self.refresh(self.membership(3))[:8], (3).to_bytes(8, 'big'))
 
     def test_exclusive_owner_wrong_key_id_and_second_begin_preserve_state(self):
         self.client = self.begin()
@@ -286,6 +361,11 @@ class ClientChecks(unittest.TestCase):
                         '--policy-pins', save('pins.json', wire(self.policy_pins)),
                         '--policy-materials', save('materials.json', wire(self.policy_materials))])
         self.assertEqual(accepted['phase'], 'Accepted')
+        target = self.membership(3)
+        refreshed = cli(['refresh-roster', '--current', save('current-3.json', wire(target)),
+                         '--policy-pins', str(public / 'pins.json'), '--policy-materials', str(public / 'materials.json')])
+        self.assertEqual(refreshed['phase'], 'Accepted')
+        self.assertEqual(refreshed['roster_checkpoint'], fixture.b64((3).to_bytes(8, 'big') + bytes(target['roster']['checkpoint']['digest'])))
         final = cli(['status'])
         self.assertEqual(final['public_key'], initial['public_key'])
         self.assertEqual(final['journal'], accepted['journal'])

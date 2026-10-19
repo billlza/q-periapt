@@ -61,6 +61,8 @@ before returning any public device identity. After that, use:
 ... accept --approved /absolute/approved-invitation.json \
   --issued /absolute/issued-response.json --current /absolute/current-membership.json \
   --policy-pins /absolute/policy-pins.json --policy-materials /absolute/policy-materials.json
+... refresh-roster --current /absolute/current-membership.json \
+  --policy-pins /absolute/policy-pins.json --policy-materials /absolute/policy-materials.json
 ```
 
 `request` writes the binary format consumed by the reference browser's request
@@ -79,6 +81,21 @@ failure or expired credentials still fail. The CLI uses the host OS clock and
 has no time override. The [reference host](../continuity-reference-app/README.md)
 provides separate account authorization and protected policy-publisher tools;
 test-issued files do not substitute for an actual host authorization ceremony.
+
+Before preparing a child, `refresh-roster` (or the corresponding
+`client.refresh_roster(current, policy_pins, policy_materials, now)` API) adopts
+a newer independently pinned, signed roster that still includes the exact
+accepted credential. It preserves the original device, request, policy and
+future journal identity. Lower versions and different digests at the retained
+version fail; retrying the same checkpoint verifies current authority without
+rewriting state. Once child preparation has committed, this operation refuses
+to retarget its context or witness genesis.
+
+Roster refresh does not renew credentials or policy, undo revocation or replace
+an account root. An accepted device whose credential expires before child
+preparation currently has no complete renewal transition in this reference
+client. Keep its original state; restarting enrollment, changing the clock or
+using a newer roster cannot restore authorization.
 
 ## Registered session and recovery API
 
@@ -146,7 +163,10 @@ format and reopen normally; no silent migration of incomplete old attempts occur
 signatures. It checks CLI subprocesses, exact request export/re-export, no
 overwrite, independent policy/membership acceptance, wrong key/client ID,
 exclusive ownership, retained authority and original-state recovery/refusal at
-real `SIGKILL` cuts. Every private fixture is retained outside public evidence.
+real `SIGKILL` cuts, including a committed roster refresh. It also checks roster
+rollback/fork refusal and that refresh cannot change policy, restore revoked
+membership or extend credential validity. Every private fixture is retained
+outside public evidence.
 The installed qualification driver binds both test sources and all package
 modules to Git, installs the wheel outside the checkout, and checks installed
 bytes before and after both suites. This establishes the stated local behavior,
