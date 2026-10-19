@@ -1,0 +1,70 @@
+{
+  "head": "b89eb724f4f40388ab7546dab9b7d07c80bf607b",
+  "capture": {
+    "bytes": 4559668,
+    "members": 181,
+    "sha256": "71a00696f573e9b98173366731e44061a8b25d7599bd6cd8df04c5ffac5c4a62"
+  },
+  "readback": {
+    "head": "b89eb724f4f40388ab7546dab9b7d07c80bf607b",
+    "importer_sha256": "fc3a62ee2cfc1ad78fdab0b3c1acbfcdf4ca471335bda376d4a5117dd5b27e6d",
+    "native_sha256": "60c66db3973b9e1d8aabc22e3a87345b49e0a6d5ea080b1e855c6bbaf1e553fa",
+    "resolution": {
+      "external_packages": 118,
+      "lockfile_sha256": "cc6e7de9921a0e051cb03b587ed5b194372427efe6f96ef829c7b5a025cd2d8d",
+      "product_crates": 9
+    },
+    "profiles": {
+      "local": {
+        "cases": 10,
+        "successful": 1,
+        "typed_refusals": 9,
+        "context": "4146c454d7e2f1f902fceadbb75587ef84793b27843a245794e95c85740fe050"
+      },
+      "witness": {
+        "cases": 10,
+        "successful": 1,
+        "typed_refusals": 9,
+        "context": "3d63c287b5d8e86dc138520b8a0369ab8aff7eaf8f3dba9241d35dd8d98d9c58"
+      }
+    },
+    "sdk_report_sha256": "03b8cc88397ccc71966675f4757de22481aaffc01811f9f3da189f0410261c6b",
+    "candidate_archive": {
+      "file": "q-periapt-continuity-identity-candidate-0.0.0.crate",
+      "bytes": 1513741,
+      "sha256": "c630a1932b7f206d28405a6595ab235d2d3154a925e80f271e33e4ca9c26cf18"
+    },
+    "registration_link": {
+      "source": "target/independent-installed-01/REGISTRATION_READBACK.json",
+      "same_binary_bytes": true,
+      "new_registration_execution": false
+    },
+    "scope": "Clean ordinary-checkout CLI built and linted native/importer from the same installed graph. This exact importer executed20 public-input cases. Native bytes equal the previously executed92-worker21-kill registration binary; registration was not rerun. Fixture trust, not deployed account authentication or a released Python distribution; no full release claim."
+  },
+  "quality": {
+    "source_head": "b89eb724f4f40388ab7546dab9b7d07c80bf607b",
+    "checks": [
+      {
+        "check": "actionlint",
+        "argv": [
+          "/opt/homebrew/bin/actionlint",
+          ".github/workflows/independent-continuity.yml"
+        ],
+        "exit": 0
+      },
+      {
+        "check": "diff",
+        "argv": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "exit": 0
+      }
+    ],
+    "unit_tests": "7 existing meaningful archive/graph/setup/selection tests passed; tests.stdout/tests.stderr retained. No protocol/runtime source changed.",
+    "prototype": "Actual installed importer build/clippy and20 inputs pass, original graph9/118 and full lock unchanged. Formal whole-CLI verification currently running.",
+    "formal": "Whole public CLI completed exit0 from clean ordinary checkout atb89eb724. Final importer executed20 cases. Nine product crates,118 external packages and complete original lock unchanged. Both native and importer binaries match the prototype bytes. Registration evidence is reused only by exact native binary identity; no registration rerun."
+  },
+  "sdk_archive_source": "Exact eight SDK archives are retained in20261019-independent-installed-counterpart; pinned report and originalGitHub artifact identity included here. No private runtime images or wrapping values are selected."
+}
