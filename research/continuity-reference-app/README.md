@@ -1,5 +1,11 @@
 # Continuity reference account application
 
+This is an **optional host-application example**, not a prerequisite for using
+Q-Periapt. SDK users do not need to run it, create an account here, or contact a
+Q-Periapt account service. An embedding application retains its own authentication
+and device-authorization policy; it can also use independently administered trust
+provisioning where that matches its deployment model.
+
 This unpublished host application is the starting point for the independent
 consumer's real account login and device authorization path. It uses
 `webauthn-rs 0.5.5` for Passkey registration and authentication. Authentication

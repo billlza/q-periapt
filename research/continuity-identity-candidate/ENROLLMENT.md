@@ -7,6 +7,14 @@ transport, credential replacement, root replacement or a finished product lifecy
 
 ## Inputs and first use
 
+Enrollment here means admitting a device signing key under independently
+approved authority. It is not signup for a Q-Periapt service. Basic SDK key,
+KEM and signature operations require no application account. Applications using
+Continuity supply the trusted identity and authorization inputs appropriate to
+their deployment, through existing authentication or administered provisioning.
+The optional Passkey reference application demonstrates one such host boundary;
+its login flow is not a required SDK dependency or a new authorization source.
+
 The application supplies an independently trusted account root and an approved
 `DeviceDescription` (device ID, generation, policy family and finite validity).
 These become an `EnrollmentIntent`. The authority verifies a request against its
