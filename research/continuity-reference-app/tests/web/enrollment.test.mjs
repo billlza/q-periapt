@@ -49,6 +49,16 @@ test('u64 integers remain exact through parsing, request encoding and recovery s
   assert.deepEqual(records.read().operations[0], row);
 });
 
+test('authority export retains the host account and exact revision without selecting a current roster', () => {
+  const {model} = fixture(() => { throw new Error('export does not perform HTTP'); });
+  const observed = root({version: 2, digest: bytes(9)}); observed.revision = 18446744073709551615n;
+  const profile = model.authorityProfile(observed);
+  assert.deepEqual(Object.keys(profile).sort(), ['application', 'family', 'root', 'root_revision', 'schema']);
+  assert.equal(profile.schema, 'qperiapt-host-authority/1'); assert.deepEqual(profile.application, bytes(1));
+  assert.equal(profile.root, observed.public_key); assert.equal(parse(encode(profile)).root_revision, observed.revision);
+  assert.deepEqual(profile.family, observed.family);
+});
+
 test('unknown invitation response retains its original correlation across a new model', async () => {
   const sent = []; let lost = true;
   const api = async (path, body) => { sent.push({path, body}); if (lost) { lost = false; throw new Error('response lost after host commit'); } return {value: invite(body.request_id)}; };

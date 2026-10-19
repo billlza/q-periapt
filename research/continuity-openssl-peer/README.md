@@ -27,6 +27,9 @@ before doing the policy-bound hybrid KEM and confirmation schedule.
 
 The protocol code is in `qperiapt_continuity_reference`, including `wire.py`,
 `authority.py`, `kem.py`, `bootstrap.py`, `traffic.py`, and `rekey.py`.
+The [host enrollment exchange adapter](ENROLLMENT_EXCHANGE.md) accepts public
+invitations and issued results against separately supplied host, current-roster
+and signed-policy expectations using the original protected registration owner.
 The bounded runner and Rust test counterpart are separate.
 Failed replies leave the original operation pending. Successful replies pin the
 exact bytes; identical replay returns the same final, and a conflicting reply

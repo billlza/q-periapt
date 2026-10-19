@@ -46,6 +46,11 @@ export class Enrollment {
   }
   async prepareRoot() { return root((await this.api('/api/enrollment/root/prepare', {})).value); }
   async readRoot() { return root((await this.api('/api/enrollment/root')).value); }
+  authorityProfile(observation) {
+    root(observation);
+    return {schema: 'qperiapt-host-authority/1', application: Array.from(unbase64(this.records.application, 32)),
+      root_revision: observation.revision, root: observation.public_key, family: observation.family};
+  }
   async status(key) {
     const row = this.operation(key), value = (await this.api('/api/enrollment/status', {operation: row.invitation.operation})).value;
     require(value && ['Invited', 'Approved', 'Issued', 'Closed', 'Reapproved'].includes(value.state), 'Unknown enrollment status');

@@ -10,6 +10,9 @@ storage nor invents a family or policy to make a device appear admitted.
 
 1. Sign in as the application account. Explicitly prepare or reopen its original
    root, or read its current root/roster. Review the displayed root fingerprint.
+   Save the separate client authority profile for authenticated provisioning to
+   the independent consumer. It identifies the host application, root revision,
+   public root and policy family; it deliberately does not select a current roster.
 2. Create an invitation. The browser saves a nonzero correlation before sending
    the request. Save the invitation and transfer it through the deployment's
    authenticated provisioning channel. A received invitation is not itself an
@@ -48,6 +51,8 @@ host root/roster observation. They have separate export buttons. Historical
 issuance, including after suspension or a newer roster, never grants current
 traffic permission. A downloaded observation still needs the deployment's
 independent trust channel and policy; it cannot authenticate itself.
+The independent package's [exchange adapter](../continuity-openssl-peer/ENROLLMENT_EXCHANGE.md)
+consumes these public formats without browser cookies or account-login dependencies.
 
 ## Browser storage and concurrency
 

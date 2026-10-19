@@ -45,6 +45,7 @@ export function enrollmentUI(action, identity) {
     el('select-successor').disabled = phase !== 'Reapproved';
     el('save-issued').disabled = issued === null;
     el('save-root').disabled = observation === null;
+    el('save-authority').disabled = observation === null;
   }
   async function authenticated() {
     if (!model || !identity()) throw new Error('Sign in as the original account first');
@@ -121,6 +122,10 @@ export function enrollmentUI(action, identity) {
   bind('save-root', async () => {
     if (!observation) throw new Error('Read the root and roster first');
     download('observed-root-and-roster.json', encode(observation));
+  });
+  bind('save-authority', async () => {
+    if (!observation) throw new Error('Read and review the account root first');
+    download('client-host-authority.json', encode(model.authorityProfile(observation)));
   });
   el('operations').addEventListener('change', () => action(async () => {
     await authenticated(); selected = el('operations').value; clearObservation(); await showOperation();
