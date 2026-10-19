@@ -62,6 +62,7 @@ fn main() -> Result<()> {
     let mut local_lifecycle = false;
     let mut short_roster = false;
     let mut registration = false;
+    let mut extension = false;
     while let Some(flag) = args.next() {
         match flag.to_str() {
             Some("--send-budget") => {
@@ -77,18 +78,30 @@ fn main() -> Result<()> {
             Some("--local-lifecycle") if !local_lifecycle => local_lifecycle = true,
             Some("--local-roster-expiry") if !short_roster => short_roster = true,
             Some("--registration") if !registration => registration = true,
+            Some("--registration-extension") if !extension => extension = true,
             _ => return Err("unexpected argument".into()),
         }
     }
     if short_roster && !local_lifecycle {
         return Err("local roster expiry requires local lifecycle fixture".into());
     }
+    if extension && (!registration || local_lifecycle || peer_lifecycle || short_roster) {
+        return Err("registration extension requires its separate registration fixture".into());
+    }
+    let options = fixture::Options {
+        budget,
+        peer_lifecycle,
+        local_lifecycle,
+        short_roster,
+        extension,
+    };
+    let times = options.times();
     let directory = Path::new(&path);
     fs::create_dir(directory)?;
     let mut input = io::stdin().lock();
     let mut output = io::stdout().lock();
     let (peer_key, registration) = if registration {
-        let pending = registration::Pending::new(local_lifecycle, peer_lifecycle)?;
+        let pending = registration::Pending::new(local_lifecycle, peer_lifecycle, extension)?;
         send(&mut output, 1, pending.independent_intent())?;
         let accepted = pending.accept(&receive(&mut input, false)?)?;
         (accepted.public.clone(), Some(accepted))
@@ -96,22 +109,11 @@ fn main() -> Result<()> {
         (PublicKey::decode(&receive(&mut input, false)?)?, None)
     };
     let witness = if required {
-        Some(witness::Witness::create(directory)?)
+        Some(witness::Witness::create(directory, times.bootstrap)?)
     } else {
         None
     };
-    let fixture = fixture::create(
-        directory,
-        peer_key,
-        fixture::Options {
-            budget,
-            peer_lifecycle,
-            local_lifecycle,
-            short_roster,
-        },
-        witness,
-        registration,
-    )?;
+    let fixture = fixture::create(directory, peer_key, options, witness, registration)?;
     let mut operation = ResponderOperation::new(Arc::clone(&fixture.context));
     let mut durable: Option<journal::Journal> = None;
     send(&mut output, 1, b"ready")?;
@@ -125,12 +127,12 @@ fn main() -> Result<()> {
                     &fixture.signer,
                     PqKeySource::from_key(&fixture.prekey),
                     TraditionalKeySource::from_key(&fixture.prekey),
-                    NOW,
+                    fixture.times.bootstrap,
                 )
                 .map(<[u8]>::to_vec)
                 .map_err(|error| format!("{error:?}")),
             2 => operation
-                .finish(payload, NOW)
+                .finish(payload, fixture.times.bootstrap)
                 .map(|session| session.id().to_vec())
                 .map_err(|error| format!("{error:?}")),
             3 if payload.is_empty() => {

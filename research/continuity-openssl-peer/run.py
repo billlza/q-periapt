@@ -26,7 +26,7 @@ def arguments():
 
 
 class Counterpart:
-    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False, short_roster=False, registration=False):
+    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False, short_roster=False, registration=False, registration_extension=False):
         self.cases = output / "cases"
         self.cases.mkdir()
         self.stderr = (output / "native.stderr").open("xb")
@@ -46,6 +46,8 @@ class Counterpart:
                 command += ["--required-witness"]
             if registration:
                 command += ["--registration"]
+            if registration_extension:
+                command += ["--registration-extension"]
             self.process = subprocess.Popen(command,
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.stderr,
                 bufsize=0, start_new_session=True)

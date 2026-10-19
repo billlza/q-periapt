@@ -328,6 +328,24 @@ registered session, rekey, credential renewal and pending recovery under the
 client lifetime. Full session CLI integration and the documented pre-publication
 first-use recovery boundary remain open.
 
+`enrollment_extension_session.py` exercises the explicit preinstallation extension
+through the installed client and a native durable peer. The original credential
+and policy expire at fixture time160. The native issuer retains those signed
+materials, extends the same device key, and issues a separately pinned policy.
+Both peers bootstrap at210, exchange bidirectional traffic and complete one PQ
+rekey at220, then reopen their owners and recover the original ciphertext. Local
+and required-witness profiles refuse expired original policy, retargeting after
+child preparation, and use after the extended credential expires. The witness
+profile uses the real native store through a bounded loopback bridge.
+
+This separate fixture requires `--registration --registration-extension` and
+cannot be mixed with the older local/peer renewal fixtures. Its bootstrap,
+traffic and initial witness clocks are explicit; the existing fixtures keep
+their original clock contracts. Installed Python receipt schema2 requires this
+additional workload and its selected binary/module identities. It does not prove
+real account approval, a deployed TLS channel, physical power-loss recovery or
+credential renewal of the newly extended bilateral session.
+
 The byte contract is [WIRE_V1](../../docs/continuity/WIRE_V1.md), with the
 [bootstrap KDF graph](../continuity-identity-candidate/BOOTSTRAP.md#three-flights)
 and SDK purpose schedule in `crates/q-periapt-sdk/src/purpose.rs`. Provider API

@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 from bounded_process import capture_output
-from continuity_independent_python import PACKAGE, inspect_wheel, require, verify_installation
+from continuity_independent_python import PACKAGE, inspect_wheel, require, verify_installation, verify_extension_session
 from evidence_io import fresh_output_directory, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import git_commit, run_git_bytes
 
@@ -101,7 +101,7 @@ def qualify(args: argparse.Namespace) -> dict:
     cache.mkdir(mode=0o700)
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(("PYTHON", "PIP_", "DYLD_", "LD_"))}
-    result = {"schema_version": 1, "kind": "qperiapt.independent_python_installation",
+    result = {"schema_version": 2, "kind": "qperiapt.independent_python_installation",
               "completed": False, "release_claim_eligible": False, "source_commit": commit,
               "source_inputs": before, "wheel_sha256": wheel.sha256, "native_sha256": native.sha256}
 
@@ -164,6 +164,14 @@ def qualify(args: argparse.Namespace) -> dict:
                     {"completed": True, "profile": "witness", "witness_requests": 138,
                      "native_commands": 150, "refusal_cases": refusals + ["original-write-result-unknown"]}],
                 "installed enrollment client session workload or implementation differs")
+        run([*interpreter, str(application / "enrollment_extension_session.py"),
+             "--implementation-root", str(application), "--provider-root", str(provider),
+             "--native", str(args.native), "--output", str(output / "extension-session")], "extension-session")
+        extension_session = parse_strict_json_bytes(snapshot(output / "extension-session/RESULT.json").data,
+                                                   label="installed post-expiry enrollment session")
+        verify_extension_session(extension_session,
+                                 implementation=str(application / PACKAGE / "enrollment_client.py"),
+                                 native_sha256=native.sha256)
         # The consumer adds only declared test files; pip's installed files and
         # all copied inputs must remain byte-identical after real process cuts.
         after = installed_files(application)
@@ -175,7 +183,7 @@ def qualify(args: argparse.Namespace) -> dict:
                 "Python qualification inputs changed")
         result.update(completed=True, sources_unchanged=True, modules=expected,
                       registration={label: observed[label] for label in ("local", "witness")},
-                      client_session=client_session, provider=observed["provider"])
+                      client_session=client_session, extension_session=extension_session, provider=observed["provider"])
     except BaseException as error:
         result["failure"] = {"type": type(error).__name__, "message": str(error)}
         raise

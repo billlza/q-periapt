@@ -22,6 +22,28 @@ def require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
+def verify_extension_session(result: dict, *, implementation: str, native_sha256: str) -> None:
+    """Require the completed post-expiry workload from the selected installed owners."""
+    require(result.get("schema_version") == 1 and type(result.get("schema_version")) is int
+            and result.get("kind") == "qperiapt.enrollment_extension_session"
+            and result.get("completed") is True and result.get("provider") == "48.0.1"
+            and result.get("implementation") == implementation
+            and result.get("native_sha256") == native_sha256,
+            "extension session implementation or completion differs")
+    profiles = result.get("profiles")
+    require(isinstance(profiles, list) and len(profiles) == 2,
+            "extension session profiles differ")
+    refusals = ["expired-original-policy", "selected-installation-refuses-extension", "extended-credential-expiry"]
+    for row, label, commands, witness in zip(profiles, ("local", "witness"), (13, 125), (0, 110), strict=True):
+        expected = {"completed": True, "profile": label, "native_commands": commands,
+                    "witness_requests": witness, "refusal_cases": refusals,
+                    "bootstrap_time": 210, "traffic_time": 220, "original_expiry": 160,
+                    "extended_expiry": 300, "confirmed_epoch": 1}
+        require(isinstance(row, dict) and row == expected
+                and all(type(row[key]) is type(value) for key, value in expected.items()),
+                "extension session workload, time or refusal boundary differs")
+
+
 def verify_record(files: dict[str, bytes]) -> None:
     records = list(csv.reader(io.StringIO(files[DIST + "/RECORD"].decode("utf-8"), newline="")))
     require(all(len(row) == 3 for row in records) and len(records) == len(files)

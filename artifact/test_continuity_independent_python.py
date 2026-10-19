@@ -6,7 +6,40 @@ import json
 import unittest
 import zipfile
 
-from continuity_independent_python import DIST, PACKAGE, inspect_wheel, verify_installation
+from continuity_independent_python import DIST, PACKAGE, inspect_wheel, verify_installation, verify_extension_session
+
+
+class ExtensionSessionReceiptTests(unittest.TestCase):
+    def report(self):
+        return {"schema_version":1,"kind":"qperiapt.enrollment_extension_session","completed":True,
+                "provider":"48.0.1","implementation":"/installed/client.py","native_sha256":"a"*64,
+                "profiles":[{"completed":True,"profile":name,"native_commands":commands,
+                    "witness_requests":witness,"bootstrap_time":210,"traffic_time":220,
+                    "original_expiry":160,"extended_expiry":300,"confirmed_epoch":1,
+                    "refusal_cases":["expired-original-policy","selected-installation-refuses-extension","extended-credential-expiry"]}
+                    for name,commands,witness in [("local",13,0),("witness",125,110)]]}
+
+    def verify(self, report):
+        verify_extension_session(report,implementation="/installed/client.py",native_sha256="a"*64)
+
+    def test_both_complete_profiles(self):
+        self.verify(self.report())
+
+    def test_old_clock_partial_work_or_false_types_cannot_claim_extension_session(self):
+        for field,value in [("bootstrap_time",150),("traffic_time",170),("original_expiry",300),
+                            ("confirmed_epoch",0),("confirmed_epoch",True),("completed",1),
+                            ("witness_requests",0),("native_commands",124),("refusal_cases",[])]:
+            with self.subTest(field=field,value=value):
+                report=self.report(); report["profiles"][1][field]=value
+                with self.assertRaisesRegex(ValueError,"workload, time or refusal"):
+                    self.verify(report)
+
+    def test_wrong_native_installed_owner_or_missing_profile_is_rejected(self):
+        for field,value in [("native_sha256","b"*64),("implementation","/checkout/client.py"),
+                            ("completed",False),("profiles",[]),("schema_version",True)]:
+            with self.subTest(field=field):
+                report=self.report(); report[field]=value
+                with self.assertRaises(ValueError): self.verify(report)
 
 
 class WheelBoundaryTests(unittest.TestCase):

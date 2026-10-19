@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Actual Rust storage boundary, separate from the independent Python state.
-use crate::{fixture::Fixture, Result, NOW};
+use crate::{fixture::Fixture, Result};
 use q_periapt_continuity_identity_candidate::{
     BootstrapRole, DeviceJournal, DurableError, Error, JournalIdentity, JournalKey, MessageId,
     RekeyControlStep,
@@ -13,8 +13,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-
-const TRAFFIC_TIME: u64 = 170;
 
 pub(super) struct Journal {
     owner: DeviceJournal,
@@ -100,7 +98,7 @@ impl Journal {
                 &fixture.responder,
                 fixture.context.current_policy()?,
                 identity,
-                NOW,
+                fixture.times.bootstrap,
             )?;
             let genesis =
                 owner.anchor_genesis(&fixture.responder, fixture.context.current_policy()?)?;
@@ -150,24 +148,29 @@ impl Journal {
                     &fixture.signer,
                     PqKeySource::from_key(&fixture.prekey),
                     TraditionalKeySource::from_key(&fixture.prekey),
-                    NOW,
+                    fixture.times.bootstrap,
                 )?;
                 self.initial = Some(payload.to_vec());
                 Ok(reply)
             }
             5 => {
                 let initial = self.initial.as_deref().ok_or(DurableError::Suspended)?;
-                let session = self
-                    .owner
-                    .finish(Arc::clone(context), initial, payload, NOW)?;
+                let session = self.owner.finish(
+                    Arc::clone(context),
+                    initial,
+                    payload,
+                    fixture.times.bootstrap,
+                )?;
                 self.session = Some(session);
                 Ok(session.to_vec())
             }
             6 if payload.is_empty() => {
                 let initial = self.initial.as_deref().ok_or(DurableError::Suspended)?;
-                let session =
-                    self.owner
-                        .activate_responder_messages(Arc::clone(context), initial, NOW)?;
+                let session = self.owner.activate_responder_messages(
+                    Arc::clone(context),
+                    initial,
+                    fixture.times.bootstrap,
+                )?;
                 if Some(session) != self.session {
                     return Err(DurableError::Conflict);
                 }
@@ -178,7 +181,7 @@ impl Journal {
                 let session = self.session.ok_or(DurableError::Suspended)?;
                 Ok(self
                     .owner
-                    .receive_message(context, session, wire, ad, TRAFFIC_TIME)?
+                    .receive_message(context, session, wire, ad, fixture.times.traffic)?
                     .as_bytes()
                     .to_vec())
             }
@@ -186,7 +189,7 @@ impl Journal {
                 let session = self.session.ok_or(DurableError::Suspended)?;
                 Ok(self
                     .owner
-                    .next_message_id(context, session, TRAFFIC_TIME)?
+                    .next_message_id(context, session, fixture.times.traffic)?
                     .as_bytes()
                     .to_vec())
             }
@@ -194,21 +197,36 @@ impl Journal {
                 let identity = id(payload.get(..32).ok_or_else(encoding)?)?;
                 let (ad, plaintext) = ad_and_payload(payload.get(32..).ok_or_else(encoding)?)?;
                 let session = self.session.ok_or(DurableError::Suspended)?;
-                self.owner
-                    .send_message(context, session, identity, plaintext, ad, TRAFFIC_TIME)
+                self.owner.send_message(
+                    context,
+                    session,
+                    identity,
+                    plaintext,
+                    ad,
+                    fixture.times.traffic,
+                )
             }
             10 => {
                 let session = self.session.ok_or(DurableError::Suspended)?;
+                self.owner.consume_message(
+                    context,
+                    session,
+                    id(payload)?,
+                    fixture.times.traffic,
+                )?;
                 self.owner
-                    .consume_message(context, session, id(payload)?, TRAFFIC_TIME)?;
-                self.owner
-                    .message_acknowledgement(context, session, TRAFFIC_TIME)
+                    .message_acknowledgement(context, session, fixture.times.traffic)
             }
             11 => {
                 let session = self.session.ok_or(DurableError::Suspended)?;
                 Ok(self
                     .owner
-                    .accept_message_acknowledgement(context, session, payload, TRAFFIC_TIME)?
+                    .accept_message_acknowledgement(
+                        context,
+                        session,
+                        payload,
+                        fixture.times.traffic,
+                    )?
                     .to_be_bytes()
                     .to_vec())
             }
@@ -236,7 +254,7 @@ impl Journal {
             13 if payload.is_empty() => {
                 let session = self.session.ok_or(DurableError::Suspended)?;
                 self.owner
-                    .message_acknowledgement(context, session, TRAFFIC_TIME)
+                    .message_acknowledgement(context, session, fixture.times.traffic)
             }
             14..=23 => self.rekey_command(fixture, command, payload),
             24..=27 => crate::resolution::command(
@@ -245,7 +263,7 @@ impl Journal {
                 self.session.ok_or(DurableError::Suspended)?,
                 command,
                 payload,
-                TRAFFIC_TIME,
+                fixture.times.traffic,
             ),
             _ => Err(encoding()),
         }
@@ -265,11 +283,15 @@ impl Journal {
                 session,
                 payload,
                 &fixture.signer,
-                TRAFFIC_TIME,
+                fixture.times.traffic,
             ),
-            15 => self
-                .owner
-                .finish_rekey(context, session, payload, &fixture.signer, TRAFFIC_TIME),
+            15 => self.owner.finish_rekey(
+                context,
+                session,
+                payload,
+                &fixture.signer,
+                fixture.times.traffic,
+            ),
             16 if payload.is_empty() => {
                 let progress = self.owner.rekey_progress(context, session)?;
                 Ok([
@@ -282,36 +304,54 @@ impl Journal {
                 .flat_map(u64::to_be_bytes)
                 .collect())
             }
-            17 if payload.is_empty() => {
-                self.owner
-                    .prepare_rekey_offer(context, session, &fixture.signer, TRAFFIC_TIME)
-            }
+            17 if payload.is_empty() => self.owner.prepare_rekey_offer(
+                context,
+                session,
+                &fixture.signer,
+                fixture.times.traffic,
+            ),
             18 => self.owner.accept_rekey_response(
                 context,
                 session,
                 payload,
                 &fixture.signer,
-                TRAFFIC_TIME,
+                fixture.times.traffic,
             ),
             19 => Ok(self
                 .owner
-                .accept_rekey_receipt(context, session, payload, TRAFFIC_TIME)?
+                .accept_rekey_receipt(context, session, payload, fixture.times.traffic)?
                 .to_be_bytes()
                 .to_vec()),
             20 => {
                 let epoch = u64::from_be_bytes(payload.try_into().map_err(|_| encoding())?);
-                self.owner
-                    .message_acknowledgement_for_epoch(context, session, epoch, TRAFFIC_TIME)
+                self.owner.message_acknowledgement_for_epoch(
+                    context,
+                    session,
+                    epoch,
+                    fixture.times.traffic,
+                )
             }
             21 => {
                 let target = u64::from_be_bytes(payload.try_into().map_err(|_| encoding())?);
                 self.owner
-                    .advance_rekey_control(context, session, target, &fixture.signer, TRAFFIC_TIME)
+                    .advance_rekey_control(
+                        context,
+                        session,
+                        target,
+                        &fixture.signer,
+                        fixture.times.traffic,
+                    )
                     .map(control)
             }
             22 => self
                 .owner
-                .receive_rekey_control(context, session, payload, &fixture.signer, TRAFFIC_TIME)
+                .receive_rekey_control(
+                    context,
+                    session,
+                    payload,
+                    &fixture.signer,
+                    fixture.times.traffic,
+                )
                 .map(control),
             23 if payload.is_empty() => Ok(format!(
                 "{:?}",

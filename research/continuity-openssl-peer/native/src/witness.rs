@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Actual persistent witness and explicit test control plane, never peer enrollment.
-use crate::{fixture::Fixture, Result, NOW};
+use crate::{fixture::Fixture, Result};
 use q_periapt_continuity_identity_candidate::{
     AnchorClient, AnchorCredentialRenewalProposal, AnchorGenesis, AnchorIdentity,
     AnchorPendingWriteRecoveryProposal, AnchorPin, AnchorSigningKey, AnchorStore, AnchorSubject,
@@ -28,7 +28,7 @@ pub(super) struct Witness {
 }
 
 impl Witness {
-    pub fn create(public: &Path) -> Result<Arc<Self>> {
+    pub fn create(public: &Path, now: u64) -> Result<Arc<Self>> {
         let path = tempfile::Builder::new()
             .prefix("qperiapt-independent-witness-")
             .permissions(fs::Permissions::from_mode(0o700))
@@ -72,7 +72,7 @@ impl Witness {
             path,
             witness_key,
             device_key,
-            now: AtomicU64::new(NOW),
+            now: AtomicU64::new(now),
         }))
     }
 

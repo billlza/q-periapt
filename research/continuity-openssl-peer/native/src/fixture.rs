@@ -15,7 +15,11 @@ use zeroize::Zeroize;
 
 use crate::{Result, NOW};
 
+#[path = "fixture_extension.rs"]
+mod extension;
+
 pub(super) struct Fixture {
+    pub times: Times,
     pub context: Arc<BootstrapContext>,
     pub signer: DeviceSigningKey,
     pub prekey: q_periapt_sdk::HybridKey,
@@ -72,6 +76,27 @@ pub(super) struct Options {
     pub peer_lifecycle: bool,
     pub local_lifecycle: bool,
     pub short_roster: bool,
+    pub extension: bool,
+}
+#[derive(Clone, Copy)]
+pub(super) struct Times {
+    pub bootstrap: u64,
+    pub traffic: u64,
+}
+impl Options {
+    pub fn times(&self) -> Times {
+        if self.extension {
+            Times {
+                bootstrap: 210,
+                traffic: 220,
+            }
+        } else {
+            Times {
+                bootstrap: NOW,
+                traffic: 170,
+            }
+        }
+    }
 }
 
 pub(super) fn create(
@@ -81,11 +106,13 @@ pub(super) fn create(
     witness: Option<Arc<crate::witness::Witness>>,
     registration: Option<crate::registration::Approved>,
 ) -> Result<Fixture> {
+    let times = options.times();
     let Options {
         budget,
         peer_lifecycle,
         local_lifecycle,
         short_roster,
+        extension,
     } = options;
     let runtime = runtime(directory)?;
     let (authority, mut registered, retained) = match registration {
@@ -98,17 +125,26 @@ pub(super) fn create(
     };
     let validity = Validity::new(
         100,
-        if peer_lifecycle || local_lifecycle {
+        if peer_lifecycle || local_lifecycle || extension {
             400
         } else {
             200
         },
     )?;
     let family = authority.policy_family()?;
+    if extension {
+        extension::publish_original_policy(
+            directory,
+            &authority,
+            &runtime,
+            witness.as_ref(),
+            budget,
+        )?;
+    }
     let policy = authority.issue_session_policy(
         &runtime,
         SessionPolicyParameters::new(
-            1,
+            if extension { 2 } else { 1 },
             validity,
             AllowedPrekeyModes::new(&[PrekeyQuality::ReusableBoth])?,
             witness
@@ -131,7 +167,7 @@ pub(super) fn create(
     save(directory, "pin-directory", &[99; 32])?;
     let policy_pin = PolicyPin::new(family, authority.public_key()?, policy.checkpoint())?;
     let verified_policy =
-        Arc::new(policy_pin.verify(policy.as_bytes(), Arc::clone(&runtime), NOW)?);
+        Arc::new(policy_pin.verify(policy.as_bytes(), Arc::clone(&runtime), times.bootstrap)?);
     let signer = match &witness {
         Some(w) => w.provision_device()?,
         None => DeviceSigningKey::generate()?,
@@ -161,7 +197,12 @@ pub(super) fn create(
                 public,
             )?,
         };
-        let roster = root.issue_roster(1, validity, &[root.roster_entry(&certificate)?])?;
+        let (certificate, roster) = if extension && role == "i" {
+            extension::credential(directory, &root, certificate, family, times)?
+        } else {
+            let roster = root.issue_roster(1, validity, &[root.roster_entry(&certificate)?])?;
+            (certificate, roster)
+        };
         let pin = AccountPin::new(
             root.account_id()?,
             root.public_key()?,
@@ -171,7 +212,7 @@ pub(super) fn create(
         devices.push(Arc::new(pin.verify_device(
             &certificate,
             roster.as_bytes(),
-            NOW,
+            times.bootstrap,
         )?));
         let mut expectation = root.account_id()?.to_vec();
         expectation.extend_from_slice(&roster.checkpoint().version().to_be_bytes());
@@ -210,7 +251,11 @@ pub(super) fn create(
     let key = runtime.generate_key()?;
     let public = key.public_key()?.to_bytes();
     let (pq, classical) = public.split_at(q_periapt_backends::ML_KEM_768_PK_LEN);
-    let advertisement = Validity::new(100, 160)?;
+    let advertisement = if extension {
+        Validity::new(times.bootstrap, 260)?
+    } else {
+        Validity::new(100, 160)?
+    };
     let manifest = signer.issue_manifest(
         responder,
         ManifestContext::new(
@@ -225,11 +270,11 @@ pub(super) fn create(
             PrekeyLeaf::new(LeafKind::LastResortPq, pq, advertisement)?,
         ],
     )?;
-    let verified = responder.verify_manifest(manifest.as_bytes(), NOW)?;
+    let verified = responder.verify_manifest(manifest.as_bytes(), times.bootstrap)?;
     let mut proofs = std::collections::BTreeMap::new();
     for index in 0..2 {
         let proof = manifest.proof(index)?;
-        let kind = verified.verify_leaf(&proof, NOW)?.kind() as u8;
+        let kind = verified.verify_leaf(&proof, times.bootstrap)?.kind() as u8;
         save(directory, &format!("proof-{kind}"), &proof.encode()?)?;
         proofs.insert(kind, proof);
     }
@@ -239,7 +284,7 @@ pub(super) fn create(
         proofs.get(&3).ok_or("missing PQ proof")?,
         ClassicalChoice::SignedOnly,
         PqChoice::LastResort,
-        NOW,
+        times.bootstrap,
     )?);
     save(directory, "expected-selection", selection.as_bytes())?;
     let context = Arc::new(BootstrapContext::new(
@@ -248,10 +293,11 @@ pub(super) fn create(
         Arc::clone(responder),
         selection,
         DirectoryExpectation::from_trusted_state([99; 32])?,
-        NOW,
+        times.bootstrap,
     )?);
     save(directory, "expected-context", &context.digest())?;
     Ok(Fixture {
+        times,
         context,
         signer,
         prekey: key,
