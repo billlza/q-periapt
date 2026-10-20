@@ -4,9 +4,10 @@ import {Records, MAX_RECORD_BYTES} from './enrollment-records.mjs';
 import {Enrollment} from './enrollment-model.mjs';
 import {extensionUI} from './extension.mjs';
 import {grantUI} from './grant.mjs';
+import {policyUI} from './policy.mjs';
 const el = id => document.getElementById(id);
-function download(name, text) {
-  const url = URL.createObjectURL(new Blob([text], {type: 'application/json'}));
+function download(name, text, type = 'application/json') {
+  const url = URL.createObjectURL(new Blob([text], {type}));
   const anchor = document.createElement('a'); anchor.href = url; anchor.download = name;
   document.body.append(anchor); anchor.click(); anchor.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -24,6 +25,8 @@ export function enrollmentUI(action, identity) {
       await showRoot(await model.readRoot());
     }});
   const grants = grantUI({state: () => ({model, selected, disposition, observation, issued}), bind, download, fingerprint,
+    change: (id, work) => el(id).addEventListener('change', () => action(async () => { await authenticated(); await work(); }))});
+  const policies = policyUI({state: () => ({model, selected, disposition, observation, issued}), bind, download, fingerprint,
     change: (id, work) => el(id).addEventListener('change', () => action(async () => { await authenticated(); await work(); }))});
   function clearObservation() {
     disposition = null; observation = null; issued = null; draft = null; hasProof = false; directProof = false;
@@ -58,6 +61,7 @@ export function enrollmentUI(action, identity) {
     el('save-authority').disabled = observation === null;
     extensions.controls();
     grants.controls();
+    policies.controls();
   }
   async function authenticated() {
     if (!model || !identity()) throw new Error('Sign in as the original account first');

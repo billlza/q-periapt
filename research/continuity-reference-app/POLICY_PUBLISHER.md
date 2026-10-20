@@ -159,9 +159,16 @@ through an authenticated channel separately from the device's request:
 q-periapt-policy-publisher renewal-approve DB PUBLISHER_ID DEVICE_REQUEST ACCOUNT_PINS ORIGINAL_PUBLICATION PREVIOUS_PUBLICATION TARGET_PUBLICATION NEW_APPROVAL_FILE
 q-periapt-policy-publisher renewal-status DB PUBLISHER_ID DEVICE_REQUEST ACCOUNT_PINS ORIGINAL_PUBLICATION PREVIOUS_PUBLICATION TARGET_PUBLICATION
 q-periapt-policy-publisher renewal-cancel DB PUBLISHER_ID DEVICE_REQUEST ACCOUNT_PINS ORIGINAL_PUBLICATION PREVIOUS_PUBLICATION TARGET_PUBLICATION
+q-periapt-policy-publisher renewal-policies DB PUBLISHER_ID ORIGINAL_PUBLICATION PREVIOUS_PUBLICATION TARGET_PUBLICATION NEW_JSON_FILE
 ```
 
-These are explicit operator decisions; a signed device report does not itself
+The read-only `renewal-policies` command packages three exact public exports for
+the account browser's review. It works with historical publications, creates no
+approval and uses exclusive output publication. Its bundle is bounded at 448 KiB.
+The account host independently verifies its configured policy family and signed
+inputs; loading a bundle does not establish live permission.
+
+Approval and cancellation are explicit operator decisions; a signed device report does not itself
 authenticate the operator or establish that the supplied account snapshot is the
 latest one. The embedding host must authenticate and serialize account trust
 selection. The publisher checks device signatures, the selected original policy
@@ -186,7 +193,8 @@ old decisions to make room.
 
 The policy-side operator flow and the separate authenticated
 [account approval API](POLICY_RENEWAL.md#account-side-approval) are integrated.
-The browser P review/recovery interface and real-user ceremony remain open.
+The browser P review/recovery interface is integrated; its real-user ceremony
+and continued-session acceptance remain open.
 Neither a policy signature nor a successfully exported file proves device adoption
 or live session admission.
 

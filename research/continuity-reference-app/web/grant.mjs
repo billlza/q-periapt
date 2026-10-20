@@ -30,7 +30,7 @@ export function grantUI({state, bind, change, download, fingerprint}) {
       }
       el(key).value = previous; el(key).disabled = s.disposition?.state !== 'Issued';
     }
-    const rows = s.invitation && s.records.schema === 3 ? s.records.grants.filter(r => equal(r.request.retained.enrollment, s.invitation.operation)) : [];
+    const rows = s.invitation && s.records.schema >= 3 ? s.records.grants.filter(r => equal(r.request.retained.enrollment, s.invitation.operation)) : [];
     el('grants').replaceChildren(new Option('Select a retained recovery authorization', ''));
     for (const row of rows) {
       const key = base64(row.request.retained.operation);

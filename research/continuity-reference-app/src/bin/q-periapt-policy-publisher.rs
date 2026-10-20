@@ -15,12 +15,13 @@ use operator_io::{export_directory, identifier, print, read};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 const USAGE: &str = concat!(
-    "Usage: q-periapt-policy-publisher <init|prepare|authority|issue|result|cancel|renewal-enable|renewal-approve|renewal-status|renewal-cancel> <absolute-db> <base64url-publisher-id> [arguments]\n",
+    "Usage: q-periapt-policy-publisher <init|prepare|authority|issue|result|cancel|renewal-enable|renewal-approve|renewal-status|renewal-cancel|renewal-policies> <absolute-db> <base64url-publisher-id> [arguments]\n",
     "init: <sdk-root-file> <sdk-state-file> <sdk-document-file> <sdk-signature-file>\n",
     "issue: <base64url-operation-id> <request-json> <existing-empty-private-export-dir>\n",
     "result: <base64url-operation-id> <existing-empty-private-export-dir>\n",
     "cancel: <base64url-operation-id>\n",
     "renewal-enable: explicit schema-2 upgrade, no further arguments\n",
+    "renewal-policies: <original-publication-id> <previous-publication-id> <target-publication-id> <new-policy-inputs-json>\n",
     "renewal-status/renewal-cancel: <retained-device-request> <independent-account-pins> <original-publication-id> <previous-publication-id> <target-publication-id>\n",
     "renewal-approve: same arguments, then <new-binary-approval-output>\n",
     "All input files must be private regular files. No account login or clock override.",
@@ -58,6 +59,7 @@ fn main() -> Result<()> {
         "cancel" => 5,
         "prepare" | "authority" => 4,
         "renewal-enable" => 4,
+        "renewal-policies" => 8,
         "renewal-approve" => 10,
         "renewal-status" | "renewal-cancel" => 9,
         _ => return Err(USAGE.into()),
@@ -83,7 +85,11 @@ fn main() -> Result<()> {
     let mut owner = Publisher::open(&path, identity)?;
     if matches!(
         command,
-        "renewal-enable" | "renewal-approve" | "renewal-status" | "renewal-cancel"
+        "renewal-enable"
+            | "renewal-policies"
+            | "renewal-approve"
+            | "renewal-status"
+            | "renewal-cancel"
     ) {
         return publisher_renewal_cli::run(owner, &args);
     }

@@ -1,6 +1,45 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+use crate::policy_approval::PolicyApprovalPreview;
 impl Store {
+    /// Read-only review. New decisions require live admission; original
+    /// Pending/Issued decisions use their retained, authenticated history.
+    pub fn preview_policy_approval(
+        &mut self,
+        account: &Account,
+        request: &PolicyApprovalRequest,
+    ) -> Result<PolicyApprovalPreview, Error> {
+        self.action(|store| {
+            let original = store.policy_context(account, request)?;
+            Ok(
+                match store.policy_record(account, request)?.map(|r| r.phase) {
+                    Some(Decision::Closed) => PolicyApprovalPreview::Closed,
+                    Some(Decision::Pending { account, statement }) => {
+                        let review = request.review(&account)?;
+                        if review.statement != statement {
+                            return Err(Error::Internal);
+                        }
+                        PolicyApprovalPreview::Pending { review }
+                    }
+                    Some(Decision::Issued { account, response }) => {
+                        Self::checked_policy_response(request, &account, &response)?;
+                        PolicyApprovalPreview::Issued {
+                            review: request.review(&account)?,
+                        }
+                    }
+                    None => {
+                        let (_, info) = store.policy_inputs(account, request, &original)?;
+                        let (statement, _) = request.statement(&info, now()?)?;
+                        let review = request.review(&info)?;
+                        if statement.digest() != review.statement {
+                            return Err(Error::Internal);
+                        }
+                        PolicyApprovalPreview::Absent { review }
+                    }
+                },
+            )
+        })
+    }
     /// Query only; an unresolved operation is never resumed or signed here.
     pub fn policy_approval_status(
         &mut self,

@@ -108,6 +108,12 @@ older pages refuse that schema. Backups include both kinds, share the existing
 512-record/4-MiB bound, and reject conflicting histories rather than overwriting
 them. These public recovery records contain no device private key or login cookie.
 
+Schema 3 adds retained G authorizations; schema 4 adds separate
+[policy approval reviews and results](POLICY_RENEWAL.md#browser-review-and-recovery).
+Both preserve earlier operations and credential history. Importing an older
+backup into a newer cache cannot downgrade it or replace newer retained outcomes.
+All four operation kinds share the same capacity bounds.
+
 Records are bounded at 512 operations and 4 MiB, imported device requests at 8192
 bytes and HTTP responses at 256 KiB. Quota exhaustion is an error, not a reason
 to discard unresolved history. Timeout/disconnection does not cancel a running

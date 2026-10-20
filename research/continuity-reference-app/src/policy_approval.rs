@@ -3,19 +3,13 @@
 use crate::{
     enrollment::{wire, Checkpoint, RootInfo},
     error::Error,
-    policy_publisher::{PolicyMaterials, PolicyPins},
     policy_renewal,
 };
 use q_periapt_continuity_identity_candidate as sdk;
 use serde::{Deserialize, Serialize};
 
 pub const MAX_POLICY_APPROVAL_REQUEST: usize = 512 * 1024;
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PolicyInput {
-    pub pins: PolicyPins,
-    pub materials: PolicyMaterials,
-}
+pub use crate::policy_publisher::PolicyInput;
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PolicyApprovalRequest {
@@ -58,7 +52,60 @@ pub enum PolicyApprovalStatus {
     },
     Closed,
 }
+/// Authenticated review metadata, not a live permission or an issuer signature.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PolicyApprovalReview {
+    pub statement: [u8; 32],
+    pub target: Checkpoint,
+    pub valid_from: u64,
+    pub valid_until: u64,
+    pub send_budget: u16,
+    pub witness_required: bool,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "state", deny_unknown_fields)]
+pub enum PolicyApprovalPreview {
+    Absent { review: PolicyApprovalReview },
+    Pending { review: PolicyApprovalReview },
+    Issued { review: PolicyApprovalReview },
+    Closed,
+}
 impl PolicyApprovalRequest {
+    pub(crate) fn review(&self, account: &RootInfo) -> Result<PolicyApprovalReview, Error> {
+        let original = self
+            .original
+            .pins
+            .verify_historical(&self.original.materials, account.family)?
+            .0;
+        let previous = self
+            .previous
+            .pins
+            .verify_historical(&self.previous.materials, account.family)?
+            .0;
+        let target = self
+            .target
+            .pins
+            .verify_historical(&self.target.materials, account.family)?
+            .0;
+        let devices = self
+            .retained
+            .verify_historical_identities(account)
+            .map_err(|e| Error::internal("policy review identities", e))?;
+        let statement = sdk::PolicyRenewalStatement::historical_digest(
+            devices.scope(),
+            &devices.historical_materials(&original, &previous, &target),
+        )
+        .map_err(|e| Error::internal("policy review relation", e))?;
+        Ok(PolicyApprovalReview {
+            statement,
+            target: policy_renewal::checkpoint(target.checkpoint()),
+            valid_from: target.validity().from(),
+            valid_until: target.validity().until(),
+            send_budget: target.application_send_budget().messages(),
+            witness_required: target.anchor_requirement().binding().is_some(),
+        })
+    }
     pub(crate) fn shape(&self) -> Result<(), Error> {
         self.retained
             .check_shape()

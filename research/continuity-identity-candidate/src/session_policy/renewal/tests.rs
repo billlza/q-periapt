@@ -17,6 +17,11 @@ fn retained_policy_signature_is_role_bound_and_does_not_replace_account_approval
         .expect("account");
     c.target.close();
     assert_eq!(
+        PolicyRenewalStatement::historical_digest(&c.scope, &materials.historical())
+            .expect("review commitment"),
+        statement.digest()
+    );
+    assert_eq!(
         policy
             .verify_policy(&c.scope, &materials.historical())
             .expect("historical signature"),

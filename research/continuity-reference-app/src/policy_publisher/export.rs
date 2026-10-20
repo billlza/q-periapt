@@ -36,6 +36,21 @@ pub struct PolicyMaterials {
     #[serde(with = "wire")]
     policy: Vec<u8>,
 }
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PolicyInput {
+    pub pins: PolicyPins,
+    pub materials: PolicyMaterials,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PolicyApprovalInputs {
+    pub schema: String,
+    pub family: [u8; 32],
+    pub original: PolicyInput,
+    pub previous: PolicyInput,
+    pub target: PolicyInput,
+}
 fn required_witness<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Witness>, D::Error> {
     Option::<Witness>::deserialize(d)
 }
@@ -128,6 +143,30 @@ impl PolicyPins {
     }
 }
 impl Publisher {
+    /// Collect exact historical exports for account review. This neither signs
+    /// a renewal nor asserts current permission or device adoption.
+    pub fn renewal_inputs(
+        &self,
+        original: [u8; 32],
+        previous: [u8; 32],
+        target: [u8; 32],
+    ) -> Result<PolicyApprovalInputs, Error> {
+        let input = |operation| {
+            self.export(operation)
+                .map(|(pins, materials)| PolicyInput { pins, materials })
+        };
+        let result = PolicyApprovalInputs {
+            schema: "qperiapt-policy-approval-inputs/1".into(),
+            family: self.authority()?.family,
+            original: input(original)?,
+            previous: input(previous)?,
+            target: input(target)?,
+        };
+        if serde_json::to_vec(&result).map_err(fail)?.len() > 448 * 1024 {
+            return Err(Error::Capacity);
+        }
+        Ok(result)
+    }
     /// Exact original public formats consumed by the independent client's PolicyInputs.
     /// Historical export can succeed after expiry; consumers still verify current time.
     pub fn export(&self, operation: [u8; 32]) -> Result<(PolicyPins, PolicyMaterials), Error> {

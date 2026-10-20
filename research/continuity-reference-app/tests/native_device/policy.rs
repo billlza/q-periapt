@@ -413,6 +413,42 @@ fn adopt_fresh_policy(
 }
 
 fn publisher_cli_recovery(path: &Path) -> Result<()> {
+    let bundle = path.join("policy-inputs.json");
+    let export = [
+        OsString::from("renewal-policies"),
+        path.join("publisher.redb").into_os_string(),
+        URL_SAFE_NO_PAD.encode([60; 32]).into(),
+        URL_SAFE_NO_PAD.encode([65; 32]).into(),
+        URL_SAFE_NO_PAD.encode([65; 32]).into(),
+        URL_SAFE_NO_PAD.encode([121; 32]).into(),
+        bundle.clone().into_os_string(),
+    ];
+    let exported = Command::new(env!("CARGO_BIN_EXE_q-periapt-policy-publisher"))
+        .args(&export)
+        .output()?;
+    assert!(
+        exported.status.success(),
+        "{}",
+        String::from_utf8_lossy(&exported.stderr)
+    );
+    assert!(exported.stderr.is_empty());
+    let public: q_periapt_continuity_reference_app::policy_publisher::PolicyApprovalInputs =
+        serde_json::from_slice(&fs::read(&bundle)?)?;
+    let publisher = Publisher::open(&path.join("publisher.redb"), [60; 32])?;
+    assert_eq!(public.schema, "qperiapt-policy-approval-inputs/1");
+    assert_eq!(public.family, publisher.authority()?.family);
+    let expected = publisher.renewal_inputs([65; 32], [65; 32], [121; 32])?;
+    assert_eq!(serde_json::to_vec(&public)?, serde_json::to_vec(&expected)?);
+    let (_, original) = publisher.export([65; 32])?;
+    assert!(public.original.materials == original && public.previous == public.original);
+    drop(publisher);
+    assert!(
+        !Command::new(env!("CARGO_BIN_EXE_q-periapt-policy-publisher"))
+            .args(&export)
+            .output()?
+            .status
+            .success()
+    );
     let args = [
         OsString::from("renewal-approve"),
         path.join("publisher.redb").into_os_string(),

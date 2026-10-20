@@ -127,7 +127,7 @@ pending decision and issued response survive restart. The native CLI can stage,
 inspect and activate that exact original operation, with separate witness
 proposal/approval when required. The browser separately prepares a reviewable
 decision, approves issuance, queries the original result without signing, and
-cancels an unissued decision. Its schema-3 recovery backup preserves the earlier
+cancels an unissued decision. Its recovery backup preserves the earlier
 enrollment and certificate-extension records. Real-account recovery through the
 browser and native consumer still needs its separate runtime acceptance.
 
@@ -136,7 +136,11 @@ verifies separate account/policy approvals, adopts the exact local operation and
 recovers its historical result. `enable-policy-approvals` explicitly upgrades the
 account host from schema 5 to 6, adding a durable, authenticated P decision ledger.
 The protected policy publisher supplies the other approval independently.
-Browser P review/recovery and continued-session integration remain open.
+The browser verifies a public policy bundle before presenting its exact interval
+and statement for separate approval. Schema-4 browser backups retain enrollment,
+credential renewal, G and P history under the same cache key. Query/cancel and
+byte-exact result recovery are integrated; real-account P acceptance and
+continued-session integration remain open.
 
 The service's invitation API requires a caller-retained random request ID. Retry
 that same ID after an uncertain reply, even if the host operation ID was lost.

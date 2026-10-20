@@ -10,14 +10,27 @@ use axum::{
     Json, Router,
 };
 use q_periapt_continuity_reference_app::policy_approval::{
-    PolicyApprovalRequest, PolicyApprovalStatus, MAX_POLICY_APPROVAL_REQUEST,
+    PolicyApprovalPreview, PolicyApprovalRequest, PolicyApprovalStatus, MAX_POLICY_APPROVAL_REQUEST,
 };
 pub(super) fn routes() -> Router<Shared> {
     Router::new()
         .route("/api/enrollment/policy-approval", post(issue))
+        .route("/api/enrollment/policy-approval/preview", post(preview))
         .route("/api/enrollment/policy-approval/status", post(status))
         .route("/api/enrollment/policy-approval/cancel", post(cancel))
         .layer(DefaultBodyLimit::max(MAX_POLICY_APPROVAL_REQUEST))
+}
+async fn preview(
+    State(state): State<Shared>,
+    headers: HeaderMap,
+    Json(request): Json<PolicyApprovalRequest>,
+) -> Result<Json<PolicyApprovalPreview>, Error> {
+    let token = session(&headers)?;
+    Ok(Json(
+        state
+            .call(move |s| s.preview_policy_approval(&token, &request))
+            .await?,
+    ))
 }
 fn session(headers: &HeaderMap) -> Result<String, Error> {
     cookie(headers, SESSION)?.ok_or(Error::Unauthorized)

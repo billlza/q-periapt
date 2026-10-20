@@ -4,7 +4,8 @@ use super::*;
 use crate::{
     native_device::PolicyRecoveryInputs,
     policy_approval::{
-        IssuedPolicyApproval, PolicyApprovalRequest, PolicyApprovalStatus, PolicyInput,
+        IssuedPolicyApproval, PolicyApprovalPreview, PolicyApprovalRequest, PolicyApprovalStatus,
+        PolicyInput,
     },
     policy_publisher::RenewalRequest,
 };
@@ -152,7 +153,30 @@ fn both_protected_issuers_adopt_policy_after_original_credential_recovery() -> R
         assert!(c.issue().is_err());
         c.base.host.store.enable_policy_approvals()?;
         c.base.host.store.enable_policy_approvals()?;
+        let PolicyApprovalPreview::Absent { review } = c
+            .base
+            .host
+            .preview_policy_approval(&c.base.token, &c.request)?
+        else {
+            return Err("new decision preview".into());
+        };
+        assert_eq!(
+            review.valid_until,
+            c.publisher.result([94; 32])?.request.valid_until
+        );
+        assert_eq!(review.send_budget, 8);
+        assert!(!review.witness_required);
+        assert!(matches!(
+            c.base
+                .host
+                .policy_approval_status(&c.base.token, &c.request)?,
+            PolicyApprovalStatus::Absent
+        ));
+        assert_eq!(c.base.host.enrollment_root(&c.base.token)?, before);
         let issued = c.issue()?;
+        let result: IssuedPolicyApproval = serde_json::from_slice(&issued)?;
+        assert_eq!(result.statement, review.statement);
+        assert_eq!(result.target, review.target);
         c.adopt(&issued)?;
         assert_eq!(c.issue()?, issued);
         assert_eq!(c.base.host.enrollment_root(&c.base.token)?, before);
@@ -179,6 +203,15 @@ fn both_protected_issuers_adopt_policy_after_original_credential_recovery() -> R
             return Err("original policy result".into());
         };
         assert_eq!(response, issued);
+        let PolicyApprovalPreview::Issued { review: recovered } =
+            host.preview_policy_approval(&token, &c.request)?
+        else {
+            return Err("historical preview without signer".into());
+        };
+        assert_eq!(recovered, review);
+        let mut unissued = c.request.clone();
+        unissued.retained.scope.operation[0] ^= 1;
+        assert!(host.preview_policy_approval(&token, &unissued).is_err());
         assert_eq!(host.issue_policy_approval(&token, &c.request)?, issued);
         assert!(host.cancel_policy_approval(&token, &c.request).is_err());
     }
@@ -193,6 +226,10 @@ fn account_policy_approval_requires_login_and_exact_host_credential_ancestry() -
     register(&mut c.base.host, &mut bob, "bob")?;
     let (other, _) = login(&mut c.base.host, &mut bob, "bob")?;
     for token in ["invalid", other.as_str()] {
+        assert!(matches!(
+            c.base.host.preview_policy_approval(token, &c.request),
+            Err(Error::Unauthorized)
+        ));
         assert!(matches!(
             c.base.host.issue_policy_approval(token, &c.request),
             Err(Error::Unauthorized)
@@ -256,6 +293,11 @@ fn account_policy_approval_requires_login_and_exact_host_credential_ancestry() -
         assert!(c
             .base
             .host
+            .preview_policy_approval(&c.base.token, &bad)
+            .is_err());
+        assert!(c
+            .base
+            .host
             .issue_policy_approval(&c.base.token, &bad)
             .is_err());
         assert!(matches!(
@@ -300,6 +342,10 @@ fn account_policy_tombstone_fences_an_original_delayed_request() -> Result {
     assert!(matches!(
         host.policy_approval_status(&token, &c.request)?,
         PolicyApprovalStatus::Closed
+    ));
+    assert!(matches!(
+        host.preview_policy_approval(&token, &c.request)?,
+        PolicyApprovalPreview::Closed
     ));
     host.cancel_policy_approval(&token, &c.request)?;
     assert!(matches!(

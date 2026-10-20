@@ -22,6 +22,11 @@ fn account_policy_pending_target_expiry_never_issues_or_silently_discards_the_or
     let mut host = reopen(&c.base.path)?;
     let (token, _) = login(&mut host, &mut c.base.auth, "alice")?;
     let pending = serde_json::to_vec(&host.policy_approval_status(&token, &c.request)?)?;
+    let PolicyApprovalPreview::Pending { review } =
+        host.preview_policy_approval(&token, &c.request)?
+    else {
+        return Err("pending policy review".into());
+    };
     assert!(matches!(
         host.policy_approval_status(&token, &c.request)?,
         PolicyApprovalStatus::Pending { .. }
@@ -33,6 +38,25 @@ fn account_policy_pending_target_expiry_never_issues_or_silently_discards_the_or
         }
         std::thread::sleep(Duration::from_millis(20));
     }
+    let PolicyApprovalPreview::Pending { review: expired } =
+        host.preview_policy_approval(&token, &c.request)?
+    else {
+        return Err("expired pending review".into());
+    };
+    assert_eq!(expired, review);
+    let PolicyApprovalPreview::Issued { review: historical } =
+        host.preview_policy_approval(&token, &issued_request)?
+    else {
+        return Err("expired issued review".into());
+    };
+    assert_eq!(historical.valid_until, until);
+    let mut absent = c.request.clone();
+    absent.retained.scope.operation = crate::enrollment::random()?;
+    assert!(host.preview_policy_approval(&token, &absent).is_err());
+    assert!(matches!(
+        host.policy_approval_status(&token, &absent)?,
+        PolicyApprovalStatus::Absent
+    ));
     assert!(host.issue_policy_approval(&token, &c.request).is_err());
     assert_eq!(
         serde_json::to_vec(&host.policy_approval_status(&token, &c.request)?)?,

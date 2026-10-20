@@ -151,11 +151,12 @@ approval does not prove that the device has adopted either policy.
 
 ```text
 POST /api/enrollment/policy-approval
+POST /api/enrollment/policy-approval/preview
 POST /api/enrollment/policy-approval/status
 POST /api/enrollment/policy-approval/cancel
 ```
 
-All three routes require the original account's live login and exact same-origin
+All four routes require the original account's live login and exact same-origin
 boundary. They take the same immutable request. Only these policy routes accept
 up to 512 KiB, accommodating three signed policy/SDK bundles; other routes retain
 their 64 KiB limit. The separate ledger retains at most 512 decisions and never
@@ -175,5 +176,46 @@ account and query/retry the original request. Historical issued responses remain
 available after root suspension, expiry or loss of signing files, and their
 account signature is reverified on retrieval. This is historical data, not a new
 permission. The device still requires both approvals, exact original state and
-current admission. The browser P review/backup flow and real-user ceremony remain
-open; the API's software-authenticator tests do not satisfy that gate.
+current admission.
+
+## Browser review and recovery
+
+Use the original account and select the already-issued enrollment. Load the
+device's original `policy-request` JSON, then the public bundle exported by:
+
+```text
+q-periapt-policy-publisher renewal-policies DB PUBLISHER_ID ORIGINAL_PUBLICATION PREVIOUS_PUBLICATION TARGET_PUBLICATION NEW_JSON_FILE
+```
+
+Select the original and current credential issuance (the initial certificate or
+an already-issued renewal). **Verify and prepare** calls only `preview`. For a new
+decision, the host verifies live membership, signatures and the same-profile
+relation without reserving or signing it. The displayed target interval, send
+budget and witness requirement come from the verified signed policy, alongside
+the canonical statement and exact request SHA-256. Historical Pending/Issued
+reviews use the original retained inputs even after expiry or root suspension;
+Closed is returned without a signable review. Neither is new permission.
+
+Review and issuance are separate actions. Preparation saves the exact request,
+original enrollment response and verified review before enabling approval.
+Selecting a retained decision rechecks its review against the authenticated host;
+signing also rechecks every saved review field before dispatch. A structurally
+valid backup alone cannot establish that its displayed interval was authenticated.
+**Approve and issue** records Submitted locally before dispatch. After a timeout,
+query that same operation; querying never resumes signing. Cancellation records
+CancelRequested before sending, so a lost cancellation reply cannot silently
+reenable approval. If issuance already won the race, querying retrieves its
+original result instead.
+
+Backups use browser schema 4 and preserve all schema-1/2/3 histories under the
+same account/origin cache key. Reading older records does not rewrite them;
+explicit preparation or import upgrades the payload. The shared 512-record and
+4-MiB limits remain, with no eviction. Conflicting imports or host results fail
+without replacing the original record. The result can be saved as exact JSON or
+as decoded `account-policy-approval.bin` for the native consumer. The separate
+policy-authority approval is still required.
+
+Model/controller tests cover the browser state machine with substituted DOM,
+storage and network; authenticated HTTP tests use a software authenticator and
+real issuer/device signatures. The real-user browser ceremony and continued
+traffic acceptance remain open; these checks do not substitute for them.

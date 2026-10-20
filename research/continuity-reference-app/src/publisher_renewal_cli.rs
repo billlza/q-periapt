@@ -10,6 +10,16 @@ use std::{ffi::OsString, path::Path};
 
 pub(super) fn run(mut owner: Publisher, args: &[OsString]) -> Result<()> {
     let command = args[1].to_str().ok_or(USAGE)?;
+    if command == "renewal-policies" {
+        let inputs = owner.renewal_inputs(
+            identifier(&args[4])?,
+            identifier(&args[5])?,
+            identifier(&args[6])?,
+        )?;
+        publish_private_bytes(Path::new(&args[7]), &serde_json::to_vec(&inputs)?)?;
+        drop(owner);
+        return print(&serde_json::json!({"state":"PolicyInputsExported"}));
+    }
     if command == "renewal-enable" {
         owner.enable_renewals()?;
         drop(owner);

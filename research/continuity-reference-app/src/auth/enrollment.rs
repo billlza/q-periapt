@@ -6,6 +6,16 @@ use crate::{
 };
 
 impl Service {
+    pub fn preview_policy_approval(
+        &mut self,
+        token: &str,
+        request: &crate::policy_approval::PolicyApprovalRequest,
+    ) -> Result<crate::policy_approval::PolicyApprovalPreview, Error> {
+        let account = self.authenticated(token)?;
+        let result = self.store.preview_policy_approval(&account, request)?;
+        self.authenticated(token)?;
+        Ok(result)
+    }
     pub fn policy_approval_status(
         &mut self,
         token: &str,

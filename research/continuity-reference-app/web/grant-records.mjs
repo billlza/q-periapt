@@ -2,6 +2,7 @@
 // Browser shape/history checks. Cryptographic authority remains with host and SDK.
 import {base64, unbase64, encode, parse, equal} from './transport.mjs';
 import {require, fields, id, integer, checkpoint} from './record-validation.mjs';
+import {credentialHistory} from './credential-history.mjs';
 export const GRANT_REQUEST_BYTES = 64 * 1024;
 function bounded(text, maximum) {
   require(typeof text === 'string' && new TextEncoder().encode(text).length <= maximum, 'Recovery input exceeds bound');
@@ -27,13 +28,6 @@ export function grantRequest(value) {
   require(BigInt(value.target_checkpoint.version) > BigInt(value.retained.previous_checkpoint.version), 'Grant target must follow the reported predecessor');
   bounded(encode(value), GRANT_REQUEST_BYTES); return value;
 }
-function issuance(text, original) {
-  const value = bounded(text, 128 * 1024);
-  fields(value, 'operation root_revision certificate roster checkpoint');
-  id(value.operation); integer(value.root_revision, true); selectedHead(value.checkpoint);
-  require(equal(value.operation, original.operation) && value.root_revision === original.root_revision, 'Historical issuance belongs to another enrollment');
-  unbase64(value.certificate, 65536); unbase64(value.roster, 65536); return value;
-}
 export function grantResponse(text, request) {
   const value = bounded(text, 128 * 1024), r = request.retained;
   fields(value, 'enrollment operation journal root_revision statement checkpoint grant');
@@ -49,26 +43,11 @@ export function grantRecord(row, operations, extensions, application) {
   const request = row.request, r = request.retained;
   const original = operations.find(o => o.invitation && equal(o.invitation.operation, r.enrollment))?.invitation;
   require(original && base64(r.application) === application && original.root_revision === r.root_revision, 'Retained grant has no original account enrollment');
-  const first = issuance(row.enrollment_response, original);
-  function extension(selection) {
-    const item = extensions.find(e => equal(e.request.request_id, selection));
-    require(item && item.response !== null && equal(item.request.enrollment, r.enrollment)
-      && item.root_revision === r.root_revision, 'Select an issued extension of the original enrollment');
-    return item;
-  }
-  function certificate(selection) { return selection === null ? first.certificate : parse(extension(selection).response).certificate; }
-  function descends(child, ancestor) {
-    for (let steps = 0; steps <= extensions.length; ++steps) {
-      if (equal(child, ancestor)) return;
-      require(child !== null, 'Selected extension is outside the original chain');
-      child = extension(child).request.previous_extension;
-    }
-    throw new Error('Cyclic extension history');
-  }
-  descends(request.previous_extension, request.original_extension);
-  descends(request.successor_extension, request.previous_extension);
-  require(certificate(request.original_extension) === r.original_certificate && certificate(request.previous_extension) === r.previous_certificate, 'Reported credentials differ from selected host issuance');
-  const target = parse(extension(request.successor_extension).response).checkpoint;
+  const history = credentialHistory(row.enrollment_response, original, extensions);
+  history.descends(request.previous_extension, request.original_extension);
+  history.descends(request.successor_extension, request.previous_extension);
+  require(history.issued(request.original_extension).certificate === r.original_certificate && history.issued(request.previous_extension).certificate === r.previous_certificate, 'Reported credentials differ from selected host issuance');
+  const target = history.issued(request.successor_extension).checkpoint;
   require(BigInt(request.target_checkpoint.version) >= BigInt(target.version)
     && (BigInt(request.target_checkpoint.version) !== BigInt(target.version) || equal(request.target_checkpoint, target)), 'Selected target predates or forks the extension');
   if (row.state === 'Issued') grantResponse(row.response, request);

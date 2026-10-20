@@ -63,6 +63,22 @@
     <div class="actions"><button id="submit-grant" type="button">Approve and issue this recovery authorization</button><button id="refresh-grant" type="button" class="secondary">Query original result without issuing</button></div>
     <div class="actions"><button id="cancel-grant" type="button" class="secondary">Cancel this unissued decision</button><button id="save-grant-request" type="button" class="secondary">Save reviewed recovery request</button><button id="save-grant" type="button" class="secondary">Save historical recovery authorization</button></div>
     <p>Querying does not sign or retry issuance. Cancellation preserves the decision and prevents delayed issuance, unless it was already issued. This authorization does not renew policy, approve a witness or create a replacement device.</p>
+    <h3>Approve a policy validity renewal</h3>
+    <p>Load the device’s original policy renewal request and the publisher’s public policy bundle. This extends the same policy profile for retained state, with unchanged credentials and roster. It requires approvals from both this account and the policy authority.</p>
+    <label for="policy-file">Original policy renewal request (JSON, at most 64 KiB)</label><input id="policy-file" type="file" accept="application/json,.json">
+    <p id="policy-file-detail"></p>
+    <label for="policy-inputs">Original, previous and target policies (public JSON bundle, at most 448 KiB)</label><input id="policy-inputs" type="file" accept="application/json,.json">
+    <p id="policy-inputs-detail"></p>
+    <label for="policy-original">Credential used when the installation was created</label><select id="policy-original"><option value="">Original issued credential</option></select>
+    <label for="policy-current">Credential currently retained by that installation</label><select id="policy-current"><option value="">Original issued credential</option></select>
+    <div class="actions"><button id="prepare-policy" type="button" class="secondary">Verify and prepare policy decision for review</button></div>
+    <label for="policies">Retained policy decision</label><select id="policies"><option value="">Select a retained policy decision</option></select>
+    <pre id="policy-detail"></pre>
+    <p id="policy-state" role="status" aria-live="polite"></p>
+    <div class="actions"><button id="submit-policy" type="button">Approve and issue this policy decision</button><button id="refresh-policy" type="button" class="secondary">Query original policy result without issuing</button></div>
+    <div class="actions"><button id="cancel-policy" type="button" class="secondary">Cancel this unissued policy decision</button><button id="save-policy-request" type="button" class="secondary">Save reviewed policy request</button></div>
+    <div class="actions"><button id="save-policy" type="button" class="secondary">Save historical policy result</button><button id="save-policy-signature" type="button" class="secondary">Save account approval for the device</button></div>
+    <p>Preparing verifies the signed inputs without signing. Querying recovers the original outcome even after expiry. Issuing is a separate approval; cancellation prevents delayed issuance unless already committed. Keep the original device and issuer records.</p>
     <label for="recovery-file">Import recovery records for this same account and origin</label><input id="recovery-file" type="file" accept="application/json,.json">
     <p class="scope">An issued result records a past operation. It is not current traffic permission. Client acceptance must verify the original device key, current independently authenticated root/roster, signed policy and trusted time. The installed independent-client path is still being integrated.</p>
   </section>

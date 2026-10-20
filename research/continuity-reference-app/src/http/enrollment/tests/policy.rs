@@ -4,7 +4,8 @@ use super::*;
 use q_periapt_continuity_reference_app::{
     native_device::{NativeDevice, PolicyRecoveryInputs},
     policy_approval::{
-        IssuedPolicyApproval, PolicyApprovalRequest, PolicyInput, MAX_POLICY_APPROVAL_REQUEST,
+        IssuedPolicyApproval, PolicyApprovalPreview, PolicyApprovalRequest, PolicyInput,
+        MAX_POLICY_APPROVAL_REQUEST,
     },
     policy_publisher::{Anchor, BootstrapMode, Publisher, RenewalRequest, Request},
     store::Store,
@@ -103,6 +104,7 @@ async fn http_account_and_policy_issuers_recover_original_approval_and_adopt_wit
         target: PolicyInput { pins, materials },
     };
     let route = "/api/enrollment/policy-approval";
+    let preview_route = "/api/enrollment/policy-approval/preview";
     let status_route = "/api/enrollment/policy-approval/status";
     let cancel_route = "/api/enrollment/policy-approval/cancel";
     alice.post(&server, route, &request).await?.checked(409)?;
@@ -116,6 +118,24 @@ async fn http_account_and_policy_issuers_recover_original_approval_and_adopt_wit
     drop(store);
     let server = Server::start(&path, address, false).await?;
     alice.login(&server, "alice", &mut auth).await?;
+    for asset in [
+        "/credential-history.mjs",
+        "/policy-records.mjs",
+        "/policy-model.mjs",
+        "/policy.mjs",
+    ] {
+        let response = alice.get(&server, asset).await?.checked(200)?;
+        assert!(response.body.starts_with(b"// SPDX-License-Identifier:"));
+    }
+    let PolicyApprovalPreview::Absent { review } = alice
+        .post(&server, preview_route, &request)
+        .await?
+        .checked(200)?
+        .json()?
+    else {
+        return Err("readonly HTTP review".into());
+    };
+    assert_eq!(review.valid_until, at + 7200);
     let json = serde_json::to_string(&request)?;
     let padded = format!("{}{}", " ".repeat(70 * 1024), json);
     assert!(padded.len() < MAX_POLICY_APPROVAL_REQUEST);
@@ -159,7 +179,7 @@ async fn http_account_and_policy_issuers_recover_original_approval_and_adopt_wit
     let mut anonymous = Client::default();
     let mut bob = Client::default();
     let _bob_auth = bob.register(&server, "bob").await?;
-    for endpoint in [route, status_route, cancel_route] {
+    for endpoint in [route, preview_route, status_route, cancel_route] {
         anonymous
             .post(&server, endpoint, &request)
             .await?
@@ -196,6 +216,16 @@ async fn http_account_and_policy_issuers_recover_original_approval_and_adopt_wit
         .checked(200)?
         .body;
     let result: IssuedPolicyApproval = serde_json::from_slice(&recovered)?;
+    assert_eq!(result.statement, review.statement);
+    let PolicyApprovalPreview::Issued { review: historical } = alice
+        .post(&server, preview_route, &request)
+        .await?
+        .checked(200)?
+        .json()?
+    else {
+        return Err("original HTTP review".into());
+    };
+    assert_eq!(historical, review);
     let observed: serde_json::Value = alice
         .post(&server, status_route, &request)
         .await?
@@ -276,5 +306,13 @@ async fn http_account_and_policy_issuers_recover_original_approval_and_adopt_wit
             .json::<serde_json::Value>()?,
         json!({"state":"Closed"})
     );
+    assert!(matches!(
+        alice
+            .post(&server, preview_route, &next)
+            .await?
+            .checked(200)?
+            .json::<PolicyApprovalPreview>()?,
+        PolicyApprovalPreview::Closed
+    ));
     server.close().await
 }

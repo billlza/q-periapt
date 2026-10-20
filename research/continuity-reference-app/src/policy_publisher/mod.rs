@@ -12,7 +12,7 @@ mod renewal;
 mod renewal_store;
 mod signer;
 mod store;
-pub use export::{PolicyMaterials, PolicyPins};
+pub use export::{PolicyApprovalInputs, PolicyInput, PolicyMaterials, PolicyPins};
 pub use renewal::{IssuedRenewal, RenewalRequest, RenewalStatus};
 pub use store::Publisher;
 #[cfg(test)]

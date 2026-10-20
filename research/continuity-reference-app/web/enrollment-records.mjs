@@ -2,6 +2,7 @@
 import {parse, encode, equal, base64, unbase64} from './transport.mjs';
 import {require, fields, id, integer, checkpoint} from './record-validation.mjs';
 import {grantRecord, grantResponse} from './grant-records.mjs';
+import {policyRecord, policyResponse} from './policy-records.mjs';
 export {id, checkpoint} from './record-validation.mjs';
 export const MAX_RECORD_BYTES = 4 * 1024 * 1024;
 const MAX_RECORDS = 512;
@@ -68,12 +69,13 @@ export class Records {
     this.key = `qpc-reference-enrollment/1/${application}`;
   }
   validate(value) {
-    const shape = {1: 'schema origin application operations', 2: 'schema origin application operations extensions', 3: 'schema origin application operations extensions grants'}[value?.schema];
-    require([1, 2, 3].includes(value?.schema), 'Unknown browser recovery schema'); fields(value, shape);
+    const shape = {1: 'schema origin application operations', 2: 'schema origin application operations extensions', 3: 'schema origin application operations extensions grants', 4: 'schema origin application operations extensions grants policy_approvals'}[value?.schema];
+    require([1, 2, 3, 4].includes(value?.schema), 'Unknown browser recovery schema'); fields(value, shape);
     require(value.origin === this.origin && value.application === this.application, 'Recovery file belongs to another origin, account or schema');
     require(Array.isArray(value.operations) && value.operations.length <= MAX_RECORDS, 'Recovery record capacity');
-    const extensions = value.schema >= 2 ? value.extensions : [], grants = value.schema === 3 ? value.grants : [];
-    require(Array.isArray(extensions) && Array.isArray(grants) && value.operations.length + extensions.length + grants.length <= MAX_RECORDS, 'Recovery record capacity');
+    const extensions = value.schema >= 2 ? value.extensions : [], grants = value.schema >= 3 ? value.grants : [];
+    const policies = value.schema >= 4 ? value.policy_approvals : [];
+    require([extensions, grants, policies].every(Array.isArray) && value.operations.length + extensions.length + grants.length + policies.length <= MAX_RECORDS, 'Recovery record capacity');
     const seen = new Set();
     for (const operation of value.operations) {
       row(operation, this.application); const key = base64(operation.request_id);
@@ -95,6 +97,11 @@ export class Records {
     for (const item of grants) {
       grantRecord(item, value.operations, extensions, this.application);
       const key = base64(item.request.retained.operation);
+      require(!seen.has(key), 'Duplicate recovery identity'); seen.add(key);
+    }
+    for (const item of policies) {
+      policyRecord(item, value.operations, extensions, this.application);
+      const key = base64(item.request.retained.scope.operation);
       require(!seen.has(key), 'Duplicate recovery identity'); seen.add(key);
     }
     return value;
@@ -144,27 +151,36 @@ export class Records {
     require(row.response === null || row.response === response, 'Host changed the original extension result');
     row.response = response; this.save(value);
   }
-  grants() { const value = this.read(); return value.schema === 3 ? value.grants : []; }
+  grants() { const value = this.read(); return value.schema >= 3 ? value.grants : []; }
   findGrant(key) {
     const value = this.grants().find(r => base64(r.request.retained.operation) === key);
     require(value, 'Select an existing recovery authorization'); return value;
   }
   addGrant(item) {
     const value = this.read();
-    this.save({...value, schema: 3, extensions: value.schema >= 2 ? value.extensions : [], grants: [...(value.schema === 3 ? value.grants : []), item]});
+    this.save({...value, schema: Math.max(value.schema, 3), extensions: value.schema >= 2 ? value.extensions : [], grants: [...(value.schema >= 3 ? value.grants : []), item]});
   }
   transitionGrant(key, state, response = null) {
-    const value = this.read(); require(value.schema === 3, 'Original grant records absent');
+    const value = this.read(); require(value.schema >= 3, 'Original grant records absent');
     const row = value.grants.find(r => base64(r.request.retained.operation) === key);
     require(row, 'Original grant request missing');
-    const allowed = {Prepared: ['Prepared', 'Submitted', 'CancelRequested', 'Issued', 'Closed'], Submitted: ['Submitted', 'CancelRequested', 'Issued', 'Closed'],
-      CancelRequested: ['CancelRequested', 'Issued', 'Closed'], Issued: ['Issued'], Closed: ['Closed']};
-    require(allowed[row.state].includes(state), 'Host status contradicts original retained outcome');
-    if (state === 'Issued') {
-      grantResponse(response, row.request);
-      require(row.response === null || row.response === response, 'Host changed the original grant result');
-    }
-    row.state = state; row.response = response; this.save(value);
+    transition(row, state, response, () => grantResponse(response, row.request)); this.save(value);
+  }
+  policyApprovals() { const value = this.read(); return value.schema >= 4 ? value.policy_approvals : []; }
+  findPolicyApproval(key) {
+    const value = this.policyApprovals().find(r => base64(r.request.retained.scope.operation) === key);
+    require(value, 'Select an existing policy decision'); return value;
+  }
+  addPolicyApproval(item) {
+    const value = this.read();
+    this.save({...value, schema: 4, extensions: value.schema >= 2 ? value.extensions : [], grants: value.schema >= 3 ? value.grants : [],
+      policy_approvals: [...(value.schema >= 4 ? value.policy_approvals : []), item]});
+  }
+  transitionPolicyApproval(key, state, response = null) {
+    const value = this.read(); require(value.schema >= 4, 'Original policy records absent');
+    const row = value.policy_approvals.find(r => base64(r.request.retained.scope.operation) === key);
+    require(row, 'Original policy request missing');
+    transition(row, state, response, () => policyResponse(response, row.request, row.review)); this.save(value);
   }
   merge(text) {
     const imported = this.decode(text), value = this.read();
@@ -181,15 +197,34 @@ export class Records {
         else value.extensions.push(item);
       }
     }
-    if (imported.schema === 3) {
-      if (value.schema !== 3) { value.schema = 3; value.grants = []; }
+    if (imported.schema >= 3) {
+      if (value.schema < 3) { value.schema = 3; value.grants = []; }
       for (const item of imported.grants) {
         const original = value.grants.find(r => equal(r.request.retained.operation, item.request.retained.operation));
         if (original) require(equal(original, item), 'Imported grant conflicts with original retained state');
         else value.grants.push(item);
       }
     }
+    if (imported.schema >= 4) {
+      if (value.schema < 4) { value.schema = 4; value.policy_approvals = []; }
+      for (const item of imported.policy_approvals) {
+        const original = value.policy_approvals.find(r => equal(r.request.retained.scope.operation, item.request.retained.scope.operation));
+        if (original) require(equal(original, item), 'Imported policy decision conflicts with original retained state');
+        else value.policy_approvals.push(item);
+      }
+    }
     this.save(value);
   }
   export() { return encode(this.read()); }
+}
+
+function transition(row, state, response, verifyResponse) {
+  const allowed = {Prepared: ['Prepared', 'Submitted', 'CancelRequested', 'Issued', 'Closed'], Submitted: ['Submitted', 'CancelRequested', 'Issued', 'Closed'],
+    CancelRequested: ['CancelRequested', 'Issued', 'Closed'], Issued: ['Issued'], Closed: ['Closed']};
+  require(allowed[row.state].includes(state), 'Host status contradicts original retained outcome');
+  if (state === 'Issued') {
+    verifyResponse();
+    require(row.response === null || row.response === response, 'Host changed the original signed result');
+  }
+  row.state = state; row.response = response;
 }

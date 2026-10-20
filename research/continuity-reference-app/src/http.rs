@@ -123,6 +123,16 @@ fn browser_modules() -> Router<Shared> {
         ),
         ("/grant-model.mjs", include_str!("../web/grant-model.mjs")),
         ("/grant.mjs", include_str!("../web/grant.mjs")),
+        (
+            "/credential-history.mjs",
+            include_str!("../web/credential-history.mjs"),
+        ),
+        (
+            "/policy-records.mjs",
+            include_str!("../web/policy-records.mjs"),
+        ),
+        ("/policy-model.mjs", include_str!("../web/policy-model.mjs")),
+        ("/policy.mjs", include_str!("../web/policy.mjs")),
     ] {
         routes = routes.route(
             path,

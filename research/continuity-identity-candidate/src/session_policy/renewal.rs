@@ -276,6 +276,18 @@ pub struct PolicyRenewalStatement {
     policy_key: PublicKey,
 }
 impl PolicyRenewalStatement {
+    /// Inspect the canonical historical relation for review and recovery.
+    /// This returns only a commitment, never a statement that an issuer can
+    /// sign. New signing still requires `new` and current admission.
+    pub fn historical_digest(
+        scope: &PolicyRenewalScope,
+        materials: &HistoricalPolicyRenewalMaterials<'_>,
+    ) -> Result<[u8; 32], Error> {
+        Ok(digest(
+            DOMAIN,
+            &historical_statement(scope, materials)?.encode(),
+        ))
+    }
     /// Require a current unchanged credential, roster, target and runtime.
     /// Historical policies authenticate context but confer no current permission.
     pub fn new(
