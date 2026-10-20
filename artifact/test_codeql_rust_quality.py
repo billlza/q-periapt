@@ -1975,6 +1975,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-identity-candidate/src/session_exchange/tcp.rs',
             'research/continuity-identity-candidate/src/tcp_io.rs',
             'research/continuity-openssl-peer/native/src/fixture_extension.rs',
+            'research/continuity-openssl-peer/native/examples/account_authority_fixture.rs',
             'research/continuity-reference-app/src/auth/enrollment_tests/extension.rs',
             'research/continuity-reference-app/src/auth/enrollment_tests/extension/historical.rs',
             'research/continuity-reference-app/src/auth/enrollment_tests/grant.rs',
@@ -2054,7 +2055,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 codeql_rust_quality, "run_git_bytes", return_value=raw
             ), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError,
-                "tracked Rust source count must be 851, got 850",
+                "tracked Rust source count must be 852, got 851",
             ):
                 codeql_rust_quality.tracked_rust_paths()
 

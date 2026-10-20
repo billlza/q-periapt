@@ -279,6 +279,24 @@ jobs:
             --output target/independent-peer-ci/peer-intermediate \
             > target/independent-peer-ci/peer-intermediate.stdout 2> target/independent-peer-ci/peer-intermediate.stderr
           git diff --exit-code
+      - name: Verify complete independent account authority transitions
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-peer-native"
+          manifest=research/continuity-openssl-peer/native/Cargo.toml
+          cargo clippy --release --locked --manifest-path "$manifest" --example account_authority_fixture -- -D warnings \
+            > target/independent-peer-ci/account-model-clippy.stdout 2> target/independent-peer-ci/account-model-clippy.stderr
+          cargo build --release --locked --manifest-path "$manifest" --example account_authority_fixture \
+            > target/independent-peer-ci/account-model-build.stdout 2> target/independent-peer-ci/account-model-build.stderr
+          cp "$CARGO_TARGET_DIR/release/examples/account_authority_fixture" target/independent-peer-ci/account-authority-fixture
+          sh artifact/python-run.sh research/continuity-openssl-peer/account_state_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/account-authority-fixture \
+            --output target/independent-peer-ci/account-state \
+            > target/independent-peer-ci/account-state.stdout 2> target/independent-peer-ci/account-state.stderr
+          git diff --exit-code
       - name: Verify independent joint local credential renewal and historical cleanup
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}

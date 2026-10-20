@@ -173,7 +173,7 @@ to a clean checkout at the same commit for this entry point.
 
 The independent CI workflow accepts optional `sdk_run_id` and
 `sdk_report_sha256` dispatch inputs. Supplying both builds the counterpart from
-that same-repository SDK artifact, including the public importer, before running the existing nineteen lanes;
+that same-repository SDK artifact, including the public importer, before running the protocol checks;
 the report and crate bytes must still match current SDK sources. Supplying only
 one input fails. The default workflow retains direct-source qualification.
 
@@ -247,6 +247,21 @@ storage owner. `peer_intermediate_checks.py` exercises real C1 bootstrap, a
 process kill during G2 adoption, original ciphertext/plaintext recovery, rekey,
 and revocation with both local and required-witness stores. Its explicit fixture
 clocks are not a real-time expiry or complete same-account lifecycle test.
+
+The pure `AccountState` model keeps one account roster, up to 256 retained device
+generation records, and the root grants that justify same-generation credential
+changes. `AccountRequest` serializes the complete local-and-companion collection
+and compares requests by signed statement identity. The owning coordinator must
+retain the first saved bytes when a semantically identical request is retried. The
+local verifier continues to require the exact original installation credential;
+verifying a companion grant does not grant a local owner.
+`account_state_checks.py` exercises native-signed three- and 32-member changes,
+lineage substitution, incomplete collections, root-signed resurrection and
+generation rollback, and canonical account/request decoding. Its native example
+is a source-built test authority even when the traffic counterpart uses installed
+SDK crates. These checks establish pure transitions only. Integration with the
+registered session, sealed journal targets, witness outcomes and peer-only roster
+changes remains open; the existing runtime same-account guards remain in place.
 
 An independent [joint local credential coordinator](LOCAL_RENEWAL.md) now binds
 the original required-witness head transition to the actual root grant. It retains

@@ -1,7 +1,7 @@
 """Root-signed same-key peer renewal verification, separate from durable adoption."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
-from dataclasses import dataclass
-from .identity import Credential, Roster, credential, roster
+from dataclasses import dataclass, replace
+from .identity import Credential, DevicePin, Roster, credential, roster
 from .wire import Reader, ldh, require
 
 
@@ -21,6 +21,9 @@ class Renewal:
     successor: Credential
     predecessor_roster: Roster
     successor_roster: Roster
+    pin: DevicePin
+    family: bytes
+    policy: bytes
 
     def current(self, now):
         self.successor.validity.check(now)
@@ -43,17 +46,34 @@ def verify_established_peer(wire, original, family, policy, expected_target, *, 
     durable peer owner must still match its exact current predecessor or retained
     completion. This verifier neither admits a local owner nor creates a session.
     """
+    value = verify_account(wire, original.pin, family, policy, expected_target, now=now)
+    require(value.pin.device == original.pin.device and value.pin.generation == original.pin.generation,
+            "renewal original identity")
+    require(value.original.key == original.key, "renewal key/original credential differs")
+    return value
+
+
+def verify_account(wire, authority, family, policy, expected_target, *, now=None):
+    """Authenticate a member grant under independently supplied account trust.
+
+    The signed identity selects a member of this account, not a local owner.
+    Original-owner and established-peer callers must additionally match their
+    retained identity. Complete-account adoption must validate every changed
+    member against one retained predecessor and its generation history.
+    """
     require(type(wire) is bytes and len(wire) <= 65536, "renewal container capacity")
     require(type(expected_target) is bytes and len(expected_target) == 40, "independent target checkpoint")
     reader = Reader(wire); require(reader.take(8) == b"QPRNB001", "renewal container tag")
     signed, origin_wire, previous_wire, next_wire, old_roster_wire, next_roster_wire = (field(reader) for _ in range(6))
     reader.finish()
-    pin = original.pin
-    body = pin.root.open(signed, 15, 369); r = Reader(body)
+    body = authority.root.open(signed, 15, 369); r = Reader(body)
     require(r.take(8) == b"QPCRNW01", "renewal statement tag")
     operation = r.take(32); require(any(operation), "renewal operation")
-    require(r.take(32) == pin.account and r.take(16) == pin.device and r.integer(8) == pin.generation,
-            "renewal original identity")
+    require(r.take(32) == authority.account, "renewal account authority")
+    identity, revision = r.take(16), r.integer(8)
+    pin = replace(authority, device=identity, generation=revision,
+                  roster_version=int.from_bytes(expected_target[:8], "big"),
+                  roster_digest=expected_target[8:])
     fam, key, od, pd, nd, pol = (r.take(32) for _ in range(6))
     predecessor, target = r.take(40), r.take(40)
     require(r.integer(1) == 1, "retained-established permission"); r.finish()
@@ -61,7 +81,7 @@ def verify_established_peer(wire, original, family, policy, expected_target, *, 
     origin = credential(pin, origin_wire, family)
     previous = credential(pin, previous_wire, family)
     successor = credential(pin, next_wire, family)
-    require(origin.key == previous.key == successor.key == original.key,
+    require(origin.key == previous.key == successor.key,
             "renewal key/original credential differs")
     require((od, pd, nd) == (origin.digest, previous.digest, successor.digest)
             and key == ldh(b"Q-PERIAPT-CREDENTIAL-RENEWAL-KEY/v1", origin.key.raw), "renewal credential commitments")
@@ -78,7 +98,7 @@ def verify_established_peer(wire, original, family, policy, expected_target, *, 
     common = max(historical, successor.validity.start, new.validity.start)
     successor.validity.check(common); new.validity.check(common)
     value = Renewal(wire, operation, ldh(b"Q-PERIAPT-CREDENTIAL-RENEWAL-STATEMENT/v1", body),
-                    origin, previous, successor, old, new)
+                    origin, previous, successor, old, new, pin, family, policy)
     if now is not None:
         value.current(now)
     return value
