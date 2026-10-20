@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from dataclasses import dataclass, replace
 from .identity import Credential, Device, Roster, roster
-from .renewal import Renewal, verify
+from .renewal import Renewal, verify, verify_established_peer
 from .wire import digest, require
 
 
@@ -43,7 +43,10 @@ class IdentityState:
         require(size <= 65536, "retained renewal capacity")
         grant_wire = reader.take(size)
         if size:
-            grant = verify(grant_wire, value.original, context.family, context.policy_digest, target)
+            verifier = verify if role == 0 else verify_established_peer
+            grant = verifier(grant_wire, value.original, context.family, context.policy_digest, target)
+            require(grant.successor_roster.version > value.listing.version,
+                    "retained renewal does not advance original roster")
             current = grant.successor
         else:
             require(target == bytes(40), "absent renewal target padding")
@@ -59,8 +62,20 @@ class IdentityState:
         return cls(value.original, current, listing, grant)
 
     def renew(self, context, wire, operation, target, now):
-        require(self.active(), "revoked original peer cannot be renewed")
         grant = verify(wire, self.original, context.family, context.policy_digest, target, now=now)
+        return self._renew(grant, operation, now)
+
+    def renew_peer(self, context, wire, operation, target, now):
+        require(context.devices is not None and self.original == context.devices[1]
+                and context.devices[0].pin.account != self.original.pin.account,
+                "peer renewal requires original separate-account peer")
+        grant = verify_established_peer(wire, self.original, context.family, context.policy_digest, target, now=now)
+        return self._renew(grant, operation, now)
+
+    def _renew(self, grant, operation, now):
+        require(self.active(), "revoked original peer cannot be renewed")
+        require(self.renewal is None or self.renewal.original.digest == grant.original.digest,
+                "renewal original lineage differs")
         require(type(operation) is bytes and operation == grant.operation, "original renewal operation differs")
         if self.listing.checkpoint() == grant.successor_roster.checkpoint():
             require(self.renewal is not None and self.renewal.statement == grant.statement

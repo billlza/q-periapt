@@ -101,7 +101,7 @@ def qualify(args: argparse.Namespace) -> dict:
     cache.mkdir(mode=0o700)
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(("PYTHON", "PIP_", "DYLD_", "LD_"))}
-    result = {"schema_version": 2, "kind": "qperiapt.independent_python_installation",
+    result = {"schema_version": 3, "kind": "qperiapt.independent_python_installation",
               "completed": False, "release_claim_eligible": False, "source_commit": commit,
               "source_inputs": before, "wheel_sha256": wheel.sha256, "native_sha256": native.sha256}
 
@@ -172,6 +172,24 @@ def qualify(args: argparse.Namespace) -> dict:
         verify_extension_session(extension_session,
                                  implementation=str(application / PACKAGE / "enrollment_client.py"),
                                  native_sha256=native.sha256)
+        run([*interpreter, str(application / "peer_intermediate_checks.py"),
+             "--provider-root", str(provider), "--native", str(args.native),
+             "--output", str(output / "peer-intermediate")], "peer-intermediate")
+        intermediate = parse_strict_json_bytes(snapshot(output / "peer-intermediate/RESULT.json").data,
+                                              label="installed intermediate peer")
+        require(intermediate["source_files"] == current and intermediate["native_sha256"] == native.sha256
+                and intermediate["profiles"] == {
+                    "local": {"worker_operations": 21, "native_commands": 10},
+                    "witness": {"worker_operations": 21, "native_commands": 164}},
+                "installed intermediate peer source or workload differs")
+        for label in ("local", "witness"):
+            row = parse_strict_json_bytes(snapshot(output / "peer-intermediate" / label / "RESULT.json").data,
+                                         label="installed intermediate peer recovery")
+            require(row["local_owner_original_mismatch_refused"] is True
+                    and len(row["direct_refusals"]) == 9
+                    and len([op for op in row["worker_operations"] if op.get("signal") == "SIGKILL"
+                             and op.get("cut") == "committed:intent"]) == 1,
+                    "installed intermediate peer authority or recovery differs")
         # The consumer adds only declared test files; pip's installed files and
         # all copied inputs must remain byte-identical after real process cuts.
         after = installed_files(application)
@@ -183,7 +201,8 @@ def qualify(args: argparse.Namespace) -> dict:
                 "Python qualification inputs changed")
         result.update(completed=True, sources_unchanged=True, modules=expected,
                       registration={label: observed[label] for label in ("local", "witness")},
-                      client_session=client_session, extension_session=extension_session, provider=observed["provider"])
+                      client_session=client_session, extension_session=extension_session,
+                      intermediate_peer=intermediate, provider=observed["provider"])
     except BaseException as error:
         result["failure"] = {"type": type(error).__name__, "message": str(error)}
         raise

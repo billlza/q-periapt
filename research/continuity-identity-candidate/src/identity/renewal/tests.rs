@@ -164,6 +164,33 @@ fn exact_root_policy_key_and_historical_predecessor_bind_the_statement() {
 }
 
 #[test]
+fn retained_intermediate_peer_permission_does_not_change_original_storage_owner() {
+    let c = Case::new();
+    let relation = c.verify(c.issued().as_bytes()).expect("root grant");
+    let intermediate = relation.previous_device();
+    assert_ne!(
+        intermediate.credential_digest(),
+        relation.original_credential_digest()
+    );
+    let resolved = relation
+        .resolve_established(intermediate, c.authorization.policy_digest)
+        .expect("retained intermediate peer");
+    assert_eq!(
+        resolved.device.credential_digest(),
+        relation.successor_device().credential_digest()
+    );
+    assert_eq!(resolved.owner, relation.original_storage_owner());
+    assert_ne!(
+        resolved.owner,
+        crate::bootstrap::storage_owner(intermediate)
+    );
+    assert!(matches!(
+        relation.resolve_established(intermediate, [11; 32]),
+        Err(Error::Scope)
+    ));
+}
+
+#[test]
 fn wrong_purpose_each_signature_and_container_corruption_are_refused() {
     let c = Case::new();
     let issued = c.issued();

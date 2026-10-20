@@ -59,6 +59,7 @@ fn main() -> Result<()> {
     let mut budget = 1024;
     let mut required = false;
     let mut peer_lifecycle = false;
+    let mut intermediate_peer = false;
     let mut local_lifecycle = false;
     let mut short_roster = false;
     let mut registration = false;
@@ -75,6 +76,7 @@ fn main() -> Result<()> {
             }
             Some("--required-witness") if !required => required = true,
             Some("--peer-lifecycle") if !peer_lifecycle => peer_lifecycle = true,
+            Some("--intermediate-peer") if !intermediate_peer => intermediate_peer = true,
             Some("--local-lifecycle") if !local_lifecycle => local_lifecycle = true,
             Some("--local-roster-expiry") if !short_roster => short_roster = true,
             Some("--registration") if !registration => registration = true,
@@ -88,9 +90,13 @@ fn main() -> Result<()> {
     if extension && (!registration || local_lifecycle || peer_lifecycle || short_roster) {
         return Err("registration extension requires its separate registration fixture".into());
     }
+    if intermediate_peer && (!peer_lifecycle || local_lifecycle || registration || extension) {
+        return Err("intermediate peer requires its separate peer lifecycle fixture".into());
+    }
     let options = fixture::Options {
         budget,
         peer_lifecycle,
+        intermediate_peer,
         local_lifecycle,
         short_roster,
         extension,

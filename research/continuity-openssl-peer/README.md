@@ -230,12 +230,23 @@ The earlier volatile class remains a cryptographic core, not a durable facade.
 
 The next state format, `QPREFS05`, retains independently approved remote same-key
 credential renewals and signed peer roster changes for the original established
-session. Exact predecessor, original credential, full key, operation, policy and
+session. Exact predecessor, retained original lineage, full key, operation, policy and
 target checkpoint must match. Committed peer revocation denies cached output,
 new traffic and rekey; a later roster cannot revive the observed old generation.
 The original transcript, keys, outbox IDs and ciphertexts remain unchanged.
 The local owner still needs current authority. Same-account updates require the
 separate local account coordinator; this entry cannot bypass that joint workflow.
+
+An already established peer session may have started with an intermediate
+credential `C1`. It can adopt a root grant naming `C0, C1 -> C2` when the retained
+current credential and roster match that exact predecessor. Peer verification
+checks the complete pinned identity and the grant's retained-established
+permission; subsequent grants must preserve the first admitted original lineage.
+Local installation renewal still requires its exact original credential and
+storage owner. `peer_intermediate_checks.py` exercises real C1 bootstrap, a
+process kill during G2 adoption, original ciphertext/plaintext recovery, rekey,
+and revocation with both local and required-witness stores. Its explicit fixture
+clocks are not a real-time expiry or complete same-account lifecycle test.
 
 An independent [joint local credential coordinator](LOCAL_RENEWAL.md) now binds
 the original required-witness head transition to the actual root grant. It retains

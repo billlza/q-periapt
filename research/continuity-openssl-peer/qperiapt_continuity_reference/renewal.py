@@ -30,6 +30,19 @@ class Renewal:
 
 
 def verify(wire, original, family, policy, expected_target, *, now=None):
+    """Local installation renewal must name its exact original credential."""
+    value = verify_established_peer(wire, original, family, policy, expected_target, now=now)
+    require(value.original.digest == original.credential, "renewal key/original credential differs")
+    return value
+
+
+def verify_established_peer(wire, original, family, policy, expected_target, *, now=None):
+    """Verify retained-established permission for the full pinned peer identity.
+
+    An established session may originate at an intermediate credential. The
+    durable peer owner must still match its exact current predecessor or retained
+    completion. This verifier neither admits a local owner nor creates a session.
+    """
     require(type(wire) is bytes and len(wire) <= 65536, "renewal container capacity")
     require(type(expected_target) is bytes and len(expected_target) == 40, "independent target checkpoint")
     reader = Reader(wire); require(reader.take(8) == b"QPRNB001", "renewal container tag")
@@ -48,7 +61,7 @@ def verify(wire, original, family, policy, expected_target, *, now=None):
     origin = credential(pin, origin_wire, family)
     previous = credential(pin, previous_wire, family)
     successor = credential(pin, next_wire, family)
-    require(origin.key == previous.key == successor.key == original.key and origin.digest == original.credential,
+    require(origin.key == previous.key == successor.key == original.key,
             "renewal key/original credential differs")
     require((od, pd, nd) == (origin.digest, previous.digest, successor.digest)
             and key == ldh(b"Q-PERIAPT-CREDENTIAL-RENEWAL-KEY/v1", origin.key.raw), "renewal credential commitments")

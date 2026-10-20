@@ -74,6 +74,7 @@ fn runtime(directory: &Path) -> Result<Arc<Runtime>> {
 pub(super) struct Options {
     pub budget: u16,
     pub peer_lifecycle: bool,
+    pub intermediate_peer: bool,
     pub local_lifecycle: bool,
     pub short_roster: bool,
     pub extension: bool,
@@ -85,7 +86,7 @@ pub(super) struct Times {
 }
 impl Options {
     pub fn times(&self) -> Times {
-        if self.extension {
+        if self.extension || self.intermediate_peer {
             Times {
                 bootstrap: 210,
                 traffic: 220,
@@ -110,6 +111,7 @@ pub(super) fn create(
     let Options {
         budget,
         peer_lifecycle,
+        intermediate_peer,
         local_lifecycle,
         short_roster,
         extension,
@@ -209,14 +211,49 @@ pub(super) fn create(
             roster.checkpoint(),
             family,
         )?;
-        devices.push(Arc::new(pin.verify_device(
+        let original = Arc::new(pin.verify_device(
             &certificate,
             roster.as_bytes(),
-            times.bootstrap,
-        )?));
+            if intermediate_peer && role == "r" {
+                NOW
+            } else {
+                times.bootstrap
+            },
+        )?);
+        let grants = if (peer_lifecycle && role == "r") || (local_lifecycle && role == "i") {
+            crate::peer_lifecycle::publish(
+                directory,
+                &root,
+                &certificate,
+                &original,
+                roster.as_bytes(),
+                crate::peer_lifecycle::Scope {
+                    policy: policy.checkpoint().digest(),
+                    family,
+                    local: role == "i",
+                    short_roster: role == "i" && short_roster,
+                },
+            )?
+        } else {
+            Vec::new()
+        };
+        let (certificate, roster_bytes, device) = if intermediate_peer && role == "r" {
+            let current = grants
+                .first()
+                .ok_or("missing intermediate peer grant")?
+                .successor_device();
+            let certificate = root.issue_credential_extension(&original, 300, 170)?;
+            (
+                certificate,
+                current.roster().as_bytes().to_vec(),
+                Arc::new(current.clone()),
+            )
+        } else {
+            (certificate, roster.as_bytes().to_vec(), original)
+        };
         let mut expectation = root.account_id()?.to_vec();
-        expectation.extend_from_slice(&roster.checkpoint().version().to_be_bytes());
-        expectation.extend_from_slice(&roster.checkpoint().digest());
+        expectation.extend_from_slice(&device.roster().checkpoint().version().to_be_bytes());
+        expectation.extend_from_slice(&device.roster().checkpoint().digest());
         expectation.extend_from_slice(&[id; 16]);
         expectation.extend_from_slice(&1u64.to_be_bytes());
         save(
@@ -226,24 +263,10 @@ pub(super) fn create(
         )?;
         save(directory, &format!("pin-{role}-head"), &expectation)?;
         save(directory, &format!("{role}-credential"), &certificate)?;
-        save(directory, &format!("{role}-roster"), roster.as_bytes())?;
-        if (peer_lifecycle && role == "r") || (local_lifecycle && role == "i") {
-            let grants = crate::peer_lifecycle::publish(
-                directory,
-                &root,
-                &certificate,
-                devices.last().ok_or("missing renewed peer")?,
-                roster.as_bytes(),
-                crate::peer_lifecycle::Scope {
-                    policy: policy.checkpoint().digest(),
-                    family,
-                    local: role == "i",
-                    short_roster: role == "i" && short_roster,
-                },
-            )?;
-            if role == "i" {
-                local_grants = grants;
-            }
+        save(directory, &format!("{role}-roster"), &roster_bytes)?;
+        devices.push(device);
+        if role == "i" {
+            local_grants = grants;
         }
     }
     let initiator = devices.first().ok_or("missing initiator")?;
@@ -251,7 +274,7 @@ pub(super) fn create(
     let key = runtime.generate_key()?;
     let public = key.public_key()?.to_bytes();
     let (pq, classical) = public.split_at(q_periapt_backends::ML_KEM_768_PK_LEN);
-    let advertisement = if extension {
+    let advertisement = if extension || intermediate_peer {
         Validity::new(times.bootstrap, 260)?
     } else {
         Validity::new(100, 160)?

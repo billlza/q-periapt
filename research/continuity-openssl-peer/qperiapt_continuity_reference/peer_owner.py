@@ -18,7 +18,7 @@ class PeerOwner:
     def admit_peer_credential_renewal(self, wire, operation, target, now):
         with self._state(now=now, peer_maintenance=True) as (snapshot, state):
             current = self._peer_state(state, now)
-            next_state = current.renew(self._context, wire, operation, target, now)
+            next_state = current.renew_peer(self._context, wire, operation, target, now)
             if next_state is not current:
                 state.peer_authority = next_state
                 self._journal.update(snapshot.digest, encode(state))

@@ -273,6 +273,11 @@ jobs:
             --native target/independent-peer-ci/counterpart \
             --output target/independent-peer-ci/peer-reply-release \
             > target/independent-peer-ci/peer-reply-release.stdout 2> target/independent-peer-ci/peer-reply-release.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/peer_intermediate_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/peer-intermediate \
+            > target/independent-peer-ci/peer-intermediate.stdout 2> target/independent-peer-ci/peer-intermediate.stderr
           git diff --exit-code
       - name: Verify independent joint local credential renewal and historical cleanup
         env:
