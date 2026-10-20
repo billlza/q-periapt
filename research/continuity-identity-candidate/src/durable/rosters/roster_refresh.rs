@@ -210,6 +210,10 @@ impl DeviceJournal {
             old.local_commit, new.local_commit,
             "original G completion changed"
         );
+        assert_eq!(
+            old.account_commit, new.account_commit,
+            "complete account receipt changed"
+        );
         assert!(
             old.renewals
                 .iter()

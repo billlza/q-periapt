@@ -21,7 +21,8 @@ impl Stored {
     /// returning one account image. No journal is written and no owner released.
     /// Operational callers must still bind their exact local intent, check the
     /// required current policy/time admission, and coordinate the original witness.
-    /// Existing public entrypoints continue supplying at most one grant.
+    /// Original account enrollment and complete peer-account admission supply
+    /// the collection; the single-grant entry still supplies at most one.
     pub(super) fn advance_with_renewals(
         self,
         roster: &VerifiedRoster,

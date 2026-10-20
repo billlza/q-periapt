@@ -13,6 +13,7 @@ mod credential_changes;
 mod decode_cache;
 mod local_renewal;
 pub(super) use decode_cache::RosterDecodeCache;
+mod peer_renewal;
 mod peer_retirement;
 mod peer_roster;
 pub(crate) use local_renewal::{LocalRenewalCommit, LocalRenewalResolution, LocalRenewalTarget};
@@ -1123,68 +1124,6 @@ impl DeviceJournal {
             .refresh_device(current, now)?;
         self.check_operational_release(&image, policy, now).await?;
         Ok(refreshed)
-    }
-    // Only an owning installation may bind this mutation to its exact policy.
-    // Local enrollment has a separate durable configuration transaction; the
-    // public owning-service entry currently permits only another peer identity.
-    pub(crate) async fn install_peer_credential_renewal(
-        &mut self,
-        scope: &crate::installation::PolicyScope<'_>,
-        renewal: &VerifiedCredentialRenewal,
-        operation: CredentialRenewalId,
-        policy: &crate::VerifiedSessionPolicy,
-        now: u64,
-    ) -> Result<RosterCheckpoint, DurableError> {
-        self.check_policy(scope.original_policy)?;
-        if operation != renewal.operation()
-            || renewal.policy_digest() != scope.authority.policy
-            || (
-                renewal.successor_device().account_id(),
-                renewal.successor_device().device_id(),
-            ) == scope.local_identity()
-        {
-            return Err(DurableError::Conflict);
-        }
-        crate::installation::admit(renewal.successor_device(), policy, now)?;
-        let mut image = self.image().await?;
-        authorize_peer_installation(&image, scope, policy, now)?;
-        self.check_operational_release(&image, policy, now).await?;
-        let successor = renewal.successor_device();
-        image.check_account_authorities(&[successor.account_id()])?;
-        let saved = get(&image, &successor.account_id())?;
-        saved.require_live_account()?;
-        let target = successor.roster().checkpoint();
-        if saved.roster.checkpoint() == target {
-            let original = saved
-                .renewals
-                .get(&successor.device_id())
-                .ok_or(DurableError::Conflict)?;
-            if original.operation() != operation
-                || original.statement_digest() != renewal.statement_digest()
-                || saved.history.get(&successor.device_id())
-                    != Some(&(successor.generation(), successor.credential_digest()))
-            {
-                return Err(DurableError::Conflict);
-            }
-            saved.roster.authorize_device(successor, now)?;
-            authorize_peer_installation(&image, scope, policy, now)?;
-            self.check_operational_release(&image, policy, now).await?;
-            image.check_account_authorities(&[successor.account_id()])?;
-            return Ok(target);
-        }
-        let updated = saved.advance_with_renewal(successor.roster(), Some(renewal))?;
-        image
-            .records
-            .insert(id(&successor.account_id()), updated.record()?);
-        // A valid root-signed successor roster may revoke this local member.
-        // Retain that observed authority change durably, then withhold success
-        // if local permission is gone; refusal must not silently undo revocation.
-        self.persist(&mut image).await?;
-        authorize_peer_installation(&image, scope, policy, now)?;
-        crate::installation::admit(successor, policy, now)?;
-        self.check_operational_release(&image, policy, now).await?;
-        image.check_account_authorities(&[successor.account_id()])?;
-        Ok(target)
     }
     pub(crate) async fn prepare_bootstrap_context(
         &mut self,

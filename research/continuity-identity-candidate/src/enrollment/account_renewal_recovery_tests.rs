@@ -20,20 +20,20 @@ fn earliest_companion_expiry_closes_only_an_uncommitted_complete_account_target(
         let mut owner = open(&c.f.c);
         let outcome = owner
             .reconcile_expired_credential_renewal(
-                c.grants[0].operation(),
-                c.grants[0].statement_digest(),
+                c.grant(0).operation(),
+                c.grant(0).statement_digest(),
                 &c.f.c.policy,
                 178,
             )
             .expect("classify earliest complete-target expiry");
         if committed {
-            assert_eq!(outcome, renewal::committed(&c.grants[0]));
+            assert_eq!(outcome, renewal::committed(c.grant(0)));
         } else {
             assert_eq!(
                 outcome,
                 CredentialRenewalStatus::ExpiredUncommitted {
-                    operation: c.grants[0].operation(),
-                    statement: c.grants[0].statement_digest(),
+                    operation: c.grant(0).operation(),
+                    statement: c.grant(0).statement_digest(),
                     observed_head: c.f.original.roster().checkpoint(),
                     observed_at: 178,
                 }
@@ -42,8 +42,8 @@ fn earliest_companion_expiry_closes_only_an_uncommitted_complete_account_target(
             assert_eq!(
                 open(&c.f.c)
                     .reconcile_expired_credential_renewal(
-                        c.grants[0].operation(),
-                        c.grants[0].statement_digest(),
+                        c.grant(0).operation(),
+                        c.grant(0).statement_digest(),
                         &c.f.c.policy,
                         178
                     )
@@ -52,9 +52,9 @@ fn earliest_companion_expiry_closes_only_an_uncommitted_complete_account_target(
             );
             assert!(open(&c.f.c)
                 .stage_account_credential_renewal(
-                    &c.grants[0],
-                    &[&c.grants[1], &c.grants[2]],
-                    c.grants[0].operation(),
+                    c.grant(0),
+                    &[c.grant(1), c.grant(2)],
+                    c.grant(0).operation(),
                     &c.f.c.policy,
                     174
                 )
@@ -69,13 +69,13 @@ fn a_later_single_local_renewal_supersedes_the_completed_group_without_losing_pr
         let c = AccountCase::new(witnessed);
         let signer = fs::read(&c.f.c.paths.signer).expect("original signer");
         super::session::renew(&c, 0, &c.f.c.paths, &c.f.c.intent).close();
-        let previous = c.grants[0].successor_device();
+        let previous = c.grant(0).successor_device();
         let successor =
             c.f.c
                 .root
                 .issue_credential_extension(previous, 195, 175)
                 .expect("next same-key credential");
-        let peers = [&c.grants[1], &c.grants[2]];
+        let peers = [c.grant(1), c.grant(2)];
         let mut entries = vec![c.f.c.root.roster_entry(&successor).expect("local member")];
         for peer in peers {
             entries.push(
@@ -103,8 +103,9 @@ fn a_later_single_local_renewal_supersedes_the_completed_group_without_losing_pr
                 .root
                 .issue_credential_renewal(
                     CredentialRenewalMaterials {
-                        original_credential: &c.certificates[0],
-                        previous_credential: c.grants[0]
+                        original_credential: c.certificate(0),
+                        previous_credential: c
+                            .grant(0)
                             .successor_credential()
                             .expect("previous credential"),
                         successor_credential: &successor,
@@ -261,9 +262,9 @@ fn account_renewal_preserves_complete_receipt_under_previously_adopted_policy() 
     let mut owner = open(&c.f.c);
     owner
         .stage_account_credential_renewal(
-            &c.grants[0],
-            &[&c.grants[1], &c.grants[2]],
-            c.grants[0].operation(),
+            c.grant(0),
+            &[c.grant(1), c.grant(2)],
+            c.grant(0).operation(),
             &p1,
             170,
         )
@@ -277,7 +278,7 @@ fn account_renewal_preserves_complete_receipt_under_previously_adopted_policy() 
         owner
             .credential_renewal_status()
             .expect("historical group completion"),
-        renewal::committed(&c.grants[0])
+        renewal::committed(c.grant(0))
     );
     owner
         .activate_policy_renewal(c.f.c.policy.historical(), &p1, 170)
@@ -296,8 +297,9 @@ fn account_renewal_preserves_complete_receipt_under_previously_adopted_policy() 
         .encode(&mut old_account)
         .expect("original collection bytes");
     let prefix = original.len() - 32 - 33 - old_account.len();
-    let binding = c.grants[0]
-        .companion_binding(&[&c.alternate, &c.grants[2]])
+    let binding = c
+        .grant(0)
+        .companion_binding(&[&c.alternate, c.grant(2)])
         .expect("genuine alternate companion")
         .expect("nonempty collection");
     // Make the configuration internally consistent with a DIFFERENT complete
@@ -307,11 +309,11 @@ fn account_renewal_preserves_complete_receipt_under_previously_adopted_policy() 
         .get(..prefix)
         .expect("existing configuration body")
         .to_vec();
-    substituted.extend_from_slice(c.grants[0].operation().as_bytes());
-    substituted.extend_from_slice(&c.grants[0].statement_digest());
+    substituted.extend_from_slice(c.grant(0).operation().as_bytes());
+    substituted.extend_from_slice(&c.grant(0).statement_digest());
     substituted.extend_from_slice(&binding);
     substituted.extend_from_slice(&2u16.to_be_bytes());
-    for grant in [&c.alternate, &c.grants[2]] {
+    for grant in [&c.alternate, c.grant(2)] {
         substituted.extend_from_slice(
             &u32::try_from(grant.as_bytes().len())
                 .expect("grant length")
@@ -329,7 +331,7 @@ fn account_renewal_preserves_complete_receipt_under_previously_adopted_policy() 
         .image()
         .expect("structurally valid authenticated alternate configuration");
     owner
-        .account_grants(&changed, &c.grants[0], &c.f.original)
+        .account_grants(&changed, c.grant(0), &c.f.original)
         .expect("all alternate root grants are genuine");
     assert!(matches!(
         owner.activate_policy_renewal(c.f.c.policy.historical(), &p1, 170),
@@ -356,9 +358,9 @@ fn required_account_group_and_independent_policy_compose_in_both_orders() {
             let mut owner = open(&c.f.c);
             owner
                 .stage_account_credential_renewal(
-                    &c.grants[0],
-                    &[&c.grants[1], &c.grants[2]],
-                    c.grants[0].operation(),
+                    c.grant(0),
+                    &[c.grant(1), c.grant(2)],
+                    c.grant(0).operation(),
                     &approval.target,
                     170,
                 )
@@ -380,7 +382,7 @@ fn required_account_group_and_independent_policy_compose_in_both_orders() {
                 .expect("witness")
                 .prepare_policy_renewed_credential_renewal(
                     proposal,
-                    &c.grants[0],
+                    c.grant(0),
                     c.f.c.policy.historical(),
                     &approval.target,
                     170,
@@ -398,7 +400,7 @@ fn required_account_group_and_independent_policy_compose_in_both_orders() {
                         &mut anchor
                     )
                     .expect("group completion under retained P1"),
-                renewal::committed(&c.grants[0])
+                renewal::committed(c.grant(0))
             );
         }
         let mut active =
@@ -406,7 +408,7 @@ fn required_account_group_and_independent_policy_compose_in_both_orders() {
         let (service, signer, current) = active.parts().expect("controlled owners");
         assert_eq!(
             current.credential_digest(),
-            c.grants[0].successor_device().credential_digest()
+            c.grant(0).successor_device().credential_digest()
         );
         signer.check_device(current).expect("original signing key");
         assert_eq!(
@@ -423,7 +425,7 @@ fn required_account_group_and_independent_policy_compose_in_both_orders() {
             open(&c.f.c)
                 .credential_renewal_status()
                 .expect("retained complete G"),
-            renewal::committed(&c.grants[0])
+            renewal::committed(c.grant(0))
         );
     }
 }
@@ -513,7 +515,7 @@ fn real_process_cuts_preserve_complete_account_target_at_each_cross_store_bounda
                 .parent()
                 .expect("original directory");
         fs::write(root.join("trusted-root"), c.f.c.intent.root.encode()).expect("root pin");
-        let target = c.grants[0].successor_device().roster().checkpoint();
+        let target = c.grant(0).successor_device().roster().checkpoint();
         let mut bytes = target.version().to_be_bytes().to_vec();
         bytes.extend_from_slice(&target.digest());
         fs::write(root.join("trusted-target"), bytes).expect("target pin");
@@ -544,14 +546,14 @@ fn real_process_cuts_preserve_complete_account_target_at_each_cross_store_bounda
         assert_eq!(
             owner
                 .stage_account_credential_renewal(
-                    &c.grants[0],
-                    &[&c.grants[2], &c.resigned],
-                    c.grants[0].operation(),
+                    c.grant(0),
+                    &[c.grant(2), &c.resigned],
+                    c.grant(0).operation(),
                     &c.f.c.policy,
                     170
                 )
                 .expect("same completed collection"),
-            renewal::committed(&c.grants[0])
+            renewal::committed(c.grant(0))
         );
         assert_eq!(
             fs::read(&c.f.c.paths.signer).expect("same original signer"),
@@ -579,8 +581,8 @@ fn completed_account_receipt_survives_later_peer_generation_change_before_enroll
     let authority =
         crate::RetainedInstallationAuthority::active_installation(&c.f.original, &c.f.c.policy);
     let target = crate::durable::LocalRenewalTarget {
-        grant: &c.grants[0],
-        companions: &c.grants[1..],
+        grant: c.grant(0),
+        companions: c.grants.get(1..).expect("all companion grants"),
         continuation: None,
         policy_renewal: None,
     };
@@ -590,7 +592,7 @@ fn completed_account_receipt_survives_later_peer_generation_change_before_enroll
         .commit_local_renewal(&authority, &target, &c.f.c.policy, 170)
         .expect("exact account commit");
     assert!(receipt.account_binding.is_some());
-    let changed = c.grants[1].successor_device();
+    let changed = c.grant(1).successor_device();
     let mut description = changed.description.clone();
     description.generation += 1;
     let replacement =
@@ -598,10 +600,12 @@ fn completed_account_receipt_survives_later_peer_generation_change_before_enroll
             .root
             .issue_device(description, changed.key.clone())
             .expect("later generation");
-    let local = c.grants[0]
+    let local = c
+        .grant(0)
         .successor_credential()
         .expect("local successor bytes");
-    let third = c.grants[2]
+    let third = c
+        .grant(2)
         .successor_credential()
         .expect("third successor bytes");
     let entries = [local, replacement.as_slice(), third]
@@ -636,19 +640,19 @@ fn completed_account_receipt_survives_later_peer_generation_change_before_enroll
         owner
             .credential_renewal_status()
             .expect("retained historical commit"),
-        renewal::committed(&c.grants[0])
+        renewal::committed(c.grant(0))
     );
     assert_eq!(
         owner
             .stage_account_credential_renewal(
-                &c.grants[0],
-                &[&c.grants[1], &c.grants[2]],
-                c.grants[0].operation(),
+                c.grant(0),
+                &[c.grant(1), c.grant(2)],
+                c.grant(0).operation(),
                 &c.f.c.policy,
                 175
             )
             .expect("historical complete request retry"),
-        renewal::committed(&c.grants[0])
+        renewal::committed(c.grant(0))
     );
 }
 
@@ -694,9 +698,9 @@ fn account_enrollment_sync_failures_keep_the_original_complete_intent_and_commit
                 } else {
                     assert_sync_failure(
                         owner.stage_account_credential_renewal(
-                            &c.grants[0],
-                            &[&c.grants[1], &c.grants[2]],
-                            c.grants[0].operation(),
+                            c.grant(0),
+                            &[c.grant(1), c.grant(2)],
+                            c.grant(0).operation(),
                             &c.f.c.policy,
                             170,
                         ),
@@ -707,16 +711,16 @@ fn account_enrollment_sync_failures_keep_the_original_complete_intent_and_commit
                 let mut owner = open(&c.f.c);
                 let state = owner
                     .stage_account_credential_renewal(
-                        &c.grants[0],
-                        &[&c.grants[2], &c.resigned],
-                        c.grants[0].operation(),
+                        c.grant(0),
+                        &[c.grant(2), &c.resigned],
+                        c.grant(0).operation(),
                         &c.f.c.policy,
                         170,
                     )
                     .expect("same semantic retry");
                 assert!(
-                    state == renewal::pending(&c.grants[0])
-                        || state == renewal::committed(&c.grants[0])
+                    state == renewal::pending(c.grant(0))
+                        || state == renewal::committed(c.grant(0))
                 );
                 c.verify_active(c.activate(owner));
                 assert_eq!(
@@ -795,6 +799,6 @@ fn account_format_retains_legacy_bounds_and_rejects_omitted_or_excessive_compani
     let bad =
         decode_image(&remac(changed), &key, owner.binding).expect("authenticated structural image");
     assert!(owner
-        .account_grants(&bad, &c.grants[0], &c.f.original)
+        .account_grants(&bad, c.grant(0), &c.f.original)
         .is_err());
 }

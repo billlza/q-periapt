@@ -71,8 +71,48 @@ existing encoding. Readers without these extensions reject the new wrappers.
 These remain unpublished candidate storage formats. The native owning API and
 the reference native CLI's `--companion-grants` workflow are implemented; see
 [the native consumer](../continuity-reference-app/NATIVE_DEVICE.md). Foreign-language
-batch entrypoints and independent shared-account coordination remain open.
-The independent consumer's same-account guard remains.
+batch entrypoints and independently implemented roster maintenance remain open.
+The independent consumer implements complete common-account credential renewal;
+its separate peer-only roster path still refuses same-account changes.
+
+### Complete peer-account admission
+
+`DeviceService::admit_peer_account_credential_renewal` admits a primary verified
+grant and nonempty companion collection for a known account. All changed
+same-generation credentials must have their own grants under the same predecessor,
+target and original policy. Duplicate devices, missing changes, mixed scopes and
+any grant for this owning device are refused. The owning device must use its
+original enrollment coordinator. The existing single-grant entry retains its
+contract and cannot advance a target that needs other grants.
+
+Both entries share one journal transition and ordinary write-intent recovery.
+They check actual current local membership and policy/runtime before reserving a
+write, around witness I/O, and after commit. In the previous single-grant path,
+an expired local credential could leave an uncommitted write intent before the
+witness rejected Advance. The original witness did reject it; this was a late
+refusal, not evidence of a successful unauthorized update. Current admission
+rejects that input before reserving the write. The regression compares the full
+original image and pending state, with a live-owner control.
+
+An identical target is a readback only when each supplied operation and statement
+matches its retained signed grant. Reordering companions preserves the first
+stored bytes. After an unknown commit, retain the complete original collection,
+reopen the same installation and retry it; error does not mean NoCommit. A newer
+head refuses an old retry. The returned checkpoint is current installed state,
+not an account-wide transaction or remote-delivery receipt. Current P1 after a
+joint continuation requires the actual adopted T; cached P0 is not a fallback.
+
+Native source tests exercise three and thirty-two independently enrolled members,
+every original complete-G owner followed by R, and an external sender with one
+real original session per recipient. Complete peer G and subsequent member removal
+preserve existing sessions. Old fanout remains bound to its original recipient
+checkpoint, including one acknowledged member and the other committed members;
+it is suspended, not retargeted. New fanout covers the complete current set, and a
+previously usable context for the removed member is refused. Two lost-Advance
+cases and ten consumed sync faults recover the original sealed complete target.
+These are native in-process-witness tests; full cohort T/P/replacement permutations,
+foreign/installed consumers and independent roster coordination remain separate
+qualification work. They do not establish instantaneous global revocation.
 
 ## Local enrollment workflow
 

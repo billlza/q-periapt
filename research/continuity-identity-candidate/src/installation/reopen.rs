@@ -204,6 +204,45 @@ impl DeviceService {
             )
             .await
     }
+    /// Atomically admit every changed peer credential under one independently
+    /// verified account predecessor and target. Companions exclude the primary
+    /// and must cover every other same-generation credential change. No grant
+    /// may renew this local device; its original enrollment owns that operation.
+    /// Semantic reordered retries retain the original stored grant bytes.
+    /// This returns a roster checkpoint, not a cross-device transaction receipt.
+    /// Current local authority is rechecked around witness I/O and durable commit;
+    /// an error after commit does not establish NoCommit.
+    pub async fn admit_peer_account_credential_renewal(
+        &mut self,
+        primary: &crate::VerifiedCredentialRenewal,
+        companions: &[&crate::VerifiedCredentialRenewal],
+        operation: crate::CredentialRenewalId,
+        policy: &crate::VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<crate::RosterCheckpoint, DurableError> {
+        if companions.is_empty() {
+            return Err(DurableError::Capacity);
+        }
+        let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
+        if owners.installation.status()? != InstallationStatus::Active {
+            return Err(DurableError::Conflict);
+        }
+        owners
+            .journal
+            .install_peer_account_credential_renewal(
+                &PolicyScope {
+                    authority: &owners.authority,
+                    original_policy: &owners.original_policy,
+                    original_device: &owners.original_device,
+                },
+                primary,
+                companions,
+                operation,
+                policy,
+                now,
+            )
+            .await
+    }
     /// Admit a freshly verified public context under this original active service.
     /// The caller verifies its bundle against independently retained pins first.
     /// Current advertisement, credential, policy/runtime and installed roster

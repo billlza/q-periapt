@@ -6,6 +6,8 @@ use crate::{
 };
 #[path = "account_renewal_recovery_tests.rs"]
 mod recovery;
+#[path = "account_roster_tests.rs"]
+mod roster;
 #[path = "account_renewal_session_tests.rs"]
 mod session;
 
@@ -18,18 +20,33 @@ struct OtherEnrollment {
 }
 struct AccountCase {
     f: Fixture,
-    grants: [VerifiedCredentialRenewal; 3],
+    grants: Vec<VerifiedCredentialRenewal>,
     alternate: VerifiedCredentialRenewal,
     resigned: VerifiedCredentialRenewal,
     witnessed: bool,
-    peers: [OtherEnrollment; 2],
-    certificates: [Vec<u8>; 3],
+    peers: Vec<OtherEnrollment>,
+    certificates: Vec<Vec<u8>>,
 }
 impl AccountCase {
+    fn grant(&self, index: usize) -> &VerifiedCredentialRenewal {
+        self.grants.get(index).expect("retained fixture grant")
+    }
+    fn certificate(&self, index: usize) -> &Vec<u8> {
+        self.certificates
+            .get(index)
+            .expect("original fixture certificate")
+    }
+    fn peer(&self, index: usize) -> &OtherEnrollment {
+        self.peers.get(index).expect("original fixture peer")
+    }
     fn new(witnessed: bool) -> Self {
         Self::with_companion_expiry(witnessed, 190)
     }
     fn with_companion_expiry(witnessed: bool, companion_until: u64) -> Self {
+        Self::with_members(witnessed, companion_until, 3)
+    }
+    fn with_members(witnessed: bool, companion_until: u64, members: usize) -> Self {
+        assert!((3..=crate::identity::MAX_DEVICES).contains(&members));
         let dir = directory();
         let path = dir.path().canonicalize().expect("witness path");
         let store = AnchorStore::provision(
@@ -62,7 +79,8 @@ impl AccountCase {
             .issue_enrollment(&request, 150)
             .expect("local credential")];
         let mut pending_peers = Vec::new();
-        for id in [8, 9] {
+        for index in 1..members {
+            let id = u8::try_from(index + 7).expect("bounded original device ID");
             let dir = directory();
             let root = dir.path().canonicalize().expect("peer path");
             let paths = paths(&root);
@@ -89,10 +107,6 @@ impl AccountCase {
             );
             pending_peers.push((dir, paths, intent, owner));
         }
-        let originals: [Vec<u8>; 3] = originals
-            .try_into()
-            .map_err(|_| "three enrolled credentials")
-            .expect("fixture shape");
         let entries = originals
             .iter()
             .map(|c0| c.root.roster_entry(c0).expect("member"))
@@ -110,13 +124,13 @@ impl AccountCase {
         .expect("original pin");
         let (original, id) = Self::initialize(
             owner,
-            &originals[0],
+            originals.first().expect("original owning credential"),
             &original_pin,
             roster.as_bytes(),
             &c,
             &carrier,
         );
-        let peers: [OtherEnrollment; 2] = pending_peers
+        let peers = pending_peers
             .into_iter()
             .zip(originals.iter().skip(1))
             .map(|((dir, paths, intent, owner), certificate)| {
@@ -136,10 +150,7 @@ impl AccountCase {
                     id,
                 }
             })
-            .collect::<Vec<_>>()
-            .try_into()
-            .map_err(|_| "two original peers")
-            .expect("fixture shape");
+            .collect::<Vec<_>>();
         let successors = originals
             .iter()
             .enumerate()
@@ -200,7 +211,9 @@ impl AccountCase {
             )
             .expect("verify")
         };
-        let grants = [grant(0, 100), grant(1, 101), grant(2, 102)];
+        let grants = (0..members)
+            .map(|i| grant(i, u8::try_from(100 + i).expect("bounded operation")))
+            .collect();
         let alternate = grant(1, 110);
         let resigned = grant(1, 101);
         Self {
@@ -267,14 +280,14 @@ impl AccountCase {
         assert_eq!(
             owner
                 .stage_account_credential_renewal(
-                    &self.grants[0],
-                    &[&self.grants[1], &self.grants[2]],
-                    self.grants[0].operation(),
+                    self.grant(0),
+                    &[self.grant(1), self.grant(2)],
+                    self.grant(0).operation(),
                     &self.f.c.policy,
                     170,
                 )
                 .expect("complete intent"),
-            renewal::pending(&self.grants[0])
+            renewal::pending(self.grant(0))
         );
     }
     fn activate(&self, mut owner: DeviceEnrollment) -> EnrolledDevice {
@@ -292,7 +305,7 @@ impl AccountCase {
         signer.check_device(local).expect("original signer");
         assert_eq!(
             local.credential_digest(),
-            self.grants[0].successor_device().credential_digest()
+            self.grant(0).successor_device().credential_digest()
         );
         let journal = service.stores().expect("stores").0;
         let snapshot = journal.test_snapshot();
@@ -321,9 +334,9 @@ fn account_intent_preserves_complete_original_set_and_rejects_partial_or_retarge
         let mut owner = open(&c.f.c);
         assert!(owner
             .stage_account_credential_renewal(
-                &c.grants[0],
-                &[&c.grants[1]],
-                c.grants[0].operation(),
+                c.grant(0),
+                &[c.grant(1)],
+                c.grant(0).operation(),
                 &c.f.c.policy,
                 170
             )
@@ -346,14 +359,14 @@ fn account_intent_preserves_complete_original_set_and_rejects_partial_or_retarge
         assert_eq!(
             owner
                 .stage_account_credential_renewal(
-                    &c.grants[0],
-                    &[&c.grants[2], &c.resigned],
-                    c.grants[0].operation(),
+                    c.grant(0),
+                    &[c.grant(2), &c.resigned],
+                    c.grant(0).operation(),
                     &c.f.c.policy,
                     170
                 )
                 .expect("semantic reordered retry"),
-            renewal::pending(&c.grants[0])
+            renewal::pending(c.grant(0))
         );
         assert_eq!(
             encode(
@@ -369,15 +382,15 @@ fn account_intent_preserves_complete_original_set_and_rejects_partial_or_retarge
             let mut owner = open(&c.f.c);
             let result = match companion {
                 None => owner.stage_credential_renewal(
-                    &c.grants[0],
-                    c.grants[0].operation(),
+                    c.grant(0),
+                    c.grant(0).operation(),
                     &c.f.c.policy,
                     170,
                 ),
                 Some(peer) => owner.stage_account_credential_renewal(
-                    &c.grants[0],
-                    &[peer, &c.grants[2]],
-                    c.grants[0].operation(),
+                    c.grant(0),
+                    &[peer, c.grant(2)],
+                    c.grant(0).operation(),
                     &c.f.c.policy,
                     170,
                 ),
@@ -404,14 +417,14 @@ fn account_intent_preserves_complete_original_set_and_rejects_partial_or_retarge
                 .store
                 .lock()
                 .expect("store")
-                .prepare_credential_renewal(proposal, &c.grants[0], &c.f.c.policy, 170)
+                .prepare_credential_renewal(proposal, c.grant(0), &c.f.c.policy, 170)
                 .expect("independent witness approval");
             *c.f.carrier.cut.lock().expect("reply cut") = Some((5, true));
             let mut anchor = client(&c.f, &mut owner, 170);
             assert!(owner
                 .commit_witnessed_credential_renewal(
-                    c.grants[0].operation(),
-                    c.grants[0].statement_digest(),
+                    c.grant(0).operation(),
+                    c.grant(0).statement_digest(),
                     &c.f.c.policy,
                     170,
                     &mut anchor
@@ -422,8 +435,8 @@ fn account_intent_preserves_complete_original_set_and_rejects_partial_or_retarge
             let mut anchor = client(&c.f, &mut owner, 170);
             owner
                 .reconcile_witnessed_credential_renewal(
-                    c.grants[0].operation(),
-                    c.grants[0].statement_digest(),
+                    c.grant(0).operation(),
+                    c.grant(0).statement_digest(),
                     &c.f.c.policy,
                     170,
                     &mut anchor,
@@ -437,14 +450,14 @@ fn account_intent_preserves_complete_original_set_and_rejects_partial_or_retarge
         assert_eq!(
             owner
                 .stage_account_credential_renewal(
-                    &c.grants[0],
-                    &[&c.grants[2], &c.resigned],
-                    c.grants[0].operation(),
+                    c.grant(0),
+                    &[c.grant(2), &c.resigned],
+                    c.grant(0).operation(),
                     &c.f.c.policy,
                     170
                 )
                 .expect("completed original readback"),
-            renewal::committed(&c.grants[0])
+            renewal::committed(c.grant(0))
         );
         owner.close();
         c.verify_active(c.activate(open(&c.f.c)));

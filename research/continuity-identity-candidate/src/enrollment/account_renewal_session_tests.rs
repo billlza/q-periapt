@@ -91,7 +91,7 @@ pub(super) fn renew(
 fn both_same_account_installations_keep_original_session_messages_and_rekey_after_expiry() {
     for witnessed in [false, true] {
         let c = AccountCase::new(witnessed);
-        let peer = &c.peers[0];
+        let peer = c.peer(0);
         let key_paths = [
             &c.f.c.paths.signer,
             &c.f.c.paths.wrapping,
@@ -191,9 +191,9 @@ fn both_same_account_installations_keep_original_session_messages_and_rekey_afte
         let bundle = BootstrapBundle::from_materials(
             PrekeyQuality::OneTimeBoth,
             BootstrapMaterials {
-                initiator_credential: &c.certificates[1],
+                initiator_credential: c.certificate(1),
                 initiator_roster: peer.device.roster().as_bytes(),
-                responder_credential: &c.certificates[0],
+                responder_credential: c.certificate(0),
                 responder_roster: c.f.original.roster().as_bytes(),
                 responder_manifest: manifest.as_bytes(),
                 signed_classical: proof(LeafKind::SignedClassical),

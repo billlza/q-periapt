@@ -777,8 +777,9 @@ replies. Under independent P, sixteen actual process kills cover Applied/Closed 
 terminal, pending retirement and enrollment completion in both directions.
 They reopen the same enrollment, journal and witness and compare exact ciphertext
 and the preceding G/R history. This is native in-process transport evidence;
-full account-cohort roster maintenance, independent
-consumers, installed packages and platform-specific qualification remain open
+Three- and thirty-two-member complete-G/R cases are checked through the
+[account workflow](CREDENTIAL_RENEWAL.md#complete-peer-account-admission).
+Full cohort policy/replacement permutations, independent consumers, installed packages and platform-specific qualification remain open
 for this new combination.
 
 ### Original joint continuation and roster composition
@@ -812,7 +813,7 @@ ciphertext and retained T without granting an expired runtime. Real bilateral
 T→R sessions retain the original outbox and pending PQ offer, reconcile lost R
 ACKs, finish the same rekey and exchange traffic. Managed session reopen is also
 checked. These remain native source tests with in-process witness transport;
-full account cohorts, independent consumers and installed/platform qualification
+full joint-T account cohorts, independent consumers and installed/platform qualification
 are separate gates.
 
 ### Original traffic across R

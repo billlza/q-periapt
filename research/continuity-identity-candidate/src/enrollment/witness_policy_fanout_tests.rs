@@ -3,11 +3,18 @@
 use super::*;
 use crate::enrollment::tests::policy_continuation::{joint, policy, scope};
 use crate::{FanoutMember, FanoutOutput, VerifiedEnrollmentRequest};
+#[path = "account_roster_fanout_tests.rs"]
+mod account_roster;
 
 pub(in crate::enrollment::tests::witness_renewal) fn recipients(sender: &Fixture) -> Vec<Endpoint> {
+    recipients_count(sender, 2)
+}
+fn recipients_count(sender: &Fixture, count: usize) -> Vec<Endpoint> {
+    assert!((2..=crate::identity::MAX_DEVICES).contains(&count));
     let mut enrolled = Vec::new();
     let mut certificates = Vec::new();
-    for id in [8, 9] {
+    for index in 0..count {
+        let id = u8::try_from(index + 8).expect("bounded recipient ID");
         let mut c = case_with_anchor(crate::AnchorRequirement::required(&sender.pin));
         c.root = RootSigningKey::deterministic([45; 32], [46; 32])
             .expect("same independently controlled recipient account");
@@ -103,6 +110,7 @@ pub(in crate::enrollment::tests::witness_renewal) fn recipients(sender: &Fixture
 }
 
 struct Link {
+    bundle: BootstrapBundle,
     sender: Arc<BootstrapContext>,
     receiver: Arc<BootstrapContext>,
     session: [u8; 32],
@@ -157,6 +165,7 @@ fn connect(a: &mut Endpoint, b: &mut Endpoint) -> Link {
     ra.retain(rj, &cr, session, &archive)
         .expect("retain receiver archive");
     Link {
+        bundle,
         sender: ci,
         receiver: cr,
         session,
