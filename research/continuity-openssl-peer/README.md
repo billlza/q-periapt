@@ -405,3 +405,13 @@ and SDK purpose schedule in `crates/q-periapt-sdk/src/purpose.rs`. Provider API
 references are the official [ML-KEM](https://cryptography.io/en/48.0.0/hazmat/primitives/asymmetric/mlkem/)
 and [ML-DSA](https://cryptography.io/en/48.0.0/hazmat/primitives/asymmetric/mldsa/)
 documentation; the executed package and OpenSSL versions are recorded per run.
+
+`policy_renewal_proof_checks.py` verifies the native two-root policy-only approval
+format independently. Its native producer derives both request scopes from the
+same original enrollment and journal, including a second policy adoption and a
+separate case following real same-key credential renewal. Both root signatures,
+the exact original owner, current credential/roster, previous authorization and
+unchanged policy profile are mandatory. Historical signature verification grants
+no current permission. This is a proof interoperability prerequisite: independent
+durable policy adoption, witness admission and post-expiry session continuation
+are not provided by this verifier.

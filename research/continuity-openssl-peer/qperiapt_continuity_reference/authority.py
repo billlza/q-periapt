@@ -59,7 +59,7 @@ class Materials(PolicyMaterials):
     pq_proof: bytes
 
 
-def verify_sdk(pins: Pins, materials: Materials) -> SdkBinding:
+def verify_sdk(pins: PolicyPins, materials: PolicyMaterials) -> SdkBinding:
     document = materials.sdk_document
     require(len(document) <= 65536 and len(pins.sdk_root) == 1952, "SDK material bounds")
     message = b"Q-PERIAPT-SIGNED-POLICY/v1" + len(document).to_bytes(8, "big") + document
@@ -123,6 +123,44 @@ class Context:
 
 
 @dataclass(frozen=True)
+class HistoricalPolicy:
+    sdk: SdkBinding
+    family: bytes
+    version: int
+    digest: bytes
+    validity: Interval
+    budget: int
+    modes: int
+    anchor: bytes | None
+    root: VerificationKey
+    wire: bytes
+
+    def checkpoint(self):
+        return self.version.to_bytes(8, "big") + self.digest
+
+    def verify_metadata(self):
+        # Python objects are not opaque native verifier handles. Recheck their
+        # canonical signed body at the approval boundary as well as on parsing.
+        body = self.root.open(self.wire, 4, 200)
+        expected = (b"QPSESP03" + self.family + self.version.to_bytes(8, "big")
+                    + self.validity.start.to_bytes(8, "big") + self.validity.end.to_bytes(8, "big")
+                    + SUITE + self.sdk.wire() + bytes([self.modes, self.anchor is not None])
+                    + (self.anchor or bytes(32)) + self.budget.to_bytes(2, "big"))
+        require(body == expected and self.family == digest(b"POLICY-AUTHORITY", self.root.raw)
+                and self.digest == digest(b"SESSION-POLICY", body), "policy signed metadata differs")
+
+    def same_profile(self, other):
+        require((self.sdk, self.family, self.root, self.modes, self.anchor, self.budget, self.validity.start)
+                == (other.sdk, other.family, other.root, other.modes, other.anchor, other.budget, other.validity.start),
+                "policy renewal changes the original profile")
+
+    def check_external_signer(self, key):
+        require(not key.shares_component(self.root)
+                and hashlib.sha256(key.raw[:1952]).digest() != self.sdk.root_digest,
+                "policy renewal signer separation")
+
+
+@dataclass(frozen=True)
 class PolicySnapshot:
     sdk: SdkBinding
     family: bytes
@@ -130,19 +168,28 @@ class PolicySnapshot:
     digest: bytes
     validity: Interval
     budget: int
+    history: HistoricalPolicy
+
+    def __post_init__(self):
+        require((self.sdk, self.family, self.version, self.digest, self.validity, self.budget)
+                == (self.history.sdk, self.history.family, self.history.version,
+                    self.history.digest, self.history.validity, self.history.budget),
+                "current policy snapshot metadata differs")
 
 
-def authenticate_policy(pins: PolicyPins, materials: PolicyMaterials, now: int, *, witness_pin=None) -> PolicySnapshot:
-    sdk = verify_sdk(pins, materials)
+def authenticate_historical_policy(pins: PolicyPins, wire: bytes, *, witness_pin=None) -> HistoricalPolicy:
+    """Verify immutable signed metadata and retained pins, with no current grant."""
+    require(len(pins.sdk_root) == 1952 and len(pins.sdk_state) == 36, "historical SDK binding pins")
+    sdk = SdkBinding(int.from_bytes(pins.sdk_state[:4], "big"), pins.sdk_state[4:],
+                     hashlib.sha256(pins.sdk_root).digest())
     family = digest(b"POLICY-AUTHORITY", pins.policy_root.raw)
-    body = pins.policy_root.open(materials.policy, 4, 200)
+    body = pins.policy_root.open(wire, 4, 200)
     require(digest(b"SESSION-POLICY", body) == pins.policy_digest, "protocol policy digest pin")
     reader = Reader(body)
     require(reader.take(8) == b"QPSESP03" and reader.take(32) == family, "policy family")
     version = generation(reader.integer(8))
     require(version == pins.policy_version, "protocol policy version pin")
     validity = Interval.read(reader)
-    validity.check(now)
     require(reader.take(32) == SUITE and reader.take(68) == sdk.wire(), "policy SDK/suite binding")
     modes = reader.integer(1)
     require(modes & ~15 == 0 and modes & 2 != 0, "reusable quality not permitted")
@@ -157,7 +204,17 @@ def authenticate_policy(pins: PolicyPins, materials: PolicyMaterials, now: int, 
     budget = reader.integer(2)
     require(budget != 0, "zero send allowance")
     reader.finish()
-    return PolicySnapshot(sdk, family, version, pins.policy_digest, validity, budget)
+    return HistoricalPolicy(sdk, family, version, pins.policy_digest, validity, budget,
+                            modes, anchor_binding if anchor_mode else None, pins.policy_root, wire)
+
+
+def authenticate_policy(pins: PolicyPins, materials: PolicyMaterials, now: int, *, witness_pin=None) -> PolicySnapshot:
+    sdk = verify_sdk(pins, materials)
+    history = authenticate_historical_policy(pins, materials.policy, witness_pin=witness_pin)
+    require(history.sdk == sdk, "current policy SDK binding")
+    history.validity.check(now)
+    return PolicySnapshot(sdk, history.family, history.version, history.digest,
+                          history.validity, history.budget, history)
 
 
 def authenticate(pins: Pins, materials: Materials, now: int, *, witness_pin=None) -> Context:

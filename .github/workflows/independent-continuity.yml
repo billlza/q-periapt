@@ -299,6 +299,24 @@ jobs:
             --output target/independent-peer-ci/account-state \
             > target/independent-peer-ci/account-state.stdout 2> target/independent-peer-ci/account-state.stderr
           git diff --exit-code
+      - name: Verify independent policy approvals against original native installations
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-peer-native"
+          manifest=research/continuity-openssl-peer/native/Cargo.toml
+          cargo clippy --release --locked --manifest-path "$manifest" --example policy_renewal_fixture -- -D warnings \
+            > target/independent-peer-ci/policy-proof-clippy.stdout 2> target/independent-peer-ci/policy-proof-clippy.stderr
+          cargo build --release --locked --manifest-path "$manifest" --example policy_renewal_fixture \
+            > target/independent-peer-ci/policy-proof-build.stdout 2> target/independent-peer-ci/policy-proof-build.stderr
+          cp "$CARGO_TARGET_DIR/release/examples/policy_renewal_fixture" target/independent-peer-ci/policy-renewal-fixture
+          sh artifact/python-run.sh research/continuity-openssl-peer/policy_renewal_proof_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/policy-renewal-fixture \
+            --output target/independent-peer-ci/policy-proof \
+            > target/independent-peer-ci/policy-proof.stdout 2> target/independent-peer-ci/policy-proof.stderr
+          git diff --exit-code
       - name: Verify original common-account sessions and witness renewal
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
