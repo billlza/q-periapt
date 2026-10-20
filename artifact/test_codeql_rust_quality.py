@@ -1956,6 +1956,73 @@ class CodeQLRustQualityTests(unittest.TestCase):
                                      f"tracked Rust source count must be {codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT}"):
                 codeql_rust_quality.tracked_rust_paths()
 
+    def test_reference_recovery_inventory_requires_each_new_source(self) -> None:
+        tracked = sorted(codeql_rust_quality.tracked_rust_paths())
+        required = (
+            'research/continuity-identity-candidate/src/enrollment/preinstallation.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation/adoption.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation/codec.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation/history.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation/roster.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation_codec_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation_process_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation_roster_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation_witness_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/public_admission.rs',
+            'research/continuity-identity-candidate/src/session_exchange/tcp.rs',
+            'research/continuity-identity-candidate/src/tcp_io.rs',
+            'research/continuity-openssl-peer/native/src/fixture_extension.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/extension.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/extension/historical.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant/crash.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant/inputs.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant/sequence.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant/witness.rs',
+            'research/continuity-reference-app/src/bin/q-periapt-native-device.rs',
+            'research/continuity-reference-app/src/bin/q-periapt-native-outgoing.rs',
+            'research/continuity-reference-app/src/bin/q-periapt-native-session.rs',
+            'research/continuity-reference-app/src/credential_grant.rs',
+            'research/continuity-reference-app/src/http/enrollment/tests/extension.rs',
+            'research/continuity-reference-app/src/http/enrollment/tests/grant.rs',
+            'research/continuity-reference-app/src/native_device/admission.rs',
+            'research/continuity-reference-app/src/native_device/credential_recovery.rs',
+            'research/continuity-reference-app/src/native_device/mailbox.rs',
+            'research/continuity-reference-app/src/native_device/mod.rs',
+            'research/continuity-reference-app/src/native_device/peer.rs',
+            'research/continuity-reference-app/src/native_device/publication.rs',
+            'research/continuity-reference-app/src/native_device/renewal.rs',
+            'research/continuity-reference-app/src/native_renewal_cli.rs',
+            'research/continuity-reference-app/src/network/framing.rs',
+            'research/continuity-reference-app/src/network/mod.rs',
+            'research/continuity-reference-app/src/network/server.rs',
+            'research/continuity-reference-app/src/network/tests.rs',
+            'research/continuity-reference-app/src/network_service.rs',
+            'research/continuity-reference-app/src/outgoing_files.rs',
+            'research/continuity-reference-app/src/store/enrollment/extension.rs',
+            'research/continuity-reference-app/src/store/enrollment/extension/schema.rs',
+            'research/continuity-reference-app/src/store/enrollment/grant.rs',
+            'research/continuity-reference-app/src/store/enrollment/grant/inputs.rs',
+            'research/continuity-reference-app/src/store/enrollment/grant/schema.rs',
+            'research/continuity-reference-app/src/test_support.rs',
+            'research/continuity-reference-app/tests/native_device.rs',
+            'research/continuity-reference-app/tests/native_device/publication.rs',
+            'research/continuity-reference-app/tests/native_device/recovery.rs',
+            'research/continuity-reference-app/tests/native_device/renewal.rs',
+            'research/continuity-reference-app/tests/support/inbox_crash_probe.rs',
+        )
+        for missing in required:
+            self.assertIn(missing, tracked)
+            raw = b"".join(p.encode() + b"\0" for p in tracked if p != missing)
+            with self.subTest(missing=missing), mock.patch.object(
+                codeql_rust_quality, "run_git_bytes", return_value=raw
+            ), self.assertRaisesRegex(
+                codeql_rust_quality.CodeQLRustQualityError,
+                "tracked Rust source count must be 816, got 815",
+            ):
+                codeql_rust_quality.tracked_rust_paths()
+
     def test_unresolved_macro_details_are_strictly_typed_and_canonical(self) -> None:
         rows = [["crates/a/src/lib.rs", 7, 3, "concat!..."]]
         self.assertEqual(
