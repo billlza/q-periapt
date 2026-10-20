@@ -34,7 +34,9 @@ fn lose_response(c: &Case, args: &[OsString], name: &str) -> Result<()> {
 }
 fn witness_outcome(apply: bool) -> Result<()> {
     let mut server = witness_support::Server::start()?;
-    let c = Case::open_with_profile(20, 30, Some(&server))?;
+    // Parallel process tests can spend over 25 seconds in the live ceremony.
+    // Leave a bounded setup window, then still wait for both signed expiries.
+    let c = Case::open_with_profile(40, 75, Some(&server))?;
     let accepted = c.accept()?;
     let mut policy_request = c.args("policy-request", &[]);
     policy_request.extend([
@@ -47,6 +49,17 @@ fn witness_outcome(apply: bool) -> Result<()> {
     ]);
     invoke(&policy_request, false)?;
     assert!(!c.path.join("forbidden-local-policy-request.json").exists());
+    let mut policy_resolve = c.args("policy-resolve", &[]);
+    policy_resolve.extend([
+        URL_SAFE_NO_PAD.encode([124; 32]).into(),
+        URL_SAFE_NO_PAD.encode([126; 32]).into(),
+        c.path.join("policy-pins.json").into_os_string(),
+        c.path.join("policy-materials.json").into_os_string(),
+        c.path.join("policy-pins.json").into_os_string(),
+        c.path.join("policy-materials.json").into_os_string(),
+    ]);
+    assert!(String::from_utf8(invoke(&policy_resolve, false)?)?
+        .contains("cannot replace required witness coordination"));
     assert_eq!(c.call("policy-status", &[])?["state"], "Absent");
     let preparation = c.call(
         "prepare",
@@ -92,7 +105,7 @@ fn witness_outcome(apply: bool) -> Result<()> {
     invoke(&request, true)?;
     let retained: RetainedCredentialRequest =
         serde_json::from_slice(&fs::read(c.path.join("retained-witness.json"))?)?;
-    let r = issue_recovery(&c, retained, c.start + 25)?;
+    let r = issue_recovery(&c, retained, c.start + 60)?;
     let mut stage = recovery_args(
         &c,
         "renewal-stage",
@@ -168,8 +181,8 @@ fn witness_outcome(apply: bool) -> Result<()> {
         lose_response(&c, &commit, "applied-lost-stdout.stderr")?;
         assert_eq!(c.call("renewal-status", &[])?["state"], "Committed");
     }
-    let limit = Instant::now() + Duration::from_secs(40);
-    while clock()? < c.start + 30 {
+    let limit = Instant::now() + Duration::from_secs(85);
+    while clock()? < c.start + 75 {
         if Instant::now() >= limit {
             return Err("Actual witness policy expiry did not occur within bound".into());
         }

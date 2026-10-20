@@ -32,6 +32,7 @@ const USAGE: &str = concat!(
     "policy-stage/policy-adopt: <retained-request> <account-approval> <policy-approval> <current-root> ",
     "<original-pins> <original-materials> <previous-pins> <previous-materials> <target-pins> <target-materials>\n",
     "policy-recover: <original-policy-operation> <original-statement> <original-policy-pins> <original-policy-materials>\n",
+    "policy-resolve: <original-policy-operation> <original-statement> <original-pins> <original-materials> <target-pins> <target-materials>\n",
     "renewal-status: no extra arguments (historical progress only)\n",
     "renewal-reconcile-expired: <issued-grant-json> <unchanged-live-policy-pins-json> ",
     "<unchanged-live-policy-materials-json> (local-only retained outcome, no activation)\n",
@@ -60,7 +61,12 @@ fn main() -> Result<()> {
     let command = args.get(1).and_then(|v| v.to_str()).ok_or(USAGE)?;
     if matches!(
         command,
-        "policy-request" | "policy-status" | "policy-stage" | "policy-adopt" | "policy-recover"
+        "policy-request"
+            | "policy-status"
+            | "policy-stage"
+            | "policy-adopt"
+            | "policy-recover"
+            | "policy-resolve"
     ) {
         return native_policy_cli::run(&args);
     }

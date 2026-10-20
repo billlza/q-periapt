@@ -75,8 +75,33 @@ This can finish an already-committed original journal operation without a live
 target policy or private device signer. It does not adopt an uncommitted Pending,
 classify it as abandoned, or stage another request. A pending target with no exact
 commit returns an error and remains Pending. `policy-status` alone is not proof
-of non-commit. Explicit abandonment uses the SDK's separate proof-based resolution
-contract; this consumer has not yet exposed that command.
+of non-commit.
+
+To resolve an expired pending operation, supply its exact original ID, statement
+and independently verified target history:
+
+```sh
+q-periapt-native-device policy-resolve "$device_dir" "$wrapping_key" "$invitation" \
+  "$original_operation" "$original_statement" \
+  "$original_policy_pins" "$original_policy_materials" \
+  "$target_policy_pins" "$target_policy_materials"
+```
+
+The SDK inspects the original installation and journal. An exact committed
+operation remains `Committed`. An unchanged policy predecessor proves non-commit;
+only then can signed credential, roster or target expiry, or an actual advanced
+roster, permit `AbandonedUncommitted`. A still-live unchanged request, mismatched
+statement/target, unreadable state or unresolved conflict returns an error.
+Neither an expired file nor a failed command alone proves non-commit.
+
+Resolution uses actual host time, preserves the SDK's retained time floor and
+returns only outcome metadata. It needs no device signer or live target runtime.
+Retain the exact result, including reason, observed roster and observation time.
+Exact retry returns the retained outcome; the SDK retains only the last abandoned
+record until a later abandonment or policy completion. Applications needing a
+longer history must retain their own receipts. After proven abandonment, export a
+new operation from the same original installation and obtain two new approvals.
+Previous signatures do not authorize the new request or extend its expiry.
 
 The current commands require a local-only original installation. Required-witness
 P authorization and coordination remain separate; there is no local fallback.

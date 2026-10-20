@@ -69,6 +69,22 @@ fn policy_args(c: &Case, command: &str, request: &str, account: &str) -> Vec<OsS
         ],
     )
 }
+fn lose_response(c: &Case, args: &[OsString], name: &str) -> Result<()> {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_q-periapt-native-device"))
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    drop(child.stdout.take());
+    let output = child.wait_with_output()?;
+    fs::write(c.path.join(name), &output.stderr)?;
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .to_ascii_lowercase()
+        .contains("broken pipe"));
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("panicked"));
+    Ok(())
+}
 #[test]
 fn native_policy_adoption_survives_lost_output_and_historical_expiry_without_signer() -> Result<()>
 {
@@ -193,6 +209,24 @@ fn exercise(adopt: bool) -> Result<()> {
     ]);
     invoke(&recover, false)?;
     assert_eq!(c.call("policy-status", &[])?, pending);
+    let mut resolve = recover.clone();
+    resolve[0] = "policy-resolve".into();
+    resolve.extend([
+        c.path.join("next-pins.json").into_os_string(),
+        c.path.join("next-materials.json").into_os_string(),
+    ]);
+    // Neither a live uncommitted target nor an unrelated signed target permits
+    // abandoning this operation. Failure must retain its exact Pending record.
+    invoke(&resolve, false)?;
+    assert_eq!(c.call("policy-status", &[])?, pending);
+    let mut wrong_statement = resolve.clone();
+    wrong_statement[5] = URL_SAFE_NO_PAD.encode([123; 32]).into();
+    invoke(&wrong_statement, false)?;
+    let mut wrong_target = resolve.clone();
+    wrong_target[8] = c.path.join("policy-pins.json").into_os_string();
+    wrong_target[9] = c.path.join("policy-materials.json").into_os_string();
+    invoke(&wrong_target, false)?;
+    assert_eq!(c.call("policy-status", &[])?, pending);
     let apply = policy_args(
         &c,
         "policy-adopt",
@@ -200,19 +234,7 @@ fn exercise(adopt: bool) -> Result<()> {
         "account-approval.bin",
     );
     if adopt {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_q-periapt-native-device"))
-            .args(&apply)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
-        drop(child.stdout.take());
-        let output = child.wait_with_output()?;
-        fs::write(c.path.join("policy-lost-output.stderr"), &output.stderr)?;
-        assert!(!output.status.success());
-        assert!(String::from_utf8_lossy(&output.stderr)
-            .to_ascii_lowercase()
-            .contains("broken pipe"));
-        assert!(!String::from_utf8_lossy(&output.stderr).contains("panicked"));
+        lose_response(&c, &apply, "policy-lost-output.stderr")?;
         let committed = c.call("policy-status", &[])?;
         assert_eq!(committed["state"], "Committed");
         assert_eq!(
@@ -248,29 +270,148 @@ fn exercise(adopt: bool) -> Result<()> {
         }
         assert_eq!(c.call("policy-status", &[])?, before);
     }
-    if adopt {
-        invoke(&request_args(&c, [122; 32], "next-request.json"), true)?;
-        let next: PolicyRequest =
-            serde_json::from_slice(&fs::read(c.path.join("next-request.json"))?)?;
-        assert_eq!(
-            next.scope.previous_policy,
-            q_periapt_continuity_reference_app::policy_renewal::checkpoint(target.checkpoint())
-        );
-        assert_eq!(next.scope.previous_authorization, Some(statement.digest()));
-        assert_eq!(next.scope.journal, request.scope.journal);
-        assert_eq!(next.scope.original_owner, request.scope.original_owner);
-        assert_eq!(next.current_certificate, request.current_certificate);
-        assert_eq!(next.current_roster, request.current_roster);
-    } else {
+    if !adopt {
         invoke(&request_args(&c, [122; 32], "blocked-request.json"), false)?;
         assert!(!c.path.join("blocked-request.json").exists());
     }
+    invoke(&wrong_statement, false)?;
+    invoke(&wrong_target, false)?;
+    assert_eq!(c.call("policy-status", &[])?, before);
+    if !adopt {
+        lose_response(&c, &resolve, "policy-resolution-lost-output.stderr")?;
+    }
+    let resolved: serde_json::Value = serde_json::from_slice(&invoke(&resolve, true)?)?;
+    if adopt {
+        assert_eq!(resolved, before);
+    } else {
+        assert_eq!(resolved["state"], "AbandonedUncommitted");
+        assert_eq!(resolved["reason"], "Expired");
+        assert_eq!(resolved["operation"], pending["operation"]);
+        assert_eq!(resolved["statement"], pending["statement"]);
+        assert_eq!(resolved["target"], pending["target"]);
+        assert_eq!(
+            resolved["observed_roster"],
+            serde_json::to_value(request.scope.current_roster)?
+        );
+        assert!(resolved["observed_at"].as_u64().ok_or("observed time")? >= c.start + 40);
+    }
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&invoke(&resolve, true)?)?,
+        resolved
+    );
+    assert_eq!(c.call("policy-status", &[])?, resolved);
+    // The caller retains this receipt before a subsequent policy completion can
+    // retire the SDK's bounded last-abandoned record.
+    write(&c.path.join("original-policy-outcome.json"), &resolved)?;
+    invoke(&request_args(&c, [122; 32], "next-request.json"), true)?;
+    let next: PolicyRequest = serde_json::from_slice(&fs::read(c.path.join("next-request.json"))?)?;
+    let previous = if adopt {
+        target.historical()
+    } else {
+        &original
+    };
+    assert_eq!(
+        next.scope.previous_policy,
+        q_periapt_continuity_reference_app::policy_renewal::checkpoint(previous.checkpoint())
+    );
+    assert_eq!(
+        next.scope.previous_authorization,
+        adopt.then_some(statement.digest())
+    );
+    assert_eq!(next.scope.journal, request.scope.journal);
+    assert_eq!(next.scope.original_owner, request.scope.original_owner);
+    assert_eq!(next.current_certificate, request.current_certificate);
+    assert_eq!(next.current_roster, request.current_roster);
     assert_eq!(fs::read(c.path.join("original-device.key"))?, signing);
     assert_eq!(fs::read(c.path.join("wrap.key"))?, wrapping);
     fs::rename(
         c.path.join("original-device.key"),
         c.path.join("device/device.key"),
     )?;
+    adopt_fresh_policy(&mut c, &next, &original, previous, adopt)?;
+    assert_eq!(fs::read(c.path.join("device/device.key"))?, signing);
+    assert_eq!(fs::read(c.path.join("wrap.key"))?, wrapping);
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&fs::read(
+            c.path.join("original-policy-outcome.json")
+        )?)?,
+        resolved
+    );
     assert_eq!(c.call("status", &[])?["journal"], accepted["journal"]);
+    Ok(())
+}
+
+fn adopt_fresh_policy(
+    c: &mut Case,
+    request: &PolicyRequest,
+    original: &sdk::HistoricalSessionPolicy,
+    previous: &sdk::HistoricalSessionPolicy,
+    previously_committed: bool,
+) -> Result<()> {
+    c.publisher.issue(
+        [125; 32],
+        Request {
+            bootstrap_mode: BootstrapMode::ReusableBoth,
+            valid_from: c.start,
+            valid_until: c.start + 120,
+            send_budget: 8,
+            anchor: Anchor::LocalOnly {},
+        },
+        clock()?,
+    )?;
+    c.policy_files([125; 32], "third")?;
+    c.policy_files(
+        if previously_committed {
+            [121; 32]
+        } else {
+            [65; 32]
+        },
+        "previous",
+    )?;
+    let (pins, materials) = c.publisher.export([125; 32])?;
+    let (target, _) = pins.verify(&materials, c.invitation.family, clock()?)?;
+    let verified = request.verify_identities(&c.current, clock()?)?;
+    let statement = sdk::PolicyRenewalStatement::new(
+        verified.scope(),
+        &verified.materials(original, previous, &target),
+        clock()?,
+    )?;
+    publish_private_bytes(
+        &c.path.join("third-account.bin"),
+        c.root.approve_policy_renewal(&statement)?.as_bytes(),
+    )?;
+    publish_private_bytes(
+        &c.path.join("third-policy.bin"),
+        policy_signer(c)?
+            .approve_policy_renewal(&statement)?
+            .as_bytes(),
+    )?;
+    let mut apply = policy_args(c, "policy-adopt", "next-request.json", "third-account.bin");
+    apply[6] = c.path.join("third-policy.bin").into_os_string();
+    apply[10] = c.path.join("previous-pins.json").into_os_string();
+    apply[11] = c.path.join("previous-materials.json").into_os_string();
+    apply[12] = c.path.join("third-pins.json").into_os_string();
+    apply[13] = c.path.join("third-materials.json").into_os_string();
+    let committed: serde_json::Value = serde_json::from_slice(&invoke(&apply, true)?)?;
+    assert_eq!(committed["state"], "Committed");
+    assert_eq!(request.scope.operation, [122; 32]);
+    assert_eq!(
+        committed["operation"],
+        serde_json::json!(request.scope.operation)
+    );
+    assert_eq!(
+        committed["statement"],
+        serde_json::json!(statement.digest())
+    );
+    assert_eq!(
+        committed["target"],
+        serde_json::to_value(
+            q_periapt_continuity_reference_app::policy_renewal::checkpoint(target.checkpoint())
+        )?
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&invoke(&apply, true)?)?,
+        committed
+    );
     Ok(())
 }

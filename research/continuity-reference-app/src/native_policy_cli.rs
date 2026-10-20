@@ -55,6 +55,7 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
     let count = match command {
         "policy-status" => 5,
         "policy-request" | "policy-recover" => 9,
+        "policy-resolve" => 11,
         "policy-stage" | "policy-adopt" => 15,
         _ => return Err(USAGE.into()),
     };
@@ -65,6 +66,28 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
     if command == "policy-status" {
         let mut owner = NativeDevice::open(Path::new(&args[2]), Path::new(&args[3]), invitation)?;
         let result = progress(owner.policy_recovery_status()?);
+        owner.close();
+        return print(&result);
+    }
+    if command == "policy-resolve" {
+        let operation = sdk::PolicyRenewalId::from_trusted_state(identifier(&args[5])?)?;
+        let statement = identifier(&args[6])?;
+        let original_pins: PolicyPins = json(&args[7], 16384)?;
+        let original_materials: PolicyMaterials = json(&args[8], 128 * 1024)?;
+        let target_pins: PolicyPins = json(&args[9], 16384)?;
+        let target_materials: PolicyMaterials = json(&args[10], 128 * 1024)?;
+        let (original, original_witness) =
+            original_pins.verify_historical(&original_materials, invitation.family)?;
+        let (target, target_witness) =
+            target_pins.verify_historical(&target_materials, invitation.family)?;
+        if original_witness.is_some() || target_witness.is_some() {
+            return Err(
+                "Policy-only local commands cannot replace required witness coordination".into(),
+            );
+        }
+        let mut owner = NativeDevice::open(Path::new(&args[2]), Path::new(&args[3]), invitation)?;
+        let result =
+            progress(owner.resolve_policy(operation, statement, &original, &target, clock()?)?);
         owner.close();
         return print(&result);
     }

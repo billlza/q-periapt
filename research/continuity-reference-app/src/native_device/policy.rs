@@ -124,4 +124,34 @@ impl NativeDevice {
         }
         result
     }
+    /// Inspect the exact original operation. Only proven non-commit plus signed
+    /// expiry or actual roster advancement permits abandonment; no owner returns.
+    pub fn resolve_policy(
+        &mut self,
+        operation: sdk::PolicyRenewalId,
+        statement: [u8; 32],
+        original: &sdk::HistoricalSessionPolicy,
+        target: &sdk::HistoricalSessionPolicy,
+        now: u64,
+    ) -> Result<sdk::PolicyRenewalStatus> {
+        let result = (|| {
+            if [original, target].iter().any(|p| {
+                p.family() != self.invitation.family
+                    || p.anchor_requirement() != sdk::AnchorRequirement::local_only()
+            }) {
+                return Err("Policy resolution requires original local-only policy history".into());
+            }
+            let at = clock()?;
+            if at < now {
+                return Err("Host time moved behind policy resolution".into());
+            }
+            Ok(self
+                .owner
+                .resolve_policy_renewal(operation, statement, original, target, at)?)
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
 }
