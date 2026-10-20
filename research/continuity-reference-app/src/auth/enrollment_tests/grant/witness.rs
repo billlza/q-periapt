@@ -60,6 +60,7 @@ fn native_credential_recovery_requires_independent_witness_approval_and_reopens_
     let inputs = CredentialRecoveryInputs {
         approval: &c.input,
         issued: &issued,
+        companions: None,
         current: &current,
         original_policy: &c.historical,
         policy: &c.policy,

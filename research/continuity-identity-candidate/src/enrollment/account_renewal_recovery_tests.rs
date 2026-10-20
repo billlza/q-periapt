@@ -3,6 +3,67 @@
 use super::*;
 
 #[test]
+fn earliest_companion_expiry_closes_only_an_uncommitted_complete_account_target() {
+    for committed in [false, true] {
+        let c = AccountCase::with_companion_expiry(false, 175);
+        if committed {
+            super::session::renew(&c, 0, &c.f.c.paths, &c.f.c.intent).close();
+        } else {
+            let mut owner = open(&c.f.c);
+            c.stage(&mut owner);
+            owner.close();
+            assert!(matches!(
+                open(&c.f.c).activate(&c.f.c.policy, 178, None),
+                Err(DurableError::Protocol(Error::Validity))
+            ));
+        }
+        let mut owner = open(&c.f.c);
+        let outcome = owner
+            .reconcile_expired_credential_renewal(
+                c.grants[0].operation(),
+                c.grants[0].statement_digest(),
+                &c.f.c.policy,
+                178,
+            )
+            .expect("classify earliest complete-target expiry");
+        if committed {
+            assert_eq!(outcome, renewal::committed(&c.grants[0]));
+        } else {
+            assert_eq!(
+                outcome,
+                CredentialRenewalStatus::ExpiredUncommitted {
+                    operation: c.grants[0].operation(),
+                    statement: c.grants[0].statement_digest(),
+                    observed_head: c.f.original.roster().checkpoint(),
+                    observed_at: 178,
+                }
+            );
+            owner.close();
+            assert_eq!(
+                open(&c.f.c)
+                    .reconcile_expired_credential_renewal(
+                        c.grants[0].operation(),
+                        c.grants[0].statement_digest(),
+                        &c.f.c.policy,
+                        178
+                    )
+                    .expect("retained original disposition"),
+                outcome
+            );
+            assert!(open(&c.f.c)
+                .stage_account_credential_renewal(
+                    &c.grants[0],
+                    &[&c.grants[1], &c.grants[2]],
+                    c.grants[0].operation(),
+                    &c.f.c.policy,
+                    174
+                )
+                .is_err());
+        }
+    }
+}
+
+#[test]
 fn a_later_single_local_renewal_supersedes_the_completed_group_without_losing_prior_ack() {
     for witnessed in [false, true] {
         let c = AccountCase::new(witnessed);

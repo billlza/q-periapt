@@ -254,6 +254,10 @@ impl DeviceEnrollment {
                     .validity
                     .until()
                     .min(grant.successor_device().roster_validity.until());
+                for companion in &companions {
+                    expired_at =
+                        expired_at.min(companion.successor_device().description.validity.until());
+                }
                 if independent.is_some() {
                     expired_at = expired_at.min(policy.target().validity().until());
                 }

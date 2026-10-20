@@ -14,6 +14,8 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+#[path = "native_device/account_recovery.rs"]
+mod account_recovery;
 #[path = "native_device/admission.rs"]
 mod admission;
 #[path = "native_device/policy.rs"]

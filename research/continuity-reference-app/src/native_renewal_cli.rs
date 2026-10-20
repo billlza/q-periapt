@@ -14,8 +14,16 @@ use q_periapt_continuity_reference_app::{
     policy_publisher::{PolicyMaterials, PolicyPins},
 };
 use q_periapt_host_store::filesystem::publish_private_bytes;
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{ffi::OsString, path::Path};
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompanionGrants {
+    schema: String,
+    grants: Vec<IssuedCredentialGrant>,
+}
 
 fn progress(value: CredentialRenewalStatus) -> Value {
     match value {
@@ -58,9 +66,25 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
         "renewal-witness-prepare" => 14,
         _ => return Err(USAGE.into()),
     };
-    if args.len() != count {
+    let companions = if args.len() == count {
+        None
+    } else if matches!(
+        command,
+        "renewal-stage" | "renewal-activate" | "renewal-witness-prepare"
+    ) && args.len() == count + 2
+        && args.get(count).and_then(|s| s.to_str()) == Some("--companion-grants")
+    {
+        let collection: CompanionGrants = json(&args[count + 1], 3 * 1024 * 1024)?;
+        if collection.schema != "qperiapt-account-credential-grants/1"
+            || collection.grants.is_empty()
+            || collection.grants.len() >= q_periapt_continuity_identity_candidate::MAX_DEVICES
+        {
+            return Err("Expected account grant collection with 1 to 31 companions".into());
+        }
+        Some(collection)
+    } else {
         return Err(USAGE.into());
-    }
+    };
     let invitation: Invitation = json(&args[4], 16384)?;
     if command == "renewal-status" {
         let mut owner = NativeDevice::open(Path::new(&args[2]), Path::new(&args[3]), invitation)?;
@@ -131,6 +155,7 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
     let inputs = CredentialRecoveryInputs {
         approval: &approval,
         issued: &issued,
+        companions: companions.as_ref().map(|value| value.grants.as_slice()),
         current: &current,
         original_policy: &original,
         policy: &policy,

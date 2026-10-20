@@ -6,6 +6,10 @@ use crate::credential_grant::{CredentialGrantRequest, IssuedCredentialGrant};
 pub struct CredentialRecoveryInputs<'a> {
     pub approval: &'a CredentialGrantRequest,
     pub issued: &'a IssuedCredentialGrant,
+    /// None selects the single-credential workflow. Some selects a complete,
+    /// nonempty set of other changed credentials under the same account.
+    /// It must be supplied again on every stage/prepare/activate retry.
+    pub companions: Option<&'a [IssuedCredentialGrant]>,
     pub current: &'a RootInfo,
     pub original_policy: &'a sdk::HistoricalSessionPolicy,
     pub policy: &'a sdk::VerifiedSessionPolicy,
@@ -151,12 +155,48 @@ impl NativeDevice {
     ) -> Result<sdk::CredentialRenewalStatus> {
         let result = (|| {
             let grant = self.check_credential_recovery(inputs, now)?;
-            Ok(self.owner.stage_credential_renewal(
-                &grant,
-                grant.operation(),
-                inputs.policy,
-                now,
-            )?)
+            match inputs.companions {
+                None => Ok(self.owner.stage_credential_renewal(
+                    &grant,
+                    grant.operation(),
+                    inputs.policy,
+                    now,
+                )?),
+                Some(issued) => {
+                    if issued.is_empty() || issued.len() >= sdk::MAX_DEVICES {
+                        return Err("Account renewal requires 1 to 31 companion grants".into());
+                    }
+                    let pin = self.pin(inputs.current)?;
+                    let mut companions = Vec::with_capacity(issued.len());
+                    for companion in issued {
+                        if companion.root_revision != inputs.current.revision
+                            || companion.checkpoint != inputs.issued.checkpoint
+                        {
+                            return Err("Companion grant selects a different account target".into());
+                        }
+                        let checked = sdk::VerifiedCredentialRenewal::verify(
+                            &companion.grant,
+                            &pin,
+                            inputs.original_policy.checkpoint().digest(),
+                            now,
+                        )?;
+                        if checked.operation().as_bytes() != &companion.operation
+                            || checked.statement_digest() != companion.statement
+                        {
+                            return Err("Companion grant differs from its signed decision".into());
+                        }
+                        companions.push(checked);
+                    }
+                    let references = companions.iter().collect::<Vec<_>>();
+                    Ok(self.owner.stage_account_credential_renewal(
+                        &grant,
+                        &references,
+                        grant.operation(),
+                        inputs.policy,
+                        now,
+                    )?)
+                }
+            }
         })();
         if result.is_err() {
             self.close();

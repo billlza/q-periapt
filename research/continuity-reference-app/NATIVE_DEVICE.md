@@ -206,6 +206,29 @@ policy. Then run `renewal-activate` with the same inputs and endpoint. This may
 send Commit for the prepared proposal; it cannot authorize it at the witness.
 Missing or mismatched witness configuration never falls back to local storage.
 
+When the selected account roster also changes other devices' credentials, append
+`--companion-grants "$companion_file"` to `renewal-stage`, `renewal-activate`, and
+`renewal-witness-prepare` (after the proposal-output filename for preparation).
+The private JSON object must have exactly two fields: `schema` set to
+`qperiapt-account-credential-grants/1`, and `grants`, an array of complete
+`IssuedCredentialGrant` responses in their original
+JSON encoding: identifiers are byte arrays, `checkpoint` is the version/digest
+object, and `grant` is the base64url wire value. Include 1–31 companion responses,
+exclude this installation's own grant, and include every other same-generation
+credential change. This input is bounded to 3 MiB. All signed grants must name
+the same account predecessor, target and original policy; response metadata
+alone supplies no authority. The current trust inputs and this installation's
+approved request remain independent.
+
+Supply the same complete collection on every retry. Its order may change, but
+omitting the flag, omitting a changed device, or replacing a companion decision
+cannot replace an original Pending or Committed operation. Status and outcome
+observation use retained state and need no companion file. The SDK preserves the
+first saved collection and sealed target through lost replies and process
+reopening. A required witness still separately approves that exact target.
+This updates one original installation; each other installation must recover
+through its own local grant. It is not an atomic update across devices.
+
 After an unknown witness result, observe the exact retained operation and
 transaction statement with the original independently authenticated policy:
 

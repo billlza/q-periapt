@@ -25,6 +25,7 @@ fn retained_grant_follows_multiple_extensions_of_an_already_extended_installatio
         let inputs = crate::native_device::CredentialRecoveryInputs {
             approval: &c.input,
             issued: &issued,
+            companions: None,
             current: &current,
             original_policy: &c.historical,
             policy: &c.policy,

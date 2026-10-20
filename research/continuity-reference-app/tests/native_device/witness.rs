@@ -16,7 +16,7 @@ fn witness_cli_observes_original_closed_after_policy_expiry_and_lost_stdout() ->
 fn witness_cli_observes_original_applied_after_policy_expiry_and_lost_stdout() -> Result<()> {
     witness_outcome(true)
 }
-fn lose_response(c: &Case, args: &[OsString], name: &str) -> Result<()> {
+pub(super) fn lose_response(c: &Case, args: &[OsString], name: &str) -> Result<()> {
     let mut child = Command::new(env!("CARGO_BIN_EXE_q-periapt-native-device"))
         .args(args)
         .stdout(Stdio::piped())

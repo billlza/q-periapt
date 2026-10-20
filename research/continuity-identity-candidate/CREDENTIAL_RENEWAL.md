@@ -52,6 +52,9 @@ pending or completed collection. Continue through the ordinary `activate` path,
 or the existing explicit witness prepare/approve/commit/reconcile path when the
 policy requires it. The sealed target contains the entire shared account change.
 There is no local fallback and no transaction across independent installations.
+For an uncommitted local target, expiry reconciliation includes the earliest
+companion credential expiry. A completed transaction remains Committed after
+any member expires; expiration is never evidence of an uncommitted outcome.
 
 The conditional `QPENST20` enrollment wrapper retains the companion evidence and
 completed collection binding. Its extra allocation is bounded by 31 companion
@@ -65,9 +68,11 @@ the collection grants current permission after revocation or expiry.
 
 Old formats remain readable, and ordinary single-grant operations retain their
 existing encoding. Readers without these extensions reject the new wrappers.
-These remain unpublished candidate storage formats. The native owning API is
-implemented; CLI/foreign-language batch entrypoints and independent shared-account
-coordination remain open. The independent consumer's same-account guard remains.
+These remain unpublished candidate storage formats. The native owning API and
+the reference native CLI's `--companion-grants` workflow are implemented; see
+[the native consumer](../continuity-reference-app/NATIVE_DEVICE.md). Foreign-language
+batch entrypoints and independent shared-account coordination remain open.
+The independent consumer's same-account guard remains.
 
 ## Local enrollment workflow
 

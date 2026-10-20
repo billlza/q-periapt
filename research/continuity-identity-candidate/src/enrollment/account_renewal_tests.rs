@@ -27,6 +27,9 @@ struct AccountCase {
 }
 impl AccountCase {
     fn new(witnessed: bool) -> Self {
+        Self::with_companion_expiry(witnessed, 190)
+    }
+    fn with_companion_expiry(witnessed: bool, companion_until: u64) -> Self {
         let dir = directory();
         let path = dir.path().canonicalize().expect("witness path");
         let store = AnchorStore::provision(
@@ -139,12 +142,17 @@ impl AccountCase {
             .expect("fixture shape");
         let successors = originals
             .iter()
-            .map(|certificate| {
+            .enumerate()
+            .map(|(index, certificate)| {
                 let previous = original_pin
                     .verify_device(certificate, roster.as_bytes(), 150)
                     .expect("previous");
                 c.root
-                    .issue_credential_extension(&previous, 190, 150)
+                    .issue_credential_extension(
+                        &previous,
+                        if index == 1 { companion_until } else { 190 },
+                        150,
+                    )
                     .expect("same-key extension")
             })
             .collect::<Vec<_>>();
