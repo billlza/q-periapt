@@ -110,11 +110,14 @@ fn explicit_format(c: &mut Case, tag: &[u8; 8]) {
     let image = c.store.image().expect("authenticated image");
     let key = &c.store.active.as_ref().expect("active witness").wrapping;
     let bytes = super::super::encode(key, &c.pin, &image).expect("encode");
-    assert_eq!(&bytes[..8], tag);
+    assert_eq!(bytes.get(..8).expect("complete format tag"), tag);
     super::super::decode(key, &c.pin, &bytes).expect("roundtrip");
     if tag == b"QPANC020" {
-        let mut old = bytes[..bytes.len() - 32].to_vec();
-        old[..8].copy_from_slice(b"QPANC019");
+        let body_len = bytes.len().checked_sub(32).expect("authenticated length");
+        let mut old = bytes.get(..body_len).expect("authenticated body").to_vec();
+        old.get_mut(..8)
+            .expect("complete format tag")
+            .copy_from_slice(b"QPANC019");
         let mut mac = super::super::authenticator(key).expect("owned authenticator");
         mac.update(&old);
         old.extend_from_slice(&mac.finalize().into_bytes());
@@ -151,8 +154,7 @@ fn credential_then_roster_keeps_current_credential_and_original_subject() -> Res
     let g = grant(&c, &c.device, 2);
     let gp = g_proposal(&c, &g, c.initial);
     assert_eq!(
-        c.store
-            .prepare_credential_renewal(gp, &g, &current, 150)?,
+        c.store.prepare_credential_renewal(gp, &g, &current, 150)?,
         GState::Prepared
     );
     assert_eq!(
@@ -234,9 +236,7 @@ fn roster_then_credential_uses_actual_predecessor() -> Result<(), DurableError> 
     let g = grant(&c, &next, 3);
     let gp = g_proposal(&c, &g, rp.target_head());
     let before = c.fingerprint();
-    let result = c
-        .store
-        .prepare_credential_renewal(gp, &g, &current, 150);
+    let result = c.store.prepare_credential_renewal(gp, &g, &current, 150);
     if result.is_err() {
         assert_eq!(c.fingerprint(), before);
     }
