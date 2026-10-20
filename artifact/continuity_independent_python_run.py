@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 from bounded_process import capture_output
-from continuity_independent_python import PACKAGE, inspect_wheel, require, verify_installation, verify_extension_session, verify_roster_profiles
+from continuity_independent_python import PACKAGE, inspect_wheel, require, verify_installation, verify_extension_session, verify_roster_profiles, verify_roster_capacity
 from evidence_io import fresh_output_directory, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import git_commit, run_git_bytes
 
@@ -221,6 +221,15 @@ def qualify(args: argparse.Namespace) -> dict:
                     and row["profiles"] == profiles,
                     "installed common account source or workload differs: " + driver)
             account_results[driver] = row
+        run([*interpreter, str(application / "roster_capacity_checks.py"),
+             "--provider-root", str(provider), "--native", str(args.native),
+             "--output", str(output / "roster-capacity")], "roster-capacity")
+        capacity = parse_strict_json_bytes(snapshot(output / "roster-capacity/RESULT.json").data,
+                                          label="installed full roster maintenance")
+        require(capacity["source_files"] == current and capacity["native_sha256"] == native.sha256,
+                "installed full roster source or native identity differs")
+        verify_roster_capacity(capacity)
+        account_results["roster_capacity"] = capacity
         run([*interpreter, str(application / "account_boundary_checks.py"),
              "--provider-root", str(provider), "--native", str(args.native),
              "--output", str(output / "account-boundary")], "account-boundary")

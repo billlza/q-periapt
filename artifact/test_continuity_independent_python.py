@@ -6,7 +6,46 @@ import json
 import unittest
 import zipfile
 
-from continuity_independent_python import DIST, PACKAGE, inspect_wheel, verify_installation, verify_extension_session, verify_roster_profiles
+from continuity_independent_python import DIST, PACKAGE, inspect_wheel, verify_installation, verify_extension_session, verify_roster_profiles, verify_roster_capacity
+
+
+class RosterCapacityReceiptTests(unittest.TestCase):
+    def report(self):
+        refusals=["R-cannot-select-nine","R-wire-cannot-downgrade","R-missing-marker",
+                  "R-cannot-adopt-policy-version","R-metadata-cannot-expand-business",
+                  "R-aggregate-bound","R-allocation-cannot-fund-send"]
+        def row(witnessed):
+            return {"witnessed":witnessed,"members":32,"traffic_bytes":2031616,"rows":123,
+                    "native_trusted_time":355,"process_kills":4 if witnessed else 3,
+                    "roster_payload_bytes":3048961,"roster_intent_bytes":3049550,
+                    "original_inventory":{"traffic_bytes":2031616,"outboxes":123,
+                        "epoch_record_hashes":[[0,"a"*64],[1,"b"*64]]},
+                    "refusals":[{"case":name,"error":"refused","type":"ValueError"} for name in refusals],
+                    **{k:"c"*64 for k in ["journal","native_journal","session",
+                       "original_message_sha256","original_last_message_sha256"]}}
+        return {"profiles":[row(False),row(True)]}
+
+    def test_both_full_roster_profiles(self):
+        verify_roster_capacity(self.report())
+
+    def test_partial_business_or_recovery_cannot_qualify(self):
+        for field,value in [("traffic_bytes",1024),("rows",122),("members",3),
+                            ("native_trusted_time",170),("process_kills",0),("witnessed",1),
+                            ("roster_payload_bytes",True),("roster_intent_bytes",1),
+                            ("original_last_message_sha256","")]:
+            with self.subTest(field=field):
+                report=self.report();report["profiles"][1][field]=value
+                with self.assertRaises(ValueError): verify_roster_capacity(report)
+
+    def test_missing_epoch_refusal_or_profile_is_rejected(self):
+        for change in [lambda r:r["profiles"].pop(),
+                       lambda r:r["profiles"][0]["original_inventory"]["epoch_record_hashes"].pop(),
+                       lambda r:r["profiles"][0]["original_inventory"].update(outboxes=123.0),
+                       lambda r:r["profiles"][1]["refusals"].pop(),
+                       lambda r:r["profiles"][1]["refusals"][0].update(error=""),
+                       lambda r:r["profiles"][1]["refusals"].append(None)]:
+            report=self.report();change(report)
+            with self.assertRaises(ValueError): verify_roster_capacity(report)
 
 
 class RosterReceiptTests(unittest.TestCase):

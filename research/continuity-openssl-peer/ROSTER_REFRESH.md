@@ -61,6 +61,14 @@ and unfinished PQ contribution across R interruption and expired cleanup.
 
 `roster_boundary_checks.py` exercises R before G, exact retry, unknown approval,
 overlapping work, changed/stale inputs, Closed retirement and control corruption.
+`roster_capacity_checks.py` fills all 2,031,616 business bytes with 123 actual
+unconfirmed messages across two epochs in a 32-member account. Local and required
+witness profiles retain the complete epoch records across G/G/R/G, recover the
+first sealed R image after process loss, and decrypt the original first and last
+messages at the renewed native peer. The additional 193 metadata bytes cannot
+fund another business send. Missing R markers, version-nine tag substitution,
+another policy version and oversized fields are refused. This checks storage
+capacity and retained state, not peak memory or latency.
 Each driver writes source/provider/binary identities before execution, checks
 them again at completion and retains failed private installations separately
 from public artifacts. A launched driver without its terminal result is not a

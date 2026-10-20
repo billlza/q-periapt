@@ -49,6 +49,43 @@ def verify_roster_profiles(result: dict, *, boundary: bool) -> None:
                 "roster original identity missing")
 
 
+def verify_roster_capacity(result: dict) -> None:
+    """Require actual full business stores through R and the following G."""
+    profiles=result.get("profiles")
+    require(isinstance(profiles,list) and len(profiles)==2,"full roster cohort incomplete")
+    refused=["R-cannot-select-nine","R-wire-cannot-downgrade","R-missing-marker",
+             "R-cannot-adopt-policy-version","R-metadata-cannot-expand-business",
+             "R-aggregate-bound","R-allocation-cannot-fund-send"]
+    for row,witnessed in zip(profiles,(False,True),strict=True):
+        require(isinstance(row,dict) and type(row.get("witnessed")) is bool
+                and row["witnessed"]==witnessed,"full roster profile differs")
+        expected={"members":32,"traffic_bytes":2031616,"rows":123,
+                  "native_trusted_time":355,"process_kills":4 if witnessed else 3}
+        require(all(type(row.get(k)) is int and row[k]==v for k,v in expected.items()),
+                "full roster workload or clock differs")
+        require(type(row.get("roster_payload_bytes")) is int and row["roster_payload_bytes"]>2*1024**2
+                and type(row.get("roster_intent_bytes")) is int
+                and row["roster_intent_bytes"]>row["roster_payload_bytes"],"full roster target missing")
+        history=row.get("original_inventory")
+        require(isinstance(history,dict) and type(history.get("traffic_bytes")) is int
+                and history["traffic_bytes"]==2031616 and type(history.get("outboxes")) is int
+                and history["outboxes"]==123 and isinstance(history.get("epoch_record_hashes"),list)
+                and len(history["epoch_record_hashes"])==2
+                and all(isinstance(item,list) and len(item)==2 and type(item[0]) is int and item[0]==epoch
+                        and isinstance(item[1],str) and re.fullmatch(r"[0-9a-f]{64}",item[1])
+                        for epoch,item in enumerate(history["epoch_record_hashes"])),"full roster original epochs missing")
+        require(isinstance(row.get("refusals"),list) and len(row["refusals"])==len(refused)
+                and all(isinstance(item,dict) and set(item)=={"case","error","type"}
+                        and isinstance(item["error"],str) and item["error"] and item["type"]=="ValueError"
+                        for item in row["refusals"])
+                and [item.get("case") for item in row["refusals"]]==refused,
+                "full roster refusal coverage differs")
+        require(all(isinstance(row.get(k),str) and re.fullmatch(r"[0-9a-f]{64}",row[k])
+                    and any(c!='0' for c in row[k]) for k in
+                    ["journal","native_journal","session","original_message_sha256","original_last_message_sha256"]),
+                "full roster original identities missing")
+
+
 def verify_extension_session(result: dict, *, implementation: str, native_sha256: str) -> None:
     """Require the completed post-expiry workload from the selected installed owners."""
     require(result.get("schema_version") == 1 and type(result.get("schema_version")) is int
