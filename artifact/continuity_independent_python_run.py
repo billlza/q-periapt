@@ -25,8 +25,8 @@ SOURCE = ROOT / "research/continuity-openssl-peer"
 WHEEL = PACKAGE + "-0.0.0-py3-none-any.whl"
 
 
-def snapshot(path: Path):
-    return read_regular_snapshot(path, maximum=16 * 1024**2, label="independent Python input")
+def snapshot(path: Path, *, maximum=16 * 1024**2):
+    return read_regular_snapshot(path, maximum=maximum, label="independent Python input")
 
 
 def write_json(path: Path, value) -> None:
@@ -40,6 +40,13 @@ def runtime_files() -> list[Path]:
             *(SOURCE / n for n in ("native/Cargo.toml", "native/Cargo.lock", "requirements.txt"))]
 
 
+def archived_inputs() -> dict[Path, int]:
+    root = ROOT / "research/sdk-alpha1/evidence/20261018-independent-local-credential"
+    # Only this declared old-writer capture has a larger input allowance.
+    # Protocol modules, wheels and ordinary consumer inputs retain 16 MiB.
+    return {root / "CAPTURE.zip": 32 * 1024**2, root / "CHECKS.json": 1024**2}
+
+
 def source_inputs(commit: str) -> dict[str, str]:
     paths = runtime_files() + [SOURCE / name for name in
         ("pyproject.toml", "README.md", "LICENSE-APACHE", "LICENSE-MIT", "build-requirements.txt")]
@@ -47,20 +54,22 @@ def source_inputs(commit: str) -> dict[str, str]:
         "continuity_independent_python.py", "continuity_independent_python_probe.py",
         "continuity_independent_python_run.py", "python_bootstrap.py", "bounded_process.py",
         "evidence_io.py", "git_provenance.py")]
+    archives = archived_inputs()
+    paths += list(archives)
     result = {}
     for path in paths:
         name = path.relative_to(ROOT).as_posix()
-        data = snapshot(path)
+        data = snapshot(path, maximum=archives.get(path, 16 * 1024**2))
         require(data.data == run_git_bytes(ROOT, ["show", commit + ":" + name]),
                 "reference execution source differs from selected commit: " + name)
         result[name] = data.sha256
     return result
 
 
-def copy(source: Path, target: Path) -> None:
+def copy(source: Path, target: Path, *, maximum=16 * 1024**2) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     with target.open("xb") as stream:
-        stream.write(snapshot(source).data)
+        stream.write(snapshot(source, maximum=maximum).data)
 
 
 def installed_files(path: Path) -> dict[str, bytes]:
@@ -101,7 +110,7 @@ def qualify(args: argparse.Namespace) -> dict:
     cache.mkdir(mode=0o700)
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(("PYTHON", "PIP_", "DYLD_", "LD_"))}
-    result = {"schema_version": 5, "kind": "qperiapt.independent_python_installation",
+    result = {"schema_version": 6, "kind": "qperiapt.independent_python_installation",
               "completed": False, "release_claim_eligible": False, "source_commit": commit,
               "source_inputs": before, "wheel_sha256": wheel.sha256, "native_sha256": native.sha256}
 
@@ -129,6 +138,8 @@ def qualify(args: argparse.Namespace) -> dict:
         for path in runtime_files():
             if not path.is_relative_to(SOURCE / PACKAGE):
                 copy(path, application / path.relative_to(SOURCE))
+        for path, maximum in archived_inputs().items():
+            copy(path, outside / path.relative_to(ROOT), maximum=maximum)
         copy(ROOT / "artifact/python_bootstrap.py", outside / "artifact/python_bootstrap.py")
         copy(ROOT / "artifact/evidence_io.py", outside / "artifact/evidence_io.py")
         copy(ROOT / "artifact/continuity_independent_python_probe.py", outside / "probe.py")
@@ -241,12 +252,42 @@ def qualify(args: argparse.Namespace) -> dict:
                 and pending["profiles"][-1]["full_business_rows"] == 123,
                 "installed common pending recovery source or workload differs")
         account_results["pending_recovery"] = pending
+        run([*interpreter, str(application / "shared_migration_checks.py"),
+             "--provider-root", str(provider), "--native", str(args.native),
+             "--output", str(output / "shared-migration")], "shared-migration")
+        migration = parse_strict_json_bytes(snapshot(output / "shared-migration/RESULT.json").data,
+                                            label="installed archived common migration")
+        require(migration["source_files"] == current and migration["native_sha256"] == native.sha256
+                and [row["members"] for row in migration["profiles"]] == [3, 32]
+                and all(row["original_format"] == 5 and row["migrated_format"] == 9
+                        and row["workers"] == 15 and row["native_commands"] == 4
+                        and row["process_kills"] == 2 for row in migration["profiles"]),
+                "installed archived common migration source or workload differs")
+        account_results["migration"] = migration
+        run([*interpreter, str(application / "shared_witness_expiry_checks.py"),
+             "--provider-root", str(provider), "--native", str(args.native),
+             "--output", str(output / "shared-witness-expiry")], "shared-witness-expiry")
+        expiry = parse_strict_json_bytes(snapshot(output / "shared-witness-expiry/RESULT.json").data,
+                                         label="installed prepared companion expiry")
+        require(expiry["source_files"] == current and expiry["native_sha256"] == native.sha256
+                and [row["members"] for row in expiry["profiles"]] == [3, 32]
+                and all(row["local_expiry"] == 300 and row["earliest_companion_expiry"] == 275
+                        and row["terminal"] == "Closed" and row["expiry_attempt_kinds"] == [6]
+                        and row["commit_dispatched_after_expiry"] is False
+                        and row["workers"] == 20 and row["native_commands"] == 49
+                        and row["process_kills"] == 2 for row in expiry["profiles"]),
+                "installed prepared companion expiry source or workload differs")
+        account_results["prepared_expiry"] = expiry
         # The consumer adds only declared test files; pip's installed files and
         # all copied inputs must remain byte-identical after real process cuts.
         after = installed_files(application)
         harness = {p.relative_to(SOURCE).as_posix(): snapshot(p).data for p in runtime_files()
                    if not p.is_relative_to(SOURCE / PACKAGE)}
         require(after == installed | harness and not any(cache.iterdir()), "installed consumer files or cache changed")
+        for path, maximum in archived_inputs().items():
+            name = path.relative_to(ROOT).as_posix()
+            require(snapshot(outside / name, maximum=maximum).sha256 == before[name],
+                    "copied archived migration input changed")
         require(source_inputs(commit) == before and git_commit(ROOT) == commit
                 and snapshot(args.wheel).sha256 == wheel.sha256 and snapshot(args.native).sha256 == native.sha256,
                 "Python qualification inputs changed")

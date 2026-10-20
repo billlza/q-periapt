@@ -87,9 +87,20 @@ common-account roster transitions remain refused until they have a proper
 common authority and witness transition. Ordinary pending-write recovery uses
 the [single common public-history projection](PENDING_WRITE_RECOVERY.md), with
 independent exact approval and fresh Query confirmation before publication.
-Compatibility with an actual archived version-five common-account
-writer still needs its own migration run; the unchanged separate-account
-version-seven migration is covered by its existing regression.
+`shared_migration_checks.py` creates three- and 32-device sessions with the
+archived implementation's actual version-five writer. The old writer persists
+an original business message; current opening preserves version five until the
+explicit complete-account stage selects nine. The entire old business payload,
+original journal/key and ciphertext survive stage/commit process cuts and a
+second grant collection. The old reader refuses nine. This covers the local-only
+profile; an archived required-witness writer still needs its own migration run.
+The separate-account version-seven migration retains its existing regression.
+
+`shared_witness_expiry_checks.py` independently prepares each complete group
+while current, then advances the witness to the first companion's expiry.
+It verifies that policy, local credential and target roster remain current;
+only Status is sent when the local commit is refused. Explicit Close preserves
+the original head and historical request identity, and grants no runtime access.
 Policy/root/witness replacement,
 account fanout and complete product admission remain separate requirements.
 The reference Python/provider memory limitations still apply.

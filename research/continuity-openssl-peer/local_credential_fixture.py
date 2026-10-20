@@ -15,13 +15,14 @@ from signing_fixture import write
 
 
 class Fixture:
-    def __init__(self, args, label, *, short_roster=False, combined=False):
+    def __init__(self, args, label, *, short_roster=False, combined=False, account_members=None, archived_five=False):
         self.out = args.output.resolve() / label; self.out.mkdir(); (self.out / 'native').mkdir()
         self.private = Path(tempfile.mkdtemp(prefix='qperiapt-local-credential-')).resolve()
         require(not self.private.is_relative_to(self.out), 'private fixture inside public output')
         (self.out / 'private-fixture-path').write_text(str(self.private) + '\n')
-        self.native = Counterpart(args.native.resolve(), self.out / 'native', local_lifecycle=True,
-                                  peer_lifecycle=combined, short_roster=short_roster)
+        require(not archived_five or account_members in (3, 32), 'archived common-account fixture')
+        self.native = Counterpart(args.native.resolve(), self.out / 'native', local_lifecycle=account_members is None,
+                                  peer_lifecycle=combined, short_roster=short_roster, account_members=account_members)
         self.driver = None; self.refusals = []
         try:
             self.signer = SigningKey(); require(self.native.transfer(self.signer.public().raw) == b'\1ready', 'native ready')
@@ -32,7 +33,26 @@ class Fixture:
                 stream.write(self.key + self.scope.wire()); stream.flush(); os.fsync(stream.fileno())
             signer_path = self.private / 'signer'; write(signer_path, self.signer)
             self.path = self.private / 'session'; self.path.mkdir(mode=0o700)
-            owner = Session.create(self.path, self.scope, self.key, self.context, self.signer, 150); owner.close()
+            if archived_five:
+                import importlib
+                from archived_fixture import load_version
+                from local_budget_controls import authenticate_archived
+                self.archived, self.archived_hash = load_version(self.private, 7)
+                self.archived_context = authenticate_archived(self.public, self.archived)
+                require(self.archived_context.digest == self.context.digest, 'archived common context differs')
+                wire = importlib.import_module(self.archived.__package__ + '.wire')
+                original_signer = self.signer
+                class ArchivedSigner:
+                    def public(self):
+                        return wire.VerificationKey(original_signer.public().raw)
+                    def sign(self, purpose, body):
+                        return original_signer.sign(purpose, body)
+                self.archived_session = importlib.import_module(self.archived.__package__ + '.durable').Session
+                owner = self.archived_session.create(self.path, self.scope, self.key, self.archived_context, ArchivedSigner(), 150)
+                require(owner.storage_format() == 5, 'archived writer did not create version five')
+            else:
+                owner = Session.create(self.path, self.scope, self.key, self.context, self.signer, 150)
+            owner.close()
             self.driver = SessionDriver(self.out, args.provider_root.resolve(), self.public, config, self.path, signer_path)
             initial = self.value('initial', 'initial', now=150)
             reply = self.call('bootstrap-reply', 4, initial)
