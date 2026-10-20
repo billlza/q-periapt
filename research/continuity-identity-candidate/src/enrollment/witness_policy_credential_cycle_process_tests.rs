@@ -13,8 +13,32 @@ fn required_policy_credential_process_child() -> Result<(), &'static str> {
         return Ok(());
     };
     let root = Path::new(&root);
-    let (f, a) = adopted();
-    let g = credential::grant(&f, &f.original, 2, 280);
+    let roster_first = std::env::var("QPERIAPT_POLICY_CREDENTIAL_ROSTER").as_deref() == Ok("1");
+    let (f, a) = if roster_first {
+        roster::with_existing_prekey()
+    } else {
+        adopted()
+    };
+    let previous = if roster_first {
+        let target = roster::roster_target(&f, &f.original, 2, 155);
+        roster::refresh(&f, &a.target, &f.original, &target, 155).expect("original R before G");
+        let mut owner = open(&f.c);
+        let Some(crate::WitnessedRosterRefreshProgress::Terminal {
+            proposal,
+            retired: true,
+            ..
+        }) = owner
+            .witnessed_roster_refresh_progress()
+            .expect("R terminal")
+        else {
+            return Err("original R must have retired");
+        };
+        fs::write(root.join("original-roster-proposal"), proposal.to_bytes()).expect("original R");
+        target
+    } else {
+        f.original.clone()
+    };
+    let g = credential::grant(&f, &previous, if roster_first { 3 } else { 2 }, 280);
     let p = prepared_g(&f, &a, &g);
     let saved = journal(&f);
     for (name, path) in [
@@ -82,6 +106,15 @@ fn required_policy_credential_process_child() -> Result<(), &'static str> {
 #[test]
 fn required_policy_credential_cycle_process_kills_recover_original_terminal_at_each_store_boundary()
 {
+    process_kills(false);
+}
+
+#[test]
+fn original_credential_roster_g_process_kills_preserve_prior_r_at_each_store_boundary() {
+    process_kills(true);
+}
+
+fn process_kills(roster_first: bool) {
     for closed in [false, true] {
         for stage in [
             "witness-observed",
@@ -96,6 +129,7 @@ fn required_policy_credential_cycle_process_kills_recover_original_terminal_at_e
                 .args(["--exact","enrollment::tests::witness_renewal::independent_policy::operational::credential_composition::cycle::process::required_policy_credential_process_child","--nocapture"])
                 .env("TMPDIR",&root).env("QPERIAPT_POLICY_CREDENTIAL_CHILD",&root)
                 .env("QPERIAPT_POLICY_CREDENTIAL_CLOSE",if closed {"1"} else {"0"})
+                .env("QPERIAPT_POLICY_CREDENTIAL_ROSTER",if roster_first {"1"} else {"0"})
                 .env("QPERIAPT_LOCAL_RENEWAL_CUT_ROOT",&root).env("QPERIAPT_LOCAL_RENEWAL_CUT_STAGE",stage)
                 .stdout(Stdio::from(log.try_clone().expect("log clone"))).stderr(Stdio::from(log)).spawn().expect("owned child"));
             let deadline = Instant::now() + Duration::from_secs(40);
@@ -206,6 +240,22 @@ fn required_policy_credential_cycle_process_kills_recover_original_terminal_at_e
                 } if !closed => operation == p.operation() && statement == p.statement(),
                 _ => false,
             });
+            if roster_first {
+                let proposal = crate::AnchorRosterRefreshProposal::from_trusted_state(
+                    &fs::read(root.join("original-roster-proposal")).expect("original R"),
+                )
+                .expect("exact R proposal");
+                assert_eq!(
+                    owner
+                        .witnessed_roster_refresh_progress()
+                        .expect("retained R"),
+                    Some(crate::WitnessedRosterRefreshProgress::Terminal {
+                        proposal,
+                        disposition: crate::WitnessedRosterRefreshDisposition::Applied,
+                        retired: true,
+                    })
+                );
+            }
             owner.close();
             let db = open_private_database(paths.installation.files()[1]).expect("journal");
             let tx = db.begin_read().expect("read");
@@ -218,4 +268,5 @@ fn required_policy_credential_cycle_process_kills_recover_original_terminal_at_e
             );
         }
     }
+    eprintln!("CREDENTIAL_OWNER_PROCESS prior_roster={roster_first} kills=8 original_three_stores=true expired_recovery=true");
 }

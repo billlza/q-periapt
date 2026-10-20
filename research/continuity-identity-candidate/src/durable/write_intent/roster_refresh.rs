@@ -5,9 +5,35 @@ use crate::{
     AnchorOperation, AnchorRosterRefreshProposal as Proposal, AnchorRosterRefreshState as State,
     AnchorSubject, HistoricalSessionPolicy, RosterRefreshScope,
 };
+#[cfg(all(test, unix))]
+impl DeviceJournal {
+    pub(crate) fn assert_roster_credential_format(
+        key: &JournalKey,
+        original: &VerifiedDevice,
+        id: crate::JournalIdentity,
+        pending: &[u8],
+    ) {
+        assert_eq!(pending.get(..8), Some(b"QPWINT10".as_slice()));
+        let owner = crate::bootstrap::storage_owner(original);
+        PendingWrite::decode(key, owner, *id.as_bytes(), pending).expect("actual mixed R intent");
+        let len = pending.len().checked_sub(32).expect("authenticated length");
+        let mut old = pending.get(..len).expect("body").to_vec();
+        old.get_mut(..8).expect("tag").copy_from_slice(b"QPWINT07");
+        let mut mac = authenticator(key).expect("owned authenticator");
+        mac.update(&old);
+        old.extend_from_slice(&mac.finalize().into_bytes());
+        assert!(
+            matches!(
+                PendingWrite::decode(key, owner, *id.as_bytes(), &old),
+                Err(DurableError::Conflict)
+            ),
+            "old authenticated grammar cannot claim R after G"
+        );
+    }
+}
 impl PendingWrite {
     fn roster_proposal(&self, image: &Image) -> Result<Proposal, DurableError> {
-        let Some(BoundTransaction::Roster(scope)) = self.binding else {
+        let Some(BoundTransaction::Roster { scope, .. }) = self.binding else {
             return Err(DurableError::Conflict);
         };
         self.check_transaction_image(image)?;
@@ -41,8 +67,15 @@ pub(in crate::durable) fn reserve_roster_refresh(
     target: &[u8],
     scope: RosterRefreshScope,
 ) -> Result<Proposal, DurableError> {
-    let pending =
-        PendingWrite::new_bound(active, image, target, Some(BoundTransaction::Roster(scope)))?;
+    let pending = PendingWrite::new_bound(
+        active,
+        image,
+        target,
+        Some(BoundTransaction::Roster {
+            scope,
+            credential: rosters::roster_refresh_has_credential(image)?,
+        }),
+    )?;
     reserve(active, &pending)?;
     #[cfg(all(test, unix))]
     tests::after_bound_preparation();

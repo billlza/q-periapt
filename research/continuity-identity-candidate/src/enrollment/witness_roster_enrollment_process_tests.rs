@@ -2,7 +2,65 @@
 //! Kill and reopen actual R enrollment, journal and witness databases together.
 use super::*;
 use crate::durable::tests::ChildGuard;
+use crate::enrollment::tests::witness_renewal as credential;
 use std::process::{Command, Stdio};
+
+fn case_after_credential() -> Case {
+    let mut c = case(true);
+    let f = &c.f;
+    let g = credential::grant(f, &f.original, 2, 280);
+    let mut owner = open(&f.c);
+    owner
+        .stage_credential_renewal(&g, g.operation(), &c.policy, 150)
+        .expect("G staged");
+    let client = credential::client(f, &mut owner, 150);
+    let p = owner
+        .prepare_witnessed_policy_continuation(f.c.policy.historical(), &c.policy, 150, client)
+        .expect("original sealed G");
+    f.carrier
+        .store
+        .lock()
+        .expect("witness")
+        .prepare_policy_renewed_credential_renewal(p, &g, f.c.policy.historical(), &c.policy, 150)
+        .expect("independent G approval");
+    let mut client = credential::client(f, &mut owner, 150);
+    assert_eq!(
+        owner
+            .commit_witnessed_policy_continuation(
+                &p,
+                f.c.policy.historical(),
+                &c.policy,
+                150,
+                &mut client,
+            )
+            .expect("original G retired"),
+        renewal::committed(&g)
+    );
+    owner.close();
+    c.previous = g.successor_device().clone();
+    let certificate =
+        f.c.root
+            .issue_device(c.previous.description.clone(), c.previous.key.clone())
+            .expect("current G credential");
+    let roster =
+        f.c.root
+            .issue_roster(
+                3,
+                interval(),
+                &[f.c.root.roster_entry(&certificate).expect("member")],
+            )
+            .expect("R after G");
+    c.target = AccountPin::new(
+        f.original.account_id(),
+        f.c.intent.root.clone(),
+        roster.checkpoint(),
+        c.policy.family(),
+    )
+    .expect("target pin")
+    .verify_device(&certificate, roster.as_bytes(), 150)
+    .expect("target");
+    c
+}
 
 #[test]
 fn independent_roster_process_child() -> Result<(), &'static str> {
@@ -10,7 +68,13 @@ fn independent_roster_process_child() -> Result<(), &'static str> {
         return Ok(());
     };
     let root = Path::new(&root);
-    let c = case(true);
+    let credential_first =
+        std::env::var("QPERIAPT_INDEPENDENT_ROSTER_CREDENTIAL").as_deref() == Ok("1");
+    let c = if credential_first {
+        case_after_credential()
+    } else {
+        case(true)
+    };
     let f = &c.f;
     let p = prepare_original(&c);
     let original = journal(f);
@@ -39,7 +103,18 @@ fn independent_roster_process_child() -> Result<(), &'static str> {
     fs::write(root.join("trusted-root"), f.c.intent.root.encode()).expect("account root");
     fs::write(root.join("proposal"), p.to_bytes()).expect("original proposal");
     fs::write(root.join("old-image"), &original.0).expect("original ciphertext");
-    fs::write(root.join("target-image"), target_image(&original)).expect("original sealed target");
+    fs::write(
+        root.join("target-image"),
+        target_image_with_tag(
+            &original,
+            if credential_first {
+                b"QPWINT10"
+            } else {
+                b"QPWINT07"
+            },
+        ),
+    )
+    .expect("original sealed target");
     let (authority, issued, _, _) = crate::tests::session_policy_fixture_with_anchor(
         &[PrekeyQuality::OneTimeBoth],
         crate::AnchorRequirement::required(&f.pin),
@@ -74,6 +149,15 @@ fn checkpoint(path: &Path) -> crate::PolicyCheckpoint {
 }
 #[test]
 fn actual_process_kills_recover_original_independent_roster_at_four_cross_store_boundaries() {
+    process_kills(false);
+}
+
+#[test]
+fn original_credential_roster_r_process_kills_preserve_prior_g_at_each_store_boundary() {
+    process_kills(true);
+}
+
+fn process_kills(credential_first: bool) {
     let mut cuts = 0;
     for closed in [false, true] {
         for stage in [
@@ -86,7 +170,9 @@ fn actual_process_kills_recover_original_independent_roster_at_four_cross_store_
             let root = folder.path().canonicalize().expect("owned directory");
             let log = fs::File::create(root.join("child.log")).expect("log");
             let mut child=ChildGuard(Command::new(std::env::current_exe().expect("test binary")).args(["--exact","enrollment::tests::witness_renewal::independent_policy::operational::roster_atomicity::journal::enrollment::process::independent_roster_process_child","--nocapture"])
-                .env("TMPDIR",&root).env("QPERIAPT_INDEPENDENT_ROSTER_CHILD",&root).env("QPERIAPT_INDEPENDENT_ROSTER_CLOSED",if closed {"1"} else {"0"}).env("QPERIAPT_LOCAL_RENEWAL_CUT_ROOT",&root).env("QPERIAPT_LOCAL_RENEWAL_CUT_STAGE",stage).stdout(Stdio::from(log.try_clone().expect("log"))).stderr(Stdio::from(log)).spawn().expect("child"));
+                .env("TMPDIR",&root).env("QPERIAPT_INDEPENDENT_ROSTER_CHILD",&root)
+                .env("QPERIAPT_INDEPENDENT_ROSTER_CREDENTIAL",if credential_first {"1"} else {"0"})
+                .env("QPERIAPT_INDEPENDENT_ROSTER_CLOSED",if closed {"1"} else {"0"}).env("QPERIAPT_LOCAL_RENEWAL_CUT_ROOT",&root).env("QPERIAPT_LOCAL_RENEWAL_CUT_STAGE",stage).stdout(Stdio::from(log.try_clone().expect("log"))).stderr(Stdio::from(log)).spawn().expect("child"));
             let deadline = Instant::now() + Duration::from_secs(40);
             while !root.join("renewal-ready").exists() {
                 assert!(
@@ -188,6 +274,13 @@ fn actual_process_kills_recover_original_independent_roster_at_four_cross_store_
                     retired: true
                 })
             );
+            if credential_first {
+                assert!(
+                    matches!(owner.credential_renewal_status().expect("retained G"),
+                    crate::CredentialRenewalStatus::Committed { target, .. }
+                        if target.version() == 2)
+                );
+            }
             owner.close();
             let db =
                 open_private_database(paths.installation.files()[1]).expect("original journal");
@@ -207,5 +300,5 @@ fn actual_process_kills_recover_original_independent_roster_at_four_cross_store_
         }
     }
     assert_eq!(cuts, 8);
-    eprintln!("INDEPENDENT_ROSTER_PROCESS_CUTS cuts={cuts} actual_kills=true expired_recovery_without_runtime=true exact_image=true");
+    eprintln!("INDEPENDENT_ROSTER_PROCESS_CUTS prior_credential={credential_first} cuts={cuts} actual_kills=true expired_recovery_without_runtime=true exact_image=true");
 }

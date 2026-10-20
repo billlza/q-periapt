@@ -270,6 +270,8 @@ fn required_policy_credential_cycle_authenticated_old_enrollment_format_cannot_c
 
 #[path = "witness_policy_credential_cycle_retirement_tests.rs"]
 mod retirement;
+#[path = "witness_credential_roster_tests.rs"]
+mod roster;
 
 #[test]
 fn required_policy_credential_cycle_closed_g_with_live_predecessor_allows_next_independent_policy()

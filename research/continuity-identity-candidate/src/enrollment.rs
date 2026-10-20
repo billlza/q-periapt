@@ -1420,6 +1420,15 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
         wrapper.extend_from_slice(&bytes);
         bytes = wrapper;
     }
+    if image
+        .roster_witness
+        .as_ref()
+        .is_some_and(roster_refresh::WitnessRoster::credential_bound)
+    {
+        let mut wrapper = b"QPENST21".to_vec();
+        wrapper.extend_from_slice(&bytes);
+        bytes = wrapper;
+    }
     bytes.extend_from_slice(&binding);
     bytes.extend_from_slice(image.identity.as_bytes());
     match &image.phase {
@@ -1592,6 +1601,12 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         .map_err(|_| DurableError::Authentication)?;
     let mut d = Decoder::new(body);
     let tag = d.array::<8>()?;
+    let roster_credential = tag == *b"QPENST21";
+    let tag = if roster_credential {
+        d.array::<8>()?
+    } else {
+        tag
+    };
     let has_account = tag == *b"QPENST20";
     let tag = if has_account { d.array::<8>()? } else { tag };
     if !has_account && wire.len() > MAX_PREINSTALLATION_IMAGE {
@@ -1783,7 +1798,10 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         None
     };
     let roster_witness = if has_roster_witness {
-        Some(roster_refresh::WitnessRoster::decode(&mut d)?)
+        Some(roster_refresh::WitnessRoster::decode(
+            &mut d,
+            roster_credential,
+        )?)
     } else {
         None
     };
@@ -1822,6 +1840,14 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         preparation,
     };
     image.validate_policy_phase()?;
+    if roster_credential
+        != image
+            .roster_witness
+            .as_ref()
+            .is_some_and(roster_refresh::WitnessRoster::credential_bound)
+    {
+        return Err(DurableError::Corrupt);
+    }
     if image.witnessed_credential_after_policy() != credential_after_policy {
         return Err(DurableError::Corrupt);
     }

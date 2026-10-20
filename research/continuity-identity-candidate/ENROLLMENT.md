@@ -718,7 +718,8 @@ under the original MAC. Previous supported formats remain readable without an
 implicit rewrite. Malformed scope, signed roster, phase, flags or trailing bytes
 are rejected. This is an unpublished candidate format, not a product migration
 commitment. The independent P completion stays intact when R advances; its
-credential binding permits a monotonic roster while still refusing real G/T.
+credential binding permits a monotonic roster. Composition with real G is
+described below; the R coordinator still refuses an adopted joint T.
 
 A staged intent with no released proposal and no journal pending may be explicitly
 abandoned using `abandon_unprepared_roster_refresh`, under the original service
@@ -739,11 +740,46 @@ permission. Tests also reject substituted proposals before any dispatch, includi
 when the genuine result is already retired.
 
 The signed transport in these checks is in-process. Original session/fanout
-behavior across R is now checked separately below. Broader concurrency, real G/T
+behavior across R is now checked separately below. Broader concurrency, joint T
 and external lost-device revocation or key replacement, network/foreign bindings,
 installed packages and platform guarantees remain required for the full 0.2.0
 lifecycle. A previous legacy split witness/journal roster state remains a separate
 recovery/migration gate. macOS support is Apple Silicon only.
+
+### Original credential and roster composition
+
+The original enrollment can coordinate G then R or R then G under unchanged P0
+or an independently adopted P. R must retain the actual current credential.
+It cannot adopt a different root-signed same-key certificate without G.
+Preparation, terminal persistence, ACK and exact pending retirement remain
+separate checked steps; an unretired G or R blocks the other. Each new target must
+exceed the retained G/R target floors, including Closed targets and locally
+abandoned R intents. New G uses the actually adopted roster predecessor.
+
+`QPENST21` retains R's signed certificate independently of the mutable current
+admission. It wraps existing fields only when G and R history coexist. An earlier
+R17 state is promoted when G is staged by retaining its existing certificate;
+merely opening it does not rewrite it. This permits the original R terminal to
+remain verifiable after G replaces the admission certificate. Earlier
+authenticated tags cannot claim the new meaning. The original subject, journal
+identity, keys and established P authorization remain unchanged.
+
+The original coordinator supplies its authenticated G completion to journal
+preparation and R terminal cleanup. Ordinary low-level opening and public R
+materials cannot supply that completion. The journal checks the entire retained
+receipt and signed G lineage, including the actual current roster, before
+sealing or acknowledging a mixed target.
+
+Native tests cover both orders under P0 and independent P, G→P→R, three alternating
+G/R cycles, shared Closed floors, pending exclusion, credential substitution,
+authenticated format downgrade and expired recovery after lost Commit/ACK
+replies. Under independent P, sixteen actual process kills cover Applied/Closed observation, local
+terminal, pending retirement and enrollment completion in both directions.
+They reopen the same enrollment, journal and witness and compare exact ciphertext
+and the preceding G/R history. This is native in-process transport evidence;
+joint-T composition, full account-cohort roster maintenance, independent
+consumers, installed packages and platform-specific qualification remain open
+for this new combination.
 
 ### Original traffic across R
 
@@ -755,6 +791,11 @@ bytes after a lost R ACK, then complete the same control exchange and decrypt
 bidirectional epoch-1 messages under current authority. This demonstrates protocol
 continuity, not fresh entropy or a post-compromise security claim: a contribution
 retained before R remains that original contribution.
+
+The same real-message checks also run bilateral G→P→R and P→R→G. Both retain the
+original outbox and pending PQ offer, recover a lost R ACK, finish that original
+control exchange and exchange bidirectional epoch-1 traffic. Peer G and roster
+updates are independently admitted; a new original session is not substituted.
 
 A separate three-device scenario establishes two sessions to one independently
 root-authorized two-device recipient account. One member is consumed and ACKed;

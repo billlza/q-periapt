@@ -5,6 +5,13 @@ use crate::{
     AnchorRosterRefreshProposal, HistoricalSessionPolicy, RosterRefreshId, RosterRefreshScope,
     VerifiedSessionPolicy,
 };
+mod credential;
+pub(in crate::durable) fn roster_refresh_has_credential(
+    image: &Image,
+) -> Result<bool, DurableError> {
+    let saved = get(image, &image.local_account)?;
+    Ok(credential::grant(image, &saved)?.is_some())
+}
 
 /// Independently retained original identity/policy and root-approved current R target.
 /// These inputs do not supply a witness outcome or original enrollment completion.
@@ -15,30 +22,27 @@ pub struct RosterRefreshMaterials<'a> {
     pub original_policy: &'a HistoricalSessionPolicy,
     /// Independently pinned current policy and live runtime for preparing new work.
     pub policy: &'a VerifiedSessionPolicy,
-    /// Same immutable credential under the independently pinned target roster.
+    /// Same current credential under the independently pinned target roster.
     pub target: &'a VerifiedDevice,
 }
 fn supported(image: &Image, saved: &Stored) -> Result<(), DurableError> {
     if !matches!(image.protection, Protection::Required { .. }) {
         return Err(DurableError::AnchorRequired);
     }
-    if saved.local_commit.is_some()
-        || saved.policy_continuation.is_some()
-        || saved
-            .renewals
-            .values()
-            .any(|g| g.original_storage_owner() == image.owner)
-    {
+    if saved.policy_continuation.is_some() {
         return Err(DurableError::Conflict);
     }
+    credential::grant(image, saved)?;
     policy_renewal::check_scope(image, saved)
 }
 pub(in crate::durable) fn check_roster_refresh_intent(
     image: &Image,
     scope: RosterRefreshScope,
+    credential_bound: bool,
 ) -> Result<(), DurableError> {
     let saved = get(image, &image.local_account)?;
     supported(image, &saved)?;
+    credential::check_scope(image, &saved, scope, credential_bound)?;
     if saved.roster.checkpoint() != scope.target
         || scope.target.version() <= scope.previous.version()
     {
@@ -70,7 +74,20 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<AnchorRosterRefreshProposal, DurableError> {
         let result = self
-            .prepare_roster_refresh_attempt(operation, materials, now)
+            .prepare_roster_refresh_attempt(operation, materials, now, None)
+            .await;
+        self.close();
+        result
+    }
+    pub(crate) async fn prepare_enrolled_roster_refresh(
+        &mut self,
+        operation: RosterRefreshId,
+        materials: &RosterRefreshMaterials<'_>,
+        now: u64,
+        completion: Option<&LocalRenewalCommit>,
+    ) -> Result<AnchorRosterRefreshProposal, DurableError> {
+        let result = self
+            .prepare_roster_refresh_attempt(operation, materials, now, completion)
             .await;
         self.close();
         result
@@ -80,34 +97,33 @@ impl DeviceJournal {
         operation: RosterRefreshId,
         materials: &RosterRefreshMaterials<'_>,
         now: u64,
+        completion: Option<&LocalRenewalCommit>,
     ) -> Result<AnchorRosterRefreshProposal, DurableError> {
         let m = materials;
         let mut image = self.image().await?;
         image.protection.check_policy(m.original_policy)?;
         let saved = get(&image, &image.local_account)?;
         supported(&image, &saved)?;
+        if saved.local_commit.as_ref() != completion {
+            return Err(DurableError::Suspended);
+        }
+        let current = credential::current(&image, &saved, m.original)?;
         if image.owner != bootstrap::storage_owner(m.original)
-            || image.owner != bootstrap::storage_owner(m.target)
             || image.local_account != m.original.account_id()
-            || m.target.credential_digest() != m.original.credential_digest()
+            || m.target.credential_digest() != current.credential_digest()
             || m.target.key != m.original.key
             || !saved.roster.same_authority(m.target.roster())
-            || saved.history.get(&m.original.device_id())
-                != Some(&(m.original.generation(), m.original.credential_digest()))
         {
             return Err(DurableError::Conflict);
         }
-        let historical = m
-            .original
-            .description
-            .validity
-            .from()
-            .max(saved.roster.validity().from());
-        saved.roster.refresh_device(m.original, historical)?;
         let policy_authorization = if saved.policy_renewal.is_some() {
             let approval = policy_renewal::adopted(&image, &saved)?;
             approval.check_context_policy(m.original_policy, m.policy)?;
-            approval.check_credential_lineage(m.original, m.original)?;
+            if policy_renewal::credential(&image, &saved, m.original, approval)?.credential_digest()
+                != current.credential_digest()
+            {
+                return Err(DurableError::Conflict);
+            }
             Some(approval.statement_digest())
         } else {
             if m.original_policy.checkpoint() != m.policy.checkpoint() {
@@ -174,6 +190,17 @@ impl DeviceJournal {
         );
         let old = get(&before, &before.local_account).expect("original roster");
         let new = get(&after, &after.local_account).expect("target roster");
+        assert_eq!(
+            old.local_commit, new.local_commit,
+            "original G completion changed"
+        );
+        assert!(
+            old.renewals
+                .iter()
+                .map(|(id, g)| (id, g.as_bytes()))
+                .eq(new.renewals.iter().map(|(id, g)| (id, g.as_bytes()))),
+            "original grants changed"
+        );
         assert_eq!(old.roster.checkpoint(), scope.previous);
         assert_eq!(new.roster.checkpoint(), scope.target);
         assert!(
@@ -205,24 +232,19 @@ pub(in crate::durable) fn check_witnessed_roster_terminal(
 ) -> Result<(), DurableError> {
     let saved = get(image, &image.local_account)?;
     supported(image, &saved)?;
+    if saved.local_commit.as_ref() != terminal.credential_completion() {
+        return Err(DurableError::Conflict);
+    }
     let scope = terminal.proposal().scope().to_owned();
     let checkpoint = match terminal.disposition() {
         crate::WitnessedRosterRefreshDisposition::Applied => scope.target,
         crate::WitnessedRosterRefreshDisposition::Closed => scope.previous,
     };
-    if saved.roster.checkpoint() != checkpoint
-        || image.owner != bootstrap::storage_owner(original)
-        || saved.history.get(&original.device_id())
-            != Some(&(original.generation(), original.credential_digest()))
+    if saved.roster.checkpoint() != checkpoint || image.owner != bootstrap::storage_owner(original)
     {
         return Err(DurableError::Conflict);
     }
-    let at = original
-        .description
-        .validity
-        .from()
-        .max(saved.roster.validity().from());
-    saved.roster.refresh_device(original, at)?;
+    credential::current(image, &saved, original)?;
     match (
         &saved.policy_renewal,
         scope.policy_authorization,

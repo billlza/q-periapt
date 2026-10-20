@@ -52,7 +52,10 @@ pub(super) struct PolicyRenewalBinding {
 enum BoundTransaction {
     Credential(RenewalBinding),
     Policy(PolicyRenewalBinding),
-    Roster(crate::RosterRefreshScope),
+    Roster {
+        scope: crate::RosterRefreshScope,
+        credential: bool,
+    },
 }
 mod account_authority;
 pub(super) mod account_root;
@@ -127,7 +130,10 @@ impl PendingWrite {
     ) -> Result<Self, DurableError> {
         let expected_revision = image.revision.checked_sub(1).ok_or(DurableError::Corrupt)?;
         let mut wire = match binding {
-            Some(BoundTransaction::Roster(_)) => b"QPWINT07".to_vec(),
+            Some(BoundTransaction::Roster {
+                credential: true, ..
+            }) => b"QPWINT10".to_vec(),
+            Some(BoundTransaction::Roster { .. }) => b"QPWINT07".to_vec(),
             Some(BoundTransaction::Policy(_)) => b"QPWINT06".to_vec(),
             Some(BoundTransaction::Credential(r))
                 if r.policy.is_some_and(PolicyIntent::independent) =>
@@ -138,7 +144,7 @@ impl PendingWrite {
             Some(BoundTransaction::Credential(_)) => b"QPWINT02".to_vec(),
             None => b"QPWINT01".to_vec(),
         };
-        if let Some(BoundTransaction::Roster(scope)) = binding {
+        if let Some(BoundTransaction::Roster { scope, .. }) = binding {
             scope.encode(&mut wire);
         }
         if let Some(BoundTransaction::Policy(p)) = binding {
@@ -198,9 +204,10 @@ impl PendingWrite {
         let mut d = Decoder::new(body);
         let binding = match d.array::<8>()? {
             tag if tag == *b"QPWINT01" => None,
-            tag if tag == *b"QPWINT07" => Some(BoundTransaction::Roster(
-                crate::RosterRefreshScope::decode(&mut d)?,
-            )),
+            tag if matches!(&tag, b"QPWINT07" | b"QPWINT10") => Some(BoundTransaction::Roster {
+                scope: crate::RosterRefreshScope::decode(&mut d)?,
+                credential: tag == *b"QPWINT10",
+            }),
             tag if tag == *b"QPWINT06" => {
                 let operation = crate::PolicyRenewalId::from_trusted_state(d.array()?)?;
                 let statement = d.array()?;
@@ -264,8 +271,8 @@ impl PendingWrite {
                 rosters::check_credential_renewal_intent(&next, r)?
             }
             Some(BoundTransaction::Policy(p)) => rosters::check_policy_renewal_intent(&next, p)?,
-            Some(BoundTransaction::Roster(scope)) => {
-                rosters::check_roster_refresh_intent(&next, scope)?
+            Some(BoundTransaction::Roster { scope, credential }) => {
+                rosters::check_roster_refresh_intent(&next, scope, credential)?
             }
             None => {}
         }
@@ -430,7 +437,7 @@ fn load_pending_snapshot(
                 Some(BoundTransaction::Policy(_))
             ) | (
                 SnapshotAdmission::RosterRecovery,
-                Some(BoundTransaction::Roster(_))
+                Some(BoundTransaction::Roster { .. })
             ) | (
                 SnapshotAdmission::RetiredCleanup(_)
                     | SnapshotAdmission::AccountRootReplacement

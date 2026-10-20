@@ -139,8 +139,11 @@ fn inspect(c: &Case) -> Result<Option<RProposal>, DurableError> {
     )
 }
 fn target_image(saved: &JournalSnapshot) -> Vec<u8> {
+    target_image_with_tag(saved, b"QPWINT07")
+}
+fn target_image_with_tag(saved: &JournalSnapshot, tag: &[u8; 8]) -> Vec<u8> {
     let pending = saved.1.as_ref().expect("original R pending");
-    assert_eq!(pending.get(..8), Some(b"QPWINT07".as_slice()));
+    assert_eq!(pending.get(..8), Some(tag.as_slice()));
     pending
         .get(341..pending.len() - 32)
         .expect("original exact sealed R target")

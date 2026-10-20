@@ -6,6 +6,7 @@ use crate::{
     AnchorSubject, DeviceJournal, HistoricalSessionPolicy, RosterRefreshId, RosterRefreshMaterials,
     RosterRefreshScope,
 };
+mod credential;
 
 /// Durable historical R outcome; this does not grant current traffic permission.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -54,6 +55,7 @@ pub(super) struct WitnessRoster {
     roster: Vec<u8>,
     coordination: Option<Coordination>,
     abandoned: bool,
+    credential: Option<Vec<u8>>,
 }
 impl WitnessRoster {
     pub(super) fn retired(&self) -> bool {
@@ -61,7 +63,6 @@ impl WitnessRoster {
     }
     pub(super) fn validate(&self, image: &Image) -> Result<(), DurableError> {
         let Phase::Accepted {
-            admission,
             stage: AdmissionPhase::Active,
             ..
         } = &image.phase
@@ -69,7 +70,7 @@ impl WitnessRoster {
             return Err(DurableError::Corrupt);
         };
         if (self.abandoned && self.coordination.is_some())
-            || image.renewal.is_some()
+            || !self.credential_state_matches(image)
             || image.policy_resolution.is_some()
             || image.roster_resolution.is_some()
             || (image.policy_pending.is_some() && !self.retired())
@@ -90,7 +91,7 @@ impl WitnessRoster {
         } else {
             self.scope.previous
         };
-        if admission.checkpoint != expected || (applied && admission.roster != self.roster) {
+        if !self.admission_matches(image, expected, applied) {
             return Err(DurableError::Conflict);
         }
         Ok(())
@@ -98,6 +99,9 @@ impl WitnessRoster {
     pub(super) fn encode(&self, out: &mut Vec<u8>) -> Result<(), DurableError> {
         self.scope.encode(out);
         field(out, &self.roster)?;
+        if let Some(credential) = &self.credential {
+            field(out, credential)?;
+        }
         match self.coordination {
             None => out.push(if self.abandoned { 6 } else { 0 }),
             Some(c) => {
@@ -114,9 +118,17 @@ impl WitnessRoster {
         }
         Ok(())
     }
-    pub(super) fn decode(d: &mut Decoder<'_>) -> Result<Self, DurableError> {
+    pub(super) fn decode(
+        d: &mut Decoder<'_>,
+        credential_bound: bool,
+    ) -> Result<Self, DurableError> {
         let scope = RosterRefreshScope::decode(d)?;
         let roster = take(d)?;
+        let credential = if credential_bound {
+            Some(take(d)?)
+        } else {
+            None
+        };
         let flag = d.array::<1>()?;
         let coordination = match flag {
             [0] | [6] => None,
@@ -137,6 +149,7 @@ impl WitnessRoster {
             roster,
             coordination,
             abandoned: flag == [6],
+            credential,
         })
     }
     fn progress(&self) -> WitnessedRosterRefreshProgress {
@@ -161,6 +174,7 @@ pub(crate) struct PersistedRosterTerminal {
     proposal: Proposal,
     disposition: WitnessedRosterRefreshDisposition,
     completion: Option<std::sync::Arc<EnrollmentPolicyCompletion>>,
+    credential: Option<crate::durable::LocalRenewalCommit>,
 }
 impl PersistedRosterTerminal {
     pub(crate) fn proposal(&self) -> Proposal {
@@ -171,6 +185,9 @@ impl PersistedRosterTerminal {
     }
     pub(crate) fn completion(&self) -> Option<&EnrollmentPolicyCompletion> {
         self.completion.as_deref()
+    }
+    pub(crate) fn credential_completion(&self) -> Option<&crate::durable::LocalRenewalCommit> {
+        self.credential.as_ref()
     }
 }
 #[derive(Clone, Copy)]
@@ -196,10 +213,14 @@ impl DeviceEnrollment {
             return Err(DurableError::Corrupt);
         };
         let original = self.original_device_metadata(image)?;
-        let target =
-            self.historical_device_metadata(&admission.certificate, &r.roster, r.scope.target)?;
-        self.installation_intent(image)?.verify_device(&target)?;
-        if target.credential_digest() != original.credential_digest() || target.key != original.key
+        let target = self.historical_device_metadata(
+            r.certificate(&admission.certificate),
+            &r.roster,
+            r.scope.target,
+        )?;
+        if !credential::same_identity(&original, &target)
+            || (r.credential.is_none()
+                && target.credential_digest() != original.credential_digest())
         {
             return Err(DurableError::Conflict);
         }
@@ -231,7 +252,13 @@ impl DeviceEnrollment {
         policy: &HistoricalSessionPolicy,
     ) -> Result<(VerifiedDevice, JournalIdentity), DurableError> {
         let (original, id) = self.policy_witness_scope(image, policy)?;
-        if image.policy_pending.is_some() || !image.policy_coordination_retired() {
+        if image.policy_pending.is_some()
+            || !image.policy_coordination_retired()
+            || image
+                .renewal
+                .as_ref()
+                .is_some_and(|g| !g.permits_witness_policy())
+        {
             return Err(DurableError::Suspended);
         }
         if let Some(r) = &image.roster_witness {
@@ -294,11 +321,7 @@ impl DeviceEnrollment {
         let mut image = self.image()?;
         image.check_time_floor(now)?;
         let (original, id) = self.roster_witness_scope(&image, original_policy)?;
-        self.installation_intent(&image)?.verify_device(target)?;
-        if target.credential_digest() != original.credential_digest() || target.key != original.key
-        {
-            return Err(DurableError::Conflict);
-        }
+        self.check_current_roster_credential(&image, &original, target)?;
         admit(target, policy, now)?;
         let completion = self.policy_enrollment_completion(&image, original_policy)?;
         let authorization = match &completion {
@@ -326,6 +349,11 @@ impl DeviceEnrollment {
             image.require_roster_retired()?;
             if existing
                 .is_some_and(|r| target.roster().checkpoint().version() <= r.scope.target.version())
+                || image
+                    .renewal
+                    .as_ref()
+                    .and_then(LocalRenewal::witness_roster_floor)
+                    .is_some_and(|floor| target.roster().checkpoint().version() <= floor)
             {
                 return Err(Error::Checkpoint.into());
             }
@@ -344,6 +372,10 @@ impl DeviceEnrollment {
                 roster: target.roster().as_bytes().to_vec(),
                 coordination: None,
                 abandoned: false,
+                credential: image
+                    .renewal
+                    .as_ref()
+                    .map(|_| admission.certificate.clone()),
             });
             self.validate_witness_roster(&image)?;
             self.save(&image)?;
@@ -372,7 +404,7 @@ impl DeviceEnrollment {
                         .await?;
                 }
                 journal
-                    .prepare_roster_refresh(
+                    .prepare_enrolled_roster_refresh(
                         operation,
                         &RosterRefreshMaterials {
                             original: &original,
@@ -381,6 +413,10 @@ impl DeviceEnrollment {
                             target,
                         },
                         now,
+                        image
+                            .renewal
+                            .as_ref()
+                            .and_then(LocalRenewal::witnessed_completion),
                     )
                     .await?
             }
@@ -573,6 +609,11 @@ impl DeviceEnrollment {
             proposal: c.proposal,
             disposition: c.terminal.ok_or(DurableError::Suspended)?,
             completion: self.policy_enrollment_completion(&image, policy)?,
+            credential: image
+                .renewal
+                .as_ref()
+                .and_then(LocalRenewal::witnessed_completion)
+                .cloned(),
         })
     }
     /// Fresh exact R status, historical installation, original terminal, ACK and
@@ -692,7 +733,7 @@ impl DeviceEnrollment {
                         return Err(DurableError::Corrupt);
                     };
                     let target = self.historical_device_metadata(
-                        &admission.certificate,
+                        r.certificate(&admission.certificate),
                         &r.roster,
                         r.scope.target,
                     )?;
@@ -744,7 +785,9 @@ impl DeviceEnrollment {
                 };
                 admission.roster = r.roster.clone();
                 admission.checkpoint = r.scope.target;
-                if image.policy_completed.is_some() {
+                if image.policy_completed.is_some()
+                    && image.policy_device_binding != PolicyDeviceBinding::CredentialRenewal
+                {
                     image.policy_device_binding = PolicyDeviceBinding::MonotonicRoster;
                 }
             }

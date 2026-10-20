@@ -227,6 +227,11 @@ impl LocalRenewal {
             None
         }
     }
+    pub(super) fn witness_roster_floor(&self) -> Option<u64> {
+        self.witness
+            .as_ref()
+            .map(witness::WitnessRenewal::roster_floor)
+    }
     pub(super) fn cancellation(&self) -> bool {
         self.witness
             .as_ref()
@@ -673,6 +678,7 @@ impl DeviceEnrollment {
     ) -> Result<CredentialRenewalStatus, DurableError> {
         let continuation = extensions.continuation;
         let mut image = self.image()?;
+        image.require_roster_retired()?;
         image.check_time_floor(now)?;
         let independent = self.completed_policy_approval(&image)?;
         if image.policy_pending.is_some() || (independent.is_some() && continuation.is_some()) {
@@ -819,10 +825,18 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         admit(grant.successor_device(), policy, now)?;
+        if image.roster_witness.as_ref().is_some_and(|r| {
+            grant.successor_device().roster().checkpoint().version() <= r.target_floor()
+        }) {
+            return Err(Error::Retired.into());
+        }
         if let Some(account) = extensions.account {
             for peer in account.verify(grant, &original)? {
                 admit(peer.successor_device(), policy, now)?;
             }
+        }
+        if let Some(r) = &mut image.roster_witness {
+            r.retain_credential(&admission.certificate)?;
         }
         if image.renewal.is_none() {
             image.renewal = Some(LocalRenewal {

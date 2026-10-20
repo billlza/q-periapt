@@ -169,7 +169,7 @@ impl DeviceJournal {
                         operation: *binding.operation.as_bytes(),
                         statement: binding.statement,
                     },
-                    Some(BoundTransaction::Roster(scope)) => {
+                    Some(BoundTransaction::Roster { scope, .. }) => {
                         let mut bytes = Vec::new();
                         scope.encode(&mut bytes);
                         Transaction::Roster(bytes)

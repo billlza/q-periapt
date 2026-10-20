@@ -212,7 +212,7 @@ pub(super) fn adopted<'a>(
     }
     Ok(&retained.approval)
 }
-fn credential<'a>(
+pub(super) fn credential<'a>(
     image: &Image,
     saved: &'a Stored,
     original: &'a VerifiedDevice,

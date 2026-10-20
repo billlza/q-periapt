@@ -19,7 +19,9 @@ pub(crate) use local_renewal::{LocalRenewalCommit, LocalRenewalResolution, Local
 use peer_retirement::PeerRetirement;
 mod roster_refresh;
 pub use roster_refresh::RosterRefreshMaterials;
-pub(super) use roster_refresh::{check_roster_refresh_intent, check_witnessed_roster_terminal};
+pub(super) use roster_refresh::{
+    check_roster_refresh_intent, check_witnessed_roster_terminal, roster_refresh_has_credential,
+};
 mod policy_renewal;
 use policy_renewal::StoredPolicyRenewal;
 pub(super) use policy_renewal::{

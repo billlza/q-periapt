@@ -205,7 +205,10 @@ policy/runtime and the independently root-approved same-credential target device
 and roster. The original required journal supplies the actual previous roster and
 current policy authorization. Completed independent P requires its private
 original-enrollment completion capability; ordinary metadata opening alone cannot
-invent that completion. Real local G/T composition is still refused.
+invent that completion. After G, the original enrollment coordinator additionally
+supplies the exact retained G completion. Public low-level R preparation lacks
+that capability and remains refused for such a journal. Joint T composition is
+still refused by this owner path.
 
 The previous roster may be expired: its signed historical membership identifies
 the actual predecessor but grants no current permission. Preparation admits the
@@ -224,6 +227,15 @@ The same scope codec is shared with the unchanged 417-byte `QPRWNP01` descriptor
 The original single pending slot arbitrates ordinary, G, P and R intents. Those
 bindings are explicit enum alternatives; another transaction kind cannot serve as
 R evidence, and ordinary recovery cannot apply any bound target.
+
+An R target retaining an actual local G uses `QPWINT10` with the same scope and
+341-byte prefix. Its explicit discriminator must agree with the signed local
+grant and complete receipt in the sealed target. G's successor checkpoint cannot
+be newer than R's actual predecessor. A correctly MACed QPWINT07 container cannot
+claim this composition. R changes neither that grant nor its receipt. The
+original enrollment's private terminal binds the same receipt before ACK/cleanup,
+including after expiry. The immutable journal owner stays C0 while current
+membership uses the exact renewed credential; R cannot renew it implicitly.
 
 After an uncertain preparation return, `inspect_roster_refresh_preparation` reads
 the exact original proposal before or after target installation, without signing

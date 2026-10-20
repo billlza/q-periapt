@@ -50,6 +50,9 @@ pub(super) struct WitnessRenewal {
     pub(super) coordination: Option<Coordination>,
 }
 impl WitnessRenewal {
+    pub(super) fn roster_floor(&self) -> u64 {
+        self.floor
+    }
     pub(super) fn new() -> Self {
         Self {
             floor: 0,

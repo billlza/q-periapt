@@ -1014,6 +1014,9 @@ credential/predecessor refusal, shared retirement including grant-only closure,
 P/G/R permutations, T retention and expiry. Eight real process kills cover
 Commit, Close and both terminal ACK outcomes in each direction, followed by
 historical exact retry on the same witness database. Their target head digests
-are explicit component expectations: **original enrollment/journal G/R
-coordination, independent consumers and installed-package qualification remain
-open**. Existing full native R and G/P tests do not establish that combination.
+are explicit component expectations. Separate
+[original enrollment/journal G/R tests](ENROLLMENT.md#original-credential-and-roster-composition)
+now seal actual targets, preserve traffic and exercise process loss under P0 and
+independent P. Native joint-T composition, full account-cohort maintenance,
+independent consumers and installed-package qualification for the new
+combination remain open.

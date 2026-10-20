@@ -151,9 +151,18 @@ fn refresh(
 ) -> RProposal {
     let mut owner = open(&f.c);
     let image = owner.image().expect("original");
+    let admission = match &image.phase {
+        Phase::Accepted { admission, .. } => Ok(admission),
+        _ => Err("fixture must have an original accepted enrollment"),
+    }
+    .expect("original admission");
     let previous = owner
-        .original_device_metadata(&image)
-        .expect("actual original predecessor");
+        .historical_device_metadata(
+            &admission.certificate,
+            &admission.roster,
+            admission.checkpoint,
+        )
+        .expect("actual current predecessor");
     let client = policy_client(f, &mut owner);
     let proposal = owner
         .prepare_witnessed_roster_refresh(
@@ -205,7 +214,20 @@ fn refresh(
         assert_eq!(result.expect("R commit"), RState::Applied);
         owner.close();
     }
-    assert_eq!(journal(f), (target_image(&saved), None));
+    assert_eq!(
+        journal(f),
+        (
+            target_image_with_tag(
+                &saved,
+                if previous.credential_digest() == f.original.credential_digest() {
+                    b"QPWINT07"
+                } else {
+                    b"QPWINT10"
+                },
+            ),
+            None
+        )
+    );
     proposal
 }
 fn reopen(
@@ -252,15 +274,103 @@ fn committed(member: &FanoutMember) -> &[u8] {
     .expect("committed member")
 }
 
+fn renew_after_policy(
+    f: &Fixture,
+    policy: &VerifiedSessionPolicy,
+    previous: &VerifiedDevice,
+    version: u64,
+    now: u64,
+) -> crate::VerifiedCredentialRenewal {
+    use crate::enrollment::tests::witness_renewal as credential;
+    let g = credential::grant(f, previous, version, 240);
+    let mut owner = open(&f.c);
+    owner
+        .stage_credential_renewal(&g, g.operation(), policy, now)
+        .expect("G after P/R");
+    let client = credential::client(f, &mut owner, now);
+    let proposal = owner
+        .prepare_witnessed_policy_continuation(f.c.policy.historical(), policy, now, client)
+        .expect("original sealed G target");
+    f.carrier
+        .store
+        .lock()
+        .expect("witness")
+        .prepare_policy_renewed_credential_renewal(
+            proposal,
+            &g,
+            f.c.policy.historical(),
+            policy,
+            now,
+        )
+        .expect("independent G approval");
+    let mut client = credential::client(f, &mut owner, now);
+    assert_eq!(
+        owner
+            .commit_witnessed_policy_continuation(
+                &proposal,
+                f.c.policy.historical(),
+                policy,
+                now,
+                &mut client,
+            )
+            .expect("original G completion"),
+        renewal::committed(&g)
+    );
+    owner.close();
+    g
+}
+
+fn admit_current_peer_grants(
+    a: &mut Endpoint,
+    b: &mut Endpoint,
+    pa: &VerifiedSessionPolicy,
+    pb: &VerifiedSessionPolicy,
+    ag: &crate::VerifiedCredentialRenewal,
+    bg: &crate::VerifiedCredentialRenewal,
+    now: u64,
+) {
+    a.owner = activate(&a.f, pa, now).expect("current sender");
+    b.owner = activate(&b.f, pb, now).expect("current receiver");
+    a.owner
+        .parts()
+        .expect("sender")
+        .0
+        .admit_peer_credential_renewal(bg, bg.operation(), pa, now)
+        .expect("actual peer G");
+    b.owner
+        .parts()
+        .expect("receiver")
+        .0
+        .admit_peer_credential_renewal(ag, ag.operation(), pb, now)
+        .expect("actual sender G");
+    a.owner.close();
+    b.owner.close();
+}
+
 #[test]
 fn original_pending_pq_offer_and_outbox_survive_policy_expiry_roster_commit_and_lost_ack() {
-    pending_session_across_maintenance(false);
+    pending_session_across_maintenance(MaintenanceOrder::PolicyRoster);
 }
 #[test]
 fn original_pending_pq_offer_and_outbox_survive_bilateral_g_then_p() {
-    pending_session_across_maintenance(true);
+    pending_session_across_maintenance(MaintenanceOrder::CredentialPolicy);
 }
-fn pending_session_across_maintenance(after_credential: bool) {
+#[test]
+fn original_pending_pq_offer_and_outbox_survive_bilateral_g_then_p_then_r() {
+    pending_session_across_maintenance(MaintenanceOrder::CredentialPolicyRoster);
+}
+#[test]
+fn original_pending_pq_offer_and_outbox_survive_bilateral_p_then_r_then_g() {
+    pending_session_across_maintenance(MaintenanceOrder::PolicyRosterCredential);
+}
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum MaintenanceOrder {
+    PolicyRoster,
+    CredentialPolicy,
+    CredentialPolicyRoster,
+    PolicyRosterCredential,
+}
+fn pending_session_across_maintenance(order: MaintenanceOrder) {
     let f = fixture_with_policy_expiry(Some(151));
     let peer = fixture_on_witness(
         Arc::clone(&f._witness_dir),
@@ -293,7 +403,10 @@ fn pending_session_across_maintenance(after_credential: bool) {
         .expect("reserved original PQ contribution");
     a.owner.close();
     b.owner.close();
-    let renewals = if after_credential {
+    let renewals = if matches!(
+        order,
+        MaintenanceOrder::CredentialPolicy | MaintenanceOrder::CredentialPolicyRoster
+    ) {
         use crate::enrollment::tests::witness_renewal::independent_policy::operational::credential_composition::completed_g;
         Some((completed_g(&a.f, 150), completed_g(&b.f, 150)))
     } else {
@@ -301,23 +414,8 @@ fn pending_session_across_maintenance(after_credential: bool) {
     };
     let pa = adopt_policy(&a.f, 155);
     let pb = adopt_policy(&b.f, 155);
-    let (ar, br) = if let Some((ag, bg)) = &renewals {
-        a.owner = activate(&a.f, &pa, 155).expect("C1/P1 sender");
-        b.owner = activate(&b.f, &pb, 155).expect("C1/P1 receiver");
-        a.owner
-            .parts()
-            .expect("sender")
-            .0
-            .admit_peer_credential_renewal(bg, bg.operation(), &pa, 155)
-            .expect("actual peer G");
-        b.owner
-            .parts()
-            .expect("receiver")
-            .0
-            .admit_peer_credential_renewal(ag, ag.operation(), &pb, 155)
-            .expect("actual sender G");
-        a.owner.close();
-        b.owner.close();
+    let (mut ar, mut br) = if let Some((ag, bg)) = &renewals {
+        admit_current_peer_grants(&mut a, &mut b, &pa, &pb, ag, bg, 155);
         (ag.successor_device().clone(), bg.successor_device().clone())
     } else {
         let ar = roster_target(&a.f, &[certificate(&a.f)], 2, 155);
@@ -326,6 +424,35 @@ fn pending_session_across_maintenance(after_credential: bool) {
         refresh(&b.f, &pb, &br, 155, false);
         (ar, br)
     };
+    if order == MaintenanceOrder::CredentialPolicyRoster {
+        ar = roster_target(&a.f, &[certificate(&a.f)], 3, 155);
+        br = roster_target(&b.f, &[certificate(&b.f)], 3, 155);
+        refresh(&a.f, &pa, &ar, 155, true);
+        refresh(&b.f, &pb, &br, 155, false);
+    }
+    if order == MaintenanceOrder::PolicyRosterCredential {
+        a.owner = activate(&a.f, &pa, 155).expect("R2 sender");
+        b.owner = activate(&b.f, &pb, 155).expect("R2 receiver");
+        a.owner
+            .parts()
+            .expect("sender")
+            .0
+            .admit_peer_roster(br.roster(), &pa, 155)
+            .expect("independent peer R2");
+        b.owner
+            .parts()
+            .expect("receiver")
+            .0
+            .admit_peer_roster(ar.roster(), &pb, 155)
+            .expect("independent sender R2");
+        a.owner.close();
+        b.owner.close();
+        let ag = renew_after_policy(&a.f, &pa, &ar, 3, 155);
+        let bg = renew_after_policy(&b.f, &pb, &br, 3, 155);
+        admit_current_peer_grants(&mut a, &mut b, &pa, &pb, &ag, &bg, 155);
+        ar = ag.successor_device().clone();
+        br = bg.successor_device().clone();
+    }
     let (ri, rr) = requests(&link, &a, &b, 155);
     let pi = reopen(&mut a, ri, &pa, 155);
     let pr = reopen(&mut b, rr, &pb, 155);
