@@ -13,6 +13,7 @@ use webauthn_authenticator_rs::{softpasskey::SoftPasskey, WebauthnAuthenticator}
 mod crash;
 mod inputs;
 mod sequence;
+mod witness;
 
 struct Case {
     path: PathBuf,
@@ -30,6 +31,9 @@ impl Case {
         Self::with_extended_installation(false)
     }
     fn with_extended_installation(extended: bool) -> Result<Self> {
+        Self::with_profile(extended, None)
+    }
+    fn with_profile(extended: bool, witness: Option<&witness::Server>) -> Result<Self> {
         let (dir, mut host) = service()?;
         let path = dir.keep().canonicalize()?;
         eprintln!("Retained grant private fixture: {}", path.display());
@@ -50,13 +54,19 @@ impl Case {
                 valid_from: at,
                 valid_until: at + 7200,
                 send_budget: 8,
-                anchor: Anchor::LocalOnly {},
+                anchor: match witness {
+                    None => Anchor::LocalOnly {},
+                    Some(server) => Anchor::Required {
+                        identity: *server.pin.identity().as_bytes(),
+                        key: server.pin.public_key().encode().to_vec(),
+                    },
+                },
             },
             at,
         )?;
         let (pins, materials) = publisher.export([91; 32])?;
-        let (policy, witness) = pins.verify(&materials, family, at)?;
-        assert!(witness.is_none());
+        let (policy, witness_pin) = pins.verify(&materials, family, at)?;
+        assert_eq!(witness_pin.is_some(), witness.is_some());
         let (historical, _) = pins.verify_historical(&materials, family)?;
         host.store.enable_enrollment(family)?;
         host.store.enable_enrollment_reapproval()?;
@@ -76,7 +86,8 @@ impl Case {
         let proof = device.request(crate::enrollment::now()?)?;
         host.approve_enrollment(&token, invitation.operation, &proof)?;
         let first = host.issue_enrollment(&token, invitation.operation)?;
-        let issued = serde_json::from_slice(&first)?;
+        let issued: IssuedEnrollment = serde_json::from_slice(&first)?;
+        let mut selected_certificate = issued.certificate.clone();
         let mut current = host.enrollment_root(&token)?;
         device.accept(&issued, &current, &policy, crate::enrollment::now()?)?;
         let original_extension = if extended {
@@ -87,8 +98,9 @@ impl Case {
                 predecessor: current.roster.as_ref().ok_or("roster")?.checkpoint,
                 valid_until: invitation.valid_until + 3600,
             };
-            let issued =
+            let issued: IssuedCredentialExtension =
                 serde_json::from_slice(&host.extend_enrollment_credential(&token, &selection)?)?;
+            selected_certificate = issued.certificate.clone();
             current = host.enrollment_root(&token)?;
             device.extend(
                 &selection,
@@ -101,9 +113,38 @@ impl Case {
         } else {
             None
         };
-        device.prepare(&current, &policy, crate::enrollment::now()?)?;
+        let preparation = device.prepare(&current, &policy, crate::enrollment::now()?)?;
+        if let Some(server) = witness {
+            let sdk::InstallationPreparation::RequiresEnrollment(genesis) = preparation else {
+                return Err("Witness genesis is required".into());
+            };
+            let roster = current.roster.as_ref().ok_or("roster")?;
+            let pin = sdk::AccountPin::new(
+                current.account,
+                sdk::PublicKey::decode(&current.public_key)?,
+                roster.checkpoint.as_sdk()?,
+                family,
+            )?;
+            let device = pin.verify_device(
+                &selected_certificate,
+                &roster.bytes,
+                crate::enrollment::now()?,
+            )?;
+            server.store.lock().map_err(|_| "witness lock")?.enroll(
+                &genesis,
+                &device,
+                &policy,
+                crate::enrollment::now()?,
+            )?;
+        }
         device
-            .activate(&current, &policy, None, None, crate::enrollment::now()?)?
+            .activate(
+                &current,
+                &policy,
+                witness_pin.clone(),
+                witness.map(|s| s.address),
+                crate::enrollment::now()?,
+            )?
             .close();
         let mut device = NativeDevice::open(
             &path.join("device"),
@@ -113,8 +154,8 @@ impl Case {
         let retained = device.credential_renewal_request(
             crate::enrollment::random()?,
             &historical,
-            None,
-            None,
+            witness_pin,
+            witness.map(|s| s.address),
         )?;
         device.close();
         let extension = CredentialExtensionRequest {

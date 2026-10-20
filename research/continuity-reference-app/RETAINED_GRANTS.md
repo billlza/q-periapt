@@ -87,7 +87,12 @@ drop the connection before reading the issued body, restart the service, log in
 again and recover the original response. Authentication tests use real WebAuthn
 signatures from a software authenticator with simulated user verification.
 
-The current browser has no grant approval control. The native CLI exports the
-original request but does not yet stage and activate G. These issuer tests do not
-establish real-account browser recovery, expired-session traffic recovery,
-required-witness coordination or cross-host installed-package acceptance.
+The [native CLI](NATIVE_DEVICE.md#recover-the-original-installation) stages and
+activates the exact G. Its tests cover actual credential expiry, a closed stdout
+pipe after the durable operation, repeated process reopen and publication under
+the recovered credential. A native API test also uses a real TCP witness and
+requires independent enrollment and proposal approval before recovery succeeds.
+The browser has no grant approval control yet. These tests do not establish
+real-account browser recovery, expired established-session traffic recovery,
+joint-policy/independent-policy CLI qualification or cross-host installed-package
+acceptance.

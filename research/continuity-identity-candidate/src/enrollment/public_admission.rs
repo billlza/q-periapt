@@ -71,3 +71,20 @@ impl DeviceEnrollment {
         result
     }
 }
+
+impl EnrolledDevice {
+    /// Read the original enrollment's public admission after activation has
+    /// reconciled its journal. This is retained metadata, not a new permission.
+    pub fn public_admission(&mut self) -> Result<EnrollmentPublicAdmission, DurableError> {
+        let result = self
+            .active
+            .as_mut()
+            .ok_or(DurableError::Closed)?
+            .enrollment
+            .public_admission();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+}

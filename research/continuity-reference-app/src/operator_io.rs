@@ -3,7 +3,11 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use q_periapt_host_store::filesystem::{open_private_file, open_private_parent};
 use serde::Serialize;
-use std::{ffi::OsString, io::Read, path::Path};
+use std::{
+    ffi::OsString,
+    io::{Read, Write},
+    path::Path,
+};
 
 pub(super) type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -41,7 +45,9 @@ pub(super) fn read(path: &Path, maximum: usize) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 pub(super) fn print<T: Serialize>(value: &T) -> Result<()> {
-    println!("{}", serde_json::to_string(value)?);
+    let mut output = serde_json::to_vec(value)?;
+    output.push(b'\n');
+    std::io::stdout().lock().write_all(&output)?;
     Ok(())
 }
 pub(super) fn export_directory(directory: &Path) -> Result<()> {

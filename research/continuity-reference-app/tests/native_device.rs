@@ -16,6 +16,8 @@ use std::{
 };
 #[path = "native_device/publication.rs"]
 mod publication;
+#[path = "native_device/recovery.rs"]
+mod recovery;
 #[path = "native_device/renewal.rs"]
 mod renewal;
 #[path = "../src/test_support.rs"]
@@ -93,6 +95,9 @@ impl Case {
         )
     }
     fn open() -> Result<Self> {
+        Self::open_with_validity(1200)
+    }
+    fn open_with_validity(seconds: u64) -> Result<Self> {
         let path = tempfile::tempdir()?.keep().canonicalize()?;
         fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
         eprintln!(
@@ -118,8 +123,8 @@ impl Case {
             device: [64; 16],
             generation: 1,
             valid_from: start,
-            valid_until: start + 1200,
-            deadline: start + 600,
+            valid_until: start + seconds,
+            deadline: start + seconds.min(600),
             predecessor: None,
         };
         write(&path.join("invitation.json"), &invitation)?;

@@ -123,8 +123,9 @@ reset an expired client's original state or substitute this response for G.
 `enable-credential-grants` explicitly upgrades schema 4 to schema 5. The separate
 authenticated [retained-state grant transaction](RETAINED_GRANTS.md) issues G
 only for an exact selected certificate chain and current account roster. Its
-pending decision and issued response survive restart. This backend does not yet
-provide browser approval controls or a native CLI staging/activation flow.
+pending decision and issued response survive restart. The native CLI can stage,
+inspect and activate that exact original operation, with separate witness
+proposal/approval when required. Browser grant approval controls remain open.
 
 The service's invitation API requires a caller-retained random request ID. Retry
 that same ID after an uncertain reply, even if the host operation ID was lost.

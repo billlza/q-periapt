@@ -16,16 +16,30 @@ fn retained_grant_follows_multiple_extensions_of_an_already_extended_installatio
             original.original_policy.digest,
             crate::enrollment::now()?,
         )?;
-        let mut owner = c.open_owner()?;
-        owner.stage_credential_renewal(
-            &grant,
-            grant.operation(),
-            &c.policy,
-            crate::enrollment::now()?,
-        )?;
-        owner
-            .activate(&c.policy, crate::enrollment::now()?, None)?
-            .close();
+        if cycle == 1 {
+            // Issuer suspension fences new signatures. It is not a signed
+            // roster revocation of this already-issued, still-current G.
+            c.host.suspend_enrollment_root(&c.token)?;
+        }
+        let current = c.host.enrollment_root(&c.token)?;
+        let inputs = crate::native_device::CredentialRecoveryInputs {
+            approval: &c.input,
+            issued: &issued,
+            current: &current,
+            original_policy: &c.historical,
+            policy: &c.policy,
+        };
+        assert_eq!(
+            grant.original_storage_owner(),
+            c.input.retained.original_owner
+        );
+        NativeDevice::open(
+            &c.path.join("device"),
+            &c.path.join("wrap.key"),
+            c.invitation.clone(),
+        )?
+        .activate_credential_recovery(&inputs, None, None, crate::enrollment::now()?)?
+        .close();
         let mut device = NativeDevice::open(
             &c.path.join("device"),
             &c.path.join("wrap.key"),

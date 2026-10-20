@@ -150,6 +150,65 @@ another operation changed the observed history, do not silently submit a changed
 request under the old approval. The account issuer must authenticate the user,
 check its own membership/issuance records and serialize and retain the exact G
 decision. The [host G issuance transaction](RETAINED_GRANTS.md) now retains that
-decision separately from certificate extension. Browser approval controls and
-native CLI staging/activation remain integration work; this export alone cannot
-restore an expired endpoint.
+decision separately from certificate extension. Browser approval controls remain
+integration work; this export alone cannot restore an expired endpoint.
+
+## Recover the original installation
+
+Retain the complete host-approved grant request and its issued response. Supply
+the current root/roster and policy pins through the host's trusted configuration,
+separately from the response. Keep the same device directory, wrapping key and
+selected invitation used by the original installation.
+
+```sh
+q-periapt-native-device renewal-stage "$device_dir" "$wrapping_key" "$invitation" \
+  "$approved_grant_request" "$issued_grant" "$current_root" \
+  "$original_policy_pins" "$original_policy_materials" \
+  "$current_policy_pins" "$current_policy_materials" none
+
+q-periapt-native-device renewal-status "$device_dir" "$wrapping_key" "$invitation"
+
+q-periapt-native-device renewal-activate "$device_dir" "$wrapping_key" "$invitation" \
+  "$approved_grant_request" "$issued_grant" "$current_root" \
+  "$original_policy_pins" "$original_policy_materials" \
+  "$current_policy_pins" "$current_policy_materials" none
+```
+
+Staging retains an exact SDK intent and returns Pending or a historical Committed
+result. It returns no runtime owner. `renewal-status` needs no live policy and
+reports the original retained operation; Committed is not current permission.
+`renewal-activate` can stage and recover the same request directly, so a separate
+stage command is optional for a local profile. Changed journal, operation,
+statement, root, target or original policy is refused. The selected current
+roster must be the exact grant target. A newly selected target is a separate
+decision, never a replacement input for an unresolved operation.
+
+The host's `suspended` flag fences new issuer signatures; it is not a signed
+device revocation. A previously issued G remains subject to the actual current
+roster, root, policy and time checks. Pausing issuance alone does not invalidate
+that operation or replace those checks.
+
+Activation uses the SDK's original cross-store coordinator before reading public
+admission. The active owner and later publications therefore use the recovered
+certificate and roster, retaining the original signer and journal. Current
+membership and policy time are rechecked before release. Successful CLI output
+follows owner closure. If writing stdout fails, the operation may already be
+Committed; query and retry that exact request. A broken output pipe returns an
+error, not a rollback or a fresh enrollment.
+
+For a required witness, replace `none` with its independently configured numeric
+`IP:port` endpoint. First run `renewal-witness-prepare` with the same inputs and
+one final new proposal-output filename. It exports
+`qperiapt-credential-witness-proposal/1`, including the canonical SDK proposal
+bytes, and reports RequiresWitnessApproval. Retain those bytes and obtain the
+witness operator's independent approval for this exact proposal, grant and
+policy. Then run `renewal-activate` with the same inputs and endpoint. This may
+send Commit for the prepared proposal; it cannot authorize it at the witness.
+Missing or mismatched witness configuration never falls back to local storage.
+
+The positive witness test exercises the native API over real TCP. Browser G
+approval, the separate witness-operator product interface, CLI cleanup of an
+expired unresolved target, changed-policy CLI cohorts and established-session
+traffic recovery are still open integration work. Preserve all original state
+and outcomes when a target expires or is superseded; `renewal-status` alone does
+not prove that an uncertain target never committed.

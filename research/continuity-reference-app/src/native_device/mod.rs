@@ -10,10 +10,12 @@ use serde::Serialize;
 use std::{net::SocketAddr, path::Path, time::Duration};
 
 mod admission;
+mod credential_recovery;
 mod mailbox;
 mod peer;
 mod publication;
 mod renewal;
+pub use credential_recovery::CredentialRecoveryInputs;
 pub use mailbox::Mailbox;
 pub use peer::{DeviceExpectation, ExchangeOperation, ExchangeRequest, PeerTrust};
 pub use publication::{clock, Publication, PublicationPlan};
@@ -135,7 +137,6 @@ impl NativeDevice {
             return Err("Prepare the original installation before activation".into());
         }
         self.refresh_current(current, policy, now)?;
-        let public = self.owner.public_admission()?;
         let anchor = match (witness, endpoint) {
             (None, None) => None,
             (Some(pin), Some(address)) => Some(self.owner.anchor_client(
@@ -153,8 +154,7 @@ impl NativeDevice {
                 .into());
             }
         };
-        let owner = self.owner.activate(policy, now, anchor)?;
-        Ok(ActiveDevice { owner, public })
+        ActiveDevice::from_owner(self.owner.activate(policy, now, anchor)?)
     }
     /// Same-credential current membership. All target material is checked before
     /// calling the SDK's original CAS coordinator; no fallback or new lineage.
@@ -212,6 +212,10 @@ impl NativeDevice {
     }
 }
 impl ActiveDevice {
+    fn from_owner(mut owner: sdk::EnrolledDevice) -> Result<Self> {
+        let public = owner.public_admission()?;
+        Ok(Self { owner, public })
+    }
     pub fn journal(&self) -> [u8; 32] {
         *self.public.journal().as_bytes()
     }

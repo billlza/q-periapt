@@ -142,7 +142,14 @@ fn preinstallation_extension_after_credential_and_policy_expiry_reaches_real_own
         device.credential_digest(),
         next.device(210).credential_digest()
     );
+    let current_public = active
+        .public_admission()
+        .expect("post-reconciliation admission");
+    assert_eq!(current_public.certificate(), next.certificate);
+    assert_eq!(current_public.roster(), next.roster.as_bytes());
+    assert_eq!(current_public.journal(), journal);
     active.close();
+    assert!(active.public_admission().is_err());
     // G must bind the actual installation's first credential, not its older
     // registration history. Both the original credential and P1 have expired.
     let previous = next.device(210);
@@ -194,6 +201,10 @@ fn preinstallation_extension_after_credential_and_policy_expiry_reaches_real_own
     let mut active = open(&c)
         .activate(&p2, 320, None)
         .expect("original installation after G");
+    let current_public = active.public_admission().expect("reconciled G metadata");
+    assert_eq!(current_public.certificate(), successor);
+    assert_eq!(current_public.roster(), listing.as_bytes());
+    assert_eq!(current_public.journal(), journal);
     assert_eq!(
         active
             .parts()

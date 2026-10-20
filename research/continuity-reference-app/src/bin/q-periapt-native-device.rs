@@ -12,6 +12,8 @@ use q_periapt_continuity_reference_app::{
 use q_periapt_host_store::filesystem::publish_private_bytes;
 use serde::de::DeserializeOwned;
 use std::{ffi::OsString, path::Path};
+#[path = "../native_renewal_cli.rs"]
+mod native_renewal_cli;
 #[path = "../operator_io.rs"]
 mod operator_io;
 use operator_io::{export_directory, identifier, print, read};
@@ -23,6 +25,11 @@ const USAGE: &str = concat!(
     "request: <new-request-output>\n",
     "renewal-request: <retained-renewal-id> <original-policy-pins-json> ",
     "<original-policy-materials-json> <witness-address-or-none> <new-request-output>\n",
+    "renewal-status: no extra arguments (historical progress only)\n",
+    "renewal-stage/renewal-activate/renewal-witness-prepare: <approved-grant-request-json> ",
+    "<issued-grant-json> <current-root-json> <original-policy-pins-json> ",
+    "<original-policy-materials-json> <current-policy-pins-json> <current-policy-materials-json> ",
+    "<witness-address-or-none> [new-proposal-output for renewal-witness-prepare]\n",
     "accept: <issued-json> <current-root-json> <policy-pins-json> <policy-materials-json>\n",
     "extend: <approved-extension-json> <issued-extension-json> ",
     "<current-root-json> <policy-pins-json> <policy-materials-json>\n",
@@ -40,6 +47,12 @@ fn json<T: DeserializeOwned>(path: &OsString, maximum: usize) -> Result<T> {
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();
     let command = args.get(1).and_then(|v| v.to_str()).ok_or(USAGE)?;
+    if matches!(
+        command,
+        "renewal-status" | "renewal-stage" | "renewal-activate" | "renewal-witness-prepare"
+    ) {
+        return native_renewal_cli::run(&args);
+    }
     if command == "provision-key" {
         if args.len() != 3 {
             return Err(USAGE.into());
