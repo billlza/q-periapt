@@ -746,7 +746,12 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
             .as_ref()
             .is_some_and(|p| p.credential_after)
     });
-    let closure_format = credential_policy_format || !image.account_closures.is_empty();
+    let roster_credential_format = image
+        .entries
+        .values()
+        .any(Entry::has_roster_credential_composition);
+    let closure_format =
+        roster_credential_format || credential_policy_format || !image.account_closures.is_empty();
     let freeze_format = closure_format || !image.account_freezes.is_empty();
     let account_format = freeze_format || !image.account_replacements.is_empty();
     let acknowledged_report_format = image.retired_reports.values().any(|r| r.acknowledged);
@@ -792,7 +797,9 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
     });
-    let mut bytes = if policy_credential_format {
+    let mut bytes = if roster_credential_format {
+        b"QPANC020".to_vec()
+    } else if policy_credential_format {
         b"QPANC019".to_vec()
     } else if credential_policy_format {
         b"QPANC018".to_vec()
@@ -1026,6 +1033,9 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
                 independent_roster,
             };
             if version < ImageVersion::V18 && entry.has_credential_policy_composition() {
+                return Err(DurableError::Conflict);
+            }
+            if version < ImageVersion::V20 && entry.has_roster_credential_composition() {
                 return Err(DurableError::Conflict);
             }
             entry.check_renewal_state(pin)?;

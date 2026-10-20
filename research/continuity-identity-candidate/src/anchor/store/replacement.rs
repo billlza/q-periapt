@@ -337,19 +337,6 @@ impl Entry {
             None => checkpoint.digest() == self.subject.policy,
         }
     }
-    fn roster_floor(&self) -> u64 {
-        self.renewal_floor
-            .max(
-                self.renewal
-                    .as_ref()
-                    .map_or(0, CredentialRenewalRecord::roster_floor),
-            )
-            .max(
-                self.independent_roster
-                    .as_ref()
-                    .map_or(0, RosterRefresh::roster_floor),
-            )
-    }
 }
 impl Image {
     pub(super) fn retirement(

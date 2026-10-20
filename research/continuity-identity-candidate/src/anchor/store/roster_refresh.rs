@@ -6,6 +6,7 @@ use crate::{
     AnchorRosterRefreshProposal as Proposal, AnchorRosterRefreshState as State,
     HistoricalSessionPolicy,
 };
+mod composition;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Phase {
@@ -112,7 +113,12 @@ impl RosterRefresh {
 impl Entry {
     fn roster_policy_matches(&self, proposal: Proposal) -> bool {
         let scope = proposal.scope();
-        match self.independent_policy.as_ref().and_then(|p| p.current) {
+        match self
+            .independent_policy
+            .as_ref()
+            .and_then(|p| p.current)
+            .or(self.policy_authorization)
+        {
             None => {
                 scope.policy_authorization.is_none() && scope.policy.digest() == self.subject.policy
             }
@@ -125,13 +131,12 @@ impl Entry {
         let Some(state) = &self.independent_roster else {
             return Ok(());
         };
-        if self.renewal.is_some()
-            || self.renewal_floor != 0
-            || self.renewal_ack.is_some()
-            || self.credential_authorization.is_some()
-            || self.policy_authorization.is_some()
-            || self.policy_floor != 0
-            || self.credential_owner != self.subject.owner
+        // Completed histories coexist; two unretired transactions do not.
+        // R never changes the current credential owner recorded by G.
+        if self
+            .renewal
+            .as_ref()
+            .is_some_and(|g| state.pending() || g.roster_floor() <= state.floor)
             || state.floor == 1
             || state.floor == u64::MAX
             || (state.ack.is_some() && state.floor == 0)
@@ -150,12 +155,14 @@ impl Entry {
                 || p.subject() != self.subject
                 || !self.roster_policy_matches(p)
                 || r.previous_authority == r.target_authority
+                || p.scope().target.version() <= self.renewal_floor
                 || !r.policy_validity.contains(r.previous_validity)
                 || !r.policy_validity.contains(r.target_validity)
                 || self
                     .independent_policy
                     .as_ref()
                     .and_then(|s| s.current)
+                    .or(self.policy_authorization)
                     .is_some_and(|p| p.validity != r.policy_validity)
                 || state.ack == Some(p.binding())
                 || self
@@ -268,7 +275,9 @@ impl Admission<'_> {
 impl AnchorStore {
     /// Independently admit the root-approved unchanged credential, exact actual
     /// roster/policy predecessor and original sealed head target. Preparation
-    /// changes neither current head nor roster. Current scope excludes real G/T.
+    /// changes neither current head nor roster. A retained G may have changed
+    /// the current credential; both supplied devices must match that exact
+    /// current owner. Unretired G or P transactions must complete first.
     pub fn prepare_roster_refresh(
         &mut self,
         proposal: Proposal,
@@ -304,8 +313,7 @@ impl AnchorStore {
         if proposal.witness_binding() != pin.binding
             || scope.policy != policy.checkpoint()
             || policy.anchor_requirement().binding() != Some(pin.binding)
-            || storage_owner(previous) != subject.owner
-            || storage_owner(next) != subject.owner
+            || storage_owner(previous) != storage_owner(next)
             || previous.account_id() != next.account_id()
             || previous.key != next.key
             || previous.authority_key != next.authority_key
@@ -346,13 +354,8 @@ impl AnchorStore {
             .ok_or(DurableError::Absent)?;
         if entry.subject != subject
             || entry.device != next.key
-            || entry.credential_owner != subject.owner
             || entry.renewal.is_some()
-            || entry.renewal_floor != 0
-            || entry.renewal_ack.is_some()
-            || entry.credential_authorization.is_some()
-            || entry.policy_authorization.is_some()
-            || entry.policy_floor != 0
+            || entry.credential_owner != storage_owner(previous)
             || !entry.roster_policy_matches(proposal)
             || entry
                 .independent_policy
@@ -392,15 +395,15 @@ impl AnchorStore {
         {
             return Err(DurableError::Conflict);
         }
-        let state = entry
-            .independent_roster
-            .get_or_insert_with(RosterRefresh::default);
-        if scope.target.version() <= state.floor {
+        if scope.target.version() <= entry.roster_floor() {
             return Err(Error::Retired.into());
         }
         if let Admission::Prepare(current, now) = admission {
             self.admit_current_device(next, current, now)?;
         }
+        let state = entry
+            .independent_roster
+            .get_or_insert_with(RosterRefresh::default);
         state.record = Some(record);
         if phase == Phase::Closed {
             state.floor = scope.target.version();
@@ -409,5 +412,7 @@ impl AnchorStore {
         Ok(phase.state())
     }
 }
+#[cfg(all(test, unix))]
+mod credential_composition_tests;
 #[cfg(all(test, unix))]
 mod tests;

@@ -1051,4 +1051,4 @@ fn credential_policy_composition_requires_explicit_witness_format() {
 }
 
 #[path = "credential_cycle_tests.rs"]
-mod credential_cycle;
+pub(in crate::anchor::store) mod credential_cycle;

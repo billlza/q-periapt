@@ -953,8 +953,8 @@ advance/fence, operational authority admission, independent P preparation and
 standalone roster authority mutation. P and R preparations cannot coexist. ACK
 requires the caller to retain its exact original terminal first and leaves a
 monotonic roster target floor plus bounded last-ACK binding. Once atomic-R
-metadata exists, standalone roster/credential mutation cannot bypass it. Current
-scope excludes real G/T composition. After R retirement, a new independent P can
+metadata exists, standalone roster/credential mutation cannot bypass it. After
+R retirement, a new independent P can
 use the actual unchanged or adopted roster, preserving the R floor.
 
 `QPANC009` retains the complete prior witness fields and adds a separately typed
@@ -981,3 +981,39 @@ checks now preserve the original offers/outboxes/consumption outcomes across R,
 including lost ACK and current release fences. Network, foreign and installed
 platform qualification remain open; these native checks are not release
 qualification.
+
+### Witness-store composition with credential renewal
+
+The witness can now retain acknowledged G and R histories under the original
+subject. R must preserve the **current** credential fingerprint stored by G,
+not revert to the original C0 fingerprint. Its supplied predecessor and successor
+must bind the same full credential, device key, account root and family; the
+predecessor authority, validity and head must equal the actual stored state.
+R never changes the credential owner or grants a new credential.
+
+G, grant-only cancellation and R share the maximum retired roster version.
+Closed targets consume their version too. Each new target must exceed that
+combined floor, and a later G must use the actual roster adopted by R. Prepared,
+Applied-but-unacknowledged and Closed-but-unacknowledged slots remain mutually
+exclusive across G/R/P. Exact retained results are recovered before considering
+new targets; absence or an ACK never supplies an Applied result.
+
+R binds the exact current independent-P or joint-T statement when one exists.
+R does not renew policy, and expiry permits historical classification/closure
+only. Acknowledgement does not grant current traffic permission.
+
+Mixed G/R history selects `QPANC020`, including after terminal ACK. It uses the
+complete existing field layout and authenticated commit boundary. The decoder
+rejects mixed G/R in earlier tagged containers even with a valid MAC. Existing
+single-path states retain their earlier encoding; merely opening a witness
+does not migrate or rewrite it.
+
+The component regression tests use root-signed inputs, real durable witness
+state and signed commands. They cover both orders, alternating cycles, exact
+credential/predecessor refusal, shared retirement including grant-only closure,
+P/G/R permutations, T retention and expiry. Eight real process kills cover
+Commit, Close and both terminal ACK outcomes in each direction, followed by
+historical exact retry on the same witness database. Their target head digests
+are explicit component expectations: **original enrollment/journal G/R
+coordination, independent consumers and installed-package qualification remain
+open**. Existing full native R and G/P tests do not establish that combination.

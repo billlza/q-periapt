@@ -27,7 +27,11 @@ fn adopted(c: &mut Case) -> (VerifiedPolicyRenewal, Proposal) {
     );
     (approval, proposal)
 }
-fn grant(c: &Case, previous: &VerifiedDevice, version: u64) -> VerifiedCredentialRenewal {
+pub(in crate::anchor::store) fn grant(
+    c: &Case,
+    previous: &VerifiedDevice,
+    version: u64,
+) -> VerifiedCredentialRenewal {
     let predecessor = c
         .account
         .issue_device(previous.description.clone(), previous.key.clone())

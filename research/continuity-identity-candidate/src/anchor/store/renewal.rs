@@ -542,7 +542,10 @@ impl AnchorStore {
             .independent_policy
             .as_ref()
             .is_some_and(|s| s.pending())
-            || entry.independent_roster.is_some()
+            || entry
+                .independent_roster
+                .as_ref()
+                .is_some_and(RosterRefresh::pending)
             || entry.subject != proposal.subject
             || entry.head != proposal.expected
             || entry.device != previous.key
@@ -589,7 +592,11 @@ impl AnchorStore {
         let mut image = self.image()?;
         image.require_live(proposal.subject)?;
         let entry = image.entries.get(&id).ok_or(DurableError::Absent)?;
-        if entry.independent_roster.is_some() {
+        if entry
+            .independent_roster
+            .as_ref()
+            .is_some_and(RosterRefresh::pending)
+        {
             return Err(DurableError::Conflict);
         }
         if let Some(statement) = proposal.policy_renewal() {
@@ -651,7 +658,7 @@ impl AnchorStore {
             }
             // The independent control plane may close the same preparation too.
         } else {
-            if record.version <= entry.renewal_floor {
+            if record.version <= entry.roster_floor() {
                 return Err(Error::Retired.into());
             }
             Self::check_renewal_predecessor(entry, &RenewalScope::from(&proposal), grant, policy)?;
@@ -778,7 +785,11 @@ impl AnchorStore {
         let mut image = self.image()?;
         image.require_live(cancellation.subject)?;
         let entry = image.entries.get(&id).ok_or(DurableError::Absent)?;
-        if entry.independent_roster.is_some() {
+        if entry
+            .independent_roster
+            .as_ref()
+            .is_some_and(RosterRefresh::pending)
+        {
             return Err(DurableError::Conflict);
         }
         let target = if let Some(policy) = retained_policy {
@@ -835,7 +846,7 @@ impl AnchorStore {
                 Err(DurableError::Conflict)
             };
         }
-        if version <= entry.renewal_floor {
+        if version <= entry.roster_floor() {
             return Err(Error::Retired.into());
         }
         Self::check_renewal_predecessor(entry, &scope, grant, policy)?;
