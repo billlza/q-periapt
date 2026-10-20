@@ -8,6 +8,7 @@ import argparse
 import json
 from pathlib import Path
 import sys
+from contextlib import contextmanager
 from .cli_files import read_file,public
 
 
@@ -49,6 +50,32 @@ def identity(value):
     result=encoded(value,32,32);require(any(result),'nonzero original session/message ID');return result
 
 
+@contextmanager
+def opened_connection(args,client_id,session,run,witness):
+    from .enrollment_client import EnrollmentClient
+    from .wire import require
+    key=read_file(args.key_file,32,private=True);require(len(key)==32,'client wrapping key length')
+    run.check();owner=EnrollmentClient.open(args.directory,client_id,key)
+    try:
+        with owner.reopen_connection(run,witness_transport=witness) as connection:
+            require(connection.identity==session,'original session identity differs')
+            yield connection
+    finally:owner.close()
+
+
+def delivery(args,client_id,session,message,plaintext,ad,transport,run,witness):
+    with opened_connection(args,client_id,session,run,witness) as connection:
+        prepared=(connection.prepare_delivery(message,plaintext,ad,run) if args.command=='deliver'
+                  else connection.prepare_resume(message,ad,run))
+    # Both cryptographic owners and their private file leases are closed while
+    # the peer processes this already-committed original ciphertext.
+    run.check();reply=transport(prepared.request,run.deadline,run.cancellation);run.check()
+    with opened_connection(args,client_id,session,run,witness) as connection:
+        outcome=connection.complete_delivery(prepared,reply,run)
+    run.check()
+    return {'session':session,'message':message,'consumption':outcome.value}
+
+
 def main(argv=None):
     args=arguments(argv);owner=None
     try:
@@ -79,6 +106,9 @@ def main(argv=None):
             return serve(args,client_id,session,witness,address(args.listen,listen=True),run)
         if args.command in ('provision-inbox','recover-inbox','read-inbox'):
             require(witness is None,'host inbox metadata does not select a witness')
+        if args.command in ('deliver','resume'):
+            result=delivery(args,client_id,session,message,plaintext,ad,transport,run,witness)
+            print(json.dumps(result,default=public));return 0
         key=read_file(args.key_file,32,private=True);require(len(key)==32,'client wrapping key length')
         run.check();owner=EnrollmentClient.open(args.directory,client_id,key)
         if prepared is not None:
@@ -98,8 +128,6 @@ def main(argv=None):
                 if args.command=='connect':result['peer_confirmation']='Recorded'
                 elif args.command=='next':result['message']=connection.next_id(run)
                 elif args.command=='message-status':result.update(message=message,status=connection.status(message))
-                elif args.command=='deliver':result.update(message=message,consumption=connection.deliver(message,plaintext,ad,transport,run).value)
-                elif args.command=='resume':result.update(message=message,consumption=connection.resume(message,ad,transport,run).value)
                 elif args.command=='rekey':
                     done=connection.rekey(args.target,transport,run,exchanges=args.exchanges)
                     result.update(epoch=done.epoch,exchanges=done.exchanges)

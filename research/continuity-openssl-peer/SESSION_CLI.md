@@ -87,6 +87,12 @@ recorded peer confirmation. Reopening an already confirmed connection can return
 this historical result without network I/O; it does not prove present liveness.
 Every invocation closes the original owner before printing success. JSON output
 contains public identities and outcomes, not plaintext or private keys.
+`deliver` and `resume` additionally close their private owners before waiting for
+the network, then reopen the same client/session to verify the ACK under current
+authority. Their original deadline spans both phases. The public prepared
+ciphertext is bound to its original journal/session/message and grants no new
+permission. A late cancellation, changed authority or invalid reply leaves an
+explicit unknown outcome even when the peer already consumed the message.
 
 After an error, timeout or interruption, a local or remote commit may already
 exist. Query the original message and use `resume` with its original associated
@@ -146,9 +152,9 @@ file, without releasing a protocol acknowledgement or claiming current traffic
 permission. Its JSON receipt contains identities and byte count, not plaintext.
 
 Installed-package qualification uses actual native TCP and separate CLI
-processes in both directions, durable inbox readback, lost acknowledgements,
+processes in both directions, simultaneous application sends, durable inbox readback, lost acknowledgements,
 receiver SIGKILL/restart, exact retry and two rekeys. Inbox tests additionally
-cover four initial-publication and five effect-commit process cuts. Concurrent
-opposing operations, cross-host deployment, positive required-witness CLI
+cover four initial-publication and five effect-commit process cuts. Simultaneous
+rekey operations, cross-host deployment, positive required-witness CLI
 qualification and complete CLI lifecycle acceptance remain separate work.
 Explicit test authority does not establish real account authorization.

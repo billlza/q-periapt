@@ -3,7 +3,7 @@
 use q_periapt_continuity_identity_candidate as sdk;
 use q_periapt_continuity_reference_app::{
     enrollment::{Invitation, RootInfo},
-    native_device::{clock, NativeDevice, PeerTrust},
+    native_device::{clock, ActiveDevice, NativeDevice, PeerTrust},
     policy_publisher::{PolicyMaterials, PolicyPins},
 };
 use serde::{de::DeserializeOwned, Deserialize};
@@ -149,6 +149,31 @@ impl Action {
 fn json<T: DeserializeOwned>(path: &Path, maximum: usize) -> Result<T> {
     Ok(serde_json::from_slice(&read(path, maximum)?)?)
 }
+impl Invocation {
+    fn open(&self, session_id: [u8; 32]) -> Result<(ActiveDevice, sdk::session_exchange::Session)> {
+        let trust: PeerTrust = json(&self.peer_trust, 128 * 1024)?;
+        let bundle = sdk::BootstrapBundle::from_bytes(&read(
+            &self.bundle,
+            sdk::MAX_BOOTSTRAP_BUNDLE_BYTES,
+        )?)?;
+        let invitation: Invitation = json(&self.invitation, 16384)?;
+        let current: RootInfo = json(&self.current_root, 128 * 1024)?;
+        let pins: PolicyPins = json(&self.policy_pins, 16384)?;
+        let materials: PolicyMaterials = json(&self.policy_materials, 128 * 1024)?;
+        let (policy, witness) = pins.verify(&materials, invitation.family, clock()?)?;
+        let endpoint = match self.witness_endpoint.as_str() {
+            "none" => None,
+            value => Some(value.parse()?),
+        };
+        if endpoint.is_some() != witness.is_some() {
+            return Err("Witness endpoint differs from pinned policy".into());
+        }
+        let owner = NativeDevice::open(&self.device_directory, &self.wrapping_key, invitation)?;
+        let mut active = owner.activate(&current, &policy, witness, endpoint, clock()?)?;
+        let session = active.reopen_session(&trust, &bundle, Arc::new(policy), session_id)?;
+        Ok((active, session))
+    }
+}
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();
     if args.len() != 3 {
@@ -164,30 +189,16 @@ fn main() -> Result<()> {
     }
     // Validate all static payload/carrier options before opening or activating.
     let mut transport = input.action.preflight()?;
-    let trust: PeerTrust = json(&input.peer_trust, 128 * 1024)?;
-    let bundle =
-        sdk::BootstrapBundle::from_bytes(&read(&input.bundle, sdk::MAX_BOOTSTRAP_BUNDLE_BYTES)?)?;
-    let invitation: Invitation = json(&input.invitation, 16384)?;
-    let current: RootInfo = json(&input.current_root, 128 * 1024)?;
-    let pins: PolicyPins = json(&input.policy_pins, 16384)?;
-    let materials: PolicyMaterials = json(&input.policy_materials, 128 * 1024)?;
-    let (policy, witness) = pins.verify(&materials, invitation.family, clock()?)?;
-    let endpoint = match input.witness_endpoint.as_str() {
-        "none" => None,
-        value => Some(value.parse()?),
-    };
-    if endpoint.is_some() != witness.is_some() {
-        return Err("Witness endpoint differs from pinned policy".into());
-    }
-    let owner = NativeDevice::open(&input.device_directory, &input.wrapping_key, invitation)?;
-    let mut active = owner.activate(&current, &policy, witness, endpoint, clock()?)?;
-    let session = active.reopen_session(&trust, &bundle, Arc::new(policy), session_id)?;
     let cancel = sdk::Cancellation::default();
     let run = sdk::session_exchange::Run::new(&cancel, Duration::from_secs(30))?;
-    let result = match input.action {
-        Action::Next => serde_json::json!({"message":active.next_message(&session)?.as_bytes()}),
+    let result = match &input.action {
+        Action::Next => {
+            let (mut active, session) = input.open(session_id)?;
+            serde_json::json!({"message":active.next_message(&session)?.as_bytes()})
+        }
         Action::Status { message } => {
-            serde_json::json!({"status":format!("{:?}",active.message_status(&session,sdk::MessageId::from_trusted_state(message)?)?)})
+            let (mut active, session) = input.open(session_id)?;
+            serde_json::json!({"status":format!("{:?}",active.message_status(&session,sdk::MessageId::from_trusted_state(*message)?)?)})
         }
         Action::Deliver {
             message,
@@ -201,17 +212,35 @@ fn main() -> Result<()> {
             associated_data,
             ..
         } => {
-            let input = sdk::session_exchange::Submission {
-                message: sdk::MessageId::from_trusted_state(message)?,
-                plaintext: &plaintext,
-                associated_data: &associated_data,
+            let prepared = {
+                run.check()?;
+                let (mut active, session) = input.open(session_id)?;
+                active.prepare_delivery(
+                    &session,
+                    sdk::session_exchange::Submission {
+                        message: sdk::MessageId::from_trusted_state(*message)?,
+                        plaintext,
+                        associated_data,
+                    },
+                    &run,
+                )?
             };
-            let outcome = active.deliver(
-                &session,
-                input,
+            // No original owner or private store lease is retained while the
+            // peer handles these already-committed public ciphertext bytes.
+            run.check()?;
+            let reply = sdk::session_exchange::Transport::exchange(
                 transport.as_mut().ok_or("Missing outgoing carrier")?,
-                &run,
-            )?;
+                prepared.as_bytes(),
+                run.deadline(),
+                &cancel,
+            )
+            .map_err(sdk::session_exchange::Error::Transport)?;
+            run.check()?;
+            let outcome = {
+                let (mut active, session) = input.open(session_id)?;
+                active.complete_delivery(&session, &prepared, &reply, &run)?
+            };
+            run.check()?;
             serde_json::json!({"consumption":format!("{outcome:?}")})
         }
         Action::Rekey {
@@ -220,10 +249,11 @@ fn main() -> Result<()> {
         | Action::RekeyTcp {
             target, exchanges, ..
         } => {
+            let (mut active, session) = input.open(session_id)?;
             let done = active.rekey(
                 &session,
-                target,
-                exchanges,
+                *target,
+                *exchanges,
                 transport.as_mut().ok_or("Missing outgoing carrier")?,
                 &run,
             )?;

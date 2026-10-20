@@ -26,6 +26,15 @@ class RekeyCompleted:
     exchanges: int
 
 
+@dataclass(frozen=True,repr=False)
+class PreparedMessage:
+    """Committed public ciphertext, not an owner or a fresh dispatch permission."""
+    journal: bytes
+    session: bytes
+    message: bytes
+    request: bytes
+
+
 def exchange(parent,child,transport,request,run):
     parent._alive(); child.__enter__(); run.check()
     require(callable(transport),'connection carrier')
@@ -38,6 +47,8 @@ def exchange(parent,child,transport,request,run):
 class Connection:
     def __init__(self,parent,child,identity):
         self._parent,self._child,self._identity=parent,child,identity
+        self._journal=parent._registration.status()['journal']
+        require(type(self._journal) is bytes and len(self._journal)==32,'original connection journal')
 
     @classmethod
     def _open(cls,parent,run,witness_transport):
@@ -120,8 +131,42 @@ class Connection:
             return self._deliver(message,ciphertext,ad,transport,run)
 
     def _deliver(self,message,ciphertext,ad,transport,run):
+        prepared=self._prepared(message,ciphertext,ad,run)
+        reply=exchange(self._parent,self._child,transport,prepared.request,run)
+        return self._complete(prepared,reply,run)
+
+    def _prepared(self,message,ciphertext,ad,run):
         self._admit(run)
-        reply=exchange(self._parent,self._child,transport,wire.frame(wire.MESSAGE,wire.pair(ad,ciphertext)),run)
+        return PreparedMessage(self._journal,self._identity,message,wire.frame(wire.MESSAGE,wire.pair(ad,ciphertext)))
+
+    def prepare_delivery(self,message,plaintext,ad,run):
+        """Commit original input/outbox before the host closes this owner for I/O."""
+        with self._operation(run):
+            require(type(message) is bytes and len(message)==32 and type(plaintext) is bytes
+                    and type(ad) is bytes,'connection submission types')
+            return self._prepared(message,self._child.send(message,plaintext,ad,run.now()),ad,run)
+
+    def prepare_resume(self,message,ad,run):
+        """Release only the exact original reservation/outbox before bounded I/O."""
+        with self._operation(run):
+            require(type(message) is bytes and len(message)==32 and type(ad) is bytes and len(ad)<=1024,
+                    'connection resume inputs')
+            return self._prepared(message,self._child.resume(message,run.now()),ad,run)
+
+    def complete_delivery(self,prepared,reply,run):
+        """Recheck current original owner and authenticate consumption after I/O.
+
+        Preparation carries no private owner across transport. The authenticated
+        ACK concerns the original ID, never replacement plaintext after erasure.
+        """
+        with self._operation(run):
+            return self._complete(prepared,reply,run)
+
+    def _complete(self,prepared,reply,run):
+        require(type(prepared) is PreparedMessage and prepared.journal==self._journal
+                and prepared.session==self._identity,'prepared message belongs to another original owner')
+        message=prepared.message
+        require(self._child.status(message) in ('Committed','Acknowledged'),'prepared original message is not committed')
         self._admit(run); proof=wire.payload(reply,wire.ACK)
         require(wire.acknowledgement_epoch(proof)==int.from_bytes(message[:8],'big'),'delivery acknowledgement epoch differs')
         self._child.accept_acknowledgement(proof,run.now())

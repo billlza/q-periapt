@@ -37,8 +37,10 @@ issuer. It authenticates through the same independent verifier and prepares the
 original `EnrollmentClient`. The native reference serves bootstrap, durable inbox
 delivery and rekey control over file and explicit TCP carriers. The independent
 [session CLI](SESSION_CLI.md) sends and receives on that original confirmed
-connection, with durable host inbox commands and process recovery. Simultaneous
-opposing operations and cross-host deployment remain separate acceptance gates.
+connection, with durable host inbox commands and process recovery. Opposing
+application sends release local owners during network I/O and revalidate their
+original operation on completion. Simultaneous rekey and cross-host deployment
+remain separate acceptance gates.
 Failed replies leave the original operation pending. Successful replies pin the
 exact bytes; identical replay returns the same final, and a conflicting reply
 fails. Bootstrap owner operations check the supplied trusted time. Close is idempotent

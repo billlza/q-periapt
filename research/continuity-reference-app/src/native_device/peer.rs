@@ -230,6 +230,29 @@ impl ActiveDevice {
             .deliver_session_message(session, input, transport, run, clock)?)
     }
 
+    pub fn prepare_delivery(
+        &mut self,
+        session: &sdk::session_exchange::Session,
+        input: sdk::session_exchange::Submission<'_>,
+        run: &sdk::session_exchange::Run<'_>,
+    ) -> Result<sdk::session_exchange::PreparedMessage> {
+        Ok(self
+            .owner
+            .prepare_session_message(session, input, run, clock)?)
+    }
+
+    pub fn complete_delivery(
+        &mut self,
+        session: &sdk::session_exchange::Session,
+        prepared: &sdk::session_exchange::PreparedMessage,
+        reply: &[u8],
+        run: &sdk::session_exchange::Run<'_>,
+    ) -> Result<sdk::session_exchange::Consumption> {
+        Ok(self
+            .owner
+            .complete_session_message(session, prepared, reply, run, clock)?)
+    }
+
     pub fn rekey(
         &mut self,
         session: &sdk::session_exchange::Session,

@@ -1,6 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 
+/// One committed original ciphertext, with no storage lease or private key.
+/// Retaining these already-admitted public bytes confers no new send authority.
+/// Reply admission must reopen the original owner and recheck current authority.
+pub struct PreparedMessage {
+    journal: crate::JournalIdentity,
+    session: [u8; 32],
+    context: [u8; 32],
+    role: BootstrapRole,
+    message: MessageId,
+    request: Vec<u8>,
+}
+impl PreparedMessage {
+    /// Exact original QPCXCH01 request for the bounded untrusted carrier.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.request
+    }
+    /// Original message identity, not evidence of peer consumption.
+    pub fn message_id(&self) -> MessageId {
+        self.message
+    }
+}
+
 #[cfg_attr(
     not(all(target_arch = "wasm32", target_os = "unknown")),
     maybe_async::must_be_sync
@@ -145,6 +167,35 @@ impl EnrolledDevice {
     ) -> Result<Consumption, Error> {
         let op = Operation::new(self);
         let result = async {
+            let prepared = op
+                .owner
+                .prepare_session_message(session, input, run, &mut clock)
+                .await?;
+            let reply = transport
+                .exchange(prepared.as_bytes(), run.deadline, run.cancel)
+                .await
+                .map_err(Error::Transport)?;
+            op.owner
+                .complete_session_message(session, &prepared, &reply, run, clock)
+                .await
+        }
+        .await;
+        op.finish(result)
+    }
+
+    /// Commit the original ciphertext before releasing any bytes. Hosts may
+    /// close this owner before network I/O, then reopen the same installation
+    /// for `complete_session_message`. Retrying preparation keeps the same ID
+    /// and exact input; no fresh operation is synthesized after an unknown result.
+    pub async fn prepare_session_message(
+        &mut self,
+        session: &Session,
+        input: Submission<'_>,
+        run: &Run<'_>,
+        mut clock: impl FnMut() -> io::Result<u64>,
+    ) -> Result<PreparedMessage, Error> {
+        let op = Operation::new(self);
+        let result = async {
             let context = &session.context;
             let (journal, archives) = op.owner.parts()?.0.stores()?;
             archives.require(journal, context, session.id)?;
@@ -160,14 +211,55 @@ impl EnrolledDevice {
                 .await?;
             run.time(context, &mut clock)?;
             let request = frame(MESSAGE, &codec::pair(input.associated_data, &wire)?)?;
-            let reply = transport
-                .exchange(&request, run.deadline, run.cancel)
-                .await
-                .map_err(Error::Transport)?;
+            Ok(PreparedMessage {
+                journal: journal.identity()?,
+                session: session.id,
+                context: context.digest(),
+                role: session.role,
+                message: input.message,
+                request,
+            })
+        }
+        .await;
+        op.finish(result)
+    }
+
+    /// Authenticate a reply under fresh original-owner admission after transport.
+    /// The prepared operation binds the original journal/context/direction/ID.
+    /// An unrelated, absent, reserved or retired operation cannot be acknowledged.
+    pub async fn complete_session_message(
+        &mut self,
+        session: &Session,
+        prepared: &PreparedMessage,
+        reply: &[u8],
+        run: &Run<'_>,
+        mut clock: impl FnMut() -> io::Result<u64>,
+    ) -> Result<Consumption, Error> {
+        let op = Operation::new(self);
+        let result = async {
+            let context = &session.context;
             run.time(context, &mut clock)?;
-            let proof = payload(&reply, ACK)?;
+            let (journal, archives) = op.owner.parts()?.0.stores()?;
+            archives.require(journal, context, session.id)?;
+            if journal.identity()? != prepared.journal
+                || session.id != prepared.session
+                || context.digest() != prepared.context
+                || session.role != prepared.role
+            {
+                return Err(crate::Error::Scope.into());
+            }
+            let original = journal
+                .message_status(context, session.id, prepared.message)
+                .await?;
+            if !matches!(
+                original,
+                MessageStatus::Committed | MessageStatus::Acknowledged
+            ) {
+                return Err(crate::Error::State.into());
+            }
+            let proof = payload(reply, ACK)?;
             if crate::durable::acknowledgement_epoch(proof)?
-                != crate::durable::message_epoch(input.message)?
+                != crate::durable::message_epoch(prepared.message)?
             {
                 return Err(crate::Error::Authentication.into());
             }
@@ -180,7 +272,7 @@ impl EnrolledDevice {
                 )
                 .await?;
             let result = match journal
-                .message_status(context, session.id, input.message)
+                .message_status(context, session.id, prepared.message)
                 .await?
             {
                 MessageStatus::Acknowledged => Consumption::Confirmed,

@@ -21,6 +21,13 @@ class CliReceiptTests(unittest.TestCase):
                     for i,k in enumerate((3,4,4,3),1)],
                 receivers=[dict(label='cli-inbound-first',pid=11,exit=-9),
                            dict(label='cli-inbound-reopened',pid=12,exit=0,stats=stats(4))]))
+        self.value['opposing']=dict(simultaneous=True,effects=2,
+            phase_refusals=['wrong-journal','cancelled-reply','tampered-ack'],
+            frames=[dict(label=label,kind=3,request_sha256='b'*64,response_sha256='c'*64)
+                    for label in ('cli-opposing-native-wire','cli-opposing-python-wire')],
+            relays=[stats(1),stats(1)],
+            native_service=dict(label='cli-opposing-native-service',pid=13,exit=0,stats=stats(7)),
+            independent_service=dict(label='cli-opposing-independent-service',pid=14,exit=0,stats=stats(1)))
         verify(self.value,self.binaries,self.application)
 
     def reject(self,change):
@@ -51,6 +58,13 @@ class CliReceiptTests(unittest.TestCase):
         self.reject(lambda v:v['inbound'].update(original_effect_unchanged_on_retry=False))
         self.reject(lambda v:v['inbound'].update(effects=True))
         self.reject(lambda v:v['inbound']['frames'].pop())
+
+    def test_opposing_sends_and_fresh_completion_boundaries_are_required(self):
+        self.reject(lambda v:v.pop('opposing'))
+        self.reject(lambda v:v['opposing'].update(simultaneous=False))
+        self.reject(lambda v:v['opposing']['phase_refusals'].pop())
+        self.reject(lambda v:v['opposing']['relays'][0].update(operation_errors=1))
+        self.reject(lambda v:v['opposing']['native_service']['stats'].update(completed_responses=6))
 
 
 if __name__=='__main__':unittest.main()

@@ -10,6 +10,7 @@ use crate::{
 use std::{collections::BTreeMap, path::Path};
 mod account;
 mod control;
+mod delivery;
 
 struct Device {
     _dir: tempfile::TempDir,

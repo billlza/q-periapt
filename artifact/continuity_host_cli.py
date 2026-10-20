@@ -12,7 +12,11 @@ CLI_LABELS=tuple('cli-'+name for name in ('wrong-directory','other-credential','
     'rekey','empty-next','empty','read-empty','inbox-missing','inbox-provision','inbox-duplicate',
     'inbox-recover','inbox-wrong-session','native-next','native-deliver','inbox-read',
     'native-lost-next','native-lost','native-lost-status','native-resume','native-rekey',
-    'native-empty-next','native-empty','inbox-read-lost','inbox-read-empty','inbox-export-exists'))
+    'native-empty-next','native-empty','inbox-read-lost','inbox-read-empty','inbox-export-exists',
+    'opposing-next','opposing-native-next','opposing-python','opposing-native','opposing-status',
+    'opposing-native-status','opposing-read-independent','opposing-read-native')) + tuple(
+        'cli-phase-'+case+'-'+action for case in ('wrong-journal','cancelled-reply','tampered-ack')
+        for action in ('next','status','resume'))
 LABELS=FILE_LABELS[:9]+CLI_LABELS
 CLI_REFUSALS=tuple('cli-'+name for name in ('wrong-directory','other-credential','wrong-session',
     'noncanonical-session','local-profile-witness','oversized','rekey-bound','lost',
@@ -52,6 +56,18 @@ def verify(value,binaries,application):
                 and row['label']==label and type(row['pid']) is int and row['pid']>0
                 and type(row['exit']) is int and row['exit']==exit_code,'inbound receiver lifecycle')
         if exit_code==0:stats(row['stats'],4,4)
+    opposing=value.get('opposing')
+    require(type(opposing) is dict and set(opposing)=={'frames','relays','native_service','independent_service','phase_refusals','effects','simultaneous'},'opposing workload inventory')
+    require(opposing['simultaneous'] is True and opposing['phase_refusals']==['wrong-journal','cancelled-reply','tampered-ack'],'opposing admission checks')
+    count(opposing['effects'],2,'opposing effect count')
+    exchanges(opposing['frames'],(('cli-opposing-native-wire',3),('cli-opposing-python-wire',3)))
+    require(type(opposing['relays']) is list and len(opposing['relays'])==2,'opposing relay count')
+    for row in opposing['relays']:stats(row,1,1)
+    for key,label,n in [('native_service','cli-opposing-native-service',7),('independent_service','cli-opposing-independent-service',1)]:
+        row=opposing[key]
+        require(type(row) is dict and set(row)=={'label','pid','exit','stats'} and row['label']==label
+                and type(row['pid']) is int and row['pid']>0,'opposing service identity')
+        count(row['exit'],0,'opposing service exit');stats(row['stats'],n,n)
 
 
 def retain(value,private,public,snapshot):
@@ -128,6 +144,30 @@ def retain(value,private,public,snapshot):
                 and type(address[1]) is int and 1<=address[1]<=65535,'inbound listen endpoint')
         if row['exit']==0:
             require(parse_strict_json_bytes(lines[1],label='inbound shutdown')=={'service':'Stopped','stats':row['stats']},'inbound terminal receipt')
+    for side,body in [('native',b'independent simultaneous delivery'),('independent',b'native simultaneous delivery')]:
+        require(copy('cli-opposing-'+side+'.bin').data==body,'opposing durable effect')
+    py=result('cli-opposing-next')['message']
+    require(result('cli-opposing-python')=={'session':sid,'message':py,'consumption':'Confirmed'}
+            and result('cli-opposing-native')=={'consumption':'Confirmed'}
+            and result('cli-opposing-status')=={'session':sid,'message':py,'status':'Acknowledged'}
+            and result('cli-opposing-native-status')=={'status':'Acknowledged'},'opposing confirmation/readback')
+    for row in value['opposing']['frames']:
+        for side in ('request','response'):
+            data=copy(row['label']+'.'+side)
+            require(data.sha256==row[side+'_sha256'] and 10<=len(data.data)<=32768
+                    and data.data[:9]==b'QPCXCH01'+bytes([3 if side=='request' else 131]),'opposing real wire evidence')
+    for key in ('native_service','independent_service'):
+        row=value['opposing'][key];lines=copy(row['label']+'.stdout').data.splitlines()
+        require(len(lines)==2 and not copy(row['label']+'.stderr').data,'opposing terminal service output')
+        require(parse_strict_json_bytes(lines[0],label='opposing readiness').get('service')=='Listening'
+                and parse_strict_json_bytes(lines[1],label='opposing shutdown')=={'service':'Stopped','stats':row['stats']},'opposing service lifecycle')
+    for case in value['opposing']['phase_refusals']:
+        label='cli-phase-'+case;message=result(label+'-next')['message']
+        require(result(label+'-status')=={'session':sid,'message':message,'status':'Committed'}
+                and result(label+'-resume')=={'session':sid,'message':message,'consumption':'Confirmed'},'original phase recovery')
+        for side,kind in [('request',3),('response',131)]:
+            data=copy(label+'.'+side).data
+            require(10<=len(data)<=32768 and data[:9]==b'QPCXCH01'+bytes([kind]),'real phase frame')
 
 
 def qualify(args,reference,application,provider,outside,output,snapshot,run):
@@ -136,6 +176,7 @@ def qualify(args,reference,application,provider,outside,output,snapshot,run):
     binaries=hashes()
     (outside/'independent_cli_flow.py').write_bytes(snapshot(reference/'tests/independent_cli_flow.py').data)
     (outside/'independent_inbound_cli.py').write_bytes(snapshot(reference/'tests/independent_inbound_cli.py').data)
+    (outside/'opposing_cli_flow.py').write_bytes(snapshot(reference/'tests/opposing_cli_flow.py').data)
     private=outside/'private-independent-cli'
     command=[sys.executable,'-I','-S','-B',str(outside/'native_exchange.py'),'--client-cli']
     for key,path in zip(('native-device','native-session','crash-probe','native-outgoing'),paths):command+=['--'+key,str(path)]

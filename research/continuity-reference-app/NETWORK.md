@@ -84,10 +84,21 @@ awaiting the service future; aborting/dropping that future cannot join a blockin
 callback. Host callbacks and filesystem work must bound their own I/O. Neither
 runtime can forcibly interrupt arbitrary synchronous host code safely.
 
-The original single-writer owners serialize whole operations, including outgoing
-I/O. Simultaneous opposite-direction operations can therefore encounter a busy
-owner or an unknown result. Local bidirectional **sequential** operations are
-qualified; simultaneous full-duplex operation admission is not established.
+The application delivery commands commit the original ciphertext, close their
+private owners, perform bounded network I/O, and reopen the original installation
+to authenticate the reply. The prepared operation binds journal, session,
+context, direction and message ID; completion rechecks current permission and
+requires the original committed or acknowledged message. This removes the lock
+cycle where both senders held their local stores while their receivers needed
+those same stores. Cancellation, expiry or a forged reply still withholds success.
+
+Already-released ciphertext is public carrier input, not a new operational
+capability. It may already have reached the peer when completion fails. Query
+and reconcile the original ID instead of creating a replacement operation.
+Brief overlapping local mutations can still encounter the single-writer lease;
+there is no unbounded lock wait or implicit transport retry. Bootstrap and rekey
+commands currently retain their whole-operation owners across I/O; simultaneous
+rekey admission remains open.
 
 ## Evidence and open boundaries
 
@@ -95,10 +106,14 @@ The installed qualification runs a fresh real-time bootstrap, an original servic
 and client reopen, eight idle sockets followed by admitted delivery, actual reply
 loss and byte-identical retry in both directions, and one rekey initiated by each
 implementation. It retains native process exit receipts, request/response hashes
-and transactional effect readback. Separate echo-frame tests check transport
+and transactional effect readback. A barrier-controlled workload keeps both
+senders inside their actual exchanges until both receiving operations finish;
+both messages must succeed and their durable effects are read back. It also
+rejects a changed prepared journal, cancellation after a real reply, and a
+tampered ACK, then resumes each original message. Separate echo-frame tests check transport
 resources, IPv4/IPv6, cancellation and shutdown; those are not cryptographic tests.
 
 These are local TCP process observations under explicit test authority. They do
 not establish cross-host installation, TLS deployment, physical power-loss
-durability, simultaneous application traffic, expiry recovery of unconfirmed
+durability, simultaneous rekey, expiry recovery of unconfirmed
 bootstrap, or the original real account's complete lifecycle.

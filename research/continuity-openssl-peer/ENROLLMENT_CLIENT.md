@@ -272,6 +272,17 @@ The unsigned empty carrier marker is accepted only if the local authenticated
 state already proves that target completed. Neither completion nor an ACK
 establishes fresh peer liveness or secrecy recovery from prior compromise.
 
+For hosts that release storage leases during I/O, `prepare_delivery` and
+`prepare_resume` return an immutable public `PreparedMessage` after durable
+commit and current admission. Close the original client before transport, then
+reopen it and call `complete_delivery` with that prepared operation, actual
+reply and the same `Run`. Completion checks the original journal/session/ID,
+fresh current permission, ACK authenticity and epoch before recording consumption.
+The reference CLI coordinates these phases. A prepared message owns no private
+key or lease and does not renew authority; on process loss, use the original
+message ID and retained input/outbox. The carrier may already have delivered it
+when cancellation or completion fails.
+
 `connection.serve_message(request, consumer, run)` handles the opposite application
 direction on this original confirmed session. It authenticates and commits a new
 inbox entry before invoking `consumer(session_id, message_id, plaintext)`. The

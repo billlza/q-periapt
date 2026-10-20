@@ -22,6 +22,7 @@ mod server;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 mod tcp;
 pub use account::{AccountDelivered, AccountDeliveryOutcome, AccountSubmission};
+pub use client::PreparedMessage;
 use codec::{frame, payload, ACK, FINAL, INITIAL, MESSAGE, READY, REPLY};
 pub use control::RekeyCompleted;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]

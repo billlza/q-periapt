@@ -156,7 +156,7 @@ try:
         save(root/'client-issued.json',issuer.issued(client_invitation,certificate))
         client.close()
         report=cli_flow(implementation,args.provider_root,client_dir,session_dir,client_id,root,
-                        session_cli,outgoing,native_inputs,bytes(accepted['journal']),original_journal,run)
+                        session_cli,outgoing,native_inputs,bytes(accepted['journal']),original_journal,run,commands)
         require({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe,outgoing)}==native_hashes,'native executable changed')
         report.update(native_sha256=native_hashes,commands=commands,refusals=refusals,
                       provider=provider.__version__,clock='actual OS time',
