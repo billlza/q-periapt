@@ -357,6 +357,23 @@ impl DeviceEnrollment {
         image: &Image,
         policy: &HistoricalSessionPolicy,
     ) -> Result<(VerifiedDevice, JournalIdentity), DurableError> {
+        if image.renewal.as_ref().is_some_and(|r| {
+            !(r.permits_witness_policy()
+                || (image.witnessed_credential_after_policy()
+                    && image.policy_coordination_retired()
+                    && r.permits_policy_credential(image.policy_pending.is_some())))
+        }) {
+            return Err(DurableError::Conflict);
+        }
+        self.original_witness_scope(image, policy)
+    }
+    // Original identity and historical policy binding, without choosing a
+    // lifecycle operation or granting current authorization.
+    pub(in crate::enrollment) fn original_witness_scope(
+        &self,
+        image: &Image,
+        policy: &HistoricalSessionPolicy,
+    ) -> Result<(VerifiedDevice, JournalIdentity), DurableError> {
         let binding = policy
             .anchor_requirement()
             .binding()
@@ -369,12 +386,7 @@ impl DeviceEnrollment {
         else {
             return Err(DurableError::Suspended);
         };
-        if image.renewal.as_ref().is_some_and(|r| {
-            !(r.permits_witness_policy()
-                || (image.witnessed_credential_after_policy()
-                    && image.policy_coordination_retired()
-                    && r.permits_policy_credential(image.policy_pending.is_some())))
-        }) || admission.policy != policy.checkpoint().digest()
+        if admission.policy != policy.checkpoint().digest()
             || image
                 .policy_witness
                 .as_ref()
@@ -424,6 +436,24 @@ impl DeviceEnrollment {
     ) -> Result<AnchorClient, DurableError> {
         let image = self.image()?;
         let (original, _) = self.policy_witness_scope(&image, original_policy)?;
+        self.original_witness_client(
+            (&image, &original),
+            original_policy,
+            pin,
+            transport,
+            timeout,
+        )
+        .await
+    }
+    pub(in crate::enrollment) async fn original_witness_client(
+        &mut self,
+        scope: (&Image, &VerifiedDevice),
+        original_policy: &HistoricalSessionPolicy,
+        pin: AnchorPin,
+        transport: Box<dyn AnchorTransport>,
+        timeout: Duration,
+    ) -> Result<AnchorClient, DurableError> {
+        let (image, original) = scope;
         if original_policy.anchor_requirement().binding() != Some(pin.binding()) {
             return Err(DurableError::Conflict);
         }
@@ -437,7 +467,7 @@ impl DeviceEnrollment {
             transport,
             timeout,
         )?;
-        client.check_device(&original)?;
+        client.check_device(original)?;
         Ok(client)
     }
 

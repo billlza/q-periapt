@@ -20,7 +20,7 @@ use peer_retirement::PeerRetirement;
 mod roster_refresh;
 pub use roster_refresh::RosterRefreshMaterials;
 pub(super) use roster_refresh::{
-    check_roster_refresh_intent, check_witnessed_roster_terminal, roster_refresh_has_credential,
+    check_roster_refresh_intent, check_witnessed_roster_terminal, roster_refresh_authority,
 };
 mod policy_renewal;
 use policy_renewal::StoredPolicyRenewal;

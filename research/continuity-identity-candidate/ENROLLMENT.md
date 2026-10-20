@@ -740,7 +740,7 @@ permission. Tests also reject substituted proposals before any dispatch, includi
 when the genuine result is already retired.
 
 The signed transport in these checks is in-process. Original session/fanout
-behavior across R is now checked separately below. Broader concurrency, joint T
+behavior across R and native joint T are checked separately below. Broader concurrency
 and external lost-device revocation or key replacement, network/foreign bindings,
 installed packages and platform guarantees remain required for the full 0.2.0
 lifecycle. A previous legacy split witness/journal roster state remains a separate
@@ -777,9 +777,43 @@ replies. Under independent P, sixteen actual process kills cover Applied/Closed 
 terminal, pending retirement and enrollment completion in both directions.
 They reopen the same enrollment, journal and witness and compare exact ciphertext
 and the preceding G/R history. This is native in-process transport evidence;
-joint-T composition, full account-cohort roster maintenance, independent
+full account-cohort roster maintenance, independent
 consumers, installed packages and platform-specific qualification remain open
 for this new combination.
+
+### Original joint continuation and roster composition
+
+An adopted joint T can also precede R, follow retired R, and remain retained across
+later G/R cycles. The original R control client authenticates the immutable
+original identity and P0 while each operation checks its actual current authority.
+Independent P admission retains its separate contract; T is not treated as P or
+as a plain credential grant. R never supplies a new account or policy approval.
+
+The coordinator verifies the retained two-root T, original installation scope,
+current policy checkpoint and exact G/T completion. Journal preparation and
+historical terminal cleanup require the same full retained T bytes and local
+completion, including the account binding. A later G carrying T uses its own G
+completion statement; the first joint G uses T's statement. Public low-level R
+cannot provide these original-enrollment capabilities. Pending or unacknowledged
+G/T/R still excludes competing maintenance; Closed G/R targets share the floor.
+
+`QPENST22` explicitly wraps the existing credential-retaining `QPENST21` only for
+R under T. An older R that preceded T remains distinct historical metadata. The
+new tag cannot omit T or its authorization statement, coexist with independent P,
+or lose its retained R certificate. Authenticated downgrade to the old tag and
+retagging an earlier P0 R as T-bound history are rejected. This does not
+rewrite old state merely on opening it.
+
+Native tests retain the actual original journal and existing records through
+R→T→R, a second joint T after R, and alternating T/G/R, reject another valid T and original-P0 substitution,
+exercise lost Commit/Status/ACK replies after expiry, and kill/reopen all three
+original stores at eight Applied/Closed boundaries. Recovery preserves exact
+ciphertext and retained T without granting an expired runtime. Real bilateral
+T→R sessions retain the original outbox and pending PQ offer, reconcile lost R
+ACKs, finish the same rekey and exchange traffic. Managed session reopen is also
+checked. These remain native source tests with in-process witness transport;
+full account cohorts, independent consumers and installed/platform qualification
+are separate gates.
 
 ### Original traffic across R
 

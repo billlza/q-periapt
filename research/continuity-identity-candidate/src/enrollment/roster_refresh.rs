@@ -6,6 +6,7 @@ use crate::{
     AnchorSubject, DeviceJournal, HistoricalSessionPolicy, RosterRefreshId, RosterRefreshMaterials,
     RosterRefreshScope,
 };
+mod continuation;
 mod credential;
 
 /// Durable historical R outcome; this does not grant current traffic permission.
@@ -56,10 +57,14 @@ pub(super) struct WitnessRoster {
     coordination: Option<Coordination>,
     abandoned: bool,
     credential: Option<Vec<u8>>,
+    continued: bool,
 }
 impl WitnessRoster {
     pub(super) fn retired(&self) -> bool {
         self.abandoned || self.coordination.is_some_and(|c| c.retired)
+    }
+    pub(in crate::enrollment) fn continued(&self) -> bool {
+        self.continued
     }
     pub(super) fn validate(&self, image: &Image) -> Result<(), DurableError> {
         let Phase::Accepted {
@@ -71,6 +76,7 @@ impl WitnessRoster {
         };
         if (self.abandoned && self.coordination.is_some())
             || !self.credential_state_matches(image)
+            || !self.continuation_shape_matches(image)
             || image.policy_resolution.is_some()
             || image.roster_resolution.is_some()
             || (image.policy_pending.is_some() && !self.retired())
@@ -121,6 +127,7 @@ impl WitnessRoster {
     pub(super) fn decode(
         d: &mut Decoder<'_>,
         credential_bound: bool,
+        continued: bool,
     ) -> Result<Self, DurableError> {
         let scope = RosterRefreshScope::decode(d)?;
         let roster = take(d)?;
@@ -150,6 +157,7 @@ impl WitnessRoster {
             coordination,
             abandoned: flag == [6],
             credential,
+            continued,
         })
     }
     fn progress(&self) -> WitnessedRosterRefreshProgress {
@@ -175,6 +183,7 @@ pub(crate) struct PersistedRosterTerminal {
     disposition: WitnessedRosterRefreshDisposition,
     completion: Option<std::sync::Arc<EnrollmentPolicyCompletion>>,
     credential: Option<crate::durable::LocalRenewalCommit>,
+    continuation: Option<crate::HistoricalPolicyContinuation>,
 }
 impl PersistedRosterTerminal {
     pub(crate) fn proposal(&self) -> Proposal {
@@ -188,6 +197,9 @@ impl PersistedRosterTerminal {
     }
     pub(crate) fn credential_completion(&self) -> Option<&crate::durable::LocalRenewalCommit> {
         self.credential.as_ref()
+    }
+    pub(crate) fn continuation(&self) -> Option<&crate::HistoricalPolicyContinuation> {
+        self.continuation.as_ref()
     }
 }
 #[derive(Clone, Copy)]
@@ -232,18 +244,7 @@ impl DeviceEnrollment {
                 return Err(DurableError::Conflict);
             }
         }
-        if !r.retired() {
-            match (
-                self.completed_policy_approval(image)?,
-                r.scope.policy_authorization,
-            ) {
-                (None, None) if r.scope.policy.digest() == admission.policy => {}
-                (Some(p), Some(statement))
-                    if p.target_policy() == r.scope.policy && p.statement_digest() == statement => {
-                }
-                _ => return Err(DurableError::Conflict),
-            }
-        }
+        self.validate_roster_policy(image, r)?;
         Ok(())
     }
     fn roster_witness_scope(
@@ -251,15 +252,21 @@ impl DeviceEnrollment {
         image: &Image,
         policy: &HistoricalSessionPolicy,
     ) -> Result<(VerifiedDevice, JournalIdentity), DurableError> {
-        let (original, id) = self.policy_witness_scope(image, policy)?;
+        let (original, id) = self.original_witness_scope(image, policy)?;
         if image.policy_pending.is_some()
             || !image.policy_coordination_retired()
             || image
                 .renewal
                 .as_ref()
-                .is_some_and(|g| !g.permits_witness_policy())
+                .is_some_and(|g| !g.permits_witness_roster())
         {
             return Err(DurableError::Suspended);
+        }
+        if self
+            .roster_continuation(image)?
+            .is_some_and(|t| t.scope().original_policy != policy.checkpoint())
+        {
+            return Err(DurableError::Conflict);
         }
         if let Some(r) = &image.roster_witness {
             if r.coordination.is_some_and(|c| {
@@ -279,7 +286,24 @@ impl DeviceEnrollment {
         transport: Box<dyn AnchorTransport>,
         timeout: Duration,
     ) -> Result<AnchorClient, DurableError> {
-        self.policy_renewal_anchor_client(original_policy, pin, transport, timeout)
+        let result = self
+            .roster_refresh_anchor_client_attempt(original_policy, pin, transport, timeout)
+            .await;
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+    async fn roster_refresh_anchor_client_attempt(
+        &mut self,
+        policy: &HistoricalSessionPolicy,
+        pin: AnchorPin,
+        transport: Box<dyn AnchorTransport>,
+        timeout: Duration,
+    ) -> Result<AnchorClient, DurableError> {
+        let image = self.image()?;
+        let (original, _) = self.roster_witness_scope(&image, policy)?;
+        self.original_witness_client((&image, &original), policy, pin, transport, timeout)
             .await
     }
     /// Retain and seal one root-approved same-credential roster target. Exact retries
@@ -323,13 +347,19 @@ impl DeviceEnrollment {
         let (original, id) = self.roster_witness_scope(&image, original_policy)?;
         self.check_current_roster_credential(&image, &original, target)?;
         admit(target, policy, now)?;
-        let completion = self.policy_enrollment_completion(&image, original_policy)?;
-        let authorization = match &completion {
-            Some(c) => {
+        let completion =
+            self.retained_policy_enrollment_completion(&image, original_policy, &original)?;
+        let continuation = self.roster_continuation(&image)?;
+        let authorization = match (&completion, &continuation) {
+            (Some(c), None) => {
                 c.approval().check_context_policy(original_policy, policy)?;
                 Some(c.approval().statement_digest())
             }
-            None if policy.checkpoint() == original_policy.checkpoint() => None,
+            (None, Some(t)) => {
+                t.check_context_policy(original_policy, policy)?;
+                Some(t.statement_digest())
+            }
+            (None, None) if policy.checkpoint() == original_policy.checkpoint() => None,
             _ => return Err(DurableError::Conflict),
         };
         let Phase::Accepted { admission, .. } = &image.phase else {
@@ -341,6 +371,7 @@ impl DeviceEnrollment {
             if r.scope.target != target.roster().checkpoint()
                 || r.scope.policy != policy.checkpoint()
                 || r.scope.policy_authorization != authorization
+                || r.continued != continuation.is_some()
                 || r.retired()
             {
                 return Err(DurableError::Conflict);
@@ -376,6 +407,7 @@ impl DeviceEnrollment {
                     .renewal
                     .as_ref()
                     .map(|_| admission.certificate.clone()),
+                continued: continuation.is_some(),
             });
             self.validate_witness_roster(&image)?;
             self.save(&image)?;
@@ -417,6 +449,7 @@ impl DeviceEnrollment {
                             .renewal
                             .as_ref()
                             .and_then(LocalRenewal::witnessed_completion),
+                        continuation.as_ref(),
                     )
                     .await?
             }
@@ -599,7 +632,7 @@ impl DeviceEnrollment {
         policy: &HistoricalSessionPolicy,
     ) -> Result<PersistedRosterTerminal, DurableError> {
         let image = self.image()?;
-        self.roster_witness_scope(&image, policy)?;
+        let (original, _) = self.roster_witness_scope(&image, policy)?;
         let c = image
             .roster_witness
             .as_ref()
@@ -608,7 +641,8 @@ impl DeviceEnrollment {
         Ok(PersistedRosterTerminal {
             proposal: c.proposal,
             disposition: c.terminal.ok_or(DurableError::Suspended)?,
-            completion: self.policy_enrollment_completion(&image, policy)?,
+            completion: self.retained_policy_enrollment_completion(&image, policy, &original)?,
+            continuation: self.roster_continuation(&image)?,
             credential: image
                 .renewal
                 .as_ref()

@@ -207,8 +207,9 @@ current policy authorization. Completed independent P requires its private
 original-enrollment completion capability; ordinary metadata opening alone cannot
 invent that completion. After G, the original enrollment coordinator additionally
 supplies the exact retained G completion. Public low-level R preparation lacks
-that capability and remains refused for such a journal. Joint T composition is
-still refused by this owner path.
+that capability and remains refused for such a journal. Adopted joint T additionally
+requires the same full retained two-root authorization from that original enrollment;
+independent P and T remain separate authority alternatives.
 
 The previous roster may be expired: its signed historical membership identifies
 the actual predecessor but grants no current permission. Preparation admits the
@@ -236,6 +237,17 @@ claim this composition. R changes neither that grant nor its receipt. The
 original enrollment's private terminal binds the same receipt before ACK/cleanup,
 including after expiry. The immutable journal owner stays C0 while current
 membership uses the exact renewed credential; R cannot renew it implicitly.
+
+R under an adopted joint T uses `QPWINT11`, retaining the same 185-byte scope and
+341-byte prefix. Its authority discriminator must agree with the actual signed
+G, full local completion and retained T in the encrypted target. The first joint
+G completion is bound to T's statement; a later G retaining T is bound to that
+G's statement. Both preserve their original account binding. R's policy checkpoint
+and authorization must equal the adopted T target and statement. Valid-MAC
+QPWINT07/10 containers cannot claim this meaning. Preparation and terminal cleanup
+also compare the exact historical T bytes supplied by the original enrollment;
+R cannot create T authority from a policy digest alone. All non-roster records,
+G completion and T bytes are retained unchanged.
 
 After an uncertain preparation return, `inspect_roster_refresh_preparation` reads
 the exact original proposal before or after target installation, without signing

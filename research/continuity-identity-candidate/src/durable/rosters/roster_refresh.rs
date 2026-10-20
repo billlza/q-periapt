@@ -6,11 +6,11 @@ use crate::{
     VerifiedSessionPolicy,
 };
 mod credential;
-pub(in crate::durable) fn roster_refresh_has_credential(
+pub(in crate::durable) fn roster_refresh_authority(
     image: &Image,
-) -> Result<bool, DurableError> {
+) -> Result<write_intent::RosterAuthority, DurableError> {
     let saved = get(image, &image.local_account)?;
-    Ok(credential::grant(image, &saved)?.is_some())
+    credential::authority(image, &saved)
 }
 
 /// Independently retained original identity/policy and root-approved current R target.
@@ -29,31 +29,34 @@ fn supported(image: &Image, saved: &Stored) -> Result<(), DurableError> {
     if !matches!(image.protection, Protection::Required { .. }) {
         return Err(DurableError::AnchorRequired);
     }
-    if saved.policy_continuation.is_some() {
-        return Err(DurableError::Conflict);
-    }
     credential::grant(image, saved)?;
     policy_renewal::check_scope(image, saved)
 }
 pub(in crate::durable) fn check_roster_refresh_intent(
     image: &Image,
     scope: RosterRefreshScope,
-    credential_bound: bool,
+    authority: write_intent::RosterAuthority,
 ) -> Result<(), DurableError> {
     let saved = get(image, &image.local_account)?;
     supported(image, &saved)?;
-    credential::check_scope(image, &saved, scope, credential_bound)?;
+    credential::check_scope(image, &saved, scope, authority)?;
     if saved.roster.checkpoint() != scope.target
         || scope.target.version() <= scope.previous.version()
     {
         return Err(DurableError::Conflict);
     }
-    match (&saved.policy_renewal, scope.policy_authorization) {
-        (None, None) => match image.protection {
+    match (
+        &saved.policy_renewal,
+        &saved.policy_continuation,
+        scope.policy_authorization,
+    ) {
+        (None, None, None) => match image.protection {
             Protection::Required { policy, .. } if policy == scope.policy.digest() => {}
             _ => return Err(DurableError::Conflict),
         },
-        (Some(p), Some(statement)) if p.policy_binding() == (scope.policy, statement) => {}
+        (Some(p), None, Some(statement)) if p.policy_binding() == (scope.policy, statement) => {}
+        (None, Some(t), Some(statement))
+            if t.target_policy() == scope.policy && t.statement_digest() == statement => {}
         _ => return Err(DurableError::Conflict),
     }
     Ok(())
@@ -74,7 +77,7 @@ impl DeviceJournal {
         now: u64,
     ) -> Result<AnchorRosterRefreshProposal, DurableError> {
         let result = self
-            .prepare_roster_refresh_attempt(operation, materials, now, None)
+            .prepare_roster_refresh_attempt(operation, materials, now, None, None)
             .await;
         self.close();
         result
@@ -85,9 +88,10 @@ impl DeviceJournal {
         materials: &RosterRefreshMaterials<'_>,
         now: u64,
         completion: Option<&LocalRenewalCommit>,
+        continuation: Option<&crate::HistoricalPolicyContinuation>,
     ) -> Result<AnchorRosterRefreshProposal, DurableError> {
         let result = self
-            .prepare_roster_refresh_attempt(operation, materials, now, completion)
+            .prepare_roster_refresh_attempt(operation, materials, now, completion, continuation)
             .await;
         self.close();
         result
@@ -98,6 +102,7 @@ impl DeviceJournal {
         materials: &RosterRefreshMaterials<'_>,
         now: u64,
         completion: Option<&LocalRenewalCommit>,
+        continuation: Option<&crate::HistoricalPolicyContinuation>,
     ) -> Result<AnchorRosterRefreshProposal, DurableError> {
         let m = materials;
         let mut image = self.image().await?;
@@ -106,6 +111,14 @@ impl DeviceJournal {
         supported(&image, &saved)?;
         if saved.local_commit.as_ref() != completion {
             return Err(DurableError::Suspended);
+        }
+        if saved
+            .policy_continuation
+            .as_ref()
+            .map(|t| t.journal_bytes())
+            != continuation.map(|t| t.journal_bytes())
+        {
+            return Err(DurableError::Conflict);
         }
         let current = credential::current(&image, &saved, m.original)?;
         if image.owner != bootstrap::storage_owner(m.original)
@@ -125,6 +138,9 @@ impl DeviceJournal {
                 return Err(DurableError::Conflict);
             }
             Some(approval.statement_digest())
+        } else if let Some(t) = &saved.policy_continuation {
+            t.check_context_policy(m.original_policy, m.policy)?;
+            Some(t.statement_digest())
         } else {
             if m.original_policy.checkpoint() != m.policy.checkpoint() {
                 return Err(DurableError::Conflict);
@@ -203,6 +219,11 @@ impl DeviceJournal {
         );
         assert_eq!(old.roster.checkpoint(), scope.previous);
         assert_eq!(new.roster.checkpoint(), scope.target);
+        assert_eq!(
+            old.policy_continuation.as_ref().map(|t| t.journal_bytes()),
+            new.policy_continuation.as_ref().map(|t| t.journal_bytes()),
+            "original T changed"
+        );
         assert!(
             old.policy_renewal
                 .as_ref()
@@ -247,17 +268,26 @@ pub(in crate::durable) fn check_witnessed_roster_terminal(
     credential::current(image, &saved, original)?;
     match (
         &saved.policy_renewal,
+        &saved.policy_continuation,
         scope.policy_authorization,
         terminal.completion(),
+        terminal.continuation(),
     ) {
-        (None, None, None) => match image.protection {
+        (None, None, None, None, None) => match image.protection {
             Protection::Required { policy, .. } if policy == scope.policy.digest() => {}
             _ => return Err(DurableError::Conflict),
         },
-        (Some(p), Some(statement), Some(completion))
+        (Some(p), None, Some(statement), Some(completion), None)
             if p.policy_binding() == (scope.policy, statement) =>
         {
             policy_renewal::check_enrollment_policy_completion(image, completion)?;
+        }
+        (None, Some(t), Some(statement), None, Some(completion))
+            if t.target_policy() == scope.policy
+                && t.statement_digest() == statement
+                && t.journal_bytes() == completion.journal_bytes() =>
+        {
+            check_continuation_completion(image, &saved)?;
         }
         _ => return Err(DurableError::Conflict),
     }

@@ -49,12 +49,18 @@ pub(super) struct PolicyRenewalBinding {
     pub(super) statement: [u8; 32],
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum RosterAuthority {
+    Original,
+    Credential,
+    Continued,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum BoundTransaction {
     Credential(RenewalBinding),
     Policy(PolicyRenewalBinding),
     Roster {
         scope: crate::RosterRefreshScope,
-        credential: bool,
+        authority: RosterAuthority,
     },
 }
 mod account_authority;
@@ -131,7 +137,12 @@ impl PendingWrite {
         let expected_revision = image.revision.checked_sub(1).ok_or(DurableError::Corrupt)?;
         let mut wire = match binding {
             Some(BoundTransaction::Roster {
-                credential: true, ..
+                authority: RosterAuthority::Continued,
+                ..
+            }) => b"QPWINT11".to_vec(),
+            Some(BoundTransaction::Roster {
+                authority: RosterAuthority::Credential,
+                ..
             }) => b"QPWINT10".to_vec(),
             Some(BoundTransaction::Roster { .. }) => b"QPWINT07".to_vec(),
             Some(BoundTransaction::Policy(_)) => b"QPWINT06".to_vec(),
@@ -204,10 +215,16 @@ impl PendingWrite {
         let mut d = Decoder::new(body);
         let binding = match d.array::<8>()? {
             tag if tag == *b"QPWINT01" => None,
-            tag if matches!(&tag, b"QPWINT07" | b"QPWINT10") => Some(BoundTransaction::Roster {
-                scope: crate::RosterRefreshScope::decode(&mut d)?,
-                credential: tag == *b"QPWINT10",
-            }),
+            tag if matches!(&tag, b"QPWINT07" | b"QPWINT10" | b"QPWINT11") => {
+                Some(BoundTransaction::Roster {
+                    scope: crate::RosterRefreshScope::decode(&mut d)?,
+                    authority: match &tag {
+                        b"QPWINT07" => RosterAuthority::Original,
+                        b"QPWINT10" => RosterAuthority::Credential,
+                        _ => RosterAuthority::Continued,
+                    },
+                })
+            }
             tag if tag == *b"QPWINT06" => {
                 let operation = crate::PolicyRenewalId::from_trusted_state(d.array()?)?;
                 let statement = d.array()?;
@@ -271,8 +288,8 @@ impl PendingWrite {
                 rosters::check_credential_renewal_intent(&next, r)?
             }
             Some(BoundTransaction::Policy(p)) => rosters::check_policy_renewal_intent(&next, p)?,
-            Some(BoundTransaction::Roster { scope, credential }) => {
-                rosters::check_roster_refresh_intent(&next, scope, credential)?
+            Some(BoundTransaction::Roster { scope, authority }) => {
+                rosters::check_roster_refresh_intent(&next, scope, authority)?
             }
             None => {}
         }

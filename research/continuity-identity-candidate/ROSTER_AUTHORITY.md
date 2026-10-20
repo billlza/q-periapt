@@ -108,7 +108,9 @@ contract](ENROLLMENT.md#original-enrollment-atomic-roster-coordination).
 Native original session and complete two-recipient fanout behavior across R are
 now checked under the original enrollment owner. Current root-signed peer
 revocation denies cached release; the external revocation/replacement control
-plane and real G/T composition remain separate qualification gates. A preexisting split legacy authority state
+plane remains a separate qualification gate. Native original G/T composition is
+covered by the [enrollment contract](ENROLLMENT.md#original-joint-continuation-and-roster-composition);
+full account cohorts and installed/independent consumers remain separate. A preexisting split legacy authority state
 is still refused; this route does not silently repair or reset that state.
 
 ## Current device-service admission of remote rosters

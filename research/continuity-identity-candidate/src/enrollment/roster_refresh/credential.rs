@@ -39,7 +39,7 @@ impl WitnessRoster {
                 g.witnessed()
                     && self.credential.is_some()
                     && (self.retired()
-                        || (g.permits_witness_policy()
+                        || (g.permits_witness_roster()
                             && g.witness_roster_floor()
                                 .is_some_and(|floor| self.target_floor() > floor)))
             }

@@ -1017,6 +1017,7 @@ historical exact retry on the same witness database. Their target head digests
 are explicit component expectations. Separate
 [original enrollment/journal G/R tests](ENROLLMENT.md#original-credential-and-roster-composition)
 now seal actual targets, preserve traffic and exercise process loss under P0 and
-independent P. Native joint-T composition, full account-cohort maintenance,
+independent P. [Native joint-T composition](ENROLLMENT.md#original-joint-continuation-and-roster-composition)
+also retains actual original targets and T through R and later G/R. Full account-cohort maintenance,
 independent consumers and installed-package qualification for the new
 combination remain open.

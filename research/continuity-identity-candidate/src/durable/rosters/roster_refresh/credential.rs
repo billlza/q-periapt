@@ -15,8 +15,8 @@ pub(super) fn grant<'a>(
         return Err(DurableError::Conflict);
     }
     match (grant, &saved.local_commit) {
-        (None, None) => Ok(None),
-        (Some(g), Some(commit)) if commit.matches_credential_grant(g) => {
+        (None, None) if saved.policy_continuation.is_none() => Ok(None),
+        (Some(g), Some(commit)) => {
             let Protection::Required { policy, .. } = image.protection else {
                 return Err(DurableError::AnchorRequired);
             };
@@ -25,19 +25,42 @@ pub(super) fn grant<'a>(
             {
                 return Err(DurableError::Conflict);
             }
+            if saved.policy_continuation.is_some() {
+                check_continuation_completion(image, saved)?;
+            } else if !commit.matches_credential_grant(g) {
+                return Err(DurableError::Conflict);
+            }
             Ok(Some(g))
         }
         _ => Err(DurableError::Conflict),
     }
 }
+fn authority_for(
+    saved: &Stored,
+    grant: bool,
+) -> Result<write_intent::RosterAuthority, DurableError> {
+    use write_intent::RosterAuthority;
+    match (grant, saved.policy_continuation.is_some()) {
+        (false, false) => Ok(RosterAuthority::Original),
+        (true, false) => Ok(RosterAuthority::Credential),
+        (true, true) => Ok(RosterAuthority::Continued),
+        (false, true) => Err(DurableError::Conflict),
+    }
+}
+pub(super) fn authority(
+    image: &Image,
+    saved: &Stored,
+) -> Result<write_intent::RosterAuthority, DurableError> {
+    authority_for(saved, grant(image, saved)?.is_some())
+}
 pub(super) fn check_scope(
     image: &Image,
     saved: &Stored,
     scope: RosterRefreshScope,
-    bound: bool,
+    bound: write_intent::RosterAuthority,
 ) -> Result<(), DurableError> {
     let grant = grant(image, saved)?;
-    if bound != grant.is_some() {
+    if bound != authority_for(saved, grant.is_some())? {
         return Err(DurableError::Conflict);
     }
     if let Some(g) = grant {

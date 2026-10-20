@@ -179,9 +179,11 @@ impl LocalRenewal {
         self.pending.is_none() && self.witness.as_ref().and_then(|w| w.coordination).is_none()
     }
     pub(super) fn permits_witness_policy(&self) -> bool {
+        self.permits_witness_roster() && !self.joint()
+    }
+    pub(super) fn permits_witness_roster(&self) -> bool {
         self.witnessed()
             && self.permits_policy_pending()
-            && !self.joint()
             && (self.completed.is_some()
                 || self.witness.as_ref().is_some_and(|w| w.closed.is_some()))
     }

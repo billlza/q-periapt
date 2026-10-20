@@ -3,6 +3,7 @@
 use super::*;
 use crate::durable::tests::ChildGuard;
 use crate::enrollment::tests::witness_renewal as credential;
+use credential::policy_transaction::roster as joint;
 use std::process::{Command, Stdio};
 
 fn case_after_credential() -> Case {
@@ -61,6 +62,18 @@ fn case_after_credential() -> Case {
     .expect("target");
     c
 }
+fn case_after_joint() -> Case {
+    let f = joint::original_on(credential::fixture());
+    let (g, policy, _) = joint::adopt_t(&f, &f.original, 2);
+    let previous = g.successor_device().clone();
+    let target = joint::roster(&f, &previous, 3, 170);
+    Case {
+        f,
+        policy,
+        previous,
+        target,
+    }
+}
 
 #[test]
 fn independent_roster_process_child() -> Result<(), &'static str> {
@@ -70,15 +83,56 @@ fn independent_roster_process_child() -> Result<(), &'static str> {
     let root = Path::new(&root);
     let credential_first =
         std::env::var("QPERIAPT_INDEPENDENT_ROSTER_CREDENTIAL").as_deref() == Ok("1");
-    let c = if credential_first {
+    let joint_first = std::env::var("QPERIAPT_INDEPENDENT_ROSTER_JOINT").as_deref() == Ok("1");
+    let c = if joint_first {
+        case_after_joint()
+    } else if credential_first {
         case_after_credential()
     } else {
         case(true)
     };
     let f = &c.f;
-    let p = prepare_original(&c);
+    let now = if joint_first { 170 } else { 150 };
+    let mut owner = open(&f.c);
+    let client = owner
+        .roster_refresh_anchor_client(
+            f.c.policy.historical(),
+            f.pin.clone(),
+            Box::new(f.carrier.clone()),
+            Duration::from_secs(3),
+        )
+        .expect("original R client");
+    let p = owner
+        .prepare_witnessed_roster_refresh(
+            RosterRefreshId::generate().expect("R ID"),
+            f.c.policy.historical(),
+            &c.policy,
+            &c.target,
+            now,
+            client,
+        )
+        .expect("actual R target");
+    if joint_first {
+        fs::write(
+            root.join("original-t"),
+            owner
+                .image()
+                .expect("config")
+                .renewal
+                .as_ref()
+                .and_then(LocalRenewal::policy_predecessor)
+                .expect("retained T"),
+        )
+        .expect("exact original T");
+    }
+    owner.close();
     let original = journal(f);
-    witness_prepare(&c, p);
+    f.carrier
+        .store
+        .lock()
+        .expect("witness")
+        .prepare_roster_refresh(p, &c.previous, &c.target, &c.policy, now)
+        .expect("independent approval");
     fs::write(
         root.join("enrollment-path"),
         f.c.paths
@@ -107,7 +161,9 @@ fn independent_roster_process_child() -> Result<(), &'static str> {
         root.join("target-image"),
         target_image_with_tag(
             &original,
-            if credential_first {
+            if joint_first {
+                b"QPWINT11"
+            } else if credential_first {
                 b"QPWINT10"
             } else {
                 b"QPWINT07"
@@ -131,9 +187,27 @@ fn independent_roster_process_child() -> Result<(), &'static str> {
     checkpoint_bytes.extend_from_slice(&issued.checkpoint().digest());
     fs::write(root.join("trusted-policy"), checkpoint_bytes).expect("public pin");
     let mut owner = open(&f.c);
-    let mut client = policy_client(f, &mut owner);
+    let mut client = owner
+        .roster_refresh_anchor_client(
+            f.c.policy.historical(),
+            f.pin.clone(),
+            Box::new(f.carrier.clone()),
+            Duration::from_secs(3),
+        )
+        .expect("original R client");
     let closed = std::env::var("QPERIAPT_INDEPENDENT_ROSTER_CLOSED").expect("mode") == "1";
-    run(&c, p, &mut owner, &mut client, closed).expect("requested terminal flow");
+    if closed {
+        owner.close_witnessed_roster_refresh(&p, f.c.policy.historical(), &mut client)
+    } else {
+        owner.commit_witnessed_roster_refresh(
+            &p,
+            f.c.policy.historical(),
+            &c.policy,
+            now,
+            &mut client,
+        )
+    }
+    .expect("requested terminal flow");
     Err("requested process cut was not reached")
 }
 fn checkpoint(path: &Path) -> crate::PolicyCheckpoint {
@@ -149,15 +223,22 @@ fn checkpoint(path: &Path) -> crate::PolicyCheckpoint {
 }
 #[test]
 fn actual_process_kills_recover_original_independent_roster_at_four_cross_store_boundaries() {
-    process_kills(false);
+    process_kills("policy");
 }
 
 #[test]
 fn original_credential_roster_r_process_kills_preserve_prior_g_at_each_store_boundary() {
-    process_kills(true);
+    process_kills("credential");
 }
 
-fn process_kills(credential_first: bool) {
+#[test]
+fn original_joint_roster_process_kills_preserve_t_at_each_store_boundary() {
+    process_kills("joint");
+}
+
+fn process_kills(prior: &str) {
+    let credential_first = prior == "credential";
+    let joint_first = prior == "joint";
     let mut cuts = 0;
     for closed in [false, true] {
         for stage in [
@@ -172,6 +253,7 @@ fn process_kills(credential_first: bool) {
             let mut child=ChildGuard(Command::new(std::env::current_exe().expect("test binary")).args(["--exact","enrollment::tests::witness_renewal::independent_policy::operational::roster_atomicity::journal::enrollment::process::independent_roster_process_child","--nocapture"])
                 .env("TMPDIR",&root).env("QPERIAPT_INDEPENDENT_ROSTER_CHILD",&root)
                 .env("QPERIAPT_INDEPENDENT_ROSTER_CREDENTIAL",if credential_first {"1"} else {"0"})
+                .env("QPERIAPT_INDEPENDENT_ROSTER_JOINT",if joint_first {"1"} else {"0"})
                 .env("QPERIAPT_INDEPENDENT_ROSTER_CLOSED",if closed {"1"} else {"0"}).env("QPERIAPT_LOCAL_RENEWAL_CUT_ROOT",&root).env("QPERIAPT_LOCAL_RENEWAL_CUT_STAGE",stage).stdout(Stdio::from(log.try_clone().expect("log"))).stderr(Stdio::from(log)).spawn().expect("child"));
             let deadline = Instant::now() + Duration::from_secs(40);
             while !root.join("renewal-ready").exists() {
@@ -239,7 +321,7 @@ fn process_kills(credential_first: bool) {
             let mut owner =
                 DeviceEnrollment::open(paths.clone(), intent).expect("original enrollment reopens");
             let mut client = owner
-                .policy_renewal_anchor_client(
+                .roster_refresh_anchor_client(
                     &policy,
                     pin,
                     Box::new(carrier.clone()),
@@ -274,11 +356,23 @@ fn process_kills(credential_first: bool) {
                     retired: true
                 })
             );
-            if credential_first {
+            if credential_first || joint_first {
                 assert!(
                     matches!(owner.credential_renewal_status().expect("retained G"),
                     crate::CredentialRenewalStatus::Committed { target, .. }
                         if target.version() == 2)
+                );
+            }
+            if joint_first {
+                assert_eq!(
+                    owner
+                        .image()
+                        .expect("original config")
+                        .renewal
+                        .as_ref()
+                        .and_then(LocalRenewal::policy_predecessor)
+                        .expect("retained T"),
+                    fs::read(root.join("original-t")).expect("original T")
                 );
             }
             owner.close();
@@ -300,5 +394,5 @@ fn process_kills(credential_first: bool) {
         }
     }
     assert_eq!(cuts, 8);
-    eprintln!("INDEPENDENT_ROSTER_PROCESS_CUTS prior_credential={credential_first} cuts={cuts} actual_kills=true expired_recovery_without_runtime=true exact_image=true");
+    eprintln!("INDEPENDENT_ROSTER_PROCESS_CUTS prior={prior} cuts={cuts} actual_kills=true expired_recovery_without_runtime=true exact_image=true");
 }

@@ -164,15 +164,100 @@ fn send(
 
 #[test]
 fn real_witnessed_session_reopens_after_p0_expiry_and_fences_cached_message_and_fanout() {
-    witnessed_session(false);
+    witnessed_session(false, false);
 }
 
 #[test]
 fn managed_installation_continued_session_keeps_registry_after_real_witnessed_rekey() {
-    witnessed_session(true);
+    witnessed_session(true, false);
 }
 
-fn witnessed_session(managed_reopen: bool) {
+#[test]
+fn original_joint_roster_original_outbox_and_pq_offer_survive_t_r_and_lost_ack() {
+    witnessed_session(false, true);
+}
+#[test]
+fn original_joint_roster_managed_session_preserves_t_r_through_reopen() {
+    witnessed_session(true, true);
+}
+
+fn refresh_continued_roster(
+    f: &Fixture,
+    g: &VerifiedCredentialRenewal,
+    policy: &VerifiedSessionPolicy,
+) -> VerifiedDevice {
+    use crate::AnchorRosterRefreshState;
+    let target = super::roster::roster(f, g.successor_device(), 3, 170);
+    let mut owner = open(&f.c);
+    let anchor = owner
+        .roster_refresh_anchor_client(
+            f.c.policy.historical(),
+            f.pin.clone(),
+            Box::new(f.carrier.clone()),
+            Duration::from_secs(3),
+        )
+        .expect("original R client");
+    let proposal = owner
+        .prepare_witnessed_roster_refresh(
+            crate::RosterRefreshId::generate().expect("R ID"),
+            f.c.policy.historical(),
+            policy,
+            &target,
+            170,
+            anchor,
+        )
+        .expect("real sealed R after T");
+    f.carrier
+        .store
+        .lock()
+        .expect("witness")
+        .prepare_roster_refresh(proposal, g.successor_device(), &target, policy, 170)
+        .expect("root R approval");
+    let before = disk(f);
+    let mut anchor = owner
+        .roster_refresh_anchor_client(
+            f.c.policy.historical(),
+            f.pin.clone(),
+            Box::new(f.carrier.clone()),
+            Duration::from_secs(3),
+        )
+        .expect("original R signer");
+    *f.carrier.cut.lock().expect("lost ACK") = Some((19, true));
+    assert!(owner
+        .commit_witnessed_roster_refresh(
+            &proposal,
+            f.c.policy.historical(),
+            policy,
+            170,
+            &mut anchor
+        )
+        .is_err());
+    assert!(disk(f).1.is_some(), "unknown ACK retains original pending");
+    let mut owner = open(&f.c);
+    let mut anchor = owner
+        .roster_refresh_anchor_client(
+            f.c.policy.historical(),
+            f.pin.clone(),
+            Box::new(f.carrier.clone()),
+            Duration::from_secs(3),
+        )
+        .expect("original R signer");
+    assert_eq!(
+        owner
+            .reconcile_witnessed_roster_refresh(&proposal, f.c.policy.historical(), &mut anchor)
+            .expect("same original R reconciliation"),
+        AnchorRosterRefreshState::Applied
+    );
+    owner.close();
+    let pending = before.1.expect("original sealed pending");
+    let target_bytes = pending
+        .get(341..pending.len().checked_sub(32).expect("MAC"))
+        .expect("sealed R image");
+    assert_eq!(disk(f), (target_bytes.to_vec(), None));
+    target
+}
+
+fn witnessed_session(managed_reopen: bool, refresh_roster: bool) {
     let first = fixture_with_policy_expiry(Some(160));
     let second = fixture_on_witness(
         Arc::clone(&first._witness_dir),
@@ -207,7 +292,7 @@ fn witnessed_session(managed_reopen: bool) {
             .expect("responder context"),
     );
     let id = InitiationId::generate().expect("initiation");
-    let (session, old_id, old_wire);
+    let (session, old_id, old_wire, old_offer);
     {
         let (is, ik, _) = a.owner.parts().expect("initiator");
         let (rs, rk, _) = b.owner.parts().expect("responder");
@@ -237,6 +322,14 @@ fn witnessed_session(managed_reopen: bool) {
         old_wire = ij
             .send_message(&ci, session, old_id, b"original ciphertext", b"old", 150)
             .expect("message");
+        old_offer = if refresh_roster {
+            Some(
+                ij.prepare_rekey_offer(&ci, session, ik, 150)
+                    .expect("original pending PQ offer"),
+            )
+        } else {
+            None
+        };
     }
     a.owner.close();
     b.owner.close();
@@ -267,6 +360,17 @@ fn witnessed_session(managed_reopen: bool) {
         owner.close();
         e.owner = activate(&e.f, p);
     }
+    let refreshed = if refresh_roster {
+        a.owner.close();
+        b.owner.close();
+        let ar = refresh_continued_roster(&a.f, &ga, &pa);
+        let br = refresh_continued_roster(&b.f, &gb, &pb);
+        a.owner = activate(&a.f, &pa);
+        b.owner = activate(&b.f, &pb);
+        Some((ar, br))
+    } else {
+        None
+    };
     a.owner
         .parts()
         .expect("owner")
@@ -279,6 +383,28 @@ fn witnessed_session(managed_reopen: bool) {
         .0
         .admit_peer_credential_renewal(&ga, ga.operation(), &pb, 170)
         .expect("independent peer renewal under P1");
+    if let Some((ar, br)) = refreshed {
+        assert_eq!(
+            a.owner.parts().expect("owners").2.roster().checkpoint(),
+            ar.roster().checkpoint()
+        );
+        assert_eq!(
+            b.owner.parts().expect("owners").2.roster().checkpoint(),
+            br.roster().checkpoint()
+        );
+        a.owner
+            .parts()
+            .expect("owners")
+            .0
+            .admit_peer_roster(br.roster(), &pa, 170)
+            .expect("peer current R");
+        b.owner
+            .parts()
+            .expect("owners")
+            .0
+            .admit_peer_roster(ar.roster(), &pb, 170)
+            .expect("sender current R");
+    }
     let ri = bundle
         .request_historical_reopen(
             Arc::new(a.f.c.policy.historical().clone()),
@@ -346,6 +472,9 @@ fn witnessed_session(managed_reopen: bool) {
         let offer = ij
             .prepare_rekey_offer(pi.context(), session, ik, 170)
             .expect("offer");
+        if let Some(original) = old_offer {
+            assert_eq!(offer, original, "same retained PQ contribution");
+        }
         let response = rj
             .respond_rekey_offer(pr.context(), session, &offer, rk, 170)
             .expect("response");

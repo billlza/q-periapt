@@ -6,6 +6,8 @@ mod retirement;
 use crate::{PolicyContinuationMaterials, VerifiedCredentialRenewal, VerifiedPolicyContinuation};
 #[path = "witness_policy_cancellation_tests.rs"]
 mod policy_cancellation;
+#[path = "witness_joint_roster_tests.rs"]
+pub(super) mod roster;
 #[path = "witness_policy_session_tests.rs"]
 pub(super) mod sessions;
 

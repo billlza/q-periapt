@@ -13,22 +13,28 @@ impl DeviceJournal {
         id: crate::JournalIdentity,
         pending: &[u8],
     ) {
-        assert_eq!(pending.get(..8), Some(b"QPWINT10".as_slice()));
+        let tag = pending.get(..8).expect("explicit authority tag");
+        assert!(tag == b"QPWINT10" || tag == b"QPWINT11");
         let owner = crate::bootstrap::storage_owner(original);
         PendingWrite::decode(key, owner, *id.as_bytes(), pending).expect("actual mixed R intent");
         let len = pending.len().checked_sub(32).expect("authenticated length");
-        let mut old = pending.get(..len).expect("body").to_vec();
-        old.get_mut(..8).expect("tag").copy_from_slice(b"QPWINT07");
-        let mut mac = authenticator(key).expect("owned authenticator");
-        mac.update(&old);
-        old.extend_from_slice(&mac.finalize().into_bytes());
-        assert!(
-            matches!(
-                PendingWrite::decode(key, owner, *id.as_bytes(), &old),
-                Err(DurableError::Conflict)
-            ),
-            "old authenticated grammar cannot claim R after G"
-        );
+        for old_tag in [b"QPWINT07", b"QPWINT10"] {
+            if tag == old_tag {
+                continue;
+            }
+            let mut old = pending.get(..len).expect("body").to_vec();
+            old.get_mut(..8).expect("tag").copy_from_slice(old_tag);
+            let mut mac = authenticator(key).expect("owned authenticator");
+            mac.update(&old);
+            old.extend_from_slice(&mac.finalize().into_bytes());
+            assert!(
+                matches!(
+                    PendingWrite::decode(key, owner, *id.as_bytes(), &old),
+                    Err(DurableError::Conflict)
+                ),
+                "old authenticated grammar cannot claim R after G or T"
+            );
+        }
     }
 }
 impl PendingWrite {
@@ -73,7 +79,7 @@ pub(in crate::durable) fn reserve_roster_refresh(
         target,
         Some(BoundTransaction::Roster {
             scope,
-            credential: rosters::roster_refresh_has_credential(image)?,
+            authority: rosters::roster_refresh_authority(image)?,
         }),
     )?;
     reserve(active, &pending)?;

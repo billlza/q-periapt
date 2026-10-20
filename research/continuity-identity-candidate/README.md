@@ -197,8 +197,10 @@ and current policy. If peer renewals have not arrived yet,
 `activate_policy_continuation` first admits the same local owner using the current
 journal roster; it can then admit approved peer renewals and reopen the original
 session. Historical `original_policy()` metadata and the fallible
-`current_policy()` runtime accessor are separate. Fresh bootstrap, exact-witness
-continuation and foreign-language exposure remain outside this new path.
+`current_policy()` runtime accessor are separate. The
+[original witness coordinator](ENROLLMENT.md#original-joint-continuation-and-roster-composition)
+separately retains exact G/T completion through roster maintenance and historical
+cleanup. Fresh bootstrap and foreign-language exposure remain outside this path.
 
 
 Exact public-byte fingerprints exclude role, epoch and expiry, allowing the
