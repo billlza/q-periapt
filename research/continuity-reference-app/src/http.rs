@@ -17,6 +17,7 @@ use tokio::sync::Semaphore;
 use webauthn_rs::prelude::{PublicKeyCredential, RegisterPublicKeyCredential};
 
 mod enrollment;
+mod policy_approval;
 
 const CEREMONY: &str = "qpc_reference_ceremony";
 const SESSION: &str = "qpc_reference_session";
@@ -90,6 +91,7 @@ pub fn router(state: Shared) -> Router {
         .merge(browser_modules())
         .merge(enrollment::routes())
         .layer(DefaultBodyLimit::max(64 * 1024))
+        .merge(policy_approval::routes())
         .layer(middleware::from_fn_with_state(state.clone(), boundary))
         .with_state(state)
 }

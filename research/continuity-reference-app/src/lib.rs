@@ -6,6 +6,7 @@ pub mod enrollment;
 pub mod error;
 pub mod native_device;
 pub mod network;
+pub mod policy_approval;
 pub mod policy_publisher;
 pub mod policy_renewal;
 pub mod sdk_authority;

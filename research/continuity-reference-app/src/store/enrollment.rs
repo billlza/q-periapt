@@ -8,6 +8,9 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 mod extension;
 mod grant;
+mod history;
+mod policy_approval;
+use history::CredentialHistory;
 mod operations;
 mod reapproval;
 mod root;
@@ -18,6 +21,7 @@ const REQUESTS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment
 const REAPPROVALS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_reapprovals");
 const EXTENSIONS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_extensions");
 const GRANTS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("credential_grants");
+const POLICY_APPROVALS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("policy_approvals");
 const MAX_OPERATIONS: u64 = 512;
 const MAX_RECORD: usize = 128 * 1024;
 const MAX_ROOT: usize = 1024 * 1024;
@@ -79,6 +83,7 @@ pub(super) struct EnrollmentSchema {
     pub(super) reapproval: bool,
     pub(super) extensions: bool,
     pub(super) grants: bool,
+    pub(super) policy_approvals: bool,
 }
 pub(super) fn admit_schema(
     tx: &redb::ReadTransaction,
@@ -95,9 +100,10 @@ pub(super) fn admit_schema(
         .collect();
     names.sort();
     let mut expected = vec!["accounts", "configuration", "credential_owners"];
-    let grants = schema.value() == "5";
-    let extensions = matches!(schema.value(), "4" | "5");
-    let reapproval = matches!(schema.value(), "3" | "4" | "5");
+    let policy_approvals = schema.value() == "6";
+    let grants = matches!(schema.value(), "5" | "6");
+    let extensions = matches!(schema.value(), "4" | "5" | "6");
+    let reapproval = matches!(schema.value(), "3" | "4" | "5" | "6");
     let family = match schema.value() {
         "1" => {
             if config.len().map_err(db_error)? != 2 {
@@ -105,7 +111,7 @@ pub(super) fn admit_schema(
             }
             None
         }
-        "2" | "3" | "4" | "5" => {
+        "2" | "3" | "4" | "5" | "6" => {
             if config.len().map_err(db_error)? != 3 {
                 return Err(Error::Internal);
             }
@@ -123,6 +129,9 @@ pub(super) fn admit_schema(
             }
             if grants {
                 expected.push(GRANTS.name());
+            }
+            if policy_approvals {
+                expected.push(POLICY_APPROVALS.name());
             }
             let saved = config
                 .get("enrollment_family")
@@ -158,6 +167,7 @@ pub(super) fn admit_schema(
         reapproval,
         extensions,
         grants,
+        policy_approvals,
     })
 }
 

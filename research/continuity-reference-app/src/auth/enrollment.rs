@@ -6,6 +6,36 @@ use crate::{
 };
 
 impl Service {
+    pub fn policy_approval_status(
+        &mut self,
+        token: &str,
+        request: &crate::policy_approval::PolicyApprovalRequest,
+    ) -> Result<crate::policy_approval::PolicyApprovalStatus, Error> {
+        let account = self.authenticated(token)?;
+        let result = self.store.policy_approval_status(&account, request)?;
+        self.authenticated(token)?;
+        Ok(result)
+    }
+    pub fn issue_policy_approval(
+        &mut self,
+        token: &str,
+        request: &crate::policy_approval::PolicyApprovalRequest,
+    ) -> Result<Vec<u8>, Error> {
+        let account = self.authenticated(token)?;
+        let result = self.store.issue_policy_approval(&account, request)?;
+        self.authenticated(token)?;
+        Ok(result)
+    }
+    pub fn cancel_policy_approval(
+        &mut self,
+        token: &str,
+        request: &crate::policy_approval::PolicyApprovalRequest,
+    ) -> Result<(), Error> {
+        let account = self.authenticated(token)?;
+        self.store.cancel_policy_approval(&account, request)?;
+        self.authenticated(token)?;
+        Ok(())
+    }
     pub fn credential_grant_status(
         &mut self,
         token: &str,

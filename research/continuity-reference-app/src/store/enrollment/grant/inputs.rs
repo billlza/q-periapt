@@ -61,73 +61,6 @@ pub(super) fn shape(value: &CredentialGrantRequest) -> Result<(), Error> {
 }
 
 impl Store {
-    fn selected_extension(
-        &self,
-        account: &Account,
-        enrollment: [u8; 32],
-        id: [u8; 32],
-        revision: u64,
-    ) -> Result<IssuedCredentialExtension, Error> {
-        let bytes = self
-            .extension(account, id)?
-            .ok_or(Error::Conflict("Selected credential extension is absent"))?;
-        let value: IssuedCredentialExtension = decode(&bytes, MAX_RECORD)?;
-        if value.request.request_id != id
-            || value.request.enrollment != enrollment
-            || value.root_revision != revision
-        {
-            return Err(Error::Conflict(
-                "Selected extension belongs to another enrollment or root",
-            ));
-        }
-        Ok(value)
-    }
-    fn selected_certificate(
-        &self,
-        account: &Account,
-        request: &CredentialGrantRequest,
-        original: &IssuedEnrollment,
-        selection: Option<[u8; 32]>,
-    ) -> Result<Vec<u8>, Error> {
-        Ok(match selection {
-            None => original.certificate.clone(),
-            Some(id) => {
-                self.selected_extension(
-                    account,
-                    request.retained.enrollment,
-                    id,
-                    request.retained.root_revision,
-                )?
-                .certificate
-            }
-        })
-    }
-    fn extension_descends(
-        &self,
-        account: &Account,
-        request: &CredentialGrantRequest,
-        mut child: Option<[u8; 32]>,
-        ancestor: Option<[u8; 32]>,
-    ) -> Result<(), Error> {
-        for _ in 0..=MAX_OPERATIONS {
-            if child == ancestor {
-                return Ok(());
-            }
-            let id = child.ok_or(Error::Conflict(
-                "Selected credential is not in the original extension chain",
-            ))?;
-            child = self
-                .selected_extension(
-                    account,
-                    request.retained.enrollment,
-                    id,
-                    request.retained.root_revision,
-                )?
-                .request
-                .previous_extension;
-        }
-        Err(Error::Internal)
-    }
     pub(super) fn grant_inputs(
         &self,
         account: &Account,
@@ -137,6 +70,10 @@ impl Store {
         at: u64,
     ) -> Result<Target, Error> {
         let retained = &request.retained;
+        let history = CredentialHistory {
+            enrollment: retained.enrollment,
+            revision: retained.root_revision,
+        };
         if retained.application != account.application_id
             || retained.root_revision != original.invitation.root_revision
         {
@@ -161,31 +98,26 @@ impl Store {
         }
         self.extension_descends(
             account,
-            request,
+            history,
             Some(request.successor_extension),
             request.previous_extension,
         )?;
         self.extension_descends(
             account,
-            request,
+            history,
             request.previous_extension,
             request.original_extension,
         )?;
-        if self.selected_certificate(account, request, &issued, request.original_extension)?
+        if self.selected_certificate(account, history, &issued, request.original_extension)?
             != retained.original_certificate
-            || self.selected_certificate(account, request, &issued, request.previous_extension)?
+            || self.selected_certificate(account, history, &issued, request.previous_extension)?
                 != retained.previous_certificate
         {
             return Err(Error::Conflict(
                 "Retained credential differs from selected host issuance",
             ));
         }
-        let target = self.selected_extension(
-            account,
-            retained.enrollment,
-            request.successor_extension,
-            retained.root_revision,
-        )?;
+        let target = self.selected_extension(account, history, request.successor_extension)?;
         if !root
             .members
             .iter()

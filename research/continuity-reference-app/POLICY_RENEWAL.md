@@ -36,8 +36,8 @@ all identity and policy fields. The authorities must serialize/deduplicate their
 own decisions and retain exact signature bytes across unknown responses.
 The protected policy-side issuer now provides this transaction and operator CLI;
 see [original-device renewal approvals](POLICY_PUBLISHER.md#original-device-renewal-approvals).
-Account-side authentication and durable P approval still require their own host
-integration; a policy signature cannot substitute for them.
+The account-side reference host also provides the authenticated transaction
+described below. A policy signature cannot substitute for account authorization.
 
 The consumer takes those two original bounded binary approval files separately
 from the retained request and trust configuration:
@@ -109,9 +109,71 @@ Previous signatures do not authorize the new request or extend its expiry.
 
 The current commands require a local-only original installation. Required-witness
 P authorization and coordination remain separate; there is no local fallback.
-The browser/account host does not yet provide durable account-side P approval.
-Tests use an explicit independent test account authority, the protected policy
-publisher and real consumer subprocesses; they are not live-account approval
-or established-session traffic acceptance. Changed-policy credential continuation,
+The browser's review and recovery interface for P still needs integration.
+Tests use real protected account and policy issuers, a software test Passkey,
+actual HTTP and the native SDK owner; separate CLI cohorts exercise consumer
+subprocesses. These are not real-account approval or established-session traffic
+acceptance. Changed-policy credential continuation,
 required-witness P, and the native/independent session facade remain integration
 work. Keep these boundaries distinct from the separately integrated G renewal.
+
+## Account-side approval
+
+Stop the reference host, preserve a backup of its original database and key files,
+and explicitly upgrade schema 5 before using this optional host feature:
+
+```text
+q-periapt-continuity-reference-app enable-policy-approvals DB http://localhost:8087
+```
+
+Schema 6 atomically adds `policy_approvals`; it retains the original account,
+Passkeys, root, device enrollment, credential extensions and G decisions.
+Opening never upgrades or repairs missing tables. Older hosts reject schema 6.
+Using this reference account remains optional; it is not an SDK login requirement.
+
+The authenticated API accepts a `PolicyApprovalRequest`:
+
+- `retained`: the exact original `policy-request` output.
+- `original_extension` and `current_extension`: explicit host issuance IDs, or
+  explicit `null` for the original enrollment certificate. Neither field may be
+  omitted. The current choice must descend from the original choice.
+- `original`, `previous`, `target`: each contains `pins` and `materials` in the
+  existing publisher export formats. These are exact policy selections; their
+  signing key must match the host's independently configured policy family.
+
+The account root is read from the authenticated account's own protected store,
+never from the request. The host verifies original enrollment ownership, selected
+certificate bytes, current membership and the exact current signed roster. It
+checks the SDK's same-profile renewal relation, persists Pending before signing,
+and rechecks the serialized root/roster and actual host time before committing.
+The original journal and previous adoption remain device-side facts; issuer
+approval does not prove that the device has adopted either policy.
+
+```text
+POST /api/enrollment/policy-approval
+POST /api/enrollment/policy-approval/status
+POST /api/enrollment/policy-approval/cancel
+```
+
+All three routes require the original account's live login and exact same-origin
+boundary. They take the same immutable request. Only these policy routes accept
+up to 512 KiB, accommodating three signed policy/SDK bundles; other routes retain
+their 64 KiB limit. The separate ledger retains at most 512 decisions and never
+evicts history to admit a new operation.
+
+Issuance returns the exact persisted `IssuedPolicyApproval` JSON. Its `approval`
+field is the base64url account signature; the consumer takes its decoded bytes
+alongside the independent policy signature. `status` returns Absent, Pending,
+Issued with the original response bytes, or Closed and never signs. Cancellation
+retains an exact Closed tombstone, including before delayed first issuance.
+Already-issued signatures cannot be cancelled. Expired or changed pending
+decisions remain unresolved until an explicit cancellation; no new identity,
+roster, expiry or policy is silently substituted.
+
+After a response is lost or the server restarts, authenticate as the original
+account and query/retry the original request. Historical issued responses remain
+available after root suspension, expiry or loss of signing files, and their
+account signature is reverified on retrieval. This is historical data, not a new
+permission. The device still requires both approvals, exact original state and
+current admission. The browser P review/backup flow and real-user ceremony remain
+open; the API's software-authenticator tests do not satisfy that gate.

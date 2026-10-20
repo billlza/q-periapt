@@ -327,14 +327,24 @@ impl PolicyRenewalApproval {
         materials: &HistoricalPolicyRenewalMaterials<'_>,
     ) -> Result<[u8; 32], Error> {
         let bound = historical_statement(scope, materials)?;
+        self.verify_issuer(&bound, &materials.original.signer)
+    }
+    /// Authenticate one retained account-issuer decision, without substituting
+    /// for policy approval, durable adoption or current permission.
+    pub fn verify_account(
+        &self,
+        scope: &PolicyRenewalScope,
+        materials: &HistoricalPolicyRenewalMaterials<'_>,
+    ) -> Result<[u8; 32], Error> {
+        let bound = historical_statement(scope, materials)?;
+        self.verify_issuer(&bound, &materials.current_device.authority_key)
+    }
+    fn verify_issuer(&self, bound: &BoundStatement, key: &PublicKey) -> Result<[u8; 32], Error> {
         let (body, signature) = open_envelope(self.as_bytes())?;
         if body != bound.encode() {
             return Err(Error::Scope);
         }
-        materials
-            .original
-            .signer
-            .verify(Purpose::PolicyRenewal, body, signature)?;
+        key.verify(Purpose::PolicyRenewal, body, signature)?;
         Ok(digest(DOMAIN, body))
     }
 }

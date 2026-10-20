@@ -184,9 +184,11 @@ an already-issued signature. Expired pending decisions require explicit
 cancellation. The separate ledger holds at most 512 decisions and does not evict
 old decisions to make room.
 
-The policy-side operator flow is integrated. Durable account-side P approval and
-its browser ceremony remain separate integration work. Neither a policy signature
-nor a successfully exported file proves device adoption or live session admission.
+The policy-side operator flow and the separate authenticated
+[account approval API](POLICY_RENEWAL.md#account-side-approval) are integrated.
+The browser P review/recovery interface and real-user ceremony remain open.
+Neither a policy signature nor a successfully exported file proves device adoption
+or live session admission.
 
 ## Checks
 

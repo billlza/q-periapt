@@ -2001,6 +2001,16 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-reference-app/src/policy_publisher/renewal_store.rs',
             'research/continuity-reference-app/src/policy_publisher/renewal_tests.rs',
             'research/continuity-reference-app/src/publisher_renewal_cli.rs',
+            'research/continuity-reference-app/src/policy_approval.rs',
+            'research/continuity-reference-app/src/http/policy_approval.rs',
+            'research/continuity-reference-app/src/http/enrollment/tests/policy.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant/policy.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant/policy/crash.rs',
+            'research/continuity-reference-app/src/store/enrollment/history.rs',
+            'research/continuity-reference-app/src/store/enrollment/policy_approval.rs',
+            'research/continuity-reference-app/src/store/enrollment/policy_approval/inputs.rs',
+            'research/continuity-reference-app/src/store/enrollment/policy_approval/schema.rs',
+            'research/continuity-reference-app/src/store/enrollment/policy_approval/state.rs',
             'research/continuity-reference-app/src/network/framing.rs',
             'research/continuity-reference-app/src/network/mod.rs',
             'research/continuity-reference-app/src/network/server.rs',
@@ -2030,7 +2040,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 codeql_rust_quality, "run_git_bytes", return_value=raw
             ), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError,
-                "tracked Rust source count must be 827, got 826",
+                "tracked Rust source count must be 837, got 836",
             ):
                 codeql_rust_quality.tracked_rust_paths()
 

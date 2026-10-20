@@ -131,7 +131,12 @@ cancels an unissued decision. Its schema-3 recovery backup preserves the earlier
 enrollment and certificate-extension records. Real-account recovery through the
 browser and native consumer still needs its separate runtime acceptance.
 
-The native [policy-only consumer](POLICY_RENEWAL.md) also exports original P requests, verifies separate account/policy approvals, adopts the exact local operation and recovers its historical result. Its issuer and continued-session integration boundaries remain explicit.
+The native [policy-only consumer](POLICY_RENEWAL.md) exports original P requests,
+verifies separate account/policy approvals, adopts the exact local operation and
+recovers its historical result. `enable-policy-approvals` explicitly upgrades the
+account host from schema 5 to 6, adding a durable, authenticated P decision ledger.
+The protected policy publisher supplies the other approval independently.
+Browser P review/recovery and continued-session integration remain open.
 
 The service's invitation API requires a caller-retained random request ID. Retry
 that same ID after an uncertain reply, even if the host operation ID was lost.

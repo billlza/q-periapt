@@ -12,6 +12,7 @@ use webauthn_authenticator_rs::{softpasskey::SoftPasskey, WebauthnAuthenticator}
 
 mod crash;
 mod inputs;
+mod policy;
 mod sequence;
 mod witness;
 
@@ -34,6 +35,13 @@ impl Case {
         Self::with_profile(extended, None)
     }
     fn with_profile(extended: bool, witness: Option<&witness::Server>) -> Result<Self> {
+        Self::with_policy_duration(extended, witness, 7200)
+    }
+    fn with_policy_duration(
+        extended: bool,
+        witness: Option<&witness::Server>,
+        policy_seconds: u64,
+    ) -> Result<Self> {
         let (dir, mut host) = service()?;
         let path = dir.keep().canonicalize()?;
         eprintln!("Retained grant private fixture: {}", path.display());
@@ -52,7 +60,7 @@ impl Case {
             Request {
                 bootstrap_mode: BootstrapMode::ReusableBoth,
                 valid_from: at,
-                valid_until: at + 7200,
+                valid_until: at + policy_seconds,
                 send_budget: 8,
                 anchor: match witness {
                     None => Anchor::LocalOnly {},

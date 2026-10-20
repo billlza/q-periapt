@@ -148,29 +148,17 @@ impl Client {
         }
         request.push_str("\r\n");
         request.push_str(&body);
+        let path = path.to_owned();
         let bytes = tokio::task::spawn_blocking(move || -> std::io::Result<Vec<u8>> {
             let mut stream =
                 std::net::TcpStream::connect_timeout(&address, Duration::from_secs(10))?;
             stream.set_read_timeout(Some(Duration::from_secs(10)))?;
             stream.set_write_timeout(Some(Duration::from_secs(10)))?;
-            stream.write_all(request.as_bytes())?;
-            let mut bytes = Vec::new();
-            if disconnect_before_body {
-                // Read exactly the response headers, then close the TCP socket
-                // without reading any credential/roster bytes. The client has
-                // no issuance body and must recover the original operation.
-                while !bytes.ends_with(b"\r\n\r\n") {
-                    if bytes.len() >= 8192 {
-                        return Err(std::io::Error::other("HTTP test header exceeds bound"));
-                    }
-                    let mut byte = [0];
-                    stream.read_exact(&mut byte)?;
-                    bytes.push(byte[0]);
-                }
-            } else {
-                stream.take(1024 * 1024 + 1).read_to_end(&mut bytes)?;
-            }
-            Ok(bytes)
+            stream.write_all(request.as_bytes()).map_err(|e| {
+                std::io::Error::new(e.kind(), format!("HTTP test write {path}: {e}"))
+            })?;
+            read_response(&mut stream, disconnect_before_body)
+                .map_err(|e| std::io::Error::new(e.kind(), format!("HTTP test read {path}: {e}")))
         })
         .await??;
         if bytes.len() > 1024 * 1024 {
@@ -285,6 +273,118 @@ impl Client {
             .checked(200)?;
         Ok(())
     }
+}
+
+// These JSON/file routes send fixed-length responses. Read their complete HTTP
+// frame, not transport EOF: early Origin/body rejection can close unread request
+// data with a reset after a complete error response. Incomplete frames still fail.
+fn read_response(stream: &mut impl Read, headers_only: bool) -> std::io::Result<Vec<u8>> {
+    use std::io::{Error, ErrorKind};
+    let invalid = |message| Error::new(ErrorKind::InvalidData, message);
+    let mut bytes = Vec::new();
+    while !bytes.ends_with(b"\r\n\r\n") {
+        if bytes.len() >= 8192 {
+            return Err(invalid("HTTP test header exceeds bound"));
+        }
+        let mut byte = [0];
+        stream.read_exact(&mut byte)?;
+        bytes.push(byte[0]);
+    }
+    let header = std::str::from_utf8(&bytes).map_err(|_| invalid("HTTP test header encoding"))?;
+    let mut lines = header.split("\r\n");
+    let status = lines
+        .next()
+        .ok_or_else(|| invalid("HTTP test status absent"))?;
+    let mut parts = status.split_whitespace();
+    if parts.next() != Some("HTTP/1.1") {
+        return Err(invalid("HTTP test version"));
+    }
+    let code = parts
+        .next()
+        .ok_or_else(|| invalid("HTTP test status absent"))?
+        .parse::<u16>()
+        .map_err(|_| invalid("HTTP test status"))?;
+    let mut length = None;
+    for line in lines.filter(|line| !line.is_empty()) {
+        let (name, value) = line
+            .split_once(':')
+            .ok_or_else(|| invalid("HTTP test header syntax"))?;
+        if name.eq_ignore_ascii_case("transfer-encoding") {
+            return Err(invalid("HTTP test fixed-length response required"));
+        }
+        if name.eq_ignore_ascii_case("content-length") {
+            let value = value.trim();
+            if length.is_some() || value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
+                return Err(invalid("HTTP test content length"));
+            }
+            length = Some(
+                value
+                    .parse::<usize>()
+                    .map_err(|_| invalid("HTTP test content length"))?,
+            );
+        }
+    }
+    let length = match (code, length) {
+        (204 | 304, None | Some(0)) => 0,
+        (204 | 304, Some(_)) => return Err(invalid("HTTP test body forbidden")),
+        (_, Some(length)) => length,
+        (_, None) => return Err(invalid("HTTP test content length absent")),
+    };
+    let total = bytes
+        .len()
+        .checked_add(length)
+        .filter(|n| *n <= 1024 * 1024)
+        .ok_or_else(|| invalid("HTTP test response exceeds bound"))?;
+    if !headers_only {
+        let offset = bytes.len();
+        bytes.resize(total, 0);
+        stream.read_exact(&mut bytes[offset..])?;
+    }
+    Ok(bytes)
+}
+
+#[test]
+fn http_test_reader_requires_complete_bounded_frames_without_requiring_transport_eof(
+) -> std::io::Result<()> {
+    struct ResetAfter(std::io::Cursor<Vec<u8>>);
+    impl Read for ResetAfter {
+        fn read(&mut self, output: &mut [u8]) -> std::io::Result<usize> {
+            if self.0.position() == self.0.get_ref().len() as u64 {
+                return Err(std::io::Error::from(std::io::ErrorKind::ConnectionReset));
+            }
+            self.0.read(output)
+        }
+    }
+    let complete = b"HTTP/1.1 400 Bad Request\r\nContent-Length: 3\r\n\r\nbad";
+    assert_eq!(
+        read_response(
+            &mut ResetAfter(std::io::Cursor::new(complete.to_vec())),
+            false
+        )?,
+        complete
+    );
+    let truncated = b"HTTP/1.1 400 Bad Request\r\nContent-Length: 4\r\n\r\nbad";
+    assert!(read_response(
+        &mut ResetAfter(std::io::Cursor::new(truncated.to_vec())),
+        false
+    )
+    .is_err());
+    for invalid in [
+        "HTTP/1.1 200 OK\r\n\r\n",
+        "HTTP/1.1 200 OK\r\nContent-Length: -1\r\n\r\n",
+        "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nContent-Length: 0\r\n\r\n",
+        "HTTP/1.1 200 OK\r\nContent-Length: 1048577\r\n\r\n",
+        "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n",
+        "HTTP/1.1 204 No Content\r\nContent-Length: 1\r\n\r\nx",
+    ] {
+        assert!(read_response(&mut std::io::Cursor::new(invalid.as_bytes()), false).is_err());
+    }
+    let empty = b"HTTP/1.1 204 No Content\r\n\r\n";
+    assert_eq!(
+        read_response(&mut std::io::Cursor::new(empty), false)?,
+        empty
+    );
+    Ok(())
 }
 pub fn device_request(
     path: &Path,

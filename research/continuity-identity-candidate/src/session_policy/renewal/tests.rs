@@ -25,6 +25,15 @@ fn retained_policy_signature_is_role_bound_and_does_not_replace_account_approval
     assert!(account
         .verify_policy(&c.scope, &materials.historical())
         .is_err());
+    assert_eq!(
+        account
+            .verify_account(&c.scope, &materials.historical())
+            .expect("account history"),
+        statement.digest()
+    );
+    assert!(policy
+        .verify_account(&c.scope, &materials.historical())
+        .is_err());
     let mut other = c.scope.clone();
     other.operation = PolicyRenewalId::generate().expect("other operation");
     assert!(policy

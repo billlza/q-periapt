@@ -2,7 +2,7 @@
 use super::*;
 
 /// Provision through an authenticated operator channel, separately from distributed materials.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PolicyPins {
     schema: String,
@@ -17,7 +17,7 @@ pub struct PolicyPins {
     #[serde(deserialize_with = "required_witness")]
     witness: Option<Witness>,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Witness {
     identity: [u8; 32],
@@ -25,7 +25,7 @@ struct Witness {
     key: Vec<u8>,
 }
 /// Signed public distribution, with no implied authority to choose a client's trust pins.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PolicyMaterials {
     schema: String,
