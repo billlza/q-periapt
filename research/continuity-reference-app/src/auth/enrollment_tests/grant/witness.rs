@@ -193,6 +193,9 @@ fn native_credential_recovery_requires_independent_witness_approval_and_reopens_
             crate::enrollment::now()?
         )
         .is_err());
+    assert!(open()?
+        .reconcile_expired_credential_recovery(&issued, &c.policy, crate::enrollment::now()?)
+        .is_err());
     let mut owner = open()?;
     assert!(matches!(
         owner.credential_recovery_status()?,

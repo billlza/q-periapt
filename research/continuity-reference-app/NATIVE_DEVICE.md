@@ -150,8 +150,8 @@ another operation changed the observed history, do not silently submit a changed
 request under the old approval. The account issuer must authenticate the user,
 check its own membership/issuance records and serialize and retain the exact G
 decision. The [host G issuance transaction](RETAINED_GRANTS.md) now retains that
-decision separately from certificate extension. Browser approval controls remain
-integration work; this export alone cannot restore an expired endpoint.
+decision separately from certificate extension. Its browser controls retain and
+review that exact decision; this export alone cannot restore an expired endpoint.
 
 ## Recover the original installation
 
@@ -206,9 +206,25 @@ policy. Then run `renewal-activate` with the same inputs and endpoint. This may
 send Commit for the prepared proposal; it cannot authorize it at the witness.
 Missing or mismatched witness configuration never falls back to local storage.
 
+For an unresolved local-only G under an unchanged, still-live original policy:
+
+```sh
+q-periapt-native-device renewal-reconcile-expired "$device_dir" "$wrapping_key" "$invitation" \
+  "$issued_grant" "$original_policy_pins" "$original_policy_materials"
+```
+
+The issued response selects the original operation and statement; it supplies no
+new permission. The SDK checks its retained signed grant and exact journal history.
+An existing commit remains Committed. Only an expired target and unchanged
+predecessor history permit ExpiredUncommitted, with a durable observation time.
+A still-live unresolved target, unknown operation or inconsistent history fails.
+Repeated calls return the same retained outcome, without staging or activating a
+new operation. The original signer is still required on this unchanged-policy
+path. A new grant needs a new explicitly authorized request; retain old outcomes.
+
 The positive witness test exercises the native API over real TCP. Real-account
-browser/native recovery, the separate witness-operator product interface, CLI cleanup of an
-expired unresolved target, changed-policy CLI cohorts and established-session
-traffic recovery are still open integration work. Preserve all original state
-and outcomes when a target expires or is superseded; `renewal-status` alone does
-not prove that an uncertain target never committed.
+browser/native recovery, the separate witness-operator product interface,
+historical or changed-policy CLI reconciliation, required-witness reconciliation
+and established-session traffic recovery remain separate integration work.
+`renewal-status` alone does not prove that an uncertain target never committed;
+required witness outcomes cannot fall back to local expiry reconciliation.

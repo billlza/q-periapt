@@ -36,43 +36,19 @@ fn result(args: &[OsString]) -> Result<serde_json::Value> {
     Ok(serde_json::from_slice(&invoke(args, true)?)?)
 }
 
-#[test]
-fn actual_expired_native_recovers_original_g_after_lost_stdout_and_publishes_current_admission(
-) -> Result<()> {
-    let c = Case::open_with_validity(20)?;
-    let accepted = c.accept()?;
-    c.call(
-        "prepare",
-        &["current.json", "policy-pins.json", "policy-materials.json"],
-    )?;
-    let mut activate = c.args(
-        "activate",
-        &["current.json", "policy-pins.json", "policy-materials.json"],
-    );
-    activate.push("none".into());
-    invoke(&activate, true)?;
-    let signing = fs::read(c.path.join("device/device.key"))?;
-    let wrapping = fs::read(c.path.join("wrap.key"))?;
-    let mut request = c.args("renewal-request", &[]);
-    request.extend([
-        URL_SAFE_NO_PAD.encode([114; 32]).into(),
-        c.path.join("policy-pins.json").into_os_string(),
-        c.path.join("policy-materials.json").into_os_string(),
-        "none".into(),
-        c.path.join("retained.json").into_os_string(),
-    ]);
-    invoke(&request, true)?;
-    let retained: RetainedCredentialRequest =
-        serde_json::from_slice(&fs::read(c.path.join("retained.json"))?)?;
-    assert_eq!(c.call("renewal-status", &[])?["state"], "Absent");
-    let limit = Instant::now() + Duration::from_secs(30);
-    while clock()? < c.invitation.valid_until {
-        if Instant::now() >= limit {
-            return Err("Actual credential expiry did not occur within bound".into());
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    }
-    invoke(&activate, false)?;
+struct Recovery {
+    approval: CredentialGrantRequest,
+    issued: IssuedCredentialGrant,
+    current: RootInfo,
+    certificate: Vec<u8>,
+    roster: Vec<u8>,
+    pin: sdk::AccountPin,
+}
+fn issue_recovery(
+    c: &Case,
+    retained: RetainedCredentialRequest,
+    valid_until: u64,
+) -> Result<Recovery> {
     let old_pin = sdk::AccountPin::new(
         c.current.account,
         c.root.public_key()?,
@@ -80,12 +56,9 @@ fn actual_expired_native_recovers_original_g_after_lost_stdout_and_publishes_cur
         c.invitation.family,
     )?;
     let original = old_pin.verify_historical_device(&c.issued.certificate, &c.issued.roster)?;
-    assert!(old_pin
-        .verify_device(&c.issued.certificate, &c.issued.roster, clock()?)
-        .is_err());
     let certificate = c
         .root
-        .issue_credential_extension(&original, c.start + 1200, clock()?)?;
+        .issue_credential_extension(&original, valid_until, clock()?)?;
     let roster = c.root.issue_roster(
         2,
         sdk::Validity::new(c.start, c.start + 1800)?,
@@ -143,6 +116,69 @@ fn actual_expired_native_recovers_original_g_after_lost_stdout_and_publishes_cur
     write(&c.path.join("grant-approval.json"), &approval)?;
     write(&c.path.join("grant-issued.json"), &issued)?;
     write(&c.path.join("current2.json"), &current)?;
+    Ok(Recovery {
+        approval,
+        issued,
+        current,
+        certificate,
+        roster: roster.as_bytes().to_vec(),
+        pin,
+    })
+}
+
+#[test]
+fn actual_expired_native_recovers_original_g_after_lost_stdout_and_publishes_current_admission(
+) -> Result<()> {
+    let c = Case::open_with_validity(20)?;
+    let accepted = c.accept()?;
+    c.call(
+        "prepare",
+        &["current.json", "policy-pins.json", "policy-materials.json"],
+    )?;
+    let mut activate = c.args(
+        "activate",
+        &["current.json", "policy-pins.json", "policy-materials.json"],
+    );
+    activate.push("none".into());
+    invoke(&activate, true)?;
+    let signing = fs::read(c.path.join("device/device.key"))?;
+    let wrapping = fs::read(c.path.join("wrap.key"))?;
+    let mut request = c.args("renewal-request", &[]);
+    request.extend([
+        URL_SAFE_NO_PAD.encode([114; 32]).into(),
+        c.path.join("policy-pins.json").into_os_string(),
+        c.path.join("policy-materials.json").into_os_string(),
+        "none".into(),
+        c.path.join("retained.json").into_os_string(),
+    ]);
+    invoke(&request, true)?;
+    let retained: RetainedCredentialRequest =
+        serde_json::from_slice(&fs::read(c.path.join("retained.json"))?)?;
+    assert_eq!(c.call("renewal-status", &[])?["state"], "Absent");
+    let limit = Instant::now() + Duration::from_secs(30);
+    while clock()? < c.invitation.valid_until {
+        if Instant::now() >= limit {
+            return Err("Actual credential expiry did not occur within bound".into());
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    invoke(&activate, false)?;
+    assert!(sdk::AccountPin::new(
+        c.current.account,
+        c.root.public_key()?,
+        c.issued.checkpoint.as_sdk()?,
+        c.invitation.family,
+    )?
+    .verify_device(&c.issued.certificate, &c.issued.roster, clock()?)
+    .is_err());
+    let Recovery {
+        approval,
+        issued,
+        current,
+        certificate,
+        roster,
+        pin,
+    } = issue_recovery(&c, retained, c.start + 1200)?;
     activate[5] = c.path.join("current2.json").into_os_string();
     invoke(&activate, false)?; // New certificate/roster alone cannot reactivate old state.
     let stage = recovery_args(
@@ -219,6 +255,18 @@ fn actual_expired_native_recovers_original_g_after_lost_stdout_and_publishes_cur
     let status = c.call("renewal-status", &[])?;
     assert_eq!(status["state"], "Committed");
     assert_eq!(
+        c.call(
+            "renewal-reconcile-expired",
+            &[
+                "grant-issued.json",
+                "policy-pins.json",
+                "policy-materials.json"
+            ]
+        )?,
+        status
+    );
+
+    assert_eq!(
         status["operation"],
         serde_json::json!(approval.retained.operation)
     );
@@ -257,10 +305,10 @@ fn actual_expired_native_recovers_original_g_after_lost_stdout_and_publishes_cur
     );
     assert_eq!(
         URL_SAFE_NO_PAD.decode(artifact["roster"].as_str().ok_or("roster")?)?,
-        roster.as_bytes()
+        roster.as_slice()
     );
     assert_eq!(artifact["journal"], accepted["journal"]);
-    let live = pin.verify_device(&certificate, roster.as_bytes(), clock()?)?;
+    let live = pin.verify_device(&certificate, &roster, clock()?)?;
     let (pins, materials) = c.publisher.export([65; 32])?;
     let (policy, _) = pins.verify(&materials, c.invitation.family, clock()?)?;
     publication::verify(
@@ -270,5 +318,130 @@ fn actual_expired_native_recovers_original_g_after_lost_stdout_and_publishes_cur
         &policy,
         clock()?,
     )?;
+    Ok(())
+}
+
+#[test]
+fn actual_uncommitted_renewal_expiry_retains_exact_outcome_and_allows_new_original_request(
+) -> Result<()> {
+    let c = Case::open_with_validity(20)?;
+    let accepted = c.accept()?;
+    c.call(
+        "prepare",
+        &["current.json", "policy-pins.json", "policy-materials.json"],
+    )?;
+    let mut activate = c.args(
+        "activate",
+        &["current.json", "policy-pins.json", "policy-materials.json"],
+    );
+    activate.push("none".into());
+    invoke(&activate, true)?;
+    let request_args = |operation: [u8; 32], output: &str| {
+        let mut args = c.args("renewal-request", &[]);
+        args.extend([
+            URL_SAFE_NO_PAD.encode(operation).into(),
+            c.path.join("policy-pins.json").into_os_string(),
+            c.path.join("policy-materials.json").into_os_string(),
+            "none".into(),
+            c.path.join(output).into_os_string(),
+        ]);
+        args
+    };
+    invoke(&request_args([116; 32], "retained-expiry.json"), true)?;
+    let retained: RetainedCredentialRequest =
+        serde_json::from_slice(&fs::read(c.path.join("retained-expiry.json"))?)?;
+    let Recovery {
+        approval, issued, ..
+    } = issue_recovery(&c, retained.clone(), c.start + 25)?;
+    let stage = recovery_args(
+        &c,
+        "renewal-stage",
+        "grant-approval.json",
+        "grant-issued.json",
+        "current2.json",
+    );
+    assert_eq!(result(&stage)?["state"], "Pending");
+    let reconcile = c.args(
+        "renewal-reconcile-expired",
+        &[
+            "grant-issued.json",
+            "policy-pins.json",
+            "policy-materials.json",
+        ],
+    );
+    invoke(&reconcile, false)?; // A still-live pending target is not abandonment evidence.
+    assert_eq!(c.call("renewal-status", &[])?["state"], "Pending");
+    let limit = Instant::now() + Duration::from_secs(35);
+    while clock()? < c.start + 25 {
+        if Instant::now() >= limit {
+            return Err("Target expiry did not occur within bound".into());
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let mut wrong = serde_json::to_value(&issued)?;
+    wrong["journal"] = serde_json::to_value([99u8; 32])?;
+    write(&c.path.join("wrong-expiry-journal.json"), &wrong)?;
+    invoke(
+        &c.args(
+            "renewal-reconcile-expired",
+            &[
+                "wrong-expiry-journal.json",
+                "policy-pins.json",
+                "policy-materials.json",
+            ],
+        ),
+        false,
+    )?;
+    wrong["journal"] = serde_json::to_value(issued.journal)?;
+    wrong["statement"] = serde_json::to_value([99u8; 32])?;
+    write(&c.path.join("wrong-expiry-statement.json"), &wrong)?;
+    invoke(
+        &c.args(
+            "renewal-reconcile-expired",
+            &[
+                "wrong-expiry-statement.json",
+                "policy-pins.json",
+                "policy-materials.json",
+            ],
+        ),
+        false,
+    )?;
+    assert_eq!(c.call("renewal-status", &[])?["state"], "Pending");
+    // The unchanged-policy SDK path still requires the original signer.
+    fs::rename(
+        c.path.join("device/device.key"),
+        c.path.join("preserved-device.key"),
+    )?;
+    invoke(&reconcile, false)?;
+    fs::rename(
+        c.path.join("preserved-device.key"),
+        c.path.join("device/device.key"),
+    )?;
+    let resolved = result(&reconcile)?;
+    assert_eq!(resolved["state"], "ExpiredUncommitted");
+    assert_eq!(
+        resolved["operation"],
+        serde_json::json!(approval.retained.operation)
+    );
+    assert_eq!(resolved["statement"], serde_json::json!(issued.statement));
+    assert_eq!(
+        resolved["observed_head"],
+        serde_json::to_value(retained.previous_checkpoint)?
+    );
+    assert!(resolved["observed_at"].as_u64().ok_or("time")? >= c.start + 25);
+    assert_eq!(result(&reconcile)?, resolved);
+    assert_eq!(c.call("renewal-status", &[])?, resolved);
+    invoke(&stage, false)?;
+    assert_eq!(c.call("renewal-status", &[])?, resolved);
+    invoke(&request_args([117; 32], "retained-next.json"), true)?;
+    let next: RetainedCredentialRequest =
+        serde_json::from_slice(&fs::read(c.path.join("retained-next.json"))?)?;
+    assert_eq!(next.journal, retained.journal);
+    assert_eq!(next.original_owner, retained.original_owner);
+    assert_eq!(next.previous_checkpoint, retained.previous_checkpoint);
+    assert_eq!(next.previous_certificate, retained.previous_certificate);
+    assert_eq!(c.call("status", &[])?["journal"], accepted["journal"]);
+    assert!(c.path.join("device/device.key").exists());
+    assert!(!c.path.join("preserved-device.key").exists());
     Ok(())
 }

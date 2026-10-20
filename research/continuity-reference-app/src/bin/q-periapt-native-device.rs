@@ -26,6 +26,8 @@ const USAGE: &str = concat!(
     "renewal-request: <retained-renewal-id> <original-policy-pins-json> ",
     "<original-policy-materials-json> <witness-address-or-none> <new-request-output>\n",
     "renewal-status: no extra arguments (historical progress only)\n",
+    "renewal-reconcile-expired: <issued-grant-json> <unchanged-live-policy-pins-json> ",
+    "<unchanged-live-policy-materials-json> (local-only retained outcome, no activation)\n",
     "renewal-stage/renewal-activate/renewal-witness-prepare: <approved-grant-request-json> ",
     "<issued-grant-json> <current-root-json> <original-policy-pins-json> ",
     "<original-policy-materials-json> <current-policy-pins-json> <current-policy-materials-json> ",
@@ -49,7 +51,11 @@ fn main() -> Result<()> {
     let command = args.get(1).and_then(|v| v.to_str()).ok_or(USAGE)?;
     if matches!(
         command,
-        "renewal-status" | "renewal-stage" | "renewal-activate" | "renewal-witness-prepare"
+        "renewal-status"
+            | "renewal-stage"
+            | "renewal-activate"
+            | "renewal-witness-prepare"
+            | "renewal-reconcile-expired"
     ) {
         return native_renewal_cli::run(&args);
     }

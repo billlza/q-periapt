@@ -24,6 +24,36 @@ impl NativeDevice {
     pub fn credential_recovery_status(&mut self) -> Result<sdk::CredentialRenewalStatus> {
         Ok(self.owner.credential_renewal_status()?)
     }
+    /// Reconcile an exact retained local-only G under its unchanged live policy.
+    /// The issued response selects the original intent; the SDK validates the
+    /// retained signed grant and journal. No new grant is staged or owner released.
+    pub fn reconcile_expired_credential_recovery(
+        &mut self,
+        issued: &IssuedCredentialGrant,
+        policy: &sdk::VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<sdk::CredentialRenewalStatus> {
+        let result = (|| {
+            if issued.enrollment != self.invitation.operation
+                || issued.root_revision != self.invitation.root_revision
+                || policy.family() != self.invitation.family
+                || policy.anchor_requirement() != sdk::AnchorRequirement::local_only()
+                || *self.owner.public_admission()?.journal().as_bytes() != issued.journal
+            {
+                return Err("Expiry selection differs from the original local installation".into());
+            }
+            Ok(self.owner.reconcile_expired_credential_renewal(
+                sdk::CredentialRenewalId::from_trusted_state(issued.operation)?,
+                issued.statement,
+                policy,
+                current_time(now)?,
+            )?)
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
     fn check_credential_recovery(
         &mut self,
         inputs: &CredentialRecoveryInputs<'_>,

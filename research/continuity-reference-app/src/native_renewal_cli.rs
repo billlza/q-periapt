@@ -48,6 +48,7 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
     let command = args.get(1).and_then(|s| s.to_str()).ok_or(USAGE)?;
     let count = match command {
         "renewal-status" => 5,
+        "renewal-reconcile-expired" => 8,
         "renewal-stage" | "renewal-activate" => 13,
         "renewal-witness-prepare" => 14,
         _ => return Err(USAGE.into()),
@@ -59,6 +60,20 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
     if command == "renewal-status" {
         let mut owner = NativeDevice::open(Path::new(&args[2]), Path::new(&args[3]), invitation)?;
         let result = progress(owner.credential_recovery_status()?);
+        owner.close();
+        return print(&result);
+    }
+    if command == "renewal-reconcile-expired" {
+        let issued: IssuedCredentialGrant = json(&args[5], 128 * 1024)?;
+        let pins: PolicyPins = json(&args[6], 16384)?;
+        let materials: PolicyMaterials = json(&args[7], 128 * 1024)?;
+        let (policy, witness) = pins.verify(&materials, invitation.family, clock()?)?;
+        if witness.is_some() {
+            return Err("Required witness outcomes need independent witness reconciliation".into());
+        }
+        let mut owner = NativeDevice::open(Path::new(&args[2]), Path::new(&args[3]), invitation)?;
+        let result =
+            progress(owner.reconcile_expired_credential_recovery(&issued, &policy, clock()?)?);
         owner.close();
         return print(&result);
     }
