@@ -55,7 +55,7 @@ def opened_connection(args,client_id,session,run,witness):
     from .enrollment_client import EnrollmentClient
     from .wire import require
     key=read_file(args.key_file,32,private=True);require(len(key)==32,'client wrapping key length')
-    run.check();owner=EnrollmentClient.open(args.directory,client_id,key)
+    run.check();owner=EnrollmentClient.open(args.directory,client_id,key,run=run)
     try:
         with owner.reopen_connection(run,witness_transport=witness) as connection:
             require(connection.identity==session,'original session identity differs')
@@ -74,6 +74,23 @@ def delivery(args,client_id,session,message,plaintext,ad,transport,run,witness):
         outcome=connection.complete_delivery(prepared,reply,run)
     run.check()
     return {'session':session,'message':message,'consumption':outcome.value}
+
+
+def rekey(args,client_id,session,transport,run,witness):
+    from .connection import RekeyConfirmed
+    from .connection_run import ExchangeLimit
+    with opened_connection(args,client_id,session,run,witness) as connection:
+        step=connection.prepare_rekey(args.target,run)
+    attempted=0
+    while True:
+        run.check()
+        if isinstance(step,RekeyConfirmed):
+            return {'session':session,'epoch':step.epoch,'exchanges':attempted}
+        if attempted==args.exchanges:raise ExchangeLimit('connection rekey request allowance')
+        attempted+=1
+        reply=transport(step.request,run.deadline,run.cancellation);run.check()
+        with opened_connection(args,client_id,session,run,witness) as connection:
+            step=connection.complete_rekey(step,reply,run)
 
 
 def main(argv=None):
@@ -109,8 +126,11 @@ def main(argv=None):
         if args.command in ('deliver','resume'):
             result=delivery(args,client_id,session,message,plaintext,ad,transport,run,witness)
             print(json.dumps(result,default=public));return 0
+        if args.command=='rekey':
+            result=rekey(args,client_id,session,transport,run,witness)
+            print(json.dumps(result,default=public));return 0
         key=read_file(args.key_file,32,private=True);require(len(key)==32,'client wrapping key length')
-        run.check();owner=EnrollmentClient.open(args.directory,client_id,key)
+        run.check();owner=EnrollmentClient.open(args.directory,client_id,key,run=run)
         if prepared is not None:
             require(owner.status()['operation']==prepared[2],'credential artifact belongs to another original enrollment')
             owner.prepare(prepared[0],prepared[1],run.now());run.check()
@@ -128,9 +148,6 @@ def main(argv=None):
                 if args.command=='connect':result['peer_confirmation']='Recorded'
                 elif args.command=='next':result['message']=connection.next_id(run)
                 elif args.command=='message-status':result.update(message=message,status=connection.status(message))
-                elif args.command=='rekey':
-                    done=connection.rekey(args.target,transport,run,exchanges=args.exchanges)
-                    result.update(epoch=done.epoch,exchanges=done.exchanges)
             run.check()
         closing,owner=owner,None;closing.close()
         print(json.dumps(result,default=public));return 0

@@ -55,7 +55,7 @@ class Configuration:
     def open(self,run):
         separate(self.directory,self.inbox_directory)
         key=read_file(self.key_file,32,private=True);require(len(key)==32,'client wrapping key length')
-        run.check();owner=EnrollmentClient.open(self.directory,self.client_id,key)
+        run.check();owner=EnrollmentClient.open(self.directory,self.client_id,key,run=run)
         try:
             journal=original(owner,self.session)
             with Mailbox.open(self.inbox_directory,self.client_id,journal,self.session,key) as box:

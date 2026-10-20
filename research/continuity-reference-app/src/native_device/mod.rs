@@ -78,6 +78,43 @@ impl NativeDevice {
             sdk::DeviceEnrollment::open(Self::paths(directory, wrapping)?, invitation.intent()?)?;
         Ok(Self { owner, invitation })
     }
+    /// Bound only original enrollment-store admission contention. No activation,
+    /// signing, protocol operation or non-busy error is retried. All attempts
+    /// share the caller's original deadline and cancellation.
+    pub fn open_in_run(
+        directory: &Path,
+        wrapping: &Path,
+        invitation: &Invitation,
+        run: &sdk::session_exchange::Run<'_>,
+    ) -> Result<Self> {
+        let mut attempts = 0;
+        loop {
+            run.check()?;
+            attempts += 1;
+            match Self::open(directory, wrapping, invitation.clone()) {
+                Ok(owner) => {
+                    run.check()?;
+                    return Ok(owner);
+                }
+                Err(error)
+                    if attempts < 64
+                        && matches!(
+                            error.downcast_ref::<sdk::DurableError>(),
+                            Some(sdk::DurableError::Database(
+                                q_periapt_host_store::filesystem::PrivateDatabaseError::Busy
+                            ))
+                        ) =>
+                {
+                    std::thread::sleep(
+                        run.deadline()
+                            .saturating_duration_since(sdk::MonotonicInstant::now())
+                            .min(Duration::from_millis(25)),
+                    );
+                }
+                Err(error) => return Err(error),
+            }
+        }
+    }
     fn validate_invitation(value: &Invitation) -> Result<()> {
         value.intent()?;
         if value.operation == [0; 32]

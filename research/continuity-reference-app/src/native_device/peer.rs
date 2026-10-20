@@ -265,4 +265,27 @@ impl ActiveDevice {
             .owner
             .drive_session_rekey(session, target, exchanges, transport, run, clock)?)
     }
+
+    pub fn prepare_rekey(
+        &mut self,
+        session: &sdk::session_exchange::Session,
+        target: u64,
+        run: &sdk::session_exchange::Run<'_>,
+    ) -> Result<sdk::session_exchange::RekeyDeliveryStep> {
+        Ok(self
+            .owner
+            .prepare_session_rekey(session, target, run, clock)?)
+    }
+
+    pub fn complete_rekey(
+        &mut self,
+        session: &sdk::session_exchange::Session,
+        prepared: &sdk::session_exchange::PreparedRekey,
+        reply: &[u8],
+        run: &sdk::session_exchange::Run<'_>,
+    ) -> Result<sdk::session_exchange::RekeyDeliveryStep> {
+        Ok(self
+            .owner
+            .complete_session_rekey(session, prepared, reply, run, clock)?)
+    }
 }

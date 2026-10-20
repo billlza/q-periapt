@@ -12,6 +12,8 @@ import os
 import signal
 import subprocess
 import sys
+import threading
+import time
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -21,6 +23,8 @@ from qperiapt_continuity_reference.enrollment_client import EnrollmentClient
 from qperiapt_continuity_reference.journal import Journal, MissingState, Conflict
 from qperiapt_continuity_reference.registration import Registration
 from cryptography.exceptions import InvalidTag
+from qperiapt_continuity_reference.connection_run import Run, Cancelled
+from qperiapt_continuity_reference.private_files import DirectoryBusy
 
 wire = fixture.wire
 
@@ -188,6 +192,40 @@ class ClientChecks(unittest.TestCase):
         with self.assertRaises(InvalidTag): EnrollmentClient.open(self.client_path, self.local_id, bytes(32))
         with self.assertRaisesRegex(ValueError, 'identity/owner/context'):
             EnrollmentClient.open(self.client_path, bytes([9])*32, self.key)
+        self.assertEqual(self.state(), before)
+        self.client = self.reopen()
+
+    def test_bounded_root_lease_waits_without_retrying_recovery_or_other_errors(self):
+        self.client = self.begin(); original = self.client.status(); before = self.state()
+        with self.assertRaises(TimeoutError):
+            EnrollmentClient.open(self.client_path, self.local_id, self.key, run=Run(.04))
+        cancelled = Run(5)
+        timer = threading.Timer(.04, cancelled.cancellation.cancel); timer.start()
+        try:
+            with self.assertRaises(Cancelled):
+                EnrollmentClient.open(self.client_path, self.local_id, self.key, run=cancelled)
+        finally: timer.join(timeout=1)
+        with self.assertRaises(DirectoryBusy):
+            EnrollmentClient.open(self.client_path, self.local_id, self.key, run=Run(30))
+        self.assertEqual(self.state(), before)
+        results = []; failures = []; started = threading.Event()
+        def waiting():
+            started.set()
+            try:
+                owner = EnrollmentClient.open(self.client_path, self.local_id, self.key, run=Run(5))
+                try: results.append(owner.status())
+                finally: owner.close()
+            except BaseException as error: failures.append(error)
+        worker = threading.Thread(target=waiting); worker.start()
+        self.assertTrue(started.wait(timeout=1))
+        time.sleep(.08); self.client.close(); worker.join(timeout=6)
+        self.assertFalse(worker.is_alive())
+        if failures: raise BaseExceptionGroup('bounded root admission failed', failures)
+        self.assertEqual(results, [original]); self.assertEqual(self.state(), before)
+        with self.assertRaises(InvalidTag):
+            EnrollmentClient.open(self.client_path, self.local_id, bytes(32), run=Run(5))
+        with self.assertRaises(FileNotFoundError):
+            EnrollmentClient.open(self.client_path / 'absent', self.local_id, self.key, run=Run(5))
         self.assertEqual(self.state(), before)
         self.client = self.reopen()
 

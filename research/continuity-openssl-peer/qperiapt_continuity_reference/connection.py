@@ -35,6 +35,21 @@ class PreparedMessage:
     request: bytes
 
 
+@dataclass(frozen=True)
+class RekeyConfirmed:
+    """Authenticated local target, not remote receipt or secrecy recovery."""
+    epoch: int
+
+
+@dataclass(frozen=True,repr=False)
+class PreparedRekey:
+    """Original committed public control flight, without a private owner."""
+    journal: bytes
+    session: bytes
+    target: int
+    request: bytes
+
+
 def exchange(parent,child,transport,request,run):
     parent._alive(); child.__enter__(); run.check()
     require(callable(transport),'connection carrier')
@@ -179,22 +194,49 @@ class Connection:
         with self._operation(run):
             require(type(target) is int and 0<target<MAX_U64 and type(exchanges) is int and 1<=exchanges<=128,
                     'connection rekey target or allowance')
-            epoch,output=self._child.start_rekey_control(target,now=run.now()); attempted=0
+            step=self._prepare_rekey(target,run);attempted=0
             while True:
-                self._admit(run); require(epoch==target,'connection control target differs')
-                if output is None: return RekeyCompleted(target,attempted)
+                self._admit(run)
+                if isinstance(step,RekeyConfirmed):return RekeyCompleted(step.epoch,attempted)
                 if attempted==exchanges: raise ExchangeLimit('connection rekey request allowance')
-                epoch,original=self._child.replay_rekey_control(output,run.now())
-                require(epoch==target,'connection replay target differs'); self._admit(run)
                 attempted+=1
-                reply=exchange(self._parent,self._child,transport,wire.frame(wire.CONTROL,original),run)
-                self._admit(run); body=wire.payload(reply,wire.CONTROL_REPLY)
-                if body==b'\0':
-                    epoch,output=self._child.advance_rekey_control(target,now=run.now())
-                    require(epoch==target and output is None,'unauthenticated control completion')
-                else:
-                    require(body[:1]==b'\1' and inspect(body[1:])[1]==target,'connection control response target')
-                    epoch,output=self._child.receive_rekey_control(body[1:],now=run.now())
+                reply=exchange(self._parent,self._child,transport,step.request,run)
+                step=self._complete_rekey(step,reply,run)
+
+    def prepare_rekey(self,target,run):
+        """Prepare/resume the original target, including a retained final receipt."""
+        with self._operation(run):return self._prepare_rekey(target,run)
+
+    def _prepare_rekey(self,target,run):
+        require(type(target) is int and 0<target<MAX_U64,'connection rekey target')
+        self._admit(run)
+        return self._rekey_step(target,self._child.start_rekey_control(target,now=run.now()),run)
+
+    def complete_rekey(self,prepared,reply,run):
+        """Admit a reply after reopening the original owner under current authority."""
+        with self._operation(run):return self._complete_rekey(prepared,reply,run)
+
+    def _complete_rekey(self,prepared,reply,run):
+        require(type(prepared) is PreparedRekey and prepared.journal==self._journal
+                and prepared.session==self._identity,'prepared control belongs to another original owner')
+        target=prepared.target
+        require(type(target) is int and 0<target<MAX_U64,'prepared control target')
+        self._admit(run);body=wire.payload(reply,wire.CONTROL_REPLY)
+        if body==b'\0':
+            step=self._child.advance_rekey_control(target,now=run.now())
+            require(step==(target,None),'unauthenticated control completion')
+        else:
+            require(body[:1]==b'\1' and inspect(body[1:])[1]==target,'connection control response target')
+            step=self._child.receive_rekey_control(body[1:],now=run.now())
+        return self._rekey_step(target,step,run)
+
+    def _rekey_step(self,target,step,run):
+        epoch,output=step;self._admit(run)
+        require(epoch==target,'connection control target differs')
+        if output is None:return RekeyConfirmed(target)
+        epoch,original=self._child.replay_rekey_control(output,run.now())
+        require(epoch==target,'connection replay target differs');self._admit(run)
+        return PreparedRekey(self._journal,self._identity,target,wire.frame(wire.CONTROL,original))
 
     def serve_message(self,request,consumer,run):
         """Consume authenticated input, or replay only original consumption ACK.

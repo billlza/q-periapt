@@ -106,9 +106,12 @@ def exercise(implementation,provider,client_dir,session_dir,client_id,root,nativ
         received=inbound(command,call,root,outgoing,inputs,sid,original,run)
         from opposing_cli_flow import exercise as opposing
         simultaneous=opposing(command,call,root,native,outgoing,inputs,sid,journal,client_id,run,commands)
+        from opposing_rekey_cli_flow import exercise as opposing_rekey
+        concurrent_control=opposing_rekey(command,call,root,native,outgoing,inputs,sid,journal,client_id,run,commands)
         return {'schema_version':1,'kind':'qperiapt.independent_session_cli','completed':True,
-                'frames':frames,'native_service':stopped,'relay':result['stats'],'confirmed_epoch':2,'inbound':received,'opposing':simultaneous,
-                'scope':'Separate installed Python CLI processes and actual native TCP under explicit test authority. Both directions, simultaneous sends, durable inbox readback, lost ACK, receiver SIGKILL/restart, exact retry and two sequential rekeys. No cross-host, simultaneous rekey, witness-positive or real account authorization claim.'}
+                'frames':frames,'native_service':stopped,'relay':result['stats'],'confirmed_epoch':7,'inbound':received,'opposing':simultaneous,
+                'opposing_rekey':concurrent_control,
+                'scope':'Separate installed Python CLI processes and actual native TCP under explicit test authority. Both directions, simultaneous sends and rekey, durable inbox readback, lost ACK, receiver SIGKILL/restart, exact retry and detached reply refusals. No cross-host, witness-positive or real account authorization claim.'}
     finally:
         failures=[]
         if relay is not None:

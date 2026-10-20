@@ -24,7 +24,7 @@ mod tcp;
 pub use account::{AccountDelivered, AccountDeliveryOutcome, AccountSubmission};
 pub use client::PreparedMessage;
 use codec::{frame, payload, ACK, FINAL, INITIAL, MESSAGE, READY, REPLY};
-pub use control::RekeyCompleted;
+pub use control::{PreparedRekey, RekeyCompleted, RekeyDeliveryStep};
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use tcp::TcpTransport;
 

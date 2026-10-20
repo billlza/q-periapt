@@ -28,6 +28,187 @@ fn established() -> (Pair, Session, Session) {
     let (a, b) = pair.reopened(session.id());
     (pair, a, b)
 }
+
+fn complete_step(
+    owner: &mut EnrolledDevice,
+    session: &Session,
+    step: RekeyDeliveryStep,
+    reply: Option<Vec<u8>>,
+    run: &Run<'_>,
+) -> RekeyDeliveryStep {
+    match (step, reply) {
+        (RekeyDeliveryStep::Output(prepared), Some(reply)) => owner
+            .complete_session_rekey(session, &prepared, &reply, run, || Ok(150))
+            .expect("original detached control reply"),
+        (RekeyDeliveryStep::LocallyConfirmed(epoch), None) => {
+            RekeyDeliveryStep::LocallyConfirmed(epoch)
+        }
+        _ => panic!("prepared request/reply inventory"),
+    }
+}
+
+#[test]
+fn opposing_control_phases_reopen_original_owners_and_accept_concurrently_advanced_history() {
+    let (mut pair, a, b) = established();
+    let cancel = Cancellation::default();
+    for target in 1..=3 {
+        let mut first = pair
+            .a
+            .owner
+            .prepare_session_rekey(&a, target, &run(&cancel), || Ok(150))
+            .expect("first prepared control");
+        let mut second = pair
+            .b
+            .owner
+            .prepare_session_rekey(&b, target, &run(&cancel), || Ok(150))
+            .expect("second prepared control");
+        let mut rounds = 0;
+        loop {
+            if matches!(first, RekeyDeliveryStep::LocallyConfirmed(epoch) if epoch == target)
+                && matches!(second, RekeyDeliveryStep::LocallyConfirmed(epoch) if epoch == target)
+            {
+                break;
+            }
+            rounds += 1;
+            assert!(rounds <= 8);
+            // No prepared public flight retains a private owner or file lease.
+            pair.a.reopen(&pair.policy);
+            pair.b.reopen(&pair.policy);
+            let reply_first = match &first {
+                RekeyDeliveryStep::Output(message) => Some(
+                    pair.b
+                        .owner
+                        .serve_session_control(&b, message.as_bytes(), &run(&cancel), || Ok(150))
+                        .expect("opposite incoming first control"),
+                ),
+                RekeyDeliveryStep::LocallyConfirmed(_) => None,
+            };
+            let reply_second = match &second {
+                RekeyDeliveryStep::Output(message) => Some(
+                    pair.a
+                        .owner
+                        .serve_session_control(&a, message.as_bytes(), &run(&cancel), || Ok(150))
+                        .expect("opposite incoming second control"),
+                ),
+                RekeyDeliveryStep::LocallyConfirmed(_) => None,
+            };
+            // Both replies now encounter history advanced by incoming work.
+            pair.a.reopen(&pair.policy);
+            pair.b.reopen(&pair.policy);
+            first = complete_step(&mut pair.a.owner, &a, first, reply_first, &run(&cancel));
+            second = complete_step(&mut pair.b.owner, &b, second, reply_second, &run(&cancel));
+        }
+        progress(&mut pair.a.owner, &a, target);
+        progress(&mut pair.b.owner, &b, target);
+    }
+    let id = pair.a.owner.next_session_message_id(&a, 150).expect("next");
+    assert_eq!(crate::durable::message_epoch(id).expect("epoch"), 3);
+    let prepared = pair
+        .a
+        .owner
+        .prepare_session_message(
+            &a,
+            Submission {
+                message: id,
+                plaintext: b"after opposing controls",
+                associated_data: b"",
+            },
+            &run(&cancel),
+            || Ok(150),
+        )
+        .expect("original message");
+    let mut effects = Effects::default();
+    let ack = pair
+        .b
+        .owner
+        .serve_session_message(&b, prepared.as_bytes(), &mut effects, &run(&cancel), || {
+            Ok(150)
+        })
+        .expect("real epoch-three consumption");
+    assert_eq!(
+        pair.a
+            .owner
+            .complete_session_message(&a, &prepared, &ack, &run(&cancel), || Ok(150))
+            .expect("authenticated consumption"),
+        Consumption::Confirmed
+    );
+    assert_eq!(effects.calls, 1);
+}
+
+#[test]
+fn detached_control_reply_refuses_wrong_owner_cancel_expiry_signature_and_empty_marker() {
+    for failure in ["owner", "cancel", "expiry", "signature", "empty"] {
+        let (mut pair, a, b) = established();
+        let cancel = Cancellation::default();
+        let prepared = match pair
+            .a
+            .owner
+            .prepare_session_rekey(&a, 1, &run(&cancel), || Ok(150))
+            .expect("prepare")
+        {
+            RekeyDeliveryStep::Output(value) => value,
+            _ => panic!("initial control output required"),
+        };
+        let before = pair
+            .a
+            .owner
+            .session_rekey_progress(&a)
+            .expect("original progress");
+        let actual = pair
+            .b
+            .owner
+            .serve_session_control(&b, prepared.as_bytes(), &run(&cancel), || Ok(150))
+            .expect("real peer reply");
+        let mut reply = actual.clone();
+        if failure == "cancel" {
+            cancel.cancel();
+        }
+        if failure == "signature" {
+            *reply.last_mut().expect("signature byte") ^= 1;
+        }
+        if failure == "empty" {
+            reply = frame(codec::CONTROL_REPLY, &[0]).expect("carrier marker");
+        }
+        if failure == "owner" {
+            assert!(pair
+                .b
+                .owner
+                .complete_session_rekey(&b, &prepared, &reply, &run(&cancel), || Ok(150))
+                .is_err());
+            assert!(pair.b.owner.parts().is_err());
+        } else {
+            assert!(pair
+                .a
+                .owner
+                .complete_session_rekey(&a, &prepared, &reply, &run(&cancel), || Ok(
+                    if failure == "expiry" {
+                        u64::MAX - 1
+                    } else {
+                        150
+                    }
+                ))
+                .is_err());
+            assert!(pair.a.owner.parts().is_err());
+        }
+        pair.a.reopen(&pair.policy);
+        assert_eq!(
+            pair.a
+                .owner
+                .session_rekey_progress(&a)
+                .expect("retained progress"),
+            before
+        );
+        let fresh = Cancellation::default();
+        assert!(matches!(
+            pair.a
+                .owner
+                .complete_session_rekey(&a, &prepared, &actual, &run(&fresh), || Ok(150))
+                .expect("original authenticated reply after reopen"),
+            RekeyDeliveryStep::Output(_)
+        ));
+    }
+}
+
 struct Control<'a> {
     owner: &'a mut EnrolledDevice,
     session: &'a Session,

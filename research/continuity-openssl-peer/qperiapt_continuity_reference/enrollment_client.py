@@ -10,17 +10,38 @@ from dataclasses import dataclass, replace
 import json
 import os
 import threading
+import time
 
 from .enrollment_exchange import (HostAuthority, HostInvitation, CurrentMembership,
                                  IssuedEnrollment, PolicyInputs, accept_issued,
                                  decode, encoded, identifier)
 from .journal import Journal, MissingState, Scope, locked
 from .owner_guard import coordinated
-from .private_files import PrivateDirectory
+from .private_files import PrivateDirectory, DirectoryBusy
 from .registration import Registration
 from .wire import ldh, require
 
 DOMAIN = b'Q-PERIAPT-REFERENCE-CLIENT/v1/'
+
+
+def root_lease(path, run):
+    if run is None: return PrivateDirectory(path)
+    from .connection_run import Run
+    require(isinstance(run, Run), 'bounded original owner admission')
+    for attempt in range(64):
+        run.check()
+        try:
+            lease = PrivateDirectory(path)
+        except DirectoryBusy:
+            if attempt == 63: raise
+            time.sleep(min(.025, max(0, run.deadline - time.monotonic())))
+        else:
+            try:
+                run.check()
+                return lease
+            except BaseException:
+                lease.close()
+                raise
 
 
 def scope(client_id):
@@ -64,9 +85,9 @@ class EnrollmentClient:
     After acceptance, prepare the original child and borrow its existing
     session or recovery operations. Closing this client revokes every child.
     """
-    def __init__(self, path, observer):
+    def __init__(self, path, observer, run=None):
         self._lock = threading.RLock(); self._busy = False
-        self._root = PrivateDirectory(path)
+        self._root = root_lease(path, run)
         self._configuration = None; self._registration = None
         self._observer = observer
         self._original = None; self._authority = None
@@ -105,8 +126,13 @@ class EnrollmentClient:
             owner.close(); raise
 
     @classmethod
-    def open(cls, path, client_id, key, *, observer=None):
-        owner = cls(path, observer)
+    def open(cls, path, client_id, key, *, observer=None, run=None):
+        """Open original state; an optional Run bounds only initial lease contention.
+
+        At most 64 admission attempts, 25 ms apart, share its original deadline
+        and cancellation. Configuration recovery and protocol work never retry.
+        """
+        owner = cls(path, observer, run)
         try:
             arguments = (path / 'configuration', scope(client_id), key, Configuration.read)
             try:
@@ -121,6 +147,7 @@ class EnrollmentClient:
                                                     key, original.intent, recover_initial=not configuration.ready,
                                                     observer=owner._observe('client-device:'), _parent=owner)
             owner._finish(configuration)
+            if run is not None: run.check()
             return owner
         except BaseException:
             owner.close(); raise

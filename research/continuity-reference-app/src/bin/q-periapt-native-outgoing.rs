@@ -150,13 +150,23 @@ fn json<T: DeserializeOwned>(path: &Path, maximum: usize) -> Result<T> {
     Ok(serde_json::from_slice(&read(path, maximum)?)?)
 }
 impl Invocation {
-    fn open(&self, session_id: [u8; 32]) -> Result<(ActiveDevice, sdk::session_exchange::Session)> {
+    fn open(
+        &self,
+        session_id: [u8; 32],
+        run: &sdk::session_exchange::Run<'_>,
+    ) -> Result<(ActiveDevice, sdk::session_exchange::Session)> {
+        let invitation: Invitation = json(&self.invitation, 16384)?;
+        let owner = NativeDevice::open_in_run(
+            &self.device_directory,
+            &self.wrapping_key,
+            &invitation,
+            run,
+        )?;
         let trust: PeerTrust = json(&self.peer_trust, 128 * 1024)?;
         let bundle = sdk::BootstrapBundle::from_bytes(&read(
             &self.bundle,
             sdk::MAX_BOOTSTRAP_BUNDLE_BYTES,
         )?)?;
-        let invitation: Invitation = json(&self.invitation, 16384)?;
         let current: RootInfo = json(&self.current_root, 128 * 1024)?;
         let pins: PolicyPins = json(&self.policy_pins, 16384)?;
         let materials: PolicyMaterials = json(&self.policy_materials, 128 * 1024)?;
@@ -168,7 +178,7 @@ impl Invocation {
         if endpoint.is_some() != witness.is_some() {
             return Err("Witness endpoint differs from pinned policy".into());
         }
-        let owner = NativeDevice::open(&self.device_directory, &self.wrapping_key, invitation)?;
+        run.check()?;
         let mut active = owner.activate(&current, &policy, witness, endpoint, clock()?)?;
         let session = active.reopen_session(&trust, &bundle, Arc::new(policy), session_id)?;
         Ok((active, session))
@@ -193,11 +203,11 @@ fn main() -> Result<()> {
     let run = sdk::session_exchange::Run::new(&cancel, Duration::from_secs(30))?;
     let result = match &input.action {
         Action::Next => {
-            let (mut active, session) = input.open(session_id)?;
+            let (mut active, session) = input.open(session_id, &run)?;
             serde_json::json!({"message":active.next_message(&session)?.as_bytes()})
         }
         Action::Status { message } => {
-            let (mut active, session) = input.open(session_id)?;
+            let (mut active, session) = input.open(session_id, &run)?;
             serde_json::json!({"status":format!("{:?}",active.message_status(&session,sdk::MessageId::from_trusted_state(*message)?)?)})
         }
         Action::Deliver {
@@ -214,7 +224,7 @@ fn main() -> Result<()> {
         } => {
             let prepared = {
                 run.check()?;
-                let (mut active, session) = input.open(session_id)?;
+                let (mut active, session) = input.open(session_id, &run)?;
                 active.prepare_delivery(
                     &session,
                     sdk::session_exchange::Submission {
@@ -237,7 +247,7 @@ fn main() -> Result<()> {
             .map_err(sdk::session_exchange::Error::Transport)?;
             run.check()?;
             let outcome = {
-                let (mut active, session) = input.open(session_id)?;
+                let (mut active, session) = input.open(session_id, &run)?;
                 active.complete_delivery(&session, &prepared, &reply, &run)?
             };
             run.check()?;
@@ -249,15 +259,37 @@ fn main() -> Result<()> {
         | Action::RekeyTcp {
             target, exchanges, ..
         } => {
-            let (mut active, session) = input.open(session_id)?;
-            let done = active.rekey(
-                &session,
-                *target,
-                *exchanges,
-                transport.as_mut().ok_or("Missing outgoing carrier")?,
-                &run,
-            )?;
-            serde_json::json!({"epoch":done.epoch,"exchanges":done.exchanges})
+            let mut step = {
+                run.check()?;
+                let (mut active, session) = input.open(session_id, &run)?;
+                active.prepare_rekey(&session, *target, &run)?
+            };
+            let mut attempted = 0;
+            loop {
+                run.check()?;
+                let prepared = match step {
+                    sdk::session_exchange::RekeyDeliveryStep::LocallyConfirmed(epoch) => {
+                        break serde_json::json!({"epoch":epoch,"exchanges":attempted});
+                    }
+                    sdk::session_exchange::RekeyDeliveryStep::Output(prepared) => prepared,
+                };
+                if attempted == *exchanges {
+                    return Err(sdk::session_exchange::Error::ExchangeLimit.into());
+                }
+                attempted += 1;
+                let reply = sdk::session_exchange::Transport::exchange(
+                    transport.as_mut().ok_or("Missing outgoing carrier")?,
+                    prepared.as_bytes(),
+                    run.deadline(),
+                    &cancel,
+                )
+                .map_err(sdk::session_exchange::Error::Transport)?;
+                run.check()?;
+                step = {
+                    let (mut active, session) = input.open(session_id, &run)?;
+                    active.complete_rekey(&session, &prepared, &reply, &run)?
+                };
+            }
         }
     };
     print(&result)

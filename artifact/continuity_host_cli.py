@@ -16,20 +16,28 @@ CLI_LABELS=tuple('cli-'+name for name in ('wrong-directory','other-credential','
     'opposing-next','opposing-native-next','opposing-python','opposing-native','opposing-status',
     'opposing-native-status','opposing-read-independent','opposing-read-native')) + tuple(
         'cli-phase-'+case+'-'+action for case in ('wrong-journal','cancelled-reply','tampered-ack')
-        for action in ('next','status','resume'))
+        for action in ('next','status','resume')) + tuple('cli-'+name for name in (
+        'rekey-opposing-independent','rekey-opposing-native','rekey-repeat-independent','rekey-repeat-native',
+        'rekey-data-independent-next','rekey-data-independent-send','rekey-data-native-read',
+        'rekey-data-native-next','rekey-data-native-send','rekey-data-independent-read')) + tuple(
+        'cli-control-phase-'+case+'-resume' for case in ('wrong-journal','cancelled-reply','tampered-flight','forged-empty'))
 LABELS=FILE_LABELS[:9]+CLI_LABELS
 CLI_REFUSALS=tuple('cli-'+name for name in ('wrong-directory','other-credential','wrong-session',
     'noncanonical-session','local-profile-witness','oversized','rekey-bound','lost',
     'inbox-missing','inbox-duplicate','inbox-wrong-session','native-lost','inbox-export-exists'))
 REFUSALS=FILE_REFUSALS[:8]+CLI_REFUSALS
 FRAMES=tuple(('cli-wire-'+str(i),kind) for i,kind in enumerate((1,2,3,3,4,4,3),1))
+CONTROL_PHASES=tuple({'case':case,'target':target} for target,case in
+    enumerate(('wrong-journal','cancelled-reply','tampered-flight','forged-empty'),4))
+CONTROL_FRAMES=tuple(('cli-rekey-'+side+'-wire-'+str(i),4)
+    for side,n in (('independent',2),('native',3)) for i in range(1,n+1))
 
 
 def verify(value,binaries,application):
     require(type(value) is dict and value.get('completed') is True
             and value.get('kind')=='qperiapt.independent_session_cli','CLI completion')
     count(value.get('schema_version'),1,'CLI receipt version')
-    count(value.get('confirmed_epoch'),2,'CLI confirmed epoch')
+    count(value.get('confirmed_epoch'),7,'CLI confirmed epoch')
     require(value.get('native_sha256')==binaries and value.get('provider')=='48.0.1'
             and value.get('implementation')==str(application/PACKAGE/'session_cli.py')
             and value.get('clock')=='actual OS time','CLI implementation differs')
@@ -68,6 +76,19 @@ def verify(value,binaries,application):
         require(type(row) is dict and set(row)=={'label','pid','exit','stats'} and row['label']==label
                 and type(row['pid']) is int and row['pid']>0,'opposing service identity')
         count(row['exit'],0,'opposing service exit');stats(row['stats'],n,n)
+    control=value.get('opposing_rekey')
+    require(type(control) is dict and set(control)=={'target','simultaneous','frames','relays','native_service','independent_service','phase_refusals','effects'},'opposing rekey inventory')
+    require(control['simultaneous'] is True and control['phase_refusals']==list(CONTROL_PHASES),'opposing rekey boundaries')
+    count(control['target'],3,'opposing rekey target');count(control['effects'],2,'opposing rekey effects')
+    exchanges(control['frames'],CONTROL_FRAMES)
+    require(type(control['relays']) is list and len(control['relays'])==2,'control relay count')
+    require(sorted(row['completed_responses'] for row in control['relays'])==[2,3],'control relay flights')
+    for row in control['relays']:stats(row,row['completed_responses'],row['completed_responses'])
+    for key,label,n in [('native_service','cli-rekey-native-service',17),('independent_service','cli-rekey-independent-service',5)]:
+        row=control[key]
+        require(type(row) is dict and set(row)=={'label','pid','exit','stats'} and row['label']==label
+                and type(row['pid']) is int and row['pid']>0,'control service identity')
+        count(row['exit'],0,'control service exit');stats(row['stats'],n,n)
 
 
 def retain(value,private,public,snapshot):
@@ -168,6 +189,40 @@ def retain(value,private,public,snapshot):
         for side,kind in [('request',3),('response',131)]:
             data=copy(label+'.'+side).data
             require(10<=len(data)<=32768 and data[:9]==b'QPCXCH01'+bytes([kind]),'real phase frame')
+    control=value['opposing_rekey']
+    require(result('cli-rekey-opposing-independent')=={'session':sid,'epoch':3,'exchanges':2}
+            and result('cli-rekey-opposing-native')=={'epoch':3,'exchanges':3}
+            and result('cli-rekey-repeat-independent')=={'session':sid,'epoch':3,'exchanges':0}
+            and result('cli-rekey-repeat-native')=={'epoch':3,'exchanges':1},'original concurrent control completion')
+    message=result('cli-rekey-data-independent-next')['message']
+    require(result('cli-rekey-data-independent-send')=={'session':sid,'message':message,'consumption':'Confirmed'}
+            and result('cli-rekey-data-native-send')=={'consumption':'Confirmed'},'post-control consumption')
+    raw=base64.urlsafe_b64decode(message+'='*(-len(message)%4))
+    native_message=bytes(result('cli-rekey-data-native-next')['message'])
+    require(len(raw)==len(native_message)==32 and raw[:8]==native_message[:8]==(3).to_bytes(8,'big'),'post-control real message epoch')
+    for side in ('native','independent'):
+        require(copy('cli-rekey-'+side+'.bin').data==b'after opposing rekey','post-control durable effect')
+    for row in control['frames']:
+        for side,kind in [('request',4),('response',132)]:
+            data=copy(row['label']+'.'+side)
+            require(data.sha256==row[side+'_sha256'] and 10<=len(data.data)<=32768
+                    and data.data[:9]==b'QPCXCH01'+bytes([kind]),'actual concurrent control frame')
+    for key in ('native_service','independent_service'):
+        row=control[key];lines=copy(row['label']+'.stdout').data.splitlines()
+        require(len(lines)==2 and not copy(row['label']+'.stderr').data,'control terminal service output')
+        require(parse_strict_json_bytes(lines[0],label='control readiness').get('service')=='Listening'
+                and parse_strict_json_bytes(lines[1],label='control shutdown')=={'service':'Stopped','stats':row['stats']},'control service lifecycle')
+    for row in CONTROL_PHASES:
+        case,target=row['case'],row['target'];label='cli-control-phase-'+case
+        progress=parse_strict_json_bytes(copy(label+'.progress.json').data,label='control phase progress')
+        refusal={'cancelled-reply':'Cancelled','tampered-flight':'InvalidSignature'}.get(case,'ValueError')
+        require(progress=={'target':target,'before':[target-1]*3+[target],'after':[target-1]*3+[target],
+                           'refused':refusal},'control refusal retained original progress')
+        expected_exchanges=3 if target%2==0 else 2
+        require(result(label+'-resume')=={'session':sid,'epoch':target,'exchanges':expected_exchanges},'original control phase recovery')
+        for side,kind in [('request',4),('response',132)]:
+            data=copy(label+'.'+side).data
+            require(10<=len(data)<=32768 and data[:9]==b'QPCXCH01'+bytes([kind]),'actual control phase reply')
 
 
 def qualify(args,reference,application,provider,outside,output,snapshot,run):
@@ -177,6 +232,7 @@ def qualify(args,reference,application,provider,outside,output,snapshot,run):
     (outside/'independent_cli_flow.py').write_bytes(snapshot(reference/'tests/independent_cli_flow.py').data)
     (outside/'independent_inbound_cli.py').write_bytes(snapshot(reference/'tests/independent_inbound_cli.py').data)
     (outside/'opposing_cli_flow.py').write_bytes(snapshot(reference/'tests/opposing_cli_flow.py').data)
+    (outside/'opposing_rekey_cli_flow.py').write_bytes(snapshot(reference/'tests/opposing_rekey_cli_flow.py').data)
     private=outside/'private-independent-cli'
     command=[sys.executable,'-I','-S','-B',str(outside/'native_exchange.py'),'--client-cli']
     for key,path in zip(('native-device','native-session','crash-probe','native-outgoing'),paths):command+=['--'+key,str(path)]

@@ -95,10 +95,21 @@ those same stores. Cancellation, expiry or a forged reply still withholds succes
 Already-released ciphertext is public carrier input, not a new operational
 capability. It may already have reached the peer when completion fails. Query
 and reconcile the original ID instead of creating a replacement operation.
-Brief overlapping local mutations can still encounter the single-writer lease;
-there is no unbounded lock wait or implicit transport retry. Bootstrap and rekey
-commands currently retain their whole-operation owners across I/O; simultaneous
-rekey admission remains open.
+Rekey commands use the same lifetime boundary for every original signed control
+flight. Preparation and reply completion bind the original journal, session,
+context, role and target. An incoming request may advance that target while an
+outgoing request is in flight; completion authenticates the existing exact-flight
+history. A retained final receipt remains eligible for explicit redispatch.
+The empty carrier marker counts only when the authenticated local journal already
+confirms that target. One deadline and one exchange allowance span the whole run.
+
+Network commands and receivers bound initial original-owner lease contention to
+64 acquisition attempts with at most 25 ms between attempts, shortened by the
+original deadline and cancellation. Only the initial enrollment-store busy
+condition is eligible. Recovery, activation, protocol work, authentication errors
+and other I/O errors are never implicitly retried. Exhausted admission still
+fails explicitly; this is not an unbounded queue or a fairness guarantee.
+Bootstrap commands retain their whole-operation owners across I/O.
 
 ## Evidence and open boundaries
 
@@ -110,10 +121,15 @@ and transactional effect readback. A barrier-controlled workload keeps both
 senders inside their actual exchanges until both receiving operations finish;
 both messages must succeed and their durable effects are read back. It also
 rejects a changed prepared journal, cancellation after a real reply, and a
-tampered ACK, then resumes each original message. Separate echo-frame tests check transport
+tampered ACK, then resumes each original message. A second barrier overlaps both
+initial rekey requests and lets later, asymmetric flights run freely. Both
+targets must complete, original receipt redispatch must work, and both directions
+must deliver real data at the new epoch. Detached control tests reject a different
+journal, cancellation, tampered signed flight and forged empty marker, preserving
+progress before the exact original target resumes. Separate echo-frame tests check transport
 resources, IPv4/IPv6, cancellation and shutdown; those are not cryptographic tests.
 
 These are local TCP process observations under explicit test authority. They do
 not establish cross-host installation, TLS deployment, physical power-loss
-durability, simultaneous rekey, expiry recovery of unconfirmed
+durability, expiry recovery of unconfirmed
 bootstrap, or the original real account's complete lifecycle.

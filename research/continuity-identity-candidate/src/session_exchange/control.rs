@@ -13,6 +13,34 @@ pub struct RekeyCompleted {
     pub exchanges: u16,
 }
 
+/// One original committed public control flight, owning no key or storage lease.
+pub struct PreparedRekey {
+    journal: crate::JournalIdentity,
+    session: [u8; 32],
+    context: [u8; 32],
+    role: BootstrapRole,
+    target: u64,
+    request: Vec<u8>,
+}
+impl PreparedRekey {
+    /// Exact QPCXCH01 request, not fresh dispatch authority.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.request
+    }
+    /// The original target; no later epoch is selected implicitly.
+    pub fn target_epoch(&self) -> u64 {
+        self.target
+    }
+}
+
+/// A bounded original rekey step, after current owner and authority checks.
+pub enum RekeyDeliveryStep {
+    /// The host may close this owner before carrying these committed public bytes.
+    Output(PreparedRekey),
+    /// Authenticated local completion, not remote receipt or secrecy recovery.
+    LocallyConfirmed(u64),
+}
+
 #[cfg_attr(
     not(all(target_arch = "wasm32", target_os = "unknown")),
     maybe_async::must_be_sync
@@ -52,55 +80,174 @@ impl EnrolledDevice {
             if !(1..=crate::contract::MAX_NETWORK_EXCHANGES).contains(&exchanges) {
                 return Err(crate::Error::Encoding.into());
             }
+            let mut step = op
+                .owner
+                .prepare_session_rekey(session, target, run, &mut clock)
+                .await?;
+            let mut attempted = 0;
+            loop {
+                run.time(&session.context, &mut clock)?;
+                let message = match step {
+                    RekeyDeliveryStep::LocallyConfirmed(epoch) => {
+                        if epoch != target {
+                            return Err(crate::Error::Scope.into());
+                        }
+                        break Ok(RekeyCompleted {
+                            epoch,
+                            exchanges: attempted,
+                        });
+                    }
+                    RekeyDeliveryStep::Output(message) => message,
+                };
+                if message.target_epoch() != target {
+                    return Err(crate::Error::Scope.into());
+                }
+                if attempted == exchanges {
+                    return Err(Error::ExchangeLimit);
+                }
+                attempted += 1;
+                let reply = transport
+                    .exchange(message.as_bytes(), run.deadline, run.cancel)
+                    .await
+                    .map_err(Error::Transport)?;
+                step = op
+                    .owner
+                    .complete_session_rekey(session, &message, &reply, run, &mut clock)
+                    .await?;
+            }
+        }
+        .await;
+        op.finish(result)
+    }
+
+    /// Prepare/resume one original control target. A retained final receipt is
+    /// still dispatched after local completion. The host may close this owner
+    /// for I/O, then reopen the original installation to complete this step.
+    pub async fn prepare_session_rekey(
+        &mut self,
+        session: &Session,
+        target: u64,
+        run: &Run<'_>,
+        mut clock: impl FnMut() -> io::Result<u64>,
+    ) -> Result<RekeyDeliveryStep, Error> {
+        let op = Operation::new(self);
+        let result = async {
+            crate::codec::generation(target)?;
             let context = &session.context;
+            run.time(context, &mut clock)?;
             let (service, signer, _) = op.owner.parts()?;
             let (journal, archives) = service.stores()?;
             archives.require(journal, context, session.id)?;
-            let mut step = journal.start_control_delivery(context, session.id, target, signer,
-                run.time(context, &mut clock)?).await?;
-            let mut attempted = 0;
-            loop {
-                run.time(context, &mut clock)?;
-                let message = match step {
-                    RekeyControlStep::LocallyConfirmed(epoch) => {
-                        if epoch != target { return Err(crate::Error::Scope.into()); }
-                        break Ok(RekeyCompleted { epoch, exchanges: attempted });
-                    }
-                    RekeyControlStep::Output(message) => message,
-                };
-                if message.target_epoch() != target { return Err(crate::Error::Scope.into()); }
-                if attempted == exchanges { return Err(Error::ExchangeLimit); }
-                let wire = journal.replay_control_delivery(context, session.id, &message, signer,
-                    run.time(context, &mut clock)?).await?;
-                run.time(context, &mut clock)?;
-                attempted += 1;
-                let reply = transport.exchange(&frame(codec::CONTROL, &wire)?, run.deadline, run.cancel)
-                    .await.map_err(Error::Transport)?;
-                run.time(context, &mut clock)?;
-                let body = payload(&reply, codec::CONTROL_REPLY)?;
-                step = match body.split_first() {
-                    Some((1, wire)) => {
-                        if RekeyControlMessage::inspect_target(wire)? != target {
-                            return Err(crate::Error::Scope.into());
-                        }
-                        journal.receive_rekey_control(context, session.id, wire, signer,
-                            run.time(context, &mut clock)?).await?
-                    }
-                    Some((0, [])) => {
-                        // This unauthenticated carrier marker cannot advance the
-                        // completion. Only authenticated local journal state counts.
-                        let local = journal.advance_rekey_control(context, session.id, target, signer,
-                            run.time(context, &mut clock)?).await?;
-                        if !matches!(local, RekeyControlStep::LocallyConfirmed(epoch) if epoch == target) {
-                            return Err(crate::Error::Authentication.into());
-                        }
-                        local
-                    }
-                    _ => return Err(crate::Error::Encoding.into()),
-                };
+            let step = journal
+                .start_control_delivery(
+                    context,
+                    session.id,
+                    target,
+                    signer,
+                    run.time(context, &mut clock)?,
+                )
+                .await?;
+            op.owner
+                .bound_rekey_step(session, target, step, run, &mut clock)
+                .await
+        }
+        .await;
+        op.finish(result)
+    }
+
+    /// Admit a real reply under fresh original-owner authority. Incoming control
+    /// may already have advanced the same target while this request was in
+    /// transit; the durable exact-flight handlers authenticate that history.
+    pub async fn complete_session_rekey(
+        &mut self,
+        session: &Session,
+        prepared: &PreparedRekey,
+        reply: &[u8],
+        run: &Run<'_>,
+        mut clock: impl FnMut() -> io::Result<u64>,
+    ) -> Result<RekeyDeliveryStep, Error> {
+        let op = Operation::new(self);
+        let result = async {
+            let context = &session.context;
+            run.time(context, &mut clock)?;
+            let (service, signer, _) = op.owner.parts()?;
+            let (journal, archives) = service.stores()?;
+            archives.require(journal, context, session.id)?;
+            if journal.identity()? != prepared.journal
+                || session.id != prepared.session || context.digest() != prepared.context
+                || session.role != prepared.role
+            {
+                return Err(crate::Error::Scope.into());
             }
+            let target = prepared.target;
+            let step = match payload(reply, codec::CONTROL_REPLY)?.split_first() {
+                Some((1, wire)) => {
+                    if RekeyControlMessage::inspect_target(wire)? != target {
+                        return Err(crate::Error::Scope.into());
+                    }
+                    journal.receive_rekey_control(context, session.id, wire, signer,
+                        run.time(context, &mut clock)?).await?
+                }
+                Some((0, [])) => {
+                    // Carrier metadata cannot establish authenticated completion.
+                    let local = journal.advance_rekey_control(context, session.id, target, signer,
+                        run.time(context, &mut clock)?).await?;
+                    if !matches!(local, RekeyControlStep::LocallyConfirmed(epoch) if epoch == target) {
+                        return Err(crate::Error::Authentication.into());
+                    }
+                    local
+                }
+                _ => return Err(crate::Error::Encoding.into()),
+            };
+            op.owner.bound_rekey_step(session, target, step, run, &mut clock).await
         }.await;
         op.finish(result)
+    }
+
+    async fn bound_rekey_step(
+        &mut self,
+        session: &Session,
+        target: u64,
+        step: RekeyControlStep,
+        run: &Run<'_>,
+        clock: &mut impl FnMut() -> io::Result<u64>,
+    ) -> Result<RekeyDeliveryStep, Error> {
+        let context = &session.context;
+        run.time(context, clock)?;
+        let result = match step {
+            RekeyControlStep::LocallyConfirmed(epoch) => {
+                if epoch != target {
+                    return Err(crate::Error::Scope.into());
+                }
+                RekeyDeliveryStep::LocallyConfirmed(epoch)
+            }
+            RekeyControlStep::Output(message) => {
+                if message.target_epoch() != target {
+                    return Err(crate::Error::Scope.into());
+                }
+                let (service, signer, _) = self.parts()?;
+                let (journal, _) = service.stores()?;
+                let wire = journal
+                    .replay_control_delivery(
+                        context,
+                        session.id,
+                        &message,
+                        signer,
+                        run.time(context, clock)?,
+                    )
+                    .await?;
+                RekeyDeliveryStep::Output(PreparedRekey {
+                    journal: journal.identity()?,
+                    session: session.id,
+                    context: context.digest(),
+                    role: session.role,
+                    target,
+                    request: frame(codec::CONTROL, &wire)?,
+                })
+            }
+        };
+        run.time(context, clock)?;
+        Ok(result)
     }
 
     /// Authenticate one signed control request for this original session. Keep

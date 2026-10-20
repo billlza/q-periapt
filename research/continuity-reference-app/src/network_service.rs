@@ -45,13 +45,19 @@ struct Prepared {
     inbox: Mailbox,
 }
 impl Configuration {
-    fn open(&self) -> Result<Prepared> {
+    fn open(&self, run: &sdk::session_exchange::Run<'_>) -> Result<Prepared> {
+        let invitation: Invitation = json(&self.invitation, 16384)?;
+        let owner = NativeDevice::open_in_run(
+            &self.device_directory,
+            &self.wrapping_key,
+            &invitation,
+            run,
+        )?;
         let trust: PeerTrust = json(&self.peer_trust, 128 * 1024)?;
         let bundle = sdk::BootstrapBundle::from_bytes(&read(
             &self.bundle,
             sdk::MAX_BOOTSTRAP_BUNDLE_BYTES,
         )?)?;
-        let invitation: Invitation = json(&self.invitation, 16384)?;
         let current: RootInfo = json(&self.current_root, 128 * 1024)?;
         let pins: PolicyPins = json(&self.policy_pins, 16384)?;
         let materials: PolicyMaterials = json(&self.policy_materials, 128 * 1024)?;
@@ -63,7 +69,7 @@ impl Configuration {
         if endpoint.is_some() != witness.is_some() {
             return Err("Witness endpoint differs from pinned policy".into());
         }
-        let owner = NativeDevice::open(&self.device_directory, &self.wrapping_key, invitation)?;
+        run.check()?;
         let active = owner.activate(&current, &policy, witness, endpoint, clock()?)?;
         let inbox = Mailbox::open(&self.inbox, active.journal())?;
         Ok(Prepared {
@@ -77,7 +83,7 @@ impl Configuration {
     fn exchange(&self, frame: &[u8], run: &sdk::session_exchange::Run<'_>) -> Result<Vec<u8>> {
         run.check()?;
         let operation = ExchangeOperation::inspect(frame)?;
-        let mut prepared = self.open()?;
+        let mut prepared = self.open(run)?;
         run.check()?;
         prepared.owner.exchange_in_run(
             &prepared.trust,
@@ -103,7 +109,10 @@ pub(super) fn serve(path: &Path) -> Result<()> {
     }
     // Fail startup on invalid original device/inbox configuration. Each actual
     // operation reopens and checks current independent inputs; no state is reset.
-    drop(input.open()?);
+    let startup_cancel = sdk::Cancellation::default();
+    let startup =
+        sdk::session_exchange::Run::new(&startup_cancel, std::time::Duration::from_secs(30))?;
+    drop(input.open(&startup)?);
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()

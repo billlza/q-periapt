@@ -105,6 +105,18 @@ does not provide atomicity for arbitrary remote business effects.
 Rekey retries retain the original target. Its exchange allowance bounds one
 invocation; exhausting it leaves an explicit unfinished operation. Completion
 reports an epoch and exchange count, not proof that an attacker lost knowledge.
+Each rekey flight closes the private owner before network I/O and reopens it to
+authenticate the reply, allowing incoming control to advance the same original
+target during the wait. Already-committed receipts remain explicitly replayable.
+An empty carrier reply cannot establish completion without authenticated local
+history. The original deadline and cancellation cover every phase.
+
+Session commands and receivers allow at most 64 attempts to obtain the original
+client's initial directory lease, separated by at most 25 ms and limited by the
+same deadline/cancellation. Only actual lease contention is eligible; journal
+recovery and protocol operations are never retried implicitly. Exhaustion
+returns an explicit busy result. Ordinary `EnrollmentClient.open` remains
+nonblocking unless its caller supplies a `Run` for this admission boundary.
 
 For a signed required-witness profile, non-prepare commands additionally need
 `--witness-address IP PORT`. The owner verifies the pinned witness. Supplying a
@@ -128,7 +140,7 @@ Provision a separate host inbox for the original confirmed session:
 a new bootstrap. It validates current connection authority and the existing
 inbox before printing Listening. Each complete frame reopens original owners
 under its acceptance deadline, checks the session, and releases them before the
-response. Incomplete frames hold no SDK owner. Busy/conflicting operations fail;
+response. Incomplete frames hold no SDK owner. Exhausted busy/conflicting operations fail;
 the service does not queue an unbounded set or retry protocol work implicitly.
 Required-witness profiles still need their explicit `--witness-address`.
 
@@ -152,9 +164,9 @@ file, without releasing a protocol acknowledgement or claiming current traffic
 permission. Its JSON receipt contains identities and byte count, not plaintext.
 
 Installed-package qualification uses actual native TCP and separate CLI
-processes in both directions, simultaneous application sends, durable inbox readback, lost acknowledgements,
-receiver SIGKILL/restart, exact retry and two rekeys. Inbox tests additionally
-cover four initial-publication and five effect-commit process cuts. Simultaneous
-rekey operations, cross-host deployment, positive required-witness CLI
+processes in both directions, simultaneous application sends and rekey, durable
+inbox readback, lost acknowledgements, receiver SIGKILL/restart, exact retry and
+detached control refusal/recovery. Inbox tests additionally cover four
+initial-publication and five effect-commit process cuts. Cross-host deployment, positive required-witness CLI
 qualification and complete CLI lifecycle acceptance remain separate work.
 Explicit test authority does not establish real account authorization.

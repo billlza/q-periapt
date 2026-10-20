@@ -15,6 +15,10 @@ MAX_FILE = MAX_STATE + 4096
 MAX_DIRECTORY_BYTES = 64 * 1024 * 1024
 
 
+class DirectoryBusy(BlockingIOError):
+    """The existing directory lease is held; no content was read or changed."""
+
+
 def open_directory(path: Path) -> int:
     require(path.is_absolute() and ".." not in path.parts, "absolute canonical directory required")
     fd = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
@@ -55,6 +59,9 @@ class PrivateDirectory:
         self.fd = open_directory(path)
         try:
             fcntl.flock(self.fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            self.close()
+            raise DirectoryBusy(*error.args) from error
         except BaseException:
             self.close()
             raise
