@@ -47,7 +47,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     # The prior Apple Silicon source/native cohort took 23m36s. The installed
     # Python lifecycle is additional work with its own bounded subprocesses.
-    timeout-minutes: 30
+    # The prior suite took 22 minutes on Linux. Complete 3/32-device groups,
+    # saturated storage and installed-wheel repeats add separate workloads.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
@@ -296,6 +298,27 @@ jobs:
             --native target/independent-peer-ci/account-authority-fixture \
             --output target/independent-peer-ci/account-state \
             > target/independent-peer-ci/account-state.stdout 2> target/independent-peer-ci/account-state.stderr
+          git diff --exit-code
+      - name: Verify original common-account sessions and witness renewal
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/shared_account_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/shared-account \
+            > target/independent-peer-ci/shared-account.stdout 2> target/independent-peer-ci/shared-account.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/witness_account_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/witness-account \
+            > target/independent-peer-ci/witness-account.stdout 2> target/independent-peer-ci/witness-account.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/account_boundary_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/account-boundary \
+            > target/independent-peer-ci/account-boundary.stdout 2> target/independent-peer-ci/account-boundary.stderr
           git diff --exit-code
       - name: Verify independent joint local credential renewal and historical cleanup
         env:

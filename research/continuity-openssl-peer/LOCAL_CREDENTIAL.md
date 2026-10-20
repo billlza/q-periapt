@@ -15,6 +15,7 @@ lease allows one owner. The calls return metadata, never an active traffic owner
 | --- | --- |
 | `open(path, scope, key, context, operation, observer=None)` | Recover the original journal and identify one original operation. |
 | `stage(grant, checkpoint, now)` | Verify current authorization and capacity for both Pending and completed images, then persist Pending. |
+| `stage_account(grant, companions, checkpoint, now)` | Stage a complete common-account collection in version nine, retaining the original local installation. |
 | `status()` | Return Pending, Committed or ExpiredUncommitted for a retained original operation. Unknown or discarded operations fail explicitly. |
 | `commit(now)` | Adopt a Pending grant only while its target credential, target roster and policy are current and time is not below the retained floor. |
 | `reconcile_expired(now)` | Preserve an existing terminal, or record ExpiredUncommitted only after a Pending target credential or roster expires while its exact predecessor remains current in the authenticated state. |
@@ -65,7 +66,8 @@ target[40], observed revision:u64, observed digest[32] and observation time:u64.
 Presence fields accept only zero or one. Historical root verification reconstructs
 retained grants without granting current traffic authority.
 
-Ordinary creation and generic upgrades still select version five. Version six is
+Separate-account creation and generic upgrades still select version five.
+Common-account creation selects [version nine](SHARED_ACCOUNT.md). Version six is
 exclusively the required-witness renewal format. Version seven remains readable
 with its original bounds; an already Pending version-seven operation commits in
 that original format. A new local credential stage explicitly selects version
@@ -86,7 +88,8 @@ two identities, one coordination record and the local presence byte, at most
 two-MiB base-state allowance. Business traffic still cannot exceed 2,031,616 bytes,
 and the existing 64-KiB control reservation remains. The maximum plaintext image
 is 2,310,443 bytes, encrypted head 2,310,571 bytes, and local-session file admission
-2,314,539 bytes. Raw and required-witness journal bounds remain unchanged. The
+2,314,539 bytes. Raw journal bounds remain unchanged. Session journals also admit the separately
+bounded common-account envelope; older schemas keep their original limits. The
 64-MiB directory quota, 128-file limit and exact-target publication engine also
 remain. This is bounded additional storage, not a performance or energy result.
 
@@ -118,8 +121,7 @@ metadata bytes; it does not qualify every maximum signed-input combination.
 
 The native traffic counterpart retains fixture time 170; independent calls use
 170/190/210/250/310/401 to exercise signed validity bounds. This is a bounded
-independent reference, not full native enrollment renewal. Same-account joint
-coordination, registration without fixtures, policy/witness or device replacement,
+independent reference, not full native enrollment renewal. Peer-only common-account roster transitions, policy/witness or device replacement,
 installed/cross-host lifecycle, whole-store rollback protection, power loss,
 physical erasure and construction-wide PCS analysis remain separate requirements.
 The Python/provider memory limitations in `README.md` continue to apply.

@@ -10,7 +10,7 @@ from .wire import require
 
 class ResolutionOwner:
     def _resolution_state(self, state, now):
-        require(state.format_version in (4, 5, 6, 7, 8), "resolution requires explicit snapshot upgrade")
+        require(state.format_version in (4, 5, 6, 7, 8, 9), "resolution requires explicit snapshot upgrade")
         require(state.traffic is not None, "traffic not activated")
         state.traffic.admit(now)
         return state.traffic

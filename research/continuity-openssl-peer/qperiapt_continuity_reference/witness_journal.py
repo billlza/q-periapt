@@ -11,6 +11,7 @@ from .kem import hkdf
 from .private_files import PrivateDirectory
 from .witness import Head, Operation
 from .wire import MAX_U64, require
+from .storage_budget import MAX_SHARED_STATE
 
 DOMAIN = b"Q-PERIAPT-INDEPENDENT-WITNESSED-JOURNAL/v1/"
 
@@ -26,6 +27,7 @@ class Genesis:
 
 class WitnessJournal(Journal):
     image_overhead = 264
+    max_payload = MAX_SHARED_STATE
 
     def __init__(self, path, scope, key, validate, profile, client, observer=None):
         require(type(key) is bytes and len(key) == 32, "wrapping key size")
@@ -37,7 +39,7 @@ class WitnessJournal(Journal):
         self._binding = scope.wire() + profile.pin.binding + self.subject + (1).to_bytes(8, "big")
         self._cipher = AESSIV(hkdf(key, scope.identity, DOMAIN + b"image-key/" + self._binding, 64))
         self._intent_key = hkdf(key, scope.identity, DOMAIN + b"intent-key/" + self._binding)
-        self._directory = PrivateDirectory(path, observer)
+        self._directory = PrivateDirectory(path, observer, max_file=self.max_payload + 4096)
 
     @classmethod
     def provision(cls, path, scope, key, initial, validate, profile, observer=None):
@@ -83,13 +85,13 @@ class WitnessJournal(Journal):
             raise
 
     def _seal(self, revision, payload):
-        require(type(payload) is bytes and len(payload) <= MAX_STATE and 0 < revision < MAX_U64, "journal payload/revision capacity")
+        require(type(payload) is bytes and len(payload) <= self.max_payload and 0 < revision < MAX_U64, "journal payload/revision capacity")
         self.validate(payload)
         header = b"QPREFW01" + self._binding + revision.to_bytes(8, "big")
         return header + self._cipher.encrypt(payload, [header])
 
     def _decode(self, wire):
-        require(self.image_overhead <= len(wire) <= MAX_STATE + self.image_overhead, "witnessed image capacity")
+        require(self.image_overhead <= len(wire) <= self.max_payload + self.image_overhead, "witnessed image capacity")
         require(wire[:240] == b"QPREFW01" + self._binding, "witnessed image identity/protection")
         revision = int.from_bytes(wire[240:248], "big")
         require(0 < revision < MAX_U64, "witnessed revision")

@@ -248,7 +248,7 @@ process kill during G2 adoption, original ciphertext/plaintext recovery, rekey,
 and revocation with both local and required-witness stores. Its explicit fixture
 clocks are not a real-time expiry or complete same-account lifecycle test.
 
-The pure `AccountState` model keeps one account roster, up to 256 retained device
+The `AccountState` model keeps one account roster, up to 256 retained device
 generation records, and the root grants that justify same-generation credential
 changes. `AccountRequest` serializes the complete local-and-companion collection
 and compares requests by signed statement identity. The owning coordinator must
@@ -259,15 +259,26 @@ verifying a companion grant does not grant a local owner.
 lineage substitution, incomplete collections, root-signed resurrection and
 generation rollback, and canonical account/request decoding. Its native example
 is a source-built test authority even when the traffic counterpart uses installed
-SDK crates. These checks establish pure transitions only. Integration with the
-registered session, sealed journal targets, witness outcomes and peer-only roster
-changes remains open; the existing runtime same-account guards remain in place.
+SDK crates. Those model checks establish pure transitions only.
+
+Registered common-account sessions use `QPREFS09`: the unchanged version-five
+business image plus one bounded common account and its renewal record.
+`stage_account` under a local-only policy and `prepare_account` under a required
+witness accept the complete local-and-companion collection. Every changed active
+credential must have its root grant; a single-role update cannot silently split
+the roster. Both roles derive authority from that one authenticated account.
+The first saved request bytes, original signing key, session, reserved sends and
+outboxes survive retries and process cuts. See [common-account renewal](SHARED_ACCOUNT.md)
+for the conditional formats, recovery and qualification boundaries.
+Peer-only shared roster changes remain explicitly refused pending their own
+common authority and witness transition.
 
 An independent [joint local credential coordinator](LOCAL_RENEWAL.md) now binds
 the original required-witness head transition to the actual root grant. It retains
 the exact sealed target and terminal before ACK, permits historical cleanup, and
 reopens the same session under its adopted local authority. `QPREFS06` is selected
-only for that explicit transition; normal creation and generic upgrade stay at five.
+only for that explicit separate-account transition; separate-account creation and
+generic upgrade stay at five. Common-account creation selects nine.
 
 For an original local-only policy, [LocalCredentialRenewal](LOCAL_CREDENTIAL.md)
 retains Pending, current local authority, abandonment and a time floor in the
@@ -279,7 +290,7 @@ store after credential expiry. Version seven remains readable with its original
 limits; an already Pending operation completes in that version.
 
 This is not an admitted independent Continuity product implementation.
-Policy renewal and retirement, same-account coordination, account fanout,
+Policy renewal and retirement, peer-only common-account roster transitions, account fanout,
 the complete installation/migration
 lifecycle, network carriers and installed-package qualification remain required.
 `resolution_checks.py` exercises process interruption, exact report recovery,

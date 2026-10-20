@@ -12,7 +12,7 @@ class WitnessSession(Session):
     def provision(cls, path, scope, key, context, signer, now, observer=None):
         require(context.witness is not None, "required witness profile missing")
         cls._scope(context, scope)
-        state = State(Initiator._prepare_for_journal(context, signer, now))
+        state = State.initial(Initiator._prepare_for_journal(context, signer, now), now)
         try:
             return WitnessJournal.provision(path, scope, key, encode(state), cls._validator(context),
                                             context.witness, observer)

@@ -4,10 +4,28 @@ from dataclasses import dataclass
 
 from .account_state import MAX_GRANTS
 from .renewal import Renewal, verify, verify_account
+from .storage_budget import MAX_ACCOUNT_REQUEST as MAX_REQUEST
 from .wire import Reader, ldh, require
 
-MAX_REQUEST = MAX_GRANTS * (65536 + 4) + 64
 
+def fields(wire):
+    """Decode bounded untrusted fields; this provides no verified authority."""
+    require(type(wire) is bytes and len(wire) <= MAX_REQUEST, "account request capacity")
+    reader = Reader(wire)
+    require(reader.take(8) == b"QPRFAR01", "account request schema")
+    target = reader.take(40)
+
+    def grant():
+        size = reader.integer(4)
+        require(0 < size <= 65536, "account request grant capacity")
+        return reader.take(size)
+
+    local = grant()
+    count = reader.integer(1)
+    require(count < MAX_GRANTS, "account companion capacity")
+    companions = tuple(grant() for _ in range(count))
+    reader.finish()
+    return local, companions, target
 
 @dataclass(frozen=True)
 class AccountRequest:
@@ -61,21 +79,7 @@ class AccountRequest:
 
     @classmethod
     def read(cls, wire, original, family, policy):
-        require(type(wire) is bytes and len(wire) <= MAX_REQUEST, "account request capacity")
-        reader = Reader(wire)
-        require(reader.take(8) == b"QPRFAR01", "account request schema")
-        target = reader.take(40)
-
-        def grant():
-            size = reader.integer(4)
-            require(0 < size <= 65536, "account request grant capacity")
-            return reader.take(size)
-
-        local = grant()
-        count = reader.integer(1)
-        require(count < MAX_GRANTS, "account companion capacity")
-        companions = tuple(grant() for _ in range(count))
-        reader.finish()
+        local, companions, target = fields(wire)
         value = cls.parse(local, companions, original, family, policy, target)
         require(value.encode() == wire, "noncanonical account request")
         return value

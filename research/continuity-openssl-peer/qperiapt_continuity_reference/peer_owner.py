@@ -1,14 +1,16 @@
 """Durable remote authority updates on the original established session owner."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from .journal import locked
-from .identity_state import IdentityState, admit_local
+from .identity_state import IdentityState, admit_local, peer_view
+from .account_snapshot import shared
 from .state_codec import encode
 from .wire import require
 
 
 class PeerOwner:
     def _peer_state(self, state, now):
-        require(state.format_version in (5, 6, 7, 8) and state.traffic is not None, "peer authority requires established format five")
+        require(state.format_version in (5, 6, 7, 8, 9) and state.traffic is not None, "peer authority requires established format five")
+        require(not shared(self._context), "shared-account changes require complete account coordination")
         # Only local credential/roster and policy gate maintenance. An expired or
         # revoked remote peer does not prevent receiving a valid signed update.
         admit_local(state, self._context, now)
@@ -45,6 +47,6 @@ class PeerOwner:
     def peer_authority_status(self):
         with self._state(operational=False) as (_snapshot, state):
             require(state.traffic is not None, "peer authority requires established session")
-            current = state.peer_authority or IdentityState.initial(self._context)
+            current = peer_view(state, self._context) or IdentityState.initial(self._context)
             return [current.listing.checkpoint().hex(), current.current.digest.hex(),
                     current.renewal.operation.hex() if current.renewal else None, current.active()]

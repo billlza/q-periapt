@@ -9,3 +9,10 @@ MAX_LOCAL_METADATA = 2 * MAX_IDENTITY + MAX_LOCAL_RECORD + 1
 # Version eight alone may add these authenticated records without consuming
 # business capacity already committed under an older local session schema.
 MAX_LOCAL_STATE = MAX_STATE + MAX_LOCAL_METADATA
+
+# A common account has one roster/history plus one complete renewal transaction.
+# Version nine keeps both outside the unchanged 2-MiB business/control budget.
+MAX_ACCOUNT_RECORD = MAX_STATE
+MAX_ACCOUNT_REQUEST = 32 * (65536 + 4) + 64
+MAX_ACCOUNT_COORDINATION = MAX_ACCOUNT_REQUEST + 400
+MAX_SHARED_STATE = MAX_STATE + MAX_ACCOUNT_RECORD + MAX_ACCOUNT_COORDINATION + 20

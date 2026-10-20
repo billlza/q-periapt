@@ -103,29 +103,58 @@ class IdentityState:
 
 
 def admit_local(state, context, now):
+    if state.account_renewal is not None:
+        state.account_renewal.current_time(now)
     if state.local_renewal is not None:
         state.local_renewal.current_time(now)
     context.intervals[0].check(now)
-    if state.local_authority is None:
+    current = local_view(state, context)
+    if current is None:
         for interval in context.intervals[1:3]:
             interval.check(now)
     else:
-        state.local_authority.check(now)
+        current.check(now)
+
+
+def local_view(state, context):
+    if state.account_authority is not None:
+        return state.account_authority.view(context.devices[0], local=True)
+    from .account_snapshot import shared, initial_account
+    if shared(context):
+        return initial_account(context).view(context.devices[0], local=True)
+    return state.local_authority
+
+
+def peer_view(state, context):
+    if state.account_authority is not None:
+        return state.account_authority.view(context.devices[1])
+    from .account_snapshot import shared, initial_account
+    if shared(context):
+        return initial_account(context).view(context.devices[1])
+    return state.peer_authority
 
 
 def local_binding(state, context):
     if context.witness is None:
         return None
-    if state.local_authority is None:
+    current = local_view(state, context)
+    if current is None:
         return context.witness.authority
-    return digest(b"AUTHORITY", state.local_authority.original.pin.account
-                  + state.local_authority.listing.checkpoint() + context.family)
+    return digest(b"AUTHORITY", current.original.pin.account
+                  + current.listing.checkpoint() + context.family)
 
 
 def bind(state, context):
-    if state.peer_authority is not None or state.local_authority is not None:
+    if state.account_authority is not None and state.traffic is None:
+        return
+    local, peer = local_view(state, context), peer_view(state, context)
+    if local is not None or peer is not None:
+        # Original common-account metadata is also available before bootstrap
+        # completion. It creates no traffic owner until the existing phase does.
+        if state.traffic is None and state.local_authority is None and state.peer_authority is None:
+            return
         require(state.traffic is not None, "retained identity requires original established session")
-        view = replace(context, current_peer=state.peer_authority, current_local=state.local_authority)
+        view = replace(context, current_peer=peer, current_local=local)
         state.traffic.context = view
         for traffic in state.traffic.epochs.values():
             traffic._context = view

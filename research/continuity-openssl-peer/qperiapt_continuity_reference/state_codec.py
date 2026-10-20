@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hmac
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .account_state import AccountState
+    from .account_record import AccountRecord
 
 from .authority import Context
 from .bootstrap import Initiator, digest, mac
@@ -29,6 +33,20 @@ class State:
     peer_authority: IdentityState | None = None
     local_authority: IdentityState | None = None
     local_renewal: Record | None = None
+    account_authority: AccountState | None = None
+    account_renewal: AccountRecord | None = None
+
+    @classmethod
+    def initial(cls, operation, now):
+        from .account_snapshot import initialize, shared
+        state = cls(operation)
+        try:
+            if shared(operation._context):
+                initialize(state, now)
+            return state
+        except BaseException:
+            state.close()
+            raise
 
     def close(self):
         self.operation.close()
@@ -38,6 +56,11 @@ class State:
 
 
 def encode(state: State) -> bytes:
+    if state.format_version == 9:
+        from .account_snapshot import encode as encode_account
+        return encode_account(state)
+    require(state.account_authority is None and state.account_renewal is None,
+            "shared account requires snapshot version nine")
     op = state.operation
     require(not op._closed, "closed snapshot owner")
     phase = 3 if state.traffic is not None else (2 if op._reply is not None else 1)
@@ -110,6 +133,9 @@ def encode(state: State) -> bytes:
 
 
 def decode(payload: bytes, context: Context) -> State:
+    if payload[:8] == b"QPREFS09":
+        from .account_snapshot import decode as decode_account
+        return decode_account(payload, context)
     require(len(payload) <= MAX_LOCAL_STATE, "snapshot aggregate capacity")
     reader = Reader(payload)
     tag = reader.take(8)

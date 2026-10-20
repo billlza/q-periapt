@@ -17,6 +17,8 @@ class Control:
     active: bytes = bytes(32)
     proposal: Proposal | None = None
     checkpoint: bytes = bytes(40)
+    account_binding: bytes | None = None
+    active_account_binding: bytes | None = None
 
     def __post_init__(self):
         require(type(self.phase) is int and self.phase in range(6) and type(self.floor) is int
@@ -24,7 +26,8 @@ class Control:
                 "local authority control shape")
         if self.phase == 0:
             require(self.floor == 0 and self.active == bytes(32) and self.proposal is None
-                    and self.checkpoint == bytes(40), "initial authority control")
+                    and self.checkpoint == bytes(40) and self.account_binding is None
+                    and self.active_account_binding is None, "initial authority control")
         else:
             require(self.proposal is not None and type(self.checkpoint) is bytes and len(self.checkpoint) == 40
                     and any(self.checkpoint[8:]), "retained renewal metadata")
@@ -35,14 +38,31 @@ class Control:
                 require(self.active == self.proposal.statement, "applied authority statement")
             else:
                 require(self.active != self.proposal.statement, "unapplied target cannot be current")
+        if self.account_binding is not None:
+            require(type(self.account_binding) is bytes and len(self.account_binding) == 32
+                    and any(self.account_binding), "complete account control binding")
+            require((self.active == bytes(32)) == (self.active_account_binding is None),
+                    "active account control presence")
+            if self.active_account_binding is not None:
+                require(type(self.active_account_binding) is bytes
+                        and len(self.active_account_binding) == 32 and any(self.active_account_binding),
+                        "active account control binding")
+            if self.phase in (2, 4):
+                require(self.active_account_binding == self.account_binding,
+                        "applied complete account control")
+        else:
+            require(self.active_account_binding is None, "active account requires complete account mode")
 
     def ready(self):
         return self.phase in (0, 4, 5)
 
     def wire(self, scope):
-        value = b"QPRFLC01" + scope.wire() + bytes([self.phase]) + self.floor.to_bytes(8, "big") + self.active
+        tag = b"QPRFLC01" if self.account_binding is None else b"QPRFLC02"
+        value = tag + scope.wire() + bytes([self.phase]) + self.floor.to_bytes(8, "big") + self.active
         if self.proposal is not None:
             value += self.proposal.wire() + self.checkpoint
+        if self.account_binding is not None:
+            value += self.account_binding + (self.active_account_binding or bytes(32))
         return value
 
 
@@ -50,21 +70,25 @@ def read(journal):
     data = journal._admit().read("authority")
     if data is None:
         return None
-    require(len(data) in (177, 513), "authority control size")
+    require(len(data) in (177, 513, 577), "authority control size")
     body = data[:-32]
     require(hmac.compare_digest(hmac.digest(journal._intent_key, DOMAIN + body, "sha256"), data[-32:]),
             "authority control authentication")
     r = Reader(body)
-    require(r.take(8) == b"QPRFLC01" and r.take(96) == journal.scope.wire(), "authority control scope")
+    tag = r.take(8)
+    require(tag in (b"QPRFLC01", b"QPRFLC02") and r.take(96) == journal.scope.wire(), "authority control scope")
     phase, floor, active = r.integer(1), r.integer(8), r.take(32)
     proposal = Proposal.decode(r.take(296)) if phase else None
     checkpoint = r.take(40) if phase else bytes(40)
+    binding = r.take(32) if tag == b"QPRFLC02" else None
+    active_binding = r.take(32) if tag == b"QPRFLC02" else bytes(32)
     r.finish()
     if proposal is not None:
         require(hasattr(journal, "profile") and proposal.witness == journal.profile.pin.binding
                 and proposal.subject == journal.subject and proposal.expected.fence == proposal.target.fence == 1,
                 "authority original witness/subject")
-    return Control(phase, floor, active, proposal, checkpoint)
+    return Control(phase, floor, active, proposal, checkpoint, binding,
+                   None if active_binding == bytes(32) else active_binding)
 
 
 def write(journal, control):
@@ -77,7 +101,10 @@ def write(journal, control):
 def admit_snapshot(journal, state):
     if state.operation._context.witness is None:
         require(journal._admit().read("authority") is None, "witness coordination in local-only store")
-        if state.format_version in (7, 8):
+        if state.format_version == 9:
+            require(state.account_renewal is not None, "common account coordination absent")
+            state.account_renewal.admit()
+        elif state.format_version in (7, 8):
             require(state.local_renewal is not None, "local coordination absent")
             state.local_renewal.admit()
         else:
@@ -85,14 +112,21 @@ def admit_snapshot(journal, state):
                     "local-only authority requires atomic coordination")
         return
     require(state.local_renewal is None, "local coordination cannot bypass required witness")
+    from .identity_state import local_view
+    current = local_view(state, state.operation._context)
     control = read(journal)
     if control is None:
-        require(state.local_authority is None, "missing original local authority control")
+        require(current is None or current.renewal is None, "missing original local authority control")
         return
     require(control.ready(), "local renewal coordination remains pending")
-    current = state.local_authority
-    if current is None:
+    if current is None or current.renewal is None:
         require(control.active == bytes(32), "local authority control/image mismatch")
     else:
         require(current.renewal is not None and control.active == current.renewal.statement
                 and control.floor >= current.listing.version, "retained local authority control/image mismatch")
+        if state.account_renewal is not None:
+            receipt = state.account_renewal.completed
+            require(receipt is not None and receipt.binding == control.active_account_binding,
+                    "complete account control/image mismatch")
+        else:
+            require(control.account_binding is None, "account control requires common account image")

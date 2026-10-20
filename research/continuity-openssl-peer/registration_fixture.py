@@ -17,10 +17,11 @@ from witness_fixture import Bridge
 
 
 class Fixture:
-    def __init__(self, args, label):
+    def __init__(self, args, label, *, account_members=None):
         self.out = args.output / label; self.out.mkdir(); (self.out / 'native').mkdir()
         self.native = Counterpart(args.native, self.out / 'native', registration=True,
-                                  local_lifecycle=True, required_witness=label == 'witness')
+                                  local_lifecycle=account_members is None, required_witness=label == 'witness',
+                                  account_members=account_members)
         self.bridge = None; self.driver = None; self.refusals = []; self.observations = {}
         try:
             deadline = time.monotonic() + 30

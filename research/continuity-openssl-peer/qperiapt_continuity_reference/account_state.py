@@ -10,12 +10,11 @@ from dataclasses import dataclass
 from .identity import DevicePin, Roster, roster
 from .identity_state import IdentityState
 from .renewal import Renewal, verify_account
-from .storage_budget import MAX_STATE
+from .storage_budget import MAX_ACCOUNT_RECORD as MAX_RECORD
 from .wire import Reader, generation, nonzero, require
 
 MAX_HISTORY = 256
 MAX_GRANTS = 32
-MAX_RECORD = MAX_STATE
 
 
 @dataclass(frozen=True)

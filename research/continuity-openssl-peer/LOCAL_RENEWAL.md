@@ -37,8 +37,9 @@ authenticated image, and the witness must authorize that current authority.
 
 The original `QPREFW01` subject, signing key, wrapping-key domain, bootstrap
 transcript, session keys and outbox identities remain fixed. Only a genuinely
-renewed local identity selects inner format `QPREFS06`; ordinary new sessions and
-explicit generic upgrades remain version five. Versions one through five keep
+renewed separate-account local identity selects inner format `QPREFS06`;
+separate-account creation and explicit generic upgrades remain version five.
+Common-account creation and whole-collection renewal use [version nine](SHARED_ACCOUNT.md). Versions one through five keep
 their previous encoding. Version six adds the same canonical identity-state
 encoding used for peer metadata, directly after the optional peer metadata. It
 requires an established session and a retained original-root renewal grant.
@@ -79,15 +80,14 @@ this documented availability gap is not solved by the joint renewal interface.
 
 Only the latest coordinator receipt is retained after completion; starting a
 later renewal does not provide an unbounded historical operation ledger. This
-mode does not provide same-account joint coordination,
+mode does not provide peer-only common-account roster transitions,
 policy/witness replacement, device replacement, a separately deployed authority,
 installed-package qualification, whole-witness rollback protection, physical
 erasure, hardware power-loss qualification or construction-wide PCS analysis.
 The Python/provider memory limitations in `README.md` still apply.
 An original local-only policy uses the separate [single-journal coordinator](LOCAL_CREDENTIAL.md)
 and conditional version eight, retaining seven's reader and original Pending
-completion. It does not weaken this mode's witness requirement or enlarge its
-required-witness storage budget.
+completion. It does not weaken this mode's witness requirement or change the bounds of its existing state schemas.
 
 The journal's internal opening factory transfers its already recovered,
 authenticated snapshot directly into session construction. The constructor

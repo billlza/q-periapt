@@ -63,8 +63,9 @@ def main():
                "begin_closed_epoch_resolution", "acknowledge_closed_epoch_resolution", "closed_epoch_resolution_status",
                "admit_peer_credential_renewal", "admit_peer_roster", "peer_authority_status"}
     renewal_actions = {"local_renewal_prepare", "local_renewal_status", "local_renewal_recover",
-                       "local_renewal_commit", "local_renewal_close"}
-    local_actions = {"local_credential_stage", "local_credential_status", "local_credential_commit", "local_credential_expire"}
+                       "local_renewal_commit", "local_renewal_close", "local_account_prepare_files"}
+    local_actions = {"local_credential_stage", "local_credential_status", "local_credential_commit", "local_credential_expire",
+                     "local_account_stage_files"}
     pending_actions = {"pending_recovery_request_files", "pending_recovery_confirm_files"}
     require(action in (allowed | local_actions) or (witness_pin is not None and
             action in ({"witness_provision", "witness_genesis"} | renewal_actions | pending_actions)), "unknown session action")
@@ -75,7 +76,7 @@ def main():
             raise RuntimeError("killed session worker unexpectedly resumed")
     if action in local_actions:
         from local_renewal_actions import run_local
-        result = run_local(action, arguments, now, args.root, scope, key, context, observe)
+        result = run_local(action, arguments, now, args.root, scope, key, context, observe, args.request.parent)
         print(json.dumps({"result": result}))
         return
     if witness_pin is not None:
@@ -100,7 +101,7 @@ def main():
             return
         if action in renewal_actions:
             from local_renewal_actions import run
-            result = run(action, arguments, now, args.root, scope, key, context, client, observe)
+            result = run(action, arguments, now, args.root, scope, key, context, client, observe, args.request.parent)
             print(json.dumps({"result": result.hex() if isinstance(result, bytes) else result}))
             return
         owner = WitnessSession.open(args.root, scope, key, context, client=client, observer=observe)

@@ -14,7 +14,7 @@ from .rekey_owner import RekeyOwner
 from .control import ControlOwner
 from .resolution_owner import ResolutionOwner
 from .peer_owner import PeerOwner
-from .identity_state import admit_local, local_binding
+from .identity_state import admit_local, local_binding, peer_view
 from .local_authority_control import admit_snapshot
 from .traffic import message_id, PendingDelivery
 from .wire import ldh, require
@@ -61,7 +61,7 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
     def create(cls, path, scope: Scope, key: bytes, context, signer, now: int, observer=None):
         require(context.witness is None, "required witness needs the witnessed session owner")
         cls._scope(context, scope)
-        state = State(Initiator(context, signer, now))
+        state = State.initial(Initiator(context, signer, now), now)
         try:
             journal, snapshot = LocalSessionJournal._create(path, scope, key, encode(state), cls._validator(context), observer)
             return cls(journal, context, observer, snapshot)
@@ -86,11 +86,12 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
                 self._journal.admit(snapshot, operational, authority)
             if operational and now is not None:
                 admit_local(state, self._context, now)
-            if operational and now is not None and not peer_maintenance and state.peer_authority is not None:
-                state.peer_authority.check(now)
+            peer = peer_view(state, self._context)
+            if operational and now is not None and not peer_maintenance and peer is not None:
+                peer.check(now)
             yield snapshot, state
             authority_generation = self._authority_generation
-            if operational and now is not None and state.format_version in (5, 6, 7, 8):
+            if operational and now is not None and state.format_version in (5, 6, 7, 8, 9):
                 # A reentrant host observer may have committed revocation after
                 # this call's own write. Recheck the durable current authority
                 # before its result escapes; the earlier decoded view is stale.
@@ -100,8 +101,9 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
                     admit_snapshot(self._journal, fresh)
                     admit_local(fresh, self._context, now)
                     authority = local_binding(fresh, self._context)
-                    if not peer_maintenance and fresh.peer_authority is not None:
-                        fresh.peer_authority.check(now)
+                    peer = peer_view(fresh, self._context)
+                    if not peer_maintenance and peer is not None:
+                        peer.check(now)
                 finally:
                     fresh.close()
             if self._context.witness is not None:
@@ -200,7 +202,11 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
                 # A committed outgoing row adds index+receipt+wire length+frame.
                 # Reserve space for that final state before persisting plaintext.
                 limit = MAX_LOCAL_STATE if state.format_version == 8 else MAX_STATE
-                require(len(snapshot.payload) + 8 + 32 + 4 + 109 + len(plaintext) <= limit,
+                used = len(snapshot.payload)
+                if state.format_version == 9:
+                    from .account_snapshot import base_size
+                    used = base_size(snapshot.payload)
+                require(used + 8 + 32 + 4 + 109 + len(plaintext) <= limit,
                         "final send image capacity")
                 state.pending = plan
                 snapshot = self._journal.update(snapshot.digest, encode(state))

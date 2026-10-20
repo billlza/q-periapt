@@ -4,7 +4,10 @@ from dataclasses import replace
 import threading
 
 from .durable import Session
-from .identity_state import IdentityState
+from .identity_state import IdentityState, local_view
+from .account_snapshot import initialize, shared
+from .account_record import AccountRecord, Receipt
+from .account_request import AccountRequest
 from .journal import locked
 from .local_authority_control import Control, admit_snapshot, read as read_control, write as write_control
 from .local_renewal_intent import Intent
@@ -58,7 +61,8 @@ class LocalRenewal:
             require((snapshot.digest == p.expected.digest) == (snapshot.revision == p.expected.revision),
                     "local renewal predecessor revision conflict")
             if control.phase in (1, 2, 3):
-                require(control.proposal == p and control.checkpoint == intent.checkpoint,
+                require(control.proposal == p and control.checkpoint == intent.checkpoint
+                        and control.account_binding == intent.account_binding,
                         "local renewal control/intent conflict")
             else:
                 require(control.ready() and int.from_bytes(intent.checkpoint[:8], "big") > control.floor,
@@ -81,49 +85,86 @@ class LocalRenewal:
         p = intent.proposal if intent is not None else (control.proposal if control else None)
         require(p is not None and p.operation == self.operation, "original renewal operation unavailable")
         if intent is not None and control.ready():
-            control = Control(1, control.floor, control.active, p, intent.checkpoint)
+            control = Control(1, control.floor, control.active, p, intent.checkpoint,
+                              intent.account_binding, control.active_account_binding)
             write_control(self._journal, control)
         return snapshot, control, intent
 
     @coordinated
     def prepare(self, grant_wire, target_checkpoint, now):
+        return self._prepare(grant_wire, target_checkpoint, now, None)
+
+    @coordinated
+    def prepare_account(self, grant_wire, companions, target_checkpoint, now):
+        return self._prepare(grant_wire, target_checkpoint, now, companions)
+
+    def _prepare(self, grant_wire, target_checkpoint, now, companions):
         try:
             snapshot, control, intent = self._inspect()
             state = decode(snapshot.payload, self._context)
             try:
-                current = state.local_authority or IdentityState.initial(self._context, role=0)
-                grant = verify(grant_wire, current.original, self._context.family, self._context.policy_digest,
-                               target_checkpoint)
+                request = None
+                if shared(self._context):
+                    require(companions is not None, "shared account requires prepare_account")
+                    if state.format_version == 5:
+                        initialize(state)
+                    require(state.account_authority is not None and state.account_renewal is not None,
+                            "original common account state absent")
+                    request = AccountRequest.parse(grant_wire, companions, self._context.devices[0],
+                                                   self._context.family, self._context.policy_digest, target_checkpoint)
+                    grant = request.local
+                    current = local_view(state, self._context)
+                else:
+                    require(companions is None, "account renewal requires common account state")
+                    current = state.local_authority or IdentityState.initial(self._context, role=0)
+                    grant = verify(grant_wire, current.original, self._context.family, self._context.policy_digest,
+                                   target_checkpoint)
+                binding = None if request is None else request.binding()
                 require(grant.operation == self.operation, "local renewal original operation differs")
                 existing = intent.proposal if intent else (control.proposal if control else None)
                 if existing is not None and existing.operation == self.operation:
                     require(existing.statement == grant.statement and
-                            (intent.checkpoint if intent else control.checkpoint) == target_checkpoint,
+                            (intent.checkpoint if intent else control.checkpoint) == target_checkpoint
+                            and (intent.account_binding if intent else control.account_binding) == binding,
                             "conflicting original local renewal")
                     self._current()
                     return existing.wire()
                 require(intent is None and (control is None or control.ready()), "another local renewal remains pending")
                 require(state.traffic is not None, "local renewal requires original established session")
                 self._context.intervals[0].check(now); grant.current(now)
-                next_identity = current.renew(self._context, grant_wire, self.operation, target_checkpoint, now)
-                require(next_identity is not current, "local renewal target already installed without its receipt")
+                if request is None:
+                    next_identity = current.renew(self._context, grant_wire, self.operation, target_checkpoint, now)
+                    require(next_identity is not current, "local renewal target already installed without its receipt")
+                    version = next_identity.listing.version
+                else:
+                    account = request.apply(state.account_authority, now)
+                    version = account.listing.version
                 if control is None:
                     control = Control(); write_control(self._journal, control)
-                require(next_identity.listing.version > control.floor, "local renewal successor retired")
+                require(version > control.floor, "local renewal successor retired")
                 require(control.active == (current.renewal.statement if current.renewal else bytes(32)),
                         "local renewal predecessor control differs")
+                active_binding = None if request is None or state.account_renewal.completed is None else state.account_renewal.completed.binding
+                require(control.active_account_binding == active_binding, "local account predecessor control differs")
                 self._journal._query(snapshot)
-                state.local_authority = next_identity; state.format_version = 6
+                if request is None:
+                    state.local_authority = next_identity; state.format_version = 6
+                else:
+                    state.account_authority = account
+                    state.account_renewal = AccountRecord(state.account_renewal.floor, completed=Receipt.for_request(request))
                 target = self._journal._seal(snapshot.revision + 1, encode(state))
                 target_snapshot = self._journal._decode(target)
                 p = Proposal(self._context.witness.pin.binding, self._journal.subject, self.operation, grant.statement,
                              Head(1, snapshot.revision, snapshot.digest), Head(1, target_snapshot.revision, target_snapshot.digest))
-                retained = Intent(p, target, target_checkpoint)
+                retained = Intent(p, target, target_checkpoint, binding)
                 wire = retained.wire(self._journal)
-                self._journal._admit().quota(len(wire) + len(target) + 2 * 513, 4)
+                pending_control = Control(1, control.floor, control.active, p, target_checkpoint,
+                                          binding, active_binding)
+                self._journal._admit().quota(len(wire) + len(target)
+                                            + 2 * (len(pending_control.wire(self._journal.scope)) + 32), 4)
                 self._journal._admit().publish("intent", wire)
                 require(Intent.read(self._journal, self._context) == retained, "local renewal intent durable readback")
-                write_control(self._journal, Control(1, control.floor, control.active, p, target_checkpoint))
+                write_control(self._journal, pending_control)
                 self._journal._admit().observe("renewal:prepared")
                 return p.wire()
             finally:
@@ -165,7 +206,9 @@ class LocalRenewal:
             require(snapshot.digest == p.expected.digest, "closed target was installed")
             self._journal._query(snapshot)
             phase, active = 3, control.active
-        terminal = Control(phase, int.from_bytes(control.checkpoint[:8], "big"), active, p, control.checkpoint)
+        active_binding = control.account_binding if outcome == "Applied" else control.active_account_binding
+        terminal = Control(phase, int.from_bytes(control.checkpoint[:8], "big"), active, p, control.checkpoint,
+                           control.account_binding, active_binding)
         write_control(self._journal, terminal)
         self._journal._admit().observe("renewal:terminal-durable")
         require(p.exchange(self._journal.client, 8) in ("Acknowledged", "Unavailable"), "renewal terminal acknowledgement")
@@ -196,7 +239,11 @@ class LocalRenewal:
                 target = decode(self._journal._decode(intent.target).payload, self._context)
                 try:
                     self._context.intervals[0].check(now)
-                    target.local_authority.check(now)
+                    local_view(target, self._context).check(now)
+                    if target.account_authority is not None:
+                        for grant in target.account_authority.renewals:
+                            if grant.successor_roster.checkpoint() == intent.checkpoint:
+                                grant.current(now)
                 finally:
                     target.close()
                 outcome = control.proposal.exchange(self._journal.client, 5)

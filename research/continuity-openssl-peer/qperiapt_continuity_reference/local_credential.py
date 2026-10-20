@@ -5,6 +5,8 @@ from dataclasses import replace
 import threading
 from .durable import Session
 from .identity_state import IdentityState
+from .account_snapshot import initialize, shared
+from .account_request import AccountRequest
 from .journal import LocalSessionJournal, locked
 from .local_renewal_record import Record, Expired
 from .owner_guard import coordinated
@@ -38,8 +40,16 @@ class LocalCredentialRenewal:
         snapshot = self._journal.read(); state = decode(snapshot.payload, self._context)
         try:
             require(state.traffic is not None, "local renewal requires original established session")
-            current = state.local_authority or IdentityState.initial(self._context, role=0)
-            record = state.local_renewal or Record()
+            if shared(self._context):
+                if state.format_version == 5:
+                    initialize(state)
+                require(state.format_version == 9 and state.account_authority is not None
+                        and state.account_renewal is not None, "original common account state absent")
+                current = state.account_authority.view(self._context.devices[0], local=True)
+                record = state.account_renewal
+            else:
+                current = state.local_authority or IdentityState.initial(self._context, role=0)
+                record = state.local_renewal or Record()
             yield snapshot, state, current, record
         finally:
             state.close()
@@ -52,7 +62,9 @@ class LocalCredentialRenewal:
     @coordinated
     def status(self):
         try:
-            with self._state() as (_snapshot, _state, current, record):
+            with self._state() as (_snapshot, state, current, record):
+                if state.account_authority is not None:
+                    return record.status(self.operation)
                 return record.status(current, self.operation)
         except BaseException:
             self.close(); raise
@@ -61,6 +73,7 @@ class LocalCredentialRenewal:
     def stage(self, wire, target, now):
         try:
             with self._state() as (snapshot, state, current, record):
+                require(state.account_authority is None, "shared account requires stage_account")
                 grant = verify(wire, current.original, self._context.family, self._context.policy_digest, target)
                 require(grant.operation == self.operation, "local renewal original operation differs")
                 known = ((record.pending is not None and record.pending.operation == self.operation)
@@ -87,9 +100,40 @@ class LocalCredentialRenewal:
             self.close(); raise
 
     @coordinated
+    def stage_account(self, wire, companions, target, now):
+        try:
+            with self._state() as (snapshot, state, _current, record):
+                require(state.account_authority is not None, "account renewal requires common account state")
+                request = AccountRequest.parse(wire, companions, self._context.devices[0],
+                                               self._context.family, self._context.policy_digest, target)
+                require(request.local.operation == self.operation, "local renewal original operation differs")
+                if record.known(self.operation) is None:
+                    self._context.intervals[0].check(now)
+                pending = record.stage(state.account_authority, request, now)
+                if pending is record:
+                    return record.status(self.operation)
+                # Preflight both representations before persisting Pending.
+                # Business bytes retain their prior budget even for 32 grants.
+                account, completion = pending.commit(state.account_authority, self.operation, now)
+                encode(replace(state, account_authority=account, account_renewal=completion))
+                state.account_renewal = pending
+                self._save(snapshot, state, "staged")
+                return pending.status(self.operation)
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
     def commit(self, now):
         try:
             with self._state() as (snapshot, state, current, record):
+                if state.account_authority is not None:
+                    if record.status(self.operation)["status"] == "Pending":
+                        self._context.intervals[0].check(now)
+                    account, completed = record.commit(state.account_authority, self.operation, now)
+                    if completed is not record:
+                        state.account_authority, state.account_renewal = account, completed
+                        self._save(snapshot, state, "committed")
+                    return completed.status(self.operation)
                 result = record.status(current, self.operation)
                 if result['status'] == 'Committed':
                     return result
@@ -110,6 +154,13 @@ class LocalCredentialRenewal:
     def reconcile_expired(self, now):
         try:
             with self._state() as (snapshot, state, current, record):
+                if state.account_authority is not None:
+                    expired = record.reconcile_expired(state.account_authority, self.operation, now,
+                                                       snapshot.revision, snapshot.digest)
+                    if expired is not record:
+                        state.account_renewal = expired
+                        self._save(snapshot, state, "expired-uncommitted")
+                    return expired.status(self.operation)
                 result = record.status(current, self.operation)
                 if result['status'] in ('Committed', 'ExpiredUncommitted'):
                     return result

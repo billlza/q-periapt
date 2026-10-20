@@ -10,6 +10,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
+mod account_fixture;
 mod fixture;
 mod journal;
 mod peer_lifecycle;
@@ -64,6 +65,7 @@ fn main() -> Result<()> {
     let mut short_roster = false;
     let mut registration = false;
     let mut extension = false;
+    let mut account_members = None;
     while let Some(flag) = args.next() {
         match flag.to_str() {
             Some("--send-budget") => {
@@ -81,6 +83,15 @@ fn main() -> Result<()> {
             Some("--local-roster-expiry") if !short_roster => short_roster = true,
             Some("--registration") if !registration => registration = true,
             Some("--registration-extension") if !extension => extension = true,
+            Some("--shared-account") if account_members.is_none() => {
+                account_members = Some(
+                    args.next()
+                        .ok_or("missing account member count")?
+                        .to_str()
+                        .ok_or("non-UTF8 account member count")?
+                        .parse::<u8>()?,
+                );
+            }
             _ => return Err("unexpected argument".into()),
         }
     }
@@ -93,6 +104,19 @@ fn main() -> Result<()> {
     if intermediate_peer && (!peer_lifecycle || local_lifecycle || registration || extension) {
         return Err("intermediate peer requires its separate peer lifecycle fixture".into());
     }
+    if let Some(count) = account_members {
+        if !matches!(count, 3 | 32)
+            || peer_lifecycle
+            || local_lifecycle
+            || intermediate_peer
+            || short_roster
+            || extension
+        {
+            return Err(
+                "shared account requires 3 or 32 members and its separate lifecycle fixture".into(),
+            );
+        }
+    }
     let options = fixture::Options {
         budget,
         peer_lifecycle,
@@ -100,6 +124,7 @@ fn main() -> Result<()> {
         local_lifecycle,
         short_roster,
         extension,
+        account_members,
     };
     let times = options.times();
     let directory = Path::new(&path);

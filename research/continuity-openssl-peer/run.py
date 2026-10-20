@@ -26,7 +26,7 @@ def arguments():
 
 
 class Counterpart:
-    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False, short_roster=False, registration=False, registration_extension=False, intermediate_peer=False):
+    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False, short_roster=False, registration=False, registration_extension=False, intermediate_peer=False, account_members=None):
         self.cases = output / "cases"
         self.cases.mkdir()
         self.stderr = (output / "native.stderr").open("xb")
@@ -50,6 +50,10 @@ class Counterpart:
                 command += ["--registration"]
             if registration_extension:
                 command += ["--registration-extension"]
+            if account_members is not None:
+                if type(account_members) is not int or account_members not in (3, 32):
+                    raise ValueError("shared account requires 3 or 32 fixture members")
+                command += ["--shared-account", str(account_members)]
             self.process = subprocess.Popen(command,
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.stderr,
                 bufsize=0, start_new_session=True)

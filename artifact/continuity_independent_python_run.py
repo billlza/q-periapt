@@ -101,7 +101,7 @@ def qualify(args: argparse.Namespace) -> dict:
     cache.mkdir(mode=0o700)
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(("PYTHON", "PIP_", "DYLD_", "LD_"))}
-    result = {"schema_version": 3, "kind": "qperiapt.independent_python_installation",
+    result = {"schema_version": 4, "kind": "qperiapt.independent_python_installation",
               "completed": False, "release_claim_eligible": False, "source_commit": commit,
               "source_inputs": before, "wheel_sha256": wheel.sha256, "native_sha256": native.sha256}
 
@@ -190,6 +190,41 @@ def qualify(args: argparse.Namespace) -> dict:
                     and len([op for op in row["worker_operations"] if op.get("signal") == "SIGKILL"
                              and op.get("cut") == "committed:intent"]) == 1,
                     "installed intermediate peer authority or recovery differs")
+        account_results = {}
+        account_profiles = {
+            "shared_account_checks": {
+                str(count): {"workers": 41, "native_commands": 9, "process_kills": 6}
+                for count in (3, 32)},
+            "witness_account_checks": {
+                f"{count}-{closed}": {"workers": 35 if closed else 32,
+                                     "native_commands": 139 if closed else 136,
+                                     "process_kills": 4}
+                for count in (3, 32) for closed in (False, True)}}
+        for driver, profiles in account_profiles.items():
+            run([*interpreter, str(application / (driver + ".py")),
+                 "--provider-root", str(provider), "--native", str(args.native),
+                 "--output", str(output / driver)], driver)
+            row = parse_strict_json_bytes(snapshot(output / driver / "RESULT.json").data,
+                                         label="installed common account")
+            require(row["source_files"] == current and row["native_sha256"] == native.sha256
+                    and row["profiles"] == profiles,
+                    "installed common account source or workload differs: " + driver)
+            account_results[driver] = row
+        run([*interpreter, str(application / "account_boundary_checks.py"),
+             "--provider-root", str(provider), "--native", str(args.native),
+             "--output", str(output / "account-boundary")], "account-boundary")
+        boundary = parse_strict_json_bytes(snapshot(output / "account-boundary/RESULT.json").data,
+                                           label="installed common account boundaries")
+        require(boundary["source_files"] == current and boundary["native_sha256"] == native.sha256
+                and boundary["expiry"]["earliest_expiry"] == 275
+                and boundary["expiry"]["local_expiry"] == 300
+                and boundary["expiry"]["observed_expiry"]["status"] == "ExpiredUncommitted"
+                and boundary["capacity"]["members"] == 32
+                and boundary["capacity"]["traffic_bytes"] == 2031616
+                and boundary["capacity"]["rows"] == 123
+                and boundary["capacity"]["large_pending_image_bytes"] > 3 * 1024 * 1024,
+                "installed common account expiry or unchanged business allowance differs")
+        account_results["boundaries"] = boundary
         # The consumer adds only declared test files; pip's installed files and
         # all copied inputs must remain byte-identical after real process cuts.
         after = installed_files(application)
@@ -202,7 +237,8 @@ def qualify(args: argparse.Namespace) -> dict:
         result.update(completed=True, sources_unchanged=True, modules=expected,
                       registration={label: observed[label] for label in ("local", "witness")},
                       client_session=client_session, extension_session=extension_session,
-                      intermediate_peer=intermediate, provider=observed["provider"])
+                      intermediate_peer=intermediate, common_account=account_results,
+                      provider=observed["provider"])
     except BaseException as error:
         result["failure"] = {"type": type(error).__name__, "message": str(error)}
         raise

@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESSIV
 
 from .kem import hkdf
 from .private_files import PrivateDirectory
-from .storage_budget import MAX_STATE, MAX_LOCAL_STATE
+from .storage_budget import MAX_STATE, MAX_SHARED_STATE
 from .wire import MAX_U64, Reader, require
 
 DOMAIN = b"Q-PERIAPT-INDEPENDENT-JOURNAL/v1/"
@@ -227,5 +227,5 @@ class Journal:
 
 
 class LocalSessionJournal(Journal):
-    """Same transaction engine; the session codec admits the extra v8 allocation."""
-    max_payload = MAX_LOCAL_STATE
+    """Same transaction engine; the codec enforces each schema's own allocation."""
+    max_payload = MAX_SHARED_STATE

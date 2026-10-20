@@ -78,6 +78,7 @@ pub(super) struct Options {
     pub local_lifecycle: bool,
     pub short_roster: bool,
     pub extension: bool,
+    pub account_members: Option<u8>,
 }
 #[derive(Clone, Copy)]
 pub(super) struct Times {
@@ -115,6 +116,7 @@ pub(super) fn create(
         local_lifecycle,
         short_roster,
         extension,
+        account_members,
     } = options;
     let runtime = runtime(directory)?;
     let (authority, mut registered, retained) = match registration {
@@ -127,7 +129,7 @@ pub(super) fn create(
     };
     let validity = Validity::new(
         100,
-        if peer_lifecycle || local_lifecycle || extension {
+        if peer_lifecycle || local_lifecycle || extension || account_members.is_some() {
             400
         } else {
             200
@@ -174,101 +176,114 @@ pub(super) fn create(
         Some(w) => w.provision_device()?,
         None => DeviceSigningKey::generate()?,
     };
-    let mut devices = Vec::new();
-    let mut local_grants = Vec::new();
-    for (role, id, public) in [("i", 1, peer_key), ("r", 2, signer.public_key()?)] {
-        let registered_device = if role == "i" { registered.take() } else { None };
-        let (root, existing_certificate) = match registered_device {
-            Some((root, certificate)) => (root, Some(certificate)),
-            None => (RootSigningKey::generate()?, None),
-        };
-        let certificate = match existing_certificate {
-            Some(certificate) => certificate,
-            None => root.issue_device(
-                DeviceDescription::new(
-                    [id; 16],
-                    1,
-                    family,
-                    if local_lifecycle || peer_lifecycle {
-                        let renewed = (local_lifecycle && id == 1) || (peer_lifecycle && id == 2);
-                        Validity::new(100, if renewed { 200 } else { 350 })?
-                    } else {
-                        validity
-                    },
-                )?,
-                public,
-            )?,
-        };
-        let (certificate, roster) = if extension && role == "i" {
-            extension::credential(directory, &root, certificate, family, times)?
-        } else {
-            let roster = root.issue_roster(1, validity, &[root.roster_entry(&certificate)?])?;
-            (certificate, roster)
-        };
-        let pin = AccountPin::new(
-            root.account_id()?,
-            root.public_key()?,
-            roster.checkpoint(),
-            family,
-        )?;
-        let original = Arc::new(pin.verify_device(
-            &certificate,
-            roster.as_bytes(),
-            if intermediate_peer && role == "r" {
-                NOW
-            } else {
-                times.bootstrap
-            },
-        )?);
-        let grants = if (peer_lifecycle && role == "r") || (local_lifecycle && role == "i") {
-            crate::peer_lifecycle::publish(
-                directory,
-                &root,
-                &certificate,
-                &original,
-                roster.as_bytes(),
-                crate::peer_lifecycle::Scope {
-                    policy: policy.checkpoint().digest(),
-                    family,
-                    local: role == "i",
-                    short_roster: role == "i" && short_roster,
-                },
-            )?
-        } else {
-            Vec::new()
-        };
-        let (certificate, roster_bytes, device) = if intermediate_peer && role == "r" {
-            let current = grants
-                .first()
-                .ok_or("missing intermediate peer grant")?
-                .successor_device();
-            let certificate = root.issue_credential_extension(&original, 300, 170)?;
-            (
-                certificate,
-                current.roster().as_bytes().to_vec(),
-                Arc::new(current.clone()),
-            )
-        } else {
-            (certificate, roster.as_bytes().to_vec(), original)
-        };
-        let mut expectation = root.account_id()?.to_vec();
-        expectation.extend_from_slice(&device.roster().checkpoint().version().to_be_bytes());
-        expectation.extend_from_slice(&device.roster().checkpoint().digest());
-        expectation.extend_from_slice(&[id; 16]);
-        expectation.extend_from_slice(&1u64.to_be_bytes());
-        save(
+    let (devices, local_grants) = if let Some(count) = account_members {
+        shared_devices(
             directory,
-            &format!("pin-{role}-root"),
-            &root.public_key()?.encode(),
-        )?;
-        save(directory, &format!("pin-{role}-head"), &expectation)?;
-        save(directory, &format!("{role}-credential"), &certificate)?;
-        save(directory, &format!("{role}-roster"), &roster_bytes)?;
-        devices.push(device);
-        if role == "i" {
-            local_grants = grants;
+            [peer_key, signer.public_key()?],
+            family,
+            policy.checkpoint().digest(),
+            count,
+            registered.take(),
+        )?
+    } else {
+        let mut devices = Vec::new();
+        let mut local_grants = Vec::new();
+        for (role, id, public) in [("i", 1, peer_key), ("r", 2, signer.public_key()?)] {
+            let registered_device = if role == "i" { registered.take() } else { None };
+            let (root, existing_certificate) = match registered_device {
+                Some((root, certificate)) => (root, Some(certificate)),
+                None => (RootSigningKey::generate()?, None),
+            };
+            let certificate = match existing_certificate {
+                Some(certificate) => certificate,
+                None => root.issue_device(
+                    DeviceDescription::new(
+                        [id; 16],
+                        1,
+                        family,
+                        if local_lifecycle || peer_lifecycle {
+                            let renewed =
+                                (local_lifecycle && id == 1) || (peer_lifecycle && id == 2);
+                            Validity::new(100, if renewed { 200 } else { 350 })?
+                        } else {
+                            validity
+                        },
+                    )?,
+                    public,
+                )?,
+            };
+            let (certificate, roster) = if extension && role == "i" {
+                extension::credential(directory, &root, certificate, family, times)?
+            } else {
+                let roster = root.issue_roster(1, validity, &[root.roster_entry(&certificate)?])?;
+                (certificate, roster)
+            };
+            let pin = AccountPin::new(
+                root.account_id()?,
+                root.public_key()?,
+                roster.checkpoint(),
+                family,
+            )?;
+            let original = Arc::new(pin.verify_device(
+                &certificate,
+                roster.as_bytes(),
+                if intermediate_peer && role == "r" {
+                    NOW
+                } else {
+                    times.bootstrap
+                },
+            )?);
+            let grants = if (peer_lifecycle && role == "r") || (local_lifecycle && role == "i") {
+                crate::peer_lifecycle::publish(
+                    directory,
+                    &root,
+                    &certificate,
+                    &original,
+                    roster.as_bytes(),
+                    crate::peer_lifecycle::Scope {
+                        policy: policy.checkpoint().digest(),
+                        family,
+                        local: role == "i",
+                        short_roster: role == "i" && short_roster,
+                    },
+                )?
+            } else {
+                Vec::new()
+            };
+            let (certificate, roster_bytes, device) = if intermediate_peer && role == "r" {
+                let current = grants
+                    .first()
+                    .ok_or("missing intermediate peer grant")?
+                    .successor_device();
+                let certificate = root.issue_credential_extension(&original, 300, 170)?;
+                (
+                    certificate,
+                    current.roster().as_bytes().to_vec(),
+                    Arc::new(current.clone()),
+                )
+            } else {
+                (certificate, roster.as_bytes().to_vec(), original)
+            };
+            let mut expectation = root.account_id()?.to_vec();
+            expectation.extend_from_slice(&device.roster().checkpoint().version().to_be_bytes());
+            expectation.extend_from_slice(&device.roster().checkpoint().digest());
+            expectation.extend_from_slice(&[id; 16]);
+            expectation.extend_from_slice(&1u64.to_be_bytes());
+            save(
+                directory,
+                &format!("pin-{role}-root"),
+                &root.public_key()?.encode(),
+            )?;
+            save(directory, &format!("pin-{role}-head"), &expectation)?;
+            save(directory, &format!("{role}-credential"), &certificate)?;
+            save(directory, &format!("{role}-roster"), &roster_bytes)?;
+            devices.push(device);
+            if role == "i" {
+                local_grants = grants;
+            }
         }
-    }
+        (devices, local_grants)
+    };
     let initiator = devices.first().ok_or("missing initiator")?;
     let responder = devices.get(1).ok_or("missing responder")?;
     let key = runtime.generate_key()?;
@@ -329,4 +344,80 @@ pub(super) fn create(
         local_grants,
         registration: retained,
     })
+}
+
+fn shared_devices(
+    directory: &Path,
+    keys: [PublicKey; 2],
+    family: [u8; 32],
+    policy: [u8; 32],
+    count: u8,
+    registered: Option<(RootSigningKey, Vec<u8>)>,
+) -> Result<(Vec<Arc<VerifiedDevice>>, Vec<VerifiedCredentialRenewal>)> {
+    let (root, original) = match registered {
+        Some((root, certificate)) => (root, Some(certificate)),
+        None => (RootSigningKey::generate()?, None),
+    };
+    let mut certificates = Vec::new();
+    for (index, public) in keys.into_iter().enumerate() {
+        let id = u8::try_from(index + 1)?;
+        let certificate = if index == 0 {
+            match &original {
+                Some(certificate) => certificate.clone(),
+                None => root.issue_device(
+                    DeviceDescription::new([id; 16], 1, family, Validity::new(100, 200)?)?,
+                    public,
+                )?,
+            }
+        } else {
+            root.issue_device(
+                DeviceDescription::new([id; 16], 1, family, Validity::new(100, 200)?)?,
+                public,
+            )?
+        };
+        certificates.push(certificate);
+    }
+    for id in 3..=count {
+        certificates.push(root.issue_device(
+            DeviceDescription::new([id; 16], 1, family, Validity::new(100, 200)?)?,
+            DeviceSigningKey::generate()?.public_key()?,
+        )?);
+    }
+    let published = crate::account_fixture::publish(
+        &directory.join("account"),
+        &root,
+        certificates,
+        family,
+        policy,
+    )?;
+    let pin = AccountPin::new(
+        root.account_id()?,
+        root.public_key()?,
+        published.checkpoint,
+        family,
+    )?;
+    let mut devices = Vec::new();
+    for (role, id) in [("i", 1u8), ("r", 2)] {
+        let certificate = fs::read(directory.join("account").join(format!("credential-1-{id}")))?;
+        let device = Arc::new(pin.verify_device(&certificate, &published.initial_roster, NOW)?);
+        let mut expectation = root.account_id()?.to_vec();
+        expectation.extend_from_slice(&published.checkpoint.version().to_be_bytes());
+        expectation.extend_from_slice(&published.checkpoint.digest());
+        expectation.extend_from_slice(&[id; 16]);
+        expectation.extend_from_slice(&1u64.to_be_bytes());
+        save(
+            directory,
+            &format!("pin-{role}-root"),
+            &root.public_key()?.encode(),
+        )?;
+        save(directory, &format!("pin-{role}-head"), &expectation)?;
+        save(directory, &format!("{role}-credential"), &certificate)?;
+        save(
+            directory,
+            &format!("{role}-roster"),
+            &published.initial_roster,
+        )?;
+        devices.push(device);
+    }
+    Ok((devices, published.local_grants))
 }

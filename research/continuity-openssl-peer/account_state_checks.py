@@ -8,6 +8,60 @@ import subprocess
 import sys
 
 
+def record_checks(original, current, second, request, retry, changed, following, role, refuses):
+    from dataclasses import replace
+    from qperiapt_continuity_reference.account_record import AccountRecord
+    from qperiapt_continuity_reference.wire import require
+    family, policy = original.family, original.policy
+
+    def read(record, account):
+        return AccountRecord.read(record.encode(), role, family, policy, account)
+
+    absent = AccountRecord()
+    require(read(absent, original) == absent, "initial account coordination")
+    pending = absent.stage(original, request, 210)
+    require(pending.status(request.local.operation)["status"] == "Pending", "original pending account")
+    require(pending.stage(original, retry, 210) is pending, "semantic retry replaced original request")
+    require(read(pending, original).encode() == pending.encode(), "original pending roundtrip")
+    refuses("pending-collection-retarget", lambda: pending.stage(original, changed, 210), "different original")
+    refuses("second-request-while-pending", lambda: pending.stage(original, following, 250), "another account")
+    refuses("pending-record-with-committed-image", lambda: read(pending, current))
+    refuses("early-account-expiry",
+            lambda: pending.reconcile_expired(original, request.local.operation, 274, 4, bytes([7]) * 32),
+            "not expired")
+    expired = pending.reconcile_expired(original, request.local.operation, 280, 4, bytes([7]) * 32)
+    require(expired.status(request.local.operation)["status"] == "ExpiredUncommitted"
+            and expired.floor == 280, "earliest companion expiry disposition")
+    require(read(expired, original) == expired, "original expiry roundtrip")
+    require(expired.stage(original, retry, 210) is expired, "historical retry changed expired target")
+    refuses("expired-account-cannot-admit", expired.admit, "expired uncommitted")
+    refuses("expired-account-cannot-commit",
+            lambda: expired.commit(original, request.local.operation, 310), "expired account")
+    refuses("backdated-account-request", lambda: expired.stage(original, following, 270), "durable floor")
+    target, completed = pending.commit(original, request.local.operation, 210)
+    require(target.encode() == current.encode() and read(completed, target) == completed,
+            "complete account atomic target")
+    completed.admit()
+    require(completed.reconcile_expired(target, request.local.operation, 310, 5, bytes([8]) * 32) is completed,
+            "expiry reclassified committed collection")
+    corrupted = replace(completed, completed=replace(completed.completed, binding=bytes([99]) * 32))
+    refuses("substituted-completed-binding", lambda: read(corrupted, target), "committed collection")
+    next_pending = completed.stage(target, following, 250)
+    require(next_pending.status(request.local.operation)["status"] == "Committed",
+            "later pending request lost prior completion")
+    require(next_pending.stage(target, retry, 310) is next_pending, "historical prior retry rewrote pending target")
+    final, terminal = next_pending.commit(target, following.local.operation, 310)
+    require(final.encode() == second.encode() and read(terminal, final) == terminal,
+            "second complete account target")
+    refuses("unknown-account-expiry-is-not-no-commit",
+            lambda: terminal.reconcile_expired(final, bytes([99]) * 32, 310, 6, bytes([9]) * 32),
+            "outcome unavailable")
+    malformed = pending.encode()[:16] + b"\2" + pending.encode()[17:]
+    refuses("account-coordination-discriminator",
+            lambda: AccountRecord.read(malformed, role, family, policy, original), "discriminator")
+    return terminal
+
+
 def scenario(args, output, count):
     from cryptography.exceptions import InvalidSignature
     from qperiapt_continuity_reference.account_state import AccountState
@@ -97,6 +151,8 @@ def scenario(args, output, count):
     refuses("changed-original-lineage", lambda: advance(current, 3, rebound), "original lineage")
     second = advance(current, 3, grants2)
     images["second"] = second.encode()
+    following = AccountRequest.parse(grants2[0], grants2[1:], roles[0], family, policy, read("checkpoint-3"))
+    completion = record_checks(original, current, second, request, retry, changed, following, roles[0], refuses)
     for identity, device in enumerate(roles, 1):
         second.view(device, local=identity == 1).check(310)
     intermediate_pin = DevicePin(key, pin.account, 2, read("checkpoint-2")[8:], bytes([2]) * 16, 1)
@@ -112,6 +168,9 @@ def scenario(args, output, count):
     # Reopening after revocation must preserve the old generation even when its
     # identity is not one of the two active session roles.
     reopened = AccountState.read(images["revoked"], pin, family, policy)
+    from qperiapt_continuity_reference.account_record import AccountRecord
+    require(AccountRecord.read(completion.encode(), roles[0], family, policy, reopened) == completion,
+            "later common roster erased historical completion")
     refuses("root-signed-old-generation-resurrection", lambda: advance(reopened, 5),
             "generation, revocation or credential")
     replaced = advance(reopened, 6)
@@ -155,6 +214,7 @@ def main():
     crypto, backend = load_provider(args.provider_root)
     root = Path(__file__).resolve().parent
     sources = [root / "account_state_checks.py", root / "native/examples/account_authority_fixture.rs",
+               root / "native/src/account_fixture.rs",
                *sorted((root / "qperiapt_continuity_reference").glob("*.py"))]
     def inventory():
         return {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sources}

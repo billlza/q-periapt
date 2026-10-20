@@ -69,7 +69,13 @@ def main():
         elif action.startswith('credential_'):
             require(bool(arguments), 'registered renewal operation')
             with owner.credential_renewal(arguments[0], now, transport=transport) as child:
-                if action in ('credential_stage', 'credential_prepare'):
+                if action == 'credential_account_stage_files':
+                    from account_renewal_actions import stage
+                    result = stage(child, arguments, args.request.parent, now)
+                elif action == 'credential_account_prepare_files':
+                    from account_renewal_actions import prepare
+                    result = prepare(child, arguments, args.request.parent, now)
+                elif action in ('credential_stage', 'credential_prepare'):
                     require(len(arguments) == 3, 'registered renewal preparation arguments')
                     result = getattr(child, 'stage' if action == 'credential_stage' else 'prepare')(*arguments[1:], now=now)
                 elif action in ('credential_commit', 'credential_expire'):
