@@ -15,12 +15,13 @@ from qperiapt_continuity_reference.wire import require
 
 
 class Receiver:
-    def __init__(self,root,label,command,session,inbox):
+    def __init__(self,root,label,command,session,inbox,*,witness_address=None):
         self.root,self.label=root,label;self.result=None
         self.stdout=root/(label+'.stdout');self.stderr=root/(label+'.stderr')
         with self.stdout.open('wb') as out,self.stderr.open('wb') as err:
+            extra=[] if witness_address is None else ['--witness-address',*witness_address]
             self.process=subprocess.Popen([str(v) for v in command+['serve','--session='+session,
-                '--inbox-directory',inbox,'--listen','127.0.0.1','0']],stdout=out,stderr=err)
+                '--inbox-directory',inbox,'--listen','127.0.0.1','0',*extra]],stdout=out,stderr=err)
         try:
             deadline=time.monotonic()+20
             while True:

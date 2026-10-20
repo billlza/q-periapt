@@ -24,6 +24,7 @@ from git_provenance import git_commit, run_git_bytes
 from continuity_host_native_exchange import qualify as qualify_native_exchange
 from continuity_host_network import qualify as qualify_network
 from continuity_host_cli import qualify as qualify_cli
+from continuity_host_witness import qualify as qualify_witness
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'research/continuity-openssl-peer'
@@ -38,7 +39,7 @@ def inputs(commit):
     paths = [*sorted((SOURCE / PACKAGE).glob('*.py'))]
     paths += [SOURCE / name for name in ('tests/enrollment_exchange.py', 'tests/enrollment_client.py', 'tests/enrollment_extension.py', 'tests/network.py', 'tests/mailbox.py', 'pyproject.toml', 'README.md',
                'ENROLLMENT_EXCHANGE.md', 'ENROLLMENT_CLIENT.md', 'SESSION_CLI.md', 'LICENSE-APACHE', 'LICENSE-MIT', 'requirements.txt', 'build-requirements.txt')]
-    paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py', 'continuity_host_native_exchange.py', 'continuity_host_network.py', 'continuity_host_cli.py',
+    paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py', 'continuity_host_native_exchange.py', 'continuity_host_network.py', 'continuity_host_cli.py', 'continuity_host_witness.py',
                'continuity_independent_python.py', 'continuity_independent_python_run.py',
                'bounded_process.py', 'evidence_io.py', 'git_provenance.py', 'python_bootstrap.py')]
     paths += [ROOT / name for name in run_git_bytes(ROOT, ['ls-tree', '-r', '--name-only', commit,
@@ -82,7 +83,7 @@ def qualify(args):
     requirements = output / 'wheel-requirements.txt'
     requirements.write_text(captured.as_uri() + ' --hash=sha256:' + wheel.sha256 + '\n')
     environment = {k: v for k, v in os.environ.items() if not k.startswith(('PYTHON', 'PIP_', 'DYLD_', 'LD_'))}
-    result = {'schema_version':7, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
+    result = {'schema_version':8, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
               'release_claim_eligible':False, 'source_commit':commit, 'source_inputs':before,
               'wheel_sha256':wheel.sha256, 'module_count':len(modules), 'outside_root':str(outside),
               'publisher_binary_sha256_producer_observation':publisher.sha256,
@@ -168,6 +169,7 @@ def qualify(args):
         result['native_exchange'] = qualify_native_exchange(args,REFERENCE,application,provider,outside,output,snapshot,run)
         result['native_network'] = qualify_network(args,REFERENCE,application,provider,outside,output,snapshot,run)
         result['independent_session_cli'] = qualify_cli(args,REFERENCE,application,provider,outside,output,snapshot,run)
+        result['required_witness_cli'] = qualify_witness(args,REFERENCE,application,provider,outside,output,snapshot,run)
         verify_installation(installed_files(application), files, wheel_url=captured.as_uri(), digest=wheel.sha256)
         require(inputs(commit) == before, 'exchange qualification source changed')
         result.update(completed=True,
@@ -190,6 +192,7 @@ def main():
     parser.add_argument('--native-session', type=Path, required=True)
     parser.add_argument('--native-outgoing', type=Path, required=True)
     parser.add_argument('--crash-probe', type=Path, required=True)
+    parser.add_argument('--witness', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     print(json.dumps(qualify(args), indent=2))

@@ -144,6 +144,17 @@ response. Incomplete frames hold no SDK owner. Exhausted busy/conflicting operat
 the service does not queue an unbounded set or retry protocol work implicitly.
 Required-witness profiles still need their explicit `--witness-address`.
 
+For a required-witness policy, `prepare` exports
+`{"preparation":"RequiresWitnessEnrollment","subject":[...],"head":[...]}`.
+Save this public JSON for independent witness enrollment. Retrying preparation
+before activation returns the same original genesis; it does not create another
+identity or authorize the witness. The operator must authenticate the exporting
+device and separately approve the exact head, account, roster, policy and
+journal. See the reference application's
+[witness operator commands](../continuity-reference-app/README.md#required-continuity-witness).
+`connect` fails until that enrollment exists and the explicitly selected witness
+is reachable. There is no local-only fallback.
+
 The reference host effect is storing the exact plaintext under its original
 message ID. The existing encrypted exact-target journal commits that effect
 before the protocol consumes the message and releases an ACK. Its key derivation
@@ -167,6 +178,9 @@ Installed-package qualification uses actual native TCP and separate CLI
 processes in both directions, simultaneous application sends and rekey, durable
 inbox readback, lost acknowledgements, receiver SIGKILL/restart, exact retry and
 detached control refusal/recovery. Inbox tests additionally cover four
-initial-publication and five effect-commit process cuts. Cross-host deployment, positive required-witness CLI
-qualification and complete CLI lifecycle acceptance remain separate work.
+initial-publication and five effect-commit process cuts. A separate required-witness
+workload covers exported genesis, independent operator enrollment, absent/offline
+witness refusal, original witness SIGKILL/reopen, lost ACK recovery, bidirectional
+effects and two rekeys at the actual OS time. Cross-host deployment and complete
+CLI lifecycle acceptance remain separate work.
 Explicit test authority does not establish real account authorization.

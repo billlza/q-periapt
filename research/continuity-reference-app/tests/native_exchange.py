@@ -21,7 +21,10 @@ for name in ('native-device','native-session','native-outgoing','crash-probe','i
 workload=parser.add_mutually_exclusive_group()
 workload.add_argument('--network',action='store_true',help='Fresh bidirectional TCP workload instead of the file/crash workload')
 workload.add_argument('--client-cli',action='store_true',help='Independent session CLI over actual TCP')
+parser.add_argument('--required-witness',type=Path,help='Restartable witness binary; requires --client-cli')
 args = parser.parse_args()
+if args.required_witness is not None and not args.client_cli:
+    parser.error('--required-witness requires --client-cli')
 implementation = args.implementation_root.resolve(strict=True)
 sys.path.insert(0,str(implementation))
 from qperiapt_continuity_reference.provider import load_provider
@@ -42,7 +45,7 @@ from qperiapt_continuity_reference.connection import Consumption
 from qperiapt_continuity_reference.connection_run import Run
 
 root = args.output.resolve(); root.mkdir(mode=0o700)
-issuer = Issuer(root)
+witness_host = None
 commands, refusals = [], []
 device = args.native_device.resolve(strict=True)
 session_cli = args.native_session.resolve(strict=True)
@@ -79,6 +82,11 @@ def split(body):
     require(len(body)>=2,'exchange pair header'); size=int.from_bytes(body[:2],'big')
     require(size<=len(body)-2,'exchange pair bound'); return body[2:2+size],body[2+size:]
 
+if args.required_witness is not None:
+    from witness_cli_exchange import WitnessHost
+    witness_host=WitnessHost(root,args.required_witness.resolve(strict=True),run)
+    native_hashes[str(witness_host.binary)]=hashlib.sha256(witness_host.binary.read_bytes()).hexdigest()
+issuer = Issuer(root,witness=None if witness_host is None else witness_host.pin)
 
 native_dir = root/'native'; native_dir.mkdir(mode=0o700)
 native_invitation, native_offer = issuer.invitation('native')
@@ -104,8 +112,12 @@ try:
                     root/'policy-pins.json',root/'policy-materials.json'],'native-accept')
     original_journal = client.accept(wire(client_invitation),wire(issuer.issued(client_invitation,certificate)),
         wire(current),(root/'policy-pins.json').read_bytes(),(root/'policy-materials.json').read_bytes(),int(time.time()))
-    run([device,'prepare',*common,root/'current.json',root/'policy-pins.json',root/'policy-materials.json'],'native-prepare')
-    active_args = [*common,root/'current.json',root/'policy-pins.json',root/'policy-materials.json','none']
+    prepared=run([device,'prepare',*common,root/'current.json',root/'policy-pins.json',root/'policy-materials.json'],'native-prepare')
+    endpoint='none'
+    if witness_host is not None:
+        witness_host.enroll('native',prepared,current,native_offer.intent.device,bytes(accepted['journal']),native_certificate)
+        witness_host.start('witness-first');endpoint=witness_host.endpoint()
+    active_args = [*common,root/'current.json',root/'policy-pins.json',root/'policy-materials.json',endpoint]
     identifier = run([device,'publication-next',*active_args],'native-publication-id')['publication']
     directory = os.urandom(32)
     save(root/'plan.json',{'schema':'qperiapt-native-publication-plan/1','directory':list(directory),
@@ -118,17 +130,17 @@ try:
     p = issuer.policy.pins
     pins = Pins(p.sdk_root,p.sdk_state,p.policy_root,p.policy_version,p.policy_digest,
                 pin(client_offer),pin(native_offer),directory)
-    context = publication.verify(pins,issuer.policy.materials,certificate,issuer.roster,int(time.time()))
+    context = publication.verify(pins,issuer.policy.materials,certificate,issuer.roster,int(time.time()),witness_pin=issuer.policy.witness)
     refuse('wrong-directory',lambda:publication.verify(replace(pins,directory=os.urandom(32)),issuer.policy.materials,
-                                                       certificate,issuer.roster,int(time.time())))
+                                                       certificate,issuer.roster,int(time.time()),witness_pin=issuer.policy.witness))
     refuse('wrong-responder',lambda:publication.verify(replace(pins,responder=pin(client_offer)),issuer.policy.materials,
-                                                       certificate,issuer.roster,int(time.time())))
+                                                       certificate,issuer.roster,int(time.time()),witness_pin=issuer.policy.witness))
     changed = publication.manifest[:-1]+bytes([publication.manifest[-1]^1])
     refuse('manifest-signature',lambda:replace(publication,manifest=changed).verify(pins,issuer.policy.materials,
-                                                          certificate,issuer.roster,int(time.time())))
+                                                          certificate,issuer.roster,int(time.time()),witness_pin=issuer.policy.witness))
     changed = publication.pq_proof[:-1]+bytes([publication.pq_proof[-1]^1])
     refuse('membership-proof',lambda:replace(publication,pq_proof=changed).verify(pins,issuer.policy.materials,
-                                                          certificate,issuer.roster,int(time.time())))
+                                                          certificate,issuer.roster,int(time.time()),witness_pin=issuer.policy.witness))
     bad = json.loads(raw); bad['root']=b64(issuer.root.public().raw)
     refuse('publication-cannot-select-root',lambda:Publication.decode(wire(bad)))
     bad = json.loads(raw); bad['journal'][0] ^= 1
@@ -148,16 +160,22 @@ try:
     native_inputs={'device_directory':str(native_dir),'wrapping_key':str(root/'native-wrap.key'),
         'invitation':str(root/'native-invitation.json'),'current_root':str(root/'current.json'),
         'policy_pins':str(root/'policy-pins.json'),'policy_materials':str(root/'policy-materials.json'),
-        'witness_endpoint':'none','peer_trust':str(root/'peer-trust.json'),'bundle':str(root/'bundle.bin')}
+        'witness_endpoint':endpoint,'peer_trust':str(root/'peer-trust.json'),'bundle':str(root/'bundle.bin')}
 
     if args.client_cli:
         from independent_cli_flow import exercise as cli_flow
         save(root/'client-wrap.key',key)
         save(root/'client-issued.json',issuer.issued(client_invitation,certificate))
         client.close()
-        report=cli_flow(implementation,args.provider_root,client_dir,session_dir,client_id,root,
-                        session_cli,outgoing,native_inputs,bytes(accepted['journal']),original_journal,run,commands)
-        require({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (device,session_cli,crash_probe,outgoing)}==native_hashes,'native executable changed')
+        if witness_host is None:
+            report=cli_flow(implementation,args.provider_root,client_dir,session_dir,client_id,root,
+                            session_cli,outgoing,native_inputs,bytes(accepted['journal']),original_journal,run,commands)
+        else:
+            from witness_cli_exchange import exercise as witness_flow
+            report=witness_flow(implementation,args.provider_root,client_dir,session_dir,client_id,root,
+                session_cli,outgoing,native_inputs,bytes(accepted['journal']),original_journal,run,witness_host,
+                current,client_offer.intent.device,certificate)
+        require({p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in native_hashes}==native_hashes,'native executable changed')
         report.update(native_sha256=native_hashes,commands=commands,refusals=refusals,
                       provider=provider.__version__,clock='actual OS time',
                       implementation=str(implementation/'qperiapt_continuity_reference/session_cli.py'))
@@ -272,3 +290,4 @@ try:
     save(root/'RESULT.json',report); print(json.dumps(report))
 finally:
     client.close()
+    if witness_host is not None:witness_host.close()

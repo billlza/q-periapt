@@ -13,13 +13,16 @@ from qperiapt_continuity_reference.wire import require
 
 
 class NativeService:
-    def __init__(self,root,label,binary,inputs):
+    def __init__(self,root,label,binary,inputs=None,*,arguments=None,carrier='QPCXCH01/TCP'):
         self.root,self.label=root,label;self.result=None
-        config=dict(inputs,schema='qperiapt-native-service/1',listen='127.0.0.1:0',inbox=str(root/'inbox.redb'))
-        self.config=root/(label+'.json');save(self.config,config)
+        require((inputs is None)!=(arguments is None),'select one explicit service configuration')
+        if inputs is not None:
+            config=dict(inputs,schema='qperiapt-native-service/1',listen='127.0.0.1:0',inbox=str(root/'inbox.redb'))
+            self.config=root/(label+'.json');save(self.config,config)
+            arguments=['serve',self.config]
         self.stdout=root/(label+'.stdout');self.stderr=root/(label+'.stderr')
         with self.stdout.open('wb') as out,self.stderr.open('wb') as err:
-            self.process=subprocess.Popen([str(binary),'serve',str(self.config)],stdout=out,stderr=err)
+            self.process=subprocess.Popen([str(v) for v in [binary,*arguments]],stdout=out,stderr=err)
         try:
             deadline=time.monotonic()+20
             while True:
@@ -27,7 +30,7 @@ class NativeService:
                 raw=self.stdout.read_bytes();require(len(raw)<=4096,'native readiness output bound')
                 if b'\n' in raw:break
                 require(time.monotonic()<deadline,'native service readiness deadline');time.sleep(.01)
-            ready=json.loads(raw.splitlines()[0]);require(ready['service']=='Listening' and ready['carrier']=='QPCXCH01/TCP','native service readiness differs')
+            ready=json.loads(raw.splitlines()[0]);require(ready['service']=='Listening' and ready['carrier']==carrier,'native service readiness differs')
             host,port=ready['address'].rsplit(':',1)
             require(host=='127.0.0.1' and 0<int(port)<=65535,'unexpected network service address')
             self.address=(host,int(port))
@@ -35,17 +38,19 @@ class NativeService:
             if self.process.poll() is None:self.process.kill();self.process.wait(timeout=5)
             raise
 
-    def stop(self):
+    def stop(self,*,kill=False):
         if self.result is not None:return self.result
         require(self.process.poll() is None,'native service terminated unexpectedly')
-        self.process.send_signal(signal.SIGINT)
+        self.process.send_signal(signal.SIGKILL if kill else signal.SIGINT)
         try:status=self.process.wait(timeout=35)
         finally:
             if self.process.poll() is None:self.process.kill();self.process.wait(timeout=5)
-        require(status==0 and not self.stderr.read_bytes(),'native service did not stop cleanly')
-        lines=self.stdout.read_bytes().splitlines();require(len(lines)==2,'native service output inventory')
-        stopped=json.loads(lines[1]);require(stopped['service']=='Stopped','native service stop receipt')
-        self.result={'label':self.label,'pid':self.process.pid,'exit':status,'stats':stopped['stats']}
+        require(status==(-9 if kill else 0) and not self.stderr.read_bytes(),'native service stop disposition')
+        lines=self.stdout.read_bytes().splitlines();require(len(lines)==(1 if kill else 2),'native service output inventory')
+        self.result={'label':self.label,'pid':self.process.pid,'exit':status}
+        if not kill:
+            stopped=json.loads(lines[1]);require(stopped['service']=='Stopped','native service stop receipt')
+            self.result['stats']=stopped['stats']
         return self.result
 
 

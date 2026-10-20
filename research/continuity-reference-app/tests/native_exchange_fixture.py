@@ -20,7 +20,7 @@ def save(path, value):
 
 
 class Issuer:
-    def __init__(self, path):
+    def __init__(self, path, *, witness=None):
         self.path = path
         self.start = int(time.time()); self.end = self.start + 1800
         self.root, policy_root = SigningKey(), SigningKey()
@@ -33,10 +33,12 @@ class Issuer:
         self.family = digest(b'POLICY-AUTHORITY', policy_root.public().raw)
         policy = (b'QPSESP03' + self.family + (1).to_bytes(8,'big') + self.start.to_bytes(8,'big')
                   + self.end.to_bytes(8,'big') + SUITE + hashlib.sha256(sdk_public).digest() + state
-                  + b'\2\0' + bytes(32) + (8).to_bytes(2,'big'))
+                  + b'\2' + (b'\0'+bytes(32) if witness is None else b'\1'+witness.binding)
+                  + (8).to_bytes(2,'big'))
         pins = {'schema':'qperiapt-policy-pins/1','sdk_root':b64(sdk_public),'sdk_state':b64(state),
                 'policy_root':b64(policy_root.public().raw),'policy_version':1,
-                'policy_digest':list(digest(b'SESSION-POLICY',policy)),'witness':None}
+                'policy_digest':list(digest(b'SESSION-POLICY',policy)),
+                'witness':None if witness is None else {'identity':list(witness.identity),'key':b64(witness.key.raw)}}
         materials = {'schema':'qperiapt-policy-materials/1','sdk_document':b64(document),
                      'sdk_signature':b64(signature),'policy':b64(policy_root.sign(4,policy))}
         save(path/'policy-pins.json',pins); save(path/'policy-materials.json',materials)

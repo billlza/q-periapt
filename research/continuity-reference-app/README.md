@@ -219,5 +219,61 @@ The Rust TCP suite separately verifies that the actual router serves every
 browser module with the expected source and MIME type. These checks do not
 establish a complete browser-to-installed-device enrollment ceremony.
 
+### Required Continuity witness
+
+`q-periapt-continuity-witness` hosts the existing Continuity `AnchorStore`. It is
+separate from the policy-agent witness protocol. It requires no Passkey account:
+account login remains the responsibility of whichever application authorizes
+device enrollment.
+
+Retain a new nonzero 32-byte witness identity before first use, encode it as
+unpadded base64url, and use an absolute database path in a private directory:
+
+```sh
+q-periapt-continuity-witness init "$WITNESS_DB" "$WITNESS_ID"
+q-periapt-continuity-witness export "$WITNESS_DB" "$WITNESS_ID" "$EMPTY_PRIVATE_EXPORT"
+q-periapt-continuity-witness serve "$WITNESS_DB" "$WITNESS_ID" 127.0.0.1:9009
+```
+
+Initialization retains the original signing identity before publishing its
+wrapping key, encrypted signer and witness database. After interrupted `init`,
+use `prepare` on the same database and identity. Once ready, missing or corrupt
+files fail; neither `prepare` nor `serve` recreates them. Preserve the host
+database and its `witness-*.wrap`, `witness-*.signer` and `witness-*.redb` files.
+Distribute `witness-pin.json` independently, and select that exact pin in the
+signed session policy. Witness storage must remain independent of device
+journal snapshots; restoring a witness backup can undermine monotonicity.
+
+Both native-device and independent-session `prepare` commands export
+`{"preparation":"RequiresWitnessEnrollment","subject":[...],"head":[...]}`.
+Retain that public JSON. It is an inactive genesis, not enrollment or permission.
+The operator separately authenticates the exporting device and approves the
+exact journal and image digest. A private trusted approval JSON has schema
+`qperiapt-witness-enrollment-trust/1`, the independently selected `account`
+(`RootInfo`), `device`, `generation`, `journal`, `genesis_head`, signed
+`certificate` (base64url), and `policy` containing the existing `pins` and
+`materials` objects. Do not populate its trust or approved digest from an
+untrusted network request.
+
+```sh
+q-periapt-continuity-witness enroll "$WITNESS_DB" "$WITNESS_ID" \
+  "$APPROVED_TRUST_JSON" "$DEVICE_PREPARATION_JSON"
+```
+
+This local operator command verifies current credential, roster and policy
+signatures, the selected device and journal, the exact approved head, and the
+policy's required witness. Exact retries do not reset an advanced entry. Ordinary
+TCP requests cannot enroll devices or choose trust roots. Concurrent local
+operator contention fails explicitly; retry the same approval after the
+current operation ends.
+
+The framed TCP carrier authenticates every request and response through the
+existing pinned witness protocol; it does not conceal public metadata.
+Incomplete connections and operation deadlines use the bounded reference
+network service. Lost replies require reconciliation against the original state.
+This command surface covers first use and data-plane state progression.
+Independent G/T approval, roster refresh, device/account replacement and witness
+replication are not yet exposed by this operator CLI.
+
 Protocol references: [WebAuthn Level 3](https://www.w3.org/TR/webauthn-3/) and
 [webauthn-rs](https://docs.rs/webauthn-rs/0.5.5/webauthn_rs/).

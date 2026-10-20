@@ -12,6 +12,7 @@ pub mod policy_renewal;
 pub mod sdk_authority;
 pub mod sdk_inputs;
 pub mod store;
+pub mod witness;
 
 #[cfg(test)]
 mod test_support;

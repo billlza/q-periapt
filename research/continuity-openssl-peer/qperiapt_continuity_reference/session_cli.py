@@ -133,8 +133,13 @@ def main(argv=None):
         run.check();owner=EnrollmentClient.open(args.directory,client_id,key,run=run)
         if prepared is not None:
             require(owner.status()['operation']==prepared[2],'credential artifact belongs to another original enrollment')
-            owner.prepare(prepared[0],prepared[1],run.now());run.check()
-            result={'prepared':True,'journal':owner.status()['journal']}
+            genesis=owner.prepare(prepared[0],prepared[1],run.now());run.check()
+            if prepared[1].witness is None:
+                result={'prepared':True,'journal':owner.status()['journal']}
+            else:
+                require(len(genesis)==128,'witness genesis export size')
+                result={'preparation':'RequiresWitnessEnrollment',
+                        'subject':list(genesis[:96]),'head':list(genesis[96:])}
         elif args.command in ('provision-inbox','recover-inbox','read-inbox'):
             from .session_server import inbox_command
             result=inbox_command(args,owner,client_id,key,session,message);run.check()
