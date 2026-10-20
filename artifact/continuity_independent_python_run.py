@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 from bounded_process import capture_output
-from continuity_independent_python import PACKAGE, inspect_wheel, require, verify_installation, verify_extension_session, verify_roster_profiles, verify_roster_capacity
+from continuity_independent_python import PACKAGE, inspect_wheel, require, verify_installation, verify_extension_session, verify_roster_profiles, verify_roster_capacity, verify_roster_revocation
 from evidence_io import fresh_output_directory, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import git_commit, run_git_bytes
 
@@ -297,6 +297,15 @@ def qualify(args: argparse.Namespace) -> dict:
                     "installed roster source or native identity differs")
             verify_roster_profiles(row, boundary=boundary)
             account_results[driver] = row
+        run([*interpreter, str(application / "roster_revocation_checks.py"),
+             "--provider-root", str(provider), "--native", str(args.native),
+             "--output", str(output / "roster-revocation")], "roster-revocation")
+        revoked = parse_strict_json_bytes(snapshot(output / "roster-revocation/RESULT.json").data,
+                                         label="installed common peer revocation")
+        require(revoked["source_files"] == current and revoked["native_sha256"] == native.sha256,
+                "installed peer revocation source or native identity differs")
+        verify_roster_revocation(revoked)
+        account_results["peer_revocation"] = revoked
         # The consumer adds only declared test files; pip's installed files and
         # all copied inputs must remain byte-identical after real process cuts.
         after = installed_files(application)

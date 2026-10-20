@@ -6,7 +6,41 @@ import json
 import unittest
 import zipfile
 
-from continuity_independent_python import DIST, PACKAGE, inspect_wheel, verify_installation, verify_extension_session, verify_roster_profiles, verify_roster_capacity
+from continuity_independent_python import DIST, PACKAGE, inspect_wheel, verify_installation, verify_extension_session, verify_roster_profiles, verify_roster_capacity, verify_roster_revocation
+
+
+class RosterRevocationReceiptTests(unittest.TestCase):
+    def report(self):
+        rows=[]
+        for count,witnessed in [(3,False),(3,True),(32,False),(32,True)]:
+            rows.append({"members":count,"witnessed":witnessed,"workers":50 if witnessed else 42,
+                         "process_kills":5 if witnessed else 4,"native_trusted_time":355,
+                         **{k:"d"*64 for k in ["journal","native_journal","session",
+                            "original_message_sha256","original_offer_sha256"]},
+                         "after_renewal":{"kind":"actual_common_account_peer_removal","target_version":19,
+                            "positive_native_receive":True,"same_generation_resurrection_refused":True,
+                            "original_enrollment_retained":True,"denied_operations":["removed-peer-denies-next-id",
+                                "removed-peer-denies-old-output","removed-peer-denies-old-input","removed-peer-denies-fresh-input"],
+                            "before_wire_sha256":"a"*64,"after_wire_sha256":"b"*64,"target_sha256":"c"*64}})
+        return {"profiles":rows}
+
+    def test_original_live_then_revoked_profiles(self):
+        verify_roster_revocation(self.report())
+
+    def test_missing_positive_control_or_refusal_cannot_qualify(self):
+        for name,value in [("positive_native_receive",False),("original_enrollment_retained",1),
+                           ("same_generation_resurrection_refused",False),("target_version",19.0),
+                           ("denied_operations",[]),("target_sha256","")]:
+            with self.subTest(name=name):
+                report=self.report();report["profiles"][0]["after_renewal"][name]=value
+                with self.assertRaises(ValueError): verify_roster_revocation(report)
+
+    def test_replayed_wire_partial_cohort_or_old_clock_is_rejected(self):
+        for change in [lambda r:r["profiles"].pop(),
+                       lambda r:r["profiles"][1].update(native_trusted_time=170),
+                       lambda r:r["profiles"][0]["after_renewal"].update(after_wire_sha256="a"*64)]:
+            report=self.report();change(report)
+            with self.assertRaises(ValueError): verify_roster_revocation(report)
 
 
 class RosterCapacityReceiptTests(unittest.TestCase):

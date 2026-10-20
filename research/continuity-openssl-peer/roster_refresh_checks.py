@@ -9,7 +9,7 @@ from pathlib import Path
 import sys
 
 
-def scenario(args, count, witnessed):
+def scenario(args, count, witnessed, *, after_renewal=None):
     from registration_fixture import Fixture
     from shared_account_checks import start, request_arguments
     from qperiapt_continuity_reference.account_request import AccountRequest
@@ -115,11 +115,14 @@ def scenario(args, count, witnessed):
         f.call('native-new-epoch-decrypt',7,application(b'roster',fresh),b'after account roster maintenance')
         latest=f.worker('original-registration-retained','registration_status',now=355)
         require(latest['journal']==journal.hex() and latest['signing_id']==f.observations['signing_id'],'original registration replaced')
+        additional = None if after_renewal is None else after_renewal(f, message, journal)
         result={'members':count,'witnessed':witnessed,'journal':journal.hex(),'session':session.hex(),
                 'original_message_sha256':hashlib.sha256(original).hexdigest(),'original_offer_sha256':hashlib.sha256(offer).hexdigest(),
                 'native_journal':native_identity.hex(), 'native_trusted_time':355,
                 'workers':len(f.driver.operations),'process_kills':sum('signal' in r for r in f.driver.operations),
                 'scope':'Real registered independent Python owner, actual native witness when required, original G/G/R/G and original retained session. Both original enrolled endpoints advance explicit trusted time150..355 through G/G/R/G; native original service/session reopened at355. Not wall-clock/device expiry or PCS.'}
+        if additional is not None:
+            result['after_renewal'] = additional
         (f.out/'RESULT.json').write_text(json.dumps(result,indent=2)+'\n')
         return result
     finally:

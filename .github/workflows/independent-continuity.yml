@@ -393,6 +393,11 @@ jobs:
             --native target/independent-peer-ci/counterpart \
             --output target/independent-peer-ci/roster-capacity \
             > target/independent-peer-ci/roster-capacity.stdout 2> target/independent-peer-ci/roster-capacity.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/roster_revocation_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/roster-revocation \
+            > target/independent-peer-ci/roster-revocation.stdout 2> target/independent-peer-ci/roster-revocation.stderr
           git diff --exit-code
       - name: Verify portable public inputs and original-state reconstruction
         env:

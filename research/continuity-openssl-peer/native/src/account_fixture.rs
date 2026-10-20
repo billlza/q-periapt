@@ -249,6 +249,22 @@ pub(crate) fn publish(
                 )?);
         }
     }
+    // Remove the actual native traffic peer after the full account renewal.
+    // A later root-signed attempt to resurrect that same generation is a
+    // negative input, not a device replacement.
+    let without_peer = next
+        .iter()
+        .enumerate()
+        .filter_map(|(index, certificate)| (index != 1).then_some(certificate.clone()))
+        .collect::<Vec<_>>();
+    let revoked_peer = publish_roster(path, root, 19, &without_peer)?;
+    published
+        .local_rosters
+        .push(pin(root, &revoked_peer, family)?.verify_historical_device(
+            next.first().ok_or("current local credential")?,
+            revoked_peer.as_bytes(),
+        )?);
+    publish_roster(path, root, 20, &next)?;
     // An alternative to the uncommitted first target must name the retained
     // original roster, not pretend that either earlier renewal was installed.
     let original_pin = AccountPin::new(

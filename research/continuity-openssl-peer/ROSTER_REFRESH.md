@@ -69,6 +69,15 @@ messages at the renewed native peer. The additional 193 metadata bytes cannot
 fund another business send. Missing R markers, version-nine tag substitution,
 another policy version and oversized fields are refused. This checks storage
 capacity and retained state, not peak memory or latency.
+`roster_revocation_checks.py` removes the actual native traffic peer after the
+same G/G/R/G sequence, for three and 32 members in both profiles. It first accepts
+that peer's real message. After recovering the original R19 target, the receiver
+refuses old input replay, fresh ciphertext from that sender, new message IDs and
+old output release. The original enrollment and administrative outcome remain;
+an otherwise valid root-signed R20 cannot resurrect the removed generation.
+The witnessed case loses the Commit reply and kills the owner after ACK, before
+intent cleanup. This demonstrates receiver enforcement of its adopted roster;
+it does not erase the sender's key, past plaintext or its older roster snapshot.
 Each driver writes source/provider/binary identities before execution, checks
 them again at completion and retains failed private installations separately
 from public artifacts. A launched driver without its terminal result is not a

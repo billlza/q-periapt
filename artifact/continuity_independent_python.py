@@ -86,6 +86,33 @@ def verify_roster_capacity(result: dict) -> None:
                 "full roster original identities missing")
 
 
+def verify_roster_revocation(result: dict) -> None:
+    """Require a live native sender before removal and fresh rejection afterward."""
+    rows=result.get("profiles")
+    require(isinstance(rows,list) and len(rows)==4,"peer revocation cohort incomplete")
+    denials=["removed-peer-denies-next-id","removed-peer-denies-old-output",
+             "removed-peer-denies-old-input","removed-peer-denies-fresh-input"]
+    for row,(members,witnessed) in zip(rows,[(3,False),(3,True),(32,False),(32,True)],strict=True):
+        require(isinstance(row,dict) and type(row.get("witnessed")) is bool and row["witnessed"]==witnessed,
+                "peer revocation profile differs")
+        expected={"members":members,"workers":50 if witnessed else 42,
+                  "process_kills":5 if witnessed else 4,"native_trusted_time":355}
+        require(all(type(row.get(k)) is int and row[k]==v for k,v in expected.items()),
+                "peer revocation owner workload differs")
+        removed=row.get("after_renewal")
+        require(isinstance(removed,dict) and removed.get("kind")=="actual_common_account_peer_removal"
+                and type(removed.get("target_version")) is int and removed["target_version"]==19
+                and all(removed.get(k) is True for k in ["positive_native_receive",
+                        "same_generation_resurrection_refused","original_enrollment_retained"])
+                and removed.get("denied_operations")==denials,"peer revocation permission checks differ")
+        for values,keys in [(row,["journal","native_journal","session","original_message_sha256","original_offer_sha256"]),
+                            (removed,["before_wire_sha256","after_wire_sha256","target_sha256"])]:
+            require(all(isinstance(values.get(k),str) and re.fullmatch(r"[0-9a-f]{64}",values[k])
+                        and any(c!='0' for c in values[k]) for k in keys),"peer revocation original identity missing")
+        require(removed["before_wire_sha256"]!=removed["after_wire_sha256"],
+                "removed native sender did not produce a fresh message")
+
+
 def verify_extension_session(result: dict, *, implementation: str, native_sha256: str) -> None:
     """Require the completed post-expiry workload from the selected installed owners."""
     require(result.get("schema_version") == 1 and type(result.get("schema_version")) is int
