@@ -30,6 +30,7 @@ pub struct Store {
     enrollment_family: Option<[u8; 32]>,
     enrollment_reapproval: bool,
     enrollment_extensions: bool,
+    credential_grants: bool,
 }
 impl Store {
     pub fn provision(path: &Path, origin: &str) -> Result<Self, Error> {
@@ -65,11 +66,12 @@ impl Store {
             enrollment_family: None,
             enrollment_reapproval: false,
             enrollment_extensions: false,
+            credential_grants: false,
         })
     }
     pub fn open(path: &Path, origin: &str) -> Result<Self, Error> {
         let db = open_private_database(path)?;
-        let (enrollment_family, enrollment_reapproval, enrollment_extensions) = {
+        let schema = {
             let tx = db
                 .begin_read()
                 .map_err(|e| Error::internal("read account database", e))?;
@@ -93,9 +95,10 @@ impl Store {
             db,
             failed: false,
             path: path.into(),
-            enrollment_family,
-            enrollment_reapproval,
-            enrollment_extensions,
+            enrollment_family: schema.family,
+            enrollment_reapproval: schema.reapproval,
+            enrollment_extensions: schema.extensions,
+            credential_grants: schema.grants,
         })
     }
     fn alive(&self) -> Result<(), Error> {

@@ -37,6 +37,9 @@ pub(super) enum Work {
     Reapprove(ReapprovalInput),
     ExtensionUpgrade,
     Extend(crate::enrollment::CredentialExtensionRequest),
+    GrantUpgrade,
+    Grant(Box<crate::credential_grant::CredentialGrantRequest>),
+    CancelGrant(Box<crate::credential_grant::CredentialGrantRequest>),
 }
 pub(super) fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>> {
     let marker = path.join(format!("{boundary}.marker"));
@@ -65,7 +68,11 @@ pub(super) fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>
         .env_remove("QPERIAPT_ISSUER_REAPPROVAL_UPGRADE")
         .env_remove("QPERIAPT_ISSUER_REAPPROVAL_INPUT")
         .env_remove("QPERIAPT_ISSUER_EXTENSION_UPGRADE")
-        .env_remove("QPERIAPT_ISSUER_EXTENSION_INPUT");
+        .env_remove("QPERIAPT_ISSUER_EXTENSION_INPUT")
+        .env_remove("QPERIAPT_ISSUER_GRANT_UPGRADE")
+        .env_remove("QPERIAPT_ISSUER_GRANT_INPUT")
+        .env_remove("QPERIAPT_ISSUER_GRANT_CANCEL");
+    let cancel_grant = matches!(&work, Work::CancelGrant(_));
     match work {
         Work::Root => {}
         Work::Issue(id) => {
@@ -92,6 +99,17 @@ pub(super) fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>
             let file = path.join("extension-input.json");
             fs::write(&file, serde_json::to_vec(&input)?)?;
             command.env("QPERIAPT_ISSUER_EXTENSION_INPUT", file);
+        }
+        Work::GrantUpgrade => {
+            command.env("QPERIAPT_ISSUER_GRANT_UPGRADE", "1");
+        }
+        Work::Grant(input) | Work::CancelGrant(input) => {
+            let file = path.join(format!("{boundary}.input.json"));
+            fs::write(&file, serde_json::to_vec(&input)?)?;
+            command.env("QPERIAPT_ISSUER_GRANT_INPUT", file);
+            if cancel_grant {
+                command.env("QPERIAPT_ISSUER_GRANT_CANCEL", "1");
+            }
         }
     }
     let mut child = Worker(command.spawn()?);
@@ -123,7 +141,16 @@ fn issuer_child() -> Result {
     let path = std::path::PathBuf::from(path);
     let mut store = Store::open(&path.join("accounts.redb"), ORIGIN)?;
     let account = store.account("alice")?.ok_or("original fixture account")?;
-    if std::env::var_os("QPERIAPT_ISSUER_EXTENSION_UPGRADE").is_some() {
+    if std::env::var_os("QPERIAPT_ISSUER_GRANT_UPGRADE").is_some() {
+        store.enable_credential_grants()?;
+    } else if let Some(file) = std::env::var_os("QPERIAPT_ISSUER_GRANT_INPUT") {
+        let input = serde_json::from_slice(&fs::read(file)?)?;
+        if std::env::var_os("QPERIAPT_ISSUER_GRANT_CANCEL").is_some() {
+            store.cancel_credential_grant(&account, &input)?;
+        } else {
+            store.issue_credential_grant(&account, &input)?;
+        }
+    } else if std::env::var_os("QPERIAPT_ISSUER_EXTENSION_UPGRADE").is_some() {
         store.enable_enrollment_extensions()?;
     } else if let Some(file) = std::env::var_os("QPERIAPT_ISSUER_EXTENSION_INPUT") {
         let input = serde_json::from_slice(&fs::read(file)?)?;

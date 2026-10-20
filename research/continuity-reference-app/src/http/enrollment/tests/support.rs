@@ -30,6 +30,14 @@ pub struct Server {
 }
 impl Server {
     pub async fn start(path: &Path, address: SocketAddr, create: bool) -> Result<Self> {
+        Self::with_family(path, address, create, [42; 32]).await
+    }
+    pub async fn with_family(
+        path: &Path,
+        address: SocketAddr,
+        create: bool,
+        family: [u8; 32],
+    ) -> Result<Self> {
         let listener = tokio::net::TcpListener::bind(address).await?;
         let address = listener.local_addr()?;
         let host = format!("localhost:{}", address.port());
@@ -37,7 +45,7 @@ impl Server {
         let db = path.join("accounts.redb");
         let store = if create {
             let mut store = Store::provision(&db, &origin)?;
-            store.enable_enrollment([42; 32])?;
+            store.enable_enrollment(family)?;
             store.enable_enrollment_reapproval()?;
             store
         } else {

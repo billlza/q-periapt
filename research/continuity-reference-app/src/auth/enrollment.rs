@@ -6,6 +6,26 @@ use crate::{
 };
 
 impl Service {
+    pub fn issue_credential_grant(
+        &mut self,
+        token: &str,
+        request: &crate::credential_grant::CredentialGrantRequest,
+    ) -> Result<Vec<u8>, Error> {
+        let account = self.authenticated(token)?;
+        let response = self.store.issue_credential_grant(&account, request)?;
+        self.authenticated(token)?;
+        Ok(response)
+    }
+    pub fn cancel_credential_grant(
+        &mut self,
+        token: &str,
+        request: &crate::credential_grant::CredentialGrantRequest,
+    ) -> Result<(), Error> {
+        let account = self.authenticated(token)?;
+        self.store.cancel_credential_grant(&account, request)?;
+        self.authenticated(token)?;
+        Ok(())
+    }
     pub fn extend_enrollment_credential(
         &mut self,
         token: &str,

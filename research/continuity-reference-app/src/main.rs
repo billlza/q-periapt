@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 mod http;
+#[cfg(test)]
+mod test_support;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use error::Error;
+#[cfg(test)]
+use q_periapt_continuity_reference_app::sdk_inputs;
 use q_periapt_continuity_reference_app::{auth, error, store};
 use std::{
     future::IntoFuture,
@@ -14,7 +18,7 @@ use webauthn_rs::prelude::*;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args_os().collect();
     if args.len() < 4 || args.len() > 5 {
-        return Err("Usage: q-periapt-continuity-reference-app <init|serve|enable-enrollment|enable-reapproval|enable-credential-extension> <absolute-database-path> <http://localhost:port> [base64url-policy-family]".into());
+        return Err("Usage: q-periapt-continuity-reference-app <init|serve|enable-enrollment|enable-reapproval|enable-credential-extension|enable-credential-grants> <absolute-database-path> <http://localhost:port> [base64url-policy-family]".into());
     }
     let command = args[1].to_str().ok_or("Invalid command")?;
     if args.len() != if command == "enable-enrollment" { 5 } else { 4 } {
@@ -87,9 +91,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             store.enable_enrollment_extensions()?;
             println!("Credential extension schema enabled; original records retained.");
         }
+        "enable-credential-grants" => {
+            let mut store = store::Store::open(&path, &canonical_origin)?;
+            store.enable_credential_grants()?;
+            println!("Retained credential grant schema enabled; original records retained.");
+        }
         _ => {
             return Err(
-                "Command must be init, serve, enable-enrollment, enable-reapproval or enable-credential-extension; opening never creates a missing database".into(),
+                "Command must be init, serve, enable-enrollment, enable-reapproval, enable-credential-extension or enable-credential-grants; opening never creates a missing database".into(),
             )
         }
     }

@@ -149,5 +149,7 @@ are exclusive; retry to a fresh filename if an export outcome is unknown. If
 another operation changed the observed history, do not silently submit a changed
 request under the old approval. The account issuer must authenticate the user,
 check its own membership/issuance records and serialize and retain the exact G
-decision. Host G issuance and native staging/activation are still separate
-integration work; this export alone cannot restore an expired endpoint.
+decision. The [host G issuance transaction](RETAINED_GRANTS.md) now retains that
+decision separately from certificate extension. Browser approval controls and
+native CLI staging/activation remain integration work; this export alone cannot
+restore an expired endpoint.

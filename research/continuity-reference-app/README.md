@@ -80,8 +80,8 @@ Enrollment is disabled in schema 1. A host administrator may explicitly run
 `enable-enrollment` with the existing database path, unchanged origin and the
 base64url-encoded 32-byte family from the application's trusted policy setup.
 This atomic schema-2 upgrade retains all accounts and credential associations.
-Ordinary `serve` never performs that upgrade. The user's existing local account
-database has not been upgraded as part of the implementation tests.
+Ordinary `serve` never performs that upgrade. Implementation tests use isolated
+account databases; upgrading an existing deployment is an explicit host action.
 
 `enable-reapproval` explicitly upgrades an enabled schema-2 store to schema 3,
 using the same database path and origin. Opening either version remains read-only
@@ -110,15 +110,21 @@ response. It preserves original enrollment/account records and never creates a
 new device key. A suspended root, removed member, changed predecessor or
 retargeted retry is refused. Exact committed retries remain historical results.
 
-This is a host issuance boundary, not complete renewal. It does not issue the
+The certificate-extension transaction does not issue the
 retained-session grant G, update a client installation, extend protocol policy or
 authorize old traffic. Replacing the certificate changes its roster membership
 commitment; callers must coordinate consumers explicitly. The independent
 [client adoption API](../continuity-openssl-peer/ENROLLMENT_CLIENT.md) handles
 accepted-but-unprepared state separately. The native candidate and CLI also
-support positively tracked Unprepared records. Browser extension control, legacy
-state reconciliation and the complete live recovery path remain open. Do not
+support positively tracked Unprepared records. Legacy state reconciliation and
+the complete live recovery path remain open. Do not
 reset an expired client's original state or substitute this response for G.
+
+`enable-credential-grants` explicitly upgrades schema 4 to schema 5. The separate
+authenticated [retained-state grant transaction](RETAINED_GRANTS.md) issues G
+only for an exact selected certificate chain and current account roster. Its
+pending decision and issued response survive restart. This backend does not yet
+provide browser approval controls or a native CLI staging/activation flow.
 
 The service's invitation API requires a caller-retained random request ID. Retry
 that same ID after an uncertain reply, even if the host operation ID was lost.

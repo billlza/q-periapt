@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 /// Public issuer inputs only. A received request supplies no account permission,
 /// trusted root, reservation or signed G; issuers must check their own records.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct RetainedCredentialRequest {
     pub schema: String,

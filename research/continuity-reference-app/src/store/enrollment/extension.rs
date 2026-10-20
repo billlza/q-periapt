@@ -8,7 +8,11 @@ fn key(account: &Account, request: [u8; 32]) -> Vec<u8> {
 }
 
 impl Store {
-    fn extension(&self, account: &Account, id: [u8; 32]) -> Result<Option<Vec<u8>>, Error> {
+    pub(super) fn extension(
+        &self,
+        account: &Account,
+        id: [u8; 32],
+    ) -> Result<Option<Vec<u8>>, Error> {
         let tx = self.db.begin_read().map_err(db_error)?;
         let table = tx.open_table(EXTENSIONS).map_err(db_error)?;
         let row = table.get(key(account, id).as_slice()).map_err(db_error)?;

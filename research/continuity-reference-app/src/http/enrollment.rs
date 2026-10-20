@@ -25,6 +25,11 @@ pub(super) fn routes() -> Router<Shared> {
         .route("/api/enrollment/cancel", post(cancel))
         .route("/api/enrollment/reapprove", post(reapprove))
         .route("/api/enrollment/extend-credential", post(extend_credential))
+        .route("/api/enrollment/credential-grant", post(credential_grant))
+        .route(
+            "/api/enrollment/credential-grant/cancel",
+            post(cancel_grant),
+        )
 }
 
 #[derive(Deserialize)]
@@ -161,6 +166,32 @@ async fn extend_credential(
         .call(move |s| s.extend_enrollment_credential(&token, &request))
         .await?;
     Ok(([(header::CONTENT_TYPE, "application/json")], original).into_response())
+}
+async fn credential_grant(
+    State(state): State<Shared>,
+    headers: HeaderMap,
+    Json(request): Json<
+        q_periapt_continuity_reference_app::credential_grant::CredentialGrantRequest,
+    >,
+) -> Result<Response, Error> {
+    let token = session(&headers)?;
+    let result = state
+        .call(move |s| s.issue_credential_grant(&token, &request))
+        .await?;
+    Ok(([(header::CONTENT_TYPE, "application/json")], result).into_response())
+}
+async fn cancel_grant(
+    State(state): State<Shared>,
+    headers: HeaderMap,
+    Json(request): Json<
+        q_periapt_continuity_reference_app::credential_grant::CredentialGrantRequest,
+    >,
+) -> Result<StatusCode, Error> {
+    let token = session(&headers)?;
+    state
+        .call(move |s| s.cancel_credential_grant(&token, &request))
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 async fn status(
     State(state): State<Shared>,
