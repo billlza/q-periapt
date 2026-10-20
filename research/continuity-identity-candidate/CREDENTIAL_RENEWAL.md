@@ -30,6 +30,26 @@ The journal still has to find the exact original live session/context/role. Key
 equality alone is not continuation permission, and a current grant does not create
 a session from an old transcript.
 
+### Shared-account credential changes
+
+Devices in one account share a single retained roster and per-device generation
+history. If a target roster changes two same-generation credentials, one device's
+valid grant cannot authorize the other change. The existing single-grant
+entrypoints reject such a target. An authenticated original sequence
+`R1 -> R2 -> R3` can be applied in order when each step has its corresponding
+grant; skipping the intermediate predecessor is a conflict.
+
+The internal account-record transition also validates a complete grant set
+with one predecessor, target and original policy. It requires a matching grant
+for every same-generation credential change, rejects duplicate devices and
+mixed scopes, preserves revocation history, and produces the same record
+regardless of input order. This is a pure transformation before image sealing.
+It does not expose a batch enrollment API or grant permission to restore an
+installation. A complete coordinator must retain the exact whole request,
+reconcile the original sealed target after an unknown result, and coordinate
+the required witness. The independent consumer still rejects same-account
+renewal until that shared authority and recovery path is implemented.
+
 ## Local enrollment workflow
 
 Close the existing `EnrolledDevice` before reopening its original `DeviceEnrollment`.

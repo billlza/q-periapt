@@ -9,6 +9,7 @@ fn id(account: &[u8; 32]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-JOURNAL-ROSTER/v1", account)
 }
 use crate::contract::MAX_DEVICE_HISTORY_PER_ACCOUNT as MAX_DEVICE_HISTORY;
+mod credential_changes;
 mod decode_cache;
 mod local_renewal;
 pub(super) use decode_cache::RosterDecodeCache;
@@ -308,87 +309,6 @@ impl Stored {
             payload,
         })
     }
-    fn advance(self, roster: &VerifiedRoster) -> Result<Self, DurableError> {
-        self.advance_with_renewal(roster, None)
-    }
-    fn advance_with_renewal(
-        self,
-        roster: &VerifiedRoster,
-        renewal: Option<&VerifiedCredentialRenewal>,
-    ) -> Result<Self, DurableError> {
-        self.require_live_account()?;
-        if let Some(renewal) = renewal {
-            let predecessor = renewal.previous_device();
-            let successor = renewal.successor_device();
-            if !self.roster.same_authority(roster)
-                || self.roster.checkpoint() != predecessor.roster().checkpoint()
-                || roster.checkpoint() != successor.roster().checkpoint()
-                || !self.roster.contains_member(
-                    predecessor.device_id(),
-                    predecessor.generation(),
-                    predecessor.credential_digest(),
-                )
-                || self.history.get(&predecessor.device_id())
-                    != Some(&(predecessor.generation(), predecessor.credential_digest()))
-            {
-                return Err(DurableError::Conflict);
-            }
-            if let Some(saved) = self.renewals.get(&successor.device_id()) {
-                if saved.original_credential_digest() != renewal.original_credential_digest()
-                    || saved.policy_digest() != renewal.policy_digest()
-                {
-                    return Err(DurableError::Conflict);
-                }
-            }
-        }
-        let mut history = self.history;
-        for (id, generation, certificate) in roster.members() {
-            if let Some((floor, original)) = history.get(&id) {
-                let permitted = renewal.is_some_and(|renewal| {
-                    let previous = renewal.previous_device();
-                    let next = renewal.successor_device();
-                    id == next.device_id()
-                        && generation == next.generation()
-                        && generation == *floor
-                        && certificate == next.credential_digest()
-                        && *original == previous.credential_digest()
-                        && self.roster.contains_member(id, generation, *original)
-                });
-                if generation < *floor
-                    || (generation == *floor
-                        && (*original != certificate
-                            || !self.roster.contains_member(id, generation, certificate))
-                        && !permitted)
-                {
-                    return Err(Error::Checkpoint.into());
-                }
-            } else if history.len() >= MAX_DEVICE_HISTORY {
-                return Err(DurableError::Capacity);
-            }
-            history.insert(id, (generation, certificate));
-        }
-        let mut renewals = self.renewals;
-        renewals.retain(|id, grant| {
-            let next = grant.successor_device();
-            history.get(id) == Some(&(next.generation(), next.credential_digest()))
-        });
-        if let Some(renewal) = renewal {
-            renewals.insert(
-                renewal.successor_device().device_id(),
-                VerifiedCredentialRenewal::from_journal(renewal.as_bytes(), roster)?,
-            );
-        }
-        Ok(Self {
-            roster: roster.clone(),
-            history,
-            renewals,
-            local_commit: self.local_commit,
-            policy_continuation: self.policy_continuation,
-            policy_renewal: self.policy_renewal,
-            peer_retirement: None,
-        })
-    }
-
     fn require_live_account(&self) -> Result<(), DurableError> {
         if self.peer_retirement.is_some() {
             return Err(Error::Scope.into());

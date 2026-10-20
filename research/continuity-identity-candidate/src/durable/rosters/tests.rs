@@ -2,6 +2,7 @@
 use super::*;
 #[path = "renewal_tests.rs"]
 pub(crate) mod renewal;
+mod shared_account;
 use crate::{
     bootstrap::tests::fixture,
     durable::tests::{
