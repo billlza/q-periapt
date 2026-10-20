@@ -290,5 +290,11 @@ fn retained_grant_preserves_original_identity_and_recovers_exact_issued_bytes() 
         }
     }
     assert_eq!(host.issue_credential_grant(&token, &c.input)?, bytes);
+    let crate::credential_grant::CredentialGrantStatus::Issued { response } =
+        host.credential_grant_status(&token, &c.input)?
+    else {
+        return Err("Original issued status missing".into());
+    };
+    assert_eq!(response, bytes);
     Ok(())
 }

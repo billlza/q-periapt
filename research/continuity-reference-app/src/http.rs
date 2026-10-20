@@ -111,6 +111,16 @@ fn browser_modules() -> Router<Shared> {
             include_str!("../web/extension-model.mjs"),
         ),
         ("/extension.mjs", include_str!("../web/extension.mjs")),
+        (
+            "/record-validation.mjs",
+            include_str!("../web/record-validation.mjs"),
+        ),
+        (
+            "/grant-records.mjs",
+            include_str!("../web/grant-records.mjs"),
+        ),
+        ("/grant-model.mjs", include_str!("../web/grant-model.mjs")),
+        ("/grant.mjs", include_str!("../web/grant.mjs")),
     ] {
         routes = routes.route(
             path,

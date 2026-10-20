@@ -2,6 +2,10 @@
 import {base64, equal} from './transport.mjs';
 import {root, id, extensionRequest, extensionResponse} from './enrollment-records.mjs';
 function require(value, message) { if (!value) throw new Error(message); }
+export function displayExpiry(value) {
+  const seconds = BigInt(value);
+  return seconds <= 8640000000000n ? new Date(Number(seconds) * 1000).toISOString() : `${value} Unix seconds (outside browser calendar range)`;
+}
 
 // This input is explicitly UTC, independent of browser locale and DST offsets.
 export function expiryUTC(text) {

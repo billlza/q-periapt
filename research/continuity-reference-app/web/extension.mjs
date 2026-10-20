@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 import {base64, equal, encode} from './transport.mjs';
-import {Extensions, expiryUTC} from './extension-model.mjs';
+import {Extensions, expiryUTC, displayExpiry as expiry} from './extension-model.mjs';
 const el = id => document.getElementById(id);
-function expiry(value) {
-  const seconds = BigInt(value);
-  return seconds <= 8640000000000n ? new Date(Number(seconds) * 1000).toISOString() : `${value} Unix seconds (outside browser calendar range)`;
-}
 
 export function extensionUI({state, bind, change, download, fingerprint, refreshRoot}) {
   let context = '', selected = '';
@@ -22,7 +18,7 @@ export function extensionUI({state, bind, change, download, fingerprint, refresh
       el('renewal-base').replaceChildren(new Option('Original issued credential', ''));
       el('renewal-detail').textContent = 'Select an issued device, read its current roster, and prepare a renewal for review.';
     }
-    const rows = s.invitation && s.records.schema === 2 ? s.records.extensions.filter(r => equal(r.request.enrollment, s.invitation.operation)) : [];
+    const rows = s.invitation && s.records.schema >= 2 ? s.records.extensions.filter(r => equal(r.request.enrollment, s.invitation.operation)) : [];
     const base = el('renewal-base').value;
     el('renewal-base').replaceChildren(new Option('Original issued credential', ''));
     el('renewals').replaceChildren(new Option('Select a retained renewal request', ''));

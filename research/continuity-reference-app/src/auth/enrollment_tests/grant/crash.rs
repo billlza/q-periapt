@@ -3,6 +3,40 @@ use super::super::crash::{kill_at, Work};
 use super::*;
 
 #[test]
+fn retained_grant_absent_cancellation_survives_commit_cuts_and_fences_late_requests() -> Result {
+    for boundary in ["grant-closed-before-commit", "grant-closed-after-commit"] {
+        let mut c = Case::new()?;
+        c.host.store.enable_credential_grants()?;
+        drop(c.host);
+        kill_at(
+            &c.path,
+            boundary,
+            Work::CancelGrant(Box::new(c.input.clone())),
+        )?;
+        let mut host = reopen(&c.path)?;
+        let (token, _) = login(&mut host, &mut c.auth, "alice")?;
+        let status = host.credential_grant_status(&token, &c.input)?;
+        if boundary.ends_with("before-commit") {
+            assert!(matches!(
+                status,
+                crate::credential_grant::CredentialGrantStatus::Absent
+            ));
+        } else {
+            assert!(matches!(
+                status,
+                crate::credential_grant::CredentialGrantStatus::Closed
+            ));
+        }
+        host.cancel_credential_grant(&token, &c.input)?;
+        assert!(matches!(
+            host.issue_credential_grant(&token, &c.input),
+            Err(Error::Conflict("Original retained grant is closed"))
+        ));
+    }
+    Ok(())
+}
+
+#[test]
 fn retained_grant_sigkill_preserves_pending_scope_and_committed_result() -> Result {
     for boundary in [
         "grant-pending-before-commit",

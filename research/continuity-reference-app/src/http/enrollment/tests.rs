@@ -93,6 +93,22 @@ async fn http_enrollment_requires_host_auth_and_recovers_exact_response_after_re
             include_bytes!("../../../web/extension-model.mjs").as_slice(),
         ),
         (
+            "/record-validation.mjs",
+            include_bytes!("../../../web/record-validation.mjs").as_slice(),
+        ),
+        (
+            "/grant-records.mjs",
+            include_bytes!("../../../web/grant-records.mjs").as_slice(),
+        ),
+        (
+            "/grant-model.mjs",
+            include_bytes!("../../../web/grant-model.mjs").as_slice(),
+        ),
+        (
+            "/grant.mjs",
+            include_bytes!("../../../web/grant.mjs").as_slice(),
+        ),
+        (
             "/extension.mjs",
             include_bytes!("../../../web/extension.mjs").as_slice(),
         ),

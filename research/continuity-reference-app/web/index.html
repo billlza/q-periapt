@@ -49,6 +49,20 @@
     <div class="actions"><button id="save-renewal-request" type="button" class="secondary">Save reviewed renewal request</button></div>
     <div class="actions"><button id="submit-renewal" type="button">Approve this renewal or recover its result</button><button id="save-renewal" type="button" class="secondary">Save historical renewal result</button></div>
     <p>Preparing retains the exact request without issuing it. After a lost response, select that same request and recover it; changing the expiry or roster requires a new explicit decision. Keep failed requests and original device storage.</p>
+    <h3>Authorize recovery of retained device state</h3>
+    <p>A renewed certificate does not reopen an existing installation. Load its original retained-state request and review a separate recovery authorization. The device keeps its original keys and journal.</p>
+    <label for="grant-file">Original retained-state request (JSON, at most 64 KiB)</label><input id="grant-file" type="file" accept="application/json,.json">
+    <p id="grant-file-detail"></p>
+    <label for="grant-original">Credential used when the installation was created</label><select id="grant-original"><option value="">Original issued credential</option></select>
+    <label for="grant-previous">Credential currently retained by that installation</label><select id="grant-previous"><option value="">Original issued credential</option></select>
+    <label for="grant-target">Already-issued target renewal</label><select id="grant-target"><option value="">Select an issued target renewal</option></select>
+    <div class="actions"><button id="prepare-grant" type="button" class="secondary">Prepare recovery authorization for review</button></div>
+    <label for="grants">Retained recovery authorization</label><select id="grants"><option value="">Select a retained recovery authorization</option></select>
+    <pre id="grant-detail"></pre>
+    <p id="grant-state" role="status" aria-live="polite"></p>
+    <div class="actions"><button id="submit-grant" type="button">Approve and issue this recovery authorization</button><button id="refresh-grant" type="button" class="secondary">Query original result without issuing</button></div>
+    <div class="actions"><button id="cancel-grant" type="button" class="secondary">Cancel this unissued decision</button><button id="save-grant-request" type="button" class="secondary">Save reviewed recovery request</button><button id="save-grant" type="button" class="secondary">Save historical recovery authorization</button></div>
+    <p>Querying does not sign or retry issuance. Cancellation preserves the decision and prevents delayed issuance, unless it was already issued. This authorization does not renew policy, approve a witness or create a replacement device.</p>
     <label for="recovery-file">Import recovery records for this same account and origin</label><input id="recovery-file" type="file" accept="application/json,.json">
     <p class="scope">An issued result records a past operation. It is not current traffic permission. Client acceptance must verify the original device key, current independently authenticated root/roster, signed policy and trusted time. The installed independent-client path is still being integrated.</p>
   </section>

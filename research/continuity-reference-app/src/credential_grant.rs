@@ -40,3 +40,16 @@ pub struct IssuedCredentialGrant {
     #[serde(with = "wire")]
     pub grant: Vec<u8>,
 }
+
+/// Historical host decision, never current device or session permission.
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "state", deny_unknown_fields)]
+pub enum CredentialGrantStatus {
+    Absent,
+    Pending,
+    Issued {
+        #[serde(with = "wire")]
+        response: Vec<u8>,
+    },
+    Closed,
+}

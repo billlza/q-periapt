@@ -206,8 +206,8 @@ policy. Then run `renewal-activate` with the same inputs and endpoint. This may
 send Commit for the prepared proposal; it cannot authorize it at the witness.
 Missing or mismatched witness configuration never falls back to local storage.
 
-The positive witness test exercises the native API over real TCP. Browser G
-approval, the separate witness-operator product interface, CLI cleanup of an
+The positive witness test exercises the native API over real TCP. Real-account
+browser/native recovery, the separate witness-operator product interface, CLI cleanup of an
 expired unresolved target, changed-policy CLI cohorts and established-session
 traffic recovery are still open integration work. Preserve all original state
 and outcomes when a target expires or is superseded; `renewal-status` alone does

@@ -1,23 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 import {parse, encode, equal, base64, unbase64} from './transport.mjs';
+import {require, fields, id, integer, checkpoint} from './record-validation.mjs';
+import {grantRecord, grantResponse} from './grant-records.mjs';
+export {id, checkpoint} from './record-validation.mjs';
 export const MAX_RECORD_BYTES = 4 * 1024 * 1024;
 const MAX_RECORDS = 512;
-function require(value, message) { if (!value) throw new Error(message); }
-function fields(value, expected) {
-  require(value && !Array.isArray(value) && typeof value === 'object' && equal(Object.keys(value).sort(), expected.split(' ').sort()), 'Unexpected recovery record fields');
-}
-export function id(value, size = 32) {
-  require(Array.isArray(value) && value.length === size && value.every(b => Number.isInteger(b) && b >= 0 && b <= 255) && value.some(b => b !== 0), 'Invalid operation or device identity');
-  return value;
-}
-function integer(value, positive = false) {
-  require(typeof value === 'bigint' || Number.isSafeInteger(value), 'Invalid exact integer');
-  require(BigInt(value) >= (positive ? 1n : 0n) && BigInt(value) <= 18446744073709551615n, 'Integer outside u64 range');
-}
-export function checkpoint(value) {
-  if (value === null) return;
-  fields(value, 'version digest'); integer(value.version, true); id(value.digest);
-}
 export function invitation(value, application, correlation) {
   fields(value, 'operation request_id application root_revision root family device generation valid_from valid_until deadline predecessor');
   id(value.operation); id(value.request_id); id(value.application); id(value.family); id(value.device, 16);
@@ -81,11 +68,12 @@ export class Records {
     this.key = `qpc-reference-enrollment/1/${application}`;
   }
   validate(value) {
-    fields(value, value?.schema === 2 ? 'schema origin application operations extensions' : 'schema origin application operations');
-    require((value.schema === 1 || value.schema === 2) && value.origin === this.origin && value.application === this.application, 'Recovery file belongs to another origin, account or schema');
+    const shape = {1: 'schema origin application operations', 2: 'schema origin application operations extensions', 3: 'schema origin application operations extensions grants'}[value?.schema];
+    require([1, 2, 3].includes(value?.schema), 'Unknown browser recovery schema'); fields(value, shape);
+    require(value.origin === this.origin && value.application === this.application, 'Recovery file belongs to another origin, account or schema');
     require(Array.isArray(value.operations) && value.operations.length <= MAX_RECORDS, 'Recovery record capacity');
-    const extensions = value.schema === 2 ? value.extensions : [];
-    require(Array.isArray(extensions) && value.operations.length + extensions.length <= MAX_RECORDS, 'Recovery record capacity');
+    const extensions = value.schema >= 2 ? value.extensions : [], grants = value.schema === 3 ? value.grants : [];
+    require(Array.isArray(extensions) && Array.isArray(grants) && value.operations.length + extensions.length + grants.length <= MAX_RECORDS, 'Recovery record capacity');
     const seen = new Set();
     for (const operation of value.operations) {
       row(operation, this.application); const key = base64(operation.request_id);
@@ -103,6 +91,11 @@ export class Records {
         const source = value.operations.find(r => r.invitation && equal(r.invitation.operation, item.request.enrollment));
         require(BigInt(item.request.valid_until) > BigInt(source.invitation.valid_until), 'Extension must increase original validity');
       }
+    }
+    for (const item of grants) {
+      grantRecord(item, value.operations, extensions, this.application);
+      const key = base64(item.request.retained.operation);
+      require(!seen.has(key), 'Duplicate recovery identity'); seen.add(key);
     }
     return value;
   }
@@ -133,7 +126,7 @@ export class Records {
     const value = this.read(), at = value.operations.findIndex(r => equal(r.request_id, operation.request_id));
     require(at >= 0, 'Original recovery record missing'); value.operations[at] = operation; this.save(value); return operation;
   }
-  extensions() { const value = this.read(); return value.schema === 2 ? value.extensions : []; }
+  extensions() { const value = this.read(); return value.schema >= 2 ? value.extensions : []; }
   findExtension(key) {
     const value = this.extensions().find(r => base64(r.request.request_id) === key);
     require(value, 'Select an existing extension request'); return value;
@@ -142,14 +135,36 @@ export class Records {
     const value = this.read();
     // Only this explicit preparation/import upgrades the payload. Reads leave
     // schema-1 bytes untouched, and the cache key stays bound to the same account.
-    this.save({...value, schema: 2, extensions: [...(value.schema === 2 ? value.extensions : []), item]});
+    this.save({...value, schema: Math.max(value.schema, 2), extensions: [...(value.schema >= 2 ? value.extensions : []), item]});
   }
   completeExtension(key, response) {
-    const value = this.read(); require(value.schema === 2, 'Original extension records absent');
+    const value = this.read(); require(value.schema >= 2, 'Original extension records absent');
     const row = value.extensions.find(r => base64(r.request.request_id) === key);
     require(row, 'Original extension request missing'); extensionResponse(response, row.request, row.root_revision);
     require(row.response === null || row.response === response, 'Host changed the original extension result');
     row.response = response; this.save(value);
+  }
+  grants() { const value = this.read(); return value.schema === 3 ? value.grants : []; }
+  findGrant(key) {
+    const value = this.grants().find(r => base64(r.request.retained.operation) === key);
+    require(value, 'Select an existing recovery authorization'); return value;
+  }
+  addGrant(item) {
+    const value = this.read();
+    this.save({...value, schema: 3, extensions: value.schema >= 2 ? value.extensions : [], grants: [...(value.schema === 3 ? value.grants : []), item]});
+  }
+  transitionGrant(key, state, response = null) {
+    const value = this.read(); require(value.schema === 3, 'Original grant records absent');
+    const row = value.grants.find(r => base64(r.request.retained.operation) === key);
+    require(row, 'Original grant request missing');
+    const allowed = {Prepared: ['Prepared', 'Submitted', 'CancelRequested', 'Issued', 'Closed'], Submitted: ['Submitted', 'CancelRequested', 'Issued', 'Closed'],
+      CancelRequested: ['CancelRequested', 'Issued', 'Closed'], Issued: ['Issued'], Closed: ['Closed']};
+    require(allowed[row.state].includes(state), 'Host status contradicts original retained outcome');
+    if (state === 'Issued') {
+      grantResponse(response, row.request);
+      require(row.response === null || row.response === response, 'Host changed the original grant result');
+    }
+    row.state = state; row.response = response; this.save(value);
   }
   merge(text) {
     const imported = this.decode(text), value = this.read();
@@ -158,12 +173,20 @@ export class Records {
       if (original) require(equal(original, operation), 'Imported record conflicts with original retained state');
       else value.operations.push(operation);
     }
-    if (imported.schema === 2) {
+    if (imported.schema >= 2) {
       if (value.schema === 1) { value.schema = 2; value.extensions = []; }
       for (const item of imported.extensions) {
         const original = value.extensions.find(r => equal(r.request.request_id, item.request.request_id));
         if (original) require(equal(original, item), 'Imported extension conflicts with original retained state');
         else value.extensions.push(item);
+      }
+    }
+    if (imported.schema === 3) {
+      if (value.schema !== 3) { value.schema = 3; value.grants = []; }
+      for (const item of imported.grants) {
+        const original = value.grants.find(r => equal(r.request.retained.operation, item.request.retained.operation));
+        if (original) require(equal(original, item), 'Imported grant conflicts with original retained state');
+        else value.grants.push(item);
       }
     }
     this.save(value);

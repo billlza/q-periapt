@@ -2,6 +2,29 @@
 use super::*;
 
 #[test]
+fn retained_grant_cancellation_before_dispatch_fences_a_late_issuance() -> Result {
+    let mut c = Case::new()?;
+    c.host.store.enable_credential_grants()?;
+    let root = c.host.enrollment_root(&c.token)?;
+    assert!(matches!(
+        c.host.credential_grant_status(&c.token, &c.input)?,
+        crate::credential_grant::CredentialGrantStatus::Absent
+    ));
+    c.host.cancel_credential_grant(&c.token, &c.input)?;
+    c.host.cancel_credential_grant(&c.token, &c.input)?;
+    assert!(matches!(
+        c.host.credential_grant_status(&c.token, &c.input)?,
+        crate::credential_grant::CredentialGrantStatus::Closed
+    ));
+    assert_eq!(c.host.enrollment_root(&c.token)?, root);
+    assert!(matches!(
+        c.host.issue_credential_grant(&c.token, &c.input),
+        Err(Error::Conflict("Original retained grant is closed"))
+    ));
+    Ok(())
+}
+
+#[test]
 fn retained_grant_requires_account_and_independently_selected_host_history() -> Result {
     let mut c = Case::new()?;
     c.host.store.enable_credential_grants()?;
@@ -12,7 +35,12 @@ fn retained_grant_requires_account_and_independently_selected_host_history() -> 
         c.host.issue_credential_grant("invalid", &c.input),
         Err(Error::Unauthorized)
     ));
+    assert!(matches!(
+        c.host.credential_grant_status("invalid", &c.input),
+        Err(Error::Unauthorized)
+    ));
     assert!(c.host.issue_credential_grant(&other, &c.input).is_err());
+    assert!(c.host.credential_grant_status(&other, &c.input).is_err());
     let before = c.host.enrollment_root(&c.token)?;
     let mut variants = Vec::new();
     let mut bad = c.input.clone();
@@ -42,8 +70,8 @@ fn retained_grant_requires_account_and_independently_selected_host_history() -> 
     for bad in variants {
         assert!(c.host.issue_credential_grant(&c.token, &bad).is_err());
         assert!(matches!(
-            c.host.cancel_credential_grant(&c.token, &bad),
-            Err(Error::Conflict("Original retained grant is absent"))
+            c.host.credential_grant_status(&c.token, &c.input)?,
+            crate::credential_grant::CredentialGrantStatus::Absent
         ));
     }
     assert_eq!(c.host.enrollment_root(&c.token)?, before);
@@ -74,6 +102,10 @@ fn retained_grant_failed_reserved_decision_requires_exact_explicit_cancel() -> R
         Err(Error::Conflict(
             "Reported original owner differs from credential"
         ))
+    ));
+    assert!(matches!(
+        c.host.credential_grant_status(&c.token, &incorrect_owner)?,
+        crate::credential_grant::CredentialGrantStatus::Pending
     ));
     assert!(matches!(
         c.host.issue_credential_grant(&c.token, &c.input),

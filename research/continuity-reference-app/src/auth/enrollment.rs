@@ -6,6 +6,16 @@ use crate::{
 };
 
 impl Service {
+    pub fn credential_grant_status(
+        &mut self,
+        token: &str,
+        request: &crate::credential_grant::CredentialGrantRequest,
+    ) -> Result<crate::credential_grant::CredentialGrantStatus, Error> {
+        let account = self.authenticated(token)?;
+        let result = self.store.credential_grant_status(&account, request)?;
+        self.authenticated(token)?;
+        Ok(result)
+    }
     pub fn issue_credential_grant(
         &mut self,
         token: &str,

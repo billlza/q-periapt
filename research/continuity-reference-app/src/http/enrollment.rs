@@ -27,6 +27,10 @@ pub(super) fn routes() -> Router<Shared> {
         .route("/api/enrollment/extend-credential", post(extend_credential))
         .route("/api/enrollment/credential-grant", post(credential_grant))
         .route(
+            "/api/enrollment/credential-grant/status",
+            post(grant_status),
+        )
+        .route(
             "/api/enrollment/credential-grant/cancel",
             post(cancel_grant),
         )
@@ -192,6 +196,21 @@ async fn cancel_grant(
         .call(move |s| s.cancel_credential_grant(&token, &request))
         .await?;
     Ok(StatusCode::NO_CONTENT)
+}
+async fn grant_status(
+    State(state): State<Shared>,
+    headers: HeaderMap,
+    Json(request): Json<
+        q_periapt_continuity_reference_app::credential_grant::CredentialGrantRequest,
+    >,
+) -> Result<Json<q_periapt_continuity_reference_app::credential_grant::CredentialGrantStatus>, Error>
+{
+    let token = session(&headers)?;
+    Ok(Json(
+        state
+            .call(move |s| s.credential_grant_status(&token, &request))
+            .await?,
+    ))
 }
 async fn status(
     State(state): State<Shared>,

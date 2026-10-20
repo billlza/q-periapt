@@ -125,7 +125,11 @@ authenticated [retained-state grant transaction](RETAINED_GRANTS.md) issues G
 only for an exact selected certificate chain and current account roster. Its
 pending decision and issued response survive restart. The native CLI can stage,
 inspect and activate that exact original operation, with separate witness
-proposal/approval when required. Browser grant approval controls remain open.
+proposal/approval when required. The browser separately prepares a reviewable
+decision, approves issuance, queries the original result without signing, and
+cancels an unissued decision. Its schema-3 recovery backup preserves the earlier
+enrollment and certificate-extension records. Real-account recovery through the
+browser and native consumer still needs its separate runtime acceptance.
 
 The service's invitation API requires a caller-retained random request ID. Retry
 that same ID after an uncertain reply, even if the host operation ID was lost.

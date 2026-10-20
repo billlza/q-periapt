@@ -99,6 +99,15 @@ async fn http_retained_grant_lost_response_reopens_exact_original_decision() -> 
         target_checkpoint: next.checkpoint,
     };
     let route = "/api/enrollment/credential-grant";
+    let status_route = "/api/enrollment/credential-grant/status";
+    assert_eq!(
+        alice
+            .post(&server, status_route, &request)
+            .await?
+            .checked(200)?
+            .json::<serde_json::Value>()?,
+        json!({"state":"Absent"})
+    );
     let mut anonymous = Client::default();
     anonymous
         .post(&server, route, &request)
@@ -146,6 +155,16 @@ async fn http_retained_grant_lost_response_reopens_exact_original_decision() -> 
         .checked(200)?
         .body;
     let issued: IssuedCredentialGrant = serde_json::from_slice(&recovered)?;
+    let status: serde_json::Value = alice
+        .post(&server, status_route, &request)
+        .await?
+        .checked(200)?
+        .json()?;
+    assert_eq!(status["state"], "Issued");
+    assert_eq!(
+        URL_SAFE_NO_PAD.decode(status["response"].as_str().ok_or("status response")?)?,
+        recovered
+    );
     let pin = sdk::AccountPin::new(
         current.account,
         sdk::PublicKey::decode(&current.public_key)?,
@@ -179,6 +198,25 @@ async fn http_retained_grant_lost_response_reopens_exact_original_decision() -> 
         .await?
         .checked(409)?;
     assert_eq!(issue(&mut alice, &server, &original).await?, first);
+    let mut cancelled = request.clone();
+    cancelled.retained.operation = [54; 32];
+    alice
+        .post(
+            &server,
+            "/api/enrollment/credential-grant/cancel",
+            &cancelled,
+        )
+        .await?
+        .checked(204)?;
+    assert_eq!(
+        alice
+            .post(&server, status_route, &cancelled)
+            .await?
+            .checked(200)?
+            .json::<serde_json::Value>()?,
+        json!({"state":"Closed"})
+    );
+    alice.post(&server, route, &cancelled).await?.checked(409)?;
     assert_eq!(
         alice
             .get(&server, "/api/enrollment/root")

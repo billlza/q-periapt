@@ -64,10 +64,29 @@ exact previously committed response. A changed target, scope or context under
 the same operation is refused. Pending decisions do not reserve the account
 roster: an intervening roster update can make them ineligible to finish.
 
-`POST /api/enrollment/credential-grant/cancel` explicitly closes an exact Pending
-decision. Repeating that cancellation is idempotent. It cannot cancel an issued
-grant or erase its history. A corrected or newly selected request needs a new
-operation and a new explicit decision; retry never silently retargets it.
+`POST /api/enrollment/credential-grant/status` is an authenticated read of the
+complete original request. It returns Absent, Pending, Closed, or Issued with the
+exact retained response encoded as base64url. It never signs or resumes a pending
+issuance. Absent describes that observation only: a delayed request may still
+arrive after the query.
+
+`POST /api/enrollment/credential-grant/cancel` durably closes an exact unresolved
+decision, including one whose first dispatch has not arrived yet. It verifies
+the original account/enrollment association and retains a Closed record before
+acknowledging, so delayed issuance of that operation is refused. Repeating that
+cancellation is idempotent. It cannot cancel an issued grant or erase history.
+If issuance won the race, query and retain its original result. A corrected or
+newly selected request needs a new operation and explicit decision; retry never
+silently retargets it.
+
+The browser loads the original public retained-state request and requires
+explicit original, previous and target credential selections from known host
+issuance records. Preparing a review writes the complete decision before any
+network dispatch. Approving issuance and requesting cancellation first persist
+their respective local intent markers. After an uncertain result, a dedicated
+query control observes the server without signing. Browser backup schema 3 keeps
+all earlier schema-1/2 enrollment and extension records and refuses conflicting
+imports; it does not reset a record after quota or transport errors.
 
 An Issued response remains retrievable after root suspension, expiry or loss of
 the root signing file, with valid account authentication. It is a historical
@@ -92,7 +111,9 @@ activates the exact G. Its tests cover actual credential expiry, a closed stdout
 pipe after the durable operation, repeated process reopen and publication under
 the recovered credential. A native API test also uses a real TCP witness and
 requires independent enrollment and proposal approval before recovery succeeds.
-The browser has no grant approval control yet. These tests do not establish
-real-account browser recovery, expired established-session traffic recovery,
+Browser model/controller tests cover lost responses, cancellation races, quota
+failures, exact integers, preserved backups and visible pending state. They use
+explicit HTTP/storage/DOM substitutes. These tests do not establish real-account
+browser recovery, expired established-session traffic recovery,
 joint-policy/independent-policy CLI qualification or cross-host installed-package
 acceptance.

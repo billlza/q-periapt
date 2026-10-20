@@ -3,6 +3,7 @@ use super::*;
 use crate::credential_grant::{CredentialGrantRequest, IssuedCredentialGrant};
 mod inputs;
 mod schema;
+mod state;
 
 const MAX_GRANT_RECORD: usize = 256 * 1024;
 #[derive(Serialize, Deserialize)]
@@ -205,36 +206,6 @@ impl Store {
             };
             store.save_grant(account, &record, false, at, Some(&target))?;
             Ok(response)
-        })
-    }
-    /// Explicitly terminate an unresolved exact decision; never cancels an issued G.
-    pub fn cancel_credential_grant(
-        &mut self,
-        account: &Account,
-        request: &CredentialGrantRequest,
-    ) -> Result<(), Error> {
-        self.action(|store| {
-            store.authorized(account)?;
-            if !store.credential_grants {
-                return Err(Error::Conflict("Retained grants are not enabled"));
-            }
-            inputs::shape(request)?;
-            store.operation(account, request.retained.enrollment)?;
-            let mut record = store
-                .grant(account, request.retained.operation)?
-                .ok_or(Error::Conflict("Original retained grant is absent"))?;
-            if record.request != *request {
-                return Err(Error::Conflict("Original retained grant request differs"));
-            }
-            match record.phase {
-                GrantPhase::Closed => return Ok(()),
-                GrantPhase::Issued { .. } => {
-                    return Err(Error::Conflict("Issued grant cannot be cancelled"))
-                }
-                GrantPhase::Pending => {}
-            }
-            record.phase = GrantPhase::Closed;
-            store.save_grant(account, &record, false, now()?, None)
         })
     }
 }

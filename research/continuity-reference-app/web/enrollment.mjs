@@ -3,6 +3,7 @@ import {base64, unbase64, encode, json, request} from './transport.mjs';
 import {Records, MAX_RECORD_BYTES} from './enrollment-records.mjs';
 import {Enrollment} from './enrollment-model.mjs';
 import {extensionUI} from './extension.mjs';
+import {grantUI} from './grant.mjs';
 const el = id => document.getElementById(id);
 function download(name, text) {
   const url = URL.createObjectURL(new Blob([text], {type: 'application/json'}));
@@ -22,6 +23,8 @@ export function enrollmentUI(action, identity) {
       observation = null; el('root-detail').textContent = 'Renewal may have changed the roster. Reading the current host observation…';
       await showRoot(await model.readRoot());
     }});
+  const grants = grantUI({state: () => ({model, selected, disposition, observation, issued}), bind, download, fingerprint,
+    change: (id, work) => el(id).addEventListener('change', () => action(async () => { await authenticated(); await work(); }))});
   function clearObservation() {
     disposition = null; observation = null; issued = null; draft = null; hasProof = false; directProof = false;
     el('root-detail').textContent = 'Read the current root and roster before selecting a new approval.';
@@ -54,6 +57,7 @@ export function enrollmentUI(action, identity) {
     el('save-root').disabled = observation === null;
     el('save-authority').disabled = observation === null;
     extensions.controls();
+    grants.controls();
   }
   async function authenticated() {
     if (!model || !identity()) throw new Error('Sign in as the original account first');
