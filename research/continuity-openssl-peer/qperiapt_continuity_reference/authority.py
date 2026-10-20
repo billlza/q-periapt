@@ -159,6 +159,27 @@ class HistoricalPolicy:
                 and hashlib.sha256(key.raw[:1952]).digest() != self.sdk.root_digest,
                 "policy renewal signer separation")
 
+    def authenticate_retained(self, wire):
+        """Authenticate a stored same-profile policy, without selecting live trust.
+
+        Incoming updates still need their independently pinned current snapshot.
+        This method is for reconstructing an already authenticated journal record.
+        """
+        self.verify_metadata()
+        body = self.root.open(wire, 4, 200)
+        r = Reader(body)
+        require(r.take(8) == b"QPSESP03" and r.take(32) == self.family, "retained policy family")
+        version, validity = generation(r.integer(8)), Interval.read(r)
+        require(r.take(32) == SUITE and r.take(68) == self.sdk.wire(), "retained policy SDK/suite")
+        modes, anchored, binding, budget = r.integer(1), r.integer(1), r.take(32), r.integer(2)
+        r.finish()
+        require(anchored == (self.anchor is not None) and binding == (self.anchor or bytes(32)),
+                "retained policy witness differs")
+        value = HistoricalPolicy(self.sdk, self.family, version, digest(b"SESSION-POLICY", body),
+                                 validity, budget, modes, self.anchor, self.root, wire)
+        self.same_profile(value)
+        return value
+
 
 @dataclass(frozen=True)
 class PolicySnapshot:

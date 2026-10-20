@@ -316,6 +316,11 @@ jobs:
             --native target/independent-peer-ci/policy-renewal-fixture \
             --output target/independent-peer-ci/policy-proof \
             > target/independent-peer-ci/policy-proof.stdout 2> target/independent-peer-ci/policy-proof.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/policy_record_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --proof-directory target/independent-peer-ci/policy-proof \
+            --output target/independent-peer-ci/policy-record \
+            > target/independent-peer-ci/policy-record.stdout 2> target/independent-peer-ci/policy-record.stderr
           git diff --exit-code
       - name: Verify original common-account sessions and witness renewal
         env:

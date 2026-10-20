@@ -415,3 +415,9 @@ unchanged policy profile are mandatory. Historical signature verification grants
 no current permission. This is a proof interoperability prerequisite: independent
 durable policy adoption, witness admission and post-expiry session continuation
 are not provided by this verifier.
+
+`policy_record_checks.py` reuses those exact native inputs to check bounded
+Pending/Committed/ExpiredUncommitted metadata and sequential predecessor binding.
+It preserves the first signatures on retries, refuses another pending operation,
+and keeps historical completion separate from current permission. This record
+model is not yet connected to the session snapshot or registered journal owner.
