@@ -7,40 +7,28 @@ use std::{
     time::{Duration, Instant},
 };
 
-// This fixture owns both independent test authorities. Opening its protected
-// policy signer is test issuer setup, not a production publisher approval API.
-fn policy_signer(c: &Case) -> Result<sdk::PolicySigningKey> {
-    let mut found = Vec::new();
-    for item in fs::read_dir(&c.path)? {
-        let item = item?;
-        let name = item.file_name();
-        let name = name.to_str().ok_or("test filename")?;
-        if let Some(id) = name
-            .strip_prefix("policy-")
-            .and_then(|n| n.strip_suffix(".signer"))
-        {
-            let bytes: [u8; 32] = URL_SAFE_NO_PAD
-                .decode(id)?
-                .try_into()
-                .map_err(|_| "signer identity")?;
-            let key = sdk::PolicySigningKey::open(
-                &item.path(),
-                &sdk::JournalKey::open(&c.path.join(format!("policy-{id}.wrap")))?,
-                sdk::SigningKeyId::from_trusted_state(bytes)?,
-            )?;
-            assert_eq!(
-                key.public_key()?.encode(),
-                c.publisher.authority()?.policy_root
-            );
-            found.push(key);
+fn policy_approval(
+    c: &mut Case,
+    retained: &PolicyRequest,
+    previous: [u8; 32],
+    target: [u8; 32],
+) -> Result<Vec<u8>> {
+    c.publisher.enable_renewals()?;
+    let request = RenewalRequest {
+        retained: retained.clone(),
+        original_publication: [65; 32],
+        previous_publication: previous,
+        target_publication: target,
+    };
+    let result = c.publisher.approve_renewal(&request, &c.current)?;
+    assert_eq!(c.publisher.approve_renewal(&request, &c.current)?, result);
+    assert_eq!(
+        c.publisher.renewal_status(&request, &c.current)?,
+        RenewalStatus::Issued {
+            result: result.clone()
         }
-    }
-    if found.len() != 1 {
-        return Err("Expected one original test policy signer".into());
-    }
-    found
-        .pop()
-        .ok_or_else(|| "Missing original policy signer".into())
+    );
+    Ok(result.approval)
 }
 fn request_args(c: &Case, operation: [u8; 32], output: &str) -> Vec<OsString> {
     let mut args = c.args("policy-request", &[]);
@@ -154,9 +142,9 @@ fn exercise(adopt: bool) -> Result<()> {
         clock()?,
     )?;
     let account = c.root.approve_policy_renewal(&statement)?;
-    let authority = policy_signer(&c)?.approve_policy_renewal(&statement)?;
+    let authority = policy_approval(&mut c, &request, [65; 32], [121; 32])?;
     publish_private_bytes(&c.path.join("account-approval.bin"), account.as_bytes())?;
-    publish_private_bytes(&c.path.join("policy-approval.bin"), authority.as_bytes())?;
+    publish_private_bytes(&c.path.join("policy-approval.bin"), &authority)?;
     let mut forged = account.as_bytes().to_vec();
     let end = forged.len() - 1;
     forged[end] ^= 1;
@@ -338,6 +326,9 @@ fn exercise(adopt: bool) -> Result<()> {
         resolved
     );
     assert_eq!(c.call("status", &[])?["journal"], accepted["journal"]);
+    let path = c.path.clone();
+    drop(c);
+    publisher_cli_recovery(&path)?;
     Ok(())
 }
 
@@ -380,12 +371,17 @@ fn adopt_fresh_policy(
         &c.path.join("third-account.bin"),
         c.root.approve_policy_renewal(&statement)?.as_bytes(),
     )?;
-    publish_private_bytes(
-        &c.path.join("third-policy.bin"),
-        policy_signer(c)?
-            .approve_policy_renewal(&statement)?
-            .as_bytes(),
+    let authority = policy_approval(
+        c,
+        request,
+        if previously_committed {
+            [121; 32]
+        } else {
+            [65; 32]
+        },
+        [125; 32],
     )?;
+    publish_private_bytes(&c.path.join("third-policy.bin"), &authority)?;
     let mut apply = policy_args(c, "policy-adopt", "next-request.json", "third-account.bin");
     apply[6] = c.path.join("third-policy.bin").into_os_string();
     apply[10] = c.path.join("previous-pins.json").into_os_string();
@@ -413,5 +409,45 @@ fn adopt_fresh_policy(
         serde_json::from_slice::<serde_json::Value>(&invoke(&apply, true)?)?,
         committed
     );
+    Ok(())
+}
+
+fn publisher_cli_recovery(path: &Path) -> Result<()> {
+    let args = [
+        OsString::from("renewal-approve"),
+        path.join("publisher.redb").into_os_string(),
+        URL_SAFE_NO_PAD.encode([60; 32]).into(),
+        path.join("policy-request.json").into_os_string(),
+        path.join("current.json").into_os_string(),
+        URL_SAFE_NO_PAD.encode([65; 32]).into(),
+        URL_SAFE_NO_PAD.encode([65; 32]).into(),
+        URL_SAFE_NO_PAD.encode([121; 32]).into(),
+        path.join("recovered-policy-approval.bin").into_os_string(),
+    ];
+    let output = Command::new(env!("CARGO_BIN_EXE_q-periapt-policy-publisher"))
+        .args(&args)
+        .output()?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stderr.is_empty());
+    assert_eq!(
+        fs::read(path.join("recovered-policy-approval.bin"))?,
+        fs::read(path.join("policy-approval.bin"))?
+    );
+    // Output publication failure must not regenerate the durable decision.
+    let failed = Command::new(env!("CARGO_BIN_EXE_q-periapt-policy-publisher"))
+        .args(&args)
+        .output()?;
+    assert!(!failed.status.success());
+    let mut status = args[..8].to_vec();
+    status[0] = "renewal-status".into();
+    let observed = Command::new(env!("CARGO_BIN_EXE_q-periapt-policy-publisher"))
+        .args(status)
+        .output()?;
+    assert!(observed.status.success());
+    assert_eq!(observed.stdout, output.stdout);
     Ok(())
 }

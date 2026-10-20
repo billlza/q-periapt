@@ -318,6 +318,25 @@ impl PolicyRenewalApproval {
     pub fn as_bytes(&self) -> &[u8] {
         &self.wire
     }
+    /// Authenticate one retained policy-issuer decision against independent
+    /// historical inputs. The returned commitment grants no current permission
+    /// and is not a substitute for the separate account approval.
+    pub fn verify_policy(
+        &self,
+        scope: &PolicyRenewalScope,
+        materials: &HistoricalPolicyRenewalMaterials<'_>,
+    ) -> Result<[u8; 32], Error> {
+        let bound = historical_statement(scope, materials)?;
+        let (body, signature) = open_envelope(self.as_bytes())?;
+        if body != bound.encode() {
+            return Err(Error::Scope);
+        }
+        materials
+            .original
+            .signer
+            .verify(Purpose::PolicyRenewal, body, signature)?;
+        Ok(digest(DOMAIN, body))
+    }
 }
 impl RootSigningKey {
     /// Approve the exact policy-only statement under its independently pinned account root.

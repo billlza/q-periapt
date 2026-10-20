@@ -1997,6 +1997,10 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-reference-app/src/native_renewal_cli.rs',
             'research/continuity-reference-app/src/native_policy_cli.rs',
             'research/continuity-reference-app/src/policy_renewal.rs',
+            'research/continuity-reference-app/src/policy_publisher/renewal.rs',
+            'research/continuity-reference-app/src/policy_publisher/renewal_store.rs',
+            'research/continuity-reference-app/src/policy_publisher/renewal_tests.rs',
+            'research/continuity-reference-app/src/publisher_renewal_cli.rs',
             'research/continuity-reference-app/src/network/framing.rs',
             'research/continuity-reference-app/src/network/mod.rs',
             'research/continuity-reference-app/src/network/server.rs',
@@ -2026,7 +2030,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 codeql_rust_quality, "run_git_bytes", return_value=raw
             ), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError,
-                "tracked Rust source count must be 823, got 822",
+                "tracked Rust source count must be 827, got 826",
             ):
                 codeql_rust_quality.tracked_rust_paths()
 

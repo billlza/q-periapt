@@ -2,6 +2,8 @@
 use super::*;
 use crate::test_support::sdk_input as input;
 use std::os::unix::fs::PermissionsExt;
+#[path = "renewal_tests.rs"]
+mod renewal;
 
 struct Directory(std::path::PathBuf);
 impl Directory {
@@ -419,6 +421,7 @@ fn policy_publisher_child() -> Result<(), Box<dyn std::error::Error>> {
         "issue" => {
             owner.issue([2; 32], request(), 150)?;
         }
+        action if action.starts_with("renewal-") => renewal::child(&mut owner, action)?,
         _ => return Err("Unknown child action".into()),
     }
     Err("Child failed to stop at requested cut".into())

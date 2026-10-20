@@ -113,13 +113,25 @@ impl Publisher {
             .map(|t| t.name().to_owned())
             .collect();
         names.sort();
-        if names != [CONFIG.name(), OPERATIONS.name()]
-            || tx.list_multimap_tables().map_err(fail)?.next().is_some()
-        {
+        let config = owner.config()?;
+        let mut expected = vec![CONFIG.name(), OPERATIONS.name()];
+        if config.schema == 2 {
+            expected.push(super::renewal_store::RENEWALS.name());
+            if tx
+                .open_table(super::renewal_store::RENEWALS)
+                .map_err(fail)?
+                .len()
+                .map_err(fail)?
+                > MAX_OPERATIONS
+            {
+                return Err(Error::Capacity);
+            }
+        }
+        expected.sort();
+        if names != expected || tx.list_multimap_tables().map_err(fail)?.next().is_some() {
             return Err(Error::Conflict("Publisher table schema differs"));
         }
         drop(tx);
-        let config = owner.config()?;
         config.sdk.verify()?;
         if let SignerPhase::Ready { public, family } = &config.signer {
             sdk::PublicKey::decode(public).map_err(fail)?;
@@ -158,7 +170,7 @@ impl Publisher {
         let value = table.get("state").map_err(fail)?.ok_or(Error::Internal)?;
         let config: Config = decode(value.value())?;
         let operations = tx.open_table(OPERATIONS).map_err(fail)?;
-        if config.schema != 1
+        if !matches!(config.schema, 1 | 2)
             || config.publisher != self.identity
             || config.publisher == [0; 32]
             || config.signing_id == [0; 32]
@@ -228,14 +240,14 @@ pub(super) fn put_record(tx: &redb::WriteTransaction, record: &Record) -> Result
         .map_err(fail)?;
     Ok(())
 }
-fn encode<T: Serialize>(value: &T) -> Result<Vec<u8>, Error> {
+pub(super) fn encode<T: Serialize>(value: &T) -> Result<Vec<u8>, Error> {
     let bytes = serde_json::to_vec(value).map_err(fail)?;
     if bytes.len() > MAX_RECORD {
         return Err(Error::Capacity);
     }
     Ok(bytes)
 }
-fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, Error> {
+pub(super) fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, Error> {
     if bytes.is_empty() || bytes.len() > MAX_RECORD {
         return Err(Error::Internal);
     }

@@ -34,6 +34,10 @@ request. Construct the SDK statement using independently verified historical P0,
 exact previous policy, and a live target policy. The SDK's statement checks bind
 all identity and policy fields. The authorities must serialize/deduplicate their
 own decisions and retain exact signature bytes across unknown responses.
+The protected policy-side issuer now provides this transaction and operator CLI;
+see [original-device renewal approvals](POLICY_PUBLISHER.md#original-device-renewal-approvals).
+Account-side authentication and durable P approval still require their own host
+integration; a policy signature cannot substitute for them.
 
 The consumer takes those two original bounded binary approval files separately
 from the retained request and trust configuration:
@@ -105,9 +109,9 @@ Previous signatures do not authorize the new request or extend its expiry.
 
 The current commands require a local-only original installation. Required-witness
 P authorization and coordination remain separate; there is no local fallback.
-The browser/account host and protected policy publisher do not yet provide a
-complete durable two-issuer P approval workflow. Tests use explicit independent
-test issuers and real consumer subprocesses; they are not live-account approval
+The browser/account host does not yet provide durable account-side P approval.
+Tests use an explicit independent test account authority, the protected policy
+publisher and real consumer subprocesses; they are not live-account approval
 or established-session traffic acceptance. Changed-policy credential continuation,
 required-witness P, and the native/independent session facade remain integration
 work. Keep these boundaries distinct from the separately integrated G renewal.

@@ -133,6 +133,61 @@ remaining 0.2.0 release requirements remain separate work. The current qualifica
 uses the native SDK authority CLI and a witness test pin. It does not establish
 a deployed consumer trust channel or a running witness service.
 
+## Original-device renewal approvals
+
+Publishing a policy does not authorize a particular device's retained sessions to
+adopt it. The publisher can separately approve the SDK's policy-only P statement.
+The account authority must independently approve that same statement, and the
+device must still coordinate its original journal.
+
+Upgrade an existing, closed/backed-up publisher explicitly:
+
+```text
+q-periapt-policy-publisher renewal-enable DB PUBLISHER_ID
+```
+
+Schema 2 adds a bounded approval ledger atomically. It preserves the original
+identity, protected signing files, publication versions, pending publication and
+issued bytes. Schema-1 databases remain usable by the new reader before upgrade;
+old readers reject schema 2. Do not replace the database or regenerate its signer.
+
+The operator selects the original, previous and target **publication operation
+IDs from this publisher's own inventory**, and obtains current account pins
+through an authenticated channel separately from the device's request:
+
+```text
+q-periapt-policy-publisher renewal-approve DB PUBLISHER_ID DEVICE_REQUEST ACCOUNT_PINS ORIGINAL_PUBLICATION PREVIOUS_PUBLICATION TARGET_PUBLICATION NEW_APPROVAL_FILE
+q-periapt-policy-publisher renewal-status DB PUBLISHER_ID DEVICE_REQUEST ACCOUNT_PINS ORIGINAL_PUBLICATION PREVIOUS_PUBLICATION TARGET_PUBLICATION
+q-periapt-policy-publisher renewal-cancel DB PUBLISHER_ID DEVICE_REQUEST ACCOUNT_PINS ORIGINAL_PUBLICATION PREVIOUS_PUBLICATION TARGET_PUBLICATION
+```
+
+These are explicit operator decisions; a signed device report does not itself
+authenticate the operator or establish that the supplied account snapshot is the
+latest one. The embedding host must authenticate and serialize account trust
+selection. The publisher checks device signatures, the selected original policy
+root, unchanged profile, current credential/roster and live target. It saves the
+full immutable selection and statement commitment before signing, rechecks live
+validity before committing, and saves/reverifies the exact signature before
+release. The output is the bounded binary policy approval accepted by
+`q-periapt-native-device policy-stage`/`policy-adopt`.
+The ledger records issuer decisions, not device adoption. The device coordinator
+still compares the reported journal and previous authorization with its actual
+original state.
+
+After a missing response or failed exclusive file export, query/retry that same
+selection with a new output filename. An issued retry returns the exact saved
+signature, even after expiry or loss of the private signing files; it does not
+renew permission. Historical results reverify the policy signature and full
+relation. `Absent` or `Pending` status does not sign. Cancellation retains a
+`Closed` tombstone, including before a delayed first issuance; it cannot revoke
+an already-issued signature. Expired pending decisions require explicit
+cancellation. The separate ledger holds at most 512 decisions and does not evict
+old decisions to make room.
+
+The policy-side operator flow is integrated. Durable account-side P approval and
+its browser ceremony remain separate integration work. Neither a policy signature
+nor a successfully exported file proves device adoption or live session admission.
+
 ## Checks
 
 Rust tests cover exact SDK pins/signatures, monotonic original results, explicit
@@ -140,6 +195,12 @@ choices, witness key separation, private-key loss, four key-creation cuts, three
 publication cuts and pending-expiry/cancellation. Private test directories and
 failed diagnostics are retained. The child dispatcher is counted separately from
 behavioral tests.
+
+Renewal tests additionally cover both schema-upgrade cuts, five signing/commit
+cuts, both cancellation cuts, missing original keys, exact historical signature
+recovery, wrong roots/targets/profiles, corrupted signatures, missing schema
+tables and actual pending-target expiry. Native consumer tests use this protected
+publisher and re-export its original approval through the CLI after actual expiry.
 
 `tests/policy_interop.py` runs both actual operator CLIs. It creates the SDK root
 through the native protected signer, then checks SDK and protocol-policy signatures

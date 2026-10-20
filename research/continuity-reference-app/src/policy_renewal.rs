@@ -108,11 +108,21 @@ impl Request {
         current: &RootInfo,
         now: u64,
     ) -> Result<VerifiedPolicyIdentities> {
+        self.identities(current, Some(now))
+    }
+    /// Authenticate retained signed snapshots for result recovery only. This
+    /// neither checks current validity nor authorizes a new issuer decision.
+    pub fn verify_historical_identities(
+        &self,
+        current: &RootInfo,
+    ) -> Result<VerifiedPolicyIdentities> {
+        self.identities(current, None)
+    }
+    pub(crate) fn check_shape(&self) -> Result<()> {
         if self.schema != "qperiapt-retained-policy-request/1"
             || self.application == [0; 32]
             || self.enrollment == [0; 32]
             || self.root_revision == 0
-            || self.root_revision != current.revision
             || [
                 &self.original_certificate,
                 &self.original_roster,
@@ -122,7 +132,19 @@ impl Request {
             .iter()
             .any(|bytes| bytes.is_empty() || bytes.len() > 16384)
         {
-            return Err("Invalid retained policy request or root revision".into());
+            return Err("Invalid retained policy request".into());
+        }
+        self.scope.as_sdk()?;
+        Ok(())
+    }
+    fn identities(
+        &self,
+        current: &RootInfo,
+        live_at: Option<u64>,
+    ) -> Result<VerifiedPolicyIdentities> {
+        self.check_shape()?;
+        if self.root_revision != current.revision {
+            return Err("Policy request root revision differs".into());
         }
         let scope = self.scope.as_sdk()?;
         let roster = current
@@ -140,13 +162,19 @@ impl Request {
             current.family,
         )?
         .verify_historical_device(&self.original_certificate, &self.original_roster)?;
-        let current = sdk::AccountPin::new(
+        let current_pin = sdk::AccountPin::new(
             current.account,
             key,
             roster.checkpoint.as_sdk()?,
             current.family,
-        )?
-        .verify_device(&self.current_certificate, &self.current_roster, now)?;
+        )?;
+        let current = match live_at {
+            Some(now) => {
+                current_pin.verify_device(&self.current_certificate, &self.current_roster, now)?
+            }
+            None => current_pin
+                .verify_historical_device(&self.current_certificate, &self.current_roster)?,
+        };
         Ok(VerifiedPolicyIdentities {
             scope,
             original,
@@ -161,6 +189,20 @@ pub struct VerifiedPolicyIdentities {
     current: sdk::VerifiedDevice,
 }
 impl VerifiedPolicyIdentities {
+    pub fn historical_materials<'a>(
+        &'a self,
+        original: &'a sdk::HistoricalSessionPolicy,
+        previous: &'a sdk::HistoricalSessionPolicy,
+        target: &'a sdk::HistoricalSessionPolicy,
+    ) -> sdk::HistoricalPolicyRenewalMaterials<'a> {
+        sdk::HistoricalPolicyRenewalMaterials {
+            original,
+            previous,
+            target,
+            original_device: &self.original,
+            current_device: &self.current,
+        }
+    }
     pub fn materials<'a>(
         &'a self,
         original: &'a sdk::HistoricalSessionPolicy,

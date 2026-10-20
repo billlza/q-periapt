@@ -8,9 +8,12 @@ pub use crate::sdk_inputs::SdkInput;
 
 mod export;
 mod operations;
+mod renewal;
+mod renewal_store;
 mod signer;
 mod store;
 pub use export::{PolicyMaterials, PolicyPins};
+pub use renewal::{IssuedRenewal, RenewalRequest, RenewalStatus};
 pub use store::Publisher;
 #[cfg(test)]
 mod tests;

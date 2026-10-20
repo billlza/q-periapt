@@ -5,6 +5,52 @@ use crate::{
     DeviceDescription, DeviceSigningKey, IssuedRoster,
 };
 
+#[test]
+fn retained_policy_signature_is_role_bound_and_does_not_replace_account_approval() {
+    let c = Case::new(300, 300);
+    let materials = c.materials();
+    let statement = PolicyRenewalStatement::new(&c.scope, &materials, 170).expect("statement");
+    let policy = c.issuer.approve_policy_renewal(&statement).expect("policy");
+    let account = c
+        .account
+        .approve_policy_renewal(&statement)
+        .expect("account");
+    c.target.close();
+    assert_eq!(
+        policy
+            .verify_policy(&c.scope, &materials.historical())
+            .expect("historical signature"),
+        statement.digest()
+    );
+    assert!(account
+        .verify_policy(&c.scope, &materials.historical())
+        .is_err());
+    let mut other = c.scope.clone();
+    other.operation = PolicyRenewalId::generate().expect("other operation");
+    assert!(policy
+        .verify_policy(&other, &materials.historical())
+        .is_err());
+    let mut bad = policy.as_bytes().to_vec();
+    *bad.last_mut().expect("signature") ^= 1;
+    assert!(PolicyRenewalApproval::from_bytes(&bad)
+        .expect("grammar")
+        .verify_policy(&c.scope, &materials.historical())
+        .is_err());
+    assert!(HistoricalPolicyRenewal::from_bytes(
+        &{
+            let mut wire = CONTAINER.to_vec();
+            for _ in 0..2 {
+                wire.extend_from_slice(&(policy.as_bytes().len() as u16).to_be_bytes());
+                wire.extend_from_slice(policy.as_bytes());
+            }
+            wire
+        },
+        &c.scope,
+        &materials.historical(),
+    )
+    .is_err());
+}
+
 pub(crate) struct Case {
     pub(crate) account: RootSigningKey,
     issuer: PolicySigningKey,
