@@ -29,9 +29,11 @@ def exercise(implementation,provider,client_dir,session_dir,client_id,root,nativ
                 for directory in (client_dir,session_dir) for p in directory.rglob('*') if p.is_file()}
 
     def call(label,args,*,success=True):return run(command+args,'cli-'+label,success=success)
-    def refused(label,args):
+    def refused(label,args,expected=None):
         before=state();call(label,args,success=False)
         require(state()==before,'CLI refusal changed original state: '+label)
+        if expected is not None:
+            require((root/('cli-'+label+'.stderr')).read_text().strip()==expected,'CLI refused at the wrong boundary: '+label)
 
     bad_trust=json.loads((root/'peer-trust.json').read_bytes());bad_trust['directory']=list(os.urandom(32))
     save(root/'wrong-cli-trust.json',bad_trust)
@@ -59,15 +61,16 @@ def exercise(implementation,provider,client_dir,session_dir,client_id,root,nativ
             except BaseException as error:result['error']=error
         thread=threading.Thread(target=serve);thread.start()
         address=['--address',relay.address[0],str(relay.address[1])]
-        connected=call('connect',['connect',*address]);sid=connected['session'];session_args=['--session',sid]
+        connected=call('connect',['connect',*address]);sid=connected['session'];session_args=['--session='+sid]
         require(connected=={'session':sid,'peer_confirmation':'Recorded'} and len(frames)==2,'CLI bootstrap flights')
         require(call('connect-reopen',['connect',*address])==connected and len(frames)==2,'CLI reopen inferred a new bootstrap')
-        refused('wrong-session',['next','--session',b64(os.urandom(32))])
-        refused('noncanonical-session',['next','--session',sid+'='])
+        wrong=b64(bytes([251])*32);require(wrong.startswith('-') and wrong!=sid,'negative-prefix regression identity')
+        refused('wrong-session',['next','--session='+wrong],expected='ValueError: original session identity differs')
+        refused('noncanonical-session',['next','--session='+sid+'='])
         refused('local-profile-witness',['next',*session_args,'--witness-address','127.0.0.1','1'])
         save(root/'cli-ad.bin',b'CLI application');save(root/'cli-body.bin',b'original CLI delivery')
         save(root/'cli-too-large.bin',b'x'*16385)
-        message=call('next',['next',*session_args])['message'];message_args=[*session_args,'--message',message]
+        message=call('next',['next',*session_args])['message'];message_args=[*session_args,'--message='+message]
         refused('oversized',['deliver',*message_args,'--plaintext',root/'cli-too-large.bin',
                             '--associated-data',root/'cli-ad.bin',*address])
         refused('rekey-bound',['rekey',*session_args,'--target','1','--exchanges','129',*address])
@@ -76,7 +79,7 @@ def exercise(implementation,provider,client_dir,session_dir,client_id,root,nativ
         require(call('status',['message-status',*message_args])=={'session':sid,'message':message,'status':'Acknowledged'},'CLI committed ACK status')
         run([native,'read-inbox',root/'inbox.redb',b64(journal),sid,message,root/'cli-first-received.bin'],'cli-read-first')
         require((root/'cli-first-received.bin').read_bytes()==b'original CLI delivery','CLI first durable effect')
-        lost=call('lost-next',['next',*session_args])['message'];lost_args=[*session_args,'--message',lost]
+        lost=call('lost-next',['next',*session_args])['message'];lost_args=[*session_args,'--message='+lost]
         drop=DropResponse(service.address)
         call('lost',['deliver',*lost_args,'--plaintext',root/'cli-body.bin','--associated-data',root/'cli-ad.bin',
                      '--address',drop.address[0],str(drop.address[1])],success=False)
@@ -89,7 +92,7 @@ def exercise(implementation,provider,client_dir,session_dir,client_id,root,nativ
         changed=call('rekey',['rekey',*session_args,'--target','1',*address])
         require(changed=={'session':sid,'epoch':1,'exchanges':2},'CLI rekey target/flight count')
         message=call('empty-next',['next',*session_args])['message'];save(root/'cli-empty.bin',b'')
-        require(call('empty',['deliver',*session_args,'--message',message,'--plaintext',root/'cli-empty.bin',
+        require(call('empty',['deliver',*session_args,'--message='+message,'--plaintext',root/'cli-empty.bin',
                              '--associated-data',root/'cli-empty.bin',*address])==
                 {'session':sid,'message':message,'consumption':'Confirmed'},'CLI empty payload/AD after rekey')
         run([native,'read-inbox',root/'inbox.redb',b64(journal),sid,message,root/'cli-empty-received.bin'],'cli-read-empty')

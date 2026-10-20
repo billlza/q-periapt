@@ -60,18 +60,20 @@ does not retarget the saved child; use the owner's explicit lifecycle operations
 
 ```text
 ... connect --address 127.0.0.1 9000
-... next --session <session-id>
-... deliver --session <session-id> --message <message-id> \
+... next --session=<session-id>
+... deliver --session=<session-id> --message=<message-id> \
   --plaintext /absolute/message.bin --associated-data /absolute/ad.bin \
   --address 127.0.0.1 9000
-... message-status --session <session-id> --message <message-id>
-... resume --session <session-id> --message <message-id> \
+... message-status --session=<session-id> --message=<message-id>
+... resume --session=<session-id> --message=<message-id> \
   --associated-data /absolute/ad.bin --address 127.0.0.1 9000
-... rekey --session <session-id> --target 1 --exchanges 8 \
+... rekey --session=<session-id> --target 1 --exchanges 8 \
   --address 127.0.0.1 9000
 ```
 
-Session/message IDs are canonical unpadded base64url. Save the exact session,
+Session/message IDs are canonical unpadded base64url. Use `--session=VALUE` and
+`--message=VALUE`: a valid ID can begin with `-`, and a separate argument may be
+parsed as an option. Save the exact session,
 message ID and original inputs before delivery. Payloads are at most 16384 bytes;
 associated data is at most 1024 bytes. Empty payloads and associated data are
 valid. The endpoint is an explicit numeric IPv4/IPv6 address and port. The
