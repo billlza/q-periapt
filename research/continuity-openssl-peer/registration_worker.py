@@ -84,6 +84,20 @@ def main():
                 else:
                     require(len(arguments) == 1 and action in ('credential_status', 'credential_recover', 'credential_close'), 'registered renewal action')
                     result = getattr(child, {'credential_status': 'status', 'credential_recover': 'recover', 'credential_close': 'close_proposal'}[action])()
+        elif action.startswith('roster_'):
+            require(bool(arguments), 'registered original roster operation')
+            with owner.roster_refresh(arguments[0], now, transport=transport) as child:
+                if action in ('roster_refresh', 'roster_prepare'):
+                    require(len(arguments) == 3, 'registered roster preparation arguments')
+                    result = getattr(child, 'refresh' if action == 'roster_refresh' else 'prepare')(*arguments[1:], now=now)
+                elif action == 'roster_commit':
+                    require(len(arguments) == 1, 'registered roster commit arguments')
+                    result = child.commit(now)
+                else:
+                    require(len(arguments) == 1 and action in ('roster_status', 'roster_recover', 'roster_close'),
+                            'registered roster action')
+                    result = getattr(child, {'roster_status':'status', 'roster_recover':'recover',
+                                            'roster_close':'close_proposal'}[action])()
         elif action in ('pending_recovery_request_files', 'pending_recovery_confirm_files'):
             from pending_recovery_actions import exchange_files
             with owner.pending_write_recovery(now, transport=transport) as child:

@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 from bounded_process import capture_output
-from continuity_independent_python import PACKAGE, inspect_wheel, require, verify_installation, verify_extension_session
+from continuity_independent_python import PACKAGE, inspect_wheel, require, verify_installation, verify_extension_session, verify_roster_profiles
 from evidence_io import fresh_output_directory, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import git_commit, run_git_bytes
 
@@ -278,6 +278,16 @@ def qualify(args: argparse.Namespace) -> dict:
                         and row["process_kills"] == 2 for row in expiry["profiles"]),
                 "installed prepared companion expiry source or workload differs")
         account_results["prepared_expiry"] = expiry
+        for driver, boundary in [("roster_refresh_checks", False), ("roster_boundary_checks", True)]:
+            run([*interpreter, str(application / (driver + ".py")),
+                 "--provider-root", str(provider), "--native", str(args.native),
+                 "--output", str(output / driver)], driver)
+            row = parse_strict_json_bytes(snapshot(output / driver / "RESULT.json").data,
+                                         label="installed original roster maintenance")
+            require(row["source_files"] == current and row["native_sha256"] == native.sha256,
+                    "installed roster source or native identity differs")
+            verify_roster_profiles(row, boundary=boundary)
+            account_results[driver] = row
         # The consumer adds only declared test files; pip's installed files and
         # all copied inputs must remain byte-identical after real process cuts.
         after = installed_files(application)

@@ -213,6 +213,13 @@ class Registration:
         except BaseException: self._close_after_error(); raise
 
     @coordinated
+    def roster_refresh(self, operation, now, *, transport=None):
+        try:
+            from .registration_session import open_child
+            return open_child(self, 'roster', now, operation=operation, transport=transport)
+        except BaseException: self._close_after_error(); raise
+
+    @coordinated
     def pending_write_recovery(self, now, *, transport):
         try:
             from .registration_session import open_child

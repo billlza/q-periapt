@@ -275,8 +275,9 @@ the roster. Both roles derive authority from that one authenticated account.
 The first saved request bytes, original signing key, session, reserved sends and
 outboxes survive retries and process cuts. See [common-account renewal](SHARED_ACCOUNT.md)
 for the conditional formats, recovery and qualification boundaries.
-Peer-only shared roster changes remain explicitly refused pending their own
-common authority and witness transition.
+Same-credential shared roster changes use the original registered
+[roster coordinator](ROSTER_REFRESH.md), selecting conditional format ten and
+its exact witness transition. The generic peer-only owner cannot bypass it.
 
 An independent [joint local credential coordinator](LOCAL_RENEWAL.md) now binds
 the original required-witness head transition to the actual root grant. It retains
@@ -295,7 +296,7 @@ store after credential expiry. Version seven remains readable with its original
 limits; an already Pending operation completes in that version.
 
 This is not an admitted independent Continuity product implementation.
-Policy renewal and retirement, peer-only common-account roster transitions, account fanout,
+Policy renewal and retirement, account fanout,
 the complete installation/migration
 lifecycle, network carriers and installed-package qualification remain required.
 `resolution_checks.py` exercises process interruption, exact report recovery,

@@ -43,7 +43,7 @@ class Intent:
         try:
             from .identity_state import local_view
             current = local_view(state, context)
-            require(state.format_version in (6, 9) and current is not None
+            require(state.format_version in (6, 9, 10) and current is not None
                     and current.renewal is not None, "local renewal target authority absent")
             grant = current.renewal
             require(grant.operation == proposal.operation and grant.statement == proposal.statement,

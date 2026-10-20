@@ -373,6 +373,22 @@ jobs:
             --output target/independent-peer-ci/shared-pending \
             > target/independent-peer-ci/shared-pending.stdout 2> target/independent-peer-ci/shared-pending.stderr
           git diff --exit-code
+      - name: Verify original roster maintenance and bilateral renewal
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/roster_refresh_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/roster-refresh \
+            > target/independent-peer-ci/roster-refresh.stdout 2> target/independent-peer-ci/roster-refresh.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/roster_boundary_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/roster-boundary \
+            > target/independent-peer-ci/roster-boundary.stdout 2> target/independent-peer-ci/roster-boundary.stderr
+          git diff --exit-code
       - name: Verify portable public inputs and original-state reconstruction
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}

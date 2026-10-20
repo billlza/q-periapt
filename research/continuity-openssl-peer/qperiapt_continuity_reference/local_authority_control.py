@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import hmac
 from .local_renewal_protocol import Proposal
 from .wire import Reader, MAX_U64, require
+from .roster_control import Control as RosterControl
 
 DOMAIN = b"Q-PERIAPT-INDEPENDENT-LOCAL-AUTHORITY/v1/"
 
@@ -19,6 +20,7 @@ class Control:
     checkpoint: bytes = bytes(40)
     account_binding: bytes | None = None
     active_account_binding: bytes | None = None
+    roster: RosterControl | None = None
 
     def __post_init__(self):
         require(type(self.phase) is int and self.phase in range(6) and type(self.floor) is int
@@ -52,9 +54,11 @@ class Control:
                         "applied complete account control")
         else:
             require(self.active_account_binding is None, "active account requires complete account mode")
+        require(self.roster is None or self.roster.ready() or self.phase in (0, 4, 5),
+                "overlapping credential and roster coordination")
 
     def ready(self):
-        return self.phase in (0, 4, 5)
+        return self.phase in (0, 4, 5) and (self.roster is None or self.roster.ready())
 
     def wire(self, scope):
         tag = b"QPRFLC01" if self.account_binding is None else b"QPRFLC02"
@@ -63,6 +67,8 @@ class Control:
             value += self.proposal.wire() + self.checkpoint
         if self.account_binding is not None:
             value += self.account_binding + (self.active_account_binding or bytes(32))
+        if self.roster is not None:
+            value = b"QPRFLC03" + self.roster.wire() + value
         return value
 
 
@@ -70,12 +76,15 @@ def read(journal):
     data = journal._admit().read("authority")
     if data is None:
         return None
-    require(len(data) in (177, 513, 577), "authority control size")
+    require(len(data) in (177, 513, 577, 660, 996, 1060), "authority control size")
     body = data[:-32]
     require(hmac.compare_digest(hmac.digest(journal._intent_key, DOMAIN + body, "sha256"), data[-32:]),
             "authority control authentication")
     r = Reader(body)
     tag = r.take(8)
+    roster = RosterControl.read(r.take(475)) if tag == b"QPRFLC03" else None
+    if roster is not None:
+        tag = r.take(8)
     require(tag in (b"QPRFLC01", b"QPRFLC02") and r.take(96) == journal.scope.wire(), "authority control scope")
     phase, floor, active = r.integer(1), r.integer(8), r.take(32)
     proposal = Proposal.decode(r.take(296)) if phase else None
@@ -87,21 +96,26 @@ def read(journal):
         require(hasattr(journal, "profile") and proposal.witness == journal.profile.pin.binding
                 and proposal.subject == journal.subject and proposal.expected.fence == proposal.target.fence == 1,
                 "authority original witness/subject")
+    if roster is not None:
+        p = roster.proposal
+        require(p.witness == journal.profile.pin.binding and p.subject == journal.subject
+                and p.expected.fence == p.target.fence == 1, "roster control original witness/subject")
     return Control(phase, floor, active, proposal, checkpoint, binding,
-                   None if active_binding == bytes(32) else active_binding)
+                   None if active_binding == bytes(32) else active_binding, roster)
 
 
 def write(journal, control):
     body = control.wire(journal.scope)
     data = body + hmac.digest(journal._intent_key, DOMAIN + body, "sha256")
-    journal._admit().publish("authority", data, fixed_slot="authority-" + str(control.phase))
+    suffix = str(control.phase) if control.roster is None else "r-" + str(control.roster.phase)
+    journal._admit().publish("authority", data, fixed_slot="authority-" + suffix)
     require(read(journal) == control, "authority control durable readback")
 
 
 def admit_snapshot(journal, state):
     if state.operation._context.witness is None:
         require(journal._admit().read("authority") is None, "witness coordination in local-only store")
-        if state.format_version == 9:
+        if state.format_version in (9, 10):
             require(state.account_renewal is not None, "common account coordination absent")
             state.account_renewal.admit()
         elif state.format_version in (7, 8):
@@ -117,16 +131,21 @@ def admit_snapshot(journal, state):
     control = read(journal)
     if control is None:
         require(current is None or current.renewal is None, "missing original local authority control")
+        require(state.account_renewal is None or state.account_renewal.roster is None,
+                "missing original roster control")
         return
     require(control.ready(), "local renewal coordination remains pending")
     if current is None or current.renewal is None:
         require(control.active == bytes(32), "local authority control/image mismatch")
     else:
         require(current.renewal is not None and control.active == current.renewal.statement
-                and control.floor >= current.listing.version, "retained local authority control/image mismatch")
+                and control.floor >= current.renewal.successor_roster.version,
+                "retained local authority control/image mismatch")
         if state.account_renewal is not None:
             receipt = state.account_renewal.completed
             require(receipt is not None and receipt.binding == control.active_account_binding,
                     "complete account control/image mismatch")
         else:
             require(control.account_binding is None, "account control requires common account image")
+    from .roster_control import admit
+    admit(control, state, current)

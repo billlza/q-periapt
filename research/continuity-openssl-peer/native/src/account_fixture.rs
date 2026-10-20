@@ -3,7 +3,7 @@
 use q_periapt_continuity_identity_candidate::{
     AccountPin, CredentialRenewalAuthorization, CredentialRenewalId, CredentialRenewalMaterials,
     DeviceDescription, DeviceSigningKey, IssuedRoster, RootSigningKey, RosterCheckpoint, Validity,
-    VerifiedCredentialRenewal,
+    VerifiedCredentialRenewal, VerifiedDevice,
 };
 use std::{fs, io::Write, path::Path};
 
@@ -13,6 +13,7 @@ pub(crate) struct Published {
     pub initial_roster: Vec<u8>,
     pub checkpoint: RosterCheckpoint,
     pub local_grants: Vec<VerifiedCredentialRenewal>,
+    pub local_rosters: Vec<VerifiedDevice>,
 }
 
 fn save(path: &Path, name: &str, bytes: &[u8]) -> Result<()> {
@@ -76,7 +77,24 @@ pub(crate) fn publish(
         initial_roster: previous_roster.as_bytes().to_vec(),
         checkpoint: previous_roster.checkpoint(),
         local_grants: Vec::new(),
+        local_rosters: Vec::new(),
     };
+    // Same-credential membership removal before any G exercises the initial
+    // R control without inventing a credential-renewal receipt.
+    let before_g = publish_roster(
+        path,
+        root,
+        9,
+        original
+            .get(..original.len() - 1)
+            .ok_or("fixture members")?,
+    )?;
+    published
+        .local_rosters
+        .push(pin(root, &before_g, family)?.verify_historical_device(
+            original.first().ok_or("original local credential")?,
+            before_g.as_bytes(),
+        )?);
     for cycle in [1u64, 2] {
         let prior_pin = pin(root, &previous_roster, family)?;
         let at = if cycle == 1 { 210 } else { 310 };
@@ -170,7 +188,12 @@ pub(crate) fn publish(
         .get(..previous.len() - 1)
         .ok_or("fixture membership")?
         .to_vec();
-    publish_roster(path, root, 4, &retained)?;
+    let removed = publish_roster(path, root, 4, &retained)?;
+    let removed_pin = pin(root, &removed, family)?;
+    let current_local = previous.first().ok_or("original local certificate")?;
+    published
+        .local_rosters
+        .push(removed_pin.verify_historical_device(current_local, removed.as_bytes())?);
     // The root can sign these inputs, but retained history must reject the old
     // generation's resurrection and any later generation rollback.
     publish_roster(path, root, 5, &previous)?;
@@ -179,10 +202,53 @@ pub(crate) fn publish(
         DeviceDescription::new([count; 16], 2, family, Validity::new(100, 380)?)?,
         signing.public_key()?,
     )?;
-    let mut replaced = retained;
+    let mut replaced = retained.clone();
     replaced.push(replacement);
-    publish_roster(path, root, 6, &replaced)?;
+    let replacement = publish_roster(path, root, 6, &replaced)?;
+    published.local_rosters.push(
+        pin(root, &replacement, family)?
+            .verify_historical_device(current_local, replacement.as_bytes())?,
+    );
     publish_roster(path, root, 7, &previous)?;
+    // A complete later G uses the actually installed removal roster, not R3.
+    let next = retained
+        .iter()
+        .map(|cert| {
+            let previous = removed_pin.verify_historical_device(cert, removed.as_bytes())?;
+            root.issue_credential_extension(&previous, 380, 355)
+        })
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let following = publish_roster(path, root, 18, &next)?;
+    let following_pin = pin(root, &following, family)?;
+    for (index, ((first, old), new)) in original.iter().zip(&retained).zip(&next).enumerate() {
+        let issued = root.issue_credential_renewal(
+            CredentialRenewalMaterials {
+                original_credential: first,
+                previous_credential: old,
+                successor_credential: new,
+                previous_roster: removed.as_bytes(),
+                successor_roster: following.as_bytes(),
+            },
+            &CredentialRenewalAuthorization {
+                operation: CredentialRenewalId::generate()?,
+                previous: removed.checkpoint(),
+                policy_digest: policy,
+            },
+            &following_pin,
+            355,
+        )?;
+        save(path, &format!("grant-18-{}", index + 1), issued.as_bytes())?;
+        if index == 0 {
+            published
+                .local_grants
+                .push(VerifiedCredentialRenewal::verify(
+                    issued.as_bytes(),
+                    &following_pin,
+                    policy,
+                    355,
+                )?);
+        }
+    }
     // An alternative to the uncommitted first target must name the retained
     // original roster, not pretend that either earlier renewal was installed.
     let original_pin = AccountPin::new(

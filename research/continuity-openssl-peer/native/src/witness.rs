@@ -3,8 +3,9 @@
 use crate::{fixture::Fixture, Result};
 use q_periapt_continuity_identity_candidate::{
     AnchorClient, AnchorCredentialRenewalProposal, AnchorGenesis, AnchorIdentity,
-    AnchorPendingWriteRecoveryProposal, AnchorPin, AnchorSigningKey, AnchorStore, AnchorSubject,
-    AnchorTransport, BootstrapRole, DeviceSigningKey, DurableError, JournalKey, SigningKeyId,
+    AnchorPendingWriteRecoveryProposal, AnchorPin, AnchorRosterRefreshProposal, AnchorSigningKey,
+    AnchorStore, AnchorSubject, AnchorTransport, BootstrapRole, DeviceSigningKey, DurableError,
+    JournalKey, SigningKeyId,
 };
 use std::{
     fs, io,
@@ -28,6 +29,47 @@ pub(super) struct Witness {
 }
 
 impl Witness {
+    pub fn transport(self: &Arc<Self>) -> Box<dyn AnchorTransport> {
+        Box::new(Carrier(Arc::clone(self)))
+    }
+
+    pub fn approve_credential(
+        &self,
+        proposal: AnchorCredentialRenewalProposal,
+        grant: &q_periapt_continuity_identity_candidate::VerifiedCredentialRenewal,
+        policy: &q_periapt_continuity_identity_candidate::VerifiedSessionPolicy,
+    ) -> Result<()> {
+        self.store
+            .lock()
+            .map_err(|_| "witness lock poisoned")?
+            .as_mut()
+            .ok_or("closed witness")?
+            .prepare_credential_renewal(proposal, grant, policy, self.now.load(Ordering::SeqCst))?;
+        Ok(())
+    }
+
+    pub fn approve_roster(
+        &self,
+        proposal: AnchorRosterRefreshProposal,
+        previous: &q_periapt_continuity_identity_candidate::VerifiedDevice,
+        target: &q_periapt_continuity_identity_candidate::VerifiedDevice,
+        policy: &q_periapt_continuity_identity_candidate::VerifiedSessionPolicy,
+    ) -> Result<()> {
+        self.store
+            .lock()
+            .map_err(|_| "witness lock poisoned")?
+            .as_mut()
+            .ok_or("closed witness")?
+            .prepare_roster_refresh(
+                proposal,
+                previous,
+                target,
+                policy,
+                self.now.load(Ordering::SeqCst),
+            )?;
+        Ok(())
+    }
+
     pub fn create(public: &Path, now: u64) -> Result<Arc<Self>> {
         let path = tempfile::Builder::new()
             .prefix("qperiapt-independent-witness-")
@@ -188,6 +230,34 @@ impl Witness {
             }
             36 => self.approve_pending(fixture, payload),
             37 => self.complete_pending(payload),
+            39 if payload.len() == 417 => {
+                let proposal = AnchorRosterRefreshProposal::from_trusted_state(payload)?;
+                let target = fixture
+                    .local_rosters
+                    .iter()
+                    .find(|d| d.roster().checkpoint() == proposal.scope().target)
+                    .ok_or("unknown independently selected roster target")?;
+                let original = fixture.context.device(BootstrapRole::Initiator);
+                let previous = std::iter::once(original)
+                    .chain(fixture.local_grants.iter().map(|g| g.successor_device()))
+                    .chain(fixture.local_rosters.iter())
+                    .find(|d| d.roster().checkpoint() == proposal.scope().previous)
+                    .ok_or("unknown independently retained roster predecessor")?;
+                let result = self
+                    .store
+                    .lock()
+                    .map_err(|_| "witness lock poisoned")?
+                    .as_mut()
+                    .ok_or("closed witness")?
+                    .prepare_roster_refresh(
+                        proposal,
+                        previous,
+                        target,
+                        fixture.context.current_policy()?,
+                        self.now.load(Ordering::SeqCst),
+                    )?;
+                Ok(format!("{result:?}").into_bytes())
+            }
             _ => Err("witness test command shape".into()),
         }
     }

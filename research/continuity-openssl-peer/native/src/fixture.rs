@@ -21,12 +21,15 @@ mod extension;
 pub(super) struct Fixture {
     pub times: Times,
     pub context: Arc<BootstrapContext>,
+    pub policy: Arc<q_periapt_continuity_identity_candidate::VerifiedSessionPolicy>,
     pub signer: DeviceSigningKey,
     pub prekey: q_periapt_sdk::HybridKey,
     pub responder: Arc<VerifiedDevice>,
     pub witness: Option<Arc<crate::witness::Witness>>,
     pub local_grants: Vec<VerifiedCredentialRenewal>,
+    pub local_rosters: Vec<VerifiedDevice>,
     pub registration: Option<crate::registration::Retained>,
+    pub enrolled_peer: Option<crate::enrolled_peer::Configuration>,
 }
 
 pub(super) fn save(directory: &Path, name: &str, bytes: &[u8]) -> Result<()> {
@@ -79,6 +82,7 @@ pub(super) struct Options {
     pub short_roster: bool,
     pub extension: bool,
     pub account_members: Option<u8>,
+    pub enrolled_peer: bool,
 }
 #[derive(Clone, Copy)]
 pub(super) struct Times {
@@ -117,6 +121,7 @@ pub(super) fn create(
         short_roster,
         extension,
         account_members,
+        enrolled_peer,
     } = options;
     let runtime = runtime(directory)?;
     let (authority, mut registered, retained) = match registration {
@@ -172,11 +177,29 @@ pub(super) fn create(
     let policy_pin = PolicyPin::new(family, authority.public_key()?, policy.checkpoint())?;
     let verified_policy =
         Arc::new(policy_pin.verify(policy.as_bytes(), Arc::clone(&runtime), times.bootstrap)?);
-    let signer = match &witness {
-        Some(w) => w.provision_device()?,
-        None => DeviceSigningKey::generate()?,
+    let (enrolled_peer, signer) = if enrolled_peer {
+        let root = registered
+            .as_ref()
+            .ok_or("native enrollment requires independent registration root")?
+            .0
+            .public_key()?;
+        let (configuration, signer) = crate::enrolled_peer::Configuration::provision(
+            directory,
+            root,
+            family,
+            usize::from(account_members.ok_or("missing shared account count")?),
+        )?;
+        (Some(configuration), signer)
+    } else {
+        (
+            None,
+            match &witness {
+                Some(w) => w.provision_device()?,
+                None => DeviceSigningKey::generate()?,
+            },
+        )
     };
-    let (devices, local_grants) = if let Some(count) = account_members {
+    let (devices, local_grants, local_rosters) = if let Some(count) = account_members {
         shared_devices(
             directory,
             [peer_key, signer.public_key()?],
@@ -184,6 +207,7 @@ pub(super) fn create(
             policy.checkpoint().digest(),
             count,
             registered.take(),
+            enrolled_peer.as_ref(),
         )?
     } else {
         let mut devices = Vec::new();
@@ -282,7 +306,7 @@ pub(super) fn create(
                 local_grants = grants;
             }
         }
-        (devices, local_grants)
+        (devices, local_grants, Vec::new())
     };
     let initiator = devices.first().ok_or("missing initiator")?;
     let responder = devices.get(1).ok_or("missing responder")?;
@@ -326,7 +350,7 @@ pub(super) fn create(
     )?);
     save(directory, "expected-selection", selection.as_bytes())?;
     let context = Arc::new(BootstrapContext::new(
-        verified_policy,
+        Arc::clone(&verified_policy),
         Arc::clone(initiator),
         Arc::clone(responder),
         selection,
@@ -337,14 +361,23 @@ pub(super) fn create(
     Ok(Fixture {
         times,
         context,
+        policy: verified_policy,
         signer,
         prekey: key,
         responder: Arc::clone(responder),
         witness,
         local_grants,
+        local_rosters,
         registration: retained,
+        enrolled_peer,
     })
 }
+
+type AccountFixtures = (
+    Vec<Arc<VerifiedDevice>>,
+    Vec<VerifiedCredentialRenewal>,
+    Vec<VerifiedDevice>,
+);
 
 fn shared_devices(
     directory: &Path,
@@ -353,7 +386,8 @@ fn shared_devices(
     policy: [u8; 32],
     count: u8,
     registered: Option<(RootSigningKey, Vec<u8>)>,
-) -> Result<(Vec<Arc<VerifiedDevice>>, Vec<VerifiedCredentialRenewal>)> {
+    enrolled_peer: Option<&crate::enrolled_peer::Configuration>,
+) -> Result<AccountFixtures> {
     let (root, original) = match registered {
         Some((root, certificate)) => (root, Some(certificate)),
         None => (RootSigningKey::generate()?, None),
@@ -369,6 +403,8 @@ fn shared_devices(
                     public,
                 )?,
             }
+        } else if let Some(enrolled) = enrolled_peer {
+            root.issue_enrollment(enrolled.request(), NOW)?
         } else {
             root.issue_device(
                 DeviceDescription::new([id; 16], 1, family, Validity::new(100, 200)?)?,
@@ -419,5 +455,5 @@ fn shared_devices(
         )?;
         devices.push(device);
     }
-    Ok((devices, published.local_grants))
+    Ok((devices, published.local_grants, published.local_rosters))
 }

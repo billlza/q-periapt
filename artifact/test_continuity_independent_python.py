@@ -6,7 +6,39 @@ import json
 import unittest
 import zipfile
 
-from continuity_independent_python import DIST, PACKAGE, inspect_wheel, verify_installation, verify_extension_session
+from continuity_independent_python import DIST, PACKAGE, inspect_wheel, verify_installation, verify_extension_session, verify_roster_profiles
+
+
+class RosterReceiptTests(unittest.TestCase):
+    def report(self, boundary=False):
+        identities = {name: "1" * 64 for name in ("journal", "session", "native_journal",
+                      "original_message_sha256", "original_offer_sha256")}
+        if boundary:
+            return {"profiles": [dict(identities, before_g=before, witnessed=witnessed, workers=workers)
+                    for before,witnessed,workers in [(True,False,17),(True,True,23),(False,False,21),(False,True,35)]]}
+        return {"profiles": [dict(identities, members=count, witnessed=witnessed,
+                 workers=38 if witnessed else 32, process_kills=4 if witnessed else 3, native_trusted_time=355)
+                 for count in (3,32) for witnessed in (False,True)]}
+
+    def test_complete_owner_and_boundary_cohorts(self):
+        for boundary in (False, True):
+            verify_roster_profiles(self.report(boundary), boundary=boundary)
+
+    def test_stale_native_clock_partial_cohort_and_wrong_identity_are_refused(self):
+        for field,value in [("native_trusted_time",170),("members",3),("process_kills",0),
+                            ("witnessed",1),("native_journal",""),("workers",True)]:
+            with self.subTest(field=field):
+                report=self.report(); report["profiles"][-1][field]=value
+                with self.assertRaises(ValueError): verify_roster_profiles(report,boundary=False)
+        for boundary in (False,True):
+            report=self.report(boundary); report["profiles"].pop()
+            with self.assertRaises(ValueError): verify_roster_profiles(report,boundary=boundary)
+
+    def test_missing_closed_boundary_cannot_qualify(self):
+        for field,value in [("before_g",True),("before_g",0),("workers",34),("journal","0"*64)]:
+            with self.subTest(field=field):
+                report=self.report(True); report["profiles"][-1][field]=value
+                with self.assertRaises(ValueError): verify_roster_profiles(report,boundary=True)
 
 
 class ExtensionSessionReceiptTests(unittest.TestCase):

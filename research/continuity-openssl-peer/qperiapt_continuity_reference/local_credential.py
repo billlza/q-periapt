@@ -43,7 +43,7 @@ class LocalCredentialRenewal:
             if shared(self._context):
                 if state.format_version == 5:
                     initialize(state)
-                require(state.format_version == 9 and state.account_authority is not None
+                require(state.format_version in (9, 10) and state.account_authority is not None
                         and state.account_renewal is not None, "original common account state absent")
                 current = state.account_authority.view(self._context.devices[0], local=True)
                 record = state.account_renewal

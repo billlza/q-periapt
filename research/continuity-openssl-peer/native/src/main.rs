@@ -11,6 +11,7 @@ use std::{
     sync::Arc,
 };
 mod account_fixture;
+mod enrolled_peer;
 mod fixture;
 mod journal;
 mod peer_lifecycle;
@@ -66,6 +67,7 @@ fn main() -> Result<()> {
     let mut registration = false;
     let mut extension = false;
     let mut account_members = None;
+    let mut enrolled_peer = false;
     while let Some(flag) = args.next() {
         match flag.to_str() {
             Some("--send-budget") => {
@@ -82,6 +84,7 @@ fn main() -> Result<()> {
             Some("--local-lifecycle") if !local_lifecycle => local_lifecycle = true,
             Some("--local-roster-expiry") if !short_roster => short_roster = true,
             Some("--registration") if !registration => registration = true,
+            Some("--enrolled-peer") if !enrolled_peer => enrolled_peer = true,
             Some("--registration-extension") if !extension => extension = true,
             Some("--shared-account") if account_members.is_none() => {
                 account_members = Some(
@@ -117,6 +120,9 @@ fn main() -> Result<()> {
             );
         }
     }
+    if enrolled_peer && (!registration || account_members.is_none()) {
+        return Err("enrolled peer requires registered shared account".into());
+    }
     let options = fixture::Options {
         budget,
         peer_lifecycle,
@@ -125,6 +131,7 @@ fn main() -> Result<()> {
         short_roster,
         extension,
         account_members,
+        enrolled_peer,
     };
     let times = options.times();
     let directory = Path::new(&path);
@@ -180,12 +187,17 @@ fn main() -> Result<()> {
                 .ok_or("registration fixture unavailable")?
                 .retry(payload)
                 .map_err(|error| error.to_string()),
-            30..=37 => fixture
+            30..=37 | 39 => fixture
                 .witness
                 .as_ref()
                 .ok_or("required witness not configured")?
                 .command(&fixture, command, payload)
                 .map_err(|error| error.to_string()),
+            40 => durable
+                .as_mut()
+                .ok_or("native maintenance before original session")?
+                .maintain(&fixture, payload)
+                .map_err(|error| format!("{error:?}")),
             4..=27 => {
                 if durable.is_none() {
                     if command != 4 {

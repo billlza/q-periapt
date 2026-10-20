@@ -10,6 +10,8 @@ from .account_request import AccountRequest, MAX_REQUEST
 from .local_renewal_record import fixed, time_value
 from .storage_budget import MAX_ACCOUNT_COORDINATION as MAX_RECORD
 from .wire import Reader, MAX_U64, require
+from .roster_protocol import Scope as RosterScope
+from .storage_budget import MAX_ACCOUNT_ROSTER_COORDINATION
 
 def checkpoint(value):
     fixed(value, 40)
@@ -73,6 +75,7 @@ class AccountRecord:
     pending: AccountRequest | None = None
     completed: Receipt | None = None
     expired: Expired | None = None
+    roster: RosterScope | None = None
 
     def __post_init__(self):
         time_value(self.floor)
@@ -114,6 +117,13 @@ class AccountRecord:
                 "expired_observation": observation}
 
     def validate(self, account, original=None):
+        if self.roster is not None:
+            target = self.roster.target
+            require(self.roster.policy[8:] == account.policy and self.roster.authorization is None,
+                    "account roster original policy scope")
+            require(account.listing.version >= int.from_bytes(target[:8], "big")
+                    and (account.listing.version != int.from_bytes(target[:8], "big")
+                         or account.listing.checkpoint() == target), "account precedes retained roster completion")
         if self.pending is not None:
             # Historical validation proves the full exact predecessor and grant
             # collection; it does not make an expired target current.
@@ -164,7 +174,7 @@ class AccountRecord:
         require(known[0] == "Pending", "expired account renewal cannot commit")
         self.current_time(now)
         target = self.pending.apply(account, now)
-        return target, AccountRecord(self.floor, completed=known[1])
+        return target, AccountRecord(self.floor, completed=known[1], roster=self.roster)
 
     def reconcile_expired(self, account, operation, now, revision, digest):
         known = self.known(operation)
@@ -175,7 +185,7 @@ class AccountRecord:
         require(now >= self.pending.expires_at(), "account renewal target is not expired")
         self.validate(account)
         expiry = Expired(known[1], account.listing.checkpoint(), revision, digest, now)
-        return AccountRecord(now, completed=self.completed, expired=expiry)
+        return AccountRecord(now, completed=self.completed, expired=expiry, roster=self.roster)
 
     def admit(self):
         require(self.pending is None, "account credential renewal remains pending")
@@ -194,13 +204,21 @@ class AccountRecord:
         if self.expired is not None:
             result.extend(self.expired.encode())
         require(len(result) <= MAX_RECORD, "account coordination capacity")
+        if self.roster is not None:
+            result = bytearray(b"QPRFAT02" + self.roster.wire()) + result
+            require(len(result) <= MAX_ACCOUNT_ROSTER_COORDINATION, "account roster coordination capacity")
         return bytes(result)
 
     @classmethod
     def read(cls, wire, original, family, policy, account):
-        require(type(wire) is bytes and len(wire) <= MAX_RECORD, "account coordination capacity")
+        require(type(wire) is bytes and len(wire) <= MAX_ACCOUNT_ROSTER_COORDINATION, "account coordination capacity")
         reader = Reader(wire)
-        require(reader.take(8) == b"QPRFAT01", "account coordination schema")
+        tag = reader.take(8)
+        roster = RosterScope.read(reader) if tag == b"QPRFAT02" else None
+        if roster is not None:
+            tag = reader.take(8)
+        require(tag == b"QPRFAT01" and len(wire) - (193 if roster is not None else 0) <= MAX_RECORD,
+                "account coordination schema or legacy capacity")
         floor = reader.integer(8)
 
         def present():
@@ -216,7 +234,7 @@ class AccountRecord:
         completed = Receipt.read(reader) if present() else None
         expired = Expired.read(reader) if present() else None
         reader.finish()
-        value = cls(floor, pending, completed, expired)
+        value = cls(floor, pending, completed, expired, roster)
         value.validate(account, original)
         require(value.encode() == wire, "noncanonical account coordination")
         return value

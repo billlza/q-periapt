@@ -9,7 +9,7 @@ from .wire import require
 
 class PeerOwner:
     def _peer_state(self, state, now):
-        require(state.format_version in (5, 6, 7, 8, 9) and state.traffic is not None, "peer authority requires established format five")
+        require(state.format_version in (5, 6, 7, 8, 9, 10) and state.traffic is not None, "peer authority requires established format five")
         require(not shared(self._context), "shared-account changes require complete account coordination")
         # Only local credential/roster and policy gate maintenance. An expired or
         # revoked remote peer does not prevent receiving a valid signed update.

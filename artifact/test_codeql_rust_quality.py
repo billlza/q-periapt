@@ -1463,6 +1463,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         )
         for sdk_source in (
             "research/continuity-openssl-peer/native/src/fixture.rs",
+            "research/continuity-openssl-peer/native/src/enrolled_peer.rs",
             "research/continuity-openssl-peer/native/src/journal.rs",
             "research/continuity-openssl-peer/native/src/resolution.rs",
             "research/continuity-openssl-peer/native/src/witness.rs",
@@ -1748,6 +1749,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-reference-app/src/sdk_authority/operations.rs",
             "research/continuity-reference-app/src/store/enrollment/reapproval.rs",
             "research/continuity-openssl-peer/native/src/fixture.rs",
+            "research/continuity-openssl-peer/native/src/enrolled_peer.rs",
             "research/continuity-openssl-peer/native/src/journal.rs",
             "research/continuity-openssl-peer/native/src/resolution.rs",
             "research/continuity-openssl-peer/native/src/witness.rs",
@@ -1975,6 +1977,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-identity-candidate/src/session_exchange/tcp.rs',
             'research/continuity-identity-candidate/src/tcp_io.rs',
             'research/continuity-openssl-peer/native/src/fixture_extension.rs',
+            'research/continuity-openssl-peer/native/src/enrolled_peer.rs',
             'research/continuity-openssl-peer/native/examples/account_authority_fixture.rs',
             'research/continuity-openssl-peer/native/src/account_fixture.rs',
             'research/continuity-reference-app/src/auth/enrollment_tests/extension.rs',
@@ -2072,7 +2075,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 codeql_rust_quality, "run_git_bytes", return_value=raw
             ), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError,
-                "tracked Rust source count must be 869, got 868",
+                "tracked Rust source count must be 870, got 869",
             ):
                 codeql_rust_quality.tracked_rust_paths()
 

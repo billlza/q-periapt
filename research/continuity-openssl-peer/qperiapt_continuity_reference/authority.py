@@ -99,6 +99,8 @@ class Context:
     policy_digest: bytes = bytes(32)
     current_peer: IdentityState | None = None
     current_local: IdentityState | None = None
+    # Zero denotes absent metadata in legacy synthetic contexts, never authority.
+    policy_version: int = 0
 
     def check(self, now: int) -> None:
         for interval in self.intervals:
@@ -236,4 +238,5 @@ def authenticate(pins: Pins, materials: Materials, now: int, *, witness_pin=None
                   + initiator.context() + responder.context() + selection + pins.directory)
     return Context(sdk, context, initiator.key, responder.key, pq[2] + classical[2],
                    (validity, initiator.validity, initiator.roster_validity, responder.validity,
-                    responder.roster_validity, manifest_time, classical[3], pq[3]), selection, budget, witness, (initiator, responder), family, pins.policy_digest)
+                    responder.roster_validity, manifest_time, classical[3], pq[3]), selection, budget, witness, (initiator, responder), family, pins.policy_digest,
+                   policy_version=version)

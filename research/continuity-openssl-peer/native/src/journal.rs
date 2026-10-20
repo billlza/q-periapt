@@ -2,8 +2,8 @@
 //! Actual Rust storage boundary, separate from the independent Python state.
 use crate::{fixture::Fixture, Result};
 use q_periapt_continuity_identity_candidate::{
-    BootstrapRole, DeviceJournal, DurableError, Error, JournalIdentity, JournalKey, MessageId,
-    RekeyControlStep,
+    BootstrapContext, BootstrapRole, DeviceJournal, DurableError, EnrolledDevice, Error,
+    JournalIdentity, JournalKey, MessageId, RekeyControlStep,
 };
 use q_periapt_sdk::expert::{PqKeySource, TraditionalKeySource};
 use std::{
@@ -15,11 +15,61 @@ use std::{
 };
 
 pub(super) struct Journal {
-    owner: DeviceJournal,
+    owner: Owner,
+    context: Arc<BootstrapContext>,
+    now: u64,
     path: PathBuf,
     identity: JournalIdentity,
     initial: Option<Vec<u8>>,
     session: Option<[u8; 32]>,
+}
+
+// Only the enrolled mode supports lifecycle control. Legacy byte-interoperability
+// fixtures retain their original raw-journal contract.
+enum Owner {
+    Raw(Box<DeviceJournal>),
+    Enrolled(Option<EnrolledDevice>),
+}
+impl Owner {
+    fn journal(&mut self) -> std::result::Result<&mut DeviceJournal, DurableError> {
+        match self {
+            Self::Raw(journal) => Ok(journal),
+            Self::Enrolled(active) => Ok(active
+                .as_mut()
+                .ok_or(DurableError::Closed)?
+                .parts()?
+                .0
+                .stores()?
+                .0),
+        }
+    }
+    fn close(&mut self) {
+        match self {
+            Self::Raw(journal) => journal.close(),
+            Self::Enrolled(active) => {
+                if let Some(mut owner) = active.take() {
+                    owner.close();
+                }
+            }
+        }
+    }
+    fn retain_archive(
+        &mut self,
+        context: &BootstrapContext,
+        session: [u8; 32],
+    ) -> std::result::Result<(), DurableError> {
+        if let Self::Enrolled(active) = self {
+            let (journal, archives) = active
+                .as_mut()
+                .ok_or(DurableError::Closed)?
+                .parts()?
+                .0
+                .stores()?;
+            let archive = journal.archive_session_closure(context, session)?;
+            archives.retain(journal, context, session, &archive)?;
+        }
+        Ok(())
+    }
 }
 
 fn encoding() -> DurableError {
@@ -63,6 +113,19 @@ fn control(step: RekeyControlStep) -> Vec<u8> {
 
 impl Journal {
     pub(super) fn create(fixture: &Fixture, public: &Path) -> Result<Self> {
+        if let Some(configuration) = &fixture.enrolled_peer {
+            let mut active = configuration.initialize(fixture)?;
+            let identity = active.parts()?.0.stores()?.0.identity()?;
+            return Ok(Self {
+                owner: Owner::Enrolled(Some(active)),
+                path: configuration.path.clone(),
+                identity,
+                initial: None,
+                session: None,
+                context: Arc::clone(&fixture.context),
+                now: fixture.times.traffic,
+            });
+        }
         // Keep the private fixture even on failure. It is outside the public
         // artifact directory; no wrapping key or sealed secret is uploaded.
         let path = tempfile::Builder::new()
@@ -118,7 +181,9 @@ impl Journal {
             )?
         };
         Ok(Self {
-            owner,
+            owner: Owner::Raw(Box::new(owner)),
+            context: Arc::clone(&fixture.context),
+            now: fixture.times.traffic,
             path,
             identity,
             initial: None,
@@ -132,7 +197,9 @@ impl Journal {
         command: u8,
         payload: &[u8],
     ) -> std::result::Result<Vec<u8>, DurableError> {
-        let context = &fixture.context;
+        let held_context = Arc::clone(&self.context);
+        let context = &held_context;
+        let now = self.now;
         match command {
             4 => {
                 if self
@@ -142,7 +209,7 @@ impl Journal {
                 {
                     return Err(DurableError::Conflict);
                 }
-                let reply = self.owner.respond(
+                let reply = self.owner.journal()?.respond(
                     Arc::clone(context),
                     payload,
                     &fixture.signer,
@@ -155,7 +222,7 @@ impl Journal {
             }
             5 => {
                 let initial = self.initial.as_deref().ok_or(DurableError::Suspended)?;
-                let session = self.owner.finish(
+                let session = self.owner.journal()?.finish(
                     Arc::clone(context),
                     initial,
                     payload,
@@ -166,7 +233,7 @@ impl Journal {
             }
             6 if payload.is_empty() => {
                 let initial = self.initial.as_deref().ok_or(DurableError::Suspended)?;
-                let session = self.owner.activate_responder_messages(
+                let session = self.owner.journal()?.activate_responder_messages(
                     Arc::clone(context),
                     initial,
                     fixture.times.bootstrap,
@@ -174,6 +241,7 @@ impl Journal {
                 if Some(session) != self.session {
                     return Err(DurableError::Conflict);
                 }
+                self.owner.retain_archive(context, session)?;
                 Ok(session.to_vec())
             }
             7 => {
@@ -181,7 +249,8 @@ impl Journal {
                 let session = self.session.ok_or(DurableError::Suspended)?;
                 Ok(self
                     .owner
-                    .receive_message(context, session, wire, ad, fixture.times.traffic)?
+                    .journal()?
+                    .receive_message(context, session, wire, ad, now)?
                     .as_bytes()
                     .to_vec())
             }
@@ -189,7 +258,8 @@ impl Journal {
                 let session = self.session.ok_or(DurableError::Suspended)?;
                 Ok(self
                     .owner
-                    .next_message_id(context, session, fixture.times.traffic)?
+                    .journal()?
+                    .next_message_id(context, session, now)?
                     .as_bytes()
                     .to_vec())
             }
@@ -197,42 +267,45 @@ impl Journal {
                 let identity = id(payload.get(..32).ok_or_else(encoding)?)?;
                 let (ad, plaintext) = ad_and_payload(payload.get(32..).ok_or_else(encoding)?)?;
                 let session = self.session.ok_or(DurableError::Suspended)?;
-                self.owner.send_message(
-                    context,
-                    session,
-                    identity,
-                    plaintext,
-                    ad,
-                    fixture.times.traffic,
-                )
+                self.owner
+                    .journal()?
+                    .send_message(context, session, identity, plaintext, ad, now)
             }
             10 => {
                 let session = self.session.ok_or(DurableError::Suspended)?;
-                self.owner.consume_message(
-                    context,
-                    session,
-                    id(payload)?,
-                    fixture.times.traffic,
-                )?;
                 self.owner
-                    .message_acknowledgement(context, session, fixture.times.traffic)
+                    .journal()?
+                    .consume_message(context, session, id(payload)?, now)?;
+                self.owner
+                    .journal()?
+                    .message_acknowledgement(context, session, now)
             }
             11 => {
                 let session = self.session.ok_or(DurableError::Suspended)?;
                 Ok(self
                     .owner
-                    .accept_message_acknowledgement(
-                        context,
-                        session,
-                        payload,
-                        fixture.times.traffic,
-                    )?
+                    .journal()?
+                    .accept_message_acknowledgement(context, session, payload, now)?
                     .to_be_bytes()
                     .to_vec())
             }
             12 if payload.is_empty() => {
                 self.owner.close();
-                self.owner = if let Some(witness) = &fixture.witness {
+                if let Some(configuration) = &fixture.enrolled_peer {
+                    let mut active = configuration.activate(fixture, now)?;
+                    self.context = configuration.context(
+                        &mut active,
+                        fixture,
+                        self.session.ok_or(DurableError::Suspended)?,
+                        now,
+                    )?;
+                    if active.parts()?.0.stores()?.0.identity()? != self.identity {
+                        return Err(DurableError::Conflict);
+                    }
+                    self.owner = Owner::Enrolled(Some(active));
+                    return Ok(b"reopened".to_vec());
+                }
+                self.owner = Owner::Raw(Box::new(if let Some(witness) = &fixture.witness {
                     DeviceJournal::open_anchored(
                         &self.path.join("journal"),
                         JournalKey::open(&self.path.join("key"))?,
@@ -248,22 +321,23 @@ impl Journal {
                         &fixture.responder,
                         self.identity,
                     )?
-                };
+                }));
                 Ok(b"reopened".to_vec())
             }
             13 if payload.is_empty() => {
                 let session = self.session.ok_or(DurableError::Suspended)?;
                 self.owner
-                    .message_acknowledgement(context, session, fixture.times.traffic)
+                    .journal()?
+                    .message_acknowledgement(context, session, now)
             }
             14..=23 => self.rekey_command(fixture, command, payload),
             24..=27 => crate::resolution::command(
-                &mut self.owner,
+                self.owner.journal()?,
                 context,
                 self.session.ok_or(DurableError::Suspended)?,
                 command,
                 payload,
-                fixture.times.traffic,
+                now,
             ),
             _ => Err(encoding()),
         }
@@ -275,25 +349,25 @@ impl Journal {
         command: u8,
         payload: &[u8],
     ) -> std::result::Result<Vec<u8>, DurableError> {
-        let context = &fixture.context;
+        let held_context = Arc::clone(&self.context);
+        let context = &held_context;
+        let now = self.now;
         let session = self.session.ok_or(DurableError::Suspended)?;
         match command {
-            14 => self.owner.respond_rekey_offer(
+            14 => self.owner.journal()?.respond_rekey_offer(
                 context,
                 session,
                 payload,
                 &fixture.signer,
-                fixture.times.traffic,
+                now,
             ),
-            15 => self.owner.finish_rekey(
-                context,
-                session,
-                payload,
-                &fixture.signer,
-                fixture.times.traffic,
-            ),
+            15 => {
+                self.owner
+                    .journal()?
+                    .finish_rekey(context, session, payload, &fixture.signer, now)
+            }
             16 if payload.is_empty() => {
-                let progress = self.owner.rekey_progress(context, session)?;
+                let progress = self.owner.journal()?.rekey_progress(context, session)?;
                 Ok([
                     progress.confirmed_epoch,
                     progress.sending_epoch,
@@ -304,62 +378,90 @@ impl Journal {
                 .flat_map(u64::to_be_bytes)
                 .collect())
             }
-            17 if payload.is_empty() => self.owner.prepare_rekey_offer(
-                context,
-                session,
-                &fixture.signer,
-                fixture.times.traffic,
-            ),
-            18 => self.owner.accept_rekey_response(
+            17 if payload.is_empty() => {
+                self.owner
+                    .journal()?
+                    .prepare_rekey_offer(context, session, &fixture.signer, now)
+            }
+            18 => self.owner.journal()?.accept_rekey_response(
                 context,
                 session,
                 payload,
                 &fixture.signer,
-                fixture.times.traffic,
+                now,
             ),
             19 => Ok(self
                 .owner
-                .accept_rekey_receipt(context, session, payload, fixture.times.traffic)?
+                .journal()?
+                .accept_rekey_receipt(context, session, payload, now)?
                 .to_be_bytes()
                 .to_vec()),
             20 => {
                 let epoch = u64::from_be_bytes(payload.try_into().map_err(|_| encoding())?);
-                self.owner.message_acknowledgement_for_epoch(
-                    context,
-                    session,
-                    epoch,
-                    fixture.times.traffic,
-                )
+                self.owner
+                    .journal()?
+                    .message_acknowledgement_for_epoch(context, session, epoch, now)
             }
             21 => {
                 let target = u64::from_be_bytes(payload.try_into().map_err(|_| encoding())?);
                 self.owner
-                    .advance_rekey_control(
-                        context,
-                        session,
-                        target,
-                        &fixture.signer,
-                        fixture.times.traffic,
-                    )
+                    .journal()?
+                    .advance_rekey_control(context, session, target, &fixture.signer, now)
                     .map(control)
             }
             22 => self
                 .owner
-                .receive_rekey_control(
-                    context,
-                    session,
-                    payload,
-                    &fixture.signer,
-                    fixture.times.traffic,
-                )
+                .journal()?
+                .receive_rekey_control(context, session, payload, &fixture.signer, now)
                 .map(control),
             23 if payload.is_empty() => Ok(format!(
                 "{:?}",
-                self.owner.rekey_request_status(context, session)?
+                self.owner
+                    .journal()?
+                    .rekey_request_status(context, session)?
             )
             .into_bytes()),
             _ => Err(encoding()),
         }
+    }
+
+    pub(super) fn maintain(&mut self, fixture: &Fixture, payload: &[u8]) -> Result<Vec<u8>> {
+        if payload.len() != 16 {
+            return Err("native maintenance shape".into());
+        }
+        let cycle = u64::from_be_bytes(payload.get(..8).ok_or("maintenance cycle")?.try_into()?);
+        let now = u64::from_be_bytes(payload.get(8..).ok_or("maintenance time")?.try_into()?);
+        if now < self.now {
+            return Err("native trusted time rollback".into());
+        }
+        let configuration = fixture
+            .enrolled_peer
+            .as_ref()
+            .ok_or("native original enrollment unavailable")?;
+        if !matches!(self.owner, Owner::Enrolled(_)) {
+            return Err("native enrollment owner mismatch".into());
+        }
+        self.now = now;
+        self.owner.close();
+        let mut active = if cycle == 4 {
+            configuration.refresh(fixture, now)?
+        } else {
+            configuration.renew(fixture, cycle, now)?
+        };
+        if active.parts()?.0.stores()?.0.identity()? != self.identity {
+            return Err("native original journal changed".into());
+        }
+        self.context = configuration.context(
+            &mut active,
+            fixture,
+            self.session.ok_or("missing original session")?,
+            now,
+        )?;
+        self.owner = Owner::Enrolled(Some(active));
+        let mut receipt = self.identity.as_bytes().to_vec();
+        receipt.extend_from_slice(&self.session.ok_or("missing original session")?);
+        receipt.extend_from_slice(&now.to_be_bytes());
+        Ok(receipt)
     }
 
     pub(super) fn close(mut self) {

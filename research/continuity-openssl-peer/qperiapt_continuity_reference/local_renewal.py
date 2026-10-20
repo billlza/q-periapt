@@ -65,7 +65,8 @@ class LocalRenewal:
                         and control.account_binding == intent.account_binding,
                         "local renewal control/intent conflict")
             else:
-                require(control.ready() and int.from_bytes(intent.checkpoint[:8], "big") > control.floor,
+                require(control.ready() and int.from_bytes(intent.checkpoint[:8], "big")
+                        > max(control.floor, control.roster.floor if control.roster else 0),
                         "local renewal target retired")
         elif control is not None and not control.ready():
             require(control.phase in (2, 3), "missing original pending renewal target")
@@ -86,7 +87,7 @@ class LocalRenewal:
         require(p is not None and p.operation == self.operation, "original renewal operation unavailable")
         if intent is not None and control.ready():
             control = Control(1, control.floor, control.active, p, intent.checkpoint,
-                              intent.account_binding, control.active_account_binding)
+                              intent.account_binding, control.active_account_binding, control.roster)
             write_control(self._journal, control)
         return snapshot, control, intent
 
@@ -141,7 +142,8 @@ class LocalRenewal:
                     version = account.listing.version
                 if control is None:
                     control = Control(); write_control(self._journal, control)
-                require(version > control.floor, "local renewal successor retired")
+                require(version > max(control.floor, control.roster.floor if control.roster else 0),
+                        "local renewal successor retired")
                 require(control.active == (current.renewal.statement if current.renewal else bytes(32)),
                         "local renewal predecessor control differs")
                 active_binding = None if request is None or state.account_renewal.completed is None else state.account_renewal.completed.binding
@@ -151,7 +153,8 @@ class LocalRenewal:
                     state.local_authority = next_identity; state.format_version = 6
                 else:
                     state.account_authority = account
-                    state.account_renewal = AccountRecord(state.account_renewal.floor, completed=Receipt.for_request(request))
+                    state.account_renewal = AccountRecord(state.account_renewal.floor, completed=Receipt.for_request(request),
+                                                         roster=state.account_renewal.roster)
                 target = self._journal._seal(snapshot.revision + 1, encode(state))
                 target_snapshot = self._journal._decode(target)
                 p = Proposal(self._context.witness.pin.binding, self._journal.subject, self.operation, grant.statement,
@@ -159,7 +162,7 @@ class LocalRenewal:
                 retained = Intent(p, target, target_checkpoint, binding)
                 wire = retained.wire(self._journal)
                 pending_control = Control(1, control.floor, control.active, p, target_checkpoint,
-                                          binding, active_binding)
+                                          binding, active_binding, control.roster)
                 self._journal._admit().quota(len(wire) + len(target)
                                             + 2 * (len(pending_control.wire(self._journal.scope)) + 32), 4)
                 self._journal._admit().publish("intent", wire)
@@ -195,30 +198,14 @@ class LocalRenewal:
             return outcome
         require(outcome in ("Applied", "Closed"), "local renewal has no terminal result")
         p = control.proposal
-        if outcome == "Applied":
-            if snapshot.digest != p.target.digest:
-                require(intent is not None and snapshot.digest == p.expected.digest, "missing original applied target")
-                self._journal._admit().publish("head", intent.target)
-                snapshot = self._journal._decode(intent.target)
-            self._journal._query(snapshot)
-            phase, active = 2, p.statement
-        else:
-            require(snapshot.digest == p.expected.digest, "closed target was installed")
-            self._journal._query(snapshot)
-            phase, active = 3, control.active
+        phase, active = (2, p.statement) if outcome == "Applied" else (3, control.active)
         active_binding = control.account_binding if outcome == "Applied" else control.active_account_binding
         terminal = Control(phase, int.from_bytes(control.checkpoint[:8], "big"), active, p, control.checkpoint,
-                           control.account_binding, active_binding)
-        write_control(self._journal, terminal)
-        self._journal._admit().observe("renewal:terminal-durable")
-        require(p.exchange(self._journal.client, 8) in ("Acknowledged", "Unavailable"), "renewal terminal acknowledgement")
-        self._journal._admit().observe("renewal:acknowledged")
-        if self._journal._admit().read("intent") is not None:
-            require(Intent.read(self._journal, self._context) == intent, "another intent replaced terminal renewal")
-            self._journal._admit().remove_intent()
-        write_control(self._journal, replace(terminal, phase=phase + 2))
-        self._journal._admit().observe("renewal:completed")
-        return outcome
+                           control.account_binding, active_binding, control.roster)
+        from .maintenance_terminal import Transition, finish
+        return finish(self._journal, snapshot, intent, outcome,
+                      Transition(p, terminal, replace(terminal, phase=phase + 2), 8,
+                                 lambda: Intent.read(self._journal, self._context), "renewal"))
 
     @coordinated
     def recover(self):

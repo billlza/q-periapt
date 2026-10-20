@@ -22,6 +22,33 @@ def require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
+def verify_roster_profiles(result: dict, *, boundary: bool) -> None:
+    """Require all original-owner workloads, including the native trusted clock."""
+    profiles = result.get("profiles")
+    require(isinstance(profiles, list) and len(profiles) == 4, "roster cohort incomplete")
+    selected = [(True, False), (True, True), (False, False), (False, True)] if boundary else [
+        (3, False), (3, True), (32, False), (32, True)]
+    for row, (group, witnessed) in zip(profiles, selected, strict=True):
+        require(isinstance(row, dict) and type(row.get("witnessed")) is bool
+                and row["witnessed"] == witnessed, "roster profile differs")
+        if boundary:
+            workers = {(True, False): 17, (True, True): 23, (False, False): 21, (False, True): 35}
+            require(type(row.get("before_g")) is bool and row["before_g"] == group
+                    and type(row.get("workers")) is int and row["workers"] == workers[(group, witnessed)],
+                    "roster boundary workload differs")
+        else:
+            expected = {"members": group, "workers": 38 if witnessed else 32,
+                        "process_kills": 4 if witnessed else 3, "native_trusted_time": 355}
+            require(all(type(row.get(key)) is int and row[key] == value for key, value in expected.items()),
+                    "roster original-owner workload or clock differs")
+        identities = ["journal", "session", "original_message_sha256"]
+        if not boundary:
+            identities += ["native_journal", "original_offer_sha256"]
+        require(all(isinstance(row.get(name), str) and re.fullmatch(r"[0-9a-f]{64}", row[name])
+                    and any(c != '0' for c in row[name]) for name in identities),
+                "roster original identity missing")
+
+
 def verify_extension_session(result: dict, *, implementation: str, native_sha256: str) -> None:
     """Require the completed post-expiry workload from the selected installed owners."""
     require(result.get("schema_version") == 1 and type(result.get("schema_version")) is int

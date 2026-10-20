@@ -56,7 +56,7 @@ class State:
 
 
 def encode(state: State) -> bytes:
-    if state.format_version == 9:
+    if state.format_version in (9, 10):
         from .account_snapshot import encode as encode_account
         return encode_account(state)
     require(state.account_authority is None and state.account_renewal is None,
@@ -133,7 +133,7 @@ def encode(state: State) -> bytes:
 
 
 def decode(payload: bytes, context: Context) -> State:
-    if payload[:8] == b"QPREFS09":
+    if payload[:8] in (b"QPREFS09", b"QPREFS10"):
         from .account_snapshot import decode as decode_account
         return decode_account(payload, context)
     require(len(payload) <= MAX_LOCAL_STATE, "snapshot aggregate capacity")

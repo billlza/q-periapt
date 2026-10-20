@@ -82,9 +82,10 @@ envelopes and completion bindings have separate refusal controls.
 
 These fixtures use explicit validity-test times in the independent consumer;
 the native traffic peer and witness use time 170. They do not establish
-simultaneous real-time expiry and renewal of both native enrollments. Peer-only
-common-account roster transitions remain refused until they have a proper
-common authority and witness transition. Ordinary pending-write recovery uses
+simultaneous real-time expiry and renewal of both native enrollments. The separate
+[original roster coordinator](ROSTER_REFRESH.md) adds G/G/R/G with both enrolled
+endpoints advancing explicit trusted test time; its current receipt must be
+checked separately. Ordinary pending-write recovery uses
 the [single common public-history projection](PENDING_WRITE_RECOVERY.md), with
 independent exact approval and fresh Query confirmation before publication.
 `shared_migration_checks.py` creates three- and 32-device sessions with the

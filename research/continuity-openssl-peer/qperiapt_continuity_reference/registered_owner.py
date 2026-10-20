@@ -15,6 +15,7 @@ SESSION = SIGNING | frozenset({'initial', 'finish', 'activate', 'next_id', 'send
 CONNECTION = SESSION - frozenset({'initial', 'finish', 'activate'})
 LOCAL_RENEWAL = frozenset({'stage', 'stage_account', 'status', 'commit', 'reconcile_expired'})
 JOINT_RENEWAL = frozenset({'prepare', 'prepare_account', 'status', 'recover', 'commit', 'close_proposal'})
+ROSTER = frozenset({'refresh', 'prepare', 'status', 'recover', 'commit', 'close_proposal'})
 PENDING = frozenset({'request', 'confirm'})
 
 

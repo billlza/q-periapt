@@ -121,6 +121,7 @@ class WitnessJournal(Journal):
         head = self._decode(wire); pending = directory.read("intent")
         if pending is not None:
             require(not pending.startswith(b"QPRFLI01"), "local renewal coordination remains pending")
+            require(not pending.startswith(b"QPRFRI01"), "roster coordination remains pending")
             revision, prior, target, result = self._decode_intent(pending)
             require(revision > 0, "inactive creation requires explicit genesis recovery")
             if head.digest != result.digest and (head.revision != revision or head.digest != prior):

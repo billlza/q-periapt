@@ -91,7 +91,7 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
                 peer.check(now)
             yield snapshot, state
             authority_generation = self._authority_generation
-            if operational and now is not None and state.format_version in (5, 6, 7, 8, 9):
+            if operational and now is not None and state.format_version in (5, 6, 7, 8, 9, 10):
                 # A reentrant host observer may have committed revocation after
                 # this call's own write. Recheck the durable current authority
                 # before its result escapes; the earlier decoded view is stale.
@@ -203,7 +203,7 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
                 # Reserve space for that final state before persisting plaintext.
                 limit = MAX_LOCAL_STATE if state.format_version == 8 else MAX_STATE
                 used = len(snapshot.payload)
-                if state.format_version == 9:
+                if state.format_version in (9, 10):
                     from .account_snapshot import base_size
                     used = base_size(snapshot.payload)
                 require(used + 8 + 32 + 4 + 109 + len(plaintext) <= limit,

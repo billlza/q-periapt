@@ -26,7 +26,7 @@ def arguments():
 
 
 class Counterpart:
-    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False, short_roster=False, registration=False, registration_extension=False, intermediate_peer=False, account_members=None):
+    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False, short_roster=False, registration=False, registration_extension=False, intermediate_peer=False, account_members=None, enrolled_peer=False):
         self.cases = output / "cases"
         self.cases.mkdir()
         self.stderr = (output / "native.stderr").open("xb")
@@ -46,6 +46,8 @@ class Counterpart:
                 command += ["--intermediate-peer"]
             if required_witness:
                 command += ["--required-witness"]
+            if enrolled_peer:
+                command += ["--enrolled-peer"]
             if registration:
                 command += ["--registration"]
             if registration_extension:

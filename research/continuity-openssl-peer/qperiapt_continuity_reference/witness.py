@@ -78,7 +78,7 @@ class Operation:
         require(type(self.arguments) is bytes and len(self.arguments) == 96, "witness operation size")
         if self.kind == 1:
             require(not any(self.arguments), "query padding")
-        elif self.kind in (4, 5, 6, 7, 8):
+        elif self.kind in (4, 5, 6, 7, 8, 16, 17, 18, 19):
             fixed(self.arguments[:32], 32)
             require(not any(self.arguments[32:]), "witness binding padding")
         else:
@@ -136,6 +136,9 @@ def verify(pin, subject, operation, body, wire):
         require(outcome in allowed[operation.kind], "witness renewal outcome")
         # The proposal owner additionally checks the exact expected/target head
         # and applied command. An authenticated disposition alone is not authority.
+    elif operation.kind in (16, 17, 18, 19):
+        allowed = {16: (18, 19, 20), 17: (17, 18, 19, 20), 18: (18, 19, 20), 19: (20, 21)}
+        require(outcome in allowed[operation.kind], "witness roster outcome")
     else:
         r = Reader(operation.arguments); expected, target = Head.read(r), Head.read(r)
         exact = head == target and last == command
