@@ -13,7 +13,7 @@ from qperiapt_continuity_reference.network_server import Server
 from qperiapt_continuity_reference.wire import require
 
 
-def exercise(implementation,provider,client_dir,session_dir,client_id,root,native,inputs,journal,original,run):
+def exercise(implementation,provider,client_dir,session_dir,client_id,root,native,outgoing,inputs,journal,original,run):
     command=[sys.executable,'-I','-S','-B','-c',
         f'import sys; sys.path.insert(0,{str(implementation)!r}); from qperiapt_continuity_reference.session_cli import main; raise SystemExit(main())',
         '--provider-root',provider,'--directory',client_dir,'--client-id',client_id.hex(),
@@ -102,9 +102,11 @@ def exercise(implementation,provider,client_dir,session_dir,client_id,root,nativ
         stopped=service.stop()
         require(stopped['stats']['completed_responses']==8 and stopped['stats']['operation_errors']==0,'CLI native completion accounting')
         require(result['stats']['completed_responses']==7 and result['stats']['operation_errors']==0,'CLI relay completion accounting')
+        from independent_inbound_cli import exercise as inbound
+        received=inbound(command,call,root,outgoing,inputs,sid,original,run)
         return {'schema_version':1,'kind':'qperiapt.independent_session_cli','completed':True,
-                'frames':frames,'native_service':stopped,'relay':result['stats'],'confirmed_epoch':1,
-                'scope':'Separate Python CLI processes to actual native TCP service under explicit test authority. Original preparation/reopen, durable effect readback, real lost ACK, exact resume and one rekey. No cross-host, simultaneous directions, witness-positive or real account authorization claim.'}
+                'frames':frames,'native_service':stopped,'relay':result['stats'],'confirmed_epoch':2,'inbound':received,
+                'scope':'Separate installed Python CLI processes and actual native TCP under explicit test authority. Both directions, durable inbox readback, lost ACK, receiver SIGKILL/restart, exact retry and two rekeys. No cross-host, simultaneous directions, witness-positive or real account authorization claim.'}
     finally:
         failures=[]
         if relay is not None:

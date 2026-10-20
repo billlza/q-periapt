@@ -19,6 +19,8 @@ python -I -B -m qperiapt_continuity_reference.session_cli \
 ```
 
 The deadline is finite, at most 120 seconds, and is never restarted internally.
+For `serve`, it bounds startup and each accepted request; the listener continues
+until SIGINT or SIGTERM and joins its actual worker before reporting Stopped.
 Commands use actual host OS time. Inputs are bounded regular files at absolute
 paths; the wrapping key retains the enrollment CLI's private-file requirements.
 No command silently initializes or replaces missing state.
@@ -103,10 +105,50 @@ For a signed required-witness profile, non-prepare commands additionally need
 witness to a local profile or omitting one from a required profile fails.
 The CLI does not enroll a new witness or downgrade its requirement.
 
-This CLI provides the initiating command path. Hosts can use `Connection` and
-the bounded `network_server.Server` for inbound durable effects; an independent
-inbox daemon, concurrent bidirectional service and complete CLI lifecycle are
-still separate work. The qualification uses actual native TCP, separate CLI
-processes, durable inbox readback, lost acknowledgements, exact retry and rekey.
-Its explicit test authority does not establish real account authorization,
-cross-host deployment or positive required-witness CLI qualification.
+## Receive on the original confirmed connection
+
+Create an empty private directory outside the client and SDK session directories.
+Provision a separate host inbox for the original confirmed session:
+
+```text
+... provision-inbox --session=<session-id> --inbox-directory /absolute/private/inbox
+... serve --session=<session-id> --inbox-directory /absolute/private/inbox \
+  --listen 127.0.0.1 9001
+... read-inbox --session=<session-id> --inbox-directory /absolute/private/inbox \
+  --message=<message-id> --output /absolute/private/new-message.bin
+```
+
+`serve` admits only messages and control flights for that original session, never
+a new bootstrap. It validates current connection authority and the existing
+inbox before printing Listening. Each complete frame reopens original owners
+under its acceptance deadline, checks the session, and releases them before the
+response. Incomplete frames hold no SDK owner. Busy/conflicting operations fail;
+the service does not queue an unbounded set or retry protocol work implicitly.
+Required-witness profiles still need their explicit `--witness-address`.
+
+The reference host effect is storing the exact plaintext under its original
+message ID. The existing encrypted exact-target journal commits that effect
+before the protocol consumes the message and releases an ACK. Its key derivation
+is separated from protocol storage and binds client, journal and session.
+Matching retries retain the same effect; different plaintext for a retained ID
+fails. The inbox retains at most 1024 deliveries and a 2 MiB aggregate image.
+Capacity errors do not evict earlier deliveries. Each write publishes a complete
+bounded image; this reference path makes no incremental-storage performance claim.
+This inbox is host application data, with its own backup/rollback and wrapping-key
+compromise scope. It does not extend SDK erasure guarantees to host effects.
+
+After an interrupted initial inbox publication, use the explicit
+`recover-inbox --session=<session-id> --inbox-directory PATH` command. It can
+complete only the original authenticated creation intent. Ordinary opening,
+serving and reading never initialize missing state. Do not replace a missing
+inbox with an empty one. `read-inbox` exports an existing effect to a fresh private
+file, without releasing a protocol acknowledgement or claiming current traffic
+permission. Its JSON receipt contains identities and byte count, not plaintext.
+
+Installed-package qualification uses actual native TCP and separate CLI
+processes in both directions, durable inbox readback, lost acknowledgements,
+receiver SIGKILL/restart, exact retry and two rekeys. Inbox tests additionally
+cover four initial-publication and five effect-commit process cuts. Concurrent
+opposing operations, cross-host deployment, positive required-witness CLI
+qualification and complete CLI lifecycle acceptance remain separate work.
+Explicit test authority does not establish real account authorization.

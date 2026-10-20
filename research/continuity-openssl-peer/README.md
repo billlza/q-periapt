@@ -34,9 +34,11 @@ The bounded runner and Rust test counterpart are separate.
 The [`publication` adapter](../continuity-reference-app/NATIVE_SESSION.md) also
 consumes public advertisements from the native enrollment CLI without a built-in
 issuer. It authenticates through the same independent verifier and prepares the
-original `EnrollmentClient`. The native reference session CLI serves bootstrap,
-durable inbox delivery and rekey control over a file carrier; bidirectional
-network serving remains open.
+original `EnrollmentClient`. The native reference serves bootstrap, durable inbox
+delivery and rekey control over file and explicit TCP carriers. The independent
+[session CLI](SESSION_CLI.md) sends and receives on that original confirmed
+connection, with durable host inbox commands and process recovery. Simultaneous
+opposing operations and cross-host deployment remain separate acceptance gates.
 Failed replies leave the original operation pending. Successful replies pin the
 exact bytes; identical replay returns the same final, and a conflicting reply
 fails. Bootstrap owner operations check the supplied trusted time. Close is idempotent

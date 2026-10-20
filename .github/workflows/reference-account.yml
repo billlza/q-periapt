@@ -10,6 +10,7 @@ on:
       - research/continuity-openssl-peer/tests/enrollment_client.py
       - research/continuity-openssl-peer/tests/enrollment_extension.py
       - research/continuity-openssl-peer/tests/network.py
+      - research/continuity-openssl-peer/tests/mailbox.py
       - research/continuity-openssl-peer/pyproject.toml
       - research/continuity-openssl-peer/*requirements.txt
       - artifact/continuity_host_exchange.py
@@ -32,6 +33,7 @@ on:
       - research/continuity-openssl-peer/tests/enrollment_client.py
       - research/continuity-openssl-peer/tests/enrollment_extension.py
       - research/continuity-openssl-peer/tests/network.py
+      - research/continuity-openssl-peer/tests/mailbox.py
       - research/continuity-openssl-peer/pyproject.toml
       - research/continuity-openssl-peer/*requirements.txt
       - artifact/continuity_host_exchange.py

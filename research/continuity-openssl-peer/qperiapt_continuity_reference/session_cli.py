@@ -19,7 +19,7 @@ def arguments(argv):
     commands=parser.add_subparsers(dest='command',required=True)
     prepare=commands.add_parser('prepare',help='admit public publication files into the original accepted client')
     prepare.add_argument('--inputs',type=Path,required=True,help='independently provisioned publication plan JSON')
-    for name in ('connect','next','message-status','deliver','resume','rekey'):
+    for name in ('connect','next','message-status','deliver','resume','rekey','serve','provision-inbox','recover-inbox','read-inbox'):
         command=commands.add_parser(name)
         command.add_argument('--witness-address',nargs=2,metavar=('IP','PORT'),help='explicit required-witness TCP endpoint')
         if name!='connect':command.add_argument('--session',required=True,help='original session ID, unpadded base64url')
@@ -30,12 +30,17 @@ def arguments(argv):
         if name=='deliver':command.add_argument('--plaintext',type=Path,required=True)
         if name=='rekey':
             command.add_argument('--target',type=int,required=True);command.add_argument('--exchanges',type=int,default=8)
+        if name in ('serve','provision-inbox','recover-inbox','read-inbox'):
+            command.add_argument('--inbox-directory',type=Path,required=True)
+        if name=='serve':command.add_argument('--listen',nargs=2,required=True,metavar=('IP','PORT'))
+        if name=='read-inbox':
+            command.add_argument('--message',required=True);command.add_argument('--output',type=Path,required=True)
     return parser.parse_args(argv)
 
 
-def address(value):
+def address(value,*,listen=False):
     from .network import endpoint
-    selected=(value[0],int(value[1]));endpoint(selected);return selected
+    selected=(value[0],int(value[1]));endpoint(selected,listen=listen);return selected
 
 
 def identity(value):
@@ -69,12 +74,20 @@ def main(argv=None):
             if hasattr(args,'plaintext'):plaintext=read_file(args.plaintext,16384,allow_empty=True)
             if hasattr(args,'associated_data'):ad=read_file(args.associated_data,1024,allow_empty=True)
             if args.command=='rekey':require(0<args.target<MAX_U64 and 1<=args.exchanges<=128,'explicit rekey target/allowance')
+        if args.command=='serve':
+            from .session_server import serve
+            return serve(args,client_id,session,witness,address(args.listen,listen=True),run)
+        if args.command in ('provision-inbox','recover-inbox','read-inbox'):
+            require(witness is None,'host inbox metadata does not select a witness')
         key=read_file(args.key_file,32,private=True);require(len(key)==32,'client wrapping key length')
         run.check();owner=EnrollmentClient.open(args.directory,client_id,key)
         if prepared is not None:
             require(owner.status()['operation']==prepared[2],'credential artifact belongs to another original enrollment')
             owner.prepare(prepared[0],prepared[1],run.now());run.check()
             result={'prepared':True,'journal':owner.status()['journal']}
+        elif args.command in ('provision-inbox','recover-inbox','read-inbox'):
+            from .session_server import inbox_command
+            result=inbox_command(args,owner,client_id,key,session,message);run.check()
         else:
             connection=(owner.connect(transport,run,witness_transport=witness) if args.command=='connect' else
                         owner.reopen_connection(run,witness_transport=witness))

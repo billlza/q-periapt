@@ -36,7 +36,7 @@ def snapshot(path):
 
 def inputs(commit):
     paths = [*sorted((SOURCE / PACKAGE).glob('*.py'))]
-    paths += [SOURCE / name for name in ('tests/enrollment_exchange.py', 'tests/enrollment_client.py', 'tests/enrollment_extension.py', 'tests/network.py', 'pyproject.toml', 'README.md',
+    paths += [SOURCE / name for name in ('tests/enrollment_exchange.py', 'tests/enrollment_client.py', 'tests/enrollment_extension.py', 'tests/network.py', 'tests/mailbox.py', 'pyproject.toml', 'README.md',
                'ENROLLMENT_EXCHANGE.md', 'ENROLLMENT_CLIENT.md', 'SESSION_CLI.md', 'LICENSE-APACHE', 'LICENSE-MIT', 'requirements.txt', 'build-requirements.txt')]
     paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py', 'continuity_host_native_exchange.py', 'continuity_host_network.py', 'continuity_host_cli.py',
                'continuity_independent_python.py', 'continuity_independent_python_run.py',
@@ -108,7 +108,8 @@ def qualify(args):
                 ('exchange','ExchangeChecks','enrollment_exchange.py','enrollment_exchange.py'),
                 ('client','ClientChecks','enrollment_client.py','enrollment_client.py'),
                 ('extension','ExtensionChecks','enrollment_extension.py','enrollment_extension.py'),
-                ('network','NetworkChecks','network.py','network_server.py')):
+                ('network','NetworkChecks','network.py','network_server.py'),
+                ('mailbox','MailboxChecks','mailbox.py','mailbox.py')):
             test = snapshot(SOURCE / 'tests' / filename)
             harness = outside / filename; harness.write_bytes(test.data)
             expected = sorted(node.name for node in ast.walk(ast.parse(test.data))

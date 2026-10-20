@@ -298,6 +298,12 @@ returns the original committed response or the carrier completion marker.
 Together with `rekey`, it supports either proposer role after establishment.
 Neither server method admits a new bootstrap through a confirmed session.
 
+The [session CLI](SESSION_CLI.md#receive-on-the-original-confirmed-connection)
+provides `serve`, explicit host inbox provision/recovery and historical delivery
+export using these same methods. The host inbox reuses the exact-target journal
+with a separate client/journal/session binding. It is a bounded reference
+application effect, not atomic execution of an arbitrary external business action.
+
 ## Original storage recovery
 
 `open` (used by every command except `begin`) never invokes device provision.
