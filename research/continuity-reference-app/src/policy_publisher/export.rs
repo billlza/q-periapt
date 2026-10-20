@@ -49,6 +49,38 @@ impl PolicyPins {
         family: [u8; 32],
         now: u64,
     ) -> Result<(sdk::VerifiedSessionPolicy, Option<sdk::AnchorPin>), Error> {
+        let (pin, runtime) = self.inputs(materials, family)?;
+        let policy = pin
+            .verify(&materials.policy, runtime, now)
+            .map_err(|_| Error::Invalid("Current protocol policy"))?;
+        let witness = self.witness(policy.anchor_requirement())?;
+        Ok((policy, witness))
+    }
+    /// Authenticate exact historical policy/SDK bindings for original-state
+    /// inspection. This returns no runtime or current traffic permission.
+    pub fn verify_historical(
+        &self,
+        materials: &PolicyMaterials,
+        family: [u8; 32],
+    ) -> Result<(sdk::HistoricalSessionPolicy, Option<sdk::AnchorPin>), Error> {
+        let (pin, runtime) = self.inputs(materials, family)?;
+        let policy = pin
+            .verify_historical(&materials.policy)
+            .map_err(|_| Error::Invalid("Historical protocol policy"))?;
+        let binding = runtime
+            .policy_binding()
+            .map_err(|_| Error::Invalid("Historical SDK binding"))?;
+        if policy.sdk_binding() != binding {
+            return Err(Error::Invalid("Historical policy differs from SDK pins"));
+        }
+        let witness = self.witness(policy.anchor_requirement())?;
+        Ok((policy, witness))
+    }
+    fn inputs(
+        &self,
+        materials: &PolicyMaterials,
+        family: [u8; 32],
+    ) -> Result<(sdk::PolicyPin, std::sync::Arc<q_periapt_sdk::Runtime>), Error> {
         if self.schema != "qperiapt-policy-pins/1"
             || materials.schema != "qperiapt-policy-materials/1"
         {
@@ -68,9 +100,12 @@ impl PolicyPins {
                 .map_err(|_| Error::Invalid("Policy checkpoint"))?,
         )
         .map_err(|_| Error::Invalid("Policy scope"))?;
-        let policy = pin
-            .verify(&materials.policy, runtime, now)
-            .map_err(|_| Error::Invalid("Current protocol policy"))?;
+        Ok((pin, runtime))
+    }
+    fn witness(
+        &self,
+        requirement: sdk::AnchorRequirement,
+    ) -> Result<Option<sdk::AnchorPin>, Error> {
         let witness = self
             .witness
             .as_ref()
@@ -86,10 +121,10 @@ impl PolicyPins {
             sdk::AnchorRequirement::local_only,
             sdk::AnchorRequirement::required,
         );
-        if policy.anchor_requirement() != expected {
+        if requirement != expected {
             return Err(Error::Invalid("Witness pin differs from signed policy"));
         }
-        Ok((policy, witness))
+        Ok(witness)
     }
 }
 impl Publisher {

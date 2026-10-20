@@ -13,9 +13,11 @@ mod admission;
 mod mailbox;
 mod peer;
 mod publication;
+mod renewal;
 pub use mailbox::Mailbox;
 pub use peer::{DeviceExpectation, ExchangeOperation, ExchangeRequest, PeerTrust};
 pub use publication::{clock, Publication, PublicationPlan};
+pub use renewal::RetainedCredentialRequest;
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub struct NativeDevice {

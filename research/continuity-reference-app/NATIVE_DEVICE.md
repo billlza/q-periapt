@@ -114,3 +114,40 @@ durable reference inbox. A bidirectional network service, later lifecycle coordi
 Accepted migration remain separate work. CLI tests use real subprocesses and OS
 time with explicitly generated test authority. The real user account and its
 device grants are not modified by those tests.
+
+## Inspect an original retained-state renewal request
+
+Once an installation is active, extending a certificate alone cannot authorize
+its retained keys, publications or sessions. The SDK's separate root-signed G
+grant binds the original storage owner, policy and exact previous credential and
+roster. Obtain its public issuer inputs from the original owner:
+
+```sh
+q-periapt-native-device renewal-request "$device_dir" "$wrapping_file" "$invitation" \
+  "$retained_renewal_id" "$original_policy_pins" "$original_policy_materials" \
+  none "$new_request_output"
+```
+
+Choose and retain a nonzero 32-byte base64url renewal ID before the call. The
+output uses `qperiapt-retained-credential-request/1` and contains public original
+and previous certificate/roster bytes, journal and owner identities, policy
+checkpoints and the previous checkpoint actually observed in the journal. It
+does not contain private keys. A required-witness installation needs its explicit
+witness address instead of `none`, with the pinned witness key from the original
+policy inputs. There is no automatic local fallback.
+
+The command verifies exact signed historical policy and SDK bindings without
+backdating or returning a live policy owner. It can inspect an expired original
+credential; the local profile does not require its private signing file. Pending
+maintenance, a different original policy, unprepared installation or inconsistent
+history still fails. The SDK may reconcile retained completion receipts while
+opening the matched history; this is not a generic raw database reader.
+
+Request inspection does not reserve the observed predecessor or grant permission.
+Keep the exact exported request and operation before submission. Output files
+are exclusive; retry to a fresh filename if an export outcome is unknown. If
+another operation changed the observed history, do not silently submit a changed
+request under the old approval. The account issuer must authenticate the user,
+check its own membership/issuance records and serialize and retain the exact G
+decision. Host G issuance and native staging/activation are still separate
+integration work; this export alone cannot restore an expired endpoint.

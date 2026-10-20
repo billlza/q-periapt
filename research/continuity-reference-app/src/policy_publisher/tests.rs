@@ -61,6 +61,20 @@ fn exported_policy_consumer_requires_exact_scope_time_and_witness_pin(
     assert!(witness.is_none());
     assert_eq!(verified.checkpoint().version(), 1);
     assert!(pins.verify(&materials, authority.family, 200).is_err());
+    let (historical, historical_witness) = pins.verify_historical(&materials, authority.family)?;
+    assert_eq!(historical.checkpoint(), verified.checkpoint());
+    assert_eq!(historical.sdk_binding(), verified.sdk_binding());
+    assert!(historical_witness.is_none());
+    assert!(pins.verify_historical(&materials, [9; 32]).is_err());
+    for field in ["sdk_signature", "policy"] {
+        let mut broken = serde_json::to_value(&materials)?;
+        let mut encoded = broken[field].as_str().ok_or("encoded bytes")?.to_owned();
+        encoded.replace_range(..1, if encoded.starts_with('A') { "B" } else { "A" });
+        broken[field] = serde_json::json!(encoded);
+        assert!(pins
+            .verify_historical(&serde_json::from_value(broken)?, authority.family)
+            .is_err());
+    }
     assert!(pins.verify(&materials, [9; 32], 150).is_err());
     let mut missing = pins_json.clone();
     missing.as_object_mut().ok_or("object")?.remove("witness");
@@ -69,6 +83,11 @@ fn exported_policy_consumer_requires_exact_scope_time_and_witness_pin(
     bad["sdk_state"] = serde_json::json!("AA");
     assert!(serde_json::from_value::<PolicyPins>(bad)?
         .verify(&materials, authority.family, 150)
+        .is_err());
+    let mut bad = serde_json::to_value(&pins)?;
+    bad["policy_digest"][0] = serde_json::json!(verified.checkpoint().digest()[0] ^ 1);
+    assert!(serde_json::from_value::<PolicyPins>(bad)?
+        .verify_historical(&materials, authority.family)
         .is_err());
     let signer = sdk::AnchorSigningKey::generate()?;
     let identity = sdk::AnchorIdentity::generate()?;
@@ -84,6 +103,11 @@ fn exported_policy_consumer_requires_exact_scope_time_and_witness_pin(
     altered["witness"] = serde_json::Value::Null;
     assert!(serde_json::from_value::<PolicyPins>(altered)?
         .verify(&materials, authority.family, 150)
+        .is_err());
+    let mut altered = serde_json::to_value(&pins)?;
+    altered["witness"] = serde_json::Value::Null;
+    assert!(serde_json::from_value::<PolicyPins>(altered)?
+        .verify_historical(&materials, authority.family)
         .is_err());
     Ok(())
 }

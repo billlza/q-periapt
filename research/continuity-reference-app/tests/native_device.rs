@@ -16,6 +16,8 @@ use std::{
 };
 #[path = "native_device/publication.rs"]
 mod publication;
+#[path = "native_device/renewal.rs"]
+mod renewal;
 #[path = "../src/test_support.rs"]
 mod test_support;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;

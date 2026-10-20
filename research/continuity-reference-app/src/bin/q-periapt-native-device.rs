@@ -18,9 +18,11 @@ use operator_io::{export_directory, identifier, print, read};
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 const USAGE: &str = concat!(
     "Usage: q-periapt-native-device provision-key <absolute-key-file>\n",
-    "Or: <begin|status|request|accept|extend|prepare|activate|refresh-roster|publication-next|publish> ",
+    "Or: <begin|status|request|accept|extend|prepare|activate|refresh-roster|publication-next|publish|renewal-request> ",
     "<absolute-device-dir> <absolute-key-file> <original-invitation-json> [arguments]\n",
     "request: <new-request-output>\n",
+    "renewal-request: <retained-renewal-id> <original-policy-pins-json> ",
+    "<original-policy-materials-json> <witness-address-or-none> <new-request-output>\n",
     "accept: <issued-json> <current-root-json> <policy-pins-json> <policy-materials-json>\n",
     "extend: <approved-extension-json> <issued-extension-json> ",
     "<current-root-json> <policy-pins-json> <policy-materials-json>\n",
@@ -51,6 +53,7 @@ fn main() -> Result<()> {
         "request" => 6,
         "accept" => 9,
         "extend" => 10,
+        "renewal-request" => 10,
         "prepare" | "refresh-roster" => 8,
         "activate" | "publication-next" => 9,
         "publish" => 12,
@@ -86,6 +89,24 @@ fn main() -> Result<()> {
             let bytes = owner.request(clock()?)?;
             publish_private_bytes(Path::new(&args[5]), &bytes)?;
             return print(&owner.status()?);
+        }
+        "renewal-request" => {
+            let operation = identifier(&args[5])?;
+            let pins: PolicyPins = json(&args[6], 16384)?;
+            let materials: PolicyMaterials = json(&args[7], 128 * 1024)?;
+            let (policy, witness) = pins.verify_historical(&materials, family)?;
+            let endpoint = match args[8].to_str().ok_or("Witness endpoint is not UTF-8")? {
+                "none" => None,
+                text => Some(text.parse()?),
+            };
+            let request =
+                owner.credential_renewal_request(operation, &policy, witness, endpoint)?;
+            publish_private_bytes(Path::new(&args[9]), &serde_json::to_vec(&request)?)?;
+            owner.close();
+            return print(
+                &serde_json::json!({"request":"RetainedCredential","operation":request.operation,
+                "journal":request.journal,"previous_checkpoint":request.previous_checkpoint}),
+            );
         }
         _ => {}
     }
