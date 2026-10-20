@@ -101,6 +101,8 @@ class Context:
     current_local: IdentityState | None = None
     # Zero denotes absent metadata in legacy synthetic contexts, never authority.
     policy_version: int = 0
+    original_policy: HistoricalPolicy | None = None
+    current_policy: HistoricalPolicy | None = None
 
     def check(self, now: int) -> None:
         for interval in self.intervals:
@@ -109,7 +111,7 @@ class Context:
     def check_established(self, now: int) -> None:
         # The first five windows are policy, two credentials and two rosters.
         # Advertisement/leaf expiry gates bootstrap, not established traffic.
-        self.intervals[0].check(now)
+        (self.intervals[0] if self.current_policy is None else self.current_policy.validity).check(now)
         if self.current_local is None:
             for interval in self.intervals[1:3]:
                 interval.check(now)
@@ -317,4 +319,4 @@ def authenticate(pins: Pins, materials: Materials, now: int, *, witness_pin=None
     return Context(sdk, context, initiator.key, responder.key, pq[2] + classical[2],
                    (validity, initiator.validity, initiator.roster_validity, responder.validity,
                     responder.roster_validity, manifest_time, classical[3], pq[3]), selection, budget, witness, (initiator, responder), family, pins.policy_digest,
-                   policy_version=version)
+                   policy_version=version, original_policy=policy.history)

@@ -7,6 +7,68 @@ import unittest
 import zipfile
 
 from continuity_independent_python import DIST, PACKAGE, inspect_wheel, verify_installation, verify_extension_session, verify_roster_profiles, verify_roster_capacity, verify_roster_revocation
+from continuity_independent_python import verify_local_policy_profiles, verify_local_policy_boundary
+
+
+class LocalPolicyReceiptTests(unittest.TestCase):
+    def profiles(self):
+        return {"profiles": [{"members": n, "workers": 52, "process_kills": 7,
+            **{k: "a" * 64 for k in ("journal", "native_journal", "session", "original_wire_sha256")},
+            "approvals": [{"version": v, "now": now, **{k: digit * 64 for k in
+                ("operation", "statement", "approval_sha256")}} for v, now, digit in [(2, 190, "b"), (3, 270, "c")]],
+            "denied_operations": ["expired-p0-refused", "policy-2-other-journal-refused",
+                "policy-2-pending-blocks-session", "original-reservation-remains-exclusive",
+                "policy-3-other-journal-refused", "policy-3-pending-blocks-session", "expired-adopted-policy-refused"]}
+            for n in (3, 32)]}
+
+    def boundary(self):
+        return {"profile": {"members": 32, "traffic_bytes": 2031616, "rows": 123, "time_floor": 261,
+            "workers": 32, "process_kills": 6, "policy_payload_bytes": 2091948,
+            "active_pending_payload_bytes": 2117447,
+            **{k: "a" * 64 for k in ("journal", "native_journal", "session")},
+            "original_inventory": {"traffic_bytes": 2031616, "outboxes": 123,
+                "epoch_record_hashes": [[0, "b" * 64], [1, "c" * 64]]},
+            "denied_operations": ["expired-target-cannot-commit", "unknown-is-not-no-commit",
+                "abandoned-operation-cannot-reissue", "historical-expiry-does-not-admit-old-policy",
+                "time-floor-refuses-backdated-target", "expired-adopted-policy-refuses-old-output",
+                "expired-final-policy-refuses-output"],
+            "refusals": [{"case": c, "type": "ValueError", "error": "refused"} for c in [
+                "parent-close-withholds-pending-result", "policy-marker-cannot-be-removed", "empty-policy-wrapper",
+                "wrong-policy-journal", "policy-base-capacity", "policy-wrapper-cannot-expand-business",
+                "policy-aggregate-capacity", "policy-allocation-cannot-fund-business"]]}}
+
+    def test_complete_original_policy_and_full_store_workloads(self):
+        verify_local_policy_profiles(self.profiles())
+        verify_local_policy_boundary(self.boundary())
+
+    def test_missing_cohort_or_replayed_approval_cannot_qualify(self):
+        for mutate in [lambda r: r["profiles"].pop(), lambda r: r["profiles"][0]["approvals"].pop(),
+                       lambda r: r["profiles"][0]["approvals"][1].update(operation="b" * 64),
+                       lambda r: r["profiles"][0]["approvals"][1].update(now=170),
+                       lambda r: r["profiles"][1].update(original_wire_sha256="0" * 64)]:
+            report = self.profiles(); mutate(report)
+            with self.assertRaises(ValueError): verify_local_policy_profiles(report)
+
+    def test_missing_crash_and_permission_boundaries_are_rejected(self):
+        for verify, make, key in [(verify_local_policy_profiles, self.profiles, "profiles"),
+                                  (verify_local_policy_boundary, self.boundary, "profile")]:
+            for name, value in [("process_kills", 0), ("workers", True), ("denied_operations", []),
+                                ("journal", ""), ("members", 32.0)]:
+                with self.subTest(key=key, name=name):
+                    report = make(); row = report[key][0] if key == "profiles" else report[key]
+                    row[name] = value
+                    with self.assertRaises(ValueError): verify(report)
+
+    def test_partial_business_inventory_or_single_policy_record_cannot_qualify(self):
+        for mutate in [lambda r: r.update(active_pending_payload_bytes=2091948),
+                       lambda r: r.update(time_floor=190), lambda r: r.update(rows=122),
+                       lambda r: r["original_inventory"].update(traffic_bytes=1),
+                       lambda r: r["original_inventory"]["epoch_record_hashes"].pop(),
+                       lambda r: r["original_inventory"]["epoch_record_hashes"][1].__setitem__(0, 0),
+                       lambda r: r["refusals"].pop(),
+                       lambda r: r["refusals"][0].update(error="")]:
+            report = self.boundary(); mutate(report["profile"])
+            with self.assertRaises(ValueError): verify_local_policy_boundary(report)
 
 
 class RosterRevocationReceiptTests(unittest.TestCase):

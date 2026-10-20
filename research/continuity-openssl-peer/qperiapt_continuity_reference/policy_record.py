@@ -12,11 +12,10 @@ from .policy_renewal_proof import (APPROVAL_BYTES, BODY_BYTES, MAX_APPROVAL,
                                  HistoricalApproval, Scope, storage_owner,
                                  verify_current, verify_historical)
 from .wire import Reader, digest, require
+from .storage_budget import MAX_POLICY_GRANT as MAX_GRANT, MAX_POLICY_RECORD as MAX_RECORD
 
 POLICY_BYTES = 4 + 200 + 3373
 CREDENTIAL_BYTES = 4 + 2097 + 3373
-MAX_GRANT = 8 + 5 * 2 + 2 * POLICY_BYTES + CREDENTIAL_BYTES + 8192 + MAX_APPROVAL
-MAX_RECORD = 8 + 8 + 2 * (4 + MAX_GRANT) + 1 + 152
 
 
 def _stored_scope(wire):

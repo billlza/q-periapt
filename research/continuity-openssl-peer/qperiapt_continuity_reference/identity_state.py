@@ -107,7 +107,8 @@ def admit_local(state, context, now):
         state.account_renewal.current_time(now)
     if state.local_renewal is not None:
         state.local_renewal.current_time(now)
-    context.intervals[0].check(now)
+    from .policy_snapshot import admit as admit_policy
+    admit_policy(state, context, now)
     current = local_view(state, context)
     if current is None:
         for interval in context.intervals[1:3]:
@@ -148,13 +149,15 @@ def bind(state, context):
     if state.account_authority is not None and state.traffic is None:
         return
     local, peer = local_view(state, context), peer_view(state, context)
-    if local is not None or peer is not None:
+    if local is not None or peer is not None or state.policy_renewal is not None:
         # Original common-account metadata is also available before bootstrap
         # completion. It creates no traffic owner until the existing phase does.
         if state.traffic is None and state.local_authority is None and state.peer_authority is None:
             return
         require(state.traffic is not None, "retained identity requires original established session")
-        view = replace(context, current_peer=peer, current_local=local)
+        active = None if state.policy_renewal is None else state.policy_renewal.active
+        view = replace(context, current_peer=peer, current_local=local,
+                       current_policy=None if active is None else active.target)
         state.traffic.context = view
         for traffic in state.traffic.epochs.values():
             traffic._context = view

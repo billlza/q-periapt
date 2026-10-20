@@ -29,13 +29,20 @@ pub(super) struct Retained {
 }
 
 impl Pending {
-    pub fn new(local_lifecycle: bool, peer_lifecycle: bool, extension: bool) -> Result<Self> {
+    pub fn new(
+        local_lifecycle: bool,
+        peer_lifecycle: bool,
+        extension: bool,
+        policy_lifecycle: bool,
+    ) -> Result<Self> {
         let root = RootSigningKey::generate()?;
         let policy = PolicySigningKey::generate()?;
         let family = policy.policy_family()?;
         let validity = Validity::new(
             100,
-            if extension {
+            if policy_lifecycle {
+                450
+            } else if extension {
                 160
             } else if peer_lifecycle && !local_lifecycle {
                 350

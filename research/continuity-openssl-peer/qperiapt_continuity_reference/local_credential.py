@@ -40,6 +40,8 @@ class LocalCredentialRenewal:
         snapshot = self._journal.read(); state = decode(snapshot.payload, self._context)
         try:
             require(state.traffic is not None, "local renewal requires original established session")
+            require(state.policy_renewal is None or state.policy_renewal.pending is None,
+                    "policy renewal remains pending")
             if shared(self._context):
                 if state.format_version == 5:
                     initialize(state)

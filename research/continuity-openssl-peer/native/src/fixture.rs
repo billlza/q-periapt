@@ -30,6 +30,7 @@ pub(super) struct Fixture {
     pub local_rosters: Vec<VerifiedDevice>,
     pub registration: Option<crate::registration::Retained>,
     pub enrolled_peer: Option<crate::enrolled_peer::Configuration>,
+    pub policy_renewal: Option<crate::policy_lifecycle::Authority>,
 }
 
 pub(super) fn save(directory: &Path, name: &str, bytes: &[u8]) -> Result<()> {
@@ -83,6 +84,7 @@ pub(super) struct Options {
     pub extension: bool,
     pub account_members: Option<u8>,
     pub enrolled_peer: bool,
+    pub policy_lifecycle: bool,
 }
 #[derive(Clone, Copy)]
 pub(super) struct Times {
@@ -122,6 +124,7 @@ pub(super) fn create(
         extension,
         account_members,
         enrolled_peer,
+        policy_lifecycle,
     } = options;
     let runtime = runtime(directory)?;
     let (authority, mut registered, retained) = match registration {
@@ -134,7 +137,9 @@ pub(super) fn create(
     };
     let validity = Validity::new(
         100,
-        if peer_lifecycle || local_lifecycle || extension || account_members.is_some() {
+        if policy_lifecycle {
+            180
+        } else if peer_lifecycle || local_lifecycle || extension || account_members.is_some() {
             400
         } else {
             200
@@ -188,6 +193,7 @@ pub(super) fn create(
             root,
             family,
             usize::from(account_members.ok_or("missing shared account count")?),
+            if policy_lifecycle { 450 } else { 200 },
         )?;
         (Some(configuration), signer)
     } else {
@@ -199,13 +205,14 @@ pub(super) fn create(
             },
         )
     };
-    let (devices, local_grants, local_rosters) = if let Some(count) = account_members {
+    let (devices, local_grants, local_rosters, account_root) = if let Some(count) = account_members
+    {
         shared_devices(
             directory,
             [peer_key, signer.public_key()?],
             family,
             policy.checkpoint().digest(),
-            count,
+            (count, policy_lifecycle),
             registered.take(),
             enrolled_peer.as_ref(),
         )?
@@ -306,7 +313,7 @@ pub(super) fn create(
                 local_grants = grants;
             }
         }
-        (devices, local_grants, Vec::new())
+        (devices, local_grants, Vec::new(), None)
     };
     let initiator = devices.first().ok_or("missing initiator")?;
     let responder = devices.get(1).ok_or("missing responder")?;
@@ -358,6 +365,17 @@ pub(super) fn create(
         times.bootstrap,
     )?);
     save(directory, "expected-context", &context.digest())?;
+    let policy_renewal = if policy_lifecycle {
+        Some(crate::policy_lifecycle::Authority::new(
+            directory,
+            authority,
+            account_root.ok_or("policy profile needs its account issuer")?,
+            &runtime,
+            Arc::clone(&verified_policy),
+        )?)
+    } else {
+        None
+    };
     Ok(Fixture {
         times,
         context,
@@ -370,6 +388,7 @@ pub(super) fn create(
         local_rosters,
         registration: retained,
         enrolled_peer,
+        policy_renewal,
     })
 }
 
@@ -377,6 +396,7 @@ type AccountFixtures = (
     Vec<Arc<VerifiedDevice>>,
     Vec<VerifiedCredentialRenewal>,
     Vec<VerifiedDevice>,
+    Option<RootSigningKey>,
 );
 
 fn shared_devices(
@@ -384,10 +404,12 @@ fn shared_devices(
     keys: [PublicKey; 2],
     family: [u8; 32],
     policy: [u8; 32],
-    count: u8,
+    members: (u8, bool),
     registered: Option<(RootSigningKey, Vec<u8>)>,
     enrolled_peer: Option<&crate::enrolled_peer::Configuration>,
 ) -> Result<AccountFixtures> {
+    let (count, policy_lifecycle) = members;
+    let credential_until = if policy_lifecycle { 450 } else { 200 };
     let (root, original) = match registered {
         Some((root, certificate)) => (root, Some(certificate)),
         None => (RootSigningKey::generate()?, None),
@@ -399,7 +421,12 @@ fn shared_devices(
             match &original {
                 Some(certificate) => certificate.clone(),
                 None => root.issue_device(
-                    DeviceDescription::new([id; 16], 1, family, Validity::new(100, 200)?)?,
+                    DeviceDescription::new(
+                        [id; 16],
+                        1,
+                        family,
+                        Validity::new(100, credential_until)?,
+                    )?,
                     public,
                 )?,
             }
@@ -407,7 +434,7 @@ fn shared_devices(
             root.issue_enrollment(enrolled.request(), NOW)?
         } else {
             root.issue_device(
-                DeviceDescription::new([id; 16], 1, family, Validity::new(100, 200)?)?,
+                DeviceDescription::new([id; 16], 1, family, Validity::new(100, credential_until)?)?,
                 public,
             )?
         };
@@ -415,17 +442,21 @@ fn shared_devices(
     }
     for id in 3..=count {
         certificates.push(root.issue_device(
-            DeviceDescription::new([id; 16], 1, family, Validity::new(100, 200)?)?,
+            DeviceDescription::new([id; 16], 1, family, Validity::new(100, credential_until)?)?,
             DeviceSigningKey::generate()?.public_key()?,
         )?);
     }
-    let published = crate::account_fixture::publish(
-        &directory.join("account"),
-        &root,
-        certificates,
-        family,
-        policy,
-    )?;
+    let published = if policy_lifecycle {
+        crate::policy_lifecycle::publish_account(&directory.join("account"), &root, &certificates)?
+    } else {
+        crate::account_fixture::publish(
+            &directory.join("account"),
+            &root,
+            certificates,
+            family,
+            policy,
+        )?
+    };
     let pin = AccountPin::new(
         root.account_id()?,
         root.public_key()?,
@@ -455,5 +486,10 @@ fn shared_devices(
         )?;
         devices.push(device);
     }
-    Ok((devices, published.local_grants, published.local_rosters))
+    Ok((
+        devices,
+        published.local_grants,
+        published.local_rosters,
+        Some(root),
+    ))
 }

@@ -113,6 +113,10 @@ def write(journal, control):
 
 
 def admit_snapshot(journal, state):
+    if state.policy_renewal is not None:
+        from .policy_snapshot import validate
+        validate(state, state.operation._context, journal.scope.identity)
+        require(state.policy_renewal.pending is None, "policy renewal remains pending")
     if state.operation._context.witness is None:
         require(journal._admit().read("authority") is None, "witness coordination in local-only store")
         if state.format_version in (9, 10):

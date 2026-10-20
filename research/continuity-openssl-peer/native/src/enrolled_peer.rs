@@ -27,11 +27,72 @@ pub(super) struct Configuration {
 }
 
 impl Configuration {
+    pub fn renew_policy(
+        &self,
+        fixture: &Fixture,
+        version: u64,
+        now: u64,
+        session: [u8; 32],
+    ) -> Result<(EnrolledDevice, Arc<BootstrapContext>)> {
+        use q_periapt_continuity_identity_candidate::{PolicyRenewalId, PolicyRenewalStatus};
+        let issuer = fixture
+            .policy_renewal
+            .as_ref()
+            .ok_or("policy test issuer unavailable")?;
+        let target = issuer.policy(version)?;
+        let mut owner = self.open()?;
+        let known = match owner.policy_renewal_status()? {
+            PolicyRenewalStatus::Pending {
+                target: checkpoint, ..
+            }
+            | PolicyRenewalStatus::Committed {
+                target: checkpoint, ..
+            } if checkpoint == target.checkpoint() => true,
+            PolicyRenewalStatus::Pending { .. } => {
+                return Err("another native policy remains pending".into())
+            }
+            _ => false,
+        };
+        if !known {
+            let request = owner.policy_renewal_request(
+                PolicyRenewalId::generate()?,
+                fixture.policy.historical(),
+            )?;
+            let approval = issuer.approve(
+                request.scope(),
+                request.original_device(),
+                request.current_device(),
+                version,
+                now,
+            )?;
+            owner.stage_policy_renewal(
+                &approval,
+                request.scope().operation,
+                fixture.policy.historical(),
+                &target,
+                now,
+            )?;
+        }
+        owner.reconcile_policy_renewal(fixture.policy.historical(), &target, now)?;
+        let pin = self.pin(fixture, fixture.responder.roster().checkpoint())?;
+        let request = self.bundle()?.request_historical_reopen(Arc::new(fixture.policy.historical().clone()),
+            BootstrapRequirements { initiator: ExpectedDevice::new(&pin, [1;16], 1)?,
+                responder: ExpectedDevice::new(&pin, [2;16], 1)?, quality: PrekeyQuality::ReusableBoth,
+                directory: q_periapt_continuity_identity_candidate::DirectoryExpectation::from_trusted_state([99;32])? },
+            BootstrapRole::Responder, session, now)?;
+        let (active, peer) = owner.activate_policy_renewed_session(request, target, now)?;
+        if peer.session_id() != session || peer.context().digest() != fixture.context.digest() {
+            return Err("native policy renewal changed original session".into());
+        }
+        Ok((active, Arc::clone(peer.context())))
+    }
+
     pub fn provision(
         public: &Path,
         root: PublicKey,
         family: [u8; 32],
         members: usize,
+        credential_until: u64,
     ) -> Result<(Self, DeviceSigningKey)> {
         let path = tempfile::Builder::new()
             .prefix("qperiapt-enrolled-peer-")
@@ -61,7 +122,7 @@ impl Configuration {
         )?;
         let intent = EnrollmentIntent::new(
             root.clone(),
-            DeviceDescription::new([2; 16], 1, family, Validity::new(100, 200)?)?,
+            DeviceDescription::new([2; 16], 1, family, Validity::new(100, credential_until)?)?,
         );
         let mut owner = DeviceEnrollment::provision(paths.clone(), intent.clone())?;
         let wire = owner.request(NOW)?;

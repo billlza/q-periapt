@@ -306,6 +306,16 @@ class EnrollmentClient:
             self.close(); raise
 
     @coordinated
+    def policy_renewal(self, operation, now, *, transport=None):
+        """Borrow original policy-only maintenance; target trust stays explicit."""
+        try:
+            self._alive()
+            result = self._registration.policy_renewal(operation, now, transport=transport)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
     def pending_write_recovery(self, now, *, transport):
         """Borrow original witnessed recovery; this does not renew authority."""
         try:

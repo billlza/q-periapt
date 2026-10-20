@@ -5,7 +5,7 @@ from .durable import Session, owner_binding
 from .journal import Scope
 from .kem import hkdf
 from .private_files import PrivateDirectory
-from .registered_owner import BorrowedOwner, _Signer, SESSION, CONNECTION, LOCAL_RENEWAL, JOINT_RENEWAL, PENDING, ROSTER
+from .registered_owner import BorrowedOwner, _Signer, SESSION, CONNECTION, LOCAL_RENEWAL, JOINT_RENEWAL, PENDING, ROSTER, POLICY
 from .registration_inputs import Inputs
 from .registration_protocol import DOMAIN
 from .registration_state import Child, signer
@@ -102,6 +102,11 @@ def open_child(parent, kind, now, *, operation=None, transport=None):
             else:
                 from .local_renewal import LocalRenewal
                 owner = LocalRenewal.open(path, scope, key, context, operation, client=client, observer=parent._child_observer); allowed = JOINT_RENEWAL
+        elif kind == 'policy':
+            require(client is None, 'required policy renewal needs its witness coordinator')
+            from .local_policy import LocalPolicyRenewal
+            owner = LocalPolicyRenewal.open(path, scope, key, context, operation, image.child.inputs,
+                                            observer=parent._child_observer); allowed = POLICY
         elif kind == 'roster':
             from .roster_refresh import RosterRefresh
             owner = RosterRefresh.open(path, scope, key, context, operation, client=client,

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .account_state import AccountState
     from .account_record import AccountRecord
+    from .policy_record import Record as PolicyRecord
 
 from .authority import Context
 from .bootstrap import Initiator, digest, mac
@@ -35,6 +36,8 @@ class State:
     local_renewal: Record | None = None
     account_authority: AccountState | None = None
     account_renewal: AccountRecord | None = None
+    policy_renewal: PolicyRecord | None = None
+    policy_journal: bytes | None = None
 
     @classmethod
     def initial(cls, operation, now):
@@ -56,6 +59,10 @@ class State:
 
 
 def encode(state: State) -> bytes:
+    if state.policy_renewal is not None:
+        from .policy_snapshot import encode as encode_policy
+        return encode_policy(state)
+    require(state.policy_journal is None, "policy journal requires its record")
     if state.format_version in (9, 10):
         from .account_snapshot import encode as encode_account
         return encode_account(state)
@@ -133,6 +140,9 @@ def encode(state: State) -> bytes:
 
 
 def decode(payload: bytes, context: Context) -> State:
+    if payload[:8] == b"QPREFS11":
+        from .policy_snapshot import decode as decode_policy
+        return decode_policy(payload, context)
     if payload[:8] in (b"QPREFS09", b"QPREFS10"):
         from .account_snapshot import decode as decode_account
         return decode_account(payload, context)

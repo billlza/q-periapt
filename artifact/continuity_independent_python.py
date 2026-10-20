@@ -22,6 +22,76 @@ def require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
+def verify_local_policy_profiles(result: dict) -> None:
+    """Require both original local owners across two actual policy adoptions."""
+    profiles = result.get("profiles")
+    require(isinstance(profiles, list) and len(profiles) == 2, "local policy cohort incomplete")
+    denied = ["expired-p0-refused", "policy-2-other-journal-refused",
+              "policy-2-pending-blocks-session", "original-reservation-remains-exclusive",
+              "policy-3-other-journal-refused", "policy-3-pending-blocks-session",
+              "expired-adopted-policy-refused"]
+    for row, members in zip(profiles, (3, 32), strict=True):
+        expected = {"members": members, "workers": 52, "process_kills": 7}
+        require(isinstance(row, dict) and all(type(row.get(k)) is int and row[k] == v
+                for k, v in expected.items()) and row.get("denied_operations") == denied,
+                "local policy workload or refusal coverage differs")
+        _policy_identities(row, ("journal", "native_journal", "session", "original_wire_sha256"))
+        approvals = row.get("approvals")
+        require(isinstance(approvals, list) and len(approvals) == 2, "local policy adoptions incomplete")
+        for approval, version, now in zip(approvals, (2, 3), (190, 270), strict=True):
+            require(isinstance(approval, dict) and type(approval.get("version")) is int
+                    and approval["version"] == version and type(approval.get("now")) is int
+                    and approval["now"] == now, "local policy version or clock differs")
+            _policy_identities(approval, ("operation", "statement", "approval_sha256"))
+        require(all(approvals[0][k] != approvals[1][k] for k in
+                    ("operation", "statement", "approval_sha256")), "local policy approval reused")
+
+
+def verify_local_policy_boundary(result: dict) -> None:
+    """Require full business history, Active+Pending P and explicit expiry recovery."""
+    row = result.get("profile")
+    expected = {"members": 32, "traffic_bytes": 2031616, "rows": 123,
+                "time_floor": 261, "workers": 32, "process_kills": 6}
+    require(isinstance(row, dict) and all(type(row.get(k)) is int and row[k] == v
+            for k, v in expected.items()), "local policy boundary workload differs")
+    require(type(row.get("policy_payload_bytes")) is int
+            and row["policy_payload_bytes"] > row["traffic_bytes"]
+            and type(row.get("active_pending_payload_bytes")) is int
+            and row["active_pending_payload_bytes"] > max(2 * 1024**2, row["policy_payload_bytes"]),
+            "local policy full Active+Pending target missing")
+    _policy_identities(row, ("journal", "native_journal", "session"))
+    inventory = row.get("original_inventory")
+    require(isinstance(inventory, dict) and type(inventory.get("traffic_bytes")) is int
+            and inventory["traffic_bytes"] == 2031616 and type(inventory.get("outboxes")) is int
+            and inventory["outboxes"] == 123, "local policy original business inventory differs")
+    epochs = inventory.get("epoch_record_hashes")
+    require(isinstance(epochs, list) and len(epochs) == 2
+            and all(isinstance(item, list) and len(item) == 2 and type(item[0]) is int
+                    and item[0] == epoch for epoch, item in enumerate(epochs)),
+            "local policy original epochs missing")
+    for _, digest in epochs:
+        _policy_identities({"epoch": digest}, ("epoch",))
+    require(row.get("denied_operations") == ["expired-target-cannot-commit", "unknown-is-not-no-commit",
+            "abandoned-operation-cannot-reissue", "historical-expiry-does-not-admit-old-policy",
+            "time-floor-refuses-backdated-target", "expired-adopted-policy-refuses-old-output",
+            "expired-final-policy-refuses-output"], "local policy expiry refusal coverage differs")
+    cases = ["parent-close-withholds-pending-result", "policy-marker-cannot-be-removed",
+             "empty-policy-wrapper", "wrong-policy-journal", "policy-base-capacity",
+             "policy-wrapper-cannot-expand-business", "policy-aggregate-capacity",
+             "policy-allocation-cannot-fund-business"]
+    refused = row.get("refusals")
+    require(isinstance(refused, list) and len(refused) == len(cases)
+            and all(isinstance(item, dict) and set(item) == {"case", "error", "type"}
+                    and isinstance(item["error"], str) and item["error"] and item["type"] == "ValueError"
+                    for item in refused) and [item["case"] for item in refused] == cases,
+            "local policy capacity or lifetime refusal coverage differs")
+
+
+def _policy_identities(values: dict, names: tuple[str, ...]) -> None:
+    require(all(isinstance(values.get(k), str) and re.fullmatch(r"[0-9a-f]{64}", values[k])
+                and any(c != '0' for c in values[k]) for k in names), "local policy identity missing")
+
+
 def verify_roster_profiles(result: dict, *, boundary: bool) -> None:
     """Require all original-owner workloads, including the native trusted clock."""
     profiles = result.get("profiles")

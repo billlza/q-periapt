@@ -120,6 +120,8 @@ class RosterRefresh:
         return snapshot, control, intent
 
     def _advance_state(self, state, wire, target, now, floor):
+        require(state.policy_renewal is None or state.policy_renewal.pending is None,
+                "policy renewal remains pending")
         record, account = state.account_renewal, state.account_authority
         record.admit()
         record.current_time(now)

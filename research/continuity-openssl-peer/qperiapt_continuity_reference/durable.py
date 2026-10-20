@@ -46,7 +46,8 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
 
     @staticmethod
     def _scope(context, scope):
-        require(context.current_peer is None and context.current_local is None, "derived session authority is not a creation/opening input")
+        require(context.current_peer is None and context.current_local is None and context.current_policy is None,
+                "derived session authority is not a creation/opening input")
         require(scope.owner == owner_binding(context) and scope.context == context.digest,
                 "independent session scope")
 
@@ -202,10 +203,14 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
                 # A committed outgoing row adds index+receipt+wire length+frame.
                 # Reserve space for that final state before persisting plaintext.
                 limit = MAX_LOCAL_STATE if state.format_version == 8 else MAX_STATE
-                used = len(snapshot.payload)
+                payload = snapshot.payload
+                if state.policy_renewal is not None:
+                    from .policy_snapshot import base_payload
+                    payload = base_payload(payload)
+                used = len(payload)
                 if state.format_version in (9, 10):
                     from .account_snapshot import base_size
-                    used = base_size(snapshot.payload)
+                    used = base_size(payload)
                 require(used + 8 + 32 + 4 + 109 + len(plaintext) <= limit,
                         "final send image capacity")
                 state.pending = plan
@@ -284,7 +289,7 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
     def storage_format(self) -> int:
         """Read-only upgrade disposition; it grants no protocol permission."""
         with self._state(operational=False) as (_snapshot, state):
-            return state.format_version
+            return 11 if state.policy_renewal is not None else state.format_version
 
     @locked
     def upgrade_format(self, now: int) -> int:
@@ -298,7 +303,7 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
                 state.format_version = 5
                 self._journal.update(snapshot.digest, encode(state))
                 self._observe("protocol:format-upgraded")
-            return state.format_version
+            return 11 if state.policy_renewal is not None else state.format_version
 
     @locked
     def accept_acknowledgement(self, wire: bytes, now: int) -> int:

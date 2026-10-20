@@ -135,6 +135,9 @@ after execution. The helper uses the existing Git provenance boundary and
 requires an ordinary checkout with a real `.git` directory. Failed states stay
 available for diagnosis; a missing or failed installation is never treated as
 a successful source-tree run.
+The installation runner also requires both original local policy-renewal groups
+and the full-store expiry/recovery workload. These use installed protocol modules
+and the selected native counterpart; source-only results cannot satisfy them.
 The archived migration scenario additionally copies the declared old-writer
 capture and its manifest, bound to the selected commit. It loads that writer in
 a separate namespace, then uses the installed current package to continue the
@@ -414,10 +417,14 @@ the exact original owner, current credential/roster, previous authorization and
 unchanged policy profile are mandatory. Historical signature verification grants
 no current permission. This is a proof interoperability prerequisite: independent
 durable policy adoption, witness admission and post-expiry session continuation
-are not provided by this verifier.
+are not provided by this verifier alone. The separate
+[original local policy coordinator](POLICY_RENEWAL.md) now connects the proof and
+record to the registered original journal and existing session. Required-witness
+P and G/R composition after P remain open.
 
 `policy_record_checks.py` reuses those exact native inputs to check bounded
 Pending/Committed/ExpiredUncommitted metadata and sequential predecessor binding.
 It preserves the first signatures on retries, refuses another pending operation,
 and keeps historical completion separate from current permission. This record
-model is not yet connected to the session snapshot or registered journal owner.
+model is also used by the local coordinator; the record tests themselves do not
+establish durable or session behavior.

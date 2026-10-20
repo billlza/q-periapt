@@ -66,6 +66,18 @@ def main():
             else:
                 require(len(arguments) == 1, 'registration preparation arguments')
                 result = owner.prepare(Path(arguments[0].decode('utf-8')), Inputs(pins, materials, witness), now)
+        elif action.startswith('policy_'):
+            require(bool(arguments), 'registered policy operation')
+            with owner.policy_renewal(arguments[0], now, transport=transport) as child:
+                if action == 'policy_stage':
+                    require(len(arguments) == 4, 'registered policy staging inputs')
+                    result = child.stage(*arguments[1:], now=now)
+                elif action in ('policy_commit', 'policy_expire'):
+                    require(len(arguments) == 1, 'registered policy transition arguments')
+                    result = getattr(child, 'commit' if action == 'policy_commit' else 'reconcile_expired')(now)
+                else:
+                    require(len(arguments) == 1 and action in ('policy_request', 'policy_status'), 'registered policy action')
+                    result = getattr(child, 'request' if action == 'policy_request' else 'status')()
         elif action.startswith('credential_'):
             require(bool(arguments), 'registered renewal operation')
             with owner.credential_renewal(arguments[0], now, transport=transport) as child:

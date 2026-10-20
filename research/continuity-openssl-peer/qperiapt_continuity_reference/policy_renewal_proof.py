@@ -42,6 +42,12 @@ class Scope:
             require(int.from_bytes(self.previous_policy[:8], "big") > int.from_bytes(self.original_policy[:8], "big"),
                     "policy renewal predecessor authorization scope")
 
+    def wire(self):
+        """Public request fields; an issuer must still check the original owner."""
+        return (self.operation + self.journal + self.original_owner + self.original_credential
+                + self.current_credential + self.current_roster + self.original_policy + self.previous_policy
+                + bytes([self.previous_authorization is not None]) + (self.previous_authorization or bytes(32)))
+
 
 def storage_owner(original: Device) -> bytes:
     pin = original.pin

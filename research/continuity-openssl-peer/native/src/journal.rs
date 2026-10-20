@@ -22,6 +22,7 @@ pub(super) struct Journal {
     identity: JournalIdentity,
     initial: Option<Vec<u8>>,
     session: Option<[u8; 32]>,
+    policy_version: Option<u64>,
 }
 
 // Only the enrolled mode supports lifecycle control. Legacy byte-interoperability
@@ -122,6 +123,7 @@ impl Journal {
                 identity,
                 initial: None,
                 session: None,
+                policy_version: None,
                 context: Arc::clone(&fixture.context),
                 now: fixture.times.traffic,
             });
@@ -188,6 +190,7 @@ impl Journal {
             identity,
             initial: None,
             session: None,
+            policy_version: None,
         })
     }
 
@@ -290,6 +293,9 @@ impl Journal {
                     .to_vec())
             }
             12 if payload.is_empty() => {
+                if self.policy_version.is_some() {
+                    return Err(DurableError::Conflict);
+                }
                 self.owner.close();
                 if let Some(configuration) = &fixture.enrolled_peer {
                     let mut active = configuration.activate(fixture, now)?;
@@ -462,6 +468,50 @@ impl Journal {
         receipt.extend_from_slice(&self.session.ok_or("missing original session")?);
         receipt.extend_from_slice(&now.to_be_bytes());
         Ok(receipt)
+    }
+
+    pub(super) fn renew_policy(&mut self, fixture: &Fixture, payload: &[u8]) -> Result<Vec<u8>> {
+        if payload.len() != 16 {
+            return Err("native policy maintenance shape".into());
+        }
+        let version = u64::from_be_bytes(payload.get(..8).ok_or("policy version")?.try_into()?);
+        let now = u64::from_be_bytes(payload.get(8..).ok_or("policy time")?.try_into()?);
+        if now < self.now {
+            return Err("native trusted time rollback".into());
+        }
+        let configuration = fixture
+            .enrolled_peer
+            .as_ref()
+            .ok_or("original native enrollment absent")?;
+        self.now = now;
+        self.owner.close();
+        let session = self.session.ok_or("missing original native session")?;
+        let (mut active, context) = configuration.renew_policy(fixture, version, now, session)?;
+        if active.parts()?.0.stores()?.0.identity()? != self.identity {
+            return Err("native journal changed".into());
+        }
+        self.owner = Owner::Enrolled(Some(active));
+        self.context = context;
+        self.policy_version = Some(version);
+        let mut receipt = self.identity.as_bytes().to_vec();
+        receipt.extend_from_slice(&session);
+        receipt.extend_from_slice(&now.to_be_bytes());
+        Ok(receipt)
+    }
+
+    pub(super) fn has_policy(&self) -> bool {
+        self.policy_version.is_some()
+    }
+
+    pub(super) fn reopen_policy(&mut self, fixture: &Fixture) -> Result<Vec<u8>> {
+        let mut request = self
+            .policy_version
+            .ok_or("no adopted native policy")?
+            .to_be_bytes()
+            .to_vec();
+        request.extend_from_slice(&self.now.to_be_bytes());
+        self.renew_policy(fixture, &request)?;
+        Ok(b"reopened".to_vec())
     }
 
     pub(super) fn close(mut self) {

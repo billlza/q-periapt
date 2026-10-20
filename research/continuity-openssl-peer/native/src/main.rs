@@ -15,6 +15,7 @@ mod enrolled_peer;
 mod fixture;
 mod journal;
 mod peer_lifecycle;
+mod policy_lifecycle;
 mod registration;
 mod resolution;
 mod witness;
@@ -68,6 +69,7 @@ fn main() -> Result<()> {
     let mut extension = false;
     let mut account_members = None;
     let mut enrolled_peer = false;
+    let mut policy_lifecycle = false;
     while let Some(flag) = args.next() {
         match flag.to_str() {
             Some("--send-budget") => {
@@ -85,6 +87,7 @@ fn main() -> Result<()> {
             Some("--local-roster-expiry") if !short_roster => short_roster = true,
             Some("--registration") if !registration => registration = true,
             Some("--enrolled-peer") if !enrolled_peer => enrolled_peer = true,
+            Some("--policy-lifecycle") if !policy_lifecycle => policy_lifecycle = true,
             Some("--registration-extension") if !extension => extension = true,
             Some("--shared-account") if account_members.is_none() => {
                 account_members = Some(
@@ -123,6 +126,9 @@ fn main() -> Result<()> {
     if enrolled_peer && (!registration || account_members.is_none()) {
         return Err("enrolled peer requires registered shared account".into());
     }
+    if policy_lifecycle && (!enrolled_peer || required) {
+        return Err("policy lifecycle requires its original local enrolled peer".into());
+    }
     let options = fixture::Options {
         budget,
         peer_lifecycle,
@@ -132,6 +138,7 @@ fn main() -> Result<()> {
         extension,
         account_members,
         enrolled_peer,
+        policy_lifecycle,
     };
     let times = options.times();
     let directory = Path::new(&path);
@@ -139,7 +146,12 @@ fn main() -> Result<()> {
     let mut input = io::stdin().lock();
     let mut output = io::stdout().lock();
     let (peer_key, registration) = if registration {
-        let pending = registration::Pending::new(local_lifecycle, peer_lifecycle, extension)?;
+        let pending = registration::Pending::new(
+            local_lifecycle,
+            peer_lifecycle,
+            extension,
+            policy_lifecycle,
+        )?;
         send(&mut output, 1, pending.independent_intent())?;
         let accepted = pending.accept(&receive(&mut input, false)?)?;
         (accepted.public.clone(), Some(accepted))
@@ -198,6 +210,26 @@ fn main() -> Result<()> {
                 .ok_or("native maintenance before original session")?
                 .maintain(&fixture, payload)
                 .map_err(|error| format!("{error:?}")),
+            41 => fixture
+                .policy_renewal
+                .as_ref()
+                .ok_or("policy issuer unavailable")?
+                .approve_request(&fixture, payload)
+                .map_err(|error| error.to_string()),
+            42 => durable
+                .as_mut()
+                .ok_or("policy maintenance before original session")?
+                .renew_policy(&fixture, payload)
+                .map_err(|error| error.to_string()),
+            12 if payload.is_empty()
+                && durable.as_ref().is_some_and(|owner| owner.has_policy()) =>
+            {
+                durable
+                    .as_mut()
+                    .ok_or("missing native policy owner")?
+                    .reopen_policy(&fixture)
+                    .map_err(|error| error.to_string())
+            }
             4..=27 => {
                 if durable.is_none() {
                     if command != 4 {
