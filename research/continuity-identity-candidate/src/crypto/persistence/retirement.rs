@@ -108,30 +108,33 @@ impl SigningFilePlan {
         #[cfg(any(unix, windows))]
         {
             let file = Admitted::open(path)?;
-            check_file(&file.file, FILE_BYTES)?;
-            let mut wire = vec![0; FILE_BYTES];
-            file.backend.read(0, &mut wire)?;
-            if unseal(key, identity, 2, &wire)?.public != original.key {
-                return Err(DurableError::Conflict);
-            }
-            let (device, inode) = file_identity(&file.file)?;
-            let plan = Self {
-                identity,
-                device,
-                inode,
-                digest: crate::crypto::digest(
-                    b"Q-PERIAPT-CONTINUITY-RETIRED-SIGNER-FILE/v1",
-                    &wire,
-                ),
-                report: ack.proposal().clone(),
-            };
-            plan.check_ack(original, ack)?;
-            file.file.sync_all()?;
-            file.parent
-                .sync_entries()
-                .map_err(|_| DurableError::PrivateFile)?;
-            file.check_name(&plan)?;
-            Ok(plan)
+            let result = (|| {
+                check_file(&file.file, FILE_BYTES)?;
+                let mut wire = vec![0; FILE_BYTES];
+                file.backend.read(0, &mut wire)?;
+                if unseal(key, identity, 2, &wire)?.public != original.key {
+                    return Err(DurableError::Conflict);
+                }
+                let (device, inode) = file_identity(&file.file)?;
+                let plan = Self {
+                    identity,
+                    device,
+                    inode,
+                    digest: crate::crypto::digest(
+                        b"Q-PERIAPT-CONTINUITY-RETIRED-SIGNER-FILE/v1",
+                        &wire,
+                    ),
+                    report: ack.proposal().clone(),
+                };
+                plan.check_ack(original, ack)?;
+                file.file.sync_all()?;
+                file.parent
+                    .sync_entries()
+                    .map_err(|_| DurableError::PrivateFile)?;
+                file.check_name(&plan)?;
+                Ok(plan)
+            })();
+            file.finish(result)
         }
     }
     pub(crate) fn erased(
@@ -151,16 +154,19 @@ impl SigningFilePlan {
         #[cfg(any(unix, windows))]
         {
             let file = Admitted::open(path)?;
-            let erased = self.inspect(&file, key, original)?;
-            // A recovered terminal is not durable evidence until its exact file is synced.
-            if erased {
-                file.file.sync_all()?;
-                file.parent
-                    .sync_entries()
-                    .map_err(|_| DurableError::PrivateFile)?;
-            }
-            file.check_name(self)?;
-            Ok(erased)
+            let result = (|| {
+                let erased = self.inspect(&file, key, original)?;
+                // A recovered terminal is not durable evidence until its exact file is synced.
+                if erased {
+                    file.file.sync_all()?;
+                    file.parent
+                        .sync_entries()
+                        .map_err(|_| DurableError::PrivateFile)?;
+                }
+                file.check_name(self)?;
+                Ok(erased)
+            })();
+            file.finish(result)
         }
     }
     pub(crate) fn erase(
@@ -180,40 +186,43 @@ impl SigningFilePlan {
         #[cfg(any(unix, windows))]
         {
             let file = Admitted::open(path)?;
-            if !self.inspect(&file, key, original)? {
+            let result = (|| {
+                if !self.inspect(&file, key, original)? {
+                    #[cfg(test)]
+                    test_boundary(IoStage::HeaderWrite, false, &file)?;
+                    file.backend.write(0, TAG)?;
+                    #[cfg(test)]
+                    test_boundary(IoStage::HeaderWrite, true, &file)?;
+                    #[cfg(test)]
+                    test_boundary(IoStage::HeaderSync, false, &file)?;
+                    file.file.sync_all()?;
+                    #[cfg(test)]
+                    test_boundary(IoStage::HeaderSync, true, &file)?;
+                    #[cfg(test)]
+                    test_boundary(IoStage::Truncate, false, &file)?;
+                    file.backend.set_len(8)?;
+                    #[cfg(test)]
+                    test_boundary(IoStage::Truncate, true, &file)?;
+                }
                 #[cfg(test)]
-                test_boundary(IoStage::HeaderWrite, false, &file)?;
-                file.backend.write(0, TAG)?;
-                #[cfg(test)]
-                test_boundary(IoStage::HeaderWrite, true, &file)?;
-                #[cfg(test)]
-                test_boundary(IoStage::HeaderSync, false, &file)?;
+                test_boundary(IoStage::TerminalSync, false, &file)?;
                 file.file.sync_all()?;
                 #[cfg(test)]
-                test_boundary(IoStage::HeaderSync, true, &file)?;
+                test_boundary(IoStage::TerminalSync, true, &file)?;
                 #[cfg(test)]
-                test_boundary(IoStage::Truncate, false, &file)?;
-                file.backend.set_len(8)?;
+                test_boundary(IoStage::DirectorySync, false, &file)?;
+                file.parent
+                    .sync_entries()
+                    .map_err(|_| DurableError::PrivateFile)?;
                 #[cfg(test)]
-                test_boundary(IoStage::Truncate, true, &file)?;
-            }
-            #[cfg(test)]
-            test_boundary(IoStage::TerminalSync, false, &file)?;
-            file.file.sync_all()?;
-            #[cfg(test)]
-            test_boundary(IoStage::TerminalSync, true, &file)?;
-            #[cfg(test)]
-            test_boundary(IoStage::DirectorySync, false, &file)?;
-            file.parent
-                .sync_entries()
-                .map_err(|_| DurableError::PrivateFile)?;
-            #[cfg(test)]
-            test_boundary(IoStage::DirectorySync, true, &file)?;
-            if !self.inspect(&file, key, original)? {
-                return Err(DurableError::Conflict);
-            }
-            file.check_name(self)?;
-            Ok(())
+                test_boundary(IoStage::DirectorySync, true, &file)?;
+                if !self.inspect(&file, key, original)? {
+                    return Err(DurableError::Conflict);
+                }
+                file.check_name(self)?;
+                Ok(())
+            })();
+            file.finish(result)
         }
     }
     #[cfg(any(unix, windows))]
@@ -277,13 +286,29 @@ impl Admitted {
             .open_state_file(leaf)
             .map_err(|_| DurableError::PrivateFile)?;
         let backend = LockedFileBackend::new(file.try_clone()?).map_err(crate::durable::storage)?;
-        file_identity(&file)?;
-        Ok(Self {
+        let admitted = Self {
             file,
             backend,
             parent,
             leaf: leaf.to_owned(),
-        })
+        };
+        match file_identity(&admitted.file) {
+            Ok(_) => Ok(admitted),
+            Err(error) => admitted.finish(Err(error)),
+        }
+    }
+    // Closing a descriptor alone does not release an OFD lock while another
+    // descriptor survives (including a concurrent fork before exec). Finish the
+    // operation's lock explicitly on both success and ordinary error paths.
+    fn finish<T>(self, result: Result<T, DurableError>) -> Result<T, DurableError> {
+        match (result, self.backend.close()) {
+            (result, Ok(())) => result,
+            (Ok(_), Err(release)) => Err(release.into()),
+            (Err(operation), Err(release)) => Err(std::io::Error::other(format!(
+                "signing-file operation failed ({operation}); lock release failed ({release})"
+            ))
+            .into()),
+        }
     }
     fn check_identity(&self, plan: &SigningFilePlan) -> Result<(), DurableError> {
         if file_identity(&self.file)? != (plan.device, plan.inode) {

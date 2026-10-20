@@ -117,9 +117,28 @@ fn signer_retirement_metadata_checks_keep_exclusive_lock() {
         c.erase(&plan, &c.path).is_err(),
         "second erasure owner refused"
     );
-    drop(file);
+    file.finish(Ok(()))
+        .expect("explicit operation lock release");
     c.erase(&plan, &c.path)
         .expect("released lock permits exact retry");
+}
+
+#[test]
+fn signer_retirement_releases_lock_with_a_surviving_descriptor() {
+    for fail in [false, true] {
+        let c = Case::new();
+        let plan = c.capture(&c.path);
+        // A duplicate shares the open-file description, as an inherited descriptor
+        // can during a concurrent fork/exec. It must not extend this operation's lock.
+        let injection = inject(IoFault::RetainedDescriptor { fail });
+        assert_eq!(c.erase(&plan, &c.path).is_err(), fail);
+        assert!(injection.fired());
+        assert!(injection.descriptor_is_held());
+        c.erase(&plan, &c.path)
+            .expect("operation released its lock despite a surviving descriptor");
+        assert!(c.erased(&plan, &c.path).expect("same terminal readback"));
+        assert!(injection.descriptor_is_held());
+    }
 }
 
 #[test]

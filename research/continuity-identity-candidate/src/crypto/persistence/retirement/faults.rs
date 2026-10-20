@@ -14,16 +14,26 @@ pub(crate) enum IoStage {
 pub(crate) enum IoFault {
     Prefix(usize),
     Boundary(IoStage, bool),
+    RetainedDescriptor { fail: bool },
+}
+struct Injection {
+    fault: IoFault,
+    fired: std::rc::Rc<std::cell::Cell<bool>>,
+    descriptor: std::rc::Rc<std::cell::RefCell<Option<File>>>,
 }
 thread_local! {
-    static IO_FAULT: std::cell::RefCell<Option<(IoFault, std::rc::Rc<std::cell::Cell<bool>>)>> = const { std::cell::RefCell::new(None) };
+    static IO_FAULT: std::cell::RefCell<Option<Injection>> = const { std::cell::RefCell::new(None) };
 }
 pub(crate) struct IoFaultGuard {
     fired: std::rc::Rc<std::cell::Cell<bool>>,
+    descriptor: std::rc::Rc<std::cell::RefCell<Option<File>>>,
 }
 impl IoFaultGuard {
     pub(crate) fn fired(&self) -> bool {
         self.fired.get()
+    }
+    pub(crate) fn descriptor_is_held(&self) -> bool {
+        self.descriptor.borrow().is_some()
     }
 }
 impl Drop for IoFaultGuard {
@@ -38,11 +48,16 @@ pub(crate) fn inject(fault: IoFault) -> IoFaultGuard {
         assert!(n <= 8);
     }
     let fired = std::rc::Rc::new(std::cell::Cell::new(false));
+    let descriptor = std::rc::Rc::new(std::cell::RefCell::new(None));
     IO_FAULT.with(|s| {
         assert!(s.borrow().is_none());
-        *s.borrow_mut() = Some((fault, fired.clone()));
+        *s.borrow_mut() = Some(Injection {
+            fault,
+            fired: fired.clone(),
+            descriptor: descriptor.clone(),
+        });
     });
-    IoFaultGuard { fired }
+    IoFaultGuard { fired, descriptor }
 }
 pub(super) fn test_boundary(
     stage: IoStage,
@@ -51,19 +66,28 @@ pub(super) fn test_boundary(
 ) -> Result<(), DurableError> {
     let cut = IO_FAULT.with(|s| {
         let mut slot = s.borrow_mut();
-        let matches = slot.as_ref().is_some_and(|(fault, _)| match fault {
-            IoFault::Prefix(_) => stage == IoStage::HeaderWrite && !after,
-            IoFault::Boundary(at, side) => *at == stage && *side == after,
-        });
+        let matches = slot
+            .as_ref()
+            .is_some_and(|injection| match injection.fault {
+                IoFault::Prefix(_) => stage == IoStage::HeaderWrite && !after,
+                IoFault::Boundary(at, side) => at == stage && side == after,
+                IoFault::RetainedDescriptor { .. } => stage == IoStage::HeaderWrite && !after,
+            });
         if matches {
             slot.take()
         } else {
             None
         }
     });
-    if let Some((fault, fired)) = cut {
-        fired.set(true);
-        if let IoFault::Prefix(n) = fault {
+    if let Some(injection) = cut {
+        injection.fired.set(true);
+        if matches!(injection.fault, IoFault::RetainedDescriptor { .. }) {
+            *injection.descriptor.borrow_mut() = Some(file.file.try_clone()?);
+            if matches!(injection.fault, IoFault::RetainedDescriptor { fail: false }) {
+                return Ok(());
+            }
+        }
+        if let IoFault::Prefix(n) = injection.fault {
             file.backend
                 .write(0, TAG.get(..n).expect("bounded injected prefix"))?;
         }
