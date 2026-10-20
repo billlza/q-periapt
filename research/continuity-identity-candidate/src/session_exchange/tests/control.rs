@@ -35,20 +35,21 @@ fn complete_step(
     step: RekeyDeliveryStep,
     reply: Option<Vec<u8>>,
     run: &Run<'_>,
-) -> RekeyDeliveryStep {
-    match (step, reply) {
+) -> Result<RekeyDeliveryStep, &'static str> {
+    Ok(match (step, reply) {
         (RekeyDeliveryStep::Output(prepared), Some(reply)) => owner
             .complete_session_rekey(session, &prepared, &reply, run, || Ok(150))
             .expect("original detached control reply"),
         (RekeyDeliveryStep::LocallyConfirmed(epoch), None) => {
             RekeyDeliveryStep::LocallyConfirmed(epoch)
         }
-        _ => panic!("prepared request/reply inventory"),
-    }
+        _ => return Err("prepared request/reply inventory"),
+    })
 }
 
 #[test]
-fn opposing_control_phases_reopen_original_owners_and_accept_concurrently_advanced_history() {
+fn opposing_control_phases_reopen_original_owners_and_accept_concurrently_advanced_history(
+) -> Result<(), &'static str> {
     let (mut pair, a, b) = established();
     let cancel = Cancellation::default();
     for target in 1..=3 {
@@ -95,8 +96,8 @@ fn opposing_control_phases_reopen_original_owners_and_accept_concurrently_advanc
             // Both replies now encounter history advanced by incoming work.
             pair.a.reopen(&pair.policy);
             pair.b.reopen(&pair.policy);
-            first = complete_step(&mut pair.a.owner, &a, first, reply_first, &run(&cancel));
-            second = complete_step(&mut pair.b.owner, &b, second, reply_second, &run(&cancel));
+            first = complete_step(&mut pair.a.owner, &a, first, reply_first, &run(&cancel))?;
+            second = complete_step(&mut pair.b.owner, &b, second, reply_second, &run(&cancel))?;
         }
         progress(&mut pair.a.owner, &a, target);
         progress(&mut pair.b.owner, &b, target);
@@ -133,10 +134,12 @@ fn opposing_control_phases_reopen_original_owners_and_accept_concurrently_advanc
         Consumption::Confirmed
     );
     assert_eq!(effects.calls, 1);
+    Ok(())
 }
 
 #[test]
-fn detached_control_reply_refuses_wrong_owner_cancel_expiry_signature_and_empty_marker() {
+fn detached_control_reply_refuses_wrong_owner_cancel_expiry_signature_and_empty_marker(
+) -> Result<(), &'static str> {
     for failure in ["owner", "cancel", "expiry", "signature", "empty"] {
         let (mut pair, a, b) = established();
         let cancel = Cancellation::default();
@@ -147,7 +150,7 @@ fn detached_control_reply_refuses_wrong_owner_cancel_expiry_signature_and_empty_
             .expect("prepare")
         {
             RekeyDeliveryStep::Output(value) => value,
-            _ => panic!("initial control output required"),
+            _ => return Err("initial control output required"),
         };
         let before = pair
             .a
@@ -207,6 +210,7 @@ fn detached_control_reply_refuses_wrong_owner_cancel_expiry_signature_and_empty_
             RekeyDeliveryStep::Output(_)
         ));
     }
+    Ok(())
 }
 
 struct Control<'a> {
