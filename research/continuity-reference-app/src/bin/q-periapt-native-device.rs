@@ -28,6 +28,8 @@ const USAGE: &str = concat!(
     "renewal-status: no extra arguments (historical progress only)\n",
     "renewal-reconcile-expired: <issued-grant-json> <unchanged-live-policy-pins-json> ",
     "<unchanged-live-policy-materials-json> (local-only retained outcome, no activation)\n",
+    "renewal-witness-observe: <original-operation-base64url> <original-statement-base64url> ",
+    "<original-policy-pins-json> <original-policy-materials-json> <witness-address>\n",
     "renewal-stage/renewal-activate/renewal-witness-prepare: <approved-grant-request-json> ",
     "<issued-grant-json> <current-root-json> <original-policy-pins-json> ",
     "<original-policy-materials-json> <current-policy-pins-json> <current-policy-materials-json> ",
@@ -56,6 +58,7 @@ fn main() -> Result<()> {
             | "renewal-activate"
             | "renewal-witness-prepare"
             | "renewal-reconcile-expired"
+            | "renewal-witness-observe"
     ) {
         return native_renewal_cli::run(&args);
     }

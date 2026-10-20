@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Explicit original G commands; successful output follows owner closure.
-use super::{json, operator_io::print, Result, USAGE};
+use super::{
+    json,
+    operator_io::{identifier, print},
+    Result, USAGE,
+};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use q_periapt_continuity_identity_candidate::CredentialRenewalStatus;
 use q_periapt_continuity_reference_app::{
@@ -49,6 +53,7 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
     let count = match command {
         "renewal-status" => 5,
         "renewal-reconcile-expired" => 8,
+        "renewal-witness-observe" => 10,
         "renewal-stage" | "renewal-activate" => 13,
         "renewal-witness-prepare" => 14,
         _ => return Err(USAGE.into()),
@@ -74,6 +79,33 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
         let mut owner = NativeDevice::open(Path::new(&args[2]), Path::new(&args[3]), invitation)?;
         let result =
             progress(owner.reconcile_expired_credential_recovery(&issued, &policy, clock()?)?);
+        owner.close();
+        return print(&result);
+    }
+    if command == "renewal-witness-observe" {
+        let operation =
+            q_periapt_continuity_identity_candidate::CredentialRenewalId::from_trusted_state(
+                identifier(&args[5])?,
+            )?;
+        let statement = identifier(&args[6])?;
+        let pins: PolicyPins = json(&args[7], 16384)?;
+        let materials: PolicyMaterials = json(&args[8], 128 * 1024)?;
+        let (original, witness) = pins.verify_historical(&materials, invitation.family)?;
+        let witness =
+            witness.ok_or("Original policy must require an independently pinned witness")?;
+        let endpoint = args[9]
+            .to_str()
+            .ok_or("Witness endpoint is not UTF-8")?
+            .parse()?;
+        let mut owner = NativeDevice::open(Path::new(&args[2]), Path::new(&args[3]), invitation)?;
+        let result = progress(owner.observe_credential_recovery(
+            operation,
+            statement,
+            &original,
+            witness,
+            endpoint,
+            clock()?,
+        )?);
         owner.close();
         return print(&result);
     }

@@ -24,6 +24,45 @@ impl NativeDevice {
     pub fn credential_recovery_status(&mut self) -> Result<sdk::CredentialRenewalStatus> {
         Ok(self.owner.credential_renewal_status()?)
     }
+    /// Observe the exact retained witness operation, including after expiry.
+    /// SDK recovery can finish local terminal records and ACK their durability;
+    /// this call never prepares, commits or closes a remote target.
+    pub fn observe_credential_recovery(
+        &mut self,
+        operation: sdk::CredentialRenewalId,
+        statement: [u8; 32],
+        original_policy: &sdk::HistoricalSessionPolicy,
+        witness: sdk::AnchorPin,
+        endpoint: SocketAddr,
+        now: u64,
+    ) -> Result<sdk::CredentialRenewalStatus> {
+        let result = (|| {
+            if original_policy.family() != self.invitation.family
+                || original_policy.anchor_requirement()
+                    != sdk::AnchorRequirement::required(&witness)
+            {
+                return Err("Historical witness differs from the original policy".into());
+            }
+            let mut carrier = self.owner.credential_renewal_anchor_client(
+                original_policy,
+                current_time(now)?,
+                witness,
+                Box::new(sdk::AnchorTcpTransport::new(endpoint)),
+                Duration::from_secs(10),
+            )?;
+            Ok(self.owner.reconcile_witnessed_credential_renewal(
+                operation,
+                statement,
+                original_policy,
+                current_time(now)?,
+                &mut carrier,
+            )?)
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
     /// Reconcile an exact retained local-only G under its unchanged live policy.
     /// The issued response selects the original intent; the SDK validates the
     /// retained signed grant and journal. No new grant is staged or owner released.

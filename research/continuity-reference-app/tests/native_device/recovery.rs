@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-fn recovery_args(
+pub(super) fn recovery_args(
     c: &Case,
     command: &str,
     approval: &str,
@@ -36,15 +36,15 @@ fn result(args: &[OsString]) -> Result<serde_json::Value> {
     Ok(serde_json::from_slice(&invoke(args, true)?)?)
 }
 
-struct Recovery {
-    approval: CredentialGrantRequest,
-    issued: IssuedCredentialGrant,
-    current: RootInfo,
-    certificate: Vec<u8>,
-    roster: Vec<u8>,
-    pin: sdk::AccountPin,
+pub(super) struct Recovery {
+    pub(super) approval: CredentialGrantRequest,
+    pub(super) issued: IssuedCredentialGrant,
+    pub(super) current: RootInfo,
+    pub(super) certificate: Vec<u8>,
+    pub(super) roster: Vec<u8>,
+    pub(super) pin: sdk::AccountPin,
 }
-fn issue_recovery(
+pub(super) fn issue_recovery(
     c: &Case,
     retained: RetainedCredentialRequest,
     valid_until: u64,

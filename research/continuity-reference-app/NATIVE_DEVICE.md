@@ -206,6 +206,25 @@ policy. Then run `renewal-activate` with the same inputs and endpoint. This may
 send Commit for the prepared proposal; it cannot authorize it at the witness.
 Missing or mismatched witness configuration never falls back to local storage.
 
+After an unknown witness result, observe the exact retained operation and
+transaction statement with the original independently authenticated policy:
+
+```sh
+q-periapt-native-device renewal-witness-observe "$device_dir" "$wrapping_key" "$invitation" \
+  "$original_operation_base64url" "$original_statement_base64url" \
+  "$original_policy_pins" "$original_policy_materials" "$witness_address"
+```
+
+Keep the operation and statement from the original retained progress. In a joint
+policy transaction, its statement is not interchangeable with the credential
+grant's digest. Observation sends no Commit or Close and does not independently
+approve a witness target. It can recover existing local preparation, persist an
+authenticated terminal result, and acknowledge that durable result to the witness.
+Unavailable or Prepared remains Pending; neither establishes non-commit.
+Committed and Closed remain historical outcomes even after policy and credential
+expiry. This requires the original signer and exact pinned witness; it returns no
+runtime owner and cannot fall back to local recovery when the witness is offline.
+
 For an unresolved local-only G under an unchanged, still-live original policy:
 
 ```sh
@@ -224,7 +243,7 @@ path. A new grant needs a new explicitly authorized request; retain old outcomes
 
 The positive witness test exercises the native API over real TCP. Real-account
 browser/native recovery, the separate witness-operator product interface,
-historical or changed-policy CLI reconciliation, required-witness reconciliation
-and established-session traffic recovery remain separate integration work.
+historical or changed-policy local CLI reconciliation, changed-policy witness CLI
+cohorts and established-session traffic recovery remain separate integration work.
 `renewal-status` alone does not prove that an uncertain target never committed;
 required witness outcomes cannot fall back to local expiry reconciliation.

@@ -22,6 +22,10 @@ mod recovery;
 mod renewal;
 #[path = "../src/test_support.rs"]
 mod test_support;
+#[path = "native_device/witness.rs"]
+mod witness;
+#[path = "../src/test_support/witness.rs"]
+mod witness_support;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 fn write<T: serde::Serialize>(path: &Path, value: &T) -> Result<()> {
@@ -98,6 +102,13 @@ impl Case {
         Self::open_with_validity(1200)
     }
     fn open_with_validity(seconds: u64) -> Result<Self> {
+        Self::open_with_profile(seconds, 2400, None)
+    }
+    fn open_with_profile(
+        seconds: u64,
+        policy_seconds: u64,
+        witness: Option<&witness_support::Server>,
+    ) -> Result<Self> {
         let path = tempfile::tempdir()?.keep().canonicalize()?;
         fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
         eprintln!(
@@ -182,9 +193,15 @@ impl Case {
             Request {
                 bootstrap_mode: BootstrapMode::ReusableBoth,
                 valid_from: start,
-                valid_until: start + 2400,
+                valid_until: start + policy_seconds,
                 send_budget: 8,
-                anchor: Anchor::LocalOnly {},
+                anchor: match witness {
+                    None => Anchor::LocalOnly {},
+                    Some(server) => Anchor::Required {
+                        identity: *server.pin.identity().as_bytes(),
+                        key: server.pin.public_key().encode().to_vec(),
+                    },
+                },
             },
             clock()?,
         )?;
