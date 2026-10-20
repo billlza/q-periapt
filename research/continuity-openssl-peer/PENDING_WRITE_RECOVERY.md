@@ -42,7 +42,7 @@ recreate the source or reset the journal.
 
 The byte contract is the same 393-byte `QPWRPL01` proposal and bounded 8 MiB
 `QPWRMD01` metadata used by the native controller. The reference projects its
-single bootstrap, optional session and two retained account histories into the
+single bootstrap, optional session and retained account histories into the
 existing public retired-report grammar. Record IDs are deterministic hashes of
 the original journal correlation, session or account. These are projections of
 authenticated reference objects, not native database row identifiers.
@@ -56,6 +56,18 @@ it does not advertise unsupported one-time-prekey or fanout records.
 
 Roster history uses the distinct `QPIRHS01` tag with its original/current public
 credential identity, public key, validity and complete `IdentityState` encoding.
+Separate-account views retain that exact representation. A common account uses
+one roster record and one authority reference per object, rather than two roster
+records with the same account-derived ID. Its `QPIRHS02` history contains the
+original root key, family, policy, both original role bindings and rosters, and
+length-prefixed canonical `AccountState` and `AccountRecord` bytes. The complete
+grant collection and durable renewal outcome are retained; a role projection or
+collection hash alone is insufficient. Original role fields include device,
+generation, original checkpoint, credential/key/validity and current
+credential/validity. The two fixed roles are encoded local first, peer second.
+The common state can also be derived from an unadvanced original version-five
+session without mutating it. The public-view record-order, collision and
+eight-MiB bounds remain unchanged.
 The native structural inspector deliberately preserves those bytes as opaque
 public history. Domain verification against independent trust and approval of
 the business effect remain controller responsibilities. Structural inspection is
@@ -85,6 +97,25 @@ The second cycle exercises metadata larger than the ordinary control frame.
 Malformed framing, noncanonical fields, an unknown record with a recomputed
 commitment, wrong signature purpose, live-authority special completion and a
 renewal head relabeled as an ordinary write must all fail explicitly.
+
+`shared_pending_checks.py` adds three- and 32-device common accounts, including
+an already-applied lost result and two complete account renewals on the original
+installation. It parses both role bindings and the complete signed common
+history, and requires the native inspector to see exactly three records per
+established-session view. Each profile crosses eight actual process cuts;
+confirmation uses five fresh Queries per cycle without issuing a mutation.
+A fourth profile starts with all 2,031,616 business bytes and 123 outboxes.
+A genuine native-consumption ACK creates its interrupted shrinking write.
+After expiry, exact recovery removes that acknowledged row and preserves the
+old epoch and surviving ciphertexts. Its second complete metadata is 2,031,260
+bytes, within the unchanged eight-MiB bound. The same business-fill helper
+serves the local-only capacity regression.
+
+The common-account witness clock advances through 170/210/250/310. The native
+responder's enrollment is not renewed in these profiles, so resumed independent
+ciphertext is replay-checked locally; these checks do not claim bilateral native
+traffic after both original credentials expire. The separate-account scenarios
+above retain their existing native traffic/rekey evidence.
 
 The test clock advances the independent owner and witness through expiry; the
 native traffic counterpart retains fixture time 170. This isolates recovery and

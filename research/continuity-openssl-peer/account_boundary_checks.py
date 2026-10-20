@@ -132,47 +132,17 @@ def capacity(args):
     from registration_fixture import Fixture
     from shared_account_checks import start, request_arguments
     from local_budget_controls import inventory
-    from qperiapt_continuity_reference.storage_budget import MAX_STATE
     from qperiapt_continuity_reference.wire import require
     from traffic_checks import application
     f = Fixture(args, "capacity", account_members=32)
     parent = None
     try:
         _, session = start(f)
-        parent = f.owner()
-        with parent.session(170) as owner:
-            def current():
-                with owner._owner._state(operational=False) as (_, state):
-                    return inventory(state)
-            plain = bytes(range(256)) * 64
-            first_id = owner.next_id(now=170)
-            first_wire = owner.send(first_id, plain, b"", now=170)
-            for _ in range(63):
-                owner.send(owner.next_id(now=170), plain, b"", now=170)
-            offer = owner.prepare_rekey_offer(now=170)
-            response = f.call("full-rekey-response", 14, offer)
-            final = owner.accept_rekey_response(response, now=170)
-            receipt = f.call("full-rekey-receipt", 15, final)
-            require(owner.accept_rekey_receipt(receipt, now=170) == 1, "full common epoch")
-            cap = MAX_STATE - 65536
-            rows = 64
-            while current()["traffic_bytes"] < cap:
-                before = current()["traffic_bytes"]
-                remaining = cap - before
-                require(remaining >= 153 and rows < 128, "full common row bound")
-                size = min(16384, remaining - 153)
-                if 0 < remaining - 153 - size < 153:
-                    size -= 153
-                require(0 <= size <= 16384, "full common plaintext bound")
-                last_id = owner.next_id(now=170)
-                last_plain = b"g" * size
-                last_wire = owner.send(last_id, last_plain, b"", now=170)
-                rows += 1
-                require(current()["traffic_bytes"] - before == size + 153, "actual common row size")
-            original = current()
-            require(original["traffic_bytes"] == cap and original["outboxes"] == rows == 123, "full original business allowance")
-        parent.close()
-        parent = None
+        from account_capacity_fixture import fill
+        filled = fill(f)
+        plain, first_id, first_wire = (filled[name] for name in ("plain", "first_id", "first_wire"))
+        last_id, last_wire, last_plain = (filled[name] for name in ("last_id", "last_wire", "last_plain"))
+        original, cap, rows = (filled[name] for name in ("inventory", "traffic_bytes", "rows"))
         first = request_arguments(f, 32, "full-first", 1)
         f.worker("full-group-stage-kill", "credential_account_stage_files", first, now=210,
                  cut="session-store:committed:intent")

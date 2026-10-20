@@ -101,7 +101,7 @@ def qualify(args: argparse.Namespace) -> dict:
     cache.mkdir(mode=0o700)
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(("PYTHON", "PIP_", "DYLD_", "LD_"))}
-    result = {"schema_version": 4, "kind": "qperiapt.independent_python_installation",
+    result = {"schema_version": 5, "kind": "qperiapt.independent_python_installation",
               "completed": False, "release_claim_eligible": False, "source_commit": commit,
               "source_inputs": before, "wheel_sha256": wheel.sha256, "native_sha256": native.sha256}
 
@@ -225,6 +225,22 @@ def qualify(args: argparse.Namespace) -> dict:
                 and boundary["capacity"]["large_pending_image_bytes"] > 3 * 1024 * 1024,
                 "installed common account expiry or unchanged business allowance differs")
         account_results["boundaries"] = boundary
+        run([*interpreter, str(application / "shared_pending_checks.py"),
+             "--provider-root", str(provider), "--native", str(args.native),
+             "--output", str(output / "shared-pending")], "shared-pending")
+        pending = parse_strict_json_bytes(snapshot(output / "shared-pending/RESULT.json").data,
+                                          label="installed common pending recovery")
+        require(pending["source_files"] == current and pending["native_sha256"] == native.sha256
+                and [(row["members"], row["already_applied_first"]) for row in pending["profiles"]]
+                    == [(3, False), (3, True), (32, False), (32, False)]
+                and all(row["process_kills"] == 8 and row["query_only_confirmations"] == [5, 5]
+                        and row["metadata_bytes"][1] > row["metadata_bytes"][0]
+                        for row in pending["profiles"])
+                and pending["profiles"][-1]["metadata_bytes"][1] > 1024 * 1024
+                and pending["profiles"][-1]["full_business_bytes"] == 2031616
+                and pending["profiles"][-1]["full_business_rows"] == 123,
+                "installed common pending recovery source or workload differs")
+        account_results["pending_recovery"] = pending
         # The consumer adds only declared test files; pip's installed files and
         # all copied inputs must remain byte-identical after real process cuts.
         after = installed_files(application)

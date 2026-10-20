@@ -1,7 +1,9 @@
 """Complete public projection of this single-bootstrap/session journal profile."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from .bootstrap import digest as bootstrap_digest
-from .identity_state import IdentityState
+from .identity_state import IdentityState, local_view, peer_view
+from .account_snapshot import shared, initial_account
+from .account_record import AccountRecord
 from .pending_recovery_protocol import MAX_METADATA, number
 from .resolution import ciphertext_digest
 from .traffic import DOMAIN, message_id
@@ -41,12 +43,39 @@ def epoch_view(owner, state, epoch):
     return result + optional(reservation) + bytes([traffic._send_closed])
 
 
+def common_roster(state, context, local, peer):
+    """One complete public account history, with both original role bindings."""
+    account = state.account_authority or initial_account(context)
+    coordination = state.account_renewal or AccountRecord()
+    coordination.validate(account, local.original)
+    roles = []
+    for role, current in enumerate((local, peer)):
+        original = current.original
+        roles.append(bytes([role]) + original.pin.device + number(original.pin.generation)
+                     + original.pin.checkpoint() + original.credential + original.key.raw
+                     + number(original.validity.start) + number(original.validity.end)
+                     + current.current.digest + number(current.current.validity.start)
+                     + number(current.current.validity.end)
+                     + number(len(original.roster_wire)) + original.roster_wire)
+    # Include the full common grant/history and coordination bytes, not only a
+    # digest or a role's projection. These are public authenticated decisions.
+    account_wire, coordination_wire = account.encode(), coordination.encode()
+    history = (b"QPIRHS02" + account.authority.root.raw + account.family + account.policy
+               + items(roles) + number(len(account_wire)) + account_wire
+               + number(len(coordination_wire)) + coordination_wire)
+    return account.authority.account + account.listing.checkpoint() + number(len(history)) + history
+
+
 def encode(state, scope, head):
     context = state.operation._context; op = state.operation
-    local = state.local_authority or IdentityState.initial(context, role=0)
-    peer = state.peer_authority or IdentityState.initial(context, role=1)
+    local = local_view(state, context) or IdentityState.initial(context, role=0)
+    peer = peer_view(state, context) or IdentityState.initial(context, role=1)
     authorities = [digest(b"AUTHORITY", v.original.pin.account + v.listing.checkpoint() + context.family)
                    for v in (local, peer)]
+    common = shared(context)
+    if common:
+        require(authorities[0] == authorities[1], "common recovery authority differs between roles")
+        authorities = authorities[:1]
     # This profile has one bootstrap per original journal. Its immutable scope
     # identity is the host initiation correlation; all projected object IDs are
     # deterministic and never allocate a new business operation after expiry.
@@ -68,7 +97,12 @@ def encode(state, scope, head):
         identity = ldh(DOMAIN + b"record", owner.session)
         require(identity not in records, "projected record identity collision")
         records[identity] = record(identity, context.digest, 19, authorities, 3, session)
-    for role, identity_state in enumerate((local, peer)):
+    if common:
+        identity = ldh(b"Q-PERIAPT-CONTINUITY-JOURNAL-ROSTER/v1", local.original.pin.account)
+        require(identity not in records, "projected roster identity collision")
+        records[identity] = record(identity, context.digest, 20, authorities, 4,
+                                   common_roster(state, context, local, peer))
+    for role, identity_state in (() if common else enumerate((local, peer))):
         original = identity_state.original; identity = ldh(b"Q-PERIAPT-CONTINUITY-JOURNAL-ROSTER/v1", original.pin.account)
         require(identity not in records, "projected roster identity collision")
         # A distinct public-history tag identifies the reference representation;

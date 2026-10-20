@@ -84,9 +84,10 @@ These fixtures use explicit validity-test times in the independent consumer;
 the native traffic peer and witness use time 170. They do not establish
 simultaneous real-time expiry and renewal of both native enrollments. Peer-only
 common-account roster transitions remain refused until they have a proper
-common authority and witness transition. Privileged recovery of an ordinary
-common-account write still lacks its shared public-history projection and is
-refused. Compatibility with an actual archived version-five common-account
+common authority and witness transition. Ordinary pending-write recovery uses
+the [single common public-history projection](PENDING_WRITE_RECOVERY.md), with
+independent exact approval and fresh Query confirmation before publication.
+Compatibility with an actual archived version-five common-account
 writer still needs its own migration run; the unchanged separate-account
 version-seven migration is covered by its existing regression.
 Policy/root/witness replacement,
