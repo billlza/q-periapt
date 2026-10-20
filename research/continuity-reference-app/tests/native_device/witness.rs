@@ -36,6 +36,18 @@ fn witness_outcome(apply: bool) -> Result<()> {
     let mut server = witness_support::Server::start()?;
     let c = Case::open_with_profile(20, 30, Some(&server))?;
     let accepted = c.accept()?;
+    let mut policy_request = c.args("policy-request", &[]);
+    policy_request.extend([
+        URL_SAFE_NO_PAD.encode([124; 32]).into(),
+        c.path.join("policy-pins.json").into_os_string(),
+        c.path.join("policy-materials.json").into_os_string(),
+        c.path
+            .join("forbidden-local-policy-request.json")
+            .into_os_string(),
+    ]);
+    invoke(&policy_request, false)?;
+    assert!(!c.path.join("forbidden-local-policy-request.json").exists());
+    assert_eq!(c.call("policy-status", &[])?["state"], "Absent");
     let preparation = c.call(
         "prepare",
         &["current.json", "policy-pins.json", "policy-materials.json"],

@@ -1991,9 +1991,12 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-reference-app/src/native_device/mailbox.rs',
             'research/continuity-reference-app/src/native_device/mod.rs',
             'research/continuity-reference-app/src/native_device/peer.rs',
+            'research/continuity-reference-app/src/native_device/policy.rs',
             'research/continuity-reference-app/src/native_device/publication.rs',
             'research/continuity-reference-app/src/native_device/renewal.rs',
             'research/continuity-reference-app/src/native_renewal_cli.rs',
+            'research/continuity-reference-app/src/native_policy_cli.rs',
+            'research/continuity-reference-app/src/policy_renewal.rs',
             'research/continuity-reference-app/src/network/framing.rs',
             'research/continuity-reference-app/src/network/mod.rs',
             'research/continuity-reference-app/src/network/server.rs',
@@ -2010,6 +2013,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-reference-app/src/test_support/witness.rs',
             'research/continuity-reference-app/tests/native_device.rs',
             'research/continuity-reference-app/tests/native_device/publication.rs',
+            'research/continuity-reference-app/tests/native_device/policy.rs',
             'research/continuity-reference-app/tests/native_device/recovery.rs',
             'research/continuity-reference-app/tests/native_device/renewal.rs',
             'research/continuity-reference-app/tests/native_device/witness.rs',
@@ -2022,7 +2026,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 codeql_rust_quality, "run_git_bytes", return_value=raw
             ), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError,
-                "tracked Rust source count must be 819, got 818",
+                "tracked Rust source count must be 823, got 822",
             ):
                 codeql_rust_quality.tracked_rust_paths()
 

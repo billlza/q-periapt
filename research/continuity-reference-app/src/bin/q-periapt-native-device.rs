@@ -12,6 +12,8 @@ use q_periapt_continuity_reference_app::{
 use q_periapt_host_store::filesystem::publish_private_bytes;
 use serde::de::DeserializeOwned;
 use std::{ffi::OsString, path::Path};
+#[path = "../native_policy_cli.rs"]
+mod native_policy_cli;
 #[path = "../native_renewal_cli.rs"]
 mod native_renewal_cli;
 #[path = "../operator_io.rs"]
@@ -25,6 +27,11 @@ const USAGE: &str = concat!(
     "request: <new-request-output>\n",
     "renewal-request: <retained-renewal-id> <original-policy-pins-json> ",
     "<original-policy-materials-json> <witness-address-or-none> <new-request-output>\n",
+    "policy-status: no extra arguments (historical progress only)\n",
+    "policy-request: <original-policy-operation> <original-policy-pins> <original-policy-materials> <new-request-output>\n",
+    "policy-stage/policy-adopt: <retained-request> <account-approval> <policy-approval> <current-root> ",
+    "<original-pins> <original-materials> <previous-pins> <previous-materials> <target-pins> <target-materials>\n",
+    "policy-recover: <original-policy-operation> <original-statement> <original-policy-pins> <original-policy-materials>\n",
     "renewal-status: no extra arguments (historical progress only)\n",
     "renewal-reconcile-expired: <issued-grant-json> <unchanged-live-policy-pins-json> ",
     "<unchanged-live-policy-materials-json> (local-only retained outcome, no activation)\n",
@@ -51,6 +58,12 @@ fn json<T: DeserializeOwned>(path: &OsString, maximum: usize) -> Result<T> {
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();
     let command = args.get(1).and_then(|v| v.to_str()).ok_or(USAGE)?;
+    if matches!(
+        command,
+        "policy-request" | "policy-status" | "policy-stage" | "policy-adopt" | "policy-recover"
+    ) {
+        return native_policy_cli::run(&args);
+    }
     if matches!(
         command,
         "renewal-status"

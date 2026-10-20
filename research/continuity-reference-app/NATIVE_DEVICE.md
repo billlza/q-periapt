@@ -247,3 +247,9 @@ historical or changed-policy local CLI reconciliation, changed-policy witness CL
 cohorts and established-session traffic recovery remain separate integration work.
 `renewal-status` alone does not prove that an uncertain target never committed;
 required witness outcomes cannot fall back to local expiry reconciliation.
+
+## Independent policy-only renewal
+
+Use the [policy-only consumer workflow](POLICY_RENEWAL.md) for a same-profile
+validity extension with separate account and original-policy approvals. It keeps
+credentials and roster unchanged and does not grant fresh-bootstrap permission.
