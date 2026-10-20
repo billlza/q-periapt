@@ -161,6 +161,7 @@ fn commit(
         .commit_local_renewal(
             &authority,
             &LocalRenewalTarget {
+                companions: &[],
                 policy_renewal: None,
                 grant: g,
                 continuation: Some(&h),

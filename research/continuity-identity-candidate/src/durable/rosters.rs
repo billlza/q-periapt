@@ -89,11 +89,27 @@ pub(super) fn check_credential_renewal_intent(
         if grant.operation() == binding.operation && grant.statement_digest() == binding.credential
         {
             let target = LocalRenewalTarget {
+                companions: &[],
                 policy_renewal: None,
                 grant,
                 continuation,
             };
-            if target.receipt()? != *receipt {
+            let mut expected = target.receipt()?;
+            if receipt.account_binding.is_some() {
+                let companions = saved
+                    .renewals
+                    .values()
+                    .filter(|peer| {
+                        peer.successor_device().device_id() != grant.successor_device().device_id()
+                            && peer.previous_device().roster().checkpoint()
+                                == grant.previous_device().roster().checkpoint()
+                            && peer.successor_device().roster().checkpoint()
+                                == grant.successor_device().roster().checkpoint()
+                    })
+                    .collect::<Vec<_>>();
+                expected.account_binding = grant.companion_binding(&companions)?;
+            }
+            if expected != *receipt {
                 return Err(DurableError::Conflict);
             }
             matches += 1;
@@ -219,6 +235,7 @@ struct Stored {
     history: BTreeMap<[u8; 16], (u64, [u8; 32])>,
     renewals: BTreeMap<[u8; 16], VerifiedCredentialRenewal>,
     local_commit: Option<LocalRenewalCommit>,
+    account_commit: Option<LocalRenewalCommit>,
     policy_continuation: Option<crate::HistoricalPolicyContinuation>,
     policy_renewal: Option<StoredPolicyRenewal>,
     peer_retirement: Option<PeerRetirement>,
@@ -233,6 +250,7 @@ impl Stored {
                 .collect(),
             renewals: BTreeMap::new(),
             local_commit: None,
+            account_commit: None,
             policy_continuation: None,
             policy_renewal: None,
             peer_retirement: None,
@@ -298,6 +316,14 @@ impl Stored {
         if let Some(retirement) = &self.peer_retirement {
             payload = retirement.wrap(payload);
         }
+        if let Some(commit) = &self.account_commit {
+            let binding = commit.account_binding.ok_or(DurableError::Corrupt)?;
+            let mut wrapper = Zeroizing::new(b"QPRHST10".to_vec());
+            commit.encode(&mut wrapper);
+            wrapper.extend_from_slice(&binding);
+            wrapper.extend_from_slice(&payload);
+            payload = wrapper;
+        }
         Ok(Record {
             kind: RecordKind::Roster,
             context: self.roster.checkpoint().digest(),
@@ -308,6 +334,16 @@ impl Stored {
             cancellation: None,
             payload,
         })
+    }
+    fn credential_receipt(
+        &self,
+        grant: &VerifiedCredentialRenewal,
+    ) -> Result<LocalRenewalCommit, DurableError> {
+        match &self.account_commit {
+            Some(commit) if commit.matches_credential_grant(grant) => Ok(commit.clone()),
+            Some(_) => Err(DurableError::Conflict),
+            None => Ok(LocalRenewalCommit::for_grant(grant)),
+        }
     }
     fn require_live_account(&self) -> Result<(), DurableError> {
         if self.peer_retirement.is_some() {
@@ -334,6 +370,20 @@ fn decode_with_cache(
     }
     let mut decoder = Decoder::new(&record.payload);
     let tag = decoder.array::<8>()?;
+    let account_commit = if tag == *b"QPRHST10" {
+        let mut commit = LocalRenewalCommit::decode(&mut decoder)?;
+        let binding = decoder.array()?;
+        crate::codec::nonzero(&binding)?;
+        commit.account_binding = Some(binding);
+        Some(commit)
+    } else {
+        None
+    };
+    let tag = if account_commit.is_some() {
+        decoder.array::<8>()?
+    } else {
+        tag
+    };
     let peer_retirement = if tag == *b"QPRHST07" {
         Some(PeerRetirement::decode(&mut decoder)?)
     } else {
@@ -425,7 +475,14 @@ fn decode_with_cache(
         tag == *b"QPRHST03"
     };
     let local_commit = if has_commit {
-        let commit = LocalRenewalCommit::decode(&mut decoder)?;
+        let mut commit = LocalRenewalCommit::decode(&mut decoder)?;
+        commit.account_binding = account_commit.as_ref().and_then(|c| c.account_binding);
+        if account_commit
+            .as_ref()
+            .is_some_and(|account| account != &commit)
+        {
+            return Err(DurableError::Corrupt);
+        }
         if commit.target.version() > roster.checkpoint().version()
             || (commit.target.version() == roster.checkpoint().version()
                 && commit.target != roster.checkpoint())
@@ -464,11 +521,19 @@ fn decode_with_cache(
     {
         return Err(DurableError::Corrupt);
     }
+    if account_commit.as_ref().is_some_and(|c| {
+        c.target.version() > roster.checkpoint().version()
+            || (c.target.version() == roster.checkpoint().version()
+                && c.target != roster.checkpoint())
+    }) {
+        return Err(DurableError::Corrupt);
+    }
     Ok(Stored {
         roster,
         history,
         renewals,
         local_commit,
+        account_commit,
         policy_continuation,
         policy_renewal,
         peer_retirement,
@@ -745,11 +810,17 @@ fn check_continuation_completion(image: &Image, saved: &Stored) -> Result<(), Du
                 .as_ref()
                 .ok_or(DurableError::Conflict)?;
             let target = LocalRenewalTarget {
+                companions: &[],
                 policy_renewal: None,
                 grant,
                 continuation: (t.scope().operation == grant.operation()).then_some(t),
             };
-            if saved.local_commit.as_ref() != Some(&target.receipt()?) {
+            let mut expected = target.receipt()?;
+            // This is a check of the retained local policy completion. Its
+            // account binding is an authenticated historical commit fact; later
+            // peer changes must not require reconstructing the old collection.
+            expected.account_binding = saved.local_commit.as_ref().and_then(|c| c.account_binding);
+            if saved.local_commit.as_ref() != Some(&expected) {
                 return Err(DurableError::Conflict);
             }
             Ok(())

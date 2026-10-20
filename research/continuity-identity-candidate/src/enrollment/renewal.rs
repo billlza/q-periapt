@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Original enrollment's bounded, cross-file credential-renewal transaction.
 use super::*;
+mod account;
+pub(super) use account::{AccountRenewal, MAX_ACCOUNT_IMAGE};
 mod expiry;
 mod request;
 mod storage;
@@ -121,6 +123,11 @@ struct Pending {
     wire: Vec<u8>,
     continuation: Option<Vec<u8>>,
 }
+#[derive(Default)]
+struct RenewalExtensions<'a> {
+    continuation: Option<&'a crate::VerifiedPolicyContinuation>,
+    account: Option<&'a AccountRenewal>,
+}
 struct ExpiredRenewal {
     operation: CredentialRenewalId,
     statement: [u8; 32],
@@ -155,6 +162,7 @@ pub(super) struct LocalRenewal {
     expired: Option<ExpiredRenewal>,
     witness: Option<witness::WitnessRenewal>,
     adopted_policy: Option<Vec<u8>>,
+    account: Option<AccountRenewal>,
 }
 impl LocalRenewal {
     pub(super) fn permits_policy_credential(&self, policy_pending: bool) -> bool {
@@ -420,6 +428,7 @@ impl LocalRenewal {
                 None
             },
             adopted_policy: if joint { decode_continuation(d)? } else { None },
+            account: None,
         };
         if value.joint() != joint
             || value.policy_coordination() != policy_coordination
@@ -586,7 +595,7 @@ impl DeviceEnrollment {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<CredentialRenewalStatus, DurableError> {
-        self.stage_renewal(grant, operation, policy, now, None)
+        self.stage_renewal(grant, operation, policy, now, RenewalExtensions::default())
             .await
     }
     /// Durably stage one independently double-approved credential/policy target
@@ -601,8 +610,17 @@ impl DeviceEnrollment {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<CredentialRenewalStatus, DurableError> {
-        self.stage_renewal(grant, operation, policy, now, Some(continuation))
-            .await
+        self.stage_renewal(
+            grant,
+            operation,
+            policy,
+            now,
+            RenewalExtensions {
+                continuation: Some(continuation),
+                account: None,
+            },
+        )
+        .await
     }
     pub(super) fn retained_policy(
         &self,
@@ -635,10 +653,10 @@ impl DeviceEnrollment {
         operation: CredentialRenewalId,
         policy: &VerifiedSessionPolicy,
         now: u64,
-        continuation: Option<&crate::VerifiedPolicyContinuation>,
+        extensions: RenewalExtensions<'_>,
     ) -> Result<CredentialRenewalStatus, DurableError> {
         let result = self
-            .stage_renewal_attempt(grant, operation, policy, now, continuation)
+            .stage_renewal_attempt(grant, operation, policy, now, extensions)
             .await;
         if result.is_err() {
             self.close();
@@ -651,8 +669,9 @@ impl DeviceEnrollment {
         operation: CredentialRenewalId,
         policy: &VerifiedSessionPolicy,
         now: u64,
-        continuation: Option<&crate::VerifiedPolicyContinuation>,
+        extensions: RenewalExtensions<'_>,
     ) -> Result<CredentialRenewalStatus, DurableError> {
+        let continuation = extensions.continuation;
         let mut image = self.image()?;
         image.check_time_floor(now)?;
         let independent = self.completed_policy_approval(&image)?;
@@ -714,6 +733,11 @@ impl DeviceEnrollment {
                 if p.operation != operation
                     || p.statement != statement
                     || p.continuation.is_some() != joint.is_some()
+                    || !match (&renewal.account, extensions.account) {
+                        (None, None) => true,
+                        (Some(saved), Some(request)) => saved.same_request(request),
+                        _ => false,
+                    }
                 {
                     return Err(DurableError::Conflict);
                 }
@@ -732,6 +756,13 @@ impl DeviceEnrollment {
                 .as_ref()
                 .filter(|c| c.operation == operation && c.statement == statement)
             {
+                if !match (&renewal.account, extensions.account) {
+                    (None, None) => true,
+                    (Some(saved), Some(request)) => saved.same_request(request),
+                    _ => false,
+                } {
+                    return Err(DurableError::Conflict);
+                }
                 if joint.is_some()
                     && adopted
                         .as_ref()
@@ -788,6 +819,11 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         admit(grant.successor_device(), policy, now)?;
+        if let Some(account) = extensions.account {
+            for peer in account.verify(grant, &original)? {
+                admit(peer.successor_device(), policy, now)?;
+            }
+        }
         if image.renewal.is_none() {
             image.renewal = Some(LocalRenewal {
                 origin: Origin {
@@ -804,6 +840,7 @@ impl DeviceEnrollment {
                     .binding()
                     .map(|_| witness::WitnessRenewal::new()),
                 adopted_policy: None,
+                account: None,
             });
         }
         image.renewal.as_mut().ok_or(DurableError::Corrupt)?.pending = Some(Pending {
@@ -814,6 +851,7 @@ impl DeviceEnrollment {
                 .as_ref()
                 .map(crate::HistoricalPolicyContinuation::journal_bytes),
         });
+        image.renewal.as_mut().ok_or(DurableError::Corrupt)?.account = extensions.account.cloned();
         if independent.is_some() {
             image.policy_device_binding = super::PolicyDeviceBinding::CredentialRenewal;
         }
@@ -1005,7 +1043,9 @@ impl DeviceEnrollment {
             .as_deref()
             .map(|bytes| self.retained_policy(bytes))
             .transpose()?;
+        let companions = self.account_grants(&image, grant, &original)?;
         let target = LocalRenewalTarget {
+            companions: &companions,
             policy_renewal: independent.as_ref().map(|p| (p, &original)),
             grant,
             continuation: continuation.as_ref(),
@@ -1144,7 +1184,9 @@ impl DeviceEnrollment {
                 Self::check_policy_scope(t, &original, admission)?;
                 t.check_target(policy.historical())?;
             }
+            let companions = self.account_grants(&image, &grant, &original)?;
             let target = LocalRenewalTarget {
+                companions: &companions,
                 policy_renewal: independent.as_ref().map(|p| (p, &original)),
                 grant: &grant,
                 continuation: continuation.as_ref(),
@@ -1163,7 +1205,7 @@ impl DeviceEnrollment {
                             renewal.completed.as_ref(),
                         )
                         .await?;
-                    if continuation.is_some() || independent.is_some() {
+                    if continuation.is_some() || independent.is_some() || !companions.is_empty() {
                         journal
                             .commit_local_renewal(&authority, &target, current, now)
                             .await?

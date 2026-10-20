@@ -6,6 +6,7 @@ use super::*;
 // enrollment coordinator. Historical approvals are not current permission.
 pub(crate) struct LocalRenewalTarget<'a> {
     pub(crate) grant: &'a VerifiedCredentialRenewal,
+    pub(crate) companions: &'a [VerifiedCredentialRenewal],
     pub(crate) continuation: Option<&'a crate::HistoricalPolicyContinuation>,
     pub(crate) policy_renewal: Option<(&'a crate::HistoricalPolicyRenewal, &'a VerifiedDevice)>,
 }
@@ -13,12 +14,16 @@ impl<'a> LocalRenewalTarget<'a> {
     pub(crate) fn credential(grant: &'a VerifiedCredentialRenewal) -> Self {
         Self {
             grant,
+            companions: &[],
             continuation: None,
             policy_renewal: None,
         }
     }
     pub(crate) fn receipt(&self) -> Result<LocalRenewalCommit, DurableError> {
         let mut receipt = LocalRenewalCommit::for_grant(self.grant);
+        receipt.account_binding = self
+            .grant
+            .companion_binding(&self.companions.iter().collect::<Vec<_>>())?;
         if let Some(t) = self.continuation {
             t.check_credential(self.grant)?;
             receipt.statement = t.statement_digest();
@@ -116,8 +121,11 @@ impl<'a> LocalRenewalTarget<'a> {
                 _ => return Err(DurableError::Conflict),
             }
         }
+        let grants = std::iter::once(self.grant)
+            .chain(self.companions.iter())
+            .collect::<Vec<_>>();
         let mut updated =
-            saved.advance_with_renewal(self.grant.successor_device().roster(), Some(self.grant))?;
+            saved.advance_with_renewals(self.grant.successor_device().roster(), &grants)?;
         if self.policy_renewal.is_some() {
             updated
                 .policy_renewal
@@ -131,13 +139,25 @@ impl<'a> LocalRenewalTarget<'a> {
         if let Some(t) = self.continuation {
             updated.policy_continuation = Some(t.clone());
         }
-        updated.local_commit = Some(self.receipt()?);
+        let receipt = self.receipt()?;
+        updated.account_commit = receipt.account_binding.map(|_| receipt.clone());
+        updated.local_commit = Some(receipt);
         Ok(updated)
+    }
+    fn admit(&self, policy: &crate::VerifiedSessionPolicy, now: u64) -> Result<(), DurableError> {
+        for grant in std::iter::once(self.grant).chain(self.companions.iter()) {
+            if grant.policy_digest() != self.grant.policy_digest() {
+                return Err(DurableError::Conflict);
+            }
+            crate::installation::admit(grant.successor_device(), policy, now)?;
+        }
+        Ok(())
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct LocalRenewalCommit {
+    pub(crate) account_binding: Option<[u8; 32]>,
     pub(crate) operation: CredentialRenewalId,
     pub(crate) statement: [u8; 32],
     pub(crate) owner: [u8; 32],
@@ -146,8 +166,17 @@ pub(crate) struct LocalRenewalCommit {
     pub(crate) credential: [u8; 32],
 }
 impl LocalRenewalCommit {
+    // Only identifies the local grant within an already authenticated journal
+    // fact. Full request reconciliation must still compare the entire receipt,
+    // including account_binding, against original enrollment.
+    pub(super) fn matches_credential_grant(&self, grant: &VerifiedCredentialRenewal) -> bool {
+        let mut expected = Self::for_grant(grant);
+        expected.account_binding = self.account_binding;
+        self == &expected
+    }
     pub(crate) fn for_grant(grant: &VerifiedCredentialRenewal) -> Self {
         Self {
+            account_binding: None,
             operation: grant.operation(),
             statement: grant.statement_digest(),
             owner: grant.original_storage_owner(),
@@ -175,6 +204,7 @@ impl LocalRenewalCommit {
         }
         let target = RosterCheckpoint::from_trusted_state(d.u64()?, d.array()?)?;
         Ok(Self {
+            account_binding: None,
             operation,
             statement,
             owner,
@@ -284,7 +314,7 @@ impl DeviceJournal {
             t.check_context_policy(scope.original_policy, policy)?;
         }
         self.check_release(&image).await?;
-        crate::installation::admit(grant.successor_device(), policy, now)?;
+        target.admit(policy, now)?;
         let updated = target.advance(saved)?;
         let policy_intent = if let Some((approval, _)) = target.policy_renewal {
             Some(write_intent::PolicyIntent::RetainIndependent(
@@ -316,7 +346,7 @@ impl DeviceJournal {
         )?;
         // Preserve the preparation if authority closes during persistence,
         // but withhold a fresh successful return from that closed runtime.
-        crate::installation::admit(grant.successor_device(), policy, now)?;
+        target.admit(policy, now)?;
         Ok(proposal)
     }
 
@@ -376,15 +406,6 @@ impl DeviceJournal {
     }
     // Called only by original enrollment while its exact pending intent is held.
     // This publishes historical classification, never operational authority.
-    pub(crate) async fn inspect_local_credential_renewal(
-        &mut self,
-        authority: &crate::RetainedInstallationAuthority,
-        grant: &VerifiedCredentialRenewal,
-        policy: &crate::VerifiedSessionPolicy,
-    ) -> Result<LocalRenewalResolution, DurableError> {
-        self.inspect_local_renewal_target(authority, &LocalRenewalTarget::credential(grant), policy)
-            .await
-    }
     pub(crate) async fn inspect_local_renewal_target(
         &mut self,
         authority: &crate::RetainedInstallationAuthority,
@@ -473,7 +494,7 @@ impl DeviceJournal {
             self.check_release(&image).await?;
             return Ok(receipt);
         }
-        crate::installation::admit(target.grant.successor_device(), policy, now)?;
+        target.admit(policy, now)?;
         // Both credential and policy predecessor CAS occur in this original
         // journal transaction; no independent T write can race the credential.
         let updated = target.advance(saved)?;
@@ -487,19 +508,6 @@ impl DeviceJournal {
     // A new intent may follow an already completed enrollment whose journal
     // receipt acknowledgement was interrupted. Never mistake a committed PENDING
     // target for that older completion: its receipt must survive config recovery.
-    pub(crate) async fn reconcile_prior_local_renewal(
-        &mut self,
-        authority: &crate::RetainedInstallationAuthority,
-        pending: &VerifiedCredentialRenewal,
-        completed: Option<&LocalRenewalCommit>,
-    ) -> Result<(), DurableError> {
-        self.reconcile_prior_local_target(
-            authority,
-            &LocalRenewalTarget::credential(pending),
-            completed,
-        )
-        .await
-    }
     pub(crate) async fn reconcile_prior_local_target(
         &mut self,
         authority: &crate::RetainedInstallationAuthority,

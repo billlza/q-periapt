@@ -262,6 +262,7 @@ fn continued_peer_case(
         .commit_local_renewal(
             &authority,
             &LocalRenewalTarget {
+                companions: &[],
                 policy_renewal: None,
                 grant: &c.grant,
                 continuation: Some(&historical),

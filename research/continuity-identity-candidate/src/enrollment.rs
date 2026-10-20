@@ -1414,6 +1414,12 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
         wrapper.extend_from_slice(&bytes);
         bytes = wrapper;
     }
+    let account = image.renewal.as_ref().filter(|r| r.has_account_extension());
+    if account.is_some() {
+        let mut wrapper = b"QPENST20".to_vec();
+        wrapper.extend_from_slice(&bytes);
+        bytes = wrapper;
+    }
     bytes.extend_from_slice(&binding);
     bytes.extend_from_slice(image.identity.as_bytes());
     match &image.phase {
@@ -1474,6 +1480,11 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
     if let Some(preparation) = &image.preparation {
         preparation.encode(&mut bytes)?;
     }
+    let account_start = bytes.len();
+    if let Some(account) = account {
+        account.encode_account(&mut bytes)?;
+    }
+    let account_size = bytes.len() - account_start + if account.is_some() { 8 } else { 0 };
     let mut mac = auth(key)?;
     mac.update(&bytes);
     bytes.extend_from_slice(&mac.finalize().into_bytes());
@@ -1491,7 +1502,7 @@ fn encode(key: &JournalKey, binding: [u8; 32], image: &Image) -> Result<Vec<u8>,
     } else {
         MAX_IMAGE
     };
-    if bytes.len() > limit {
+    if bytes.len() - account_size > limit || bytes.len() > renewal::MAX_ACCOUNT_IMAGE {
         return Err(DurableError::Capacity);
     }
     Ok(bytes)
@@ -1571,7 +1582,7 @@ fn read_snapshot(
     })
 }
 fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Image, DurableError> {
-    if wire.len() < 105 || wire.len() > MAX_PREINSTALLATION_IMAGE {
+    if wire.len() < 105 || wire.len() > renewal::MAX_ACCOUNT_IMAGE {
         return Err(DurableError::Corrupt);
     }
     let (body, tag) = wire.split_at(wire.len() - 32);
@@ -1581,8 +1592,13 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
         .map_err(|_| DurableError::Authentication)?;
     let mut d = Decoder::new(body);
     let tag = d.array::<8>()?;
+    let has_account = tag == *b"QPENST20";
+    let tag = if has_account { d.array::<8>()? } else { tag };
+    if !has_account && wire.len() > MAX_PREINSTALLATION_IMAGE {
+        return Err(DurableError::Corrupt);
+    }
     let has_preparation = tag == *b"QPENST19";
-    if !has_preparation && wire.len() > MAX_RENEWAL_IMAGE {
+    if !has_account && !has_preparation && wire.len() > MAX_RENEWAL_IMAGE {
         return Err(DurableError::Corrupt);
     }
     let tag = if has_preparation {
@@ -1695,7 +1711,7 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
     {
         return Err(DurableError::Corrupt);
     }
-    let renewal = if tag == *b"QPENST02"
+    let mut renewal = if tag == *b"QPENST02"
         || tag == *b"QPENST03"
         || tag == *b"QPENST04"
         || tag == *b"QPENST05"
@@ -1776,6 +1792,21 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
     } else {
         None
     };
+    if has_account {
+        let base_size = wire.len() - d.remaining() - 8;
+        let base_limit = if has_preparation {
+            MAX_PREINSTALLATION_IMAGE
+        } else {
+            MAX_RENEWAL_IMAGE
+        };
+        if base_size > base_limit {
+            return Err(DurableError::Corrupt);
+        }
+        renewal
+            .as_mut()
+            .ok_or(DurableError::Corrupt)?
+            .decode_account(&mut d)?;
+    }
     d.finish()?;
     let image = Image {
         identity,

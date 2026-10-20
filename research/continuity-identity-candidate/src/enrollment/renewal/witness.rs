@@ -474,7 +474,9 @@ impl DeviceEnrollment {
             };
             Self::check_policy_scope(t, original, admission)?;
         }
+        let companions = self.account_grants(image, &grant, original)?;
         let target = LocalRenewalTarget {
+            companions: &companions,
             policy_renewal: None,
             grant: &grant,
             continuation: continuation.as_ref(),
@@ -685,6 +687,7 @@ impl DeviceEnrollment {
         let image = self.image_for_witnessed_credential()?;
         let (original, id) = self.witness_scope(&image, original_policy, now).await?;
         let grant = self.pending_grant(&image, &original, original_policy)?;
+        let companions = self.account_grants(&image, &grant, &original)?;
         let renewal = image.renewal.as_ref().ok_or(DurableError::Corrupt)?;
         let continuation = renewal
             .pending
@@ -738,6 +741,7 @@ impl DeviceEnrollment {
                             original_device: &original,
                         },
                         &LocalRenewalTarget {
+                            companions: &companions,
                             policy_renewal: independent.as_ref().map(|p| (p, &original)),
                             grant: &grant,
                             continuation: continuation.as_ref(),
@@ -1072,7 +1076,9 @@ impl DeviceEnrollment {
                 .and_then(|p| p.continuation.as_deref())
                 .map(|bytes| self.retained_policy(bytes))
                 .transpose()?;
+            let companions = self.account_grants(&image, &grant, &original)?;
             let target = LocalRenewalTarget {
+                companions: &companions,
                 policy_renewal: None,
                 grant: &grant,
                 continuation: continuation.as_ref(),
@@ -1105,6 +1111,9 @@ impl DeviceEnrollment {
                         return Err(DurableError::Conflict);
                     }
                     admit(grant.successor_device(), current, now)?;
+                    for peer in &companions {
+                        admit(peer.successor_device(), current, now)?;
+                    }
                     Some(AnchorOperation::commit_credential_renewal(
                         &proposal.proposal()?,
                     ))

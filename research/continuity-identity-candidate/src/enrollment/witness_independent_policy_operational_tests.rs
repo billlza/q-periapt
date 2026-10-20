@@ -5,7 +5,7 @@ use crate::enrollment::tests::policy_continuation::policy;
 #[path = "witness_pending_write_policy_tests.rs"]
 mod pending_write;
 
-fn approved_at(
+pub(in crate::enrollment::tests::witness_renewal) fn approved_at(
     f: &Fixture,
     previous: &VerifiedSessionPolicy,
     version: u64,
@@ -46,7 +46,7 @@ fn approved_at(
         proof,
     }
 }
-fn prepared_at(
+pub(in crate::enrollment::tests::witness_renewal) fn prepared_at(
     f: &Fixture,
     a: &Approval,
     previous: &VerifiedSessionPolicy,
@@ -87,7 +87,12 @@ fn prepared_at(
     );
     proposal
 }
-fn applied_at(f: &Fixture, a: &Approval, p: PolicyProposal, now: u64) {
+pub(in crate::enrollment::tests::witness_renewal) fn applied_at(
+    f: &Fixture,
+    a: &Approval,
+    p: PolicyProposal,
+    now: u64,
+) {
     let mut owner = open(&f.c);
     let mut client = policy_client(f, &mut owner);
     assert_eq!(
@@ -104,7 +109,7 @@ fn applied_at(f: &Fixture, a: &Approval, p: PolicyProposal, now: u64) {
     );
     owner.close();
 }
-fn activate(
+pub(in crate::enrollment::tests::witness_renewal) fn activate(
     f: &Fixture,
     policy: &VerifiedSessionPolicy,
     now: u64,

@@ -369,6 +369,48 @@ pub(crate) struct ResolvedSessionIdentity {
     pub(crate) owner: [u8; 32],
 }
 impl VerifiedCredentialRenewal {
+    pub(crate) fn companion_binding(
+        &self,
+        companions: &[&Self],
+    ) -> Result<Option<[u8; 32]>, Error> {
+        if companions.is_empty() {
+            return Ok(None);
+        }
+        if companions.len() >= MAX_DEVICES {
+            return Err(Error::Capacity);
+        }
+        let mut ordered = std::collections::BTreeMap::new();
+        for grant in companions {
+            if grant.successor_device().device_id() == self.successor_device().device_id()
+                || grant.policy_digest() != self.policy_digest()
+                || !grant
+                    .previous_device()
+                    .roster()
+                    .same_authority(self.previous_device().roster())
+                || grant.previous_device().roster().checkpoint()
+                    != self.previous_device().roster().checkpoint()
+                || grant.successor_device().roster().checkpoint()
+                    != self.successor_device().roster().checkpoint()
+                || ordered
+                    .insert(grant.successor_device().device_id(), *grant)
+                    .is_some()
+            {
+                return Err(Error::Scope);
+            }
+        }
+        let mut semantic = self.operation().as_bytes().to_vec();
+        semantic.extend_from_slice(&self.statement_digest());
+        for (id, grant) in ordered {
+            semantic.extend_from_slice(&id);
+            semantic.extend_from_slice(grant.operation().as_bytes());
+            semantic.extend_from_slice(&grant.statement_digest());
+        }
+        Ok(Some(digest(
+            b"Q-PERIAPT-ENROLLMENT-ACCOUNT-RENEWAL/v1",
+            &semantic,
+        )))
+    }
+
     pub(crate) fn resolve_established(
         &self,
         original: &VerifiedDevice,

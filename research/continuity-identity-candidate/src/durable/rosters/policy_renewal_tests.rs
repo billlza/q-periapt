@@ -377,6 +377,7 @@ fn real_g_commit_and_ack_sync_failures_keep_policy_approval_and_credential_atomi
         c.old.checkpoint().digest(),
     );
     let target = LocalRenewalTarget {
+        companions: &[],
         grant: &g,
         continuation: None,
         policy_renewal: Some((&a, &c.device)),

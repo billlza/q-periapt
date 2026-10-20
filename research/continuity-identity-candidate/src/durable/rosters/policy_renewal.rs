@@ -158,7 +158,7 @@ fn credential_precedes_policy(
     };
     let matches = |grant: &crate::VerifiedCredentialRenewal| {
         let checkpoint = grant.successor_device().roster().checkpoint();
-        receipt == &LocalRenewalCommit::for_grant(grant)
+        receipt.matches_credential_grant(grant)
             && grant.original_storage_owner() == image.owner
             && grant.original_credential_digest() == scope.original_credential
             && grant.policy_digest() == scope.original_policy.digest()
@@ -187,7 +187,10 @@ fn credential_follows_policy(
     matches!(image.protection, Protection::Required { .. })
         && retained.carried_grant.as_ref().is_some_and(|g| {
             g.successor_device().credential_digest() != retained.approval.scope().current_credential
-                && saved.local_commit.as_ref() == Some(&LocalRenewalCommit::for_grant(g))
+                && saved
+                    .local_commit
+                    .as_ref()
+                    .is_some_and(|c| c.matches_credential_grant(g))
         })
 }
 
@@ -334,7 +337,7 @@ pub(super) fn check_scope(image: &Image, saved: &Stored) -> Result<(), DurableEr
             || saved
                 .local_commit
                 .as_ref()
-                .is_some_and(|receipt| receipt != &LocalRenewalCommit::for_grant(grant))
+                .is_some_and(|receipt| !receipt.matches_credential_grant(grant))
         {
             return Err(DurableError::Conflict);
         }
@@ -377,7 +380,11 @@ pub(super) fn check_credential_target(
     }
     approval.check_renewed_identity(original, grant)?;
     let current = credential(image, saved, original, approval)?;
-    let expected = if saved.local_commit.as_ref() == Some(&LocalRenewalCommit::for_grant(grant)) {
+    let expected = if saved
+        .local_commit
+        .as_ref()
+        .is_some_and(|c| c.matches_credential_grant(grant))
+    {
         grant.successor_device()
     } else {
         grant.previous_device()
@@ -597,7 +604,7 @@ impl DeviceJournal {
             .ok_or(DurableError::Conflict)?;
         if retained.approval.journal_bytes() != approval.journal_bytes()
             || retained.phase != ReceiptPhase::Acknowledged
-            || completed != &LocalRenewalCommit::for_grant(grant)
+            || completed != &saved.credential_receipt(grant)?
         {
             return Err(DurableError::Conflict);
         }

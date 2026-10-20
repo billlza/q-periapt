@@ -199,7 +199,9 @@ impl DeviceEnrollment {
         if journal.identity()? != journal_id {
             return Err(DurableError::Conflict);
         }
+        let companions = self.account_grants(&image, &grant, &original)?;
         let target = LocalRenewalTarget {
+            companions: &companions,
             grant: &grant,
             continuation: None,
             policy_renewal: independent.as_ref().map(|p| (p, &original)),
@@ -222,10 +224,10 @@ impl DeviceEnrollment {
                 return Err(DurableError::Corrupt);
             };
             journal
-                .reconcile_prior_local_renewal(&authority, &grant, renewal.completed.as_ref())
+                .reconcile_prior_local_target(&authority, &target, renewal.completed.as_ref())
                 .await?;
             journal
-                .inspect_local_credential_renewal(&authority, &grant, current)
+                .inspect_local_renewal_target(&authority, &target, current)
                 .await?
         };
         match resolution {

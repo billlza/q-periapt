@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "account_renewal_tests.rs"]
+mod account_renewal;
 use crate::{
     AnchorCredentialRenewalProposal as Proposal, AnchorStore, CredentialRenewalStatus,
     DeviceJournal, Validity,

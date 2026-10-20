@@ -104,6 +104,7 @@ impl Stored {
             history,
             renewals,
             local_commit: self.local_commit,
+            account_commit: self.account_commit,
             policy_continuation: self.policy_continuation,
             policy_renewal: self.policy_renewal,
             peer_retirement: None,

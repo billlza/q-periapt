@@ -5,10 +5,10 @@ use crate::{
     PolicyRenewalId, PolicyRenewalRequest, PolicyRenewalStatement, VerifiedPolicyRenewal,
     WitnessedPolicyRenewalDisposition as Disposition, WitnessedPolicyRenewalProgress as Progress,
 };
-struct Approval {
-    request: PolicyRenewalRequest,
-    target: VerifiedSessionPolicy,
-    proof: VerifiedPolicyRenewal,
+pub(super) struct Approval {
+    pub(super) request: PolicyRenewalRequest,
+    pub(super) target: VerifiedSessionPolicy,
+    pub(super) proof: VerifiedPolicyRenewal,
 }
 fn policy_client(f: &Fixture, owner: &mut DeviceEnrollment) -> AnchorClient {
     owner
@@ -761,7 +761,7 @@ fn pending_cleanup_sync_failures_retry_only_with_the_original_persisted_terminal
 }
 
 #[path = "witness_independent_policy_operational_tests.rs"]
-mod operational;
+pub(super) mod operational;
 
 #[path = "managed_policy_tests.rs"]
 mod managed;

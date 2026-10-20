@@ -34,21 +34,40 @@ a session from an old transcript.
 
 Devices in one account share a single retained roster and per-device generation
 history. If a target roster changes two same-generation credentials, one device's
-valid grant cannot authorize the other change. The existing single-grant
-entrypoints reject such a target. An authenticated original sequence
+valid grant cannot authorize the other change. The single-grant path cannot
+commit such a target. An authenticated original sequence
 `R1 -> R2 -> R3` can be applied in order when each step has its corresponding
 grant; skipping the intermediate predecessor is a conflict.
 
-The internal account-record transition also validates a complete grant set
-with one predecessor, target and original policy. It requires a matching grant
-for every same-generation credential change, rejects duplicate devices and
-mixed scopes, preserves revocation history, and produces the same record
-regardless of input order. This is a pure transformation before image sealing.
-It does not expose a batch enrollment API or grant permission to restore an
-installation. A complete coordinator must retain the exact whole request,
-reconcile the original sealed target after an unknown result, and coordinate
-the required witness. The independent consumer still rejects same-account
-renewal until that shared authority and recovery path is implemented.
+`DeviceEnrollment::stage_account_credential_renewal` takes the owning local grant
+and the nonempty companion grants for other changed devices. All grants must
+name one predecessor, target and original policy. Each installation selects its
+own local grant; another device's grant cannot restore its owner. Duplicate
+devices, mixed scopes and omitted same-generation changes are rejected.
+
+The original enrollment retains the complete canonical collection before journal
+mutation. Reordering or re-signing the same statements preserves the first saved
+bytes. A single-grant retry or a different companion operation cannot replace a
+pending or completed collection. Continue through the ordinary `activate` path,
+or the existing explicit witness prepare/approve/commit/reconcile path when the
+policy requires it. The sealed target contains the entire shared account change.
+There is no local fallback and no transaction across independent installations.
+
+The conditional `QPENST20` enrollment wrapper retains the companion evidence and
+completed collection binding. Its extra allocation is bounded by 31 companion
+grants of at most 65,536 bytes each plus framing; the prior base-image limits
+remain unchanged. `QPRHST10` retains the latest complete local account-renewal
+commit separately from its pending acknowledgement. Acknowledgement and a later
+policy adoption preserve that fact; the next local credential transition
+supersedes it. A later peer revocation or generation change
+cannot erase the historical fact of the complete commit. Neither that fact nor
+the collection grants current permission after revocation or expiry.
+
+Old formats remain readable, and ordinary single-grant operations retain their
+existing encoding. Readers without these extensions reject the new wrappers.
+These remain unpublished candidate storage formats. The native owning API is
+implemented; CLI/foreign-language batch entrypoints and independent shared-account
+coordination remain open. The independent consumer's same-account guard remains.
 
 ## Local enrollment workflow
 
