@@ -31,7 +31,16 @@ fn main() -> Result<()> {
         account_fixture::publish(Path::new(&args[1]), &root, certificates, family, [83; 32])?;
     if published.initial_roster.is_empty()
         || published.checkpoint.version() != 1
-        || published.local_grants.len() != 2
+        || !published
+            .local_grants
+            .iter()
+            .map(|grant| grant.successor_device().roster().checkpoint().version())
+            .eq([2, 3, 18])
+        || !published
+            .local_rosters
+            .iter()
+            .map(|device| device.roster().checkpoint().version())
+            .eq([9, 4, 6, 19])
     {
         return Err("incomplete native account fixture".into());
     }
