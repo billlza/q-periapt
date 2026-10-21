@@ -234,6 +234,42 @@ impl Witness {
         let mut store = self.original_store(&config)?;
         trust.enroll(&mut store, request, now)
     }
+    /// Prepare an exact expectation. Retain it before committing; this reserves nothing.
+    pub fn prepare_device_replacement(
+        &mut self,
+        trust: &DeviceReplacementTrust,
+        request: &EnrollmentRequest,
+        now: u64,
+    ) -> Result<DeviceReplacementDecision> {
+        let config = self.config()?;
+        replacement::prepare(&mut self.original_store(&config)?, trust, request, now)
+    }
+    /// Commit only under live successor authority. After an uncertain error, query
+    /// the same decision; expired trust can still use the historical status API.
+    pub fn commit_device_replacement(
+        &mut self,
+        trust: &DeviceReplacementTrust,
+        request: &EnrollmentRequest,
+        decision: &DeviceReplacementDecision,
+        now: u64,
+    ) -> Result<DeviceReplacementOutcome> {
+        let config = self.config()?;
+        replacement::commit(
+            &mut self.original_store(&config)?,
+            trust,
+            request,
+            decision,
+            now,
+        )
+    }
+    /// Observe the exact original outcome without a current-authority claim.
+    pub fn device_replacement_status(
+        &mut self,
+        decision: &DeviceReplacementDecision,
+    ) -> Result<DeviceReplacementOutcome> {
+        let config = self.config()?;
+        replacement::status(&mut self.original_store(&config)?, decision)
+    }
     /// Open the exact original store for one signed request. An unknown commit
     /// remains an error; the caller may later reconcile that original request.
     pub fn handle(

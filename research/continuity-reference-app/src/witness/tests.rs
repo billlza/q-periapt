@@ -149,6 +149,7 @@ fn ready_preparation_never_regenerates_missing_or_corrupt_state() -> Result<()> 
 use std::io::Write;
 
 struct Device {
+    root: sdk::RootSigningKey,
     signer: sdk::DeviceSigningKey,
     trust: EnrollmentTrust,
     request: EnrollmentRequest,
@@ -207,23 +208,34 @@ fn device(path: &Path, pin: Pin) -> Result<Device> {
     let policy = pins.verify(&materials, authority.family, now)?.0;
     let journal = sdk::JournalIdentity::generate()?;
     let subject = sdk::AnchorSubject::for_device(journal, &verified, &policy)?;
-    // Explicit independent test approval, not a real device journal claim.
+    let mut stored = sdk::DeviceJournal::provision_anchored(
+        &path.join("device.redb"),
+        sdk::JournalKey::provision(&path.join("device.wrap"))?,
+        &verified,
+        &policy,
+        journal,
+        now,
+    )?;
+    let genesis = stored.anchor_genesis(&verified, &policy)?;
+    let head = genesis.image_digest();
+    stored.close();
     let trust = EnrollmentTrust {
         schema: "qperiapt-witness-enrollment-trust/1".into(),
         account,
         device: [94; 16],
         generation: 1,
         journal: *journal.as_bytes(),
-        genesis_head: [95; 32],
+        genesis_head: head,
         certificate,
         policy: policy_publisher::PolicyInput { pins, materials },
     };
     let request = EnrollmentRequest {
         preparation: "RequiresWitnessEnrollment".into(),
         subject: subject.to_bytes(),
-        head: [95; 32],
+        head,
     };
     Ok(Device {
+        root,
         signer,
         trust,
         request,
@@ -231,6 +243,9 @@ fn device(path: &Path, pin: Pin) -> Result<Device> {
         subject,
     })
 }
+
+#[path = "replacement_tests.rs"]
+mod device_replacement;
 #[test]
 fn trusted_enrollment_signed_advance_reopen_and_exact_retry_preserve_head() -> Result<()> {
     let path = directory()?;

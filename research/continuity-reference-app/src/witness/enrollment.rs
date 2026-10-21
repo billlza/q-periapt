@@ -33,6 +33,21 @@ impl EnrollmentTrust {
         request: &EnrollmentRequest,
         now: u64,
     ) -> Result<()> {
+        let (genesis, device, policy) = self.inputs(&store.pin()?, request, now)?;
+        store.enroll(&genesis, &device, &policy, now)?;
+        Ok(())
+    }
+
+    pub(super) fn inputs(
+        &self,
+        witness_pin: &sdk::AnchorPin,
+        request: &EnrollmentRequest,
+        now: u64,
+    ) -> Result<(
+        sdk::AnchorGenesis,
+        sdk::VerifiedDevice,
+        sdk::VerifiedSessionPolicy,
+    )> {
         if self.schema != "qperiapt-witness-enrollment-trust/1"
             || request.preparation != "RequiresWitnessEnrollment"
             || self.account.revision == 0
@@ -60,7 +75,7 @@ impl EnrollmentTrust {
             self.policy
                 .pins
                 .verify(&self.policy.materials, self.account.family, now)?;
-        if witness.as_ref().map(|pin| pin.binding()) != Some(store.pin()?.binding()) {
+        if witness.as_ref().map(|pin| pin.binding()) != Some(witness_pin.binding()) {
             return Err("Enrollment policy must require this exact witness".into());
         }
         let subject = sdk::AnchorSubject::for_device(
@@ -72,7 +87,6 @@ impl EnrollmentTrust {
             return Err("Witness enrollment subject differs from independent approval".into());
         }
         let genesis = sdk::AnchorGenesis::from_trusted_state(subject, request.head)?;
-        store.enroll(&genesis, &device, &policy, now)?;
-        Ok(())
+        Ok((genesis, device, policy))
     }
 }

@@ -272,8 +272,10 @@ existing pinned witness protocol; it does not conceal public metadata.
 Incomplete connections and operation deadlines use the bounded reference
 network service. Lost replies require reconciliation against the original state.
 This command surface covers first use and data-plane state progression.
-Independent G/T approval, roster refresh, device/account replacement and witness
-replication are not yet exposed by this operator CLI.
+The operator also exposes [device-generation replacement](WITNESS_REPLACEMENT.md)
+with exact preparation, atomic commit and historical outcome observation.
+Independent G/T approval, roster refresh, account-root replacement and witness
+replication remain separate operator requirements.
 
 Protocol references: [WebAuthn Level 3](https://www.w3.org/TR/webauthn-3/) and
 [webauthn-rs](https://docs.rs/webauthn-rs/0.5.5/webauthn_rs/).

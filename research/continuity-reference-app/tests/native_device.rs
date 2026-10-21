@@ -26,6 +26,8 @@ mod publication;
 mod recovery;
 #[path = "native_device/renewal.rs"]
 mod renewal;
+#[path = "native_device/replacement.rs"]
+mod replacement;
 #[path = "../src/test_support.rs"]
 mod test_support;
 #[path = "native_device/witness.rs"]
@@ -115,6 +117,13 @@ impl Case {
         policy_seconds: u64,
         witness: Option<&witness_support::Server>,
     ) -> Result<Self> {
+        Self::open_with_anchor(seconds, policy_seconds, witness.map(|server| &server.pin))
+    }
+    fn open_with_anchor(
+        seconds: u64,
+        policy_seconds: u64,
+        witness: Option<&sdk::AnchorPin>,
+    ) -> Result<Self> {
         let path = tempfile::tempdir()?.keep().canonicalize()?;
         fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
         eprintln!(
@@ -203,9 +212,9 @@ impl Case {
                 send_budget: 8,
                 anchor: match witness {
                     None => Anchor::LocalOnly {},
-                    Some(server) => Anchor::Required {
-                        identity: *server.pin.identity().as_bytes(),
-                        key: server.pin.public_key().encode().to_vec(),
+                    Some(pin) => Anchor::Required {
+                        identity: *pin.identity().as_bytes(),
+                        key: pin.public_key().encode().to_vec(),
                     },
                 },
             },

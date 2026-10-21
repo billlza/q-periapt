@@ -13,12 +13,20 @@ use std::{
 };
 #[path = "../operator_io.rs"]
 mod operator_io;
+#[path = "../witness_replacement_cli.rs"]
+mod replacement;
 use operator_io::{export_directory, identifier, print, read, Result};
 
-const USAGE: &str = "q-periapt-continuity-witness <init|prepare|pin|export|enroll|serve> <absolute-host-db> <retained-base64url-identity>\nexport: <existing-empty-private-export-directory>\nenroll: <independently-approved-trust-json> <device-preparation-json>\nserve: <numeric-IP:port>\nRetain all original files after errors. Enroll is a trusted local operator action, separate from account login and device export.";
+const USAGE: &str = "q-periapt-continuity-witness <init|prepare|pin|export|enroll|serve|replacement-prepare|replacement-commit|replacement-status> <absolute-host-db> <retained-base64url-identity>\nexport: <existing-empty-private-export-directory>\nenroll: <independently-approved-trust-json> <device-preparation-json>\nreplacement-prepare: <independently-approved-replacement-trust-json> <new-device-preparation-json> <existing-empty-private-export-directory>\nreplacement-commit: <same-replacement-trust-json> <same-device-preparation-json> <retained-decision-json>\nreplacement-status: <retained-decision-json>\nserve: <numeric-IP:port>\nRetain all original files after errors. Enrollment and replacement are trusted local operator actions, separate from account login and device export.";
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();
     let command = args.get(1).and_then(|value| value.to_str()).ok_or(USAGE)?;
+    if matches!(
+        command,
+        "replacement-prepare" | "replacement-commit" | "replacement-status"
+    ) {
+        return replacement::run(&args);
+    }
     let count = match command {
         "init" | "prepare" | "pin" => 4,
         "enroll" => 6,
