@@ -13,6 +13,7 @@ from .owner_guard import coordinated
 from .renewal import verify
 from .state_codec import decode, encode
 from .wire import require
+from .policy_snapshot import admit as admit_policy, validate as validate_policy
 
 
 class LocalCredentialRenewal:
@@ -42,6 +43,8 @@ class LocalCredentialRenewal:
             require(state.traffic is not None, "local renewal requires original established session")
             require(state.policy_renewal is None or state.policy_renewal.pending is None,
                     "policy renewal remains pending")
+            if state.policy_renewal is not None:
+                validate_policy(state, self._context, self._journal.scope.identity)
             if shared(self._context):
                 if state.format_version == 5:
                     initialize(state)
@@ -87,7 +90,7 @@ class LocalCredentialRenewal:
                             "conflicting original local renewal")
                     return result
                 require(record.pending is None, "another local credential renewal remains pending")
-                record.current_time(now); self._context.intervals[0].check(now)
+                record.current_time(now); admit_policy(state, self._context, now)
                 successor = current.renew(self._context, wire, self.operation, target, now)
                 # Stage must reserve the completed identity/roster too. For a
                 # first grant it can be larger than the pending grant alone;
@@ -110,7 +113,7 @@ class LocalCredentialRenewal:
                                                self._context.family, self._context.policy_digest, target)
                 require(request.local.operation == self.operation, "local renewal original operation differs")
                 if record.known(self.operation) is None:
-                    self._context.intervals[0].check(now)
+                    admit_policy(state, self._context, now)
                 pending = record.stage(state.account_authority, request, now)
                 if pending is record:
                     return record.status(self.operation)
@@ -130,7 +133,7 @@ class LocalCredentialRenewal:
             with self._state() as (snapshot, state, current, record):
                 if state.account_authority is not None:
                     if record.status(self.operation)["status"] == "Pending":
-                        self._context.intervals[0].check(now)
+                        admit_policy(state, self._context, now)
                     account, completed = record.commit(state.account_authority, self.operation, now)
                     if completed is not record:
                         state.account_authority, state.account_renewal = account, completed
@@ -140,7 +143,7 @@ class LocalCredentialRenewal:
                 if result['status'] == 'Committed':
                     return result
                 require(result['status'] == 'Pending', "expired uncommitted renewal cannot commit")
-                record.current_time(now); self._context.intervals[0].check(now)
+                record.current_time(now); admit_policy(state, self._context, now)
                 grant = record.pending
                 next_identity = current.renew(self._context, grant.wire, self.operation,
                                               grant.successor_roster.checkpoint(), now)

@@ -135,9 +135,12 @@ after execution. The helper uses the existing Git provenance boundary and
 requires an ordinary checkout with a real `.git` directory. Failed states stay
 available for diagnosis; a missing or failed installation is never treated as
 a successful source-tree run.
-The installation runner also requires both original local policy-renewal groups
-and the full-store expiry/recovery workload. These use installed protocol modules
-and the selected native counterpart; source-only results cannot satisfy them.
+The installation runner also requires local and witnessed policy renewal,
+full-store expiry/recovery, and sequential policy/credential/roster composition
+ending with removal of the real traffic peer. Schema9 checks all four 3/32-device
+composition profiles using installed protocol modules and the selected native
+counterpart; source-only results cannot satisfy them. See
+[POLICY_RENEWAL.md](POLICY_RENEWAL.md) for the retained-history boundary.
 The archived migration scenario additionally copies the declared old-writer
 capture and its manifest, bound to the selected commit. It loads that writer in
 a separate namespace, then uses the installed current package to continue the

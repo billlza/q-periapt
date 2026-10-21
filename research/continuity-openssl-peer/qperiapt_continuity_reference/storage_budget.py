@@ -20,8 +20,11 @@ MAX_ACCOUNT_STATE = MAX_STATE + MAX_ACCOUNT_RECORD + MAX_ACCOUNT_COORDINATION + 
 MAX_ACCOUNT_ROSTER_COORDINATION = MAX_ACCOUNT_COORDINATION + 193
 MAX_SHARED_STATE = MAX_ACCOUNT_STATE + 193
 
-# P's two bounded proof records have their own allocation; they never increase
+# P's bounded proof records have their own allocation; they never increase
 # the business payload, existing G/R record limits or host directory quota.
 MAX_POLICY_GRANT = 8 + 5 * 2 + 2 * (4 + 200 + 3373) + (4 + 2097 + 3373) + 8192 + 7618
-MAX_POLICY_RECORD = 8 + 8 + 2 * (4 + MAX_POLICY_GRANT) + 1 + 152
+MAX_POLICY_BASE_RECORD = 8 + 8 + 2 * (4 + MAX_POLICY_GRANT) + 1 + 152
+# An older completed R retains one exact P proof after later policy adoption.
+# While it is still the active P, the record uses a one-byte alias instead.
+MAX_POLICY_RECORD = MAX_POLICY_BASE_RECORD + 13 + MAX_POLICY_GRANT
 MAX_POLICY_STATE = MAX_SHARED_STATE + MAX_POLICY_RECORD + 48

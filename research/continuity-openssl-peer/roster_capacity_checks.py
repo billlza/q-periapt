@@ -39,7 +39,7 @@ def codec_controls(f, state, payload):
               'shared-account snapshot scope or capacity')
 
 
-def scenario(args, witnessed):
+def scenario(args, witnessed, *, policy_composition=False):
     from registration_fixture import Fixture
     from shared_account_checks import start, request_arguments
     from account_capacity_fixture import fill
@@ -49,11 +49,16 @@ def scenario(args, witnessed):
     from traffic_checks import application
     output=args.output/('required' if witnessed else 'local'); output.mkdir()
     selected=argparse.Namespace(**vars(args)); selected.output=output
-    f=Fixture(selected,'witness' if witnessed else 'local',account_members=32,enrolled_peer=True)
+    f=Fixture(selected,'witness' if witnessed else 'local',account_members=32,enrolled_peer=True,
+              policy_lifecycle=policy_composition,policy_composition=policy_composition)
     parent=None
     try:
         journal,session=start(f)
         filled=fill(f)
+        policies=None
+        if policy_composition:
+            from policy_capacity_fixture import PolicyCapacity
+            policies=PolicyCapacity(f,session,filled)
         native_identity=None
         def native(cycle,now):
             nonlocal native_identity
@@ -66,12 +71,14 @@ def scenario(args, witnessed):
             if witnessed:
                 f.call(name+'-clock',33,now.to_bytes(8,'big'),b'witness clock set')
                 proposal=f.value(name+'-prepare','credential_account_prepare_files',gargs,now=now)
-                f.call(name+'-approval',34,proposal,b'Prepared')
+                f.call(name+'-approval',34,proposal if policies is None else policies.controller(proposal),b'Prepared')
             else:
                 f.worker(name+'-stage','credential_account_stage_files',gargs,now=now)
             result=f.worker(name+'-commit','credential_commit',(gargs[0],),now=now)
             require(result=='Applied' if witnessed else result['status']=='Committed','complete original G')
         for cycle,now in [(1,210),(2,310)]:
+            if policies is not None:
+                policies.advance(cycle+1,190 if cycle==1 else 250)
             commit_group(f'g-{cycle}',request_arguments(f,32,f'grants-{cycle}',cycle),now)
             native(cycle,now)
         public=f.public/'account'
@@ -84,7 +91,7 @@ def scenario(args, witnessed):
             proposal=f.value('full-R-original-preparation','roster_prepare',rargs,now=310)
             require((f.session_path/'head').read_bytes()==before and (f.session_path/'intent').read_bytes()==intent,
                     'full R preparation installed or replaced target')
-            f.call('full-R-independent-approval',39,proposal,b'Prepared')
+            f.call('full-R-independent-approval',39,proposal if policies is None else policies.controller(proposal),b'Prepared')
             f.bridge.arm('after',16)
             f.worker('full-R-lost-commit','roster_commit',(operation,),now=310,refusal='truncated witness reply')
             f.worker('full-R-terminal-cut','roster_recover',(operation,),now=310,cut='roster:terminal-durable')
@@ -104,7 +111,10 @@ def scenario(args, witnessed):
         with parent.session(310,transport=f.transport()) as owner:
             with owner._owner._state(operational=False) as (snapshot,state):
                 require(inventory(state)==filled['inventory'],'full R changed original business records')
-                codec_controls(f,state,snapshot.payload)
+                if policies is None:
+                    codec_controls(f,state,snapshot.payload)
+                else:
+                    policies.check(state,snapshot.payload)
                 payload_size=len(snapshot.payload)
             require(owner.resume(filled['first_id'],now=310)==filled['first_wire']
                     and owner.resume(filled['last_id'],now=310)==filled['last_wire'],
@@ -113,6 +123,8 @@ def scenario(args, witnessed):
                       'reserved final traffic capacity')
         parent.close(); parent=None
         # The complete follow-up grant must name the actually installed R4.
+        if policies is not None:
+            policies.advance(4,340)
         checkpoint=(public/'checkpoint-18').read_bytes()
         request=AccountRequest.parse((public/'grant-18-1').read_bytes(),
                     [(public/f'grant-18-{i}').read_bytes() for i in range(2,32)],
@@ -123,15 +135,18 @@ def scenario(args, witnessed):
         f.call('native-original-service-reopen',12,expected=b'reopened')
         parent=f.owner()
         with parent.session(355,transport=f.transport()) as owner:
-            with owner._owner._state(operational=False) as (_,state):
+            with owner._owner._state(operational=False) as (snapshot,state):
                 require(state.format_version==10 and inventory(state)==filled['inventory'],
                         'later G lost R format or full original records')
+                if policies is not None:
+                    policies.check(state,snapshot.payload)
             require(owner.resume(filled['first_id'],now=355)==filled['first_wire']
                     and owner.resume(filled['last_id'],now=355)==filled['last_wire'],
                     'later G changed original ciphertext')
         parent.close(); parent=None
         f.call('native-first-original-decrypt',7,application(b'',filled['first_wire']),filled['plain'])
         f.call('native-last-original-decrypt',7,application(b'',filled['last_wire']),filled['last_plain'])
+        composition=None if policies is None else policies.finish()
         registration=f.worker('original-registration-retained','registration_status',now=355)
         require(registration['journal']==journal.hex() and registration['signing_id']==f.observations['signing_id'],
                 'full maintenance replaced original enrollment')
@@ -142,6 +157,8 @@ def scenario(args, witnessed):
                 'original_last_message_sha256':hashlib.sha256(filled['last_wire']).hexdigest(),
                 'workers':len(f.driver.operations),'process_kills':sum('signal' in row for row in f.driver.operations),
                 'refusals':f.refusals,'native_trusted_time':355}
+        if composition is not None:
+            result['policy_composition']=composition
         (f.out/'RESULT.json').write_text(json.dumps(result,indent=2)+'\n')
         return result
     finally:

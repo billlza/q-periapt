@@ -78,7 +78,8 @@ authenticated original write intent; it does not generate a replacement target.
 * An unknown operation raises an explicit unavailable-outcome error. It is not
   an assertion that no commit happened and does not authorize resetting storage.
 
-The record retains one current adoption, one Pending and one expiry disposition.
+The record retains one current adoption, one Pending, one expiry disposition and,
+when needed, the exact policy proof for the latest completed roster transaction.
 Older overwritten history is not an unbounded receipt service. The local-only
 profile retains its existing rollback boundary; this work does not provide the
 fresh external witness checks required for rollback-resistant adoption.
@@ -128,7 +129,28 @@ substitute for this policy check.
 `QPRFPI01` authenticates the original sealed P intent; `QPRFLC04` wraps typed P
 control around existing G/R control. Neither wrapper replaces the original
 journal subject. Local G/R time floors and witness P version floors remain
-different constraints. Independent G/R composition after P is not yet qualified.
+different constraints.
+
+## Credential and roster operations after adoption
+
+G still authenticates its root-signed credential grant against the original P0
+digest. The coordinator separately admits the actually adopted live policy; it
+does not rewrite a grant's signed policy binding. Required-witness G uses the
+329-byte `QPCRNP03` proposal with the retained P statement, and `QPRFLI02` retains
+the exact target. `QPRFLC05` / `QPRFLC06` distinguish the corresponding single-device
+and complete-account controls. A pending G or R cannot be bypassed by starting P.
+
+A new R names the actual adopted policy checkpoint and its exact approval
+statement. The completed R retains that proof across later P and G transitions.
+`QPIPRC02` encodes an alias when the proof is still the active P, or one full
+bounded historical grant after a later adoption. The reader authenticates this
+proof before decoding the account and then checks the actual journal and identity.
+Removing the wrapper, substituting the proof, or using that older proof for a new
+R fails. This history adds no current permission and no business storage allowance.
+
+This is sequential composition of separately authorized operations. It is not
+the candidate's joint policy/credential transaction, root replacement, or a new
+device-generation transition.
 
 ## Validation drivers
 
@@ -148,6 +170,20 @@ decryption in the new epoch. The rekey observation is not a PCS proof.
 retains the full 123-outbox, two-epoch business store through expired-target
 closure, parent cancellation and a later applied policy. It also checks that
 expiry sends no Commit and that policy metadata cannot fund more business data.
-The installation runner requires both witness drivers as well. Installed-package
-qualification and G/R composition after P still need their own evidence. None of
-these drivers is a device or full release qualification.
+The installation runner requires both witness drivers as well.
+`policy_composition_checks.py` runs P/G/P/G/R/P/G and removal of the real receiving
+peer on the same 3/32-member registered sessions, for local and required-witness
+profiles. It tests retained ciphertext, an outstanding send reservation, lost
+commit/ACK replies, process cuts, new-epoch decryption, stale approvals and
+same-generation resurrection rejection. Its explicit fixture time passes the
+original policy and credential expiries. Receipt schema9 additionally requires
+this workload from the installed wheel. Each source or package qualification
+applies only to its captured inputs; none is device or full release qualification.
+
+`policy_composition_capacity_checks.py` reuses the existing full-account storage
+workload with four policy adoptions around G/G/R/G. The local Pending state holds
+P3 for historical R, current P4 and Pending P5 together. The witness profile
+retains the exact prepared P5 image with historical P3. Both keep the original
+123 outboxes and two epoch records, recover original writes, and reject spending
+policy history space on business traffic. The installed schema9 runner requires
+these two full-store profiles in addition to the four traffic/removal profiles.

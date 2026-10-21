@@ -119,8 +119,10 @@ class AccountRecord:
     def validate(self, account, original=None):
         if self.roster is not None:
             target = self.roster.target
-            require(self.roster.policy[8:] == account.policy and self.roster.authorization is None,
-                    "account roster original policy scope")
+            # Exact P binding belongs to the enclosing snapshot, which owns the
+            # original and adopted policy proofs. This pure record checks shape.
+            require((self.roster.policy[8:] == account.policy) == (self.roster.authorization is None),
+                    "account roster policy discriminator")
             require(account.listing.version >= int.from_bytes(target[:8], "big")
                     and (account.listing.version != int.from_bytes(target[:8], "big")
                          or account.listing.checkpoint() == target), "account precedes retained roster completion")

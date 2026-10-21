@@ -50,7 +50,7 @@ def admit(control, state, current):
     r = control.roster
     require((retained is None) == (r is None or r.active is None), "missing original roster completion")
     if retained is not None:
-        retained.check_policy(state.operation._context)
+        retained.check_policy(state.operation._context, state.policy_renewal)
         require(r.ready() and retained.target == r.active, "roster completion/control differs")
         if r.phase == 4:
             require(retained == r.proposal.scope, "applied roster exact scope differs")

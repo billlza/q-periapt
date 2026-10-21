@@ -18,6 +18,7 @@ from .state_codec import decode, encode
 from .witness import Head
 from .witness_journal import WitnessJournal
 from .wire import require
+from .policy_snapshot import admit as admit_policy, authorization, validate as validate_policy
 
 
 class LocalRenewal:
@@ -73,6 +74,14 @@ class LocalRenewal:
             expected = control.proposal.target if control.phase == 2 else control.proposal.expected
             require(snapshot.digest == expected.digest and snapshot.revision == expected.revision,
                     "terminal renewal lost original image")
+        state = decode(snapshot.payload, self._context)
+        try:
+            if state.policy_renewal is not None:
+                validate_policy(state, self._context, journal.scope.identity)
+            if control is not None and control.phase in (1, 2, 3):
+                require(control.proposal.policy == authorization(state), "credential coordinator policy differs")
+        finally:
+            state.close()
         if intent is None and (control is None or control.ready()):
             state = decode(snapshot.payload, self._context)
             try:
@@ -132,7 +141,7 @@ class LocalRenewal:
                     return existing.wire()
                 require(intent is None and (control is None or control.ready()), "another local renewal remains pending")
                 require(state.traffic is not None, "local renewal requires original established session")
-                self._context.intervals[0].check(now); grant.current(now)
+                admit_policy(state, self._context, now); grant.current(now)
                 if request is None:
                     next_identity = current.renew(self._context, grant_wire, self.operation, target_checkpoint, now)
                     require(next_identity is not current, "local renewal target already installed without its receipt")
@@ -158,7 +167,8 @@ class LocalRenewal:
                 target = self._journal._seal(snapshot.revision + 1, encode(state))
                 target_snapshot = self._journal._decode(target)
                 p = Proposal(self._context.witness.pin.binding, self._journal.subject, self.operation, grant.statement,
-                             Head(1, snapshot.revision, snapshot.digest), Head(1, target_snapshot.revision, target_snapshot.digest))
+                             Head(1, snapshot.revision, snapshot.digest), Head(1, target_snapshot.revision, target_snapshot.digest),
+                             authorization(state))
                 retained = Intent(p, target, target_checkpoint, binding)
                 wire = retained.wire(self._journal)
                 pending_control = Control(1, control.floor, control.active, p, target_checkpoint,
@@ -225,7 +235,7 @@ class LocalRenewal:
                 require(intent is not None, "missing original commit target")
                 target = decode(self._journal._decode(intent.target).payload, self._context)
                 try:
-                    self._context.intervals[0].check(now)
+                    admit_policy(target, self._context, now)
                     local_view(target, self._context).check(now)
                     if target.account_authority is not None:
                         for grant in target.account_authority.renewals:

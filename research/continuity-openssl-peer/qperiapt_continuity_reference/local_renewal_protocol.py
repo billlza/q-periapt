@@ -13,6 +13,7 @@ class Proposal:
     statement: bytes
     expected: Head
     target: Head
+    policy: bytes | None = None
 
     def __post_init__(self):
         for value in (self.witness, self.operation, self.statement):
@@ -22,18 +23,27 @@ class Proposal:
             fixed(self.subject[start:start + 32], 32)
         require(Operation.advance(self.expected, self.target.digest).arguments[48:] == self.target.wire(),
                 "renewal exact next head")
+        if self.policy is not None:
+            fixed(self.policy, 32)
 
     def wire(self):
-        return (b"QPCRNP01" + self.witness + self.subject + self.operation + self.statement
-                + self.expected.wire() + self.target.wire())
+        return ((b"QPCRNP01" if self.policy is None else b"QPCRNP03")
+                + self.witness + self.subject + self.operation + self.statement
+                + self.expected.wire() + self.target.wire()
+                + (b"" if self.policy is None else b"\0" + self.policy))
 
     @classmethod
     def decode(cls, wire):
-        require(type(wire) is bytes and len(wire) == 296, "renewal proposal size")
+        require(type(wire) is bytes and len(wire) in (296, 329), "renewal proposal size")
         reader = Reader(wire)
-        require(reader.take(8) == b"QPCRNP01", "unsupported renewal proposal")
+        tag = reader.take(8)
+        require(tag in (b"QPCRNP01", b"QPCRNP03"), "unsupported renewal proposal")
         value = cls(reader.take(32), reader.take(96), reader.take(32), reader.take(32),
                     Head.read(reader), Head.read(reader))
+        if tag == b"QPCRNP03":
+            require(reader.integer(1) == 0, "credential renewal cannot adopt independent policy")
+            value = cls(value.witness, value.subject, value.operation, value.statement,
+                        value.expected, value.target, reader.take(32))
         reader.finish()
         return value
 

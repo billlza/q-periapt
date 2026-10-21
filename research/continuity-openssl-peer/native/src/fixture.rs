@@ -85,6 +85,7 @@ pub(super) struct Options {
     pub account_members: Option<u8>,
     pub enrolled_peer: bool,
     pub policy_lifecycle: bool,
+    pub policy_composition: bool,
 }
 #[derive(Clone, Copy)]
 pub(super) struct Times {
@@ -125,6 +126,7 @@ pub(super) fn create(
         account_members,
         enrolled_peer,
         policy_lifecycle,
+        policy_composition,
     } = options;
     let runtime = runtime(directory)?;
     let (authority, mut registered, retained) = match registration {
@@ -193,7 +195,11 @@ pub(super) fn create(
             root,
             family,
             usize::from(account_members.ok_or("missing shared account count")?),
-            if policy_lifecycle { 450 } else { 200 },
+            if policy_lifecycle && !policy_composition {
+                450
+            } else {
+                200
+            },
         )?;
         (Some(configuration), signer)
     } else {
@@ -212,7 +218,7 @@ pub(super) fn create(
             [peer_key, signer.public_key()?],
             family,
             policy.checkpoint().digest(),
-            (count, policy_lifecycle),
+            (count, policy_lifecycle, policy_composition),
             registered.take(),
             enrolled_peer.as_ref(),
         )?
@@ -372,6 +378,7 @@ pub(super) fn create(
             account_root.ok_or("policy profile needs its account issuer")?,
             &runtime,
             Arc::clone(&verified_policy),
+            policy_composition,
         )?)
     } else {
         None
@@ -404,12 +411,16 @@ fn shared_devices(
     keys: [PublicKey; 2],
     family: [u8; 32],
     policy: [u8; 32],
-    members: (u8, bool),
+    members: (u8, bool, bool),
     registered: Option<(RootSigningKey, Vec<u8>)>,
     enrolled_peer: Option<&crate::enrolled_peer::Configuration>,
 ) -> Result<AccountFixtures> {
-    let (count, policy_lifecycle) = members;
-    let credential_until = if policy_lifecycle { 450 } else { 200 };
+    let (count, policy_lifecycle, policy_composition) = members;
+    let credential_until = if policy_lifecycle && !policy_composition {
+        450
+    } else {
+        200
+    };
     let (root, original) = match registered {
         Some((root, certificate)) => (root, Some(certificate)),
         None => (RootSigningKey::generate()?, None),
@@ -446,7 +457,7 @@ fn shared_devices(
             DeviceSigningKey::generate()?.public_key()?,
         )?);
     }
-    let published = if policy_lifecycle {
+    let published = if policy_lifecycle && !policy_composition {
         crate::policy_lifecycle::publish_account(&directory.join("account"), &root, &certificates)?
     } else {
         crate::account_fixture::publish(

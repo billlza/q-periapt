@@ -26,7 +26,7 @@ def arguments():
 
 
 class Counterpart:
-    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False, short_roster=False, registration=False, registration_extension=False, intermediate_peer=False, account_members=None, enrolled_peer=False, policy_lifecycle=False):
+    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False, short_roster=False, registration=False, registration_extension=False, intermediate_peer=False, account_members=None, enrolled_peer=False, policy_lifecycle=False, policy_composition=False):
         self.cases = output / "cases"
         self.cases.mkdir()
         self.stderr = (output / "native.stderr").open("xb")
@@ -50,6 +50,8 @@ class Counterpart:
                 command += ["--enrolled-peer"]
             if policy_lifecycle:
                 command += ["--policy-lifecycle"]
+            if policy_composition:
+                command += ["--policy-composition"]
             if registration:
                 command += ["--registration"]
             if registration_extension:

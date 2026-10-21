@@ -34,13 +34,14 @@ impl Pending {
         peer_lifecycle: bool,
         extension: bool,
         policy_lifecycle: bool,
+        policy_composition: bool,
     ) -> Result<Self> {
         let root = RootSigningKey::generate()?;
         let policy = PolicySigningKey::generate()?;
         let family = policy.policy_family()?;
         let validity = Validity::new(
             100,
-            if policy_lifecycle {
+            if policy_lifecycle && !policy_composition {
                 450
             } else if extension {
                 160

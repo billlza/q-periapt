@@ -120,7 +120,7 @@ class WitnessJournal(Journal):
             raise MissingState("missing original witnessed image")
         head = self._decode(wire); pending = directory.read("intent")
         if pending is not None:
-            require(not pending.startswith(b"QPRFLI01"), "local renewal coordination remains pending")
+            require(pending[:8] not in (b"QPRFLI01", b"QPRFLI02"), "local renewal coordination remains pending")
             require(not pending.startswith(b"QPRFRI01"), "roster coordination remains pending")
             require(not pending.startswith(b"QPRFPI01"), "policy coordination remains pending")
             revision, prior, target, result = self._decode_intent(pending)

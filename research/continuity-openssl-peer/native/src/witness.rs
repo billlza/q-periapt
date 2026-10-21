@@ -29,6 +29,28 @@ pub(super) struct Witness {
 }
 
 impl Witness {
+    pub fn approve_credential_under_policy(
+        &self,
+        proposal: AnchorCredentialRenewalProposal,
+        grant: &q_periapt_continuity_identity_candidate::VerifiedCredentialRenewal,
+        original: &q_periapt_continuity_identity_candidate::HistoricalSessionPolicy,
+        policy: &q_periapt_continuity_identity_candidate::VerifiedSessionPolicy,
+    ) -> Result<()> {
+        self.store
+            .lock()
+            .map_err(|_| "witness lock poisoned")?
+            .as_mut()
+            .ok_or("closed witness")?
+            .prepare_policy_renewed_credential_renewal(
+                proposal,
+                grant,
+                original,
+                policy,
+                self.now.load(Ordering::SeqCst),
+            )?;
+        Ok(())
+    }
+
     pub fn approve_policy(
         &self,
         proposal: q_periapt_continuity_identity_candidate::AnchorPolicyRenewalProposal,
@@ -218,8 +240,32 @@ impl Witness {
                     .store(u64::from_be_bytes(payload.try_into()?), Ordering::SeqCst);
                 Ok(b"witness clock set".to_vec())
             }
-            34 | 35 if payload.len() == 296 => {
-                let proposal = AnchorCredentialRenewalProposal::from_trusted_state(payload)?;
+            34 | 35 if matches!(payload.len(), 296 | 337) => {
+                let continued = payload.len() == 337;
+                let size = if continued { 329 } else { 296 };
+                let proposal = AnchorCredentialRenewalProposal::from_trusted_state(
+                    payload.get(..size).ok_or("credential proposal size")?,
+                )?;
+                let policy = if continued {
+                    let version = u64::from_be_bytes(
+                        payload
+                            .get(size..)
+                            .ok_or("credential policy version")?
+                            .try_into()?,
+                    );
+                    Some(
+                        fixture
+                            .policy_renewal
+                            .as_ref()
+                            .ok_or("policy test issuer unavailable")?
+                            .policy(version)?,
+                    )
+                } else {
+                    None
+                };
+                if proposal.policy_renewal().is_some() != continued {
+                    return Err("credential policy profile differs".into());
+                }
                 let grant = fixture
                     .local_grants
                     .iter()
@@ -227,7 +273,24 @@ impl Witness {
                     .ok_or("unknown independently retained local grant")?;
                 let mut store = self.store.lock().map_err(|_| "witness lock poisoned")?;
                 let store = store.as_mut().ok_or("closed witness")?;
-                let result = if command == 34 {
+                let result = if let Some(policy) = policy {
+                    if command == 34 {
+                        store.prepare_policy_renewed_credential_renewal(
+                            proposal,
+                            grant,
+                            fixture.policy.historical(),
+                            &policy,
+                            self.now.load(Ordering::SeqCst),
+                        )?
+                    } else {
+                        store.close_policy_renewed_credential_renewal(
+                            proposal,
+                            grant.historical(),
+                            fixture.policy.historical(),
+                            policy.historical(),
+                        )?
+                    }
+                } else if command == 34 {
                     store.prepare_credential_renewal(
                         proposal,
                         grant,
@@ -245,8 +308,33 @@ impl Witness {
             }
             36 => self.approve_pending(fixture, payload),
             37 => self.complete_pending(payload),
-            39 if payload.len() == 417 => {
-                let proposal = AnchorRosterRefreshProposal::from_trusted_state(payload)?;
+            39 if matches!(payload.len(), 417 | 425) => {
+                let proposal = AnchorRosterRefreshProposal::from_trusted_state(
+                    payload.get(..417).ok_or("roster proposal size")?,
+                )?;
+                let continued = if payload.len() == 425 {
+                    let version = u64::from_be_bytes(
+                        payload
+                            .get(417..)
+                            .ok_or("roster policy version")?
+                            .try_into()?,
+                    );
+                    Some(
+                        fixture
+                            .policy_renewal
+                            .as_ref()
+                            .ok_or("policy test issuer unavailable")?
+                            .policy(version)?,
+                    )
+                } else {
+                    None
+                };
+                if proposal.scope().policy_authorization.is_some() != continued.is_some() {
+                    return Err("roster policy profile differs".into());
+                }
+                let policy = continued
+                    .as_deref()
+                    .unwrap_or(fixture.context.current_policy()?);
                 let target = fixture
                     .local_rosters
                     .iter()
@@ -268,7 +356,7 @@ impl Witness {
                         proposal,
                         previous,
                         target,
-                        fixture.context.current_policy()?,
+                        policy,
                         self.now.load(Ordering::SeqCst),
                     )?;
                 Ok(format!("{result:?}").into_bytes())

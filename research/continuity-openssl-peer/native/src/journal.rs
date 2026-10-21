@@ -449,20 +449,31 @@ impl Journal {
         }
         self.now = now;
         self.owner.close();
-        let mut active = if cycle == 4 {
-            configuration.refresh(fixture, now)?
+        let (mut active, continued_context) = if let Some(version) = self.policy_version {
+            let session = self.session.ok_or("missing original session")?;
+            let (active, context) = if cycle == 4 {
+                configuration.refresh_under_policy(fixture, version, now, session)?
+            } else {
+                configuration.renew_under_policy(fixture, cycle, version, now, session)?
+            };
+            (active, Some(context))
+        } else if cycle == 4 {
+            (configuration.refresh(fixture, now)?, None)
         } else {
-            configuration.renew(fixture, cycle, now)?
+            (configuration.renew(fixture, cycle, now)?, None)
         };
         if active.parts()?.0.stores()?.0.identity()? != self.identity {
             return Err("native original journal changed".into());
         }
-        self.context = configuration.context(
-            &mut active,
-            fixture,
-            self.session.ok_or("missing original session")?,
-            now,
-        )?;
+        self.context = match continued_context {
+            Some(context) => context,
+            None => configuration.context(
+                &mut active,
+                fixture,
+                self.session.ok_or("missing original session")?,
+                now,
+            )?,
+        };
         self.owner = Owner::Enrolled(Some(active));
         let mut receipt = self.identity.as_bytes().to_vec();
         receipt.extend_from_slice(&self.session.ok_or("missing original session")?);

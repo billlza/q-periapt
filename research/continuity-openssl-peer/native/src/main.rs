@@ -70,6 +70,7 @@ fn main() -> Result<()> {
     let mut account_members = None;
     let mut enrolled_peer = false;
     let mut policy_lifecycle = false;
+    let mut policy_composition = false;
     while let Some(flag) = args.next() {
         match flag.to_str() {
             Some("--send-budget") => {
@@ -88,6 +89,7 @@ fn main() -> Result<()> {
             Some("--registration") if !registration => registration = true,
             Some("--enrolled-peer") if !enrolled_peer => enrolled_peer = true,
             Some("--policy-lifecycle") if !policy_lifecycle => policy_lifecycle = true,
+            Some("--policy-composition") if !policy_composition => policy_composition = true,
             Some("--registration-extension") if !extension => extension = true,
             Some("--shared-account") if account_members.is_none() => {
                 account_members = Some(
@@ -129,6 +131,9 @@ fn main() -> Result<()> {
     if policy_lifecycle && !enrolled_peer {
         return Err("policy lifecycle requires its original enrolled peer".into());
     }
+    if policy_composition && !policy_lifecycle {
+        return Err("policy composition requires its policy lifecycle fixture".into());
+    }
     let options = fixture::Options {
         budget,
         peer_lifecycle,
@@ -139,6 +144,7 @@ fn main() -> Result<()> {
         account_members,
         enrolled_peer,
         policy_lifecycle,
+        policy_composition,
     };
     let times = options.times();
     let directory = Path::new(&path);
@@ -151,6 +157,7 @@ fn main() -> Result<()> {
             peer_lifecycle,
             extension,
             policy_lifecycle,
+            policy_composition,
         )?;
         send(&mut output, 1, pending.independent_intent())?;
         let accepted = pending.accept(&receive(&mut input, false)?)?;

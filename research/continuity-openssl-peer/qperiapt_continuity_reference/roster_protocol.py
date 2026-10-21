@@ -40,10 +40,26 @@ class Scope:
                 "roster policy authorization discriminator")
         return cls(operation, previous, target, policy, statement if flag else None)
 
-    def check_policy(self, context):
-        require(context.policy_version > 0 and self.policy == context.policy_version.to_bytes(8, "big")
-                + context.policy_digest and self.authorization is None,
+    def check_policy(self, context, record=None, *, current=False):
+        original = context.policy_version.to_bytes(8, "big") + context.policy_digest
+        active = None if record is None else record.active
+        require(context.policy_version > 0, "roster original policy unavailable")
+        if self.policy == original:
+            require(self.authorization is None and (not current or active is None),
+                    "roster requires the actually adopted policy")
+            return
+        require(active is not None and self.authorization is not None
+                and int.from_bytes(self.policy[:8], "big") > context.policy_version,
                 "roster requires the original independently verified policy")
+        proof = active if current else record.roster_history
+        require(proof is not None and self.policy == proof.target.checkpoint()
+                and self.authorization == proof.approval.statement, "roster policy approval differs")
+        if proof.target.version < active.target.version:
+            scope = active.approval.scope
+            require(not current
+                    and int.from_bytes(self.target[:8], "big") <= int.from_bytes(scope.current_roster[:8], "big")
+                    and (self.target[:8] != scope.current_roster[:8] or self.target == scope.current_roster),
+                    "historical roster is not covered by the adopted successor policy")
 
 
 @dataclass(frozen=True)

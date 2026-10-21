@@ -37,6 +37,12 @@ def validate(state, context, journal=None):
     if journal is not None:
         require(state.policy_journal == journal, "policy record belongs to another actual journal")
     state.policy_renewal.validate(policy, context.devices[0], state.policy_journal, current_device(state, context))
+    roster = None if state.account_renewal is None else state.account_renewal.roster
+    history = state.policy_renewal.roster_history
+    require((history is not None) == (roster is not None and roster.authorization is not None),
+            "policy record requires exact roster history")
+    if roster is not None:
+        roster.check_policy(context, state.policy_renewal)
     if context.witness is not None:
         require(state.policy_renewal.pending is None and state.policy_renewal.expired is None
                 and state.policy_renewal.floor == 0, "witness policy cannot use local-only disposition")
@@ -46,7 +52,12 @@ def encode(state):
     from .state_codec import encode as encode_base
     context = state.operation._context
     validate(state, context)
-    base = encode_base(replace(state, policy_renewal=None, policy_journal=None))
+    inner = replace(state, policy_renewal=None, policy_journal=None)
+    if state.format_version in (9, 10):
+        from .account_snapshot import encode as encode_account
+        base = encode_account(inner, policy=state.policy_renewal)
+    else:
+        base = encode_base(inner)
     require(base[:8] in (b"QPREFS05", b"QPREFS06", b"QPREFS07", b"QPREFS08", b"QPREFS09", b"QPREFS10"),
             "policy continuation base schema")
     record = state.policy_renewal.encode()
@@ -70,13 +81,19 @@ def decode(payload, context):
     base = r.take(size)
     require(base[:8] in (b"QPREFS05", b"QPREFS06", b"QPREFS07", b"QPREFS08", b"QPREFS09", b"QPREFS10"),
             "policy snapshot cannot nest wrappers or use legacy base")
-    state = decode_base(base, context)
+    size = r.integer(4)
+    require(0 < size <= MAX_POLICY_RECORD, "policy record capacity")
+    record = Record.decode_retained(r.take(size), policy, context.devices[0])
+    r.finish()
+    if base[:8] in (b"QPREFS09", b"QPREFS10"):
+        from .account_snapshot import decode as decode_account
+        state = decode_account(base, context, policy=record)
+    else:
+        state = decode_base(base, context)
     try:
-        size = r.integer(4)
-        require(0 < size <= MAX_POLICY_RECORD, "policy record capacity")
-        state.policy_renewal = Record.read(r.take(size), policy, context.devices[0], journal, current_device(state, context))
+        record.validate(policy, context.devices[0], journal, current_device(state, context))
+        state.policy_renewal = record
         state.policy_journal = journal
-        r.finish()
         bind(state, context)
         require(encode(state) == payload, "noncanonical policy snapshot")
         return state
@@ -98,3 +115,8 @@ def admit(state, context, now):
     else:
         validate(state, context)
         state.policy_renewal.admit(original(context), now)
+
+
+def authorization(state):
+    active = None if state.policy_renewal is None else state.policy_renewal.active
+    return None if active is None else active.approval.statement

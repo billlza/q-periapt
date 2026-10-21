@@ -12,7 +12,7 @@ from .policy_renewal_proof import (APPROVAL_BYTES, BODY_BYTES, MAX_APPROVAL,
                                  HistoricalApproval, Scope, storage_owner,
                                  verify_current, verify_historical)
 from .wire import Reader, digest, require
-from .storage_budget import MAX_POLICY_GRANT as MAX_GRANT, MAX_POLICY_RECORD as MAX_RECORD
+from .storage_budget import MAX_POLICY_GRANT as MAX_GRANT, MAX_POLICY_RECORD as MAX_RECORD, MAX_POLICY_BASE_RECORD
 
 POLICY_BYTES = 4 + 200 + 3373
 CREDENTIAL_BYTES = 4 + 2097 + 3373
@@ -111,6 +111,7 @@ class Record:
     active: Grant | None = None
     pending: Grant | None = None
     expired: Expired | None = None
+    roster_history: Grant | None = None
 
     def __post_init__(self):
         time_value(self.floor)
@@ -129,14 +130,43 @@ class Record:
         wire += bytes([self.expired is not None])
         if self.expired is not None:
             wire += self.expired.encode()
+        require(len(wire) <= MAX_POLICY_BASE_RECORD, "policy coordination base capacity")
+        if self.roster_history is not None:
+            if self.roster_history == self.active:
+                wire = b"QPIPRC02\x01" + wire
+            else:
+                history = self.roster_history.encode()
+                wire = b"QPIPRC02\x02" + len(history).to_bytes(4, "big") + history + wire
         require(len(wire) <= MAX_RECORD, "policy coordination capacity")
         return wire
 
     @classmethod
     def read(cls, wire, original_policy, original_device, journal, current):
+        value = cls.decode_retained(wire, original_policy, original_device)
+        value.validate(original_policy, original_device, journal, current)
+        return value
+
+    @classmethod
+    def decode_retained(cls, wire, original_policy, original_device):
+        """Authenticate retained proofs before decoding the enclosing account.
+
+        Actual journal/current-identity validation remains mandatory afterward;
+        this intermediate value is neither a current policy nor a traffic lease.
+        """
         require(type(wire) is bytes and len(wire) <= MAX_RECORD, "policy coordination capacity")
         r = Reader(wire)
-        require(r.take(8) == b"QPIPRC01", "policy coordination tag")
+        tag = r.take(8)
+        history, alias = None, False
+        if tag == b"QPIPRC02":
+            kind = r.integer(1)
+            require(kind in (1, 2), "roster policy history discriminator")
+            alias = kind == 1
+            if not alias:
+                size = r.integer(4)
+                require(0 < size <= MAX_GRANT, "roster policy history capacity")
+                history = Grant.read(r.take(size), original_policy, original_device)
+            tag = r.take(8)
+        require(tag == b"QPIPRC01", "policy coordination tag")
         floor, grants = r.integer(8), []
         for _ in range(2):
             size = r.integer(4)
@@ -144,15 +174,17 @@ class Record:
             grants.append(Grant.read(r.take(size), original_policy, original_device) if size else None)
         present = r.integer(1)
         require(present in (0, 1), "policy expiry discriminator")
-        value = cls(floor, *grants, Expired.read(r) if present else None)
+        require(not alias or grants[0] is not None, "roster policy alias requires active proof")
+        value = cls(floor, *grants, Expired.read(r) if present else None, grants[0] if alias else history)
         r.finish()
-        value.validate(original_policy, original_device, journal, current)
         require(value.encode() == wire, "noncanonical policy coordination")
         return value
 
     def request(self, operation, original_policy, original_device, journal, current):
         require(self.pending is None, "policy renewal remains pending")
         require(self.known(operation) is None, "policy request operation already has a disposition")
+        require(self.roster_history is None or self.roster_history.approval.scope.operation != operation,
+                "retained roster policy operation already used")
         self.validate(original_policy, original_device, journal, current)
         previous = original_policy if self.active is None else self.active.target
         authorization = None if self.active is None else self.active.approval.statement
@@ -168,11 +200,19 @@ class Record:
                 "policy coordination changed the original device identity")
         require(current.authority == digest(b"AUTHORITY", current.pin.account + current.pin.checkpoint() + original_policy.family),
                 "policy coordination current authority differs")
-        for grant in (self.active, self.pending):
+        for grant in (self.active, self.pending, self.roster_history):
             if grant is not None:
                 require(grant.approval.scope.journal == journal, "policy record belongs to another journal")
-        if self.active is not None:
-            prior = self.active.current
+        if self.roster_history is not None:
+            history = self.roster_history
+            require(self.active is not None and history.target.version <= self.active.target.version,
+                    "roster policy history exceeds active adoption")
+            if history.target.version == self.active.target.version:
+                require(history == self.active, "roster policy history must alias exact active proof")
+        for retained in (self.active, self.roster_history):
+            if retained is None:
+                continue
+            prior = retained.current
             # Later C/R can be admitted by the existing exact G/R coordinator.
             # Reading this record does not perform those transitions itself.
             require((prior.key, prior.pin.root, prior.pin.account, prior.pin.device, prior.pin.generation)

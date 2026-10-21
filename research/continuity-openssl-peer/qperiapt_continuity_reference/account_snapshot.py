@@ -43,7 +43,7 @@ def initialize(state, now=None):
     state.format_version = 9
 
 
-def encode(state):
+def encode(state, *, policy=None):
     from .state_codec import encode as encode_base
     context = state.operation._context
     require(state.format_version in (9, 10) and shared(context)
@@ -54,7 +54,7 @@ def encode(state):
     account, record = state.account_authority, state.account_renewal
     require((state.format_version == 10) == (record.roster is not None), "roster requires explicit snapshot format")
     if record.roster is not None:
-        record.roster.check_policy(context)
+        record.roster.check_policy(context, policy)
     require(account.authority == context.devices[0].pin and account.family == context.family
             and account.policy == context.policy_digest, "shared-account original scope differs")
     account.view(context.devices[1])
@@ -75,7 +75,7 @@ def encode(state):
     return result
 
 
-def decode(payload, context):
+def decode(payload, context, *, policy=None):
     from .identity_state import bind
     from .state_codec import decode as decode_base
     require(shared(context) and len(payload) <= MAX_SHARED_STATE, "shared-account snapshot scope or capacity")
@@ -103,7 +103,7 @@ def decode(payload, context):
         state.format_version = 10 if tag == b"QPREFS10" else 9
         state.account_authority, state.account_renewal = account, record
         bind(state, context)
-        require(encode(state) == payload, "noncanonical shared-account snapshot")
+        require(encode(state, policy=policy) == payload, "noncanonical shared-account snapshot")
         return state
     except BaseException:
         state.close()

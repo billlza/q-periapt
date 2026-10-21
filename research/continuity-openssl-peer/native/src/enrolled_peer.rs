@@ -16,6 +16,9 @@ use std::{
     time::Duration,
 };
 
+#[path = "enrolled_peer_policy.rs"]
+mod policy_composition;
+
 pub(super) struct Configuration {
     pub path: PathBuf,
     paths: EnrollmentPaths,
@@ -360,9 +363,12 @@ impl Configuration {
         )?)
     }
 
-    /// Explicit test controller selects pre-issued root grants. No peer message
-    /// can trigger this operation or choose the account pin.
-    pub fn renew(&self, fixture: &Fixture, cycle: u64, now: u64) -> Result<EnrolledDevice> {
+    fn credential_grants(
+        &self,
+        fixture: &Fixture,
+        cycle: u64,
+        now: u64,
+    ) -> Result<Vec<VerifiedCredentialRenewal>> {
         let (version, count) = match cycle {
             1 => (2, self.members),
             2 => (3, self.members),
@@ -371,7 +377,7 @@ impl Configuration {
         };
         let policy = fixture.context.current_policy()?;
         let pin = self.pin(fixture, self.checkpoint(version)?)?;
-        let grants = (1..=count)
+        (1..=count)
             .map(|id| {
                 let wire = fs::read(
                     self.public
@@ -385,7 +391,14 @@ impl Configuration {
                     now,
                 )?)
             })
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()
+    }
+
+    /// Explicit test controller selects pre-issued root grants. No peer message
+    /// can trigger this operation or choose the account pin.
+    pub fn renew(&self, fixture: &Fixture, cycle: u64, now: u64) -> Result<EnrolledDevice> {
+        let policy = fixture.context.current_policy()?;
+        let grants = self.credential_grants(fixture, cycle, now)?;
         let local = grants.get(1).ok_or("native local grant missing")?;
         let companions = grants
             .iter()

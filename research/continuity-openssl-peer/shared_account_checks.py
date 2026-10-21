@@ -29,15 +29,16 @@ def request_arguments(f, count, name, cycle, *, resigned=False, missing=False, d
     from qperiapt_continuity_reference.account_request import AccountRequest
     public = f.public / "account"
     wire = (public / (f"grant-{cycle}-1-resigned" if resigned else f"grant-{cycle}-1")).read_bytes()
+    members = count - 1 if cycle == 18 else count
     companions = [(public / f"grant-{cycle}-{identity}").read_bytes()
-                  for identity in range(2, count + 1)]
+                  for identity in range(2, members + 1)]
     if missing:
         companions.pop()
     if different:
         companions[1] = (public / f"grant-{cycle}-3-other-operation").read_bytes()
     if reverse:
         companions.reverse()
-    target = (public / f"checkpoint-{cycle + 1}").read_bytes()
+    target = (public / f"checkpoint-{18 if cycle == 18 else cycle + 1}").read_bytes()
     request = AccountRequest.parse(wire, companions, f.context.devices[0],
                                    f.context.family, f.context.policy_digest, target)
     data = request.encode()

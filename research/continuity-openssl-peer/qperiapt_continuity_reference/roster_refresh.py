@@ -17,6 +17,7 @@ from .state_codec import decode, encode
 from .witness import Head, fixed
 from .witness_journal import WitnessJournal
 from .wire import require
+from .policy_snapshot import admit as admit_policy, validate as validate_policy
 
 
 class RosterRefresh:
@@ -58,6 +59,8 @@ class RosterRefresh:
         try:
             require(state.traffic is not None and state.account_authority is not None
                     and state.account_renewal is not None, "roster requires original established common account")
+            if state.policy_renewal is not None:
+                validate_policy(state, self._context, journal.scope.identity)
             if self._context.witness is None:
                 require(control is None, "witness coordination in local roster store")
                 return snapshot, None, None
@@ -95,6 +98,8 @@ class RosterRefresh:
 
     @staticmethod
     def _check_control_image(control, state):
+        from .policy_control import admit as check_policy_control
+        check_policy_control(control, state)
         current = local_view(state, state.operation._context)
         if current.renewal is None:
             require(control.active == bytes(32) and control.active_account_binding is None,
@@ -125,15 +130,21 @@ class RosterRefresh:
         record, account = state.account_renewal, state.account_authority
         record.admit()
         record.current_time(now)
-        self._context.intervals[0].check(now)
+        admit_policy(state, self._context, now)
         current = account.view(self._context.devices[0], local=True)
         require(current.active(), "revoked original local device cannot refresh its roster")
         current.current.validity.check(now)
         next_account = account.advance(wire, target, now=now)
         next_account.view(self._context.devices[0], local=True).check(now)
         require(next_account.listing.version > floor, "roster successor retired")
-        scope = Scope(self.operation, account.listing.checkpoint(), target,
-                      self._context.policy_version.to_bytes(8, "big") + self._context.policy_digest)
+        active = None if state.policy_renewal is None else state.policy_renewal.active
+        policy = (self._context.policy_version.to_bytes(8, "big") + self._context.policy_digest
+                  if active is None else active.target.checkpoint())
+        scope = Scope(self.operation, account.listing.checkpoint(), target, policy,
+                      None if active is None else active.approval.statement)
+        scope.check_policy(self._context, state.policy_renewal, current=True)
+        if active is not None:
+            state.policy_renewal = replace(state.policy_renewal, roster_history=active)
         state.account_authority = next_account
         state.account_renewal = replace(record, roster=scope)
         state.format_version = 10
@@ -283,7 +294,7 @@ class RosterRefresh:
                 require(intent is not None, "missing original roster commit target")
                 target = decode(self._journal._decode(intent.target).payload, self._context)
                 try:
-                    self._context.intervals[0].check(now)
+                    admit_policy(target, self._context, now)
                     local_view(target, self._context).check(now)
                 finally:
                     target.close()

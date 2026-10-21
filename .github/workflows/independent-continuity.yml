@@ -45,11 +45,11 @@ jobs:
           - os: macos-15
             arch: arm64
     runs-on: ${{ matrix.os }}
-    # The prior Apple Silicon source/native cohort took 23m36s. The installed
-    # Python lifecycle is additional work with its own bounded subprocesses.
-    # The prior suite took 22 minutes on Linux. Complete 3/32-device groups,
-    # saturated storage and installed-wheel repeats add separate workloads.
-    timeout-minutes: 60
+    # The schema8 installed lifecycle alone took 32m23s on Apple Silicon.
+    # Sequential P/G/R composition adds a roughly 11-minute source workload,
+    # its installed-wheel repeat, and full-store composition in both locations.
+    # Each consumer subprocess retains its separate 900-second bound.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
@@ -353,6 +353,22 @@ jobs:
             --native target/independent-peer-ci/counterpart \
             --output target/independent-peer-ci/witness-policy-boundary \
             > target/independent-peer-ci/witness-policy-boundary.stdout 2> target/independent-peer-ci/witness-policy-boundary.stderr
+          git diff --exit-code
+      - name: Verify original policy credential roster composition and peer removal
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/policy_composition_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/policy-composition \
+            > target/independent-peer-ci/policy-composition.stdout 2> target/independent-peer-ci/policy-composition.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/policy_composition_capacity_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/policy-composition-capacity \
+            > target/independent-peer-ci/policy-composition-capacity.stdout 2> target/independent-peer-ci/policy-composition-capacity.stderr
           git diff --exit-code
       - name: Verify original common-account sessions and witness renewal
         env:

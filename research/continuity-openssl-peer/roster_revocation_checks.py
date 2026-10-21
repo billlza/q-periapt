@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 
 
-def remove_peer(f, message, journal):
+def remove_peer(f, message, journal, *, policy_version=None):
     from qperiapt_continuity_reference.wire import require
     from traffic_checks import application
     public=f.public/'account'
@@ -25,7 +25,8 @@ def remove_peer(f, message, journal):
     if f.bridge:
         proposal=f.value('remove-peer-prepare','roster_prepare',rargs,now=355)
         intent=(f.session_path/'intent').read_bytes()
-        f.call('remove-peer-independent-approval',39,proposal,b'Prepared')
+        controller = proposal if policy_version is None else proposal + policy_version.to_bytes(8, 'big')
+        f.call('remove-peer-independent-approval',39,controller,b'Prepared')
         f.bridge.arm('after',16)
         f.worker('remove-peer-lost-commit','roster_commit',(operation,),now=355,refusal='truncated witness reply')
         f.worker('remove-peer-ack-cut','roster_recover',(operation,),now=355,cut='roster:acknowledged')

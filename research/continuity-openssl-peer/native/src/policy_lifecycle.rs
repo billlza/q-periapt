@@ -57,9 +57,14 @@ impl Authority {
         account: RootSigningKey,
         runtime: &Arc<Runtime>,
         original: Arc<VerifiedSessionPolicy>,
+        composition: bool,
     ) -> Result<Self> {
         let mut policies = vec![original];
-        for (version, until) in [(2, 260), (3, 330), (4, 400)] {
+        let mut targets = vec![(2, 260), (3, 330), (4, 400)];
+        if composition {
+            targets.push((5, 470));
+        }
+        for (version, until) in targets {
             let original = policies.first().ok_or("missing original policy")?;
             let issued = issuer.issue_session_policy(
                 runtime,

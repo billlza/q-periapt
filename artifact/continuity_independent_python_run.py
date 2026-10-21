@@ -19,6 +19,7 @@ from bounded_process import capture_output
 from continuity_independent_python import PACKAGE, inspect_wheel, require, verify_installation, verify_extension_session, verify_roster_profiles, verify_roster_capacity, verify_roster_revocation
 from continuity_independent_python import verify_local_policy_profiles, verify_local_policy_boundary
 from continuity_independent_python import verify_witness_policy_profiles, verify_witness_policy_boundary
+from continuity_independent_composition import verify_composition, verify_capacity
 from evidence_io import fresh_output_directory, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import git_commit, run_git_bytes
 
@@ -55,7 +56,7 @@ def source_inputs(commit: str) -> dict[str, str]:
     paths += [ROOT / "artifact" / name for name in (
         "continuity_independent_python.py", "continuity_independent_python_probe.py",
         "continuity_independent_python_run.py", "python_bootstrap.py", "bounded_process.py",
-        "evidence_io.py", "git_provenance.py")]
+        "evidence_io.py", "git_provenance.py", "continuity_independent_composition.py")]
     archives = archived_inputs()
     paths += list(archives)
     result = {}
@@ -112,7 +113,7 @@ def qualify(args: argparse.Namespace) -> dict:
     cache.mkdir(mode=0o700)
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(("PYTHON", "PIP_", "DYLD_", "LD_"))}
-    result = {"schema_version": 8, "kind": "qperiapt.independent_python_installation",
+    result = {"schema_version": 9, "kind": "qperiapt.independent_python_installation",
               "completed": False, "release_claim_eligible": False, "source_commit": commit,
               "source_inputs": before, "wheel_sha256": wheel.sha256, "native_sha256": native.sha256}
 
@@ -323,6 +324,22 @@ def qualify(args: argparse.Namespace) -> dict:
                     "installed local policy source or native identity differs")
             verify(row)
             destination[driver] = row
+        run([*interpreter, str(application / "policy_composition_checks.py"),
+             "--provider-root", str(provider), "--native", str(args.native),
+             "--output", str(output / "policy-composition")], "policy-composition")
+        composition = parse_strict_json_bytes(snapshot(output / "policy-composition/RESULT.json").data,
+                                              label="installed policy credential roster composition")
+        require(composition["source_files"] == current and composition["native_sha256"] == native.sha256,
+                "installed composition source or native identity differs")
+        verify_composition(composition)
+        run([*interpreter, str(application / "policy_composition_capacity_checks.py"),
+             "--provider-root", str(provider), "--native", str(args.native),
+             "--output", str(output / "policy-composition-capacity")], "policy-composition-capacity")
+        composition_capacity = parse_strict_json_bytes(snapshot(output / "policy-composition-capacity/RESULT.json").data,
+                                                       label="installed full policy credential roster composition")
+        require(composition_capacity["source_files"] == current and composition_capacity["native_sha256"] == native.sha256,
+                "installed full composition source or native identity differs")
+        verify_capacity(composition_capacity)
         # The consumer adds only declared test files; pip's installed files and
         # all copied inputs must remain byte-identical after real process cuts.
         after = installed_files(application)
@@ -340,7 +357,8 @@ def qualify(args: argparse.Namespace) -> dict:
                       registration={label: observed[label] for label in ("local", "witness")},
                       client_session=client_session, extension_session=extension_session,
                       intermediate_peer=intermediate, common_account=account_results, local_policy=policy_results,
-                      witness_policy=witness_policy_results,
+                      witness_policy=witness_policy_results, policy_composition=composition,
+                      policy_composition_capacity=composition_capacity,
                       provider=observed["provider"])
     except BaseException as error:
         result["failure"] = {"type": type(error).__name__, "message": str(error)}

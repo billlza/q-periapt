@@ -68,6 +68,8 @@ class Control:
 
     def wire(self, scope):
         tag = b"QPRFLC01" if self.account_binding is None else b"QPRFLC02"
+        if self.proposal is not None and self.proposal.policy is not None:
+            tag = b"QPRFLC05" if self.account_binding is None else b"QPRFLC06"
         value = tag + scope.wire() + bytes([self.phase]) + self.floor.to_bytes(8, "big") + self.active
         if self.proposal is not None:
             value += self.proposal.wire() + self.checkpoint
@@ -84,7 +86,8 @@ def read(journal):
     data = journal._admit().read("authority")
     if data is None:
         return None
-    sizes = (177, 513, 577, 660, 996, 1060)
+    sizes = (177, 513, 577, 546, 610)
+    sizes += tuple(size + 483 for size in sizes)
     require(len(data) in sizes + tuple(size + 434 for size in sizes), "authority control size")
     body = data[:-32]
     require(hmac.compare_digest(hmac.digest(journal._intent_key, DOMAIN + body, "sha256"), data[-32:]),
@@ -97,12 +100,15 @@ def read(journal):
     roster = RosterControl.read(r.take(475)) if tag == b"QPRFLC03" else None
     if roster is not None:
         tag = r.take(8)
-    require(tag in (b"QPRFLC01", b"QPRFLC02") and r.take(96) == journal.scope.wire(), "authority control scope")
+    require(tag in (b"QPRFLC01", b"QPRFLC02", b"QPRFLC05", b"QPRFLC06")
+            and r.take(96) == journal.scope.wire(), "authority control scope")
     phase, floor, active = r.integer(1), r.integer(8), r.take(32)
-    proposal = Proposal.decode(r.take(296)) if phase else None
+    continued = tag in (b"QPRFLC05", b"QPRFLC06")
+    require(not continued or phase != 0, "continued credential control requires proposal")
+    proposal = Proposal.decode(r.take(329 if continued else 296)) if phase else None
     checkpoint = r.take(40) if phase else bytes(40)
-    binding = r.take(32) if tag == b"QPRFLC02" else None
-    active_binding = r.take(32) if tag == b"QPRFLC02" else bytes(32)
+    binding = r.take(32) if tag in (b"QPRFLC02", b"QPRFLC06") else None
+    active_binding = r.take(32) if tag in (b"QPRFLC02", b"QPRFLC06") else bytes(32)
     r.finish()
     if proposal is not None:
         require(hasattr(journal, "profile") and proposal.witness == journal.profile.pin.binding
@@ -116,8 +122,10 @@ def read(journal):
         p = policy.proposal
         require(p.witness == journal.profile.pin.binding and p.subject == journal.subject
                 and p.expected.fence == p.target.fence == 1, "policy control original witness/subject")
-    return Control(phase, floor, active, proposal, checkpoint, binding,
-                   None if active_binding == bytes(32) else active_binding, roster, policy)
+    value = Control(phase, floor, active, proposal, checkpoint, binding,
+                    None if active_binding == bytes(32) else active_binding, roster, policy)
+    require(value.wire(journal.scope) == body, "noncanonical authority control")
+    return value
 
 
 def write(journal, control):
