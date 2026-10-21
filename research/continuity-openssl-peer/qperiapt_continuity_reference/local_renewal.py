@@ -124,10 +124,10 @@ class LocalRenewal:
         return self._prepare(grant_wire, target_checkpoint, now, None, expected_statement)
 
     @coordinated
-    def prepare_account(self, grant_wire, companions, target_checkpoint, now):
-        return self._prepare(grant_wire, target_checkpoint, now, companions)
+    def prepare_account(self, grant_wire, companions, target_checkpoint, now, *, expected_statement=None, expected_companions=None):
+        return self._prepare(grant_wire, target_checkpoint, now, companions, expected_statement, expected_companions)
 
-    def _prepare(self, grant_wire, target_checkpoint, now, companions, expected_statement=None):
+    def _prepare(self, grant_wire, target_checkpoint, now, companions, expected_statement=None, expected_companions=None):
         try:
             snapshot, control, intent = self._inspect()
             state = decode(snapshot.payload, self._context)
@@ -140,7 +140,8 @@ class LocalRenewal:
                     require(state.account_authority is not None and state.account_renewal is not None,
                             "original common account state absent")
                     request = AccountRequest.parse(grant_wire, companions, self._context.devices[0],
-                                                   self._context.family, self._context.policy_digest, target_checkpoint)
+                                                   self._context.family, self._context.policy_digest, target_checkpoint,
+                                                   expected_companions=expected_companions)
                     grant = request.local
                     current = local_view(state, self._context)
                 else:

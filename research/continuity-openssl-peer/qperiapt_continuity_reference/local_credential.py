@@ -118,12 +118,15 @@ class LocalCredentialRenewal:
             self.close(); raise
 
     @coordinated
-    def stage_account(self, wire, companions, target, now):
+    def stage_account(self, wire, companions, target, now, *, expected_statement=None, expected_companions=None):
         try:
             with self._state() as (snapshot, state, _current, record):
                 require(state.account_authority is not None, "account renewal requires common account state")
                 request = AccountRequest.parse(wire, companions, self._context.devices[0],
-                                               self._context.family, self._context.policy_digest, target)
+                                               self._context.family, self._context.policy_digest, target,
+                                               expected_companions=expected_companions)
+                require(expected_statement is None or request.local.statement == expected_statement,
+                        'credential issuance statement differs from signed grant')
                 require(request.local.operation == self.operation, "local renewal original operation differs")
                 if record.known(self.operation) is None:
                     admit_policy(state, self._context, now)

@@ -28,12 +28,11 @@ def root_lease(path, run):
     if run is None: return PrivateDirectory(path)
     from .connection_run import Run
     require(isinstance(run, Run), 'bounded original owner admission')
-    for attempt in range(64):
+    while True:
         run.check()
         try:
             lease = PrivateDirectory(path)
         except DirectoryBusy:
-            if attempt == 63: raise
             time.sleep(min(.025, max(0, run.deadline - time.monotonic())))
         else:
             try:
@@ -139,7 +138,7 @@ class EnrollmentClient:
     def open(cls, path, client_id, key, *, observer=None, run=None):
         """Open original state; an optional Run bounds only initial lease contention.
 
-        At most 64 admission attempts, 25 ms apart, share its original deadline
+        Admission polls every 25 ms within the original Run (at most 120 seconds)
         and cancellation. Configuration recovery and protocol work never retry.
         """
         owner = cls(path, observer, run)
@@ -356,20 +355,31 @@ class EnrollmentClient:
             self.close(); raise
 
     @coordinated
-    def prepare_credential_renewal(self, operation, issued, current, now, *, transport=None):
-        """Prepare a single-device grant; separate commit and witness approval follow.
+    def prepare_credential_renewal(self, operation, issued, current, now, *, transport=None, companion_grants=None):
+        """Prepare original credential maintenance; commitment remains separate.
 
         The original profile chooses local Pending or a witnessed proposal.
-        Complete-account grants use the existing borrowed coordinator separately.
+        Explicit companion_grants selects the complete-account path. An empty
+        supplied set is valid only if retained membership needs no companions.
         """
         try:
-            from .credential_inputs import selected
+            from .credential_inputs import selected, companions
             self._alive()
             identity = self._registration.status()['journal']
             chosen, wire, target, statement = selected(issued, current, self._authority, self._issued(), identity, now)
             require(chosen == operation, 'credential issuance differs from selected operation')
+            account = None if companion_grants is None else companions(companion_grants, self._authority, target)
             with self._registration.credential_renewal(operation, now, transport=transport) as child:
-                if transport is None:
+                if account is not None:
+                    wires, expected = account
+                    if transport is None:
+                        result = child.stage_account(wire, wires, target, now,
+                                                     expected_statement=statement, expected_companions=expected)
+                    else:
+                        child.prepare_account(wire, wires, target, now,
+                                              expected_statement=statement, expected_companions=expected)
+                        result = child.preparation()
+                elif transport is None:
                     result = child.stage(wire, target, now, expected_statement=statement)
                 else:
                     child.prepare(wire, target, now, expected_statement=statement)

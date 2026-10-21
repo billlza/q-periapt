@@ -7,11 +7,10 @@ same global `--provider-root`, `--directory`, `--client-id` and `--key-file` as
 the [session CLI](SESSION_CLI.md). `--timeout` bounds one invocation to at most
 120 seconds, including witness I/O. Operational calls use actual OS time.
 
-This host adapter accepts one device's issuer response. Complete-account
-transitions with companion grants remain available through the existing
-`stage_account`/`prepare_account` borrowed-owner API; this CLI does not construct
-or guess the complete companion set. The original coordinator rejects using the
-single-device path for a session governed by complete-account state.
+Use `prepare` for a single-device transition and `prepare-account` for an explicit
+complete-account transition. Both use the existing original owner coordinator.
+The original coordinator rejects using the single-device path for a session
+governed by complete-account state.
 
 ## Export and authorize the original request
 
@@ -55,6 +54,33 @@ is correlation metadata; the signed grant binds the original device owner.
 The coordinator verifies that signature and its declared statement before
 retaining a target. It also requires the actual original predecessor and the
 currently adopted live policy. A JSON response cannot supply a new trust root.
+
+For a complete-account transition, substitute:
+
+```text
+... prepare-account --operation=<original-operation> \
+  --issued /absolute/issued-grant.json --current /absolute/trusted/current.json \
+  --companions /absolute/companion-grants.json \
+  --output /absolute/private/credential-preparation.json
+```
+
+The companion file has schema `qperiapt-companion-credential-grants/1` and a
+`grants` array of the other devices' issued responses. Each response contains
+`enrollment`, `operation`, `journal`, `root_revision`, `statement`, `checkpoint`
+and `grant`, with the same encoding as the local issued response. There are at
+most 31 companions. An empty array is valid only when the retained account
+transition requires none. The signed grants and retained account determine
+which devices need renewal; this command never invents a missing grant.
+
+Every envelope must select the same account revision and target roster. The
+coordinator verifies signatures, operation/statement correlation, the common
+predecessor and the complete required set before staging. Companion enrollment
+and journal IDs are correlation metadata, never selectors for a local owner.
+Reordering the same grants preserves the original operation; changing them does
+not. The earliest companion expiry bounds the entire prepared transition.
+Commit, status and recovery use the same commands as the single-device path.
+For a required-witness owner, also supply its original `--witness-address`;
+preparation still requires separate operator admission and grants no permission.
 
 For the required-witness profile, preparation exports the native
 `qperiapt-credential-witness-proposal/1`. The operator must separately authorize
@@ -101,8 +127,17 @@ response, retrieves the same successor, and verifies that the old invitation
 can no longer issue. The original client and later P/G requests must retain
 that actual issued successor while preserving the initial correlation and key.
 This actual-time flow does not wait for both endpoints to
-expire and does not qualify complete-account CLI adoption, mobile acceptance or
-post-compromise security.
+expire and does not qualify mobile acceptance or post-compromise security.
+
+Installed host-exchange schema 16 additionally requires the local complete-account
+CLI workload (`native_exchange.py --client-cli --account-credential-cli`). A test
+issuer supplies a two-device same-key grant set under actual OS time. The original
+client rejects incomplete and mismatched envelopes, recovers a lost preparation
+export and commit output, then resumes the original unknown-ACK message, exchanges
+traffic in both directions and completes simultaneous rekey. This is separate
+from real account authorization, elapsed-time expiry and positive complete-account
+witness-operator admission. Native-signed 3/32-member fixture checks cover both
+local and witnessed coordinator input paths; they do not replace those boundaries.
 
 Existing configuration schema 1 requires the explicit historical
 [`bind-issuance`](ENROLLMENT_CLIENT.md#retained-issuance-association-and-existing-configurations)

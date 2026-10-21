@@ -1,4 +1,4 @@
-"""Original single-device credential maintenance; account approval stays external.
+"""Original single-device or complete-account credential maintenance; account approval stays external.
 
 Keep the same installation and operation after errors, including output loss.
 Required-witness preparation does not authorize a commit at the witness.
@@ -20,15 +20,17 @@ def arguments(argv):
     parser.add_argument('--client-id', required=True)
     parser.add_argument('--timeout', type=float, default=30)
     commands = parser.add_subparsers(dest='command', required=True)
-    for name in ('request', 'prepare', 'recover-preparation', 'status', 'commit', 'recover', 'close-proposal', 'reconcile-expired'):
+    for name in ('request', 'prepare', 'prepare-account', 'recover-preparation', 'status', 'commit', 'recover', 'close-proposal', 'reconcile-expired'):
         command = commands.add_parser(name)
         command.add_argument('--operation', required=True)
         command.add_argument('--witness-address', nargs=2, metavar=('IP', 'PORT'))
-        if name in ('request', 'prepare', 'recover-preparation'):
+        if name in ('request', 'prepare', 'prepare-account', 'recover-preparation'):
             command.add_argument('--output', type=Path, required=True)
-        if name == 'prepare':
+        if name in ('prepare', 'prepare-account'):
             command.add_argument('--issued', type=Path, required=True)
             command.add_argument('--current', type=Path, required=True, help='independently selected current account root/roster')
+        if name == 'prepare-account':
+            command.add_argument('--companions', type=Path, required=True, help='explicit complete companion issuer envelope set')
     return parser.parse_args(argv)
 
 
@@ -43,14 +45,17 @@ def main(argv=None):
         run = Run(args.timeout)
         client = bytes.fromhex(args.client_id); require(len(client) == 32 and any(client), 'original client identity')
         operation = identity(args.operation); witness = witness_transport(args.witness_address, run)
-        issued = read_file(args.issued, 131072) if args.command == 'prepare' else None
-        current = read_file(args.current, 131072) if args.command == 'prepare' else None
+        preparing = args.command in ('prepare', 'prepare-account')
+        issued = read_file(args.issued, 131072) if preparing else None
+        current = read_file(args.current, 131072) if preparing else None
+        from .storage_budget import MAX_ACCOUNT_REQUEST
+        companions = read_file(args.companions, MAX_ACCOUNT_REQUEST * 2) if args.command == 'prepare-account' else None
         key = read_file(args.key_file, 32, private=True); require(len(key) == 32, 'original wrapping key width')
         run.check(); owner = EnrollmentClient.open(args.directory, client, key, run=run)
         if args.command == 'request':
             result = owner.credential_renewal_request(operation, run.now(), transport=witness)
-        elif args.command == 'prepare':
-            result = owner.prepare_credential_renewal(operation, issued, current, run.now(), transport=witness)
+        elif preparing:
+            result = owner.prepare_credential_renewal(operation, issued, current, run.now(), transport=witness, companion_grants=companions)
         else:
             with owner.credential_renewal(operation, run.now(), transport=witness) as renewal:
                 if args.command == 'recover-preparation': result = renewal.preparation()

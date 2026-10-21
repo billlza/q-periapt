@@ -289,7 +289,7 @@ class ClientChecks(unittest.TestCase):
                 EnrollmentClient.open(self.client_path, self.local_id, self.key, run=cancelled)
         finally: timer.join(timeout=1)
         with self.assertRaises(DirectoryBusy):
-            EnrollmentClient.open(self.client_path, self.local_id, self.key, run=Run(30))
+            EnrollmentClient.open(self.client_path, self.local_id, self.key)
         self.assertEqual(self.state(), before)
         results = []; failures = []; started = threading.Event()
         def waiting():
@@ -301,7 +301,9 @@ class ClientChecks(unittest.TestCase):
             except BaseException as error: failures.append(error)
         worker = threading.Thread(target=waiting); worker.start()
         self.assertTrue(started.wait(timeout=1))
-        time.sleep(.08); self.client.close(); worker.join(timeout=6)
+        # Real account renewal can keep an original owner busy beyond the old
+        # 64 x 25 ms admission cap. The enclosing five-second run still has time.
+        time.sleep(2.25); self.client.close(); worker.join(timeout=6)
         self.assertFalse(worker.is_alive())
         if failures: raise BaseExceptionGroup('bounded root admission failed', failures)
         self.assertEqual(results, [original]); self.assertEqual(self.state(), before)

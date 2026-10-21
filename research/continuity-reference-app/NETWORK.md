@@ -103,12 +103,13 @@ history. A retained final receipt remains eligible for explicit redispatch.
 The empty carrier marker counts only when the authenticated local journal already
 confirms that target. One deadline and one exchange allowance span the whole run.
 
-Network commands and receivers bound initial original-owner lease contention to
-64 acquisition attempts with at most 25 ms between attempts, shortened by the
-original deadline and cancellation. Only the initial enrollment-store busy
-condition is eligible. Recovery, activation, protocol work, authentication errors
-and other I/O errors are never implicitly retried. Exhausted admission still
-fails explicitly; this is not an unbounded queue or a fairness guarantee.
+Independent network commands and receivers poll initial original-owner lease
+contention every 25 ms within the original deadline (at most 120 seconds) and
+cancellation. The final wait is shortened to the remaining time. Only the initial
+enrollment-store busy condition is eligible. Recovery, activation, protocol work,
+authentication errors and other I/O errors are never implicitly retried.
+Deadline expiry or cancellation fails explicitly; this is not an unbounded queue
+or a fairness guarantee. Direct opens without a `Run` remain fail-fast.
 Bootstrap commands retain their whole-operation owners across I/O.
 
 ## Evidence and open boundaries

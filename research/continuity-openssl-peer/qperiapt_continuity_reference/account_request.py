@@ -33,12 +33,16 @@ class AccountRequest:
     companions: tuple[Renewal, ...]
 
     @classmethod
-    def parse(cls, local_wire, companions, original, family, policy, target):
+    def parse(cls, local_wire, companions, original, family, policy, target, *, expected_companions=None):
         require(len(companions) < MAX_GRANTS, "account companion capacity")
         local = verify(local_wire, original, family, policy, target)
+        require(expected_companions is None or len(expected_companions) == len(companions),
+                'companion issuance correlation count differs')
         selected = {}
-        for wire in companions:
+        for index, wire in enumerate(companions):
             grant = verify_account(wire, original.pin, family, policy, target)
+            require(expected_companions is None or (grant.operation, grant.statement) == expected_companions[index],
+                    'companion issuance differs from signed grant')
             require(grant.pin.device != local.pin.device and grant.pin.device not in selected,
                     "duplicate account request device")
             require(grant.predecessor_roster.checkpoint() == local.predecessor_roster.checkpoint(),

@@ -13,7 +13,7 @@ from qperiapt_continuity_reference.network_server import Server
 from qperiapt_continuity_reference.wire import require
 
 
-def exercise(implementation,provider,client_dir,session_dir,client_id,root,native,outgoing,inputs,journal,original,run,commands):
+def exercise(implementation,provider,client_dir,session_dir,client_id,root,native,outgoing,inputs,journal,original,run,commands,*,account_issuer=None):
     command=[sys.executable,'-I','-S','-B','-c',
         f'import sys; sys.path.insert(0,{str(implementation)!r}); from qperiapt_continuity_reference.session_cli import main; raise SystemExit(main())',
         '--provider-root',provider,'--directory',client_dir,'--client-id',client_id.hex(),
@@ -85,6 +85,10 @@ def exercise(implementation,provider,client_dir,session_dir,client_id,root,nativ
                      '--address',drop.address[0],str(drop.address[1])],success=False)
         lost_wire=drop.finish();save(root/'cli-lost.request',lost_wire['request']);save(root/'cli-lost-upstream.response',lost_wire['response'])
         require(call('lost-status',['message-status',*lost_args])=={'session':sid,'message':lost,'status':'Committed'},'CLI lost response inferred success')
+        account_renewal=None
+        if account_issuer is not None:
+            from account_credential_cli import exercise as account_credential
+            account_renewal=account_credential(account_issuer,implementation,provider,root,client_dir,session_dir,client_id,original,journal,sid,lost)
         require(call('resume',['resume',*lost_args,'--associated-data',root/'cli-ad.bin',*address])==
                 {'session':sid,'message':lost,'consumption':'Confirmed'},'CLI original resume')
         require(frames[-1]['request_sha256']==hashlib.sha256(lost_wire['request']).hexdigest() and
@@ -108,8 +112,8 @@ def exercise(implementation,provider,client_dir,session_dir,client_id,root,nativ
         simultaneous=opposing(command,call,root,native,outgoing,inputs,sid,journal,client_id,run,commands)
         from opposing_rekey_cli_flow import exercise as opposing_rekey
         concurrent_control=opposing_rekey(command,call,root,native,outgoing,inputs,sid,journal,client_id,run,commands)
-        return {'schema_version':1,'kind':'qperiapt.independent_session_cli','completed':True,
-                'frames':frames,'native_service':stopped,'relay':result['stats'],'confirmed_epoch':7,'inbound':received,'opposing':simultaneous,
+        return {'schema_version':2 if account_issuer is not None else 1,'kind':'qperiapt.independent_session_cli','completed':True,
+                'account_credential':account_renewal,'frames':frames,'native_service':stopped,'relay':result['stats'],'confirmed_epoch':7,'inbound':received,'opposing':simultaneous,
                 'opposing_rekey':concurrent_control,
                 'scope':'Separate installed Python CLI processes and actual native TCP under explicit test authority. Both directions, simultaneous sends and rekey, durable inbox readback, lost ACK, receiver SIGKILL/restart, exact retry and detached reply refusals. No cross-host, witness-positive or real account authorization claim.'}
     finally:

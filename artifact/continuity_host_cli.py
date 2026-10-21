@@ -5,6 +5,7 @@ from continuity_independent_python import PACKAGE,require
 from continuity_host_native_exchange import LABELS as FILE_LABELS,REFUSALS as FILE_REFUSALS
 from continuity_host_network import count,stats,exchanges
 from evidence_io import parse_strict_json_bytes,read_regular_snapshot
+import continuity_host_cli_credential as credential
 
 CLI_LABELS=tuple('cli-'+name for name in ('wrong-directory','other-credential','prepare','prepare-retry',
     'connect','connect-reopen','wrong-session','noncanonical-session','local-profile-witness','next',
@@ -33,10 +34,11 @@ CONTROL_FRAMES=tuple(('cli-rekey-'+side+'-wire-'+str(i),4)
     for side,n in (('independent',2),('native',3)) for i in range(1,n+1))
 
 
-def verify(value,binaries,application):
+def verify(value,binaries,application,*,account_credential=False):
     require(type(value) is dict and value.get('completed') is True
             and value.get('kind')=='qperiapt.independent_session_cli','CLI completion')
-    count(value.get('schema_version'),1,'CLI receipt version')
+    count(value.get('schema_version'),2 if account_credential else 1,'CLI receipt version')
+    if account_credential:credential.verify(value)
     count(value.get('confirmed_epoch'),7,'CLI confirmed epoch')
     require(value.get('native_sha256')==binaries and value.get('provider')=='48.0.1'
             and value.get('implementation')==str(application/PACKAGE/'session_cli.py')
@@ -97,6 +99,7 @@ def retain(value,private,public,snapshot):
         item=snapshot(private/name);(public/name).write_bytes(item.data);return item
     def result(label):return parse_strict_json_bytes(copy(label+'.stdout').data,label=label)
     copy('RESULT.json')
+    if value.get('schema_version') == 2:credential.retain(value,copy,result)
     for label in LABELS:
         out=copy(label+'.stdout');err=copy(label+'.stderr')
         require(bool(err.data)==(label in REFUSALS),'CLI stderr result differs')
@@ -233,13 +236,15 @@ def qualify(args,reference,application,provider,outside,output,snapshot,run):
     (outside/'independent_inbound_cli.py').write_bytes(snapshot(reference/'tests/independent_inbound_cli.py').data)
     (outside/'opposing_cli_flow.py').write_bytes(snapshot(reference/'tests/opposing_cli_flow.py').data)
     (outside/'opposing_rekey_cli_flow.py').write_bytes(snapshot(reference/'tests/opposing_rekey_cli_flow.py').data)
+    for name in ('account_credential_cli.py','host_replacement_process.py'):
+        (outside/name).write_bytes(snapshot(reference/'tests'/name).data)
     private=outside/'private-independent-cli'
-    command=[sys.executable,'-I','-S','-B',str(outside/'native_exchange.py'),'--client-cli']
+    command=[sys.executable,'-I','-S','-B',str(outside/'native_exchange.py'),'--client-cli','--account-credential-cli']
     for key,path in zip(('native-device','native-session','crash-probe','native-outgoing'),paths):command+=['--'+key,str(path)]
     command+=['--implementation-root',str(application),'--provider-root',str(provider),'--output',str(private)]
     execution=run(command,'independent-session-cli')
     value=parse_strict_json_bytes(execution.stdout,label='installed session CLI')
-    verify(value,binaries,application)
+    verify(value,binaries,application,account_credential=True)
     require(parse_strict_json_bytes(snapshot(private/'RESULT.json').data,label='retained CLI result')==value,'CLI retained result differs')
     retain(value,private,output/'independent-cli-public',snapshot)
     require(hashes()==binaries,'CLI native executable changed')

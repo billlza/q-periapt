@@ -119,12 +119,12 @@ target during the wait. Already-committed receipts remain explicitly replayable.
 An empty carrier reply cannot establish completion without authenticated local
 history. The original deadline and cancellation cover every phase.
 
-Session commands and receivers allow at most 64 attempts to obtain the original
-client's initial directory lease, separated by at most 25 ms and limited by the
-same deadline/cancellation. Only actual lease contention is eligible; journal
-recovery and protocol operations are never retried implicitly. Exhaustion
-returns an explicit busy result. Ordinary `EnrollmentClient.open` remains
-nonblocking unless its caller supplies a `Run` for this admission boundary.
+Session commands and receivers poll for the original client's initial directory
+lease every 25 ms within the same invocation deadline (at most 120 seconds) and
+cancellation. The final wait is shortened to the remaining time. Only actual
+lease contention is eligible; journal recovery and protocol operations are never
+retried implicitly. Deadline expiry or cancellation fails explicitly; the
+operation is not restarted. Direct opens without a `Run` remain fail-fast.
 
 For a signed required-witness profile, non-prepare commands additionally need
 `--witness-address IP PORT`. The owner verifies the pinned witness. Supplying a
