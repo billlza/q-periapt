@@ -1,4 +1,4 @@
-"""Reject omitted R phases, invented commitment, resets and missing real traffic."""
+"""Reject omitted R/P/G phases, invented commitment and substituted recovery."""
 import base64
 from pathlib import Path
 import unittest
@@ -18,13 +18,14 @@ def fixture():
         transitions.append(dict(operation=identity(i),binding=binding,observation=dict(binding=binding,state='Applied'),
             progress=dict(schema='qperiapt-roster-refresh-progress/1',state='Applied',retired=True,binding=binding,scope=scope)))
     return dict(kind='qperiapt.authenticated_surviving_device_roster',completed=True,release_claim_eligible=False,cleanup_errors=[],
-        schema_version=2,effects=4,confirmed_epoch=1,sibling_generation=1,successor_generation=2,native_sha256={},provider='48.0.1',
+        schema_version=3,effects=4,confirmed_epoch=1,sibling_generation=1,successor_generation=2,native_sha256={},provider='48.0.1',
         implementation='/installed/qperiapt_continuity_reference/session_cli.py',clock='actual OS time',
         original_keys_unchanged=True,old_sibling_unchanged=True,session=identity(4),journal=identity(5),original_pending_message=identity(6),policy_pending_message=identity(9),
         commands=[dict(label=k,exit=1 if k in FAILED else 0) for k in LABELS],
         account_requests=[dict(label=k,id=i,action='register' if k.startswith('register-') else 'login' if k=='alice-relogin'
             else 'finish' if k=='probe-finish' else 'request') for i,k in enumerate(HTTP,1)],transitions=transitions,
         policy_transition=policy_fixture(identity,transitions),
+        credential_transition=credential_fixture(identity,transitions),
         services=[process('survivor-first',1,3),process('survivor-after-add',2,2),process('survivor-after-replacement',3,4)],
         witness_services=[dict(label='witness-first',pid=4,exit=-9),process('witness-reopened',5,5)],
         account_services=[dict(label='account-first',pid=6,exit=-9),process('account-reopened',7,1)],
@@ -42,6 +43,23 @@ def policy_fixture(identity,transitions):
             current_roster=transitions[0]['progress']['scope']['target'],previous_authorization=None,
             original_policy=transitions[0]['progress']['scope']['policy'],previous_policy=transitions[0]['progress']['scope']['policy'])),
         account_approval=dict(operation=[7]*32,statement=[8]*32,target=target),policy_approval=dict(operation=[7]*32,statement=[8]*32))
+
+
+def credential_fixture(identity,transitions):
+    p=policy_fixture(identity,transitions);operation=[12]*32;statement=[13]*32;journal=[5]*32
+    target=dict(version=4,digest=[4]*32);enrollment=[21]*32
+    previous=transitions[1]['progress']['scope']['target']
+    proposal=b'QPCRNP03'+bytes([14])*32+bytes([15])*96+bytes(operation)+bytes(statement)+bytes(96)+b'\0'+bytes([8])*32
+    return dict(request=dict(schema='qperiapt-retained-credential-request/1',operation=operation,journal=journal,
+        enrollment=enrollment,root_revision=1,original_owner=[22]*32,original_policy=p['request']['scope']['original_policy'],
+        current_policy=p['progress']['target'],current_policy_authorization=[8]*32,previous_checkpoint=previous),
+        issued=dict(operation=operation,statement=statement,journal=journal,enrollment=enrollment,checkpoint=target,root_revision=1),
+        extension=dict(root_revision=1,checkpoint=target,request=dict(enrollment=enrollment,predecessor=previous)),
+        preparation=dict(schema='qperiapt-credential-witness-proposal/1',operation=operation,journal=journal,
+            proposal=base64.urlsafe_b64encode(proposal).rstrip(b'=').decode()),proposal_binding=[16]*32,
+        terminal=dict(state='Committed',operation=operation,statement=statement,target=target),
+        activation=dict(state='Active',operation=operation,statement=statement,journal=journal,checkpoint=target),
+        returned_owner=dict(same_returned_owner=True,status='Absent',journal=journal,session=[4]*32,message=[23]*32))
 
 
 class RosterEvidence(unittest.TestCase):
@@ -85,6 +103,35 @@ class RosterEvidence(unittest.TestCase):
             value=fixture();value['policy_transition']['request']['scope'][part]=dict(version=99,digest=[99]*32)
             with self.subTest(part=part),self.assertRaises(ValueError):self.accepted(value)
         value=fixture();value['transitions'][1]['progress']['scope']['policy_authorization']=None
+        with self.assertRaises(ValueError):self.accepted(value)
+
+    def test_credential_requires_original_policy_and_current_roster_lineage(self):
+        for key,wrong in [('journal',[99]*32),('enrollment',[99]*32),('operation',[99]*32),
+                          ('current_policy_authorization',None),('previous_checkpoint',dict(version=2,digest=[2]*32)),
+                          ('original_policy',dict(version=2,digest=[12]*32)),('current_policy',dict(version=1,digest=[11]*32))]:
+            value=fixture();value['credential_transition']['request'][key]=wrong
+            with self.subTest(key=key),self.assertRaises(ValueError):self.accepted(value)
+
+    def test_credential_proposal_cannot_substitute_operation_or_policy(self):
+        for offset in (0,136,168,296,297):
+            value=fixture();p=value['credential_transition']['preparation']
+            data=bytearray(base64.urlsafe_b64decode(p['proposal']+'='*((-len(p['proposal']))%4)))
+            data[offset]^=1;p['proposal']=base64.urlsafe_b64encode(data).rstrip(b'=').decode()
+            with self.subTest(offset=offset),self.assertRaises(ValueError):self.accepted(value)
+
+    def test_credential_terminal_and_direct_owner_are_required(self):
+        for key,wrong in [('state','Pending'),('statement',[99]*32),('target',dict(version=3,digest=[3]*32))]:
+            value=fixture();value['credential_transition']['terminal'][key]=wrong
+            with self.subTest(key=key),self.assertRaises(ValueError):self.accepted(value)
+        for key,wrong in [('same_returned_owner',False),('status','Reserved'),('session',[99]*32),('journal',[99]*32),
+                          ('message',[True]*32),('message',[0]*32)]:
+            value=fixture();value['credential_transition']['returned_owner'][key]=wrong
+            with self.subTest(key=key,wrong=wrong),self.assertRaises(ValueError):self.accepted(value)
+
+    def test_installed_receipt_cannot_omit_g_or_reuse_the_old_schema(self):
+        value=fixture();value['schema_version']=2
+        with self.assertRaises(ValueError):self.accepted(value)
+        value=fixture();value['commands']=[row for row in value['commands'] if not row['label'].startswith('g-')]
         with self.assertRaises(ValueError):self.accepted(value)
 
 

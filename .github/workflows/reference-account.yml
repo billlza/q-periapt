@@ -25,6 +25,7 @@ on:
       - artifact/continuity_host_replacement*.py
       - artifact/test_continuity_host_replacement.py
       - artifact/continuity_host_roster_policy.py
+      - artifact/continuity_host_roster_credential.py
       - artifact/continuity_host_roster.py
       - artifact/test_continuity_host_roster.py
       - artifact/continuity_independent_python*.py
@@ -55,6 +56,7 @@ on:
       - artifact/continuity_host_replacement*.py
       - artifact/test_continuity_host_replacement.py
       - artifact/continuity_host_roster_policy.py
+      - artifact/continuity_host_roster_credential.py
       - artifact/continuity_host_roster.py
       - artifact/test_continuity_host_roster.py
       - artifact/continuity_independent_python*.py
@@ -186,6 +188,7 @@ jobs:
           CONTINUITY_WITNESS: ${{ runner.temp }}/reference-account-build/release/q-periapt-continuity-witness
           ACCOUNT_HOST: ${{ runner.temp }}/reference-account-build/release/q-periapt-continuity-reference-app
           ACCOUNT_CLIENT: ${{ runner.temp }}/reference-account-build/release/examples/account-client-probe
+          CREDENTIAL_RECOVERY_PROBE: ${{ runner.temp }}/reference-account-build/release/examples/credential-recovery-probe
           CRASH_PROBE: ${{ runner.temp }}/reference-account-build/release/examples/inbox-crash-probe
         run: |
           sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_host_native_exchange.py' \
@@ -228,29 +231,9 @@ jobs:
             --witness "$CONTINUITY_WITNESS" \
             --account-host "$ACCOUNT_HOST" \
             --account-client "$ACCOUNT_CLIENT" \
+            --credential-recovery-probe "$CREDENTIAL_RECOVERY_PROBE" \
             --output target/reference-account-ci/exchange \
             > target/reference-account-ci/exchange.stdout 2> target/reference-account-ci/exchange.stderr
-          git diff --exit-code
-      - name: Exercise the returned credential recovery owner after roster and policy changes
-        env:
-          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
-          REFERENCE_BUILD: ${{ runner.temp }}/reference-account-build/release
-        run: |
-          sh artifact/python-run.sh research/continuity-reference-app/tests/host_roster.py \
-            --account-host "$REFERENCE_BUILD/q-periapt-continuity-reference-app" \
-            --account-client "$REFERENCE_BUILD/examples/account-client-probe" \
-            --sdk-authority "$REFERENCE_BUILD/q-periapt-sdk-policy-authority" \
-            --publisher "$REFERENCE_BUILD/q-periapt-policy-publisher" \
-            --witness "$REFERENCE_BUILD/q-periapt-continuity-witness" \
-            --native-device "$REFERENCE_BUILD/q-periapt-native-device" \
-            --native-session "$REFERENCE_BUILD/q-periapt-native-session" \
-            --native-outgoing "$REFERENCE_BUILD/q-periapt-native-outgoing" \
-            --implementation-root "$PWD/research/continuity-openssl-peer" \
-            --provider-root "$RUNNER_TEMP/reference-provider" \
-            --credential-renewal \
-            --credential-recovery-probe "$REFERENCE_BUILD/examples/credential-recovery-probe" \
-            --output "$RUNNER_TEMP/reference-returned-owner" \
-            > target/reference-account-ci/returned-owner.stdout 2> target/reference-account-ci/returned-owner.stderr
           git diff --exit-code
       - name: Retain build and regression results
         if: always()
