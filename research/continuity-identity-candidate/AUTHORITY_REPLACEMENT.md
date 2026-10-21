@@ -141,6 +141,13 @@ Installed foreign adapters, deployed control-plane transport and supported-platf
 qualification remain required. They must preserve original identities and approvals;
 they cannot reset Preparing/Pending or regenerate a root to recover availability.
 
+The reference host now has a separate
+[local witness root operator](../continuity-reference-app/WITNESS_ROOT_REPLACEMENT.md)
+for the existing plan, freeze, binding, commit, status and closure transactions.
+It preserves the original witness and independently selected inputs. This supplies
+one control-plane component; the reference account issuer's successor-root cutover
+and the independent Python client's complete root-replacement path remain open.
+
 ## Preserve the current identity meanings
 
 `identity::account_id` commits to the complete root public key. A new root has a

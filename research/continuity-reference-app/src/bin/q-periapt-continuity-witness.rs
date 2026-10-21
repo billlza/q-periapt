@@ -19,6 +19,8 @@ mod operator_io;
 mod policy;
 #[path = "../witness_replacement_cli.rs"]
 mod replacement;
+#[path = "../witness_root_cli.rs"]
+mod root;
 #[path = "../witness_roster_cli.rs"]
 mod roster;
 use operator_io::{export_directory, identifier, print, read, Result};
@@ -27,6 +29,22 @@ const USAGE: &str = "q-periapt-continuity-witness <init|prepare|pin|export|enrol
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();
     let command = args.get(1).and_then(|value| value.to_str()).ok_or(USAGE)?;
+    if command == "--help" && args.len() == 2 {
+        println!("{USAGE}\n{}", root::USAGE);
+        return Ok(());
+    }
+    if matches!(
+        command,
+        "root-plan"
+            | "root-freeze"
+            | "root-bind"
+            | "root-commit"
+            | "root-status"
+            | "root-close"
+            | "root-plan-close"
+    ) {
+        return root::run(&args);
+    }
     if matches!(command, "credential-prepare" | "credential-close") {
         return credential::run(&args);
     }

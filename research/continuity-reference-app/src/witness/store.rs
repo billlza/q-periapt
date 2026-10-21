@@ -4,6 +4,7 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use q_periapt_host_store::filesystem::{open_private_database, provision_private_database};
 use redb::{Database, ReadableDatabase, ReadableTableMetadata, TableDefinition, TableHandle};
 use std::path::PathBuf;
+mod root_operations;
 
 const CONFIG: TableDefinition<&str, &[u8]> = TableDefinition::new("continuity_witness_host_v1");
 const MAX_CONFIG: usize = 8192;

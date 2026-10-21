@@ -159,6 +159,8 @@ jobs:
             > target/reference-account-ci/inbox-probe-build.stdout 2> target/reference-account-ci/inbox-probe-build.stderr
           cargo test --locked --release --manifest-path "$manifest" \
             > target/reference-account-ci/release-tests.stdout 2> target/reference-account-ci/release-tests.stderr
+          cargo test --locked --release --manifest-path "$manifest" --lib --no-run --message-format=json \
+            > target/reference-account-ci/root-test-artifacts.jsonl 2> target/reference-account-ci/root-test-artifacts.stderr
           reference_build="$CARGO_TARGET_DIR"
           export CARGO_TARGET_DIR="$RUNNER_TEMP/reference-identity-build"
           native_manifest=research/continuity-identity-candidate/Cargo.toml
@@ -246,6 +248,14 @@ jobs:
             --credential-recovery-probe "$CREDENTIAL_RECOVERY_PROBE" \
             --output target/reference-account-ci/exchange \
             > target/reference-account-ci/exchange.stdout 2> target/reference-account-ci/exchange.stderr
+          installed_reference=$(jq -er '.outside_root' target/reference-account-ci/exchange/RESULT.json)
+          sh artifact/python-run.sh research/continuity-reference-app/tests/witness_root_operator.py \
+            --witness "$CONTINUITY_WITNESS" \
+            --test-artifacts target/reference-account-ci/root-test-artifacts.jsonl \
+            --implementation-root "$installed_reference/installed" \
+            --provider-root "$RUNNER_TEMP/reference-provider" \
+            --output "$PWD/target/reference-account-ci/root-operator" \
+            > target/reference-account-ci/root-operator.stdout 2> target/reference-account-ci/root-operator.stderr
           git diff --exit-code
       - name: Retain build and regression results
         if: always()

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 
-fn journal(
+pub(super) fn journal(
     path: &Path,
     name: &str,
     mut trust: EnrollmentTrust,
@@ -90,7 +90,7 @@ fn approved(original: &Device, next: EnrollmentTrust) -> Result<DeviceReplacemen
         predecessors: vec![predecessor(&original.trust, &original.request)?],
     })
 }
-fn exchange(
+pub(super) fn exchange(
     owner: &mut Witness,
     pin: &sdk::AnchorPin,
     request: &EnrollmentRequest,

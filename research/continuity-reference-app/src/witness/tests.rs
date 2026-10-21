@@ -244,6 +244,8 @@ fn device(path: &Path, pin: Pin) -> Result<Device> {
     })
 }
 
+#[path = "account_root_tests.rs"]
+mod account_root;
 #[path = "replacement_tests.rs"]
 mod device_replacement;
 #[test]
