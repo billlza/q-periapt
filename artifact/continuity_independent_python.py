@@ -115,7 +115,7 @@ def verify_witness_policy_profiles(result: dict) -> None:
         for p, version, now in zip(adopted, (2, 4), (190, 340), strict=True):
             require(isinstance(p, dict) and type(p.get("version")) is int and p["version"] == version
                     and type(p.get("now")) is int and p["now"] == now
-                    and p.get("admission_kinds") == [1, 1, 15, 1, 1, 15]
+                    and p.get("admission_kinds") == [1, 1, 15, 1, 15]
                     and all(type(k) is int for k in p["admission_kinds"]),
                     "witness policy clock or fresh output admission differs")
             _policy_identities(p, ("operation", "proposal", "statement"))

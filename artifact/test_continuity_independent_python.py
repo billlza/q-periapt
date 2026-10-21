@@ -15,7 +15,7 @@ class WitnessPolicyReceiptTests(unittest.TestCase):
     def profiles(self):
         return {"profiles": [{"members": members, "workers": 60, "process_kills": 7, "confirmed_epoch": 1,
             **{k: "a" * 64 for k in ("journal", "native_journal", "session", "original_wire_sha256")},
-            "adopted": [{"version": v, "now": at, "admission_kinds": [1, 1, 15, 1, 1, 15],
+            "adopted": [{"version": v, "now": at, "admission_kinds": [1, 1, 15, 1, 15],
                 **{k: digit * 64 for k in ("operation", "proposal", "statement")}}
                 for v, at, digit in [(2, 190, "b"), (4, 340, "c")]],
             "refusals": [{"case": f"p{v}-release-withholds-output", "error": "unavailable", "type": "TimeoutError"}
@@ -46,6 +46,8 @@ class WitnessPolicyReceiptTests(unittest.TestCase):
 
     def test_missing_fresh_release_or_native_floor_cannot_qualify(self):
         for mutate in [lambda r: r["adopted"][0].update(admission_kinds=[1, 15]),
+                       lambda r: r["adopted"][0].update(admission_kinds=[1, 1, 15, 1]),
+                       lambda r: r["adopted"][0].update(admission_kinds=[1, 1, 15, 1, 1, 15]),
                        lambda r: r["adopted"][0].update(admission_kinds=[1, 1, 4, 1, 1, 4]),
                        lambda r: r["native_refusals"].pop(), lambda r: r["refusals"].pop(),
                        lambda r: r["denied_operations"].pop(), lambda r: r.update(process_kills=0),
