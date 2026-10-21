@@ -263,7 +263,10 @@ fn independent_policy_then_credential_operator_rejects_retarget_and_recovers_los
 
 #[test]
 fn expired_independent_policy_allows_only_historical_credential_closure() -> Result<()> {
-    let mut u = Update::new(20)?;
+    // This ceremony includes P adoption and several real G subprocesses. Debug
+    // CI exhausted the old 20-second target before G could be prepared. Preserve
+    // actual expiry checks, but give that live setup its own bounded window.
+    let mut u = Update::new(120)?;
     adopt(&u)?;
     let g = prepare(&u, true)?;
     assert_eq!(result(&u, "credential-prepare")?["state"], "Prepared");
@@ -272,7 +275,15 @@ fn expired_independent_policy_allows_only_historical_credential_closure() -> Res
         .pins
         .verify_historical(&u.target.materials, u.r.case.invitation.family)?
         .0;
+    let deadline = std::time::Instant::now() + Duration::from_secs(130);
+    eprintln!(
+        "Credential closure setup complete; policy expires in {} seconds",
+        policy.validity().until().saturating_sub(clock()?)
+    );
     while clock()? <= policy.validity().until() {
+        if std::time::Instant::now() >= deadline {
+            return Err("Actual policy expiry exceeded its monotonic wait bound".into());
+        }
         thread::sleep(Duration::from_millis(100));
     }
     refusal(&operator(
