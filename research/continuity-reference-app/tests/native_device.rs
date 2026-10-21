@@ -28,6 +28,8 @@ mod recovery;
 mod renewal;
 #[path = "native_device/replacement.rs"]
 mod replacement;
+#[path = "native_device/roster.rs"]
+mod roster;
 #[path = "../src/test_support.rs"]
 mod test_support;
 #[path = "native_device/witness.rs"]

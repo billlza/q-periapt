@@ -27,6 +27,7 @@ from continuity_host_network import qualify as qualify_network
 from continuity_host_cli import qualify as qualify_cli
 from continuity_host_witness import qualify as qualify_witness
 from continuity_host_replacement import qualify as qualify_replacement
+from continuity_host_roster import qualify as qualify_roster
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'research/continuity-openssl-peer'
@@ -41,7 +42,7 @@ def inputs(commit):
     paths = [*sorted((SOURCE / PACKAGE).glob('*.py'))]
     paths += [SOURCE / name for name in ('tests/enrollment_exchange.py', 'tests/enrollment_client.py', 'tests/enrollment_extension.py', 'tests/network.py', 'tests/mailbox.py', 'pyproject.toml', 'README.md',
                'ENROLLMENT_EXCHANGE.md', 'ENROLLMENT_CLIENT.md', 'SESSION_CLI.md', 'LICENSE-APACHE', 'LICENSE-MIT', 'requirements.txt', 'build-requirements.txt')]
-    paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py', 'continuity_host_native_exchange.py', 'continuity_host_network.py', 'continuity_host_cli.py', 'continuity_host_witness.py', 'continuity_host_replacement.py', 'continuity_host_replacement_evidence.py',
+    paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py', 'continuity_host_native_exchange.py', 'continuity_host_network.py', 'continuity_host_cli.py', 'continuity_host_witness.py', 'continuity_host_replacement.py', 'continuity_host_replacement_evidence.py', 'continuity_host_roster.py',
                'continuity_independent_python.py', 'continuity_independent_python_run.py',
                'bounded_process.py', 'evidence_io.py', 'git_provenance.py', 'python_bootstrap.py')]
     paths += [ROOT / name for name in run_git_bytes(ROOT, ['ls-tree', '-r', '--name-only', commit,
@@ -85,7 +86,7 @@ def qualify(args):
     requirements = output / 'wheel-requirements.txt'
     requirements.write_text(captured.as_uri() + ' --hash=sha256:' + wheel.sha256 + '\n')
     environment = {k: v for k, v in os.environ.items() if not k.startswith(('PYTHON', 'PIP_', 'DYLD_', 'LD_'))}
-    result = {'schema_version':9, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
+    result = {'schema_version':10, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
               'release_claim_eligible':False, 'source_commit':commit, 'source_inputs':before,
               'wheel_sha256':wheel.sha256, 'module_count':len(modules), 'outside_root':str(outside),
               'publisher_binary_sha256_producer_observation':publisher.sha256,
@@ -173,10 +174,11 @@ def qualify(args):
         result['independent_session_cli'] = qualify_cli(args,REFERENCE,application,provider,outside,output,snapshot,run)
         result['required_witness_cli'] = qualify_witness(args,REFERENCE,application,provider,outside,output,snapshot,run)
         result['authenticated_device_replacement'] = qualify_replacement(args,REFERENCE,application,provider,outside,output,snapshot,run)
+        result['authenticated_surviving_device_roster'] = qualify_roster(args,REFERENCE,application,provider,outside,output,snapshot,run)
         verify_installation(installed_files(application), files, wheel_url=captured.as_uri(), digest=wheel.sha256)
         require(inputs(commit) == before, 'exchange qualification source changed')
         result.update(completed=True,
-                      scope='Installed independent adapter/client and native protected SDK/protocol operator CLIs; file/process-recovery workload plus fresh local TCP bootstrap, bidirectional reply loss/retry, service restart and two PQ rekeys. Includes real HTTP account authorization using isolated software Passkeys, device replacement, witness retirement, exact peer-roster admission and new-session traffic after service restart. No human/browser Passkey, mobile, TLS or cross-host deployment, account-root replacement or full lifecycle admission.')
+                      scope='Installed independent adapter/client and native protected SDK/protocol operator CLIs; file/process-recovery workload plus fresh local TCP bootstrap, bidirectional reply loss/retry, service restart and two PQ rekeys. Includes real HTTP account authorization using isolated software Passkeys, device replacement, witness retirement, exact peer-roster admission and new-session traffic after service restart; two surviving-device own-account R transitions retain original session, pending delivery and keys. No human/browser Passkey, mobile, TLS or cross-host deployment, account-root replacement or full lifecycle admission.')
     except BaseException as error:
         result['failure'] = str(error)
         raise

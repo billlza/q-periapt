@@ -7,12 +7,14 @@ use std::path::Path;
 
 mod enrollment;
 mod replacement;
+mod roster_refresh;
 mod store;
 pub use enrollment::{EnrollmentRequest, EnrollmentTrust};
 pub use replacement::{
     DevicePredecessorTrust, DeviceReplacementDecision, DeviceReplacementOutcome,
     DeviceReplacementStatus, DeviceReplacementTrust,
 };
+pub use roster_refresh::RosterRefreshTrust;
 pub use store::Witness;
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 

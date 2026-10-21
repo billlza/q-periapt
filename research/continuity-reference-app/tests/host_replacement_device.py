@@ -48,7 +48,8 @@ class Native:
         self.issued = json.loads(self.issued_raw); save(root / 'native-issued.json', self.issued_raw)
         _, self.current = authority(probe, 'alice', 'native-authority')
         save(root / 'native-current.json', self.current)
-        self.local_inputs = [root / 'native-current.json', root / 'policy-pins.json', root / 'policy-materials.json']
+        self.current_path = root / 'native-current.json'
+        self.local_inputs = [self.current_path, root / 'policy-pins.json', root / 'policy-materials.json']
         accepted = run([binary, 'accept', *self.common, root / 'native-issued.json', *self.local_inputs], 'native-accept')
         self.journal = bytes(accepted['journal'])
         self.prepared = run([binary, 'prepare', *self.common, *self.local_inputs], 'native-prepare')
@@ -87,7 +88,7 @@ class Native:
 
     def inputs(self, peer):
         return {'device_directory': str(self.directory), 'wrapping_key': str(self.root / 'native-wrap.key'),
-                'invitation': str(self.root / 'native-invitation.json'), 'current_root': str(self.root / 'native-current.json'),
+                'invitation': str(self.root / 'native-invitation.json'), 'current_root': str(self.current_path),
                 'policy_pins': str(self.root / 'policy-pins.json'), 'policy_materials': str(self.root / 'policy-materials.json'),
                 'witness_endpoint': self.witness.endpoint(), 'peer_trust': str(peer.trust_path), 'bundle': str(peer.bundle_path)}
 

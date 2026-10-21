@@ -10,7 +10,7 @@ use q_periapt_continuity_reference_app::{
 };
 use std::{net::SocketAddr, process::Stdio, thread};
 
-fn witness_args(path: &Path, command: &str, tail: &[&Path]) -> Vec<OsString> {
+pub(super) fn witness_args(path: &Path, command: &str, tail: &[&Path]) -> Vec<OsString> {
     let mut args = vec![
         command.into(),
         path.join("host.redb").into_os_string(),
@@ -19,7 +19,11 @@ fn witness_args(path: &Path, command: &str, tail: &[&Path]) -> Vec<OsString> {
     args.extend(tail.iter().map(|p| p.as_os_str().to_os_string()));
     args
 }
-fn witness_call(path: &Path, command: &str, tail: &[&Path]) -> Result<serde_json::Value> {
+pub(super) fn witness_call(
+    path: &Path,
+    command: &str,
+    tail: &[&Path],
+) -> Result<serde_json::Value> {
     let output = Command::new(env!("CARGO_BIN_EXE_q-periapt-continuity-witness"))
         .args(witness_args(path, command, tail))
         .output()?;
@@ -31,7 +35,7 @@ fn witness_call(path: &Path, command: &str, tail: &[&Path]) -> Result<serde_json
     assert!(output.stderr.is_empty());
     Ok(serde_json::from_slice(&output.stdout)?)
 }
-fn trust(
+pub(super) fn trust(
     current: RootInfo,
     invitation: &Invitation,
     issued: &IssuedEnrollment,
@@ -54,13 +58,13 @@ fn trust(
     })
 }
 
-struct HostServer {
-    address: SocketAddr,
+pub(super) struct HostServer {
+    pub(super) address: SocketAddr,
     stop: sdk::Cancellation,
     worker: Option<thread::JoinHandle<std::result::Result<(), String>>>,
 }
 impl HostServer {
-    fn start(path: PathBuf) -> Result<Self> {
+    pub(super) fn start(path: PathBuf) -> Result<Self> {
         let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
         listener.set_nonblocking(true)?;
         let address = listener.local_addr()?;
@@ -100,7 +104,7 @@ impl HostServer {
             worker: Some(worker),
         })
     }
-    fn close(&mut self) -> Result<()> {
+    pub(super) fn close(&mut self) -> Result<()> {
         self.stop.cancel();
         self.worker
             .take()

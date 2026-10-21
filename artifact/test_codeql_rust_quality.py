@@ -1963,6 +1963,12 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_reference_recovery_inventory_requires_each_new_source(self) -> None:
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
         required = (
+            'research/continuity-reference-app/src/roster_refresh.rs',
+            'research/continuity-reference-app/src/native_device/roster_refresh.rs',
+            'research/continuity-reference-app/src/native_roster_cli.rs',
+            'research/continuity-reference-app/src/witness/roster_refresh.rs',
+            'research/continuity-reference-app/src/witness_roster_cli.rs',
+            'research/continuity-reference-app/tests/native_device/roster.rs',
             'research/continuity-identity-candidate/src/enrollment/preinstallation.rs',
             'research/continuity-identity-candidate/src/enrollment/preinstallation/adoption.rs',
             'research/continuity-identity-candidate/src/enrollment/preinstallation/codec.rs',

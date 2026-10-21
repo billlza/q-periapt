@@ -19,12 +19,20 @@ mod native_renewal_cli;
 #[path = "../operator_io.rs"]
 mod operator_io;
 use operator_io::{export_directory, identifier, print, read};
+#[path = "../native_roster_cli.rs"]
+mod roster;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 const USAGE: &str = concat!(
     "Usage: q-periapt-native-device provision-key <absolute-key-file>\n",
     "Or: <begin|status|request|accept|extend|prepare|activate|refresh-roster|admit-peer-roster|publication-next|publish|renewal-request> ",
     "<absolute-device-dir> <absolute-key-file> <original-invitation-json> [arguments]\n",
     "request: <new-request-output>\n",
+    "roster-status: no extra arguments (local historical progress only)\n",
+    "roster-prepare: <original-operation> <independently-selected-inputs-json> <witness-address> <new-request-output>\n",
+    "roster-recover-preparation: <original-operation> <original-policy-input-json> <new-request-output>\n",
+    "roster-abandon-unprepared: <original-operation> <original-policy-input-json>\n",
+    "roster-commit: <retained-request-json> <independently-selected-inputs-json> <witness-address>\n",
+    "roster-observe/roster-close: <retained-request-json> <original-policy-input-json> <witness-address>\n",
     "renewal-request: <retained-renewal-id> <original-policy-pins-json> ",
     "<original-policy-materials-json> <witness-address-or-none> <new-request-output>\n",
     "policy-status: no extra arguments (historical progress only)\n",
@@ -62,6 +70,18 @@ fn json<T: DeserializeOwned>(path: &OsString, maximum: usize) -> Result<T> {
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();
     let command = args.get(1).and_then(|v| v.to_str()).ok_or(USAGE)?;
+    if matches!(
+        command,
+        "roster-status"
+            | "roster-prepare"
+            | "roster-recover-preparation"
+            | "roster-abandon-unprepared"
+            | "roster-commit"
+            | "roster-observe"
+            | "roster-close"
+    ) {
+        return roster::run(&args);
+    }
     if matches!(
         command,
         "policy-request"

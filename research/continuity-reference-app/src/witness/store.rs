@@ -270,6 +270,26 @@ impl Witness {
         let config = self.config()?;
         replacement::status(&mut self.original_store(&config)?, decision)
     }
+    /// Independently approve the exact original roster/head target; no Commit.
+    pub fn prepare_roster_refresh(
+        &mut self,
+        trust: &RosterRefreshTrust,
+        request: &crate::roster_refresh::Request,
+        now: u64,
+    ) -> Result<crate::roster_refresh::Outcome> {
+        let config = self.config()?;
+        roster_refresh::prepare(&mut self.original_store(&config)?, trust, request, now)
+    }
+    /// Close only the independently approved original target, including after expiry.
+    /// An already applied target remains Applied; this grants no traffic permission.
+    pub fn close_roster_refresh(
+        &mut self,
+        trust: &RosterRefreshTrust,
+        request: &crate::roster_refresh::Request,
+    ) -> Result<crate::roster_refresh::Outcome> {
+        let config = self.config()?;
+        roster_refresh::close(&mut self.original_store(&config)?, trust, request)
+    }
     /// Open the exact original store for one signed request. An unknown commit
     /// remains an error; the caller may later reconcile that original request.
     pub fn handle(

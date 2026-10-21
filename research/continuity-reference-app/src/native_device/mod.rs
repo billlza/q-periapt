@@ -17,12 +17,14 @@ mod peer_roster;
 mod policy;
 mod publication;
 mod renewal;
+mod roster_refresh;
 pub use credential_recovery::CredentialRecoveryInputs;
 pub use mailbox::Mailbox;
 pub use peer::{DeviceExpectation, ExchangeOperation, ExchangeRequest, PeerTrust};
 pub use policy::PolicyRecoveryInputs;
 pub use publication::{clock, Publication, PublicationPlan};
 pub use renewal::RetainedCredentialRequest;
+pub use roster_refresh::RosterRefreshInputs;
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub struct NativeDevice {

@@ -287,7 +287,9 @@ network service. Lost replies require reconciliation against the original state.
 This command surface covers first use and data-plane state progression.
 The operator also exposes [device-generation replacement](WITNESS_REPLACEMENT.md)
 with exact preparation, atomic commit and historical outcome observation.
-Independent G/T approval, roster refresh, account-root replacement and witness
+The native survivor and witness also expose [own-account roster refresh](ROSTER_REFRESH.md),
+preserving the original device, journal and established sessions through an
+explicitly approved roster/head transaction. Independent G/T approval, account-root replacement and witness
 replication remain separate operator requirements.
 
 Protocol references: [WebAuthn Level 3](https://www.w3.org/TR/webauthn-3/) and
