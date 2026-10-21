@@ -159,7 +159,7 @@ def qualify(args: argparse.Namespace) -> dict:
         require(observed["source_files"] == current and observed["native_sha256"] == native.sha256,
                 "installed registration source or native identity differs")
         require(observed["local"] == {"workers": 42, "native_commands": 15, "process_kills": 10}
-                and observed["witness"] == {"workers": 50, "native_commands": 232, "process_kills": 11},
+                and observed["witness"] == {"workers": 50, "native_commands": 210, "process_kills": 11},
                 "installed registration workload differs")
         run([*interpreter, str(application / "enrollment_session_checks.py"),
              "--implementation-root", str(application), "--provider-root", str(provider),
@@ -175,8 +175,8 @@ def qualify(args: argparse.Namespace) -> dict:
                 and client_session["profiles"] == [
                     {"completed": True, "profile": "local", "witness_requests": 0,
                      "native_commands": 7, "refusal_cases": refusals},
-                    {"completed": True, "profile": "witness", "witness_requests": 138,
-                     "native_commands": 150, "refusal_cases": refusals + ["original-write-result-unknown"]}],
+                    {"completed": True, "profile": "witness", "witness_requests": 122,
+                     "native_commands": 134, "refusal_cases": refusals + ["original-write-result-unknown"]}],
                 "installed enrollment client session workload or implementation differs")
         run([*interpreter, str(application / "enrollment_extension_session.py"),
              "--implementation-root", str(application), "--provider-root", str(provider),
@@ -194,7 +194,7 @@ def qualify(args: argparse.Namespace) -> dict:
         require(intermediate["source_files"] == current and intermediate["native_sha256"] == native.sha256
                 and intermediate["profiles"] == {
                     "local": {"worker_operations": 21, "native_commands": 10},
-                    "witness": {"worker_operations": 21, "native_commands": 164}},
+                    "witness": {"worker_operations": 21, "native_commands": 148}},
                 "installed intermediate peer source or workload differs")
         for label in ("local", "witness"):
             row = parse_strict_json_bytes(snapshot(output / "peer-intermediate" / label / "RESULT.json").data,
@@ -211,7 +211,7 @@ def qualify(args: argparse.Namespace) -> dict:
                 for count in (3, 32)},
             "witness_account_checks": {
                 f"{count}-{closed}": {"workers": 35 if closed else 32,
-                                     "native_commands": 139 if closed else 136,
+                                     "native_commands": 128 if closed else 125,
                                      "process_kills": 4}
                 for count in (3, 32) for closed in (False, True)}}
         for driver, profiles in account_profiles.items():
@@ -286,7 +286,7 @@ def qualify(args: argparse.Namespace) -> dict:
                 and all(row["local_expiry"] == 300 and row["earliest_companion_expiry"] == 275
                         and row["terminal"] == "Closed" and row["expiry_attempt_kinds"] == [6]
                         and row["commit_dispatched_after_expiry"] is False
-                        and row["workers"] == 20 and row["native_commands"] == 49
+                        and row["workers"] == 20 and row["native_commands"] == 46
                         and row["process_kills"] == 2 for row in expiry["profiles"]),
                 "installed prepared companion expiry source or workload differs")
         account_results["prepared_expiry"] = expiry

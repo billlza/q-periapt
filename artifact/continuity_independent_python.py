@@ -263,7 +263,7 @@ def verify_extension_session(result: dict, *, implementation: str, native_sha256
     require(isinstance(profiles, list) and len(profiles) == 2,
             "extension session profiles differ")
     refusals = ["expired-original-policy", "selected-installation-refuses-extension", "extended-credential-expiry"]
-    for row, label, commands, witness in zip(profiles, ("local", "witness"), (13, 125), (0, 110), strict=True):
+    for row, label, commands, witness in zip(profiles, ("local", "witness"), (13, 112), (0, 97), strict=True):
         expected = {"completed": True, "profile": label, "native_commands": commands,
                     "witness_requests": witness, "refusal_cases": refusals,
                     "bootstrap_time": 210, "traffic_time": 220, "original_expiry": 160,

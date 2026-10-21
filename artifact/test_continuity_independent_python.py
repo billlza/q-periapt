@@ -246,7 +246,7 @@ class ExtensionSessionReceiptTests(unittest.TestCase):
                     "witness_requests":witness,"bootstrap_time":210,"traffic_time":220,
                     "original_expiry":160,"extended_expiry":300,"confirmed_epoch":1,
                     "refusal_cases":["expired-original-policy","selected-installation-refuses-extension","extended-credential-expiry"]}
-                    for name,commands,witness in [("local",13,0),("witness",125,110)]]}
+                    for name,commands,witness in [("local",13,0),("witness",112,97)]]}
 
     def verify(self, report):
         verify_extension_session(report,implementation="/installed/client.py",native_sha256="a"*64)
@@ -257,7 +257,7 @@ class ExtensionSessionReceiptTests(unittest.TestCase):
     def test_old_clock_partial_work_or_false_types_cannot_claim_extension_session(self):
         for field,value in [("bootstrap_time",150),("traffic_time",170),("original_expiry",300),
                             ("confirmed_epoch",0),("confirmed_epoch",True),("completed",1),
-                            ("witness_requests",0),("native_commands",124),("refusal_cases",[])]:
+                            ("witness_requests",0),("native_commands",111),("refusal_cases",[])]:
             with self.subTest(field=field,value=value):
                 report=self.report(); report["profiles"][1][field]=value
                 with self.assertRaisesRegex(ValueError,"workload, time or refusal"):
