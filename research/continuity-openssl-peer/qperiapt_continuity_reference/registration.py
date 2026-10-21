@@ -10,6 +10,7 @@ from .owner_guard import coordinated
 from .registration_protocol import request_body
 from .registration_state import Admission, Image, PHASES, seed_from, signer
 from .wire import SigningKey, require
+from .account_binding import check as check_root
 
 
 class RegistrationJournal(Journal):
@@ -19,11 +20,15 @@ class RegistrationJournal(Journal):
 
 
 class Registration:
-    def __init__(self, journal, key, intent, observer, parent=None):
+    def __init__(self, journal, key, intent, observer, parent=None,root_lease=None,pending_binding=None,*,opening_snapshot):
         self._journal, self._key, self._intent, self._observer = journal, key, intent, observer
         self._parent = parent
         self._lock = threading.RLock() if parent is None else parent._lock
         self._busy = False; self._child = None
+        self._root_lease=root_lease;self._pending_binding=pending_binding
+        try:
+            self._alive();self._check_binding(Image.decode(opening_snapshot.payload,intent))
+        except BaseException:self.close();raise
 
     @staticmethod
     def _store_observer(observer):
@@ -43,18 +48,20 @@ class Registration:
     def provision(cls, path, registration_id, key, intent, *, observer=None, _parent=None):
         # First use is explicit. A missing/failed open never selects this method.
         value = Image(os.urandom(32), seed_from(SigningKey()))
-        journal = RegistrationJournal.create(path, intent.scope(registration_id), key, value.encode(intent), cls._validator(intent), cls._store_observer(observer))
-        return cls(journal, key, intent, observer, _parent)
+        journal,snapshot = RegistrationJournal._create(path, intent.scope(registration_id), key, value.encode(intent), cls._validator(intent), cls._store_observer(observer))
+        return cls(journal, key, intent, observer, _parent,opening_snapshot=snapshot)
 
     @classmethod
-    def open(cls, path, registration_id, key, intent, *, recover_initial=False, observer=None, _parent=None):
-        journal = RegistrationJournal.open(path, intent.scope(registration_id), key, cls._validator(intent), creation=recover_initial, observer=cls._store_observer(observer))
-        return cls(journal, key, intent, observer, _parent)
+    def open(cls, path, registration_id, key, intent, *, recover_initial=False, observer=None, _parent=None,
+             root_lease=None,_pending_binding=None):
+        journal,snapshot = RegistrationJournal._open(path, intent.scope(registration_id), key, cls._validator(intent), creation=recover_initial, observer=cls._store_observer(observer))
+        return cls(journal, key, intent, observer, _parent,root_lease,_pending_binding,opening_snapshot=snapshot)
 
     def _alive(self):
         if self._parent is not None: self._parent._alive()
         require(self._journal is not None, 'closed registration owner')
         self._journal._admit()
+        check_root(self._root_lease)
 
     def _close_after_error(self):
         # A borrowed operation must revoke the whole owning client, including
@@ -64,7 +71,32 @@ class Registration:
 
     def _image(self):
         self._alive(); snapshot = self._journal.read()
-        return snapshot, Image.decode(snapshot.payload, self._intent)
+        image=Image.decode(snapshot.payload, self._intent)
+        self._check_binding(image)
+        return snapshot,image
+
+    def _check_binding(self,image):
+        if image.root_binding is None:
+            require(self._root_lease is None or (self._pending_binding==self._root_lease.binding and image.child is None),
+                    'registration lacks original account root binding')
+        else:image.root_binding.check(self._root_lease)
+
+    @coordinated
+    def bind_account_root(self,lease):
+        """Bind accepted original enrollment before child creation; never recreate a child."""
+        try:
+            snapshot,image=self._image();require(image.admission is not None,'root association requires accepted registration')
+            check_root(lease)
+            intent,admission=image.effective(self._intent)
+            lease.check_account(admission.pin(intent).account,intent.family)
+            if image.root_binding is not None:
+                image.root_binding.check(lease);return image.root_binding
+            require(image.child is None,'existing unbound child requires explicit root-binding migration')
+            self._root_lease=lease;self._pending_binding=lease.binding
+            image.root_binding=lease.binding
+            self._save(snapshot,image,'account-root-bound')
+            self._pending_binding=None;self._alive();return image.root_binding
+        except BaseException:self._close_after_error();raise
 
     def _save(self, snapshot, image, stage):
         self._alive(); result = self._journal.update(snapshot.digest, image.encode(self._intent))
@@ -256,6 +288,7 @@ class Registration:
         # Reentrant close can revoke the result before it leaves a callback.
         child, self._child = self._child, None
         journal, self._journal = self._journal, None; self._key = None
+        self._root_lease=None;self._pending_binding=None
         self._parent = None
         try:
             if child is not None: child._close()

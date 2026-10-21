@@ -9,7 +9,7 @@ from .account_snapshot import initialize, shared
 from .account_request import AccountRequest
 from .journal import LocalSessionJournal, locked
 from .local_renewal_record import Record, Expired
-from .owner_guard import coordinated
+from .owner_guard import root_coordinated as coordinated
 from .renewal import verify
 from .state_codec import decode, encode
 from .wire import require
@@ -23,11 +23,11 @@ class LocalCredentialRenewal:
         self._lock = threading.RLock(); self._busy = False
 
     @classmethod
-    def open(cls, path, scope, key, context, operation, *, observer=None, inputs=None):
+    def open(cls, path, scope, key, context, operation, *, observer=None, inputs=None,root_lease=None):
         require(context.witness is None, "local credential coordinator requires original local-only policy")
-        Session._scope(context, scope)
+        Session._scope(context, scope,root_lease)
         require(type(operation) is bytes and len(operation) == 32 and any(operation), "original local renewal operation")
-        journal = LocalSessionJournal.open(path, scope, key, Session._validator(context), observer=observer)
+        journal = LocalSessionJournal.open(path, scope, key, Session._validator(context), observer=observer,root_lease=root_lease)
         owner = cls(journal, context, operation, inputs)
         try:
             with owner._state():
@@ -57,6 +57,7 @@ class LocalCredentialRenewal:
                 current = state.local_authority or IdentityState.initial(self._context, role=0)
                 record = state.local_renewal or Record()
             yield snapshot, state, current, record
+            self._journal._check_root()
         finally:
             state.close()
 

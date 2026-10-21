@@ -8,7 +8,7 @@ from .durable import Session
 from .enrollment_exchange import PolicyInputs
 from .journal import LocalSessionJournal, locked
 from .local_authority_control import admit_snapshot
-from .owner_guard import coordinated
+from .owner_guard import root_coordinated as coordinated
 from .policy_record import Grant, Record
 from .policy_owner_inputs import certificate, check_original, public_request
 from .policy_snapshot import current_device, original, validate
@@ -23,12 +23,12 @@ class LocalPolicyRenewal:
         self._lock, self._busy = threading.RLock(), False
 
     @classmethod
-    def open(cls, path, scope, key, context, operation, inputs, *, observer=None):
+    def open(cls, path, scope, key, context, operation, inputs, *, observer=None,root_lease=None):
         require(context.witness is None, "required policy renewal needs its witness coordinator")
-        Session._scope(context, scope)
+        Session._scope(context, scope,root_lease)
         fixed(operation, 32)
         check_original(context, inputs)
-        journal = LocalSessionJournal.open(path, scope, key, Session._validator(context), observer=observer)
+        journal = LocalSessionJournal.open(path, scope, key, Session._validator(context), observer=observer,root_lease=root_lease)
         owner = cls(journal, context, operation, inputs)
         try:
             with owner._state():
@@ -51,6 +51,7 @@ class LocalPolicyRenewal:
             record = state.policy_renewal or Record()
             current = current_device(state, self._context)
             yield snapshot, state, record, current
+            self._journal._check_root()
         finally:
             state.close()
 

@@ -45,11 +45,16 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
             raise
 
     @staticmethod
-    def _scope(context, scope):
+    def _scope(context, scope, root_lease=None):
         require(context.current_peer is None and context.current_local is None and context.current_policy is None,
                 "derived session authority is not a creation/opening input")
         require(scope.owner == owner_binding(context) and scope.context == context.digest,
                 "independent session scope")
+        if root_lease is not None:
+            from .account_binding import check
+            check(root_lease)
+            root_lease.check_account(context.devices[0].pin.account,context.family,
+                                     None if context.witness is None else context.witness.pin)
 
     @staticmethod
     def _validator(context):
@@ -59,21 +64,21 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
         return validate
 
     @classmethod
-    def create(cls, path, scope: Scope, key: bytes, context, signer, now: int, observer=None):
+    def create(cls, path, scope: Scope, key: bytes, context, signer, now: int, observer=None, *, root_lease=None):
         require(context.witness is None, "required witness needs the witnessed session owner")
-        cls._scope(context, scope)
+        cls._scope(context, scope, root_lease)
         state = State.initial(Initiator(context, signer, now), now)
         try:
-            journal, snapshot = LocalSessionJournal._create(path, scope, key, encode(state), cls._validator(context), observer)
+            journal, snapshot = LocalSessionJournal._create(path, scope, key, encode(state), cls._validator(context), observer,root_lease=root_lease)
             return cls(journal, context, observer, snapshot)
         finally:
             state.close()
 
     @classmethod
-    def open(cls, path, scope: Scope, key: bytes, context, *, creation=False, observer=None):
+    def open(cls, path, scope: Scope, key: bytes, context, *, creation=False, observer=None,root_lease=None):
         require(context.witness is None, "required witness needs the witnessed session owner")
-        cls._scope(context, scope)
-        journal, snapshot = LocalSessionJournal._open(path, scope, key, cls._validator(context), creation=creation, observer=observer)
+        cls._scope(context, scope, root_lease)
+        journal, snapshot = LocalSessionJournal._open(path, scope, key, cls._validator(context), creation=creation, observer=observer,root_lease=root_lease)
         return cls(journal, context, observer, snapshot)
 
     @contextmanager
@@ -112,6 +117,7 @@ class Session(PeerOwner, ResolutionOwner, ControlOwner, RekeyOwner):
             if operational:
                 require(self._authority_generation == authority_generation,
                         "peer authority changed during output admission")
+            self._journal._check_root()
         finally:
             state.close()
 

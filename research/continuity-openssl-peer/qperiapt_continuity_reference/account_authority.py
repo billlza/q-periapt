@@ -32,12 +32,41 @@ class AuthorityJournal(Journal):
 class Lease:
     def __init__(self,owner,expected,epoch):
         self._owner=weakref.ref(owner);self.expected=expected;self._epoch=epoch
+        from .account_binding import Binding
+        self.binding=Binding(owner._journal.scope.wire(),expected.application,expected.revision,expected.account)
+
+    def check_account(self,account,family,witness=None):
+        self.check();owner=self._owner()
+        require(owner is not None and account==self.expected.account and family==owner.family
+                and (witness is None or witness==owner.witness),'account root lease differs from original identity')
+        self.check()
 
     def check(self):
         owner=self._owner();require(owner is not None,'closed account authority owner')
         with owner._lock:
             owner._admit(self.expected)
             require(owner._epochs.get(self.expected.application,0)==self._epoch,'revoked account authority lease')
+
+
+class _RecoveryAccess:
+    """Original-operation metadata access; deliberately not a live Lease."""
+    def __init__(self,owner,binding,operation):
+        self._owner=weakref.ref(owner);self.binding=binding;self.operation=operation
+        self.check()
+
+    def check(self):
+        owner=self._owner();require(owner is not None,'closed account authority recovery owner')
+        with owner._lock:
+            _,record=owner._record(self.operation)
+            require(self.binding.registry==owner._journal.scope.wire()
+                    and (record.application,record.revision,digest(b'ACCOUNT',record.plan.target.previous.raw))
+                    ==(self.binding.application,self.binding.revision,self.binding.account),
+                    'root recovery differs from original operation')
+
+    def observation(self):
+        self.check();owner=self._owner()
+        require(owner is not None,'closed account authority recovery owner')
+        result=owner.operation(self.operation);self.check();return result
 
 
 class AccountAuthority:
@@ -82,6 +111,13 @@ class AccountAuthority:
         with self._lock:
             self._admit(expected)
             return Lease(self,expected,self._epochs.get(expected.application,0))
+
+    @coordinated
+    def _recovery_access(self,binding,operation):
+        from .account_binding import Binding
+        require(type(binding) is Binding,'original root binding required')
+        binding.wire()
+        return _RecoveryAccess(self,binding,operation)
 
     @coordinated
     def current(self,application):

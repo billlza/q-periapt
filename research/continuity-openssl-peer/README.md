@@ -399,9 +399,12 @@ and distinct plan/decision closures. Its installed-wheel tests consume public
 native operator outputs and check both signature components and exact target
 bindings. `AccountAuthority` now retains application/root mappings, original
 approvals, closures and retirement in a separately bound private journal, with
-revocable per-application leases and real process-cut recovery checks. Original
-EnrollmentClient/session fencing and live successor activation remain separate
-controller work; historical proofs and registry selection alone do not grant traffic.
+revocable per-application leases and real process-cut recovery checks. New
+`EnrollmentClient` associations bind the original registration and child journal
+to that registry. Normal opens and outputs require its live lease; restricted
+original-parent recovery remains available after preparation. Legacy child
+migration, child retirement and live successor activation remain open; historical
+proofs and registry selection alone do not grant traffic.
 
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential

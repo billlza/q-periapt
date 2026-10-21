@@ -38,7 +38,7 @@ def exercise(args, label):
         file.write(key + identity); file.flush(); os.fsync(file.fileno())
     native = Counterpart(args.native, native_out, registration=True, local_lifecycle=True,
                          required_witness=label == 'witness')
-    client = None; bridge = None; refusals = []; observed = []
+    client = None; bridge = None; registry = None; refusals = []; observed = []
     encode = lambda value: json.dumps(value, separators=(',', ':')).encode()
     b64 = lambda value: base64.urlsafe_b64encode(value).rstrip(b'=').decode()
 
@@ -54,7 +54,7 @@ def exercise(args, label):
                 else bridge.call(name, command, wire, expected))
 
     def transport(): return None if bridge is None else TcpTransport(bridge.address)
-    def reopen(observer=None): return EnrollmentClient.open(client_path, identity, key, observer=observer)
+    def reopen(observer=None): return EnrollmentClient.open(client_path, identity, key, observer=observer,account_authority=registry)
 
     try:
         deadline = time.monotonic() + 30
@@ -91,12 +91,37 @@ def exercise(args, label):
         journal = client.accept(encode(invitation), encode(issued), encode(current),
                                 encode(policy_pins), encode(policy_materials), 150)
         inputs = Inputs(pins, materials, witness)
+        if args.account_root_binding:
+            from qperiapt_continuity_reference.account_authority import AccountAuthority
+            from qperiapt_continuity_reference.wire import SigningKey
+            from qperiapt_continuity_reference.witness import Pin
+            registry_path=private/'account-registry';registry_path.mkdir(mode=0o700)
+            registry_key,registry_identity=os.urandom(32),os.urandom(32)
+            registry_pin=witness if witness is not None else Pin(os.urandom(32),SigningKey().public())
+            with os.fdopen(os.open(private/'registry-key-and-id',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as file:
+                file.write(registry_key+registry_identity);file.flush();os.fsync(file.fileno())
+            registry=AccountAuthority.provision(registry_path,registry_key,registry_identity,intent.family,registry_pin)
+            client.bind_account_root(registry)
         # A configuration directory is not a session path, even if it is private.
         refuse('configuration-directory-alias', lambda: client.prepare(client_path / 'configuration', inputs, 150),
                'directories must be separate')
         client = reopen()
         genesis = client.prepare(session_path, inputs, 150)
         require(client.prepare(session_path, inputs, 150) == genesis, 'original child preparation changed')
+        if registry is not None:
+            from qperiapt_continuity_reference.durable import Session
+            from qperiapt_continuity_reference.witness_session import WitnessSession
+            from qperiapt_continuity_reference.registered_owner import _Signer
+            from qperiapt_continuity_reference.registration_session import selected
+            from qperiapt_continuity_reference.witness import Client
+            _,retained=client._registration._image()
+            child_scope,child_key=selected(client._registration,retained,context)
+            if witness is None:
+                unguarded=lambda:Session.open(session_path,child_scope,child_key,context)
+            else:
+                raw_client=Client(witness,context.witness.subject(journal),_Signer(client._registration),transport())
+                unguarded=lambda:WitnessSession.open(session_path,child_scope,child_key,context,client=raw_client)
+            refuse('raw-child-missing-root-lease',unguarded,'original root registry lease required')
         refuse('prepared-child-refuses-roster-retarget',
                lambda: client.refresh_roster(encode(current), encode(policy_pins), encode(policy_materials), 150),
                'child was already prepared')
@@ -136,6 +161,23 @@ def exercise(args, label):
         with client.session(170, transport=transport()) as child:
             callback_wire = child.resume(callback_id, now=170)
             call('receive-original-callback', 7, application(b'client', callback_wire), b'original callback')
+        if registry is not None:
+            client.close();root_observed=[]
+            def close_registry(stage):
+                if stage=='client-device:protocol:send-committed':
+                    root_observed.append(stage);registry.close()
+            client=reopen(close_registry)
+            with client.session(170,transport=transport()) as child:
+                root_callback_id=child.next_id(now=170)
+                refuse('root-close-withholds-committed-result',
+                       lambda:child.send(root_callback_id,b'original root callback',b'client',now=170),
+                       'closed account authority owner')
+            require(root_observed==['client-device:protocol:send-committed'],'root close did not reach actual commit')
+            registry=AccountAuthority.open(registry_path,registry_key,registry_identity,intent.family,registry_pin)
+            client=reopen()
+            with client.session(170,transport=transport()) as child:
+                root_callback_wire=child.resume(root_callback_id,now=170)
+                call('receive-original-root-callback',7,application(b'client',root_callback_wire),b'original root callback')
         child = client.session(170, transport=transport())
         # Only this private fixture's outer directory mode is faulted. Child
         # journal inode/bytes stay untouched; the failed owner must be revoked.
@@ -176,6 +218,8 @@ def exercise(args, label):
                 call('receive-recovered-pending', 7, application(b'client', pending), b'pending original')
             require(child.resume(message_id, now=210) == ciphertext, 'renewal changed original message')
             require(child.resume(callback_id, now=210) == callback_wire, 'renewal changed callback message')
+            if registry is not None:
+                require(child.resume(root_callback_id,now=210)==root_callback_wire,'renewal changed root callback message')
         final = client.status()
         require(final['phase'] == 'Active' and final['journal'] == journal
                 and final['signing_id'] == original_identity['signing_id'], 'original client lineage')
@@ -185,11 +229,16 @@ def exercise(args, label):
                   'original_ciphertext_sha256':hashlib.sha256(ciphertext).hexdigest(),
                   'callback_ciphertext_sha256':hashlib.sha256(callback_wire).hexdigest(),
                   'scope':'Public EnrollmentClient session/controlled signer/rekey/renewal and witnessed exact recovery. Real native issuer and protocol traffic with explicit fixture clocks150/170/210. No live-account, real-time expiry, network deployment or full release admission.'}
+        if registry is not None:
+            result['account_root_binding']={'binding':client.bind_account_root(registry).wire().hex(),
+                'unknown_callback_ciphertext_sha256':hashlib.sha256(root_callback_wire).hexdigest(),
+                'scope':'Original registry guard, client/registration binding, guarded session headers and root-owner cancellation/reopen. No root preparation/retirement or successor activation claim.'}
         (out / 'RESULT.json').write_text(json.dumps(result, indent=2) + '\n')
         return {k:result[k] for k in ('completed','profile','witness_requests')} | {
             'native_commands':len(native.commands), 'refusal_cases':[row['case'] for row in refusals]}
     finally:
         if client is not None: client.close()
+        if registry is not None: registry.close()
         if bridge is not None:
             (out / 'WITNESS.json').write_text(json.dumps(bridge.records, indent=2) + '\n'); bridge.close()
         (out / 'NATIVE.json').write_text(json.dumps(native.commands, indent=2) + '\n')
@@ -201,17 +250,32 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('implementation-root', 'provider-root', 'native', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
+    parser.add_argument('--account-root-binding',action='store_true')
     args = parser.parse_args(); args.implementation_root = args.implementation_root.resolve(strict=True)
     sys.path.insert(0, str(args.implementation_root))
     from qperiapt_continuity_reference.provider import load_provider
     provider, _ = load_provider(args.provider_root)
     from qperiapt_continuity_reference import enrollment_client
     assert Path(enrollment_client.__file__).resolve().is_relative_to(args.implementation_root)
+    helper_root=Path(__file__).resolve().parent
+    # Fixture helpers are source test tools; the package was already selected
+    # and imported from implementation-root. Do not put the source package first.
+    sys.path.append(str(helper_root))
+    sources={str(path):hashlib.sha256(path.read_bytes()).hexdigest()
+             for path in (args.implementation_root/'qperiapt_continuity_reference').glob('*.py')}
+    sources.update({str(path):hashlib.sha256(path.read_bytes()).hexdigest() for path in helper_root.glob('*.py')})
     args.output.mkdir()
     result = {'completed':True, 'provider':provider.__version__,
               'implementation':str(Path(enrollment_client.__file__).resolve()),
               'native_sha256':hashlib.sha256(args.native.read_bytes()).hexdigest(),
               'profiles':[exercise(args, label) for label in ('local','witness')]}
+    assert all(hashlib.sha256(Path(path).read_bytes()).hexdigest()==expected for path,expected in sources.items())
+    assert hashlib.sha256(args.native.read_bytes()).hexdigest()==result['native_sha256']
+    loaded={name:str(Path(module.__file__).resolve()) for name,module in sys.modules.items()
+            if name=='qperiapt_continuity_reference' or name.startswith('qperiapt_continuity_reference.')}
+    assert loaded and all(Path(path).is_relative_to(args.implementation_root) for path in loaded.values())
+    result['source_files']=sources
+    result['loaded_product_modules']=loaded
     (args.output / 'RESULT.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result))
 

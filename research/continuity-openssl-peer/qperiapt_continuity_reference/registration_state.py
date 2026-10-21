@@ -9,9 +9,12 @@ from .registration_protocol import authenticate_request
 from .enrollment_extension import ExtensionApproval, monotonic, verify_history
 from .connection_confirmation import Confirmation, TAG as CONNECTION_TAG, OVERHEAD as CONNECTION_OVERHEAD
 from .wire import Reader, SigningKey, digest, require
+from .account_binding import Binding, SIZE as ROOT_BINDING_SIZE
 
 MAX_IMAGE = 128 * 1024
 MAX_EXTENDED_IMAGE = 192 * 1024
+ROOT_TAG=b'QPREGS03'
+MAX_BOUND_IMAGE=MAX_EXTENDED_IMAGE+CONNECTION_OVERHEAD+ROOT_BINDING_SIZE+12
 PHASES = ('Preparing', 'Requested', 'Accepted', 'Prepared', 'Active')
 
 
@@ -130,6 +133,7 @@ class Image:
     active: bool = False
     extension: Extension | None = None
     confirmation: Confirmation | None = None
+    root_binding: Binding | None = None
 
     def effective(self, intent):
         if self.extension is None: return intent, self.admission
@@ -162,11 +166,21 @@ class Image:
         if self.confirmation is not None:
             require(self.active and self.child is not None, 'connection confirmation requires original active child')
             wire = CONNECTION_TAG + blob(wire, MAX_EXTENDED_IMAGE) + self.confirmation.wire()
+        if self.root_binding is not None:
+            require(self.admission is not None and self.root_binding.account==digest(b'ACCOUNT',intent.root.raw),
+                    'registration root binding differs from accepted account')
+            wire=ROOT_TAG+self.root_binding.wire()+blob(wire,MAX_EXTENDED_IMAGE+CONNECTION_OVERHEAD)
         return wire
 
     @classmethod
     def decode(cls, wire, intent):
-        require(type(wire) is bytes and len(wire) <= MAX_EXTENDED_IMAGE + CONNECTION_OVERHEAD, 'registration image capacity')
+        require(type(wire) is bytes and len(wire) <= MAX_BOUND_IMAGE, 'registration image capacity')
+        if wire.startswith(ROOT_TAG):
+            r=Reader(wire);r.take(8);binding=Binding.read(r.take(ROOT_BINDING_SIZE))
+            inner=take_blob(r,MAX_EXTENDED_IMAGE+CONNECTION_OVERHEAD);r.finish()
+            require(inner[:8] in (b'QPREGS01',b'QPREGS02',CONNECTION_TAG),'nested or unknown root registration')
+            value=cls.decode(inner,intent);value.root_binding=binding
+            require(value.encode(intent)==wire,'root registration canonical encoding');return value
         if wire.startswith(CONNECTION_TAG):
             r=Reader(wire); r.take(8); inner=take_blob(r, MAX_EXTENDED_IMAGE)
             require(inner[:8] in (b'QPREGS01', b'QPREGS02'), 'nested or unknown connection registration')

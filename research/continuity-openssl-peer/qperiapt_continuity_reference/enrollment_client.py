@@ -5,21 +5,20 @@ the original trusted authority/invitation, and Registration owns the device key.
 No private signing material is copied into configuration or returned to callers.
 """
 # SPDX-License-Identifier: Apache-2.0 OR MIT
-import base64
-from dataclasses import dataclass, replace
-import json
+from dataclasses import replace
 import os
 import threading
 import time
 
-from .enrollment_exchange import (HostAuthority, HostInvitation, CurrentMembership,
-                                 IssuedEnrollment, PolicyInputs, accept_issued,
-                                 decode, encoded, identifier, shape)
+from .enrollment_exchange import (HostInvitation, CurrentMembership,
+                                 IssuedEnrollment, PolicyInputs, accept_issued)
 from .journal import Journal, MissingState, Scope, locked
 from .owner_guard import coordinated
 from .private_files import PrivateDirectory, DirectoryBusy
 from .registration import Registration
 from .wire import ldh, require
+from .account_binding import check as check_root
+from .client_configuration import Configuration
 
 DOMAIN = b'Q-PERIAPT-REFERENCE-CLIENT/v1/'
 
@@ -47,45 +46,6 @@ def scope(client_id):
     return Scope(client_id, ldh(DOMAIN + b'owner', b''), ldh(DOMAIN + b'configuration', b''))
 
 
-@dataclass(frozen=True)
-class Configuration:
-    authority: bytes
-    invitation: bytes
-    registration: bytes
-    ready: bool
-    issuance: bytes | None = None
-
-    def inputs(self):
-        authority = HostAuthority.from_trusted(self.authority)
-        return authority, HostInvitation.decode(self.invitation, authority)
-
-    def wire(self):
-        b64 = lambda value: base64.urlsafe_b64encode(value).rstrip(b'=').decode()
-        return json.dumps({'schema':'qperiapt-client-configuration/2',
-                           'authority':b64(self.authority), 'invitation':{'original':b64(self.invitation),
-                           'issuance':None if self.issuance is None else b64(self.issuance)},
-                           'registration':list(self.registration), 'ready':self.ready},
-                          separators=(',', ':')).encode()
-
-    @classmethod
-    def read(cls, raw):
-        value = decode(raw, 'schema authority invitation registration ready', 72 * 1024)
-        require(value['schema'] in ('qperiapt-client-configuration/1', 'qperiapt-client-configuration/2')
-                and type(value['ready']) is bool, 'client configuration schema or phase')
-        invitation, issuance = value['invitation'], None
-        if value['schema'] == 'qperiapt-client-configuration/2':
-            shape(invitation, 'original issuance')
-            issuance = None if invitation['issuance'] is None else encoded(invitation['issuance'], 16384)
-            invitation = invitation['original']
-        result = cls(encoded(value['authority'], 16384), encoded(invitation, 16384),
-                     identifier(value['registration']), value['ready'], issuance)
-        authority, original = result.inputs()
-        if issuance is not None:
-            require(result.ready, 'issuance association before client readiness')
-            original.same_device(HostInvitation.decode(issuance, authority))
-        return result
-
-
 class EnrollmentClient:
     """One original device enrollment, serialized across processes and threads.
 
@@ -100,6 +60,7 @@ class EnrollmentClient:
         self._configuration = None; self._registration = None
         self._observer = observer
         self._original = None; self._authority = None
+        self._root_lease=None
 
     def _observe(self, prefix):
         def observe(stage):
@@ -110,6 +71,7 @@ class EnrollmentClient:
     def _alive(self):
         require(self._root is not None, 'closed enrollment client')
         self._root.check()
+        check_root(self._root_lease)
 
     @classmethod
     def begin(cls, path, client_id, key, authority, invitation, now, *, observer=None):
@@ -135,7 +97,7 @@ class EnrollmentClient:
             owner.close(); raise
 
     @classmethod
-    def open(cls, path, client_id, key, *, observer=None, run=None):
+    def open(cls, path, client_id, key, *, observer=None, run=None,account_authority=None):
         """Open original state; an optional Run bounds only initial lease contention.
 
         Admission polls every 25 ms within the original Run (at most 120 seconds)
@@ -152,10 +114,19 @@ class EnrollmentClient:
                 owner._configuration = Journal.open(*arguments, creation=True, observer=owner._observe('client-config:'))
             configuration = Configuration.read(owner._configuration.read().payload)
             _, original = configuration.inputs()
+            if configuration.root_binding is not None:
+                from .client_root import selected
+                owner._root_lease=selected(configuration,account_authority)
+            else:require(account_authority is None,'client has no retained root association; bind it explicitly')
             owner._registration = Registration.open(path / 'registration', configuration.registration,
                                                     key, original.intent, recover_initial=not configuration.ready,
-                                                    observer=owner._observe('client-device:'), _parent=owner)
+                                                    observer=owner._observe('client-device:'), _parent=owner,
+                                                    root_lease=owner._root_lease,
+                                                    _pending_binding=configuration.root_binding if not configuration.root_ready else None)
             owner._finish(configuration)
+            if configuration.root_binding is not None:
+                from .client_root import finish
+                finish(owner,configuration)
             if run is not None: run.check()
             return owner
         except BaseException:
@@ -170,6 +141,22 @@ class EnrollmentClient:
         require(current == replace(configuration, ready=True), 'client readiness readback differs')
         self._authority, self._original = current.inputs()
         self._alive()
+
+    @coordinated
+    def bind_account_root(self,registry):
+        """Retain the original application registry before preparing a session."""
+        try:
+            from .client_root import bind
+            return bind(self,registry)
+        except BaseException:self.close();raise
+
+    @coordinated
+    def prepare_account_root(self,registry,plan):
+        """Consume this client's live facade and retain the original approved operation."""
+        try:
+            from .client_root_recovery import begin
+            return begin(self,registry,plan)
+        except BaseException:self.close();raise
 
     @coordinated
     def request(self, now):
@@ -438,6 +425,7 @@ class EnrollmentClient:
         root, self._root = self._root, None
         configuration, self._configuration = self._configuration, None
         registration, self._registration = self._registration, None
+        self._root_lease=None
         try:
             if registration is not None: registration.close()
         finally:

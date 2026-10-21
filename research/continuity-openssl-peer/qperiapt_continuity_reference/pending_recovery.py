@@ -6,7 +6,7 @@ from .durable import Session
 from .identity_state import local_binding
 from .journal import locked
 from .local_authority_control import admit_snapshot
-from .owner_guard import coordinated
+from .owner_guard import root_coordinated as coordinated
 from .pending_recovery_protocol import Proposal, INTENT_DOMAIN
 from .pending_recovery_views import encode as public_view
 from .state_codec import decode
@@ -28,14 +28,14 @@ class PendingWriteRecovery:
         self._lock = threading.RLock(); self._busy = False
 
     @classmethod
-    def open(cls, path, scope, key, context, *, client, observer=None):
+    def open(cls, path, scope, key, context, *, client, observer=None,root_lease=None):
         require(context.witness is not None, "pending recovery requires original witness")
-        Session._scope(context, scope)
+        Session._scope(context, scope,root_lease)
         require(client.signer is not None and client.signer.public() == context.initiator,
                 "original pending recovery signer")
         # Ordinary open would replay Advance. This owner first inspects the
         # authenticated source/target without issuing any request or mutation.
-        journal = WitnessJournal(path, scope, key, Session._validator(context), context.witness, client, observer)
+        journal = WitnessJournal(path, scope, key, Session._validator(context), context.witness, client, observer,root_lease=root_lease)
         owner = cls(journal, context)
         try:
             owner._inspect()

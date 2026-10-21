@@ -6,6 +6,7 @@ from .roster_protocol import Proposal
 from .storage_budget import MAX_POLICY_STATE
 from .state_codec import decode
 from .wire import Reader, require
+from .account_binding import SIZE as ROOT_BINDING_SIZE
 
 DOMAIN = b"Q-PERIAPT-INDEPENDENT-ROSTER-INTENT/v1/"
 
@@ -24,7 +25,7 @@ class Intent:
         wire = journal._admit().read("intent")
         if wire is None:
             return None
-        require(725 <= len(wire) <= MAX_POLICY_STATE + 725, "roster intent capacity")
+        require(725 <= len(wire) <= MAX_POLICY_STATE + 725 + ROOT_BINDING_SIZE, "roster intent capacity")
         body = wire[:-32]
         require(hmac.compare_digest(wire[-32:], hmac.digest(journal._intent_key,
                 DOMAIN + journal.scope.wire() + body, "sha256")), "roster intent authentication")
@@ -32,7 +33,7 @@ class Intent:
         require(r.take(8) == b"QPRFRI01", "not an original roster intent")
         p = Proposal.decode(r.take(417))
         size = r.integer(4)
-        require(264 <= size <= MAX_POLICY_STATE + 264, "roster target capacity")
+        require(264 <= size <= MAX_POLICY_STATE + 264 + ROOT_BINDING_SIZE, "roster target capacity")
         target = r.take(size)
         r.finish()
         require(p.witness == journal.profile.pin.binding and p.subject == journal.subject

@@ -12,6 +12,7 @@ from .private_files import PrivateDirectory
 from .witness import Head, Operation
 from .wire import MAX_U64, require
 from .storage_budget import MAX_POLICY_STATE
+from . import account_binding
 
 DOMAIN = b"Q-PERIAPT-INDEPENDENT-WITNESSED-JOURNAL/v1/"
 
@@ -29,9 +30,10 @@ class WitnessJournal(Journal):
     image_overhead = 264
     max_payload = MAX_POLICY_STATE
 
-    def __init__(self, path, scope, key, validate, profile, client, observer=None):
+    def __init__(self, path, scope, key, validate, profile, client, observer=None, *, root_lease=None):
         require(type(key) is bytes and len(key) == 32, "wrapping key size")
         self._lock = threading.RLock()
+        account_binding.check(root_lease);self._root_lease=root_lease
         self.scope, self.validate, self.profile, self.client = scope, validate, profile, client
         self.subject = profile.subject(scope.identity)
         if client is not None:
@@ -42,8 +44,8 @@ class WitnessJournal(Journal):
         self._directory = PrivateDirectory(path, observer, max_file=self.max_payload + 4096)
 
     @classmethod
-    def provision(cls, path, scope, key, initial, validate, profile, observer=None):
-        owner = cls(path, scope, key, validate, profile, None, observer)
+    def provision(cls, path, scope, key, initial, validate, profile, observer=None, *, root_lease=None):
+        owner = cls(path, scope, key, validate, profile, None, observer,root_lease=root_lease)
         try:
             directory = owner._admit()
             require(all(directory.read(name) is None for name in ("head", "intent", "authority")), "existing witnessed creation")
@@ -58,8 +60,8 @@ class WitnessJournal(Journal):
             owner.close()
 
     @classmethod
-    def recover_genesis(cls, path, scope, key, validate, profile, observer=None):
-        owner = cls(path, scope, key, validate, profile, None, observer)
+    def recover_genesis(cls, path, scope, key, validate, profile, observer=None, *, root_lease=None):
+        owner = cls(path, scope, key, validate, profile, None, observer,root_lease=root_lease)
         try:
             # Only this explicit inactive path may reconcile the original
             # revision-zero intent; it cannot advance an enrolled lineage.
@@ -70,15 +72,16 @@ class WitnessJournal(Journal):
             owner.close()
 
     @classmethod
-    def open(cls, path, scope, key, validate, profile, client, observer=None):
-        owner, _snapshot = cls._open(path, scope, key, validate, profile, client, observer)
+    def open(cls, path, scope, key, validate, profile, client, observer=None, *, root_lease=None):
+        owner, _snapshot = cls._open(path, scope, key, validate, profile, client, observer,root_lease=root_lease)
         return owner
 
     @classmethod
-    def _open(cls, path, scope, key, validate, profile, client, observer=None):
-        owner = cls(path, scope, key, validate, profile, client, observer)
+    def _open(cls, path, scope, key, validate, profile, client, observer=None, *, root_lease=None):
+        owner = cls(path, scope, key, validate, profile, client, observer,root_lease=root_lease)
         try:
             snapshot = owner._recover(False)
+            owner._check_root()
             return owner, snapshot
         except BaseException:
             owner.close()
@@ -87,15 +90,16 @@ class WitnessJournal(Journal):
     def _seal(self, revision, payload):
         require(type(payload) is bytes and len(payload) <= self.max_payload and 0 < revision < MAX_U64, "journal payload/revision capacity")
         self.validate(payload)
-        header = b"QPREFW01" + self._binding + revision.to_bytes(8, "big")
+        header = account_binding.header(b"QPREFW01"+self._binding,revision,self._root_lease)
         return header + self._cipher.encrypt(payload, [header])
 
     def _decode(self, wire):
-        require(self.image_overhead <= len(wire) <= self.max_payload + self.image_overhead, "witnessed image capacity")
-        require(wire[:240] == b"QPREFW01" + self._binding, "witnessed image identity/protection")
-        revision = int.from_bytes(wire[240:248], "big")
+        require(self.image_overhead <= len(wire) <= self.max_payload + self.image_overhead + account_binding.SIZE, "witnessed image capacity")
+        header,revision=account_binding.read_header(wire,b"QPREFW01"+self._binding,self._root_lease,
+                                                  scope_error='witnessed image identity/protection')
         require(0 < revision < MAX_U64, "witnessed revision")
-        payload = self._cipher.decrypt(wire[248:], [wire[:248]])
+        payload = self._cipher.decrypt(wire[len(header):], [header])
+        require(len(payload)<=self.max_payload,'witnessed payload capacity')
         self.validate(payload)
         return Snapshot(revision, hashlib.sha256(wire).digest(), payload)
 

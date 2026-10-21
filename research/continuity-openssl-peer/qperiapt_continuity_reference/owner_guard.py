@@ -15,3 +15,14 @@ def coordinated(function):
             finally:
                 self._busy = False
     return call
+
+
+def root_coordinated(function):
+    """Recheck a guarded maintenance result after all callbacks and I/O."""
+    @functools.wraps(function)
+    def release(self,*args,**kwargs):
+        result=function(self,*args,**kwargs)
+        try:self._journal._check_root()
+        except BaseException:self.close();raise
+        return result
+    return coordinated(release)

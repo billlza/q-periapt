@@ -12,7 +12,7 @@ from .journal import locked
 from .local_authority_control import Control, admit_snapshot, read as read_control, write as write_control
 from .local_renewal_intent import Intent
 from .local_renewal_protocol import Proposal
-from .owner_guard import coordinated
+from .owner_guard import root_coordinated as coordinated
 from .renewal import verify
 from .state_codec import decode, encode
 from .witness import Head
@@ -29,13 +29,13 @@ class LocalRenewal:
         self._busy = False
 
     @classmethod
-    def open(cls, path, scope, key, context, operation, *, client, observer=None, inputs=None):
+    def open(cls, path, scope, key, context, operation, *, client, observer=None, inputs=None,root_lease=None):
         require(context.witness is not None, "joint local renewal requires original witness")
-        Session._scope(context, scope)
+        Session._scope(context, scope,root_lease)
         require(type(operation) is bytes and len(operation) == 32 and any(operation), "original local renewal operation")
         require(client.signer is not None and client.signer.public() == context.initiator,
                 "original local renewal signer")
-        journal = WitnessJournal(path, scope, key, Session._validator(context), context.witness, client, observer)
+        journal = WitnessJournal(path, scope, key, Session._validator(context), context.witness, client, observer,root_lease=root_lease)
         try:
             pending = journal._admit().read("intent")
             if pending is None or pending.startswith(b"QPREFI01"):

@@ -62,12 +62,12 @@ def prepare(parent, path, inputs, now):
         require(lease.read('authority') is None, 'registration preparation found advanced authority')
     finally: lease.close()
     if context.witness is None:
-        owner = (Session.open(path, scope, key, context, creation=True, observer=parent._child_observer) if has_head or has_intent
-                 else Session.create(path, scope, key, context, _Signer(parent), now, observer=parent._child_observer))
+        owner = (Session.open(path, scope, key, context, creation=True, observer=parent._child_observer,root_lease=parent._root_lease) if has_head or has_intent
+                 else Session.create(path, scope, key, context, _Signer(parent), now, observer=parent._child_observer,root_lease=parent._root_lease))
         owner.close(); result = scope.wire()
     else:
-        genesis = (WitnessSession.recover_genesis(path, scope, key, context, parent._child_observer) if has_head or has_intent
-                   else WitnessSession.provision(path, scope, key, context, _Signer(parent), now, parent._child_observer))
+        genesis = (WitnessSession.recover_genesis(path, scope, key, context, parent._child_observer,root_lease=parent._root_lease) if has_head or has_intent
+                   else WitnessSession.provision(path, scope, key, context, _Signer(parent), now, parent._child_observer,root_lease=parent._root_lease))
         result = genesis.wire()
     parent._observe('child-prepared')
     return result
@@ -89,8 +89,8 @@ def open_child(parent, kind, now, *, operation=None, transport=None):
     owner = None
     try:
         if kind in ('session','connection'):
-            owner = (Session.open(path, scope, key, context, observer=parent._child_observer) if client is None else
-                     WitnessSession.open(path, scope, key, context, client=client, observer=parent._child_observer))
+            owner = (Session.open(path, scope, key, context, observer=parent._child_observer,root_lease=parent._root_lease) if client is None else
+                     WitnessSession.open(path, scope, key, context, client=client, observer=parent._child_observer,root_lease=parent._root_lease))
             allowed = CONNECTION if kind == 'connection' else SESSION
             if kind == 'connection':
                 require(owner.connection_identity(now)==image.confirmation.session, 'confirmed original session differs')
@@ -100,28 +100,29 @@ def open_child(parent, kind, now, *, operation=None, transport=None):
             if client is None:
                 from .local_credential import LocalCredentialRenewal
                 owner = LocalCredentialRenewal.open(path, scope, key, context, operation, observer=parent._child_observer,
-                                                    inputs=image.child.inputs); allowed = LOCAL_RENEWAL
+                                                    inputs=image.child.inputs,root_lease=parent._root_lease); allowed = LOCAL_RENEWAL
             else:
                 from .local_renewal import LocalRenewal
                 owner = LocalRenewal.open(path, scope, key, context, operation, client=client, observer=parent._child_observer,
-                                         inputs=image.child.inputs); allowed = JOINT_RENEWAL
+                                         inputs=image.child.inputs,root_lease=parent._root_lease); allowed = JOINT_RENEWAL
         elif kind == 'policy':
             if client is None:
                 from .local_policy import LocalPolicyRenewal
                 owner = LocalPolicyRenewal.open(path, scope, key, context, operation, image.child.inputs,
-                                                observer=parent._child_observer); allowed = POLICY
+                                                observer=parent._child_observer,root_lease=parent._root_lease); allowed = POLICY
             else:
                 from .witness_policy import WitnessPolicyRenewal
                 owner = WitnessPolicyRenewal.open(path, scope, key, context, operation, image.child.inputs,
-                    client=client, observer=parent._child_observer); allowed = WITNESS_POLICY
+                    client=client, observer=parent._child_observer,root_lease=parent._root_lease); allowed = WITNESS_POLICY
         elif kind == 'roster':
             from .roster_refresh import RosterRefresh
             owner = RosterRefresh.open(path, scope, key, context, operation, client=client,
-                                       observer=parent._child_observer); allowed = ROSTER
+                                       observer=parent._child_observer,root_lease=parent._root_lease); allowed = ROSTER
         elif kind == 'pending':
             from .pending_recovery import PendingWriteRecovery
             require(client is not None, 'pending recovery requires original witness')
-            owner = PendingWriteRecovery.open(path, scope, key, context, client=client, observer=parent._child_observer); allowed = PENDING
+            owner = PendingWriteRecovery.open(path, scope, key, context, client=client, observer=parent._child_observer,
+                                              root_lease=parent._root_lease); allowed = PENDING
         else: raise ValueError('unknown registered child owner')
         parent._alive(); child = BorrowedOwner(parent, owner, allowed); parent._child = child
         return child

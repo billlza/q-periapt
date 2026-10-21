@@ -214,6 +214,21 @@ class AuthorityChecks(unittest.TestCase):
         self.refuse('unbound-is-not-retirement',lambda:retained.verify_retirement(inputs.next._parts()[1],inputs.retired))
         self.assertEqual(c.owner.commit_retirement(inputs.next.operation,inputs.decision,inputs.retired).revision,2)
 
+    def test_preparation_fences_bound_journal_without_rewriting_business_state(self):
+        c=self.case();c.open(create=True);expected=c.associate();lease=c.owner.admit(expected)
+        path=c.root/'business';path.mkdir(mode=0o700)
+        scope=Scope(b'A'*32,b'B'*32,b'C'*32);payload=b'QPTEST01retained original business state'
+        def validate(raw):require(raw==payload,'original tagged payload')
+        journal=Journal.create(path,scope,c.key,payload,validate,root_lease=lease)
+        self.addCleanup(journal.close);original=(path/'head').read_bytes()
+        c.owner.begin_preparation(expected,inputs.first)
+        self.refuse('prepared-cached-journal',journal.read)
+        self.assertEqual((path/'head').read_bytes(),original)
+        c.close();c.open()
+        self.refuse('prepared-reopened-registry',lambda:c.owner.admit(expected))
+        self.refuse('prepared-raw-journal-without-lease',lambda:Journal.open(path,scope,c.key,validate))
+        self.assertEqual((path/'head').read_bytes(),original)
+
     def test_real_sigkill_at_every_publication_boundary(self):
         for operation in ('prepare','bind','close','retire'):
             for n,stage in enumerate(STAGES):

@@ -7,8 +7,10 @@ signature and identity verifiers. It neither imports nor calls the Rust engine.
 
 These statement objects provide public protocol verification. The separate
 `AccountAuthority` owner below retains original approvals and current root
-selection. EnrollmentClient and original session-owner fencing and target
-activation are not yet connected to it. Neither layer is a complete device
+selection. `EnrollmentClient` can retain that association before child creation;
+its normal session and maintenance owners require the same original live lease.
+Restricted original-parent recovery survives root preparation. Child retirement
+and live successor activation are still open, so this is not a complete device
 root-replacement controller.
 
 ## Original expectations
@@ -118,8 +120,54 @@ boundaries for creation, preparation, freeze, closure and retirement. It records
 whether the implementation is source development or an installed wheel. CI runs
 the installed scope with that run's generated signed inputs.
 
-Still separate: EnrollmentClient configuration association and original child
-journal fencing, unknown-delivery retention through root replacement, live
-successor admission, independently approved adoption of another committed winner,
-device qualification and post-compromise recovery analysis. Do not use this
-registry as evidence that those composed paths are complete.
+## Bound clients and restricted original recovery
+
+After accepting the original device credential, call
+`EnrollmentClient.bind_account_root(registry)` before preparing its child. This
+retains the exact registry scope and application/revision/account mapping through
+configuration-pending, registration-bound and configuration-ready writes. Reopen
+with the same `account_authority`; interrupted association resumes those original
+records. A missing registry, another registry with the same account, or a missing
+known registration binding is an error. Existing clients with an unbound child
+require an explicit migration, which is not implemented yet; they are never
+silently recreated or relabelled.
+
+New bound children use `QPREFJ02` / `QPREFW02` encrypted headers. Their additional
+168 bytes authenticate the original registry scope and checkpoint as associated
+data. Ordinary `01` images retain their format. All live session and maintenance
+factories require the matching lease for a bound header, including direct raw
+opens. Business state, message IDs, outbox contents and payload limits remain
+unchanged. The binding is present before genesis; attaching it must not rewrite
+an already frozen witness head. Registry checks use its serialized in-memory
+lease state and do not add a witness round trip.
+
+`prepare_account_root(registry, plan)` consumes the normal client and retains the
+approved original plan before returning `RootRecovery`. The registry argument
+must match the client's persisted association. Closing the recovery owner does
+not reopen the old account. `RootRecovery.open` selects the same original
+operation and parent directories after interruption. Its metadata access is a
+separate internal capability, rejected wherever a live lease is required.
+
+The restricted owner reports original registration/journal identity and recorded
+peer confirmation, and can retain a verified freeze or original-plan noncommit.
+It can finish an original partial association while the registry is suspended,
+without enabling traffic. It exposes no signing, sending, renewal, child-session
+factory or successor activation. It does not claim that a recorded child has run
+or that any business message was delivered.
+
+`tests/root_bound_client.py` checks the 24 association publication cuts, original
+registry requirements, revocation and restricted parent recovery. Its recovery
+preparation tests reuse a real prepared native target and signed policy, with a
+separately approved test predecessor and fresh operation IDs; native terminal
+receipts for the former plan cannot authorize this new plan. The public
+`enrollment_session_checks.py --account-root-binding` path exercises real native
+traffic, rekey, credential renewal, witnessed pending recovery, and registry close
+after an actual send commit. Reopening the same active registry recovers the same
+ciphertext. That cancellation case does not represent retirement of an old root.
+
+Still separate: legacy unbound-child migration, restricted original child
+inspection and unknown-delivery accounting after root preparation, transferable
+retirement retention before successor selection, live successor admission,
+independently approved adoption of another committed winner, device qualification
+and post-compromise recovery analysis. Do not use these component checks as proof
+that the complete root-replacement lifecycle is ready.

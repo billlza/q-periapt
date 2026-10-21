@@ -8,7 +8,7 @@ from .enrollment_exchange import PolicyInputs
 from .journal import locked
 from .local_authority_control import (Control, admit_snapshot, admit_identity_control,
                                       read as read_control, write as write_control)
-from .owner_guard import coordinated
+from .owner_guard import root_coordinated as coordinated
 from .policy_control import Control as PControl
 from .policy_intent import Intent
 from .policy_owner_inputs import certificate, check_original, public_request
@@ -27,13 +27,13 @@ class WitnessPolicyRenewal:
         self._lock, self._busy = threading.RLock(), False
 
     @classmethod
-    def open(cls, path, scope, key, context, operation, inputs, *, client, observer=None):
+    def open(cls, path, scope, key, context, operation, inputs, *, client, observer=None,root_lease=None):
         require(context.witness is not None, "policy witness profile missing")
-        Session._scope(context, scope)
+        Session._scope(context, scope,root_lease)
         fixed(operation, 32); check_original(context, inputs)
         require(client.signer is not None and client.signer.public() == context.initiator,
                 "original policy signer differs")
-        journal = WitnessJournal(path, scope, key, Session._validator(context), context.witness, client, observer)
+        journal = WitnessJournal(path, scope, key, Session._validator(context), context.witness, client, observer,root_lease=root_lease)
         owner = cls(journal, context, operation, inputs)
         try:
             pending = journal._admit().read("intent")

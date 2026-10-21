@@ -9,7 +9,7 @@ from .identity_state import local_view
 from .journal import LocalSessionJournal, locked
 from .local_authority_control import Control, admit_snapshot, read, write
 from .maintenance_terminal import Transition, finish
-from .owner_guard import coordinated
+from .owner_guard import root_coordinated as coordinated
 from .roster_control import Control as RControl
 from .roster_intent import Intent
 from .roster_protocol import Scope, Proposal
@@ -26,17 +26,17 @@ class RosterRefresh:
         self._lock, self._busy = threading.RLock(), False
 
     @classmethod
-    def open(cls, path, scope, key, context, operation, *, client=None, observer=None):
+    def open(cls, path, scope, key, context, operation, *, client=None, observer=None,root_lease=None):
         require(shared(context) and context.policy_version > 0, "roster maintenance requires original common-account policy")
-        Session._scope(context, scope)
+        Session._scope(context, scope,root_lease)
         fixed(operation, 32)
         if context.witness is None:
             require(client is None, "local roster profile cannot use a witness carrier")
-            journal = LocalSessionJournal.open(path, scope, key, Session._validator(context), observer=observer)
+            journal = LocalSessionJournal.open(path, scope, key, Session._validator(context), observer=observer,root_lease=root_lease)
         else:
             require(client is not None and client.signer is not None
                     and client.signer.public() == context.initiator, "original roster signer")
-            journal = WitnessJournal(path, scope, key, Session._validator(context), context.witness, client, observer)
+            journal = WitnessJournal(path, scope, key, Session._validator(context), context.witness, client, observer,root_lease=root_lease)
         owner = cls(journal, context, operation)
         try:
             pending = journal._admit().read("intent")

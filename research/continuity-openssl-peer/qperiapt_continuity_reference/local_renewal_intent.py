@@ -6,6 +6,7 @@ from .storage_budget import MAX_SHARED_STATE, MAX_POLICY_STATE
 from .local_renewal_protocol import Proposal
 from .state_codec import decode
 from .wire import Reader, require
+from .account_binding import SIZE as ROOT_BINDING_SIZE
 
 DOMAIN = b"Q-PERIAPT-INDEPENDENT-LOCAL-RENEWAL-INTENT/v1/"
 
@@ -26,7 +27,7 @@ class Intent:
         wire = journal._admit().read("intent")
         if wire is None:
             return None
-        require(604 <= len(wire) <= MAX_POLICY_STATE + 637, "local renewal intent capacity")
+        require(604 <= len(wire) <= MAX_POLICY_STATE + 637 + ROOT_BINDING_SIZE, "local renewal intent capacity")
         body = wire[:-32]
         require(hmac.compare_digest(wire[-32:], hmac.digest(journal._intent_key,
                 DOMAIN + journal.scope.wire() + body, "sha256")), "local renewal intent authentication")
@@ -35,7 +36,7 @@ class Intent:
         continued = tag == b"QPRFLI02"
         proposal = Proposal.decode(r.take(329 if continued else 296)); size = r.integer(4)
         require((proposal.policy is not None) == continued, "credential intent policy discriminator")
-        require(264 <= size <= (MAX_POLICY_STATE if continued else MAX_SHARED_STATE) + 264, "local renewal target size")
+        require(264 <= size <= (MAX_POLICY_STATE if continued else MAX_SHARED_STATE) + 264 + ROOT_BINDING_SIZE, "local renewal target size")
         target = r.take(size); r.finish()
         require(proposal.witness == journal.profile.pin.binding and proposal.subject == journal.subject
                 and proposal.expected.fence == proposal.target.fence == 1, "local renewal original scope")
