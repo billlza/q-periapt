@@ -27,6 +27,7 @@ impl Store {
                 return Ok(original.invitation);
             }
             let root = store.root(account)?;
+            let authority = store.authority_guard(account, &root)?;
             let info = root.info(store.family()?)?;
             if info.suspended {
                 return Err(Error::Conflict("Enrollment root is suspended"));
@@ -49,6 +50,7 @@ impl Store {
                 deadline: now.checked_add(300).ok_or(Error::Capacity)?,
                 predecessor: info.roster.as_ref().map(|r| r.checkpoint),
             };
+            authority.check()?;
             store.persist_invitation(account, &invitation, None, None)?;
             Ok(invitation)
         })
@@ -100,6 +102,7 @@ impl Store {
             };
             save_operation(&tx, &op)?;
             op.invitation.current(now()?)?;
+            issuer.check()?;
             tx.commit().map_err(db_error)
         })
     }

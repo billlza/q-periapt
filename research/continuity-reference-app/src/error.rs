@@ -14,6 +14,7 @@ pub enum Error {
     Conflict(&'static str),
     Capacity,
     IssuerUnavailable,
+    AuthorityUnavailable,
     Internal,
 }
 impl Error {
@@ -62,6 +63,10 @@ impl IntoResponse for Error {
             Self::IssuerUnavailable => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Original issuer key unavailable; reconcile its retained state",
+            ),
+            Self::AuthorityUnavailable => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Original account authority unavailable; reconcile its retained store and key",
             ),
         };
         (status, Json(Failure { error })).into_response()

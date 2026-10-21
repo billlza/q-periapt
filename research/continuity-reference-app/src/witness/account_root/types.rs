@@ -42,7 +42,7 @@ impl AccountRootTrust {
 }
 
 /// Retain and independently approve this original plan before freezing authority.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AccountRootPlan {
     pub schema: String,
@@ -58,7 +58,7 @@ impl AccountRootPlan {
             plan: plan.to_bytes()?,
         })
     }
-    pub(super) fn as_sdk(&self) -> Result<sdk::AnchorAccountReplacementPlan> {
+    pub(crate) fn as_sdk(&self) -> Result<sdk::AnchorAccountReplacementPlan> {
         if self.schema != "qperiapt-witness-account-root-plan/1" {
             return Err("Account root plan schema differs".into());
         }
@@ -71,7 +71,7 @@ impl AccountRootPlan {
 }
 
 /// Exact original frozen snapshot and target, not a new authorization source.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AccountRootDecision {
     pub schema: String,
@@ -92,7 +92,7 @@ impl AccountRootDecision {
             proposal: proposal.to_bytes()?,
         })
     }
-    pub(super) fn as_sdk(&self) -> Result<sdk::AnchorAccountReplacementProposal> {
+    pub(crate) fn as_sdk(&self) -> Result<sdk::AnchorAccountReplacementProposal> {
         if self.schema != "qperiapt-witness-account-root-decision/1" || self.plan_binding == [0; 32]
         {
             return Err("Account root decision schema differs".into());

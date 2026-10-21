@@ -150,6 +150,7 @@ impl Store {
             };
             let issued: IssuedEnrollment = decode(response, MAX_RECORD)?;
             let root = store.root(account)?;
+            let authority = store.authority_guard(account, &root)?;
             root.admits_authority(&original.invitation, store.family()?)?;
             let info = root.info(store.family()?)?;
             let roster = info
@@ -217,6 +218,7 @@ impl Store {
                 current_roster: roster.bytes.clone(),
             };
             intent.current(&root, &invitation, store.family()?)?;
+            authority.check()?;
             store.persist_invitation(account, &invitation, Some(intent), None)?;
             Ok(invitation)
         })

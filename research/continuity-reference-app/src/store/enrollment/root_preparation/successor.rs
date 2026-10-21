@@ -4,19 +4,22 @@ use super::*;
 use crate::root_preparation::{SuccessorObservation, SuccessorRequest};
 
 pub(in super::super) enum Issuer {
-    Current(Root),
+    Current {
+        root: Root,
+        authority: authority::Guard,
+    },
     Candidate(Record),
 }
 impl Issuer {
     pub(in super::super) fn root(&self) -> &Root {
         match self {
-            Self::Current(root) => root,
+            Self::Current { root, .. } => root,
             Self::Candidate(record) => &record.candidate,
         }
     }
     pub(in super::super) fn root_mut(&mut self) -> &mut Root {
         match self {
-            Self::Current(root) => root,
+            Self::Current { root, .. } => root,
             Self::Candidate(record) => &mut record.candidate,
         }
     }
@@ -26,7 +29,10 @@ impl Issuer {
         account: &Account,
     ) -> Result<(), Error> {
         match self {
-            Self::Current(root) => save_root(tx, root),
+            Self::Current { root, authority } => {
+                authority.check()?;
+                save_root(tx, root)
+            }
             Self::Candidate(record) => {
                 record.check(account, record.operation)?;
                 save(tx, record)
@@ -39,6 +45,7 @@ impl Issuer {
         account: &Account,
         enrollment: [u8; 32],
     ) -> Result<(), Error> {
+        self.check()?;
         if let Self::Candidate(record) = self {
             record.enrollment = Some(enrollment);
             record.check(account, record.operation)?;
@@ -46,12 +53,23 @@ impl Issuer {
         }
         Ok(())
     }
+    pub(in super::super) fn check(&self) -> Result<(), Error> {
+        match self {
+            Self::Current { authority, .. } => authority.check(),
+            Self::Candidate(_) => Ok(()),
+        }
+    }
 }
 impl Record {
-    fn admits_successor(&self, current: &Root, family: [u8; 32]) -> Result<(), Error> {
+    pub(super) fn admits_successor(&self, current: &Root, family: [u8; 32]) -> Result<(), Error> {
         if self.closed {
             return Err(Error::Conflict(
                 "Original root preparation is permanently closed",
+            ));
+        }
+        if self.cutover.is_some() {
+            return Err(Error::Conflict(
+                "Candidate is bound to its original root cutover",
             ));
         }
         let old = current.info(family)?;
@@ -108,7 +126,11 @@ impl Store {
     ) -> Result<Issuer, Error> {
         let current = self.root(account)?;
         let Some(preparation) = op.root_preparation else {
-            return Ok(Issuer::Current(current));
+            let authority = self.authority_guard(account, &current)?;
+            return Ok(Issuer::Current {
+                root: current,
+                authority,
+            });
         };
         if !self.root_successors {
             return Err(Error::Internal);
@@ -118,6 +140,23 @@ impl Store {
             return Err(Error::Conflict(
                 "Candidate enrollment has a different original successor",
             ));
+        }
+        if record.selected {
+            let selected = record.candidate.info(self.family()?)?;
+            let actual = current.info(self.family()?)?;
+            if selected.revision != actual.revision
+                || selected.account != actual.account
+                || selected.public_key != actual.public_key
+            {
+                return Err(Error::Conflict(
+                    "Selected candidate is no longer the current root",
+                ));
+            }
+            let authority = self.authority_guard(account, &current)?;
+            return Ok(Issuer::Current {
+                root: current,
+                authority,
+            });
         }
         record.admits_successor(&current, self.family()?)?;
         record

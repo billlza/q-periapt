@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Private reference host. Authentication and membership remain outside the SDK.
+pub mod account_authority;
 pub mod auth;
 pub mod credential_grant;
 pub mod enrollment;

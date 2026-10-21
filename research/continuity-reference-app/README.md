@@ -162,6 +162,14 @@ Schema-5 browser records preserve all earlier operations under the same cache ke
 Account issuance and [witness replacement](WITNESS_REPLACEMENT.md) are separate
 durable steps; account issuance alone does not retire an old witness journal.
 
+Schema 10 connects [retained account authority and root cutover](ACCOUNT_ROOT_CUTOVER.md)
+to the existing native registry. The original signed required-witness policy is
+associated independently of replacement inputs. Exact candidate approval fences
+the old issuer, and authenticated retirement selects the new root with recoverable
+ordered commits. Historical results survive restart and old-key loss. Browser
+root controls and installed independent-client/session-owner coordination remain
+separate integration work.
+
 The service's invitation API requires a caller-retained random request ID. Retry
 that same ID after an uncertain reply, even if the host operation ID was lost.
 The local profile uses five-minute approval deadlines and one-hour credentials;

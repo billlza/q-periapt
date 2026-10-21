@@ -35,6 +35,7 @@ pub struct Store {
     enrollment_replacements: bool,
     root_preparations: bool,
     root_successors: bool,
+    account_authorities: bool,
 }
 impl Store {
     pub fn provision(path: &Path, origin: &str) -> Result<Self, Error> {
@@ -75,6 +76,7 @@ impl Store {
             enrollment_replacements: false,
             root_preparations: false,
             root_successors: false,
+            account_authorities: false,
         })
     }
     pub fn open(path: &Path, origin: &str) -> Result<Self, Error> {
@@ -111,6 +113,7 @@ impl Store {
             enrollment_replacements: schema.replacements,
             root_preparations: schema.root_preparations,
             root_successors: schema.root_successors,
+            account_authorities: schema.account_authorities,
         })
     }
     fn alive(&self) -> Result<(), Error> {

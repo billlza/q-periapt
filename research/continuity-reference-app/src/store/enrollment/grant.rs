@@ -144,11 +144,13 @@ impl Store {
             }
             let at = now()?;
             let target = store.grant_inputs(account, request, &original, response, at)?;
+            let authority = store.authority_guard(account, &target.root)?;
             let mut record = Record {
                 request: request.clone(),
                 phase: GrantPhase::Pending,
             };
             if existing.is_none() {
+                authority.check()?;
                 store.save_grant(account, &record, true, at, Some(&target))?;
             }
             let signer = store.open_signer(&target.root)?;
@@ -204,6 +206,7 @@ impl Store {
             record.phase = GrantPhase::Issued {
                 response: response.clone(),
             };
+            authority.check()?;
             store.save_grant(account, &record, false, at, Some(&target))?;
             Ok(response)
         })

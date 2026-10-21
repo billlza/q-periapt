@@ -21,6 +21,30 @@ impl AnchorAccountReplacementPlan {
     pub fn operation(&self) -> AnchorAccountReplacementId {
         self.target.operation()
     }
+    /// Match the complete retained target to independently selected verified
+    /// inputs. This does not approve the plan, contact the witness, assert live
+    /// validity, or authorize traffic. Fresh admission remains a separate check.
+    pub fn verify_target(
+        &self,
+        previous_root: &PublicKey,
+        genesis: &AnchorGenesis,
+        next: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        pin: &AnchorPin,
+    ) -> Result<(), DurableError> {
+        self.check()?;
+        self.target
+            .check_target(previous_root, genesis, next, policy, pin)
+    }
+    /// Match an authenticated historical retirement to this exact retained plan.
+    /// Authentication comes from the independently retained witness pin; neither
+    /// this match nor the receipt grants current target permission.
+    pub fn verify_retirement(&self, retired: &AnchorRetiredAccount) -> Result<(), Error> {
+        if !self.check_retained(retired.proposal())? {
+            return Err(Error::Scope);
+        }
+        Ok(())
+    }
     pub(crate) fn target(&self) -> &AnchorAccountReplacementProposal {
         &self.target
     }

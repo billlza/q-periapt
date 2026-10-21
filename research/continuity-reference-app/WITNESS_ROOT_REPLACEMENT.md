@@ -54,6 +54,7 @@ q-periapt-continuity-witness <command> <absolute-host-db> <retained-witness-iden
 | `root-bind` | same trust, preparation, plan, signed freeze, output directory | `account-root-decision.json` |
 | `root-commit` | same trust, preparation, plan, freeze, decision, output directory | `account-root-outcome.json` |
 | `root-status` | original decision, output directory | `account-root-outcome.json` |
+| `root-replan` | new approved trust/preparation, original closed plan, original signed freeze, output directory | `account-root-plan.json` |
 
 Planning and binding are read-only. Freezing captures the original complete
 witness snapshot and blocks both known and future unseen devices under the old
@@ -91,11 +92,20 @@ cancel a freeze already in flight. An explicitly closed plan is refused before a
 new freeze invocation. No error path generates a replacement key, chooses another
 root, resets storage or restores old-root authority.
 
+After the original plan has permanently closed, `root-replan` validates its
+original signed freeze and a separately approved fresh target with a distinct
+operation ID. It prepares a new plan against that same frozen snapshot. Retain
+the new plan and obtain host approval before binding/committing it; the closed
+plan is never rewritten. `root-freeze` on the new plan recovers the same original
+freeze with the new plan binding. Missing closure and altered freeze proofs are
+explicit failures.
+
 Native tests verify scope/refusal/receipt behavior and kill the operator process
 after freeze, commitment and both closure boundaries. The separate
 `tests/witness_root_operator.py` driver runs the actual CLI through commit,
 decision-close and plan-close profiles, retaining public inputs, real BrokenPipe
 outputs and original-key checks. The reference-account CI runs it using the
 Release operator and native test helper. These are local operator observations;
-full authenticated application cutover, independent clients, mobile lifecycle,
+[authenticated host cutover](ACCOUNT_ROOT_CUTOVER.md) is validated separately.
+Independent clients, original client-owner fencing, mobile lifecycle,
 witness-key handoff and post-compromise security remain separate requirements.

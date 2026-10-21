@@ -36,6 +36,7 @@ fn main() -> Result<()> {
     if matches!(
         command,
         "root-plan"
+            | "root-replan"
             | "root-freeze"
             | "root-bind"
             | "root-commit"

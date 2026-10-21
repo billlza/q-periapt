@@ -38,7 +38,7 @@ inventory=lambda:{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sor
 before=inventory();result=dict(completed=False,kind='qperiapt.witness_root_operator',schema_version=1,source_files=before,native_sha256=binaries,
     provider=provider.__version__,clock='actual OS time',profiles=[],release_claim_eligible=False)
 try:
-    for profile in ('commit','close','close-plan'):
+    for profile in ('commit','close','close-plan','replan'):
         directory=root/profile;directory.mkdir(mode=0o700);index=directory/'fixture.json'
         environment=dict(os.environ,QPERIAPT_ROOT_OPERATOR_CLI_OUTPUT=str(index))
         generated=subprocess.run([str(test_binary),'--exact','witness::tests::account_root::process::original_cutover_child','--nocapture'],
@@ -49,7 +49,8 @@ try:
         require(generated.stderr==f'Retained witness host fixture: {private}\n'.encode(),'unexpected fixture diagnostics')
         require(fixture['previous_account']!=fixture['successor_account'],'root fixture reused its account')
         for name in ('root-trust.json','root-request.json','expected-plan.json','old-trust.json','old-request.json',
-                     'unseen-trust.json','unseen-request.json','next-trust.json'):
+                     'unseen-trust.json','unseen-request.json','next-trust.json',
+                     'new-root-trust.json','new-root-request.json','new-target-trust.json'):
             save(directory/name,(private/name).read_bytes())
         keys={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in private.rglob('*') if p.suffix in ('.signer','.wrap')}
         run=Commands(directory);common=[witness];host=[private/'host.redb',b64(bytes(fixture['host_identity']))]
@@ -59,6 +60,7 @@ try:
             if not success and not lost:
                 expected={'bad-plan':b'Error: "Account root plan binding differs"\n',
                           'closed-plan-refused':b'Error: "Original account root plan is permanently closed"\n',
+                          'exact-closure-is-not-plan-closure':b'Error: Conflict\n',
                           'closed-commit-refused':b'Error: Protocol(Retired)\n'}[label]
                 require((directory/(label+'.stderr')).read_bytes()==expected,'root refusal did not reach its intended boundary')
             return value,destination
@@ -91,21 +93,43 @@ try:
             frozen,frozen_dir=invoke('root-freeze','freeze-retry',[plan_file]);freeze_file=frozen_dir/'account-root-freeze.json'
             require(first['freeze_binding']==frozen['freeze_binding'] and first['plan_binding']==frozen['plan_binding']==plan['binding'],'freeze changed after lost output')
             enroll('old','old-frozen',success=False);enroll('unseen','unseen-frozen',success=False)
-            decision,bound_dir=invoke('root-bind','bind',[trust,request,plan_file,freeze_file]);bound=bound_dir/'account-root-decision.json'
-            unavailable,_=invoke('root-status','unavailable',[bound]);require(unavailable=={'state':'Unavailable','binding':decision['binding']},'precommit inferred success')
-            if profile=='commit':
-                _,lost_dir=invoke('root-commit','commit-lost',[trust,request,plan_file,freeze_file,bound],success=False,lost=True)
-                expected='Committed';filename='account-root-outcome.json'
+            if profile=='replan':
+                original_closed,_=invoke('root-plan-close','original-plan-closed',[plan_file])
+                require(original_closed['state']=='Closed','original plan lacks permanent non-commit')
+                new_trust=private/'new-root-trust.json';new_request=private/'new-root-request.json'
+                require(json.loads(new_trust.read_bytes())['successor']['account']['account']!=fixture['successor_account'],
+                        'new target reused original candidate')
+                _,lost_plan=invoke('root-replan','replan-lost',[new_trust,new_request,plan_file,freeze_file],success=False,lost=True)
+                next_plan,next_dir=invoke('root-replan','replan-retry',[new_trust,new_request,plan_file,freeze_file])
+                require(next_plan==json.loads((lost_plan/'account-root-plan.json').read_bytes()),'new original plan changed after output loss')
+                next_file=next_dir/'account-root-plan.json'
+                next_freeze,next_frozen_dir=invoke('root-freeze','same-frozen-root',[next_file])
+                require(next_freeze['freeze_binding']==frozen['freeze_binding'],'new target unfroze or replaced original snapshot')
+                next_freeze_file=next_frozen_dir/'account-root-freeze.json'
+                next_decision,next_bound_dir=invoke('root-bind','new-bound-target',[new_trust,new_request,next_file,next_freeze_file])
+                next_bound=next_bound_dir/'account-root-decision.json'
+                next_outcome,_=invoke('root-commit','new-committed-target',[new_trust,new_request,next_file,next_freeze_file,next_bound])
+                require(next_outcome['state']=='Committed' and next_outcome['binding']==next_decision['binding'],'new target was not committed')
+                run([*common,'enroll',*host,private/'new-target-trust.json',new_request],'same-new-successor',success=True)
+                enroll('old','old-after-new-root-refused',success=False)
             else:
-                _,lost_dir=invoke('root-close','decision-close-lost',[bound],success=False,lost=True)
-                expected='Closed';filename='account-root-outcome.json'
-            lost=json.loads((lost_dir/filename).read_bytes());observed,_=invoke('root-status','recovered-status',[bound])
-            require(lost['state']==observed['state']==expected and lost['binding']==observed['binding']==decision['binding'],'original terminal decision changed')
-            terminal,_=invoke('root-close','terminal-close',[bound]);require(terminal['state']==expected,'closure rewrote committed history')
-            enroll('old','old-terminal-refused',success=False);enroll('unseen','unseen-terminal-refused',success=False)
-            if profile=='commit':
-                run([*common,'enroll',*host,private/'next-trust.json',request],'same-successor',success=True)
-            else:invoke('root-commit','closed-commit-refused',[trust,request,plan_file,freeze_file,bound],success=False)
+                decision,bound_dir=invoke('root-bind','bind',[trust,request,plan_file,freeze_file]);bound=bound_dir/'account-root-decision.json'
+                unavailable,_=invoke('root-status','unavailable',[bound]);require(unavailable=={'state':'Unavailable','binding':decision['binding']},'precommit inferred success')
+                if profile=='commit':
+                    _,lost_dir=invoke('root-commit','commit-lost',[trust,request,plan_file,freeze_file,bound],success=False,lost=True)
+                    expected='Committed';filename='account-root-outcome.json'
+                else:
+                    _,lost_dir=invoke('root-close','decision-close-lost',[bound],success=False,lost=True)
+                    expected='Closed';filename='account-root-outcome.json'
+                lost=json.loads((lost_dir/filename).read_bytes());observed,_=invoke('root-status','recovered-status',[bound])
+                require(lost['state']==observed['state']==expected and lost['binding']==observed['binding']==decision['binding'],'original terminal decision changed')
+                terminal,_=invoke('root-close','terminal-close',[bound]);require(terminal['state']==expected,'closure rewrote committed history')
+                enroll('old','old-terminal-refused',success=False);enroll('unseen','unseen-terminal-refused',success=False)
+                if profile=='commit':
+                    run([*common,'enroll',*host,private/'next-trust.json',request],'same-successor',success=True)
+                else:
+                    invoke('root-commit','closed-commit-refused',[trust,request,plan_file,freeze_file,bound],success=False)
+                    invoke('root-plan-close','exact-closure-is-not-plan-closure',[plan_file],success=False)
         require(all(hashlib.sha256(Path(p).read_bytes()).hexdigest()==digest for p,digest in keys.items()),'root operator regenerated a key')
         require(run([*common,'pin',*host],'original-witness-pin')==fixture['witness_pin'],'root operator changed witness authority')
         result['profiles'].append(dict(name=profile,commands=run.rows,fixture=str(private),original_keys_unchanged=True))

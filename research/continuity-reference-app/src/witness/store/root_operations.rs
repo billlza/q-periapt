@@ -2,6 +2,25 @@
 use super::*;
 
 impl Witness {
+    /// Select a new target after permanent non-commit, retaining the original freeze.
+    pub fn replan_frozen_account_root(
+        &mut self,
+        trust: &AccountRootTrust,
+        request: &EnrollmentRequest,
+        original: &AccountRootPlan,
+        frozen: &AccountRootFreeze,
+        now: u64,
+    ) -> Result<AccountRootPlan> {
+        let config = self.config()?;
+        account_root::replan(
+            &mut self.original_store(&config)?,
+            trust,
+            request,
+            original,
+            frozen,
+            now,
+        )
+    }
     /// Read-only target selection. Retain and approve this plan before freezing.
     pub fn plan_account_root_replacement(
         &mut self,

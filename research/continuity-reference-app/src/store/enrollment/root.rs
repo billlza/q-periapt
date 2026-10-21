@@ -28,6 +28,7 @@ impl Store {
                         phase: RootPhase::Wrapping,
                         members: Vec::new(),
                         roster: None,
+                        authority: None,
                     };
                     save_root(&tx, &root)?;
                     tx.commit().map_err(db_error)?;

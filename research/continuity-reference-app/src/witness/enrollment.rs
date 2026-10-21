@@ -4,7 +4,7 @@ use crate::{enrollment::RootInfo, policy_publisher::PolicyInput};
 
 /// Public export shared by the native and independent preparation commands.
 /// It grants no authority and must match a separately approved exact head.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EnrollmentRequest {
     pub preparation: String,
@@ -38,7 +38,7 @@ impl EnrollmentTrust {
         Ok(())
     }
 
-    pub(super) fn inputs(
+    pub(crate) fn inputs(
         &self,
         witness_pin: &sdk::AnchorPin,
         request: &EnrollmentRequest,

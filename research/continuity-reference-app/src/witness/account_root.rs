@@ -20,6 +20,38 @@ pub(super) fn plan(
     )
 }
 
+/// A new independent target may reuse an authenticated original freeze. The
+/// closed plan is retained as evidence, never reopened or replaced in place.
+pub(super) fn replan(
+    store: &mut sdk::AnchorStore,
+    trust: &AccountRootTrust,
+    request: &EnrollmentRequest,
+    original: &AccountRootPlan,
+    frozen: &AccountRootFreeze,
+    now: u64,
+) -> Result<AccountRootPlan> {
+    let pin = store.pin()?;
+    let prior = original.as_sdk()?;
+    let (operation, _, freeze) = trust.selected(&pin)?;
+    if operation == prior.operation()
+        || freeze != *prior.request()
+        || frozen.plan_binding != original.binding
+    {
+        return Err("New target must retain the original freeze and a distinct operation".into());
+    }
+    let observed = pin.verify_account_freeze(prior.request(), &frozen.receipt)?;
+    if observed.binding()? != frozen.freeze_binding {
+        return Err("Account root freeze binding differs".into());
+    }
+    // Authenticated permanent non-commit precedes selecting another target.
+    store.closed_account_preparation(&prior)?;
+    let (genesis, next, policy) = trust.successor.inputs(&pin, request, now)?;
+    AccountRootPlan::from_sdk(
+        store
+            .frozen_account_replacement_plan(operation, &observed, &genesis, &next, &policy, now)?,
+    )
+}
+
 pub(super) fn freeze(
     store: &mut sdk::AnchorStore,
     plan: &AccountRootPlan,

@@ -11,6 +11,7 @@ mod grant;
 mod history;
 mod policy_approval;
 use history::CredentialHistory;
+mod authority;
 mod operations;
 mod reapproval;
 mod replacement;
@@ -37,6 +38,8 @@ struct Root {
     phase: RootPhase,
     members: Vec<Member>,
     roster: Option<RosterSnapshot>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    authority: Option<[u8; 32]>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "phase", deny_unknown_fields)]
@@ -96,6 +99,7 @@ pub(super) struct EnrollmentSchema {
     pub(super) replacements: bool,
     pub(super) root_preparations: bool,
     pub(super) root_successors: bool,
+    pub(super) account_authorities: bool,
 }
 pub(super) fn admit_schema(
     tx: &redb::ReadTransaction,
@@ -112,13 +116,17 @@ pub(super) fn admit_schema(
         .collect();
     names.sort();
     let mut expected = vec!["accounts", "configuration", "credential_owners"];
-    let root_successors = schema.value() == "9";
-    let root_preparations = matches!(schema.value(), "8" | "9");
-    let replacements = matches!(schema.value(), "7" | "8" | "9");
-    let policy_approvals = matches!(schema.value(), "6" | "7" | "8" | "9");
-    let grants = matches!(schema.value(), "5" | "6" | "7" | "8" | "9");
-    let extensions = matches!(schema.value(), "4" | "5" | "6" | "7" | "8" | "9");
-    let reapproval = matches!(schema.value(), "3" | "4" | "5" | "6" | "7" | "8" | "9");
+    let account_authorities = schema.value() == "10";
+    let root_successors = matches!(schema.value(), "9" | "10");
+    let root_preparations = matches!(schema.value(), "8" | "9" | "10");
+    let replacements = matches!(schema.value(), "7" | "8" | "9" | "10");
+    let policy_approvals = matches!(schema.value(), "6" | "7" | "8" | "9" | "10");
+    let grants = matches!(schema.value(), "5" | "6" | "7" | "8" | "9" | "10");
+    let extensions = matches!(schema.value(), "4" | "5" | "6" | "7" | "8" | "9" | "10");
+    let reapproval = matches!(
+        schema.value(),
+        "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10"
+    );
     let family = match schema.value() {
         "1" => {
             if config.len().map_err(db_error)? != 2 {
@@ -126,7 +134,7 @@ pub(super) fn admit_schema(
             }
             None
         }
-        "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => {
+        "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" => {
             if config.len().map_err(db_error)? != 3 {
                 return Err(Error::Internal);
             }
@@ -152,6 +160,13 @@ pub(super) fn admit_schema(
                 expected.extend([
                     root_preparation::PREPARATIONS.name(),
                     root_preparation::CORRELATIONS.name(),
+                ]);
+            }
+            if account_authorities {
+                expected.extend([
+                    authority::AUTHORITIES.name(),
+                    authority::CUTOVERS.name(),
+                    authority::RETIRED_ROOTS.name(),
                 ]);
             }
             let saved = config
@@ -192,6 +207,7 @@ pub(super) fn admit_schema(
         replacements,
         root_preparations,
         root_successors,
+        account_authorities,
     })
 }
 
@@ -275,6 +291,9 @@ impl Store {
             || root.signing_id == [0; 32]
             || root.revision == 0
             || root.members.len() > sdk::MAX_DEVICES
+            || root
+                .authority
+                .is_some_and(|id| id == [0; 32] || !self.account_authorities)
         {
             return Err(Error::Internal);
         }

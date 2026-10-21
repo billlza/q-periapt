@@ -19,6 +19,81 @@ fn plan(c: &mut Case, next: &Fresh) -> crate::AnchorAccountReplacementPlan {
         )
         .expect("original target plan")
 }
+#[test]
+fn account_plan_target_verification_checks_selected_inputs_without_freezing() {
+    let mut c = required_case();
+    let next = root_target(&c, 190, 192);
+    let other = root_target(&c, 200, 202);
+    let selected = plan(&mut c, &next);
+    let policy = c.peer.responder.current_policy().expect("original policy");
+    let revision = c.store.image().expect("original image").revision;
+    selected
+        .verify_target(
+            &original_root(&c),
+            &next.genesis,
+            &next.device,
+            policy,
+            &c.pin,
+        )
+        .expect("exact selected target");
+    assert!(selected
+        .verify_target(
+            &original_root(&c),
+            &other.genesis,
+            &next.device,
+            policy,
+            &c.pin
+        )
+        .is_err());
+    assert!(selected
+        .verify_target(
+            &original_root(&c),
+            &next.genesis,
+            &other.device,
+            policy,
+            &c.pin
+        )
+        .is_err());
+    let wrong = required_case();
+    assert!(selected
+        .verify_target(
+            &other.device.authority_key,
+            &next.genesis,
+            &next.device,
+            policy,
+            &c.pin
+        )
+        .is_err());
+    assert!(selected
+        .verify_target(
+            &original_root(&c),
+            &next.genesis,
+            &next.device,
+            policy,
+            &wrong.pin
+        )
+        .is_err());
+    assert!(selected
+        .verify_target(
+            &original_root(&c),
+            &next.genesis,
+            &next.device,
+            wrong
+                .peer
+                .responder
+                .current_policy()
+                .expect("different policy"),
+            &c.pin
+        )
+        .is_err());
+    assert_eq!(c.store.image().expect("unchanged image").revision, revision);
+    assert!(c
+        .store
+        .image()
+        .expect("unfrozen image")
+        .account_freezes
+        .is_empty());
+}
 fn at_cut(by_plan: bool, cut: usize, after: bool) -> usize {
     let mut c = required_case();
     let next = root_target(&c, 190, 192);
@@ -64,6 +139,32 @@ fn at_cut(by_plan: bool, cut: usize, after: bool) -> usize {
     assert_eq!(c.store.image().expect("one closure").revision, before + 1);
     assert_retired(&mut c, AnchorOperation::query());
     barriers
+}
+#[test]
+fn account_plan_retirement_verification_requires_the_exact_approved_target() {
+    let mut c = required_case();
+    let next = root_target(&c, 190, 192);
+    let other = root_target(&c, 200, 202);
+    let selected = plan(&mut c, &next);
+    let changed = plan(&mut c, &other);
+    let frozen = c
+        .store
+        .freeze_account(selected.request())
+        .expect("original freeze");
+    let proposal = selected.bind(&frozen).expect("original bound target");
+    root_commit(&mut c, &proposal, &next, 150).expect("actual witness retirement");
+    let receipt = c
+        .store
+        .retired_account_receipt(&proposal)
+        .expect("signed retirement");
+    let retired = c
+        .pin
+        .verify_retired_account(&proposal, &receipt)
+        .expect("authenticated retirement");
+    selected
+        .verify_retirement(&retired)
+        .expect("exact retained approval");
+    assert!(changed.verify_retirement(&retired).is_err());
 }
 #[test]
 fn account_closure_witness_sync_faults_preserve_original_noncommit_and_account_freeze() {

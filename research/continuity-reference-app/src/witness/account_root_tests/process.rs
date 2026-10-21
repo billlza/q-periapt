@@ -60,6 +60,13 @@ fn cli_fixture(output: &Path) -> Result<()> {
     let (f, mut owner) = Fixture::new()?;
     let plan = f.plan(&mut owner)?;
     let (unseen, unseen_request) = f.unseen()?;
+    let fresh_path = f.path.join("new-target");
+    fs::create_dir(&fresh_path)?;
+    fs::set_permissions(&fresh_path, fs::Permissions::from_mode(0o700))?;
+    let fresh = device(&fresh_path, owner.prepare()?)?;
+    let mut new_trust = f.trust.clone();
+    new_trust.operation = [123; 32];
+    new_trust.successor = fresh.trust.clone();
     for (name, value) in [
         ("root-trust.json", serde_json::to_value(&f.trust)?),
         ("root-request.json", serde_json::to_value(&f.next.request)?),
@@ -72,6 +79,12 @@ fn cli_fixture(output: &Path) -> Result<()> {
             serde_json::to_value(&unseen_request)?,
         ),
         ("next-trust.json", serde_json::to_value(&f.next.trust)?),
+        ("new-root-trust.json", serde_json::to_value(&new_trust)?),
+        (
+            "new-root-request.json",
+            serde_json::to_value(&fresh.request)?,
+        ),
+        ("new-target-trust.json", serde_json::to_value(&fresh.trust)?),
     ] {
         save(&f.path.join(name), &value)?;
     }

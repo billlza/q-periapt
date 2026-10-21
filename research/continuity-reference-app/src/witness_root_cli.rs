@@ -16,6 +16,7 @@ pub(super) const USAGE: &str = concat!(
     "root-plan: <independently-approved-trust-json> <successor-preparation-json> <empty-private-output-directory>\n",
     "root-freeze/root-plan-close: <independently-retained-plan-json> <empty-private-output-directory>\n",
     "root-bind: <same-trust> <same-preparation> <same-plan> <signed-freeze-json> <empty-private-output-directory>\n",
+    "root-replan: <new-approved-trust> <new-preparation> <original-closed-plan> <original-signed-freeze> <empty-private-output-directory>\n",
     "root-commit: <same-trust> <same-preparation> <same-plan> <signed-freeze-json> <retained-decision-json> <empty-private-output-directory>\n",
     "root-status/root-close: <retained-decision-json> <empty-private-output-directory>\n",
     "Freeze/closure/commit are trusted local approvals. Retain original inputs after errors; no command reactivates old authority."
@@ -39,7 +40,7 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
     let count = match command {
         "root-plan" => 7,
         "root-freeze" | "root-status" | "root-close" | "root-plan-close" => 6,
-        "root-bind" => 9,
+        "root-bind" | "root-replan" => 9,
         "root-commit" => 10,
         _ => return Err(USAGE.into()),
     };
@@ -90,6 +91,13 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
     }
     let plan: AccountRootPlan = input(&args[6], 32 * 1024)?;
     let frozen: AccountRootFreeze = input(&args[7], 512 * 1024)?;
+    if command == "root-replan" {
+        return export(
+            &owner.replan_frozen_account_root(&trust, &request, &plan, &frozen, clock()?)?,
+            &args[8],
+            "account-root-plan.json",
+        );
+    }
     if command == "root-bind" {
         export(
             &owner.bind_account_root_replacement(&trust, &request, &plan, &frozen, clock()?)?,

@@ -30,7 +30,7 @@ fn candidate(value: &Preparation) -> Result<&Candidate> {
         _ => Err("candidate is not prepared".into()),
     }
 }
-fn keys(path: &Path) -> Result<BTreeMap<PathBuf, Vec<u8>>> {
+pub(super) fn keys(path: &Path) -> Result<BTreeMap<PathBuf, Vec<u8>>> {
     let mut keys = BTreeMap::new();
     for entry in fs::read_dir(path)? {
         let file = entry?.path();
@@ -43,7 +43,7 @@ fn keys(path: &Path) -> Result<BTreeMap<PathBuf, Vec<u8>>> {
     }
     Ok(keys)
 }
-fn unchanged(original: &BTreeMap<PathBuf, Vec<u8>>) -> Result {
+pub(super) fn unchanged(original: &BTreeMap<PathBuf, Vec<u8>>) -> Result {
     for (file, bytes) in original {
         assert!(fs::read(file)? == *bytes, "retained key file changed");
     }

@@ -273,3 +273,63 @@ fn closing_plan_or_decision_is_permanent_and_never_unfreezes() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn new_target_requires_permanent_original_closure_and_authenticated_same_freeze() -> Result<()> {
+    let (f, mut owner) = Fixture::new()?;
+    let plan = f.plan(&mut owner)?;
+    let frozen = owner.freeze_account_root(&plan)?;
+    let path = f.path.join("second-target");
+    fs::create_dir(&path)?;
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
+    let next = device(&path, owner.prepare()?)?;
+    let mut trust = f.trust.clone();
+    trust.operation = [121; 32];
+    trust.successor = next.trust.clone();
+    let at = crate::native_device::clock()?;
+    trust.successor.inputs(&f.old.pin, &next.request, at)?;
+    assert!(owner
+        .replan_frozen_account_root(&trust, &next.request, &plan, &frozen, at)
+        .is_err());
+    owner.close_account_root_plan(&plan)?;
+    let mut changed = trust.clone();
+    changed.operation = f.trust.operation;
+    assert!(owner
+        .replan_frozen_account_root(&changed, &next.request, &plan, &frozen, at)
+        .is_err());
+    changed = trust.clone();
+    changed.freeze_operation = [122; 32];
+    assert!(owner
+        .replan_frozen_account_root(&changed, &next.request, &plan, &frozen, at)
+        .is_err());
+    let mut bad: AccountRootFreeze = serde_json::from_slice(&serde_json::to_vec(&frozen)?)?;
+    *bad.receipt.last_mut().ok_or("original freeze proof")? ^= 1;
+    assert!(owner
+        .replan_frozen_account_root(&trust, &next.request, &plan, &bad, at)
+        .is_err());
+    let selected = owner.replan_frozen_account_root(&trust, &next.request, &plan, &frozen, at)?;
+    assert!(
+        selected == owner.replan_frozen_account_root(&trust, &next.request, &plan, &frozen, at)?
+    );
+    let observed = owner.freeze_account_root(&selected)?;
+    assert_eq!(observed.freeze_binding, frozen.freeze_binding);
+    let decision =
+        owner.bind_account_root_replacement(&trust, &next.request, &selected, &observed, at)?;
+    let AccountRootOutcome::Committed { receipt, .. } = owner.commit_account_root_replacement(
+        &trust,
+        &next.request,
+        &selected,
+        &observed,
+        &decision,
+        at,
+    )?
+    else {
+        return Err("new selected root committed".into());
+    };
+    f.old
+        .pin
+        .verify_retired_account(&decision.as_sdk()?, &receipt)?;
+    assert!(f.query_old(&mut owner).is_err());
+    assert!(owner.freeze_account_root(&plan).is_err());
+    Ok(())
+}

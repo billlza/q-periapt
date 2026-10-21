@@ -2,6 +2,7 @@
 //! Retained candidate-key creation; current issuer and its suspension are unchanged.
 use super::*;
 use crate::root_preparation::{Candidate, Preparation, Request, Status};
+mod cutover;
 mod schema;
 mod successor;
 pub(super) use successor::Issuer;
@@ -22,6 +23,13 @@ pub(super) struct Record {
     closed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     enrollment: Option<[u8; 32]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    cutover: Option<[u8; 32]>,
+    #[serde(default, skip_serializing_if = "not_selected")]
+    selected: bool,
+}
+fn not_selected(value: &bool) -> bool {
+    !*value
 }
 impl Record {
     fn check(&self, account: &Account, operation: [u8; 32]) -> Result<(), Error> {
@@ -34,6 +42,9 @@ impl Record {
             || self.candidate.application != account.application_id
             || self.candidate.signing_id == [0; 32]
             || self.enrollment == Some([0; 32])
+            || self.cutover == Some([0; 32])
+            || (self.selected
+                && (self.cutover.is_none() || self.closed || self.candidate.members.len() != 1))
             || (self.enrollment.is_some()
                 && !matches!(self.candidate.phase, RootPhase::Ready { .. }))
             || self.candidate.members.len() > 1
@@ -131,6 +142,9 @@ impl Store {
         if record.enrollment.is_some() && !self.root_successors {
             return Err(Error::Internal);
         }
+        if (record.cutover.is_some() || record.selected) && !self.account_authorities {
+            return Err(Error::Internal);
+        }
         let key = correlation(account, record.request.request_id);
         if tx
             .open_table(CORRELATIONS)
@@ -198,9 +212,12 @@ impl Store {
                         phase: RootPhase::Wrapping,
                         members: Vec::new(),
                         roster: None,
+                        authority: None,
                     },
                     closed: false,
                     enrollment: None,
+                    cutover: None,
+                    selected: false,
                 };
                 let tx = transaction(&store.db)?;
                 {
@@ -273,6 +290,11 @@ impl Store {
             store.admits_root_preparation(account)?;
             let mut record = store.root_preparation_record(account, operation)?;
             if !record.closed {
+                if record.cutover.is_some() {
+                    return Err(Error::Conflict(
+                        "Original account-root plan requires its authenticated terminal outcome",
+                    ));
+                }
                 record.closed = true;
                 let tx = transaction(&store.db)?;
                 save(&tx, &record)?;

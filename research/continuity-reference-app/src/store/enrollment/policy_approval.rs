@@ -153,6 +153,7 @@ impl Store {
             }
             let at = now()?;
             let (root, info) = store.policy_inputs(account, request, &original)?;
+            let authority = store.authority_guard(account, &root)?;
             let (statement, target) = request.statement(&info, at)?;
             let pending = Record {
                 request: request.clone(),
@@ -168,6 +169,7 @@ impl Store {
                     ));
                 }
             } else {
+                authority.check()?;
                 store.save_policy_approval(account, &pending, None, Some(at))?;
             }
             let approval = store
@@ -189,6 +191,7 @@ impl Store {
                 MAX_RECORD,
             )?;
             Self::checked_policy_response(request, &info, &response)?;
+            authority.check()?;
             store.save_policy_approval(
                 account,
                 &Record {

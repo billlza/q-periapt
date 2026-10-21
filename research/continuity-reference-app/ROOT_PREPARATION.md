@@ -91,7 +91,9 @@ routes with the returned invitation. `/status` still returns a **separate curren
 root observation**, which remains the old root during preparation. Candidate
 issuance is verified against its independently selected public key and its own
 signed roster; it does not turn that current-root observation into candidate
-authorization. Full application and client cutover must coordinate those choices.
+authorization. [Account-root cutover](ACCOUNT_ROOT_CUTOVER.md) coordinates host
+selection with the original native registry and witness. Client-owner fencing
+and independent installed-controller integration remain separate.
 
 ## Recovery, observation and closure
 
@@ -134,7 +136,7 @@ files and installation identity; this is isolated target preparation, not a
 completed application-account cutover.
 
 These tests do not qualify a full root replacement or post-compromise recovery.
-The application-account cutover, browser controls, installed independent-client
-coordination and the
-[witness root transaction](WITNESS_ROOT_REPLACEMENT.md) must still be connected
-without transferring old session secrets or inferring unresolved delivery outcomes.
+The [application-account cutover](ACCOUNT_ROOT_CUTOVER.md) has separate host/native
+and HTTP regressions. Browser controls and installed independent-client
+coordination must still connect original session-owner fencing without transferring
+old session secrets or inferring unresolved delivery outcomes.

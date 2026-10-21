@@ -66,6 +66,11 @@ The complete live account-to-session recovery path remains separately qualified.
 
 ## Recovery and authority
 
+Schema 10 adds [original authority association and root-cutover endpoints](ACCOUNT_ROOT_CUTOVER.md).
+They use the same authenticated account and exact-origin boundary, retain original
+cross-store intents, and expose historical status separately from current issuer
+selection. Root approval cannot derive its witness trust from replacement inputs.
+
 Persist a nonzero invitation correlation before sending `/invite`. If a response
 is lost, retry that correlation instead of creating another device. Keep the
 original device store, wrapping configuration and signed request. Approve that
