@@ -408,9 +408,12 @@ using the existing exact-target transaction and required witness. Normal reopen
 can finish an authenticated retained binding intent; it cannot start adoption.
 Installed-wheel checks cover process cuts, preserved ciphertext and pending
 rekey contributions, unknown witness results before/after commit, and same-key
-renewal after expiry. Parent-client migration coordination, child retirement and
-live successor activation remain open; historical proofs and registry selection
-alone do not grant traffic.
+renewal after expiry. `EnrollmentClient.begin_root_adoption` now owns existing
+parent/child migration through `RootAdoption`, with explicit same-state reopening
+and pending-write recovery. It returns a normal client only after the child,
+registration and configuration agree. Finishing those records after expiry does
+not grant traffic permission. Child retirement and live successor activation
+remain open; historical proofs and registry selection alone do not grant traffic.
 
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential

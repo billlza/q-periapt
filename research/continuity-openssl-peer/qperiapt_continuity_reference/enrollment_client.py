@@ -117,6 +117,8 @@ class EnrollmentClient:
             if configuration.root_binding is not None:
                 from .client_root import selected
                 owner._root_lease=selected(configuration,account_authority)
+                require(not configuration.root_adoption or configuration.root_ready,
+                        'original root adoption remains pending; use RootAdoption.open')
             else:require(account_authority is None,'client has no retained root association; bind it explicitly')
             owner._registration = Registration.open(path / 'registration', configuration.registration,
                                                     key, original.intent, recover_initial=not configuration.ready,
@@ -148,6 +150,18 @@ class EnrollmentClient:
         try:
             from .client_root import bind
             return bind(self,registry)
+        except BaseException:self.close();raise
+
+    @coordinated
+    def begin_root_adoption(self,registry,now,*,transport=None):
+        """Consume this client into explicit migration of its existing child.
+
+        Complete or recover the returned RootAdoption before normal reopening.
+        Supply the witness carrier to each required maintenance operation.
+        """
+        try:
+            from .client_root_adoption import begin
+            return begin(self,registry,now,transport=transport)
         except BaseException:self.close();raise
 
     @coordinated

@@ -6,6 +6,7 @@ not another live account authorization or a production network acceptance test.
 """
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 import argparse
+import copy
 import base64
 import hashlib
 import json
@@ -38,7 +39,7 @@ def exercise(args, label):
         file.write(key + identity); file.flush(); os.fsync(file.fileno())
     native = Counterpart(args.native, native_out, registration=True, local_lifecycle=True,
                          required_witness=label == 'witness')
-    client = None; bridge = None; registry = None; refusals = []; observed = []
+    client = None; bridge = None; registry = None; root_bound = False; refusals = []; observed = []
     encode = lambda value: json.dumps(value, separators=(',', ':')).encode()
     b64 = lambda value: base64.urlsafe_b64encode(value).rstrip(b'=').decode()
 
@@ -54,7 +55,8 @@ def exercise(args, label):
                 else bridge.call(name, command, wire, expected))
 
     def transport(): return None if bridge is None else TcpTransport(bridge.address)
-    def reopen(observer=None): return EnrollmentClient.open(client_path, identity, key, observer=observer,account_authority=registry)
+    def reopen(observer=None): return EnrollmentClient.open(client_path, identity, key, observer=observer,
+                                                           account_authority=registry if root_bound else None)
 
     try:
         deadline = time.monotonic() + 30
@@ -91,7 +93,7 @@ def exercise(args, label):
         journal = client.accept(encode(invitation), encode(issued), encode(current),
                                 encode(policy_pins), encode(policy_materials), 150)
         inputs = Inputs(pins, materials, witness)
-        if args.account_root_binding:
+        if args.account_root_binding or args.account_root_adoption:
             from qperiapt_continuity_reference.account_authority import AccountAuthority
             from qperiapt_continuity_reference.wire import SigningKey
             from qperiapt_continuity_reference.witness import Pin
@@ -101,14 +103,15 @@ def exercise(args, label):
             with os.fdopen(os.open(private/'registry-key-and-id',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as file:
                 file.write(registry_key+registry_identity);file.flush();os.fsync(file.fileno())
             registry=AccountAuthority.provision(registry_path,registry_key,registry_identity,intent.family,registry_pin)
-            client.bind_account_root(registry)
+            if args.account_root_binding:
+                client.bind_account_root(registry); root_bound = True
         # A configuration directory is not a session path, even if it is private.
         refuse('configuration-directory-alias', lambda: client.prepare(client_path / 'configuration', inputs, 150),
                'directories must be separate')
         client = reopen()
         genesis = client.prepare(session_path, inputs, 150)
         require(client.prepare(session_path, inputs, 150) == genesis, 'original child preparation changed')
-        if registry is not None:
+        if root_bound:
             from qperiapt_continuity_reference.durable import Session
             from qperiapt_continuity_reference.witness_session import WitnessSession
             from qperiapt_continuity_reference.registered_owner import _Signer
@@ -138,6 +141,37 @@ def exercise(args, label):
             offer = child.prepare_rekey_offer(now=170); response = call('rekey-response', 14, offer)
             final = child.accept_rekey_response(response, now=170); receipt = call('rekey-receipt', 15, final)
             require(child.accept_rekey_receipt(receipt, now=170) == 1, 'owned client rekey')
+        if args.account_root_adoption:
+            from root_adoption_client_fixture import Inputs as MigrationInputs, migrate
+            migration = MigrationInputs(client_path, identity, key, registry_path, registry_key,
+                                        registry_identity, intent.family, registry_pin)
+            client, registry = migrate(client, registry, migration, transport, refuse, bridge, out,
+                                        args.adoption_cut, args.adoption_expiry, call)
+            root_bound = True
+            if args.adoption_expiry is not None:
+                from root_adoption_client_fixture import resume_expired
+                operation, grant, target = resume_expired(client, transport, refuse, public, message_id, bridge is not None)
+                client = reopen()
+                with client.credential_renewal(operation, 210, transport=transport()) as renewal:
+                    if bridge is None:
+                        renewal.stage(grant, target, now=210)
+                        require(renewal.commit(now=210)['status'] == 'Committed', 'local renewal after parent binding')
+                    else:
+                        proposal = renewal.prepare(grant, target, now=210)
+                        call('approve-renewal-after-parent-binding', 34, proposal, b'Prepared')
+                        require(renewal.commit(now=210) == 'Applied', 'renewal after parent binding')
+                with client.session(210, transport=transport()) as child:
+                    require(child.resume(message_id, now=210) == ciphertext, 'parent expiry recovery changed original ciphertext')
+                    renewed_id = child.next_id(now=210)
+                    renewed_wire = child.send(renewed_id, b'after original parent adoption', b'client', now=210)
+                    call('receive-after-parent-adoption', 7, application(b'client', renewed_wire), b'after original parent adoption')
+                require(client.status()['journal'] == journal, 'parent expiry recovery replaced original journal')
+                result = {'completed':True, 'profile':label, 'adoption_loss':args.adoption_expiry,
+                          'native_commands':len(native.commands), 'witness_requests':0 if bridge is None else len(bridge.records),
+                          'refusal_cases':[row['case'] for row in refusals],
+                          'scope':'Original parent+child binding, exact pending recovery at fixture expiry210, same-key G, original ciphertext and new traffic. No root retirement or elapsed expiry claim.'}
+                (out / 'RESULT.json').write_text(json.dumps(result, indent=2) + '\n')
+                return result
         client.close(); client = reopen()
         with client.session(170, transport=transport()) as child:
             require(child.resume(message_id, now=170) == ciphertext, 'original ciphertext after client reopen')
@@ -250,7 +284,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('implementation-root', 'provider-root', 'native', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
-    parser.add_argument('--account-root-binding',action='store_true')
+    root_mode = parser.add_mutually_exclusive_group()
+    root_mode.add_argument('--account-root-binding',action='store_true')
+    root_mode.add_argument('--account-root-adoption',action='store_true')
+    root_mode.add_argument('--root-adoption-cuts',action='store_true')
+    root_mode.add_argument('--root-adoption-expiry',action='store_true')
     args = parser.parse_args(); args.implementation_root = args.implementation_root.resolve(strict=True)
     sys.path.insert(0, str(args.implementation_root))
     from qperiapt_continuity_reference.provider import load_provider
@@ -264,11 +302,30 @@ def main():
     sources={str(path):hashlib.sha256(path.read_bytes()).hexdigest()
              for path in (args.implementation_root/'qperiapt_continuity_reference').glob('*.py')}
     sources.update({str(path):hashlib.sha256(path.read_bytes()).hexdigest() for path in helper_root.glob('*.py')})
+    native_hash = hashlib.sha256(args.native.read_bytes()).hexdigest()
     args.output.mkdir()
+    args.adoption_cut = None
+    args.adoption_expiry = None
+    if args.root_adoption_cuts:
+        from root_adoption_client_fixture import PHASES, STAGES
+        profiles = []
+        for phase in PHASES:
+            for index, stage in enumerate(STAGES):
+                selected = copy.copy(args); selected.account_root_adoption = True
+                selected.adoption_cut = (phase, stage); selected.output = args.output / (phase + '-' + str(index))
+                selected.output.mkdir(); profiles.append(exercise(selected, 'local') | {'phase': phase, 'cut': stage})
+    elif args.root_adoption_expiry:
+        profiles = []
+        for loss in ('local', 'before', 'after'):
+            selected = copy.copy(args); selected.account_root_adoption = True; selected.adoption_expiry = loss
+            selected.output = args.output / loss; selected.output.mkdir()
+            profiles.append(exercise(selected, 'local' if loss == 'local' else 'witness'))
+    else:
+        profiles = [exercise(args, label) for label in ('local','witness')]
     result = {'completed':True, 'provider':provider.__version__,
               'implementation':str(Path(enrollment_client.__file__).resolve()),
-              'native_sha256':hashlib.sha256(args.native.read_bytes()).hexdigest(),
-              'profiles':[exercise(args, label) for label in ('local','witness')]}
+              'native_sha256':native_hash,
+              'profiles':profiles}
     assert all(hashlib.sha256(Path(path).read_bytes()).hexdigest()==expected for path,expected in sources.items())
     assert hashlib.sha256(args.native.read_bytes()).hexdigest()==result['native_sha256']
     loaded={name:str(Path(module.__file__).resolve()) for name,module in sys.modules.items()

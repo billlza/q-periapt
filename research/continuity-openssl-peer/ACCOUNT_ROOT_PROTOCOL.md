@@ -129,16 +129,16 @@ configuration-pending, registration-bound and configuration-ready writes. Reopen
 with the same `account_authority`; interrupted association resumes those original
 records. A missing registry, another registry with the same account, or a missing
 known registration binding is an error. Existing clients with an unbound child
-require an explicit migration, which is not implemented yet; they are never
-silently recreated or relabelled.
+use the explicit migration below; they are never silently recreated or relabelled.
 
 New bound children use `QPREFJ02` / `QPREFW02` encrypted headers. Their additional
 168 bytes authenticate the original registry scope and checkpoint as associated
 data. Ordinary `01` images retain their format. All live session and maintenance
 factories require the matching lease for a bound header, including direct raw
 opens. Business state, message IDs, outbox contents and payload limits remain
-unchanged. The binding is present before genesis; attaching it must not rewrite
-an already frozen witness head. Registry checks use its serialized in-memory
+unchanged. New bound children carry the binding before genesis. Migration uses
+the original exact-target witness transaction and current authority, and cannot
+rewrite an already frozen witness head. Registry checks use its serialized in-memory
 lease state and do not add a witness round trip.
 
 `prepare_account_root(registry, plan)` consumes the normal client and retains the
@@ -150,8 +150,10 @@ separate internal capability, rejected wherever a live lease is required.
 
 The restricted owner reports original registration/journal identity and recorded
 peer confirmation, and can retain a verified freeze or original-plan noncommit.
-It can finish an original partial association while the registry is suspended,
-without enabling traffic. It exposes no signing, sending, renewal, child-session
+It can finish an original partial pre-child association while the registry is
+suspended, without enabling traffic. An interrupted existing-child migration is
+reported separately as `root_adoption_pending`; this metadata owner does not
+pretend that its uninspected child has completed binding. It exposes no signing, sending, renewal, child-session
 factory or successor activation. It does not claim that a recorded child has run
 or that any business message was delivered.
 
@@ -165,7 +167,42 @@ traffic, rekey, credential renewal, witnessed pending recovery, and registry clo
 after an actual send commit. Reopening the same active registry recovers the same
 ciphertext. That cancellation case does not represent retirement of an old root.
 
-Still separate: legacy unbound-child migration, restricted original child
+## Migrate an existing child under the original registry
+
+Use `client.begin_root_adoption(registry, now, transport=carrier)` after closing
+borrowed children. It authenticates the original child and current permission
+before retaining a `QPCLRT02` parent migration marker. The returned `RootAdoption`
+has metadata, commit and exact pending-write recovery operations; it has no
+traffic facade. Call `migration.commit(now, transport=carrier)` to receive the
+normal `EnrollmentClient` after child, registration and configuration are bound.
+Omit `transport` for a local-only child.
+
+After an interruption, call `RootAdoption.open(path, client_id, wrapping_key,
+registry)` using the same original parent directory, identity, key and registry,
+then retry `commit`. Ordinary `EnrollmentClient.open` refuses an incomplete
+migration. The source child directory, signing key, pending randomness, messages,
+outbox and authority records are retained. An unbound child with pending G/R/P
+coordination must finish that original operation before migration begins.
+
+If a witnessed binding result is unknown and ordinary replay is no longer
+authorized, `pending_write_request(now, transport=carrier)` returns the existing
+purpose-26 proposal, complete metadata and device signature. Submit that original
+request through the host's independently authorized pending-write recovery path;
+then call `confirm_pending_write(proposal, metadata, now, transport=carrier)`.
+Confirmation obtains a fresh witness Query. It cannot invent approval or replace
+an unavailable original target. Retry `commit` after confirmation. A fully bound
+child can finish parent metadata after credential expiry, but sending still
+requires the original credential/policy renewal and current witness authority.
+
+`enrollment_session_checks.py --account-root-adoption` checks real local and
+witness peer traffic across this migration. `--root-adoption-cuts` executes 32
+actual SIGKILL cuts across the four parent/child writes, and continues the same
+operation and ciphertext after each. `--root-adoption-expiry` checks a local
+child commit and witness replies lost before/after commit, fixture-clock expiry,
+exact pending recovery, same-key renewal and subsequent real peer traffic.
+These are process and protocol checks, not hardware power-loss evidence.
+
+Still separate: restricted original child
 inspection and unknown-delivery accounting after root preparation, transferable
 retirement retention before successor selection, live successor admission,
 independently approved adoption of another committed winner, device qualification

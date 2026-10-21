@@ -5,6 +5,7 @@ Normal factories never select these adapters. Adoption changes only the image
 header and revision; all original business bytes and authority records survive.
 """
 # SPDX-License-Identifier: Apache-2.0 OR MIT
+from contextlib import contextmanager
 from .journal import Journal, LocalSessionJournal, locked
 from .witness_journal import WitnessJournal
 from .wire import require
@@ -65,38 +66,90 @@ class _Witness(_Adopting, WitnessJournal):
     pass
 
 
-def adopt(path, scope, key, context, now, *, root_lease, client=None, observer=None):
-    """Bind the original child under its live root, without returning a Session.
-
-    Existing ordinary intents retain their exact bytes. G/R/P coordination must
-    finish through its original owner first. Expired unknown ordinary writes
-    use PendingWriteRecovery, including an already retained adoption intent.
-    """
+def _new(path, scope, key, context, root_lease, client, observer):
     from .durable import Session
-    from .identity_state import admit_local, local_binding
-    from .local_authority_control import admit_snapshot
-    from .state_codec import decode
     require(root_lease is not None, 'root adoption requires a live original registry')
     Session._scope(context, scope, root_lease)
     if context.witness is None:
         require(client is None, 'local root adoption has no witness carrier')
-        journal = _Local(path, scope, key, Session._validator(context), observer, root_lease=root_lease)
+        return _Local(path, scope, key, Session._validator(context), observer, root_lease=root_lease)
     else:
         require(client is not None and client.signer is not None and client.signer.public() == context.initiator,
                 'root adoption requires original witness signer')
-        journal = _Witness(path, scope, key, Session._validator(context), context.witness, client,
-                           observer, root_lease=root_lease)
-    def admit(owner, snapshot):
-        state = decode(snapshot.payload, context)
-        try:
-            admit_snapshot(owner, state)
+        return _Witness(path, scope, key, Session._validator(context), context.witness, client,
+                        observer, root_lease=root_lease)
+
+
+def _admit(owner, snapshot, context, now):
+    from .identity_state import admit_local, local_binding
+    from .local_authority_control import admit_snapshot
+    from .state_codec import decode
+    state = decode(snapshot.payload, context)
+    try:
+        admit_snapshot(owner, state)
+        if now is not None:
             admit_local(state, context, now)
             if context.witness is not None:
                 owner._authorize(snapshot, local_binding(state, context))
-        finally:
-            state.close()
+    finally:
+        state.close()
+
+
+def adopt(path, scope, key, context, now, *, root_lease, client=None, observer=None):
+    """Bind with current authority; original ordinary intents retain their bytes."""
+    require(type(now) is int and 0 <= now < 2**64, 'root adoption time')
+    journal = _new(path, scope, key, context, root_lease, client, observer)
     try:
-        journal.bind(admit)
+        journal.bind(lambda owner, snapshot: _admit(owner, snapshot, context, now))
         return root_lease.binding
+    finally:
+        journal.close()
+
+
+def finish(path, scope, key, context, now, *, root_lease, client=None, observer=None, registration_bound=False):
+    """Complete parent metadata after an exact retained child binding.
+
+    A fully bound head with no intent needs authenticated readback and, where
+    required, a fresh witness Query. This may finish after credential expiry;
+    it cannot start a new binding or release traffic without current admission.
+    """
+    require(type(now) is int and 0 <= now < 2**64, 'root adoption time')
+    require(type(registration_bound) is bool, 'root adoption registration phase')
+    journal = _new(path, scope, key, context, root_lease, client, observer)
+    try:
+        directory = journal._admit(); wire = directory.read('head'); pending = directory.read('intent')
+        require(wire is not None, 'missing original root adoption child')
+        bound = wire[:8] == journal._image_prefix()[:6] + b'02'
+        require(not registration_bound or (bound and pending is None), 'completed registration lost child root binding')
+        if bound and pending is None:
+            snapshot = journal._recover(False)
+            _admit(journal, snapshot, context, None)  # Metadata only, never output permission.
+        else:
+            snapshot = journal.bind(lambda owner, value: _admit(owner, value, context, now))
+        require(journal._decode_with_root(journal._admit().read('head'), root_lease) == snapshot,
+                'original child root binding readback')
+        journal._check_root(); return root_lease.binding
+    finally:
+        journal.close()
+
+
+@contextmanager
+def preflight(path, scope, key, context, now, *, root_lease, client=None, observer=None):
+    """Keep the original unbound child lease until parent preparation is durable."""
+    from .durable import Session
+    require(type(now) is int and 0 <= now < 2**64, 'root adoption time')
+    require(root_lease is not None, 'root adoption requires a live original registry')
+    Session._scope(context, scope, root_lease)
+    if context.witness is None:
+        require(client is None, 'local root adoption has no witness carrier')
+        journal, snapshot = LocalSessionJournal._open(path, scope, key, Session._validator(context), observer=observer)
+    else:
+        require(client is not None and client.signer is not None and client.signer.public() == context.initiator,
+                'root adoption requires original witness signer')
+        journal, snapshot = WitnessJournal._open(path, scope, key, Session._validator(context), context.witness, client, observer)
+    try:
+        _admit(journal, snapshot, context, now); root_lease.check()
+        yield
+        root_lease.check()
     finally:
         journal.close()

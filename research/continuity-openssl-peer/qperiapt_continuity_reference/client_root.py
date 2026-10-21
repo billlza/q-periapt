@@ -19,6 +19,7 @@ def selected(configuration,registry):
 def finish(client,configuration):
     from .enrollment_client import Configuration
     binding=configuration.root_binding;require(binding is not None,'original client root association absent')
+    require(not configuration.root_adoption or configuration.root_ready,'original root adoption remains pending')
     binding.check(client._root_lease)
     require(client._registration.bind_account_root(client._root_lease)==binding,'registration root association differs')
     if not configuration.root_ready:

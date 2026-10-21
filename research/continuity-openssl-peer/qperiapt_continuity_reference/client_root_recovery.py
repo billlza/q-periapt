@@ -45,6 +45,7 @@ class RootRecovery:
             require(configuration.ready and configuration.root_binding is not None,'original root-associated client required')
             owner._access=registry._recovery_access(configuration.root_binding,operation)
             owner._registry=weakref.ref(registry);owner._binding=configuration.root_binding
+            owner._adoption_pending=configuration.root_adoption and not configuration.root_ready
             owner._authority,original=configuration.inputs();owner._intent=original.intent
             require(owner._intent.family==registry.family,'original root recovery family')
             _,_,plan,_=owner._access.observation()
@@ -69,13 +70,18 @@ class RootRecovery:
 
     def _image(self):
         self._alive();snapshot=self._registration.read();image=Image.decode(snapshot.payload,self._intent)
-        require(image.root_binding==self._binding,'original registration root binding differs')
+        require((image.child is not None and image.root_binding in (None,self._binding)) if self._adoption_pending
+                else image.root_binding==self._binding,'original registration root binding differs')
         self._alive();return snapshot,image
 
     def _reconcile_association(self,configuration):
         from .enrollment_client import Configuration
         self._alive();snapshot=self._registration.read();image=Image.decode(snapshot.payload,self._intent)
         require(image.admission is not None,'original accepted registration absent')
+        if self._adoption_pending:
+            require(image.child is not None and image.root_binding in (None,self._binding),
+                    'original partial root adoption differs')
+            return  # Restricted metadata only; never complete an uninspected child migration.
         if configuration.root_ready:
             require(image.root_binding==self._binding,'completed client root association lost registration binding')
             return
@@ -98,6 +104,7 @@ class RootRecovery:
                     'registration_phase':PHASES[image.phase()],'signing_id':image.identity,
                     'journal':image.admission.journal,'child_present':image.child is not None,
                     'confirmed_session':None if image.confirmation is None else image.confirmation.session,
+                    'root_adoption_pending':self._adoption_pending,
                     'plan':plan,'decision':decision}
             self._alive();return result
         except BaseException:self.close();raise
