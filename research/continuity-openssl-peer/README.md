@@ -337,6 +337,12 @@ can close the independent implementation requirement.
 inactive provisioning exports only an operator-approved genesis; normal peer
 requests cannot register it. Fresh challenged queries and authority checks gate
 ordinary outputs, and exact signed advancement precedes local publication.
+At operational result release, one fresh authority reply checks both the recovered
+head and current permission; it replaces a separate Query immediately followed
+by the same head check. Historical release still queries the head. Recovery of
+the exact pending intent, signed response validation, permission checks and
+owner closure on failure remain required. The release controls include a real
+signed reply with current permission but a different fenced head.
 Three real process cuts cover creation intent, remote advancement and local
 publication. Lost replies preserve the original intent, even when an already
 committed transition must be reconciled after expiry. Cached output still needs

@@ -90,6 +90,9 @@ def main():
         opening.close()
         opening_queries = [row['kind'] for row in bridge.records[start:]]
         require(opening_queries == [1], 'opening repeated an already authenticated witness query')
+        from witness_controls import check_release_admission, check_release_head
+        release_queries = check_release_admission(open_owner, bridge, refuses)
+        release_queries['current-permission-wrong-head'] = check_release_head(args, private, out, refuses)
         initial = value('initial', 'initial', now=150)
         reply = bridge.call('bootstrap-response', 4, initial)
         worker('final-witness-kill', 'finish', (reply,), now=150, cut='witness:advanced')
@@ -183,6 +186,7 @@ def main():
         # Retain public challenges, exact commands, signed replies and failure cuts.
         report['witness_attempts']=saved_bridge.records
         report['opening_request_kinds']=opening_queries
+        report['release_request_kinds']=release_queries
         (out/'RESULT.json').write_text(json.dumps(report,indent=2)+'\n')
         print(json.dumps({k:v for k,v in report.items() if k not in ('source_files','worker_operations','native_commands','witness_attempts','refusals')}))
     finally:

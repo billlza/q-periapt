@@ -114,6 +114,14 @@ class WitnessJournal(Journal):
         self._admit().observe("witness:advanced")
 
     def _recover(self, creation):
+        head = self._recover_image(creation)
+        self._query(head)
+        return head
+
+    def _recover_image(self, creation):
+        # Reconcile only the exact authenticated local intent. The caller must
+        # still authenticate this recovered head through _query or _authorize
+        # before returning a snapshot or releasing an operation's result.
         require(not creation, "use explicit witnessed genesis recovery")
         directory = self._admit(); wire = directory.read("head")
         if wire is None:
@@ -131,7 +139,6 @@ class WitnessJournal(Journal):
             if head.digest != result.digest:
                 directory.publish("head", target)
             directory.remove_intent(); head = result
-        self._query(head)
         return head
 
     def _commit(self, revision, digest, payload):
@@ -155,7 +162,8 @@ class WitnessJournal(Journal):
         operation = (Operation.authority(authority) if policy is None or policy.active is None
                      else Operation.policy_authority(authority, policy.active[40:]))
         reply = self.client.exchange(operation)
-        require(reply.outcome == 5 and reply.head == expected, "witness current authority denied")
+        require(reply.head == expected, "witness head differs from original local image")
+        require(reply.outcome == 5, "witness current authority denied")
         self._admit()
 
     @locked
@@ -170,9 +178,15 @@ class WitnessJournal(Journal):
     @locked
     def release(self, operational, authority=None):
         try:
-            snapshot = self._recover(False)
             if operational:
+                # The fresh signed authority reply authenticates both the exact
+                # recovered head and current permission. A preceding Query
+                # repeats the head check; it does not add authorization. This
+                # is one fresh exchange, not a cached permission or reply.
+                snapshot = self._recover_image(False)
                 self._authorize(snapshot, authority)
+            else:
+                self._recover(False)
         except BaseException:
             self.close()
             raise
