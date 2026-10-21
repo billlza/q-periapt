@@ -115,14 +115,23 @@ impl Store {
                         if application != expected.application() || original != &plan {
                             return Err(Error::Internal);
                         }
-                        owner.close_preparation(&closed).map_err(native_error)?;
                     }
-                    // A declined native preparation may still have a retained
-                    // host intent. Only the exact signed permanent non-commit
-                    // permits closing it; absence by itself never does.
-                    Err(sdk::DurableError::Absent) => {}
+                    // The authenticated host approval can precede native intent.
+                    // Retain that exact original plan before applying closure,
+                    // so absence cannot leave old native authority admissible.
+                    Err(sdk::DurableError::Absent) => {
+                        owner
+                            .begin_preparation(expected, plan.clone())
+                            .map_err(native_error)?;
+                        #[cfg(test)]
+                        test_boundary(
+                            "root-cutover-closure-native-prepared",
+                            record.operation.as_slice(),
+                        )?;
+                    }
                     Err(error) => return Err(native_error(error)),
                 }
+                owner.close_preparation(&closed).map_err(native_error)?;
                 #[cfg(test)]
                 test_boundary("root-cutover-native-closed", record.operation.as_slice())?;
                 let tx = transaction(&self.db)?;

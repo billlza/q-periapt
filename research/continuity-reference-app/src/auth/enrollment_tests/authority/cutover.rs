@@ -11,6 +11,19 @@ use crate::{
     },
 };
 mod crash;
+mod preparation;
+
+enum Prior<'a> {
+    Unfrozen(&'a Target),
+    Frozen(&'a Target, &'a AccountRootFreeze),
+}
+impl Prior<'_> {
+    fn target(&self) -> &Target {
+        match self {
+            Self::Unfrozen(target) | Self::Frozen(target, _) => target,
+        }
+    }
+}
 
 struct Target {
     input: CutoverRequest,
@@ -87,7 +100,7 @@ impl Target {
     fn new(c: &mut Case) -> Result<Self> {
         Self::prepare(c, None)
     }
-    fn prepare(c: &mut Case, prior: Option<(&Self, &AccountRootFreeze)>) -> Result<Self> {
+    fn prepare(c: &mut Case, prior: Option<Prior<'_>>) -> Result<Self> {
         let current = c.host.enrollment_root(&c.token)?;
         let prepared = c.host.prepare_account_root(
             &c.token,
@@ -144,8 +157,8 @@ impl Target {
         let trust = AccountRootTrust {
             schema: "qperiapt-witness-account-root-trust/1".into(),
             operation: crate::enrollment::random()?,
-            freeze_operation: prior.map_or_else(crate::enrollment::random, |p| {
-                Ok(p.0.trust.freeze_operation)
+            freeze_operation: prior.as_ref().map_or_else(crate::enrollment::random, |p| {
+                Ok(p.target().trust.freeze_operation)
             })?,
             previous_root: current.public_key,
             successor: EnrollmentTrust {
@@ -160,7 +173,7 @@ impl Target {
             },
         };
         let mut witness = witness(c)?;
-        let plan = if let Some((prior, frozen)) = prior {
+        let plan = if let Some(Prior::Frozen(prior, frozen)) = prior {
             witness.replan_frozen_account_root(
                 &trust,
                 &target,
@@ -522,7 +535,7 @@ fn cutover_permanent_noncommit_retains_freeze_and_allows_new_independently_appro
             .extend_enrollment_credential(&c.token, &first.extension()?),
         Err(Error::Conflict(_))
     ));
-    let next = Target::prepare(&mut c, Some((&first, &frozen)))?;
+    let next = Target::prepare(&mut c, Some(Prior::Frozen(&first, &frozen)))?;
     assert_eq!(
         c.host.approve_account_root(&c.token, &next.input)?.status,
         CutoverStatus::AwaitingOutcome

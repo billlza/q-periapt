@@ -94,6 +94,15 @@ separate exact-proposal controller: its narrower closure proof cannot be
 converted to an original-plan closure. A refusal here is preserved, not treated
 as permission to manufacture the other proof or reopen the closed operation.
 
+The host intent may survive a crash before native preparation starts. Closing it
+first retains that same approved plan in the original native registry, then
+applies its signed closure. Both host and native authority remain fenced. If the
+witness has not frozen yet, use `root-plan` for a fresh target with the **same
+original freeze request** and a new target operation ID. A delayed original
+freeze and the new plan then refer to the same snapshot; they cannot fork the
+freeze scope. Retry a closure interrupted between these writes by its original
+host operation ID.
+
 ## HTTP adapter
 
 The existing exact Host/Origin, JSON body bound and authenticated-session rules
@@ -124,6 +133,9 @@ same-key extension under the selected root, and original key/journal retention.
 Seven actual process-kill cuts cover schema/association initialization; ten
 cover host/native approval, commitment and closure. Loopback HTTP loses association,
 approval and commitment response bodies and reauthenticates after each restart.
+Four additional kills cover pre-freeze non-commit, including initial native
+intent publication during closure. They verify denied old native admission and
+a separately approved successor using the original freeze scope.
 
 These are reference-host and native-engine observations. Browser root controls,
 the installed independent-client root controller, original client session-owner
