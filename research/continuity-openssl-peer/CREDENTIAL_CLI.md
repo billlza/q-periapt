@@ -155,3 +155,24 @@ Existing configuration schema 1 requires the explicit historical
 [`bind-issuance`](ENROLLMENT_CLIENT.md#retained-issuance-association-and-existing-configurations)
 step before a new issuer request or returned grant is associated with this
 client. This preserves reapproval successors and does not renew expired authority.
+
+Host-exchange schema 18 adds `host_account_credential.py`: an actual reference
+HTTP account service authenticates an isolated software Passkey and enrolls a
+native and an independent endpoint under the same account. Both retain roster 2;
+sequential certificate extensions produce rosters 3 and 4, and both retained-state
+grants select the same final roster 4. A stale intermediate target is refused.
+The lost issued grant survives account-service restart and original-account login.
+Both original owners then adopt the complete grants through their public CLIs
+and separate witness approval, preserving the exact original ciphertext and ACK
+before bidirectional rekey and delivery. Each owner commits its own complete
+local state; this does not promise a simultaneous distributed commit.
+
+The native CLI uses its existing `--companion-grants` input on stage, witness
+preparation and activation. Native `stage` records a request and grants no runtime
+permission; after a complete request is retained, a retry cannot omit its
+companions. Independent `prepare-account` performs its complete-set check before
+sealing the original target. This workload checks both contracts. The installed
+collector also rejects five alterations of real public issuance, companion,
+witness, output-loss and original-wire records. These actual-time checks do not
+wait for both credentials to expire and do not constitute human-account, mobile
+or post-compromise-security acceptance.

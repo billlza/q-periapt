@@ -34,8 +34,9 @@ def issued(probe, account, invitation, label, *, lost=False):
 
 
 class Native:
-    def __init__(self, root, binary, session, probe, witness, run, start):
+    def __init__(self, root, binary, session, probe, witness, run, start, *, defer_preparation=False):
         self.root, self.binary, self.session, self.run, self.witness = root, binary, session, run, witness
+        self.label = 'native'
         self.directory = root / 'native-device'; self.directory.mkdir(mode=0o700)
         self.invitation = invite(probe, 'alice', 'native-invitation')
         save(root / 'native-invitation.json', self.invitation)
@@ -54,6 +55,11 @@ class Native:
         self.local_inputs = [self.current_path, root / 'policy-pins.json', root / 'policy-materials.json']
         accepted = run([binary, 'accept', *self.common, root / 'native-issued.json', *self.local_inputs], 'native-accept')
         self.journal = bytes(accepted['journal'])
+        if not defer_preparation:
+            self.prepare_and_publish(start)
+
+    def prepare_and_publish(self, start):
+        root, binary, session, run, witness = self.root, self.binary, self.session, self.run, self.witness
         self.prepared = run([binary, 'prepare', *self.common, *self.local_inputs], 'native-prepare')
         witness.enroll('native', self.prepared, self.current, bytes(self.invitation['device']), self.journal,
                        encoded(self.issued['certificate'], 65536))
