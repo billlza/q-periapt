@@ -130,8 +130,6 @@ impl ActiveDevice {
                 operation,
                 frame: request,
             } = input;
-            let (initiator, responder) = trust.pins(policy.family())?;
-            let required = trust.requirements(&initiator, &responder)?;
             match operation {
                 ExchangeOperation::Bootstrap => {
                     if self.original_policy.is_some() {
@@ -139,6 +137,8 @@ impl ActiveDevice {
                             "Continued policy requires an original established session".into()
                         );
                     }
+                    let (initiator, responder) = trust.pins(policy.family())?;
+                    let required = trust.requirements(&initiator, &responder)?;
                     let context = Arc::new(bundle.verify(policy, required, clock()?)?);
                     let peer = self.owner.parts()?.0.admit_peer(
                         context,
