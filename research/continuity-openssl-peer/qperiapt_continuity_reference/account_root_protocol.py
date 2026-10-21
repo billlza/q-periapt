@@ -49,8 +49,50 @@ class Terminal:
     receipt: bytes
 
 
+class _PlanStatement:
+    def wire(self):
+        request, target, _ = self._parts()
+        wire = b'QPAFPL01' + request + len(target).to_bytes(4, 'big') + target
+        require(len(wire) <= 8192, 'root plan capacity')
+        return wire
+
+    @property
+    def binding(self):
+        return ldh(b'Q-PERIAPT-CONTINUITY-ACCOUNT-PREPARATION/v1', self.wire())
+
+    def verify_plan(self, wire):
+        require(type(wire) is bytes and wire == self.wire(), 'root plan differs from independent target')
+
+    def verify_closed(self, receipt):
+        expected = b'QPAPCL01' + self.witness.binding + self.binding
+        require(self.witness.key.open(receipt, 25, 72) == expected, 'root plan closure scope')
+        return Terminal('ClosedPlan', self.binding, receipt)
+
+    def _frozen(self, receipt):
+        request, _, target = self._parts()
+        require(type(receipt) is bytes and SIGNED_BYTES <= len(receipt)
+                <= 8 + REQUEST_BYTES + 2 + 209 * MAX_SUBJECTS + SIGNED_BYTES, 'root freeze capacity')
+        raw, signed = receipt[:-SIGNED_BYTES], receipt[-SIGNED_BYTES:]
+        reader = Reader(raw)
+        require(reader.take(8) == b'QPAFRZ01' and reader.take(REQUEST_BYTES) == request, 'root original freeze request')
+        count = reader.integer(2); require(count <= MAX_SUBJECTS, 'root freeze subject capacity')
+        subjects = tuple(FrozenSubject.read(reader) for _ in range(count)); reader.finish()
+        previous = b''
+        for entry in subjects:
+            require(entry.subject > previous and entry.subject != target, 'root frozen subject order or target')
+            previous = entry.subject
+        binding = ldh(b'Q-PERIAPT-CONTINUITY-ACCOUNT-FREEZE/v1', raw)
+        require(self.witness.key.open(signed, 23, 72) == b'QPAFRS01' + self.witness.binding + binding,
+                'root freeze signed scope')
+        return raw, binding, subjects
+
+    def bind(self, receipt):
+        self._frozen(receipt)
+        return Decision(self, receipt)
+
+
 @dataclass(frozen=True)
-class Plan:
+class Plan(_PlanStatement):
     witness: Pin
     operation: bytes
     freeze_operation: bytes
@@ -98,50 +140,9 @@ class Plan:
         require(len(request) == REQUEST_BYTES and len(target) <= 65536, 'root plan capacity')
         return request, target, subject
 
-    def wire(self):
-        request, target, _ = self._parts()
-        wire = b'QPAFPL01' + request + len(target).to_bytes(4, 'big') + target
-        require(len(wire) <= 8192, 'root plan capacity')
-        return wire
-
-    @property
-    def binding(self):
-        return ldh(b'Q-PERIAPT-CONTINUITY-ACCOUNT-PREPARATION/v1', self.wire())
-
-    def verify_plan(self, wire):
-        require(type(wire) is bytes and wire == self.wire(), 'root plan differs from independent target')
-
-    def verify_closed(self, receipt):
-        expected = b'QPAPCL01' + self.witness.binding + self.binding
-        require(self.witness.key.open(receipt, 25, 72) == expected, 'root plan closure scope')
-        return Terminal('ClosedPlan', self.binding, receipt)
-
-    def _frozen(self, receipt):
-        request, _, target = self._parts()
-        require(type(receipt) is bytes and SIGNED_BYTES <= len(receipt)
-                <= 8 + REQUEST_BYTES + 2 + 209 * MAX_SUBJECTS + SIGNED_BYTES, 'root freeze capacity')
-        raw, signed = receipt[:-SIGNED_BYTES], receipt[-SIGNED_BYTES:]
-        reader = Reader(raw)
-        require(reader.take(8) == b'QPAFRZ01' and reader.take(REQUEST_BYTES) == request, 'root original freeze request')
-        count = reader.integer(2); require(count <= MAX_SUBJECTS, 'root freeze subject capacity')
-        subjects = tuple(FrozenSubject.read(reader) for _ in range(count)); reader.finish()
-        previous = b''
-        for entry in subjects:
-            require(entry.subject > previous and entry.subject != target, 'root frozen subject order or target')
-            previous = entry.subject
-        binding = ldh(b'Q-PERIAPT-CONTINUITY-ACCOUNT-FREEZE/v1', raw)
-        require(self.witness.key.open(signed, 23, 72) == b'QPAFRS01' + self.witness.binding + binding,
-                'root freeze signed scope')
-        return raw, binding, subjects
-
-    def bind(self, receipt):
-        self._frozen(receipt)
-        return Decision(self, receipt)
-
-
 @dataclass(frozen=True)
 class Decision:
-    plan: Plan
+    plan: _PlanStatement
     freeze_receipt: bytes
 
     def wire(self):

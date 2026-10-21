@@ -9,7 +9,7 @@ import stat
 import sys
 
 from .wire import require
-from .storage_budget import MAX_STATE, MAX_POLICY_STATE
+from .storage_budget import MAX_STATE, MAX_POLICY_STATE, MAX_AUTHORITY_STATE
 
 MAX_FILE = MAX_STATE + 4096
 MAX_DIRECTORY_BYTES = 64 * 1024 * 1024
@@ -52,7 +52,8 @@ def sync_file(fd: int) -> None:
 class PrivateDirectory:
     def __init__(self, path: Path, observer=None, *, max_file=MAX_FILE):
         require(sys.platform in ("darwin", "linux"), "independent store requires POSIX")
-        require(type(max_file) is int and MAX_FILE <= max_file <= MAX_POLICY_STATE + 4096,
+        require(type(max_file) is int and (MAX_FILE <= max_file <= MAX_POLICY_STATE + 4096
+                or max_file == MAX_AUTHORITY_STATE + 4096),
                 "private file bound")
         self.max_file = max_file
         self.path, self.observer = path, observer

@@ -11,6 +11,7 @@ use crate::{
     },
 };
 mod crash;
+mod fixtures;
 mod preparation;
 
 enum Prior<'a> {
@@ -51,7 +52,7 @@ fn enrollment(prepared: sdk::InstallationPreparation) -> Result<EnrollmentReques
         head: genesis.image_digest(),
     })
 }
-fn associate(c: &mut Case) -> Result<()> {
+fn associate(c: &mut Case) -> Result<(EnrollmentTrust, EnrollmentRequest)> {
     c.host.store.enable_account_authorities()?;
     c.host.associate_account_authority(&c.token, &c.request)?;
     // Prepare the already-issued original installation using its retained key and intent.
@@ -94,7 +95,7 @@ fn associate(c: &mut Case) -> Result<()> {
     };
     witness(c)?.enroll(&trust, &request, now()?)?;
     owner.close();
-    Ok(())
+    Ok((trust, request))
 }
 impl Target {
     fn new(c: &mut Case) -> Result<Self> {

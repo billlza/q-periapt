@@ -28,3 +28,11 @@ MAX_POLICY_BASE_RECORD = 8 + 8 + 2 * (4 + MAX_POLICY_GRANT) + 1 + 152
 # While it is still the active P, the record uses a one-byte alias instead.
 MAX_POLICY_RECORD = MAX_POLICY_BASE_RECORD + 13 + MAX_POLICY_GRANT
 MAX_POLICY_STATE = MAX_SHARED_STATE + MAX_POLICY_RECORD + 48
+
+# A separate application-authority registry, never extra session business space.
+# Its full retained history fits one ordinary two-publication transaction inside
+# the existing 64-MiB private-directory quota, including the old head.
+MAX_AUTHORITY_ACCOUNTS = 64
+MAX_ROOT_REPLACEMENTS = 256
+MAX_AUTHORITY_STATE = (8 + 2 + MAX_AUTHORITY_ACCOUNTS * (32 + 1985 + 40) + 2
+                       + MAX_ROOT_REPLACEMENTS * (32 + 8 + 1 + 4 + 8192 + 4 + 65536))

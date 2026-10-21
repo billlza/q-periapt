@@ -23,10 +23,6 @@ from qperiapt_continuity_reference.provider import load_provider
 provider,_=load_provider(args.provider_root)
 from cryptography.exceptions import InvalidSignature
 from qperiapt_continuity_reference import account_root_protocol as protocol
-from qperiapt_continuity_reference.account_root_protocol import Plan
-from qperiapt_continuity_reference.authority import authenticate_historical_policy,verify_sdk
-from qperiapt_continuity_reference.enrollment_exchange import PolicyInputs,encoded
-from qperiapt_continuity_reference.identity import DevicePin
 from qperiapt_continuity_reference.wire import VerificationKey,require
 from qperiapt_continuity_reference.witness import Pin
 
@@ -34,46 +30,11 @@ require(Path(protocol.__file__).resolve().is_relative_to(implementation),'indepe
 require(args.output.is_absolute() and not args.output.exists(),'fresh absolute root verification output required')
 args.output.mkdir(mode=0o700)
 source=args.operator_output.resolve(strict=True)
-inputs={};refusals=[]
-def public(name):
-    raw=(source/name).read_bytes();require(len(raw)<=1024**2,'public root fixture bound')
-    inputs[name]=hashlib.sha256(raw).hexdigest()
-    return json.loads(raw)
-def wire(value):return json.dumps(value,separators=(',',':')).encode()
-def bytes_field(value):return encoded(value,128*1024)
-def selected(profile,new=False):
-    prefix=profile+'/'
-    trust=public(prefix+('new-root-trust.json' if new else 'root-trust.json'))
-    request=public(prefix+('new-root-request.json' if new else 'root-request.json'))
-    target=trust['successor'];account=target['account'];listing=account['roster']['checkpoint']
-    policy=PolicyInputs.from_trusted(wire(target['policy']['pins']),wire(target['policy']['materials']))
-    sdk=verify_sdk(policy.pins,policy.materials)
-    history=authenticate_historical_policy(policy.pins,policy.materials.policy,witness_pin=policy.witness)
-    require(history.sdk==sdk,'original root policy SDK binding')
-    stored=public(prefix+'fixture.json')['witness_pin']
-    witness=Pin(bytes(stored['identity']),VerificationKey(bytes_field(stored['key'])))
-    require(policy.witness==witness,'independently retained witness differs')
-    pin=DevicePin(VerificationKey(bytes_field(account['public_key'])),bytes(account['account']),
-                  listing['version'],bytes(listing['digest']),bytes(target['device']),target['generation'])
-    plan=Plan(witness,bytes(trust['operation']),bytes(trust['freeze_operation']),VerificationKey(bytes_field(trust['previous_root'])),
-              pin,bytes_field(target['certificate']),bytes_field(account['roster']['bytes']),history,bytes(target['journal']),bytes(target['genesis_head']))
-    require(request['preparation']=='RequiresWitnessEnrollment' and bytes(request['head'])==plan.genesis
-            and bytes(request['subject'])==plan._parts()[2],'independently selected prepared target differs')
-    return plan
-def check_plan(profile,plan,name='plan/account-root-plan.json'):
-    public_plan=public(profile+'/'+name)
-    require(public_plan['schema']=='qperiapt-witness-account-root-plan/1','plan wrapper schema')
-    plan.verify_plan(bytes_field(public_plan['plan']))
-    require(plan.binding==bytes(public_plan['binding']),'independent plan commitment differs')
-def bound(profile,plan,freeze='freeze-retry/account-root-freeze.json',decision='bind/account-root-decision.json'):
-    frozen=public(profile+'/'+freeze);require(bytes(frozen['plan_binding'])==plan.binding,'original freeze plan binding')
-    proof=bytes_field(frozen['receipt']);result=plan.bind(proof)
-    require(plan._frozen(proof)[1]==bytes(frozen['freeze_binding']),'independent freeze commitment differs')
-    record=public(profile+'/'+decision)
-    require(record['schema']=='qperiapt-witness-account-root-decision/1' and bytes(record['plan_binding'])==plan.binding,'decision original plan wrapper')
-    result.verify_decision(bytes_field(record['proposal']))
-    require(result.binding==bytes(record['binding']),'independent decision commitment differs')
-    return result
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from account_root_fixture import RootFixture,bytes_field,wire
+fixture=RootFixture(source)
+inputs=fixture.inputs;refusals=[]
+public=fixture.public;selected=fixture.selected;check_plan=fixture.check_plan;bound=fixture.bound
 
 class RootChecks(unittest.TestCase):
     def refuse(self,label,action):
