@@ -19,11 +19,14 @@ for name in ('account-host', 'account-client', 'sdk-authority', 'publisher', 'wi
 parser.add_argument("--credential-renewal", action="store_true", help="also renew the surviving original credential after R/P/R")
 parser.add_argument("--credential-recovery-probe", type=Path, help="required with --credential-renewal: test the returned G owner on the original session")
 parser.add_argument("--independent-policy-renewal", action="store_true", help="also adopt P through the independent peer's original CLI")
+parser.add_argument("--independent-credential-renewal", action="store_true", help="also adopt G after independent P through the original peer CLI")
 args = parser.parse_args()
 if args.credential_renewal != (args.credential_recovery_probe is not None):
     parser.error("--credential-renewal and --credential-recovery-probe must be supplied together")
 if args.independent_policy_renewal and not args.credential_renewal:
     parser.error("--independent-policy-renewal requires --credential-renewal")
+if args.independent_credential_renewal and not args.independent_policy_renewal:
+    parser.error("--independent-credential-renewal requires --independent-policy-renewal")
 implementation = args.implementation_root.resolve(strict=True)
 sys.path.insert(0, str(implementation))
 from qperiapt_continuity_reference.provider import load_provider
@@ -48,7 +51,7 @@ paths = {name: getattr(args, name).resolve(strict=True) for name in
 if args.credential_renewal:
     paths['credential_recovery_probe'] = args.credential_recovery_probe.resolve(strict=True)
 binaries = {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in paths.values()}
-result = {'schema_version': 4 if args.independent_policy_renewal else 3 if args.credential_renewal else 2,
+result = {'schema_version': 5 if args.independent_credential_renewal else 4 if args.independent_policy_renewal else 3 if args.credential_renewal else 2,
           'kind': 'qperiapt.authenticated_surviving_device_roster', 'completed': False,
           'release_claim_eligible': False, 'native_sha256': binaries, 'provider': provider.__version__, 'clock': 'actual OS time',
           'implementation': str(implementation / 'qperiapt_continuity_reference/session_cli.py')}
@@ -167,6 +170,9 @@ try:
     if args.independent_policy_renewal:
         from host_peer_policy import adopt as adopt_peer
         result['independent_policy_transition'] = adopt_peer(root, peer, probe, witness, paths, run, publisher_selection, sid)
+    if args.independent_credential_renewal:
+        from host_peer_credential import renew as renew_peer
+        result['independent_credential_transition'] = renew_peer(root, peer, probe, witness, run, sid)
     witness.service.stop(kill=True); witness.start('witness-reopened')
     service = NativeService(root,'survivor-after-replacement',paths['native_session'],native.inputs(peer)); services.append(service)
     peer.deliver(sid,p_message,None,service.address,'resume-original-after-policy',resume=True)
@@ -208,6 +214,8 @@ try:
         result['scope'] += ' Then authenticated same-key G after R/P/R, with lost issuer/operator/activation outputs, retained P2 and original session traffic. The returned G owner directly reopens the original session and observes its next message. Original peer C/P remain live; this is not dual-endpoint expiry acceptance.'
     if args.independent_policy_renewal:
         result['scope'] += ' Independent peer then adopts its own two-root P through the public CLI with original export recovery, before original unknown-ACK reconciliation, rekey and bidirectional traffic. Its original credential remains live; no dual-endpoint expiry claim.'
+    if args.independent_credential_renewal:
+        result['scope'] += ' Independent peer also adopts a same-key G through its original CLI after P, with issuer/preparation/commit output loss. Both peers keep their original session; no actual dual-endpoint expiry or complete-account CLI claim.'
 except BaseException as error:
     result['failure'] = str(error)
     raise

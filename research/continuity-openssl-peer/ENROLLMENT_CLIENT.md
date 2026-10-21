@@ -398,3 +398,37 @@ recovery gate still refuses old unclean images written without two-phase commits
 This profile uses a file carrier and independent-to-native data flow;
 it does not substitute for bidirectional network deployment or the original real
 account's complete lifecycle. See the [native session guide](../continuity-reference-app/NATIVE_SESSION.md).
+
+## Retained issuance association and existing configurations
+
+Configuration schema 2 preserves the initial invitation separately from the
+independently approved invitation that actually issued the original credential.
+A host reapproval may give that same device intent a new operation ID. Public
+`status.operation` still identifies the initial invitation; `issued_operation`
+identifies the accepted issuance. Session preparation and issuer requests for P/G
+use the latter. They never infer it from an untrusted response.
+
+Acceptance commits the original credential first and then its historical issuer
+association. A crash between these writes leaves an accepted registration with
+missing association. Schema 1 configurations also remain readable, with their
+original identity, session and journal intact. Recover the association using the
+original independently approved invitation and issued response:
+
+```text
+... bind-issuance --approved /absolute/issued-enrollment-invitation.json \
+  --issued /absolute/original-issued-response.json
+```
+
+The API equivalent is `client.bind_issuance(approved, issued)`. It verifies the
+historical issuer signatures, approved device intent and exact credential
+commitment against the protected original admission. It changes only the
+configuration's association. A different device key, conflicting retained
+approval or unaccepted registration fails. An identical retry is read-only;
+a committed write with a lost reply is recovered on reopen.
+
+This operation is available when current credentials have expired because it
+records historical correlation only. It does not accept a replacement credential,
+renew validity, undo revocation or authorize traffic. Existing clients without
+this association must bind it before session CLI preparation, extension adoption
+or new P/G issuer requests; an absent value never defaults to the initial
+invitation's operation. Keep the original issued files after extensions as well.

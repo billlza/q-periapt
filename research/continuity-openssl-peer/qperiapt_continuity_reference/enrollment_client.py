@@ -14,7 +14,7 @@ import time
 
 from .enrollment_exchange import (HostAuthority, HostInvitation, CurrentMembership,
                                  IssuedEnrollment, PolicyInputs, accept_issued,
-                                 decode, encoded, identifier)
+                                 decode, encoded, identifier, shape)
 from .journal import Journal, MissingState, Scope, locked
 from .owner_guard import coordinated
 from .private_files import PrivateDirectory, DirectoryBusy
@@ -54,6 +54,7 @@ class Configuration:
     invitation: bytes
     registration: bytes
     ready: bool
+    issuance: bytes | None = None
 
     def inputs(self):
         authority = HostAuthority.from_trusted(self.authority)
@@ -61,19 +62,28 @@ class Configuration:
 
     def wire(self):
         b64 = lambda value: base64.urlsafe_b64encode(value).rstrip(b'=').decode()
-        return json.dumps({'schema':'qperiapt-client-configuration/1',
-                           'authority':b64(self.authority), 'invitation':b64(self.invitation),
+        return json.dumps({'schema':'qperiapt-client-configuration/2',
+                           'authority':b64(self.authority), 'invitation':{'original':b64(self.invitation),
+                           'issuance':None if self.issuance is None else b64(self.issuance)},
                            'registration':list(self.registration), 'ready':self.ready},
                           separators=(',', ':')).encode()
 
     @classmethod
     def read(cls, raw):
-        value = decode(raw, 'schema authority invitation registration ready', 48 * 1024)
-        require(value['schema'] == 'qperiapt-client-configuration/1' and type(value['ready']) is bool,
-                'client configuration schema or phase')
-        result = cls(encoded(value['authority'], 16384), encoded(value['invitation'], 16384),
-                     identifier(value['registration']), value['ready'])
-        result.inputs()
+        value = decode(raw, 'schema authority invitation registration ready', 72 * 1024)
+        require(value['schema'] in ('qperiapt-client-configuration/1', 'qperiapt-client-configuration/2')
+                and type(value['ready']) is bool, 'client configuration schema or phase')
+        invitation, issuance = value['invitation'], None
+        if value['schema'] == 'qperiapt-client-configuration/2':
+            shape(invitation, 'original issuance')
+            issuance = None if invitation['issuance'] is None else encoded(invitation['issuance'], 16384)
+            invitation = invitation['original']
+        result = cls(encoded(value['authority'], 16384), encoded(invitation, 16384),
+                     identifier(value['registration']), value['ready'], issuance)
+        authority, original = result.inputs()
+        if issuance is not None:
+            require(result.ready, 'issuance association before client readiness')
+            original.same_device(HostInvitation.decode(issuance, authority))
         return result
 
 
@@ -174,7 +184,9 @@ class EnrollmentClient:
     def status(self):
         try:
             self._alive(); result = self._registration.status(); self._alive()
-            return dict(result, application=self._authority.application, operation=self._original.operation)
+            configuration = Configuration.read(self._configuration.read().payload)
+            issued = None if configuration.issuance is None else HostInvitation.decode(configuration.issuance, self._authority).operation
+            return dict(result, application=self._authority.application, operation=self._original.operation, issued_operation=issued)
         except BaseException:
             self.close(); raise
 
@@ -186,6 +198,41 @@ class EnrollmentClient:
                                    HostInvitation.decode(approved, self._authority), IssuedEnrollment.decode(issued),
                                    CurrentMembership.from_trusted(current, self._authority),
                                    PolicyInputs.from_trusted(policy_pins, policy_materials), now)
+            self._bind_issuance(approved, issued)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    def _issued(self):
+        configuration = Configuration.read(self._configuration.read().payload)
+        require(configuration.issuance is not None,
+                'original issuance association missing; bind approved enrollment metadata')
+        return HostInvitation.decode(configuration.issuance, self._authority)
+
+    def _bind_issuance(self, approved, issued):
+        invitation = HostInvitation.decode(approved, self._authority)
+        self._original.same_device(invitation)
+        received = IssuedEnrollment.decode(issued); received.verify_history(invitation)
+        self._registration.verify_original_credential(received.certificate)
+        snapshot = self._configuration.read(); configuration = Configuration.read(snapshot.payload)
+        if configuration.issuance is not None:
+            require(HostInvitation.decode(configuration.issuance, self._authority) == invitation,
+                    'conflicting original issuance association')
+        else:
+            self._configuration.update(snapshot.digest, replace(configuration, issuance=approved).wire())
+        require(self._issued() == invitation, 'issuance association durable readback differs')
+        return invitation.operation
+
+    @coordinated
+    def bind_issuance(self, approved, issued):
+        """Recover historical issuer correlation without changing live authority.
+
+        Supply the independently approved invitation and its original issued
+        credential. This also upgrades accepted v1 configurations, including
+        expired owners; it neither accepts credentials nor prepares a child.
+        """
+        try:
+            self._alive(); result = self._bind_issuance(approved, issued)
             self._alive(); return result
         except BaseException:
             self.close(); raise
@@ -213,6 +260,7 @@ class EnrollmentClient:
             self._alive()
             enrollment = HostInvitation.decode(approved_enrollment, self._authority)
             self._original.same_device(enrollment)
+            require(enrollment == self._issued(), 'extension differs from retained issued enrollment')
             approval = ExtensionApproval.from_trusted(approved_extension)
             received = IssuedExtension.decode(issued)
             require(approval.enrollment == enrollment.operation and received.revision == self._authority.revision,
@@ -296,6 +344,41 @@ class EnrollmentClient:
             self.close(); raise
 
     @coordinated
+    def credential_renewal_request(self, operation, now, *, transport=None):
+        """Public issuer request from the original enrollment and current journal."""
+        try:
+            from .credential_request import for_host
+            self._alive()
+            with self._registration.credential_renewal(operation, now, transport=transport) as child:
+                result = for_host(self._issued(), child.request())
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
+    def prepare_credential_renewal(self, operation, issued, current, now, *, transport=None):
+        """Prepare a single-device grant; separate commit and witness approval follow.
+
+        The original profile chooses local Pending or a witnessed proposal.
+        Complete-account grants use the existing borrowed coordinator separately.
+        """
+        try:
+            from .credential_inputs import selected
+            self._alive()
+            identity = self._registration.status()['journal']
+            chosen, wire, target, statement = selected(issued, current, self._authority, self._issued(), identity, now)
+            require(chosen == operation, 'credential issuance differs from selected operation')
+            with self._registration.credential_renewal(operation, now, transport=transport) as child:
+                if transport is None:
+                    result = child.stage(wire, target, now, expected_statement=statement)
+                else:
+                    child.prepare(wire, target, now, expected_statement=statement)
+                    result = child.preparation()
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
     def credential_renewal(self, operation, now, *, transport=None):
         """Borrow local/joint renewal without creating a replacement registration."""
         try:
@@ -316,7 +399,7 @@ class EnrollmentClient:
             from .policy_request import for_host
             self._alive()
             with self._registration.policy_renewal(operation, now, transport=transport) as child:
-                result = for_host(self._original, child.request())
+                result = for_host(self._issued(), child.request())
             self._alive(); return result
         except BaseException:
             self.close(); raise

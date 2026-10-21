@@ -52,6 +52,21 @@ def verify_composition(result: dict) -> None:
     for row, (members, witnessed) in zip(rows, [(3, False), (3, True), (32, False), (32, True)], strict=True):
         require(type(row["members"]) is int and row["members"] == members
                 and row["witnessed"] is witnessed, "composition profile differs")
+        requests=row.get('issuer_requests')
+        require(type(requests) is list and len(requests)==2, 'credential issuer requests missing')
+        for request,cycle,now in zip(requests,(1,2),(210,310),strict=True):
+            require(type(request['cycle']) is int and request['cycle']==cycle and type(request['at']) is int and request['at']==now
+                    and type(request['policy_version']) is int and request['policy_version']==cycle+1
+                    and request['journal_unchanged'] is True and request['operation']==row['credentials'][cycle-1]['operation'],
+                    'credential request original time, policy or operation differs')
+            _policy_identities(request,('operation','policy_statement','original_certificate_sha256',
+                                       'previous_certificate_sha256','successor_certificate_sha256'))
+            require(request['previous_certificate_sha256']!=request['successor_certificate_sha256']
+                    and request['refusals']==['credential coordination remains pending' if witnessed else 'credential renewal remains pending',
+                        'credential request operation already retained','closed registration owner'], 'credential request recovery barriers differ')
+        require(requests[0]['original_certificate_sha256']==requests[1]['original_certificate_sha256']
+                and requests[0]['successor_certificate_sha256']==requests[1]['previous_certificate_sha256'],
+                'credential requests replaced original lineage')
         for name, value in (("workers", 91 if witnessed else 81), ("process_kills", 15), ("confirmed_epoch", 1)):
             require(type(row[name]) is int and row[name] == value, "composition workload differs: " + name)
         _policy_identities(row, ("journal", "native_journal", "session", "original_wire_sha256"))

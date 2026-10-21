@@ -132,7 +132,8 @@ def main(argv=None):
         key=read_file(args.key_file,32,private=True);require(len(key)==32,'client wrapping key length')
         run.check();owner=EnrollmentClient.open(args.directory,client_id,key,run=run)
         if prepared is not None:
-            require(owner.status()['operation']==prepared[2],'credential artifact belongs to another original enrollment')
+            require(owner.status()['issued_operation']==prepared[2],
+                    'credential artifact differs from retained issuance; recover missing association with bind-issuance')
             genesis=owner.prepare(prepared[0],prepared[1],run.now());run.check()
             if prepared[1].witness is None:
                 result={'prepared':True,'journal':owner.status()['journal']}

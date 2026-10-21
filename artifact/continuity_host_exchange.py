@@ -41,8 +41,8 @@ def snapshot(path):
 def inputs(commit):
     paths = [*sorted((SOURCE / PACKAGE).glob('*.py'))]
     paths += [SOURCE / name for name in ('tests/enrollment_exchange.py', 'tests/enrollment_client.py', 'tests/enrollment_extension.py', 'tests/network.py', 'tests/mailbox.py', 'pyproject.toml', 'README.md',
-               'ENROLLMENT_EXCHANGE.md', 'ENROLLMENT_CLIENT.md', 'SESSION_CLI.md', 'POLICY_RENEWAL.md', 'LICENSE-APACHE', 'LICENSE-MIT', 'requirements.txt', 'build-requirements.txt')]
-    paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py', 'continuity_host_native_exchange.py', 'continuity_host_network.py', 'continuity_host_cli.py', 'continuity_host_witness.py', 'continuity_host_replacement.py', 'continuity_host_replacement_evidence.py', 'continuity_host_roster.py', 'continuity_host_roster_policy.py', 'continuity_host_roster_credential.py', 'continuity_host_peer_policy.py',
+               'ENROLLMENT_EXCHANGE.md', 'ENROLLMENT_CLIENT.md', 'SESSION_CLI.md', 'POLICY_RENEWAL.md', 'CREDENTIAL_CLI.md', 'LICENSE-APACHE', 'LICENSE-MIT', 'requirements.txt', 'build-requirements.txt')]
+    paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py', 'continuity_host_native_exchange.py', 'continuity_host_network.py', 'continuity_host_cli.py', 'continuity_host_witness.py', 'continuity_host_replacement.py', 'continuity_host_replacement_evidence.py', 'continuity_host_roster.py', 'continuity_host_roster_policy.py', 'continuity_host_roster_credential.py', 'continuity_host_peer_policy.py', 'continuity_host_peer_credential.py',
                'continuity_independent_python.py', 'continuity_independent_python_run.py',
                'bounded_process.py', 'evidence_io.py', 'git_provenance.py', 'python_bootstrap.py')]
     paths += [ROOT / name for name in run_git_bytes(ROOT, ['ls-tree', '-r', '--name-only', commit,
@@ -86,7 +86,7 @@ def qualify(args):
     requirements = output / 'wheel-requirements.txt'
     requirements.write_text(captured.as_uri() + ' --hash=sha256:' + wheel.sha256 + '\n')
     environment = {k: v for k, v in os.environ.items() if not k.startswith(('PYTHON', 'PIP_', 'DYLD_', 'LD_'))}
-    result = {'schema_version':13, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
+    result = {'schema_version':14, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
               'release_claim_eligible':False, 'source_commit':commit, 'source_inputs':before,
               'wheel_sha256':wheel.sha256, 'module_count':len(modules), 'outside_root':str(outside),
               'publisher_binary_sha256_producer_observation':publisher.sha256,
@@ -178,7 +178,7 @@ def qualify(args):
         verify_installation(installed_files(application), files, wheel_url=captured.as_uri(), digest=wheel.sha256)
         require(inputs(commit) == before, 'exchange qualification source changed')
         result.update(completed=True,
-                      scope='Installed independent adapter/client and native protected SDK/protocol operator CLIs; file/process-recovery workload plus fresh local TCP bootstrap, bidirectional reply loss/retry, service restart and two PQ rekeys. Includes real HTTP account authorization using isolated software Passkeys, device replacement, witness retirement, exact peer-roster admission and new-session traffic after service restart; surviving-device R/P/R/G composes independently approved policy and credential renewal, retaining original session, two unknown ACKs and keys. The returned G owner reopens the original session directly. The independent peer then adopts its own two-root policy through its original CLI and continues original-session traffic; its original credential stays live. No human/browser Passkey, mobile, TLS or cross-host deployment, dual-endpoint expiry, account-root replacement or full lifecycle admission.')
+                      scope='Installed independent adapter/client and native protected SDK/protocol operator CLIs; file/process-recovery workload plus fresh local TCP bootstrap, bidirectional reply loss/retry, service restart and two PQ rekeys. Includes real HTTP account authorization using isolated software Passkeys, device replacement, witness retirement, exact peer-roster admission and new-session traffic after service restart; surviving-device R/P/R/G composes independently approved policy and credential renewal, retaining original session, two unknown ACKs and keys. The returned native G owner reopens the original session directly. The independent peer then adopts its own two-root P and same-key G through its original CLIs, followed by original-session recovery, rekey and bidirectional traffic. This flow does not wait for both endpoints to expire. No human/browser Passkey, mobile, TLS or cross-host deployment, complete-account CLI, account-root replacement or full lifecycle admission.')
     except BaseException as error:
         result['failure'] = str(error)
         raise

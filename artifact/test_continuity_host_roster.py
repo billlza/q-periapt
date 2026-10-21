@@ -18,7 +18,7 @@ def fixture():
         transitions.append(dict(operation=identity(i),binding=binding,observation=dict(binding=binding,state='Applied'),
             progress=dict(schema='qperiapt-roster-refresh-progress/1',state='Applied',retired=True,binding=binding,scope=scope)))
     return dict(kind='qperiapt.authenticated_surviving_device_roster',completed=True,release_claim_eligible=False,cleanup_errors=[],
-        schema_version=4,effects=4,confirmed_epoch=1,sibling_generation=1,successor_generation=2,native_sha256={},provider='48.0.1',
+        schema_version=5,effects=4,confirmed_epoch=1,sibling_generation=1,successor_generation=2,native_sha256={},provider='48.0.1',
         implementation='/installed/qperiapt_continuity_reference/session_cli.py',clock='actual OS time',
         original_keys_unchanged=True,old_sibling_unchanged=True,session=identity(4),journal=identity(5),original_pending_message=identity(6),policy_pending_message=identity(9),
         commands=[dict(label=k,exit=1 if k in FAILED else 0) for k in LABELS],
@@ -27,6 +27,7 @@ def fixture():
         policy_transition=policy_fixture(identity,transitions),
         credential_transition=credential_fixture(identity,transitions),
         independent_policy_transition=peer_policy_fixture(identity),
+        independent_credential_transition=peer_credential_fixture(identity),
         services=[process('survivor-first',1,3),process('survivor-after-add',2,2),process('survivor-after-replacement',3,4)],
         witness_services=[dict(label='witness-first',pid=4,exit=-9),process('witness-reopened',5,5)],
         account_services=[dict(label='account-first',pid=6,exit=-9),process('account-reopened',7,1)],
@@ -69,17 +70,41 @@ def peer_policy_fixture(identity):
     approvals=[bytes([n])*3803 for n in (33,34)]
     proposal=b'QPPWNP01'+bytes([35])*32+journal+bytes(64)+operation+statement+bytes(96)
     return dict(operation=identity(30),state='Applied',retired=True,original_key_unchanged=True,original_intent_sha256='a'*64,
-        request=dict(schema='qperiapt-retained-policy-request/1',scope=dict(operation=list(operation),journal=list(journal),
+        request=dict(schema='qperiapt-retained-policy-request/1',application=[37]*32,enrollment=[38]*32,root_revision=1,
+            scope=dict(operation=list(operation),journal=list(journal),current_roster=dict(version=1,digest=[39]*32),
             previous_authorization=None,original_policy=dict(version=1,digest=[1]*32),previous_policy=dict(version=1,digest=[1]*32))),
         preparation=dict(schema='qperiapt-policy-witness-preparation/1',proposal=wire(proposal),binding=[36]*32,
             approval=wire(b'QPPRNB01'+b''.join(len(a).to_bytes(2,'big')+a for a in approvals))),
-        account_approval=dict(operation=list(operation),statement=list(statement),approval=wire(approvals[0])),
+        account_approval=dict(operation=list(operation),statement=list(statement),approval=wire(approvals[0]),target=dict(version=3,digest=[40]*32)),
         policy_approval=dict(operation=list(operation),statement=list(statement),approval=wire(approvals[1])))
+
+
+def peer_credential_fixture(identity):
+    p=peer_policy_fixture(identity);target=dict(version=2,digest=[41]*32);op=[42]*32;statement=[43]*32;journal=[32]*32
+    proposal=b'QPCRNP03'+bytes(32)+bytes(journal)+bytes(64)+bytes(op)+bytes(statement)+bytes(96)+b'\0'+bytes([31])*32
+    request=dict(schema='qperiapt-retained-credential-request/1',application=[37]*32,enrollment=[38]*32,root_revision=1,
+        operation=op,journal=journal,original_owner=[44]*32,original_policy=p['request']['scope']['original_policy'],
+        current_policy=p['account_approval']['target'],current_policy_authorization=[31]*32,
+        previous_checkpoint=p['request']['scope']['current_roster'])
+    return dict(operation=identity(42),state='Applied',retired=True,original_key_unchanged=True,original_intent_sha256='b'*64,
+        request=request,issued=dict(operation=op,statement=statement,journal=journal,enrollment=[38]*32,root_revision=1,checkpoint=target),
+        preparation=dict(schema='qperiapt-credential-witness-proposal/1',operation=op,journal=journal,
+            proposal=base64.urlsafe_b64encode(proposal).rstrip(b'=').decode()),proposal_binding=[45]*32,
+        extension=dict(root_revision=1,checkpoint=target,request=dict(enrollment=[38]*32,predecessor=request['previous_checkpoint'])))
 
 
 class RosterEvidence(unittest.TestCase):
     def accepted(self,value): verify(value,{},Path('/installed'))
     def test_complete(self): self.accepted(fixture())
+
+    def test_independent_credential_requires_own_original_policy_and_exact_outcome(self):
+        for key,wrong in [('state','Unavailable'),('retired',False),('original_key_unchanged',False)]:
+            value=fixture();value['independent_credential_transition'][key]=wrong
+            with self.subTest(key=key),self.assertRaises(ValueError):self.accepted(value)
+        for key,wrong in [('journal',[5]*32),('current_policy_authorization',None),('enrollment',[99]*32),
+                          ('current_policy',dict(version=1,digest=[1]*32))]:
+            value=fixture();value['independent_credential_transition']['request'][key]=wrong
+            with self.subTest(key=key),self.assertRaises(ValueError):self.accepted(value)
 
     def test_independent_policy_requires_exact_original_approvals_and_terminal(self):
         for key,wrong in [('state','Unavailable'),('retired',False),('original_key_unchanged',False)]:

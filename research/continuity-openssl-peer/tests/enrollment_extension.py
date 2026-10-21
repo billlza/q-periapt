@@ -243,7 +243,7 @@ class ExtensionChecks(unittest.TestCase):
         # The approved issuance may have a different operation after host reapproval.
         approved = self.accepted_offer
         self.renew_policy(); target = self.bundle(enrollment=approved['operation']); before = self.state()
-        with self.assertRaisesRegex(ValueError, 'approved enrollment'): self.adopt(target)
+        with self.assertRaisesRegex(ValueError, 'retained issued enrollment'): self.adopt(target)
         self.assertEqual(self.state(), before); self.client = self.reopen()
         self.adopt(target, enrollment=approved); self.original_preserved()
         self.assertEqual(self.client.status()['credential_extension']['enrollment'], bytes(approved['operation']))

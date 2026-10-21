@@ -58,7 +58,7 @@ class ClientChecks(unittest.TestCase):
         return {str(p.relative_to(self.client_path)):hashlib.sha256(p.read_bytes()).hexdigest()
                 for p in self.client_path.rglob('*') if p.is_file()}
 
-    def kill_at(self, stage, occurrence=1, *, request=False, open_existing=False, membership=None, extension=None):
+    def kill_at(self, stage, occurrence=1, *, request=False, open_existing=False, membership=None, extension=None, acceptance=None, association=None):
         self.cut_count += 1
         marker = fixture.args.private_output / (self._testMethodName + '.cut-' + stage.replace(':','-') + str(self.cut_count))
         pid = os.fork()
@@ -92,6 +92,8 @@ class ClientChecks(unittest.TestCase):
                 if membership is not None:
                     child.refresh_roster(wire(membership), wire(self.policy_pins), wire(self.policy_materials), self.now)
                 if extension is not None: child.adopt_extension(*extension)
+                if acceptance is not None: child.accept(*acceptance)
+                if association is not None: child.bind_issuance(*association)
                 child.close()
             except BaseException:
                 os._exit(71)
@@ -110,6 +112,87 @@ class ClientChecks(unittest.TestCase):
         self.assertEqual(self.client.status()['public_key'], identity['public_key'])
         self.assertEqual(self.client.status()['operation'], bytes(self.offer_json['operation']))
         self.assertEqual(self.client.status()['phase'], 'Accepted')
+
+    def successor(self):
+        approved = dict(self.offer_json, operation=list(os.urandom(32)), request_id=list(os.urandom(32)))
+        issued = dict(self.issued_json, operation=approved['operation'])
+        return wire(approved), wire(issued), bytes(approved['operation'])
+
+    def legacy_configuration(self):
+        # Exercise an actual authenticated v1 store, not a default-filled v2.
+        snapshot = self.client._configuration.read()
+        config = implementation.Configuration.read(snapshot.payload)
+        raw = wire({'schema':'qperiapt-client-configuration/1', 'authority':fixture.b64(config.authority),
+                    'invitation':fixture.b64(config.invitation), 'registration':list(config.registration), 'ready':True})
+        self.client._configuration.update(snapshot.digest, raw)
+
+    def test_reapproved_issuance_survives_reopen_and_conflicting_rebind_is_read_only(self):
+        self.client = self.begin(); proof = self.client.request(self.now); self.issue_for(proof)
+        approved, issued, operation = self.successor()
+        journal = self.client.accept(approved, issued, wire(self.membership_json),
+                                    wire(self.policy_pins), wire(self.policy_materials), self.now)
+        self.client.close(); self.client = self.reopen()
+        status = self.client.status()
+        self.assertEqual(status['operation'], bytes(self.offer_json['operation']))
+        self.assertEqual(status['issued_operation'], operation)
+        self.assertEqual(status['journal'], journal)
+        before = self.state()
+        self.assertEqual(self.client.bind_issuance(approved, issued), operation)
+        self.assertEqual(self.state(), before)
+        other, other_issued, _ = self.successor()
+        with self.assertRaisesRegex(ValueError, 'conflicting original issuance association'):
+            self.client.bind_issuance(other, other_issued)
+        self.assertEqual(self.state(), before); self.client = self.reopen()
+        self.assertEqual(self.client.status(), status)
+        self.assertEqual(self.client.request(self.now), proof)
+
+    def test_legacy_association_requires_original_accepted_credential_and_grants_no_authority(self):
+        self.client = self.begin(); self.issue_for(self.client.request(self.now))
+        approved, issued, operation = self.successor(); before = self.state()
+        with self.assertRaisesRegex(ValueError, 'not accepted'):
+            self.client.bind_issuance(approved, issued)
+        self.assertEqual(self.state(), before); self.client = self.reopen()
+        self.client.accept(approved, issued, wire(self.membership_json),
+                           wire(self.policy_pins), wire(self.policy_materials), self.now)
+        self.legacy_configuration(); self.client.close(); self.client = self.reopen()
+        self.assertIsNone(self.client.status()['issued_operation'])
+        before = self.state()
+        self.issue_for(self.request)  # Same trusted issuer and intent; another actual device key.
+        bad = dict(self.issued_json, operation=list(operation))
+        with self.assertRaisesRegex(ValueError, 'original accepted credential'):
+            self.client.bind_issuance(approved, wire(bad))
+        self.assertEqual(self.state(), before); self.client = self.reopen()
+        self.assertEqual(self.client.bind_issuance(approved, issued), operation)
+        after = self.state()
+        self.assertEqual({k:v for k,v in before.items() if k.startswith('registration/')},
+                         {k:v for k,v in after.items() if k.startswith('registration/')})
+        with self.assertRaisesRegex(ValueError, 'expired or premature authority'):
+            self.client.request(self.end + 1)
+        self.client = self.reopen(); before = self.state()
+        self.assertEqual(self.client.bind_issuance(approved, issued), operation)
+        self.assertEqual(self.state(), before)
+
+    def test_acceptance_crash_leaves_recoverable_issuance_gap(self):
+        self.client = self.begin(); self.issue_for(self.client.request(self.now))
+        approved, issued, operation = self.successor(); self.client.close()
+        self.kill_at('client-device:registration:acceptance-committed', open_existing=True,
+                     acceptance=(approved, issued, wire(self.membership_json), wire(self.policy_pins),
+                                 wire(self.policy_materials), self.now))
+        self.client = self.reopen(); status = self.client.status()
+        self.assertEqual(status['phase'], 'Accepted'); self.assertIsNone(status['issued_operation'])
+        self.assertEqual(self.client.bind_issuance(approved, issued), operation)
+        self.assertEqual(self.client.status()['journal'], status['journal'])
+        self.client.close(); self.client = self.reopen()
+        self.assertEqual(self.client.status()['issued_operation'], operation)
+
+    def test_issuance_commit_reply_loss_recovers_exact_original_association(self):
+        self.client = self.begin(); self.issue_for(self.client.request(self.now)); self.accept()
+        approved, issued = wire(self.offer_json), wire(self.issued_json)
+        self.legacy_configuration(); journal = self.client.status()['journal']; self.client.close()
+        self.kill_at('client-config:committed:intent', open_existing=True, association=(approved, issued))
+        self.client = self.reopen(); before = self.state()
+        self.assertEqual(self.client.bind_issuance(approved, issued), bytes(self.offer_json['operation']))
+        self.assertEqual(self.state(), before); self.assertEqual(self.client.status()['journal'], journal)
 
     def membership(self, version, include=True):
         roster, digest = self.roster(version, include)
@@ -400,6 +483,9 @@ class ClientChecks(unittest.TestCase):
                         '--policy-pins', save('pins.json', wire(self.policy_pins)),
                         '--policy-materials', save('materials.json', wire(self.policy_materials))])
         self.assertEqual(accepted['phase'], 'Accepted')
+        bound = cli(['bind-issuance', '--approved', invitation, '--issued', str(public / 'issued.json')])
+        self.assertEqual(bound, {'issued_operation':fixture.b64(bytes(self.offer_json['operation'])),
+                                 'current_permission_granted':False})
         target = self.membership(3)
         refreshed = cli(['refresh-roster', '--current', save('current-3.json', wire(target)),
                          '--policy-pins', str(public / 'pins.json'), '--policy-materials', str(public / 'materials.json')])

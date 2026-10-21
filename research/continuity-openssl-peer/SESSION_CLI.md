@@ -32,6 +32,8 @@ For maintenance of an established original session, use the separate
 It exports the retained issuer request and recovers the original witness
 preparation after output loss. Account, policy-root and witness approval remain
 separate authorized operations.
+For same-key credential maintenance, use the [credential CLI](CREDENTIAL_CLI.md)
+on the same original installation.
 
 The host provisions this local plan through its trusted configuration channel:
 
@@ -190,3 +192,10 @@ witness refusal, original witness SIGKILL/reopen, lost ACK recovery, bidirection
 effects and two rekeys at the actual OS time. Cross-host deployment and complete
 CLI lifecycle acceptance remain separate work.
 Explicit test authority does not establish real account authorization.
+
+For an existing schema 1 client or interrupted acceptance with no retained
+issuance association, first use the enrollment CLI's
+[`bind-issuance`](ENROLLMENT_CLIENT.md#retained-issuance-association-and-existing-configurations)
+with the original approved invitation and issued response. `prepare` compares
+its publication's credential operation with this actual issuance, which may
+differ from the initial invitation after host reapproval.

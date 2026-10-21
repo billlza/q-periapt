@@ -30,6 +30,9 @@ def main(argv=None):
     accept = commands.add_parser('accept', help='accept the approved result against independent current trust')
     for name in ('approved', 'issued', 'current', 'policy-pins', 'policy-materials'):
         accept.add_argument('--' + name, type=Path, required=True)
+    bind = commands.add_parser('bind-issuance', help='recover historical issuance metadata; grants no current permission')
+    for name in ('approved', 'issued'):
+        bind.add_argument('--' + name, type=Path, required=True)
     refresh = commands.add_parser('refresh-roster', help='adopt current same-credential membership before child preparation')
     for name in ('current', 'policy-pins', 'policy-materials'):
         refresh.add_argument('--' + name, type=Path, required=True)
@@ -61,6 +64,9 @@ def main(argv=None):
                                    read_file(args.current, 128 * 1024), read_file(args.policy_pins, 16384),
                                    read_file(args.policy_materials, 128 * 1024), now)
             result = {'phase':'Accepted', 'journal':journal}
+        elif args.command == 'bind-issuance':
+            operation = owner.bind_issuance(read_file(args.approved, 16384), read_file(args.issued, 32768))
+            result = {'issued_operation':operation, 'current_permission_granted':False}
         elif args.command == 'refresh-roster':
             checkpoint = owner.refresh_roster(read_file(args.current, 128 * 1024),
                                                read_file(args.policy_pins, 16384),

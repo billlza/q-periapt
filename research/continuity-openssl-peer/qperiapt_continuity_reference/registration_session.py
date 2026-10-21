@@ -99,10 +99,12 @@ def open_child(parent, kind, now, *, operation=None, transport=None):
         elif kind == 'credential':
             if client is None:
                 from .local_credential import LocalCredentialRenewal
-                owner = LocalCredentialRenewal.open(path, scope, key, context, operation, observer=parent._child_observer); allowed = LOCAL_RENEWAL
+                owner = LocalCredentialRenewal.open(path, scope, key, context, operation, observer=parent._child_observer,
+                                                    inputs=image.child.inputs); allowed = LOCAL_RENEWAL
             else:
                 from .local_renewal import LocalRenewal
-                owner = LocalRenewal.open(path, scope, key, context, operation, client=client, observer=parent._child_observer); allowed = JOINT_RENEWAL
+                owner = LocalRenewal.open(path, scope, key, context, operation, client=client, observer=parent._child_observer,
+                                         inputs=image.child.inputs); allowed = JOINT_RENEWAL
         elif kind == 'policy':
             if client is None:
                 from .local_policy import LocalPolicyRenewal

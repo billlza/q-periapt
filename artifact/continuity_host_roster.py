@@ -7,6 +7,7 @@ from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 import continuity_host_roster_policy as policy
 import continuity_host_roster_credential as credential
 import continuity_host_peer_policy as peer_policy
+import continuity_host_peer_credential as peer_credential
 
 BINARIES = REPLACEMENT_BINARIES + ('credential_recovery_probe',)
 
@@ -21,21 +22,21 @@ STEPS = ('lost-export','recover-original','unapproved','pending-activation','wit
          'witness-retry','commit-lost-output','observe','status','old-current','activate')
 LABELS = PREFIX + tuple('addition-'+s for s in STEPS) + tuple(('peer-resume-original-after-add original-effect-after-add '
     'peer-original-bootstrap-retry peer-policy-lost-next peer-policy-lost-send peer-policy-pending-status policy-pending-effect').split()) + policy.LABELS + \
-    tuple('replacement-'+s for s in STEPS) + credential.LABELS + peer_policy.LABELS + tuple(('peer-resume-original-after-policy original-effect-after-policy peer-rekey peer-fresh-next '
+    tuple('replacement-'+s for s in STEPS) + credential.LABELS + peer_policy.LABELS + peer_credential.LABELS + tuple(('peer-resume-original-after-policy original-effect-after-policy peer-rekey peer-fresh-next '
         'peer-fresh-send fresh-effect peer-inbox reverse-next reverse-send peer-read-reverse survivor-final').split())
-FAILED = ('native-refuse-precredential-publication','peer-lost-send','peer-policy-lost-send') + policy.FAILED + credential.FAILED + peer_policy.FAILED + tuple(p+'-'+s for p in ('addition','replacement')
+FAILED = ('native-refuse-precredential-publication','peer-lost-send','peer-policy-lost-send') + policy.FAILED + credential.FAILED + peer_policy.FAILED + peer_credential.FAILED + tuple(p+'-'+s for p in ('addition','replacement')
     for s in ('lost-export','pending-activation','witness-lost-output','commit-lost-output','old-current'))
 HTTP = tuple(('register-alice alice-root register-bob bob-root native-invitation native-approve native-issue '
     'native-authority-identity native-authority-root peer-authority-identity peer-authority-root peer-invitation '
     'peer-approve peer-issue peer-current sibling-authority-identity sibling-authority-root sibling-invitation '
     'sibling-approve sibling-issue added-current p-account-preview p-account-lost p-account-status p-account-retry sibling-replace-lost expired-login alice-relogin '
-    'sibling-replace-recovered successor-approve successor-issue replacement-current').split()) + credential.HTTP + peer_policy.HTTP + ('sibling-history','probe-finish')
+    'sibling-replace-recovered successor-approve successor-issue replacement-current').split()) + credential.HTTP + peer_policy.HTTP + peer_credential.HTTP + ('sibling-history','probe-finish')
 
 
 def verify(value, binaries, application):
     require(value.get('kind') == 'qperiapt.authenticated_surviving_device_roster' and value.get('completed') is True
             and value.get('release_claim_eligible') is False and value.get('cleanup_errors') == [], 'own roster completion')
-    for key,n in [('schema_version',4),('effects',4),('confirmed_epoch',1),('sibling_generation',1),('successor_generation',2)]:
+    for key,n in [('schema_version',5),('effects',4),('confirmed_epoch',1),('sibling_generation',1),('successor_generation',2)]:
         count(value.get(key),n,key)
     require(value.get('native_sha256') == binaries and value.get('provider') == '48.0.1'
             and value.get('implementation') == str(application / PACKAGE / 'session_cli.py')
@@ -66,6 +67,7 @@ def verify(value, binaries, application):
     policy.verify(value)
     credential.verify(value)
     peer_policy.verify(value)
+    peer_credential.verify(value)
     pids = set()
     for key,expected in [('services',[('survivor-first',0),('survivor-after-add',0),('survivor-after-replacement',0)]),
                          ('witness_services',[('witness-first',-9),('witness-reopened',0)]),
@@ -104,8 +106,8 @@ def retain(value, private, public, snapshot):
             require(r==expected,'own roster authentication outcome'); continue
         code=401 if label=='expired-login' else 204 if label.endswith('-approve') else 200
         count(r['status'],code,'HTTP status')
-        require(c['disconnect_before_body'] is (label in ('sibling-replace-lost','p-account-lost','g-lost','ip-account-lost')),'own roster HTTP disconnect')
-        if label in ('sibling-replace-lost','p-account-lost','g-lost','ip-account-lost') or code==204: require(r['body']=='','lost HTTP body')
+        require(c['disconnect_before_body'] is (label in ('sibling-replace-lost','p-account-lost','g-lost','ip-account-lost','ig-lost')),'own roster HTTP disconnect')
+        if label in ('sibling-replace-lost','p-account-lost','g-lost','ip-account-lost','ig-lost') or code==204: require(r['body']=='','lost HTTP body')
         responses[label]=r['body']
     for key in ('account','route','body'):
         require(commands['sibling-replace-lost'][key]==commands['sibling-replace-recovered'][key],'original HTTP replacement retry')
@@ -137,6 +139,7 @@ def retain(value, private, public, snapshot):
     policy.retain(value,copy,doc,output,commands,responses)
     credential.retain(value,copy,doc,output,commands,responses,private)
     peer_policy.retain(value,copy,doc,output,commands,responses)
+    peer_credential.retain(value,copy,doc,output,commands,responses)
     return len(list(public.iterdir()))
 
 
@@ -144,13 +147,13 @@ def qualify(args, reference, application, provider, outside, output, snapshot, r
     paths=[getattr(args,key).resolve(strict=True) for key in BINARIES]
     def hashes(): return {str(p):read_regular_snapshot(p,maximum=128*1024**2,label='roster executable').sha256 for p in paths}
     binaries=hashes()
-    for name in ('host_roster','host_roster_policy','host_roster_credential','host_peer_policy','host_replacement_device','host_replacement_process','native_exchange_fixture',
+    for name in ('host_roster','host_roster_policy','host_roster_credential','host_peer_policy','host_peer_credential','host_replacement_device','host_replacement_process','native_exchange_fixture',
                  'native_network_driver','independent_inbound_cli','witness_cli_exchange'):
         (outside/(name+'.py')).write_bytes(snapshot(reference/'tests'/(name+'.py')).data)
     private=outside/'private-authenticated-roster'
     command=[sys.executable,'-I','-S','-B',str(outside/'host_roster.py')]
     for key,path in zip(BINARIES,paths): command += ['--'+key.replace('_','-'),str(path)]
-    command += ['--implementation-root',str(application),'--provider-root',str(provider),'--output',str(private),'--credential-renewal','--independent-policy-renewal']
+    command += ['--implementation-root',str(application),'--provider-root',str(provider),'--output',str(private),'--credential-renewal','--independent-policy-renewal','--independent-credential-renewal']
     executed=run(command,'authenticated-roster')
     value=parse_strict_json_bytes(executed.stdout,label='installed authenticated roster')
     verify(value,binaries,application)

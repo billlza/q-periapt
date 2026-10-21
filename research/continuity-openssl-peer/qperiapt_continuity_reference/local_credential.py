@@ -17,17 +17,18 @@ from .policy_snapshot import admit as admit_policy, validate as validate_policy
 
 
 class LocalCredentialRenewal:
-    def __init__(self, journal, context, operation):
+    def __init__(self, journal, context, operation, inputs=None):
         self._journal, self._context, self.operation = journal, context, operation
+        self._inputs = inputs
         self._lock = threading.RLock(); self._busy = False
 
     @classmethod
-    def open(cls, path, scope, key, context, operation, *, observer=None):
+    def open(cls, path, scope, key, context, operation, *, observer=None, inputs=None):
         require(context.witness is None, "local credential coordinator requires original local-only policy")
         Session._scope(context, scope)
         require(type(operation) is bytes and len(operation) == 32 and any(operation), "original local renewal operation")
         journal = LocalSessionJournal.open(path, scope, key, Session._validator(context), observer=observer)
-        owner = cls(journal, context, operation)
+        owner = cls(journal, context, operation, inputs)
         try:
             with owner._state():
                 pass
@@ -65,6 +66,16 @@ class LocalCredentialRenewal:
         require(self._journal.read().digest == result.digest, "local credential transition durable readback")
 
     @coordinated
+    def request(self):
+        """Historical issuer inputs; raw owners must supply original inputs at open."""
+        try:
+            from .credential_request import retained
+            with self._state() as (_, state, _, _):
+                return retained(state, self._context, self._inputs, self.operation, self._journal.scope.identity)
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
     def status(self):
         try:
             with self._state() as (_snapshot, state, current, record):
@@ -75,11 +86,13 @@ class LocalCredentialRenewal:
             self.close(); raise
 
     @coordinated
-    def stage(self, wire, target, now):
+    def stage(self, wire, target, now, *, expected_statement=None):
         try:
             with self._state() as (snapshot, state, current, record):
                 require(state.account_authority is None, "shared account requires stage_account")
                 grant = verify(wire, current.original, self._context.family, self._context.policy_digest, target)
+                require(expected_statement is None or grant.statement == expected_statement,
+                        'credential issuance statement differs from signed grant')
                 require(grant.operation == self.operation, "local renewal original operation differs")
                 known = ((record.pending is not None and record.pending.operation == self.operation)
                          or (current.renewal is not None and current.renewal.operation == self.operation)

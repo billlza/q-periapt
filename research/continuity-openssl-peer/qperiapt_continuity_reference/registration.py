@@ -91,6 +91,23 @@ class Registration:
         except BaseException: self._close_after_error(); raise
 
     @coordinated
+    def verify_original_credential(self, certificate):
+        """Compare historical issuer input with the retained original admission.
+
+        No time-based authorization or state mutation occurs. The original
+        credential survives extensions and child policy/credential renewals.
+        """
+        try:
+            from .identity import credential
+            _, image = self._image()
+            require(image.admission is not None, 'original registration is not accepted')
+            expected = image.admission.validate(self._intent, signer(image.seed).public())
+            received = credential(image.admission.pin(self._intent), certificate, self._intent.family)
+            require(received.digest == expected.digest, 'issuance changes original accepted credential')
+            self._alive()
+        except BaseException: self._close_after_error(); raise
+
+    @coordinated
     def request(self, now):
         try:
             self._intent.validity.check(now); snapshot, image = self._image()

@@ -22,13 +22,14 @@ from .policy_snapshot import admit as admit_policy, authorization, validate as v
 
 
 class LocalRenewal:
-    def __init__(self, journal, context, operation):
+    def __init__(self, journal, context, operation, inputs=None):
         self._journal, self._context, self.operation = journal, context, operation
+        self._inputs = inputs
         self._lock = threading.RLock()
         self._busy = False
 
     @classmethod
-    def open(cls, path, scope, key, context, operation, *, client, observer=None):
+    def open(cls, path, scope, key, context, operation, *, client, observer=None, inputs=None):
         require(context.witness is not None, "joint local renewal requires original witness")
         Session._scope(context, scope)
         require(type(operation) is bytes and len(operation) == 32 and any(operation), "original local renewal operation")
@@ -41,7 +42,7 @@ class LocalRenewal:
                 # Unrelated ordinary work must reconcile on its own original
                 # terms; the root grant cannot overwrite or authorize that intent.
                 journal._recover(False)
-            owner = cls(journal, context, operation)
+            owner = cls(journal, context, operation, inputs)
             owner._inspect()
             return owner
         except BaseException:
@@ -101,14 +102,32 @@ class LocalRenewal:
         return snapshot, control, intent
 
     @coordinated
-    def prepare(self, grant_wire, target_checkpoint, now):
-        return self._prepare(grant_wire, target_checkpoint, now, None)
+    def request(self):
+        """Historical original issuer request, never a reservation or live owner."""
+        try:
+            from .credential_request import retained
+            snapshot, control, intent = self._inspect()
+            require(intent is None and (control is None or control.ready()), 'credential coordination remains pending')
+            require(control is None or control.proposal is None or control.proposal.operation != self.operation,
+                    'credential request operation already retained')
+            state = decode(snapshot.payload, self._context)
+            try:
+                result = retained(state, self._context, self._inputs, self.operation, self._journal.scope.identity)
+                self._journal._query(snapshot)
+                return result
+            finally: state.close()
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
+    def prepare(self, grant_wire, target_checkpoint, now, *, expected_statement=None):
+        return self._prepare(grant_wire, target_checkpoint, now, None, expected_statement)
 
     @coordinated
     def prepare_account(self, grant_wire, companions, target_checkpoint, now):
         return self._prepare(grant_wire, target_checkpoint, now, companions)
 
-    def _prepare(self, grant_wire, target_checkpoint, now, companions):
+    def _prepare(self, grant_wire, target_checkpoint, now, companions, expected_statement=None):
         try:
             snapshot, control, intent = self._inspect()
             state = decode(snapshot.payload, self._context)
@@ -131,6 +150,8 @@ class LocalRenewal:
                                    target_checkpoint)
                 binding = None if request is None else request.binding()
                 require(grant.operation == self.operation, "local renewal original operation differs")
+                require(expected_statement is None or grant.statement == expected_statement,
+                        'credential issuance statement differs from signed grant')
                 existing = intent.proposal if intent else (control.proposal if control else None)
                 if existing is not None and existing.operation == self.operation:
                     require(existing.statement == grant.statement and
@@ -195,6 +216,17 @@ class LocalRenewal:
             require(outcome in (retained, "Unavailable"), "witness contradicts durable renewal terminal")
             outcome = retained
         return snapshot, control, intent, outcome
+
+    @coordinated
+    def preparation(self):
+        """Recover the exact retained proposal; no new approval is created."""
+        try:
+            _, _, intent = self._current()
+            require(intent is not None, 'original credential preparation is no longer retained')
+            return {'schema': 'qperiapt-credential-witness-proposal/1', 'operation': list(self.operation),
+                    'journal': list(self._journal.scope.identity), 'proposal': intent.proposal.wire()}
+        except BaseException:
+            self.close(); raise
 
     @coordinated
     def status(self):

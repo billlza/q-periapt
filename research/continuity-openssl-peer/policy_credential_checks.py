@@ -10,6 +10,21 @@ from pathlib import Path
 import sys
 
 
+def credential_request(f, operation, now, *, refusal=None, closed=False):
+    from qperiapt_continuity_reference.wire import require
+    parent = f.owner()
+    try:
+        with parent.credential_renewal(operation, now, transport=f.transport()) as child:
+            if closed: parent.close()
+            try: result = child.request()
+            except ValueError as error:
+                require(refusal is not None and refusal in str(error), 'unexpected credential request rejection: ' + str(error))
+                return str(error)
+            require(refusal is None, 'credential request unexpectedly accepted')
+            return result
+    finally: parent.close()
+
+
 def scenario(args, count, witnessed, *, after_credentials=None):
     from registration_fixture import Fixture
     from shared_account_checks import start, request_arguments
@@ -31,7 +46,7 @@ def scenario(args, count, witnessed, *, after_credentials=None):
         f.worker("original-send-reservation-cut", "send", (reserved, b"original reservation", b"compose"),
                  now=170, cut="protocol:send-reserved")
         native_journal = None
-        policies, credentials = [], []
+        policies, credentials, issuer_requests = [], [], []
         for cycle, version, policy_time, credential_time in ((1, 2, 190, 210), (2, 3, 250, 310)):
             label = f"cycle-{cycle}"
             if witnessed: f.call(label + "-policy-clock", 33, policy_time.to_bytes(8, "big"), b"witness clock set")
@@ -70,6 +85,18 @@ def scenario(args, count, witnessed, *, after_credentials=None):
             f.worker(label + "-expired-C-still-denied", "next_id", now=credential_time,
                      refusal="witness current authority denied" if witnessed else "expired or premature authority")
             head = (f.session_path / "head").read_bytes()
+            before = credential_request(f, g_args[0], credential_time)
+            from qperiapt_continuity_reference.account_request import fields
+            from qperiapt_continuity_reference.renewal import verify
+            local, _, target = fields((f.out / g_args[2].decode()).read_bytes())
+            grant = verify(local, f.context.devices[0], f.context.family, f.context.policy_digest, target)
+            require(before['journal'] == journal and before['operation'] == g_args[0]
+                    and before['previous_roster'] == grant.predecessor_roster.wire
+                    and before['previous_checkpoint'] == grant.predecessor_roster.checkpoint()
+                    and int.from_bytes(before['current_policy'][:8], 'big') == version
+                    and before['current_policy_authorization'] is not None
+                    and (f.session_path / 'head').read_bytes() == head,
+                    'expired credential request lost the original predecessor or changed journal')
             if witnessed:
                 f.worker(label + "-credential-prepare-cut", "credential_account_prepare_files", g_args,
                          now=credential_time, cut="renewal:prepared")
@@ -80,6 +107,8 @@ def scenario(args, count, witnessed, *, after_credentials=None):
                 require(len(proposal) == 329 and p.policy is not None and p.subject[64:] == f.context.policy_digest,
                         "G changed P0 or omitted independent P")
                 require((f.session_path / "intent").read_bytes() == held, "G retry resealed target")
+                pending_refusal = credential_request(f, os.urandom(32), credential_time,
+                                                    refusal='credential coordination remains pending')
                 bad = replace(p, policy=b"x" * 32).wire() + version.to_bytes(8, "big")
                 f.call(label + "-wrong-P-witness-refused", 34, bad, status=2)
                 require(f.worker(label + "-unapproved-G", "credential_status", (g_args[0],), now=credential_time) == "Unavailable",
@@ -102,6 +131,8 @@ def scenario(args, count, witnessed, *, after_credentials=None):
                          cut="session-store:committed:intent")
                 require(f.worker(label + "-G-pending", "credential_status", (g_args[0],), now=credential_time)["status"] == "Pending",
                         "G original Pending")
+                pending_refusal = credential_request(f, os.urandom(32), credential_time,
+                                                    refusal='credential renewal remains pending')
                 f.worker(label + "-G-blocks-P", "policy_request", (os.urandom(32),), now=credential_time,
                          refusal="account credential renewal remains pending")
                 f.worker(label + "-G-commit-cut", "credential_commit", (g_args[0],), now=credential_time,
@@ -109,6 +140,23 @@ def scenario(args, count, witnessed, *, after_credentials=None):
                 require(f.worker(label + "-G-recovered", "credential_status", (g_args[0],), now=credential_time)["status"] == "Committed",
                         "G original completion")
             require((f.session_path / "head").read_bytes() != head, "G did not advance original state")
+            committed = (f.session_path / 'head').read_bytes()
+            following = credential_request(f, os.urandom(32), credential_time)
+            reused_refusal = credential_request(f, g_args[0], credential_time, refusal='credential request operation already retained')
+            closed_refusal = credential_request(f, os.urandom(32), credential_time, closed=True, refusal='closed registration owner')
+            require(following['previous_roster'] == grant.successor_roster.wire
+                    and following['previous_checkpoint'] == target and following['current_policy'] == before['current_policy']
+                    and following['current_policy_authorization'] == before['current_policy_authorization']
+                    and following['original_certificate'] == before['original_certificate']
+                    and following['previous_certificate'] != before['previous_certificate']
+                    and (f.session_path / 'head').read_bytes() == committed,
+                    'next credential request lost original certificate, current target or P')
+            issuer_requests.append({'cycle':cycle,'at':credential_time,'operation':g_args[0].hex(),
+                'policy_version':version,'policy_statement':before['current_policy_authorization'].hex(),
+                'original_certificate_sha256':hashlib.sha256(before['original_certificate']).hexdigest(),
+                'previous_certificate_sha256':hashlib.sha256(before['previous_certificate']).hexdigest(),
+                'successor_certificate_sha256':hashlib.sha256(following['previous_certificate']).hexdigest(),
+                'journal_unchanged':True,'refusals':[pending_refusal,reused_refusal,closed_refusal]})
             native = f.call(label + "-native-G", 40, cycle.to_bytes(8, "big") + credential_time.to_bytes(8, "big"))
             require(native[:32] == native_journal and native[32:64] == session
                     and native[64:] == credential_time.to_bytes(8, "big"), "native G/P original identity or time differs")
@@ -146,7 +194,7 @@ def scenario(args, count, witnessed, *, after_credentials=None):
             additional = after_credentials(f, count, journal, session, native_journal, identity, wire)
         result = {"members": count, "witnessed": witnessed, "journal": journal.hex(), "native_journal": native_journal.hex(),
                   "session": session.hex(), "original_wire_sha256": hashlib.sha256(wire).hexdigest(),
-                  "policies": policies, "credentials": credentials, "confirmed_epoch": 1,
+                  "policies": policies, "credentials": credentials, "issuer_requests":issuer_requests,"confirmed_epoch": 1,
                   "workers": len(f.driver.operations), "process_kills": sum("signal" in r for r in f.driver.operations),
                   "denied_operations": [r["case"] for r in f.driver.operations if "refused" in r],
                   "after_credentials": additional,

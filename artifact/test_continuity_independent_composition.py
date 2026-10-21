@@ -64,6 +64,11 @@ class CompositionReceiptTests(unittest.TestCase):
                              {"version": 3, "at": 250, "operation": "2" * 64}],
                 "credentials": [{"cycle": 1, "at": 210, "operation": "3" * 64},
                                 {"cycle": 2, "at": 310, "operation": "4" * 64}],
+                "issuer_requests":[dict(cycle=c,at=at,operation=op*64,policy_version=c+1,policy_statement='e'*64,
+                    original_certificate_sha256='a'*64,previous_certificate_sha256=before*64,successor_certificate_sha256=after*64,
+                    journal_unchanged=True,refusals=['credential coordination remains pending' if witnessed else 'credential renewal remains pending',
+                    'credential request operation already retained','closed registration owner'])
+                    for c,at,op,before,after in [(1,210,'3','a','b'),(2,310,'4','b','c')]],
                 "denied_operations": refused,
                 "after_credentials": {"roster_operation": "5" * 64, "final_policy_version": 4,
                     "final_roster_version": 19, "final_native_time": 355, "retained_policy_proof_version": 3,
@@ -79,6 +84,15 @@ class CompositionReceiptTests(unittest.TestCase):
 
     def test_complete_composition_receipt(self):
         verify_composition(self.report())
+
+    def test_missing_or_rebound_credential_request_is_rejected(self):
+        for mutate in (lambda r:r['issuer_requests'].pop(),
+                       lambda r:r['issuer_requests'][0].update(journal_unchanged=False),
+                       lambda r:r['issuer_requests'][0]['refusals'].pop(),
+                       lambda r:r['issuer_requests'][1].update(original_certificate_sha256='c'*64),
+                       lambda r:r['issuer_requests'][1].update(previous_certificate_sha256='a'*64)):
+            value=self.report();mutate(value['profiles'][0])
+            with self.assertRaises(ValueError):verify_composition(value)
 
     def test_partial_cohort_or_false_workload(self):
         for mutate in (lambda r: r["profiles"].pop(),
