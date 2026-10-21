@@ -7,7 +7,7 @@ use q_periapt_continuity_reference_app::{
     enrollment::{Invitation, RootInfo},
     native_device::{clock, ExchangeOperation, ExchangeRequest, Mailbox, NativeDevice, PeerTrust},
     network::{self, Limits},
-    policy_publisher::{PolicyMaterials, PolicyPins},
+    policy_publisher::{PolicyInput, PolicyMaterials, PolicyPins},
 };
 use serde::{de::DeserializeOwned, Deserialize};
 use std::{
@@ -29,6 +29,9 @@ struct Configuration {
     current_root: PathBuf,
     policy_pins: PathBuf,
     policy_materials: PathBuf,
+    /// Present only for an explicitly completed independent witnessed P update.
+    /// Omission selects original activation, which rejects a substituted policy.
+    original_policy: Option<PathBuf>,
     witness_endpoint: String,
     peer_trust: PathBuf,
     bundle: PathBuf,
@@ -70,7 +73,27 @@ impl Configuration {
             return Err("Witness endpoint differs from pinned policy".into());
         }
         run.check()?;
-        let active = owner.activate(&current, &policy, witness, endpoint, clock()?)?;
+        let active = match &self.original_policy {
+            None => owner.activate(&current, &policy, witness, endpoint, clock()?)?,
+            Some(path) => {
+                let history: PolicyInput = json(path, 160 * 1024)?;
+                let (original, original_pin) = history
+                    .pins
+                    .verify_historical(&history.materials, invitation.family)?;
+                let pin = witness.ok_or("Continued policy requires a witness")?;
+                if original_pin.as_ref().map(|p| p.binding()) != Some(pin.binding()) {
+                    return Err("Original policy witness differs from current selection".into());
+                }
+                owner.activate_witnessed_policy(
+                    &current,
+                    &original,
+                    &policy,
+                    pin,
+                    endpoint.ok_or("Continued policy witness endpoint missing")?,
+                    clock()?,
+                )?
+            }
+        };
         let inbox = Mailbox::open(&self.inbox, active.journal())?;
         Ok(Prepared {
             owner: active,

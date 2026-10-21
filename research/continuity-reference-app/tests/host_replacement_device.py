@@ -49,6 +49,8 @@ class Native:
         _, self.current = authority(probe, 'alice', 'native-authority')
         save(root / 'native-current.json', self.current)
         self.current_path = root / 'native-current.json'
+        self.original_policy = None
+        self.policy_input = None
         self.local_inputs = [self.current_path, root / 'policy-pins.json', root / 'policy-materials.json']
         accepted = run([binary, 'accept', *self.common, root / 'native-issued.json', *self.local_inputs], 'native-accept')
         self.journal = bytes(accepted['journal'])
@@ -87,10 +89,13 @@ class Native:
         return self.run([self.binary, 'status', *self.common], label)
 
     def inputs(self, peer):
-        return {'device_directory': str(self.directory), 'wrapping_key': str(self.root / 'native-wrap.key'),
+        result = {'device_directory': str(self.directory), 'wrapping_key': str(self.root / 'native-wrap.key'),
                 'invitation': str(self.root / 'native-invitation.json'), 'current_root': str(self.current_path),
-                'policy_pins': str(self.root / 'policy-pins.json'), 'policy_materials': str(self.root / 'policy-materials.json'),
+                'policy_pins': str(self.local_inputs[1]), 'policy_materials': str(self.local_inputs[2]),
                 'witness_endpoint': self.witness.endpoint(), 'peer_trust': str(peer.trust_path), 'bundle': str(peer.bundle_path)}
+        if self.original_policy is not None:
+            result['original_policy'] = str(self.original_policy)
+        return result
 
     def admit(self, target, label, *, success=True, lost=False):
         path = self.root / (label + '-target.json'); save(path, target)

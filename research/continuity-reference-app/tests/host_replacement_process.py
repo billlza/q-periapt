@@ -179,13 +179,14 @@ def policy(root, sdk, publisher, witness, run):
                                           'key': b64(witness.pin.key.raw)}}
     path = root / 'policy-request.json'; save(path, request)
     output = root / 'policy-export'; output.mkdir(mode=0o700)
-    run([publisher, 'issue', publisher_db, publisher_id, b64(os.urandom(32)), path, output], 'policy-issue')
+    publication = b64(os.urandom(32))
+    run([publisher, 'issue', publisher_db, publisher_id, publication, path, output], 'policy-issue')
     for name in ('policy-pins.json', 'policy-materials.json'):
         save(root / name, (output / name).read_bytes())
     selected = PolicyInputs.from_trusted((root / 'policy-pins.json').read_bytes(), (root / 'policy-materials.json').read_bytes())
     require(selected.witness is not None and selected.witness.binding == witness.pin.binding,
             'actual independently provisioned witness differs')
-    return bytes(authority['family']), now, selected
+    return bytes(authority['family']), now, selected, {'publisher': publisher_id, 'publication': publication}
 
 
 def fingerprints(*directories):

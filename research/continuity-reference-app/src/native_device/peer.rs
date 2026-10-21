@@ -134,6 +134,11 @@ impl ActiveDevice {
             let required = trust.requirements(&initiator, &responder)?;
             match operation {
                 ExchangeOperation::Bootstrap => {
+                    if self.original_policy.is_some() {
+                        return Err(
+                            "Continued policy requires an original established session".into()
+                        );
+                    }
                     let context = Arc::new(bundle.verify(policy, required, clock()?)?);
                     let peer = self.owner.parts()?.0.admit_peer(
                         context,
@@ -145,15 +150,7 @@ impl ActiveDevice {
                         .serve_session_exchange(&peer, request, consumer, run, clock)?)
                 }
                 ExchangeOperation::Message { session } | ExchangeOperation::Control { session } => {
-                    let reopened = self.owner.parts()?.0.reopen_peer_bundle(
-                        bundle,
-                        policy,
-                        required,
-                        sdk::BootstrapRole::Responder,
-                        *session,
-                        clock()?,
-                    )?;
-                    let session = sdk::session_exchange::Session::from_reopened(&reopened);
+                    let session = self.reopen_session(trust, bundle, policy, *session)?;
                     match operation {
                         ExchangeOperation::Message { .. } => Ok(self
                             .owner
@@ -183,14 +180,30 @@ impl ActiveDevice {
     ) -> Result<sdk::session_exchange::Session> {
         let result = (|| {
             let (initiator, responder) = trust.pins(policy.family())?;
-            let reopened = self.owner.parts()?.0.reopen_peer_bundle(
-                bundle,
-                policy,
-                trust.requirements(&initiator, &responder)?,
-                sdk::BootstrapRole::Responder,
-                session,
-                clock()?,
-            )?;
+            let requirements = trust.requirements(&initiator, &responder)?;
+            let reopened = match &self.original_policy {
+                Some(original) => {
+                    let request = bundle.request_historical_reopen(
+                        Arc::clone(original),
+                        requirements,
+                        sdk::BootstrapRole::Responder,
+                        session,
+                        clock()?,
+                    )?;
+                    self.owner
+                        .parts()?
+                        .0
+                        .reopen_continued_peer(request, policy, clock()?)?
+                }
+                None => self.owner.parts()?.0.reopen_peer_bundle(
+                    bundle,
+                    policy,
+                    requirements,
+                    sdk::BootstrapRole::Responder,
+                    session,
+                    clock()?,
+                )?,
+            };
             Ok(sdk::session_exchange::Session::from_reopened(&reopened))
         })();
         if result.is_err() {

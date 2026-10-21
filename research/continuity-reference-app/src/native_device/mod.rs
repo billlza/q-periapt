@@ -15,6 +15,7 @@ mod mailbox;
 mod peer;
 mod peer_roster;
 mod policy;
+mod policy_witness;
 mod publication;
 mod renewal;
 mod roster_refresh;
@@ -22,6 +23,7 @@ pub use credential_recovery::CredentialRecoveryInputs;
 pub use mailbox::Mailbox;
 pub use peer::{DeviceExpectation, ExchangeOperation, ExchangeRequest, PeerTrust};
 pub use policy::PolicyRecoveryInputs;
+pub use policy_witness::PolicyTransitionInputs;
 pub use publication::{clock, Publication, PublicationPlan};
 pub use renewal::RetainedCredentialRequest;
 pub use roster_refresh::RosterRefreshInputs;
@@ -42,6 +44,7 @@ pub struct Status {
 pub struct ActiveDevice {
     owner: sdk::EnrolledDevice,
     public: sdk::EnrollmentPublicAdmission,
+    original_policy: Option<std::sync::Arc<sdk::HistoricalSessionPolicy>>,
 }
 impl NativeDevice {
     fn paths(directory: &Path, wrapping: &Path) -> Result<sdk::EnrollmentPaths> {
@@ -256,7 +259,11 @@ impl NativeDevice {
 impl ActiveDevice {
     fn from_owner(mut owner: sdk::EnrolledDevice) -> Result<Self> {
         let public = owner.public_admission()?;
-        Ok(Self { owner, public })
+        Ok(Self {
+            owner,
+            public,
+            original_policy: None,
+        })
     }
     pub fn journal(&self) -> [u8; 32] {
         *self.public.journal().as_bytes()

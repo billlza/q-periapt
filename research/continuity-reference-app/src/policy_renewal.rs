@@ -4,6 +4,7 @@ use crate::enrollment::{wire, Checkpoint, Invitation, RootInfo};
 use q_periapt_continuity_identity_candidate as sdk;
 use serde::{Deserialize, Serialize};
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+pub mod witness;
 
 pub fn checkpoint(value: sdk::PolicyCheckpoint) -> Checkpoint {
     Checkpoint {

@@ -139,8 +139,11 @@ The protected policy publisher supplies the other approval independently.
 The browser verifies a public policy bundle before presenting its exact interval
 and statement for separate approval. Schema-4 browser backups retain enrollment,
 credential renewal, G and P history under the same cache key. Query/cancel and
-byte-exact result recovery are integrated; real-account P acceptance and
-continued-session integration remain open.
+byte-exact result recovery are integrated. The
+[witnessed native P flow](WITNESSED_POLICY_RENEWAL.md) preserves the original
+session through authenticated R/P/R in the software-Passkey HTTP workload.
+Human browser P acceptance and composed G/P/R with both peers' policy expiry
+remain open.
 
 The account host also supports an explicit [device replacement](DEVICE_REPLACEMENT.md).
 `enable-device-replacements` upgrades schema 6 to 7 without rewriting old account,
@@ -289,7 +292,8 @@ The operator also exposes [device-generation replacement](WITNESS_REPLACEMENT.md
 with exact preparation, atomic commit and historical outcome observation.
 The native survivor and witness also expose [own-account roster refresh](ROSTER_REFRESH.md),
 preserving the original device, journal and established sessions through an
-explicitly approved roster/head transaction. Independent G/T approval, account-root replacement and witness
+explicitly approved roster/head transaction, including after independent witnessed
+P renewal. Independent G/T approval, account-root replacement and witness
 replication remain separate operator requirements.
 
 Protocol references: [WebAuthn Level 3](https://www.w3.org/TR/webauthn-3/) and

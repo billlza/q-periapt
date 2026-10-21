@@ -66,7 +66,7 @@ def refused_cli(peer, label, args):
 
 try:
     witness = WitnessHost(root, paths['witness'], run)
-    family, start, selected_policy = policy(root, paths['sdk_authority'], paths['publisher'], witness, run)
+    family, start, selected_policy, _publisher_selection = policy(root, paths['sdk_authority'], paths['publisher'], witness, run)
     host = AccountHost(root, paths['account_host'], family, run); host.start('account-first')
     probe = AccountProbe(root, paths['account_client'], host.origin)
     for account in ('alice', 'bob'):

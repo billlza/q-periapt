@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-fn policy_approval(
+pub(super) fn policy_approval(
     c: &mut Case,
     retained: &PolicyRequest,
     previous: [u8; 32],
@@ -57,7 +57,7 @@ fn policy_args(c: &Case, command: &str, request: &str, account: &str) -> Vec<OsS
         ],
     )
 }
-fn lose_response(c: &Case, args: &[OsString], name: &str) -> Result<()> {
+pub(super) fn lose_response(c: &Case, args: &[OsString], name: &str) -> Result<()> {
     let mut child = Command::new(env!("CARGO_BIN_EXE_q-periapt-native-device"))
         .args(args)
         .stdout(Stdio::piped())

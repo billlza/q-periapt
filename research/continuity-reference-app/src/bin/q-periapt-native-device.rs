@@ -18,6 +18,8 @@ mod native_policy_cli;
 mod native_renewal_cli;
 #[path = "../operator_io.rs"]
 mod operator_io;
+#[path = "../native_policy_witness_cli.rs"]
+mod policy_witness;
 use operator_io::{export_directory, identifier, print, read};
 #[path = "../native_roster_cli.rs"]
 mod roster;
@@ -36,6 +38,15 @@ const USAGE: &str = concat!(
     "renewal-request: <retained-renewal-id> <original-policy-pins-json> ",
     "<original-policy-materials-json> <witness-address-or-none> <new-request-output>\n",
     "policy-status: no extra arguments (historical progress only)\n",
+    "policy-witness-request: <operation> <original-policy-input-json> <witness-address> <new-request-output>\n",
+    "policy-witness-stage: same inputs as policy-stage, with the original pinned witness\n",
+    "policy-witness-prepare: <operation> <statement> <selected-policy-inputs-json> <witness-address> <new-preparation-output>\n",
+    "policy-witness-recover-preparation: <operation> <statement> <original-policy-input-json> <new-preparation-output>\n",
+    "policy-witness-abandon-unprepared: <operation> <statement> <original-policy-input-json>\n",
+    "policy-witness-status: no extra arguments (coordination history only)\n",
+    "policy-witness-commit: <retained-preparation-json> <selected-policy-inputs-json> <witness-address>\n",
+    "policy-witness-observe/policy-witness-close: <retained-preparation-json> <original-policy-input-json> <witness-address>\n",
+    "policy-witness-activate: <current-root-json> <original-policy-input-json> <target-policy-input-json> <witness-address>\n",
     "policy-request: <original-policy-operation> <original-policy-pins> <original-policy-materials> <new-request-output>\n",
     "policy-stage/policy-adopt: <retained-request> <account-approval> <policy-approval> <current-root> ",
     "<original-pins> <original-materials> <previous-pins> <previous-materials> <target-pins> <target-materials>\n",
@@ -70,6 +81,12 @@ fn json<T: DeserializeOwned>(path: &OsString, maximum: usize) -> Result<T> {
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();
     let command = args.get(1).and_then(|v| v.to_str()).ok_or(USAGE)?;
+    if command == "policy-witness-stage" {
+        return native_policy_cli::run(&args);
+    }
+    if command.starts_with("policy-witness-") {
+        return policy_witness::run(&args);
+    }
     if matches!(
         command,
         "roster-status"

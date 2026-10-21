@@ -6,10 +6,12 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 mod enrollment;
+mod policy_renewal;
 mod replacement;
 mod roster_refresh;
 mod store;
 pub use enrollment::{EnrollmentRequest, EnrollmentTrust};
+pub use policy_renewal::PolicyRenewalTrust;
 pub use replacement::{
     DevicePredecessorTrust, DeviceReplacementDecision, DeviceReplacementOutcome,
     DeviceReplacementStatus, DeviceReplacementTrust,

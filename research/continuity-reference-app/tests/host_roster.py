@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HTTP-authorized sibling replacement, surviving native R and original session.
+"""HTTP-authorized sibling replacement, surviving native R/P/R and original session.
 
 Real software WebAuthn, account/device/witness processes and independent TCP
 consumer; actual time, no account-root fixture and no physical-device claim.
@@ -30,6 +30,7 @@ from independent_inbound_cli import Receiver
 from witness_cli_exchange import WitnessHost
 from host_replacement_process import Commands, AccountHost, AccountProbe, policy, fingerprints
 from host_replacement_device import Native, Independent, authority, invite, approve, issued
+from host_roster_policy import adopt, activation
 
 root = args.output
 require(root.is_absolute() and not root.exists(), 'fresh absolute private test output required')
@@ -38,7 +39,7 @@ run = Commands(root)
 paths = {name: getattr(args, name).resolve(strict=True) for name in
          ('account_host', 'account_client', 'sdk_authority', 'publisher', 'witness', 'native_device', 'native_session', 'native_outgoing')}
 binaries = {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in paths.values()}
-result = {'schema_version': 1, 'kind': 'qperiapt.authenticated_surviving_device_roster', 'completed': False,
+result = {'schema_version': 2, 'kind': 'qperiapt.authenticated_surviving_device_roster', 'completed': False,
           'release_claim_eligible': False, 'native_sha256': binaries, 'provider': provider.__version__, 'clock': 'actual OS time',
           'implementation': str(implementation / 'qperiapt_continuity_reference/session_cli.py')}
 host = probe = witness = receiver = None
@@ -46,12 +47,14 @@ services, transitions = [], []
 
 
 def refresh(native, target, label):
-    policy_input = {'pins': json.loads((root / 'policy-pins.json').read_bytes()),
-                    'materials': json.loads((root / 'policy-materials.json').read_bytes())}
+    original_input = {'pins': json.loads((root / 'policy-pins.json').read_bytes()),
+                      'materials': json.loads((root / 'policy-materials.json').read_bytes())}
+    policy_input = {'pins': json.loads(native.local_inputs[1].read_bytes()),
+                    'materials': json.loads(native.local_inputs[2].read_bytes())}
     selection = root / (label + '-inputs.json')
     save(selection, {'schema': 'qperiapt-roster-refresh-inputs/1', 'target': target,
-                     'original': policy_input, 'policy': policy_input})
-    history = root / (label + '-history.json'); save(history, policy_input)
+                     'original': original_input, 'policy': policy_input})
+    history = root / (label + '-history.json'); save(history, original_input)
     operation = b64(os.urandom(32)); request_file = root / (label + '-request.json')
     occupied = root / (label + '-occupied.json'); save(occupied, b'original export retained')
     run([native.binary, 'roster-prepare', *native.common, operation, selection, witness.endpoint(), occupied],
@@ -62,7 +65,7 @@ def refresh(native, target, label):
     require(json.loads(request_file.read_bytes()) == request, 'recovered request file differs')
     pending = run([native.binary, 'roster-commit', *native.common, request_file, selection, witness.endpoint()], label + '-unapproved')
     require(pending == {'binding': request['binding'], 'state': 'Unavailable'}, 'unapproved target was not unavailable')
-    run([native.binary, 'activate', *native.active_args], label + '-pending-activation', success=False)
+    run(activation(native), label + '-pending-activation', success=False)
     approved = root / (label + '-trust.json')
     save(approved, {'schema': 'qperiapt-witness-roster-refresh-trust/1', 'account': target,
         'device': native.invitation['device'], 'generation': native.invitation['generation'],
@@ -76,18 +79,18 @@ def refresh(native, target, label):
     require(observed == {'binding': request['binding'], 'state': 'Applied'}, 'original R outcome not recovered')
     progress = run([native.binary, 'roster-status', *native.common], label + '-status')
     require(progress['state'] == 'Applied' and progress['retired'] is True, 'R retirement absent')
-    run([native.binary, 'activate', *native.active_args], label + '-old-current', success=False)
+    run(activation(native), label + '-old-current', success=False)
     native.current = target; native.current_path = root / (label + '-current.json'); save(native.current_path, target)
-    native.local_inputs = [native.current_path, root / 'policy-pins.json', root / 'policy-materials.json']
+    native.local_inputs = [native.current_path, *native.local_inputs[1:]]
     native.active_args = [*native.common, *native.local_inputs, witness.endpoint()]
-    activated = run([native.binary, 'activate', *native.active_args], label + '-activate')
+    activated = run(activation(native), label + '-activate')
     require(bytes(activated['journal']) == native.journal, 'R changed original journal')
     transitions.append({'operation': operation, 'binding': request['binding'], 'progress': progress, 'observation': observed})
 
 
 try:
     witness = WitnessHost(root, paths['witness'], run)
-    family, start, selected = policy(root, paths['sdk_authority'], paths['publisher'], witness, run)
+    family, start, selected, publisher_selection = policy(root, paths['sdk_authority'], paths['publisher'], witness, run)
     host = AccountHost(root, paths['account_host'], family, run); host.start('account-first')
     probe = AccountProbe(root, paths['account_client'], host.origin)
     for account in ('alice', 'bob'):
@@ -124,7 +127,15 @@ try:
     service = NativeService(root,'survivor-after-add',paths['native_session'],native.inputs(peer)); services.append(service)
     peer.deliver(sid,message,None,service.address,'resume-original-after-add',resume=True)
     native.read(sid,message,b'pending before sibling addition','original-effect-after-add')
+    require(peer.connect(service.address,'original-bootstrap-retry') == sid, 'R replaced the original session')
+    p_message = peer.next(sid,'policy-lost-next')
+    relay = DropResponse(service.address)
+    peer.deliver(sid,p_message,b'pending before policy update',relay.address,'policy-lost-send',success=False)
+    p_lost=relay.finish();save(root/'policy-lost.request',p_lost['request']);save(root/'policy-lost.response',p_lost['response'])
+    require(peer.cli('policy-pending-status',['message-status','--session='+sid,'--message='+p_message])['status']=='Committed','P pending status lost')
+    native.read(sid,p_message,b'pending before policy update','policy-pending-effect')
     service.stop()
+    policy_transition=adopt(root,native,probe,witness,paths,run,publisher_selection)
     replacement = {'request_id':list(os.urandom(32)), 'enrollment':sibling.invitation['operation'], 'predecessor':target['roster']['checkpoint']}
     probe.request('alice','sibling-replace-lost','/api/enrollment/replace-device',replacement,lost=True)
     host.stop(kill=True); host.start('account-reopened')
@@ -140,7 +151,8 @@ try:
     refresh(native,target,'replacement')
     witness.service.stop(kill=True); witness.start('witness-reopened')
     service = NativeService(root,'survivor-after-replacement',paths['native_session'],native.inputs(peer)); services.append(service)
-    require(peer.connect(service.address,'original-bootstrap-retry') == sid, 'R replaced the original session')
+    peer.deliver(sid,p_message,None,service.address,'resume-original-after-policy',resume=True)
+    native.read(sid,p_message,b'pending before policy update','original-effect-after-policy')
     require(peer.cli('rekey',['rekey','--session='+sid,'--target','1','--address',*service.address]) ==
             {'session':sid,'epoch':1,'exchanges':2}, 'original session rekey after R failed')
     fresh = peer.next(sid,'fresh-next')
@@ -168,11 +180,12 @@ try:
     witness.close(); host.close(); probe.finish()
     require({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths.values()} == binaries, 'native bytes changed')
     result.update(completed=True, session=sid, confirmed_epoch=1, journal=b64(native.journal),
-        transitions=transitions, effects=3, original_pending_message=message, original_keys_unchanged=True,
+        transitions=transitions, policy_transition=policy_transition, effects=4, original_pending_message=message,
+        policy_pending_message=p_message, original_keys_unchanged=True,
         sibling_generation=1, successor_generation=2, old_sibling_unchanged=True,
         services=[s.result for s in services], witness_services=[s.result for s in witness.services], account_services=host.services,
         independent_service=receiver.result,
-        scope='Two own-account R transitions from real authenticated HTTP addition/replacement. Original native keys, journal, session and pending effect retained; witness/operator and commit stdout loss, account/witness restarts, original rekey and bidirectional traffic. Sibling acceptance only, not sibling runtime activation. No human Passkey, cross-host, mobile or PCS claim.')
+        scope='Authenticated own-account R/P/R: sibling addition, two-root independent witnessed policy renewal, sibling replacement. Original keys, journal, session and both unknown ACKs retained; actual account/operator/commit output loss, account/witness restarts, original rekey and bidirectional traffic. Independent peer remains on live original P0; no fresh bootstrap under P2. Sibling acceptance only, not sibling runtime activation. No human Passkey, cross-host, mobile or PCS claim.')
 except BaseException as error:
     result['failure'] = str(error)
     raise

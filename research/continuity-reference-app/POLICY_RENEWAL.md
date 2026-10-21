@@ -1,5 +1,8 @@
 # Original-device policy renewal
 
+Required-witness installations use the complete
+[witnessed request, approval, recovery and original-session flow](WITNESSED_POLICY_RENEWAL.md).
+
 The native consumer supports the SDK's separate policy-only P operation. It
 extends validity under the same original policy root, SDK binding, algorithm
 profile, prekey modes, witness requirement and sending budget. It does not change

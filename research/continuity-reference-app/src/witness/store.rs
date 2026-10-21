@@ -290,6 +290,25 @@ impl Witness {
         let config = self.config()?;
         roster_refresh::close(&mut self.original_store(&config)?, trust, request)
     }
+    /// Independently prepare the exact two-root P approval and sealed target.
+    pub fn prepare_policy_renewal(
+        &mut self,
+        trust: &PolicyRenewalTrust,
+        preparation: &crate::policy_renewal::witness::Preparation,
+        now: u64,
+    ) -> Result<crate::policy_renewal::witness::Outcome> {
+        let config = self.config()?;
+        policy_renewal::prepare(&mut self.original_store(&config)?, trust, preparation, now)
+    }
+    /// Close original signed policy history, including after target expiry.
+    pub fn close_policy_renewal(
+        &mut self,
+        trust: &PolicyRenewalTrust,
+        preparation: &crate::policy_renewal::witness::Preparation,
+    ) -> Result<crate::policy_renewal::witness::Outcome> {
+        let config = self.config()?;
+        policy_renewal::close(&mut self.original_store(&config)?, trust, preparation)
+    }
     /// Open the exact original store for one signed request. An unknown commit
     /// remains an error; the caller may later reconcile that original request.
     pub fn handle(

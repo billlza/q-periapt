@@ -95,6 +95,9 @@ the new root snapshot and the original device files.
 The CLI regressions exercise failed export, exact recovery, unapproved targets,
 retarget refusal, lost output, rollback refusal and real-time target expiry.
 `tests/host_roster.py` exercises real software-Passkey HTTP account addition and
-replacement, two R transitions, retained pending delivery and original session
-traffic/rekey. Software authentication, local TCP and historical outcomes are
+replacement, two R transitions around an independently approved
+[witnessed policy renewal](WITNESSED_POLICY_RENEWAL.md), retained pending delivery
+and original session traffic/rekey. After P adoption, select continued activation
+and retain original P0 alongside the current target. Software authentication,
+local TCP and historical outcomes are
 not human-Passkey, physical-device or continuous-PQ-recovery claims.

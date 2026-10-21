@@ -33,7 +33,7 @@ impl NativeDevice {
         }
         result
     }
-    fn checked_policy_recovery(
+    pub(super) fn checked_policy_recovery(
         &mut self,
         inputs: &PolicyRecoveryInputs<'_>,
         now: u64,
@@ -47,10 +47,10 @@ impl NativeDevice {
                 .iter()
                 .any(|p| {
                     p.family() != self.invitation.family
-                        || p.anchor_requirement() != sdk::AnchorRequirement::local_only()
+                        || p.anchor_requirement() != inputs.original.anchor_requirement()
                 })
         {
-            return Err("Policy adoption differs from the original local-only installation".into());
+            return Err("Policy adoption differs from original installation or protection".into());
         }
         self.pin(inputs.current)?;
         let request = r.verify_identities(inputs.current, now)?;
@@ -68,6 +68,9 @@ impl NativeDevice {
         now: u64,
     ) -> Result<sdk::PolicyRenewalStatus> {
         let result = (|| {
+            if inputs.original.anchor_requirement() != sdk::AnchorRequirement::local_only() {
+                return Err("Use witnessed policy coordination for this installation".into());
+            }
             let approval = self.checked_policy_recovery(inputs, now)?;
             Ok(self.owner.stage_policy_renewal(
                 &approval,

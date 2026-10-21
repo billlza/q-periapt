@@ -8,20 +8,23 @@ use q_periapt_continuity_reference_app::{
 };
 use std::{process::Stdio, thread, time::Duration};
 
-struct Refresh {
-    case: Case,
-    host: PathBuf,
-    server: HostServer,
-    original: EnrollmentRequest,
-    policy: PolicyInput,
+pub(super) struct Refresh {
+    pub(super) case: Case,
+    pub(super) host: PathBuf,
+    pub(super) server: HostServer,
+    pub(super) original: EnrollmentRequest,
+    pub(super) policy: PolicyInput,
 }
 impl Refresh {
-    fn open() -> Result<Self> {
+    pub(super) fn open() -> Result<Self> {
+        Self::open_with_policy_duration(2400)
+    }
+    pub(super) fn open_with_policy_duration(policy_seconds: u64) -> Result<Self> {
         let host = tempfile::tempdir()?.keep().canonicalize()?;
         fs::set_permissions(&host, fs::Permissions::from_mode(0o700))?;
         eprintln!("Roster CLI witness fixture retained: {}", host.display());
         let pin: Pin = serde_json::from_value(witness_call(&host, "init", &[])?)?;
-        let case = Case::open_with_anchor(1200, 2400, Some(&pin.as_sdk()?))?;
+        let case = Case::open_with_anchor(1200, policy_seconds, Some(&pin.as_sdk()?))?;
         case.accept()?;
         let original: EnrollmentRequest = serde_json::from_value(case.call(
             "prepare",

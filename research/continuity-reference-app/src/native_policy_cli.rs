@@ -56,7 +56,7 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
         "policy-status" => 5,
         "policy-request" | "policy-recover" => 9,
         "policy-resolve" => 11,
-        "policy-stage" | "policy-adopt" => 15,
+        "policy-stage" | "policy-adopt" | "policy-witness-stage" => 15,
         _ => return Err(USAGE.into()),
     };
     if args.len() != count {
@@ -129,7 +129,15 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
         previous_pins.verify_historical(&previous_materials, invitation.family)?;
     let (target, target_witness) =
         target_pins.verify(&target_materials, invitation.family, clock()?)?;
-    if original_witness.is_some() || previous_witness.is_some() || target_witness.is_some() {
+    let witnessed = command == "policy-witness-stage";
+    if witnessed
+        && (original_witness.is_none() || previous_witness.is_none() || target_witness.is_none())
+    {
+        return Err("Witnessed staging requires independently pinned witnesses".into());
+    }
+    if !witnessed
+        && (original_witness.is_some() || previous_witness.is_some() || target_witness.is_some())
+    {
         return Err(
             "Policy-only local commands cannot replace required witness coordination".into(),
         );
@@ -144,7 +152,9 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
         target: &target,
     };
     let mut owner = NativeDevice::open(Path::new(&args[2]), Path::new(&args[3]), invitation)?;
-    let result = progress(if command == "policy-stage" {
+    let result = progress(if witnessed {
+        owner.stage_witnessed_policy(&inputs, clock()?)?
+    } else if command == "policy-stage" {
         owner.stage_policy_recovery(&inputs, clock()?)?
     } else {
         owner.adopt_policy(&inputs, clock()?)?

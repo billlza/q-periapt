@@ -4,7 +4,7 @@ use q_periapt_continuity_identity_candidate as sdk;
 use q_periapt_continuity_reference_app::{
     enrollment::{Invitation, RootInfo},
     native_device::{clock, ActiveDevice, NativeDevice, PeerTrust},
-    policy_publisher::{PolicyMaterials, PolicyPins},
+    policy_publisher::{PolicyInput, PolicyMaterials, PolicyPins},
 };
 use serde::{de::DeserializeOwned, Deserialize};
 use std::{
@@ -31,6 +31,7 @@ struct Invocation {
     current_root: PathBuf,
     policy_pins: PathBuf,
     policy_materials: PathBuf,
+    original_policy: Option<PathBuf>,
     witness_endpoint: String,
     peer_trust: PathBuf,
     bundle: PathBuf,
@@ -179,7 +180,27 @@ impl Invocation {
             return Err("Witness endpoint differs from pinned policy".into());
         }
         run.check()?;
-        let mut active = owner.activate(&current, &policy, witness, endpoint, clock()?)?;
+        let mut active = match &self.original_policy {
+            None => owner.activate(&current, &policy, witness, endpoint, clock()?)?,
+            Some(path) => {
+                let history: PolicyInput = json(path, 160 * 1024)?;
+                let (original, original_pin) = history
+                    .pins
+                    .verify_historical(&history.materials, invitation.family)?;
+                let pin = witness.ok_or("Continued policy requires a witness")?;
+                if original_pin.as_ref().map(|p| p.binding()) != Some(pin.binding()) {
+                    return Err("Original policy witness differs from current selection".into());
+                }
+                owner.activate_witnessed_policy(
+                    &current,
+                    &original,
+                    &policy,
+                    pin,
+                    endpoint.ok_or("Continued policy witness endpoint missing")?,
+                    clock()?,
+                )?
+            }
+        };
         let session = active.reopen_session(&trust, &bundle, Arc::new(policy), session_id)?;
         Ok((active, session))
     }
