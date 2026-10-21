@@ -54,7 +54,8 @@ export function enrollmentUI(action, identity) {
     el('approve-request').disabled = !known || !hasProof || !directProof || phase !== 'Invited';
     el('issue-device').disabled = !known || !['Approved', 'Issued'].includes(phase);
     el('cancel-operation').disabled = !known || !['Invited', 'Approved'].includes(phase);
-    el('reapprove-request').disabled = !known || !hasProof || !observation || !['Invited', 'Approved'].includes(phase);
+    el('reapprove-request').disabled = !known || model.records.find(selected).kind === 'replace' || !hasProof || !observation || !['Invited', 'Approved'].includes(phase);
+    el('replace-device').disabled = !known || phase !== 'Issued' || !observation?.roster || observation.suspended;
     el('select-successor').disabled = phase !== 'Reapproved';
     el('save-issued').disabled = issued === null;
     el('save-root').disabled = observation === null;
@@ -89,6 +90,7 @@ export function enrollmentUI(action, identity) {
       `Approval deadline (Unix seconds): ${value.deadline}`, `Host state: ${disposition?.state || 'Not refreshed'}`);
     else lines.push('Response unresolved. Recover this correlation; do not create another device.');
     if (!value && row.kind === 'reapprove') lines.push(`Source operation: ${base64(row.previous)}. If the host rejected this decision, select that original source and explicitly approve against a newly reviewed roster. This attempt remains retained.`);
+    if (row.kind === 'replace') lines.push(`Replaces enrollment: ${base64(row.previous)}. Create fresh device keys from this invitation. Issuing the new roster and retiring the old witness state are separate steps.`);
     hasProof = row.request !== null || draft !== null;
     directProof = row.request === null || draft === null || row.request === base64(draft);
     if (row.request) lines.push(`Original retained request SHA-256: ${await fingerprint(unbase64(row.request, 8192))}`);
@@ -123,6 +125,10 @@ export function enrollmentUI(action, identity) {
   bind('reapprove-request', async () => {
     if (!observation) throw new Error('Read and review the current root and roster first');
     selected = model.reapproval(selected, observation, draft === null ? undefined : draft); clearObservation(); await showOperation();
+    await model.recover(selected); await refresh();
+  });
+  bind('replace-device', async () => {
+    selected = model.replacement(selected, observation, disposition); clearObservation(); await showOperation();
     await model.recover(selected); await refresh();
   });
   bind('select-successor', async () => {

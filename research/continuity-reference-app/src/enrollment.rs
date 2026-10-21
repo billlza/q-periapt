@@ -96,6 +96,16 @@ pub struct IssuedEnrollment {
     pub checkpoint: Checkpoint,
 }
 
+/// Independently authorized replacement of one currently listed generation.
+/// Retain request_id before submission; retries cannot select a newer roster.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct DeviceReplacementRequest {
+    pub request_id: [u8; 32],
+    pub enrollment: [u8; 32],
+    pub predecessor: Checkpoint,
+}
+
 /// Explicit host approval for a same-key validity extension. Retain this exact
 /// request before submission. It is not a device possession proof or a G grant.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

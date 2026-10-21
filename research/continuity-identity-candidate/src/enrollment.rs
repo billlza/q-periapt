@@ -111,6 +111,27 @@ impl VerifiedEnrollmentRequest {
             public: proof.public,
         })
     }
+    /// Authenticate a fresh generation under an independently approved intent.
+    /// The predecessor may be expired historical identity evidence; it grants no
+    /// permission to replace itself. The host must separately authorize the
+    /// account operation and compare its actual current roster at commit.
+    pub fn verify_replacement(
+        wire: &[u8],
+        intent: &EnrollmentIntent,
+        previous: &VerifiedDevice,
+        now: u64,
+    ) -> Result<Self, Error> {
+        let request = Self::verify(wire, intent, now)?;
+        if intent.root != previous.authority_key
+            || intent.description.id != previous.description.id
+            || intent.description.family != previous.description.family
+            || intent.description.generation <= previous.description.generation
+            || request.public.shares_component(&previous.key)
+        {
+            return Err(Error::Scope);
+        }
+        Ok(request)
+    }
     /// Original precommitted signing-owner identity, suitable for scoped request deduplication.
     pub fn identity(&self) -> SigningKeyId {
         self.identity

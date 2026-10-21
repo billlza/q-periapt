@@ -45,6 +45,21 @@ fn historical_identity_round_trip_does_not_turn_expiry_into_current_permission()
     let live = c
         .pin
         .verify_device(&c.certificate, c.roster.as_bytes(), 150)?;
+    let historical_roster = c.pin.verify_historical_roster(c.roster.as_bytes())?;
+    assert_eq!(historical_roster.validity().from(), 120);
+    assert_eq!(historical_roster.validity().until(), 200);
+    assert_eq!(
+        historical_roster.members().collect::<Vec<_>>(),
+        vec![(
+            live.device_id(),
+            live.generation(),
+            live.credential_digest()
+        )]
+    );
+    assert!(historical_roster.authorize_device(&live, 220).is_err());
+    let mut forged = c.roster.as_bytes().to_vec();
+    *forged.last_mut().ok_or("signature")? ^= 1;
+    assert!(c.pin.verify_historical_roster(&forged).is_err());
     assert_eq!(historical.account_id(), live.account_id());
     assert_eq!(historical.device_id(), live.device_id());
     assert_eq!(historical.generation(), live.generation());

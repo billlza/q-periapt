@@ -142,6 +142,16 @@ credential renewal, G and P history under the same cache key. Query/cancel and
 byte-exact result recovery are integrated; real-account P acceptance and
 continued-session integration remain open.
 
+The account host also supports an explicit [device replacement](DEVICE_REPLACEMENT.md).
+`enable-device-replacements` upgrades schema 6 to 7 without rewriting old account,
+key or issuance records. A signed-in account selects an original issued operation
+and exact current roster; a new invitation preserves its device ID and advances
+one generation. The replacement must prove possession of fresh classical and PQ
+keys. Its credential, replacement roster and exact response commit together.
+Schema-5 browser records preserve all earlier operations under the same cache key.
+Account issuance and [witness replacement](WITNESS_REPLACEMENT.md) are separate
+durable steps; account issuance alone does not retire an old witness journal.
+
 The service's invitation API requires a caller-retained random request ID. Retry
 that same ID after an uncertain reply, even if the host operation ID was lost.
 The local profile uses five-minute approval deadlines and one-hour credentials;
@@ -149,7 +159,8 @@ these are reference-host choices, not SDK requirements. It bounds active devices
 at 32, pending invitations per account at 8 and retained operations at 512 in the
 database. Closed operations retain their identities; no automatic history
 deletion recovers capacity. Root suspension stops new/pending issuance, not
-already issued device traffic. Device revocation/replacement remains to integrate.
+already issued device traffic. Standalone device revocation and a complete
+account-to-witness replacement with renewed communication remain to integrate.
 
 - Challenges remain on the server, expire after three minutes, and are consumed
   once before verification. Browser cookies contain only random lookup tokens.

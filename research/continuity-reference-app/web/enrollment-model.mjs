@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 import {base64, unbase64, equal, parse} from './transport.mjs';
-import {invitation, root, id, checkpoint} from './enrollment-records.mjs';
+import {invitation, root, id, checkpoint, replacementInvitation} from './enrollment-records.mjs';
 const sameIntent = (a, b) => ['application', 'root_revision', 'root', 'family', 'device', 'generation', 'valid_from', 'valid_until'].every(key => equal(a[key], b[key]));
 function require(value, message) { if (!value) throw new Error(message); }
 function proof(bytes) {
@@ -22,14 +22,20 @@ export class Enrollment {
   async recover(key) {
     const row = this.records.find(key);
     if (row.invitation !== null) return row;
-    const body = row.kind === 'invite' ? {request_id: row.request_id} : {
+    const body = row.kind === 'invite' ? {request_id: row.request_id} : row.kind === 'replace' ? {
+      request_id: row.request_id, enrollment: row.previous, predecessor: row.predecessor,
+    } : {
       previous: row.previous, request_id: row.request_id, predecessor: row.predecessor, request: row.request,
     };
-    const value = (await this.api(`/api/enrollment/${row.kind === 'invite' ? 'invite' : 'reapprove'}`, body)).value;
+    const value = (await this.api(`/api/enrollment/${row.kind === 'replace' ? 'replace-device' : row.kind}`, body)).value;
     invitation(value, this.records.application, row.request_id);
     if (row.kind === 'reapprove') {
       const previous = this.records.read().operations.find(r => r.invitation && equal(r.invitation.operation, row.previous));
       require(previous && sameIntent(previous.invitation, value) && equal(row.predecessor, value.predecessor), 'Host changed the original reapproval intent');
+    }
+    if (row.kind === 'replace') {
+      const previous = this.records.read().operations.find(r => r.invitation && equal(r.invitation.operation, row.previous));
+      replacementInvitation(value, previous?.invitation, row.predecessor);
     }
     return this.records.update({...row, invitation: value});
   }
@@ -88,6 +94,7 @@ export class Enrollment {
   }
   reapproval(key, observation, selectedRequest) {
     const row = this.operation(key); root(observation);
+    require(row.kind !== 'replace', 'Prepare a fresh replacement decision from its issued predecessor');
     const request = selectedRequest === undefined ? row.request : proof(selectedRequest);
     require(request !== null, 'Select the original device request before approving');
     require(!observation.suspended && observation.public_key === row.invitation.root && observation.revision === row.invitation.root_revision && equal(observation.family, row.invitation.family), 'Displayed root does not authorize the original device intent');
@@ -95,6 +102,16 @@ export class Enrollment {
     // Keep every earlier attempt. The host atomically allows at most one source
     // successor, and an Approved source still requires byte-identical proof.
     return this.pending('reapprove', row.invitation.operation, observation.roster === null ? null : observation.roster.checkpoint, request);
+  }
+  replacement(key, observation, status) {
+    const row = this.operation(key); root(observation);
+    require(status?.state === 'Issued', 'Recover the original issued operation before replacement');
+    this.issuedText(key, status.response);
+    require(!observation.suspended && observation.roster !== null && observation.public_key === row.invitation.root
+      && observation.revision === row.invitation.root_revision && equal(observation.family, row.invitation.family), 'Displayed root does not authorize replacement');
+    require(BigInt(row.invitation.generation) + 1n < 18446744073709551615n, 'Device generation exhausted');
+    require(this.records.read().operations.every(r => r.kind !== 'replace' || !equal(r.previous, row.invitation.operation) || r.invitation !== null), 'Recover the unresolved replacement invitation first');
+    return this.pending('replace', row.invitation.operation, observation.roster.checkpoint);
   }
   selectSuccessor(key, status) {
     const row = this.operation(key);

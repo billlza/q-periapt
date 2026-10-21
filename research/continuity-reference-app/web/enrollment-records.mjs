@@ -28,14 +28,26 @@ export function root(value) {
   }
   return value;
 }
-function row(value, application) {
+export function replacementInvitation(value, source, predecessor) {
+  require(source && ['application', 'root_revision', 'root', 'family', 'device'].every(key => equal(source[key], value[key]))
+    && BigInt(value.generation) === BigInt(source.generation) + 1n && BigInt(value.generation) < 18446744073709551615n
+    && !equal(source.operation, value.operation) && equal(value.predecessor, predecessor), 'Host changed the approved replacement intent');
+}
+function row(value, application, schema, operations) {
   fields(value, 'kind request_id previous predecessor request invitation'); id(value.request_id);
-  require(value.kind === 'invite' || value.kind === 'reapprove', 'Unknown recovery operation');
+  require(value.kind === 'invite' || value.kind === 'reapprove' || (schema >= 5 && value.kind === 'replace'), 'Unknown recovery operation');
   if (value.kind === 'invite') require(value.previous === null && value.predecessor === null, 'Invitation has unexpected predecessor');
   else { id(value.previous); checkpoint(value.predecessor); }
   if (value.request !== null) unbase64(value.request, 8192);
   if (value.invitation !== null) invitation(value.invitation, application, value.request_id);
   if (value.kind === 'reapprove' && value.invitation === null) require(value.request !== null, 'Pending reapproval has no original proof');
+  if (value.kind === 'replace') {
+    require(value.predecessor !== null, 'Replacement requires a selected roster');
+    require(value.invitation !== null || value.request === null, 'Pending replacement cannot retain an old proof');
+    const source = operations.find(r => r.invitation && equal(r.invitation.operation, value.previous));
+    require(source && source !== value, 'Replacement source is absent');
+    if (value.invitation !== null) replacementInvitation(value.invitation, source.invitation, value.predecessor);
+  }
 }
 export function extensionRequest(value) {
   fields(value, 'request_id enrollment previous_extension predecessor valid_until');
@@ -69,8 +81,8 @@ export class Records {
     this.key = `qpc-reference-enrollment/1/${application}`;
   }
   validate(value) {
-    const shape = {1: 'schema origin application operations', 2: 'schema origin application operations extensions', 3: 'schema origin application operations extensions grants', 4: 'schema origin application operations extensions grants policy_approvals'}[value?.schema];
-    require([1, 2, 3, 4].includes(value?.schema), 'Unknown browser recovery schema'); fields(value, shape);
+    const shape = {1: 'schema origin application operations', 2: 'schema origin application operations extensions', 3: 'schema origin application operations extensions grants', 4: 'schema origin application operations extensions grants policy_approvals', 5: 'schema origin application operations extensions grants policy_approvals'}[value?.schema];
+    require([1, 2, 3, 4, 5].includes(value?.schema), 'Unknown browser recovery schema'); fields(value, shape);
     require(value.origin === this.origin && value.application === this.application, 'Recovery file belongs to another origin, account or schema');
     require(Array.isArray(value.operations) && value.operations.length <= MAX_RECORDS, 'Recovery record capacity');
     const extensions = value.schema >= 2 ? value.extensions : [], grants = value.schema >= 3 ? value.grants : [];
@@ -78,7 +90,7 @@ export class Records {
     require([extensions, grants, policies].every(Array.isArray) && value.operations.length + extensions.length + grants.length + policies.length <= MAX_RECORDS, 'Recovery record capacity');
     const seen = new Set();
     for (const operation of value.operations) {
-      row(operation, this.application); const key = base64(operation.request_id);
+      row(operation, this.application, value.schema, value.operations); const key = base64(operation.request_id);
       require(!seen.has(key), 'Duplicate recovery identity'); seen.add(key);
     }
     for (const item of extensions) {
@@ -127,6 +139,12 @@ export class Records {
   }
   add(operation) {
     const value = this.read(); require(!value.operations.some(r => equal(r.request_id, operation.request_id)), 'Correlation already retained');
+    if (operation.kind === 'replace' && value.schema < 5) {
+      value.extensions = value.schema >= 2 ? value.extensions : [];
+      value.grants = value.schema >= 3 ? value.grants : [];
+      value.policy_approvals = value.schema >= 4 ? value.policy_approvals : [];
+      value.schema = 5;
+    }
     value.operations.push(operation); this.save(value); return operation;
   }
   update(operation) {
@@ -173,7 +191,7 @@ export class Records {
   }
   addPolicyApproval(item) {
     const value = this.read();
-    this.save({...value, schema: 4, extensions: value.schema >= 2 ? value.extensions : [], grants: value.schema >= 3 ? value.grants : [],
+    this.save({...value, schema: Math.max(value.schema, 4), extensions: value.schema >= 2 ? value.extensions : [], grants: value.schema >= 3 ? value.grants : [],
       policy_approvals: [...(value.schema >= 4 ? value.policy_approvals : []), item]});
   }
   transitionPolicyApproval(key, state, response = null) {
@@ -213,6 +231,7 @@ export class Records {
         else value.policy_approvals.push(item);
       }
     }
+    value.schema = Math.max(value.schema, imported.schema);
     this.save(value);
   }
   export() { return encode(this.read()); }

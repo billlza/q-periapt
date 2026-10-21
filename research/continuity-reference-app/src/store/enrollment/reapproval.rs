@@ -43,6 +43,11 @@ impl Store {
                 ));
             }
             let mut old = store.operation(account, previous)?;
+            if old.replacement.is_some() {
+                return Err(Error::Conflict(
+                    "Replacement invitations require a fresh explicit replacement request",
+                ));
+            }
             let mut correlation = account.application_id.to_vec();
             correlation.extend_from_slice(&request_id);
             let saved = store
@@ -172,6 +177,7 @@ impl Store {
                 &tx,
                 &Operation {
                     invitation: invitation.clone(),
+                    replacement: None,
                     phase: Phase::Approved {
                         request: request.to_vec(),
                     },

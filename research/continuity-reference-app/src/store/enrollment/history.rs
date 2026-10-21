@@ -7,7 +7,70 @@ pub(super) struct CredentialHistory {
     pub enrollment: [u8; 32],
     pub revision: u64,
 }
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CredentialSnapshot {
+    #[serde(with = "wire")]
+    pub(super) certificate: Vec<u8>,
+    #[serde(with = "wire")]
+    pub(super) roster: Vec<u8>,
+    pub(super) checkpoint: Checkpoint,
+}
 impl Store {
+    /// Resolve the exact currently stored certificate to its own issuance
+    /// snapshot. Never select an extension by recency or maximum version.
+    pub(super) fn current_certificate_snapshot(
+        &self,
+        account: &Account,
+        history: CredentialHistory,
+        original: &IssuedEnrollment,
+        certificate: &[u8],
+    ) -> Result<CredentialSnapshot, Error> {
+        if original.operation != history.enrollment || original.root_revision != history.revision {
+            return Err(Error::Internal);
+        }
+        if original.certificate == certificate {
+            return Ok(CredentialSnapshot {
+                certificate: original.certificate.clone(),
+                roster: original.roster.clone(),
+                checkpoint: original.checkpoint,
+            });
+        }
+        let tx = self.db.begin_read().map_err(db_error)?;
+        let table = tx.open_table(EXTENSIONS).map_err(db_error)?;
+        if table.len().map_err(db_error)? > MAX_OPERATIONS {
+            return Err(Error::Internal);
+        }
+        let mut selected = None;
+        for row in table.iter().map_err(db_error)? {
+            let (key, value) = row.map_err(db_error)?;
+            let key = key.value();
+            if key.len() != 64 {
+                return Err(Error::Internal);
+            }
+            if key[..32] != account.application_id {
+                continue;
+            }
+            let value: IssuedCredentialExtension = decode(value.value(), MAX_RECORD)?;
+            if value.request.enrollment == history.enrollment
+                && value.root_revision == history.revision
+                && value.certificate == certificate
+            {
+                if selected.is_some() || value.request.request_id != key[32..] {
+                    return Err(Error::Internal);
+                }
+                selected = Some(CredentialSnapshot {
+                    certificate: value.certificate,
+                    roster: value.roster,
+                    checkpoint: value.checkpoint,
+                });
+            }
+        }
+        selected.ok_or(Error::Conflict(
+            "Current credential has no exact retained issuance history",
+        ))
+    }
     pub(super) fn selected_extension(
         &self,
         account: &Account,

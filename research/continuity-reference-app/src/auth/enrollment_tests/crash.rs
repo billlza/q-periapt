@@ -41,6 +41,8 @@ pub(super) enum Work {
     Grant(Box<crate::credential_grant::CredentialGrantRequest>),
     CancelGrant(Box<crate::credential_grant::CredentialGrantRequest>),
     PolicyUpgrade,
+    ReplacementUpgrade,
+    Replace(crate::enrollment::DeviceReplacementRequest),
     PolicyApproval(Box<crate::policy_approval::PolicyApprovalRequest>),
     CancelPolicyApproval(Box<crate::policy_approval::PolicyApprovalRequest>),
 }
@@ -77,7 +79,9 @@ pub(super) fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>
         .env_remove("QPERIAPT_ISSUER_GRANT_CANCEL")
         .env_remove("QPERIAPT_ISSUER_POLICY_UPGRADE")
         .env_remove("QPERIAPT_ISSUER_POLICY_INPUT")
-        .env_remove("QPERIAPT_ISSUER_POLICY_CANCEL");
+        .env_remove("QPERIAPT_ISSUER_POLICY_CANCEL")
+        .env_remove("QPERIAPT_ISSUER_REPLACEMENT_UPGRADE")
+        .env_remove("QPERIAPT_ISSUER_REPLACEMENT_INPUT");
     let cancel_grant = matches!(&work, Work::CancelGrant(_));
     let cancel_policy = matches!(&work, Work::CancelPolicyApproval(_));
     match work {
@@ -112,6 +116,14 @@ pub(super) fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>
         }
         Work::PolicyUpgrade => {
             command.env("QPERIAPT_ISSUER_POLICY_UPGRADE", "1");
+        }
+        Work::ReplacementUpgrade => {
+            command.env("QPERIAPT_ISSUER_REPLACEMENT_UPGRADE", "1");
+        }
+        Work::Replace(input) => {
+            let file = path.join(format!("{boundary}.replacement-input.json"));
+            fs::write(&file, serde_json::to_vec(&input)?)?;
+            command.env("QPERIAPT_ISSUER_REPLACEMENT_INPUT", file);
         }
         Work::PolicyApproval(input) | Work::CancelPolicyApproval(input) => {
             let file = path.join(format!("{boundary}.policy-input.json"));
@@ -159,7 +171,11 @@ fn issuer_child() -> Result {
     let path = std::path::PathBuf::from(path);
     let mut store = Store::open(&path.join("accounts.redb"), ORIGIN)?;
     let account = store.account("alice")?.ok_or("original fixture account")?;
-    if std::env::var_os("QPERIAPT_ISSUER_POLICY_UPGRADE").is_some() {
+    if std::env::var_os("QPERIAPT_ISSUER_REPLACEMENT_UPGRADE").is_some() {
+        store.enable_device_replacements()?;
+    } else if let Some(file) = std::env::var_os("QPERIAPT_ISSUER_REPLACEMENT_INPUT") {
+        store.invite_device_replacement(&account, &serde_json::from_slice(&fs::read(file)?)?)?;
+    } else if std::env::var_os("QPERIAPT_ISSUER_POLICY_UPGRADE").is_some() {
         store.enable_policy_approvals()?;
     } else if let Some(file) = std::env::var_os("QPERIAPT_ISSUER_POLICY_INPUT") {
         let input = serde_json::from_slice(&fs::read(file)?)?;

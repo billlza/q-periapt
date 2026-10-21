@@ -24,6 +24,7 @@ pub(super) fn routes() -> Router<Shared> {
         .route("/api/enrollment/status", post(status))
         .route("/api/enrollment/cancel", post(cancel))
         .route("/api/enrollment/reapprove", post(reapprove))
+        .route("/api/enrollment/replace-device", post(replace_device))
         .route("/api/enrollment/extend-credential", post(extend_credential))
         .route("/api/enrollment/credential-grant", post(credential_grant))
         .route(
@@ -94,6 +95,19 @@ fn proof(encoded: &str) -> Result<Vec<u8>, Error> {
 async fn root(State(state): State<Shared>, headers: HeaderMap) -> Result<Response, Error> {
     let token = session(&headers)?;
     Ok(Json(state.call(move |s| s.enrollment_root(&token)).await?).into_response())
+}
+async fn replace_device(
+    State(state): State<Shared>,
+    headers: HeaderMap,
+    Json(request): Json<q_periapt_continuity_reference_app::enrollment::DeviceReplacementRequest>,
+) -> Result<Response, Error> {
+    let token = session(&headers)?;
+    Ok(Json(
+        state
+            .call(move |s| s.invite_device_replacement(&token, &request))
+            .await?,
+    )
+    .into_response())
 }
 async fn prepare(
     State(state): State<Shared>,

@@ -35,6 +35,71 @@ async function prepared(api) {
   return {...context, key};
 }
 
+function issuedStatus(row, observed) {
+  return {state: 'Issued', current: observed, response: base64(new TextEncoder().encode(encode({
+    operation: row.invitation.operation, root_revision: row.invitation.root_revision,
+    certificate: 'AQ', roster: 'Ag', checkpoint: observed.roster.checkpoint,
+  })))};
+}
+
+test('replacement persists exact predecessor before HTTP and recovers a lost response without old proof', async () => {
+  const sent = []; let lost = true;
+  const c = await prepared(async (path, body) => {
+    sent.push({path, body: encode(body)});
+    assert.equal(path, '/api/enrollment/replace-device');
+    if (lost) { lost = false; throw new Error('replacement response lost'); }
+    return {value: invite(body.request_id, {operation: bytes(21), generation: 2, predecessor: body.predecessor, valid_from: 200, valid_until: 2000})};
+  });
+  const old = c.records.find(c.key), oldBytes = encode(old), observed = root({version: 9007199254740993n, digest: bytes(9)});
+  const status = issuedStatus(old, observed);
+  const key = c.model.replacement(c.key, observed, status);
+  assert.equal(c.records.read().schema, 5);
+  assert.equal(c.records.find(key).request, null);
+  assert.throws(() => c.model.replacement(c.key, observed, status), /unresolved replacement/);
+  await assert.rejects(c.model.recover(key), /response lost/);
+  observed.roster.checkpoint.version++;
+  const restarted = new Enrollment(c.records, c.model.api, () => { throw new Error('no new identity'); });
+  await restarted.recover(key);
+  assert.deepEqual(sent[0], sent[1]);
+  assert.equal(encode(c.records.find(c.key)), oldBytes);
+  assert.equal(c.records.find(key).invitation.generation, 2);
+  assert.equal(c.records.find(key).request, null);
+  assert.throws(() => restarted.reapproval(key, observed, new Uint8Array([8])), /fresh replacement/);
+  restarted.retainProof(key, new Uint8Array([9]));
+  assert.equal(c.records.find(key).request, 'CQ');
+  assert.equal(c.records.find(c.key).request, old.request);
+  const restored = fixture(() => { throw new Error('import does not send'); });
+  restored.records.merge(c.records.export());
+  assert.equal(restored.records.export(), c.records.export());
+  const downgrade = parse(c.records.export()); downgrade.schema = 4;
+  assert.throws(() => restored.records.decode(encode(downgrade)), /Unknown recovery operation/);
+});
+
+test('replacement refuses missing issuance, unsafe roots, exhausted generations and retargeted replies', async () => {
+  let changes = {};
+  const c = await prepared(async (_path, body) => ({value: invite(body.request_id, {operation: bytes(21), generation: 2, predecessor: body.predecessor, ...changes})}));
+  const old = c.records.find(c.key), observed = root({version: 2, digest: bytes(9)}), status = issuedStatus(old, observed);
+  assert.throws(() => c.model.replacement(c.key, observed, {state: 'Approved'}), /issued operation/);
+  assert.throws(() => c.model.replacement(c.key, root(), status), /does not authorize/);
+  assert.throws(() => c.model.replacement(c.key, {...observed, suspended: true}, status), /does not authorize/);
+  c.storage.fail = true;
+  assert.throws(() => c.model.replacement(c.key, observed, status), /quota/);
+  c.storage.fail = false;
+  assert.equal(c.records.read().schema, 1);
+  const key = c.model.replacement(c.key, observed, status);
+  for (const bad of [{generation: 1}, {generation: 3}, {device: bytes(99, 16)}, {root: base64(bytes(99, 1985))}, {predecessor: null}, {operation: old.invitation.operation}]) {
+    changes = bad;
+    await assert.rejects(c.model.recover(key), /replacement intent/);
+    assert.equal(c.records.find(key).invitation, null);
+  }
+  changes = {}; await c.model.recover(key);
+  const missing = parse(c.records.export()); missing.operations.shift();
+  assert.throws(() => c.records.decode(encode(missing)), /source is absent/);
+  const large = fixture(() => { throw new Error('no send'); });
+  large.records.add({...old, invitation: {...old.invitation, generation: 18446744073709551614n}});
+  assert.throws(() => large.model.replacement(c.key, observed, status), /generation exhausted/);
+});
+
 test('u64 integers remain exact through parsing, request encoding and recovery storage', () => {
   const value = parse('{"version":18446744073709551615,"safe":9007199254740991,"next":9007199254740993}');
   assert.equal(value.version, 18446744073709551615n);

@@ -3,11 +3,13 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 class Element {
-  constructor(select) { this.select = select; this.options = []; this.files = []; this.textContent = ''; this.disabled = false; this.current = ''; }
+  constructor(select) { this.select = select; this.options = []; this.files = []; this.textContent = ''; this.disabled = false; this.current = ''; this.listeners = new Map(); }
   get value() { return this.current; }
   set value(v) { this.current = this.select && !this.options.some(o => o.value === v) ? '' : v; }
   replaceChildren(...options) { this.options = options; this.current = options[0]?.value || ''; }
   add(option) { this.options.push(option); }
+  addEventListener(event, listener) { const list = this.listeners.get(event) || []; list.push(listener); this.listeners.set(event, list); }
+  async dispatch(event) { for (const listener of this.listeners.get(event) || []) await listener(); }
 }
 export async function withDOM(work) {
   const old = {document: globalThis.document, Option: globalThis.Option};

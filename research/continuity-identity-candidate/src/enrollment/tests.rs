@@ -8,6 +8,8 @@ mod policy_renewal;
 mod preinstallation;
 #[path = "renewal_tests.rs"]
 pub(super) mod renewal;
+#[path = "replacement_request_tests.rs"]
+mod replacement_request;
 #[path = "roster_tests.rs"]
 mod roster;
 #[path = "witness_renewal_tests.rs"]

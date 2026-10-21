@@ -13,6 +13,7 @@ mod policy_approval;
 use history::CredentialHistory;
 mod operations;
 mod reapproval;
+mod replacement;
 mod root;
 const ROOTS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_roots");
 const OPERATIONS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_operations");
@@ -60,6 +61,10 @@ struct Member {
 struct Operation {
     invitation: Invitation,
     phase: Phase,
+    // Absence is the legacy/ordinary first-use kind, valid only for generation1.
+    // Schema7 explicitly admits the replacement kind; old records stay unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    replacement: Option<replacement::Intent>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "phase", deny_unknown_fields)]
@@ -84,6 +89,7 @@ pub(super) struct EnrollmentSchema {
     pub(super) extensions: bool,
     pub(super) grants: bool,
     pub(super) policy_approvals: bool,
+    pub(super) replacements: bool,
 }
 pub(super) fn admit_schema(
     tx: &redb::ReadTransaction,
@@ -100,10 +106,11 @@ pub(super) fn admit_schema(
         .collect();
     names.sort();
     let mut expected = vec!["accounts", "configuration", "credential_owners"];
-    let policy_approvals = schema.value() == "6";
-    let grants = matches!(schema.value(), "5" | "6");
-    let extensions = matches!(schema.value(), "4" | "5" | "6");
-    let reapproval = matches!(schema.value(), "3" | "4" | "5" | "6");
+    let replacements = schema.value() == "7";
+    let policy_approvals = matches!(schema.value(), "6" | "7");
+    let grants = matches!(schema.value(), "5" | "6" | "7");
+    let extensions = matches!(schema.value(), "4" | "5" | "6" | "7");
+    let reapproval = matches!(schema.value(), "3" | "4" | "5" | "6" | "7");
     let family = match schema.value() {
         "1" => {
             if config.len().map_err(db_error)? != 2 {
@@ -111,7 +118,7 @@ pub(super) fn admit_schema(
             }
             None
         }
-        "2" | "3" | "4" | "5" | "6" => {
+        "2" | "3" | "4" | "5" | "6" | "7" => {
             if config.len().map_err(db_error)? != 3 {
                 return Err(Error::Internal);
             }
@@ -168,6 +175,7 @@ pub(super) fn admit_schema(
         extensions,
         grants,
         policy_approvals,
+        replacements,
     })
 }
 
@@ -269,6 +277,13 @@ impl Store {
         }
         if operation.invitation.application != account.application_id {
             return Err(Error::Unauthorized);
+        }
+        match &operation.replacement {
+            Some(replacement) if self.enrollment_replacements => {
+                replacement.previous(&operation.invitation)?;
+            }
+            None if operation.invitation.generation == 1 => {}
+            _ => return Err(Error::Internal),
         }
         Ok(operation)
     }

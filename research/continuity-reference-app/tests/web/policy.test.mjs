@@ -10,6 +10,22 @@ import {bytes, Storage, fixture as grantFixture} from './grant-fixture.mjs';
 const preview = c => ({value: {state: 'Absent', review: c.review}});
 const history = text => ({value: {state: 'Issued', response: base64(new TextEncoder().encode(text))}});
 
+test('policy preparation and older backup imports retain schema5 replacement history', async () => {
+  const c = fixture(async () => preview(c)), old = c.records.export();
+  const replacement = c.enrollment.replacement(c.key, c.root, {state: 'Issued', response: base64(new TextEncoder().encode(c.issued))});
+  const row = c.records.find(replacement);
+  assert.equal(c.records.read().schema, 5);
+  const policy = await c.prepare();
+  assert.equal(c.records.read().schema, 5);
+  assert.deepEqual(c.records.find(replacement), row);
+  assert.equal(c.records.findPolicyApproval(policy).state, 'Prepared');
+  c.records.merge(old);
+  assert.equal(c.records.read().schema, 5);
+  const imported = new Records(new Storage(), c.records.origin, c.records.application);
+  imported.merge(c.records.export());
+  assert.equal(imported.export(), c.records.export());
+});
+
 test('policy preparation only previews; schema4 keeps all older histories and the exact u64 request', async () => {
   const calls = [], c = fixture(async path => { calls.push(path); return preview(c); });
   const old = c.records.export(), before = c.storage.getItem(c.records.key);

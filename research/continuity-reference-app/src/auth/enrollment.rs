@@ -6,6 +6,16 @@ use crate::{
 };
 
 impl Service {
+    pub fn invite_device_replacement(
+        &mut self,
+        token: &str,
+        request: &crate::enrollment::DeviceReplacementRequest,
+    ) -> Result<Invitation, Error> {
+        let account = self.authenticated(token)?;
+        let result = self.store.invite_device_replacement(&account, request)?;
+        self.authenticated(token)?;
+        Ok(result)
+    }
     pub fn preview_policy_approval(
         &mut self,
         token: &str,

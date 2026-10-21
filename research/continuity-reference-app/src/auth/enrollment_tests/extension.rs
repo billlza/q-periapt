@@ -4,7 +4,11 @@ mod historical;
 use super::*;
 use crate::enrollment::{CredentialExtensionRequest, IssuedCredentialExtension};
 
-fn issued(host: &mut Service, path: &Path, token: &str) -> Result<(Invitation, Vec<u8>, Vec<u8>)> {
+pub(super) fn issued(
+    host: &mut Service,
+    path: &Path,
+    token: &str,
+) -> Result<(Invitation, Vec<u8>, Vec<u8>)> {
     let original = host.invite_enrollment(token, crate::enrollment::random()?)?;
     let (_, proof) = request(path, &original)?;
     host.approve_enrollment(token, original.operation, &proof)?;
@@ -12,7 +16,7 @@ fn issued(host: &mut Service, path: &Path, token: &str) -> Result<(Invitation, V
     Ok((original, proof, result))
 }
 
-fn extension(
+pub(super) fn extension(
     host: &mut Service,
     token: &str,
     original: &Invitation,

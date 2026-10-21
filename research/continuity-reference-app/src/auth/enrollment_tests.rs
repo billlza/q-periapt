@@ -212,8 +212,10 @@ fn root_suspension_fences_pending_approval_but_preserves_historical_result() -> 
 mod crash;
 mod extension;
 mod grant;
+mod historical;
 mod reapproval;
 mod reapproval_crash;
+mod replacement;
 
 #[test]
 fn admitted_root_never_regenerates_a_missing_wrapping_key() -> Result {

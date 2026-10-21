@@ -39,6 +39,10 @@
     <div class="actions"><button id="reapprove-request" type="button" class="secondary">Reapprove against displayed roster</button><button id="select-successor" type="button" class="secondary">Select recorded successor</button><button id="cancel-operation" type="button" class="secondary">Cancel selected pending operation</button></div>
     <p>Reapproval keeps the original device description and credential interval. An already approved request cannot change keys. An unapproved source can receive a separately selected request through a new explicit decision; earlier requests remain retained. Reapproval cannot renew an expired credential. A recorded successor must be selected explicitly.</p>
     <div class="actions"><button id="save-issued" type="button" class="secondary">Save historical issuance result</button><button id="save-records" type="button" class="secondary">Back up browser recovery records</button></div>
+    <h3>Replace the selected device</h3>
+    <p>Recover its original issued operation and review the current roster. A replacement invitation keeps the device identity and advances its generation. Generate fresh keys on the replacement device, then load and approve its new public request above.</p>
+    <div class="actions"><button id="replace-device" type="button" class="secondary">Create replacement invitation against displayed roster</button></div>
+    <p>Issuance replaces this member in the account roster. Complete the witness replacement separately to retire the old device there. Keep both original storage and failed attempts for recovery.</p>
     <h3>Renew the selected device credential</h3>
     <p>Renewal extends this device's existing keys. Review the expiry and current roster before approving. Protocol policy and retained-session recovery require their own authorization.</p>
     <label for="renewal-base">Credential to extend</label><select id="renewal-base"><option value="">Original issued credential</option></select>

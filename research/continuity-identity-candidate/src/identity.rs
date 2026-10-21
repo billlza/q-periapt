@@ -387,6 +387,12 @@ impl AccountPin {
         roster.check_time(trusted_time)?;
         Ok(roster)
     }
+    /// Authenticate an exact signed roster as historical metadata, including an
+    /// expired or empty roster. The pin must be independently retained. This
+    /// does not check current time, advance durable authority or admit traffic.
+    pub fn verify_historical_roster(&self, wire: &[u8]) -> Result<VerifiedRoster, Error> {
+        self.authenticate_roster(wire)
+    }
     fn authenticate_roster(&self, wire: &[u8]) -> Result<VerifiedRoster, Error> {
         let (body, signature) = open_envelope(wire)?;
         self.root.verify(Purpose::Roster, body, signature)?;
@@ -462,7 +468,9 @@ impl VerifiedRoster {
     pub(crate) fn historical_pin(&self, checkpoint: RosterCheckpoint) -> Result<AccountPin, Error> {
         AccountPin::new(self.account, self.root.clone(), checkpoint, self.family)
     }
-    pub(crate) fn members(&self) -> impl Iterator<Item = ([u8; 16], u64, [u8; 32])> + '_ {
+    /// Authenticated device IDs, generations and credential digests. Iterating
+    /// historical membership alone grants no current permission.
+    pub fn members(&self) -> impl Iterator<Item = ([u8; 16], u64, [u8; 32])> + '_ {
         self.entries
             .iter()
             .map(|entry| (entry.id, entry.generation, entry.certificate))
@@ -479,7 +487,9 @@ impl VerifiedRoster {
     pub(crate) fn check_time(&self, now: u64) -> Result<(), Error> {
         self.validity.check(now)
     }
-    pub(crate) fn validity(&self) -> Validity {
+    /// Authenticated roster interval. This historical metadata alone grants no
+    /// current membership or traffic permission.
+    pub fn validity(&self) -> Validity {
         self.validity
     }
     pub(crate) fn same_authority(&self, other: &Self) -> bool {

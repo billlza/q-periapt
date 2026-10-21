@@ -18,27 +18,11 @@ impl Store {
                     "Invitation request identity must be nonzero",
                 ));
             }
-            let mut request_key = account.application_id.to_vec();
-            request_key.extend_from_slice(&request_id);
-            let saved = store
-                .db
-                .begin_read()
-                .map_err(db_error)?
-                .open_table(REQUESTS)
-                .map_err(db_error)?
-                .get(request_key.as_slice())
-                .map_err(db_error)?
-                .map(|v| <[u8; 32]>::try_from(v.value()).map_err(|_| Error::Internal))
-                .transpose()?;
-            if let Some(operation) = saved {
-                let original = store
-                    .operation(account, operation)
-                    .map_err(|e| Error::internal("original invitation index", e))?;
-                if original.invitation.request_id != request_id {
-                    return Err(Error::Internal);
-                }
-                if matches!(original.phase, Phase::Closed) {
-                    return Err(Error::Conflict("Original invitation is closed"));
+            if let Some(original) = store.invitation_for_request(account, request_id)? {
+                if original.replacement.is_some() {
+                    return Err(Error::Conflict(
+                        "Correlation identity belongs to a replacement invitation",
+                    ));
                 }
                 return Ok(original.invitation);
             }
@@ -65,52 +49,7 @@ impl Store {
                 deadline: now.checked_add(300).ok_or(Error::Capacity)?,
                 predecessor: info.roster.as_ref().map(|r| r.checkpoint),
             };
-            let tx = transaction(&store.db)?;
-            {
-                let table = tx.open_table(OPERATIONS).map_err(db_error)?;
-                if table.len().map_err(db_error)? >= MAX_OPERATIONS {
-                    return Err(Error::Capacity);
-                }
-                if table
-                    .get(invitation.operation.as_slice())
-                    .map_err(db_error)?
-                    .is_some()
-                {
-                    return Err(Error::Internal);
-                }
-                let mut pending = 0;
-                for row in table.iter().map_err(db_error)? {
-                    let (_, value) = row.map_err(db_error)?;
-                    let op: Operation = decode(value.value(), MAX_RECORD)?;
-                    if op.invitation.application == account.application_id
-                        && matches!(op.phase, Phase::Invited | Phase::Approved { .. })
-                    {
-                        pending += 1;
-                    }
-                }
-                if pending >= 8 {
-                    return Err(Error::Capacity);
-                }
-            }
-            save_operation(
-                &tx,
-                &Operation {
-                    invitation: invitation.clone(),
-                    phase: Phase::Invited,
-                },
-            )?;
-            tx.open_table(REQUESTS)
-                .map_err(db_error)?
-                .insert(request_key.as_slice(), invitation.operation.as_slice())
-                .map_err(db_error)?;
-            #[cfg(test)]
-            test_boundary(
-                "invitation-before-commit",
-                &encode(&invitation, MAX_RECORD)?,
-            )?;
-            tx.commit().map_err(db_error)?;
-            #[cfg(test)]
-            test_boundary("invitation-after-commit", &encode(&invitation, MAX_RECORD)?)?;
+            store.persist_invitation(account, &invitation, None)?;
             Ok(invitation)
         })
     }
@@ -141,9 +80,7 @@ impl Store {
             op.invitation.current(now()?)?;
             let root = store.root(account)?;
             root.admits(&op.invitation, store.family()?)?;
-            let intent = op.invitation.intent().map_err(db_error)?;
-            let verified = sdk::VerifiedEnrollmentRequest::verify(request, &intent, now()?)
-                .map_err(|_| Error::Invalid("Request does not prove the approved device intent"))?;
+            let verified = op.verify_request(&root, store.family()?, request, now()?)?;
             let key = signer_scope(account, &root, &verified);
             let tx = transaction(&store.db)?;
             {
@@ -183,28 +120,28 @@ impl Store {
             op.invitation.current(now()?)?;
             let mut root = store.root(account)?;
             root.admits(&op.invitation, store.family()?)?;
-            if root.members.len() >= sdk::MAX_DEVICES {
+            if op.replacement.is_none() && root.members.len() >= sdk::MAX_DEVICES {
                 return Err(Error::Capacity);
             }
-            if root
-                .members
-                .iter()
-                .any(|m| m.device == op.invitation.device)
+            if op.replacement.is_none()
+                && root
+                    .members
+                    .iter()
+                    .any(|m| m.device == op.invitation.device)
             {
                 return Err(Error::Conflict(
                     "Device identity already belongs to the current roster",
                 ));
             }
             let signer = store.open_signer(&root)?;
-            let intent = op.invitation.intent().map_err(db_error)?;
-            let verified = sdk::VerifiedEnrollmentRequest::verify(&request, &intent, now()?)
-                .map_err(db_error)?;
+            let verified = op.verify_request(&root, store.family()?, &request, now()?)?;
             let certificate = signer
                 .issue_enrollment(&verified, now()?)
                 .map_err(db_error)?;
             let mut entries = root
                 .members
                 .iter()
+                .filter(|m| op.replacement.is_none() || m.device != op.invitation.device)
                 .map(|m| signer.roster_entry(&m.certificate))
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(db_error)?;
@@ -215,13 +152,20 @@ impl Store {
                 .map_or(0, |p| p.version)
                 .checked_add(1)
                 .ok_or(Error::Capacity)?;
+            let validity = match &op.replacement {
+                Some(replacement) => {
+                    let previous = replacement.roster(&op.invitation)?.validity();
+                    sdk::Validity::new(
+                        previous.from().min(op.invitation.valid_from),
+                        previous.until().max(op.invitation.valid_until),
+                    )
+                    .map_err(db_error)?
+                }
+                None => sdk::Validity::new(op.invitation.valid_from, op.invitation.valid_until)
+                    .map_err(db_error)?,
+            };
             let roster = signer
-                .issue_roster(
-                    version,
-                    sdk::Validity::new(op.invitation.valid_from, op.invitation.valid_until)
-                        .map_err(db_error)?,
-                    &entries,
-                )
+                .issue_roster(version, validity, &entries)
                 .map_err(db_error)?;
             let response = encode(
                 &IssuedEnrollment {
@@ -233,10 +177,18 @@ impl Store {
                 },
                 MAX_RECORD,
             )?;
-            root.members.push(Member {
-                device: op.invitation.device,
-                certificate,
-            });
+            if op.replacement.is_some() {
+                root.members
+                    .iter_mut()
+                    .find(|m| m.device == op.invitation.device)
+                    .ok_or(Error::Internal)?
+                    .certificate = certificate;
+            } else {
+                root.members.push(Member {
+                    device: op.invitation.device,
+                    certificate,
+                });
+            }
             root.roster = Some(RosterSnapshot {
                 checkpoint: roster.checkpoint().into(),
                 bytes: roster.as_bytes().to_vec(),
@@ -304,5 +256,94 @@ impl Store {
             save_operation(&tx, &op)?;
             tx.commit().map_err(db_error)
         })
+    }
+}
+
+impl Store {
+    pub(super) fn invitation_for_request(
+        &self,
+        account: &Account,
+        request_id: [u8; 32],
+    ) -> Result<Option<Operation>, Error> {
+        let mut key = account.application_id.to_vec();
+        key.extend_from_slice(&request_id);
+        let saved = self
+            .db
+            .begin_read()
+            .map_err(db_error)?
+            .open_table(REQUESTS)
+            .map_err(db_error)?
+            .get(key.as_slice())
+            .map_err(db_error)?
+            .map(|v| <[u8; 32]>::try_from(v.value()).map_err(|_| Error::Internal))
+            .transpose()?;
+        let Some(id) = saved else {
+            return Ok(None);
+        };
+        let original = self
+            .operation(account, id)
+            .map_err(|e| Error::internal("original invitation index", e))?;
+        if original.invitation.request_id != request_id {
+            return Err(Error::Internal);
+        }
+        if matches!(original.phase, Phase::Closed) {
+            return Err(Error::Conflict("Original invitation is closed"));
+        }
+        Ok(Some(original))
+    }
+
+    pub(super) fn persist_invitation(
+        &self,
+        account: &Account,
+        invitation: &Invitation,
+        replacement: Option<replacement::Intent>,
+    ) -> Result<(), Error> {
+        let mut key = account.application_id.to_vec();
+        key.extend_from_slice(&invitation.request_id);
+        let tx = transaction(&self.db)?;
+        {
+            let table = tx.open_table(OPERATIONS).map_err(db_error)?;
+            if table.len().map_err(db_error)? >= MAX_OPERATIONS {
+                return Err(Error::Capacity);
+            }
+            if table
+                .get(invitation.operation.as_slice())
+                .map_err(db_error)?
+                .is_some()
+            {
+                return Err(Error::Internal);
+            }
+            let mut pending = 0;
+            for row in table.iter().map_err(db_error)? {
+                let (_, value) = row.map_err(db_error)?;
+                let op: Operation = decode(value.value(), MAX_RECORD)?;
+                if op.invitation.application == account.application_id
+                    && matches!(op.phase, Phase::Invited | Phase::Approved { .. })
+                {
+                    pending += 1;
+                }
+            }
+            if pending >= 8 {
+                return Err(Error::Capacity);
+            }
+        }
+        save_operation(
+            &tx,
+            &Operation {
+                invitation: invitation.clone(),
+                phase: Phase::Invited,
+                replacement,
+            },
+        )?;
+        tx.open_table(REQUESTS)
+            .map_err(db_error)?
+            .insert(key.as_slice(), invitation.operation.as_slice())
+            .map_err(db_error)?;
+        #[cfg(test)]
+        test_boundary("invitation-before-commit", &encode(invitation, MAX_RECORD)?)?;
+        tx.commit().map_err(db_error)?;
+        #[cfg(test)]
+        test_boundary("invitation-after-commit", &encode(invitation, MAX_RECORD)?)?;
+        Ok(())
     }
 }
