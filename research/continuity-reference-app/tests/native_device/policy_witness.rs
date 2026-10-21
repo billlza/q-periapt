@@ -11,6 +11,9 @@ use q_periapt_continuity_reference_app::{
 };
 use std::{process::Stdio, thread, time::Duration};
 
+#[path = "policy_witness_credential.rs"]
+mod credential;
+
 struct Update {
     r: Refresh,
     request: PolicyRequest,

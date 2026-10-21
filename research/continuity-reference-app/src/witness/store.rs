@@ -309,6 +309,38 @@ impl Witness {
         let config = self.config()?;
         policy_renewal::close(&mut self.original_store(&config)?, trust, preparation)
     }
+    /// Independently prepare the exact selected G under P0 or a retained P.
+    pub fn prepare_credential_renewal(
+        &mut self,
+        trust: &CredentialRenewalTrust,
+        preparation: &crate::credential_grant::witness::Preparation,
+        issued: &crate::credential_grant::IssuedCredentialGrant,
+        now: u64,
+    ) -> Result<crate::credential_grant::witness::Outcome> {
+        let config = self.config()?;
+        credential_renewal::prepare(
+            &mut self.original_store(&config)?,
+            trust,
+            preparation,
+            issued,
+            now,
+        )
+    }
+    /// Retain exact historical closure. Already Applied remains Applied.
+    pub fn close_credential_renewal(
+        &mut self,
+        trust: &CredentialRenewalTrust,
+        preparation: &crate::credential_grant::witness::Preparation,
+        issued: &crate::credential_grant::IssuedCredentialGrant,
+    ) -> Result<crate::credential_grant::witness::Outcome> {
+        let config = self.config()?;
+        credential_renewal::close(
+            &mut self.original_store(&config)?,
+            trust,
+            preparation,
+            issued,
+        )
+    }
     /// Open the exact original store for one signed request. An unknown commit
     /// remains an error; the caller may later reconcile that original request.
     pub fn handle(

@@ -11,6 +11,8 @@ use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
 };
+#[path = "../witness_credential_cli.rs"]
+mod credential;
 #[path = "../operator_io.rs"]
 mod operator_io;
 #[path = "../witness_policy_cli.rs"]
@@ -21,10 +23,13 @@ mod replacement;
 mod roster;
 use operator_io::{export_directory, identifier, print, read, Result};
 
-const USAGE: &str = "q-periapt-continuity-witness <init|prepare|pin|export|enroll|serve|replacement-prepare|replacement-commit|replacement-status|roster-prepare|roster-close|policy-prepare|policy-close> <absolute-host-db> <retained-base64url-identity>\nexport: <existing-empty-private-export-directory>\nenroll: <independently-approved-trust-json> <device-preparation-json>\nreplacement-prepare: <independently-approved-replacement-trust-json> <new-device-preparation-json> <existing-empty-private-export-directory>\nreplacement-commit: <same-replacement-trust-json> <same-device-preparation-json> <retained-decision-json>\nreplacement-status: <retained-decision-json>\nroster-prepare/roster-close: <independently-approved-roster-trust-json> <retained-roster-request-json>\npolicy-prepare/policy-close: <independently-approved-policy-trust-json> <retained-policy-preparation-json>\nserve: <numeric-IP:port>\nRetain all original files after errors. Enrollment and replacement are trusted local operator actions, separate from account login and device export.";
+const USAGE: &str = "q-periapt-continuity-witness <init|prepare|pin|export|enroll|serve|replacement-prepare|replacement-commit|replacement-status|roster-prepare|roster-close|policy-prepare|policy-close|credential-prepare|credential-close> <absolute-host-db> <retained-base64url-identity>\nexport: <existing-empty-private-export-directory>\nenroll: <independently-approved-trust-json> <device-preparation-json>\nreplacement-prepare: <independently-approved-replacement-trust-json> <new-device-preparation-json> <existing-empty-private-export-directory>\nreplacement-commit: <same-replacement-trust-json> <same-device-preparation-json> <retained-decision-json>\nreplacement-status: <retained-decision-json>\nroster-prepare/roster-close: <independently-approved-roster-trust-json> <retained-roster-request-json>\npolicy-prepare/policy-close: <independently-approved-policy-trust-json> <retained-policy-preparation-json>\ncredential-prepare/credential-close: <independently-approved-credential-trust-json> <retained-credential-preparation-json> <issued-grant-json>\nserve: <numeric-IP:port>\nRetain all original files after errors. Enrollment and replacement are trusted local operator actions, separate from account login and device export.";
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();
     let command = args.get(1).and_then(|value| value.to_str()).ok_or(USAGE)?;
+    if matches!(command, "credential-prepare" | "credential-close") {
+        return credential::run(&args);
+    }
     if matches!(command, "policy-prepare" | "policy-close") {
         return policy::run(&args);
     }

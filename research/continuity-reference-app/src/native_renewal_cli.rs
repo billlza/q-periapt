@@ -5,10 +5,9 @@ use super::{
     operator_io::{identifier, print},
     Result, USAGE,
 };
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use q_periapt_continuity_identity_candidate::CredentialRenewalStatus;
 use q_periapt_continuity_reference_app::{
-    credential_grant::{CredentialGrantRequest, IssuedCredentialGrant},
+    credential_grant::{witness::Preparation, CredentialGrantRequest, IssuedCredentialGrant},
     enrollment::{Checkpoint, Invitation, RootInfo},
     native_device::{clock, CredentialRecoveryInputs, NativeDevice},
     policy_publisher::{PolicyMaterials, PolicyPins},
@@ -174,8 +173,7 @@ pub(super) fn run(args: &[OsString]) -> Result<()> {
                 endpoint.ok_or("Witness endpoint is required")?,
                 clock()?,
             )?;
-            let result = json!({"schema":"qperiapt-credential-witness-proposal/1","operation":approval.retained.operation,
-                "journal":approval.retained.journal,"proposal":URL_SAFE_NO_PAD.encode(proposal.to_bytes())});
+            let result = Preparation::from_proposal(proposal, approval.retained.journal)?;
             publish_private_bytes(Path::new(&args[13]), &serde_json::to_vec(&result)?)?;
             owner.close();
             json!({"state":"RequiresWitnessApproval","operation":approval.retained.operation,"journal":approval.retained.journal})

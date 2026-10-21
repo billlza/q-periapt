@@ -5,11 +5,13 @@ use q_periapt_continuity_identity_candidate as sdk;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+mod credential_renewal;
 mod enrollment;
 mod policy_renewal;
 mod replacement;
 mod roster_refresh;
 mod store;
+pub use credential_renewal::{CredentialPolicy, CredentialRenewalTrust};
 pub use enrollment::{EnrollmentRequest, EnrollmentTrust};
 pub use policy_renewal::PolicyRenewalTrust;
 pub use replacement::{

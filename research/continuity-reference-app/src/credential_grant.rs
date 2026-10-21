@@ -6,6 +6,7 @@ use crate::{
     native_device::RetainedCredentialRequest,
 };
 use serde::{Deserialize, Serialize};
+pub mod witness;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]

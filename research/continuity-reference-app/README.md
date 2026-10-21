@@ -293,8 +293,9 @@ with exact preparation, atomic commit and historical outcome observation.
 The native survivor and witness also expose [own-account roster refresh](ROSTER_REFRESH.md),
 preserving the original device, journal and established sessions through an
 explicitly approved roster/head transaction, including after independent witnessed
-P renewal. Independent G/T approval, account-root replacement and witness
-replication remain separate operator requirements.
+P renewal. The witness also supports [original credential renewal](WITNESSED_CREDENTIAL_RENEWAL.md)
+under P0 or an acknowledged independent P. Joint T approval, account-root
+replacement and witness replication remain separate operator requirements.
 
 Protocol references: [WebAuthn Level 3](https://www.w3.org/TR/webauthn-3/) and
 [webauthn-rs](https://docs.rs/webauthn-rs/0.5.5/webauthn_rs/).

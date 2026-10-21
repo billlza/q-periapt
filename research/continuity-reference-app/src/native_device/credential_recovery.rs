@@ -334,7 +334,7 @@ impl NativeDevice {
                 )?,
             }
         };
-        let active = ActiveDevice::from_owner(owner)?;
+        let mut active = ActiveDevice::from_owner(owner)?;
         if active.journal() != inputs.issued.journal
             || active.public.checkpoint() != inputs.issued.checkpoint.as_sdk()?
         {
@@ -353,6 +353,9 @@ impl NativeDevice {
             return Err("Current policy expired during credential recovery".into());
         }
         pin.verify_device(active.public.certificate(), active.public.roster(), at)?;
+        if inputs.original_policy.checkpoint() != inputs.policy.checkpoint() {
+            active.original_policy = Some(std::sync::Arc::new(inputs.original_policy.clone()));
+        }
         Ok(active)
     }
 }
