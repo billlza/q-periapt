@@ -69,15 +69,17 @@ def main():
         elif action.startswith('policy_'):
             require(bool(arguments), 'registered policy operation')
             with owner.policy_renewal(arguments[0], now, transport=transport) as child:
-                if action == 'policy_stage':
+                if action in ('policy_stage', 'policy_prepare'):
                     require(len(arguments) == 4, 'registered policy staging inputs')
-                    result = child.stage(*arguments[1:], now=now)
+                    result = getattr(child, 'stage' if action == 'policy_stage' else 'prepare')(*arguments[1:], now=now)
                 elif action in ('policy_commit', 'policy_expire'):
                     require(len(arguments) == 1, 'registered policy transition arguments')
                     result = getattr(child, 'commit' if action == 'policy_commit' else 'reconcile_expired')(now)
                 else:
-                    require(len(arguments) == 1 and action in ('policy_request', 'policy_status'), 'registered policy action')
-                    result = getattr(child, 'request' if action == 'policy_request' else 'status')()
+                    require(len(arguments) == 1 and action in ('policy_request', 'policy_status', 'policy_recover', 'policy_close'),
+                            'registered policy action')
+                    result = getattr(child, {'policy_request':'request', 'policy_status':'status',
+                                            'policy_recover':'recover', 'policy_close':'close_proposal'}[action])()
         elif action.startswith('credential_'):
             require(bool(arguments), 'registered renewal operation')
             with owner.credential_renewal(arguments[0], now, transport=transport) as child:

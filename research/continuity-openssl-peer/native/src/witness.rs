@@ -29,6 +29,21 @@ pub(super) struct Witness {
 }
 
 impl Witness {
+    pub fn approve_policy(
+        &self,
+        proposal: q_periapt_continuity_identity_candidate::AnchorPolicyRenewalProposal,
+        proof: &q_periapt_continuity_identity_candidate::VerifiedPolicyRenewal,
+        materials: &q_periapt_continuity_identity_candidate::PolicyRenewalMaterials<'_>,
+    ) -> Result<()> {
+        self.store
+            .lock()
+            .map_err(|_| "witness lock poisoned")?
+            .as_mut()
+            .ok_or("closed witness")?
+            .prepare_policy_renewal(proposal, proof, materials, self.now.load(Ordering::SeqCst))?;
+        Ok(())
+    }
+
     pub fn transport(self: &Arc<Self>) -> Box<dyn AnchorTransport> {
         Box::new(Carrier(Arc::clone(self)))
     }
@@ -257,6 +272,20 @@ impl Witness {
                         self.now.load(Ordering::SeqCst),
                     )?;
                 Ok(format!("{result:?}").into_bytes())
+            }
+            43 | 44 => {
+                let issuer = fixture
+                    .policy_renewal
+                    .as_ref()
+                    .ok_or("policy issuer unavailable")?;
+                let mut store = self.store.lock().map_err(|_| "witness lock poisoned")?;
+                issuer.witness_request(
+                    fixture,
+                    store.as_mut().ok_or("closed witness")?,
+                    payload,
+                    command == 44,
+                    self.now.load(Ordering::SeqCst),
+                )
             }
             _ => Err("witness test command shape".into()),
         }

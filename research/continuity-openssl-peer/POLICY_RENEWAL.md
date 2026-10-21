@@ -1,10 +1,10 @@
-# Original local policy renewal
+# Original policy renewal
 
 The independent reference now coordinates policy-only renewal through the same
-protected registration and its original session journal. The implementation is
-local-only. A required-witness registration is explicitly refused by this entry
-point; its independent P transaction and current-policy witness admission remain
-unfinished. This document does not change the candidate's release status.
+protected registration and its original session journal. Local and required-witness
+profiles use separate coordination paths, selected by the original registration.
+The required profile needs its original witness transport; it cannot fall back to
+local commits. This document does not change the candidate's release status.
 
 The existing original device, journal, handshake transcript, session, outboxes and
 reserved work remain in place. Renewal extends only the policy version and end
@@ -93,6 +93,45 @@ recovery, while operational admission requires the actually committed live
 policy. The original transcript's P0 fields are never replaced with a fresh
 bootstrap context.
 
+## Required-witness coordination
+
+Pass the same original witness carrier to `client.policy_renewal`. `request()`
+reads the actual retained predecessor. Obtain the two root approvals and target
+trust inputs through the host's authorization path, then call
+`prepare(approval, policy_pins_json, policy_materials_json, now)`. This returns the
+296-byte `QPPWNP01` proposal. It commits to the original witness subject, operation,
+statement, expected head and sealed target head. Preparation retains the first
+exact sealed image; retries do not re-sign or reseal it.
+
+The host submits the proposal, the approvals and their signed policy/identity
+materials to the independently authorized witness service. Device possession or
+the ordinary signed byte carrier cannot approve this step. Until preparation is
+observed there, `status()` returns `Unavailable` and `commit(now)` refuses.
+Unavailable is never evidence that the operation did not commit.
+
+After independent preparation, `commit(now)` rechecks the current target and
+identity validity before sending the typed P commit. `recover()` queries this
+same operation after lost replies or process interruption. `close_proposal()`
+requests a definitive `Closed` outcome when still Prepared; an already Applied
+operation remains Applied. Closed retires the target's policy version even if its
+predecessor remains installed. Reusing that version or operation does not revive
+permission. The local `ExpiredUncommitted` disposition is not used in this path.
+
+The coordinator retains the exact Applied/Closed result before ACK and intent
+cleanup. It keeps one current policy authorization and the latest P disposition,
+alongside existing G/R history. `Applied` and `Closed` remain historical outcomes,
+not traffic leases. A session checks command 15, which binds current account
+authority and the exact adopted policy statement, before work and before release.
+An unavailable reply at either boundary withholds the output. Command 4 cannot
+substitute for this policy check.
+
+`QPRFPI01` authenticates the original sealed P intent; `QPRFLC04` wraps typed P
+control around existing G/R control. Neither wrapper replaces the original
+journal subject. Local G/R time floors and witness P version floors remain
+different constraints. Independent G/R composition after P is not yet qualified.
+
+## Validation drivers
+
 `local_policy_checks.py` exercises original registered 3/32-member accounts,
 sequential native approvals, real native continuation, original write recovery,
 old and new traffic, and PQ rekey under explicit fixture clocks.
@@ -100,6 +139,15 @@ old and new traffic, and PQ rekey under explicit fixture clocks.
 pending target, simultaneous current and pending records, and parent-close
 recovery. The installation runner requires both drivers using the selected wheel
 outside the checkout and rechecks their source/native identities. A source run
-alone does not qualify the installed package. Neither run is a device,
-required-witness P or full release qualification.
-Independent G/R composition after P and the witness P path remain open.
+alone does not qualify the installed package.
+`witness_policy_checks.py` exercises required-witness P with real native peers,
+lost commit/ACK replies, exact-head recovery, closed-version retirement and fresh
+policy admission at both output boundaries, and PQ rekey followed by native
+decryption in the new epoch. The rekey observation is not a PCS proof.
+`witness_policy_boundary_checks.py`
+retains the full 123-outbox, two-epoch business store through expired-target
+closure, parent cancellation and a later applied policy. It also checks that
+expiry sends no Commit and that policy metadata cannot fund more business data.
+The installation runner requires both witness drivers as well. Installed-package
+qualification and G/R composition after P still need their own evidence. None of
+these drivers is a device or full release qualification.

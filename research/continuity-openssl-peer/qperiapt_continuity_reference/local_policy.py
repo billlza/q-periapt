@@ -6,15 +6,14 @@ import threading
 from .authority import authenticate_policy
 from .durable import Session
 from .enrollment_exchange import PolicyInputs
-from .identity_state import local_view
 from .journal import LocalSessionJournal, locked
 from .local_authority_control import admit_snapshot
 from .owner_guard import coordinated
-from .policy_record import Grant, Record, retained_device
+from .policy_record import Grant, Record
+from .policy_owner_inputs import certificate, check_original, public_request
 from .policy_snapshot import current_device, original, validate
-from .renewal import field
 from .state_codec import decode, encode
-from .wire import Reader, require
+from .wire import require
 from .witness import fixed
 
 
@@ -28,10 +27,7 @@ class LocalPolicyRenewal:
         require(context.witness is None, "required policy renewal needs its witness coordinator")
         Session._scope(context, scope)
         fixed(operation, 32)
-        original(context)
-        first = retained_device(context.devices[0], inputs.materials.initiator_credential,
-                                inputs.materials.initiator_roster, context.devices[0].pin.checkpoint(), context.family)
-        require(first == context.devices[0], "policy original credential inputs differ")
+        check_original(context, inputs)
         journal = LocalSessionJournal.open(path, scope, key, Session._validator(context), observer=observer)
         owner = cls(journal, context, operation, inputs)
         try:
@@ -68,17 +64,7 @@ class LocalPolicyRenewal:
                 record.current_time(now)
 
     def _certificate(self, state, current):
-        view = local_view(state, self._context)
-        if view is None or view.renewal is None:
-            wire = self._inputs.materials.initiator_credential
-        else:
-            reader = Reader(view.renewal.wire)
-            require(reader.take(8) == b"QPRNB001", "retained credential grant tag")
-            signed, first, prior, wire = (field(reader) for _ in range(4))
-        checked = retained_device(self._context.devices[0], wire, current.roster_wire,
-                                  current.pin.checkpoint(), self._context.family)
-        require(checked == current, "policy current credential differs from actual journal")
-        return wire
+        return certificate(state, self._context, current, self._inputs)
 
     def _save(self, snapshot, state, record, label):
         state.policy_renewal, state.policy_journal = record, self._journal.scope.identity
@@ -92,13 +78,8 @@ class LocalPolicyRenewal:
     def request(self):
         try:
             with self._state() as (_, state, record, current):
-                scope = record.request(self.operation, *self._arguments(current))
-                previous = original(self._context) if record.active is None else record.active.target
-                return {"scope": scope.wire(), "original_policy": original(self._context).wire,
-                        "previous_policy": previous.wire,
-                        "original_credential": self._inputs.materials.initiator_credential,
-                        "original_roster": self._inputs.materials.initiator_roster,
-                        "current_credential": self._certificate(state, current), "current_roster": current.roster_wire}
+                return public_request(state, self._context, record, current, self._inputs,
+                                      self.operation, self._journal.scope.identity)
         except BaseException:
             self.close()
             raise

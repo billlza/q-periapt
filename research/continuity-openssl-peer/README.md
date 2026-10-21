@@ -418,9 +418,12 @@ unchanged policy profile are mandatory. Historical signature verification grants
 no current permission. This is a proof interoperability prerequisite: independent
 durable policy adoption, witness admission and post-expiry session continuation
 are not provided by this verifier alone. The separate
-[original local policy coordinator](POLICY_RENEWAL.md) now connects the proof and
-record to the registered original journal and existing session. Required-witness
-P and G/R composition after P remain open.
+[original policy coordinator](POLICY_RENEWAL.md) connects the proof and record to
+the registered original journal and existing session. Its required-witness path
+uses a separately typed P transaction and fresh policy admission before work and
+output. Its full-store driver covers expired targets and original-state recovery;
+installed witness qualification and G/R composition after P retain their own
+acceptance boundaries.
 
 `policy_record_checks.py` reuses those exact native inputs to check bounded
 Pending/Committed/ExpiredUncommitted metadata and sequential predecessor binding.

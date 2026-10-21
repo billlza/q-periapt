@@ -5,6 +5,7 @@ import hmac
 from .local_renewal_protocol import Proposal
 from .wire import Reader, MAX_U64, require
 from .roster_control import Control as RosterControl
+from .policy_control import Control as PolicyControl
 
 DOMAIN = b"Q-PERIAPT-INDEPENDENT-LOCAL-AUTHORITY/v1/"
 
@@ -21,6 +22,7 @@ class Control:
     account_binding: bytes | None = None
     active_account_binding: bytes | None = None
     roster: RosterControl | None = None
+    policy: PolicyControl | None = None
 
     def __post_init__(self):
         require(type(self.phase) is int and self.phase in range(6) and type(self.floor) is int
@@ -56,9 +58,13 @@ class Control:
             require(self.active_account_binding is None, "active account requires complete account mode")
         require(self.roster is None or self.roster.ready() or self.phase in (0, 4, 5),
                 "overlapping credential and roster coordination")
+        require(self.policy is None or self.policy.ready()
+                or (self.phase in (0, 4, 5) and (self.roster is None or self.roster.ready())),
+                "overlapping policy and credential/roster coordination")
 
     def ready(self):
-        return self.phase in (0, 4, 5) and (self.roster is None or self.roster.ready())
+        return (self.phase in (0, 4, 5) and (self.roster is None or self.roster.ready())
+                and (self.policy is None or self.policy.ready()))
 
     def wire(self, scope):
         tag = b"QPRFLC01" if self.account_binding is None else b"QPRFLC02"
@@ -69,6 +75,8 @@ class Control:
             value += self.account_binding + (self.active_account_binding or bytes(32))
         if self.roster is not None:
             value = b"QPRFLC03" + self.roster.wire() + value
+        if self.policy is not None:
+            value = b"QPRFLC04" + self.policy.wire() + value
         return value
 
 
@@ -76,12 +84,16 @@ def read(journal):
     data = journal._admit().read("authority")
     if data is None:
         return None
-    require(len(data) in (177, 513, 577, 660, 996, 1060), "authority control size")
+    sizes = (177, 513, 577, 660, 996, 1060)
+    require(len(data) in sizes + tuple(size + 434 for size in sizes), "authority control size")
     body = data[:-32]
     require(hmac.compare_digest(hmac.digest(journal._intent_key, DOMAIN + body, "sha256"), data[-32:]),
             "authority control authentication")
     r = Reader(body)
     tag = r.take(8)
+    policy = PolicyControl.read(r.take(426)) if tag == b"QPRFLC04" else None
+    if policy is not None:
+        tag = r.take(8)
     roster = RosterControl.read(r.take(475)) if tag == b"QPRFLC03" else None
     if roster is not None:
         tag = r.take(8)
@@ -100,14 +112,20 @@ def read(journal):
         p = roster.proposal
         require(p.witness == journal.profile.pin.binding and p.subject == journal.subject
                 and p.expected.fence == p.target.fence == 1, "roster control original witness/subject")
+    if policy is not None:
+        p = policy.proposal
+        require(p.witness == journal.profile.pin.binding and p.subject == journal.subject
+                and p.expected.fence == p.target.fence == 1, "policy control original witness/subject")
     return Control(phase, floor, active, proposal, checkpoint, binding,
-                   None if active_binding == bytes(32) else active_binding, roster)
+                   None if active_binding == bytes(32) else active_binding, roster, policy)
 
 
 def write(journal, control):
     body = control.wire(journal.scope)
     data = body + hmac.digest(journal._intent_key, DOMAIN + body, "sha256")
     suffix = str(control.phase) if control.roster is None else "r-" + str(control.roster.phase)
+    if control.policy is not None:
+        suffix = "p-" + str(control.policy.phase)
     journal._admit().publish("authority", data, fixed_slot="authority-" + suffix)
     require(read(journal) == control, "authority control durable readback")
 
@@ -130,15 +148,25 @@ def admit_snapshot(journal, state):
                     "local-only authority requires atomic coordination")
         return
     require(state.local_renewal is None, "local coordination cannot bypass required witness")
+    control = read(journal)
+    from .policy_control import admit as admit_policy
+    admit_policy(control, state)
+    require(control is None or control.ready(), "local renewal coordination remains pending")
+    admit_identity_control(state, control)
+
+
+def admit_identity_control(state, control):
+    """Check original G/R dependencies without granting any policy permission."""
     from .identity_state import local_view
     current = local_view(state, state.operation._context)
-    control = read(journal)
+    require(state.local_renewal is None, "local coordination cannot bypass required witness")
     if control is None:
         require(current is None or current.renewal is None, "missing original local authority control")
         require(state.account_renewal is None or state.account_renewal.roster is None,
                 "missing original roster control")
         return
-    require(control.ready(), "local renewal coordination remains pending")
+    require(control.phase in (0, 4, 5) and (control.roster is None or control.roster.ready()),
+            "credential/roster coordination remains pending")
     if current is None or current.renewal is None:
         require(control.active == bytes(32), "local authority control/image mismatch")
     else:

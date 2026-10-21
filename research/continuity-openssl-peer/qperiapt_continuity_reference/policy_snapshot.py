@@ -10,8 +10,8 @@ from .witness import fixed
 
 def original(context):
     policy = context.original_policy
-    require(policy is not None and context.devices is not None and context.witness is None,
-            "local policy continuation needs original authenticated metadata")
+    require(policy is not None and context.devices is not None,
+            "policy continuation needs original authenticated metadata")
     require(policy.checkpoint() == context.policy_version.to_bytes(8, "big") + context.policy_digest
             and policy.sdk == context.sdk and policy.family == context.family
             and policy.validity == context.intervals[0], "original policy context differs")
@@ -37,6 +37,9 @@ def validate(state, context, journal=None):
     if journal is not None:
         require(state.policy_journal == journal, "policy record belongs to another actual journal")
     state.policy_renewal.validate(policy, context.devices[0], state.policy_journal, current_device(state, context))
+    if context.witness is not None:
+        require(state.policy_renewal.pending is None and state.policy_renewal.expired is None
+                and state.policy_renewal.floor == 0, "witness policy cannot use local-only disposition")
 
 
 def encode(state):

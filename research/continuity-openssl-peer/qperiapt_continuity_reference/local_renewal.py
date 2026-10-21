@@ -87,7 +87,7 @@ class LocalRenewal:
         require(p is not None and p.operation == self.operation, "original renewal operation unavailable")
         if intent is not None and control.ready():
             control = Control(1, control.floor, control.active, p, intent.checkpoint,
-                              intent.account_binding, control.active_account_binding, control.roster)
+                              intent.account_binding, control.active_account_binding, control.roster, control.policy)
             write_control(self._journal, control)
         return snapshot, control, intent
 
@@ -162,7 +162,7 @@ class LocalRenewal:
                 retained = Intent(p, target, target_checkpoint, binding)
                 wire = retained.wire(self._journal)
                 pending_control = Control(1, control.floor, control.active, p, target_checkpoint,
-                                          binding, active_binding, control.roster)
+                                          binding, active_binding, control.roster, control.policy)
                 self._journal._admit().quota(len(wire) + len(target)
                                             + 2 * (len(pending_control.wire(self._journal.scope)) + 32), 4)
                 self._journal._admit().publish("intent", wire)
@@ -201,7 +201,7 @@ class LocalRenewal:
         phase, active = (2, p.statement) if outcome == "Applied" else (3, control.active)
         active_binding = control.account_binding if outcome == "Applied" else control.active_account_binding
         terminal = Control(phase, int.from_bytes(control.checkpoint[:8], "big"), active, p, control.checkpoint,
-                           control.account_binding, active_binding, control.roster)
+                           control.account_binding, active_binding, control.roster, control.policy)
         from .maintenance_terminal import Transition, finish
         return finish(self._journal, snapshot, intent, outcome,
                       Transition(p, terminal, replace(terminal, phase=phase + 2), 8,

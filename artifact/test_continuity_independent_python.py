@@ -8,6 +8,66 @@ import zipfile
 
 from continuity_independent_python import DIST, PACKAGE, inspect_wheel, verify_installation, verify_extension_session, verify_roster_profiles, verify_roster_capacity, verify_roster_revocation
 from continuity_independent_python import verify_local_policy_profiles, verify_local_policy_boundary
+from continuity_independent_python import verify_witness_policy_profiles, verify_witness_policy_boundary
+
+
+class WitnessPolicyReceiptTests(unittest.TestCase):
+    def profiles(self):
+        return {"profiles": [{"members": members, "workers": 60, "process_kills": 7, "confirmed_epoch": 1,
+            **{k: "a" * 64 for k in ("journal", "native_journal", "session", "original_wire_sha256")},
+            "adopted": [{"version": v, "now": at, "admission_kinds": [1, 1, 15, 1, 1, 15],
+                **{k: digit * 64 for k in ("operation", "proposal", "statement")}}
+                for v, at, digit in [(2, 190, "b"), (4, 340, "c")]],
+            "refusals": [{"case": f"p{v}-release-withholds-output", "error": "unavailable", "type": "TimeoutError"}
+                         for v in (2, 4)],
+            "native_refusals": [{"case": "different-statement-witness-refused", "error": "policy witness: Protocol(Scope)"},
+                {"case": "closed-version-witness-floor-refused", "error": "policy witness: Protocol(Retired)"}],
+            "denied_operations": ["old-policy-permission-denied", "p2-pending-blocks-session", "p2-unapproved-commit-refused",
+                "p2-lost-actual-commit-reply", "p2-lost-actual-ack-reply", "p2-unavailable-admission-denies-output",
+                "p3-pending-blocks-session", "p3-unapproved-commit-refused", "p3-closed-does-not-admit-expired-predecessor",
+                "closed-version-floor-refused", "p4-pending-blocks-session", "p4-unapproved-commit-refused",
+                "p4-unavailable-admission-denies-output", "expired-current-policy-denied"]} for members in (3, 32)]}
+
+    def boundary(self):
+        return {"profile": {"members": 32, "traffic_bytes": 2031616, "rows": 123, "workers": 24,
+            "process_kills": 5, "payload_bytes": 2091796, "prepared_intent_bytes": 2092400, "expiry_kinds": [12],
+            **{k: "a" * 64 for k in ("journal", "native_journal", "session")},
+            "original_inventory": {"traffic_bytes": 2031616, "outboxes": 123,
+                "epoch_record_hashes": [[0, "b" * 64], [1, "c" * 64]]},
+            "denied_operations": ["expired-prepared-target-cannot-commit", "historical-closure-is-not-permission",
+                                  "current-policy-expiry-denies-full-output"],
+            "refusals": [{"case": name, "error": "refused", "type": "ValueError"} for name in [
+                "parent-close-withholds-policy-proposal", "witness-policy-control-cannot-be-removed",
+                "witness-policy-rejects-local-time-floor", "witness-policy-overall-capacity", "policy-metadata-cannot-fund-business"]]}}
+
+    def test_complete_witness_original_workloads(self):
+        verify_witness_policy_profiles(self.profiles())
+        verify_witness_policy_boundary(self.boundary())
+
+    def test_missing_fresh_release_or_native_floor_cannot_qualify(self):
+        for mutate in [lambda r: r["adopted"][0].update(admission_kinds=[1, 15]),
+                       lambda r: r["adopted"][0].update(admission_kinds=[1, 1, 4, 1, 1, 4]),
+                       lambda r: r["native_refusals"].pop(), lambda r: r["refusals"].pop(),
+                       lambda r: r["denied_operations"].pop(), lambda r: r.update(process_kills=0),
+                       lambda r: r.update(confirmed_epoch=0)]:
+            report = self.profiles(); mutate(report["profiles"][0])
+            with self.assertRaises(ValueError): verify_witness_policy_profiles(report)
+
+    def test_reused_adoption_or_partial_cohort_is_rejected(self):
+        for mutate in [lambda r: r["profiles"].pop(),
+                       lambda r: r["profiles"][1]["adopted"][1].update(statement="b" * 64),
+                       lambda r: r["profiles"][0]["adopted"][0].update(now=True)]:
+            report = self.profiles(); mutate(report)
+            with self.assertRaises(ValueError): verify_witness_policy_profiles(report)
+
+    def test_expired_dispatch_or_partial_original_store_is_rejected(self):
+        for mutate in [lambda r: r.update(expiry_kinds=[12, 11]), lambda r: r.update(expiry_kinds=[]),
+                       lambda r: r.update(workers=True), lambda r: r.update(prepared_intent_bytes=10),
+                       lambda r: r["original_inventory"].update(traffic_bytes=1),
+                       lambda r: r["original_inventory"]["epoch_record_hashes"].pop(),
+                       lambda r: r["refusals"][1].update(error=""), lambda r: r["denied_operations"].pop()]:
+            report = self.boundary(); mutate(report["profile"])
+            with self.assertRaises(ValueError): verify_witness_policy_boundary(report)
 
 
 class LocalPolicyReceiptTests(unittest.TestCase):

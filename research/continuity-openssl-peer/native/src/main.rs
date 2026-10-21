@@ -126,8 +126,8 @@ fn main() -> Result<()> {
     if enrolled_peer && (!registration || account_members.is_none()) {
         return Err("enrolled peer requires registered shared account".into());
     }
-    if policy_lifecycle && (!enrolled_peer || required) {
-        return Err("policy lifecycle requires its original local enrolled peer".into());
+    if policy_lifecycle && !enrolled_peer {
+        return Err("policy lifecycle requires its original enrolled peer".into());
     }
     let options = fixture::Options {
         budget,
@@ -199,7 +199,7 @@ fn main() -> Result<()> {
                 .ok_or("registration fixture unavailable")?
                 .retry(payload)
                 .map_err(|error| error.to_string()),
-            30..=37 | 39 => fixture
+            30..=37 | 39 | 43 | 44 => fixture
                 .witness
                 .as_ref()
                 .ok_or("required witness not configured")?

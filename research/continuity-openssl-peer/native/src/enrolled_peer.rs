@@ -54,10 +54,22 @@ impl Configuration {
             _ => false,
         };
         if !known {
-            let request = owner.policy_renewal_request(
-                PolicyRenewalId::generate()?,
-                fixture.policy.historical(),
-            )?;
+            let operation = PolicyRenewalId::generate()?;
+            let request = if let Some(w) = &fixture.witness {
+                let client = owner.policy_renewal_anchor_client(
+                    fixture.policy.historical(),
+                    w.pin.clone(),
+                    w.transport(),
+                    Duration::from_secs(10),
+                )?;
+                owner.witnessed_policy_renewal_request(
+                    operation,
+                    fixture.policy.historical(),
+                    client,
+                )?
+            } else {
+                owner.policy_renewal_request(operation, fixture.policy.historical())?
+            };
             let approval = issuer.approve(
                 request.scope(),
                 request.original_device(),
@@ -72,15 +84,70 @@ impl Configuration {
                 &target,
                 now,
             )?;
+            if let Some(w) = &fixture.witness {
+                let previous = issuer.policy(request.scope().previous_policy.version())?;
+                let client = owner.policy_renewal_anchor_client(
+                    fixture.policy.historical(),
+                    w.pin.clone(),
+                    w.transport(),
+                    Duration::from_secs(10),
+                )?;
+                let proposal = owner.prepare_witnessed_policy_renewal(
+                    fixture.policy.historical(),
+                    previous.historical(),
+                    &target,
+                    now,
+                    client,
+                )?;
+                w.approve_policy(
+                    proposal,
+                    &approval,
+                    &request.materials(fixture.policy.historical(), previous.historical(), &target),
+                )?;
+            }
         }
-        owner.reconcile_policy_renewal(fixture.policy.historical(), &target, now)?;
+        if let Some(w) = &fixture.witness {
+            if matches!(
+                owner.policy_renewal_status()?,
+                PolicyRenewalStatus::Pending { .. }
+            ) {
+                let proposal = owner
+                    .recover_witnessed_policy_renewal_preparation(fixture.policy.historical())?
+                    .ok_or("native original policy preparation unavailable")?;
+                let mut client = owner.policy_renewal_anchor_client(
+                    fixture.policy.historical(),
+                    w.pin.clone(),
+                    w.transport(),
+                    Duration::from_secs(10),
+                )?;
+                owner.commit_witnessed_policy_renewal(
+                    &proposal,
+                    fixture.policy.historical(),
+                    &target,
+                    now,
+                    &mut client,
+                )?;
+            }
+        } else {
+            owner.reconcile_policy_renewal(fixture.policy.historical(), &target, now)?;
+        }
         let pin = self.pin(fixture, fixture.responder.roster().checkpoint())?;
         let request = self.bundle()?.request_historical_reopen(Arc::new(fixture.policy.historical().clone()),
             BootstrapRequirements { initiator: ExpectedDevice::new(&pin, [1;16], 1)?,
                 responder: ExpectedDevice::new(&pin, [2;16], 1)?, quality: PrekeyQuality::ReusableBoth,
                 directory: q_periapt_continuity_identity_candidate::DirectoryExpectation::from_trusted_state([99;32])? },
             BootstrapRole::Responder, session, now)?;
-        let (active, peer) = owner.activate_policy_renewed_session(request, target, now)?;
+        let (active, peer) = if let Some(w) = &fixture.witness {
+            let client = owner.policy_renewal_anchor_client(
+                fixture.policy.historical(),
+                w.pin.clone(),
+                w.transport(),
+                Duration::from_secs(10),
+            )?;
+            owner.activate_witnessed_policy_renewed_session(request, target, now, client)?
+        } else {
+            owner.activate_policy_renewed_session(request, target, now)?
+        };
         if peer.session_id() != session || peer.context().digest() != fixture.context.digest() {
             return Err("native policy renewal changed original session".into());
         }

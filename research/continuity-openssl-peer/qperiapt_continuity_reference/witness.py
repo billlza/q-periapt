@@ -78,9 +78,13 @@ class Operation:
         require(type(self.arguments) is bytes and len(self.arguments) == 96, "witness operation size")
         if self.kind == 1:
             require(not any(self.arguments), "query padding")
-        elif self.kind in (4, 5, 6, 7, 8, 16, 17, 18, 19):
+        elif self.kind in (4, 5, 6, 7, 8, 11, 12, 13, 14, 16, 17, 18, 19):
             fixed(self.arguments[:32], 32)
             require(not any(self.arguments[32:]), "witness binding padding")
+        elif self.kind == 15:
+            fixed(self.arguments[:32], 32)
+            fixed(self.arguments[32:64], 32)
+            require(not any(self.arguments[64:]), "witness policy admission padding")
         else:
             require(self.kind in (2, 3), "unsupported witness operation")
             reader = Reader(self.arguments); old, new = Head.read(reader), Head.read(reader)
@@ -108,6 +112,10 @@ class Operation:
     def authority(cls, authority):
         return cls(4, fixed(authority, 32) + bytes(64))
 
+    @classmethod
+    def policy_authority(cls, authority, statement):
+        return cls(15, fixed(authority, 32) + fixed(statement, 32) + bytes(32))
+
 
 @dataclass(frozen=True)
 class Reply:
@@ -129,13 +137,16 @@ def verify(pin, subject, operation, body, wire):
     last = last if present else None
     if operation.kind == 1:
         require(outcome == 1, "witness query outcome")
-    elif operation.kind == 4:
+    elif operation.kind in (4, 15):
         require(outcome in (5, 6), "witness authority outcome")
     elif operation.kind in (5, 6, 7, 8):
         allowed = {5: (8, 9, 10), 6: (7, 8, 9, 10), 7: (8, 9, 10), 8: (10, 11)}
         require(outcome in allowed[operation.kind], "witness renewal outcome")
         # The proposal owner additionally checks the exact expected/target head
         # and applied command. An authenticated disposition alone is not authority.
+    elif operation.kind in (11, 12, 13, 14):
+        allowed = {11: (13, 14, 15), 12: (12, 13, 14, 15), 13: (13, 14, 15), 14: (15, 16)}
+        require(outcome in allowed[operation.kind], "witness policy outcome")
     elif operation.kind in (16, 17, 18, 19):
         allowed = {16: (18, 19, 20), 17: (17, 18, 19, 20), 18: (18, 19, 20), 19: (20, 21)}
         require(outcome in allowed[operation.kind], "witness roster outcome")

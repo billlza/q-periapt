@@ -11,7 +11,7 @@ from .kem import hkdf
 from .private_files import PrivateDirectory
 from .witness import Head, Operation
 from .wire import MAX_U64, require
-from .storage_budget import MAX_SHARED_STATE
+from .storage_budget import MAX_POLICY_STATE
 
 DOMAIN = b"Q-PERIAPT-INDEPENDENT-WITNESSED-JOURNAL/v1/"
 
@@ -27,7 +27,7 @@ class Genesis:
 
 class WitnessJournal(Journal):
     image_overhead = 264
-    max_payload = MAX_SHARED_STATE
+    max_payload = MAX_POLICY_STATE
 
     def __init__(self, path, scope, key, validate, profile, client, observer=None):
         require(type(key) is bytes and len(key) == 32, "wrapping key size")
@@ -122,6 +122,7 @@ class WitnessJournal(Journal):
         if pending is not None:
             require(not pending.startswith(b"QPRFLI01"), "local renewal coordination remains pending")
             require(not pending.startswith(b"QPRFRI01"), "roster coordination remains pending")
+            require(not pending.startswith(b"QPRFPI01"), "policy coordination remains pending")
             revision, prior, target, result = self._decode_intent(pending)
             require(revision > 0, "inactive creation requires explicit genesis recovery")
             if head.digest != result.digest and (head.revision != revision or head.digest != prior):
@@ -145,8 +146,15 @@ class WitnessJournal(Journal):
         return snapshot
 
     def _authorize(self, snapshot, authority=None):
+        from .local_authority_control import read
         expected = Head(1, snapshot.revision, snapshot.digest)
-        reply = self.client.exchange(Operation.authority(self.profile.authority if authority is None else authority))
+        authority = self.profile.authority if authority is None else authority
+        control = read(self)
+        require(control is None or control.ready(), "authority coordination remains pending")
+        policy = None if control is None else control.policy
+        operation = (Operation.authority(authority) if policy is None or policy.active is None
+                     else Operation.policy_authority(authority, policy.active[40:]))
+        reply = self.client.exchange(operation)
         require(reply.outcome == 5 and reply.head == expected, "witness current authority denied")
         self._admit()
 

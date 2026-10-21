@@ -18,6 +18,7 @@ JOINT_RENEWAL = frozenset({'prepare', 'prepare_account', 'status', 'recover', 'c
 ROSTER = frozenset({'refresh', 'prepare', 'status', 'recover', 'commit', 'close_proposal'})
 PENDING = frozenset({'request', 'confirm'})
 POLICY = frozenset({'request', 'stage', 'commit', 'reconcile_expired', 'status'})
+WITNESS_POLICY = frozenset({'request', 'prepare', 'commit', 'status', 'recover', 'close_proposal'})
 
 
 class _Signer:

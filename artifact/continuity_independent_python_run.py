@@ -18,6 +18,7 @@ import tempfile
 from bounded_process import capture_output
 from continuity_independent_python import PACKAGE, inspect_wheel, require, verify_installation, verify_extension_session, verify_roster_profiles, verify_roster_capacity, verify_roster_revocation
 from continuity_independent_python import verify_local_policy_profiles, verify_local_policy_boundary
+from continuity_independent_python import verify_witness_policy_profiles, verify_witness_policy_boundary
 from evidence_io import fresh_output_directory, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import git_commit, run_git_bytes
 
@@ -111,7 +112,7 @@ def qualify(args: argparse.Namespace) -> dict:
     cache.mkdir(mode=0o700)
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(("PYTHON", "PIP_", "DYLD_", "LD_"))}
-    result = {"schema_version": 7, "kind": "qperiapt.independent_python_installation",
+    result = {"schema_version": 8, "kind": "qperiapt.independent_python_installation",
               "completed": False, "release_claim_eligible": False, "source_commit": commit,
               "source_inputs": before, "wheel_sha256": wheel.sha256, "native_sha256": native.sha256}
 
@@ -308,8 +309,11 @@ def qualify(args: argparse.Namespace) -> dict:
         verify_roster_revocation(revoked)
         account_results["peer_revocation"] = revoked
         policy_results = {}
-        for driver, verify in [("local_policy_checks", verify_local_policy_profiles),
-                               ("local_policy_boundary_checks", verify_local_policy_boundary)]:
+        witness_policy_results = {}
+        for driver, verify, destination in [("local_policy_checks", verify_local_policy_profiles, policy_results),
+                ("local_policy_boundary_checks", verify_local_policy_boundary, policy_results),
+                ("witness_policy_checks", verify_witness_policy_profiles, witness_policy_results),
+                ("witness_policy_boundary_checks", verify_witness_policy_boundary, witness_policy_results)]:
             run([*interpreter, str(application / (driver + ".py")),
                  "--provider-root", str(provider), "--native", str(args.native),
                  "--output", str(output / driver)], driver)
@@ -318,7 +322,7 @@ def qualify(args: argparse.Namespace) -> dict:
             require(row["source_files"] == current and row["native_sha256"] == native.sha256,
                     "installed local policy source or native identity differs")
             verify(row)
-            policy_results[driver] = row
+            destination[driver] = row
         # The consumer adds only declared test files; pip's installed files and
         # all copied inputs must remain byte-identical after real process cuts.
         after = installed_files(application)
@@ -336,6 +340,7 @@ def qualify(args: argparse.Namespace) -> dict:
                       registration={label: observed[label] for label in ("local", "witness")},
                       client_session=client_session, extension_session=extension_session,
                       intermediate_peer=intermediate, common_account=account_results, local_policy=policy_results,
+                      witness_policy=witness_policy_results,
                       provider=observed["provider"])
     except BaseException as error:
         result["failure"] = {"type": type(error).__name__, "message": str(error)}

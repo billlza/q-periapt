@@ -1,4 +1,4 @@
-"""Common exact-image/terminal/ACK/cleanup sequence for typed G and R owners."""
+"""Common exact-image/terminal/ACK/cleanup sequence for typed G, R and P owners."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from dataclasses import dataclass
 from typing import Callable
@@ -7,16 +7,18 @@ from .local_renewal_protocol import Proposal as CredentialProposal
 from .local_renewal_intent import Intent as CredentialIntent
 from .roster_protocol import Proposal as RosterProposal
 from .roster_intent import Intent as RosterIntent
+from .policy_witness_protocol import Proposal as PolicyProposal
+from .policy_intent import Intent as PolicyIntent
 from .wire import require
 
 
 @dataclass(frozen=True)
 class Transition:
-    proposal: CredentialProposal | RosterProposal
+    proposal: CredentialProposal | RosterProposal | PolicyProposal
     terminal: Control
     completed: Control
     acknowledgement: int
-    read_intent: Callable[[], CredentialIntent | RosterIntent | None]
+    read_intent: Callable[[], CredentialIntent | RosterIntent | PolicyIntent | None]
     label: str
 
 

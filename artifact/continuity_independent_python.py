@@ -92,6 +92,74 @@ def _policy_identities(values: dict, names: tuple[str, ...]) -> None:
                 and any(c != '0' for c in values[k]) for k in names), "local policy identity missing")
 
 
+def verify_witness_policy_profiles(result: dict) -> None:
+    """Require actual P witness terminals and fresh admission at both boundaries."""
+    rows = result.get("profiles")
+    require(isinstance(rows, list) and len(rows) == 2, "witness policy cohort incomplete")
+    denials = ["old-policy-permission-denied", "p2-pending-blocks-session", "p2-unapproved-commit-refused",
+               "p2-lost-actual-commit-reply", "p2-lost-actual-ack-reply", "p2-unavailable-admission-denies-output",
+               "p3-pending-blocks-session", "p3-unapproved-commit-refused", "p3-closed-does-not-admit-expired-predecessor",
+               "closed-version-floor-refused", "p4-pending-blocks-session", "p4-unapproved-commit-refused",
+               "p4-unavailable-admission-denies-output", "expired-current-policy-denied"]
+    native = [{"case": "different-statement-witness-refused", "error": "policy witness: Protocol(Scope)"},
+              {"case": "closed-version-witness-floor-refused", "error": "policy witness: Protocol(Retired)"}]
+    for row, members in zip(rows, (3, 32), strict=True):
+        expected = {"members": members, "workers": 60, "process_kills": 7, "confirmed_epoch": 1}
+        require(isinstance(row, dict) and all(type(row.get(k)) is int and row[k] == v for k, v in expected.items())
+                and row.get("denied_operations") == denials and row.get("native_refusals") == native,
+                "witness policy original workload or native refusal differs")
+        _policy_identities(row, ("journal", "native_journal", "session", "original_wire_sha256"))
+        _policy_refusals(row, ["p2-release-withholds-output", "p4-release-withholds-output"], "TimeoutError")
+        adopted = row.get("adopted")
+        require(isinstance(adopted, list) and len(adopted) == 2, "witness policy adoptions incomplete")
+        for p, version, now in zip(adopted, (2, 4), (190, 340), strict=True):
+            require(isinstance(p, dict) and type(p.get("version")) is int and p["version"] == version
+                    and type(p.get("now")) is int and p["now"] == now
+                    and p.get("admission_kinds") == [1, 1, 15, 1, 1, 15]
+                    and all(type(k) is int for k in p["admission_kinds"]),
+                    "witness policy clock or fresh output admission differs")
+            _policy_identities(p, ("operation", "proposal", "statement"))
+        require(all(adopted[0][k] != adopted[1][k] for k in ("operation", "proposal", "statement")),
+                "witness policy reused an adoption")
+
+
+def verify_witness_policy_boundary(result: dict) -> None:
+    """Require full original history and no commit dispatch after target expiry."""
+    row = result.get("profile")
+    expected = {"members": 32, "traffic_bytes": 2031616, "rows": 123, "workers": 24, "process_kills": 5}
+    require(isinstance(row, dict) and all(type(row.get(k)) is int and row[k] == v for k, v in expected.items())
+            and row.get("expiry_kinds") == [12] and type(row["expiry_kinds"][0]) is int,
+            "witness policy boundary workload or expired dispatch differs")
+    _policy_identities(row, ("journal", "native_journal", "session"))
+    require(type(row.get("payload_bytes")) is int and row["payload_bytes"] > row["traffic_bytes"]
+            and type(row.get("prepared_intent_bytes")) is int and row["prepared_intent_bytes"] > row["payload_bytes"],
+            "witness policy original full target missing")
+    inventory = row.get("original_inventory")
+    require(isinstance(inventory, dict) and type(inventory.get("traffic_bytes")) is int
+            and inventory["traffic_bytes"] == 2031616 and type(inventory.get("outboxes")) is int
+            and inventory["outboxes"] == 123, "witness policy original business inventory differs")
+    epochs = inventory.get("epoch_record_hashes")
+    require(isinstance(epochs, list) and len(epochs) == 2 and all(isinstance(item, list) and len(item) == 2
+            and type(item[0]) is int and item[0] == epoch for epoch, item in enumerate(epochs)),
+            "witness policy original epochs missing")
+    for _, digest in epochs:
+        _policy_identities({"epoch": digest}, ("epoch",))
+    _policy_refusals(row, ["parent-close-withholds-policy-proposal", "witness-policy-control-cannot-be-removed",
+                          "witness-policy-rejects-local-time-floor", "witness-policy-overall-capacity",
+                          "policy-metadata-cannot-fund-business"], "ValueError")
+    require(row.get("denied_operations") == ["expired-prepared-target-cannot-commit",
+            "historical-closure-is-not-permission", "current-policy-expiry-denies-full-output"],
+            "witness policy boundary refusal coverage differs")
+
+
+def _policy_refusals(row: dict, cases: list[str], kind: str) -> None:
+    refused = row.get("refusals")
+    require(isinstance(refused, list) and len(refused) == len(cases)
+            and all(isinstance(r, dict) and set(r) == {"case", "error", "type"} and r["type"] == kind
+                    and isinstance(r["error"], str) and r["error"] for r in refused)
+            and [r["case"] for r in refused] == cases, "policy output or capacity refusal coverage differs")
+
+
 def verify_roster_profiles(result: dict, *, boundary: bool) -> None:
     """Require all original-owner workloads, including the native trusted clock."""
     profiles = result.get("profiles")

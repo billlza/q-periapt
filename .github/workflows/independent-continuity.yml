@@ -338,6 +338,22 @@ jobs:
             --output target/independent-peer-ci/local-policy-boundary \
             > target/independent-peer-ci/local-policy-boundary.stdout 2> target/independent-peer-ci/local-policy-boundary.stderr
           git diff --exit-code
+      - name: Verify original witnessed policy continuation and output admission
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/witness_policy_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/witness-policy \
+            > target/independent-peer-ci/witness-policy.stdout 2> target/independent-peer-ci/witness-policy.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/witness_policy_boundary_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/witness-policy-boundary \
+            > target/independent-peer-ci/witness-policy-boundary.stdout 2> target/independent-peer-ci/witness-policy-boundary.stderr
+          git diff --exit-code
       - name: Verify original common-account sessions and witness renewal
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}

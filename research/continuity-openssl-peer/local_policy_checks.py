@@ -14,7 +14,8 @@ def policy_inputs(f, version):
     head = (f.public / f"policy-head-{version}").read_bytes()
     pins = {"schema": "qperiapt-policy-pins/1", "sdk_root": b64(f.pins.sdk_root),
             "sdk_state": b64(f.pins.sdk_state), "policy_root": b64(f.pins.policy_root.raw),
-            "policy_version": version, "policy_digest": list(head[8:]), "witness": None}
+            "policy_version": version, "policy_digest": list(head[8:]),
+            "witness": None if f.pin is None else {"identity": list(f.pin.identity), "key": b64(f.pin.key.raw)}}
     materials = {"schema": "qperiapt-policy-materials/1", "sdk_document": b64(f.materials.sdk_document),
                  "sdk_signature": b64(f.materials.sdk_signature),
                  "policy": b64((f.public / f"policy-{version}").read_bytes())}

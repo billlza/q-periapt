@@ -7,7 +7,7 @@ from qperiapt_continuity_reference.journal import Journal, LocalSessionJournal
 from qperiapt_continuity_reference.local_renewal_record import Record
 from qperiapt_continuity_reference.private_files import PrivateDirectory
 from qperiapt_continuity_reference.state_codec import encode, decode
-from qperiapt_continuity_reference.storage_budget import MAX_STATE, MAX_LOCAL_STATE, MAX_LOCAL_METADATA, MAX_SHARED_STATE
+from qperiapt_continuity_reference.storage_budget import MAX_STATE, MAX_LOCAL_STATE, MAX_LOCAL_METADATA, MAX_SHARED_STATE, MAX_POLICY_STATE
 from qperiapt_continuity_reference.traffic_codec import encode_traffic
 from qperiapt_continuity_reference.wire import require
 
@@ -35,14 +35,16 @@ def check_bounds(f, grant, successor, state):
     f.refuses('overall-state-bound', lambda: decode(excess, f.context), 'snapshot aggregate capacity')
     def unreachable(_payload):
         raise RuntimeError('oversized journal input reached its validator')
-    for kind, cls, size in [('raw', Journal, MAX_STATE + 1), ('local', LocalSessionJournal, MAX_SHARED_STATE + 1)]:
+    # The protected file can hold bounded P metadata. The old-schema and
+    # business-image checks above still prohibit spending it on traffic.
+    for kind, cls, size in [('raw', Journal, MAX_STATE + 1), ('local', LocalSessionJournal, MAX_POLICY_STATE + 1)]:
         path = f.private / (kind + '-bound'); path.mkdir(mode=0o700)
         journal = cls(path, f.scope, f.key, unreachable)
         try:
             f.refuses(kind + '-journal-bound', lambda: journal._seal(1, bytes(size)), 'journal payload/revision capacity')
         finally:
             journal.close()
-    f.refuses('private-file-upper-bound', lambda: PrivateDirectory(f.path, max_file=MAX_SHARED_STATE + 4097),
+    f.refuses('private-file-upper-bound', lambda: PrivateDirectory(f.path, max_file=MAX_POLICY_STATE + 4097),
               'private file bound')
     require(MAX_LOCAL_METADATA == 213291 and MAX_LOCAL_STATE == 2310443, 'derived lifecycle ceiling')
     # Shallow preview states share secret owners with state: never close them.

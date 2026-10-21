@@ -6,10 +6,11 @@ use crate::{
     Result,
 };
 use q_periapt_continuity_identity_candidate::{
-    AccountPin, AllowedPrekeyModes, AnchorRequirement, ApplicationSendBudget, BootstrapRole,
-    JournalIdentity, PolicyCheckpoint, PolicyPin, PolicyRenewalId, PolicyRenewalMaterials,
-    PolicyRenewalScope, PolicyRenewalStatement, PolicySigningKey, PrekeyQuality, RootSigningKey,
-    RosterCheckpoint, SessionPolicyParameters, Validity, VerifiedDevice, VerifiedPolicyRenewal,
+    AccountPin, AllowedPrekeyModes, AnchorPolicyRenewalProposal, AnchorStore,
+    ApplicationSendBudget, BootstrapRole, HistoricalPolicyRenewal, JournalIdentity,
+    PolicyCheckpoint, PolicyPin, PolicyRenewalId, PolicyRenewalMaterials, PolicyRenewalScope,
+    PolicyRenewalStatement, PolicySigningKey, PrekeyQuality, RootSigningKey, RosterCheckpoint,
+    SessionPolicyParameters, Validity, VerifiedDevice, VerifiedPolicyRenewal,
     VerifiedSessionPolicy,
 };
 use q_periapt_sdk::Runtime;
@@ -66,7 +67,7 @@ impl Authority {
                     version,
                     Validity::new(100, until)?,
                     AllowedPrekeyModes::new(&[PrekeyQuality::ReusableBoth])?,
-                    AnchorRequirement::local_only(),
+                    original.anchor_requirement(),
                     ApplicationSendBudget::new(original.application_send_budget().messages())?,
                 )?,
             )?;
@@ -129,6 +130,62 @@ impl Authority {
     }
 
     pub fn approve_request(&self, fixture: &Fixture, bytes: &[u8]) -> Result<Vec<u8>> {
+        let decision = self.read_request(fixture, bytes)?;
+        Ok(self
+            .approve(
+                &decision.scope,
+                fixture.context.device(BootstrapRole::Initiator),
+                &decision.current,
+                decision.target.checkpoint().version(),
+                decision.now,
+            )?
+            .as_bytes()
+            .to_vec())
+    }
+
+    pub fn witness_request(
+        &self,
+        fixture: &Fixture,
+        store: &mut AnchorStore,
+        bytes: &[u8],
+        close: bool,
+        now: u64,
+    ) -> Result<Vec<u8>> {
+        let mut r = Request(bytes);
+        let proposal = AnchorPolicyRenewalProposal::from_trusted_state(r.take(296)?)?;
+        let approval = r.field()?;
+        let decision = self.read_request(fixture, r.0)?;
+        if decision.now != now {
+            return Err("policy test controller clock differs".into());
+        }
+        let original = self.policies.first().ok_or("missing original policy")?;
+        let materials = PolicyRenewalMaterials {
+            original: original.historical(),
+            previous: decision.previous.historical(),
+            target: &decision.target,
+            original_device: fixture.context.device(BootstrapRole::Initiator),
+            current_device: &decision.current,
+        };
+        let outcome = if close {
+            let proof = HistoricalPolicyRenewal::from_bytes(
+                approval,
+                &decision.scope,
+                &materials.historical(),
+            )?;
+            store
+                .close_policy_renewal(proposal, &proof, &materials.historical())
+                .map_err(|error| format!("policy witness: {error:?}"))?
+        } else {
+            let proof =
+                VerifiedPolicyRenewal::from_bytes(approval, &decision.scope, &materials, now)?;
+            store
+                .prepare_policy_renewal(proposal, &proof, &materials, now)
+                .map_err(|error| format!("policy witness: {error:?}"))?
+        };
+        Ok(format!("{outcome:?}").into_bytes())
+    }
+
+    fn read_request(&self, fixture: &Fixture, bytes: &[u8]) -> Result<Decision> {
         let mut r = Request(bytes);
         let version = r.u64()?;
         let now = r.u64()?;
@@ -160,11 +217,23 @@ impl Authority {
             fixture.policy.family(),
         )?;
         let current = pin.verify_device(certificate, roster, now)?;
-        Ok(self
-            .approve(&scope, original, &current, version, now)?
-            .as_bytes()
-            .to_vec())
+        let previous = self.policy(scope.previous_policy.version())?;
+        Ok(Decision {
+            scope,
+            current,
+            previous,
+            target: self.policy(version)?,
+            now,
+        })
     }
+}
+
+struct Decision {
+    scope: PolicyRenewalScope,
+    current: VerifiedDevice,
+    previous: Arc<VerifiedSessionPolicy>,
+    target: Arc<VerifiedSessionPolicy>,
+    now: u64,
 }
 
 struct Request<'a>(&'a [u8]);
