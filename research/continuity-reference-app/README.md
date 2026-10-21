@@ -41,6 +41,11 @@ The implementation and remaining integration follow the [host-authorized enrollm
 It binds original requests, explicit approval, complete membership and durable
 response recovery; the document distinguishes requirements from implemented behavior.
 
+The separate [candidate-root preparation](ROOT_PREPARATION.md) transaction retains
+one new root under host account authentication, including after loss of the old
+root's private key. It preserves the current issuer and suspension; full root
+replacement and its HTTP/browser integration remain open.
+
 ## Run locally
 
 Use the pinned Rust 1.98.1 toolchain. The nested Cargo workspace and its committed

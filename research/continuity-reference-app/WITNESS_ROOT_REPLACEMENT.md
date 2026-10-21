@@ -9,8 +9,9 @@ The host must independently authorize recovery of the application account and
 select both roots, the successor device, policy and witness. An old-root signature
 cannot authorize recovery from disclosure of that root. Retain the approved plan
 in the application's original authority registry before invoking `root-freeze`.
-The reference account HTTP service does not yet issue and cut over a successor
-root; these commands do not complete that application lifecycle or add independent
+The reference host can [prepare a candidate root](ROOT_PREPARATION.md), but its
+HTTP service does not yet issue and cut over a successor root; these commands do
+not complete that application lifecycle or add independent
 Python client root replacement. The native
 [managed owner](../continuity-identity-candidate/AUTHORITY_REPLACEMENT.md)
 supplies the original registry, enrollment and journal coordination.

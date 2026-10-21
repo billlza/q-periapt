@@ -40,63 +40,73 @@ impl Store {
             {
                 return Err(Error::Internal);
             }
-            let (wrap_path, signer_path) = store.root_paths(&root)?;
-            if matches!(root.phase, RootPhase::Wrapping) {
-                // A signer cannot precede the durable wrapping-key admission.
-                if exists(&signer_path)? {
-                    return Err(Error::Conflict("Signer precedes its original preparation"));
-                }
-                let wrapping = if exists(&wrap_path)? {
-                    sdk::JournalKey::open(&wrap_path)
-                } else {
-                    sdk::JournalKey::provision(&wrap_path)
-                }
-                .map_err(|e| Error::issuer_key("original root wrapping key", e))?;
-                drop(wrapping);
-                #[cfg(test)]
-                test_boundary("root-wrapping-published", b"wrapping")?;
-                root.phase = RootPhase::Signing;
+            store.prepare_root_keys(&mut root, |changed| {
                 let tx = transaction(&store.db)?;
-                save_root(&tx, &root)?;
-                tx.commit().map_err(db_error)?;
-                #[cfg(test)]
-                test_boundary("root-signing-prepared", b"signing")?;
-            }
-            if matches!(root.phase, RootPhase::Signing) {
-                // From this phase onward, a missing wrapping key is an error.
-                let wrapping = sdk::JournalKey::open(&wrap_path)
-                    .map_err(|e| Error::issuer_key("reopen root wrapping key", e))?;
-                let identity =
-                    sdk::SigningKeyId::from_trusted_state(root.signing_id).map_err(db_error)?;
-                let signer = if exists(&signer_path)? {
-                    sdk::RootSigningKey::open(&signer_path, &wrapping, identity)
-                } else {
-                    sdk::RootSigningKey::provision(&signer_path, &wrapping, identity)
-                }
-                .map_err(|e| Error::issuer_key("original root signing owner", e))?;
-                root.phase = RootPhase::Ready {
-                    public: signer.public_key().map_err(db_error)?.encode(),
-                    account: signer.account_id().map_err(db_error)?,
-                    suspended: false,
-                };
-                #[cfg(test)]
-                test_boundary(
-                    "root-signer-published",
-                    &signer.public_key().map_err(db_error)?.encode(),
-                )?;
-                let tx = transaction(&store.db)?;
-                save_root(&tx, &root)?;
-                tx.commit().map_err(db_error)?;
-                #[cfg(test)]
-                test_boundary(
-                    "root-ready-committed",
-                    &signer.public_key().map_err(db_error)?.encode(),
-                )?;
-            }
-            // Ready never regenerates a missing key or resets a suspension.
-            store.open_signer(&root)?;
-            root.info(store.family()?)
+                save_root(&tx, changed)?;
+                tx.commit().map_err(db_error)
+            })
         })
+    }
+
+    /// Reconcile one retained root signer. Each caller persists the same root's
+    /// phase in its own original account transaction; no identity is generated here.
+    pub(super) fn prepare_root_keys(
+        &self,
+        root: &mut Root,
+        persist: impl Fn(&Root) -> Result<(), Error>,
+    ) -> Result<RootInfo, Error> {
+        let (wrap_path, signer_path) = self.root_paths(root)?;
+        if matches!(root.phase, RootPhase::Wrapping) {
+            // A signer cannot precede the durable wrapping-key admission.
+            if exists(&signer_path)? {
+                return Err(Error::Conflict("Signer precedes its original preparation"));
+            }
+            let wrapping = if exists(&wrap_path)? {
+                sdk::JournalKey::open(&wrap_path)
+            } else {
+                sdk::JournalKey::provision(&wrap_path)
+            }
+            .map_err(|e| Error::issuer_key("original root wrapping key", e))?;
+            drop(wrapping);
+            #[cfg(test)]
+            test_boundary("root-wrapping-published", b"wrapping")?;
+            root.phase = RootPhase::Signing;
+            persist(root)?;
+            #[cfg(test)]
+            test_boundary("root-signing-prepared", b"signing")?;
+        }
+        if matches!(root.phase, RootPhase::Signing) {
+            // From this phase onward, a missing wrapping key is an error.
+            let wrapping = sdk::JournalKey::open(&wrap_path)
+                .map_err(|e| Error::issuer_key("reopen root wrapping key", e))?;
+            let identity =
+                sdk::SigningKeyId::from_trusted_state(root.signing_id).map_err(db_error)?;
+            let signer = if exists(&signer_path)? {
+                sdk::RootSigningKey::open(&signer_path, &wrapping, identity)
+            } else {
+                sdk::RootSigningKey::provision(&signer_path, &wrapping, identity)
+            }
+            .map_err(|e| Error::issuer_key("original root signing owner", e))?;
+            root.phase = RootPhase::Ready {
+                public: signer.public_key().map_err(db_error)?.encode(),
+                account: signer.account_id().map_err(db_error)?,
+                suspended: false,
+            };
+            #[cfg(test)]
+            test_boundary(
+                "root-signer-published",
+                &signer.public_key().map_err(db_error)?.encode(),
+            )?;
+            persist(root)?;
+            #[cfg(test)]
+            test_boundary(
+                "root-ready-committed",
+                &signer.public_key().map_err(db_error)?.encode(),
+            )?;
+        }
+        // Ready never regenerates a missing key or resets a suspension.
+        self.open_signer(root)?;
+        root.info(self.family()?)
     }
     /// Current host observation. It grants no traffic permission to an SDK client.
     pub fn enrollment_root(&mut self, account: &Account) -> Result<RootInfo, Error> {

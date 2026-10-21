@@ -43,6 +43,9 @@ pub(super) enum Work {
     PolicyUpgrade,
     ReplacementUpgrade,
     Replace(crate::enrollment::DeviceReplacementRequest),
+    RootPreparationUpgrade,
+    PrepareRoot(crate::root_preparation::Request),
+    CloseRootPreparation([u8; 32]),
     PolicyApproval(Box<crate::policy_approval::PolicyApprovalRequest>),
     CancelPolicyApproval(Box<crate::policy_approval::PolicyApprovalRequest>),
 }
@@ -81,7 +84,10 @@ pub(super) fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>
         .env_remove("QPERIAPT_ISSUER_POLICY_INPUT")
         .env_remove("QPERIAPT_ISSUER_POLICY_CANCEL")
         .env_remove("QPERIAPT_ISSUER_REPLACEMENT_UPGRADE")
-        .env_remove("QPERIAPT_ISSUER_REPLACEMENT_INPUT");
+        .env_remove("QPERIAPT_ISSUER_REPLACEMENT_INPUT")
+        .env_remove("QPERIAPT_ISSUER_ROOT_PREPARATION_UPGRADE")
+        .env_remove("QPERIAPT_ISSUER_ROOT_PREPARATION_INPUT")
+        .env_remove("QPERIAPT_ISSUER_ROOT_PREPARATION_CLOSE");
     let cancel_grant = matches!(&work, Work::CancelGrant(_));
     let cancel_policy = matches!(&work, Work::CancelPolicyApproval(_));
     match work {
@@ -119,6 +125,20 @@ pub(super) fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>
         }
         Work::ReplacementUpgrade => {
             command.env("QPERIAPT_ISSUER_REPLACEMENT_UPGRADE", "1");
+        }
+        Work::RootPreparationUpgrade => {
+            command.env("QPERIAPT_ISSUER_ROOT_PREPARATION_UPGRADE", "1");
+        }
+        Work::PrepareRoot(input) => {
+            let file = path.join(format!("{boundary}.root-preparation-input.json"));
+            fs::write(&file, serde_json::to_vec(&input)?)?;
+            command.env("QPERIAPT_ISSUER_ROOT_PREPARATION_INPUT", file);
+        }
+        Work::CloseRootPreparation(operation) => {
+            command.env(
+                "QPERIAPT_ISSUER_ROOT_PREPARATION_CLOSE",
+                URL_SAFE_NO_PAD.encode(operation),
+            );
         }
         Work::Replace(input) => {
             let file = path.join(format!("{boundary}.replacement-input.json"));
@@ -171,7 +191,17 @@ fn issuer_child() -> Result {
     let path = std::path::PathBuf::from(path);
     let mut store = Store::open(&path.join("accounts.redb"), ORIGIN)?;
     let account = store.account("alice")?.ok_or("original fixture account")?;
-    if std::env::var_os("QPERIAPT_ISSUER_REPLACEMENT_UPGRADE").is_some() {
+    if std::env::var_os("QPERIAPT_ISSUER_ROOT_PREPARATION_UPGRADE").is_some() {
+        store.enable_root_preparations()?;
+    } else if let Some(file) = std::env::var_os("QPERIAPT_ISSUER_ROOT_PREPARATION_INPUT") {
+        store.prepare_account_root(&account, &serde_json::from_slice(&fs::read(file)?)?)?;
+    } else if let Ok(operation) = std::env::var("QPERIAPT_ISSUER_ROOT_PREPARATION_CLOSE") {
+        let operation = URL_SAFE_NO_PAD
+            .decode(operation)?
+            .try_into()
+            .map_err(|_| "operation length")?;
+        store.close_account_root_preparation(&account, operation)?;
+    } else if std::env::var_os("QPERIAPT_ISSUER_REPLACEMENT_UPGRADE").is_some() {
         store.enable_device_replacements()?;
     } else if let Some(file) = std::env::var_os("QPERIAPT_ISSUER_REPLACEMENT_INPUT") {
         store.invite_device_replacement(&account, &serde_json::from_slice(&fs::read(file)?)?)?;

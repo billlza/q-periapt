@@ -9,6 +9,7 @@ pub mod network;
 pub mod policy_approval;
 pub mod policy_publisher;
 pub mod policy_renewal;
+pub mod root_preparation;
 pub mod roster_refresh;
 pub mod sdk_authority;
 pub mod sdk_inputs;

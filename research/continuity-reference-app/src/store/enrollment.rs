@@ -15,6 +15,7 @@ mod operations;
 mod reapproval;
 mod replacement;
 mod root;
+mod root_preparation;
 const ROOTS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_roots");
 const OPERATIONS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_operations");
 const SIGNERS: TableDefinition<&[u8], &[u8]> = TableDefinition::new("enrollment_signers");
@@ -90,6 +91,7 @@ pub(super) struct EnrollmentSchema {
     pub(super) grants: bool,
     pub(super) policy_approvals: bool,
     pub(super) replacements: bool,
+    pub(super) root_preparations: bool,
 }
 pub(super) fn admit_schema(
     tx: &redb::ReadTransaction,
@@ -106,11 +108,12 @@ pub(super) fn admit_schema(
         .collect();
     names.sort();
     let mut expected = vec!["accounts", "configuration", "credential_owners"];
-    let replacements = schema.value() == "7";
-    let policy_approvals = matches!(schema.value(), "6" | "7");
-    let grants = matches!(schema.value(), "5" | "6" | "7");
-    let extensions = matches!(schema.value(), "4" | "5" | "6" | "7");
-    let reapproval = matches!(schema.value(), "3" | "4" | "5" | "6" | "7");
+    let root_preparations = schema.value() == "8";
+    let replacements = matches!(schema.value(), "7" | "8");
+    let policy_approvals = matches!(schema.value(), "6" | "7" | "8");
+    let grants = matches!(schema.value(), "5" | "6" | "7" | "8");
+    let extensions = matches!(schema.value(), "4" | "5" | "6" | "7" | "8");
+    let reapproval = matches!(schema.value(), "3" | "4" | "5" | "6" | "7" | "8");
     let family = match schema.value() {
         "1" => {
             if config.len().map_err(db_error)? != 2 {
@@ -118,7 +121,7 @@ pub(super) fn admit_schema(
             }
             None
         }
-        "2" | "3" | "4" | "5" | "6" | "7" => {
+        "2" | "3" | "4" | "5" | "6" | "7" | "8" => {
             if config.len().map_err(db_error)? != 3 {
                 return Err(Error::Internal);
             }
@@ -139,6 +142,12 @@ pub(super) fn admit_schema(
             }
             if policy_approvals {
                 expected.push(POLICY_APPROVALS.name());
+            }
+            if root_preparations {
+                expected.extend([
+                    root_preparation::PREPARATIONS.name(),
+                    root_preparation::CORRELATIONS.name(),
+                ]);
             }
             let saved = config
                 .get("enrollment_family")
@@ -176,6 +185,7 @@ pub(super) fn admit_schema(
         grants,
         policy_approvals,
         replacements,
+        root_preparations,
     })
 }
 

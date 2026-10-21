@@ -33,6 +33,7 @@ pub struct Store {
     credential_grants: bool,
     policy_approvals: bool,
     enrollment_replacements: bool,
+    root_preparations: bool,
 }
 impl Store {
     pub fn provision(path: &Path, origin: &str) -> Result<Self, Error> {
@@ -71,6 +72,7 @@ impl Store {
             credential_grants: false,
             policy_approvals: false,
             enrollment_replacements: false,
+            root_preparations: false,
         })
     }
     pub fn open(path: &Path, origin: &str) -> Result<Self, Error> {
@@ -105,6 +107,7 @@ impl Store {
             credential_grants: schema.grants,
             policy_approvals: schema.policy_approvals,
             enrollment_replacements: schema.replacements,
+            root_preparations: schema.root_preparations,
         })
     }
     fn alive(&self) -> Result<(), Error> {

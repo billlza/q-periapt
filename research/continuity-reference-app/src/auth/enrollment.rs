@@ -6,6 +6,38 @@ use crate::{
 };
 
 impl Service {
+    pub fn prepare_account_root(
+        &mut self,
+        token: &str,
+        request: &crate::root_preparation::Request,
+    ) -> Result<crate::root_preparation::Preparation, Error> {
+        let account = self.authenticated(token)?;
+        let value = self.store.prepare_account_root(&account, request)?;
+        self.authenticated(token)?;
+        Ok(value)
+    }
+    pub fn account_root_preparation(
+        &mut self,
+        token: &str,
+        operation: [u8; 32],
+    ) -> Result<crate::root_preparation::Preparation, Error> {
+        let account = self.authenticated(token)?;
+        let value = self.store.account_root_preparation(&account, operation)?;
+        self.authenticated(token)?;
+        Ok(value)
+    }
+    pub fn close_account_root_preparation(
+        &mut self,
+        token: &str,
+        operation: [u8; 32],
+    ) -> Result<crate::root_preparation::Preparation, Error> {
+        let account = self.authenticated(token)?;
+        let value = self
+            .store
+            .close_account_root_preparation(&account, operation)?;
+        self.authenticated(token)?;
+        Ok(value)
+    }
     pub fn invite_device_replacement(
         &mut self,
         token: &str,

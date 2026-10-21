@@ -216,6 +216,7 @@ mod historical;
 mod reapproval;
 mod reapproval_crash;
 mod replacement;
+mod root_preparation;
 
 #[test]
 fn admitted_root_never_regenerates_a_missing_wrapping_key() -> Result {
