@@ -88,6 +88,13 @@ this proposal with the issuer's response and independently selected account and
 policy inputs. Until then, `status` reports `Unavailable` and `commit` fails.
 `Unavailable` never proves that a commit did not happen.
 
+The same operator interface admits complete-account proposals. It checks the
+local root grant, original witness subject and exact sealed-target binding;
+the client coordinator verifies the full companion set before sealing that
+target. The operator does not independently replay the encrypted account image.
+Select the subject and proposal through the trusted approval channel, never
+by trusting an incoming device request to choose its own authority.
+
 After issuer, preparation or commit output loss, retain the original operation,
 installation and files. `recover-preparation` exports the exact retained proposal
 to a new filename while its intent remains present. After intent retirement,
@@ -129,15 +136,20 @@ that actual issued successor while preserving the initial correlation and key.
 This actual-time flow does not wait for both endpoints to
 expire and does not qualify mobile acceptance or post-compromise security.
 
-Installed host-exchange schema 16 additionally requires the local complete-account
-CLI workload (`native_exchange.py --client-cli --account-credential-cli`). A test
+Installed host-exchange schema 17 additionally requires both complete-account
+CLI workloads (`native_exchange.py --client-cli --account-credential-cli`). A test
 issuer supplies a two-device same-key grant set under actual OS time. The original
 client rejects incomplete and mismatched envelopes, recovers a lost preparation
 export and commit output, then resumes the original unknown-ACK message, exchanges
-traffic in both directions and completes simultaneous rekey. This is separate
-from real account authorization, elapsed-time expiry and positive complete-account
-witness-operator admission. Native-signed 3/32-member fixture checks cover both
-local and witnessed coordinator input paths; they do not replace those boundaries.
+traffic in both directions and completes simultaneous rekey. With
+`--required-witness <binary>`, the witnessed workload also rejects missing
+transport, incomplete companion input, unapproved commit and new session work
+while approval is pending. It rejects the wrong operator binding, recovers lost
+operator approval and client commit output, retains the original witness keys,
+then resumes the original unknown-ACK message, two rekeys and bidirectional
+effects. Both workloads remain separate from real account authorization and
+elapsed-time expiry. Native-signed 3/32-member fixture checks cover both local
+and witnessed coordinator input paths; they do not replace those boundaries.
 
 Existing configuration schema 1 requires the explicit historical
 [`bind-issuance`](ENROLLMENT_CLIENT.md#retained-issuance-association-and-existing-configurations)

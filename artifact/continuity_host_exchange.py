@@ -45,7 +45,7 @@ def inputs(commit):
     paths += [ROOT / 'artifact' / name for name in ('continuity_host_exchange.py', 'continuity_host_native_exchange.py', 'continuity_host_network.py', 'continuity_host_cli.py', 'continuity_host_witness.py', 'continuity_host_replacement.py', 'continuity_host_replacement_evidence.py', 'continuity_host_roster.py', 'continuity_host_roster_policy.py', 'continuity_host_roster_credential.py', 'continuity_host_peer_policy.py', 'continuity_host_peer_credential.py', 'continuity_host_peer_reapproval.py',
                'continuity_independent_python.py', 'continuity_independent_python_run.py',
                'bounded_process.py', 'evidence_io.py', 'git_provenance.py', 'python_bootstrap.py')]
-    paths += [ROOT / 'artifact/continuity_host_cli_credential.py']
+    paths += [ROOT / 'artifact' / name for name in ('continuity_host_cli_credential.py','continuity_host_witness_credential.py')]
     paths += [ROOT / name for name in run_git_bytes(ROOT, ['ls-tree', '-r', '--name-only', commit,
                                                          '--', 'research/continuity-reference-app']).decode().splitlines()]
     paths += [ROOT / name for name in run_git_bytes(ROOT, ['ls-tree', '-r', '--name-only', commit,
@@ -87,7 +87,7 @@ def qualify(args):
     requirements = output / 'wheel-requirements.txt'
     requirements.write_text(captured.as_uri() + ' --hash=sha256:' + wheel.sha256 + '\n')
     environment = {k: v for k, v in os.environ.items() if not k.startswith(('PYTHON', 'PIP_', 'DYLD_', 'LD_'))}
-    result = {'schema_version':16, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
+    result = {'schema_version':17, 'kind':'qperiapt.host_enrollment_exchange', 'completed':False,
               'release_claim_eligible':False, 'source_commit':commit, 'source_inputs':before,
               'wheel_sha256':wheel.sha256, 'module_count':len(modules), 'outside_root':str(outside),
               'publisher_binary_sha256_producer_observation':publisher.sha256,
@@ -183,6 +183,8 @@ def qualify(args):
                              'file/process recovery, local TCP bootstrap, bidirectional reply loss/retry, service restart and PQ rekeys. '
                              'The local complete-account CLI adopts a two-device grant set from an explicit test issuer, '
                              'then recovers the original message and performs opposing send/rekey. '
+                             'The required-witness complete-account CLI obtains separate native operator admission, '
+                             'recovers lost approval/commit output, and resumes original traffic and two rekeys. '
                              'Separate real HTTP account authorization uses isolated software Passkeys, device replacement, '
                              'witness retirement, peer-roster admission and traffic after service restart. '
                              'Surviving-device R/P/R/G retains the original session, two unknown ACKs and keys. '
@@ -190,7 +192,7 @@ def qualify(args):
                              'The independent peer retains a recovered real reapproval successor through two-root P and same-key G, '
                              'then resumes the original session, rekeys and exchanges traffic. '
                              'No elapsed expiry of both endpoints, human/browser Passkey, mobile, TLS, cross-host deployment, '
-                             'complete-account witness-operator admission, account-root replacement or full lifecycle claim.'))
+                             'account-root replacement or full lifecycle claim.'))
     except BaseException as error:
         result['failure'] = str(error)
         raise

@@ -20,8 +20,8 @@ on:
       - artifact/test_continuity_host_network.py
       - artifact/continuity_host_cli*.py
       - artifact/test_continuity_host_cli*.py
-      - artifact/continuity_host_witness.py
-      - artifact/test_continuity_host_witness.py
+      - artifact/continuity_host_witness*.py
+      - artifact/test_continuity_host_witness*.py
       - artifact/continuity_host_replacement*.py
       - artifact/test_continuity_host_replacement.py
       - artifact/continuity_host_roster_policy.py
@@ -54,8 +54,8 @@ on:
       - artifact/test_continuity_host_network.py
       - artifact/continuity_host_cli*.py
       - artifact/test_continuity_host_cli*.py
-      - artifact/continuity_host_witness.py
-      - artifact/test_continuity_host_witness.py
+      - artifact/continuity_host_witness*.py
+      - artifact/test_continuity_host_witness*.py
       - artifact/continuity_host_replacement*.py
       - artifact/test_continuity_host_replacement.py
       - artifact/continuity_host_roster_policy.py
@@ -203,7 +203,7 @@ jobs:
             > target/reference-account-ci/network-receipt-tests.stdout 2> target/reference-account-ci/network-receipt-tests.stderr
           sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_host_cli*.py' \
             > target/reference-account-ci/cli-receipt-tests.stdout 2> target/reference-account-ci/cli-receipt-tests.stderr
-          sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_host_witness.py' \
+          sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_host_witness*.py' \
             > target/reference-account-ci/witness-receipt-tests.stdout 2> target/reference-account-ci/witness-receipt-tests.stderr
           sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_host_replacement.py' \
             > target/reference-account-ci/replacement-receipt-tests.stdout 2> target/reference-account-ci/replacement-receipt-tests.stderr

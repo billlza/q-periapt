@@ -4,6 +4,7 @@ from continuity_independent_python import PACKAGE,require
 from continuity_host_network import count,stats
 from continuity_host_native_exchange import REFUSALS as ORIGINAL_REFUSALS
 from evidence_io import parse_strict_json_bytes,read_regular_snapshot
+import continuity_host_witness_credential as credential
 
 LABELS=tuple('witness-init native-key native-begin native-request native-accept native-prepare native-witness-enroll '
     'native-publication-id native-publish native-inbox wrong-inbox-journal witness-cli-prepare witness-cli-prepare-retry '
@@ -17,10 +18,11 @@ FAILED=('wrong-inbox-journal','witness-cli-unenrolled','wrong-head-witness-enrol
 REFUSALS=ORIGINAL_REFUSALS[:8]+FAILED[1:]
 
 
-def verify(value,binaries,application):
+def verify(value,binaries,application,*,account_credential=False):
     require(type(value) is dict and value.get('kind')=='qperiapt.required_witness_session_cli'
             and value.get('completed') is True,'required witness completion')
-    count(value.get('schema_version'),1,'witness receipt version')
+    count(value.get('schema_version'),2 if account_credential else 1,'witness receipt version')
+    if account_credential:credential.verify(value)
     count(value.get('confirmed_epoch'),2,'witness epoch');count(value.get('effects'),3,'witness effects')
     require(value.get('native_sha256')==binaries and value.get('provider')=='48.0.1'
             and value.get('implementation')==str(application/PACKAGE/'session_cli.py')
@@ -61,6 +63,7 @@ def retain(value,private,public,snapshot):
         item=snapshot(private/name);(public/name).write_bytes(item.data);return item
     def result(name):return parse_strict_json_bytes(copy(name+'.stdout').data,label=name)
     copy('RESULT.json')
+    if value.get('schema_version')==2:credential.retain(value,copy,result)
     for label in LABELS:
         out=copy(label+'.stdout');err=copy(label+'.stderr')
         require(bool(err.data)==(label in FAILED),'witness diagnostic disposition')
@@ -114,15 +117,16 @@ def qualify(args,reference,application,provider,outside,output,snapshot,run):
     paths=[getattr(args,key).resolve(strict=True) for key in keys]
     def hashes():return {str(p):read_regular_snapshot(p,maximum=128*1024**2,label='witness native executable').sha256 for p in paths}
     binaries=hashes()
-    (outside/'witness_cli_exchange.py').write_bytes(snapshot(reference/'tests/witness_cli_exchange.py').data)
+    for name in ('witness_cli_exchange.py','witness_account_credential_cli.py','account_credential_cli.py','host_replacement_process.py'):
+        (outside/name).write_bytes(snapshot(reference/'tests'/name).data)
     private=outside/'private-witness-cli'
-    command=[sys.executable,'-I','-S','-B',str(outside/'native_exchange.py'),'--client-cli']
+    command=[sys.executable,'-I','-S','-B',str(outside/'native_exchange.py'),'--client-cli','--account-credential-cli']
     for key,path in zip(('native-device','native-session','crash-probe','native-outgoing','required-witness'),paths):
         command+=['--'+key,str(path)]
     command+=['--implementation-root',str(application),'--provider-root',str(provider),'--output',str(private)]
     execution=run(command,'required-witness-cli')
     value=parse_strict_json_bytes(execution.stdout,label='installed required witness CLI')
-    verify(value,binaries,application)
+    verify(value,binaries,application,account_credential=True)
     require(parse_strict_json_bytes(snapshot(private/'RESULT.json').data,label='retained witness result')==value,'witness retained result differs')
     retain(value,private,output/'witness-cli-public',snapshot)
     require(hashes()==binaries,'witness native executable changed')

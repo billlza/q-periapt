@@ -59,7 +59,7 @@ class WitnessHost:
 
 
 def exercise(implementation,provider,client_dir,session_dir,client_id,root,native,outgoing,inputs,
-             journal,original,run,witness,current,device,certificate):
+             journal,original,run,witness,current,device,certificate,*,account_issuer=None):
     command=[sys.executable,'-I','-S','-B','-c',
         f'import sys; sys.path.insert(0,{str(implementation)!r}); from qperiapt_continuity_reference.session_cli import main; raise SystemExit(main())',
         '--provider-root',provider,'--directory',client_dir,'--client-id',client_id.hex(),'--key-file',root/'client-wrap.key']
@@ -116,6 +116,11 @@ def exercise(implementation,provider,client_dir,session_dir,client_id,root,nativ
         witness.start('witness-reopened')
         require(witness.keys()==keys,'witness restart regenerated keys')
         witness.enroll('advanced-retry',prepared,current,device,original,certificate)
+        account_renewal=None
+        if account_issuer is not None:
+            from witness_account_credential_cli import exercise as account_credential
+            account_renewal=account_credential(account_issuer,implementation,provider,root,client_dir,
+                session_dir,client_id,original,journal,sid,lost,witness,prepared)
         require(call('resume',['resume',*selected,'--message='+lost,'--associated-data',root/'witness-ad.bin',*address])['consumption']=='Confirmed',
             'original pending message did not resume after witness restart')
         run([native,'read-inbox',root/'inbox.redb',b64(journal),sid,lost,root/'witness-lost.bin'],'witness-read-lost')
@@ -140,12 +145,13 @@ def exercise(implementation,provider,client_dir,session_dir,client_id,root,nativ
         service.stop();witness.close()
         require(witness.keys()==keys,'witness protected keys changed')
         save(root/'witness-key-hashes-after.json',witness.keys())
-        return {'schema_version':1,'kind':'qperiapt.required_witness_session_cli','completed':True,
+        return {'schema_version':2 if account_issuer is not None else 1,'kind':'qperiapt.required_witness_session_cli','completed':True,
+            'account_credential':account_renewal,
             'session':sid,'confirmed_epoch':2,'genesis':prepared,'witness_keys_unchanged':True,
             'native_service':service.result,'independent_service':receiver.result,
             'witness_services':[s.result for s in witness.services],
             'effects':3,'original_lost_message':lost,
-            'scope':'Explicit test authority; actual OS clock and separate native witness/session and independent CLI processes over local TCP. Required first use, missing/unenrolled/offline refusal, loss of actual ACK, witness SIGKILL/reopen with original keys, exact original enrollment retry after advance, same session resume, two rekeys and bidirectional durable effects. No cross-host, G/T renewal, physical power-loss or continuous PQ security-recovery claim.'}
+            'scope':'Explicit test authority; actual OS clock and separate native witness/session and independent CLI processes over local TCP. Required first use, missing/unenrolled/offline refusal, loss of actual ACK, witness SIGKILL/reopen with original keys, exact original enrollment retry after advance, same session resume, two rekeys and bidirectional durable effects. Optional complete-account G section records separate native operator approval and output-loss recovery. No cross-host, elapsed expiry, physical power-loss or continuous PQ security-recovery claim.'}
     finally:
         if receiver is not None and receiver.result is None:receiver.stop()
         if service.result is None:service.stop()

@@ -22,12 +22,12 @@ workload=parser.add_mutually_exclusive_group()
 workload.add_argument('--network',action='store_true',help='Fresh bidirectional TCP workload instead of the file/crash workload')
 workload.add_argument('--client-cli',action='store_true',help='Independent session CLI over actual TCP')
 parser.add_argument('--required-witness',type=Path,help='Restartable witness binary; requires --client-cli')
-parser.add_argument('--account-credential-cli',action='store_true',help='Complete-account credential CLI inside the local original-session workload')
+parser.add_argument('--account-credential-cli',action='store_true',help='Complete-account credential CLI inside the original-session workload')
 args = parser.parse_args()
 if args.required_witness is not None and not args.client_cli:
     parser.error('--required-witness requires --client-cli')
-if args.account_credential_cli and (not args.client_cli or args.required_witness is not None):
-    parser.error('--account-credential-cli requires the explicit local --client-cli workload')
+if args.account_credential_cli and not args.client_cli:
+    parser.error('--account-credential-cli requires the explicit --client-cli workload')
 implementation = args.implementation_root.resolve(strict=True)
 sys.path.insert(0,str(implementation))
 from qperiapt_continuity_reference.provider import load_provider
@@ -178,7 +178,8 @@ try:
             from witness_cli_exchange import exercise as witness_flow
             report=witness_flow(implementation,args.provider_root,client_dir,session_dir,client_id,root,
                 session_cli,outgoing,native_inputs,bytes(accepted['journal']),original_journal,run,witness_host,
-                current,client_offer.intent.device,certificate)
+                current,client_offer.intent.device,certificate,
+                account_issuer=issuer if args.account_credential_cli else None)
         require({p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in native_hashes}==native_hashes,'native executable changed')
         report.update(native_sha256=native_hashes,commands=commands,refusals=refusals,
                       provider=provider.__version__,clock='actual OS time',
