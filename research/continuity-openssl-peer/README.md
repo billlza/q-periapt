@@ -393,6 +393,13 @@ registered session, rekey, credential renewal and pending recovery under the
 client lifetime. Full session CLI integration and the documented pre-publication
 first-use recovery boundary remain open.
 
+The [account-root statement verifier](ACCOUNT_ROOT_PROTOCOL.md) independently
+reconstructs approved plans and verifies complete signed freezes, retirement
+and distinct plan/decision closures. Its installed-wheel tests consume public
+native operator outputs and check both signature components and exact target
+bindings. Durable independent root selection and original session-owner fencing
+remain separate controller work; these historical proofs do not grant traffic.
+
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential
 and policy expire at fixture time160. The native issuer retains those signed

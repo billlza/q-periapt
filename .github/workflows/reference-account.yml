@@ -9,6 +9,7 @@ on:
       - research/continuity-openssl-peer/tests/enrollment_exchange.py
       - research/continuity-openssl-peer/tests/enrollment_client.py
       - research/continuity-openssl-peer/tests/enrollment_extension.py
+      - research/continuity-openssl-peer/tests/account_root_protocol.py
       - research/continuity-openssl-peer/tests/network.py
       - research/continuity-openssl-peer/tests/mailbox.py
       - research/continuity-openssl-peer/pyproject.toml
@@ -45,6 +46,7 @@ on:
       - research/continuity-openssl-peer/tests/enrollment_exchange.py
       - research/continuity-openssl-peer/tests/enrollment_client.py
       - research/continuity-openssl-peer/tests/enrollment_extension.py
+      - research/continuity-openssl-peer/tests/account_root_protocol.py
       - research/continuity-openssl-peer/tests/network.py
       - research/continuity-openssl-peer/tests/mailbox.py
       - research/continuity-openssl-peer/pyproject.toml
@@ -256,6 +258,12 @@ jobs:
             --provider-root "$RUNNER_TEMP/reference-provider" \
             --output "$PWD/target/reference-account-ci/root-operator" \
             > target/reference-account-ci/root-operator.stdout 2> target/reference-account-ci/root-operator.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/tests/account_root_protocol.py \
+            --operator-output "$PWD/target/reference-account-ci/root-operator" \
+            --implementation-root "$installed_reference/installed" \
+            --provider-root "$RUNNER_TEMP/reference-provider" \
+            --output "$PWD/target/reference-account-ci/root-protocol" \
+            > target/reference-account-ci/root-protocol.stdout 2> target/reference-account-ci/root-protocol.stderr
           git diff --exit-code
       - name: Retain build and regression results
         if: always()

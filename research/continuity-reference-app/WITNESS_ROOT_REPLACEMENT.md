@@ -103,9 +103,12 @@ explicit failures.
 Native tests verify scope/refusal/receipt behavior and kill the operator process
 after freeze, commitment and both closure boundaries. The separate
 `tests/witness_root_operator.py` driver runs the actual CLI through commit,
-decision-close and plan-close profiles, retaining public inputs, real BrokenPipe
+decision-close, plan-close and replan profiles, retaining public inputs, real BrokenPipe
 outputs and original-key checks. The reference-account CI runs it using the
 Release operator and native test helper. These are local operator observations;
 [authenticated host cutover](ACCOUNT_ROOT_CUTOVER.md) is validated separately.
-Independent clients, original client-owner fencing, mobile lifecycle,
+The installed [independent root-statement verifier](../continuity-openssl-peer/ACCOUNT_ROOT_PROTOCOL.md)
+reconstructs those original plans and verifies the public dual-signature proofs
+with its own Python/OpenSSL implementation. Durable independent root control,
+original client-owner fencing, mobile lifecycle,
 witness-key handoff and post-compromise security remain separate requirements.
