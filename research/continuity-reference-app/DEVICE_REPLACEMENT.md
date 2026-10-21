@@ -28,6 +28,12 @@ Older readers refuse the new schema. No downgrade or automatic reset is provided
    [witness replacement operator](WITNESS_REPLACEMENT.md) with the approved new
    device trust and complete original predecessor state. Query its exact decision
    after a lost response. Only its commit retires those old witness entries.
+6. On an already connected remote native device, explicitly admit the selected
+   signed replacement roster using [admit-peer-roster](NATIVE_DEVICE.md#remote-peer-roster).
+   Retry that exact target after an uncertain result. Then connect the new device
+   from its own fresh installation and retain any previously prepared handshake.
+   This remote-account operation does not update surviving devices in the replaced
+   device's own account; those need their separate enrollment roster transaction.
 
 The browser never copies the old device proof into the new operation. Its
 schema-5 recovery backup includes the original enrollment and all earlier
@@ -55,6 +61,12 @@ replacement request prepared from the still-current original issued operation.
 
 The local profile keeps five-minute approval deadlines and one-hour replacement
 credentials. It does not transfer old device journals or old session secrets.
-The account and witness APIs have process/crash regressions, but their complete
-consumer handoff, subsequent message exchange and installed/mobile acceptance
-remain separate integration requirements.
+The `tests/host_replacement.py` workload uses the actual account HTTP service
+with isolated software WebAuthn authenticators. It loses invitation/issuance
+responses, kills and restarts the account service, reuses the original Passkeys,
+commits witness replacement with lost output, and recovers peer-roster admission.
+The surviving native owner exchanges messages with the fresh independent device,
+confirms a rekey and sends new traffic after witness/native service restarts.
+Old owner operations and cached old traffic remain refused. The installed wheel
+qualification runs this same workload and checks the public process receipts.
+This is not human Passkey, mobile, cross-host or post-compromise security evidence.

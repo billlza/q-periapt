@@ -13,6 +13,7 @@ mod admission;
 mod credential_recovery;
 mod mailbox;
 mod peer;
+mod peer_roster;
 mod policy;
 mod publication;
 mod renewal;

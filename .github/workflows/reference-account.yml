@@ -22,6 +22,8 @@ on:
       - artifact/test_continuity_host_cli.py
       - artifact/continuity_host_witness.py
       - artifact/test_continuity_host_witness.py
+      - artifact/continuity_host_replacement*.py
+      - artifact/test_continuity_host_replacement.py
       - artifact/continuity_independent_python*.py
       - crates/**
       - research/continuity-identity-candidate/src/**
@@ -47,6 +49,8 @@ on:
       - artifact/test_continuity_host_cli.py
       - artifact/continuity_host_witness.py
       - artifact/test_continuity_host_witness.py
+      - artifact/continuity_host_replacement*.py
+      - artifact/test_continuity_host_replacement.py
       - artifact/continuity_independent_python*.py
       - crates/**
       - research/continuity-identity-candidate/src/**
@@ -133,10 +137,12 @@ jobs:
             > target/reference-account-ci/clippy.stdout 2> target/reference-account-ci/clippy.stderr
           cargo build --locked --release --manifest-path "$manifest" \
             > target/reference-account-ci/build.stdout 2> target/reference-account-ci/build.stderr
-          cargo build --locked --release --manifest-path "$manifest" --example inbox-crash-probe \
+          cargo build --locked --release --manifest-path "$manifest" --example inbox-crash-probe --example account-client-probe \
             > target/reference-account-ci/inbox-probe-build.stdout 2> target/reference-account-ci/inbox-probe-build.stderr
           cargo test --locked --release --manifest-path "$manifest" \
             > target/reference-account-ci/release-tests.stdout 2> target/reference-account-ci/release-tests.stderr
+          reference_build="$CARGO_TARGET_DIR"
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/reference-identity-build"
           native_manifest=research/continuity-identity-candidate/Cargo.toml
           cargo fmt --manifest-path "$native_manifest" -- --check \
             > target/reference-account-ci/native-signers-fmt.stdout 2> target/reference-account-ci/native-signers-fmt.stderr
@@ -150,12 +156,14 @@ jobs:
             > target/reference-account-ci/native-historical-identity.stdout 2> target/reference-account-ci/native-historical-identity.stderr
           cargo clippy --locked --manifest-path "$native_manifest" --lib -- -D warnings \
             > target/reference-account-ci/native-signers-clippy.stdout 2> target/reference-account-ci/native-signers-clippy.stderr
+          export CARGO_TARGET_DIR="$reference_build"
           shasum -a 256 "$CARGO_TARGET_DIR/release/q-periapt-continuity-reference-app" \
             "$CARGO_TARGET_DIR/release/q-periapt-native-device" \
             "$CARGO_TARGET_DIR/release/q-periapt-native-session" \
             "$CARGO_TARGET_DIR/release/q-periapt-native-outgoing" \
             "$CARGO_TARGET_DIR/release/q-periapt-continuity-witness" \
             "$CARGO_TARGET_DIR/release/examples/inbox-crash-probe" \
+            "$CARGO_TARGET_DIR/release/examples/account-client-probe" \
             > target/reference-account-ci/binary.sha256
           cp research/continuity-reference-app/Cargo.lock target/reference-account-ci/Cargo.lock
           git diff --exit-code
@@ -169,6 +177,8 @@ jobs:
           NATIVE_SESSION: ${{ runner.temp }}/reference-account-build/release/q-periapt-native-session
           NATIVE_OUTGOING: ${{ runner.temp }}/reference-account-build/release/q-periapt-native-outgoing
           CONTINUITY_WITNESS: ${{ runner.temp }}/reference-account-build/release/q-periapt-continuity-witness
+          ACCOUNT_HOST: ${{ runner.temp }}/reference-account-build/release/q-periapt-continuity-reference-app
+          ACCOUNT_CLIENT: ${{ runner.temp }}/reference-account-build/release/examples/account-client-probe
           CRASH_PROBE: ${{ runner.temp }}/reference-account-build/release/examples/inbox-crash-probe
         run: |
           sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_host_native_exchange.py' \
@@ -179,6 +189,8 @@ jobs:
             > target/reference-account-ci/cli-receipt-tests.stdout 2> target/reference-account-ci/cli-receipt-tests.stderr
           sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_host_witness.py' \
             > target/reference-account-ci/witness-receipt-tests.stdout 2> target/reference-account-ci/witness-receipt-tests.stderr
+          sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_host_replacement.py' \
+            > target/reference-account-ci/replacement-receipt-tests.stdout 2> target/reference-account-ci/replacement-receipt-tests.stderr
           "$PEER_PYTHON" -I -m venv "$RUNNER_TEMP/reference-wheel-build"
           "$RUNNER_TEMP/reference-wheel-build/bin/python" -I -m pip install \
             --isolated --disable-pip-version-check --index-url https://pypi.org/simple \
@@ -205,6 +217,8 @@ jobs:
             --native-outgoing "$NATIVE_OUTGOING" \
             --crash-probe "$CRASH_PROBE" \
             --witness "$CONTINUITY_WITNESS" \
+            --account-host "$ACCOUNT_HOST" \
+            --account-client "$ACCOUNT_CLIENT" \
             --output target/reference-account-ci/exchange \
             > target/reference-account-ci/exchange.stdout 2> target/reference-account-ci/exchange.stderr
           git diff --exit-code

@@ -12,6 +12,10 @@ default-run = "q-periapt-continuity-reference-app"
 name = "inbox-crash-probe"
 path = "tests/support/inbox_crash_probe.rs"
 
+[[example]]
+name = "account-client-probe"
+path = "tests/support/account_client_probe.rs"
+
 [workspace]
 
 [dependencies]

@@ -276,3 +276,25 @@ required witness outcomes cannot fall back to local expiry reconciliation.
 Use the [policy-only consumer workflow](POLICY_RENEWAL.md) for a same-profile
 validity extension with separate account and original-policy approvals. It keeps
 credentials and roster unchanged and does not grant fresh-bootstrap permission.
+
+## Remote peer roster
+
+An existing remote account can advance to an independently selected signed roster:
+
+```sh
+q-periapt-native-device admit-peer-roster "$device_dir" "$wrapping_key" "$invitation" \
+  "$current_local_root" "$policy_pins" "$policy_materials" "$witness_endpoint_or_none" \
+  "$selected_remote_root_and_roster"
+```
+
+The target uses the account host's `RootInfo` JSON with an explicit roster. The
+original device owner checks the retained remote root and family, monotonic
+checkpoint, current local authority and witness. This cannot introduce an unknown
+account or refresh the local account's own enrollment. It does not grant traffic
+permission by itself. Do not derive the selected target from an untrusted incoming
+bundle.
+
+Success reports `{"peer_roster": <checkpoint>}`. On an error, the owner is closed
+and the durable commit may be unknown. Keep the exact target and original device
+files, reopen and retry it; an exact successful retry reports the installed target.
+A lower checkpoint fails. Never reset the journal to recover this operation.

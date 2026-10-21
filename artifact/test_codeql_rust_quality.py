@@ -2074,6 +2074,9 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-reference-app/tests/native_device/renewal.rs',
             'research/continuity-reference-app/tests/native_device/witness.rs',
             'research/continuity-reference-app/tests/support/inbox_crash_probe.rs',
+            'research/continuity-reference-app/tests/support/account_http.rs',
+            'research/continuity-reference-app/tests/support/account_client_probe.rs',
+            'research/continuity-reference-app/src/native_device/peer_roster.rs',
         )
         for missing in required:
             self.assertIn(missing, tracked)
@@ -2082,7 +2085,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 codeql_rust_quality, "run_git_bytes", return_value=raw
             ), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError,
-                "tracked Rust source count must be 885, got 884",
+                "tracked Rust source count must be 888, got 887",
             ):
                 codeql_rust_quality.tracked_rust_paths()
 

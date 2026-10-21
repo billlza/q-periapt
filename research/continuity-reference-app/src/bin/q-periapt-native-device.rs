@@ -22,7 +22,7 @@ use operator_io::{export_directory, identifier, print, read};
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 const USAGE: &str = concat!(
     "Usage: q-periapt-native-device provision-key <absolute-key-file>\n",
-    "Or: <begin|status|request|accept|extend|prepare|activate|refresh-roster|publication-next|publish|renewal-request> ",
+    "Or: <begin|status|request|accept|extend|prepare|activate|refresh-roster|admit-peer-roster|publication-next|publish|renewal-request> ",
     "<absolute-device-dir> <absolute-key-file> <original-invitation-json> [arguments]\n",
     "request: <new-request-output>\n",
     "renewal-request: <retained-renewal-id> <original-policy-pins-json> ",
@@ -49,6 +49,8 @@ const USAGE: &str = concat!(
     "prepare/refresh-roster: <current-root-json> <policy-pins-json> <policy-materials-json>\n",
     "activate/publication-next: <current-root-json> <policy-pins-json> ",
     "<policy-materials-json> <witness-address-or-none>\n",
+    "admit-peer-roster: <current-local-root-json> <policy-pins-json> <policy-materials-json> ",
+    "<witness-address-or-none> <independently-selected-remote-root-and-roster-json>\n",
     "publish: <current-root-json> <policy-pins-json> <policy-materials-json> ",
     "<witness-address-or-none> <retained-publication-id> <plan-json> <existing-empty-private-export-dir>\n",
     "Existing private directories and independently supplied trust are required. ",
@@ -98,6 +100,7 @@ fn main() -> Result<()> {
         "renewal-request" => 10,
         "prepare" | "refresh-roster" => 8,
         "activate" | "publication-next" => 9,
+        "admit-peer-roster" => 10,
         "publish" => 12,
         _ => return Err(USAGE.into()),
     };
@@ -188,7 +191,7 @@ fn main() -> Result<()> {
                 ),
             }
         }
-        "activate" | "publication-next" | "publish" => {
+        "activate" | "publication-next" | "publish" | "admit-peer-roster" => {
             let endpoint = match args[8].to_str().ok_or("Witness endpoint is not UTF-8")? {
                 "none" => None,
                 text => Some(text.parse()?),
@@ -200,6 +203,11 @@ fn main() -> Result<()> {
                 ),
                 "publication-next" => {
                     print(&serde_json::json!({"publication":active.next_publication()?}))
+                }
+                "admit-peer-roster" => {
+                    let target: RootInfo = json(&args[9], 128 * 1024)?;
+                    let checkpoint = active.admit_peer_roster(&target, &policy, clock()?)?;
+                    print(&serde_json::json!({"peer_roster":checkpoint}))
                 }
                 "publish" => {
                     let (id, plan) = publication_inputs

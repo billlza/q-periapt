@@ -159,8 +159,10 @@ these are reference-host choices, not SDK requirements. It bounds active devices
 at 32, pending invitations per account at 8 and retained operations at 512 in the
 database. Closed operations retain their identities; no automatic history
 deletion recovers capacity. Root suspension stops new/pending issuance, not
-already issued device traffic. Standalone device revocation and a complete
-account-to-witness replacement with renewed communication remain to integrate.
+already issued device traffic. The HTTP-to-witness replacement workload now exercises fresh independent device
+keys, peer-roster admission, bidirectional messages, rekey and service recovery.
+Standalone device revocation, own-account survivor roster refresh and physical
+consumer replacement remain separate integration requirements.
 
 - Challenges remain on the server, expire after three minutes, and are consumed
   once before verification. Browser cookies contain only random lookup tokens.
