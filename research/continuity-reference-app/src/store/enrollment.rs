@@ -66,6 +66,9 @@ struct Operation {
     // Schema7 explicitly admits the replacement kind; old records stay unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     replacement: Option<replacement::Intent>,
+    // Schema9 explicitly admits an invitation under one retained candidate root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    root_preparation: Option<[u8; 32]>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "phase", deny_unknown_fields)]
@@ -92,6 +95,7 @@ pub(super) struct EnrollmentSchema {
     pub(super) policy_approvals: bool,
     pub(super) replacements: bool,
     pub(super) root_preparations: bool,
+    pub(super) root_successors: bool,
 }
 pub(super) fn admit_schema(
     tx: &redb::ReadTransaction,
@@ -108,12 +112,13 @@ pub(super) fn admit_schema(
         .collect();
     names.sort();
     let mut expected = vec!["accounts", "configuration", "credential_owners"];
-    let root_preparations = schema.value() == "8";
-    let replacements = matches!(schema.value(), "7" | "8");
-    let policy_approvals = matches!(schema.value(), "6" | "7" | "8");
-    let grants = matches!(schema.value(), "5" | "6" | "7" | "8");
-    let extensions = matches!(schema.value(), "4" | "5" | "6" | "7" | "8");
-    let reapproval = matches!(schema.value(), "3" | "4" | "5" | "6" | "7" | "8");
+    let root_successors = schema.value() == "9";
+    let root_preparations = matches!(schema.value(), "8" | "9");
+    let replacements = matches!(schema.value(), "7" | "8" | "9");
+    let policy_approvals = matches!(schema.value(), "6" | "7" | "8" | "9");
+    let grants = matches!(schema.value(), "5" | "6" | "7" | "8" | "9");
+    let extensions = matches!(schema.value(), "4" | "5" | "6" | "7" | "8" | "9");
+    let reapproval = matches!(schema.value(), "3" | "4" | "5" | "6" | "7" | "8" | "9");
     let family = match schema.value() {
         "1" => {
             if config.len().map_err(db_error)? != 2 {
@@ -121,7 +126,7 @@ pub(super) fn admit_schema(
             }
             None
         }
-        "2" | "3" | "4" | "5" | "6" | "7" | "8" => {
+        "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => {
             if config.len().map_err(db_error)? != 3 {
                 return Err(Error::Internal);
             }
@@ -186,6 +191,7 @@ pub(super) fn admit_schema(
         policy_approvals,
         replacements,
         root_preparations,
+        root_successors,
     })
 }
 
@@ -287,6 +293,11 @@ impl Store {
         }
         if operation.invitation.application != account.application_id {
             return Err(Error::Unauthorized);
+        }
+        if operation.root_preparation.is_some_and(|id| {
+            id == [0; 32] || !self.root_successors || operation.replacement.is_some()
+        }) {
+            return Err(Error::Internal);
         }
         match &operation.replacement {
             Some(replacement) if self.enrollment_replacements => {

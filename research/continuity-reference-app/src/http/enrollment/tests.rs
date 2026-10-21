@@ -3,6 +3,7 @@ mod extension;
 mod grant;
 mod policy;
 mod replacement;
+mod root_successor;
 mod support;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use q_periapt_continuity_identity_candidate as sdk;

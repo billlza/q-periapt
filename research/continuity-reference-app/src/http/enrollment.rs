@@ -12,9 +12,11 @@ use axum::{
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use q_periapt_continuity_reference_app::enrollment::{Checkpoint, CredentialExtensionRequest};
 use serde::Deserialize;
+mod candidate_root;
 
 pub(super) fn routes() -> Router<Shared> {
     Router::new()
+        .merge(candidate_root::routes())
         .route("/api/enrollment/root", get(root))
         .route("/api/enrollment/root/prepare", post(prepare))
         .route("/api/enrollment/root/suspend", post(suspend))

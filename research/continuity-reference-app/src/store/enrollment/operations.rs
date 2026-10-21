@@ -19,9 +19,9 @@ impl Store {
                 ));
             }
             if let Some(original) = store.invitation_for_request(account, request_id)? {
-                if original.replacement.is_some() {
+                if original.replacement.is_some() || original.root_preparation.is_some() {
                     return Err(Error::Conflict(
-                        "Correlation identity belongs to a replacement invitation",
+                        "Correlation identity belongs to a specialized invitation",
                     ));
                 }
                 return Ok(original.invitation);
@@ -49,7 +49,7 @@ impl Store {
                 deadline: now.checked_add(300).ok_or(Error::Capacity)?,
                 predecessor: info.roster.as_ref().map(|r| r.checkpoint),
             };
-            store.persist_invitation(account, &invitation, None)?;
+            store.persist_invitation(account, &invitation, None, None)?;
             Ok(invitation)
         })
     }
@@ -78,10 +78,11 @@ impl Store {
                 Phase::Invited => {}
             }
             op.invitation.current(now()?)?;
-            let root = store.root(account)?;
+            let issuer = store.enrollment_issuer(account, &op)?;
+            let root = issuer.root();
             root.admits(&op.invitation, store.family()?)?;
-            let verified = op.verify_request(&root, store.family()?, request, now()?)?;
-            let key = signer_scope(account, &root, &verified);
+            let verified = op.verify_request(root, store.family()?, request, now()?)?;
+            let key = signer_scope(account, root, &verified);
             let tx = transaction(&store.db)?;
             {
                 let mut index = tx.open_table(SIGNERS).map_err(db_error)?;
@@ -118,7 +119,8 @@ impl Store {
                 }
             };
             op.invitation.current(now()?)?;
-            let mut root = store.root(account)?;
+            let mut issuer = store.enrollment_issuer(account, &op)?;
+            let root = issuer.root_mut();
             root.admits(&op.invitation, store.family()?)?;
             if op.replacement.is_none() && root.members.len() >= sdk::MAX_DEVICES {
                 return Err(Error::Capacity);
@@ -133,8 +135,8 @@ impl Store {
                     "Device identity already belongs to the current roster",
                 ));
             }
-            let signer = store.open_signer(&root)?;
-            let verified = op.verify_request(&root, store.family()?, &request, now()?)?;
+            let signer = store.open_signer(root)?;
+            let verified = op.verify_request(root, store.family()?, &request, now()?)?;
             let certificate = signer
                 .issue_enrollment(&verified, now()?)
                 .map_err(db_error)?;
@@ -198,7 +200,7 @@ impl Store {
                 response: response.clone(),
             };
             let tx = transaction(&store.db)?;
-            save_root(&tx, &root)?;
+            issuer.persist(&tx, account)?;
             save_operation(&tx, &op)?;
             op.invitation.current(now()?)?;
             #[cfg(test)]
@@ -297,6 +299,7 @@ impl Store {
         account: &Account,
         invitation: &Invitation,
         replacement: Option<replacement::Intent>,
+        root_preparation: Option<[u8; 32]>,
     ) -> Result<(), Error> {
         let mut key = account.application_id.to_vec();
         key.extend_from_slice(&invitation.request_id);
@@ -333,8 +336,12 @@ impl Store {
                 invitation: invitation.clone(),
                 phase: Phase::Invited,
                 replacement,
+                root_preparation,
             },
         )?;
+        if let Some(preparation) = root_preparation {
+            self.link_root_successor(&tx, account, preparation, invitation)?;
+        }
         tx.open_table(REQUESTS)
             .map_err(db_error)?
             .insert(key.as_slice(), invitation.operation.as_slice())

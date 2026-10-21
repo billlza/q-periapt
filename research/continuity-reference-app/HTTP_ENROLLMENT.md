@@ -92,6 +92,13 @@ tests is not evidence of live policy admission or permission to send traffic.
 
 ## Regression scope
 
+The [candidate-root routes](ROOT_PREPARATION.md) add separately authenticated
+preparation and target invitation after explicit schema-8/9 upgrades. They reuse
+ordinary exact approval, issuance, reapproval and extension transactions while
+retaining the old current root. Their HTTP regression loses candidate, invitation
+and issuance response bodies across server restarts; it does not claim full root
+selection or witness retirement.
+
 `src/http/enrollment/tests.rs` uses actual loopback TCP, software WebAuthn
 signatures and native SDK device proofs. It covers anonymous and wrong-account
 refusal, Origin/body/proof boundaries, exact retries, two-device roster conflicts,

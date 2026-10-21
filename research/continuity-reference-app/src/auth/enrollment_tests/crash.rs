@@ -46,6 +46,8 @@ pub(super) enum Work {
     RootPreparationUpgrade,
     PrepareRoot(crate::root_preparation::Request),
     CloseRootPreparation([u8; 32]),
+    RootSuccessorUpgrade,
+    InviteRootSuccessor(crate::root_preparation::SuccessorRequest),
     PolicyApproval(Box<crate::policy_approval::PolicyApprovalRequest>),
     CancelPolicyApproval(Box<crate::policy_approval::PolicyApprovalRequest>),
 }
@@ -87,7 +89,9 @@ pub(super) fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>
         .env_remove("QPERIAPT_ISSUER_REPLACEMENT_INPUT")
         .env_remove("QPERIAPT_ISSUER_ROOT_PREPARATION_UPGRADE")
         .env_remove("QPERIAPT_ISSUER_ROOT_PREPARATION_INPUT")
-        .env_remove("QPERIAPT_ISSUER_ROOT_PREPARATION_CLOSE");
+        .env_remove("QPERIAPT_ISSUER_ROOT_PREPARATION_CLOSE")
+        .env_remove("QPERIAPT_ISSUER_ROOT_SUCCESSOR_UPGRADE")
+        .env_remove("QPERIAPT_ISSUER_ROOT_SUCCESSOR_INPUT");
     let cancel_grant = matches!(&work, Work::CancelGrant(_));
     let cancel_policy = matches!(&work, Work::CancelPolicyApproval(_));
     match work {
@@ -128,6 +132,14 @@ pub(super) fn kill_at(path: &Path, boundary: &str, work: Work) -> Result<Vec<u8>
         }
         Work::RootPreparationUpgrade => {
             command.env("QPERIAPT_ISSUER_ROOT_PREPARATION_UPGRADE", "1");
+        }
+        Work::RootSuccessorUpgrade => {
+            command.env("QPERIAPT_ISSUER_ROOT_SUCCESSOR_UPGRADE", "1");
+        }
+        Work::InviteRootSuccessor(input) => {
+            let file = path.join(format!("{boundary}.root-successor-input.json"));
+            fs::write(&file, serde_json::to_vec(&input)?)?;
+            command.env("QPERIAPT_ISSUER_ROOT_SUCCESSOR_INPUT", file);
         }
         Work::PrepareRoot(input) => {
             let file = path.join(format!("{boundary}.root-preparation-input.json"));
@@ -191,7 +203,11 @@ fn issuer_child() -> Result {
     let path = std::path::PathBuf::from(path);
     let mut store = Store::open(&path.join("accounts.redb"), ORIGIN)?;
     let account = store.account("alice")?.ok_or("original fixture account")?;
-    if std::env::var_os("QPERIAPT_ISSUER_ROOT_PREPARATION_UPGRADE").is_some() {
+    if std::env::var_os("QPERIAPT_ISSUER_ROOT_SUCCESSOR_UPGRADE").is_some() {
+        store.enable_root_successors()?;
+    } else if let Some(file) = std::env::var_os("QPERIAPT_ISSUER_ROOT_SUCCESSOR_INPUT") {
+        store.invite_root_successor(&account, &serde_json::from_slice(&fs::read(file)?)?)?;
+    } else if std::env::var_os("QPERIAPT_ISSUER_ROOT_PREPARATION_UPGRADE").is_some() {
         store.enable_root_preparations()?;
     } else if let Some(file) = std::env::var_os("QPERIAPT_ISSUER_ROOT_PREPARATION_INPUT") {
         store.prepare_account_root(&account, &serde_json::from_slice(&fs::read(file)?)?)?;

@@ -217,7 +217,7 @@ impl Store {
                 current_roster: roster.bytes.clone(),
             };
             intent.current(&root, &invitation, store.family()?)?;
-            store.persist_invitation(account, &invitation, Some(intent))?;
+            store.persist_invitation(account, &invitation, Some(intent), None)?;
             Ok(invitation)
         })
     }

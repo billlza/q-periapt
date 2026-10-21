@@ -34,17 +34,19 @@ issuance, exact original-response recovery and an enrollment suspension fence.
 The same-origin [HTTP enrollment adapter](HTTP_ENROLLMENT.md) now exposes those
 existing transactions using the host login session. The [browser controls](BROWSER_ENROLLMENT.md)
 retain original correlations and support explicit approval/reapproval and recovery.
-**Installed independent-client acceptance is not connected yet.** A login session
+The reference-account qualification also exercises an installed independent
+Python consumer. Complete account-root cutover remains separate. A login session
 is not a device credential or permission to send Continuity traffic.
 
 The implementation and remaining integration follow the [host-authorized enrollment transaction](ENROLLMENT_TRANSACTION.md).
 It binds original requests, explicit approval, complete membership and durable
 response recovery; the document distinguishes requirements from implemented behavior.
 
-The separate [candidate-root preparation](ROOT_PREPARATION.md) transaction retains
-one new root under host account authentication, including after loss of the old
-root's private key. It preserves the current issuer and suspension; full root
-replacement and its HTTP/browser integration remain open.
+The separate [candidate-root enrollment](ROOT_PREPARATION.md) transactions retain
+one new root and its approved target under host account authentication, including
+after loss of the old root's private key. HTTP callers can recover original
+creation, signing and extension results while the current issuer stays unchanged.
+Full root replacement and browser/client cutover remain open.
 
 ## Run locally
 

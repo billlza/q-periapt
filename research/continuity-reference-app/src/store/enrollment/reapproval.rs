@@ -96,7 +96,8 @@ impl Store {
                     "Original credential interval ended; reapproval cannot extend it",
                 ));
             }
-            let root = store.root(account)?;
+            let mut issuer = store.enrollment_issuer(account, &old)?;
+            let root = issuer.root();
             root.admits_authority(&old.invitation, store.family()?)?;
             let current = root.info(store.family()?)?.roster.map(|r| r.checkpoint);
             if current != predecessor {
@@ -110,7 +111,7 @@ impl Store {
             let intent = old.invitation.intent().map_err(db_error)?;
             let verified = sdk::VerifiedEnrollmentRequest::verify(request, &intent, now)
                 .map_err(|_| Error::Invalid("Request does not prove the original device intent"))?;
-            let signer = signer_scope(account, &root, &verified);
+            let signer = signer_scope(account, root, &verified);
             let mut invitation = old.invitation.clone();
             invitation.operation = random()?;
             invitation.request_id = request_id;
@@ -178,11 +179,13 @@ impl Store {
                 &Operation {
                     invitation: invitation.clone(),
                     replacement: None,
+                    root_preparation: old.root_preparation,
                     phase: Phase::Approved {
                         request: request.to_vec(),
                     },
                 },
             )?;
+            issuer.retain_reapproval(&tx, account, invitation.operation)?;
             tx.open_table(REQUESTS)
                 .map_err(db_error)?
                 .insert(correlation.as_slice(), invitation.operation.as_slice())
@@ -235,7 +238,8 @@ impl Store {
         let next = self
             .operation(account, transition.successor)
             .map_err(|e| Error::internal("retained reapproval successor", e))?;
-        if !same_device(&old.invitation, &next.invitation)
+        if old.root_preparation != next.root_preparation
+            || !same_device(&old.invitation, &next.invitation)
             || next.invitation.deadline > next.invitation.valid_until
         {
             return Err(Error::Internal);

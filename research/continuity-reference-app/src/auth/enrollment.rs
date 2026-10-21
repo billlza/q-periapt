@@ -6,6 +6,26 @@ use crate::{
 };
 
 impl Service {
+    pub fn root_successor(
+        &mut self,
+        token: &str,
+        preparation: [u8; 32],
+    ) -> Result<crate::root_preparation::SuccessorObservation, Error> {
+        let account = self.authenticated(token)?;
+        let value = self.store.root_successor(&account, preparation)?;
+        self.authenticated(token)?;
+        Ok(value)
+    }
+    pub fn invite_root_successor(
+        &mut self,
+        token: &str,
+        request: &crate::root_preparation::SuccessorRequest,
+    ) -> Result<Invitation, Error> {
+        let account = self.authenticated(token)?;
+        let value = self.store.invite_root_successor(&account, request)?;
+        self.authenticated(token)?;
+        Ok(value)
+    }
     pub fn prepare_account_root(
         &mut self,
         token: &str,

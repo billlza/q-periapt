@@ -3,6 +3,8 @@
 use super::*;
 use crate::root_preparation::{Candidate, Preparation, Request, Status};
 mod schema;
+mod successor;
+pub(super) use successor::Issuer;
 
 pub(super) const PREPARATIONS: TableDefinition<&[u8], &[u8]> =
     TableDefinition::new("root_preparations");
@@ -11,13 +13,15 @@ pub(super) const CORRELATIONS: TableDefinition<&[u8], &[u8]> =
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Record {
+pub(super) struct Record {
     operation: [u8; 32],
     request: Request,
     #[serde(with = "wire")]
     previous_root: Vec<u8>,
     candidate: Root,
     closed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    enrollment: Option<[u8; 32]>,
 }
 impl Record {
     fn check(&self, account: &Account, operation: [u8; 32]) -> Result<(), Error> {
@@ -29,8 +33,12 @@ impl Record {
             || self.request.predecessor.revision.checked_add(1) != Some(self.candidate.revision)
             || self.candidate.application != account.application_id
             || self.candidate.signing_id == [0; 32]
-            || !self.candidate.members.is_empty()
-            || self.candidate.roster.is_some()
+            || self.enrollment == Some([0; 32])
+            || (self.enrollment.is_some()
+                && !matches!(self.candidate.phase, RootPhase::Ready { .. }))
+            || self.candidate.members.len() > 1
+            || (self.enrollment.is_none() && !self.candidate.members.is_empty())
+            || (self.candidate.members.is_empty() != self.candidate.roster.is_none())
         {
             return Err(Error::Internal);
         }
@@ -120,6 +128,9 @@ impl Store {
             return Err(Error::Unauthorized);
         }
         record.check(account, operation)?;
+        if record.enrollment.is_some() && !self.root_successors {
+            return Err(Error::Internal);
+        }
         let key = correlation(account, record.request.request_id);
         if tx
             .open_table(CORRELATIONS)
@@ -189,6 +200,7 @@ impl Store {
                         roster: None,
                     },
                     closed: false,
+                    enrollment: None,
                 };
                 let tx = transaction(&store.db)?;
                 {
@@ -264,6 +276,16 @@ impl Store {
                 record.closed = true;
                 let tx = transaction(&store.db)?;
                 save(&tx, &record)?;
+                if let Some(enrollment) = record.enrollment {
+                    let mut op = store.operation(account, enrollment)?;
+                    if op.root_preparation != Some(operation) {
+                        return Err(Error::Internal);
+                    }
+                    if !matches!(op.phase, Phase::Issued { .. }) {
+                        op.phase = Phase::Closed;
+                        save_operation(&tx, &op)?;
+                    }
+                }
                 #[cfg(test)]
                 test_boundary("root-preparation-close-before-commit", operation.as_slice())?;
                 tx.commit().map_err(db_error)?;

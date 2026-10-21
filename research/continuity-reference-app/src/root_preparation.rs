@@ -15,6 +15,21 @@ pub struct Request {
     pub request_id: [u8; 32],
     pub predecessor: Predecessor,
 }
+/// One independently selected candidate and one retained enrollment correlation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SuccessorRequest {
+    pub preparation: [u8; 32],
+    pub request_id: [u8; 32],
+}
+/// Retained linkage, including a closed or issued invitation; never current authority.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SuccessorObservation {
+    pub preparation: [u8; 32],
+    /// None means this preparation has never linked an enrollment.
+    pub enrollment: Option<crate::enrollment::Invitation>,
+}
 /// Public candidate metadata. No credential, roster or current authority is issued.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

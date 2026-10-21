@@ -4,6 +4,7 @@ use super::*;
 use crate::root_preparation::{Candidate, Predecessor, Preparation, Request, Status};
 use std::{collections::BTreeMap, path::PathBuf};
 mod crash;
+mod successor;
 
 fn schema7(store: &mut Store) -> Result {
     store.enable_enrollment([42; 32])?;

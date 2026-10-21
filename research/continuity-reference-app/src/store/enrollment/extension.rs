@@ -92,7 +92,7 @@ impl Store {
         &self,
         account: &Account,
         request: &CredentialExtensionRequest,
-        root: &Root,
+        issuer: &root_preparation::Issuer,
         response: &[u8],
         at: u64,
     ) -> Result<(), Error> {
@@ -110,7 +110,7 @@ impl Store {
                 return Err(Error::Internal);
             }
         }
-        save_root(&tx, root)?;
+        issuer.persist(&tx, account)?;
         // Do not commit a new target after it has already expired or after
         // the host clock has moved behind this operation's roster interval.
         let committed_at = now()?;
@@ -168,7 +168,8 @@ impl Store {
                     ))
                 };
             }
-            let mut root = store.root(account)?;
+            let mut issuer = store.enrollment_issuer(account, &original)?;
+            let root = issuer.root_mut();
             root.admits_authority(&original.invitation, store.family()?)?;
             let info = root.info(store.family()?)?;
             if info.roster.as_ref().map(|r| r.checkpoint) != Some(request.predecessor) {
@@ -177,9 +178,9 @@ impl Store {
                 ));
             }
             let (member, previous) =
-                store.extension_predecessor(account, request, &original, response, &root, &info)?;
+                store.extension_predecessor(account, request, &original, response, root, &info)?;
             let at = now()?;
-            let signer = store.open_signer(&root)?;
+            let signer = store.open_signer(root)?;
             let certificate = signer
                 .issue_credential_extension(&previous, request.valid_until, at)
                 .map_err(|error| match error {
@@ -221,7 +222,7 @@ impl Store {
                 checkpoint: roster.checkpoint().into(),
                 bytes: roster.as_bytes().to_vec(),
             });
-            store.commit_extension(account, request, &root, &response, at)?;
+            store.commit_extension(account, request, &issuer, &response, at)?;
             Ok(response)
         })
     }
