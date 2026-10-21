@@ -162,7 +162,8 @@ class AccountProbe:
             self.reader.close(); self.process.stdin.close(); self.process.stdout.close(); self.finished = True
 
 
-def policy(root, sdk, publisher, witness, run):
+def policy(root, sdk, publisher, witness, run, *, valid_for=1800):
+    require(type(valid_for) is int and 0<valid_for<=86400,'explicit test policy validity bound')
     sdk_db, publisher_db = root / 'sdk-authority.redb', root / 'publisher.redb'
     sdk_id, publisher_id = b64(os.urandom(32)), b64(os.urandom(32))
     run([sdk, 'init', sdk_db, sdk_id], 'sdk-init')
@@ -174,7 +175,7 @@ def policy(root, sdk, publisher, witness, run):
     authority = run([publisher, 'init', publisher_db, publisher_id,
                      *[sdk_export / n for n in ('sdk-root', 'sdk-state', 'sdk-document', 'sdk-signature')]], 'policy-init')
     now = int(time.time())
-    request = {'bootstrap_mode': 'reusable_both', 'valid_from': now, 'valid_until': now + 1800,
+    request = {'bootstrap_mode': 'reusable_both', 'valid_from': now, 'valid_until': now + valid_for,
                'send_budget': 8, 'anchor': {'kind': 'required', 'identity': list(witness.pin.identity),
                                           'key': b64(witness.pin.key.raw)}}
     path = root / 'policy-request.json'; save(path, request)

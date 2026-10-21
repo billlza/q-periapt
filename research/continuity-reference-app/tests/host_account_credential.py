@@ -15,6 +15,7 @@ parser=argparse.ArgumentParser(description=__doc__)
 for name in ('account-host','account-client','sdk-authority','publisher','witness','native-device',
              'native-session','native-outgoing','implementation-root','provider-root','output'):
     parser.add_argument('--'+name,type=Path,required=True)
+parser.add_argument('--wait-for-credential-expiry',action='store_true',help='Wait for both original one-hour HTTP credentials to expire under a still-live signed test policy')
 args=parser.parse_args();implementation=args.implementation_root.resolve(strict=True)
 sys.path.insert(0,str(implementation))
 from qperiapt_continuity_reference.provider import load_provider
@@ -37,12 +38,13 @@ binaries={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths.value
 sources=[*Path(__file__).resolve().parent.glob('*.py'),*(implementation/'qperiapt_continuity_reference').glob('*.py')]
 inventory=lambda:{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(sources)}
 before=inventory();host=probe=witness=receiver=recording=None;services=[];peers=[];sessions={};pending={};deliveries=[]
-result={'schema_version':1,'kind':'qperiapt.authenticated_account_credential','completed':False,'release_claim_eligible':False,
+result={'schema_version':2 if args.wait_for_credential_expiry else 1,'kind':'qperiapt.authenticated_account_credential','completed':False,'release_claim_eligible':False,
     'source_files':before,'native_sha256':binaries,'provider':provider.__version__,'clock':'actual OS time',
     'implementation':str(implementation/'qperiapt_continuity_reference/credential_cli.py')}
 try:
     witness=WitnessHost(root,paths['witness'],run)
-    family,start,_selected,_selection=policy(root,paths['sdk_authority'],paths['publisher'],witness,run)
+    family,start,_selected,_selection=policy(root,paths['sdk_authority'],paths['publisher'],witness,run,
+        valid_for=7200 if args.wait_for_credential_expiry else 1800)
     host=AccountHost(root,paths['account_host'],family,run);host.start('account-first')
     probe=AccountProbe(root,paths['account_client'],host.origin)
     for name in ('alice',):
@@ -76,6 +78,9 @@ try:
         native.read(sid,message,body,peer.label+'-original-effect');service.stop()
     require(peers[0].journal!=native.journal and peers[0].invitation['device']!=native.invitation['device'],
             'common-account device owners were not distinct')
+    if args.wait_for_credential_expiry:
+        from host_account_expiry import observe
+        result['expiry']=observe(root,native,peers[0],host,probe,witness,run,sessions['peer'])
     result['renewal']=renew(root,native,peers[0],probe,host,witness,run,sessions)
     witness.service.stop(kill=True);witness.start('witness-reopened')
     for peer in peers:
@@ -120,7 +125,9 @@ try:
         original_wire_unchanged=True,
         effects=3,confirmed_epoch=2,services=[s.result for s in services],receivers=deliveries,
         witness_services=[s.result for s in witness.services],account_services=host.services,
-        scope='Real reference HTTP account service and software Passkey authentication; native and independent original owners share one account. Sequential extensions form one final roster, exact lost grant output survives account restart; both owners adopt complete signed sets through original CLIs and native witness approval, recover the original unknown ACK, rekey and exchange bidirectional effects. No fixture account signer, elapsed expiry, human Passkey, mobile or PCS claim.')
+        scope='Real reference HTTP account service and software Passkey authentication; native and independent original owners share one account. Sequential extensions form one final roster, exact lost grant output survives account restart; both owners adopt complete signed sets through original CLIs and native witness approval, recover the original unknown ACK, rekey and exchange bidirectional effects. No fixture account signer, human Passkey, mobile or PCS claim.')
+    result['scope'] += (' Both original credentials naturally expired under a still-live signed policy; expired operations were refused and original software Passkey login restored account access before G.'
+        if args.wait_for_credential_expiry else ' This profile does not wait for credential expiry.')
 except BaseException as error:result['failure']=str(error);raise
 finally:
     errors=[]
