@@ -209,7 +209,7 @@ fn witnessed_policy_cli_preserves_original_proposal_and_recovers_lost_operator_a
     let c = &u.r.case;
     let before = c.call("status", &[])?;
     let keys = [c.path.join("wrap.key"), c.path.join("device/device.key")]
-        .map(|p| fs::read(&p).map(|b| (p, b)))
+        .map(|p| fs::read(&p).map(|b| (p, zeroize::Zeroizing::new(b))))
         .into_iter()
         .collect::<std::io::Result<Vec<_>>>()?;
     let mut bad = fs::read(c.path.join("p-account.bin"))?;
@@ -306,7 +306,8 @@ fn witnessed_policy_cli_preserves_original_proposal_and_recovers_lost_operator_a
     invoke(&observe, false)?;
     u.outcome("policy-witness-close", "Applied")?;
     for (path, bytes) in keys {
-        assert_eq!(fs::read(path)?, bytes);
+        let observed = zeroize::Zeroizing::new(fs::read(path)?);
+        assert!(observed == bytes, "original key file changed");
     }
     u.r.server.close()?;
     Ok(())
