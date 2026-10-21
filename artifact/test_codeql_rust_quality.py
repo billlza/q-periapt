@@ -2091,7 +2091,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 codeql_rust_quality, "run_git_bytes", return_value=raw
             ), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError,
-                "tracked Rust source count must be 888, got 887",
+                f"tracked Rust source count must be {len(tracked)}, got {len(tracked) - 1}",
             ):
                 codeql_rust_quality.tracked_rust_paths()
 
