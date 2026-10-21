@@ -21,7 +21,7 @@ class ElapsedAccountReceiptTests(unittest.TestCase):
             body=b'QPCERT01'+bytes(56)+start.to_bytes(8,'big')+(start+3600).to_bytes(8,'big')+bytes(2017)
             certificate=len(body).to_bytes(4,'big')+body+b'unit-shape-only'
             self.docs[label+'-issued.json']=dict(certificate=base64.urlsafe_b64encode(certificate).rstrip(b'=').decode())
-        self.data={'peer-expiry-refused.stderr':b'ValueError: expired or premature authority\n',
+        self.data={'peer-expiry-refused.stderr':b'ValueError: witness current authority denied\n',
                    'native-expiry-refused.stderr':b'Error: Validity\n'}
         self.requests={'expiry-old-login':dict(route='/api/me')}
         self.responses={'expiry-old-login':dict(status=401),'expiry-relogin':dict(authenticated='original_software_test_passkey')}
@@ -46,6 +46,8 @@ class ElapsedAccountReceiptTests(unittest.TestCase):
             original=self.data[name];self.data[name]=b'OSError: disk unavailable\n'
             with self.subTest(name=name),self.assertRaises(ValueError):self.accepted()
             self.data[name]=original
+        self.data['peer-expiry-refused.stderr']=b'ValueError: expired or premature authority\n'
+        with self.assertRaises(ValueError):self.accepted()
 
     def test_invitation_cannot_disagree_with_issued_certificate(self):
         name='peer-issued.json';original=self.docs[name]

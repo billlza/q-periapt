@@ -60,7 +60,9 @@ def retain(value,doc,data,requests,responses):
         require(len(certificate)>2101 and certificate[:4]==(2097).to_bytes(4,'big')
                 and certificate[4:12]==b'QPCERT01' and int.from_bytes(certificate[68:76],'big')==start
                 and int.from_bytes(certificate[76:84],'big')==end,'elapsed HTTP cohort invitation/certificate interval differs')
-    require(data('peer-expiry-refused.stderr')==b'ValueError: expired or premature authority\n'
+    # This required-witness profile authenticates current authority before local
+    # admission. The witness denies its expired credential interval first.
+    require(data('peer-expiry-refused.stderr')==b'ValueError: witness current authority denied\n'
             and data('native-expiry-refused.stderr')==b'Error: Validity\n',
             'elapsed HTTP cohort failure is not the expected validity refusal')
     require(requests['expiry-old-login']['route']=='/api/me' and responses['expiry-old-login']['status']==401
