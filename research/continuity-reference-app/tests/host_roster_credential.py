@@ -72,3 +72,23 @@ def renew(root, native, probe, witness, run, policy):
     require(bytes(run(activation(native),'g-reopen')['journal'])==native.journal,'G cannot reopen original P owner')
     return {'request':request,'extension':extended,'issued':issued,'preparation':preparation,
             'terminal':terminal,'activation':active,'proposal_binding':list(proposal.binding)}
+
+
+def check_returned_owner(root, native, peer, run, binary, session):
+    selection = root/'g-returned-owner.json'
+    save(selection, {'schema':'qperiapt-credential-recovery-probe/1',
+        'device_directory':str(native.directory), 'wrapping_key':str(root/'native-wrap.key'),
+        'invitation':str(native.common[2]), 'approval':str(root/'g-approval.json'),
+        'issued':str(root/'g-issued.json'), 'current_root':str(native.current_path),
+        'original_policy':str(native.original_policy), 'target_policy':str(native.policy_input),
+        'witness_endpoint':native.witness.endpoint(), 'peer_trust':str(peer.trust_path),
+        'bundle':str(peer.bundle_path), 'session':list(encoded(session,32,32))})
+    result = run([binary,selection],'g-returned-owner')
+    require(result['journal']==list(native.journal) and result['session']==list(encoded(session,32,32))
+            and result['status']=='Absent' and result['same_returned_owner'] is True,
+            'returned G owner cannot use its original established session')
+    message = result['message']
+    require(type(message) is list and len(message)==32
+            and all(type(byte) is int and 0<=byte<=255 for byte in message) and any(message),
+            'returned G owner next-message identity is malformed')
+    return result

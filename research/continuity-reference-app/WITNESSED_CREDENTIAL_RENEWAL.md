@@ -48,13 +48,16 @@ error. Lost operator or activation output requires the same original operation.
 
 The source CLI regressions cover original-policy G, P followed by G, substituted
 operator selections, export/output loss and real policy expiry. The authenticated
-account workload `tests/host_roster.py --credential-renewal` adds G after R/P/R,
-then restarts the witness, recovers the original pending message, rekeys and
-exchanges traffic with the independent Python peer. That peer's original C/P
-remain live. This optional source workload has its own schema-3 receipt; the
-existing schema-2 installed R/P/R collector does not qualify it.
+account workload `tests/host_roster.py --credential-renewal` adds G after R/P/R.
+Supply `--credential-recovery-probe` with the path to the Cargo example of that
+name. This test-only consumer uses the returned recovery owner directly to reopen
+the established session and observe its next message ID; it does not reactivate
+the device through another path. The workload then restarts the witness, recovers
+the original pending message, rekeys and exchanges traffic with the independent
+Python peer. That peer's original C/P remain live. This source workload runs in a
+separate account CI step with its own schema-3 receipt; the existing schema-2
+installed R/P/R collector does not qualify it.
 
-Joint T adoption, both endpoints' credential/policy expiry, direct use of a
-returned recovery owner to reopen an established session, new installed-package
+Joint T adoption, both endpoints' credential/policy expiry, new installed-package
 qualification of this operator, mobile composition and general upgrades remain
 separate acceptance requirements.

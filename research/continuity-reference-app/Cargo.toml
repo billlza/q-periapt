@@ -16,6 +16,10 @@ path = "tests/support/inbox_crash_probe.rs"
 name = "account-client-probe"
 path = "tests/support/account_client_probe.rs"
 
+[[example]]
+name = "credential-recovery-probe"
+path = "tests/support/credential_recovery_probe.rs"
+
 [workspace]
 
 [dependencies]

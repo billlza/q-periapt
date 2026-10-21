@@ -17,7 +17,10 @@ for name in ('account-host', 'account-client', 'sdk-authority', 'publisher', 'wi
              'native-device', 'native-session', 'native-outgoing', 'implementation-root', 'provider-root', 'output'):
     parser.add_argument('--' + name, type=Path, required=True)
 parser.add_argument("--credential-renewal", action="store_true", help="also renew the surviving original credential after R/P/R")
+parser.add_argument("--credential-recovery-probe", type=Path, help="required with --credential-renewal: test the returned G owner on the original session")
 args = parser.parse_args()
+if args.credential_renewal != (args.credential_recovery_probe is not None):
+    parser.error("--credential-renewal and --credential-recovery-probe must be supplied together")
 implementation = args.implementation_root.resolve(strict=True)
 sys.path.insert(0, str(implementation))
 from qperiapt_continuity_reference.provider import load_provider
@@ -39,6 +42,8 @@ root.mkdir(mode=0o700)
 run = Commands(root)
 paths = {name: getattr(args, name).resolve(strict=True) for name in
          ('account_host', 'account_client', 'sdk_authority', 'publisher', 'witness', 'native_device', 'native_session', 'native_outgoing')}
+if args.credential_renewal:
+    paths['credential_recovery_probe'] = args.credential_recovery_probe.resolve(strict=True)
 binaries = {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in paths.values()}
 result = {'schema_version': 3 if args.credential_renewal else 2, 'kind': 'qperiapt.authenticated_surviving_device_roster', 'completed': False,
           'release_claim_eligible': False, 'native_sha256': binaries, 'provider': provider.__version__, 'clock': 'actual OS time',
@@ -151,8 +156,10 @@ try:
     require(successor.public != sibling.public and successor.journal != sibling.journal, 'sibling replacement reused identity state')
     refresh(native,target,'replacement')
     if args.credential_renewal:
-        from host_roster_credential import renew
+        from host_roster_credential import renew, check_returned_owner
         result['credential_transition'] = renew(root,native,probe,witness,run,policy_transition)
+        result['credential_transition']['returned_owner'] = check_returned_owner(
+            root,native,peer,run,paths['credential_recovery_probe'],sid)
     witness.service.stop(kill=True); witness.start('witness-reopened')
     service = NativeService(root,'survivor-after-replacement',paths['native_session'],native.inputs(peer)); services.append(service)
     peer.deliver(sid,p_message,None,service.address,'resume-original-after-policy',resume=True)
@@ -191,7 +198,7 @@ try:
         independent_service=receiver.result,
         scope='Authenticated own-account R/P/R: sibling addition, two-root independent witnessed policy renewal, sibling replacement. Original keys, journal, session and both unknown ACKs retained; actual account/operator/commit output loss, account/witness restarts, original rekey and bidirectional traffic. Independent peer remains on live original P0; no fresh bootstrap under P2. Sibling acceptance only, not sibling runtime activation. No human Passkey, cross-host, mobile or PCS claim.')
     if args.credential_renewal:
-        result['scope'] += ' Then authenticated same-key G after R/P/R, with lost issuer/operator/activation outputs, retained P2 and original session traffic. Original peer C/P remain live; this is not dual-endpoint expiry acceptance.'
+        result['scope'] += ' Then authenticated same-key G after R/P/R, with lost issuer/operator/activation outputs, retained P2 and original session traffic. The returned G owner directly reopens the original session and observes its next message. Original peer C/P remain live; this is not dual-endpoint expiry acceptance.'
 except BaseException as error:
     result['failure'] = str(error)
     raise
