@@ -35,10 +35,23 @@ HTTP=tuple(('register-alice alice-prepare-root native-invitation native-approve 
 BINARIES=('account_host','account_client','sdk_authority','publisher','witness','native_device','native_session','native_outgoing')
 
 
-def verify(value,binaries,application):
+def inventory(*,credential_expiry=False):
+    if not credential_expiry:return LABELS,FAILED,HTTP
+    split=LABELS.index('native-cg-request');http_split=HTTP.index('native-cg-extension-lost')
+    expired=('peer-expiry-refused','native-expiry-refused')
+    return (LABELS[:split]+expired+LABELS[split:],FAILED+expired,
+            HTTP[:http_split]+('expiry-old-login','expiry-relogin')+HTTP[http_split:])
+
+
+def verify(value,binaries,application,*,credential_expiry=False):
+    labels,failed,http=inventory(credential_expiry=credential_expiry)
     require(value.get('kind')=='qperiapt.authenticated_account_credential' and value.get('completed') is True
             and value.get('release_claim_eligible') is False and value.get('cleanup_errors')==[],'HTTP cohort completion')
-    for key,n in [('schema_version',1),('effects',3),('confirmed_epoch',2)]:count(value.get(key),n,key)
+    for key,n in [('schema_version',2 if credential_expiry else 1),('effects',3),('confirmed_epoch',2)]:count(value.get(key),n,key)
+    if credential_expiry:
+        from continuity_host_account_expiry import verify as verify_expiry
+        verify_expiry(value.get('expiry'))
+    else:require('expiry' not in value,'immediate cohort cannot claim elapsed expiry')
     require(value.get('native_sha256')==binaries and value.get('provider')=='48.0.1' and value.get('clock')=='actual OS time'
             and value.get('implementation')==str(application/PACKAGE/'credential_cli.py'),'HTTP cohort implementation')
     for key in ('original_keys_unchanged','witness_keys_unchanged','original_wire_unchanged'):
@@ -46,13 +59,13 @@ def verify(value,binaries,application):
     require(type(value.get('sessions')) is dict and set(value['sessions'])=={'peer'}
             and type(value.get('original_pending_messages')) is dict and set(value['original_pending_messages'])=={'peer'},'HTTP cohort session inventory')
     identity(value['sessions']['peer']);identity(value['original_pending_messages']['peer'])
-    rows=value.get('commands');require(type(rows) is list and len(rows)==len(LABELS),'HTTP cohort command count')
-    for row,label in zip(rows,LABELS):
+    rows=value.get('commands');require(type(rows) is list and len(rows)==len(labels),'HTTP cohort command count')
+    for row,label in zip(rows,labels):
         require(set(row)=={'label','exit'} and row['label']==label and type(row['exit']) is int
-                and (row['exit']!=0)==(label in FAILED),'HTTP cohort command disposition')
-    rows=value.get('account_requests');require(type(rows) is list and len(rows)==len(HTTP),'HTTP cohort request count')
-    for index,(row,label) in enumerate(zip(rows,HTTP),1):
-        action={'register-alice':'register','cohort-relogin':'login','probe-finish':'finish'}.get(label,'request')
+                and (row['exit']!=0)==(label in failed),'HTTP cohort command disposition')
+    rows=value.get('account_requests');require(type(rows) is list and len(rows)==len(http),'HTTP cohort request count')
+    for index,(row,label) in enumerate(zip(rows,http),1):
+        action={'register-alice':'register','cohort-relogin':'login','expiry-relogin':'login','probe-finish':'finish'}.get(label,'request')
         require(row=={'label':label,'id':index,'action':action} and type(row['id']) is int,'HTTP cohort request identity')
     renewal=value['renewal'];count(renewal['previous']['version'],2,'HTTP cohort predecessor');count(renewal['target']['version'],4,'HTTP cohort target')
     require(renewal['account_restarted_after_lost_grant'] is True

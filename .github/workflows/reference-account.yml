@@ -24,6 +24,7 @@ on:
       - artifact/test_continuity_host_witness*.py
       - artifact/continuity_host_replacement*.py
       - artifact/continuity_host_account*.py
+      - artifact/test_continuity_host_account*.py
       - artifact/test_continuity_host_replacement.py
       - artifact/continuity_host_roster_policy.py
       - artifact/continuity_host_roster_credential.py
@@ -59,6 +60,7 @@ on:
       - artifact/test_continuity_host_witness*.py
       - artifact/continuity_host_replacement*.py
       - artifact/continuity_host_account*.py
+      - artifact/test_continuity_host_account*.py
       - artifact/test_continuity_host_replacement.py
       - artifact/continuity_host_roster_policy.py
       - artifact/continuity_host_roster_credential.py
@@ -209,6 +211,8 @@ jobs:
             > target/reference-account-ci/witness-receipt-tests.stdout 2> target/reference-account-ci/witness-receipt-tests.stderr
           sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_host_replacement.py' \
             > target/reference-account-ci/replacement-receipt-tests.stdout 2> target/reference-account-ci/replacement-receipt-tests.stderr
+          sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_host_account*.py' \
+            > target/reference-account-ci/account-receipt-tests.stdout 2> target/reference-account-ci/account-receipt-tests.stderr
           sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_host_roster.py' \
             > target/reference-account-ci/roster-receipt-tests.stdout 2> target/reference-account-ci/roster-receipt-tests.stderr
           "$PEER_PYTHON" -I -m venv "$RUNNER_TEMP/reference-wheel-build"

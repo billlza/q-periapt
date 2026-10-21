@@ -176,3 +176,20 @@ collector also rejects five alterations of real public issuance, companion,
 witness, output-loss and original-wire records. These actual-time checks do not
 wait for both credentials to expire and do not constitute human-account, mobile
 or post-compromise-security acceptance.
+
+For a separate elapsed-time exercise, the same controller accepts
+`--wait-for-credential-expiry` with its existing executable, provider, installed
+implementation and fresh output arguments. It preserves the default one-hour
+HTTP credentials and issues a two-hour test policy, then waits for both original
+credentials to expire. The wait has a 3,700-second monotonic bound and checks
+the original account, authentication probe and witness processes throughout.
+It records the expiry refusals and uses the original software Passkey to renew
+the expired login before requesting grants. Device keys, sessions and the
+original ciphertext remain in place; the initial publication also expires.
+
+This opt-in controller produces schema 2. Read it with the explicit
+`credential_expiry=True` collector profile, which checks timestamps against
+the original invitation/certificate intervals, specific validity diagnostics,
+the original login and the ordinary grant/recovery evidence. Schema 1 cannot
+stand in for this observation. Ordinary host-exchange CI continues to run the
+immediate profile; its short receipt tests do not establish elapsed-time success.

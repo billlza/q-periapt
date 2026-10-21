@@ -7,27 +7,28 @@ import dataclasses
 import hashlib
 import json
 from continuity_independent_python import require
-from continuity_host_account import LABELS,FAILED,HTTP
+from continuity_host_account import inventory
 from continuity_host_roster_credential import raw
 from continuity_host_roster_policy import wire
 from evidence_io import parse_strict_json_bytes
 
 
-def retain(value,private,public,snapshot):
+def retain(value,private,public,snapshot,*,credential_expiry=False):
+    labels,failed,http=inventory(credential_expiry=credential_expiry)
     public.mkdir()
     def data(name):
         item=snapshot(private/name);(public/name).write_bytes(item.data);return item.data
     def doc(name):return parse_strict_json_bytes(data(name),label=name)
     def output(label):return doc(label+'.stdout')
     require(doc('RESULT.json')==value,'HTTP cohort retained result')
-    for label in LABELS:
+    for label in labels:
         stdout,stderr=data(label+'.stdout'),data(label+'.stderr')
-        require(bool(stderr)==(label in FAILED),'HTTP cohort diagnostic disposition')
-        if label in FAILED:require(not stdout,'failed HTTP cohort command emitted success')
+        require(bool(stderr)==(label in failed),'HTTP cohort diagnostic disposition')
+        if label in failed:require(not stdout,'failed HTTP cohort command emitted success')
         if label.endswith(('witness-lost-output','commit-lost-output')):
             require(b'broken pipe' in stderr.lower(),'HTTP cohort output loss was not a broken pipe')
     requests={};responses={}
-    for index,label in enumerate(HTTP,1):
+    for index,label in enumerate(http,1):
         request=doc(label+'.http-request.json');response=doc(label+'.http-response.json')
         require(set(request)=={'id','command'} and set(response)=={'id','result'}
                 and request['id']==response['id']==index,'HTTP cohort transport correlation')
@@ -35,7 +36,7 @@ def retain(value,private,public,snapshot):
         require(command['action']==value['account_requests'][index-1]['action'],'HTTP cohort transport action')
         if command['action']!='finish':require(command['account']=='alice','HTTP cohort authenticated account')
         if command['action']=='request':
-            status=401 if label=='cohort-old-login' else 409 if label=='native-cg-stale-target' else 204 if label in ('native-approve','peer-approve') else 200
+            status=401 if label in ('cohort-old-login','expiry-old-login') else 409 if label=='native-cg-stale-target' else 204 if label in ('native-approve','peer-approve') else 200
             require(set(result)=={'status','body','content_type'} and type(result['status']) is int
                     and result['status']==status and type(result['body']) is str,'HTTP cohort response status')
             if command['disconnect_before_body'] or status==204:require(result['body']=='','HTTP cohort lost/empty response')
@@ -43,6 +44,9 @@ def retain(value,private,public,snapshot):
     require(responses['register-alice']=={'authenticated':'registered_software_test_passkey'}
             and responses['cohort-relogin']=={'authenticated':'original_software_test_passkey'}
             and responses['probe-finish']=={'finished':True},'HTTP cohort original account authentication')
+    if credential_expiry:
+        from continuity_host_account_expiry import retain as retain_expiry
+        retain_expiry(value,doc,data,requests,responses)
     def body(label):return parse_strict_json_bytes(responses[label]['body'].encode(),label=label)
     renewal=value['renewal'];current=doc('cohort-current.json');previous=doc('cohort-original-current.json');trust=doc('peer-trust.json')
     require(current==renewal['current']==body('peer-cg-extension-current')==body('cohort-current-after-restart')
@@ -129,13 +133,19 @@ def retain(value,private,public,snapshot):
     return len(list(public.iterdir()))
 
 
-def negative_controls(value,private,output,snapshot):
+def negative_controls(value,private,output,snapshot,*,credential_expiry=False):
     output.mkdir()
     cases=[('native-cg-issued.json',lambda b:json.dumps(dict(json.loads(b),operation=[99]*32)).encode()),
            ('peer-cg-companions.json',lambda b:json.dumps(dict(json.loads(b),grants=[])).encode()),
            ('native-cg-witness-trust.json',lambda b:json.dumps(dict(json.loads(b),proposal_binding=[99]*32)).encode()),
            ('native-cg-witness-lost-output.stderr',lambda b:b'generic failure'),
            ('replacement-wire-1.request',lambda b:b[:-1]+bytes([b[-1]^1]))]
+    if credential_expiry:
+        cases += [('EXPIRY_OBSERVATION.json',lambda b:json.dumps(dict(json.loads(b),elapsed_seconds=0)).encode()),
+                  ('native-expiry-refused.stderr',lambda b:b'Error: Io(PermissionDenied)\n'),
+                  ('peer-expiry-refused.stderr',lambda b:b'OSError: disk unavailable\n'),
+                  ('native-invitation.json',lambda b:json.dumps(dict(json.loads(b),valid_until=1)).encode()),
+                  ('expiry-relogin.http-response.json',lambda b:json.dumps(dict(json.loads(b),result={'authenticated':'registered_software_test_passkey'})).encode())]
     rows=[]
     for index,(name,change) in enumerate(cases):
         def altered(path):
@@ -143,7 +153,7 @@ def negative_controls(value,private,output,snapshot):
             if path==private/name:
                 body=change(item.data);item=dataclasses.replace(item,data=body,size=len(body),sha256=hashlib.sha256(body).hexdigest())
             return item
-        try:retain(value,private,output/str(index),altered)
+        try:retain(value,private,output/str(index),altered,credential_expiry=credential_expiry)
         except ValueError as error:rows.append({'file':name,'rejected':str(error)})
         else:raise ValueError('Altered HTTP cohort evidence accepted: '+name)
     return rows
