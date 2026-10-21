@@ -110,15 +110,12 @@ longer history must retain their own receipts. After proven abandonment, export 
 new operation from the same original installation and obtain two new approvals.
 Previous signatures do not authorize the new request or extend its expiry.
 
-The current commands require a local-only original installation. Required-witness
-P authorization and coordination remain separate; there is no local fallback.
-The browser's review and recovery interface for P still needs integration.
-Tests use real protected account and policy issuers, a software test Passkey,
-actual HTTP and the native SDK owner; separate CLI cohorts exercise consumer
-subprocesses. These are not real-account approval or established-session traffic
-acceptance. Changed-policy credential continuation,
-required-witness P, and the native/independent session facade remain integration
-work. Keep these boundaries distinct from the separately integrated G renewal.
+The local commands above require a local-only original installation. The
+[witnessed commands](WITNESSED_POLICY_RENEWAL.md) separately coordinate required
+P updates and preserve the original session. Their R/P/R workload uses real
+protected issuers, software-Passkey HTTP authorization, actual witness/operator
+and consumer processes, and independent-peer traffic. Human browser acceptance,
+joint G/P/R, both peers' policy expiry and device qualification remain open.
 
 ## Account-side approval
 
@@ -220,5 +217,6 @@ policy-authority approval is still required.
 
 Model/controller tests cover the browser state machine with substituted DOM,
 storage and network; authenticated HTTP tests use a software authenticator and
-real issuer/device signatures. The real-user browser ceremony and continued
-traffic acceptance remain open; these checks do not substitute for them.
+real issuer/device signatures. The real-user browser ceremony and its integration
+with continued traffic remain open; the separate native software-authenticator
+workload does not substitute for them.
