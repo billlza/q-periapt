@@ -59,6 +59,19 @@ def scenario(args, count):
             proposal = f.value(label + "-prepare-recovered", "policy_prepare", arguments, now=now)
             require((f.session_path / "intent").read_bytes() == intent, "retry resealed original P target")
             p = Proposal.decode(proposal)
+            exported = f.worker(label + "-original-preparation", "policy_preparation", (operation,), now=now)
+            require(exported == {"schema": "qperiapt-policy-witness-preparation/1", "binding": list(p.binding),
+                                 "proposal": proposal.hex(), "approval": approval.hex()},
+                    "preparation did not recover the first sealed bytes")
+            if version == 2:
+                resigned = f.call(label + "-resigned-approval", 41, request)
+                require(resigned != approval, "resigned control did not change signature bytes")
+                require(f.value(label + "-resigned-retry", "policy_prepare",
+                                (operation, resigned, *policy_inputs(f, version)), now=now) == proposal,
+                        "semantic retry changed proposal")
+                require(f.worker(label + "-resigned-export", "policy_preparation", (operation,), now=now) == exported
+                        and (f.session_path / "intent").read_bytes() == intent,
+                        "semantic retry replaced first sealed approval")
             require(p.subject[:32] == journal and p.subject[64:] == f.context.policy_digest,
                     "P changed original witness subject")
             f.worker(label + "-pending-blocks-session", "next_id", now=now, refusal="policy coordination remains pending")
@@ -108,6 +121,8 @@ def scenario(args, count):
             require(f.worker(label + "-original-recovery", "policy_recover", (operation,), now=now) == "Applied",
                     "original P result unavailable after recovery")
             require(not (f.session_path / "intent").exists(), "retired policy kept pending intent")
+            f.worker(label + "-retired-export-refused", "policy_preparation", (operation,), now=now,
+                     refusal="original policy preparation is no longer retained")
             native = f.call(label + "-native-original-adoption", 42, version.to_bytes(8, "big") + now.to_bytes(8, "big"))
             require(len(native) == 72 and native[32:64] == session and int.from_bytes(native[64:], "big") == now,
                     "native policy changed original session")

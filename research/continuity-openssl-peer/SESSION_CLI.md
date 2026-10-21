@@ -27,6 +27,12 @@ No command silently initializes or replaces missing state.
 
 ## Prepare an independently selected peer
 
+For maintenance of an established original session, use the separate
+[`policy_cli` entry point](POLICY_RENEWAL.md#command-line-policy-maintenance).
+It exports the retained issuer request and recovers the original witness
+preparation after output loss. Account, policy-root and witness approval remain
+separate authorized operations.
+
 The host provisions this local plan through its trusted configuration channel:
 
 ```json

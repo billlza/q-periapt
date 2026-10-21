@@ -54,10 +54,10 @@ name. This test-only consumer uses the returned recovery owner directly to reope
 the established session and observe its next message ID; it does not reactivate
 the device through another path. The workload then restarts the witness, recovers
 the original pending message, rekeys and exchanges traffic with the independent
-Python peer. That peer's original C/P remain live. The installed account collector
-requires this schema-3 R/P/R/G workload, using the installed Python wheel outside
-the checkout and the explicitly selected native executables. Its schema-12
-aggregate receipt checks the original enrollment, current roster and independently
+Python peer. Its original C/P remain live through native G recovery. The installed account collector
+requires the schema-4 R/P/R/G workload plus independent-peer P adoption, using
+the installed Python wheel outside the checkout and the explicitly selected
+native executables. Its schema-13 aggregate receipt checks the original enrollment, current roster and independently
 approved P against the G request, witness selection, lost-output retries and
 returned-owner session. It retains public records for readback; these structural
 checks do not replace the SDK's signature verification or constitute a security

@@ -26,6 +26,7 @@ on:
       - artifact/test_continuity_host_replacement.py
       - artifact/continuity_host_roster_policy.py
       - artifact/continuity_host_roster_credential.py
+      - artifact/continuity_host_peer_policy.py
       - artifact/continuity_host_roster.py
       - artifact/test_continuity_host_roster.py
       - artifact/continuity_independent_python*.py
@@ -57,6 +58,7 @@ on:
       - artifact/test_continuity_host_replacement.py
       - artifact/continuity_host_roster_policy.py
       - artifact/continuity_host_roster_credential.py
+      - artifact/continuity_host_peer_policy.py
       - artifact/continuity_host_roster.py
       - artifact/test_continuity_host_roster.py
       - artifact/continuity_independent_python*.py

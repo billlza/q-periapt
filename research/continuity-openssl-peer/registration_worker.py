@@ -76,9 +76,9 @@ def main():
                     require(len(arguments) == 1, 'registered policy transition arguments')
                     result = getattr(child, 'commit' if action == 'policy_commit' else 'reconcile_expired')(now)
                 else:
-                    require(len(arguments) == 1 and action in ('policy_request', 'policy_status', 'policy_recover', 'policy_close'),
+                    require(len(arguments) == 1 and action in ('policy_request', 'policy_preparation', 'policy_status', 'policy_recover', 'policy_close'),
                             'registered policy action')
-                    result = getattr(child, {'policy_request':'request', 'policy_status':'status',
+                    result = getattr(child, {'policy_request':'request', 'policy_preparation':'preparation', 'policy_status':'status',
                                             'policy_recover':'recover', 'policy_close':'close_proposal'}[action])()
         elif action.startswith('credential_'):
             require(bool(arguments), 'registered renewal operation')

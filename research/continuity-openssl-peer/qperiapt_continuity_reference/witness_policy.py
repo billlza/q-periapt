@@ -174,6 +174,30 @@ class WitnessPolicyRenewal:
         except BaseException:
             self.close(); raise
 
+    @coordinated
+    def preparation(self):
+        """Recover the first sealed approval and proposal while intent is retained.
+
+        No caller-supplied approval can replace the originally sealed bytes.
+        Terminal history after intent retirement is queried through status/recover.
+        """
+        try:
+            _, _, intent = self._current()
+            require(intent is not None, "original policy preparation is no longer retained")
+            state = decode(self._journal._decode(intent.target).payload, self._context)
+            try:
+                grant = state.policy_renewal.active
+                require(grant.approval.scope.operation == self.operation
+                        and grant.approval.statement == intent.proposal.statement,
+                        "retained policy preparation differs")
+                return {"schema": "qperiapt-policy-witness-preparation/1",
+                        "binding": list(intent.proposal.binding), "proposal": intent.proposal.wire(),
+                        "approval": grant.approval.wire}
+            finally:
+                state.close()
+        except BaseException:
+            self.close(); raise
+
     def _observed(self):
         snapshot, control, intent = self._current()
         p = control.policy

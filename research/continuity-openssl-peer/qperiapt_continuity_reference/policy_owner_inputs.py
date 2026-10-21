@@ -32,7 +32,8 @@ def public_request(state, context, record, current, inputs, operation, journal):
     policy = original(context)
     scope = record.request(operation, policy, context.devices[0], journal, current)
     previous = policy if record.active is None else record.active.target
-    return {"scope": scope.wire(), "original_policy": policy.wire, "previous_policy": previous.wire,
+    return {"scope": scope.wire(), "original_checkpoint": context.devices[0].pin.checkpoint(),
+            "original_policy": policy.wire, "previous_policy": previous.wire,
             "original_credential": inputs.materials.initiator_credential,
             "original_roster": inputs.materials.initiator_roster,
             "current_credential": certificate(state, context, current, inputs), "current_roster": current.roster_wire}

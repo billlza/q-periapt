@@ -306,6 +306,22 @@ class EnrollmentClient:
             self.close(); raise
 
     @coordinated
+    def policy_renewal_request(self, operation, now, *, transport=None):
+        """Export issuer context from the original owned session, including expiry.
+
+        This observes protected state; it grants no account permission, signature,
+        reservation or traffic authority. Keep the original export across retries.
+        """
+        try:
+            from .policy_request import for_host
+            self._alive()
+            with self._registration.policy_renewal(operation, now, transport=transport) as child:
+                result = for_host(self._original, child.request())
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
     def policy_renewal(self, operation, now, *, transport=None):
         """Borrow original policy-only maintenance; target trust stays explicit."""
         try:

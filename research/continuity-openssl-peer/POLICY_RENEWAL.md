@@ -104,6 +104,13 @@ trust inputs through the host's authorization path, then call
 statement, expected head and sealed target head. Preparation retains the first
 exact sealed image; retries do not re-sign or reseal it.
 
+`preparation()` exports the native-compatible
+`qperiapt-policy-witness-preparation/1` object while the original intent remains
+retained. It includes the proposal, binding and **first sealed approval bytes**;
+a semantically identical re-signature on retry cannot replace them. After
+intent retirement, this export fails explicitly. Query `status()` or `recover()`
+for the retained terminal outcome instead.
+
 The host submits the proposal, the approvals and their signed policy/identity
 materials to the independently authorized witness service. Device possession or
 the ordinary signed byte carrier cannot approve this step. Until preparation is
@@ -151,6 +158,60 @@ R fails. This history adds no current permission and no business storage allowan
 This is sequential composition of separately authorized operations. It is not
 the candidate's joint policy/credential transaction, root replacement, or a new
 device-generation transition.
+
+## Command-line policy maintenance
+
+Use the installed `qperiapt_continuity_reference.policy_cli` module with the
+same `--provider-root`, `--directory`, `--key-file` and `--client-id` as the original
+session CLI. Its `--timeout` bounds one invocation (0 < seconds <= 120), including
+witness exchanges. It uses actual OS time. Persist the operation ID before use;
+IDs are nonzero 32-byte canonical unpadded base64url and may begin with `-`.
+
+```text
+... request --operation=<original-operation> --witness-address 127.0.0.1 9001 \
+  --output /absolute/private/retained-request.json
+... prepare --operation=<original-operation> --witness-address 127.0.0.1 9001 \
+  --account-approval /absolute/account-approval.bin \
+  --policy-approval /absolute/policy-approval.bin \
+  --policy-pins /absolute/trusted/policy-pins.json \
+  --policy-materials /absolute/policy-materials.json \
+  --output /absolute/private/preparation.json
+... recover-preparation --operation=<original-operation> \
+  --witness-address 127.0.0.1 9001 --output /absolute/private/recovered.json
+... status --operation=<original-operation> --witness-address 127.0.0.1 9001
+... commit --operation=<original-operation> --witness-address 127.0.0.1 9001
+... recover --operation=<original-operation> --witness-address 127.0.0.1 9001
+```
+
+`request` derives `qperiapt-retained-policy-request/1` from the protected original
+enrollment and journal, including historical identity inputs and the actual
+predecessor. The host API equivalent is `client.policy_renewal_request(...)`.
+The two 3803-byte approval files come from the authenticated account and policy
+issuer; the coordinator verifies both signatures. Independently authorize the
+witness with the exported preparation before committing. A missing witness is
+an explicit failure for a required-witness session. `close-proposal` requests the
+same definitive closure described above; it does not undo an Applied result.
+
+For a local-only profile, omit `--witness-address` and use `stage` with the same
+four approval/input flags, followed by `commit`, `status` or `reconcile-expired`.
+The original profile determines which commands are available. There is no
+automatic switch between local and witnessed maintenance.
+
+Public exports use exclusive creation in a private directory. Export failure,
+broken stdout, timeout or cancellation may occur **after** preparation or commit.
+Retain the original installation and operation; recover its preparation to a new
+output filename, or query/recover its exact terminal result. Never recreate a
+device or session to handle an unknown outcome. All commands close the owner
+before exporting a successful result.
+
+The actual-time authenticated `host_roster.py --credential-renewal
+--credential-recovery-probe ... --independent-policy-renewal` workload exercises
+this CLI against the native account, publisher and witness. It retains the
+original unknown-ACK message through independent policy adoption, rekey and
+bidirectional traffic. The installed host-exchange schema 13 requires this
+schema-4 workload and public-output readback. The independent peer's credential
+stays live; this does not establish dual-endpoint expiry or full lifecycle
+acceptance. The fixture-clock drivers below separately test expiry and cuts.
 
 ## Validation drivers
 

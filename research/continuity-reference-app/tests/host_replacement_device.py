@@ -132,6 +132,9 @@ class Independent:
         self.command = [sys.executable, '-I', '-S', '-B', '-c',
             f'import sys; sys.path.insert(0,{str(implementation)!r}); from qperiapt_continuity_reference.session_cli import main; raise SystemExit(main())',
             '--provider-root', provider, '--directory', self.directory, '--client-id', self.client_id.hex(), '--key-file', self.key_file]
+        self.policy_command = [sys.executable, '-I', '-S', '-B', '-c',
+            f'import sys; sys.path.insert(0,{str(implementation)!r}); from qperiapt_continuity_reference.policy_cli import main; raise SystemExit(main())',
+            '--provider-root', provider, '--directory', self.directory, '--client-id', self.client_id.hex(), '--key-file', self.key_file]
 
     def accept(self, issued_raw, current):
         self.issued_raw, self.issued, self.current = issued_raw, json.loads(issued_raw), current
