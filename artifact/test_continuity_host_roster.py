@@ -18,7 +18,7 @@ def fixture():
         transitions.append(dict(operation=identity(i),binding=binding,observation=dict(binding=binding,state='Applied'),
             progress=dict(schema='qperiapt-roster-refresh-progress/1',state='Applied',retired=True,binding=binding,scope=scope)))
     return dict(kind='qperiapt.authenticated_surviving_device_roster',completed=True,release_claim_eligible=False,cleanup_errors=[],
-        schema_version=5,effects=4,confirmed_epoch=1,sibling_generation=1,successor_generation=2,native_sha256={},provider='48.0.1',
+        schema_version=6,effects=4,confirmed_epoch=1,sibling_generation=1,successor_generation=2,native_sha256={},provider='48.0.1',
         implementation='/installed/qperiapt_continuity_reference/session_cli.py',clock='actual OS time',
         original_keys_unchanged=True,old_sibling_unchanged=True,session=identity(4),journal=identity(5),original_pending_message=identity(6),policy_pending_message=identity(9),
         commands=[dict(label=k,exit=1 if k in FAILED else 0) for k in LABELS],
@@ -26,6 +26,8 @@ def fixture():
             else 'finish' if k=='probe-finish' else 'request') for i,k in enumerate(HTTP,1)],transitions=transitions,
         policy_transition=policy_fixture(identity,transitions),
         credential_transition=credential_fixture(identity,transitions),
+        independent_reapproval=dict(original_operation=[70]*32,issued_operation=[38]*32,journal=[32]*32,
+            same_identity=True,request_sha256="a"*64,signing_key_sha256="b"*64),
         independent_policy_transition=peer_policy_fixture(identity),
         independent_credential_transition=peer_credential_fixture(identity),
         services=[process('survivor-first',1,3),process('survivor-after-add',2,2),process('survivor-after-replacement',3,4)],
@@ -183,6 +185,12 @@ class RosterEvidence(unittest.TestCase):
                           ('message',[True]*32),('message',[0]*32)]:
             value=fixture();value['credential_transition']['returned_owner'][key]=wrong
             with self.subTest(key=key,wrong=wrong),self.assertRaises(ValueError):self.accepted(value)
+
+    def test_reapproval_requires_successor_and_original_identity(self):
+        for field, wrong in [('original_operation',[38]*32),('issued_operation',[99]*32),
+                             ('journal',[99]*32),('same_identity',False),('request_sha256','invalid')]:
+            value=fixture();value['independent_reapproval'][field]=wrong
+            with self.subTest(field=field),self.assertRaises(ValueError):self.accepted(value)
 
     def test_installed_receipt_cannot_omit_g_or_reuse_the_old_schema(self):
         value=fixture();value['schema_version']=2

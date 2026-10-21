@@ -52,7 +52,7 @@ def retain(value,copy,doc,output,commands,responses):
             'independent P exact witness outcomes')
     require(copy('ip-occupied.json')==b'original policy export retained','independent P exclusive export')
     trust=doc('ip-witness-trust.json');policies=doc('ip-selected-policies.json');current=doc('peer-current.json')
-    invitation=doc('peer-invitation.json');subject=output('peer-prepare')['subject']
+    invitation=doc('peer-approved-invitation.json');subject=output('peer-prepare')['subject']
     require(trust['account']==current and trust['request']==request and trust['proposal_binding']==prep['binding']
             and trust['device']==invitation['device'] and trust['generation']==invitation['generation']
             and wire(trust['subject'])==bytes(subject) and request['scope']['journal']==subject[:32]

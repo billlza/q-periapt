@@ -95,8 +95,12 @@ independent P to the existing authenticated native R/P/R/G workload. It checks
 issuer output loss, mismatched journal/statement rejection before preparation,
 exclusive export failure, exact proposal recovery, independent witness approval,
 lost commit output, retired-operation rejection, original unknown-ACK recovery,
-rekey and bidirectional traffic. Installed host-exchange schema 14 requires this
-schema-5 workload. This actual-time flow does not wait for both endpoints to
+rekey and bidirectional traffic. Installed host-exchange schema 15 requires this
+schema-6 workload. Before initial acceptance it loses a real host reapproval
+response, retrieves the same successor, and verifies that the old invitation
+can no longer issue. The original client and later P/G requests must retain
+that actual issued successor while preserving the initial correlation and key.
+This actual-time flow does not wait for both endpoints to
 expire and does not qualify complete-account CLI adoption, mobile acceptance or
 post-compromise security.
 

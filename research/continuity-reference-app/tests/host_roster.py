@@ -41,6 +41,7 @@ from witness_cli_exchange import WitnessHost
 from host_replacement_process import Commands, AccountHost, AccountProbe, policy, fingerprints
 from host_replacement_device import Native, Independent, authority, invite, approve, issued
 from host_roster_policy import adopt, activation
+import host_peer_reapproval
 
 root = args.output
 require(root.is_absolute() and not root.exists(), 'fresh absolute private test output required')
@@ -51,7 +52,7 @@ paths = {name: getattr(args, name).resolve(strict=True) for name in
 if args.credential_renewal:
     paths['credential_recovery_probe'] = args.credential_recovery_probe.resolve(strict=True)
 binaries = {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in paths.values()}
-result = {'schema_version': 5 if args.independent_credential_renewal else 4 if args.independent_policy_renewal else 3 if args.credential_renewal else 2,
+result = {'schema_version': 6 if args.independent_credential_renewal else 4 if args.independent_policy_renewal else 3 if args.credential_renewal else 2,
           'kind': 'qperiapt.authenticated_surviving_device_roster', 'completed': False,
           'release_claim_eligible': False, 'native_sha256': binaries, 'provider': provider.__version__, 'clock': 'actual OS time',
           'implementation': str(implementation / 'qperiapt_continuity_reference/session_cli.py')}
@@ -116,7 +117,10 @@ try:
     auth, _ = authority(probe, 'bob', 'peer-authority')
     peer = Independent(root, 'peer', invite(probe, 'bob', 'peer-invitation'), auth, implementation, args.provider_root, witness, run)
     approve(probe, 'bob', peer.invitation, peer.proof, 'peer-approve')
+    reapproval = host_peer_reapproval.approve(peer, probe) if args.independent_credential_renewal else None
     peer.accept(issued(probe, 'bob', peer.invitation, 'peer-issue'), probe.request('bob', 'peer-current', '/api/enrollment/root'))
+    if reapproval is not None:
+        result['independent_reapproval'] = host_peer_reapproval.accepted(peer, reapproval)
     peer.prepare(native)
     witness.enroll('peer', peer.prepared, peer.current, bytes(peer.invitation['device']), peer.journal, encoded(peer.issued['certificate'],65536))
     service = NativeService(root, 'survivor-first', paths['native_session'], native.inputs(peer)); services.append(service)

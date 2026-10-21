@@ -208,8 +208,8 @@ The actual-time authenticated `host_roster.py --credential-renewal
 --credential-recovery-probe ... --independent-policy-renewal` workload exercises
 this CLI against the native account, publisher and witness. It retains the
 original unknown-ACK message through independent policy adoption, rekey and
-bidirectional traffic. The installed host-exchange schema 14 requires the
-schema-5 workload, including subsequent independent G through the
+bidirectional traffic. The installed host-exchange schema 15 requires the
+schema-6 workload, including subsequent independent G through the
 [credential CLI](CREDENTIAL_CLI.md), and public-output readback. The flow does
 not wait for the independent peer's original credential to expire; it does not establish dual-endpoint expiry or full lifecycle
 acceptance. The fixture-clock drivers below separately test expiry and cuts.

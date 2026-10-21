@@ -55,9 +55,9 @@ the established session and observe its next message ID; it does not reactivate
 the device through another path. The workload then restarts the witness, recovers
 the original pending message, rekeys and exchanges traffic with the independent
 Python peer. Its original C/P remain live through native G recovery. The installed account collector
-requires the schema-5 R/P/R/G workload plus independent-peer P/G adoption, using
+requires the schema-6 R/P/R/G workload plus independent-peer P/G adoption, using
 the installed Python wheel outside the checkout and the explicitly selected
-native executables. Its schema-14 aggregate receipt checks the original enrollment, current roster and independently
+native executables. Its schema-15 aggregate receipt checks the original enrollment, current roster and independently
 approved P against the G request, witness selection, lost-output retries and
 returned-owner session. It retains public records for readback; these structural
 checks do not replace the SDK's signature verification or constitute a security

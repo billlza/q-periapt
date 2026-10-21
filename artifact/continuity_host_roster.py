@@ -1,4 +1,5 @@
 """Installed surviving-device R/P/R/G and read-back public receipts."""
+import continuity_host_peer_reapproval as reapproval
 import sys
 from continuity_independent_python import PACKAGE, require
 from continuity_host_cli import count
@@ -28,7 +29,7 @@ FAILED = ('native-refuse-precredential-publication','peer-lost-send','peer-polic
     for s in ('lost-export','pending-activation','witness-lost-output','commit-lost-output','old-current'))
 HTTP = tuple(('register-alice alice-root register-bob bob-root native-invitation native-approve native-issue '
     'native-authority-identity native-authority-root peer-authority-identity peer-authority-root peer-invitation '
-    'peer-approve peer-issue peer-current sibling-authority-identity sibling-authority-root sibling-invitation '
+    'peer-approve peer-reapproval-lost peer-reapproval-retry peer-original-issue-refused peer-issue peer-current sibling-authority-identity sibling-authority-root sibling-invitation '
     'sibling-approve sibling-issue added-current p-account-preview p-account-lost p-account-status p-account-retry sibling-replace-lost expired-login alice-relogin '
     'sibling-replace-recovered successor-approve successor-issue replacement-current').split()) + credential.HTTP + peer_policy.HTTP + peer_credential.HTTP + ('sibling-history','probe-finish')
 
@@ -36,7 +37,7 @@ HTTP = tuple(('register-alice alice-root register-bob bob-root native-invitation
 def verify(value, binaries, application):
     require(value.get('kind') == 'qperiapt.authenticated_surviving_device_roster' and value.get('completed') is True
             and value.get('release_claim_eligible') is False and value.get('cleanup_errors') == [], 'own roster completion')
-    for key,n in [('schema_version',5),('effects',4),('confirmed_epoch',1),('sibling_generation',1),('successor_generation',2)]:
+    for key,n in [('schema_version',6),('effects',4),('confirmed_epoch',1),('sibling_generation',1),('successor_generation',2)]:
         count(value.get(key),n,key)
     require(value.get('native_sha256') == binaries and value.get('provider') == '48.0.1'
             and value.get('implementation') == str(application / PACKAGE / 'session_cli.py')
@@ -68,6 +69,7 @@ def verify(value, binaries, application):
     credential.verify(value)
     peer_policy.verify(value)
     peer_credential.verify(value)
+    reapproval.verify(value)
     pids = set()
     for key,expected in [('services',[('survivor-first',0),('survivor-after-add',0),('survivor-after-replacement',0)]),
                          ('witness_services',[('witness-first',-9),('witness-reopened',0)]),
@@ -104,10 +106,10 @@ def retain(value, private, public, snapshot):
         if row['action'] != 'request':
             expected={'authenticated':'registered_software_test_passkey'} if row['action']=='register' else {'authenticated':'original_software_test_passkey'} if row['action']=='login' else {'finished':True}
             require(r==expected,'own roster authentication outcome'); continue
-        code=401 if label=='expired-login' else 204 if label.endswith('-approve') else 200
+        code=409 if label=='peer-original-issue-refused' else 401 if label=='expired-login' else 204 if label.endswith('-approve') else 200
         count(r['status'],code,'HTTP status')
-        require(c['disconnect_before_body'] is (label in ('sibling-replace-lost','p-account-lost','g-lost','ip-account-lost','ig-lost')),'own roster HTTP disconnect')
-        if label in ('sibling-replace-lost','p-account-lost','g-lost','ip-account-lost','ig-lost') or code==204: require(r['body']=='','lost HTTP body')
+        require(c['disconnect_before_body'] is (label in ('peer-reapproval-lost','sibling-replace-lost','p-account-lost','g-lost','ip-account-lost','ig-lost')),'own roster HTTP disconnect')
+        if label in ('peer-reapproval-lost','sibling-replace-lost','p-account-lost','g-lost','ip-account-lost','ig-lost') or code==204: require(r['body']=='','lost HTTP body')
         responses[label]=r['body']
     for key in ('account','route','body'):
         require(commands['sibling-replace-lost'][key]==commands['sibling-replace-recovered'][key],'original HTTP replacement retry')
@@ -140,6 +142,7 @@ def retain(value, private, public, snapshot):
     credential.retain(value,copy,doc,output,commands,responses,private)
     peer_policy.retain(value,copy,doc,output,commands,responses)
     peer_credential.retain(value,copy,doc,output,commands,responses)
+    reapproval.retain(value,copy,doc,commands,responses)
     return len(list(public.iterdir()))
 
 
@@ -147,7 +150,7 @@ def qualify(args, reference, application, provider, outside, output, snapshot, r
     paths=[getattr(args,key).resolve(strict=True) for key in BINARIES]
     def hashes(): return {str(p):read_regular_snapshot(p,maximum=128*1024**2,label='roster executable').sha256 for p in paths}
     binaries=hashes()
-    for name in ('host_roster','host_roster_policy','host_roster_credential','host_peer_policy','host_peer_credential','host_replacement_device','host_replacement_process','native_exchange_fixture',
+    for name in ('host_roster','host_roster_policy','host_roster_credential','host_peer_policy','host_peer_credential','host_peer_reapproval','host_replacement_device','host_replacement_process','native_exchange_fixture',
                  'native_network_driver','independent_inbound_cli','witness_cli_exchange'):
         (outside/(name+'.py')).write_bytes(snapshot(reference/'tests'/(name+'.py')).data)
     private=outside/'private-authenticated-roster'
