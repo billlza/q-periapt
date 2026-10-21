@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "witness_independent_policy_unprepared_tests.rs"]
+mod unprepared;
 use crate::{
     AnchorPolicyRenewalProposal as PolicyProposal, AnchorPolicyRenewalState as State,
     PolicyRenewalId, PolicyRenewalRequest, PolicyRenewalStatement, VerifiedPolicyRenewal,

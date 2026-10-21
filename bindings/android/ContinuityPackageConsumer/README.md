@@ -457,3 +457,11 @@ or a storage reset.
 Host JNI boundary checks cover this interface. Positive recovery through this
 configured Android entry point and physical-device lifecycle execution retain
 their own qualification; JVM/Swift process results do not establish ART behavior.
+
+The independent policy owner also exposes `abandonUnpreparedPolicyRenewal` for
+an exact staged approval with no sealed/released proposal. It authenticates the
+original journal under its lease, preserves original files, sends no network
+request and returns `ABANDONED_BEFORE_PREPARATION`, with no proposal or live
+authority. Unknown local save results require the same operation/statement retry;
+a retained proposal must use its signed witness reconciliation instead. Host JNI
+checks do not constitute Android device persistence qualification.

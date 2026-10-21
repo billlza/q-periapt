@@ -205,6 +205,7 @@ pub enum Stage {
     Reserved = 1,
     Applied = 2,
     Closed = 3,
+    AbandonedBeforePreparation = 4,
 }
 /// Authenticated original local coordination, including terminal-before-ACK progress.
 #[wasm_bindgen(js_name = QPeriaptContinuityWitnessPolicyProgress)]
@@ -216,6 +217,7 @@ impl Progress {
     pub fn stage(&self) -> Stage {
         use engine::{WitnessedPolicyRenewalDisposition as D, WitnessedPolicyRenewalProgress as P};
         match self.inner {
+            P::AbandonedBeforePreparation { .. } => Stage::AbandonedBeforePreparation,
             P::Reserved { .. } => Stage::Reserved,
             P::Terminal {
                 disposition: D::Applied,
@@ -229,27 +231,39 @@ impl Progress {
     }
     pub fn retired(&self) -> bool {
         match self.inner {
+            engine::WitnessedPolicyRenewalProgress::AbandonedBeforePreparation { .. } => false,
             engine::WitnessedPolicyRenewalProgress::Reserved { .. } => false,
             engine::WitnessedPolicyRenewalProgress::Terminal { retired, .. } => retired,
         }
     }
-    pub fn proposal(&self) -> Proposal {
+    pub fn proposal(&self) -> Result<Proposal, JsValue> {
         match self.inner {
+            engine::WitnessedPolicyRenewalProgress::AbandonedBeforePreparation { .. } => {
+                Err(JsValue::from_str(
+                    "Policy preparation was abandoned before any proposal was released",
+                ))
+            }
             engine::WitnessedPolicyRenewalProgress::Reserved { proposal, .. }
             | engine::WitnessedPolicyRenewalProgress::Terminal { proposal, .. } => {
-                Proposal { inner: proposal }
+                Ok(Proposal { inner: proposal })
             }
         }
     }
     pub fn target_version(&self) -> u64 {
         match self.inner {
-            engine::WitnessedPolicyRenewalProgress::Reserved { target, .. }
+            engine::WitnessedPolicyRenewalProgress::AbandonedBeforePreparation {
+                target, ..
+            }
+            | engine::WitnessedPolicyRenewalProgress::Reserved { target, .. }
             | engine::WitnessedPolicyRenewalProgress::Terminal { target, .. } => target.version(),
         }
     }
     pub fn target_digest(&self) -> Vec<u8> {
         match self.inner {
-            engine::WitnessedPolicyRenewalProgress::Reserved { target, .. }
+            engine::WitnessedPolicyRenewalProgress::AbandonedBeforePreparation {
+                target, ..
+            }
+            | engine::WitnessedPolicyRenewalProgress::Reserved { target, .. }
             | engine::WitnessedPolicyRenewalProgress::Terminal { target, .. } => {
                 target.digest().to_vec()
             }

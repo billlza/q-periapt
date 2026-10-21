@@ -11,8 +11,8 @@ class ForeignPolicyTests(unittest.TestCase):
     @staticmethod
     def logs(language):
         stdout = ("".join("test " + name + " ... ok\n" for name in sorted(policy.TESTS)) +
-                  "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out;\n").encode()
-        rows = policy.markers(language)
+                  "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out;\n").encode()
+        rows = policy.markers(language) + [policy.unprepared_marker(language)]
         rows += [f"FOREIGN_POLICY_CALL language={language} mode={mode} label=synthetic-{index}"
                  for mode, count in policy.CALL_COUNTS.items() for index in range(count)]
         rows += [f"FOREIGN_POLICY_TRANSPORT language={language} label={label}" for label in sorted(policy.TRANSPORT_LABELS)]
@@ -23,7 +23,7 @@ class ForeignPolicyTests(unittest.TestCase):
         for language in ("Swift", "Kotlin"):
             stdout, stderr = self.logs(language)
             checked = policy.verify_execution(stdout, stderr, language=language)
-            self.assertEqual((checked["cases"], checked["foreign_policy_calls"], checked["foreign_transport_calls"]), (10, 117, 7))
+            self.assertEqual((checked["cases"], checked["foreign_policy_calls"], checked["foreign_transport_calls"]), (11, 122, 7))
             for row in stderr.splitlines():
                 with self.subTest(language=language, row=row):
                     for changed in (stderr.replace(row + b"\n", b"", 1), stderr + row + b"\n"):
@@ -71,7 +71,7 @@ class ForeignPolicyTests(unittest.TestCase):
                         foreign.write_bytes(b"changed")
                     return stdout
                 checked = policy.qualify(root, "debug", runtime, native, binary, run, language=language, variant=variant)
-                self.assertEqual(checked["execution"]["cases"], 10)
+                self.assertEqual(checked["execution"]["cases"], 11)
                 mutate = True
                 with self.assertRaisesRegex(ValueError, "executable changed"):
                     policy.qualify(root, "debug", runtime, native, binary, run, language=language, variant=variant)

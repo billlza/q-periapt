@@ -7,7 +7,7 @@ enum {
     POLICY_REQUEST = 1, POLICY_WITNESSED_REQUEST, POLICY_STATUS, POLICY_RECONCILE,
     POLICY_APPROVAL, POLICY_PREPARE, POLICY_PREPARATION, POLICY_PROGRESS,
     POLICY_COMMIT, POLICY_WITNESS_RECONCILE, POLICY_CLOSE, POLICY_STAGE,
-    POLICY_RESOLVE, POLICY_ACTIVATE, POLICY_FIELDS = 17
+    POLICY_RESOLVE, POLICY_ACTIVATE, POLICY_ABANDON_UNPREPARED, POLICY_FIELDS = 17
 };
 _Static_assert(POLICY_FIELDS <= QPJ_INPUT_FIELD_LIMIT, "policy shape exceeds JNI input capacity");
 static void document_shape(jsize *minimum, jsize *maximum) {
@@ -27,6 +27,9 @@ static int shape(jint operation, jsize minimum[POLICY_FIELDS], jsize maximum[POL
         case POLICY_PREPARE: *count = 5; *length = 296; document_shape(minimum, maximum); return 1;
         case POLICY_PREPARATION: *count = 0; *length = 304; return 1;
         case POLICY_PROGRESS: *count = 0; *length = 344; return 1;
+        case POLICY_ABANDON_UNPREPARED:
+            *count = 2; minimum[0] = maximum[0] = minimum[1] = maximum[1] = 32;
+            *length = 344; return 1;
         case POLICY_COMMIT: case POLICY_WITNESS_RECONCILE: case POLICY_CLOSE:
             *count = 1; minimum[0] = maximum[0] = 296; *length = 4; return 1;
         case POLICY_STAGE:
@@ -108,9 +111,11 @@ jbyteArray qpj_policy_command(JNIEnv *env, jclass type, jlong handle, jint opera
             }
             break;
         }
-        case POLICY_PROGRESS: {
+        case POLICY_PROGRESS: case POLICY_ABANDON_UNPREPARED: {
             qpc_independent_policy_progress_v1 progress = {0};
-            code = qpc_enrollment_v1_witnessed_policy_renewal_progress((uint64_t)handle, &progress, &error);
+            code = operation == POLICY_PROGRESS
+                ? qpc_enrollment_v1_witnessed_policy_renewal_progress((uint64_t)handle, &progress, &error)
+                : qpc_enrollment_v1_abandon_unprepared_policy_renewal((uint64_t)handle, values[0].data, values[1].data, &progress, &error);
             if (code == 0) {
                 qpj_policy_put32(wire, progress.phase); qpj_policy_put32(wire + 4, progress.retired);
                 memcpy(wire + 8, progress.proposal.bytes, sizeof(progress.proposal.bytes));

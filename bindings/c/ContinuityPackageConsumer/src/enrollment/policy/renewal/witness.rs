@@ -44,6 +44,12 @@ impl Progress {
         };
         match value {
             None => {}
+            Some(p::WitnessedPolicyRenewalProgress::AbandonedBeforePreparation {
+                target, ..
+            }) => {
+                result.phase = 4;
+                result.target = PolicyCheckpoint::observed(target);
+            }
             Some(p::WitnessedPolicyRenewalProgress::Reserved { proposal, target }) => {
                 result.phase = 1;
                 result.proposal = Proposal::observed(proposal)?;
@@ -92,6 +98,9 @@ impl Owner {
         expected: &p::AnchorPolicyRenewalProposal,
     ) -> Result<()> {
         let saved = match self.enrollment.witnessed_policy_renewal_progress()? {
+            Some(p::WitnessedPolicyRenewalProgress::AbandonedBeforePreparation { .. }) => {
+                return Err(p::DurableError::Conflict.into());
+            }
             Some(p::WitnessedPolicyRenewalProgress::Reserved { proposal, .. })
             | Some(p::WitnessedPolicyRenewalProgress::Terminal { proposal, .. }) => proposal,
             None => self
@@ -228,6 +237,43 @@ enum Action {
     Commit,
     Status,
     Close,
+}
+
+/// Abandon only an exact local approval with no released or sealed P proposal.
+/// This sends nothing and returns local history, never a witness Closed outcome.
+/// # Safety
+/// Operation/statement each have32 readable bytes; progress/error are disjoint
+/// aligned writable records. Outputs remain untouched on any failed invocation.
+#[no_mangle]
+pub unsafe extern "C" fn qpc_enrollment_v1_abandon_unprepared_policy_renewal(
+    handle: u64,
+    operation: *const u8,
+    statement: *const u8,
+    progress: *mut Progress,
+    error: *mut ErrorRecord,
+) -> i32 {
+    let action = |deadline| {
+        output(progress)?;
+        // SAFETY: caller provides both immutable bounded identities.
+        let (operation, statement) = unsafe { (fixed(operation)?, fixed(statement)?) };
+        let operation = p::PolicyRenewalId::from_trusted_state(operation)?;
+        if statement == [0; 32] {
+            return Err(Failure::argument());
+        }
+        let result = with_owner(handle, deadline, |owner, entry| {
+            let original = owner.historical_policy(entry, deadline)?;
+            Progress::observed(Some(
+                owner
+                    .enrollment
+                    .abandon_unprepared_policy_renewal(operation, statement, &original)?,
+            ))
+        })?;
+        // SAFETY: only successful original durable readback is published.
+        unsafe { put(progress, result) };
+        Ok(())
+    };
+    // SAFETY: forwarded invocation-local diagnostics contract.
+    unsafe { boundary(error, false, action) }
 }
 fn state(value: p::AnchorPolicyRenewalState) -> u32 {
     match value {

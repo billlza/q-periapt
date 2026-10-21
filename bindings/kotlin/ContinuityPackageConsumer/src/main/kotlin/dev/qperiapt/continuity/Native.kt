@@ -228,6 +228,7 @@ internal object ContinuityNative {
         "prepare_witnessed_policy_renewal" to function("qpc_enrollment_v1_prepare_witnessed_policy_renewal", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "recover_witnessed_policy_renewal_preparation" to function("qpc_enrollment_v1_recover_witnessed_policy_renewal_preparation", JAVA_LONG, ADDRESS, ADDRESS),
         "witnessed_policy_renewal_progress" to function("qpc_enrollment_v1_witnessed_policy_renewal_progress", JAVA_LONG, ADDRESS, ADDRESS),
+        "abandon_unprepared_policy_renewal" to function("qpc_enrollment_v1_abandon_unprepared_policy_renewal", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
         "commit_witnessed_policy_renewal" to function("qpc_enrollment_v1_commit_witnessed_policy_renewal", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "reconcile_witnessed_policy_renewal" to function("qpc_enrollment_v1_reconcile_witnessed_policy_renewal", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
         "close_witnessed_policy_renewal" to function("qpc_enrollment_v1_close_witnessed_policy_renewal", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS),
@@ -969,6 +970,12 @@ internal object ContinuityNative {
             invoke(arena, "witnessed_policy_renewal_progress", handle, output)
             IndependentPolicyCodec.progress(output.toArray(JAVA_BYTE))
         }
+    @JvmSynthetic internal fun abandonUnpreparedPolicyRenewal(handle: Long, operation: PolicyRenewalID,
+        statement: PolicyRenewalStatementID): IndependentPolicyProgress = Arena.ofConfined().use { arena ->
+        val output = arena.allocate(independentPolicyProgressLayout)
+        invoke(arena, "abandon_unprepared_policy_renewal", handle, arena.bytes(operation.encoded()), arena.bytes(statement.encoded()), output)
+        IndependentPolicyCodec.progress(output.toArray(JAVA_BYTE))
+    }
     @JvmSynthetic internal fun independentPolicyCommand(handle: Long, proposal: IndependentPolicyProposal, command: String): IndependentPolicyState =
         Arena.ofConfined().use { arena ->
             val output = arena.allocate(JAVA_INT)

@@ -121,6 +121,13 @@ private fun witnessedIndependentPolicy(owner: ContinuityEnrollment, path: String
     }
     fun retained() = IndependentPolicyProposal.fromRetained(records.enrollmentExact("independent-witness-proposal", 296))
     when (mode) {
+        "abandon-unprepared" -> {
+            val operation = PolicyRenewalID(records.enrollmentExact("independent-operation", 32))
+            val statement = PolicyRenewalStatementID(records.enrollmentExact("independent-statement", 32))
+            val progress = owner.abandonUnpreparedPolicyRenewal(operation, statement)
+            check(progress is IndependentPolicyProgress.AbandonedBeforePreparation) { "local abandonment changed disposition" }
+            return "4\n0\n${progress.target.version}\n" + progress.target.digest.encoded().joinToString("") { "%02x".format(it) }
+        }
         "request" -> {
             val operation = PolicyRenewalID(records.enrollmentExact("independent-operation", 32))
             val request = owner.witnessedPolicyRenewalRequest(operation)
@@ -148,6 +155,8 @@ private fun witnessedIndependentPolicy(owner: ContinuityEnrollment, path: String
             }
             return when (val progress = owner.witnessedPolicyRenewalProgress()) {
                 IndependentPolicyProgress.Absent -> "0\n0\n0\n" + "0".repeat(64)
+                is IndependentPolicyProgress.AbandonedBeforePreparation ->
+                    "4\n0\n${progress.target.version}\n" + progress.target.digest.encoded().joinToString("") { "%02x".format(it) }
                 is IndependentPolicyProgress.Reserved -> record(1, progress.proposal, progress.target, false)
                 is IndependentPolicyProgress.Applied -> record(2, progress.proposal, progress.target, progress.retired)
                 is IndependentPolicyProgress.Closed -> record(3, progress.proposal, progress.target, progress.retired)

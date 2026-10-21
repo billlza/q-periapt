@@ -386,6 +386,20 @@ public final class ContinuityEnrollment: Sendable {
             return try independentPolicyProgress(&raw)
         } }
     }
+    /// Original local approval only; no witness outcome or current permission.
+    public func abandonUnpreparedPolicyRenewal(operation: PolicyRenewalID,
+        statement: PolicyRenewalStatementID) throws -> IndependentPolicyProgress {
+        try reference.call { native in try native.call { handle in
+            var raw = qpc_independent_policy_progress_v1(), error = qpc_error_v1()
+            let code = operation.bytes.withUnsafeBufferPointer { operation in
+                statement.bytes.withUnsafeBufferPointer { statement in
+                    qpc_enrollment_v1_abandon_unprepared_policy_renewal(handle,
+                        operation.baseAddress, statement.baseAddress, &raw, &error)
+                }
+            }
+            try checked(code, &error); return try independentPolicyProgress(&raw)
+        } }
+    }
     private func independentPolicyCommand(_ proposal: IndependentPolicyProposal,
         _ invoke: (UInt64, UnsafePointer<qpc_independent_policy_proposal_v1>, UnsafeMutablePointer<UInt32>,
                    UnsafeMutablePointer<qpc_error_v1>) -> Int32) throws -> IndependentPolicyState {

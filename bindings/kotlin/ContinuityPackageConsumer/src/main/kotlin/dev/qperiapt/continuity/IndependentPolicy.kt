@@ -39,6 +39,7 @@ enum class IndependentPolicyState(val code: Int) { PREPARED(1), APPLIED(2), CLOS
  * retirement describes durable terminal cleanup, not current authority. */
 sealed interface IndependentPolicyProgress {
     data object Absent : IndependentPolicyProgress
+    data class AbandonedBeforePreparation(val target: PolicyCheckpoint) : IndependentPolicyProgress
     data class Reserved(val proposal: IndependentPolicyProposal, val target: PolicyCheckpoint) : IndependentPolicyProgress
     data class Applied(val proposal: IndependentPolicyProposal, val target: PolicyCheckpoint, val retired: Boolean) : IndependentPolicyProgress
     data class Closed(val proposal: IndependentPolicyProposal, val target: PolicyCheckpoint, val retired: Boolean) : IndependentPolicyProgress
@@ -72,13 +73,17 @@ internal object IndependentPolicyCodec {
     fun progress(bytes: ByteArray): IndependentPolicyProgress = output {
         if (bytes.size != 344) bad("independent policy progress width differs")
         val b = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()); val phase = b.int; val retired = b.int
-        if (phase !in 0..3 || retired !in 0..1 || (phase < 2 && retired != 0)) bad("independent policy progress flags differ")
+        if (phase !in 0..4 || retired !in 0..1 || (phase !in 2..3 && retired != 0)) bad("independent policy progress flags differ")
         if (phase == 0) {
             if (bytes.any { it != 0.toByte() }) bad("absent independent policy progress contains fields")
             IndependentPolicyProgress.Absent
         } else {
-            val proposal = proposal(bytes.copyOfRange(8, 304))
             val target = PolicyCheckpoint(Counter64.fromBits(b.getLong(304)), bytes.copyOfRange(312, 344))
+            if (phase == 4) {
+                if (bytes.copyOfRange(8, 304).any { it != 0.toByte() }) bad("unprepared abandonment contains a proposal")
+                return@output IndependentPolicyProgress.AbandonedBeforePreparation(target)
+            }
+            val proposal = proposal(bytes.copyOfRange(8, 304))
             when (phase) {
                 1 -> IndependentPolicyProgress.Reserved(proposal, target)
                 2 -> IndependentPolicyProgress.Applied(proposal, target, retired == 1)

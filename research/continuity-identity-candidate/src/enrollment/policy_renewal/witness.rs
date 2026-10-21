@@ -7,6 +7,7 @@ use crate::{
 };
 
 mod operational;
+mod unprepared;
 pub(crate) use operational::EnrollmentPolicyCompletion;
 
 /// Historical disposition of one independent P operation; no runtime authority.
@@ -28,6 +29,16 @@ impl WitnessedPolicyRenewalDisposition {
 /// Original enrollment's authenticated coordination metadata, never a live lease.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum WitnessedPolicyRenewalProgress {
+    /// No proposal was released by this enrollment and its original journal had
+    /// no sealed target under its lease. This is not a witness Closed outcome.
+    AbandonedBeforePreparation {
+        /// Caller-retained original operation.
+        operation: PolicyRenewalId,
+        /// Exact signed approval commitment.
+        statement: [u8; 32],
+        /// Unapplied approved policy checkpoint.
+        target: PolicyCheckpoint,
+    },
     /// Exact local sealed proposal is retained; witness preparation is independent.
     Reserved {
         /// Original independently typed proposal.
@@ -61,10 +72,19 @@ pub(in crate::enrollment) struct WitnessPolicy {
     completed: Option<Proposal>,
 }
 impl WitnessPolicy {
+    fn abandoned_before_preparation(&self) -> bool {
+        self.coordination.is_none() && self.closed.is_some()
+    }
+    fn retired(&self) -> bool {
+        self.abandoned_before_preparation() || self.coordination.is_some_and(|c| c.retired)
+    }
     pub(in crate::enrollment) fn validate(&self, image: &Image) -> Result<(), DurableError> {
         crate::codec::nonzero(&self.binding)?;
         if image.renewal.as_ref().is_some_and(|r| {
             !(r.permits_witness_policy()
+                || (self.abandoned_before_preparation()
+                    && self.completed.is_none()
+                    && image.policy_completed.is_none())
                 || (image.witnessed_credential_after_policy()
                     && self.completed.is_some()
                     && image.policy_coordination_retired()
@@ -87,7 +107,7 @@ impl WitnessPolicy {
             }
         }
         let Some(c) = self.coordination else {
-            return if image.policy_pending.is_some() && self.closed.is_none() {
+            return if image.policy_pending.is_some() != self.closed.is_some() {
                 Ok(())
             } else {
                 Err(DurableError::Corrupt)
@@ -310,8 +330,16 @@ impl DeviceEnrollment {
         }
         if let Some(closed) = &w.closed {
             let approval = self.authenticated_policy_record(closed)?;
-            if image.policy_device_binding == PolicyDeviceBinding::MonotonicRoster {
-                approval.check_credential_lineage(&original, &current)?;
+            if w.abandoned_before_preparation()
+                || image.policy_device_binding == PolicyDeviceBinding::MonotonicRoster
+            {
+                if w.abandoned_before_preparation() {
+                    // This local history grants no credential or policy authority.
+                    // A later real G/R may advance current admission independently.
+                    approval.check_same_identity(&original, &current)?;
+                } else {
+                    approval.check_credential_lineage(&original, &current)?;
+                }
                 let approved = approval.scope().current_roster;
                 if admission.checkpoint.version() < approved.version()
                     || (admission.checkpoint.version() == approved.version()
@@ -721,7 +749,13 @@ impl DeviceEnrollment {
             return Ok(None);
         };
         let Some(c) = w.coordination else {
-            return Ok(None);
+            return Ok(w.closed.as_ref().map(|r| {
+                WitnessedPolicyRenewalProgress::AbandonedBeforePreparation {
+                    operation: r.operation,
+                    statement: r.statement,
+                    target: r.target,
+                }
+            }));
         };
         let record = match c.terminal {
             None => image.policy_pending.as_ref(),
@@ -1030,6 +1064,6 @@ impl Image {
     pub(in crate::enrollment) fn policy_coordination_retired(&self) -> bool {
         self.policy_witness
             .as_ref()
-            .is_none_or(|w| w.coordination.is_some_and(|c| c.retired))
+            .is_none_or(WitnessPolicy::retired)
     }
 }

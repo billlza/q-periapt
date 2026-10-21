@@ -56,7 +56,8 @@ final class PolicyProbeRecords {
     }
     static byte[] progress(IndependentPolicyProgress value) {
         ByteBuffer out = ByteBuffer.allocate(344).putInt(value.phase().ordinal()).putInt(value.retired() ? 1 : 0);
-        if (value.proposal() != null) { out.put(value.proposal().encoded()); checkpoint(out, value.target()); }
+        if (value.proposal() != null) out.put(value.proposal().encoded());
+        if (value.target() != null) { out.position(304); checkpoint(out, value.target()); }
         return out.array();
     }
 }

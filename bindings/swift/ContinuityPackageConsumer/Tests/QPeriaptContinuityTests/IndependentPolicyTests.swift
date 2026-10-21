@@ -71,6 +71,21 @@ final class IndependentPolicyTests: XCTestCase {
         for code in [UInt32(0), 6, 257, UInt32.max] { XCTAssertNil(IndependentPolicyState(rawValue: code)) }
         XCTAssertEqual((1...5).compactMap { IndependentPolicyState(rawValue: UInt32($0)) }, [.prepared, .applied, .closed, .acknowledged, .unavailable])
     }
+    func testUnpreparedAbandonmentHasNoProposalOrWitnessAcknowledgement() throws {
+        var raw = qpc_independent_policy_progress_v1()
+        raw.phase = 4
+        raw.target.version = 2
+        withUnsafeMutableBytes(of: &raw.target.digest) { bytes in
+            for index in bytes.indices { bytes[index] = 9 }
+        }
+        let target = try PolicyCheckpoint(version: 2, digest: Array(repeating: 9, count: 32))
+        XCTAssertEqual(try independentPolicyProgress(&raw), .abandonedBeforePreparation(target: target))
+        raw.retired = 1
+        XCTAssertThrowsError(try independentPolicyProgress(&raw))
+        raw.retired = 0
+        raw.proposal = try IndependentPolicyProposal(retainedBytes: proposal()).native()
+        XCTAssertThrowsError(try independentPolicyProgress(&raw))
+    }
     func testWitnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries() throws {
         let point = "036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"
         let octets = Array(point.utf8)
@@ -86,6 +101,7 @@ final class IndependentPolicyTests: XCTestCase {
         let calls: [() throws -> Void] = [
             { _ = try owner.policyRenewalRequest(operation: parsed.operation) },
             { _ = try owner.witnessedPolicyRenewalRequest(operation: parsed.operation) },
+            { _ = try owner.abandonUnpreparedPolicyRenewal(operation: parsed.operation, statement: parsed.statement) },
             { _ = try owner.recoverWitnessedPolicyRenewalPreparation() },
             { _ = try owner.witnessedPolicyRenewalProgress() },
             { _ = try owner.commitWitnessedPolicyRenewal(parsed) },

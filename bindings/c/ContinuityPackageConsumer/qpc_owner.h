@@ -873,9 +873,9 @@ typedef struct {
     qpc_independent_policy_proposal_v1 proposal;
 } qpc_independent_policy_preparation_v1;
 typedef struct {
-    uint32_t phase; /* 0=no retained proposal, 1=Reserved, 2=Applied, 3=Closed */
+    uint32_t phase; /* 0=no retained proposal, 1=Reserved, 2=Applied, 3=Closed, 4=AbandonedBeforePreparation */
     uint32_t retired; /* 0/1; meaningful only for Applied/Closed */
-    qpc_independent_policy_proposal_v1 proposal;
+    qpc_independent_policy_proposal_v1 proposal; /* zero in phases0/4; phase4 grants no witness outcome */
     qpc_policy_checkpoint_v1 target;
 } qpc_independent_policy_progress_v1;
 /* phase/present zero is LOCAL absence only; staged policy may still exist.
@@ -889,6 +889,12 @@ int32_t qpc_enrollment_v1_prepare_witnessed_policy_renewal(uint64_t handle,
 int32_t qpc_enrollment_v1_recover_witnessed_policy_renewal_preparation(uint64_t handle,
     qpc_independent_policy_preparation_v1 *preparation, qpc_error_v1 *error);
 int32_t qpc_enrollment_v1_witnessed_policy_renewal_progress(uint64_t handle,
+    qpc_independent_policy_progress_v1 *progress, qpc_error_v1 *error);
+/* Exact local abandonment only before any sealed proposal exists. No witness
+ * request or outcome, live target or signer. Retain operation/statement; repeat
+ * the exact call after an uncertain result. Phase4 has target but no proposal. */
+int32_t qpc_enrollment_v1_abandon_unprepared_policy_renewal(uint64_t handle,
+    const uint8_t *operation, const uint8_t *statement,
     qpc_independent_policy_progress_v1 *progress, qpc_error_v1 *error);
 int32_t qpc_enrollment_v1_commit_witnessed_policy_renewal(uint64_t handle,
     const qpc_independent_policy_proposal_v1 *proposal, uint32_t *observed, qpc_error_v1 *error);

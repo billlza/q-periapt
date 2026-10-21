@@ -17,6 +17,23 @@ async fn client(
         .await
 }
 impl BrowserDevice {
+    /// Abandon only a staged original approval without a sealed P proposal.
+    /// No network request, signer, live policy or runtime owner is involved.
+    pub async fn abandon_unprepared_policy_renewal(
+        &self,
+        operation: PolicyRenewalId,
+        statement: [u8; 32],
+        original: &HistoricalSessionPolicy,
+    ) -> Result<WitnessedPolicyRenewalProgress, JsValue> {
+        let mut op = self.operation()?;
+        let result = async {
+            op.enrollment()?
+                .abandon_unprepared_policy_renewal(operation, statement, original)
+                .await
+        }
+        .await;
+        op.finish(result).await
+    }
     /// Historical progress only. Current traffic requires separate activation.
     pub async fn policy_renewal_status(&self) -> Result<PolicyRenewalStatus, JsValue> {
         let mut op = self.operation()?;

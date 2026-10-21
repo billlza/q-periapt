@@ -9,6 +9,7 @@ from continuity_c_independent_policy import MARKERS
 
 PREFIX = "credential_renewal::independent_policy::"
 TESTS = frozenset(PREFIX + name for name in (
+    "witnessed::c_unprepared_policy_abandonment_preserves_original_files_and_sends_no_witness_request",
     "c_independent_policy_request_restarts_exact_stage_and_adopts_original_journal",
     "c_independent_policy_restores_original_tls_session_after_lost_application_receipt",
     "public_bindings::public_wrapper_rejects_request_substitution_and_pre_cancelled_stage",
@@ -18,16 +19,17 @@ TESTS = frozenset(PREFIX + name for name in (
 CASES = ("local-lifecycle", "local-refusals", "local-tls-session-recovery",
          "tcp-applied", "tcp-closed", "tls-applied", "tls-closed",
          "tcp-lost-commit", "tcp-lost-applied-ack", "tcp-lost-closed-ack")
-CALL_COUNTS = {"request": 3, "request-refused": 1, "status": 1, "pending": 2, "stage": 12,
+CALL_COUNTS = {"request": 3, "request-refused": 1, "status": 1, "pending": 2, "stage": 13,
     "stage-corrupt-scope": 1, "stage-corrupt-certificate": 1, "stage-cancelled": 1,
     "reconcile": 2, "resolve-pending": 1, "resolve": 1, "activate": 3,
-    "witness-request": 7, "witness-prepare": 7, "witness-recover-absent": 7,
-    "witness-progress": 24, "witness-recover": 7, "witness-reconcile": 14,
+    "witness-request": 8, "witness-prepare": 7, "witness-recover-absent": 7,
+    "witness-progress": 25, "witness-recover": 7, "witness-reconcile": 14,
+    "witness-abandon-unprepared": 2,
     "witness-cancelled": 4, "witness-substitute": 11, "witness-commit": 2,
     "witness-close": 2, "witness-commit-lost": 2, "witness-close-lost": 1}
 TRANSPORT_LABELS = frozenset("independent-traffic-" + label for label in
     ("connect", "next", "unknown", "pending-reopen", "retry", "ack", "original-identity"))
-NATIVE_PREFIXES = frozenset(("C_INDEPENDENT_POLICY", "C_INDEPENDENT_POLICY_TRAFFIC",
+NATIVE_PREFIXES = frozenset(("C_UNPREPARED_POLICY", "C_INDEPENDENT_POLICY", "C_INDEPENDENT_POLICY_TRAFFIC",
     "C_INDEPENDENT_WITNESS", "C_INDEPENDENT_WITNESS_REPLY_LOSS", "PUBLIC_POLICY_REFUSALS"))
 
 
@@ -37,6 +39,11 @@ def markers(language: str) -> list[str]:
             "exact_proposal=true native_outcomes=true C_registration_and_raw_controls=true shared_native_engine=true"
             for case in CASES]
 
+def unprepared_marker(language: str) -> str:
+    sdk.require(language in {"Swift", "Kotlin"}, "unqualified policy lifecycle language")
+    return (f"FOREIGN_POLICY_UNPREPARED language={language} original_request=true no_proposal=true "
+            "no_witness_request=true original_files=true exact_retry=true")
+
 
 def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     _require_enrollment_execution(stdout.decode(), TESTS, "foreign independent policy workloads did not all execute")
@@ -45,6 +52,8 @@ def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
     expected = markers(language)
     sdk.require(len(observed) == len(expected) and set(observed) == set(expected),
                 "foreign policy lifecycle scope differs")
+    sdk.require(re.findall(r"^FOREIGN_POLICY_UNPREPARED .*?$",scope,re.MULTILINE)==[unprepared_marker(language)],
+                "foreign unprepared policy scope differs")
     calls = re.findall(r"^FOREIGN_POLICY_CALL language=(\S+) mode=(\S+) label=(\S+)$", scope, re.MULTILINE)
     sdk.require(calls and all(row[0] == language for row in calls)
                 and Counter(row[1] for row in calls) == CALL_COUNTS,
@@ -58,7 +67,7 @@ def verify_execution(stdout: bytes, stderr: bytes, *, language: str) -> dict:
         if prefix in NATIVE_PREFIXES:
             sdk.require(re.findall(r"^" + prefix + r" .*?$", scope, re.MULTILINE) == [marker],
                         "foreign policy underlying scenario differs: " + prefix)
-    return dict(completed=True, language=language, tests=sorted(TESTS), cases=len(CASES),
+    return dict(completed=True, language=language, tests=sorted(TESTS), cases=len(CASES)+1,
                 foreign_policy_calls=len(calls), foreign_transport_calls=len(transport),
                 scope="foreign local and required-witness independent policy request, stage, exact proposal, "
                       "commit/close, original history, owner activation and original TLS session recovery; "

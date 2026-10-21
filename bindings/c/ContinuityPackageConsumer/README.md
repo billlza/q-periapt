@@ -959,6 +959,14 @@ policy abandonment remains separate from this completion-only recovery.
 
 ## Independent policy renewal on the original registration
 
+`qpc_enrollment_v1_abandon_unprepared_policy_renewal` retires only an exact
+staged approval before any sealed/released proposal. It requires retained operation
+and statement IDs, authenticates the original journal under its lease, preserves
+original key/journal files and sends no witness request. Progress phase 4 means
+AbandonedBeforePreparation: target populated, zero proposal bytes, retired zero.
+Retry the same IDs after an uncertain save. This local history grants no current
+authority and cannot replace signed reconciliation of an existing proposal.
+
 The `qpc_enrollment_v1_*_policy_renewal` entries use the native independent
 `qperiapt-policy-renewal/1` relation. The operation is separate from a credential
 renewal or a joint G/T continuation; no credential grant is manufactured.

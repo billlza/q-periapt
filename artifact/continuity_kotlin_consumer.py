@@ -134,6 +134,7 @@ INDEPENDENT_TEST_SUITES = {
         "independentDescriptorOwnsAllBytesAndRejectsOtherDomains",
         "preparationDistinguishesCanonicalAbsenceAndRejectsDirtyFlags",
         "progressKeepsEveryTerminalAndRetirementStateDistinct",
+        "unpreparedAbandonmentHasNoProposalOrWitnessAcknowledgement",
         "witnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries",
     }),
 }

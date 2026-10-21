@@ -104,6 +104,7 @@ def verify_tests(stdout: bytes, stderr: bytes) -> None:
              "IndependentPolicyTests.testIndependentDescriptorPreservesAllBytesAndRejectsOtherDomains",
              "IndependentPolicyTests.testPreparationDistinguishesCanonicalAbsenceAndRejectsDirtyFlags",
              "IndependentPolicyTests.testProgressKeepsEveryTerminalAndRetirementStateDistinct",
+             "IndependentPolicyTests.testUnpreparedAbandonmentHasNoProposalOrWitnessAcknowledgement",
              "IndependentPolicyTests.testWitnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries",
              "PublicationTests.testPublicationLayoutsAndPlanOwnCompleteOriginalInputs",
              "PublicationTests.testPublicationStatesRejectDirtyAbsenceAndUnknownCompletion",

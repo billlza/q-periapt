@@ -64,6 +64,18 @@ class IndependentPolicyTests {
         for (code in listOf(0, 6, 257, -1)) assertFailsWith<ContinuityBoundaryFailure> { IndependentPolicyCodec.state(code) }
         assertEquals(IndependentPolicyState.entries.toList(), (1..5).map(IndependentPolicyCodec::state))
     }
+    @Test fun unpreparedAbandonmentHasNoProposalOrWitnessAcknowledgement() {
+        val bytes = ByteArray(344)
+        val b = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder())
+        b.putInt(0, 4); b.putLong(304, 2)
+        val target = PolicyCheckpoint(Counter64.of(2), ByteArray(32) { 9 })
+        target.digest.encoded().copyInto(bytes, 312)
+        assertEquals(IndependentPolicyProgress.AbandonedBeforePreparation(target), IndependentPolicyCodec.progress(bytes))
+        b.putInt(4, 1)
+        assertFailsWith<ContinuityBoundaryFailure> { IndependentPolicyCodec.progress(bytes) }
+        b.putInt(4, 0); proposal().copyInto(bytes, 8)
+        assertFailsWith<ContinuityBoundaryFailure> { IndependentPolicyCodec.progress(bytes) }
+    }
     @Test fun witnessCallsRespectPreparedCancelledAndClosedOwnerBoundaries() {
         val point = "036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"
         val root = ByteArray(1952) { 1 } + point.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
@@ -72,6 +84,7 @@ class IndependentPolicyTests {
             val parsed = IndependentPolicyProposal.fromRetained(proposal())
             val calls = listOf<() -> Unit>(
                 { owner.witnessedPolicyRenewalRequest(parsed.operation) }, { owner.recoverWitnessedPolicyRenewalPreparation() },
+                { owner.abandonUnpreparedPolicyRenewal(parsed.operation, parsed.statement) },
                 { owner.witnessedPolicyRenewalProgress() }, { owner.commitWitnessedPolicyRenewal(parsed) },
                 { owner.reconcileWitnessedPolicyRenewal(parsed) }, { owner.closeWitnessedPolicyRenewal(parsed) })
             for (call in calls) assertEquals(6, assertFailsWith<ContinuityFailure>(block = call).code)

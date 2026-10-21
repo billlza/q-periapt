@@ -26,6 +26,24 @@ fn witness_config(
 }
 #[wasm_bindgen(js_class = QPeriaptContinuityDevice)]
 impl Device {
+    /// Exact local abandonment before proposal release, never witness no-commit.
+    pub async fn abandon_unprepared_policy_renewal(
+        &self,
+        id: &Uint8Array,
+        statement: &Uint8Array,
+        original: &HistoricalPolicy,
+    ) -> Result<Progress, JsValue> {
+        Ok(Progress {
+            inner: self
+                .inner
+                .abandon_unprepared_policy_renewal(
+                    operation(id)?,
+                    array(statement)?,
+                    &original.inner,
+                )
+                .await?,
+        })
+    }
     /// Read historical outcome; activate separately for current traffic.
     pub async fn policy_renewal_status(&self) -> Result<Status, JsValue> {
         Ok(Status {

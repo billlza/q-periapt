@@ -150,6 +150,9 @@ class ContinuityEnrollment private constructor(native: NativeOwner) : AutoClosea
     /** Historical metadata, without current runtime, private signer or application TLS. */
     fun witnessedPolicyRenewalProgress(): IndependentPolicyProgress =
         reference.call { owner -> owner.call { ContinuityNative.witnessedPolicyRenewalProgress(it) } }
+    /** Exact local approval only; no witness no-commit assertion. */
+    fun abandonUnpreparedPolicyRenewal(operation: PolicyRenewalID, statement: PolicyRenewalStatementID): IndependentPolicyProgress =
+        reference.call { owner -> owner.call { ContinuityNative.abandonUnpreparedPolicyRenewal(it, operation, statement) } }
     /** Exact independently approved target and current target authorization required. */
     fun commitWitnessedPolicyRenewal(proposal: IndependentPolicyProposal): IndependentPolicyState =
         reference.call { owner -> owner.call { ContinuityNative.independentPolicyCommand(it, proposal, "commit_witnessed_policy_renewal") } }

@@ -766,6 +766,14 @@ private func witnessedIndependentPolicyCommand(_ owner: ContinuityEnrollment, pa
         try IndependentPolicyProposal(retainedBytes: inputs.exact("independent-witness-proposal", count: 296))
     }
     switch mode {
+    case "abandon-unprepared":
+        let operation = try PolicyRenewalID(bytes: inputs.exact("independent-operation", count: 32))
+        let statement = try PolicyRenewalStatementID(bytes: inputs.exact("independent-statement", count: 32))
+        let progress = try owner.abandonUnpreparedPolicyRenewal(operation: operation, statement: statement)
+        guard case let .abandonedBeforePreparation(target) = progress else {
+            throw ProbeFailure.contract("local abandonment changed disposition")
+        }
+        return "4\n0\n\(target.version)\n\(renewalHex(target.digest))"
     case "request":
         let operation = try PolicyRenewalID(bytes: inputs.exact("independent-operation", count: 32))
         let request = try owner.witnessedPolicyRenewalRequest(operation: operation)
@@ -794,6 +802,8 @@ private func witnessedIndependentPolicyCommand(_ owner: ContinuityEnrollment, pa
         }
         switch progress {
         case .absent: return "0\n0\n0\n" + String(repeating: "0", count: 64)
+        case let .abandonedBeforePreparation(target):
+            return "4\n0\n\(target.version)\n\(renewalHex(target.digest))"
         case let .reserved(proposal, target): return try record(1, proposal, target, false)
         case let .applied(proposal, target, retired): return try record(2, proposal, target, retired)
         case let .closed(proposal, target, retired): return try record(3, proposal, target, retired)

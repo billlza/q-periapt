@@ -107,11 +107,8 @@ impl DeviceEnrollment {
                 .renewal
                 .as_ref()
                 .is_some_and(|r| !r.permits_policy_pending())
-            || image
-                .policy_witness
-                .as_ref()
-                .and_then(|w| w.coordination)
-                .is_none_or(|c| !c.retired)
+            || image.policy_witness.is_none()
+            || !image.policy_coordination_retired()
         {
             return Err(DurableError::Suspended);
         }

@@ -49,6 +49,7 @@ public enum IndependentPolicyState: UInt32, Sendable {
 /// not prove non-commit. Retirement records durable terminal cleanup, not new authority.
 public enum IndependentPolicyProgress: Sendable, Equatable {
     case absent
+    case abandonedBeforePreparation(target: PolicyCheckpoint)
     case reserved(proposal: IndependentPolicyProposal, target: PolicyCheckpoint)
     case applied(proposal: IndependentPolicyProposal, target: PolicyCheckpoint, retired: Bool)
     case closed(proposal: IndependentPolicyProposal, target: PolicyCheckpoint, retired: Bool)
@@ -72,7 +73,8 @@ func independentPolicyPreparation(_ raw: inout qpc_independent_policy_preparatio
 }
 
 func independentPolicyProgress(_ raw: inout qpc_independent_policy_progress_v1) throws -> IndependentPolicyProgress {
-    guard raw.phase <= 3, raw.retired <= 1, raw.phase >= 2 || raw.retired == 0 else {
+    guard raw.phase <= 4, raw.retired <= 1,
+          (raw.phase == 2 || raw.phase == 3) || raw.retired == 0 else {
         throw ContinuityBoundaryError.malformedOutput
     }
     if raw.phase == 0 {
@@ -81,10 +83,16 @@ func independentPolicyProgress(_ raw: inout qpc_independent_policy_progress_v1) 
         }
         return .absent
     }
-    let proposal = try independentPolicyProposal(&raw.proposal)
     do {
         let target = try PolicyCheckpoint(version: raw.target.version,
             digest: withUnsafeBytes(of: &raw.target.digest) { Array($0) })
+        if raw.phase == 4 {
+            guard withUnsafeBytes(of: &raw.proposal.bytes, { $0.allSatisfy { $0 == 0 } }) else {
+                throw ContinuityBoundaryError.malformedOutput
+            }
+            return .abandonedBeforePreparation(target: target)
+        }
+        let proposal = try independentPolicyProposal(&raw.proposal)
         switch raw.phase {
         case 1: return .reserved(proposal: proposal, target: target)
         case 2: return .applied(proposal: proposal, target: target, retired: raw.retired == 1)

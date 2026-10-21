@@ -41,11 +41,20 @@ static int witnessed_independent_policy_command(uint64_t handle,const char *path
         if(result.present!=1 || memcmp(&result.proposal,&expected,sizeof(expected))) fail("changed original preparation");
         close_owner(handle);puts("preparation-exact");return 0;
     }
-    if(!strcmp(mode,"progress")) {
+    if(!strcmp(mode,"progress") || !strcmp(mode,"abandon-unprepared")) {
         qpc_independent_policy_progress_v1 result;memset(&result,0xa5,sizeof(result));
-        require(qpc_enrollment_v1_witnessed_policy_renewal_progress(handle,&result,&error),&error);
-        if(result.phase>3 || result.retired>1 || (result.phase<2 && result.retired)) fail("P progress flags");
-        if(result.phase) {
+        if(!strcmp(mode,"abandon-unprepared")) {
+            uint8_t operation[32],statement[32];
+            enrollment_exact(path,"independent-operation",operation,32);
+            enrollment_exact(path,"independent-statement",statement,32);
+            require(qpc_enrollment_v1_abandon_unprepared_policy_renewal(handle,operation,statement,&result,&error),&error);
+            if(result.phase!=4) fail("local abandonment changed disposition");
+        } else require(qpc_enrollment_v1_witnessed_policy_renewal_progress(handle,&result,&error),&error);
+        if(result.phase>4 || result.retired>1 || ((result.phase<2 || result.phase==4) && result.retired)) fail("P progress flags");
+        if(result.phase==4) {
+            for(size_t i=0;i<sizeof(result.proposal.bytes);i++) if(result.proposal.bytes[i]) fail("unprepared abandonment invented proposal");
+            if(!result.target.version) fail("unprepared abandonment lost target");
+        } else if(result.phase) {
             qpc_independent_policy_proposal_v1 expected;enrollment_exact(path,"independent-witness-proposal",expected.bytes,sizeof(expected.bytes));
             if(memcmp(&result.proposal,&expected,sizeof(expected))) fail("progress changed original proposal");
         } else {

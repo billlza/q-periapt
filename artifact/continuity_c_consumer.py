@@ -103,6 +103,7 @@ EXPORTS |= {
     'qpc_enrollment_v1_resolve_roster_refresh',
     'qpc_enrollment_v1_stage_policy_renewal',
     'qpc_enrollment_v1_witnessed_policy_renewal_progress',
+    'qpc_enrollment_v1_abandon_unprepared_policy_renewal',
     'qpc_enrollment_v1_witnessed_policy_renewal_request',
     'qpc_enrollment_v1_witnessed_roster_refresh_progress',
     'qpc_recovery_v1_account_reconciliation',

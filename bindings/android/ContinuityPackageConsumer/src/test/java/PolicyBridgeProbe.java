@@ -60,7 +60,7 @@ final class PolicyBridgeProbe {
             throw new AssertionError("abandoned policy status");
         status.putInt(0, 2); rejected(IllegalStateException.class, () -> new PolicyRenewalStatus(status.array()));
     }
-    private static void proposals() {
+    static void proposals() {
         byte[] wire = new byte[296]; ByteBuffer p = ByteBuffer.wrap(wire); p.put("QPPWNP01".getBytes(StandardCharsets.US_ASCII));
         for (int offset : new int[] {8,40,72,104,136,168,216,264}) { p.position(offset); p.put(id(offset)); }
         p.putLong(200, 1).putLong(208, 2).putLong(248, 1).putLong(256, 3);
@@ -74,6 +74,17 @@ final class PolicyBridgeProbe {
         ByteBuffer progress = ByteBuffer.allocate(344).putInt(2).putInt(1).put(proposal.encoded()).putLong(4).put(id(5));
         if (!new IndependentPolicyProgress(progress.array()).retired()) throw new AssertionError("retired policy progress");
         progress.putInt(0, 1); rejected(IllegalStateException.class, () -> new IndependentPolicyProgress(progress.array()));
+        ByteBuffer unprepared = ByteBuffer.allocate(344).putInt(4).putInt(0);
+        unprepared.position(304); unprepared.putLong(4).put(id(5));
+        IndependentPolicyProgress abandoned = new IndependentPolicyProgress(unprepared.array());
+        if (abandoned.phase() != IndependentPolicyProgress.Phase.ABANDONED_BEFORE_PREPARATION
+                || abandoned.proposal() != null || abandoned.target() == null || abandoned.retired())
+            throw new AssertionError("unprepared policy local history");
+        if (!abandoned.target().version().equals(new Counter64("4")) || !Arrays.equals(abandoned.target().digest(), id(5)))
+            throw new AssertionError("unprepared target checkpoint");
+        unprepared.putInt(4, 1); rejected(IllegalStateException.class, () -> new IndependentPolicyProgress(unprepared.array()));
+        unprepared.putInt(4, 0); unprepared.put(8, (byte)1);
+        rejected(IllegalStateException.class, () -> new IndependentPolicyProgress(unprepared.array()));
         for (int n = 1; n <= 5; ++n)
             if (IndependentPolicyState.fromNative(ByteBuffer.allocate(4).putInt(n).array()).ordinal() != n - 1) throw new AssertionError("policy witness state");
         rejected(IllegalStateException.class, () -> IndependentPolicyState.fromNative(new byte[4]));
@@ -81,12 +92,14 @@ final class PolicyBridgeProbe {
     static void run() {
         records(); proposals();
         for (int repeat = 0; repeat < 128; ++repeat) {
-            for (int operation = Native.POLICY_REQUEST; operation <= Native.POLICY_ACTIVATE; ++operation) {
+            for (int operation = Native.POLICY_REQUEST; operation <= Native.POLICY_ABANDON_UNPREPARED; ++operation) {
                 final int selected = operation;
                 rejected(NullPointerException.class, () -> Native.policyCommand(0, selected, null));
             }
             rejected(IllegalArgumentException.class, () -> Native.policyCommand(0, 0, new byte[0][]));
-            rejected(IllegalArgumentException.class, () -> Native.policyCommand(0, 15, new byte[0][]));
+            rejected(IllegalArgumentException.class, () -> Native.policyCommand(0, 16, new byte[0][]));
+            rejected(IllegalArgumentException.class, () -> Native.policyCommand(0, Native.POLICY_ABANDON_UNPREPARED, new byte[0][]));
+            nativeCode(2, () -> Native.policyCommand(0, Native.POLICY_ABANDON_UNPREPARED, new byte[][] { id(1), id(2) }));
             nativeCode(2, () -> Native.policyCommand(0, Native.POLICY_STATUS, new byte[0][]));
             nativeCode(1, () -> Native.selectPolicy(0, 0));
         }

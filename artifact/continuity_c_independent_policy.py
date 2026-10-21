@@ -8,6 +8,7 @@ import rust_sdk_profile as sdk
 from continuity_c_enrollment import _require_enrollment_execution
 
 TESTS = {
+    'credential_renewal::independent_policy::witnessed::c_unprepared_policy_abandonment_preserves_original_files_and_sends_no_witness_request',
     'credential_renewal::independent_policy::witnessed::roster::traffic::fanout::c_peer_roster_tls_committed_reply_loss_cancel_and_kill_recover_original_target',
     'credential_renewal::independent_policy::witnessed::roster::traffic::fanout::c_peer_roster_unknown_commit_cancel_and_kill_recover_original_target_without_current_sdk',
     'credential_renewal::independent_policy::c_independent_policy_rejects_changed_requests_without_publishing_or_mutating_intent',
@@ -24,6 +25,7 @@ TESTS = {
     'credential_renewal::independent_policy::witnessed::roster::traffic::fanout::c_required_peer_revocation_reconciles_every_original_account_member_before_retirement',
 }
 MARKERS = (
+    'C_UNPREPARED_POLICY exact_original_approval=true no_proposal=true no_witness_request=true no_signer=true original_files=true exact_retry=true',
     'C_PEER_ROSTER_TLS_INTERRUPTION cases=3 mutual_TLS=true processed_loss=true inflight_cancel=true actual_process_kill=true original_sealed_target=true historical_account_recovery=true distinct_member_outcomes=true no_plaintext_fallback=true',
     'C_PEER_ROSTER_INTERRUPTION cases=4 signed_TCP=true unprocessed_and_processed_loss=true inflight_cancel=true actual_process_kill=true unchanged_error_output=true original_sealed_target=true historical_account_recovery=true distinct_member_outcomes=true',
     'C_INDEPENDENT_POLICY request_from_original=true signed_inputs_reverified=true pending_exact_retry=true first_approvals_retained=true actual_commit=true original_device_transfer=true historical_without_runtime_tls_signer=true',

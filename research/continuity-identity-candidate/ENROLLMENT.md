@@ -396,6 +396,28 @@ from the local expired/uncommitted resolver. Retirement describes witness ACK an
 pending cleanup only: **the journal policy receipt is still AwaitingEnrollment,
 and no renewed service/session owner is released by these methods**.
 
+An approval can be staged before any proposal exists. If the process stops there
+and the target expires, neither live preparation nor signed witness closure can
+finish that operation. Use `abandon_unprepared_policy_renewal` with the retained
+operation, exact approval statement and original historical policy. Under the
+original service lease, it authenticates the journal and requires absence of a
+sealed P target, and enrollment must have no released coordination proposal.
+It retains `AbandonedBeforePreparation`, separate from witness Closed, with the
+original operation, statement and unapplied target. It needs no private signer,
+live policy or network request and returns no runtime permission. An uncertain
+save requires repeating those same identities or reading the original progress.
+Once any target has been sealed, use exact preparation recovery and signed
+reconciliation instead; Unavailable never permits this local abandonment.
+
+The operation preserves journal ciphertext, key files and prior completed policy
+and credential history. A subsequent independently authorized G, R or P still
+performs its normal checks. This uses an authenticated enrollment state combination
+previously rejected by the candidate decoder; older builds reject it. It does not
+establish downgrade compatibility or the still-pending general storage upgrade
+contract. The C candidate maps it to progress phase 4, with target populated,
+proposal bytes zero and retired zero. Swift, Kotlin, Android and WASM expose the
+distinct result; requesting a WASM proposal for it is an error.
+
 Lost commit/ACK replies and uncertain local writes must reopen the original
 enrollment and reconcile the same operation. Historical recovery remains possible
 after policy/credential expiry or runtime closure; it grants no live authority.

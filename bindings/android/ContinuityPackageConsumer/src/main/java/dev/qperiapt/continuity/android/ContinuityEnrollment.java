@@ -253,6 +253,13 @@ public final class ContinuityEnrollment implements AutoCloseable {
         return owner.call(false, handle -> new IndependentPolicyProgress(
             Native.policyCommand(handle, Native.POLICY_PROGRESS, new byte[0][])));
     }
+    /** Local original approval only; never a witness no-commit assertion. */
+    public IndependentPolicyProgress abandonUnpreparedPolicyRenewal(Ids.PolicyRenewal operation, Ids.PolicyStatement statement) {
+        byte[][] input = {Objects.requireNonNull(operation, "policy operation").encoded(),
+            Objects.requireNonNull(statement, "policy statement").encoded()};
+        return owner.call(false, handle -> new IndependentPolicyProgress(
+            Native.policyCommand(handle, Native.POLICY_ABANDON_UNPREPARED, input)));
+    }
     private IndependentPolicyState policyWitness(int command, IndependentPolicyProposal original) {
         byte[][] input = {Objects.requireNonNull(original, "original policy proposal").encoded()};
         return owner.call(false, handle -> IndependentPolicyState.fromNative(Native.policyCommand(handle, command, input)));

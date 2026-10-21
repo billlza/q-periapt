@@ -607,18 +607,23 @@ operate without the current SDK store or application TLS inputs. It persists the
 original terminal before ACK and exact pending cleanup.
 
 `recoverWitnessedPolicyRenewalPreparation` reports only local presence or absence.
-`witnessedPolicyRenewalProgress` preserves Reserved, Applied, Closed and terminal
+`witnessedPolicyRenewalProgress` preserves AbandonedBeforePreparation, Reserved, Applied, Closed and terminal
 retirement without acquiring a current runtime or private signing owner.
-Unavailable witness history never proves no commit. `resolvePolicyRenewal`
+Unavailable witness history never proves no commit.
+`abandonUnpreparedPolicyRenewal` retires an exact staged approval only when the
+original enrollment and authenticated journal have no sealed/released proposal.
+It preserves original files, needs no signer or network, and supports exact retry
+after an uncertain save. Its distinct local result grants no live authority.
+ `resolvePolicyRenewal`
 returns the original local transaction's historical result. None of these result
 queries grants a device. `activatePolicyRenewal` transfers the same original
 owner only after native current-authority checks; after an admitted failure,
 close and explicitly resume the original enrollment with the retained identities.
 
-The installed-package collector requires ten real scenarios for each selected
+The installed-package collector requires eleven real scenarios for each selected
 language/profile: local restart/retry, typed refusals, original TLS message
 recovery, TCP/TLS Applied and Closed, and three signed-TCP commit/ACK reply losses.
-Every successful run must include 117 policy dispatches and seven foreign
+Every successful run must include 122 policy dispatches and seven foreign
 transport calls. Registration and unrepresentable invalid raw-buffer controls
 remain C operations and are reported as such. This uses one shared native engine;
 TLS policy reply-loss, post-dispatch policy cancellation, physical process cuts,

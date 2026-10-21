@@ -13,7 +13,7 @@ from continuity_roster_renewal import envelope
 
 TEST = "c_registration_owns_original_identity_through_connection_and_roster_refresh"
 PUBLICATION_TEST = "c_registered_publication_recovers_exact_artifact_before_normal_connection"
-ENROLLMENT_TEST_COUNT = 30
+ENROLLMENT_TEST_COUNT = 31
 CONFIGURED_TEST = "c_registered_configured_peer_reopens_original_session_after_roster_refresh"
 PUBLICATION_MARKER = "C_PUBLICATION original_id=true exact_artifact=true all_proofs_verified=true short_buffer_no_mutation=true cancelled_next_absent=true retirement_floor=true"
 SCOPE = ("actual installed C registration and original enrolled device parent to native Rust TLS peer; "

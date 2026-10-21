@@ -112,6 +112,57 @@ fn staged(c: Registered, root: p::PolicySigningKey) -> Result<Prepared> {
     );
     Ok(f)
 }
+
+#[test]
+fn c_unprepared_policy_abandonment_preserves_original_files_and_sends_no_witness_request(
+) -> Result<()> {
+    let mut witness = witness::Witness::start()?;
+    let root = p::PolicySigningKey::generate()?;
+    let c = registered_with_anchor_inputs(
+        600,
+        Some(&root),
+        300,
+        None,
+        p::BootstrapRole::Initiator,
+        Some(&witness.configured),
+    )?;
+    let f = prepare_for(c, root)?;
+    assert_eq!(
+        invoke(&f.c, "unprepared-stage", "stage")?,
+        expected_status(1, &f.request, f.statement, f.target)
+    );
+    let before = snapshot(&f.c)?;
+    let signer = Zeroizing::new(fs::read(f.c.path.join("signer.key"))?);
+    let wrapping = Zeroizing::new(fs::read(f.c.path.join("wrap.key"))?);
+    fs::rename(f.c.path.join("signer.key"), f.c.path.join("signer.offline"))?;
+    let count = calls(&witness)?;
+    for label in ["unprepared-abandon", "unprepared-retry"] {
+        assert_eq!(
+            invoke(&f.c, label, "witness-abandon-unprepared")?,
+            retained(&f, 4, false)
+        );
+    }
+    assert_eq!(
+        invoke(&f.c, "unprepared-history", "witness-progress")?,
+        retained(&f, 4, false)
+    );
+    assert_eq!(
+        calls(&witness)?,
+        count,
+        "local abandonment cannot infer a witness result"
+    );
+    assert_eq!(snapshot(&f.c)?, before);
+    fs::rename(f.c.path.join("signer.offline"), f.c.path.join("signer.key"))?;
+    assert_eq!(fs::read(f.c.path.join("signer.key"))?, *signer);
+    assert_eq!(fs::read(f.c.path.join("wrap.key"))?, *wrapping);
+    assert!(!f.c.path.join("independent-witness-proposal").exists());
+    witness.join()?;
+    if let Some(client) = PolicyClient::selected()? {
+        eprintln!("FOREIGN_POLICY_UNPREPARED language={} original_request=true no_proposal=true no_witness_request=true original_files=true exact_retry=true",client.language);
+    }
+    eprintln!("C_UNPREPARED_POLICY exact_original_approval=true no_proposal=true no_witness_request=true no_signer=true original_files=true exact_retry=true");
+    Ok(())
+}
 #[test]
 fn c_original_independent_policy_coordinates_applied_and_closed_over_tcp_and_mutual_tls(
 ) -> Result<()> {
