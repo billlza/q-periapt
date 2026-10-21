@@ -13,20 +13,22 @@ from continuity_independent_python import verify_witness_policy_profiles, verify
 
 class WitnessPolicyReceiptTests(unittest.TestCase):
     def profiles(self):
-        return {"profiles": [{"members": members, "workers": 60, "process_kills": 7, "confirmed_epoch": 1,
+        return {"profiles": [{"members": members, "workers": 67, "process_kills": 7, "confirmed_epoch": 1,
             **{k: "a" * 64 for k in ("journal", "native_journal", "session", "original_wire_sha256")},
             "adopted": [{"version": v, "now": at, "admission_kinds": [1, 1, 15, 1, 15],
                 **{k: digit * 64 for k in ("operation", "proposal", "statement")}}
                 for v, at, digit in [(2, 190, "b"), (4, 340, "c")]],
+            "preparations": [{"version":v,"first_sealed_preserved":True,"resignature_sha256":"b"*64 if v==2 else None,
+                **{k:"a"*64 for k in ("approval_sha256","proposal_sha256","intent_sha256")}} for v in (2,3,4)],
             "refusals": [{"case": f"p{v}-release-withholds-output", "error": "unavailable", "type": "TimeoutError"}
                          for v in (2, 4)],
             "native_refusals": [{"case": "different-statement-witness-refused", "error": "policy witness: Protocol(Scope)"},
                 {"case": "closed-version-witness-floor-refused", "error": "policy witness: Protocol(Retired)"}],
             "denied_operations": ["old-policy-permission-denied", "p2-pending-blocks-session", "p2-unapproved-commit-refused",
-                "p2-lost-actual-commit-reply", "p2-lost-actual-ack-reply", "p2-unavailable-admission-denies-output",
+                "p2-lost-actual-commit-reply", "p2-lost-actual-ack-reply", "p2-retired-export-refused", "p2-unavailable-admission-denies-output",
                 "p3-pending-blocks-session", "p3-unapproved-commit-refused", "p3-closed-does-not-admit-expired-predecessor",
                 "closed-version-floor-refused", "p4-pending-blocks-session", "p4-unapproved-commit-refused",
-                "p4-unavailable-admission-denies-output", "expired-current-policy-denied"]} for members in (3, 32)]}
+                "p4-retired-export-refused", "p4-unavailable-admission-denies-output", "expired-current-policy-denied"]} for members in (3, 32)]}
 
     def boundary(self):
         return {"profile": {"members": 32, "traffic_bytes": 2031616, "rows": 123, "workers": 24,
@@ -43,6 +45,15 @@ class WitnessPolicyReceiptTests(unittest.TestCase):
     def test_complete_witness_original_workloads(self):
         verify_witness_policy_profiles(self.profiles())
         verify_witness_policy_boundary(self.boundary())
+
+    def test_missing_export_or_unchanged_resignature_control_is_rejected(self):
+        for mutate in [lambda r:r['preparations'].pop(),
+                       lambda r:r['preparations'][0].update(first_sealed_preserved=False),
+                       lambda r:r['preparations'][0].update(resignature_sha256='a'*64),
+                       lambda r:r['preparations'][1].update(intent_sha256=''),
+                       lambda r:r.update(workers=60)]:
+            report=self.profiles();mutate(report['profiles'][0])
+            with self.assertRaises(ValueError):verify_witness_policy_profiles(report)
 
     def test_missing_fresh_release_or_native_floor_cannot_qualify(self):
         for mutate in [lambda r: r["adopted"][0].update(admission_kinds=[1, 15]),

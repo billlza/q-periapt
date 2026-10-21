@@ -42,6 +42,7 @@ def scenario(args, count):
 
         original_native = None
         adopted = []
+        preparations = []
         for version, now in ((2, 190), (3, 270), (4, 340)):
             label = f"p{version}"
             f.call(label + "-witness-clock", 33, now.to_bytes(8, "big"), b"witness clock set")
@@ -63,6 +64,7 @@ def scenario(args, count):
             require(exported == {"schema": "qperiapt-policy-witness-preparation/1", "binding": list(p.binding),
                                  "proposal": proposal.hex(), "approval": approval.hex()},
                     "preparation did not recover the first sealed bytes")
+            resigned = None
             if version == 2:
                 resigned = f.call(label + "-resigned-approval", 41, request)
                 require(resigned != approval, "resigned control did not change signature bytes")
@@ -72,6 +74,10 @@ def scenario(args, count):
                 require(f.worker(label + "-resigned-export", "policy_preparation", (operation,), now=now) == exported
                         and (f.session_path / "intent").read_bytes() == intent,
                         "semantic retry replaced first sealed approval")
+            preparations.append({"version": version, "approval_sha256": hashlib.sha256(approval).hexdigest(),
+                "proposal_sha256": hashlib.sha256(proposal).hexdigest(), "intent_sha256": hashlib.sha256(intent).hexdigest(),
+                "resignature_sha256": None if resigned is None else hashlib.sha256(resigned).hexdigest(),
+                "first_sealed_preserved": True})
             require(p.subject[:32] == journal and p.subject[64:] == f.context.policy_digest,
                     "P changed original witness subject")
             f.worker(label + "-pending-blocks-session", "next_id", now=now, refusal="policy coordination remains pending")
@@ -176,7 +182,7 @@ def scenario(args, count):
                 "expiry rewrote historical P result")
         result = {"members": count, "journal": journal.hex(), "native_journal": original_native.hex(),
                   "session": session.hex(), "original_wire_sha256": hashlib.sha256(wire).hexdigest(),
-                  "adopted": adopted, "workers": len(f.driver.operations),
+                  "adopted": adopted, "preparations": preparations, "workers": len(f.driver.operations),
                   "confirmed_epoch": confirmed,
                   "process_kills": sum("signal" in row for row in f.driver.operations),
                   "denied_operations": [r["case"] for r in f.driver.operations if "refused" in r],

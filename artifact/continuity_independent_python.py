@@ -97,19 +97,29 @@ def verify_witness_policy_profiles(result: dict) -> None:
     rows = result.get("profiles")
     require(isinstance(rows, list) and len(rows) == 2, "witness policy cohort incomplete")
     denials = ["old-policy-permission-denied", "p2-pending-blocks-session", "p2-unapproved-commit-refused",
-               "p2-lost-actual-commit-reply", "p2-lost-actual-ack-reply", "p2-unavailable-admission-denies-output",
+               "p2-lost-actual-commit-reply", "p2-lost-actual-ack-reply", "p2-retired-export-refused", "p2-unavailable-admission-denies-output",
                "p3-pending-blocks-session", "p3-unapproved-commit-refused", "p3-closed-does-not-admit-expired-predecessor",
                "closed-version-floor-refused", "p4-pending-blocks-session", "p4-unapproved-commit-refused",
-               "p4-unavailable-admission-denies-output", "expired-current-policy-denied"]
+               "p4-retired-export-refused", "p4-unavailable-admission-denies-output", "expired-current-policy-denied"]
     native = [{"case": "different-statement-witness-refused", "error": "policy witness: Protocol(Scope)"},
               {"case": "closed-version-witness-floor-refused", "error": "policy witness: Protocol(Retired)"}]
     for row, members in zip(rows, (3, 32), strict=True):
-        expected = {"members": members, "workers": 60, "process_kills": 7, "confirmed_epoch": 1}
+        expected = {"members": members, "workers": 67, "process_kills": 7, "confirmed_epoch": 1}
         require(isinstance(row, dict) and all(type(row.get(k)) is int and row[k] == v for k, v in expected.items())
                 and row.get("denied_operations") == denials and row.get("native_refusals") == native,
                 "witness policy original workload or native refusal differs")
         _policy_identities(row, ("journal", "native_journal", "session", "original_wire_sha256"))
         _policy_refusals(row, ["p2-release-withholds-output", "p4-release-withholds-output"], "TimeoutError")
+        preparations=row.get("preparations")
+        require(type(preparations) is list and len(preparations)==3, "original policy exports incomplete")
+        for p,version in zip(preparations,(2,3,4),strict=True):
+            require(type(p) is dict and type(p.get("version")) is int and p["version"]==version
+                    and p.get("first_sealed_preserved") is True, "original sealed policy export differs")
+            _policy_identities(p,("approval_sha256","proposal_sha256","intent_sha256"))
+            if version==2:
+                _policy_identities(p,("resignature_sha256",))
+                require(p["resignature_sha256"]!=p["approval_sha256"], "policy resignature control is unchanged")
+            else: require(p.get("resignature_sha256") is None, "unexpected policy resignature control")
         adopted = row.get("adopted")
         require(isinstance(adopted, list) and len(adopted) == 2, "witness policy adoptions incomplete")
         for p, version, now in zip(adopted, (2, 4), (190, 340), strict=True):
