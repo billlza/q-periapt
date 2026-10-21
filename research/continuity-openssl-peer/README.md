@@ -402,9 +402,15 @@ approvals, closures and retirement in a separately bound private journal, with
 revocable per-application leases and real process-cut recovery checks. New
 `EnrollmentClient` associations bind the original registration and child journal
 to that registry. Normal opens and outputs require its live lease; restricted
-original-parent recovery remains available after preparation. Legacy child
-migration, child retirement and live successor activation remain open; historical
-proofs and registry selection alone do not grant traffic.
+original-parent recovery remains available after preparation. An internal child
+journal adoption step now retains the original payload under that live binding,
+using the existing exact-target transaction and required witness. Normal reopen
+can finish an authenticated retained binding intent; it cannot start adoption.
+Installed-wheel checks cover process cuts, preserved ciphertext and pending
+rekey contributions, unknown witness results before/after commit, and same-key
+renewal after expiry. Parent-client migration coordination, child retirement and
+live successor activation remain open; historical proofs and registry selection
+alone do not grant traffic.
 
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential

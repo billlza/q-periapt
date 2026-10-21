@@ -1,16 +1,15 @@
 """Witnessed exact-target journal; inactive provisioning grants no output owner."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from dataclasses import dataclass
-import hashlib
 import threading
 
 from cryptography.hazmat.primitives.ciphers.aead import AESSIV
 
-from .journal import Journal, Snapshot, Conflict, MissingState, MAX_STATE, locked
+from .journal import Journal, Conflict, MissingState, locked
 from .kem import hkdf
 from .private_files import PrivateDirectory
 from .witness import Head, Operation
-from .wire import MAX_U64, require
+from .wire import require
 from .storage_budget import MAX_POLICY_STATE
 from . import account_binding
 
@@ -28,6 +27,10 @@ class Genesis:
 
 class WitnessJournal(Journal):
     image_overhead = 264
+    image_capacity_error = 'witnessed image capacity'
+    image_scope_error = 'witnessed image identity/protection'
+    image_revision_error = 'witnessed revision'
+    payload_capacity_error = 'witnessed payload capacity'
     max_payload = MAX_POLICY_STATE
 
     def __init__(self, path, scope, key, validate, profile, client, observer=None, *, root_lease=None):
@@ -87,21 +90,7 @@ class WitnessJournal(Journal):
             owner.close()
             raise
 
-    def _seal(self, revision, payload):
-        require(type(payload) is bytes and len(payload) <= self.max_payload and 0 < revision < MAX_U64, "journal payload/revision capacity")
-        self.validate(payload)
-        header = account_binding.header(b"QPREFW01"+self._binding,revision,self._root_lease)
-        return header + self._cipher.encrypt(payload, [header])
-
-    def _decode(self, wire):
-        require(self.image_overhead <= len(wire) <= self.max_payload + self.image_overhead + account_binding.SIZE, "witnessed image capacity")
-        header,revision=account_binding.read_header(wire,b"QPREFW01"+self._binding,self._root_lease,
-                                                  scope_error='witnessed image identity/protection')
-        require(0 < revision < MAX_U64, "witnessed revision")
-        payload = self._cipher.decrypt(wire[len(header):], [header])
-        require(len(payload)<=self.max_payload,'witnessed payload capacity')
-        self.validate(payload)
-        return Snapshot(revision, hashlib.sha256(wire).digest(), payload)
+    def _image_prefix(self):return b'QPREFW01'+self._binding
 
     def _query(self, snapshot):
         require(self.client is not None, "inactive witnessed journal")
@@ -130,7 +119,7 @@ class WitnessJournal(Journal):
         directory = self._admit(); wire = directory.read("head")
         if wire is None:
             raise MissingState("missing original witnessed image")
-        head = self._decode(wire); pending = directory.read("intent")
+        pending = directory.read("intent");head = self._opening_head(wire,pending)
         if pending is not None:
             require(pending[:8] not in (b"QPRFLI01", b"QPRFLI02"), "local renewal coordination remains pending")
             require(not pending.startswith(b"QPRFRI01"), "roster coordination remains pending")

@@ -63,6 +63,10 @@ class Snapshot:
 
 class Journal:
     image_overhead = 128
+    image_capacity_error = 'encrypted image capacity'
+    image_scope_error = 'journal identity/owner/context'
+    image_revision_error = 'journal revision'
+    payload_capacity_error = 'journal payload capacity'
     max_payload = MAX_STATE
     reserved_creation = False
 
@@ -120,27 +124,47 @@ class Journal:
         require(self._directory is not None,'closed journal')
         account_binding.check(self._root_lease)
 
+    def _image_prefix(self):return b'QPREFJ01'+self.scope.wire()
+
     def _seal(self, revision: int, payload: bytes) -> bytes:
         require(type(payload) is bytes and len(payload) <= self.max_payload and 0 < revision < MAX_U64,
                 "journal payload/revision capacity")
         self.validate(payload)
-        header = account_binding.header(b"QPREFJ01"+self.scope.wire(),revision,self._root_lease)
+        header = account_binding.header(self._image_prefix(),revision,self._root_lease)
         return header + self._cipher.encrypt(payload, [header])
 
     def _decode(self, wire: bytes) -> Snapshot:
-        require(128 <= len(wire) <= self.max_payload + 128 + account_binding.SIZE, "encrypted image capacity")
-        header,revision=account_binding.read_header(wire,b"QPREFJ01"+self.scope.wire(),self._root_lease)
-        require(0 < revision < MAX_U64, "journal revision")
+        return self._decode_with_root(wire,self._root_lease)
+
+    def _decode_with_root(self,wire,lease):
+        require(self.image_overhead <= len(wire) <= self.max_payload + self.image_overhead + account_binding.SIZE,
+                self.image_capacity_error)
+        header,revision=account_binding.read_header(wire,self._image_prefix(),lease,scope_error=self.image_scope_error)
+        require(0 < revision < MAX_U64,self.image_revision_error)
         payload = self._cipher.decrypt(wire[len(header):], [header])
-        require(len(payload)<=self.max_payload,'journal payload capacity')
+        require(len(payload)<=self.max_payload,self.payload_capacity_error)
         self.validate(payload)
         return Snapshot(revision, hashlib.sha256(wire).digest(), payload)
+
+    def _decode_unbound_source(self,wire):
+        """Authenticated original source only; never changes this owner's live guard."""
+        require(self._root_lease is not None and wire[:8]==self._image_prefix()[:8],'original unbound adoption source required')
+        self._check_root();source=self._decode_with_root(wire,None);self._check_root();return source
+
+    def _opening_head(self,wire,pending):
+        if self._root_lease is None or wire[:8]!=self._image_prefix()[:8]:return self._decode(wire)
+        require(pending is not None and pending.startswith(b'QPREFI01'),'missing original root binding intent')
+        revision,prior,_target,result=self._decode_intent(pending)
+        source=self._decode_unbound_source(wire)
+        require(revision>0 and (source.revision,source.digest)==(revision,prior) and source.payload==result.payload,
+                'root binding intent changes original business state')
+        return source
 
     def _intent(self, revision: int, prior: bytes, target: bytes) -> bytes:
         body = b"QPREFI01" + revision.to_bytes(8, "big") + prior + len(target).to_bytes(4, "big") + target
         return body + hmac.digest(self._intent_key, DOMAIN + b"intent/" + self.scope.wire() + body, "sha256")
 
-    def _decode_intent(self, wire: bytes) -> tuple[int, bytes, bytes, Snapshot]:
+    def _intent_parts(self,wire):
         require(84 + self.image_overhead <= len(wire) <= self.max_payload + 84 + self.image_overhead + account_binding.SIZE, "write-intent capacity")
         expected = hmac.digest(self._intent_key, DOMAIN + b"intent/" + self.scope.wire() + wire[:-32], "sha256")
         require(hmac.compare_digest(expected, wire[-32:]), "write-intent authentication")
@@ -149,6 +173,10 @@ class Journal:
         revision, prior = r.integer(8), r.take(32)
         target = r.take(r.integer(4))
         r.finish()
+        return revision,prior,target
+
+    def _decode_intent(self, wire: bytes) -> tuple[int, bytes, bytes, Snapshot]:
+        revision,prior,target=self._intent_parts(wire)
         snapshot = self._decode(target)
         require(revision < MAX_U64 - 1 and snapshot.revision == revision + 1
                 and (prior == bytes(32)) == (revision == 0), "write-intent predecessor")
@@ -157,12 +185,12 @@ class Journal:
     def _recover(self, creation: bool) -> Snapshot:
         directory = self._admit()
         wire = directory.read("head")
-        head = self._decode(wire) if wire is not None else None
+        pending = directory.read("intent")
+        head = self._opening_head(wire,pending) if wire is not None else None
         if head is None and not creation:
             raise MissingState("missing active image")
         if creation and head is not None and head.revision != 1:
             raise Conflict("creation reader cannot admit an advanced store")
-        pending = directory.read("intent")
         if pending is None and head is None and creation and self.reserved_creation:
             pending = directory.read_initial_intent()
             if pending is not None:

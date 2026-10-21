@@ -55,9 +55,9 @@ class PendingWriteRecovery:
     def _inspect(self):
         directory = self._journal._admit(); wire = directory.read("head")
         require(wire is not None, "missing original pending recovery image")
-        snapshot = self._journal._decode(wire)
-        authority, view = self._view(snapshot)
         pending = directory.read("intent")
+        snapshot = self._journal._opening_head(wire, pending)
+        authority, view = self._view(snapshot)
         if pending is None:
             return snapshot, wire, authority, view, None
         require(pending.startswith(b"QPREFI01"), "pending recovery requires ordinary intent")
