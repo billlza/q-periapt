@@ -2,7 +2,8 @@
 
 This owner exposes historical metadata and signed freeze/noncommit recording.
 It owns no traffic facade and never turns recovery access into a live lease.
-Child inspection, retirement retention and successor activation are separate.
+It can inspect the authenticated original witnessed child without replay.
+Retirement retention and successor activation are separate.
 """
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from dataclasses import replace
@@ -30,6 +31,7 @@ class RootRecovery:
     def __init__(self):
         self._lock=threading.RLock();self._busy=False;self._owners=[]
         self._root=None;self._configuration=None;self._registration=None;self._access=None
+        self._key=None
         self._finalizer=weakref.finalize(self,_close_owners,self._owners)
 
     @classmethod
@@ -47,6 +49,7 @@ class RootRecovery:
             owner._registry=weakref.ref(registry);owner._binding=configuration.root_binding
             owner._adoption_pending=configuration.root_adoption and not configuration.root_ready
             owner._authority,original=configuration.inputs();owner._intent=original.intent
+            owner._key=key
             require(owner._intent.family==registry.family,'original root recovery family')
             _,_,plan,_=owner._access.observation()
             require(RetainedPlan(registry.witness,plan).target.previous==owner._intent.root,'original root recovery issuer')
@@ -110,6 +113,15 @@ class RootRecovery:
         except BaseException:self.close();raise
 
     @coordinated
+    def inspect_child(self,now):
+        """Authenticate original witnessed state and pending work; never replay it."""
+        try:
+            from .root_child_snapshot import original_child
+            _,image=self._image()
+            result=original_child(self,image,now);self._alive();return result
+        except BaseException:self.close();raise
+
+    @coordinated
     def bind_freeze(self,receipt):
         try:
             self._alive();registry=self._registry();require(registry is not None,'closed account authority recovery owner')
@@ -125,7 +137,7 @@ class RootRecovery:
 
     def close(self):
         with self._lock:
-            self._root=None;self._access=None;self._registration=None;self._configuration=None
+            self._root=None;self._access=None;self._registration=None;self._configuration=None;self._key=None
             self._finalizer()
 
     def __enter__(self):self._alive();return self

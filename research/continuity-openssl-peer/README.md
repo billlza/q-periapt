@@ -412,7 +412,12 @@ renewal after expiry. `EnrollmentClient.begin_root_adoption` now owns existing
 parent/child migration through `RootAdoption`, with explicit same-state reopening
 and pending-write recovery. It returns a normal client only after the child,
 registration and configuration agree. Finishing those records after expiry does
-not grant traffic permission. Child retirement and live successor activation
+not grant traffic permission. Once preparation suspends the original root,
+`RootRecovery.inspect_child` reads its authenticated witnessed head, pending
+ordinary/G/R/P targets and retained terminal phases without replay or network
+access. Partial parent migration and unknown delivery retain their original
+state. The client also borrows active roster maintenance through `roster_refresh`.
+Child retirement and live successor activation
 remain open; historical proofs and registry selection alone do not grant traffic.
 
 `enrollment_extension_session.py` exercises the explicit preinstallation extension

@@ -20,6 +20,55 @@ from .wire import require
 from .policy_snapshot import admit as admit_policy, validate as validate_policy
 
 
+def inspect_retained(journal, context):
+    """Authenticate original head/control/intent without replay or transport."""
+    head = journal._admit().read("head")
+    require(head is not None, "missing original roster head")
+    snapshot = journal._decode(head)
+    control = read(journal)
+    intent = Intent.read(journal, context) if context.witness is not None else None
+    state = decode(snapshot.payload, context)
+    try:
+        require(state.traffic is not None and state.account_authority is not None
+                and state.account_renewal is not None, "roster requires original established common account")
+        if state.policy_renewal is not None:
+            validate_policy(state, context, journal.scope.identity)
+        if context.witness is None:
+            require(control is None, "witness coordination in local roster store")
+            return snapshot, None, None
+        if control is not None:
+            require(control.phase in (0, 4, 5), "credential coordination remains pending")
+        r = None if control is None else control.roster
+        if intent is not None:
+            require(control is not None, "missing original roster control")
+            p = intent.proposal
+            require((snapshot.digest, snapshot.revision) in ((p.expected.digest, p.expected.revision),
+                    (p.target.digest, p.target.revision)), "roster current head conflict")
+            if r is not None and not r.ready():
+                require(r.proposal == p, "roster control/intent conflict")
+            else:
+                require(control.ready() and int.from_bytes(p.scope.target[:8], "big")
+                        > max(control.floor, r.floor if r else 0), "roster successor retired")
+            # The independently retained G receipt still authenticates the
+            # candidate target; R cannot create a new credential completion.
+            target = decode(journal._decode(intent.target).payload, context)
+            try:
+                admitted = replace(control, roster=RControl(4, int.from_bytes(p.scope.target[:8], "big"), p, p.scope.target))
+                RosterRefresh._check_control_image(admitted, target)
+            finally:
+                target.close()
+        elif r is not None and not r.ready():
+            require(r.phase in (2, 3), "missing original pending roster target")
+            expected = r.proposal.target if r.phase == 2 else r.proposal.expected
+            require(snapshot.digest == expected.digest and snapshot.revision == expected.revision,
+                    "terminal roster lost original image")
+        else:
+            admit_snapshot(journal, state)
+    finally:
+        state.close()
+    return snapshot, control, intent
+
+
 class RosterRefresh:
     def __init__(self, journal, context, operation):
         self._journal, self._context, self.operation = journal, context, operation
@@ -49,52 +98,7 @@ class RosterRefresh:
             raise
 
     def _inspect(self):
-        journal = self._journal
-        head = journal._admit().read("head")
-        require(head is not None, "missing original roster head")
-        snapshot = journal._decode(head)
-        control = read(journal)
-        intent = Intent.read(journal, self._context) if self._context.witness is not None else None
-        state = decode(snapshot.payload, self._context)
-        try:
-            require(state.traffic is not None and state.account_authority is not None
-                    and state.account_renewal is not None, "roster requires original established common account")
-            if state.policy_renewal is not None:
-                validate_policy(state, self._context, journal.scope.identity)
-            if self._context.witness is None:
-                require(control is None, "witness coordination in local roster store")
-                return snapshot, None, None
-            if control is not None:
-                require(control.phase in (0, 4, 5), "credential coordination remains pending")
-            r = None if control is None else control.roster
-            if intent is not None:
-                require(control is not None, "missing original roster control")
-                p = intent.proposal
-                require((snapshot.digest, snapshot.revision) in ((p.expected.digest, p.expected.revision),
-                        (p.target.digest, p.target.revision)), "roster current head conflict")
-                if r is not None and not r.ready():
-                    require(r.proposal == p, "roster control/intent conflict")
-                else:
-                    require(control.ready() and int.from_bytes(p.scope.target[:8], "big")
-                            > max(control.floor, r.floor if r else 0), "roster successor retired")
-                # The independently retained G receipt still authenticates the
-                # candidate target; R cannot create a new credential completion.
-                target = decode(journal._decode(intent.target).payload, self._context)
-                try:
-                    admitted = replace(control, roster=RControl(4, int.from_bytes(p.scope.target[:8], "big"), p, p.scope.target))
-                    self._check_control_image(admitted, target)
-                finally:
-                    target.close()
-            elif r is not None and not r.ready():
-                require(r.phase in (2, 3), "missing original pending roster target")
-                expected = r.proposal.target if r.phase == 2 else r.proposal.expected
-                require(snapshot.digest == expected.digest and snapshot.revision == expected.revision,
-                        "terminal roster lost original image")
-            else:
-                admit_snapshot(journal, state)
-        finally:
-            state.close()
-        return snapshot, control, intent
+        return inspect_retained(self._journal, self._context)
 
     @staticmethod
     def _check_control_image(control, state):

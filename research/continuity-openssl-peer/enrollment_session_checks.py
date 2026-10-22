@@ -37,8 +37,13 @@ def exercise(args, label):
     identity, key = os.urandom(32), os.urandom(32)
     with os.fdopen(os.open(private / 'host-key-and-id', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as file:
         file.write(key + identity); file.flush(); os.fsync(file.fileno())
-    native = Counterpart(args.native, native_out, registration=True, local_lifecycle=True,
-                         required_witness=label == 'witness')
+    inspection_kind = (args.root_child_inspection or '').split('-')[0]
+    native = Counterpart(args.native, native_out, registration=True,
+                         local_lifecycle=inspection_kind not in ('roster', 'policy'),
+                         required_witness=label == 'witness',
+                         account_members=3 if inspection_kind in ('roster', 'policy') else None,
+                         enrolled_peer=inspection_kind in ('roster', 'policy'),
+                         policy_lifecycle=inspection_kind == 'policy')
     client = None; bridge = None; registry = None; root_bound = False; refusals = []; observed = []
     encode = lambda value: json.dumps(value, separators=(',', ':')).encode()
     b64 = lambda value: base64.urlsafe_b64encode(value).rstrip(b'=').decode()
@@ -93,7 +98,7 @@ def exercise(args, label):
         journal = client.accept(encode(invitation), encode(issued), encode(current),
                                 encode(policy_pins), encode(policy_materials), 150)
         inputs = Inputs(pins, materials, witness)
-        if args.account_root_binding or args.account_root_adoption:
+        if args.account_root_binding or args.account_root_adoption or args.root_child_inspection:
             from qperiapt_continuity_reference.account_authority import AccountAuthority
             from qperiapt_continuity_reference.wire import SigningKey
             from qperiapt_continuity_reference.witness import Pin
@@ -103,7 +108,7 @@ def exercise(args, label):
             with os.fdopen(os.open(private/'registry-key-and-id',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as file:
                 file.write(registry_key+registry_identity);file.flush();os.fsync(file.fileno())
             registry=AccountAuthority.provision(registry_path,registry_key,registry_identity,intent.family,registry_pin)
-            if args.account_root_binding:
+            if args.account_root_binding or (args.root_child_inspection and not args.root_child_inspection.startswith('partial')):
                 client.bind_account_root(registry); root_bound = True
         # A configuration directory is not a session path, even if it is private.
         refuse('configuration-directory-alias', lambda: client.prepare(client_path / 'configuration', inputs, 150),
@@ -141,6 +146,14 @@ def exercise(args, label):
             offer = child.prepare_rekey_offer(now=170); response = call('rekey-response', 14, offer)
             final = child.accept_rekey_response(response, now=170); receipt = call('rekey-receipt', 15, final)
             require(child.accept_rekey_receipt(receipt, now=170) == 1, 'owned client rekey')
+        if args.root_child_inspection:
+            from root_child_fixture import exercise as inspect_original
+            require(bridge is not None, 'root inspection fixture requires witnessed child')
+            result = inspect_original(client, registry, mode=args.root_child_inspection, private=private,
+                client_path=client_path, identity=identity, key=key, session_path=session_path, pins=pins, materials=materials,
+                context=context, transport=transport, bridge=bridge, refuse=refuse, public=public)
+            result.update(profile=label, native_commands=len(native.commands), witness_requests=len(bridge.records), refusals=refusals)
+            (out / 'RESULT.json').write_text(json.dumps(result, indent=2) + '\n'); return result
         if args.account_root_adoption:
             from root_adoption_client_fixture import Inputs as MigrationInputs, migrate
             migration = MigrationInputs(client_path, identity, key, registry_path, registry_key,
@@ -289,6 +302,12 @@ def main():
     root_mode.add_argument('--account-root-adoption',action='store_true')
     root_mode.add_argument('--root-adoption-cuts',action='store_true')
     root_mode.add_argument('--root-adoption-expiry',action='store_true')
+    root_mode.add_argument('--root-child-inspection', choices=('steady', 'ordinary-before', 'ordinary-after',
+                                                             'credential', 'credential-terminal', 'credential-closed',
+                                                             'roster', 'roster-terminal', 'roster-closed',
+                                                             'policy', 'policy-terminal', 'policy-closed',
+                                                             'partial', 'partial-bound', 'partial-intent',
+                                                             'tamper-head', 'tamper-binding', 'tamper-intent'))
     args = parser.parse_args(); args.implementation_root = args.implementation_root.resolve(strict=True)
     sys.path.insert(0, str(args.implementation_root))
     from qperiapt_continuity_reference.provider import load_provider
@@ -320,6 +339,8 @@ def main():
             selected = copy.copy(args); selected.account_root_adoption = True; selected.adoption_expiry = loss
             selected.output = args.output / loss; selected.output.mkdir()
             profiles.append(exercise(selected, 'local' if loss == 'local' else 'witness'))
+    elif args.root_child_inspection:
+        profiles = [exercise(args, 'witness')]
     else:
         profiles = [exercise(args, label) for label in ('local','witness')]
     result = {'completed':True, 'provider':provider.__version__,

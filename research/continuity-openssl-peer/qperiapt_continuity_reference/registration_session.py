@@ -16,9 +16,14 @@ from .wire import require
 
 
 def selected(parent, image, context):
+    return selected_parts(parent._key, parent._journal.scope.identity, image, context)
+
+
+def selected_parts(wrapping_key, registration_id, image, context):
+    """The original child scope/key, shared by live and restricted parent readers."""
     require(image.admission is not None, 'registration is not accepted')
     scope = Scope(image.admission.journal, owner_binding(context), context.digest)
-    key = hkdf(parent._key, parent._journal.scope.identity, DOMAIN + b'child-key/' + scope.wire())
+    key = hkdf(wrapping_key, registration_id, DOMAIN + b'child-key/' + scope.wire())
     return scope, key
 
 

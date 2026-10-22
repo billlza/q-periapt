@@ -140,6 +140,12 @@ class Journal:
         require(self.image_overhead <= len(wire) <= self.max_payload + self.image_overhead + account_binding.SIZE,
                 self.image_capacity_error)
         header,revision=account_binding.read_header(wire,self._image_prefix(),lease,scope_error=self.image_scope_error)
+        return self._decode_envelope(wire,header,revision)
+
+    def _decode_envelope(self,wire,header,revision):
+        """Decrypt only after the owning reader has authenticated its header scope."""
+        require(self.image_overhead <= len(wire) <= self.max_payload + self.image_overhead + account_binding.SIZE,
+                self.image_capacity_error)
         require(0 < revision < MAX_U64,self.image_revision_error)
         payload = self._cipher.decrypt(wire[len(header):], [header])
         require(len(payload)<=self.max_payload,self.payload_capacity_error)

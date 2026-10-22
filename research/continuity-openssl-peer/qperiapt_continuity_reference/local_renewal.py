@@ -21,6 +21,50 @@ from .wire import require
 from .policy_snapshot import admit as admit_policy, authorization, validate as validate_policy
 
 
+def inspect_retained(journal, context):
+    """Authenticate original head/control/intent without replay or transport."""
+    directory = journal._admit()
+    head = directory.read("head"); require(head is not None, "missing original renewal head")
+    snapshot = journal._decode(head); control = read_control(journal)
+    intent = Intent.read(journal, context)
+    require(control is not None or (intent is None and snapshot.payload[:8] != b"QPREFS06"),
+            "missing original renewal control")
+    if intent is not None:
+        p = intent.proposal
+        require(snapshot.digest in (p.expected.digest, p.target.digest)
+                and snapshot.revision in (p.expected.revision, p.target.revision), "local renewal current head conflict")
+        require((snapshot.digest == p.expected.digest) == (snapshot.revision == p.expected.revision),
+                "local renewal predecessor revision conflict")
+        if control.phase in (1, 2, 3):
+            require(control.proposal == p and control.checkpoint == intent.checkpoint
+                    and control.account_binding == intent.account_binding,
+                    "local renewal control/intent conflict")
+        else:
+            require(control.ready() and int.from_bytes(intent.checkpoint[:8], "big")
+                    > max(control.floor, control.roster.floor if control.roster else 0),
+                    "local renewal target retired")
+    elif control is not None and not control.ready():
+        require(control.phase in (2, 3), "missing original pending renewal target")
+        expected = control.proposal.target if control.phase == 2 else control.proposal.expected
+        require(snapshot.digest == expected.digest and snapshot.revision == expected.revision,
+                "terminal renewal lost original image")
+    state = decode(snapshot.payload, context)
+    try:
+        if state.policy_renewal is not None:
+            validate_policy(state, context, journal.scope.identity)
+        if control is not None and control.phase in (1, 2, 3):
+            require(control.proposal.policy == authorization(state), "credential coordinator policy differs")
+    finally:
+        state.close()
+    if intent is None and (control is None or control.ready()):
+        state = decode(snapshot.payload, context)
+        try:
+            admit_snapshot(journal, state)
+        finally:
+            state.close()
+    return snapshot, control, intent
+
+
 class LocalRenewal:
     def __init__(self, journal, context, operation, inputs=None):
         self._journal, self._context, self.operation = journal, context, operation
@@ -50,46 +94,7 @@ class LocalRenewal:
             raise
 
     def _inspect(self):
-        journal = self._journal; directory = journal._admit()
-        head = directory.read("head"); require(head is not None, "missing original renewal head")
-        snapshot = journal._decode(head); control = read_control(journal)
-        intent = Intent.read(journal, self._context)
-        require(control is not None or (intent is None and snapshot.payload[:8] != b"QPREFS06"),
-                "missing original renewal control")
-        if intent is not None:
-            p = intent.proposal
-            require(snapshot.digest in (p.expected.digest, p.target.digest)
-                    and snapshot.revision in (p.expected.revision, p.target.revision), "local renewal current head conflict")
-            require((snapshot.digest == p.expected.digest) == (snapshot.revision == p.expected.revision),
-                    "local renewal predecessor revision conflict")
-            if control.phase in (1, 2, 3):
-                require(control.proposal == p and control.checkpoint == intent.checkpoint
-                        and control.account_binding == intent.account_binding,
-                        "local renewal control/intent conflict")
-            else:
-                require(control.ready() and int.from_bytes(intent.checkpoint[:8], "big")
-                        > max(control.floor, control.roster.floor if control.roster else 0),
-                        "local renewal target retired")
-        elif control is not None and not control.ready():
-            require(control.phase in (2, 3), "missing original pending renewal target")
-            expected = control.proposal.target if control.phase == 2 else control.proposal.expected
-            require(snapshot.digest == expected.digest and snapshot.revision == expected.revision,
-                    "terminal renewal lost original image")
-        state = decode(snapshot.payload, self._context)
-        try:
-            if state.policy_renewal is not None:
-                validate_policy(state, self._context, journal.scope.identity)
-            if control is not None and control.phase in (1, 2, 3):
-                require(control.proposal.policy == authorization(state), "credential coordinator policy differs")
-        finally:
-            state.close()
-        if intent is None and (control is None or control.ready()):
-            state = decode(snapshot.payload, self._context)
-            try:
-                admit_snapshot(journal, state)
-            finally:
-                state.close()
-        return snapshot, control, intent
+        return inspect_retained(self._journal, self._context)
 
     def _current(self):
         snapshot, control, intent = self._inspect()

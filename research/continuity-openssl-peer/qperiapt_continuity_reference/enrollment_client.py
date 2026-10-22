@@ -400,6 +400,16 @@ class EnrollmentClient:
             self.close(); raise
 
     @coordinated
+    def roster_refresh(self, operation, now, *, transport=None):
+        """Borrow original active-account roster maintenance under this client."""
+        try:
+            self._alive()
+            result = self._registration.roster_refresh(operation, now, transport=transport)
+            self._alive(); return result
+        except BaseException:
+            self.close(); raise
+
+    @coordinated
     def policy_renewal_request(self, operation, now, *, transport=None):
         """Export issuer context from the original owned session, including expiry.
 

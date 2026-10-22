@@ -21,6 +21,50 @@ from .witness_journal import WitnessJournal
 from .wire import require
 
 
+def inspect_retained(journal, context):
+    """Authenticate original head/control/intent without replay or transport."""
+    head = journal._admit().read("head")
+    require(head is not None, "missing original policy head")
+    snapshot, control = journal._decode(head), read_control(journal)
+    intent = Intent.read(journal, context)
+    p = None if control is None else control.policy
+    require(control is not None or intent is None, "missing original policy control")
+    if intent is not None:
+        proposal = intent.proposal
+        expected, target = proposal.expected, proposal.target
+        actual = Head(1, snapshot.revision, snapshot.digest)
+        require(actual in (expected, target), "policy current head conflicts")
+        if p is not None and not p.ready():
+            require(p.proposal == proposal and p.target == intent.checkpoint, "policy control/intent conflicts")
+        else:
+            require(control.ready() and actual == expected
+                    and int.from_bytes(intent.checkpoint[:8], "big") > (0 if p is None else p.floor),
+                    "policy target retired or installed without control")
+    elif p is not None and not p.ready():
+        require(p.phase in (2, 3), "missing original pending policy target")
+        expected = p.proposal.target if p.phase == 2 else p.proposal.expected
+        require(Head(1, snapshot.revision, snapshot.digest) == expected, "policy terminal lost original image")
+    state = decode(snapshot.payload, context)
+    try:
+        require(state.traffic is not None, "policy renewal requires original established session")
+        admit_identity_control(state, control)
+        if state.policy_renewal is not None:
+            validate(state, context, journal.scope.identity)
+        if intent is None and (control is None or control.ready()):
+            admit_snapshot(journal, state)
+        else:
+            active = None if state.policy_renewal is None else state.policy_renewal.active
+            held = None if active is None else active.target.checkpoint() + active.approval.statement
+            expected = None if p is None else p.active
+            proposal = intent.proposal if intent is not None else p.proposal
+            if snapshot.digest == proposal.target.digest:
+                expected = (intent.checkpoint if intent else p.target) + proposal.statement
+            require(held == expected, "policy pending image/control differs")
+    finally:
+        state.close()
+    return snapshot, control, intent
+
+
 class WitnessPolicyRenewal:
     def __init__(self, journal, context, operation, inputs):
         self._journal, self._context, self.operation, self._inputs = journal, context, operation, inputs
@@ -45,47 +89,7 @@ class WitnessPolicyRenewal:
             owner.close(); raise
 
     def _inspect(self):
-        journal = self._journal
-        head = journal._admit().read("head")
-        require(head is not None, "missing original policy head")
-        snapshot, control = journal._decode(head), read_control(journal)
-        intent = Intent.read(journal, self._context)
-        p = None if control is None else control.policy
-        require(control is not None or intent is None, "missing original policy control")
-        if intent is not None:
-            proposal = intent.proposal
-            expected, target = proposal.expected, proposal.target
-            actual = Head(1, snapshot.revision, snapshot.digest)
-            require(actual in (expected, target), "policy current head conflicts")
-            if p is not None and not p.ready():
-                require(p.proposal == proposal and p.target == intent.checkpoint, "policy control/intent conflicts")
-            else:
-                require(control.ready() and actual == expected
-                        and int.from_bytes(intent.checkpoint[:8], "big") > (0 if p is None else p.floor),
-                        "policy target retired or installed without control")
-        elif p is not None and not p.ready():
-            require(p.phase in (2, 3), "missing original pending policy target")
-            expected = p.proposal.target if p.phase == 2 else p.proposal.expected
-            require(Head(1, snapshot.revision, snapshot.digest) == expected, "policy terminal lost original image")
-        state = decode(snapshot.payload, self._context)
-        try:
-            require(state.traffic is not None, "policy renewal requires original established session")
-            admit_identity_control(state, control)
-            if state.policy_renewal is not None:
-                validate(state, self._context, journal.scope.identity)
-            if intent is None and (control is None or control.ready()):
-                admit_snapshot(journal, state)
-            else:
-                active = None if state.policy_renewal is None else state.policy_renewal.active
-                held = None if active is None else active.target.checkpoint() + active.approval.statement
-                expected = None if p is None else p.active
-                proposal = intent.proposal if intent is not None else p.proposal
-                if snapshot.digest == proposal.target.digest:
-                    expected = (intent.checkpoint if intent else p.target) + proposal.statement
-                require(held == expected, "policy pending image/control differs")
-        finally:
-            state.close()
-        return snapshot, control, intent
+        return inspect_retained(self._journal, self._context)
 
     def _current(self):
         snapshot, control, intent = self._inspect()

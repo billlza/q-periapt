@@ -202,9 +202,33 @@ child commit and witness replies lost before/after commit, fixture-clock expiry,
 exact pending recovery, same-key renewal and subsequent real peer traffic.
 These are process and protocol checks, not hardware power-loss evidence.
 
-Still separate: restricted original child
-inspection and unknown-delivery accounting after root preparation, transferable
-retirement retention before successor selection, live successor admission,
+After registry preparation suspends the old root, `RootRecovery.inspect_child(now)`
+authenticates the original required-witness journal without constructing a live
+session or witness client. It returns the original subject and head, public
+recovery metadata, any ordinary or typed G/R/P target, intent/control digests,
+root-binding state and local coordination phase. `AppliedRecorded` and
+`ClosedRecorded` retain a terminal outcome whose local cleanup is unfinished;
+they are not new witness observations or permission to send. Unknown delivery
+stays unknown. The reader neither replays nor repairs the original operation.
+
+The same reader handles a parent migration interrupted before child binding,
+after child binding, or with an unknown binding transaction. Only the original
+authenticated pending migration permits reading an unbound child. Normal
+Session factories still require a live lease; metadata access cannot substitute
+for one. Closing the registry revokes even cached recovery methods. This reader
+currently requires an existing required-witness child; it does not turn a missing
+or local-only child into a witnessed one.
+
+`enrollment_session_checks.py --root-child-inspection MODE` exercises ordinary
+writes with replies lost before/after witness commit, G/R/P pending and retained
+applied/closed control, partial parent migration, corruption refusals and owner
+closure. The successor is a real separately prepared independent installation;
+test-control command 45 supplies fresh native-signed peer materials rather than
+backdating expired advertisements. These tests check unchanged original files,
+zero witness requests during inspection and identical results after reopening.
+
+Still separate: transferable retirement retention before successor selection,
+reconciliation with a signed complete freeze, live successor admission,
 independently approved adoption of another committed winner, device qualification
 and post-compromise recovery analysis. Do not use these component checks as proof
 that the complete root-replacement lifecycle is ready.

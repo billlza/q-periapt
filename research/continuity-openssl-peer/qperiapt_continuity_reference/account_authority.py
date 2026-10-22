@@ -68,6 +68,12 @@ class _RecoveryAccess:
         require(owner is not None,'closed account authority recovery owner')
         result=owner.operation(self.operation);self.check();return result
 
+    def check_scope(self,account,family,witness):
+        self.check();owner=self._owner()
+        require(owner is not None and account==self.binding.account and family==owner.family
+                and witness==owner.witness,'root recovery original account/family/witness differs')
+        self.check()
+
 
 class AccountAuthority:
     def __init__(self,journal,identity,family,pin):

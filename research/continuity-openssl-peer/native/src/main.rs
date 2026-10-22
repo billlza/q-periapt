@@ -16,6 +16,7 @@ mod fixture;
 mod journal;
 mod peer_lifecycle;
 mod policy_lifecycle;
+mod prekey_refresh;
 mod registration;
 mod resolution;
 mod witness;
@@ -178,6 +179,7 @@ fn main() -> Result<()> {
         let frame = receive(&mut input, true)?;
         let (&command, payload) = frame.split_first().ok_or("empty frame")?;
         let result = match command {
+            45 => prekey_refresh::issue(&fixture, payload).map_err(|error| error.to_string()),
             1 => operation
                 .respond(
                     payload,
