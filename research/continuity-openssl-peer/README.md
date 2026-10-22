@@ -417,8 +417,11 @@ not grant traffic permission. Once preparation suspends the original root,
 ordinary/G/R/P targets and retained terminal phases without replay or network
 access. Partial parent migration and unknown delivery retain their original
 state. The client also borrows active roster maintenance through `roster_refresh`.
-Child retirement and live successor activation
-remain open; historical proofs and registry selection alone do not grant traffic.
+`RootRecovery` also retains signed retirement in both original stores before
+selecting the successor in the registry. The original encrypted head and pending
+work remain unchanged, and normal owners reject the retained root fence. Live
+successor activation and closure-bound fence transfer remain open; historical
+proofs and registry selection alone do not grant traffic.
 
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential

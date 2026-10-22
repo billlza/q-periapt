@@ -78,6 +78,14 @@ class Journal:
         self._cipher = AESSIV(hkdf(wrapping_key, scope.identity, DOMAIN + b"image-key/" + scope.wire(), 64))
         self._intent_key = hkdf(wrapping_key, scope.identity, DOMAIN + b"intent-key/" + scope.wire())
         self._directory = PrivateDirectory(path, observer, max_file=self.max_payload + 4096)
+        try: self._admit_root_fence()
+        except BaseException:
+            self.close(); raise
+
+    def _admit_root_fence(self):
+        # The exclusive directory lease prevents a coordinator from adding a
+        # fence while this owner is alive; avoid rereading it on every operation.
+        require(self._directory.read('root-fence') is None, 'original account root is fenced')
 
     @classmethod
     def create(cls, path: Path, scope: Scope, key: bytes, initial: bytes, validate, observer=None, *, root_lease=None):

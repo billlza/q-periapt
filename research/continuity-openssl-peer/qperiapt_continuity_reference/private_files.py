@@ -84,7 +84,7 @@ class PrivateDirectory:
         require(self.fd is not None, "closed store directory")
 
     def read(self, name: str) -> bytes | None:
-        require(name in ("head", "intent", "authority"), "unknown formal record")
+        require(name in ("head", "intent", "authority", "root-fence"), "unknown formal record")
         return self._read(name)
 
     def read_initial_intent(self) -> bytes | None:
@@ -125,7 +125,7 @@ class PrivateDirectory:
             for entry in entries:
                 count += 1
                 require(count + files <= 128, "store file count capacity")
-                require(entry.name in ("head", "intent", "authority") or entry.name.startswith(".stage-"),
+                require(entry.name in ("head", "intent", "authority", "root-fence") or entry.name.startswith(".stage-"),
                         "unknown store file")
                 value = entry.stat(follow_symlinks=False)
                 private_regular(value)
@@ -133,7 +133,7 @@ class PrivateDirectory:
                 require(total + incoming <= MAX_DIRECTORY_BYTES, "store disk capacity")
 
     def publish(self, name: str, value: bytes, *, fixed_slot: str | None = None) -> None:
-        require(name in ("head", "intent", "authority") and 0 < len(value) <= self.max_file, "publication shape")
+        require(name in ("head", "intent", "authority", "root-fence") and 0 < len(value) <= self.max_file, "publication shape")
         if name == "head":
             require(fixed_slot is None, "head publication owns its reserved slot")
             self._publish_fixed(name, ".stage-head", value)
@@ -142,7 +142,8 @@ class PrivateDirectory:
             require((name == "authority" and fixed_slot in (tuple("authority-" + str(i) for i in range(6))
                     + tuple("authority-r-" + str(i) for i in range(1, 6))
                     + tuple("authority-p-" + str(i) for i in range(1, 6))))
-                    or (name == "intent" and fixed_slot == "initial-intent"),
+                    or (name == "intent" and fixed_slot == "initial-intent")
+                    or (name == "root-fence" and fixed_slot in ('root-fence-pending', 'root-fence-retired')),
                     "unknown reserved publication slot")
             self._publish_fixed(name, ".stage-" + fixed_slot, value)
             return

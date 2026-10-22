@@ -2,8 +2,9 @@
 
 This owner exposes historical metadata and signed freeze/noncommit recording.
 It owns no traffic facade and never turns recovery access into a live lease.
-It can inspect the authenticated original witnessed child without replay.
-Retirement retention and successor activation are separate.
+It can inspect the original witnessed child without replay and retain signed
+retirement in both original stores before registry selection. Successor traffic
+activation remains separate.
 """
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from dataclasses import replace
@@ -16,7 +17,6 @@ from .account_root_record import RetainedPlan
 from .journal import Journal
 from .owner_guard import coordinated
 from .private_files import PrivateDirectory
-from .registration import RegistrationJournal
 from .registration_state import Image,PHASES
 from .wire import require
 
@@ -58,10 +58,13 @@ class RootRecovery:
                 if observer is not None:observer(stage)
                 current=original_owner();require(current is not None,'closed original root recovery')
                 current._alive()
+            owner._observe=observe
             owner._configuration._directory.observer=lambda stage:observe('client-config:'+stage)
             intent=owner._intent
-            owner._registration=RegistrationJournal.open(path/'registration',owner._intent.scope(configuration.registration),key,
-                lambda raw:Image.decode(raw,intent),observer=lambda stage:observe('client-device:registration-store:'+stage))
+            from .root_fence import open_parent
+            owner._registration=open_parent(path/'registration',owner._intent.scope(configuration.registration),key,
+                lambda raw:Image.decode(raw,intent),owner._access,registry.witness,
+                lambda stage:observe('client-device:registration-store:'+stage))
             owner._owners.append(owner._registration)
             owner._reconcile_association(configuration)
             owner._alive();return owner
@@ -122,10 +125,42 @@ class RootRecovery:
         except BaseException:self.close();raise
 
     @coordinated
-    def bind_freeze(self,receipt):
+    def bind_freeze(self,receipt,*,now=None):
         try:
             self._alive();registry=self._registry();require(registry is not None,'closed account authority recovery owner')
-            result=registry.bind_freeze(self._access.operation,receipt);self._alive();return result
+            result=registry.bind_freeze(self._access.operation,receipt)
+            self._retain_bound(now);self._alive();return result
+        except BaseException:self.close();raise
+
+    def _retain_bound(self,now,receipt=None):
+        from .root_fence import retain
+        from .root_child_snapshot import open_child,inspect
+        _,image=self._image();registry=self._registry()
+        require(registry is not None,'closed account authority recovery owner')
+        if image.child is not None:
+            require(type(now) is int and 0 <= now < 1 << 64,'explicit root recovery time required for original child')
+            journal,context=open_child(self,image,now)
+            try:
+                journal._directory.observer=lambda stage:self._observe('root-child:'+stage)
+                observation=inspect(journal,context)
+                child=retain(journal,self._access,registry.witness,1,receipt=receipt,observation=observation)
+                if receipt is not None:receipt=child.receipt
+            finally:journal.close()
+        # Recheck the original parent after child I/O before adding its fence.
+        self._image()
+        return retain(self._registration,self._access,registry.witness,2,receipt=receipt)
+
+    @coordinated
+    def retain_witness_retirement(self,receipt,*,now=None):
+        """Retain exact child and parent retirement before selecting the successor."""
+        try:
+            self._alive();registry=self._registry();require(registry is not None,'closed account authority recovery owner')
+            _,phase,original,decision=self._access.observation()
+            require(phase!='Closed' and decision,'original bound root operation required')
+            RetainedPlan(registry.witness,original).verify_retirement(decision,receipt)
+            parent=self._retain_bound(now,receipt)
+            result=registry.commit_retirement(self._access.operation,decision,parent.receipt)
+            self._alive();return result
         except BaseException:self.close();raise
 
     @coordinated

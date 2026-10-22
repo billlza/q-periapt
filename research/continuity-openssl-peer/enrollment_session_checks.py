@@ -150,6 +150,8 @@ def exercise(args, label):
             from root_child_fixture import exercise as inspect_original
             require(bridge is not None, 'root inspection fixture requires witnessed child')
             result = inspect_original(client, registry, mode=args.root_child_inspection, private=private,
+                retirement=args.root_retirement is not None,
+                retirement_cut=args.root_retirement_cut,
                 client_path=client_path, identity=identity, key=key, session_path=session_path, pins=pins, materials=materials,
                 context=context, transport=transport, bridge=bridge, refuse=refuse, public=public)
             result.update(profile=label, native_commands=len(native.commands), witness_requests=len(bridge.records), refusals=refusals)
@@ -302,6 +304,9 @@ def main():
     root_mode.add_argument('--account-root-adoption',action='store_true')
     root_mode.add_argument('--root-adoption-cuts',action='store_true')
     root_mode.add_argument('--root-adoption-expiry',action='store_true')
+    root_mode.add_argument('--root-retirement', choices=('steady','ordinary-before','ordinary-after',
+        'credential','credential-terminal','credential-closed','partial','partial-bound','partial-intent'))
+    root_mode.add_argument('--root-retirement-cuts',action='store_true')
     root_mode.add_argument('--root-child-inspection', choices=('steady', 'ordinary-before', 'ordinary-after',
                                                              'credential', 'credential-terminal', 'credential-closed',
                                                              'roster', 'roster-terminal', 'roster-closed',
@@ -309,6 +314,9 @@ def main():
                                                              'partial', 'partial-bound', 'partial-intent',
                                                              'tamper-head', 'tamper-binding', 'tamper-intent'))
     args = parser.parse_args(); args.implementation_root = args.implementation_root.resolve(strict=True)
+    if args.root_retirement is not None: args.root_child_inspection=args.root_retirement
+    args.root_retirement_cut=None
+    if args.root_retirement_cuts:args.root_retirement=args.root_child_inspection='steady'
     sys.path.insert(0, str(args.implementation_root))
     from qperiapt_continuity_reference.provider import load_provider
     provider, _ = load_provider(args.provider_root)
@@ -325,7 +333,14 @@ def main():
     args.output.mkdir()
     args.adoption_cut = None
     args.adoption_expiry = None
-    if args.root_adoption_cuts:
+    if args.root_retirement_cuts:
+        from root_retirement_cuts import CUTS
+        profiles=[]
+        for index,cut in enumerate(CUTS):
+            selected=copy.copy(args);selected.root_retirement_cut=cut
+            selected.output=args.output/str(index);selected.output.mkdir()
+            profiles.append(exercise(selected,'witness'))
+    elif args.root_adoption_cuts:
         from root_adoption_client_fixture import PHASES, STAGES
         profiles = []
         for phase in PHASES:

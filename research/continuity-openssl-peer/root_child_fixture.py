@@ -64,9 +64,13 @@ def prepare_policy(client, pins, materials, context, public, bridge, transport, 
 
 
 def exercise(client, registry, *, mode, private, client_path, identity, key, session_path,
-             pins, materials, context, transport, bridge, refuse, public):
-    fresh = bridge.call('fresh-successor-peer-materials', 45, (170).to_bytes(8, 'big'))
-    plan = prepare(private, client._authority.application, pins, materials, context, 170, fresh)
+             pins, materials, context, transport, bridge, refuse, public, retirement=False,retirement_cut=None):
+    def prepare_successor(now):
+        fresh = bridge.call('fresh-successor-peer-materials', 45, now.to_bytes(8, 'big'))
+        return prepare(private, client._authority.application, pins, materials, context, now, fresh)
+    # Read-only inspection can retain an older approved plan. A real retirement
+    # prepares the actual successor at the original operation's current time.
+    plan = None if retirement else prepare_successor(170)
     before_identity = client.status(); old_request = client.request
     recovery = None; adoption = None
     try:
@@ -82,6 +86,7 @@ def exercise(client, registry, *, mode, private, client_path, identity, key, ses
                 bridge.arm('before', 2)
                 refuse('partial-binding-intent', lambda: adoption.commit(170, transport=transport()), 'truncated witness reply')
             checkpoint = registry.current(client._authority.application)
+            if retirement:plan=prepare_successor(170)
             registry.begin_preparation(checkpoint, plan)
             recovery = RootRecovery.open(client_path, identity, key, registry, plan.operation)
         else:
@@ -108,6 +113,7 @@ def exercise(client, registry, *, mode, private, client_path, identity, key, ses
                 from qperiapt_continuity_reference.enrollment_client import EnrollmentClient
                 client = EnrollmentClient.open(client_path, identity, key, account_authority=registry)
             checkpoint = registry.current(client._authority.application)
+            if retirement:plan=prepare_successor({'credential':210,'roster':310,'policy':190}.get(mode.split('-')[0],170))
             recovery = client.prepare_account_root(registry, plan)
         paths = (client_path, session_path)
         def snapshot():
@@ -177,6 +183,11 @@ def exercise(client, registry, *, mode, private, client_path, identity, key, ses
         require(recovery.inspect_child(now) == observation,
                 'root observation changed across original reopen')
         require(snapshot() == before and len(bridge.records) == requests, 'root reopen mutated or dispatched child')
+        if retirement:
+            from root_retirement_fixture import exercise as retire_original
+            return retire_original(recovery,registry,plan,bridge=bridge,now=now,client_path=client_path,
+                                   identity=identity,key=key,session_path=session_path,context=context,
+                                   observation=observation,refuse=refuse,mode=mode,cut=retirement_cut)
         cached = recovery.inspect_child; registry.close()
         refuse('closed-registry-revokes-child-inspection', lambda: cached(now), 'closed account authority owner')
         require(snapshot() == before and len(bridge.records) == requests, 'closed root inspection changed original state')

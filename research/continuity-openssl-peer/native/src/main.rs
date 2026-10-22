@@ -180,6 +180,12 @@ fn main() -> Result<()> {
         let (&command, payload) = frame.split_first().ok_or("empty frame")?;
         let result = match command {
             45 => prekey_refresh::issue(&fixture, payload).map_err(|error| error.to_string()),
+            50 | 51 => fixture
+                .witness
+                .as_ref()
+                .ok_or("required witness not configured")?
+                .root_command(&fixture, command, payload)
+                .map_err(|error| error.to_string()),
             1 => operation
                 .respond(
                     payload,

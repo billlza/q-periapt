@@ -45,6 +45,9 @@ class WitnessJournal(Journal):
         self._cipher = AESSIV(hkdf(key, scope.identity, DOMAIN + b"image-key/" + self._binding, 64))
         self._intent_key = hkdf(key, scope.identity, DOMAIN + b"intent-key/" + self._binding)
         self._directory = PrivateDirectory(path, observer, max_file=self.max_payload + 4096)
+        try: self._admit_root_fence()
+        except BaseException:
+            self.close(); raise
 
     @classmethod
     def provision(cls, path, scope, key, initial, validate, profile, observer=None, *, root_lease=None):

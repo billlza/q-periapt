@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Actual persistent witness and explicit test control plane, never peer enrollment.
+#[path = "witness_root.rs"]
+mod root;
 use crate::{fixture::Fixture, Result};
 use q_periapt_continuity_identity_candidate::{
     AnchorClient, AnchorCredentialRenewalProposal, AnchorGenesis, AnchorIdentity,

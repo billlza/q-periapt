@@ -2098,6 +2098,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-reference-app/tests/support/account_client_probe.rs',
             'research/continuity-reference-app/src/native_device/peer_roster.rs',
             'research/continuity-openssl-peer/native/src/prekey_refresh.rs',
+            'research/continuity-openssl-peer/native/src/witness_root.rs',
             'research/continuity-reference-app/src/account_authority.rs',
             'research/continuity-reference-app/src/account_authority/cutover.rs',
             'research/continuity-reference-app/src/auth/account_authority.rs',

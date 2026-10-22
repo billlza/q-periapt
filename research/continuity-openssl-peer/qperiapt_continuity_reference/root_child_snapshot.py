@@ -47,6 +47,10 @@ class _View(WitnessJournal):
         require(self._directory is not None, 'closed root child inspection')
         self._access.check()
 
+    def _admit_root_fence(self):
+        from .root_fence import read
+        read(self, self._access, self.profile.pin, 1)
+
     def _decode(self, wire):
         self._check_root(); prefix = self._image_prefix(); offset = len(prefix)
         require(self.image_overhead <= len(wire) <= self.max_payload + self.image_overhead + SIZE,
@@ -139,13 +143,18 @@ def inspect(journal, context):
     journal._check_root(); return result
 
 
-def original_child(parent, image, now):
+def open_child(parent, image, now):
     from .registration_session import selected_parts, validate_context
     require(image.child is not None, 'original root recovery has no child journal')
     context = image.child.inputs.original(image.child.context, now)
     validate_context(parent, image, context)
     scope, key = selected_parts(parent._key, parent._registration.scope.identity, image, context)
     journal = _View(image.child.path, scope, key, context, parent._access, parent._adoption_pending)
+    return journal, context
+
+
+def original_child(parent, image, now):
+    journal, context = open_child(parent, image, now)
     try:
         observation = inspect(journal, context); parent._alive(); return observation
     finally:

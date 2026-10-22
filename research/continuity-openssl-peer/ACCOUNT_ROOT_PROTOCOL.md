@@ -227,8 +227,34 @@ test-control command 45 supplies fresh native-signed peer materials rather than
 backdating expired advertisements. These tests check unchanged original files,
 zero witness requests during inspection and identical results after reopening.
 
-Still separate: transferable retirement retention before successor selection,
-reconciliation with a signed complete freeze, live successor admission,
+`RootRecovery.bind_freeze(receipt, now=now)` now binds the complete signed native
+freeze, then retains an authenticated `root-fence` in the original child and
+registration. The original child must be named by the freeze; its frozen head
+must equal the authenticated local head or a still-retained eligible target.
+No ordinary or G/R/P operation is replayed to make the heads agree. An existing
+child requires an explicit inspection time. Its encrypted head, intent and
+authority control remain unchanged; the new file also binds their exact digests.
+Normal registration/session constructors reject a retained fence under their
+exclusive directory lease. Restricted original recovery authenticates it.
+
+`retain_witness_retirement(receipt, now=now)` verifies the exact bound retirement,
+retains the transferable receipt in child and parent, and only then commits the
+registry's successor mapping. Lost returns reopen the same original root owner
+and retry the same operation. Equivalent newly signed historical receipts keep
+the first retained local bytes and do not increment the registry twice. This
+returns a checkpoint, not a successor traffic owner. A closed root operation
+cannot use this path to reopen or commit.
+
+The test-control pipe verifies the actual independent target's full certificate,
+roster, policy and prepared genesis before freezing or retiring it. The
+`--root-retirement` scenarios preserve ordinary unknown results, G transactions
+and partial parent migration. `--root-retirement-cuts` uses 28 fresh-process
+SIGKILL boundaries across registry intent/head/cleanup and both fence files.
+Malformed signatures and isolated corrupted fences/state are refused. These
+checks do not establish physical power-loss durability.
+
+Still separate: live successor admission, closure-bound transfer of an existing
+fence to a newly approved plan,
 independently approved adoption of another committed winner, device qualification
 and post-compromise recovery analysis. Do not use these component checks as proof
 that the complete root-replacement lifecycle is ready.
