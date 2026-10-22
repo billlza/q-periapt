@@ -63,7 +63,7 @@ class RootAdoption:
         self._finalizer = weakref.finalize(self, _close_owners, self._owners)
 
     @classmethod
-    def open(cls, path, client_id, key, registry, *, observer=None):
+    def open(cls, path, client_id, key, registry, *, observer=None, _genesis=None):
         from .enrollment_client import scope
         require(type(registry) is AccountAuthority, 'original account registry required')
         owner = cls()
@@ -73,7 +73,7 @@ class RootAdoption:
             owner._owners.append(owner._configuration)
             configuration = _configuration(owner._configuration)
             owner._root_lease = select_root(configuration, registry)
-            owner._registry = weakref.ref(registry); owner._observer = observer
+            owner._registry = weakref.ref(registry); owner._observer = observer; owner._genesis = _genesis
             owner._authority, invitation = configuration.inputs(); owner._intent = invitation.intent
             owner._key = key; owner._ready = configuration.root_ready
             owner._configuration._directory.observer = owner._observe('client-config:')
@@ -126,7 +126,8 @@ class RootAdoption:
             path, scope, key, context, client = _child(self, image, now, transport)
             try:
                 binding = finish(path, scope, key, context, now, root_lease=self._root_lease, client=client,
-                    observer=self._observe('client-root-child:'), registration_bound=image.root_binding is not None)
+                    observer=self._observe('client-root-child:'), registration_bound=image.root_binding is not None,
+                    expected_genesis=self._genesis)
             finally:
                 if client is not None: client.close()
             require(binding == self._root_lease.binding, 'original child binding differs')
@@ -185,7 +186,7 @@ class RootAdoption:
     def __exit__(self, *_error): self.close()
 
 
-def begin(client, registry, now, *, transport=None):
+def begin(client, registry, now, *, transport=None, expected_genesis=None):
     """Preflight the actual old child before retaining a parent migration marker."""
     client._alive(); require(type(registry) is AccountAuthority, 'original account registry required')
     require(client._registration._child is None, 'close borrowed child before root adoption')
@@ -200,7 +201,7 @@ def begin(client, registry, now, *, transport=None):
     client._root_lease = lease
     try:
         with preflight(path, scope, key, context, now, root_lease=lease, client=witness,
-                       observer=client._registration._child_observer):
+                       observer=client._registration._child_observer, expected_genesis=expected_genesis):
             updated = replace(configuration, root_binding=lease.binding, root_ready=False, root_adoption=True)
             client._configuration.update(snapshot.digest, updated.wire())
             require(Configuration.read(client._configuration.read().payload) == updated, 'root adoption preparation readback')
@@ -208,4 +209,4 @@ def begin(client, registry, now, *, transport=None):
         if witness is not None: witness.close()
     path, client_id, key, observer = client._root.path, client._configuration.scope.identity, client._registration._key, client._observer
     client.close()
-    return RootAdoption.open(path, client_id, key, registry, observer=observer)
+    return RootAdoption.open(path, client_id, key, registry, observer=observer, _genesis=expected_genesis)

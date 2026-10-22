@@ -2,9 +2,9 @@
 
 This owner exposes historical metadata and signed freeze/noncommit recording.
 It owns no traffic facade and never turns recovery access into a live lease.
-It can inspect the original witnessed child without replay and retain signed
-retirement in both original stores before registry selection. Successor traffic
-activation remains separate.
+It can inspect the original witnessed child without replay, retain signed
+retirement before registry selection, and admit the exact prepared successor.
+Peer handshake and traffic still use the normal client and current permission.
 """
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from dataclasses import replace
@@ -162,6 +162,48 @@ class RootRecovery:
             result=registry.commit_retirement(self._access.operation,decision,parent.receipt)
             self._alive();return result
         except BaseException:self.close();raise
+
+    @coordinated
+    def activate_successor(self,target,now,*,transport):
+        """Consume the exact prepared target and return its root-bound client.
+
+        Interrupted binding resumes with RootAdoption.open on that same target.
+        No bootstrap flight is emitted here; subsequent communication uses the
+        normal client and its current admission checks.
+        """
+        from .client_root_adoption import RootAdoption
+        from .enrollment_client import EnrollmentClient
+        from .client_root_successor import prepare
+        from .root_child_snapshot import open_child
+        from .root_fence import read
+        require(type(target) in (EnrollmentClient,RootAdoption),'original successor owner required')
+        adopted=client=None
+        try:
+            require(type(now) is int and 0<=now<1<<64,'explicit successor activation time required')
+            self._alive();registry=self._registry();require(registry is not None,'closed account authority owner')
+            _,phase,original,decision=self._access.observation()
+            require(phase=='Committed','successor requires committed original root retirement')
+            retained=RetainedPlan(registry.witness,original);descriptor=retained.check_decision(decision)
+            expected=Checkpoint(self._binding.application,self._binding.revision+1,descriptor.account)
+            registry.admit(expected)
+            _,image=self._image()
+            parent=read(self._registration,self._access,registry.witness,2)
+            require(parent is not None and parent.receipt is not None,'original parent retirement missing')
+            if image.child is not None:
+                child,_=open_child(self,image,now)
+                try:
+                    fence=read(child,self._access,registry.witness,1)
+                    require(fence is not None and fence.receipt is not None,'original child retirement missing')
+                finally:child.close()
+            adopted=prepare(target,registry,expected,retained,now,transport)
+            client=adopted.commit(now,transport=transport)
+            with client.session(now,transport=transport) as session:
+                require(session.status()=='Waiting','successor activation found advanced business state')
+            self._alive();registry.admit(expected);client._alive();return client
+        except BaseException:
+            if client is not None:client.close()
+            if adopted is not None:adopted.close()
+            target.close();self.close();raise
 
     @coordinated
     def retain_noncommit(self,receipt):

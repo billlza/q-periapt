@@ -25,7 +25,7 @@ def pair(wire):
     r=Reader(wire);result=[r.take(r.integer(4)) for _ in range(2)];r.finish();return result
 
 
-def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None):
+def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None,successor=None):
     def reopen():return RootRecovery.open(client_path,identity,key,registry,plan.operation)
     paths=(client_path/'registration',session_path)
     def originals():
@@ -84,6 +84,12 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
                 and registry.current(current.application)==current,'original root registry selection differs')
         retained={str(p/'root-fence'):hashlib.sha256((p/'root-fence').read_bytes()).hexdigest() for p in paths}
         require(originals()==before,'retirement changed original head, intent or authority')
+        activated=None
+        if successor is not None:
+            from root_successor_fixture import exercise as activate_original
+            recovery,activated=activate_original(recovery,registry,plan,bridge=bridge,now=now,client_path=client_path,
+                identity=identity,key=key,refuse=refuse,mode=successor)
+            require(originals()==before,'successor activation changed retired original state')
         recovery.close();recovery=reopen()
         require(recovery.inspect_child(now)==observation,'retirement hid original pending state')
         bridge.call('root-witness-reopen',32,b'',b'witness reopened')
@@ -128,6 +134,7 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
                 'invalid_freeze_refused':invalid_freeze,
                 'invalid_retirement_refused':invalid_retirement,'mode':mode,
                 'process_cut':cut_record,
+                'successor':activated,
                 'original_subject':observed.subject.hex(),'frozen_head':observed.head.wire().hex(),
                 'frozen_last_command':None if observed.last is None else observed.last.hex(),
                 'local_head':observation.local_head.wire().hex(),'pending_kind':observation.pending_kind,

@@ -6,6 +6,8 @@ header and revision; all original business bytes and authority records survive.
 """
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from contextlib import contextmanager
+import hashlib
+from . import account_binding
 from .journal import Journal, LocalSessionJournal, locked
 from .witness_journal import WitnessJournal
 from .wire import require
@@ -66,18 +68,50 @@ class _Witness(_Adopting, WitnessJournal):
     pass
 
 
-def _new(path, scope, key, context, root_lease, client, observer):
+class _OriginalSuccessor(_Witness):
+    """Only the approved initial image or its exact binding-only successor.
+
+    AES-SIV deterministically reconstructs the original revision-one envelope.
+    Validate both source and intent target before recovery can write or advance
+    the witness. Advanced business state is reopened through the normal client.
+    """
+    def __init__(self, *args, expected_genesis, **kwargs):
+        require(type(expected_genesis) is bytes and len(expected_genesis) == 128,
+                'original successor genesis required')
+        self._expected_genesis = expected_genesis
+        super().__init__(*args, **kwargs)
+
+    def _decode(self, wire):
+        if self._root_lease is None: return self._decode_with_root(wire, None)
+        return super()._decode(wire)
+
+    def _decode_with_root(self, wire, lease):
+        snapshot = super()._decode_with_root(wire, lease)
+        original = wire[:8] == self._image_prefix()[:8]
+        require(snapshot.revision == (1 if original else 2), 'successor activation found advanced state')
+        require(self.subject == self._expected_genesis[:96]
+                and self._admit().read('authority') is None, 'successor activation subject or authority differs')
+        header = account_binding.header(self._image_prefix(), 1, None)
+        genesis = header + self._cipher.encrypt(snapshot.payload, [header])
+        require(hashlib.sha256(genesis).digest() == self._expected_genesis[96:],
+                'successor activation differs from approved genesis')
+        return snapshot
+
+
+def _new(path, scope, key, context, root_lease, client, observer, expected_genesis=None):
     from .durable import Session
     require(root_lease is not None, 'root adoption requires a live original registry')
     Session._scope(context, scope, root_lease)
     if context.witness is None:
-        require(client is None, 'local root adoption has no witness carrier')
+        require(client is None and expected_genesis is None, 'local root adoption has no witness carrier or successor genesis')
         return _Local(path, scope, key, Session._validator(context), observer, root_lease=root_lease)
     else:
         require(client is not None and client.signer is not None and client.signer.public() == context.initiator,
                 'root adoption requires original witness signer')
-        return _Witness(path, scope, key, Session._validator(context), context.witness, client,
-                        observer, root_lease=root_lease)
+        arguments = (path, scope, key, Session._validator(context), context.witness, client, observer)
+        if expected_genesis is not None:
+            return _OriginalSuccessor(*arguments, root_lease=root_lease, expected_genesis=expected_genesis)
+        return _Witness(*arguments, root_lease=root_lease)
 
 
 def _admit(owner, snapshot, context, now):
@@ -106,7 +140,8 @@ def adopt(path, scope, key, context, now, *, root_lease, client=None, observer=N
         journal.close()
 
 
-def finish(path, scope, key, context, now, *, root_lease, client=None, observer=None, registration_bound=False):
+def finish(path, scope, key, context, now, *, root_lease, client=None, observer=None, registration_bound=False,
+           expected_genesis=None):
     """Complete parent metadata after an exact retained child binding.
 
     A fully bound head with no intent needs authenticated readback and, where
@@ -115,7 +150,7 @@ def finish(path, scope, key, context, now, *, root_lease, client=None, observer=
     """
     require(type(now) is int and 0 <= now < 2**64, 'root adoption time')
     require(type(registration_bound) is bool, 'root adoption registration phase')
-    journal = _new(path, scope, key, context, root_lease, client, observer)
+    journal = _new(path, scope, key, context, root_lease, client, observer, expected_genesis)
     try:
         directory = journal._admit(); wire = directory.read('head'); pending = directory.read('intent')
         require(wire is not None, 'missing original root adoption child')
@@ -123,7 +158,9 @@ def finish(path, scope, key, context, now, *, root_lease, client=None, observer=
         require(not registration_bound or (bound and pending is None), 'completed registration lost child root binding')
         if bound and pending is None:
             snapshot = journal._recover(False)
-            _admit(journal, snapshot, context, None)  # Metadata only, never output permission.
+            # Ordinary adoption may finish metadata after expiry. Successor
+            # activation must recheck current authority even on exact retry.
+            _admit(journal, snapshot, context, None if expected_genesis is None else now)
         else:
             snapshot = journal.bind(lambda owner, value: _admit(owner, value, context, now))
         require(journal._decode_with_root(journal._admit().read('head'), root_lease) == snapshot,
@@ -134,19 +171,25 @@ def finish(path, scope, key, context, now, *, root_lease, client=None, observer=
 
 
 @contextmanager
-def preflight(path, scope, key, context, now, *, root_lease, client=None, observer=None):
+def preflight(path, scope, key, context, now, *, root_lease, client=None, observer=None, expected_genesis=None):
     """Keep the original unbound child lease until parent preparation is durable."""
     from .durable import Session
     require(type(now) is int and 0 <= now < 2**64, 'root adoption time')
     require(root_lease is not None, 'root adoption requires a live original registry')
     Session._scope(context, scope, root_lease)
     if context.witness is None:
-        require(client is None, 'local root adoption has no witness carrier')
+        require(client is None and expected_genesis is None, 'local root adoption has no witness carrier or successor genesis')
         journal, snapshot = LocalSessionJournal._open(path, scope, key, Session._validator(context), observer=observer)
     else:
         require(client is not None and client.signer is not None and client.signer.public() == context.initiator,
                 'root adoption requires original witness signer')
-        journal, snapshot = WitnessJournal._open(path, scope, key, Session._validator(context), context.witness, client, observer)
+        if expected_genesis is None:
+            journal, snapshot = WitnessJournal._open(path, scope, key, Session._validator(context), context.witness, client, observer)
+        else:
+            journal = _OriginalSuccessor(path, scope, key, Session._validator(context), context.witness, client, observer,
+                                         expected_genesis=expected_genesis)
+            try: snapshot = journal._recover(False)
+            except BaseException: journal.close(); raise
     try:
         _admit(journal, snapshot, context, now); root_lease.check()
         yield

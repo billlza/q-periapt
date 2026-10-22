@@ -419,9 +419,12 @@ access. Partial parent migration and unknown delivery retain their original
 state. The client also borrows active roster maintenance through `roster_refresh`.
 `RootRecovery` also retains signed retirement in both original stores before
 selecting the successor in the registry. The original encrypted head and pending
-work remain unchanged, and normal owners reject the retained root fence. Live
-successor activation and closure-bound fence transfer remain open; historical
-proofs and registry selection alone do not grant traffic.
+work remain unchanged, and normal owners reject the retained root fence.
+`activate_successor` admits the exact prepared target through current registry,
+device, policy and witness checks, including recovery of interrupted binding.
+It returns the normal client without emitting a peer handshake. Successor peer
+interoperability and closure-bound fence transfer remain open; historical proofs
+and registry selection alone do not grant traffic.
 
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential

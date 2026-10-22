@@ -253,7 +253,28 @@ SIGKILL boundaries across registry intent/head/cleanup and both fence files.
 Malformed signatures and isolated corrupted fences/state are refused. These
 checks do not establish physical power-loss durability.
 
-Still separate: live successor admission, closure-bound transfer of an existing
+`RootRecovery.activate_successor(target, now, transport=carrier)` consumes the
+original prepared `EnrollmentClient`, or its interrupted `RootAdoption` owner,
+and returns its root-bound client. It requires the committed current registry
+mapping and authenticated retirement in each original store. It reconstructs
+and compares the complete signed target with the approved plan, checks current
+bootstrap inputs, and uses fresh witness admission while binding the target.
+The supplied registry must remain alive for the returned client.
+
+Before any child recovery write or witness advance, the target reader checks
+the approved genesis. Only revision-one initial state and revision-two state
+whose sole change is root binding qualify. Deterministic AES-SIV encoding lets
+the reader reconstruct the exact original envelope from unchanged business
+bytes; no additional origin file or reset is needed. A different valid initial
+state under the same identity is rejected. Once business state advances, reopen
+the normal client instead of calling initial successor activation again.
+
+Activation emits no bootstrap flight and establishes no peer connection. The
+`--root-successor` fixtures exercise current witness admission, reply loss and
+parent publication interruption; peer handshake and traffic after a root change
+remain a separate interoperability gate.
+
+Still separate: successor peer interoperability, closure-bound transfer of an existing
 fence to a newly approved plan,
 independently approved adoption of another committed winner, device qualification
 and post-compromise recovery analysis. Do not use these component checks as proof

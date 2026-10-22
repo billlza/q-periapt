@@ -20,7 +20,8 @@ def validate(text):
         'installed_reference=$(jq -er',
         'cargo build --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml',
     )
-    for flag in ('--root-child-inspection', '--root-retirement "$mode"', '--root-retirement-cuts'):
+    for flag in ('--root-child-inspection', '--root-retirement "$mode"', '--root-retirement-cuts',
+                 '--root-successor "$mode"', '--retirement-result'):
         owners = [step for step in steps if flag in step]
         if owners != [consumer]:
             raise ValueError('root checks must share the installed producer step')
