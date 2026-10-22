@@ -17,6 +17,7 @@ on:
       - research/continuity-openssl-peer/root_adoption_client_fixture.py
       - research/continuity-openssl-peer/root_child_fixture.py
       - research/continuity-openssl-peer/root_target_fixture.py
+      - research/continuity-openssl-peer/root_retirement*.py
       - research/continuity-openssl-peer/enrollment_session_checks.py
       - research/continuity-openssl-peer/native/**
       - research/continuity-openssl-peer/tests/network.py
@@ -63,6 +64,7 @@ on:
       - research/continuity-openssl-peer/root_adoption_client_fixture.py
       - research/continuity-openssl-peer/root_child_fixture.py
       - research/continuity-openssl-peer/root_target_fixture.py
+      - research/continuity-openssl-peer/root_retirement*.py
       - research/continuity-openssl-peer/enrollment_session_checks.py
       - research/continuity-openssl-peer/native/**
       - research/continuity-openssl-peer/tests/network.py
@@ -211,13 +213,6 @@ jobs:
             "$CARGO_TARGET_DIR/release/examples/credential-recovery-probe" \
             > target/reference-account-ci/binary.sha256
           cp research/continuity-reference-app/Cargo.lock target/reference-account-ci/Cargo.lock
-          for mode in steady ordinary-before ordinary-after credential credential-terminal credential-closed roster roster-terminal roster-closed policy policy-terminal policy-closed partial partial-bound partial-intent tamper-head tamper-binding tamper-intent; do
-            sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
-              --implementation-root "$installed_reference/installed" --provider-root "$RUNNER_TEMP/reference-provider" \
-              --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-child-inspection "$mode" \
-              --output "$PWD/target/reference-account-ci/root-child-$mode" \
-              > "target/reference-account-ci/root-child-$mode.stdout" 2> "target/reference-account-ci/root-child-$mode.stderr"
-          done
           git diff --exit-code
       - name: Build and consume the independent enrollment exchange wheel
         env:
@@ -333,6 +328,25 @@ jobs:
               --output "$PWD/target/reference-account-ci/$mode" \
               > "target/reference-account-ci/$mode.stdout" 2> "target/reference-account-ci/$mode.stderr"
           done
+          for mode in steady ordinary-before ordinary-after credential credential-terminal credential-closed roster roster-terminal roster-closed policy policy-terminal policy-closed partial partial-bound partial-intent tamper-head tamper-binding tamper-intent; do
+            sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
+              --implementation-root "$installed_reference/installed" --provider-root "$RUNNER_TEMP/reference-provider" \
+              --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-child-inspection "$mode" \
+              --output "$PWD/target/reference-account-ci/root-child-$mode" \
+              > "target/reference-account-ci/root-child-$mode.stdout" 2> "target/reference-account-ci/root-child-$mode.stderr"
+          done
+          for mode in steady ordinary-before ordinary-after credential credential-terminal credential-closed partial partial-bound partial-intent; do
+            sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
+              --implementation-root "$installed_reference/installed" --provider-root "$RUNNER_TEMP/reference-provider" \
+              --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-retirement "$mode" \
+              --output "$PWD/target/reference-account-ci/root-retirement-$mode" \
+              > "target/reference-account-ci/root-retirement-$mode.stdout" 2> "target/reference-account-ci/root-retirement-$mode.stderr"
+          done
+          sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
+            --implementation-root "$installed_reference/installed" --provider-root "$RUNNER_TEMP/reference-provider" \
+            --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-retirement-cuts \
+            --output "$PWD/target/reference-account-ci/root-retirement-cuts" \
+            > target/reference-account-ci/root-retirement-cuts.stdout 2> target/reference-account-ci/root-retirement-cuts.stderr
           git diff --exit-code
       - name: Retain build and regression results
         if: always()
