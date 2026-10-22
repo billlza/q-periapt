@@ -36,6 +36,17 @@ and current-source CI acceptance remain separate requirements. Earlier 0.23.45
 performance and device results retain their version and are not relabeled as
 measurements of this patch.
 
+The 2026-10-22 certificate-verifier patch selects rustls-webpki 0.103.16 in
+the workspace and isolated Continuity identity lockfiles. These are the two
+tracked lockfiles containing that package. [RUSTSEC-2026-0382](https://rustsec.org/advisories/RUSTSEC-2026-0382.html)
+reports acceptance of paths containing distrusted emSign intermediate public
+keys; [upstream's patch](https://github.com/rustls/webpki/pull/546) rejects those
+keys. No advisory is ignored and no other dependency is updated. This changes
+certificate-path rejection, not the configured TLS groups or identity pins.
+Older package, performance and device results retain their original lockfile;
+they do not qualify the patched build. Downstream Cargo users must resolve the
+patched verifier and audit their own lockfile.
+
 ## Storage contract
 
 redb 4.3 changes both storage APIs and locking behavior. The shared protected
