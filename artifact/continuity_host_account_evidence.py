@@ -135,17 +135,21 @@ def retain(value,private,public,snapshot,*,credential_expiry=False):
 
 def negative_controls(value,private,output,snapshot,*,credential_expiry=False):
     output.mkdir()
-    cases=[('native-cg-issued.json',lambda b:json.dumps(dict(json.loads(b),operation=[99]*32)).encode()),
-           ('peer-cg-companions.json',lambda b:json.dumps(dict(json.loads(b),grants=[])).encode()),
-           ('native-cg-witness-trust.json',lambda b:json.dumps(dict(json.loads(b),proposal_binding=[99]*32)).encode()),
+    def changed_json(raw, **fields):
+        original=parse_strict_json_bytes(raw,label='original HTTP cohort negative-control input')
+        require(type(original) is dict,'HTTP cohort negative-control input must be an object')
+        return json.dumps(original|fields).encode()
+    cases=[('native-cg-issued.json',lambda b:changed_json(b,operation=[99]*32)),
+           ('peer-cg-companions.json',lambda b:changed_json(b,grants=[])),
+           ('native-cg-witness-trust.json',lambda b:changed_json(b,proposal_binding=[99]*32)),
            ('native-cg-witness-lost-output.stderr',lambda b:b'generic failure'),
            ('replacement-wire-1.request',lambda b:b[:-1]+bytes([b[-1]^1]))]
     if credential_expiry:
-        cases += [('EXPIRY_OBSERVATION.json',lambda b:json.dumps(dict(json.loads(b),elapsed_seconds=0)).encode()),
+        cases += [('EXPIRY_OBSERVATION.json',lambda b:changed_json(b,elapsed_seconds=0)),
                   ('native-expiry-refused.stderr',lambda b:b'Error: Io(PermissionDenied)\n'),
                   ('peer-expiry-refused.stderr',lambda b:b'OSError: disk unavailable\n'),
-                  ('native-invitation.json',lambda b:json.dumps(dict(json.loads(b),valid_until=1)).encode()),
-                  ('expiry-relogin.http-response.json',lambda b:json.dumps(dict(json.loads(b),result={'authenticated':'registered_software_test_passkey'})).encode())]
+                  ('native-invitation.json',lambda b:changed_json(b,valid_until=1)),
+                  ('expiry-relogin.http-response.json',lambda b:changed_json(b,result={'authenticated':'registered_software_test_passkey'}))]
     rows=[]
     for index,(name,change) in enumerate(cases):
         def altered(path):

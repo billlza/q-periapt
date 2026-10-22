@@ -18,7 +18,9 @@ class PeerConfigurationTests(unittest.TestCase):
             enrollment_fixture(root)
             configured = STDOUT.replace(enrollment.TEST.encode(), enrollment.CONFIGURED_TEST.encode())
             self.assertTrue(enrollment.verify_execution(configured, root, configured=True)["completed"])
-            for wrong in (STDOUT, configured + configured, configured.replace(b"29 filtered", b"28 filtered")):
+            wrong_count = configured.replace(b"30 filtered", b"29 filtered")
+            self.assertNotEqual(wrong_count, configured, "negative control must alter the current fixture")
+            for wrong in (STDOUT, configured + configured, wrong_count):
                 with self.subTest(wrong=wrong), self.assertRaises(ValueError):
                     enrollment.verify_execution(wrong, root, configured=True)
             with self.assertRaises(ValueError):
