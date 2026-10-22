@@ -4,8 +4,8 @@
 use super::*;
 use q_periapt_continuity_identity_candidate::{
     AccountPin, AnchorAccountReplacementPlan, AnchorAccountReplacementProposal,
-    AnchorAccountReplacementState, PublicKey, RosterCheckpoint, VerifiedDevice,
-    VerifiedSessionPolicy,
+    AnchorAccountReplacementState, BootstrapContext, ClassicalChoice, DirectoryExpectation,
+    LeafProof, PqChoice, PublicKey, RosterCheckpoint, VerifiedDevice, VerifiedSessionPolicy,
 };
 
 struct Input<'a>(&'a [u8]);
@@ -92,6 +92,60 @@ fn pack(parts: &[&[u8]]) -> Result<Vec<u8>> {
 }
 
 impl Witness {
+    /// Explicit test-controller approval; ordinary session bytes cannot call this.
+    pub(crate) fn successor_context(
+        &self,
+        fixture: &Fixture,
+        payload: &[u8],
+    ) -> Result<(Arc<BootstrapContext>, u64)> {
+        let mut input = Input(payload);
+        let target = Target::read(&mut input, fixture, &self.pin)?;
+        let proposal = AnchorAccountReplacementProposal::from_trusted_state(input.field(65536)?)?;
+        let manifest = input.field(8192)?;
+        let classical = LeafProof::decode(input.field(2048)?)?;
+        let pq = LeafProof::decode(input.field(2048)?)?;
+        if !input.0.is_empty() {
+            return Err("successor peer control trailing data".into());
+        }
+        let now = self.now.load(Ordering::SeqCst);
+        let mut guard = self.store.lock().map_err(|_| "witness lock poisoned")?;
+        let store = guard.as_mut().ok_or("closed witness")?;
+        if store.account_root_replacement_status(&proposal)?
+            != AnchorAccountReplacementState::Committed
+        {
+            return Err("successor peer requires committed root retirement".into());
+        }
+        let receipt = store.retired_account_receipt(&proposal)?;
+        target
+            .plan
+            .verify_retirement(&self.pin.verify_retired_account(&proposal, &receipt)?)?;
+        let verified = fixture.responder.verify_manifest(manifest, now)?;
+        let selection = verified.select_prekeys(
+            &classical,
+            &pq,
+            ClassicalChoice::SignedOnly,
+            PqChoice::LastResort,
+            now,
+        )?;
+        let actual = fixture.prekey.public_key()?.to_bytes();
+        let (expected_pq, expected_classical) =
+            actual.split_at(q_periapt_backends::ML_KEM_768_PK_LEN);
+        if selection.post_quantum().public_key() != expected_pq
+            || selection.classical().public_key() != expected_classical
+        {
+            return Err("successor peer prekey differs from retained native key".into());
+        }
+        let context = BootstrapContext::new(
+            target.policy,
+            Arc::new(target.device),
+            Arc::clone(&fixture.responder),
+            Arc::new(selection),
+            DirectoryExpectation::from_trusted_state([99; 32])?,
+            now,
+        )?;
+        Ok((Arc::new(context), now))
+    }
+
     pub(crate) fn root_command(
         &self,
         fixture: &Fixture,

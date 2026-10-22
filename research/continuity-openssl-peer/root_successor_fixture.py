@@ -53,8 +53,16 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse
         client=recovery.activate_successor(target(bound=True),now,transport=transport())
         require(files()==bound,'exact successor activation retry rewrote target files')
         require(client.status()['journal']==plan.journal,'successor retry changed original journal')
+        peer=None
+        if mode.startswith('peer'):
+            from root_successor_peer_fixture import exercise as communicate
+            owned,client=client,None
+            peer=communicate(owned,recovery,registry,plan,bridge=bridge,now=now,path=target_path,
+                             host=host,mode=mode,refuse=refuse)
         return recovery,{'completed':True,'mode':mode,'original_genesis_checked':True,'registry_revision':2,
                          'target_journal':plan.journal.hex(),'target_files_unchanged_on_retry':True,
-                         'scope':'Actual current witness admission and original child/parent/config binding; no independent successor peer handshake or traffic yet.'}
+                         'peer':peer,
+                         'scope':('Actual successor admission and independent/native peer exchange; see peer for transport and recovery scope.'
+                                  if peer is not None else 'Actual current witness admission and original child/parent/config binding; no independent successor peer handshake or traffic yet.')}
     finally:
         if client is not None:client.close()

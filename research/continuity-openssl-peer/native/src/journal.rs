@@ -18,6 +18,7 @@ pub(super) struct Journal {
     owner: Owner,
     context: Arc<BootstrapContext>,
     now: u64,
+    bootstrap_time: u64,
     path: PathBuf,
     identity: JournalIdentity,
     initial: Option<Vec<u8>>,
@@ -126,8 +127,60 @@ impl Journal {
                 policy_version: None,
                 context: Arc::clone(&fixture.context),
                 now: fixture.times.traffic,
+                bootstrap_time: fixture.times.bootstrap,
             });
         }
+        Self::create_raw(
+            fixture,
+            public,
+            Arc::clone(&fixture.context),
+            fixture.times.bootstrap,
+            fixture.times.traffic,
+        )
+    }
+
+    pub(super) fn select_successor(
+        &mut self,
+        public: &Path,
+        context: Arc<BootstrapContext>,
+        now: u64,
+    ) -> Result<()> {
+        let previous = self.context.device(BootstrapRole::Responder);
+        let current = context.device(BootstrapRole::Responder);
+        if !matches!(self.owner, Owner::Raw(_))
+            || self.session.is_none()
+            || previous.credential_digest() != current.credential_digest()
+            || previous.authority_binding() != current.authority_binding()
+            || self.context.current_policy()?.checkpoint() != context.current_policy()?.checkpoint()
+        {
+            return Err("successor peer requires the original native device and policy".into());
+        }
+        // A device has one original witness lineage. Start another session in
+        // that same journal; never re-enroll or replace its persisted history.
+        crate::fixture::save(
+            public,
+            "private-fixture-path",
+            self.path.as_os_str().as_encoded_bytes(),
+        )?;
+        self.context = context;
+        self.bootstrap_time = now;
+        self.now = now;
+        self.initial = None;
+        self.session = None;
+        Ok(())
+    }
+
+    pub(super) fn matches_context(&self, context: &BootstrapContext, now: u64) -> bool {
+        self.context.digest() == context.digest() && self.bootstrap_time == now
+    }
+
+    fn create_raw(
+        fixture: &Fixture,
+        public: &Path,
+        context: Arc<BootstrapContext>,
+        bootstrap_time: u64,
+        now: u64,
+    ) -> Result<Self> {
         // Keep the private fixture even on failure. It is outside the public
         // artifact directory; no wrapping key or sealed secret is uploaded.
         let path = tempfile::Builder::new()
@@ -161,16 +214,15 @@ impl Journal {
                 &path.join("journal"),
                 JournalKey::provision(&path.join("key"))?,
                 &fixture.responder,
-                fixture.context.current_policy()?,
+                context.current_policy()?,
                 identity,
-                fixture.times.bootstrap,
+                bootstrap_time,
             )?;
-            let genesis =
-                owner.anchor_genesis(&fixture.responder, fixture.context.current_policy()?)?;
-            witness.enroll(&genesis, fixture, BootstrapRole::Responder)?;
+            let genesis = owner.anchor_genesis(&fixture.responder, context.current_policy()?)?;
+            witness.enroll_context(&genesis, &context, BootstrapRole::Responder)?;
             owner.activate_anchor(
                 &fixture.responder,
-                fixture.context.current_policy()?,
+                context.current_policy()?,
                 witness.client()?,
             )?;
             owner
@@ -184,8 +236,9 @@ impl Journal {
         };
         Ok(Self {
             owner: Owner::Raw(Box::new(owner)),
-            context: Arc::clone(&fixture.context),
-            now: fixture.times.traffic,
+            context,
+            now,
+            bootstrap_time,
             path,
             identity,
             initial: None,
@@ -218,7 +271,7 @@ impl Journal {
                     &fixture.signer,
                     PqKeySource::from_key(&fixture.prekey),
                     TraditionalKeySource::from_key(&fixture.prekey),
-                    fixture.times.bootstrap,
+                    self.bootstrap_time,
                 )?;
                 self.initial = Some(payload.to_vec());
                 Ok(reply)
@@ -229,7 +282,7 @@ impl Journal {
                     Arc::clone(context),
                     initial,
                     payload,
-                    fixture.times.bootstrap,
+                    self.bootstrap_time,
                 )?;
                 self.session = Some(session);
                 Ok(session.to_vec())
@@ -239,7 +292,7 @@ impl Journal {
                 let session = self.owner.journal()?.activate_responder_messages(
                     Arc::clone(context),
                     initial,
-                    fixture.times.bootstrap,
+                    self.bootstrap_time,
                 )?;
                 if Some(session) != self.session {
                     return Err(DurableError::Conflict);
@@ -316,7 +369,7 @@ impl Journal {
                         &self.path.join("journal"),
                         JournalKey::open(&self.path.join("key"))?,
                         &fixture.responder,
-                        fixture.context.current_policy()?,
+                        context.current_policy()?,
                         self.identity,
                         witness.client()?,
                     )?

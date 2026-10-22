@@ -174,6 +174,7 @@ fn main() -> Result<()> {
     let fixture = fixture::create(directory, peer_key, options, witness, registration)?;
     let mut operation = ResponderOperation::new(Arc::clone(&fixture.context));
     let mut durable: Option<journal::Journal> = None;
+    let mut successor: Option<journal::Journal> = None;
     send(&mut output, 1, b"ready")?;
     loop {
         let frame = receive(&mut input, true)?;
@@ -186,6 +187,39 @@ fn main() -> Result<()> {
                 .ok_or("required witness not configured")?
                 .root_command(&fixture, command, payload)
                 .map_err(|error| error.to_string()),
+            52 => (|| -> Result<Vec<u8>> {
+                let (context, now) = fixture
+                    .witness
+                    .as_ref()
+                    .ok_or("required witness not configured")?
+                    .successor_context(&fixture, payload)?;
+                if let Some(owner) = &successor {
+                    if !owner.matches_context(&context, now) {
+                        return Err("successor peer control cannot retarget existing owner".into());
+                    }
+                } else {
+                    let output = directory.join("root-successor");
+                    fs::create_dir(&output)?;
+                    durable
+                        .as_mut()
+                        .ok_or("successor peer requires original native journal")?
+                        .select_successor(&output, Arc::clone(&context), now)?;
+                    successor = durable.take();
+                }
+                Ok(context.digest().to_vec())
+            })()
+            .map_err(|error| error.to_string()),
+            53 => (|| -> Result<Vec<u8>> {
+                let (&inner, wire) = payload.split_first().ok_or("empty successor command")?;
+                if !(4..=27).contains(&inner) {
+                    return Err("unsupported successor journal command".into());
+                }
+                Ok(successor
+                    .as_mut()
+                    .ok_or("successor peer before explicit approval")?
+                    .command(&fixture, inner, wire)?)
+            })()
+            .map_err(|error| error.to_string()),
             1 => operation
                 .respond(
                     payload,
@@ -203,6 +237,9 @@ fn main() -> Result<()> {
             3 if payload.is_empty() => {
                 operation.close();
                 if let Some(journal) = durable {
+                    journal.close();
+                }
+                if let Some(journal) = successor {
                     journal.close();
                 }
                 send(&mut output, 1, b"closed")?;
@@ -244,6 +281,9 @@ fn main() -> Result<()> {
                     .ok_or("missing native policy owner")?
                     .reopen_policy(&fixture)
                     .map_err(|error| error.to_string())
+            }
+            4..=27 if successor.is_some() => {
+                Err("original peer controller retired; use successor commands".into())
             }
             4..=27 => {
                 if durable.is_none() {

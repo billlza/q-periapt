@@ -422,9 +422,12 @@ selecting the successor in the registry. The original encrypted head and pending
 work remain unchanged, and normal owners reject the retained root fence.
 `activate_successor` admits the exact prepared target through current registry,
 device, policy and witness checks, including recovery of interrupted binding.
-It returns the normal client without emitting a peer handshake. Successor peer
-interoperability and closure-bound fence transfer remain open; historical proofs
-and registry selection alone do not grant traffic.
+It returns the normal client without emitting a peer handshake. The successor
+peer fixture then uses this client for authenticated handshake, two-way traffic,
+reopening and rekey against the original native journal. The endpoint receives
+its approved root through explicit test control, never from session bytes.
+Full successor process-cut and cross-platform qualification, and closure-bound
+fence transfer, remain open; historical proofs alone do not grant traffic.
 
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential

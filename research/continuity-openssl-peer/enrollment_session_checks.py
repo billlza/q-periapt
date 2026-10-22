@@ -308,7 +308,8 @@ def main():
     root_mode.add_argument('--root-retirement', choices=('steady','ordinary-before','ordinary-after',
         'credential','credential-terminal','credential-closed','partial','partial-bound','partial-intent'))
     root_mode.add_argument('--root-retirement-cuts',action='store_true')
-    root_mode.add_argument('--root-successor',choices=('steady','credential','before','after','parent','ready'))
+    root_mode.add_argument('--root-successor',choices=('steady','credential','before','after','parent','ready',
+                                                     'peer','peer-credential','peer-before','peer-after'))
     root_mode.add_argument('--root-child-inspection', choices=('steady', 'ordinary-before', 'ordinary-after',
                                                              'credential', 'credential-terminal', 'credential-closed',
                                                              'roster', 'roster-terminal', 'roster-closed',
@@ -318,7 +319,7 @@ def main():
     args = parser.parse_args(); args.implementation_root = args.implementation_root.resolve(strict=True)
     if args.root_retirement is not None: args.root_child_inspection=args.root_retirement
     if args.root_successor is not None:
-        args.root_retirement=args.root_child_inspection='credential' if args.root_successor=='credential' else 'steady'
+        args.root_retirement=args.root_child_inspection='credential' if args.root_successor in ('credential','peer-credential') else 'steady'
     args.root_retirement_cut=None
     if args.root_retirement_cuts:args.root_retirement=args.root_child_inspection='steady'
     sys.path.insert(0, str(args.implementation_root))

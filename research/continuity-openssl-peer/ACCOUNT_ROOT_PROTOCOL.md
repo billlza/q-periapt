@@ -271,10 +271,24 @@ the normal client instead of calling initial successor activation again.
 
 Activation emits no bootstrap flight and establishes no peer connection. The
 `--root-successor` fixtures exercise current witness admission, reply loss and
-parent publication interruption; peer handshake and traffic after a root change
-remain a separate interoperability gate.
+parent publication interruption. The `peer`, `peer-credential`, `peer-before`
+and `peer-after` variants additionally exercise the installed independent client
+against the native persistent endpoint after an explicit test-controller
+approval. The native side verifies the complete target and committed retirement,
+checks current signed responder prekeys, and uses its original device journal.
+It neither re-enrolls the same device nor replaces the prior store. Invalid
+control inputs cannot select a peer context, and normal network traffic has no
+access to this test-controller approval.
 
-Still separate: successor peer interoperability, closure-bound transfer of an existing
+These variants perform authenticated handshake, retained peer confirmation,
+bidirectional message consumption, exact replay, original-store reopening and
+one rekey followed by new-epoch traffic. Lost send returns reconcile the exact
+original reservation before completing its ciphertext; these are two distinct
+durable steps. The control pipe is an interoperability harness, not a new root
+distribution protocol or a physical/process-restart qualification.
+
+Still separate: full successor process-cut and cancellation coverage,
+cross-platform root lifecycle qualification, closure-bound transfer of an existing
 fence to a newly approved plan,
 independently approved adoption of another committed winner, device qualification
 and post-compromise recovery analysis. Do not use these component checks as proof

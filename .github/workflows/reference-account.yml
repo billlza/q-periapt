@@ -18,7 +18,7 @@ on:
       - research/continuity-openssl-peer/root_child_fixture.py
       - research/continuity-openssl-peer/root_target_fixture.py
       - research/continuity-openssl-peer/root_retirement*.py
-      - research/continuity-openssl-peer/root_successor_fixture.py
+      - research/continuity-openssl-peer/root_successor*.py
       - research/continuity-openssl-peer/tests/root_successor_origin.py
       - research/continuity-openssl-peer/enrollment_session_checks.py
       - research/continuity-openssl-peer/native/**
@@ -67,7 +67,7 @@ on:
       - research/continuity-openssl-peer/root_child_fixture.py
       - research/continuity-openssl-peer/root_target_fixture.py
       - research/continuity-openssl-peer/root_retirement*.py
-      - research/continuity-openssl-peer/root_successor_fixture.py
+      - research/continuity-openssl-peer/root_successor*.py
       - research/continuity-openssl-peer/tests/root_successor_origin.py
       - research/continuity-openssl-peer/enrollment_session_checks.py
       - research/continuity-openssl-peer/native/**
@@ -351,7 +351,7 @@ jobs:
             --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-retirement-cuts \
             --output "$PWD/target/reference-account-ci/root-retirement-cuts" \
             > target/reference-account-ci/root-retirement-cuts.stdout 2> target/reference-account-ci/root-retirement-cuts.stderr
-          for mode in steady credential before after parent ready; do
+          for mode in steady credential before after parent ready peer peer-credential peer-before peer-after; do
             sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
               --implementation-root "$installed_reference/installed" --provider-root "$RUNNER_TEMP/reference-provider" \
               --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-successor "$mode" \

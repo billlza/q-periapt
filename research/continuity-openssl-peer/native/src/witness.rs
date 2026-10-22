@@ -6,8 +6,8 @@ use crate::{fixture::Fixture, Result};
 use q_periapt_continuity_identity_candidate::{
     AnchorClient, AnchorCredentialRenewalProposal, AnchorGenesis, AnchorIdentity,
     AnchorPendingWriteRecoveryProposal, AnchorPin, AnchorRosterRefreshProposal, AnchorSigningKey,
-    AnchorStore, AnchorSubject, AnchorTransport, BootstrapRole, DeviceSigningKey, DurableError,
-    JournalKey, SigningKeyId,
+    AnchorStore, AnchorSubject, AnchorTransport, BootstrapContext, BootstrapRole, DeviceSigningKey,
+    DurableError, JournalKey, SigningKeyId,
 };
 use std::{
     fs, io,
@@ -185,6 +185,15 @@ impl Witness {
         fixture: &Fixture,
         role: BootstrapRole,
     ) -> Result<()> {
+        self.enroll_context(genesis, &fixture.context, role)
+    }
+
+    pub fn enroll_context(
+        &self,
+        genesis: &AnchorGenesis,
+        context: &BootstrapContext,
+        role: BootstrapRole,
+    ) -> Result<()> {
         self.store
             .lock()
             .map_err(|_| "witness lock poisoned")?
@@ -192,8 +201,8 @@ impl Witness {
             .ok_or("closed witness")?
             .enroll(
                 genesis,
-                fixture.context.device(role),
-                fixture.context.current_policy()?,
+                context.device(role),
+                context.current_policy()?,
                 self.now.load(Ordering::SeqCst),
             )?;
         Ok(())
