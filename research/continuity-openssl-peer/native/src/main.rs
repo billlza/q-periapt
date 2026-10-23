@@ -11,6 +11,7 @@ use std::{
     sync::Arc,
 };
 mod account_fixture;
+mod approval;
 mod enrolled_peer;
 mod fixture;
 mod journal;
@@ -222,7 +223,7 @@ fn main() -> Result<()> {
     };
     let mut operation = ResponderOperation::new(Arc::clone(&fixture.context));
     let resumed = if resume_successor.is_some() {
-        Some(restart::Selection::open(&fixture, directory)?)
+        restart::Selection::open(&fixture, directory)?
     } else {
         None
     };
@@ -236,7 +237,7 @@ fn main() -> Result<()> {
     loop {
         let frame = receive(&mut input, true)?;
         let (&command, payload) = frame.split_first().ok_or("empty frame")?;
-        if resume_successor.is_some() && !matches!(command, 3 | 31..=33 | 45 | 50..=59) {
+        if resume_successor.is_some() && !matches!(command, 3 | 31..=33 | 45 | 50..=60) {
             send(
                 &mut output,
                 2,
@@ -244,6 +245,7 @@ fn main() -> Result<()> {
             )?;
             continue;
         }
+        let mut publication_started = false;
         let result = match command {
             45 => prekey_refresh::issue(&fixture, payload).map_err(|error| error.to_string()),
             60 => (|| -> Result<Vec<u8>> {
@@ -253,13 +255,15 @@ fn main() -> Result<()> {
                     .account_id();
                 if successor.is_some()
                     || later_successor.is_some()
-                    || durable
-                        .as_ref()
-                        .is_none_or(|owner| owner.peer_account() != original)
+                    || resumed.is_some()
+                    || (resume_successor.is_none()
+                        && durable
+                            .as_ref()
+                            .is_none_or(|owner| owner.peer_account() != original))
                 {
                     return Err("unactivated predecessor requires the original native peer".into());
                 }
-                restart::retain_unactivated(&fixture, directory, payload)
+                restart::retain_unactivated(&fixture, directory, payload, &mut publication_started)
             })()
             .map_err(|error| error.to_string()),
             50 | 51 | 54 | 55 | 58 | 59 => fixture
@@ -291,7 +295,21 @@ fn main() -> Result<()> {
                         Some(previous) => previous,
                         None => match successor.as_ref() {
                             Some(owner) => owner.peer_account(),
-                            None => unactivated.ok_or("later successor before original peer")?,
+                            None => match unactivated {
+                                Some(account) => account,
+                                None => fixture
+                                    .witness
+                                    .as_ref()
+                                    .ok_or("required witness")?
+                                    .successor_account(
+                                        &fixture,
+                                        &resumed
+                                            .as_ref()
+                                            .ok_or("later successor before original peer")?
+                                            .control,
+                                        original,
+                                    )?,
+                            },
                         },
                     }
                 } else {
@@ -305,7 +323,29 @@ fn main() -> Result<()> {
                     .as_ref()
                     .ok_or("required witness not configured")?
                     .successor_context(&fixture, payload, expected)?;
-                if later && later_successor.is_none() {
+                if resume_successor.is_some() && successor.is_none() {
+                    let owner = journal::Journal::open_successor(
+                        &fixture,
+                        directory,
+                        Arc::clone(&context),
+                        now,
+                        later,
+                    )?;
+                    approval::publish(
+                        directory,
+                        if later {
+                            approval::Kind::Later
+                        } else {
+                            approval::Kind::First
+                        },
+                        payload,
+                        &mut publication_started,
+                    )?;
+                    successor = Some(owner);
+                    if later {
+                        later_successor = Some(previous);
+                    }
+                } else if later && later_successor.is_none() {
                     let skipped = successor.is_none();
                     let owner = if skipped {
                         if unactivated != Some(previous) {
@@ -320,9 +360,13 @@ fn main() -> Result<()> {
                     let native_previous = if skipped { original } else { previous };
                     owner.verify_successor(&context, native_previous)?;
                     let output = directory.join("root-successor-later");
-                    fs::create_dir(&output)?;
+                    approval::publish(
+                        directory,
+                        approval::Kind::Later,
+                        payload,
+                        &mut publication_started,
+                    )?;
                     owner.select_successor(&output, Arc::clone(&context), now, native_previous)?;
-                    fixture::save(&output, "control", payload)?;
                     if skipped {
                         successor = durable.take();
                     }
@@ -331,23 +375,20 @@ fn main() -> Result<()> {
                     if !owner.matches_context(&context, now) {
                         return Err("successor peer control cannot retarget existing owner".into());
                     }
-                } else if resume_successor.is_some() {
-                    successor = Some(journal::Journal::open_successor(
-                        &fixture,
-                        directory,
-                        Arc::clone(&context),
-                        now,
-                        later,
-                    )?);
                 } else {
                     let output = directory.join("root-successor");
-                    fs::create_dir(&output)?;
-                    durable
+                    let owner = durable
                         .as_mut()
-                        .ok_or("successor peer requires original native journal")?
-                        .select_successor(&output, Arc::clone(&context), now, previous)?;
+                        .ok_or("successor peer requires original native journal")?;
+                    owner.verify_successor(&context, previous)?;
+                    approval::publish(
+                        directory,
+                        approval::Kind::First,
+                        payload,
+                        &mut publication_started,
+                    )?;
+                    owner.select_successor(&output, Arc::clone(&context), now, previous)?;
                     successor = durable.take();
-                    fixture::save(&output, "control", payload)?;
                 }
                 Ok(context.digest().to_vec())
             })()
@@ -451,7 +492,15 @@ fn main() -> Result<()> {
         };
         match result {
             Ok(bytes) => send(&mut output, 1, &bytes)?,
-            Err(error) => send(&mut output, 2, error.as_bytes())?,
+            Err(error) => {
+                send(&mut output, 2, error.as_bytes())?;
+                if publication_started {
+                    return Err(format!(
+                        "successor approval publication failed; reopen original fixture: {error}"
+                    )
+                    .into());
+                }
+            }
         }
     }
     Ok(())

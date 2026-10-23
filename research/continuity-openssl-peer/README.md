@@ -453,6 +453,20 @@ controller replays the exact authenticated handshake to recover its session
 selection; it never provisions another device, journal or witness. Current
 successor approval is rechecked against the original signed retirement, and
 the old operational controller and changed target are refused after restart.
+The reference controller writes and synchronizes the complete approval and
+original-journal pointer in a staging directory, publishes that directory with
+one rename, then changes its in-memory peer. An unpublished staging directory
+does not authorize traffic. After an interruption before publication, resume
+mode waits for the explicit controller to resend the signed request and checks
+the original witness retirement again. The same ordering applies to a later
+successor and to the metadata-only record for a never-activated predecessor.
+An existing final directory with missing or changed files is refused, including
+partial records produced by older experimental controllers. These public
+records do not replace the original private journal or its exclusive owner.
+If publication returns an error, this single-fixture test process reports the
+failure and exits before accepting another control request. Resume mode then
+uses the original storage and exact approved request; an I/O error after rename
+must not leave the running controller serving its previous in-memory peer.
 The `peer-credential`, `peer-before` and `peer-after` variants cover retained
 credential preparation and unknown sends on either side of witness dispatch.
 The latter two restart the witness before recovering the original send intent.

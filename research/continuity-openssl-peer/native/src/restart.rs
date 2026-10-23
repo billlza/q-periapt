@@ -48,8 +48,6 @@ pub(super) struct Selection {
     pub later: bool,
 }
 
-const UNACTIVATED: &[u8] = b"QPERIAPT-UNACTIVATED-PREDECESSOR/1";
-
 pub(super) fn unactivated_account(
     fixture: &Fixture,
     public: &Path,
@@ -59,7 +57,7 @@ pub(super) fn unactivated_account(
     if !first.join("unactivated").try_exists()? {
         return Ok(None);
     }
-    if read(&first.join("unactivated"), 64)? != UNACTIVATED
+    if read(&first.join("unactivated"), 64)? != crate::approval::UNACTIVATED
         || private_path(&first, "private-fixture-path")?
             != private_path(public, "private-fixture-path")?
     {
@@ -77,6 +75,7 @@ pub(super) fn retain_unactivated(
     fixture: &Fixture,
     public: &Path,
     control: &[u8],
+    publication_started: &mut bool,
 ) -> Result<Vec<u8>> {
     let original = fixture
         .context
@@ -88,22 +87,18 @@ pub(super) fn retain_unactivated(
         .ok_or("unactivated predecessor requires original witness")?
         .successor_account(fixture, control, original)?;
     let first = public.join("root-successor");
-    if first.try_exists()? {
-        if unactivated_account(fixture, public, original)? != Some(account)
-            || read(&first.join("control"), 32768)? != control
-        {
-            return Err("unactivated predecessor cannot retarget original metadata".into());
-        }
-    } else {
-        fs::create_dir(&first)?;
-        crate::fixture::save(&first, "control", control)?;
-        crate::fixture::save(
-            &first,
-            "private-fixture-path",
-            &read(&public.join("private-fixture-path"), 4096)?,
-        )?;
-        crate::fixture::save(&first, "unactivated", UNACTIVATED)?;
+    if first.try_exists()?
+        && (unactivated_account(fixture, public, original)? != Some(account)
+            || read(&first.join("control"), 32768)? != control)
+    {
+        return Err("unactivated predecessor cannot retarget original metadata".into());
     }
+    crate::approval::publish(
+        public,
+        crate::approval::Kind::Unactivated,
+        control,
+        publication_started,
+    )?;
     if unactivated_account(fixture, public, original)? != Some(account) {
         return Err("unactivated predecessor readback differs".into());
     }
@@ -111,23 +106,34 @@ pub(super) fn retain_unactivated(
 }
 
 impl Selection {
-    pub(super) fn open(fixture: &Fixture, public: &Path) -> Result<Self> {
+    pub(super) fn open(fixture: &Fixture, public: &Path) -> Result<Option<Self>> {
+        let first_directory = public.join("root-successor");
+        let later = public.join("root-successor-later");
+        if !first_directory.try_exists()? && !later.try_exists()? {
+            // Publication never reached its atomic commit. No peer is selected;
+            // the explicit controller must resend its signed, committed request.
+            return Ok(None);
+        }
         let first = read(&public.join("root-successor/control"), 32768)?;
+        if private_path(&first_directory, "private-fixture-path")?
+            != private_path(public, "private-fixture-path")?
+        {
+            return Err("successor journal differs from original native journal".into());
+        }
         let original = fixture
             .context
             .device(BootstrapRole::Initiator)
             .account_id();
-        let later = public.join("root-successor-later");
         let unactivated = unactivated_account(fixture, public, original)?;
         if !later.try_exists()? {
             if unactivated.is_some() {
-                return Err("unactivated predecessor has no committed peer selection".into());
+                return Ok(None);
             }
-            return Ok(Self {
+            return Ok(Some(Self {
                 control: first,
                 previous: original,
                 later: false,
-            });
+            }));
         }
         // A retained later selection must be complete. Never fall back to the
         // previous controller if its metadata is missing, corrupt, or unreadable.
@@ -142,11 +148,11 @@ impl Selection {
             .as_ref()
             .ok_or("restart requires original witness")?
             .successor_account(fixture, &first, original)?;
-        Ok(Self {
+        Ok(Some(Self {
             control,
             previous,
             later: true,
-        })
+        }))
     }
 }
 

@@ -122,12 +122,17 @@ impl Journal {
         later: bool,
     ) -> Result<Self> {
         let path = crate::restart::private_path(public, "private-fixture-path")?;
-        if path
-            != crate::restart::private_path(&public.join("root-successor"), "private-fixture-path")?
+        if public.join("root-successor").try_exists()?
+            && path
+                != crate::restart::private_path(
+                    &public.join("root-successor"),
+                    "private-fixture-path",
+                )?
         {
             return Err("successor journal differs from original native journal".into());
         }
         if later
+            && public.join("root-successor-later").try_exists()?
             && path
                 != crate::restart::private_path(
                     &public.join("root-successor-later"),
@@ -220,11 +225,9 @@ impl Journal {
         self.verify_successor(&context, previous_account)?;
         // A device has one original witness lineage. Start another session in
         // that same journal; never re-enroll or replace its persisted history.
-        crate::fixture::save(
-            public,
-            "private-fixture-path",
-            self.path.as_os_str().as_encoded_bytes(),
-        )?;
+        if crate::restart::private_path(public, "private-fixture-path")? != self.path {
+            return Err("successor approval differs from original native journal".into());
+        }
         self.context = context;
         self.bootstrap_time = now;
         self.now = now;

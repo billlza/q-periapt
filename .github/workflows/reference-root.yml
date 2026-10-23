@@ -93,6 +93,8 @@ jobs:
              --output "$PWD/target/reference-root-ci/installation" \
              > target/reference-root-ci/installation.stdout 2> target/reference-root-ci/installation.stderr
           installed_reference=$(jq -er '.installed' target/reference-root-ci/installation/RESULT.json)
+          cargo test --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml \
+             > target/reference-root-ci/root-counterpart-tests.stdout 2> target/reference-root-ci/root-counterpart-tests.stderr
           cargo build --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml \
              > target/reference-root-ci/root-counterpart-build.stdout 2> target/reference-root-ci/root-counterpart-build.stderr
           bash artifact/continuity_root_scenarios.sh "$ROOT_LANE" "$installed_reference" \

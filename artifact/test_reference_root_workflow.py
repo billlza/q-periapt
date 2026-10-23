@@ -19,7 +19,8 @@ def validate(text):
         raise ValueError('root lifecycle requires selected Python')
     command='bash artifact/continuity_root_scenarios.sh "$ROOT_LANE" "$installed_reference"'
     required=('--target "$RUNNER_TEMP/reference-provider"','sh artifact/python-run.sh artifact/continuity_independent_install.py',
-              "installed_reference=$(jq -er '.installed'",'cargo build --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml')
+              "installed_reference=$(jq -er '.installed'",'cargo test --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml',
+              'cargo build --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml')
     if text.count(command)!=1 or any(item not in text or text.index(item)>=text.index(command) for item in required):
         raise ValueError('cohort execution must follow verified installed inputs')
     if '          case "$ROOT_LANE" in continuation|winner|unactivated) ;; *) exit 2 ;; esac' not in text:
@@ -34,6 +35,7 @@ class ReferenceRootWorkflowTests(unittest.TestCase):
         text=(ROOT/'.github/workflows/reference-root.yml').read_text()
         for before,after in (('timeout-minutes: 60','timeout-minutes: 90'),
                              ('continuity_independent_install.py','unverified.py'),
+                             ('cargo test --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml','missing native tests'),
                              ('arch: arm64','arch: x86_64'),('if: always()','if: success()')):
             with self.assertRaises(ValueError):validate(text.replace(before,after))
 
