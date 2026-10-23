@@ -5,7 +5,8 @@ use crate::{
 };
 use std::{
     cell::RefCell,
-    fs, io,
+    fs,
+    io::{self, Read, Seek},
     path::Path,
     process::{Child, Command, Stdio},
     time::{Duration, Instant},
@@ -47,6 +48,11 @@ impl Drop for ChildGuard {
 fn set_directory_acl(path: &Path, broad: bool) {
     let system = std::path::PathBuf::from(std::env::var_os("SystemRoot").expect("Windows root"));
     let executable = system.join("System32/WindowsPowerShell/v1.0/powershell.exe");
+    // Keep failure output even if startup stalls. Waiting on an unread pipe
+    // could itself block a verbose child; temporary files avoid that backpressure.
+    let mut stdout = tempfile::tempfile().expect("owned ACL stdout");
+    let mut stderr = tempfile::tempfile().expect("owned ACL stderr");
+    let started = Instant::now();
     let mut child = ChildGuard(Some(
         Command::new(executable)
             .args([
@@ -58,36 +64,70 @@ fn set_directory_acl(path: &Path, broad: bool) {
             ])
             .env("QPC_KEY_TEST_DIRECTORY", path)
             .env("QPC_KEY_TEST_BROAD_ACL", if broad { "1" } else { "0" })
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stdout(Stdio::from(stdout.try_clone().expect("ACL stdout handle")))
+            .stderr(Stdio::from(stderr.try_clone().expect("ACL stderr handle")))
             .spawn()
             .expect("start owned ACL helper"),
     ));
+    let pid = child.0.as_ref().expect("helper").id();
     let deadline = Instant::now() + Duration::from_secs(20);
-    while child
-        .0
-        .as_mut()
-        .expect("helper")
-        .try_wait()
-        .expect("helper status")
-        .is_none()
-    {
-        assert!(Instant::now() < deadline, "ACL helper exceeded deadline");
+    const MAX_OUTPUT: usize = 8192;
+    let output_limit = u64::try_from(MAX_OUTPUT).expect("bounded ACL output limit");
+    let stopped = loop {
+        if stdout.metadata().expect("ACL stdout length").len() > output_limit
+            || stderr.metadata().expect("ACL stderr length").len() > output_limit
+        {
+            break Some("output limit");
+        }
+        if child
+            .0
+            .as_mut()
+            .expect("helper")
+            .try_wait()
+            .expect("helper status")
+            .is_some()
+        {
+            break None;
+        }
+        if Instant::now() >= deadline {
+            break Some("deadline");
+        }
         std::thread::sleep(Duration::from_millis(10));
+    };
+    if stopped.is_some() {
+        let running = child.0.as_mut().expect("helper");
+        if running.try_wait().expect("helper stop status").is_none() {
+            running.kill().expect("stop owned ACL helper");
+        }
     }
-    let output = child
+    let status = child
         .0
         .take()
-        .expect("completed helper")
-        .wait_with_output()
-        .expect("helper output");
+        .expect("owned helper")
+        .wait()
+        .expect("reap owned ACL helper");
+    let capture = |file: &mut fs::File| {
+        file.rewind().expect("ACL output position");
+        let mut bytes = Vec::new();
+        file.take(output_limit + 1)
+            .read_to_end(&mut bytes)
+            .expect("ACL bounded output");
+        bytes
+    };
+    let stdout = capture(&mut stdout);
+    let stderr = capture(&mut stderr);
     assert!(
-        output.status.success(),
-        "ACL helper failed: {}",
-        String::from_utf8_lossy(&output.stderr)
+        stopped.is_none()
+            && stdout.len() <= MAX_OUTPUT
+            && stderr.len() <= MAX_OUTPUT
+            && status.success(),
+        "ACL helper failed: stopped={stopped:?} pid={pid} elapsed={:?} status={status} stdout={:?} stderr={:?}",
+        started.elapsed(),
+        String::from_utf8_lossy(&stdout),
+        String::from_utf8_lossy(&stderr)
     );
     assert!(
-        output.stdout.is_empty() && output.stderr.is_empty(),
+        stdout.is_empty() && stderr.is_empty(),
         "unexpected ACL helper output"
     );
 }
