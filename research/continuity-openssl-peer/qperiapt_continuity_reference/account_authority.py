@@ -12,9 +12,9 @@ import threading
 import weakref
 
 from .account_authority_state import (Checkpoint,Image,Initial,Replacement,MAX_IMAGE,
-    MAX_ACCOUNTS,MAX_REPLACEMENTS,PREPARING,PENDING,CLOSED_PLAN,CLOSED_DECISION,COMMITTED)
-from .account_root_protocol import Plan
-from .account_root_record import RetainedPlan
+    MAX_ACCOUNTS,MAX_REPLACEMENTS,PREPARING,PENDING,CLOSED_PLAN,CLOSED_DECISION,COMMITTED,ADOPTING,ADOPTED)
+from .account_root_protocol import Plan,CommittedAdoption
+from .account_root_record import RetainedPlan,RetainedWinner
 from .identity import credential,roster
 from .journal import Journal,Scope,Conflict
 from .owner_guard import coordinated
@@ -22,7 +22,7 @@ from .wire import digest,ldh,require
 from .witness import fixed
 
 DOMAIN=b'Q-PERIAPT-REFERENCE-ACCOUNT-AUTHORITY/v1/'
-STATES=('Preparing','Pending','Closed','Closed','Committed')
+STATES=('Preparing','Pending','Closed','Closed','Committed','Adopting','Committed')
 
 
 class AuthorityJournal(Journal):
@@ -60,14 +60,14 @@ class _RecoveryAccess:
         with owner._lock:
             _,record=owner._record(self.operation)
             require(self.binding.registry==owner._journal.scope.wire()
-                    and (record.application,record.revision,digest(b'ACCOUNT',record.plan.target.previous.raw))
+                    and (record.application,record.revision,digest(b'ACCOUNT',record.expectation.target.previous.raw))
                     ==(self.binding.application,self.binding.revision,self.binding.account),
                     'root recovery differs from original operation')
 
     def observation(self):
         self.check();owner=self._owner()
         require(owner is not None,'closed account authority recovery owner')
-        result=owner.operation(self.operation);self.check();return result
+        result=owner._observation(self.operation);self.check();return result
 
     def check_scope(self,account,family,witness):
         self.check();owner=self._owner()
@@ -180,7 +180,7 @@ class AccountAuthority:
     def _record(self,operation):
         self._alive();fixed(operation,32)
         for index,record in enumerate(self._image.replacements):
-            if record.plan.target.operation==operation:return index,record
+            if record.expectation.target.operation==operation:return index,record
         raise Conflict('original account root operation absent')
 
     def _replace(self,index,record):
@@ -193,10 +193,10 @@ class AccountAuthority:
         retained=RetainedPlan(self.witness,plan.wire())
         require(plan.witness==self.witness and retained.target.family==self.family,'original root policy or witness differs')
         for record in self._image.replacements:
-            if record.plan.target.operation==plan.operation:
+            if record.expectation.target.operation==plan.operation:
                 require(record.application==expected.application and record.revision==expected.revision
                         and digest(b'ACCOUNT',retained.target.previous.raw)==expected.account
-                        and record.plan.original==retained.original,'original root approval differs')
+                        and record.expectation.original==retained.original,'original root approval differs')
                 return STATES[record.phase]
         require(expected.application in self._current and self._current[expected.application].checkpoint==expected,
                 'original account checkpoint differs')
@@ -208,14 +208,30 @@ class AccountAuthority:
     @coordinated
     def operation(self,operation):
         _,record=self._record(operation)
-        return (Checkpoint(record.application,record.revision,digest(b'ACCOUNT',record.plan.target.previous.raw)),
-                STATES[record.phase],record.plan.original,record.bound)
+        require(type(record.expectation) is RetainedPlan,'adopted winner has no local preparation')
+        return self._history(record)
+
+    def _history(self,record):
+        return (Checkpoint(record.application,record.revision,digest(b'ACCOUNT',record.expectation.target.previous.raw)),
+                STATES[record.phase],record.expectation.original,record.bound)
+
+    @coordinated
+    def _observation(self,operation):
+        _,record=self._record(operation);return self._history(record)
+
+    @coordinated
+    def replacement(self,operation):
+        """Exact retained decision history, including an independently adopted winner."""
+        _,record=self._record(operation)
+        expected,state,_,_=self._history(record)
+        return expected,state,record.bound or record.expectation.target.wire
 
     @coordinated
     def bind_freeze(self,operation,receipt):
         index,record=self._record(operation)
+        require(type(record.expectation) is RetainedPlan,'adopted winner has no local preparation')
         require(record.phase not in (CLOSED_PLAN,CLOSED_DECISION),'original root operation closed')
-        decision=record.plan.bind(receipt);bound=decision.wire()
+        decision=record.expectation.bind(receipt);bound=decision.wire()
         if record.bound:
             require(record.bound==bound,'original root freeze differs');return record.bound
         require(record.phase==PREPARING,'original root preparation differs')
@@ -225,15 +241,18 @@ class AccountAuthority:
     def commit_retirement(self,operation,decision,receipt):
         index,record=self._record(operation)
         require(record.phase not in (CLOSED_PLAN,CLOSED_DECISION),'original root operation closed')
-        record.plan.verify_retirement(decision,receipt)
+        require(record.phase!=ADOPTING,'original adoption requires its retirement handoff')
+        record.expectation.verify_retirement(decision,receipt)
         require(not record.bound or record.bound==decision,'retirement changes original frozen decision')
-        if record.phase!=COMMITTED:self._replace(index,replace(record,bound=decision,phase=COMMITTED))
+        if record.phase not in (COMMITTED,ADOPTED):self._replace(index,replace(record,bound=decision,phase=COMMITTED))
         # Historical result remains the original selected revision after later work.
-        return Checkpoint(record.application,record.revision+1,record.plan.target.account)
+        return Checkpoint(record.application,record.revision+1,record.expectation.target.account)
 
     @coordinated
     def close_plan(self,operation,receipt):
-        index,record=self._record(operation);record.plan.verify_closed(receipt)
+        index,record=self._record(operation)
+        require(type(record.expectation) is RetainedPlan,'adopted winner has no local preparation')
+        record.expectation.verify_closed(receipt)
         require(record.phase!=COMMITTED,'committed root operation cannot close')
         if record.phase not in (CLOSED_PLAN,CLOSED_DECISION):self._replace(index,replace(record,phase=CLOSED_PLAN))
         return 'Closed'
@@ -241,11 +260,53 @@ class AccountAuthority:
     @coordinated
     def close_decision(self,operation,decision,receipt):
         index,record=self._record(operation)
+        require(type(record.expectation) is RetainedPlan,'adopted winner cannot close')
         require(record.bound and record.bound==decision,'exact closure requires original bound preparation')
-        record.plan.verify_decision_closure(decision,receipt)
+        record.expectation.verify_decision_closure(decision,receipt)
         require(record.phase!=COMMITTED,'committed root operation cannot close')
         if record.phase not in (CLOSED_PLAN,CLOSED_DECISION):self._replace(index,replace(record,phase=CLOSED_DECISION))
         return 'Closed'
+
+    def _adoption_image(self,expected,adoption):
+        require(type(expected) is Checkpoint and type(adoption) is CommittedAdoption,
+                'independent committed adoption required')
+        old,winner=adoption.verify()
+        _,original=self._record(old.target.operation)
+        require(type(original.expectation) is RetainedPlan and original.expectation==old
+                and original.phase in (CLOSED_PLAN,CLOSED_DECISION)
+                and self._history(original)[0]==expected,'adoption differs from original closed preparation')
+        wanted=Replacement(expected.application,expected.revision,winner,ADOPTING,
+                           winner.original,old.target.operation)
+        for record in self._image.replacements:
+            if record.expectation.target.operation==winner.target.operation:
+                require(record.phase in (ADOPTING,ADOPTED) and replace(record,phase=ADOPTING)==wanted,
+                        'original committed adoption differs')
+                return self._image,False,STATES[record.phase]
+        require(len(self._image.replacements)<MAX_REPLACEMENTS,'authority operation capacity')
+        image=replace(self._image,replacements=(*self._image.replacements,wanted))
+        image.current(self.family,self.witness)
+        return image,True,'Adopting'
+
+    @coordinated
+    def validate_adoption(self,expected,adoption):
+        """Validate the actual prospective image before changing original fences."""
+        return self._adoption_image(expected,adoption)[2]
+
+    @coordinated
+    def begin_adoption(self,expected,adoption):
+        """Retain an explicit adoption intent, without inventing a local preparation."""
+        image,changed,state=self._adoption_image(expected,adoption)
+        if changed:self._save(image,expected.application)
+        return state
+
+    @coordinated
+    def commit_adoption(self,operation,retirement):
+        index,record=self._record(operation)
+        require(record.phase in (ADOPTING,ADOPTED) and type(record.expectation) is RetainedWinner,
+                'original committed adoption required')
+        record.expectation.verify_retirement(record.bound,retirement)
+        if record.phase!=ADOPTED:self._replace(index,replace(record,phase=ADOPTED))
+        return Checkpoint(record.application,record.revision+1,record.expectation.target.account)
 
     def close(self):
         with self._lock:

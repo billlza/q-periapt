@@ -25,13 +25,19 @@ def pair(wire):
     r=Reader(wire);result=[r.take(r.integer(4)) for _ in range(2)];r.finish();return result
 
 
-def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None,successor=None,successor_cut=None,successor_cancel=None,later_cut=None,transition_cut=None,transition_cancel=None):
+def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None,successor=None,successor_cut=None,successor_cancel=None,later_cut=None,transition_cut=None,transition_cancel=None,winner_cut=None,winner_cancel=None):
     def reopen():return RootRecovery.open(client_path,identity,key,registry,plan.operation)
     paths=(client_path/'registration',session_path)
     def originals():
         return {str(path/name):hashlib.sha256((path/name).read_bytes()).hexdigest()
                 for path in paths for name in ('head','intent','authority') if (path/name).exists()}
     before=originals();request=control(plan)
+    def adopt_winner():
+        from root_winner_fixture import exercise as adopt
+        return adopt(recovery,registry,plan,bridge=bridge,now=now,client_path=client_path,identity=identity,key=key,
+                     session_path=session_path,context=context,observation=observation,refuse=refuse,
+                     mode=successor.removeprefix('winner-'),cut=winner_cut,cancellation=winner_cancel)
+    if successor is not None and (successor.startswith('winner-unbound') or successor=='winner-cross-application'):return adopt_winner()
     bridge.call('root-current-clock',33,now.to_bytes(8,'big'),b'witness clock set')
     canonical,freeze=pair(bridge.call('root-original-freeze',50,request))
     plan.verify_plan(canonical);decision=plan.bind(freeze)
@@ -63,6 +69,7 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
         refuse('fenced-raw-session',lambda:WitnessJournal(session_path,scope,child_key,Session._validator(context),
                context.witness,None),'original account root is fenced')
         recovery=reopen();require(recovery.inspect_child(now)==observation,'fence changed retained child metadata')
+        if successor is not None and successor.startswith('winner-'):return adopt_winner()
         if successor in ('replan-plan','replan-decision'):
             from root_transition_fixture import exercise as replan_original
             return replan_original(recovery,registry,plan,freeze,bridge=bridge,now=now,client_path=client_path,

@@ -1,0 +1,108 @@
+name: Continuity root lifecycle
+
+on:
+  workflow_call:
+    inputs:
+      lane:
+        description: Complete continuation or committed-winner lifecycle cohort
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  RUSTFLAGS: "-D warnings"
+  CARGO_TERM_COLOR: never
+  CARGO_NET_RETRY: "10"
+  CARGO_HTTP_MULTIPLEXING: "false"
+  ROOT_LANE: ${{ inputs.lane }}
+
+jobs:
+  root:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x86_64
+          - os: macos-15
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    # Each complete lifecycle cohort has its own unchanged time budget.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Prepare native OpenSSL on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+      - name: Select native OpenSSL on Apple Silicon
+        if: runner.os == 'macOS'
+        run: |
+          openssl_prefix=$(brew --prefix openssl@3)
+          echo "OPENSSL_DIR=$openssl_prefix" >> "$GITHUB_ENV"
+      - name: Verify the source and supported host
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          case "$ROOT_LANE" in continuation|winner) ;; *) exit 2 ;; esac
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+          test "$(uname -m)" = "$EXPECTED_ARCH"
+          mkdir -p target/reference-root-ci
+          git rev-parse HEAD > target/reference-root-ci/source-head.txt
+          rustc -vV > target/reference-root-ci/rustc.txt
+          uname -a > target/reference-root-ci/host.txt
+          pkg-config --modversion openssl > target/reference-root-ci/openssl.txt
+      - name: Build and consume verified root lifecycle inputs
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/reference-root-build
+          PEER_PYTHON: ${{ steps.python.outputs.python-path }}
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          "$PEER_PYTHON" -I -m venv "$RUNNER_TEMP/reference-wheel-build"
+          "$RUNNER_TEMP/reference-wheel-build/bin/python" -I -m pip install \
+            --isolated --disable-pip-version-check --index-url https://pypi.org/simple \
+            --only-binary=:all: --no-deps --require-hashes \
+            -r research/continuity-openssl-peer/build-requirements.txt \
+            > target/reference-root-ci/wheel-backend.stdout 2> target/reference-root-ci/wheel-backend.stderr
+          "$PEER_PYTHON" -I -m pip install --isolated --disable-pip-version-check \
+            --index-url https://pypi.org/simple --only-binary=:all: --no-deps --require-hashes \
+            --target "$RUNNER_TEMP/reference-provider" -r research/continuity-openssl-peer/requirements.txt \
+            > target/reference-root-ci/provider.stdout 2> target/reference-root-ci/provider.stderr
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          export SOURCE_DATE_EPOCH
+          "$RUNNER_TEMP/reference-wheel-build/bin/python" -I -m pip wheel \
+            --isolated --disable-pip-version-check --no-index --no-deps --no-build-isolation \
+            --wheel-dir "$RUNNER_TEMP/reference-wheel" research/continuity-openssl-peer \
+            > target/reference-root-ci/wheel-build.stdout 2> target/reference-root-ci/wheel-build.stderr
+          sh artifact/python-run.sh artifact/continuity_independent_install.py \
+             --wheel "$RUNNER_TEMP/reference-wheel/qperiapt_continuity_reference-0.0.0-py3-none-any.whl" \
+             --output "$PWD/target/reference-root-ci/installation" \
+             > target/reference-root-ci/installation.stdout 2> target/reference-root-ci/installation.stderr
+          installed_reference=$(jq -er '.installed' target/reference-root-ci/installation/RESULT.json)
+          cargo build --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml \
+             > target/reference-root-ci/root-counterpart-build.stdout 2> target/reference-root-ci/root-counterpart-build.stderr
+          bash artifact/continuity_root_scenarios.sh "$ROOT_LANE" "$installed_reference" \
+            "$RUNNER_TEMP/reference-provider" "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" \
+            "$PWD/target/reference-root-ci"
+          git diff --exit-code
+      - name: Retain root lifecycle build and regression results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: reference-root-${{ inputs.lane }}-${{ matrix.os }}
+          path: target/reference-root-ci/
+          if-no-files-found: error

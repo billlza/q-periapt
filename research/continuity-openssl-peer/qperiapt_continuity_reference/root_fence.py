@@ -5,7 +5,7 @@ import hashlib
 import hmac
 from .account_authority import _RecoveryAccess
 from .account_binding import Binding, SIZE
-from .account_root_record import RetainedPlan
+from .account_root_record import RetainedPlan,RetainedWinner,retained_expectation
 from .registration import RegistrationJournal
 from .wire import Reader, require
 
@@ -61,7 +61,7 @@ class Fence:
 def _expectations(access, pin):
     require(type(access) is _RecoveryAccess, 'original root metadata access required')
     _, phase, original, decision = access.observation()
-    plan = RetainedPlan(pin, original)
+    plan = retained_expectation(pin, original)
     require(decision, 'original root freeze is not bound')
     descriptor = plan.check_decision(decision)
     access.check_scope(access.binding.account, descriptor.family, pin)
@@ -95,7 +95,7 @@ def read(journal, access, pin, kind, *, transition=None):
     access.check(); return result
 
 
-def retain(journal, access, pin, kind, *, receipt=None, observation=None):
+def _wanted(journal, access, pin, kind, receipt, observation):
     phase, plan, decision, descriptor = _expectations(access, pin)
     require(phase != 'Closed', 'closed root operation cannot retain retirement')
     if receipt is not None: plan.verify_retirement(decision, receipt)
@@ -112,13 +112,17 @@ def retain(journal, access, pin, kind, *, receipt=None, observation=None):
         require(kind == 2 and observation is None and directory.read('intent') is None,
                 'root parent fence requires reconciled original registration')
     head = directory.read('head'); require(head is not None, 'root fence original head absent')
-    wanted = Fence(kind, journal.scope.wire(), access.binding, _digest(head), _digest(directory.read('intent')),
-                   _digest(directory.read('authority')), access.operation, plan.binding, decision, receipt)
+    return Fence(kind, journal.scope.wire(), access.binding, _digest(head), _digest(directory.read('intent')),
+                 _digest(directory.read('authority')), access.operation, plan.binding, decision, receipt)
+
+
+def retain(journal, access, pin, kind, *, receipt=None, observation=None):
+    wanted = _wanted(journal,access,pin,kind,receipt,observation)
     previous = read(journal, access, pin, kind)
     if previous is not None:
         require(replace(previous, receipt=None) == replace(wanted, receipt=None), 'root fence cannot retarget original state')
         if previous.receipt is not None or receipt is None: return previous
-    directory.publish('root-fence', wanted.wire(journal),
+    journal._admit().publish('root-fence', wanted.wire(journal),
                       fixed_slot='root-fence-pending' if receipt is None else 'root-fence-retired')
     current = read(journal, access, pin, kind)
     require(current == wanted, 'root fence durable readback')
@@ -172,6 +176,50 @@ class _Transition:
         current = read(journal,self.current,self.pin,kind)
         require(current == wanted,'root transition durable readback')
         self.check();return current
+
+
+class _Adoption(_Transition):
+    """An approved, already committed winner; the local intent is not a plan."""
+    def __init__(self,original,current,pin,adoption):
+        self.original,self.current,self.pin=original,current,pin
+        require(type(original) is type(current) is _RecoveryAccess
+                and original.binding==current.binding and original._owner() is current._owner()
+                and original.operation!=current.operation,'adoption requires original registry and distinct winner')
+        old,new=original.observation(),current.observation()
+        before,after=adoption.verify()
+        require(old[1]=='Closed' and new[1] in ('Adopting','Committed') and old[0]==new[0]
+                and old[2]==before.original and new[2]==after.original and new[3]==after.original,
+                'adoption differs from retained original and winner')
+        if old[3]:
+            frozen=before.check_decision(old[3])
+            require(frozen.preparation==after.target.preparation and frozen.observations==after.target.observations,
+                    'adoption changes original bound freeze')
+        self.before,self.after,self._observations=before,after,(old,new)
+        self.receipt=adoption.retirement
+
+    def prepare(self,journal,kind,observation=None):
+        self.check()
+        previous=read(journal,self.current,self.pin,kind,transition=self)
+        require(previous is not None or not self._observations[0][3],
+                'adoption cannot reset an existing original fence')
+        wanted=_wanted(journal,self.current,self.pin,kind,self.receipt,observation)
+        if previous is not None:
+            if previous.operation==self.original.operation:
+                require(previous.receipt is None,'retired original fence cannot adopt another winner')
+            else:
+                require(previous.receipt is not None,'adopted fence lost its retirement')
+                self.after.verify_retirement(previous.decision,previous.receipt)
+                wanted=replace(wanted,receipt=previous.receipt)
+            require(replace(previous,operation=wanted.operation,plan=wanted.plan,decision=wanted.decision,
+                            receipt=wanted.receipt)==wanted,'adoption changes original fenced state')
+        return previous,wanted
+
+    def retain(self,journal,kind,observation=None):
+        previous,wanted=self.prepare(journal,kind,observation)
+        if previous==wanted:return previous
+        journal._admit().publish('root-fence',wanted.wire(journal),fixed_slot='root-fence-transition')
+        current=read(journal,self.current,self.pin,kind)
+        require(current==wanted,'adopted fence durable readback');self.check();return current
 
 
 class _Parent(RegistrationJournal):

@@ -1,12 +1,12 @@
 """Exact prepared successor admission through the existing root adoption owner."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
-from .account_root_protocol import Plan
+from .account_root_protocol import _target_statement
 from .client_configuration import Configuration
 from .client_root_adoption import RootAdoption, begin
 from .enrollment_client import EnrollmentClient
 from .owner_guard import coordinated
 from .registration_session import validate_context
-from .wire import Reader, require
+from .wire import require
 
 
 @coordinated
@@ -30,12 +30,10 @@ def prepare(target, registry, expected, retained, now, transport):
                 'successor original context differs')
         validate_context(parent, image, context)
         intent, admission = image.effective(parent._intent)
-        request = Reader(retained.decoded[0]); request.take(8 + 32); freeze = request.take(32)
-        request.take(1985); request.finish()
-        actual = Plan(registry.witness, retained.target.operation, freeze, retained.target.previous,
-                      admission.pin(intent), admission.certificate, admission.roster, context.original_policy,
-                      admission.journal, retained.target.genesis)
-        require(actual.wire() == retained.original, 'successor signed target differs from approved plan')
+        actual,_=_target_statement(registry.witness,retained.target.operation,retained.target.previous,
+            admission.pin(intent),admission.certificate,admission.roster,context.original_policy,
+            admission.journal,retained.target.genesis)
+        require(actual==retained.target.unbound(),'successor signed target differs from approved target')
         lease = registry.admit(expected)
         genesis = retained.target.subject + retained.target.genesis
         if configuration.root_binding is None:

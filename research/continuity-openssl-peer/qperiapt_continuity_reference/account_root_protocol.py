@@ -105,40 +105,47 @@ class Plan(_PlanStatement):
     genesis: bytes
 
     def _parts(self):
-        """Recheck signed metadata because Python objects are not opaque handles."""
-        fixed(self.operation, 32); fixed(self.freeze_operation, 32)
-        fixed(self.journal, 32); fixed(self.genesis, 32)
-        require(self.operation != self.freeze_operation, 'distinct root operation identities')
-        self.policy.verify_metadata()
-        require(self.policy.anchor == self.witness.binding, 'root policy original witness')
-        next_root = self.successor.root
-        require(not self.previous_root.shares_component(next_root)
-                and not self.previous_root.shares_component(self.witness.key)
-                and not next_root.shares_component(self.witness.key), 'root key separation')
-        cert = credential(self.successor, self.certificate, self.policy.family)
-        listing = roster(self.successor, self.listing, expected=self.successor.checkpoint())
-        require(listing.contains(self.successor, cert.digest), 'root target current membership')
-        require(not cert.key.shares_component(self.witness.key), 'root target witness key separation')
-        self.policy.check_external_signer(cert.key)
-        validity = Interval(max(cert.validity.start, listing.validity.start, self.policy.validity.start),
-                            min(cert.validity.end, listing.validity.end, self.policy.validity.end))
-        require(validity.start < validity.end, 'root target validity intersection')
-        owner = ldh(b'Q-PERIAPT-CONTINUITY-BOOTSTRAP-CANDIDATE/v1/storage-owner',
-                    self.successor.account + self.successor.device
-                    + generation(self.successor.generation).to_bytes(8, 'big') + cert.digest)
-        subject = _subject(self.journal + owner + self.policy.digest)
-        request = b'QPAFRQ01' + self.witness.binding + self.freeze_operation + self.previous_root.raw
-        authority = digest(b'AUTHORITY', self.successor.account + listing.checkpoint() + self.policy.family)
-        interval = lambda value: value.start.to_bytes(8, 'big') + value.end.to_bytes(8, 'big')
-        identity = (self.successor.account + self.successor.device + self.successor.generation.to_bytes(8, 'big')
-                    + interval(cert.validity) + self.policy.family)
-        target = (b'QPARPL01' + self.witness.binding + self.operation + self.previous_root.raw + next_root.raw
-                  + identity + subject + self.genesis
-                  + ldh(b'Q-PERIAPT-CONTINUITY-REPLACEMENT-KEY/v1', cert.key.raw) + authority
-                  + interval(validity) + listing.checkpoint() + self.policy.checkpoint()
-                  + interval(self.policy.validity) + bytes(2))
-        require(len(request) == REQUEST_BYTES and len(target) <= 65536, 'root plan capacity')
-        return request, target, subject
+        fixed(self.freeze_operation,32)
+        require(self.operation!=self.freeze_operation,'distinct root operation identities')
+        target,subject=_target_statement(self.witness,self.operation,self.previous_root,self.successor,
+            self.certificate,self.listing,self.policy,self.journal,self.genesis)
+        request=b'QPAFRQ01'+self.witness.binding+self.freeze_operation+self.previous_root.raw
+        require(len(request)==REQUEST_BYTES,'root request capacity')
+        return request,target,subject
+
+def _target_statement(witness,operation,previous_root,successor,certificate,listing,policy,journal,genesis):
+    """Recheck the exact signed target, independently of any local preparation."""
+    fixed(operation, 32)
+    fixed(journal, 32); fixed(genesis, 32)
+    policy.verify_metadata()
+    require(policy.anchor == witness.binding, 'root policy original witness')
+    next_root = successor.root
+    require(not previous_root.shares_component(next_root)
+            and not previous_root.shares_component(witness.key)
+            and not next_root.shares_component(witness.key), 'root key separation')
+    cert = credential(successor, certificate, policy.family)
+    listing = roster(successor, listing, expected=successor.checkpoint())
+    require(listing.contains(successor, cert.digest), 'root target current membership')
+    require(not cert.key.shares_component(witness.key), 'root target witness key separation')
+    policy.check_external_signer(cert.key)
+    validity = Interval(max(cert.validity.start, listing.validity.start, policy.validity.start),
+                        min(cert.validity.end, listing.validity.end, policy.validity.end))
+    require(validity.start < validity.end, 'root target validity intersection')
+    owner = ldh(b'Q-PERIAPT-CONTINUITY-BOOTSTRAP-CANDIDATE/v1/storage-owner',
+                successor.account + successor.device
+                + generation(successor.generation).to_bytes(8, 'big') + cert.digest)
+    subject = _subject(journal + owner + policy.digest)
+    authority = digest(b'AUTHORITY', successor.account + listing.checkpoint() + policy.family)
+    interval = lambda value: value.start.to_bytes(8, 'big') + value.end.to_bytes(8, 'big')
+    identity = (successor.account + successor.device + successor.generation.to_bytes(8, 'big')
+                + interval(cert.validity) + policy.family)
+    target = (b'QPARPL01' + witness.binding + operation + previous_root.raw + next_root.raw
+              + identity + subject + genesis
+              + ldh(b'Q-PERIAPT-CONTINUITY-REPLACEMENT-KEY/v1', cert.key.raw) + authority
+              + interval(validity) + listing.checkpoint() + policy.checkpoint()
+              + interval(policy.validity) + bytes(2))
+    require(len(target) <= 65536, 'root target capacity')
+    return target, subject
 
 @dataclass(frozen=True)
 class Decision:
@@ -175,3 +182,30 @@ class Decision:
 
     def verify_closed(self, receipt):
         return self._verify(receipt, 24, b'QPARNM01', 'ClosedDecision')
+
+
+@dataclass(frozen=True)
+class CommittedAdoption:
+    """Independent winner approval plus authenticated original loss and commit.
+
+    A Decision constructed from signed, independently selected target inputs and
+    its actual freeze chooses the winner. Neither incoming terminal receipt may
+    choose that target. This object grants no live owner or current permission.
+    """
+    original: Plan
+    winner: Decision
+    noncommit: bytes
+    retirement: bytes
+
+    def verify(self):
+        from .account_root_record import RetainedPlan,RetainedWinner
+        require(type(self.original) is Plan and type(self.winner) is Decision
+                and type(self.winner.plan) is Plan,'independently approved original and winner required')
+        old=RetainedPlan(self.original.witness,self.original.wire())
+        new=RetainedWinner(self.winner.plan.witness,self.winner.wire())
+        require(old.witness==new.witness and old.target.previous==new.target.previous
+                and old.target.family==new.target.family and old.target.operation!=new.target.operation,
+                'committed adoption original account or witness differs')
+        self.original.verify_closed(self.noncommit)
+        self.winner.verify_retirement(self.retirement)
+        return old,new

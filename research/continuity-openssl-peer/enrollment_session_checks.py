@@ -158,6 +158,7 @@ def exercise(args, label):
                 successor_cancel=args.root_successor_cancel,
                 later_cut=args.root_later_cut,
                 transition_cut=args.root_transition_cut,transition_cancel=args.root_transition_cancel,
+                winner_cut=args.root_winner_cut,winner_cancel=args.root_winner_cancel,
                 client_path=client_path, identity=identity, key=key, session_path=session_path, pins=pins, materials=materials,
                 context=context, transport=transport, bridge=bridge, refuse=refuse, public=public)
             result.update(profile=label, native_commands=len(native.commands), witness_requests=len(bridge.records), refusals=refusals)
@@ -322,6 +323,9 @@ def main():
     root_mode.add_argument('--root-successor-cancellation',nargs='?',const='all',choices=('all','owner','registry'))
     root_mode.add_argument('--root-successor-process-restart', choices=('peer','peer-credential','peer-before','peer-after','peer-root-continuation'))
     root_mode.add_argument('--root-successor-later-cuts', nargs='?', const='all', choices=('all','bind','retire'))
+    root_mode.add_argument('--root-winner-adoption',choices=('bound-fresh','bound-reuse','unbound-fresh','unbound-reuse','cross-application'))
+    root_mode.add_argument('--root-winner-cuts',choices=('bound-fresh','unbound-reuse'))
+    root_mode.add_argument('--root-winner-cancellation',choices=('bound-fresh','unbound-reuse'))
     root_mode.add_argument('--root-transition-cuts',choices=('plan','decision'))
     root_mode.add_argument('--root-transition-cancellation',choices=('plan','decision'))
     root_mode.add_argument('--root-child-inspection', choices=('steady', 'ordinary-before', 'ordinary-after',
@@ -337,9 +341,13 @@ def main():
         args.root_retirement=args.root_child_inspection='credential' if args.root_successor in ('credential','peer-credential') else 'steady'
     args.root_retirement_cut=None;args.root_successor_cut=None;args.root_successor_cancel=None;args.root_later_cut=None
     args.root_transition_cut=None;args.root_transition_cancel=None
+    args.root_winner_cut=None;args.root_winner_cancel=None
     if args.root_transition_cuts or args.root_transition_cancellation:
         args.root_retirement=args.root_child_inspection='steady'
         args.root_successor='replan-'+(args.root_transition_cuts or args.root_transition_cancellation)
+    winner_mode=args.root_winner_adoption or args.root_winner_cuts or args.root_winner_cancellation
+    if winner_mode:
+        args.root_retirement=args.root_child_inspection='steady';args.root_successor='winner-'+winner_mode
     if args.root_retirement_cuts:args.root_retirement=args.root_child_inspection='steady'
     if args.root_successor_cuts or args.root_successor_cancellation:
         args.root_retirement=args.root_child_inspection='steady';args.root_successor='peer'
@@ -361,7 +369,21 @@ def main():
     args.output.mkdir()
     args.adoption_cut = None
     args.adoption_expiry = None
-    if args.root_transition_cancellation:
+    if args.root_winner_cuts:
+        from root_winner_cuts import CUTS
+        profiles=[]
+        for index,cut in enumerate(CUTS):
+            selected=copy.copy(args);selected.root_winner_cut=cut
+            selected.output=args.output/(cut[0]+'-'+str(index));selected.output.mkdir()
+            profiles.append(exercise(selected,'witness'))
+    elif args.root_winner_cancellation:
+        from root_transition_cancel import WINNER_CASES
+        profiles=[]
+        for action,phase in WINNER_CASES:
+            selected=copy.copy(args);selected.root_winner_cancel=(action,phase)
+            selected.output=args.output/(action+'-'+phase);selected.output.mkdir()
+            profiles.append(exercise(selected,'witness'))
+    elif args.root_transition_cancellation:
         from root_transition_cancel import CASES
         profiles=[]
         for action,phase in CASES:

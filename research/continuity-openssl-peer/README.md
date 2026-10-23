@@ -468,6 +468,18 @@ old-root traffic or resets a missing fence. The `replan-plan` and `replan-decisi
 scenarios check both closure types through successor traffic; their process-cut
 groups exercise the registry and parent/child publication boundaries.
 
+When another independently approved result has already committed, construct
+`CommittedAdoption` from the exact original plan, approved winner and both signed
+outcomes, then use `adopt_committed_winner` or `resume_adoption`. The original
+installation retains its state and records an explicit adoption intent instead
+of inventing a local preparation. Existing registry images remain canonical
+`QPRFAA01`; adoption records use `QPRFAA02`, which older readers reject. The
+`--root-winner-adoption` scenarios exercise bound/unbound originals, fresh or
+previously inactive targets, cross-application refusal and current-permission
+expiry. `--root-winner-cuts` and `--root-winner-cancellation` exercise original-state
+recovery and resumed native traffic at the publication boundaries. Power-loss,
+physical-device and arbitrary thread-schedule qualification remain separate.
+
 `--root-successor peer-root-revocation` then prepares a separately approved third
 root after actual successor traffic and rekey. The cached session and a fresh
 process both refuse further traffic under the suspended registry mapping, while

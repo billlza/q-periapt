@@ -64,6 +64,11 @@ class Descriptor:
     def binding(self):
         return ldh(b'Q-PERIAPT-CONTINUITY-ACCOUNT-ROOT-REPLACEMENT/v1',self.wire)
 
+    def unbound(self):
+        """The exact target statement, without a freeze or its subject snapshot."""
+        if self.preparation is None:return self.wire
+        return b'QPARPL01'+self.wire[40:len(self.wire)-len(self.observations)]+bytes(2)
+
 
 @dataclass(frozen=True)
 class RetainedPlan(_PlanStatement):
@@ -97,7 +102,7 @@ class RetainedPlan(_PlanStatement):
         target=Descriptor.read(wire)
         require(target.preparation is not None,'retained root decision is unbound')
         # Reconstruct the original empty target and the exact original freeze.
-        original=b'QPARPL01'+wire[40:len(wire)-len(target.observations)]+bytes(2)
+        original=target.unbound()
         require(original==self.target.wire,'retained root decision target changed')
         snapshot=b'QPAFRZ01'+self.decoded[0]+target.observations
         require(target.preparation==ldh(b'Q-PERIAPT-CONTINUITY-ACCOUNT-FREEZE/v1',snapshot),
@@ -115,3 +120,42 @@ class RetainedPlan(_PlanStatement):
         require(self.witness.key.open(receipt,24,72)==b'QPARNM01'+self.witness.binding+target.binding,
                 'retained root decision closure scope')
         return target
+
+
+@dataclass(frozen=True)
+class RetainedWinner:
+    """An exact adopted decision in authenticated history, never a local plan."""
+    witness: Pin
+    original: bytes
+
+    @cached_property
+    def target(self):
+        target=Descriptor.read(self.original)
+        require(target.preparation is not None and target.witness==self.witness.binding
+                and not target.previous.shares_component(self.witness.key)
+                and not target.successor.shares_component(self.witness.key),
+                'retained committed winner scope')
+        return target
+
+    @property
+    def binding(self):return self.target.binding
+
+    def wire(self):self.target;return self.original
+
+    def check_decision(self,wire):
+        require(wire==self.original,'adopted winner decision differs');return self.target
+
+    def verify_retirement(self,wire,receipt):
+        target=self.check_decision(wire)
+        require(self.witness.key.open(receipt,22,72)==b'QPARTR01'+self.witness.binding+target.binding,
+                'adopted winner retirement scope')
+        return target
+
+
+def retained_expectation(pin,wire):
+    """Read only authenticated registry history, preserving the approval kind."""
+    require(type(wire) is bytes,'retained root expectation bytes required')
+    if wire.startswith(b'QPAFPL01'):result=RetainedPlan(pin,wire)
+    elif wire.startswith(b'QPARPL02'):result=RetainedWinner(pin,wire)
+    else:raise ValueError('retained root expectation schema')
+    result.target;return result

@@ -379,8 +379,50 @@ recovery owner has its own lifetime. `--root-transition-cancellation` exercises
 both owner and registry closure at the five publication phases, followed by
 original-state recovery and native peer traffic.
 
+`CommittedAdoption` combines the independently selected original `Plan`, an
+independently selected winner `Decision`, original-plan noncommit and the winner's
+actual signed retirement. Both signatures and both target expectations are
+rechecked. Incoming receipts cannot choose the winner. The winner may use a
+different freeze only when the original local plan had not bound a snapshot.
+An original bound freeze must remain exact.
+
+`RootRecovery.adopt_committed_winner` consumes the old recovery owner. It retains
+the original closure, validates the prospective registry, records an adoption
+intent, reconciles both original fences with the actual retirement, and only then
+selects the winner. `resume_adoption` repeats these inputs on the original paths
+after an uncertain result. Missing parent or child storage never creates a new
+installation. When the original plan was already bound, missing fences are also
+refused. An originally unbound plan can acquire its first fences only after the
+winner's frozen subject matches the original authenticated child state.
+
+The registry records this as adoption, not a local preparation. Query the actual
+statement with `AccountAuthority.replacement`; `operation` refuses a winner that
+never had a local plan. A previously inactive target seen only in closed attempts
+may be adopted in the same application. An active root or a root belonging to
+another application remains forbidden. Current credential, policy and witness
+admission still apply when activating the selected client; historical retirement
+does not extend permission.
+
+Existing `QPRFAA01` images remain readable and encode identically. The first
+adoption intent selects `QPRFAA02`, which retains explicit original-operation
+links and distinguishes adoption intents from completed local selection. Older
+readers reject that new format; downgrade is not supported. The compatibility
+test uses an actual frozen old installed-writer capture. Neither format detects
+rollback of the entire registry and its wrapping key.
+
+`--root-winner-cuts` exercises 30 actual `SIGKILL` boundaries for each of
+`bound-fresh` and `unbound-reuse`: original closure, adoption intent, both fence
+publications and registry selection. The killed worker reconstructed the exact
+host approvals from retained signed inputs; a separate existing parent process
+then reopens the original state and performs native peer traffic and rekey.
+`--root-winner-cancellation` covers owner/registry closure at the five publication
+phases for both profiles, checks no subsequent writes or returned owner, and
+resumes the original operation. These tests do not model power loss or arbitrary
+thread schedules. The CI cohorts use separate Linux/macOS jobs with the same
+60-minute limit and propagate every child failure.
+
 Still separate: full successor cancellation coverage,
-cross-platform root lifecycle qualification,
-independently approved adoption of another committed winner, device qualification
+adoption followed by another root change, cross-platform root lifecycle
+qualification, device qualification
 and post-compromise recovery analysis. Do not use these component checks as proof
 that the complete root-replacement lifecycle is ready.

@@ -13,7 +13,7 @@ import threading
 import weakref
 from .account_authority import AccountAuthority
 from .account_authority_state import Checkpoint
-from .account_root_record import RetainedPlan
+from .account_root_record import RetainedPlan,RetainedWinner,retained_expectation
 from .journal import Journal
 from .owner_guard import coordinated
 from .private_files import PrivateDirectory
@@ -59,7 +59,7 @@ class RootRecovery:
             owner._key=key
             require(owner._intent.family==registry.family,'original root recovery family')
             _,_,plan,_=owner._access.observation()
-            require(RetainedPlan(registry.witness,plan).target.previous==owner._intent.root,'original root recovery issuer')
+            require(retained_expectation(registry.witness,plan).target.previous==owner._intent.root,'original root recovery issuer')
             original_owner=weakref.ref(owner)
             def observe(stage):
                 if observer is not None:observer(stage)
@@ -119,6 +119,8 @@ class RootRecovery:
                     'confirmed_session':None if image.confirmation is None else image.confirmation.session,
                     'root_adoption_pending':self._adoption_pending,
                     'plan':plan,'decision':decision}
+            if type(retained_expectation(self._registry().witness,plan)) is RetainedWinner:
+                result['plan']=None;result['approved_winner']=plan
             self._alive();return result
         except BaseException:self.close();raise
 
@@ -164,7 +166,7 @@ class RootRecovery:
             self._alive();registry=self._registry();require(registry is not None,'closed account authority recovery owner')
             _,phase,original,decision=self._access.observation()
             require(phase!='Closed' and decision,'original bound root operation required')
-            RetainedPlan(registry.witness,original).verify_retirement(decision,receipt)
+            retained_expectation(registry.witness,original).verify_retirement(decision,receipt)
             parent=self._retain_bound(now,receipt)
             result=registry.commit_retirement(self._access.operation,decision,parent.receipt)
             self._alive();return result
@@ -192,7 +194,7 @@ class RootRecovery:
             self._alive();registry=self._registry();require(registry is not None,'closed account authority owner')
             _,phase,original,decision=self._access.observation()
             require(phase=='Committed','successor requires committed original root retirement')
-            retained=RetainedPlan(registry.witness,original);descriptor=retained.check_decision(decision)
+            retained=retained_expectation(registry.witness,original);descriptor=retained.check_decision(decision)
             expected=Checkpoint(self._binding.application,self._binding.revision+1,descriptor.account)
             registry.admit(expected)
             _,image=self._image()
@@ -233,6 +235,10 @@ class RootRecovery:
         An error may follow registry or fence publication. Resume the same inputs
         on the same path with resume_transition; never create replacement state.
         """
+        return self._consume_resume(type(self)._resume_transition,plan,receipt,freeze,now,
+                                    closure=closure,observer=observer)
+
+    def _consume_resume(self,resume,*arguments,observer=None,**options):
         try:
             self._image();registry=self._registry()
             require(registry is not None,'closed account authority owner')
@@ -240,9 +246,24 @@ class RootRecovery:
             self.close()
             token=object();self._handoff=token
             def check():require(self._handoff is token,'closed original root transition')
-            return type(self)._resume_transition(path,identity,key,registry,operation,plan,receipt,freeze,now,
-                                                 closure=closure,observer=observer,check=check)
+            return resume(path,identity,key,registry,operation,*arguments,observer=observer,check=check,**options)
         finally:self.close()
+
+    @coordinated
+    def adopt_committed_winner(self,adoption,now,*,observer=None):
+        """Consume this owner for an independently approved, already committed winner."""
+        return self._consume_resume(type(self)._resume_adoption,adoption,now,observer=observer)
+
+    @classmethod
+    def resume_adoption(cls,path,client_id,key,registry,operation,adoption,now,*,observer=None):
+        """Resume the same original installation, winner approval and signed outcomes."""
+        return cls._resume_adoption(path,client_id,key,registry,operation,adoption,now,
+                                    observer=observer,check=None)
+
+    @classmethod
+    def _resume_adoption(cls,*arguments,observer,check):
+        from .client_root_winner import resume
+        return resume(cls,*arguments,observer=observer,check=check)
 
     @classmethod
     def resume_transition(cls,path,client_id,key,registry,operation,plan,receipt,freeze,now,*,closure='plan',observer=None):

@@ -23,12 +23,17 @@ from git_provenance import git_commit, run_git_bytes
 
 def inputs(commit):
     result = source_inputs(commit)
-    path = Path(__file__).resolve()
-    name = path.relative_to(ROOT).as_posix()
-    data = snapshot(path)
-    require(data.data == run_git_bytes(ROOT, ['show', commit + ':' + name]),
-            'installation helper differs from selected commit')
-    return result | {name: data.sha256}
+    paths = [Path(__file__).resolve(), ROOT / 'artifact/continuity_root_scenarios.sh',
+             ROOT / '.github/workflows/reference-account.yml', ROOT / '.github/workflows/reference-root.yml',
+             SOURCE / 'tests/account_authority_compatibility.py']
+    paths += [SOURCE / 'tests/fixtures/account-authority-v1' / name for name in ('image.bin', 'pins.json', 'ORIGIN.json')]
+    for path in paths:
+        name = path.relative_to(ROOT).as_posix()
+        data = snapshot(path)
+        require(data.data == run_git_bytes(ROOT, ['show', commit + ':' + name]),
+                'root lifecycle input differs from selected commit: ' + name)
+        result[name] = data.sha256
+    return result
 
 
 def qualify(args):
