@@ -33,14 +33,14 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse
     elif mode in ('parent','ready'):
         prefix='client-device:registration-store:' if mode=='parent' else 'client-config:'
         seen=0
-        def cut(stage):
+        def interrupt_parent(stage):
             nonlocal seen
             if stage==prefix+'committed:removal':
                 seen+=1
                 # Configuration's first transition starts adoption; the second marks ready.
                 if mode=='parent' or seen==2:raise OSError('successor parent publication interrupted')
         refuse('successor-binding-parent-'+mode,
-               lambda:recovery.activate_successor(target(observer=cut),now,transport=transport()),
+               lambda:recovery.activate_successor(target(observer=interrupt_parent),now,transport=transport()),
                'successor parent publication interrupted')
         recovery=reopen();original=RootAdoption.open(target_path,host[32:],host[:32],registry)
     else:original=target()
