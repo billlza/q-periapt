@@ -29,6 +29,9 @@ def validate(text):
         position = consumer.index(flag)
         if any(item not in consumer or consumer.index(item) >= position for item in prerequisites):
             raise ValueError('root checks precede installed inputs')
+    successor_modes = consumer.split('--root-successor "$mode"', 1)[0].rsplit('for mode in ', 1)[1].split('; do', 1)[0].split()
+    if successor_modes.count('peer-root-revocation') != 1:
+        raise ValueError('later root permission revocation must run exactly once')
 
 
 class ReferenceAccountWorkflowTests(unittest.TestCase):
@@ -57,6 +60,13 @@ class ReferenceAccountWorkflowTests(unittest.TestCase):
         self.assertNotEqual(moved, self.text)
         with self.assertRaisesRegex(ValueError, 'installed producer step'):
             validate(moved)
+
+    def test_later_root_revocation_cannot_be_omitted_or_repeated(self):
+        for replacement in ('peer-after; do', 'peer-after peer-root-revocation peer-root-revocation; do'):
+            changed = self.text.replace('peer-after peer-root-revocation; do', replacement)
+            self.assertNotEqual(changed, self.text)
+            with self.assertRaisesRegex(ValueError, 'later root permission revocation'):
+                validate(changed)
 
 
 if __name__ == '__main__':

@@ -312,7 +312,7 @@ def main():
         'credential','credential-terminal','credential-closed','partial','partial-bound','partial-intent'))
     root_mode.add_argument('--root-retirement-cuts',action='store_true')
     root_mode.add_argument('--root-successor',choices=('steady','credential','before','after','parent','ready',
-                                                     'peer','peer-credential','peer-before','peer-after'))
+                                                     'peer','peer-credential','peer-before','peer-after','peer-root-revocation'))
     root_mode.add_argument('--root-successor-cuts',nargs='?',const='all',
                           choices=('all','configuration','child','registration','ready','activation'))
     root_mode.add_argument('--root-successor-cancellation',nargs='?',const='all',choices=('all','owner','registry'))

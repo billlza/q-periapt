@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Execute original successor activation until the selected actual SIGKILL cut."""
+"""Execute a successor SIGKILL cut or probe its later durable suspension."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 import argparse
 import json
@@ -7,13 +7,15 @@ import os
 from pathlib import Path
 import signal
 import sys
+from contextlib import closing
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('implementation-root', 'provider-root', 'configuration', 'marker'):
         parser.add_argument('--' + name, type=Path, required=True)
-    parser.add_argument('--phase', required=True); parser.add_argument('--cut', required=True)
+    parser.add_argument('--phase'); parser.add_argument('--cut')
+    parser.add_argument('--probe-suspension', action='store_true')
     args = parser.parse_args(); sys.path.insert(0, str(args.implementation_root.resolve(strict=True)))
     from qperiapt_continuity_reference.provider import load_provider
     load_provider(args.provider_root)
@@ -35,13 +37,40 @@ def main():
             require(len(raw) <= maximum, 'successor worker input capacity'); return raw
         finally: os.close(fd)
 
-    require((args.phase, args.cut) in CUTS, 'successor worker cut boundary')
+    require((args.probe_suspension and args.phase is None and args.cut is None)
+            or (not args.probe_suspension and (args.phase, args.cut) in CUTS),
+            'successor worker cut or suspension boundary')
     config = parse_strict_json_bytes(private(args.configuration, 16384), label='successor cut inputs')
     root = Path(config['private']); host = private(root / 'host-key-and-id', 64)
     registered = private(root / 'registry-key-and-id', 64)
     target_host = private(root / 'root-target/host-key-and-id', 64)
     require(len(host) == len(registered) == len(target_host) == 64, 'original successor worker key/id shape')
     pin = Pin(bytes.fromhex(config['witness']), VerificationKey(bytes.fromhex(config['witness_key'])))
+    if args.probe_suspension:
+        with AccountAuthority.open(root / 'account-registry', registered[:32], registered[32:],
+                                   bytes.fromhex(config['family']), pin) as registry:
+            try:
+                with closing(EnrollmentClient.open(root / 'root-target/client', target_host[32:], target_host[:32],
+                                                   account_authority=registry)) as client:
+                    with client.connection_session(config['now'], transport=TcpTransport(tuple(config['address']))) as child:
+                        child.connection_identity(now=config['now'])
+            except ValueError as error:
+                rejection = str(error)
+                require(rejection == 'account authority suspended', 'wrong reopened successor refusal')
+            else:
+                raise ValueError('suspended successor retained traffic permission')
+            operation = bytes.fromhex(config['operation'])
+            require(registry.operation(operation)[1] == 'Preparing', 'later root preparation phase differs')
+            with RootRecovery.open(root / 'root-target/client', target_host[32:], target_host[:32],
+                                   registry, operation) as owner:
+                observation = owner.inspect_child(config['now'])
+            marker = {'completed': True, 'pid': os.getpid(), 'operation': config['operation'],
+                      'rejection': rejection, 'metadata_head': observation.local_head.wire().hex(),
+                      'implementation': implementation_receipt()}
+            with os.fdopen(os.open(args.marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as stream:
+                json.dump(marker, stream); stream.flush(); os.fsync(stream.fileno())
+            print(json.dumps(marker), flush=True)
+        return
     prefix, occurrence = PHASES[args.phase]; observed = 0
 
     def stop(stage):
@@ -62,7 +91,7 @@ def main():
         with RootRecovery.open(root / 'client', host[32:], host[:32], registry,
                                bytes.fromhex(config['operation'])) as owner:
             target = EnrollmentClient.open(root / 'root-target/client', target_host[32:], target_host[:32], observer=stop)
-            with owner.activate_successor(target, config['now'], transport=TcpTransport(tuple(config['address']))):
+            with closing(owner.activate_successor(target, config['now'], transport=TcpTransport(tuple(config['address'])))):
                 raise RuntimeError('successor worker completed without reaching selected cut')
     finally: registry.close()
 

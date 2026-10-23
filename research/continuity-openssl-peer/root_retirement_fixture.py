@@ -101,6 +101,15 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
         repeated_decision,repeated_retired=pair(bridge.call('root-historical-retirement',51,request+field(decision.wire())))
         decision.verify_decision(repeated_decision);decision.verify_retirement(repeated_retired)
         require(recovery.retain_witness_retirement(repeated_retired,now=later)==current,'retirement incremented registry twice')
+        if successor=='peer-root-revocation':
+            suspension=activated['peer']['later_root_preparation']
+            refuse('historical-retirement-cannot-restore-successor-permission',
+                   lambda:registry.current(current.application),'account authority suspended')
+            require(registry.operation(bytes.fromhex(suspension['operation']))[1]=='Preparing'
+                    and hashlib.sha256((client_path.parent/'account-registry/head').read_bytes()).hexdigest()
+                    ==suspension['registry_head_sha256'],
+                    'historical retirement changed the later root preparation')
+            suspension['historical_retirement_cannot_restore_permission']=True
         require(originals()==before and retained=={str(p/'root-fence'):hashlib.sha256((p/'root-fence').read_bytes()).hexdigest()
                 for p in paths},'equivalent signed retry rewrote original local records')
         require(recovery.inspect_child(later)==observation,'expired historical inspection changed old state')

@@ -287,6 +287,22 @@ original reservation before completing its ciphertext; these are two distinct
 durable steps. The control pipe is an interoperability harness, not a new root
 distribution protocol or a physical/process-restart qualification.
 
+Preparing another independently approved root suspends the selected successor
+immediately. Its existing leases no longer grant traffic permission, and opening
+the same client in a fresh process must retain that refusal. Restricted recovery
+may still inspect the original child. Replaying a prior committed retirement
+returns its historical checkpoint without restoring current permission or
+changing the later preparation.
+
+The `peer-root-revocation` variant exercises this boundary after the original
+successor handshake, two-way traffic and rekey. It prepares an actual third-root
+client, verifies refusal through a cached session and in a fresh process, and
+checks that the original client files remain unchanged with no extra witness
+requests. The existing historical retirement replay must leave the new registry
+preparation intact. This covers local registry suspension after a completed
+preparation; it does not commit the third root, freeze it at the remote witness,
+or qualify interruption at every later-root publication boundary.
+
 Still separate: full successor process-cut and cancellation coverage,
 cross-platform root lifecycle qualification, closure-bound transfer of an existing
 fence to a newly approved plan,

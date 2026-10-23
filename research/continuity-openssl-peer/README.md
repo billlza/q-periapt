@@ -461,6 +461,15 @@ are retained in `PROCESS_RESTARTS.json` and `NATIVE.json`. These fixed-clock,
 POSIX process tests do not establish power-loss, mobile or PCS guarantees;
 cross-platform qualification and closure-bound fence transfer remain separate.
 
+`--root-successor peer-root-revocation` then prepares a separately approved third
+root after actual successor traffic and rekey. The cached session and a fresh
+process both refuse further traffic under the suspended registry mapping, while
+restricted recovery still reads the same child. Original files and witness
+request counts stay unchanged after suspension. Historical first-root retirement
+replay cannot restore permission or replace the later preparation. This is a
+local registry preparation check, not a third-root witness commit or a global
+revocation result.
+
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential
 and policy expire at fixture time160. The native issuer retains those signed

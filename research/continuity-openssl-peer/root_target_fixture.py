@@ -18,8 +18,9 @@ from qperiapt_continuity_reference.wire import Reader, SigningKey, digest, requi
 from signing_fixture import write
 
 
-def prepare(private, application, pins, materials, context, now, fresh_peer):
+def prepare(private, application, pins, materials, context, now, fresh_peer, *, root_revision=2):
     require(context.witness is not None, 'root target fixture requires original witness policy')
+    require(type(root_revision) is int and 2 <= root_revision < 2**64, 'root target fixture revision')
     path = private / 'root-target'; path.mkdir(mode=0o700)
     client_path, session_path = path / 'client', path / 'session'
     client_path.mkdir(mode=0o700); session_path.mkdir(mode=0o700)
@@ -31,9 +32,9 @@ def prepare(private, application, pins, materials, context, now, fresh_peer):
     wire = lambda value: json.dumps(value, separators=(',', ':')).encode()
     validity = context.original_policy.validity
     authority = {'schema':'qperiapt-host-authority/1', 'application':list(application),
-                 'root_revision':2, 'root':b64(root.public().raw), 'family':list(context.family)}
+                 'root_revision':root_revision, 'root':b64(root.public().raw), 'family':list(context.family)}
     invitation = {'operation':list(operation), 'request_id':list(os.urandom(32)), 'application':list(application),
-                  'root_revision':2, 'root':authority['root'], 'family':authority['family'], 'device':list(device),
+                  'root_revision':root_revision, 'root':authority['root'], 'family':authority['family'], 'device':list(device),
                   'generation':1, 'valid_from':validity.start, 'valid_until':validity.end,
                   'deadline':validity.end, 'predecessor':None}
     owner = EnrollmentClient.begin(client_path, identity, key, wire(authority), wire(invitation), now)
@@ -53,9 +54,9 @@ def prepare(private, application, pins, materials, context, now, fresh_peer):
         fields = [reader.take(reader.integer(4)) for _ in range(3)]; reader.finish()
         target_materials = replace(materials, initiator_credential=certificate, initiator_roster=roster,
                                    manifest=fields[0], classical_proof=fields[1], pq_proof=fields[2])
-        current = {'revision':2, 'account':list(account), 'public_key':authority['root'], 'family':authority['family'],
+        current = {'revision':root_revision, 'account':list(account), 'public_key':authority['root'], 'family':authority['family'],
                    'suspended':False, 'roster':{'checkpoint':{'version':1, 'digest':list(checkpoint)}, 'bytes':b64(roster)}}
-        issued = {'operation':list(operation), 'root_revision':2, 'certificate':b64(certificate), 'roster':b64(roster),
+        issued = {'operation':list(operation), 'root_revision':root_revision, 'certificate':b64(certificate), 'roster':b64(roster),
                   'checkpoint':{'version':1, 'digest':list(checkpoint)}}
         policy_pins = {'schema':'qperiapt-policy-pins/1', 'sdk_root':b64(pins.sdk_root), 'sdk_state':b64(pins.sdk_state),
                        'policy_root':b64(pins.policy_root.raw), 'policy_version':pins.policy_version,
