@@ -426,8 +426,16 @@ It returns the normal client without emitting a peer handshake. The successor
 peer fixture then uses this client for authenticated handshake, two-way traffic,
 reopening and rekey against the original native journal. The endpoint receives
 its approved root through explicit test control, never from session bytes.
-Full successor process-cut and cross-platform qualification, and closure-bound
-fence transfer, remain open; historical proofs alone do not grant traffic.
+`enrollment_session_checks.py --root-successor-cuts` exercises 41 actual
+`SIGKILL` boundaries: the eight publication stages in configuration preparation,
+child binding, registration binding, configuration readiness and activation,
+plus the witness-committed/local-unpublished child boundary. Each fresh worker
+uses the installed package and original keys. Recovery resumes that same target,
+preserves unconsumed staged files and completes the native peer exchange and
+rekey. The native peer and witness remain running during these independent-owner
+cuts; full native process restart, power-loss and cross-platform qualification,
+and closure-bound fence transfer, remain open. Historical proofs alone do not
+grant traffic permission.
 
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential

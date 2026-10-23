@@ -1,6 +1,7 @@
-"""First original successor admission and exact binding recovery; no peer flight."""
+"""Original successor admission, exact recovery and optional native peer traffic."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 import hashlib
+from pathlib import Path
 from qperiapt_continuity_reference.client_root_adoption import RootAdoption
 from qperiapt_continuity_reference.client_root_recovery import RootRecovery
 from qperiapt_continuity_reference.enrollment_client import EnrollmentClient
@@ -8,7 +9,7 @@ from qperiapt_continuity_reference.wire import require
 from qperiapt_continuity_reference.witness import TcpTransport
 
 
-def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse,mode):
+def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse,mode,cut=None):
     private=client_path.parent/'root-target';host=(private/'host-key-and-id').read_bytes()
     require(len(host)==64,'original successor host identity')
     target_path=private/'client'
@@ -45,6 +46,14 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse
     else:original=target()
     client=None
     try:
+        cut_record=None
+        if cut is not None:
+            from root_successor_cuts import exercise as process_cut, preserved_orphans
+            original.close()
+            recovery,registry,cut_record=process_cut(recovery,registry,plan,cut=cut,private=client_path.parent,
+                identity=identity,key=key,now=now,address=bridge.address)
+            original=(target() if cut==('configuration','stage-synced:intent')
+                      else RootAdoption.open(target_path,host[32:],host[:32],registry))
         client=recovery.activate_successor(original,now,transport=transport())
         status=client.status();require(status['journal']==plan.journal,'successor activation changed journal identity')
         with client.session(now,transport=transport()) as session:
@@ -59,10 +68,17 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse
             owned,client=client,None
             peer=communicate(owned,recovery,registry,plan,bridge=bridge,now=now,path=target_path,
                              host=host,mode=mode,refuse=refuse)
-        return recovery,{'completed':True,'mode':mode,'original_genesis_checked':True,'registry_revision':2,
+        if cut_record is not None:
+            require(preserved_orphans(client_path.parent)==cut_record['orphans'],
+                    'successor recovery or traffic changed retained orphan files')
+            require(all(hashlib.sha256(Path(path).read_bytes()).hexdigest()==expected
+                        for path,expected in cut_record['preserved_keys'].items()),'successor recovery replaced original keys')
+        return recovery,registry,{'completed':True,'mode':mode,'original_genesis_checked':True,'registry_revision':2,
                          'target_journal':plan.journal.hex(),'target_files_unchanged_on_retry':True,
-                         'peer':peer,
+                         'peer':peer,'process_cut':cut_record,
                          'scope':('Actual successor admission and independent/native peer exchange; see peer for transport and recovery scope.'
                                   if peer is not None else 'Actual current witness admission and original child/parent/config binding; no independent successor peer handshake or traffic yet.')}
+    except BaseException:
+        recovery.close();registry.close();raise
     finally:
         if client is not None:client.close()

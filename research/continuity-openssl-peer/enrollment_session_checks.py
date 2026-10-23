@@ -153,6 +153,7 @@ def exercise(args, label):
                 retirement=args.root_retirement is not None,
                 retirement_cut=args.root_retirement_cut,
                 successor=args.root_successor,
+                successor_cut=args.root_successor_cut,
                 client_path=client_path, identity=identity, key=key, session_path=session_path, pins=pins, materials=materials,
                 context=context, transport=transport, bridge=bridge, refuse=refuse, public=public)
             result.update(profile=label, native_commands=len(native.commands), witness_requests=len(bridge.records), refusals=refusals)
@@ -310,6 +311,8 @@ def main():
     root_mode.add_argument('--root-retirement-cuts',action='store_true')
     root_mode.add_argument('--root-successor',choices=('steady','credential','before','after','parent','ready',
                                                      'peer','peer-credential','peer-before','peer-after'))
+    root_mode.add_argument('--root-successor-cuts',nargs='?',const='all',
+                          choices=('all','configuration','child','registration','ready','activation'))
     root_mode.add_argument('--root-child-inspection', choices=('steady', 'ordinary-before', 'ordinary-after',
                                                              'credential', 'credential-terminal', 'credential-closed',
                                                              'roster', 'roster-terminal', 'roster-closed',
@@ -320,8 +323,10 @@ def main():
     if args.root_retirement is not None: args.root_child_inspection=args.root_retirement
     if args.root_successor is not None:
         args.root_retirement=args.root_child_inspection='credential' if args.root_successor in ('credential','peer-credential') else 'steady'
-    args.root_retirement_cut=None
+    args.root_retirement_cut=None;args.root_successor_cut=None
     if args.root_retirement_cuts:args.root_retirement=args.root_child_inspection='steady'
+    if args.root_successor_cuts:
+        args.root_retirement=args.root_child_inspection='steady';args.root_successor='peer'
     sys.path.insert(0, str(args.implementation_root))
     from qperiapt_continuity_reference.provider import load_provider
     provider, _ = load_provider(args.provider_root)
@@ -338,7 +343,15 @@ def main():
     args.output.mkdir()
     args.adoption_cut = None
     args.adoption_expiry = None
-    if args.root_retirement_cuts:
+    if args.root_successor_cuts:
+        from root_successor_cuts import CUTS
+        selected_cuts=[cut for cut in CUTS if args.root_successor_cuts in ('all',cut[0])]
+        profiles=[]
+        for index,cut in enumerate(selected_cuts):
+            selected=copy.copy(args);selected.root_successor_cut=cut
+            selected.output=args.output/(cut[0]+'-'+str(index));selected.output.mkdir()
+            profiles.append(exercise(selected,'witness'))
+    elif args.root_retirement_cuts:
         from root_retirement_cuts import CUTS
         profiles=[]
         for index,cut in enumerate(CUTS):
