@@ -26,7 +26,7 @@ fn account_plan_matches_exact_noncommit_without_readmitting_expired_target() {
     let mut changed = p.plan.to_bytes().expect("original plan");
     // Change only the independently retained freeze operation, keeping a valid
     // canonical target. The original closure cannot authorize this expectation.
-    changed[48] ^= 1;
+    *changed.get_mut(48).expect("encoded freeze operation byte") ^= 1;
     let other =
         AnchorAccountReplacementPlan::from_trusted_state(&changed).expect("different valid plan");
     assert!(other.verify_closed_replacement(&closed).is_err());
