@@ -10,13 +10,17 @@ import time
 from qperiapt_continuity_reference.wire import require
 
 
-def preserved(public):
+def preserved(public, *, persisted_prekeys=True):
+    require(type(persisted_prekeys) is bool, 'explicit native prekey persistence mode')
     witness = Path((public/'private-witness-path').read_text())
     journal = Path((public/'private-fixture-path').read_text())
     require(journal == Path((public/'root-successor/private-fixture-path').read_text()),
             'restart must keep the original native journal')
     files = [witness/name for name in ('key','witness-id','witness-key-id','device-key-id',
-                                     'witness-signer','device-signer','prekey-host-key','prekey-reservation')]
+                                     'witness-signer','device-signer')]
+    prekeys = [witness/name for name in ('prekey-host-key','prekey-reservation')]
+    if persisted_prekeys:files += prekeys
+    else:require(not any(path.exists() for path in prekeys), 'non-restart fixture has persisted prekey inputs')
     files += [journal/name for name in ('key','identity')]
     files += [p for p in public.iterdir() if p.is_file()]
     files += [public/'root-successor/control',public/'root-successor/private-fixture-path']

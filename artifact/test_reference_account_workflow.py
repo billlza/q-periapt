@@ -34,6 +34,8 @@ def validate(text):
         raise ValueError('later root permission revocation must run exactly once')
     if successor_modes.count('peer-root-replacement') != 1:
         raise ValueError('later root committed replacement must run exactly once')
+    if successor_modes.count('peer-root-continuation') != 1:
+        raise ValueError('later root independent traffic must run exactly once')
     for required in ('for phase in bind retire; do', '--root-successor-later-cuts "$phase"',
                      'later_cut_pids+=("$!")', 'for later_cut_pid in "${later_cut_pids[@]}"; do',
                      'if ! wait "$later_cut_pid"; then later_cut_status=1; fi', 'test "$later_cut_status" -eq 0'):
@@ -69,7 +71,7 @@ class ReferenceAccountWorkflowTests(unittest.TestCase):
             validate(moved)
 
     def test_later_root_revocation_cannot_be_omitted_or_repeated(self):
-        for mode in ('peer-root-revocation', 'peer-root-replacement'):
+        for mode in ('peer-root-revocation', 'peer-root-replacement', 'peer-root-continuation'):
             for replacement in ('', mode + ' ' + mode):
                 changed = self.text.replace(mode, replacement, 1)
                 self.assertNotEqual(changed, self.text)

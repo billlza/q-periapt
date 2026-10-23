@@ -9,11 +9,15 @@ from root_retirement_fixture import control,field
 from traffic_checks import application
 
 
-def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse):
+def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse,previous_traffic=None):
+    later=previous_traffic is not None
+    require(not later or not bridge.native.restartable_successor,'later peer process restart not configured')
+    tag='later-successor' if later else 'successor'
+    approval,traffic=(56,57) if later else (52,53)
     def transport():return TcpTransport(bridge.address)
     def reopen():return EnrollmentClient.open(path,host[32:],host[:32],account_authority=registry)
     def call(label,command,wire=b'',expected=None,status=1):
-        return bridge.call('successor-peer-'+label,53,bytes([command])+wire,expected,status)
+        return bridge.call(tag+'-peer-'+label,traffic,bytes([command])+wire,expected,status)
     try:
         _,image=client._registration._image()
         context=image.child.inputs.current(now);materials=image.child.inputs.materials
@@ -21,26 +25,33 @@ def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse):
         prefix=control(plan)+field(decision)
         request=prefix+field(materials.manifest)+field(materials.classical_proof)+field(materials.pq_proof)
         require(len(request)+1<=32768,'successor control exceeds original pipe bound')
-        public=bridge.native.cases.parent/'public/root-successor'
+        public=bridge.native.cases.parent/('public/root-successor-later' if later else 'public/root-successor')
         require(not public.exists(),'fresh successor control already has an endpoint')
-        call('before-approval',4,status=2,expected=b'successor peer before explicit approval')
-        bridge.call('successor-control-truncated',52,request[:-1],status=2)
+        call('before-approval',4,status=2,expected=(b'later successor peer before explicit approval'
+                                                  if later else b'successor peer before explicit approval'))
+        bridge.call(tag+'-control-truncated',approval,request[:-1],status=2)
         bad=bytearray(decision);bad[-1]^=1
-        bridge.call('successor-control-uncommitted',52,control(plan)+field(bytes(bad))
+        bridge.call(tag+'-control-uncommitted',approval,control(plan)+field(bytes(bad))
                     +field(materials.manifest)+field(materials.classical_proof)+field(materials.pq_proof),status=2)
         bad=bytearray(materials.manifest);bad[-65]^=1
-        bridge.call('successor-control-invalid-manifest',52,prefix+field(bytes(bad))
+        bridge.call(tag+'-control-invalid-manifest',approval,prefix+field(bytes(bad))
                     +field(materials.classical_proof)+field(materials.pq_proof),status=2)
         require(not public.exists(),'rejected successor control created an endpoint')
-        require(bridge.call('successor-control-approved',52,request)==context.digest,
+        require(bridge.call(tag+'-control-approved',approval,request)==context.digest,
                 'independent/native successor context differs')
         original_path=public/'private-fixture-path'
         native_private=original_path.read_bytes()
         require(native_private==(public.parent/'private-fixture-path').read_bytes(),
                 'successor peer replaced the original native journal')
-        bridge.call('successor-retired-original-controller',8,status=2,
+        bridge.call(tag+'-retired-original-controller',8,status=2,
                     expected=b'original peer controller retired; use successor commands')
-        require(bridge.call('successor-control-exact-retry',52,request)==context.digest
+        if later:
+            bridge.call(tag+'-retired-previous-controller',53,b'\x08',status=2,
+                        expected=b'previous successor controller retired')
+            original_control=(public.parent/'root-successor/control').read_bytes()
+            bridge.call(tag+'-retired-previous-approval',52,original_control,status=2,
+                        expected=b'previous successor controller retired')
+        require(bridge.call(tag+'-control-exact-retry',approval,request)==context.digest
                 and original_path.read_bytes()==native_private,'successor approval replaced native store')
         from native_restart import SuccessorRestarts
         restarts=SuccessorRestarts(bridge,now,request,context.digest)
@@ -65,6 +76,11 @@ def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse):
                 'successor peer confirmation was not retained')
         client.close();client=reopen()
         require(client.connection_confirmation()==session,'successor original confirmation changed')
+        if later:
+            require(session.hex()!=previous_traffic['session'] and context.digest.hex()!=previous_traffic['context'],
+                    'later root reused original peer context or session')
+            call('previous-root-ciphertext',7,application(bytes.fromhex(previous_traffic['first_ad']),
+                 bytes.fromhex(previous_traffic['first_ciphertext'])),status=2)
         message=b'original root successor request';ad=b'successor'
         with client.connection_session(now,transport=transport()) as child:
             identity=child.next_id(now=now)
@@ -135,13 +151,14 @@ def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse):
             restarts.at('new-epoch')
             call('receive-new-epoch-replay',7,application(ad,encrypted),b'after successor rekey')
         require(original_path.read_bytes()==native_private,'successor native storage path changed')
-        require(bridge.call('successor-control-after-traffic',52,request)==context.digest,
+        require(bridge.call(tag+'-control-after-traffic',approval,request)==context.digest,
                 'successor control retry changed active context')
         return {'completed':True,'mode':mode,'context':context.digest.hex(),'session':session.hex(),
-                'directions':2,'peer_confirmation_retained':True,'root_revision':2,'rekey_epoch':1,
+                'directions':2,'peer_confirmation_retained':True,'root_revision':3 if later else 2,'rekey_epoch':1,
+                'first_ciphertext':ciphertext.hex(),'first_ad':ad.hex(),'previous_root_traffic_refused':later,
                 'native_reopens':4,'unknown_send_reservation_sha256':pending_digest,
                 'native_process_restarts':bridge.native.restarts,
-                'completed_send_head_sha256':completed_digest,'native_control_refusals':5,
+                'completed_send_head_sha256':completed_digest,'native_control_refusals':7 if later else 5,
                 'native_original_journal_retained':True,
                 'native_private_path_file':str(original_path),
                 'scope':'Installed independent client versus original native persistent peer: approved root target, authenticated handshake, two-way traffic, exact replay, consumption, reopening and rekey. Process restarts are counted separately with actual PID/SIGKILL and preserved-file receipts. Native control pipe is test orchestration; no power-loss, mobile or PCS claim.'}

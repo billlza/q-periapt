@@ -78,12 +78,13 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse
             owned,client=client,None
             peer=communicate(owned,recovery,registry,plan,bridge=bridge,now=now,path=target_path,
                              host=host,mode=mode,refuse=refuse)
-        if mode in ('peer-root-revocation','peer-root-replacement'):
+        if mode in ('peer-root-revocation','peer-root-replacement','peer-root-continuation'):
             from root_successor_authority_fixture import exercise as suspend_successor
             recovery,registry,peer['later_root_preparation']=suspend_successor(
                 recovery,registry,plan,bridge=bridge,now=now,client_path=client_path,
                 identity=identity,key=key,session=bytes.fromhex(peer['session']),refuse=refuse,
-                commit=mode=='peer-root-replacement',cut=later_cut)
+                commit=mode!='peer-root-revocation',cut=later_cut,
+                previous_traffic=peer if mode=='peer-root-continuation' else None)
         if cut_record is not None:
             require(preserved_orphans(client_path.parent)==cut_record['orphans'],
                     'successor recovery or traffic changed retained orphan files')

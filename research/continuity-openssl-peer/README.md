@@ -477,8 +477,13 @@ first-root replies cannot replace the current third-root selection. The
 `--root-successor-later-cuts` groups exercise 28 actual process boundaries in the
 second-root registry and retirement fences, preserving original keys and business
 state. Reserved staged fences must be published byte-for-byte; they are distinct
-from unrelated orphan files. Third-root peer traffic, power loss and PCS remain
-separate qualifications.
+from unrelated orphan files. `--root-successor peer-root-continuation` additionally
+uses the third root for actual mutual handshake, two-way messages, replay,
+consumption, reopening and rekey against that same native journal. Old controllers
+and a second-root ciphertext are refused while third-root traffic remains usable.
+Original native persisted keys and prior approvals stay unchanged; this fixture
+keeps its prekey in memory. Later native full-process restart, power loss and PCS
+remain separate qualifications.
 
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential

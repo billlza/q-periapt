@@ -19,7 +19,7 @@ from root_target_fixture import prepare
 from worker_process import command
 
 
-def exercise(recovery, registry, plan, *, bridge, now, client_path, identity, key, session, refuse, commit=False, cut=None):
+def exercise(recovery, registry, plan, *, bridge, now, client_path, identity, key, session, refuse, commit=False, cut=None,previous_traffic=None):
     private = client_path.parent
     target = private / 'root-target'
     host = (target / 'host-key-and-id').read_bytes()
@@ -98,7 +98,8 @@ def exercise(recovery, registry, plan, *, bridge, now, client_path, identity, ke
         if commit:
             from root_later_commit_fixture import exercise as commit_later
             registry, committed = commit_later(registry, later, predecessor, plan, private=private, host=host,
-                                               now=now, observation=observation, bridge=bridge, refuse=refuse, cut=cut)
+                                               now=now, observation=observation, bridge=bridge, refuse=refuse, cut=cut,
+                                               previous_traffic=previous_traffic)
         recovery = RootRecovery.open(client_path, identity, key, registry, plan.operation)
         return recovery, registry, {'completed': True, 'operation': later.operation.hex(),
                 'original_root_revision': 2, 'prepared_root_revision': 3,

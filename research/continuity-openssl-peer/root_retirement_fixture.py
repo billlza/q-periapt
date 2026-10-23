@@ -110,7 +110,7 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
                     ==suspension['registry_head_sha256'],
                     'historical retirement changed the later root preparation')
             suspension['historical_retirement_cannot_restore_permission']=True
-        elif successor=='peer-root-replacement':
+        elif successor in ('peer-root-replacement','peer-root-continuation'):
             committed=activated['peer']['later_root_preparation']['commit']
             selected=registry.current(current.application)
             require(selected.revision==3 and selected.account.hex()==committed['account']

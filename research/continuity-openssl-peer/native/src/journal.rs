@@ -181,22 +181,33 @@ impl Journal {
         )
     }
 
-    pub(super) fn select_successor(
-        &mut self,
-        public: &Path,
-        context: Arc<BootstrapContext>,
-        now: u64,
+    pub(super) fn verify_successor(
+        &self,
+        context: &BootstrapContext,
+        previous_account: [u8; 32],
     ) -> Result<()> {
         let previous = self.context.device(BootstrapRole::Responder);
         let current = context.device(BootstrapRole::Responder);
         if !matches!(self.owner, Owner::Raw(_))
             || self.session.is_none()
+            || self.context.device(BootstrapRole::Initiator).account_id() != previous_account
             || previous.credential_digest() != current.credential_digest()
             || previous.authority_binding() != current.authority_binding()
             || self.context.current_policy()?.checkpoint() != context.current_policy()?.checkpoint()
         {
             return Err("successor peer requires the original native device and policy".into());
         }
+        Ok(())
+    }
+
+    pub(super) fn select_successor(
+        &mut self,
+        public: &Path,
+        context: Arc<BootstrapContext>,
+        now: u64,
+        previous_account: [u8; 32],
+    ) -> Result<()> {
+        self.verify_successor(&context, previous_account)?;
         // A device has one original witness lineage. Start another session in
         // that same journal; never re-enroll or replace its persisted history.
         crate::fixture::save(
@@ -214,6 +225,10 @@ impl Journal {
 
     pub(super) fn matches_context(&self, context: &BootstrapContext, now: u64) -> bool {
         self.context.digest() == context.digest() && self.bootstrap_time == now
+    }
+
+    pub(super) fn peer_account(&self) -> [u8; 32] {
+        self.context.device(BootstrapRole::Initiator).account_id()
     }
 
     fn create_raw(

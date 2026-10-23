@@ -322,6 +322,23 @@ checked against the exact bytes published to `root-fence`; unrelated orphan
 files remain unchanged. These checks stop before third-root peer handshake and
 traffic, and do not establish power-loss durability or compromise recovery.
 
+The separate `peer-root-continuation` scenario then exercises that third-root
+client against the same original native device journal. Native peer selection
+requires both the exact committed replacement and the previous account from
+its already authenticated peer context. It preserves the original controller
+frame bound and native identity, wrapping keys, signer files and prior approval.
+Prekeys in this non-restart fixture remain in memory; the signed selections are
+checked against that original native key. A later native process restart is a
+separate qualification and cannot use the first-successor restart controller.
+
+The scenario performs fresh mutual handshake and retained confirmation, both
+message directions, exact replay, consumption, original-journal reopening and
+one rekey with subsequent traffic. The previous peer controller and approval
+cannot restore the second root, and an actual second-root ciphertext fails
+authentication under the third-root context without preventing new traffic.
+This checks an explicitly approved peer switch, not asynchronous global
+revocation or a new root-distribution protocol.
+
 Still separate: full successor process-cut and cancellation coverage,
 cross-platform root lifecycle qualification, closure-bound transfer of an existing
 fence to a newly approved plan,

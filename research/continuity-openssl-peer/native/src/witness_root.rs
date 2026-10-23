@@ -91,23 +91,44 @@ fn pack(parts: &[&[u8]]) -> Result<Vec<u8>> {
     Ok(output)
 }
 
+fn approved_previous(
+    input: &mut Input<'_>,
+    fixture: &Fixture,
+    store: &mut AnchorStore,
+    pin: &AnchorPin,
+    later: bool,
+) -> Result<[u8; 32]> {
+    let original = fixture
+        .context
+        .device(BootstrapRole::Initiator)
+        .account_id();
+    if !later {
+        return Ok(original);
+    }
+    let predecessor = AnchorAccountReplacementProposal::from_trusted_state(input.field(65536)?)?;
+    if predecessor.previous_account() != original
+        || store.account_root_replacement_status(&predecessor)?
+            != AnchorAccountReplacementState::Committed
+    {
+        return Err("later root requires original committed predecessor".into());
+    }
+    pin.verify_retired_account(&predecessor, &store.retired_account_receipt(&predecessor)?)?;
+    Ok(predecessor.successor_account())
+}
+
 impl Witness {
     /// Explicit test-controller approval; ordinary session bytes cannot call this.
     pub(crate) fn successor_context(
         &self,
         fixture: &Fixture,
         payload: &[u8],
-    ) -> Result<(Arc<BootstrapContext>, u64)> {
+        previous: [u8; 32],
+    ) -> Result<(Arc<BootstrapContext>, u64, [u8; 32])> {
         let mut input = Input(payload);
-        let target = Target::read(
-            &mut input,
-            fixture,
-            &self.pin,
-            fixture
-                .context
-                .device(BootstrapRole::Initiator)
-                .account_id(),
-        )?;
+        let now = self.now.load(Ordering::SeqCst);
+        let mut guard = self.store.lock().map_err(|_| "witness lock poisoned")?;
+        let store = guard.as_mut().ok_or("closed witness")?;
+        let target = Target::read(&mut input, fixture, &self.pin, previous)?;
         let proposal = AnchorAccountReplacementProposal::from_trusted_state(input.field(65536)?)?;
         let manifest = input.field(8192)?;
         let classical = LeafProof::decode(input.field(2048)?)?;
@@ -115,9 +136,6 @@ impl Witness {
         if !input.0.is_empty() {
             return Err("successor peer control trailing data".into());
         }
-        let now = self.now.load(Ordering::SeqCst);
-        let mut guard = self.store.lock().map_err(|_| "witness lock poisoned")?;
-        let store = guard.as_mut().ok_or("closed witness")?;
         if store.account_root_replacement_status(&proposal)?
             != AnchorAccountReplacementState::Committed
         {
@@ -151,7 +169,7 @@ impl Witness {
             DirectoryExpectation::from_trusted_state([99; 32])?,
             now,
         )?;
-        Ok((Arc::new(context), now))
+        Ok((Arc::new(context), now, previous))
     }
 
     pub(crate) fn root_command(
@@ -164,29 +182,13 @@ impl Witness {
         let now = self.now.load(Ordering::SeqCst);
         let mut guard = self.store.lock().map_err(|_| "witness lock poisoned")?;
         let store = guard.as_mut().ok_or("closed witness")?;
-        let original_account = fixture
-            .context
-            .device(BootstrapRole::Initiator)
-            .account_id();
-        let previous_account = if matches!(command, 54 | 55) {
-            // A later test-controller approval must continue the exact original
-            // committed transition. An arbitrary account is never admitted here.
-            let predecessor =
-                AnchorAccountReplacementProposal::from_trusted_state(input.field(65536)?)?;
-            if predecessor.previous_account() != original_account
-                || store.account_root_replacement_status(&predecessor)?
-                    != AnchorAccountReplacementState::Committed
-            {
-                return Err("later root requires original committed predecessor".into());
-            }
-            self.pin.verify_retired_account(
-                &predecessor,
-                &store.retired_account_receipt(&predecessor)?,
-            )?;
-            predecessor.successor_account()
-        } else {
-            original_account
-        };
+        let previous_account = approved_previous(
+            &mut input,
+            fixture,
+            store,
+            &self.pin,
+            matches!(command, 54 | 55),
+        )?;
         let target = Target::read(&mut input, fixture, &self.pin, previous_account)?;
         let proposal = if matches!(command, 51 | 55) {
             Some(AnchorAccountReplacementProposal::from_trusted_state(

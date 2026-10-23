@@ -223,6 +223,7 @@ fn main() -> Result<()> {
     let mut operation = ResponderOperation::new(Arc::clone(&fixture.context));
     let mut durable: Option<journal::Journal> = None;
     let mut successor: Option<journal::Journal> = None;
+    let mut later_successor = None;
     send(&mut output, 1, b"ready")?;
     loop {
         let frame = receive(&mut input, true)?;
@@ -243,18 +244,45 @@ fn main() -> Result<()> {
                 .ok_or("required witness not configured")?
                 .root_command(&fixture, command, payload)
                 .map_err(|error| error.to_string()),
-            52 => (|| -> Result<Vec<u8>> {
+            52 | 56 => (|| -> Result<Vec<u8>> {
+                let later = command == 56;
+                if !later && later_successor.is_some() {
+                    return Err("previous successor controller retired".into());
+                }
                 if resume_successor.is_some()
                     && restart::read(&directory.join("root-successor/control"), 32768)? != payload
                 {
                     return Err("restart cannot select another successor".into());
                 }
-                let (context, now) = fixture
+                let expected = if later {
+                    later_successor.unwrap_or(
+                        successor
+                            .as_ref()
+                            .ok_or("later successor before original peer")?
+                            .peer_account(),
+                    )
+                } else {
+                    fixture
+                        .context
+                        .device(q_periapt_continuity_identity_candidate::BootstrapRole::Initiator)
+                        .account_id()
+                };
+                let (context, now, previous) = fixture
                     .witness
                     .as_ref()
                     .ok_or("required witness not configured")?
-                    .successor_context(&fixture, payload)?;
-                if let Some(owner) = &successor {
+                    .successor_context(&fixture, payload, expected)?;
+                if later && later_successor.is_none() {
+                    let owner = successor
+                        .as_mut()
+                        .ok_or("later successor before original peer")?;
+                    owner.verify_successor(&context, previous)?;
+                    let output = directory.join("root-successor-later");
+                    fs::create_dir(&output)?;
+                    owner.select_successor(&output, Arc::clone(&context), now, previous)?;
+                    fixture::save(&output, "control", payload)?;
+                    later_successor = Some(previous);
+                } else if let Some(owner) = &successor {
                     if !owner.matches_context(&context, now) {
                         return Err("successor peer control cannot retarget existing owner".into());
                     }
@@ -271,14 +299,20 @@ fn main() -> Result<()> {
                     durable
                         .as_mut()
                         .ok_or("successor peer requires original native journal")?
-                        .select_successor(&output, Arc::clone(&context), now)?;
+                        .select_successor(&output, Arc::clone(&context), now, previous)?;
                     successor = durable.take();
                     fixture::save(&output, "control", payload)?;
                 }
                 Ok(context.digest().to_vec())
             })()
             .map_err(|error| error.to_string()),
-            53 => (|| -> Result<Vec<u8>> {
+            53 | 57 => (|| -> Result<Vec<u8>> {
+                if command == 53 && later_successor.is_some() {
+                    return Err("previous successor controller retired".into());
+                }
+                if command == 57 && later_successor.is_none() {
+                    return Err("later successor peer before explicit approval".into());
+                }
                 let (&inner, wire) = payload.split_first().ok_or("empty successor command")?;
                 if !(4..=27).contains(&inner) {
                     return Err("unsupported successor journal command".into());

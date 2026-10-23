@@ -10,7 +10,7 @@ from qperiapt_continuity_reference.witness import TcpTransport
 from root_retirement_fixture import control, field, pair
 
 
-def exercise(registry, plan, predecessor, original_plan, *, private, host, now, observation, bridge, refuse, cut=None):
+def exercise(registry, plan, predecessor, original_plan, *, private, host, now, observation, bridge, refuse, cut=None,previous_traffic=None):
     original = private / 'root-target'
     following = private / 'later-root/root-target'
     target_host = (following / 'host-key-and-id').read_bytes()
@@ -111,6 +111,18 @@ def exercise(registry, plan, predecessor, original_plan, *, private, host, now, 
             require(client.status()['journal'] == plan.journal, 'third root retry changed original journal')
         require(ready == {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
                          for path in following.rglob('*') if path.is_file()}, 'third root retry rewrote ready state')
+        peer = None; native_preserved = None
+        if previous_traffic is not None:
+            from native_restart import preserved
+            from root_successor_peer_fixture import exercise as communicate
+            public = bridge.native.cases.parent / 'public'
+            native_preserved = preserved(public, persisted_prekeys=bridge.native.restartable_successor)
+            peer = communicate(EnrollmentClient.open(following / 'client', target_host[32:], target_host[:32],
+                account_authority=registry), owner, registry, plan, bridge=bridge, now=now,
+                path=following / 'client', host=target_host, mode='peer', refuse=refuse, previous_traffic=previous_traffic)
+            require(peer['root_revision'] == 3
+                    and preserved(public, persisted_prekeys=bridge.native.restartable_successor) == native_preserved,
+                    'third-root traffic replaced original native keys, identity or prior approval')
         require(owner.retain_witness_retirement(retired, now=now) == current
                 and registry.current(current.application) == current
                 and retained == {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in fences},
@@ -125,8 +137,10 @@ def exercise(registry, plan, predecessor, original_plan, *, private, host, now, 
                 'process_cut': process_cut, 'preserved_orphans': orphans,
                 'staged_fences_published_exactly': {str(path): expected for path, expected in stages.items()},
                 'original_prepared_third_root_activated': True, 'activation_retry_unchanged': True,
+                'peer': peer, 'native_preserved_files': native_preserved,
                 'registry_head_sha256': hashlib.sha256((private / 'account-registry/head').read_bytes()).hexdigest(),
-                'scope': 'Actual native witness commits the second-to-third root transition after original successor traffic, then the installed client retains both retirement fences and admits the original prepared third root. Any actual SIGKILL boundary is recorded separately. No third-root peer traffic, power-loss or PCS claim.'}
+                'scope': ('Actual root3 independent/native handshake, two-way traffic, replay and rekey in the original native journal; old controllers and a prior-root ciphertext are refused. No later native full-process restart, power-loss or PCS claim.'
+                          if peer is not None else 'Actual native witness commits the second-to-third root transition after original successor traffic, then the installed client retains both retirement fences and admits the original prepared third root. Any actual SIGKILL boundary is recorded separately. No third-root peer traffic, power-loss or PCS claim.')}
     except BaseException:
         registry.close(); raise
     finally:
