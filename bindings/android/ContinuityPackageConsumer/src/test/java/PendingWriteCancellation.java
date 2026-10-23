@@ -63,8 +63,9 @@ final class PendingWriteCancellation {
                 require(result.get() instanceof ContinuityFailure && ((ContinuityFailure)result.get()).code() == 218,
                     "held Query did not retain witness uncertainty: " + result.get());
                 ContinuityFailure failure = (ContinuityFailure) result.get();
-                require(!failure.diagnosticTruncated() && failure.getMessage().endsWith(
-                    "witness dispatch cancelled; reconcile original command"), "missing native cancellation cause");
+                require(!failure.diagnosticTruncated() && failure.getMessage().equals(
+                    "journal witness admission failed: witness outcome unavailable; reconcile exact command: TCP dispatch cancelled"),
+                    "missing native cancellation cause: truncated=" + failure.diagnosticTruncated() + "; " + failure.getMessage());
                 // Only after the actual SDK result can the TLS fixture release
                 // its retained encrypted response and finish its worker.
                 control.getOutputStream().write(2); control.getOutputStream().flush();
