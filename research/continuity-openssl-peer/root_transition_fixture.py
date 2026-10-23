@@ -12,7 +12,7 @@ from root_retirement_fixture import control,field,pair
 from root_target_fixture import prepare
 
 
-def exercise(recovery,registry,plan,freeze,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,closure,cut=None):
+def exercise(recovery,registry,plan,freeze,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,closure,cut=None,cancellation=None):
     private=client_path.parent
     paths=(client_path/'registration',session_path)
     def originals():
@@ -61,9 +61,13 @@ def exercise(recovery,registry,plan,freeze,*,bridge,now,client_path,identity,key
            'root original freeze request')
     require(all_formal()==untouched,'changed freeze mutated original state')
     recovery=reopen()
-    cut_record=None
+    cut_record=None;cancel_record=None
     try:
-        if cut is None:
+        if cancellation is not None:
+            from root_transition_cancel import exercise as cancel_original
+            recovery,registry,cancel_record=cancel_original(recovery,registry,old_operation,next_plan,receipt,next_freeze,
+                closure=closure,case=cancellation,private=private,now=now)
+        elif cut is None:
             recovery=recovery.transition_after_noncommit(next_plan,receipt,next_freeze,now,closure=closure)
         else:
             from root_transition_cuts import exercise as interrupt
@@ -95,7 +99,7 @@ def exercise(recovery,registry,plan,freeze,*,bridge,now,client_path,identity,key
         return {'completed':True,'closure':closure,'original_operation':old_operation.hex(),
                 'next_operation':next_plan.operation.hex(),'registry_revision':selected.revision,
                 'original_formal_bytes_unchanged':True,'closed_target_unchanged':True,'snapshot_preserved':True,
-                'process_cut':cut_record,
+                'process_cut':cut_record,'cancellation':cancel_record,
                 'next_peer':peer,'fence_hashes':{str(p/'root-fence'):hashlib.sha256((p/'root-fence').read_bytes()).hexdigest() for p in paths},
                 'scope':'Actual native signed closure and same frozen snapshot, explicit independent next approval, original parent/child fence transfer, exact retry and successor traffic. Actual process cuts recorded separately. No power-loss, mobile or PCS claim.'}
     finally:recovery.close();registry.close()

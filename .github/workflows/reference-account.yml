@@ -519,6 +519,20 @@ jobs:
             if ! wait "$transition_pid"; then transition_status=1; fi
           done
           test "$transition_status" -eq 0
+          transition_cancel_pids=()
+          for closure in plan decision; do
+            sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
+              --implementation-root "$installed_reference" --provider-root "$RUNNER_TEMP/reference-provider" \
+              --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-transition-cancellation "$closure" \
+              --output "$PWD/target/reference-root-ci/root-transition-cancel-$closure" \
+              > "target/reference-root-ci/root-transition-cancel-$closure.stdout" 2> "target/reference-root-ci/root-transition-cancel-$closure.stderr" &
+            transition_cancel_pids+=("$!")
+          done
+          transition_cancel_status=0
+          for transition_cancel_pid in "${transition_cancel_pids[@]}"; do
+            if ! wait "$transition_cancel_pid"; then transition_cancel_status=1; fi
+          done
+          test "$transition_cancel_status" -eq 0
           git diff --exit-code
       - name: Retain root continuation build and regression results
         if: always()

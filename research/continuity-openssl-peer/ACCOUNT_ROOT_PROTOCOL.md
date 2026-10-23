@@ -370,6 +370,15 @@ The signed proof must be supplied again; stored descriptors alone are not a new
 host approval. `replan-plan` and `replan-decision` exercise successor traffic after
 handoff; `--root-transition-cuts` targets registry and both fence publications.
 
+During a consuming handoff, closing the original recovery owner from a
+persistence callback cancels subsequent registry and fence writes and withholds
+the returned owner. The registry may also close after interrupted persistence;
+reopen the original registry and resume with the same approvals and proofs.
+Concurrent calls serialize; a nested handoff is refused. A successfully returned
+recovery owner has its own lifetime. `--root-transition-cancellation` exercises
+both owner and registry closure at the five publication phases, followed by
+original-state recovery and native peer traffic.
+
 Still separate: full successor cancellation coverage,
 cross-platform root lifecycle qualification,
 independently approved adoption of another committed winner, device qualification

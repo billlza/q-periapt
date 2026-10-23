@@ -6,6 +6,7 @@ Registry selection is not live device/policy permission or delivery evidence.
 """
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from dataclasses import replace
+from contextlib import contextmanager
 import os
 import threading
 import weakref
@@ -106,6 +107,23 @@ class AccountAuthority:
         except BaseException:journal.close();raise
 
     def _alive(self):require(self._journal is not None,'closed account authority owner')
+
+    @contextmanager
+    def _checked_recovery(self,check):
+        """Serialize a borrowed recovery and check cancellation at every write.
+
+        The journal still owns persistence failure and closes on an interrupted
+        update. Restore its original observer when this bounded borrow ends.
+        """
+        with self._lock:
+            self._alive();check()
+            directory=self._journal._directory;original=directory.observer
+            def observe(stage):
+                if original is not None:original(stage)
+                check()
+            directory.observer=observe
+            try:yield
+            finally:directory.observer=original
 
     def _admit(self,expected):
         self._alive();require(type(expected) is Checkpoint,'exact account authority checkpoint required')

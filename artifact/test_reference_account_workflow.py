@@ -25,7 +25,7 @@ def validate(text):
         (consumer, 'continuity_host_exchange.py', ('--root-child-inspection', '--root-retirement "$mode"',
             '--root-retirement-cuts', '--root-successor-cuts', '--root-successor-cancellation',
             '--root-successor-process-restart "$mode"', '--retirement-result')),
-        (continuation, 'continuity_independent_install.py', ('--root-successor-later-cuts', '--root-transition-cuts',
+        (continuation, 'continuity_independent_install.py', ('--root-successor-later-cuts', '--root-transition-cuts', '--root-transition-cancellation',
             '--root-successor-process-restart peer-root-continuation')),
     ):
         if 'QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}' not in owner:
@@ -60,11 +60,19 @@ def validate(text):
                      'if ! wait "$later_cut_pid"; then later_cut_status=1; fi', 'test "$later_cut_status" -eq 0'):
         if continuation.count(required) != 1:
             raise ValueError('both later root cut groups must finish and propagate failures')
-    for required in ('for closure in plan decision; do','--root-transition-cuts "$closure"',
+    if continuation.count('for closure in plan decision; do') != 2:
+        raise ValueError('both closure transition cut and cancellation groups are required')
+    for required in ('--root-transition-cuts "$closure"',
                      'transition_pids+=("$!")','for transition_pid in "${transition_pids[@]}"; do',
                      'if ! wait "$transition_pid"; then transition_status=1; fi','test "$transition_status" -eq 0'):
         if continuation.count(required)!=1:
             raise ValueError('both closure transition cut groups must finish and propagate failures')
+    for required in ('--root-transition-cancellation "$closure"','transition_cancel_pids+=("$!")',
+                     'for transition_cancel_pid in "${transition_cancel_pids[@]}"; do',
+                     'if ! wait "$transition_cancel_pid"; then transition_cancel_status=1; fi',
+                     'test "$transition_cancel_status" -eq 0'):
+        if continuation.count(required)!=1:
+            raise ValueError('closure transition cancellation groups must finish and propagate failures')
 
 
 class ReferenceAccountWorkflowTests(unittest.TestCase):
@@ -136,6 +144,12 @@ class ReferenceAccountWorkflowTests(unittest.TestCase):
             self.assertNotEqual(changed,self.text)
             with self.assertRaisesRegex(ValueError,'closure transition'):
                 validate(changed)
+
+    def test_transition_cancellation_failure_cannot_be_hidden(self):
+        for before,after in (('then transition_cancel_status=1;','then transition_cancel_status=0;'),
+                             ('test "$transition_cancel_status" -eq 0','true')):
+            with self.assertRaisesRegex(ValueError,'cancellation groups must finish and propagate failures'):
+                validate(self.text.replace(before,after))
 
 
 if __name__ == '__main__':
