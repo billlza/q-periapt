@@ -2432,6 +2432,7 @@ jobs:
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-identity-build
       CAPACITY_TEST: enrollment::tests::witness_renewal::policy_transaction::sessions::fanout::account_roster::native_common_account_roster_capacity_fanout_and_removal
+      TIMEFORMAT: 'QPERIAPT_CI_TIME wall_seconds=%R user_seconds=%U system_seconds=%S cpu_percent=%P'
     strategy:
       fail-fast: false
       matrix:
@@ -2481,6 +2482,20 @@ jobs:
       - name: Require Apple Silicon for macOS Continuity
         if: matrix.os == 'macos-15'
         run: test "$(uname -m)" = arm64
+      - name: Record native runner capacity
+        shell: bash
+        run: |
+          mkdir -p target/continuity-native-checks
+          {
+            uname -sm
+            if [ "$(uname -s)" = Linux ]; then
+              printf 'online_cpus='; getconf _NPROCESSORS_ONLN
+              grep '^MemTotal:' /proc/meminfo
+              sed -n '/^model name/{p;q;}' /proc/cpuinfo
+            else
+              sysctl hw.ncpu hw.memsize machdep.cpu.brand_string
+            fi
+          } > target/continuity-native-checks/runner-capacity.txt
       - name: Check and exercise candidate with the selected compiler
         if: matrix.partition == 'suite'
         shell: bash
@@ -2499,7 +2514,8 @@ jobs:
           done
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib -- --list > "$candidate_log/debug-catalog.txt"
           test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
-          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- --skip "$CAPACITY_TEST" --nocapture 2>&1 | tee "$candidate_log/debug.log"
+          # Explicit failure exit lets Bash print timing before preserving the test status.
+          { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- --skip "$CAPACITY_TEST" --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug.log"
       - name: Exercise the complete Release candidate
         if: matrix.partition == 'release' || (matrix.os == 'macos-15' && matrix.partition == 'suite')
         shell: bash
@@ -2511,7 +2527,7 @@ jobs:
           git rev-parse HEAD > "$candidate_log/source-commit.txt"
           rustc +"$CANDIDATE_TOOLCHAIN" -vV > "$candidate_log/rustc.txt"
           candidate_manifest=research/continuity-identity-candidate/Cargo.toml
-          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture 2>&1 | tee "$candidate_log/release.log"
+          { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/release.log"
       - name: Exercise the complete Debug capacity scenario
         if: matrix.partition == 'capacity'
         shell: bash
@@ -2525,7 +2541,7 @@ jobs:
           candidate_manifest=research/continuity-identity-candidate/Cargo.toml
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib -- --list > "$candidate_log/debug-catalog.txt"
           test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
-          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib "$CAPACITY_TEST" -- --exact --nocapture 2>&1 | tee "$candidate_log/debug-capacity.log"
+          { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib "$CAPACITY_TEST" -- --exact --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-capacity.log"
           grep '^test result: ok\. 1 passed; 0 failed; 0 ignored;' "$candidate_log/debug-capacity.log"
       - name: Verify sealed SDK operations with the selected compiler
         if: matrix.partition == 'suite'
@@ -2534,14 +2550,14 @@ jobs:
           CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
         run: |
           cargo +"$CANDIDATE_TOOLCHAIN" clippy --locked -p q-periapt-sdk --features sealed-operations --all-targets -- -D warnings 2>&1 | tee target/continuity-native-checks/sdk-clippy.log
-          cargo +"$CANDIDATE_TOOLCHAIN" test --locked -p q-periapt-sdk --features sealed-operations 2>&1 | tee target/continuity-native-checks/sdk-debug.log
+          { time cargo +"$CANDIDATE_TOOLCHAIN" test --locked -p q-periapt-sdk --features sealed-operations || exit "$?"; } 2>&1 | tee target/continuity-native-checks/sdk-debug.log
       - name: Verify sealed SDK operations in Release
         if: matrix.partition == 'release' || (matrix.os == 'macos-15' && matrix.partition == 'suite')
         shell: bash
         env:
           CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
         run: |
-          cargo +"$CANDIDATE_TOOLCHAIN" test --locked --release -p q-periapt-sdk --features sealed-operations 2>&1 | tee target/continuity-native-checks/sdk-release.log
+          { time cargo +"$CANDIDATE_TOOLCHAIN" test --locked --release -p q-periapt-sdk --features sealed-operations || exit "$?"; } 2>&1 | tee target/continuity-native-checks/sdk-release.log
       - name: Check canonical formatting and documentation
         if: matrix.toolchain == '1.98.1' && matrix.partition == 'suite'
         shell: bash

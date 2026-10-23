@@ -164,6 +164,36 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 native(changed)
 
+    def test_phase_timing_keeps_test_failures_and_records_cpu_and_wall_time(self):
+        lines = [line.strip() for line in self.native.splitlines()
+                 if line.strip().startswith('{ time cargo +"$CANDIDATE_TOOLCHAIN" test ')]
+        self.assertEqual(len(lines), 5)
+        timing = re.search(r"TIMEFORMAT: '(QPERIAPT_CI_TIME [^']+)'", self.native)
+        self.assertIsNotNone(timing)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'target/continuity-native-checks'
+            output.mkdir(parents=True)
+            binaries = Path(directory) / 'bin'
+            binaries.mkdir()
+            cargo = binaries / 'cargo'
+            cargo.write_text('#!/bin/sh\nprintf "timing boundary probe\\n"\nexit "$PROBE_EXIT"\n')
+            cargo.chmod(0o700)
+            for line in lines:
+                for code in (0, 7):
+                    with self.subTest(line=line, code=code):
+                        result = subprocess.run(
+                            ['/bin/bash', '-euo', 'pipefail', '-c', line],
+                            cwd=directory, env={**os.environ, 'PATH': str(binaries) + ':/usr/bin:/bin',
+                                'CANDIDATE_TOOLCHAIN': '1.98.1', 'candidate_manifest': 'unused',
+                                'CAPACITY_TEST': 'unused', 'candidate_log': str(output),
+                                'PROBE_EXIT': str(code), 'TIMEFORMAT': timing.group(1)},
+                            capture_output=True, text=True, timeout=10, check=False)
+                        self.assertEqual(result.returncode, code, result.stderr)
+                        self.assertIn('timing boundary probe', result.stdout)
+                        self.assertRegex(result.stdout,
+                            r'QPERIAPT_CI_TIME wall_seconds=\d+\.\d+ user_seconds=\d+\.\d+ '
+                            r'system_seconds=\d+\.\d+ cpu_percent=\d+\.\d+')
+
 
 if __name__ == '__main__':
     unittest.main()
