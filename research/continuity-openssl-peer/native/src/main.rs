@@ -237,7 +237,7 @@ fn main() -> Result<()> {
         }
         let result = match command {
             45 => prekey_refresh::issue(&fixture, payload).map_err(|error| error.to_string()),
-            50 | 51 => fixture
+            50 | 51 | 54 | 55 => fixture
                 .witness
                 .as_ref()
                 .ok_or("required witness not configured")?

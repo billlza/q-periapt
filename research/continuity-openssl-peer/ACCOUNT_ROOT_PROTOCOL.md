@@ -303,6 +303,25 @@ preparation intact. This covers local registry suspension after a completed
 preparation; it does not commit the third root, freeze it at the remote witness,
 or qualify interruption at every later-root publication boundary.
 
+`peer-root-replacement` continues that same prepared third root through an actual
+native witness freeze and retirement. The test-control extension requires the
+exact committed first replacement in the original witness store, then binds the
+later plan's previous account to that replacement's successor. The original
+controller still rejects a different account; a truncated or changed predecessor
+and a mismatched root chain are refused. This controller approval remains
+separate from ordinary peer traffic and from real user-account authentication.
+
+The installed original second-root owner retains child and parent retirement
+before the registry selects revision three, then admits the already prepared
+third-root client. Equivalent retirement and activation retries retain the
+original journal and keys. Historical first-root retirement must not roll the
+registry back. `--root-successor-later-cuts` exercises the 28 original registry
+and fence publication boundaries across freeze binding and retirement, using
+fresh processes and the same persisted inputs. A reserved fence staging slot is
+checked against the exact bytes published to `root-fence`; unrelated orphan
+files remain unchanged. These checks stop before third-root peer handshake and
+traffic, and do not establish power-loss durability or compromise recovery.
+
 Still separate: full successor process-cut and cancellation coverage,
 cross-platform root lifecycle qualification, closure-bound transfer of an existing
 fence to a newly approved plan,

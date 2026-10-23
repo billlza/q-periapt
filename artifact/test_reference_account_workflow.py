@@ -22,7 +22,7 @@ def validate(text):
     )
     for flag in ('--root-child-inspection', '--root-retirement "$mode"', '--root-retirement-cuts',
                  '--root-successor "$mode"', '--root-successor-cuts', '--root-successor-cancellation',
-                 '--root-successor-process-restart', '--retirement-result'):
+                 '--root-successor-process-restart', '--root-successor-later-cuts', '--retirement-result'):
         owners = [step for step in steps if flag in step]
         if owners != [consumer]:
             raise ValueError('root checks must share the installed producer step')
@@ -32,6 +32,13 @@ def validate(text):
     successor_modes = consumer.split('--root-successor "$mode"', 1)[0].rsplit('for mode in ', 1)[1].split('; do', 1)[0].split()
     if successor_modes.count('peer-root-revocation') != 1:
         raise ValueError('later root permission revocation must run exactly once')
+    if successor_modes.count('peer-root-replacement') != 1:
+        raise ValueError('later root committed replacement must run exactly once')
+    for required in ('for phase in bind retire; do', '--root-successor-later-cuts "$phase"',
+                     'later_cut_pids+=("$!")', 'for later_cut_pid in "${later_cut_pids[@]}"; do',
+                     'if ! wait "$later_cut_pid"; then later_cut_status=1; fi', 'test "$later_cut_status" -eq 0'):
+        if consumer.count(required) != 1:
+            raise ValueError('both later root cut groups must finish and propagate failures')
 
 
 class ReferenceAccountWorkflowTests(unittest.TestCase):
@@ -62,10 +69,20 @@ class ReferenceAccountWorkflowTests(unittest.TestCase):
             validate(moved)
 
     def test_later_root_revocation_cannot_be_omitted_or_repeated(self):
-        for replacement in ('peer-after; do', 'peer-after peer-root-revocation peer-root-revocation; do'):
-            changed = self.text.replace('peer-after peer-root-revocation; do', replacement)
+        for mode in ('peer-root-revocation', 'peer-root-replacement'):
+            for replacement in ('', mode + ' ' + mode):
+                changed = self.text.replace(mode, replacement, 1)
+                self.assertNotEqual(changed, self.text)
+                with self.assertRaisesRegex(ValueError, 'later root .* must run exactly once'):
+                    validate(changed)
+
+    def test_later_root_cut_groups_cannot_be_omitted_or_hide_failure(self):
+        for before, after in (('for phase in bind retire; do', 'for phase in bind; do'),
+                              ('then later_cut_status=1;', 'then later_cut_status=0;'),
+                              ('test "$later_cut_status" -eq 0', 'true')):
+            changed = self.text.replace(before, after)
             self.assertNotEqual(changed, self.text)
-            with self.assertRaisesRegex(ValueError, 'later root permission revocation'):
+            with self.assertRaisesRegex(ValueError, 'cut groups must finish and propagate failures'):
                 validate(changed)
 
 

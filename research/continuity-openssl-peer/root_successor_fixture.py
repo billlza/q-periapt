@@ -9,7 +9,7 @@ from qperiapt_continuity_reference.wire import require
 from qperiapt_continuity_reference.witness import TcpTransport
 
 
-def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse,mode,cut=None,cancellation=None):
+def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse,mode,cut=None,cancellation=None,later_cut=None):
     private=client_path.parent/'root-target';host=(private/'host-key-and-id').read_bytes()
     require(len(host)==64,'original successor host identity')
     target_path=private/'client'
@@ -78,11 +78,12 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse
             owned,client=client,None
             peer=communicate(owned,recovery,registry,plan,bridge=bridge,now=now,path=target_path,
                              host=host,mode=mode,refuse=refuse)
-        if mode=='peer-root-revocation':
+        if mode in ('peer-root-revocation','peer-root-replacement'):
             from root_successor_authority_fixture import exercise as suspend_successor
             recovery,registry,peer['later_root_preparation']=suspend_successor(
                 recovery,registry,plan,bridge=bridge,now=now,client_path=client_path,
-                identity=identity,key=key,session=bytes.fromhex(peer['session']),refuse=refuse)
+                identity=identity,key=key,session=bytes.fromhex(peer['session']),refuse=refuse,
+                commit=mode=='peer-root-replacement',cut=later_cut)
         if cut_record is not None:
             require(preserved_orphans(client_path.parent)==cut_record['orphans'],
                     'successor recovery or traffic changed retained orphan files')

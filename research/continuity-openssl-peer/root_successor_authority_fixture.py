@@ -19,13 +19,14 @@ from root_target_fixture import prepare
 from worker_process import command
 
 
-def exercise(recovery, registry, plan, *, bridge, now, client_path, identity, key, session, refuse):
+def exercise(recovery, registry, plan, *, bridge, now, client_path, identity, key, session, refuse, commit=False, cut=None):
     private = client_path.parent
     target = private / 'root-target'
     host = (target / 'host-key-and-id').read_bytes()
     registered = (private / 'registry-key-and-id').read_bytes()
     require(len(host) == len(registered) == 64, 'original authority test key/id shape')
     family, pin = registry.family, registry.witness
+    predecessor = recovery._access.observation()[3]
     expected = registry.current(recovery._binding.application)
     require(expected.revision == 2 and expected.account == plan.successor.account,
             'later preparation requires the original selected successor')
@@ -93,11 +94,18 @@ def exercise(recovery, registry, plan, *, bridge, now, client_path, identity, ke
                 'later root preparation did not persist unchanged')
         refuse('reopened-registry-retains-successor-suspension', lambda: registry.admit(expected),
                'account authority suspended')
+        committed = None
+        if commit:
+            from root_later_commit_fixture import exercise as commit_later
+            registry, committed = commit_later(registry, later, predecessor, plan, private=private, host=host,
+                                               now=now, observation=observation, bridge=bridge, refuse=refuse, cut=cut)
         recovery = RootRecovery.open(client_path, identity, key, registry, plan.operation)
         return recovery, registry, {'completed': True, 'operation': later.operation.hex(),
                 'original_root_revision': 2, 'prepared_root_revision': 3,
-                'registry_head_sha256': head, 'process_probe': row, 'original_files_unchanged': True,
-                'additional_witness_requests': 0,
-                'scope': 'Later locally approved preparation suspends the active successor and survives a fresh process; no later witness freeze, root commit, power-loss or global revocation claim.'}
+                'registry_head_sha256': head, 'process_probe': row, 'original_files_unchanged': snapshot() == before,
+                'preparation_original_files_unchanged': True, 'suspension_witness_requests': 0,
+                'additional_witness_requests': len(bridge.records) - requests, 'commit': committed,
+                'scope': (committed['scope'] if committed is not None else
+                          'Later locally approved preparation suspends the active successor and survives a fresh process; no later witness freeze, root commit, power-loss or global revocation claim.')}
     except BaseException:
         recovery.close(); registry.close(); raise

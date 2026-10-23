@@ -470,6 +470,16 @@ replay cannot restore permission or replace the later preparation. This is a
 local registry preparation check, not a third-root witness commit or a global
 revocation result.
 
+`--root-successor peer-root-replacement` continues the same chain through native
+witness retirement and admission of the original prepared third-root client.
+The native controller requires the exact committed predecessor, and historical
+first-root replies cannot replace the current third-root selection. The
+`--root-successor-later-cuts` groups exercise 28 actual process boundaries in the
+second-root registry and retirement fences, preserving original keys and business
+state. Reserved staged fences must be published byte-for-byte; they are distinct
+from unrelated orphan files. Third-root peer traffic, power loss and PCS remain
+separate qualifications.
+
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential
 and policy expire at fixture time160. The native issuer retains those signed

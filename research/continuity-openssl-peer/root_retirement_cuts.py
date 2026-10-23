@@ -1,6 +1,7 @@
 """Fresh-process cuts; no fork while the real native witness bridge is running."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 import json
+import hashlib
 import os
 from pathlib import Path
 import signal
@@ -19,17 +20,24 @@ CUTS=tuple((action,prefix+stage) for action in ('bind','retire')
            for stage in stages)
 
 
-def exercise(owner,registry,plan,receipt,*,cut,private,identity,key,now):
+def exercise(owner,registry,plan,receipt,*,cut,private,identity,key,now,client_path=None):
     action,stage=cut;require(cut in CUTS,'root cut boundary')
     family,pin=registry.family,registry.witness
+    client_path=private/'client' if client_path is None else client_path
+    require(client_path in (private/'client',private/'root-target/client'),'root cut original client path')
+    host_path=client_path.parent/'host-key-and-id'
+    keys={str(path):hashlib.sha256(path.read_bytes()).hexdigest()
+          for path in (host_path,private/'registry-key-and-id')}
     config=private/'root-cut-inputs.json';receipt_path=private/'root-cut-receipt.bin';marker=private/'root-cut.json'
     value={'private':str(private),'family':family.hex(),'witness':pin.identity.hex(),'witness_key':pin.key.raw.hex(),
-           'operation':plan.operation.hex(),'now':now}
+           'operation':plan.operation.hex(),'now':now,'client':str(client_path.relative_to(private))}
     for path,raw in ((config,json.dumps(value).encode()),(receipt_path,receipt)):
         with os.fdopen(os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as out:
             out.write(raw);out.flush();os.fsync(out.fileno())
     owner.close();registry.close()
     implementation=Path(sys.modules['qperiapt_continuity_reference'].__file__).resolve().parent.parent
+    from root_successor_cuts import implementation_receipt
+    implementation_identity=implementation_receipt()
     provider=Path(sys.modules['cryptography'].__file__).resolve().parent.parent
     argv=command(Path(__file__).with_name('root_retirement_worker.py'),'--implementation-root',str(implementation),
                  '--provider-root',str(provider),'--configuration',str(config),'--receipt',str(receipt_path),
@@ -39,12 +47,16 @@ def exercise(owner,registry,plan,receipt,*,cut,private,identity,key,now):
     require(result.returncode==-signal.SIGKILL and not result.stderr,'root worker did not reach exact SIGKILL boundary')
     row=json.loads(marker.read_bytes())
     require(row==json.loads(result.stdout) and row['action']==action and row['stage']==stage
-            and type(row['pid']) is int and row['pid']>0,'root cut marker differs')
+            and type(row['pid']) is int and row['pid']>0 and row['pid']!=os.getpid()
+            and row['client']==value['client'] and row['implementation']==implementation_identity,
+            'root cut marker differs')
+    require(all(hashlib.sha256(Path(path).read_bytes()).hexdigest()==expected for path,expected in keys.items()),
+            'root cut replaced original keys')
     with (private/'root-cut-process.json').open('x') as out:
         json.dump({'argv':argv,'returncode':result.returncode,'marker':row},out,indent=2);out.write('\n')
     original=(private/'registry-key-and-id').read_bytes();require(len(original)==64,'original registry key/id changed')
     registry=AccountAuthority.open(private/'account-registry',original[:32],original[32:],family,pin)
     try:
-        owner=RootRecovery.open(private/'client',identity,key,registry,plan.operation)
-        return owner,registry,row
+        owner=RootRecovery.open(client_path,identity,key,registry,plan.operation)
+        return owner,registry,row|{'returncode':result.returncode,'preserved_keys':keys}
     except BaseException:registry.close();raise

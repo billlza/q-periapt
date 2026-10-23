@@ -24,6 +24,10 @@ def main():
     from qperiapt_continuity_reference.wire import VerificationKey,require
     from qperiapt_continuity_reference.witness import Pin
     from evidence_io import parse_strict_json_bytes
+    # Load source-only fixture helpers after selecting the installed product.
+    sys.path.append(str(Path(__file__).resolve().parent))
+    from root_retirement_cuts import CUTS
+    from root_successor_cuts import implementation_receipt
     def private(path,maximum):
         fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_CLOEXEC)
         try:
@@ -32,12 +36,16 @@ def main():
             require(len(raw)<=maximum,'root worker input capacity');return raw
         finally:os.close(fd)
     config=parse_strict_json_bytes(private(args.configuration,16384),label='original root cut configuration')
-    root=Path(config['private']);host=private(root/'host-key-and-id',64);registered=private(root/'registry-key-and-id',64)
+    require((args.action,args.cut) in CUTS and config['client'] in ('client','root-target/client'),
+            'root worker original client and cut boundary')
+    root=Path(config['private']);client=root/config['client']
+    host=private(client.parent/'host-key-and-id',64);registered=private(root/'registry-key-and-id',64)
     require(len(host)==len(registered)==64,'original root worker key/id shape')
     pin=Pin(bytes.fromhex(config['witness']),VerificationKey(bytes.fromhex(config['witness_key'])))
     def stop(stage):
         if stage!=args.cut:return
-        marker={'pid':os.getpid(),'action':args.action,'stage':stage}
+        marker={'pid':os.getpid(),'action':args.action,'stage':stage,'client':config['client'],
+                'implementation':implementation_receipt()}
         with os.fdopen(os.open(args.marker,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'w') as stream:
             json.dump(marker,stream);stream.flush();os.fsync(stream.fileno())
         print(json.dumps(marker),flush=True);os.kill(os.getpid(),signal.SIGKILL)
@@ -45,7 +53,7 @@ def main():
     registry=AccountAuthority.open(root/'account-registry',registered[:32],registered[32:],bytes.fromhex(config['family']),pin,
                                    observer=lambda stage:stop('registry:'+stage))
     try:
-        with RootRecovery.open(root/'client',host[32:],host[:32],registry,bytes.fromhex(config['operation']),observer=stop) as owner:
+        with RootRecovery.open(client,host[32:],host[:32],registry,bytes.fromhex(config['operation']),observer=stop) as owner:
             receipt=private(args.receipt,71000)
             if args.action=='bind':owner.bind_freeze(receipt,now=config['now'])
             else:owner.retain_witness_retirement(receipt,now=config['now'])

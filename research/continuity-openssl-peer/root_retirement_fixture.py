@@ -25,7 +25,7 @@ def pair(wire):
     r=Reader(wire);result=[r.take(r.integer(4)) for _ in range(2)];r.finish();return result
 
 
-def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None,successor=None,successor_cut=None,successor_cancel=None):
+def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None,successor=None,successor_cut=None,successor_cancel=None,later_cut=None):
     def reopen():return RootRecovery.open(client_path,identity,key,registry,plan.operation)
     paths=(client_path/'registration',session_path)
     def originals():
@@ -88,7 +88,7 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
         if successor is not None:
             from root_successor_fixture import exercise as activate_original
             recovery,registry,activated=activate_original(recovery,registry,plan,bridge=bridge,now=now,client_path=client_path,
-                identity=identity,key=key,refuse=refuse,mode=successor,cut=successor_cut,cancellation=successor_cancel)
+                identity=identity,key=key,refuse=refuse,mode=successor,cut=successor_cut,cancellation=successor_cancel,later_cut=later_cut)
             require(originals()==before,'successor activation changed retired original state')
         recovery.close();recovery=reopen()
         require(recovery.inspect_child(now)==observation,'retirement hid original pending state')
@@ -110,6 +110,15 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
                     ==suspension['registry_head_sha256'],
                     'historical retirement changed the later root preparation')
             suspension['historical_retirement_cannot_restore_permission']=True
+        elif successor=='peer-root-replacement':
+            committed=activated['peer']['later_root_preparation']['commit']
+            selected=registry.current(current.application)
+            require(selected.revision==3 and selected.account.hex()==committed['account']
+                    and hashlib.sha256((client_path.parent/'account-registry/head').read_bytes()).hexdigest()
+                    ==committed['registry_head_sha256'], 'historical retirement replaced third root selection')
+            refuse('historical-retirement-cannot-restore-second-root',lambda:registry.admit(current),
+                   'account authority checkpoint differs')
+            committed['historical_retirement_preserves_later_selection']=True
         require(originals()==before and retained=={str(p/'root-fence'):hashlib.sha256((p/'root-fence').read_bytes()).hexdigest()
                 for p in paths},'equivalent signed retry rewrote original local records')
         require(recovery.inspect_child(later)==observation,'expired historical inspection changed old state')
