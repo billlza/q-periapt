@@ -14,8 +14,17 @@ case "$root_lane" in continuation|winner|unactivated) ;; *) echo 'unknown root l
 mkdir -p "$root_output"
 
 run_case() {
-  local root_label=$1
+  local root_label=${1//:/-}
   shift
+  if [ "${1:-}" = --approval-publication ]; then
+    if [ "$#" -ne 2 ]; then echo 'publication fault requires one exact case' >&2; return 2; fi
+    sh artifact/python-run.sh artifact/continuity_native_approval_fault.py \
+      --case "$2" --build "$root_output/approval-driver" \
+      --implementation-root "$root_implementation" --provider-root "$root_provider" \
+      --output "$root_output/$root_label" \
+      > "$root_output/$root_label.stdout" 2> "$root_output/$root_label.stderr"
+    return
+  fi
   sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
     --implementation-root "$root_implementation" --provider-root "$root_provider" \
     --native "$root_native" "$@" --output "$root_output/$root_label" \
@@ -45,6 +54,13 @@ if [ "$root_lane" = continuation ]; then
   run_pair --root-successor-later-cuts later-root-cuts bind retire
   run_pair --root-transition-cuts root-transition-cuts plan decision
   run_pair --root-transition-cancellation root-transition-cancel plan decision
+  for root_publication_lane in first later unactivated unactivated-later; do
+    for root_publication_stage in staging file prepared published synced; do
+      run_pair --approval-publication native-approval \
+        "$root_publication_lane:$root_publication_stage:kill" \
+        "$root_publication_lane:$root_publication_stage:io"
+    done
+  done
 elif [ "$root_lane" = winner ]; then
   sh artifact/python-run.sh research/continuity-openssl-peer/tests/account_authority_compatibility.py \
     --implementation-root "$root_implementation" --provider-root "$root_provider" \

@@ -20,6 +20,7 @@ def validate(text):
     command='bash artifact/continuity_root_scenarios.sh "$ROOT_LANE" "$installed_reference"'
     required=('--target "$RUNNER_TEMP/reference-provider"','sh artifact/python-run.sh artifact/continuity_independent_install.py',
               "installed_reference=$(jq -er '.installed'",'cargo test --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml',
+              'if [ "$ROOT_LANE" = continuation ]; then','sh artifact/python-run.sh artifact/continuity_native_approval_instrument.py',
               'cargo build --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml')
     if text.count(command)!=1 or any(item not in text or text.index(item)>=text.index(command) for item in required):
         raise ValueError('cohort execution must follow verified installed inputs')
@@ -36,6 +37,7 @@ class ReferenceRootWorkflowTests(unittest.TestCase):
         for before,after in (('timeout-minutes: 60','timeout-minutes: 90'),
                              ('continuity_independent_install.py','unverified.py'),
                              ('cargo test --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml','missing native tests'),
+                             ('continuity_native_approval_instrument.py','missing fault build'),
                              ('arch: arm64','arch: x86_64'),('if: always()','if: success()')):
             with self.assertRaises(ValueError):validate(text.replace(before,after))
 
@@ -72,8 +74,13 @@ fi
         expected+=[('--root-successor-process-restart','peer-root-continuation')]
         expected+=[('--root-successor-later-cuts',phase) for phase in ('bind','retire')]
         expected+=[(flag,closure) for flag in ('--root-transition-cuts','--root-transition-cancellation') for closure in ('plan','decision')]
-        self.assertEqual(self.selections(records),sorted(expected));self.assertEqual(len(records),12)
+        self.assertEqual(self.selections(records),sorted(expected));self.assertEqual(len(records),52)
         for row in records:self.assertEqual(row[row.index('--implementation-root')+1],'installed path')
+        faults=[row for row in records if row[0]=='artifact/continuity_native_approval_fault.py']
+        cases={f'{lane}:{stage}:{kind}' for lane in ('first','later','unactivated','unactivated-later')
+               for stage in ('staging','file','prepared','published','synced') for kind in ('kill','io')}
+        self.assertEqual({row[row.index('--case')+1] for row in faults},cases)
+        self.assertEqual(len(faults),40)
 
     def test_winner_dispatch_requires_compatibility_all_targets_and_both_boundary_groups(self):
         result,records,_=self.dispatch('winner');self.assertEqual(result.returncode,0,result.stderr)
@@ -90,6 +97,14 @@ fi
         self.assertIn(('--root-successor-later-cuts','retire'),selected)
         self.assertFalse(any(flag=='--root-transition-cuts' for flag,_ in selected))
         self.assertIn(b'injected dispatch failure',(output/'later-root-cuts-bind.stderr').read_bytes())
+
+    def test_failed_publication_case_keeps_the_paired_error_and_stops_the_next_stage(self):
+        result,records,output=self.dispatch('continuation',failure='--case first:staging:kill')
+        self.assertNotEqual(result.returncode,0)
+        faults=[row for row in records if row[0]=='artifact/continuity_native_approval_fault.py']
+        self.assertEqual({row[row.index('--case')+1] for row in faults},{'first:staging:kill','first:staging:io'})
+        self.assertEqual(len(records),14)
+        self.assertIn(b'injected dispatch failure',(output/'native-approval-first-staging-kill.stderr').read_bytes())
 
     def test_unactivated_dispatch_keeps_both_approval_histories_and_restart_boundaries(self):
         result,records,_=self.dispatch('unactivated');self.assertEqual(result.returncode,0,result.stderr)

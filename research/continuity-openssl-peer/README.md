@@ -467,6 +467,15 @@ If publication returns an error, this single-fixture test process reports the
 failure and exits before accepting another control request. Resume mode then
 uses the original storage and exact approved request; an I/O error after rename
 must not leave the running controller serving its previous in-memory peer.
+The continuation CI cohort also runs twenty publication SIGKILL cases and
+twenty returned-I/O-error cases, pairing at most two processes at a time. The
+instrumenter builds a separate source copy and retains both native binaries;
+the recovery driver reopens the original stores with the unmodified binary.
+The five boundaries cover staging creation, the first written file, the complete
+staging directory, rename and parent-directory synchronization for first, later
+and never-activated-root histories. Source and binary identities are checked
+before and after each case. The build/readback tools require the ordinary Git
+checkout used by CI, and a successful fault build alone is not runtime evidence.
 The `peer-credential`, `peer-before` and `peer-after` variants cover retained
 credential preparation and unknown sends on either side of witness dispatch.
 The latter two restart the witness before recovering the original send intent.
