@@ -422,6 +422,11 @@ selecting the successor in the registry. The original encrypted head and pending
 work remain unchanged, and normal owners reject the retained root fence.
 `activate_successor` admits the exact prepared target through current registry,
 device, policy and witness checks, including recovery of interrupted binding.
+Until it returns successfully, the recovery owner also owns the target,
+migration owner and new client. Closing it from a publication callback closes
+the current child before further publication or witness requests. The original
+intent remains available for explicit recovery. A successfully returned client
+has its own lifetime, while its supplied account registry must remain alive.
 It returns the normal client without emitting a peer handshake. The successor
 peer fixture then uses this client for authenticated handshake, two-way traffic,
 reopening and rekey against the original native journal. The endpoint receives
@@ -436,6 +441,10 @@ rekey. The native peer and witness remain running during these independent-owner
 cuts; full native process restart, power-loss and cross-platform qualification,
 and closure-bound fence transfer, remain open. Historical proofs alone do not
 grant traffic permission.
+`--root-successor-cancellation` checks closure of the recovery owner and registry
+at six activation boundaries each, then resumes the same target and completes
+peer traffic. It also checks that closing the recovery owner after successful
+return leaves the returned client usable.
 
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential

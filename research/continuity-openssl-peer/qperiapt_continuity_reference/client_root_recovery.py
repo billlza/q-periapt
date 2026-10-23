@@ -169,7 +169,8 @@ class RootRecovery:
 
         Interrupted binding resumes with RootAdoption.open on that same target.
         No bootstrap flight is emitted here; subsequent communication uses the
-        normal client and its current admission checks.
+        normal client and its current admission checks. Until successful return,
+        closing this recovery owner also closes the consumed successor owner.
         """
         from .client_root_adoption import RootAdoption
         from .enrollment_client import EnrollmentClient
@@ -177,7 +178,8 @@ class RootRecovery:
         from .root_child_snapshot import open_child
         from .root_fence import read
         require(type(target) in (EnrollmentClient,RootAdoption),'original successor owner required')
-        adopted=client=None
+        pending=ExitStack()
+        pending.callback(target.close);self._owners.append(pending)
         try:
             require(type(now) is int and 0<=now<1<<64,'explicit successor activation time required')
             self._alive();registry=self._registry();require(registry is not None,'closed account authority owner')
@@ -196,14 +198,19 @@ class RootRecovery:
                     require(fence is not None and fence.receipt is not None,'original child retirement missing')
                 finally:child.close()
             adopted=prepare(target,registry,expected,retained,now,transport)
+            pending.callback(adopted.close);self._alive()
             client=adopted.commit(now,transport=transport)
+            pending.callback(client.close);self._alive()
             with client.session(now,transport=transport) as session:
                 require(session.status()=='Waiting','successor activation found advanced business state')
-            self._alive();registry.admit(expected);client._alive();return client
+            self._alive();registry.admit(expected);client._alive()
+            pending.pop_all()  # The returned client now belongs to the caller.
+            return client
         except BaseException:
-            if client is not None:client.close()
-            if adopted is not None:adopted.close()
-            target.close();self.close();raise
+            self.close();raise
+        finally:
+            pending.close()
+            if pending in self._owners:self._owners.remove(pending)
 
     @coordinated
     def retain_noncommit(self,receipt):

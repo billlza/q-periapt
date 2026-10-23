@@ -21,7 +21,7 @@ def validate(text):
         'cargo build --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml',
     )
     for flag in ('--root-child-inspection', '--root-retirement "$mode"', '--root-retirement-cuts',
-                 '--root-successor "$mode"', '--root-successor-cuts', '--retirement-result'):
+                 '--root-successor "$mode"', '--root-successor-cuts', '--root-successor-cancellation', '--retirement-result'):
         owners = [step for step in steps if flag in step]
         if owners != [consumer]:
             raise ValueError('root checks must share the installed producer step')

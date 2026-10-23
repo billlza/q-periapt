@@ -9,7 +9,7 @@ from qperiapt_continuity_reference.wire import require
 from qperiapt_continuity_reference.witness import TcpTransport
 
 
-def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse,mode,cut=None):
+def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse,mode,cut=None,cancellation=None):
     private=client_path.parent/'root-target';host=(private/'host-key-and-id').read_bytes()
     require(len(host)==64,'original successor host identity')
     target_path=private/'client'
@@ -46,7 +46,7 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse
     else:original=target()
     client=None
     try:
-        cut_record=None
+        cut_record=None;cancel_record=None
         if cut is not None:
             from root_successor_cuts import exercise as process_cut, preserved_orphans
             original.close()
@@ -54,7 +54,17 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse
                 identity=identity,key=key,now=now,address=bridge.address)
             original=(target() if cut==('configuration','stage-synced:intent')
                       else RootAdoption.open(target_path,host[32:],host[:32],registry))
+        elif cancellation is not None:
+            from root_successor_cancel import exercise as cancel_original
+            original.close()
+            recovery,registry,cancel_record=cancel_original(recovery,registry,plan,case=cancellation,
+                bridge=bridge,now=now,private=client_path.parent,identity=identity,key=key)
+            original=RootAdoption.open(target_path,host[32:],host[:32],registry)
         client=recovery.activate_successor(original,now,transport=transport())
+        if cancel_record is not None:
+            recovery.close()  # A successfully returned client now has its own lifetime.
+            require(client.status()['journal']==plan.journal,'returned successor still depends on recovery owner')
+            recovery=reopen()
         status=client.status();require(status['journal']==plan.journal,'successor activation changed journal identity')
         with client.session(now,transport=transport()) as session:
             require(session.status()=='Waiting','successor emitted or accepted bootstrap unexpectedly')
@@ -75,7 +85,8 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse
                         for path,expected in cut_record['preserved_keys'].items()),'successor recovery replaced original keys')
         return recovery,registry,{'completed':True,'mode':mode,'original_genesis_checked':True,'registry_revision':2,
                          'target_journal':plan.journal.hex(),'target_files_unchanged_on_retry':True,
-                         'peer':peer,'process_cut':cut_record,
+                         'peer':peer,'process_cut':cut_record,'cancellation':cancel_record,
+                         'returned_client_independence_checked':cancel_record is not None,
                          'scope':('Actual successor admission and independent/native peer exchange; see peer for transport and recovery scope.'
                                   if peer is not None else 'Actual current witness admission and original child/parent/config binding; no independent successor peer handshake or traffic yet.')}
     except BaseException:
