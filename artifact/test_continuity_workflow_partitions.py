@@ -1,6 +1,9 @@
 """CI partitions must preserve all existing tests and keep their time bounds."""
+import os
 from pathlib import Path
 import re
+import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -22,7 +25,7 @@ def native(text):
     for part, body in (('suite', suite), ('capacity', capacity)):
         if f"if: matrix.partition == '{part}'" not in body:
             raise ValueError('partition execution condition differs')
-        if 'test "$(rg -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1' not in body:
+        if 'test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1' not in body:
             raise ValueError('missing test or overlapping skip must refuse')
     if ('-- --skip "$CAPACITY_TEST" --nocapture' not in suite
             or '--release -- --nocapture' not in suite
@@ -64,10 +67,62 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
         native(self.native)
         independent(self.independent)
 
+    def test_catalog_guards_execute_without_optional_runner_tools(self):
+        # Hosted Linux runners do not promise ripgrep. Execute both actual
+        # workflow guards with only the standard system tools on PATH.
+        guards = [line.strip() for line in self.native.splitlines()
+                  if line.strip().startswith('test "$(')
+                  and 'debug-catalog.txt' in line]
+        self.assertEqual(len(guards), 2)
+        with tempfile.TemporaryDirectory() as directory:
+            catalog = Path(directory) / 'debug-catalog.txt'
+            binaries = Path(directory) / 'bin'
+            binaries.mkdir()
+            (binaries / 'grep').symlink_to('/usr/bin/grep')
+            environment = {**os.environ, 'PATH': str(binaries),
+                           'CAPACITY_TEST': 'module::capacity',
+                           'candidate_log': directory}
+            for content, accepted in (
+                ('module::capacity: test\nmodule::other: test\n', True),
+                ('module::other: test\n', False),
+                ('module::capacity: test\nmodule::capacity_more: test\n', False),
+            ):
+                catalog.write_text(content)
+                for guard in guards:
+                    with self.subTest(content=content, guard=guard):
+                        result = subprocess.run(
+                            ['/bin/bash', '-euo', 'pipefail', '-c', guard],
+                            env=environment, capture_output=True, text=True,
+                            timeout=10, check=False)
+                        self.assertEqual(result.returncode == 0, accepted,
+                                         result.stderr)
+
+    def test_capacity_result_requires_one_executed_passing_test(self):
+        checks = [line.strip() for line in self.native.splitlines()
+                  if line.strip().startswith('grep ')
+                  and 'debug-capacity.log' in line]
+        self.assertEqual(len(checks), 1)
+        with tempfile.TemporaryDirectory() as directory:
+            result_file = Path(directory) / 'debug-capacity.log'
+            for content, accepted in (
+                ('test result: ok. 1 passed; 0 failed; 0 ignored; 1139 filtered out\n', True),
+                ('test result: ok. 0 passed; 0 failed; 0 ignored; 1140 filtered out\n', False),
+                ('test result: FAILED. 0 passed; 1 failed; 0 ignored; 1139 filtered out\n', False),
+                ('test result: ok. 0 passed; 0 failed; 1 ignored; 1139 filtered out\n', False),
+            ):
+                result_file.write_text(content)
+                with self.subTest(content=content):
+                    result = subprocess.run(
+                        ['/bin/bash', '-euo', 'pipefail', '-c', checks[0]],
+                        env={**os.environ, 'PATH': '/usr/bin:/bin',
+                             'candidate_log': directory},
+                        capture_output=True, text=True, timeout=10, check=False)
+                    self.assertEqual(result.returncode == 0, accepted, result.stderr)
+
     def test_missing_capacity_or_silent_skipping_refuses(self):
         for before, after in (("partition: capacity", "partition: omitted"),
                               ('-- --exact --nocapture', '-- --nocapture'),
-                              ('rg -c -F "$CAPACITY_TEST"', 'rg -c -F -x "$CAPACITY_TEST: test"'),
+                              ('grep -c -F "$CAPACITY_TEST"', 'grep -c -F -x "$CAPACITY_TEST: test"'),
                               ('--release -- --nocapture', '--release -- --ignored')):
             changed = self.native.replace(before, after)
             self.assertNotEqual(changed, self.native)

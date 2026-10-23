@@ -2490,7 +2490,7 @@ jobs:
             cargo +"$CANDIDATE_TOOLCHAIN" clippy --manifest-path "$candidate_manifest" --all-targets --no-default-features --features "$candidate_feature" --locked -- -D warnings 2>&1 | tee "$candidate_log/clippy-$candidate_feature.log"
           done
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib -- --list > "$candidate_log/debug-catalog.txt"
-          test "$(rg -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
+          test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- --skip "$CAPACITY_TEST" --nocapture 2>&1 | tee "$candidate_log/debug.log"
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture 2>&1 | tee "$candidate_log/release.log"
       - name: Exercise the complete Debug capacity scenario
@@ -2505,9 +2505,9 @@ jobs:
           rustc +"$CANDIDATE_TOOLCHAIN" -vV > "$candidate_log/rustc.txt"
           candidate_manifest=research/continuity-identity-candidate/Cargo.toml
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib -- --list > "$candidate_log/debug-catalog.txt"
-          test "$(rg -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
+          test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib "$CAPACITY_TEST" -- --exact --nocapture 2>&1 | tee "$candidate_log/debug-capacity.log"
-          rg '^test result: ok\. 1 passed; 0 failed; 0 ignored;' "$candidate_log/debug-capacity.log"
+          grep '^test result: ok\. 1 passed; 0 failed; 0 ignored;' "$candidate_log/debug-capacity.log"
       - name: Verify sealed SDK operations with the selected compiler
         if: matrix.partition == 'suite'
         shell: bash
