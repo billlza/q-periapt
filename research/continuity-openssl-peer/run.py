@@ -26,12 +26,17 @@ def arguments():
 
 
 class Counterpart:
-    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False, short_roster=False, registration=False, registration_extension=False, intermediate_peer=False, account_members=None, enrolled_peer=False, policy_lifecycle=False, policy_composition=False):
+    def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False, short_roster=False, registration=False, registration_extension=False, intermediate_peer=False, account_members=None, enrolled_peer=False, policy_lifecycle=False, policy_composition=False, restartable_successor=False):
+        self.executable = executable
+        self.restartable_successor = restartable_successor
+        self.restarts = []
         self.cases = output / "cases"
         self.cases.mkdir()
         self.stderr = (output / "native.stderr").open("xb")
         try:
             command = [str(executable), str(output / "public")]
+            if restartable_successor:
+                command += ["--restartable-successor"]
             if send_budget is not None:
                 if type(send_budget) is not int or not 0 < send_budget <= 65535:
                     raise ValueError("explicit native send budget")
@@ -109,7 +114,7 @@ class Counterpart:
         # signed controls. Keep them even when the expected result is wrong.
         (self.cases / (name + ".input")).write_bytes(wire)
         (self.cases / (name + ".output")).write_bytes(reply)
-        self.commands.append({"case": name, "command": command, "status": reply[0],
+        self.commands.append({"case": name, "command": command, "status": reply[0], "pid": self.process.pid,
                               "input_sha256": hashlib.sha256(wire).hexdigest(),
                               "output_sha256": hashlib.sha256(reply[1:]).hexdigest(),
                               "error": reply[1:].decode("ascii") if reply[0] == 2 else None})

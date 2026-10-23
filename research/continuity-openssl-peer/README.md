@@ -438,13 +438,28 @@ plus the witness-committed/local-unpublished child boundary. Each fresh worker
 uses the installed package and original keys. Recovery resumes that same target,
 preserves unconsumed staged files and completes the native peer exchange and
 rekey. The native peer and witness remain running during these independent-owner
-cuts; full native process restart, power-loss and cross-platform qualification,
-and closure-bound fence transfer, remain open. Historical proofs alone do not
-grant traffic permission.
+cuts. Historical proofs alone do not grant traffic permission.
 `--root-successor-cancellation` checks closure of the recovery owner and registry
 at six activation boundaries each, then resumes the same target and completes
 peer traffic. It also checks that closing the recovery owner after successful
 return leaves the returned client usable.
+
+`--root-successor-process-restart peer` separately kills and reaps the whole
+native process at ten boundaries: approved target, reply, final, activation,
+received message, retained outbox, consumed acknowledgement, rekey response,
+rekey receipt and epoch-one receive. Each new process opens the original witness
+and device signing owners, sealed reusable prekey reservation and journal. The
+controller replays the exact authenticated handshake to recover its session
+selection; it never provisions another device, journal or witness. Current
+successor approval is rechecked against the original signed retirement, and
+the old operational controller and changed target are refused after restart.
+The `peer-credential`, `peer-before` and `peer-after` variants cover retained
+credential preparation and unknown sends on either side of witness dispatch.
+The latter two restart the witness before recovering the original send intent.
+PID, terminal `SIGKILL` status, original-file hashes and public protocol frames
+are retained in `PROCESS_RESTARTS.json` and `NATIVE.json`. These fixed-clock,
+POSIX process tests do not establish power-loss, mobile or PCS guarantees;
+cross-platform qualification and closure-bound fence transfer remain separate.
 
 `enrollment_extension_session.py` exercises the explicit preinstallation extension
 through the installed client and a native durable peer. The original credential

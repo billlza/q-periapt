@@ -31,6 +31,52 @@ pub(super) struct Witness {
 }
 
 impl Witness {
+    pub fn open(public: &Path, now: u64) -> Result<Arc<Self>> {
+        let path = crate::restart::private_path(public, "private-witness-path")?;
+        let read_id = |name: &str| -> Result<[u8; 32]> {
+            Ok(crate::restart::read(&path.join(name), 32)?
+                .as_slice()
+                .try_into()?)
+        };
+        let identity = AnchorIdentity::from_trusted_state(read_id("witness-id")?)?;
+        let witness_key = SigningKeyId::from_trusted_state(read_id("witness-key-id")?)?;
+        let device_key = SigningKeyId::from_trusted_state(read_id("device-key-id")?)?;
+        let wrapping = JournalKey::open(&path.join("key"))?;
+        let signer = AnchorSigningKey::open(&path.join("witness-signer"), &wrapping, witness_key)?;
+        let store = AnchorStore::open(&path.join("witness.redb"), wrapping, signer, identity)?;
+        let pin = store.pin()?;
+        if pin.public_key().encode() != crate::restart::read(&public.join("pin-witness-key"), 1985)?
+            || identity.as_bytes().as_slice()
+                != crate::restart::read(&public.join("pin-witness-id"), 32)?
+        {
+            return Err("original witness pin changed".into());
+        }
+        Ok(Arc::new(Self {
+            store: Mutex::new(Some(store)),
+            pin,
+            path,
+            witness_key,
+            device_key,
+            now: AtomicU64::new(now),
+        }))
+    }
+
+    pub fn open_device(&self) -> Result<DeviceSigningKey> {
+        Ok(DeviceSigningKey::open(
+            &self.path.join("device-signer"),
+            &JournalKey::open(&self.path.join("key"))?,
+            self.device_key,
+        )?)
+    }
+
+    pub fn prekey(
+        &self,
+        runtime: &q_periapt_sdk::Runtime,
+        create: bool,
+    ) -> Result<q_periapt_sdk::HybridKey> {
+        crate::restart::prekey(&self.path, runtime, create)
+    }
+
     pub fn approve_credential_under_policy(
         &self,
         proposal: AnchorCredentialRenewalProposal,

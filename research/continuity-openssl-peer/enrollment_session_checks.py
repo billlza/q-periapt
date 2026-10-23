@@ -43,6 +43,7 @@ def exercise(args, label):
                          required_witness=label == 'witness',
                          account_members=3 if inspection_kind in ('roster', 'policy') else None,
                          enrolled_peer=inspection_kind in ('roster', 'policy'),
+                         restartable_successor=args.root_successor_process_restart is not None,
                          policy_lifecycle=inspection_kind == 'policy')
     client = None; bridge = None; registry = None; root_bound = False; refusals = []; observed = []
     encode = lambda value: json.dumps(value, separators=(',', ':')).encode()
@@ -315,6 +316,7 @@ def main():
     root_mode.add_argument('--root-successor-cuts',nargs='?',const='all',
                           choices=('all','configuration','child','registration','ready','activation'))
     root_mode.add_argument('--root-successor-cancellation',nargs='?',const='all',choices=('all','owner','registry'))
+    root_mode.add_argument('--root-successor-process-restart', choices=('peer','peer-credential','peer-before','peer-after'))
     root_mode.add_argument('--root-child-inspection', choices=('steady', 'ordinary-before', 'ordinary-after',
                                                              'credential', 'credential-terminal', 'credential-closed',
                                                              'roster', 'roster-terminal', 'roster-closed',
@@ -322,6 +324,7 @@ def main():
                                                              'partial', 'partial-bound', 'partial-intent',
                                                              'tamper-head', 'tamper-binding', 'tamper-intent'))
     args = parser.parse_args(); args.implementation_root = args.implementation_root.resolve(strict=True)
+    if args.root_successor_process_restart is not None:args.root_successor=args.root_successor_process_restart
     if args.root_retirement is not None: args.root_child_inspection=args.root_retirement
     if args.root_successor is not None:
         args.root_retirement=args.root_child_inspection='credential' if args.root_successor in ('credential','peer-credential') else 'steady'

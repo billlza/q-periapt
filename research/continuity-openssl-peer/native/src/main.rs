@@ -19,6 +19,7 @@ mod policy_lifecycle;
 mod prekey_refresh;
 mod registration;
 mod resolution;
+mod restart;
 mod witness;
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 const NOW: u64 = 150;
@@ -72,8 +73,22 @@ fn main() -> Result<()> {
     let mut enrolled_peer = false;
     let mut policy_lifecycle = false;
     let mut policy_composition = false;
+    let mut restartable_successor = false;
+    let mut resume_successor = None;
     while let Some(flag) = args.next() {
         match flag.to_str() {
+            Some("--restartable-successor") if !restartable_successor => {
+                restartable_successor = true
+            }
+            Some("--resume-successor") if resume_successor.is_none() => {
+                resume_successor = Some(
+                    args.next()
+                        .ok_or("missing restart time")?
+                        .to_str()
+                        .ok_or("non-UTF8 restart time")?
+                        .parse::<u64>()?,
+                );
+            }
             Some("--send-budget") => {
                 budget = args
                     .next()
@@ -135,7 +150,36 @@ fn main() -> Result<()> {
     if policy_composition && !policy_lifecycle {
         return Err("policy composition requires its policy lifecycle fixture".into());
     }
+    if restartable_successor
+        && (!required
+            || !registration
+            || !local_lifecycle
+            || enrolled_peer
+            || extension
+            || peer_lifecycle
+            || short_roster)
+    {
+        return Err("restart requires the separate witnessed local-credential fixture".into());
+    }
+    if resume_successor.is_some()
+        && (required
+            || registration
+            || restartable_successor
+            || local_lifecycle
+            || peer_lifecycle
+            || enrolled_peer
+            || account_members.is_some()
+            || extension
+            || policy_lifecycle
+            || short_roster
+            || intermediate_peer
+            || policy_composition
+            || budget != 1024)
+    {
+        return Err("resume cannot provision another fixture".into());
+    }
     let options = fixture::Options {
+        restartable_successor,
         budget,
         peer_lifecycle,
         intermediate_peer,
@@ -149,29 +193,33 @@ fn main() -> Result<()> {
     };
     let times = options.times();
     let directory = Path::new(&path);
-    fs::create_dir(directory)?;
     let mut input = io::stdin().lock();
     let mut output = io::stdout().lock();
-    let (peer_key, registration) = if registration {
-        let pending = registration::Pending::new(
-            local_lifecycle,
-            peer_lifecycle,
-            extension,
-            policy_lifecycle,
-            policy_composition,
-        )?;
-        send(&mut output, 1, pending.independent_intent())?;
-        let accepted = pending.accept(&receive(&mut input, false)?)?;
-        (accepted.public.clone(), Some(accepted))
+    let fixture = if let Some(now) = resume_successor {
+        restart::fixture(directory, now)?
     } else {
-        (PublicKey::decode(&receive(&mut input, false)?)?, None)
+        fs::create_dir(directory)?;
+        let (peer_key, registration) = if registration {
+            let pending = registration::Pending::new(
+                local_lifecycle,
+                peer_lifecycle,
+                extension,
+                policy_lifecycle,
+                policy_composition,
+            )?;
+            send(&mut output, 1, pending.independent_intent())?;
+            let accepted = pending.accept(&receive(&mut input, false)?)?;
+            (accepted.public.clone(), Some(accepted))
+        } else {
+            (PublicKey::decode(&receive(&mut input, false)?)?, None)
+        };
+        let witness = if required {
+            Some(witness::Witness::create(directory, times.bootstrap)?)
+        } else {
+            None
+        };
+        fixture::create(directory, peer_key, options, witness, registration)?
     };
-    let witness = if required {
-        Some(witness::Witness::create(directory, times.bootstrap)?)
-    } else {
-        None
-    };
-    let fixture = fixture::create(directory, peer_key, options, witness, registration)?;
     let mut operation = ResponderOperation::new(Arc::clone(&fixture.context));
     let mut durable: Option<journal::Journal> = None;
     let mut successor: Option<journal::Journal> = None;
@@ -179,6 +227,14 @@ fn main() -> Result<()> {
     loop {
         let frame = receive(&mut input, true)?;
         let (&command, payload) = frame.split_first().ok_or("empty frame")?;
+        if resume_successor.is_some() && !matches!(command, 3 | 31..=33 | 50..=53) {
+            send(
+                &mut output,
+                2,
+                b"resumed fixture only admits its original successor",
+            )?;
+            continue;
+        }
         let result = match command {
             45 => prekey_refresh::issue(&fixture, payload).map_err(|error| error.to_string()),
             50 | 51 => fixture
@@ -188,6 +244,11 @@ fn main() -> Result<()> {
                 .root_command(&fixture, command, payload)
                 .map_err(|error| error.to_string()),
             52 => (|| -> Result<Vec<u8>> {
+                if resume_successor.is_some()
+                    && restart::read(&directory.join("root-successor/control"), 32768)? != payload
+                {
+                    return Err("restart cannot select another successor".into());
+                }
                 let (context, now) = fixture
                     .witness
                     .as_ref()
@@ -197,6 +258,13 @@ fn main() -> Result<()> {
                     if !owner.matches_context(&context, now) {
                         return Err("successor peer control cannot retarget existing owner".into());
                     }
+                } else if resume_successor.is_some() {
+                    successor = Some(journal::Journal::open_successor(
+                        &fixture,
+                        directory,
+                        Arc::clone(&context),
+                        now,
+                    )?);
                 } else {
                     let output = directory.join("root-successor");
                     fs::create_dir(&output)?;
@@ -205,6 +273,7 @@ fn main() -> Result<()> {
                         .ok_or("successor peer requires original native journal")?
                         .select_successor(&output, Arc::clone(&context), now)?;
                     successor = durable.take();
+                    fixture::save(&output, "control", payload)?;
                 }
                 Ok(context.digest().to_vec())
             })()

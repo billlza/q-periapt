@@ -76,6 +76,7 @@ fn runtime(directory: &Path) -> Result<Arc<Runtime>> {
 }
 
 pub(super) struct Options {
+    pub restartable_successor: bool,
     pub budget: u16,
     pub peer_lifecycle: bool,
     pub intermediate_peer: bool,
@@ -117,6 +118,7 @@ pub(super) fn create(
 ) -> Result<Fixture> {
     let times = options.times();
     let Options {
+        restartable_successor,
         budget,
         peer_lifecycle,
         intermediate_peer,
@@ -323,7 +325,20 @@ pub(super) fn create(
     };
     let initiator = devices.first().ok_or("missing initiator")?;
     let responder = devices.get(1).ok_or("missing responder")?;
-    let key = runtime.generate_key()?;
+    let key = if restartable_successor {
+        save(
+            directory,
+            "restart-bootstrap-time",
+            &times.bootstrap.to_be_bytes(),
+        )?;
+        save(directory, "pin-policy-family", &family)?;
+        witness
+            .as_ref()
+            .ok_or("restart requires original witness")?
+            .prekey(&runtime, true)?
+    } else {
+        runtime.generate_key()?
+    };
     let public = key.public_key()?.to_bytes();
     let (pq, classical) = public.split_at(q_periapt_backends::ML_KEM_768_PK_LEN);
     let advertisement = if extension || intermediate_peer {

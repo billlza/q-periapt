@@ -114,6 +114,48 @@ fn control(step: RekeyControlStep) -> Vec<u8> {
 }
 
 impl Journal {
+    pub(super) fn open_successor(
+        fixture: &Fixture,
+        public: &Path,
+        context: Arc<BootstrapContext>,
+        now: u64,
+    ) -> Result<Self> {
+        let path = crate::restart::private_path(public, "private-fixture-path")?;
+        if path
+            != crate::restart::private_path(&public.join("root-successor"), "private-fixture-path")?
+        {
+            return Err("successor journal differs from original native journal".into());
+        }
+        let identity = JournalIdentity::from_trusted_state(
+            crate::restart::read(&path.join("identity"), 32)?
+                .as_slice()
+                .try_into()?,
+        )?;
+        let witness = fixture
+            .witness
+            .as_ref()
+            .ok_or("restart requires original witness")?;
+        let owner = DeviceJournal::open_anchored(
+            &path.join("journal"),
+            JournalKey::open(&path.join("key"))?,
+            &fixture.responder,
+            context.current_policy()?,
+            identity,
+            witness.client()?,
+        )?;
+        Ok(Self {
+            owner: Owner::Raw(Box::new(owner)),
+            context,
+            now,
+            bootstrap_time: now,
+            path,
+            identity,
+            initial: None,
+            session: None,
+            policy_version: None,
+        })
+    }
+
     pub(super) fn create(fixture: &Fixture, public: &Path) -> Result<Self> {
         if let Some(configuration) = &fixture.enrolled_peer {
             let mut active = configuration.initialize(fixture)?;

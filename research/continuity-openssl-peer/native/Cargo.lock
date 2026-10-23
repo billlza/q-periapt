@@ -692,6 +692,7 @@ dependencies = [
  "q-periapt-backends",
  "q-periapt-continuity-identity-candidate",
  "q-periapt-core",
+ "q-periapt-host-store",
  "q-periapt-policy",
  "q-periapt-sdk",
  "q-periapt-sig",

@@ -42,15 +42,24 @@ def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse):
                     expected=b'original peer controller retired; use successor commands')
         require(bridge.call('successor-control-exact-retry',52,request)==context.digest
                 and original_path.read_bytes()==native_private,'successor approval replaced native store')
+        from native_restart import SuccessorRestarts
+        restarts=SuccessorRestarts(bridge,now,request,context.digest)
+        restarts.at('approved')
         with client.session(now,transport=transport()) as child:
             initial=child.initial(now=now)
             reply=call('initial',4,initial)
+            restarts.initial,restarts.reply=initial,reply
+            restarts.at('reply')
             call('reopen-reply',12,expected=b'reopened')
             require(call('initial-replay',4,initial)==reply,'successor native reply changed on reopen')
             final=child.finish(reply,now=now)
             session=call('finish',5,final)
+            restarts.final,restarts.session=final,session
+            restarts.at('final')
             require(child.activate(now=now)==session,'successor session identity differs')
             call('activate',6,expected=session)
+            restarts.active=True
+            restarts.at('active')
             proof=call('ready-proof',13)
         require(client.confirm_connection(session,proof,now,transport=transport())==session,
                 'successor peer confirmation was not retained')
@@ -66,6 +75,7 @@ def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse):
                 refuse('successor-send-unknown-'+mode,lambda:child.send(identity,message,ad,now=now),
                        'truncated witness reply')
             client.close()
+            restarts.at('unknown-send')
             intent=(image.child.path/'intent').read_bytes()
             require(intent.startswith(b'QPREFI01'),'unknown successor send lost exact intent')
             size=int.from_bytes(intent[48:52],'big');target=intent[52:52+size]
@@ -88,6 +98,7 @@ def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse):
             with client.connection_session(now,transport=transport()) as child:
                 ciphertext=child.send(identity,message,ad,now=now)
         call('receive',7,application(ad,ciphertext),message)
+        restarts.at('receive')
         call('reopen-receive',12,expected=b'reopened')
         call('receive-duplicate',7,application(ad,ciphertext),message)
         ack=call('consume',10,identity)
@@ -95,6 +106,7 @@ def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse):
             require(child.accept_acknowledgement(ack,now=now)==1,'successor outgoing consumption prefix')
         incoming_id=call('next',8)
         incoming=call('send',9,incoming_id+application(ad,b'original native successor response'))
+        restarts.at('outbox')
         call('reopen-outbox',12,expected=b'reopened')
         require(call('send-replay',9,incoming_id+application(ad,b'original native successor response'))==incoming,
                 'successor native original outbox changed')
@@ -105,24 +117,32 @@ def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse):
                     'successor duplicate incoming differs')
             ack=child.consume(incoming_id,now=now)
         call('accept-ack',11,ack,(1).to_bytes(8,'big'))
+        restarts.at('ack')
         client.close();client=reopen()
         call('reopen-ack',12,expected=b'reopened')
         with client.connection_session(now,transport=transport()) as child:
             require(child.connection_identity(now=now)==session,'successor reopening changed session')
             offer=child.prepare_rekey_offer(now=now);response=call('rekey-response',14,offer)
+            restarts.at('rekey-response')
+            require(call('rekey-response-replay',14,offer)==response,'native restart changed rekey response')
             final=child.accept_rekey_response(response,now=now);receipt=call('rekey-receipt',15,final)
+            restarts.at('rekey-receipt')
+            require(call('rekey-receipt-replay',15,final)==receipt,'native restart changed rekey receipt')
             require(child.accept_rekey_receipt(receipt,now=now)==1,'successor rekey did not reach epoch one')
             next_id=child.next_id(now=now)
             encrypted=child.send(next_id,b'after successor rekey',ad,now=now)
             call('receive-new-epoch',7,application(ad,encrypted),b'after successor rekey')
+            restarts.at('new-epoch')
+            call('receive-new-epoch-replay',7,application(ad,encrypted),b'after successor rekey')
         require(original_path.read_bytes()==native_private,'successor native storage path changed')
         require(bridge.call('successor-control-after-traffic',52,request)==context.digest,
                 'successor control retry changed active context')
         return {'completed':True,'mode':mode,'context':context.digest.hex(),'session':session.hex(),
                 'directions':2,'peer_confirmation_retained':True,'root_revision':2,'rekey_epoch':1,
                 'native_reopens':4,'unknown_send_reservation_sha256':pending_digest,
+                'native_process_restarts':bridge.native.restarts,
                 'completed_send_head_sha256':completed_digest,'native_control_refusals':5,
                 'native_original_journal_retained':True,
                 'native_private_path_file':str(original_path),
-                'scope':'Installed independent client versus original native persistent peer: explicit approved root target, authenticated handshake, two-way traffic, exact replay, consumption, reopening and rekey. Native control pipe is test orchestration; no process restart, power-loss, mobile or PCS claim.'}
+                'scope':'Installed independent client versus original native persistent peer: approved root target, authenticated handshake, two-way traffic, exact replay, consumption, reopening and rekey. Process restarts are counted separately with actual PID/SIGKILL and preserved-file receipts. Native control pipe is test orchestration; no power-loss, mobile or PCS claim.'}
     finally:client.close()
