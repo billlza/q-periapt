@@ -139,7 +139,7 @@ def exercise(registry, plan, predecessor, original_plan, *, private, host, now, 
                 'original_prepared_third_root_activated': True, 'activation_retry_unchanged': True,
                 'peer': peer, 'native_preserved_files': native_preserved,
                 'registry_head_sha256': hashlib.sha256((private / 'account-registry/head').read_bytes()).hexdigest(),
-                'scope': ('Actual root3 independent/native handshake, two-way traffic, replay and rekey in the original native journal; old controllers and a prior-root ciphertext are refused. No later native full-process restart, power-loss or PCS claim.'
+                'scope': ('Actual root3 independent/native handshake, two-way traffic, replay and rekey in the original native journal; old controllers and a prior-root ciphertext are refused. Native full-process restarts are counted separately with actual PID/SIGKILL and preserved-file receipts. No power-loss or PCS claim.'
                           if peer is not None else 'Actual native witness commits the second-to-third root transition after original successor traffic, then the installed client retains both retirement fences and admits the original prepared third root. Any actual SIGKILL boundary is recorded separately. No third-root peer traffic, power-loss or PCS claim.')}
     except BaseException:
         registry.close(); raise

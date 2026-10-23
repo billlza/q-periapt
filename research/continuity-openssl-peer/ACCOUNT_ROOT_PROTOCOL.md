@@ -328,8 +328,7 @@ requires both the exact committed replacement and the previous account from
 its already authenticated peer context. It preserves the original controller
 frame bound and native identity, wrapping keys, signer files and prior approval.
 Prekeys in this non-restart fixture remain in memory; the signed selections are
-checked against that original native key. A later native process restart is a
-separate qualification and cannot use the first-successor restart controller.
+checked against that original native key.
 
 The scenario performs fresh mutual handshake and retained confirmation, both
 message directions, exact replay, consumption, original-journal reopening and
@@ -338,6 +337,20 @@ cannot restore the second root, and an actual second-root ciphertext fails
 authentication under the third-root context without preventing new traffic.
 This checks an explicitly approved peer switch, not asynchronous global
 revocation or a new root-distribution protocol.
+
+The opt-in `--root-successor-process-restart peer-root-continuation` variant
+persists the original sealed prekey reservation and restarts both successive
+peers at ten actual process boundaries each. Before the third root is prepared,
+its predecessor's advertisement is allowed to expire while the established
+connection remains authorized. A fresh advertisement is still required for the
+third-root handshake; replaying the expired signed advertisement is rejected.
+On restart, the retained latest approval selects the original journal. Missing
+later metadata fails closed instead of falling back to the previous controller.
+Historical lineage is checked against the signed committed root transition,
+without granting a live session from the predecessor's expired advertisement.
+The previous controller remains retired in every resumed process. These are
+explicit fixture-clock and process-termination tests, not physical power-loss
+durability or general credential/policy expiry recovery.
 
 Still separate: full successor process-cut and cancellation coverage,
 cross-platform root lifecycle qualification, closure-bound transfer of an existing

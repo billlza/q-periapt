@@ -36,6 +36,9 @@ def validate(text):
         raise ValueError('later root committed replacement must run exactly once')
     if successor_modes.count('peer-root-continuation') != 1:
         raise ValueError('later root independent traffic must run exactly once')
+    restart_modes = consumer.split('--root-successor-process-restart "$mode"', 1)[0].rsplit('for mode in ', 1)[1].split('; do', 1)[0].split()
+    if restart_modes != ['peer', 'peer-credential', 'peer-before', 'peer-after', 'peer-root-continuation']:
+        raise ValueError('original and later root process restarts must each run exactly once')
     for required in ('for phase in bind retire; do', '--root-successor-later-cuts "$phase"',
                      'later_cut_pids+=("$!")', 'for later_cut_pid in "${later_cut_pids[@]}"; do',
                      'if ! wait "$later_cut_pid"; then later_cut_status=1; fi', 'test "$later_cut_status" -eq 0'):
@@ -85,6 +88,14 @@ class ReferenceAccountWorkflowTests(unittest.TestCase):
             changed = self.text.replace(before, after)
             self.assertNotEqual(changed, self.text)
             with self.assertRaisesRegex(ValueError, 'cut groups must finish and propagate failures'):
+                validate(changed)
+
+    def test_later_root_restart_cannot_be_omitted_or_repeated(self):
+        loop = 'for mode in peer peer-credential peer-before peer-after peer-root-continuation; do'
+        for replacement in ('', 'peer-root-continuation peer-root-continuation'):
+            changed = self.text.replace(loop, loop.replace('peer-root-continuation', replacement))
+            self.assertNotEqual(changed, self.text)
+            with self.assertRaisesRegex(ValueError, 'process restarts must each run exactly once'):
                 validate(changed)
 
 

@@ -318,7 +318,7 @@ def main():
     root_mode.add_argument('--root-successor-cuts',nargs='?',const='all',
                           choices=('all','configuration','child','registration','ready','activation'))
     root_mode.add_argument('--root-successor-cancellation',nargs='?',const='all',choices=('all','owner','registry'))
-    root_mode.add_argument('--root-successor-process-restart', choices=('peer','peer-credential','peer-before','peer-after'))
+    root_mode.add_argument('--root-successor-process-restart', choices=('peer','peer-credential','peer-before','peer-after','peer-root-continuation'))
     root_mode.add_argument('--root-successor-later-cuts', nargs='?', const='all', choices=('all','bind','retire'))
     root_mode.add_argument('--root-child-inspection', choices=('steady', 'ordinary-before', 'ordinary-after',
                                                              'credential', 'credential-terminal', 'credential-closed',

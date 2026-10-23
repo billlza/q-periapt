@@ -358,7 +358,7 @@ jobs:
               --output "$PWD/target/reference-account-ci/root-successor-$mode" \
               > "target/reference-account-ci/root-successor-$mode.stdout" 2> "target/reference-account-ci/root-successor-$mode.stderr"
           done
-          for mode in peer peer-credential peer-before peer-after; do
+          for mode in peer peer-credential peer-before peer-after peer-root-continuation; do
             sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
               --implementation-root "$installed_reference/installed" --provider-root "$RUNNER_TEMP/reference-provider" \
               --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-successor-process-restart "$mode" \

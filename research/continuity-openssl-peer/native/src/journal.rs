@@ -119,12 +119,22 @@ impl Journal {
         public: &Path,
         context: Arc<BootstrapContext>,
         now: u64,
+        later: bool,
     ) -> Result<Self> {
         let path = crate::restart::private_path(public, "private-fixture-path")?;
         if path
             != crate::restart::private_path(&public.join("root-successor"), "private-fixture-path")?
         {
             return Err("successor journal differs from original native journal".into());
+        }
+        if later
+            && path
+                != crate::restart::private_path(
+                    &public.join("root-successor-later"),
+                    "private-fixture-path",
+                )?
+        {
+            return Err("later successor journal differs from original native journal".into());
         }
         let identity = JournalIdentity::from_trusted_state(
             crate::restart::read(&path.join("identity"), 32)?

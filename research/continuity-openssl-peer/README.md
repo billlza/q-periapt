@@ -482,7 +482,12 @@ uses the third root for actual mutual handshake, two-way messages, replay,
 consumption, reopening and rekey against that same native journal. Old controllers
 and a second-root ciphertext are refused while third-root traffic remains usable.
 Original native persisted keys and prior approvals stay unchanged; this fixture
-keeps its prekey in memory. Later native full-process restart, power loss and PCS
+keeps its prekey in memory. The opt-in
+`--root-successor-process-restart peer-root-continuation` variant persists the
+original sealed prekey and executes ten actual native process restarts for each
+successive peer. It advances past the predecessor advertisement's expiry before
+preparing the third root, requires fresh handshake materials, and refuses old
+controllers after restarting. Power loss, general expiry recovery and PCS
 remain separate qualifications.
 
 `enrollment_extension_session.py` exercises the explicit preinstallation extension

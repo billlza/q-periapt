@@ -7,7 +7,7 @@ use crate::{
     Result,
 };
 use q_periapt_continuity_identity_candidate::{
-    AccountPin, BootstrapContext, ClassicalChoice, DirectoryExpectation, LeafProof,
+    AccountPin, BootstrapContext, BootstrapRole, ClassicalChoice, DirectoryExpectation, LeafProof,
     PolicyCheckpoint, PolicyPin, PqChoice, PublicKey, RosterCheckpoint, VerifiedDevice,
 };
 use q_periapt_core::ZeroizingBytes;
@@ -40,6 +40,48 @@ pub(super) fn private_path(public: &Path, name: &str) -> Result<PathBuf> {
         return Err("original private path must be canonical".into());
     }
     Ok(path)
+}
+
+pub(super) struct Selection {
+    pub control: Vec<u8>,
+    pub previous: [u8; 32],
+    pub later: bool,
+}
+
+impl Selection {
+    pub(super) fn open(fixture: &Fixture, public: &Path) -> Result<Self> {
+        let first = read(&public.join("root-successor/control"), 32768)?;
+        let original = fixture
+            .context
+            .device(BootstrapRole::Initiator)
+            .account_id();
+        let later = public.join("root-successor-later");
+        if !later.try_exists()? {
+            return Ok(Self {
+                control: first,
+                previous: original,
+                later: false,
+            });
+        }
+        // A retained later selection must be complete. Never fall back to the
+        // previous controller if its metadata is missing, corrupt, or unreadable.
+        let control = read(&later.join("control"), 32768)?;
+        if private_path(&later, "private-fixture-path")?
+            != private_path(public, "private-fixture-path")?
+        {
+            return Err("later successor journal differs from original native journal".into());
+        }
+        let previous = fixture
+            .witness
+            .as_ref()
+            .ok_or("restart requires original witness")?
+            .successor_account(fixture, &first, original)?;
+        Ok(Self {
+            control,
+            previous,
+            later: true,
+        })
+    }
 }
 
 pub(super) fn prekey(path: &Path, runtime: &Runtime, create: bool) -> Result<HybridKey> {

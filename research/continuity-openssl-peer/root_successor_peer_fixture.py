@@ -11,7 +11,8 @@ from traffic_checks import application
 
 def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse,previous_traffic=None):
     later=previous_traffic is not None
-    require(not later or not bridge.native.restartable_successor,'later peer process restart not configured')
+    restart_offset=len(bridge.native.restarts)
+    expired_prekeys=previous_traffic.get('expired_prekeys') if later else None
     tag='later-successor' if later else 'successor'
     approval,traffic=(56,57) if later else (52,53)
     def transport():return TcpTransport(bridge.address)
@@ -36,6 +37,9 @@ def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse,pr
         bad=bytearray(materials.manifest);bad[-65]^=1
         bridge.call(tag+'-control-invalid-manifest',approval,prefix+field(bytes(bad))
                     +field(materials.classical_proof)+field(materials.pq_proof),status=2)
+        if expired_prekeys is not None:
+            bridge.call(tag+'-control-expired-advertisement',approval,
+                        prefix+b''.join(field(value) for value in expired_prekeys),status=2)
         require(not public.exists(),'rejected successor control created an endpoint')
         require(bridge.call(tag+'-control-approved',approval,request)==context.digest,
                 'independent/native successor context differs')
@@ -44,7 +48,8 @@ def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse,pr
         require(native_private==(public.parent/'private-fixture-path').read_bytes(),
                 'successor peer replaced the original native journal')
         bridge.call(tag+'-retired-original-controller',8,status=2,
-                    expected=b'original peer controller retired; use successor commands')
+                    expected=(b'resumed fixture only admits its original successor' if bridge.native.restarts
+                              else b'original peer controller retired; use successor commands'))
         if later:
             bridge.call(tag+'-retired-previous-controller',53,b'\x08',status=2,
                         expected=b'previous successor controller retired')
@@ -54,7 +59,7 @@ def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse,pr
         require(bridge.call(tag+'-control-exact-retry',approval,request)==context.digest
                 and original_path.read_bytes()==native_private,'successor approval replaced native store')
         from native_restart import SuccessorRestarts
-        restarts=SuccessorRestarts(bridge,now,request,context.digest)
+        restarts=SuccessorRestarts(bridge,now,request,context.digest,later=later)
         restarts.at('approved')
         with client.session(now,transport=transport()) as child:
             initial=child.initial(now=now)
@@ -157,8 +162,10 @@ def exercise(client,recovery,registry,plan,*,bridge,now,path,host,mode,refuse,pr
                 'directions':2,'peer_confirmation_retained':True,'root_revision':3 if later else 2,'rekey_epoch':1,
                 'first_ciphertext':ciphertext.hex(),'first_ad':ad.hex(),'previous_root_traffic_refused':later,
                 'native_reopens':4,'unknown_send_reservation_sha256':pending_digest,
-                'native_process_restarts':bridge.native.restarts,
-                'completed_send_head_sha256':completed_digest,'native_control_refusals':7 if later else 5,
+                'native_process_restarts':bridge.native.restarts[restart_offset:],
+                'completed_send_head_sha256':completed_digest,
+                'native_control_refusals':(7 if later else 5)+int(expired_prekeys is not None),
+                'expired_previous_advertisement_refused':expired_prekeys is not None,
                 'native_original_journal_retained':True,
                 'native_private_path_file':str(original_path),
                 'scope':'Installed independent client versus original native persistent peer: approved root target, authenticated handshake, two-way traffic, exact replay, consumption, reopening and rekey. Process restarts are counted separately with actual PID/SIGKILL and preserved-file receipts. Native control pipe is test orchestration; no power-loss, mobile or PCS claim.'}

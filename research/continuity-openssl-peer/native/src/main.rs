@@ -221,14 +221,22 @@ fn main() -> Result<()> {
         fixture::create(directory, peer_key, options, witness, registration)?
     };
     let mut operation = ResponderOperation::new(Arc::clone(&fixture.context));
+    let resumed = if resume_successor.is_some() {
+        Some(restart::Selection::open(&fixture, directory)?)
+    } else {
+        None
+    };
     let mut durable: Option<journal::Journal> = None;
     let mut successor: Option<journal::Journal> = None;
-    let mut later_successor = None;
+    let mut later_successor = resumed
+        .as_ref()
+        .filter(|selected| selected.later)
+        .map(|selected| selected.previous);
     send(&mut output, 1, b"ready")?;
     loop {
         let frame = receive(&mut input, true)?;
         let (&command, payload) = frame.split_first().ok_or("empty frame")?;
-        if resume_successor.is_some() && !matches!(command, 3 | 31..=33 | 50..=53) {
+        if resume_successor.is_some() && !matches!(command, 3 | 31..=33 | 45 | 50..=57) {
             send(
                 &mut output,
                 2,
@@ -249,18 +257,19 @@ fn main() -> Result<()> {
                 if !later && later_successor.is_some() {
                     return Err("previous successor controller retired".into());
                 }
-                if resume_successor.is_some()
-                    && restart::read(&directory.join("root-successor/control"), 32768)? != payload
-                {
-                    return Err("restart cannot select another successor".into());
+                if let Some(selected) = &resumed {
+                    if later == selected.later && selected.control != payload {
+                        return Err("restart cannot select another successor".into());
+                    }
                 }
                 let expected = if later {
-                    later_successor.unwrap_or(
-                        successor
+                    match later_successor {
+                        Some(previous) => previous,
+                        None => successor
                             .as_ref()
                             .ok_or("later successor before original peer")?
                             .peer_account(),
-                    )
+                    }
                 } else {
                     fixture
                         .context
@@ -292,6 +301,7 @@ fn main() -> Result<()> {
                         directory,
                         Arc::clone(&context),
                         now,
+                        later,
                     )?);
                 } else {
                     let output = directory.join("root-successor");

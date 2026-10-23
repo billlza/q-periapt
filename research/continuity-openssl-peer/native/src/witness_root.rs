@@ -25,6 +25,16 @@ impl<'a> Input<'a> {
         }
         self.take(count)
     }
+
+    fn peer_materials(&mut self) -> Result<(&'a [u8], LeafProof, LeafProof)> {
+        let manifest = self.field(8192)?;
+        let classical = LeafProof::decode(self.field(2048)?)?;
+        let pq = LeafProof::decode(self.field(2048)?)?;
+        if !self.0.is_empty() {
+            return Err("successor peer control trailing data".into());
+        }
+        Ok((manifest, classical, pq))
+    }
 }
 
 struct Target {
@@ -117,25 +127,17 @@ fn approved_previous(
 }
 
 impl Witness {
-    /// Explicit test-controller approval; ordinary session bytes cannot call this.
-    pub(crate) fn successor_context(
+    fn retired_target<'a>(
         &self,
         fixture: &Fixture,
-        payload: &[u8],
+        payload: &'a [u8],
         previous: [u8; 32],
-    ) -> Result<(Arc<BootstrapContext>, u64, [u8; 32])> {
+    ) -> Result<(Target, Input<'a>)> {
         let mut input = Input(payload);
-        let now = self.now.load(Ordering::SeqCst);
         let mut guard = self.store.lock().map_err(|_| "witness lock poisoned")?;
         let store = guard.as_mut().ok_or("closed witness")?;
         let target = Target::read(&mut input, fixture, &self.pin, previous)?;
         let proposal = AnchorAccountReplacementProposal::from_trusted_state(input.field(65536)?)?;
-        let manifest = input.field(8192)?;
-        let classical = LeafProof::decode(input.field(2048)?)?;
-        let pq = LeafProof::decode(input.field(2048)?)?;
-        if !input.0.is_empty() {
-            return Err("successor peer control trailing data".into());
-        }
         if store.account_root_replacement_status(&proposal)?
             != AnchorAccountReplacementState::Committed
         {
@@ -145,6 +147,33 @@ impl Witness {
         target
             .plan
             .verify_retirement(&self.pin.verify_retired_account(&proposal, &receipt)?)?;
+        Ok((target, input))
+    }
+
+    pub(crate) fn successor_account(
+        &self,
+        fixture: &Fixture,
+        payload: &[u8],
+        previous: [u8; 32],
+    ) -> Result<[u8; 32]> {
+        let (target, mut input) = self.retired_target(fixture, payload, previous)?;
+        input.peer_materials()?;
+        // Only the signed, committed account transition establishes lineage.
+        // Its old advertisement need not still authorize a new handshake, and
+        // this historical lookup never admits a context or opens a journal.
+        Ok(target.device.account_id())
+    }
+
+    /// Explicit test-controller approval; ordinary session bytes cannot call this.
+    pub(crate) fn successor_context(
+        &self,
+        fixture: &Fixture,
+        payload: &[u8],
+        previous: [u8; 32],
+    ) -> Result<(Arc<BootstrapContext>, u64, [u8; 32])> {
+        let (target, mut input) = self.retired_target(fixture, payload, previous)?;
+        let (manifest, classical, pq) = input.peer_materials()?;
+        let now = self.now.load(Ordering::SeqCst);
         let verified = fixture.responder.verify_manifest(manifest, now)?;
         let selection = verified.select_prekeys(
             &classical,

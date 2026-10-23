@@ -30,6 +30,7 @@ def exercise(recovery, registry, plan, *, bridge, now, client_path, identity, ke
     expected = registry.current(recovery._binding.application)
     require(expected.revision == 2 and expected.account == plan.successor.account,
             'later preparation requires the original selected successor')
+    advertisement_until = None
 
     def snapshot():
         return {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
@@ -41,6 +42,15 @@ def exercise(recovery, registry, plan, *, bridge, now, client_path, identity, ke
             _, image = client._registration._image()
             inputs = image.child.inputs
             context = inputs.original(image.child.context, now)
+            if previous_traffic is not None and bridge.native.restartable_successor:
+                advertisement_until = max(interval.end for interval in context.intervals[5:])
+                now = max(now, advertisement_until + 1)
+                context.check_established(now)
+                refuse('later-root-expired-predecessor-advertisement', lambda: inputs.current(now),
+                       'expired or premature authority')
+                previous_traffic = dict(previous_traffic, expired_prekeys=(
+                    inputs.materials.manifest, inputs.materials.classical_proof, inputs.materials.pq_proof))
+                bridge.call('later-root-advance-clock', 33, now.to_bytes(8, 'big'), b'witness clock set')
             fresh = bridge.call('later-root-fresh-peer-materials', 45, now.to_bytes(8, 'big'))
             following = private / 'later-root'; following.mkdir(mode=0o700)
             later = prepare(following, expected.application, inputs.pins, inputs.materials,
@@ -102,6 +112,7 @@ def exercise(recovery, registry, plan, *, bridge, now, client_path, identity, ke
                                                previous_traffic=previous_traffic)
         recovery = RootRecovery.open(client_path, identity, key, registry, plan.operation)
         return recovery, registry, {'completed': True, 'operation': later.operation.hex(),
+                'now': now, 'previous_advertisement_until': advertisement_until,
                 'original_root_revision': 2, 'prepared_root_revision': 3,
                 'registry_head_sha256': head, 'process_probe': row, 'original_files_unchanged': snapshot() == before,
                 'preparation_original_files_unchanged': True, 'suspension_witness_requests': 0,
