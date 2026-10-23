@@ -43,7 +43,8 @@ def exercise(args, label):
                          required_witness=label == 'witness',
                          account_members=3 if inspection_kind in ('roster', 'policy') else None,
                          enrolled_peer=inspection_kind in ('roster', 'policy'),
-                         restartable_successor=args.root_successor_process_restart is not None,
+                         restartable_successor=(args.root_successor_process_restart is not None
+                                                or args.root_winner_adoption=='bound-reuse-restart'),
                          policy_lifecycle=inspection_kind == 'policy')
     client = None; bridge = None; registry = None; root_bound = False; refusals = []; observed = []
     encode = lambda value: json.dumps(value, separators=(',', ':')).encode()
@@ -323,7 +324,8 @@ def main():
     root_mode.add_argument('--root-successor-cancellation',nargs='?',const='all',choices=('all','owner','registry'))
     root_mode.add_argument('--root-successor-process-restart', choices=('peer','peer-credential','peer-before','peer-after','peer-root-continuation'))
     root_mode.add_argument('--root-successor-later-cuts', nargs='?', const='all', choices=('all','bind','retire'))
-    root_mode.add_argument('--root-winner-adoption',choices=('bound-fresh','bound-reuse','unbound-fresh','unbound-reuse','cross-application'))
+    root_mode.add_argument('--root-winner-adoption',choices=('bound-fresh','bound-reuse','unbound-fresh','unbound-reuse',
+                                                          'cross-application','bound-reuse-continue','bound-reuse-restart'))
     root_mode.add_argument('--root-winner-cuts',choices=('bound-fresh','unbound-reuse'))
     root_mode.add_argument('--root-winner-cancellation',choices=('bound-fresh','unbound-reuse'))
     root_mode.add_argument('--root-transition-cuts',choices=('plan','decision'))

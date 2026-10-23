@@ -421,8 +421,20 @@ resumes the original operation. These tests do not model power loss or arbitrary
 thread schedules. The CI cohorts use separate Linux/macOS jobs with the same
 60-minute limit and propagate every child failure.
 
+`--root-winner-adoption bound-reuse-continue` continues the adopted root through
+another independently approved replacement. The same registry retains the
+closed original plan, the adopted decision and the subsequent local plan without
+conflating their authority. Both selected roots exchange actual native peer
+traffic and rekey. Replaying the old adoption and expired historical retirement
+returns its original revision without changing the newer selection or restoring
+its permission, including after reopening the registry.
+`bound-reuse-restart` additionally kills and executes the native peer at ten
+boundaries for each selected root while retaining its original journal, witness,
+keys and sealed prekeys. These twenty process restarts remain distinct from
+power-loss qualification and from the independent parent's publication cuts.
+
 Still separate: full successor cancellation coverage,
-adoption followed by another root change, cross-platform root lifecycle
+cross-platform root lifecycle
 qualification, device qualification
 and post-compromise recovery analysis. Do not use these component checks as proof
 that the complete root-replacement lifecycle is ready.

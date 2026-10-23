@@ -50,7 +50,7 @@ else
     --implementation-root "$root_implementation" --provider-root "$root_provider" \
     --output "$root_output/authority-v1-compatibility.json" \
     > "$root_output/authority-v1-compatibility.stdout" 2> "$root_output/authority-v1-compatibility.stderr"
-  for root_mode in bound-fresh bound-reuse unbound-fresh unbound-reuse cross-application; do
+  for root_mode in bound-fresh bound-reuse unbound-fresh unbound-reuse cross-application bound-reuse-continue bound-reuse-restart; do
     run_case "root-winner-$root_mode" --root-winner-adoption "$root_mode"
   done
   run_pair --root-winner-cuts root-winner-cuts bound-fresh unbound-reuse

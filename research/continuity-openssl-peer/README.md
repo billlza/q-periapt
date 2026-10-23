@@ -479,6 +479,9 @@ previously inactive targets, cross-application refusal and current-permission
 expiry. `--root-winner-cuts` and `--root-winner-cancellation` exercise original-state
 recovery and resumed native traffic at the publication boundaries. Power-loss,
 physical-device and arbitrary thread-schedule qualification remain separate.
+The `bound-reuse-continue` adoption mode then replaces that selected root again;
+`bound-reuse-restart` also restarts the native peer across both selected roots.
+Old adoption history must preserve the newer selection and cannot restore permission.
 
 `--root-successor peer-root-revocation` then prepares a separately approved third
 root after actual successor traffic and rekey. The cached session and a fresh

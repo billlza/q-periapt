@@ -75,9 +75,10 @@ fi
 
     def test_winner_dispatch_requires_compatibility_all_targets_and_both_boundary_groups(self):
         result,records,_=self.dispatch('winner');self.assertEqual(result.returncode,0,result.stderr)
-        expected=[('--root-winner-adoption',mode) for mode in ('bound-fresh','bound-reuse','unbound-fresh','unbound-reuse','cross-application')]
+        expected=[('--root-winner-adoption',mode) for mode in ('bound-fresh','bound-reuse','unbound-fresh','unbound-reuse',
+                                                            'cross-application','bound-reuse-continue','bound-reuse-restart')]
         expected+=[(flag,mode) for flag in ('--root-winner-cuts','--root-winner-cancellation') for mode in ('bound-fresh','unbound-reuse')]
-        self.assertEqual(self.selections(records),sorted(expected));self.assertEqual(len(records),10)
+        self.assertEqual(self.selections(records),sorted(expected));self.assertEqual(len(records),12)
         self.assertEqual(sum(row[0].endswith('/account_authority_compatibility.py') for row in records),1)
 
     def test_failed_child_waits_for_its_peer_and_stops_later_groups(self):

@@ -42,7 +42,8 @@ def reject_changed_history(registry):
 
 
 def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None,cancellation=None):
-    private=client_path.parent;bound=mode.startswith('bound');reuse=mode.endswith('reuse')
+    continuing=mode in ('bound-reuse-continue','bound-reuse-restart')
+    private=client_path.parent;bound=mode.startswith('bound');reuse=mode.endswith('reuse') or continuing
     paths=(client_path/'registration',session_path)
     def business():
         return {str(p/name):hashlib.sha256((p/name).read_bytes()).hexdigest()
@@ -137,6 +138,11 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
         from root_successor_peer_fixture import exercise as communicate
         peer=communicate(client,recovery,registry,winner,bridge=bridge,now=now,path=target/'client',host=host,
                          mode='peer',refuse=refuse)
+        continuation=None
+        if continuing:
+            from root_winner_continuation import exercise as continue_root
+            recovery,registry,continuation=continue_root(recovery,registry,adoption,peer,bridge=bridge,now=now,
+                client_path=client_path,identity=identity,key=key,refuse=refuse)
         require(business()==before,'winner traffic changed original retired business')
         return {'completed':True,'mode':mode,'original_bound':bound,'reused_original_inactive_target':reuse,
                 'original_operation':original_operation.hex(),'winner_operation':winner.operation.hex(),
@@ -144,6 +150,7 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
                 'history_refusals':history_refusals,'expired_winner_refused_before_io':True,
                 'process_cut':process_cut,'cancellation':cancel_record,
                 'original_formal_bytes_unchanged':True,'exact_retry_unchanged':True,
+                **({'continuation':continuation} if continuation is not None else {}),
                 'fence_hashes':{str(p/'root-fence'):hashlib.sha256((p/'root-fence').read_bytes()).hexdigest() for p in paths},
                 'peer':peer,'scope':'Independent explicit approval of an actual native committed competitor, original signed noncommit, versioned adoption intent and original parent/child retirement, reopen and real successor traffic. Fixed test authority; no power-loss/mobile/PCS claim.'}
     finally:recovery.close();registry.close()
