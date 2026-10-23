@@ -5223,7 +5223,9 @@ with _temporary_release_test_directories(parents):
             self.assertNotIn(weakening, gate)
         self.assertNotRegex(audit_job, r"(?m)^    if:")
         self.assertNotIn("continue-on-error:", audit_job)
-        self.assertIn('test --manifest-path "$candidate_manifest" --all-features --locked -- --nocapture', identity_job)
+        from test_continuity_workflow_partitions import native as validate_native_partitions
+        validate_native_partitions(workflow)
+        self.assertIn('test --manifest-path "$candidate_manifest" --all-features --locked -- --skip "$CAPACITY_TEST" --nocapture', identity_job)
         self.assertIn('test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture', identity_job)
         self.assertIn("    timeout-minutes: 90\n", identity_job)
 

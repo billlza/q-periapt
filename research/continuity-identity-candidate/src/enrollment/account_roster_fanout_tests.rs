@@ -228,12 +228,22 @@ fn refresh(p: &mut Endpoint, target: &VerifiedDevice) {
 }
 
 fn cohort(count: usize) {
+    let started = std::time::Instant::now();
+    let progress = |phase: &str| {
+        eprintln!(
+            "COMMON_ACCOUNT_FANOUT_PROGRESS members={count} phase={phase} elapsed_ms={}",
+            started.elapsed().as_millis()
+        );
+    };
+    progress("begin");
     let mut a = endpoint(fixture());
     let mut peers = recipients_count(&a.f, count);
+    progress("identities");
     let links = peers
         .iter_mut()
         .map(|p| connect(&mut a, p))
         .collect::<Vec<_>>();
+    progress("sessions");
     let contexts = links
         .iter()
         .map(|l| Arc::clone(&l.sender))
@@ -273,7 +283,9 @@ fn cohort(count: usize) {
         .iter()
         .skip(1)
         .all(|m| m.state == crate::FanoutMemberState::Committed));
+    progress("original-fanout");
     let grants = grants(&peers);
+    progress("credential-grants");
     a.f.carrier.clock.store(155, Ordering::SeqCst);
     let first = grants.first().expect("primary");
     let companions = grants.iter().skip(1).collect::<Vec<_>>();
@@ -353,14 +365,17 @@ fn cohort(count: usize) {
         expected
     );
     assert_eq!(journal(&mut a.owner).test_snapshot().digest, saved);
+    progress("sender-admission");
     for (i, p) in peers.iter_mut().enumerate() {
         renew(p, i, &grants);
+        progress(&format!("credential-member-{i}"));
     }
     let views = peers
         .iter_mut()
         .zip(&links)
         .map(|(p, l)| reopen(&mut a, p, l))
         .collect::<Vec<_>>();
+    progress("credential-reopen");
     let current = views.iter().map(|v| Arc::clone(&v.0)).collect::<Vec<_>>();
     let before = journal(&mut a.owner).test_snapshot().digest;
     assert!(journal(&mut a.owner)
@@ -397,6 +412,7 @@ fn cohort(count: usize) {
             b"current complete account"
         );
     }
+    progress("renewed-fanout");
     // Remove one peer without renewing any surviving credential.
     let excluded_context = current.last().expect("current removed peer context");
     let excluded_session = links.last().expect("removed original session").session;
@@ -454,10 +470,12 @@ fn cohort(count: usize) {
     for (p, t) in peers.iter_mut().zip(&targets) {
         refresh(p, t);
     }
+    progress("roster-refresh");
     let mut views_after = Vec::new();
     for (p, l) in peers.iter_mut().take(count - 1).zip(&links) {
         views_after.push(reopen(&mut a, p, l));
     }
+    progress("roster-reopen");
     let remaining = views_after
         .iter()
         .map(|v| Arc::clone(&v.0))
@@ -505,6 +523,7 @@ fn cohort(count: usize) {
             .expect("same complete historical accounting"),
         initial_report
     );
+    progress("complete");
     eprintln!("COMMON_ACCOUNT_FANOUT members={count} original_sessions={count} complete_peer_G=true survivor_R=true fixed_old_batches=true revoked_peer_refused=true");
 }
 

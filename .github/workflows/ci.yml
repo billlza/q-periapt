@@ -2423,22 +2423,35 @@ jobs:
   # Actual-signature Continuity candidate, isolated from the SDK publication graph.
   continuity-identity-candidate:
     runs-on: ${{ matrix.os }}
-    # At e00281e the canonical Linux Debug suite took 2,059.56 s for 281 tests;
-    # both MSRV jobs and one canonical job reached the 40-minute deadline.
-    # Budget the complete Debug/Release, compiler, SDK and documentation checks.
+    # The 1,140-test Linux Debug run reached this bound with the complete
+    # 32-device fanout scenario still active. Run that exact Debug test in its
+    # own job; the suite keeps all other Debug tests and the full Release run.
     timeout-minutes: 90
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-identity-build
+      CAPACITY_TEST: enrollment::tests::witness_renewal::policy_transaction::sessions::fanout::account_roster::native_common_account_roster_capacity_fanout_and_removal
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-24.04
             toolchain: 1.98.1
+            partition: suite
           - os: ubuntu-24.04
             toolchain: 1.90.0
+            partition: suite
           - os: macos-15
             toolchain: 1.98.1
+            partition: suite
+          - os: ubuntu-24.04
+            toolchain: 1.98.1
+            partition: capacity
+          - os: ubuntu-24.04
+            toolchain: 1.90.0
+            partition: capacity
+          - os: macos-15
+            toolchain: 1.98.1
+            partition: capacity
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -2461,6 +2474,7 @@ jobs:
         if: matrix.os == 'macos-15'
         run: test "$(uname -m)" = arm64
       - name: Check and exercise candidate with the selected compiler
+        if: matrix.partition == 'suite'
         shell: bash
         env:
           CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
@@ -2475,9 +2489,27 @@ jobs:
           for candidate_feature in control-tls connection-tls; do
             cargo +"$CANDIDATE_TOOLCHAIN" clippy --manifest-path "$candidate_manifest" --all-targets --no-default-features --features "$candidate_feature" --locked -- -D warnings 2>&1 | tee "$candidate_log/clippy-$candidate_feature.log"
           done
-          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- --nocapture 2>&1 | tee "$candidate_log/debug.log"
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib -- --list > "$candidate_log/debug-catalog.txt"
+          test "$(rg -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- --skip "$CAPACITY_TEST" --nocapture 2>&1 | tee "$candidate_log/debug.log"
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture 2>&1 | tee "$candidate_log/release.log"
+      - name: Exercise the complete Debug capacity scenario
+        if: matrix.partition == 'capacity'
+        shell: bash
+        env:
+          CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
+        run: |
+          candidate_log=target/continuity-native-checks
+          mkdir -p "$candidate_log"
+          git rev-parse HEAD > "$candidate_log/source-commit.txt"
+          rustc +"$CANDIDATE_TOOLCHAIN" -vV > "$candidate_log/rustc.txt"
+          candidate_manifest=research/continuity-identity-candidate/Cargo.toml
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib -- --list > "$candidate_log/debug-catalog.txt"
+          test "$(rg -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib "$CAPACITY_TEST" -- --exact --nocapture 2>&1 | tee "$candidate_log/debug-capacity.log"
+          rg '^test result: ok\. 1 passed; 0 failed; 0 ignored;' "$candidate_log/debug-capacity.log"
       - name: Verify sealed SDK operations with the selected compiler
+        if: matrix.partition == 'suite'
         shell: bash
         env:
           CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
@@ -2486,7 +2518,7 @@ jobs:
           cargo +"$CANDIDATE_TOOLCHAIN" test --locked -p q-periapt-sdk --features sealed-operations 2>&1 | tee target/continuity-native-checks/sdk-debug.log
           cargo +"$CANDIDATE_TOOLCHAIN" test --locked --release -p q-periapt-sdk --features sealed-operations 2>&1 | tee target/continuity-native-checks/sdk-release.log
       - name: Check canonical formatting and documentation
-        if: matrix.toolchain == '1.98.1'
+        if: matrix.toolchain == '1.98.1' && matrix.partition == 'suite'
         shell: bash
         env:
           RUSTDOCFLAGS: -D warnings
@@ -2497,18 +2529,18 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: continuity-native-checks-${{ matrix.os }}-${{ matrix.toolchain }}
+          name: continuity-native-checks-${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.partition }}
           path: target/continuity-native-checks/
           if-no-files-found: error
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
-        if: matrix.os == 'macos-15'
+        if: matrix.os == 'macos-15' && matrix.partition == 'suite'
         id: candidate_python
         with:
           python-version: "3.14.7"
           check-latest: false
           update-environment: false
       - name: Verify public bytes and both signatures independently
-        if: matrix.os == 'macos-15'
+        if: matrix.os == 'macos-15' && matrix.partition == 'suite'
         env:
           QPERIAPT_PYTHON: ${{ steps.candidate_python.outputs.python-path }}
         run: |
@@ -2531,7 +2563,7 @@ jobs:
             --fixtures target/continuity-public-vectors --consumer "$CARGO_TARGET_DIR/release/examples/import_bootstrap_bundle" \
             --output target/continuity-bootstrap-bundle-verification
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        if: always() && matrix.os == 'macos-15'
+        if: always() && matrix.os == 'macos-15' && matrix.partition == 'suite'
         with:
           name: continuity-public-vectors-${{ github.sha }}
           path: |
