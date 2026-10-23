@@ -25,7 +25,7 @@ def pair(wire):
     r=Reader(wire);result=[r.take(r.integer(4)) for _ in range(2)];r.finish();return result
 
 
-def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None,successor=None,successor_cut=None,successor_cancel=None,later_cut=None,transition_cut=None,transition_cancel=None,winner_cut=None,winner_cancel=None):
+def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None,successor=None,successor_cut=None,successor_cancel=None,later_cut=None,transition_cut=None,transition_cancel=None,winner_cut=None,winner_cancel=None,unactivated=None):
     def reopen():return RootRecovery.open(client_path,identity,key,registry,plan.operation)
     paths=(client_path/'registration',session_path)
     def originals():
@@ -36,7 +36,7 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
         from root_winner_fixture import exercise as adopt
         return adopt(recovery,registry,plan,bridge=bridge,now=now,client_path=client_path,identity=identity,key=key,
                      session_path=session_path,context=context,observation=observation,refuse=refuse,
-                     mode=successor.removeprefix('winner-'),cut=winner_cut,cancellation=winner_cancel)
+                     mode=successor.removeprefix('winner-'),cut=winner_cut,cancellation=winner_cancel,unactivated=unactivated)
     if successor is not None and (successor.startswith('winner-unbound') or successor=='winner-cross-application'):return adopt_winner()
     bridge.call('root-current-clock',33,now.to_bytes(8,'big'),b'witness clock set')
     canonical,freeze=pair(bridge.call('root-original-freeze',50,request))
@@ -100,7 +100,7 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
         if successor is not None:
             from root_successor_fixture import exercise as activate_original
             recovery,registry,activated=activate_original(recovery,registry,plan,bridge=bridge,now=now,client_path=client_path,
-                identity=identity,key=key,refuse=refuse,mode=successor,cut=successor_cut,cancellation=successor_cancel,later_cut=later_cut)
+                identity=identity,key=key,refuse=refuse,mode=successor,cut=successor_cut,cancellation=successor_cancel,later_cut=later_cut,unactivated=unactivated)
             require(originals()==before,'successor activation changed retired original state')
         recovery.close();recovery=reopen()
         require(recovery.inspect_child(now)==observation,'retirement hid original pending state')

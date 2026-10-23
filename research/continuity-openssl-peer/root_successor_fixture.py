@@ -9,7 +9,7 @@ from qperiapt_continuity_reference.wire import require
 from qperiapt_continuity_reference.witness import TcpTransport
 
 
-def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse,mode,cut=None,cancellation=None,later_cut=None):
+def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse,mode,cut=None,cancellation=None,later_cut=None,unactivated=None):
     private=client_path.parent/'root-target';host=(private/'host-key-and-id').read_bytes()
     require(len(host)==64,'original successor host identity')
     target_path=private/'client'
@@ -24,6 +24,10 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,refuse
            'expired or premature authority')
     require(files()==before and len(bridge.records)==requests,'expired successor changed target or dispatched')
     recovery=reopen()
+    if mode.startswith('retire-unactivated'):
+        from root_unactivated_fixture import exercise as retire_unactivated
+        return retire_unactivated(recovery,registry,plan,bridge=bridge,client_path=client_path,
+            identity=identity,key=key,target=private,refuse=refuse,kind='planned',boundary=unactivated)
     if mode in ('before','after'):
         bridge.arm(mode,2)
         refuse('successor-binding-unknown-'+mode,

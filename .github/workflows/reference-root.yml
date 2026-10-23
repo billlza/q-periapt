@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       lane:
-        description: Complete continuation or committed-winner lifecycle cohort
+        description: Complete continuation, committed-winner or inactive-retirement lifecycle cohort
         required: true
         type: string
 
@@ -58,7 +58,7 @@ jobs:
           EXPECTED_COMMIT: ${{ github.sha }}
           EXPECTED_ARCH: ${{ matrix.arch }}
         run: |
-          case "$ROOT_LANE" in continuation|winner) ;; *) exit 2 ;; esac
+          case "$ROOT_LANE" in continuation|winner|unactivated) ;; *) exit 2 ;; esac
           test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
           test "$(uname -m)" = "$EXPECTED_ARCH"
           mkdir -p target/reference-root-ci

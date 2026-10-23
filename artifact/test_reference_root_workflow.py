@@ -22,7 +22,7 @@ def validate(text):
               "installed_reference=$(jq -er '.installed'",'cargo build --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml')
     if text.count(command)!=1 or any(item not in text or text.index(item)>=text.index(command) for item in required):
         raise ValueError('cohort execution must follow verified installed inputs')
-    if '          case "$ROOT_LANE" in continuation|winner) ;; *) exit 2 ;; esac' not in text:
+    if '          case "$ROOT_LANE" in continuation|winner|unactivated) ;; *) exit 2 ;; esac' not in text:
         raise ValueError('unknown lifecycle input must fail')
     if '        if: always()' not in text or '          if-no-files-found: error' not in text:
         raise ValueError('failed lifecycle evidence must be retained')
@@ -88,6 +88,12 @@ fi
         self.assertIn(('--root-successor-later-cuts','retire'),selected)
         self.assertFalse(any(flag=='--root-transition-cuts' for flag,_ in selected))
         self.assertIn(b'injected dispatch failure',(output/'later-root-cuts-bind.stderr').read_bytes())
+
+    def test_unactivated_dispatch_keeps_both_approval_histories_and_restart_boundaries(self):
+        result,records,_=self.dispatch('unactivated');self.assertEqual(result.returncode,0,result.stderr)
+        expected=[('--root-unactivated-retirement',mode) for mode in ('planned','adopted','planned-restart','adopted-restart')]
+        expected+=[(flag,kind) for flag in ('--root-unactivated-cuts','--root-unactivated-cancellation') for kind in ('planned','adopted')]
+        self.assertEqual(self.selections(records),sorted(expected));self.assertEqual(len(records),8)
 
     def test_unknown_cohort_cannot_default_to_a_smaller_suite(self):
         result,records,output=self.dispatch('missing');self.assertEqual(result.returncode,2)

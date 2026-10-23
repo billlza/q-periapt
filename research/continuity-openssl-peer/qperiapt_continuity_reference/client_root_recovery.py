@@ -265,6 +265,29 @@ class RootRecovery:
         from .client_root_winner import resume
         return resume(cls,*arguments,observer=observer,check=check)
 
+    @coordinated
+    def retire_unactivated_successor(self,target_path,target_id,target_key,plan,now,*,observer=None):
+        """Consume this historical owner for a separately approved next root.
+
+        Authenticate the exact original prepared successor and retain only its
+        restricted retirement association. No credential is renewed, no child
+        is reset and no live or traffic owner is returned.
+        """
+        return self._consume_resume(type(self)._resume_successor_retirement,
+            target_path,target_id,target_key,plan,now,observer=observer)
+
+    @classmethod
+    def resume_successor_retirement(cls,path,client_id,key,registry,operation,
+                                   target_path,target_id,target_key,plan,now,*,observer=None):
+        """Resume the same original target and independently approved next plan."""
+        return cls._resume_successor_retirement(path,client_id,key,registry,operation,
+            target_path,target_id,target_key,plan,now,observer=observer,check=None)
+
+    @classmethod
+    def _resume_successor_retirement(cls,*arguments,observer,check):
+        from .client_successor_retirement import resume
+        return resume(cls,*arguments,observer=observer,check=check)
+
     @classmethod
     def resume_transition(cls,path,client_id,key,registry,operation,plan,receipt,freeze,now,*,closure='plan',observer=None):
         """Resume one explicitly approved closure-bound handoff, without traffic."""

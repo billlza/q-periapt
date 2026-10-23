@@ -48,6 +48,68 @@ pub(super) struct Selection {
     pub later: bool,
 }
 
+const UNACTIVATED: &[u8] = b"QPERIAPT-UNACTIVATED-PREDECESSOR/1";
+
+pub(super) fn unactivated_account(
+    fixture: &Fixture,
+    public: &Path,
+    original: [u8; 32],
+) -> Result<Option<[u8; 32]>> {
+    let first = public.join("root-successor");
+    if !first.join("unactivated").try_exists()? {
+        return Ok(None);
+    }
+    if read(&first.join("unactivated"), 64)? != UNACTIVATED
+        || private_path(&first, "private-fixture-path")?
+            != private_path(public, "private-fixture-path")?
+    {
+        return Err("unactivated predecessor metadata differs".into());
+    }
+    let account = fixture
+        .witness
+        .as_ref()
+        .ok_or("unactivated predecessor requires original witness")?
+        .successor_account(fixture, &read(&first.join("control"), 32768)?, original)?;
+    Ok(Some(account))
+}
+
+pub(super) fn retain_unactivated(
+    fixture: &Fixture,
+    public: &Path,
+    control: &[u8],
+) -> Result<Vec<u8>> {
+    let original = fixture
+        .context
+        .device(BootstrapRole::Initiator)
+        .account_id();
+    let account = fixture
+        .witness
+        .as_ref()
+        .ok_or("unactivated predecessor requires original witness")?
+        .successor_account(fixture, control, original)?;
+    let first = public.join("root-successor");
+    if first.try_exists()? {
+        if unactivated_account(fixture, public, original)? != Some(account)
+            || read(&first.join("control"), 32768)? != control
+        {
+            return Err("unactivated predecessor cannot retarget original metadata".into());
+        }
+    } else {
+        fs::create_dir(&first)?;
+        crate::fixture::save(&first, "control", control)?;
+        crate::fixture::save(
+            &first,
+            "private-fixture-path",
+            &read(&public.join("private-fixture-path"), 4096)?,
+        )?;
+        crate::fixture::save(&first, "unactivated", UNACTIVATED)?;
+    }
+    if unactivated_account(fixture, public, original)? != Some(account) {
+        return Err("unactivated predecessor readback differs".into());
+    }
+    Ok(account.to_vec())
+}
+
 impl Selection {
     pub(super) fn open(fixture: &Fixture, public: &Path) -> Result<Self> {
         let first = read(&public.join("root-successor/control"), 32768)?;
@@ -56,7 +118,11 @@ impl Selection {
             .device(BootstrapRole::Initiator)
             .account_id();
         let later = public.join("root-successor-later");
+        let unactivated = unactivated_account(fixture, public, original)?;
         if !later.try_exists()? {
+            if unactivated.is_some() {
+                return Err("unactivated predecessor has no committed peer selection".into());
+            }
             return Ok(Self {
                 control: first,
                 previous: original,

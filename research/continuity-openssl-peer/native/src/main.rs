@@ -246,6 +246,22 @@ fn main() -> Result<()> {
         }
         let result = match command {
             45 => prekey_refresh::issue(&fixture, payload).map_err(|error| error.to_string()),
+            60 => (|| -> Result<Vec<u8>> {
+                let original = fixture
+                    .context
+                    .device(q_periapt_continuity_identity_candidate::BootstrapRole::Initiator)
+                    .account_id();
+                if successor.is_some()
+                    || later_successor.is_some()
+                    || durable
+                        .as_ref()
+                        .is_none_or(|owner| owner.peer_account() != original)
+                {
+                    return Err("unactivated predecessor requires the original native peer".into());
+                }
+                restart::retain_unactivated(&fixture, directory, payload)
+            })()
+            .map_err(|error| error.to_string()),
             50 | 51 | 54 | 55 | 58 | 59 => fixture
                 .witness
                 .as_ref()
@@ -257,6 +273,14 @@ fn main() -> Result<()> {
                 if !later && later_successor.is_some() {
                     return Err("previous successor controller retired".into());
                 }
+                let original = fixture
+                    .context
+                    .device(q_periapt_continuity_identity_candidate::BootstrapRole::Initiator)
+                    .account_id();
+                let unactivated = restart::unactivated_account(&fixture, directory, original)?;
+                if !later && unactivated.is_some() {
+                    return Err("unactivated predecessor is metadata only".into());
+                }
                 if let Some(selected) = &resumed {
                     if later == selected.later && selected.control != payload {
                         return Err("restart cannot select another successor".into());
@@ -265,10 +289,10 @@ fn main() -> Result<()> {
                 let expected = if later {
                     match later_successor {
                         Some(previous) => previous,
-                        None => successor
-                            .as_ref()
-                            .ok_or("later successor before original peer")?
-                            .peer_account(),
+                        None => match successor.as_ref() {
+                            Some(owner) => owner.peer_account(),
+                            None => unactivated.ok_or("later successor before original peer")?,
+                        },
                     }
                 } else {
                     fixture
@@ -282,14 +306,26 @@ fn main() -> Result<()> {
                     .ok_or("required witness not configured")?
                     .successor_context(&fixture, payload, expected)?;
                 if later && later_successor.is_none() {
-                    let owner = successor
-                        .as_mut()
-                        .ok_or("later successor before original peer")?;
-                    owner.verify_successor(&context, previous)?;
+                    let skipped = successor.is_none();
+                    let owner = if skipped {
+                        if unactivated != Some(previous) {
+                            return Err("later successor lacks its committed predecessor".into());
+                        }
+                        durable.as_mut().ok_or("missing original native peer")?
+                    } else {
+                        successor
+                            .as_mut()
+                            .ok_or("later successor before original peer")?
+                    };
+                    let native_previous = if skipped { original } else { previous };
+                    owner.verify_successor(&context, native_previous)?;
                     let output = directory.join("root-successor-later");
                     fs::create_dir(&output)?;
-                    owner.select_successor(&output, Arc::clone(&context), now, previous)?;
+                    owner.select_successor(&output, Arc::clone(&context), now, native_previous)?;
                     fixture::save(&output, "control", payload)?;
+                    if skipped {
+                        successor = durable.take();
+                    }
                     later_successor = Some(previous);
                 } else if let Some(owner) = &successor {
                     if !owner.matches_context(&context, now) {

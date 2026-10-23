@@ -28,9 +28,14 @@ def selected_parts(wrapping_key, registration_id, image, context):
 
 
 def validate_context(parent, image, context):
-    require(image.admission is not None and context.family == parent._intent.family, 'registered policy family differs')
+    validate_intent_context(parent._intent,image,context)
+
+
+def validate_intent_context(original, image, context):
+    """Authenticate the same registration inputs for live and restricted readers."""
+    require(image.admission is not None and context.family == original.family, 'registered policy family differs')
     public = signer(image.seed).public(); local = context.devices[0]
-    intent, admission = image.effective(parent._intent)
+    intent, admission = image.effective(original)
     intent.admit_device(local, public)
     certificate = admission.validate(intent, public)
     require(local.pin == admission.pin(intent) and local.credential == certificate.digest

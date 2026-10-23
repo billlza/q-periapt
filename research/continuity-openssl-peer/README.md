@@ -482,6 +482,11 @@ physical-device and arbitrary thread-schedule qualification remain separate.
 The `bound-reuse-continue` adoption mode then replaces that selected root again;
 `bound-reuse-restart` also restarts the native peer across both selected roots.
 Old adoption history must preserve the newer selection and cannot restore permission.
+If a committed successor expires before establishing its first session,
+`RootRecovery.retire_unactivated_successor` retains a restricted retirement
+association for a separately approved next root. It keeps the original stores
+and requires actual witness retirement; it does not renew or activate expired
+credentials. See the account-root protocol for exact retry and remaining gates.
 
 `--root-successor peer-root-revocation` then prepares a separately approved third
 root after actual successor traffic and rekey. The cached session and a fresh

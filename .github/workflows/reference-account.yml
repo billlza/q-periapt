@@ -6,6 +6,7 @@ on:
       - .github/workflows/reference-account.yml
       - research/continuity-openssl-peer/tests/fixtures/account-authority-v1/**
       - research/continuity-openssl-peer/root_winner*.py
+      - research/continuity-openssl-peer/root_unactivated*.py
       - artifact/test_reference_root_workflow.py
       - artifact/continuity_root_scenarios.sh
       - .github/workflows/reference-root.yml
@@ -63,6 +64,7 @@ on:
       - .github/workflows/reference-account.yml
       - research/continuity-openssl-peer/tests/fixtures/account-authority-v1/**
       - research/continuity-openssl-peer/root_winner*.py
+      - research/continuity-openssl-peer/root_unactivated*.py
       - artifact/test_reference_root_workflow.py
       - artifact/continuity_root_scenarios.sh
       - .github/workflows/reference-root.yml
@@ -423,3 +425,8 @@ jobs:
     uses: ./.github/workflows/reference-root.yml
     with:
       lane: winner
+
+  root-unactivated:
+    uses: ./.github/workflows/reference-root.yml
+    with:
+      lane: unactivated

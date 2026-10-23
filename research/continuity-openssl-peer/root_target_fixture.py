@@ -18,7 +18,7 @@ from qperiapt_continuity_reference.wire import Reader, SigningKey, digest, requi
 from signing_fixture import write
 
 
-def prepare(private, application, pins, materials, context, now, fresh_peer, *, root_revision=2):
+def prepare(private, application, pins, materials, context, now, fresh_peer, *, root_revision=2,credential_until=None):
     require(context.witness is not None, 'root target fixture requires original witness policy')
     require(type(root_revision) is int and 2 <= root_revision < 2**64, 'root target fixture revision')
     path = private / 'root-target'; path.mkdir(mode=0o700)
@@ -31,6 +31,9 @@ def prepare(private, application, pins, materials, context, now, fresh_peer, *, 
     b64 = lambda raw: base64.urlsafe_b64encode(raw).rstrip(b'=').decode()
     wire = lambda value: json.dumps(value, separators=(',', ':')).encode()
     validity = context.original_policy.validity
+    if credential_until is not None:
+        require(type(credential_until) is int and now<credential_until<=validity.end,'target credential fixture validity')
+        validity=type(validity)(validity.start,credential_until)
     authority = {'schema':'qperiapt-host-authority/1', 'application':list(application),
                  'root_revision':root_revision, 'root':b64(root.public().raw), 'family':list(context.family)}
     invitation = {'operation':list(operation), 'request_id':list(os.urandom(32)), 'application':list(application),

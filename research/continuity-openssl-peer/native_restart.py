@@ -24,6 +24,10 @@ def preserved(public, *, persisted_prekeys=True, later=False):
     files += [journal/name for name in ('key','identity')]
     files += [p for p in public.iterdir() if p.is_file()]
     files += [public/'root-successor/control',public/'root-successor/private-fixture-path']
+    marker=public/'root-successor/unactivated'
+    if marker.exists():
+        require(marker.read_bytes()==b'QPERIAPT-UNACTIVATED-PREDECESSOR/1','unactivated predecessor marker differs')
+        files.append(marker)
     if later:
         require(journal == Path((public/'root-successor-later/private-fixture-path').read_text()),
                 'later restart must keep the original native journal')

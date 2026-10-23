@@ -68,6 +68,19 @@ class _Witness(_Adopting, WitnessJournal):
     pass
 
 
+def verify_original_genesis(journal,wire,snapshot,expected):
+    """Check exact original business bytes, including a binding-only envelope."""
+    require(type(expected) is bytes and len(expected)==128,'original successor genesis required')
+    original=wire[:8]==journal._image_prefix()[:8]
+    require(snapshot.revision==(1 if original else 2),'successor activation found advanced state')
+    require(journal.subject==expected[:96] and journal._admit().read('authority') is None,
+            'successor activation subject or authority differs')
+    header=account_binding.header(journal._image_prefix(),1,None)
+    genesis=header+journal._cipher.encrypt(snapshot.payload,[header])
+    require(hashlib.sha256(genesis).digest()==expected[96:],'successor activation differs from approved genesis')
+    return snapshot
+
+
 class _OriginalSuccessor(_Witness):
     """Only the approved initial image or its exact binding-only successor.
 
@@ -87,15 +100,7 @@ class _OriginalSuccessor(_Witness):
 
     def _decode_with_root(self, wire, lease):
         snapshot = super()._decode_with_root(wire, lease)
-        original = wire[:8] == self._image_prefix()[:8]
-        require(snapshot.revision == (1 if original else 2), 'successor activation found advanced state')
-        require(self.subject == self._expected_genesis[:96]
-                and self._admit().read('authority') is None, 'successor activation subject or authority differs')
-        header = account_binding.header(self._image_prefix(), 1, None)
-        genesis = header + self._cipher.encrypt(snapshot.payload, [header])
-        require(hashlib.sha256(genesis).digest() == self._expected_genesis[96:],
-                'successor activation differs from approved genesis')
-        return snapshot
+        return verify_original_genesis(self,wire,snapshot,self._expected_genesis)
 
 
 def _new(path, scope, key, context, root_lease, client, observer, expected_genesis=None):

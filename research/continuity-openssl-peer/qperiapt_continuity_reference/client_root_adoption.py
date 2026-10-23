@@ -19,8 +19,8 @@ from .wire import require
 from .witness import Client
 
 
-def _configuration(journal):
-    """Authenticate the retained target before registry selection or any write."""
+def _retained(journal):
+    """Authenticate an ordinary retained target without publishing or removing it."""
     directory = journal._admit(); wire = directory.read('head'); pending = directory.read('intent')
     require(wire is not None, 'missing original client configuration')
     snapshot = journal._decode(wire)
@@ -29,7 +29,12 @@ def _configuration(journal):
         require(snapshot.digest == result.digest or (snapshot.revision, snapshot.digest) == (revision, prior),
                 'root adoption configuration intent differs')
         snapshot = result
-    value = Configuration.read(snapshot.payload)
+    return snapshot
+
+
+def _configuration(journal):
+    """Authenticate the retained target before registry selection or any write."""
+    value = Configuration.read(_retained(journal).payload)
     require(value.ready and value.root_adoption and value.root_binding is not None,
             'no original client root adoption')
     return value

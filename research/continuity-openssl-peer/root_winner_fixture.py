@@ -41,9 +41,10 @@ def reject_changed_history(registry):
     return rejected
 
 
-def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None,cancellation=None):
+def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None,cancellation=None,unactivated=None):
     continuing=mode in ('bound-reuse-continue','bound-reuse-restart')
-    private=client_path.parent;bound=mode.startswith('bound');reuse=mode.endswith('reuse') or continuing
+    retiring=mode.startswith('bound-reuse-unactivated')
+    private=client_path.parent;bound=mode.startswith('bound');reuse=mode.endswith('reuse') or continuing or retiring
     paths=(client_path/'registration',session_path)
     def business():
         return {str(p/name):hashlib.sha256((p/name).read_bytes()).hexdigest()
@@ -133,6 +134,12 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
         require(target_before=={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in target.rglob('*') if p.is_file()}
                 and len(bridge.records)==requests,'expired winner changed target or dispatched')
         recovery=RootRecovery.open(client_path,identity,key,registry,winner.operation)
+        if retiring:
+            from root_unactivated_fixture import exercise as retire_unactivated
+            recovery,registry,result=retire_unactivated(recovery,registry,winner,bridge=bridge,client_path=client_path,
+                identity=identity,key=key,target=target,refuse=refuse,kind='adopted',boundary=unactivated)
+            require(business()==before,'unactivated successor retirement changed original retired business')
+            return result
         client=recovery.activate_successor(EnrollmentClient.open(target/'client',host[32:],host[:32]),now,
                                            transport=TcpTransport(bridge.address))
         from root_successor_peer_fixture import exercise as communicate

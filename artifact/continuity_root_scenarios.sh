@@ -2,7 +2,7 @@
 # Full installed root-lifecycle cohorts; every failed child propagates to CI.
 set -euo pipefail
 if [ "$#" -ne 5 ]; then
-  echo 'usage: continuity_root_scenarios.sh continuation|winner installed provider native output' >&2
+  echo 'usage: continuity_root_scenarios.sh continuation|winner|unactivated installed provider native output' >&2
   exit 2
 fi
 root_lane=$1
@@ -10,7 +10,7 @@ root_implementation=$2
 root_provider=$3
 root_native=$4
 root_output=$5
-case "$root_lane" in continuation|winner) ;; *) echo 'unknown root lifecycle cohort' >&2; exit 2 ;; esac
+case "$root_lane" in continuation|winner|unactivated) ;; *) echo 'unknown root lifecycle cohort' >&2; exit 2 ;; esac
 mkdir -p "$root_output"
 
 run_case() {
@@ -45,7 +45,7 @@ if [ "$root_lane" = continuation ]; then
   run_pair --root-successor-later-cuts later-root-cuts bind retire
   run_pair --root-transition-cuts root-transition-cuts plan decision
   run_pair --root-transition-cancellation root-transition-cancel plan decision
-else
+elif [ "$root_lane" = winner ]; then
   sh artifact/python-run.sh research/continuity-openssl-peer/tests/account_authority_compatibility.py \
     --implementation-root "$root_implementation" --provider-root "$root_provider" \
     --output "$root_output/authority-v1-compatibility.json" \
@@ -55,4 +55,10 @@ else
   done
   run_pair --root-winner-cuts root-winner-cuts bound-fresh unbound-reuse
   run_pair --root-winner-cancellation root-winner-cancel bound-fresh unbound-reuse
+else
+  for root_mode in planned adopted planned-restart adopted-restart; do
+    run_case "unactivated-retirement-$root_mode" --root-unactivated-retirement "$root_mode"
+  done
+  run_pair --root-unactivated-cuts unactivated-retirement-cuts planned adopted
+  run_pair --root-unactivated-cancellation unactivated-retirement-cancel planned adopted
 fi

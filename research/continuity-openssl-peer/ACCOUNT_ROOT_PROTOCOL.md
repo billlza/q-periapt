@@ -9,9 +9,10 @@ These statement objects provide public protocol verification. The separate
 `AccountAuthority` owner below retains original approvals and current root
 selection. `EnrollmentClient` can retain that association before child creation;
 its normal session and maintenance owners require the same original live lease.
-Restricted original-parent recovery survives root preparation. Child retirement
-and live successor activation are still open, so this is not a complete device
-root-replacement controller.
+Restricted original-parent recovery survives root preparation and retains both
+child and parent retirement before local selection. The exact prepared successor
+can then be admitted, with current permission checked separately. Cross-platform,
+device, general expiry and compromise-recovery qualification remain open.
 
 ## Original expectations
 
@@ -438,3 +439,44 @@ cross-platform root lifecycle
 qualification, device qualification
 and post-compromise recovery analysis. Do not use these component checks as proof
 that the complete root-replacement lifecycle is ready.
+
+## Retiring a selected successor before its first session
+
+A selected root may expire while its original prepared child is still Waiting.
+Activating that expired target is forbidden. The existing G/P maintenance paths
+require an established session; they do not renew a never-established bootstrap.
+Neither restriction authorizes replacing the original journal or editing its
+already committed decision.
+
+`RootRecovery.retire_unactivated_successor` consumes the original committed
+recovery owner and takes the original target path, storage identity/key, a
+separately approved next `Plan`, and explicit time. It checks the original
+retirement fences, selected target, signed inputs and exact protected genesis
+without granting current target permission. A completed reply, traffic state,
+different target, root, registry or preparation is refused. First witness
+freeze/commit still requires current admission of the next target.
+
+The coordinator first retains the next registry preparation, suspending the
+selected root, then records only its pending configuration association. It does
+not bind or reset the child or complete the expired target's activation. The
+returned restricted `RootRecovery` can inspect and fence those original stores,
+retain the actual next retirement, and select the next root. Both consuming-owner
+and registry closure are checked at every publication callback. A successfully
+returned restricted owner is independent of the consumed source owner, but
+still requires the original registry to remain alive. Its opening callback
+releases that temporary registry borrow before return; dropping the registry
+revokes the returned metadata owner as well as explicitly closing it.
+
+Use `resume_successor_retirement` with the same original source and target paths,
+identities, keys, previous committed operation and next plan after an uncertain
+result. Configuration intents are authenticated before recovery can publish;
+exact retries do not reselect a historical root. This is a new independently
+authorized root replacement, not same-key pre-handshake credential renewal.
+
+The `--root-unactivated-retirement` fixtures cover planned and adopted predecessor
+histories; their `-restart` forms restart the native peer only after root 3 is
+approved. Native command 60 retains an explicit **unactivated** predecessor proof
+and grants no peer operation. Command 56 verifies both committed transitions
+before selecting root 3 in the original native journal. No root-2 peer execution
+is claimed. Approval-file publication interruption, general policy-expiry
+continuation, power loss, physical devices and PCS remain separate gates.

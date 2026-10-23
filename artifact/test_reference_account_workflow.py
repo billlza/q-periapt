@@ -1,4 +1,4 @@
-"""Keep baseline account coverage and dispatch both complete root cohorts."""
+"""Keep baseline account coverage and dispatch all complete root cohorts."""
 from pathlib import Path
 import unittest
 
@@ -10,9 +10,10 @@ def validate(text):
     for path in ('.github/workflows/reference-root.yml','artifact/continuity_independent_install.py',
                  'artifact/continuity_root_scenarios.sh','artifact/test_reference_root_workflow.py',
                  'research/continuity-openssl-peer/root_transition*.py','research/continuity-openssl-peer/root_winner*.py',
+                 'research/continuity-openssl-peer/root_unactivated*.py',
                  'research/continuity-openssl-peer/tests/fixtures/account-authority-v1/**'):
         if text.count('      - '+path+'\n')!=2:raise ValueError('root lifecycle requires push and pull-request triggers')
-    for lane in ('continuation','winner'):
+    for lane in ('continuation','winner','unactivated'):
         call='  root-'+lane+':\n    uses: ./.github/workflows/reference-root.yml\n    with:\n      lane: '+lane+'\n'
         if text.count(call)!=1:raise ValueError('each complete root cohort needs its own reusable job')
     if text.count('    timeout-minutes: 60\n')!=1:raise ValueError('baseline account job keeps its original time budget')
