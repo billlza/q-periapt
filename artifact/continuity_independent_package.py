@@ -47,7 +47,7 @@ def installed_manifest(original: bytes) -> bytes:
                 and parsed.get("workspace") == {} and "patch" not in parsed,
                 "counterpart manifest identity or workspace differs")
     text = original.decode()
-    expected = {package.NAME, "q-periapt-backends", "q-periapt-core", "q-periapt-policy",
+    expected = {package.NAME, "q-periapt-backends", "q-periapt-core", "q-periapt-host-store", "q-periapt-policy",
                 "q-periapt-sdk", "q-periapt-sig"}
     dependencies = parsed["dependencies"]
     sdk.require({name for name in dependencies if name.startswith("q-periapt")} == expected,
