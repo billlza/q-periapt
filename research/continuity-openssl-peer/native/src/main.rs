@@ -236,7 +236,7 @@ fn main() -> Result<()> {
     loop {
         let frame = receive(&mut input, true)?;
         let (&command, payload) = frame.split_first().ok_or("empty frame")?;
-        if resume_successor.is_some() && !matches!(command, 3 | 31..=33 | 45 | 50..=57) {
+        if resume_successor.is_some() && !matches!(command, 3 | 31..=33 | 45 | 50..=59) {
             send(
                 &mut output,
                 2,
@@ -246,7 +246,7 @@ fn main() -> Result<()> {
         }
         let result = match command {
             45 => prekey_refresh::issue(&fixture, payload).map_err(|error| error.to_string()),
-            50 | 51 | 54 | 55 => fixture
+            50 | 51 | 54 | 55 | 58 | 59 => fixture
                 .witness
                 .as_ref()
                 .ok_or("required witness not configured")?

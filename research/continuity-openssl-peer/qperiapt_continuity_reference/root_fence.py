@@ -68,7 +68,7 @@ def _expectations(access, pin):
     return phase, plan, decision, descriptor
 
 
-def read(journal, access, pin, kind):
+def read(journal, access, pin, kind, *, transition=None):
     """Authenticate the fence and every exact original formal record it binds."""
     access.check(); directory = journal._admit(); wire = directory.read('root-fence')
     if wire is None: return None
@@ -84,6 +84,7 @@ def read(journal, access, pin, kind):
     count = r.integer(2); require(count in (0, RECEIPT_BYTES), 'root fence retirement size')
     receipt = r.take(count) if count else None; r.finish()
     result = Fence(actual_kind, scope, binding, image, pending, authority, operation, plan_binding, decision, receipt)
+    if transition is not None:access = transition.access_for(operation)
     require(result.kind == kind and result.scope == journal.scope.wire() and result.binding == access.binding
             and result.operation == access.operation, 'root fence original owner or operation differs')
     _, plan, selected, _ = _expectations(access, pin)
@@ -124,20 +125,70 @@ def retain(journal, access, pin, kind, *, receipt=None, observation=None):
     return current
 
 
+class _Transition:
+    """One exact host-approved handoff; registry history remains authoritative.
+
+    The signed closure is supplied again on recovery. Only these two original
+    operations are admitted while moving the fences; this is never a live lease.
+    """
+    def __init__(self, original, current, pin, receipt, closure):
+        self.original,self.current,self.pin = original,current,pin
+        require(type(original) is type(current) is _RecoveryAccess
+                and original.binding == current.binding
+                and original._owner() is current._owner() and original.operation != current.operation,
+                'root transition requires original authority and a distinct operation')
+        old,new = original.observation(),current.observation()
+        require(old[1] == 'Closed' and new[1] == 'Pending' and old[3] and new[3],
+                'root transition requires closed original and bound next preparation')
+        before,after = RetainedPlan(pin,old[2]),RetainedPlan(pin,new[2])
+        if closure == 'plan':before.verify_closed(receipt)
+        elif closure == 'decision':before.verify_decision_closure(old[3],receipt)
+        else:raise ValueError('explicit root closure kind required')
+        first,next_target = before.check_decision(old[3]),after.check_decision(new[3])
+        require(old[0] == new[0] and before.decoded[0] == after.decoded[0]
+                and first.preparation == next_target.preparation and first.observations == next_target.observations
+                and first.family == next_target.family, 'root transition changes original frozen snapshot')
+        self.before,self.after,self._observations = before,after,(old,new)
+
+    def check(self):
+        require((self.original.observation(),self.current.observation()) == self._observations,
+                'root transition authority changed')
+
+    def access_for(self,operation):
+        self.check()
+        require(operation in (self.original.operation,self.current.operation),
+                'root transition differs from both original operations')
+        return self.original if operation == self.original.operation else self.current
+
+    def retain(self,journal,kind):
+        self.check()
+        previous = read(journal,self.current,self.pin,kind,transition=self)
+        require(previous is not None, 'root transition requires an existing original fence')
+        if previous.operation == self.current.operation:return previous
+        require(previous.receipt is None,'retired root fence cannot transfer')
+        wanted = replace(previous,operation=self.current.operation,plan=self.after.binding,
+                         decision=self._observations[1][3])
+        journal._admit().publish('root-fence',wanted.wire(journal),fixed_slot='root-fence-transition')
+        current = read(journal,self.current,self.pin,kind)
+        require(current == wanted,'root transition durable readback')
+        self.check();return current
+
+
 class _Parent(RegistrationJournal):
-    def __init__(self, path, scope, key, validate, access, pin, observer):
+    def __init__(self, path, scope, key, validate, access, pin, observer, transition):
         self._access, self._pin = access, pin
+        self._transition = transition
         super().__init__(path, scope, key, validate, observer)
 
     def _check_root(self):
         super()._check_root(); self._access.check()
 
     def _admit_root_fence(self):
-        read(self, self._access, self._pin, 2)
+        read(self, self._access, self._pin, 2, transition=self._transition)
 
 
-def open_parent(path, scope, key, validate, access, pin, observer):
-    owner = _Parent(path, scope, key, validate, access, pin, observer)
+def open_parent(path, scope, key, validate, access, pin, observer, *, transition=None):
+    owner = _Parent(path, scope, key, validate, access, pin, observer, transition)
     try:
         owner.read(); return owner
     except BaseException:

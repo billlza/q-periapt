@@ -219,15 +219,26 @@ impl Witness {
             matches!(command, 54 | 55),
         )?;
         let target = Target::read(&mut input, fixture, &self.pin, previous_account)?;
-        let proposal = if matches!(command, 51 | 55) {
+        let proposal = if matches!(command, 51 | 55 | 59) {
             Some(AnchorAccountReplacementProposal::from_trusted_state(
                 input.field(65536)?,
             )?)
         } else {
             None
         };
-        if !input.0.is_empty() || !matches!(command, 50 | 51 | 54 | 55) {
+        if !input.0.is_empty() || !matches!(command, 50 | 51 | 54 | 55 | 58 | 59) {
             return Err("root control trailing data or command".into());
+        }
+        if command == 58 {
+            if store.close_account_preparation(&target.plan)?
+                != AnchorAccountReplacementState::Closed
+            {
+                return Err("committed root plan cannot close".into());
+            }
+            let receipt = store.closed_account_preparation_receipt(&target.plan)?;
+            self.pin
+                .verify_closed_account_preparation(&target.plan, &receipt)?;
+            return pack(&[&target.plan.to_bytes()?, &receipt]);
         }
         if matches!(command, 50 | 54) {
             match store.account_freeze(target.plan.request()) {
@@ -254,6 +265,40 @@ impl Witness {
             return pack(&[&target.plan.to_bytes()?, &receipt]);
         }
         let proposal = proposal.ok_or("root retirement requires original decision")?;
+        if command == 59 {
+            if store.account_root_replacement_status(&proposal)?
+                == AnchorAccountReplacementState::Closed
+            {
+                let receipt = store.closed_account_replacement_receipt(&proposal)?;
+                let closed = self
+                    .pin
+                    .verify_closed_account_replacement(&proposal, &receipt)?;
+                target.plan.verify_closed_replacement(&closed)?;
+                return pack(&[&proposal.to_bytes()?, &receipt]);
+            }
+            let frozen = store.account_freeze(target.plan.request())?;
+            let canonical = store.frozen_account_replacement_proposal(
+                target.plan.operation(),
+                &frozen,
+                &target.genesis,
+                &target.device,
+                &target.policy,
+                now,
+            )?;
+            if canonical != proposal {
+                return Err("root closure differs from approved target and freeze".into());
+            }
+            if store.close_account_replacement(&proposal)? != AnchorAccountReplacementState::Closed
+            {
+                return Err("committed root decision cannot close".into());
+            }
+            let receipt = store.closed_account_replacement_receipt(&proposal)?;
+            let closed = self
+                .pin
+                .verify_closed_account_replacement(&proposal, &receipt)?;
+            target.plan.verify_closed_replacement(&closed)?;
+            return pack(&[&proposal.to_bytes()?, &receipt]);
+        }
         match store.account_root_replacement_status(&proposal)? {
             AnchorAccountReplacementState::Unavailable => {
                 let frozen = store.account_freeze(target.plan.request())?;

@@ -32,10 +32,15 @@ class RootRecovery:
         self._lock=threading.RLock();self._busy=False;self._owners=[]
         self._root=None;self._configuration=None;self._registration=None;self._access=None
         self._key=None
+        self._transition=None
         self._finalizer=weakref.finalize(self,_close_owners,self._owners)
 
     @classmethod
     def open(cls,path,client_id,key,registry,operation,*,observer=None):
+        return cls._open(path,client_id,key,registry,operation,observer=observer,transition=None)
+
+    @classmethod
+    def _open(cls,path,client_id,key,registry,operation,*,observer,transition):
         from .enrollment_client import Configuration,scope
         require(type(registry) is AccountAuthority,'original account registry required')
         owner=cls()
@@ -46,6 +51,7 @@ class RootRecovery:
             configuration=Configuration.read(owner._configuration.read().payload)
             require(configuration.ready and configuration.root_binding is not None,'original root-associated client required')
             owner._access=registry._recovery_access(configuration.root_binding,operation)
+            owner._transition=transition
             owner._registry=weakref.ref(registry);owner._binding=configuration.root_binding
             owner._adoption_pending=configuration.root_adoption and not configuration.root_ready
             owner._authority,original=configuration.inputs();owner._intent=original.intent
@@ -64,7 +70,7 @@ class RootRecovery:
             from .root_fence import open_parent
             owner._registration=open_parent(path/'registration',owner._intent.scope(configuration.registration),key,
                 lambda raw:Image.decode(raw,intent),owner._access,registry.witness,
-                lambda stage:observe('client-device:registration-store:'+stage))
+                lambda stage:observe('client-device:registration-store:'+stage),transition=transition)
             owner._owners.append(owner._registration)
             owner._reconcile_association(configuration)
             owner._alive();return owner
@@ -219,9 +225,76 @@ class RootRecovery:
             result=registry.close_plan(self._access.operation,receipt);self._alive();return result
         except BaseException:self.close();raise
 
+    @coordinated
+    def transition_after_noncommit(self,plan,receipt,freeze,now,*,closure='plan',observer=None):
+        """Consume this owner and transfer its existing fences to an approved plan.
+
+        An error may follow registry or fence publication. Resume the same inputs
+        on the same path with resume_transition; never create replacement state.
+        """
+        try:
+            self._image();registry=self._registry()
+            require(registry is not None,'closed account authority owner')
+            path,identity,key,operation=self._root.path,self._configuration.scope.identity,self._key,self._access.operation
+            self.close()
+            return type(self).resume_transition(path,identity,key,registry,operation,plan,receipt,freeze,now,
+                                                closure=closure,observer=observer)
+        except BaseException:self.close();raise
+
+    @classmethod
+    def resume_transition(cls,path,client_id,key,registry,operation,plan,receipt,freeze,now,*,closure='plan',observer=None):
+        """Resume one explicitly approved closure-bound handoff, without traffic."""
+        from .account_root_protocol import Plan
+        from .enrollment_client import Configuration,scope
+        from .root_fence import _Transition,read
+        from .root_child_snapshot import open_child,inspect
+        require(type(registry) is AccountAuthority and type(plan) is Plan,'fresh independently approved root plan required')
+        require(type(now) is int and 0<=now<1<<64,'explicit root transition time required')
+        expected,phase,original,decision=registry.operation(operation)
+        require(phase!='Committed' and decision,'original bound noncommitted preparation required')
+        retained=RetainedPlan(registry.witness,original)
+        if closure=='plan':retained.verify_closed(receipt)
+        elif closure=='decision':retained.verify_decision_closure(decision,receipt)
+        else:raise ValueError('explicit root closure kind required')
+        target=RetainedPlan(registry.witness,plan.wire());bound=plan.bind(freeze).wire()
+        before,after=retained.check_decision(decision),target.check_decision(bound)
+        require(plan.operation!=operation and target.decoded[0]==retained.decoded[0]
+                and before.preparation==after.preparation and before.observations==after.observations
+                and before.family==after.family,'root transition changes original frozen snapshot')
+        configuration=Journal.open(path/'configuration',scope(client_id),key,Configuration.read)
+        try:
+            saved=Configuration.read(configuration.read().payload)
+            require(saved.ready and saved.root_ready and saved.root_binding is not None,
+                    'root transition requires original complete root association')
+            old_access=registry._recovery_access(saved.root_binding,operation)
+        finally:configuration.close()
+        if closure=='plan':registry.close_plan(operation,receipt)
+        else:registry.close_decision(operation,decision,receipt)
+        registry.begin_preparation(expected,plan);registry.bind_freeze(plan.operation,freeze)
+        current=registry._recovery_access(saved.root_binding,plan.operation)
+        transition=_Transition(old_access,current,registry.witness,receipt,closure)
+        owner=cls._open(path,client_id,key,registry,plan.operation,observer=observer,transition=transition)
+        try:
+            _,image=owner._image()
+            require(read(owner._registration,current,registry.witness,2,transition=transition) is not None,
+                    'root transition requires an existing original parent fence')
+            with ExitStack() as cleanup:
+                child=None
+                if image.child is not None:
+                    child,context=open_child(owner,image,now);cleanup.callback(child.close)
+                    child._directory.observer=lambda stage:owner._observe('root-child:'+stage)
+                    inspect(child,context)
+                    require(read(child,current,registry.witness,1,transition=transition) is not None,
+                            'root transition requires an existing original child fence')
+                transition.retain(owner._registration,2)
+                if child is not None:transition.retain(child,1)
+                owner._alive()
+        finally:owner.close()
+        return cls.open(path,client_id,key,registry,plan.operation,observer=observer)
+
     def close(self):
         with self._lock:
-            self._root=None;self._access=None;self._registration=None;self._configuration=None;self._key=None
+            self._root=None;self._access=None;self._registration=None;self._configuration=None;self._key=None;self._transition=None
             self._finalizer()
 
     def __enter__(self):self._alive();return self

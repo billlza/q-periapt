@@ -352,9 +352,26 @@ The previous controller remains retired in every resumed process. These are
 explicit fixture-clock and process-termination tests, not physical power-loss
 durability or general credential/policy expiry recovery.
 
-Still separate: full successor process-cut and cancellation coverage,
-cross-platform root lifecycle qualification, closure-bound transfer of an existing
-fence to a newly approved plan,
+`RootRecovery.transition_after_noncommit` consumes the restricted original owner
+and transfers existing parent/child fences to a separately approved `Plan`.
+Both plan closure and exact-decision closure require their own verified native
+non-commit receipt. The next plan must retain the original freeze request and
+authenticated subject snapshot. Neither closure nor transfer restores old-root
+traffic permission. Business heads, pending intents, authority records and the
+closed target remain unchanged; only registry history and the fences advance.
+
+After an uncertain return, `RootRecovery.resume_transition` takes the same path,
+keys, old operation, new approval, closure proof and freeze receipt. It reconciles
+the registry first, validates both existing fences, then transfers parent before
+child. During this explicit operation each fence may describe only the exact old
+or next approved operation. Once complete, ordinary recovery uses only the next
+operation. Missing, changed or retired fences cannot be reset by this interface.
+The signed proof must be supplied again; stored descriptors alone are not a new
+host approval. `replan-plan` and `replan-decision` exercise successor traffic after
+handoff; `--root-transition-cuts` targets registry and both fence publications.
+
+Still separate: full successor cancellation coverage,
+cross-platform root lifecycle qualification,
 independently approved adoption of another committed winner, device qualification
 and post-compromise recovery analysis. Do not use these component checks as proof
 that the complete root-replacement lifecycle is ready.

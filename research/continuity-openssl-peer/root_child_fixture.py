@@ -64,7 +64,7 @@ def prepare_policy(client, pins, materials, context, public, bridge, transport, 
 
 
 def exercise(client, registry, *, mode, private, client_path, identity, key, session_path,
-             pins, materials, context, transport, bridge, refuse, public, retirement=False,retirement_cut=None,successor=None,successor_cut=None,successor_cancel=None,later_cut=None):
+             pins, materials, context, transport, bridge, refuse, public, retirement=False,retirement_cut=None,successor=None,successor_cut=None,successor_cancel=None,later_cut=None,transition_cut=None):
     def prepare_successor(now):
         fresh = bridge.call('fresh-successor-peer-materials', 45, now.to_bytes(8, 'big'))
         return prepare(private, client._authority.application, pins, materials, context, now, fresh)
@@ -188,7 +188,7 @@ def exercise(client, registry, *, mode, private, client_path, identity, key, ses
             return retire_original(recovery,registry,plan,bridge=bridge,now=now,client_path=client_path,
                                    identity=identity,key=key,session_path=session_path,context=context,
                                    observation=observation,refuse=refuse,mode=mode,cut=retirement_cut,
-                successor=successor,successor_cut=successor_cut,successor_cancel=successor_cancel,later_cut=later_cut)
+                successor=successor,successor_cut=successor_cut,successor_cancel=successor_cancel,later_cut=later_cut,transition_cut=transition_cut)
         cached = recovery.inspect_child; registry.close()
         refuse('closed-registry-revokes-child-inspection', lambda: cached(now), 'closed account authority owner')
         require(snapshot() == before and len(bridge.records) == requests, 'closed root inspection changed original state')

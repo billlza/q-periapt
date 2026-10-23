@@ -48,6 +48,17 @@ impl AnchorAccountReplacementPlan {
     pub(crate) fn target(&self) -> &AnchorAccountReplacementProposal {
         &self.target
     }
+    /// Match authenticated exact non-commit to this original retained plan.
+    /// This historical match does not admit its target or reopen the operation.
+    pub fn verify_closed_replacement(
+        &self,
+        closed: &crate::AnchorClosedAccountReplacement,
+    ) -> Result<(), Error> {
+        if !self.check_retained(closed.proposal())? {
+            return Err(Error::Scope);
+        }
+        Ok(())
+    }
     fn check(&self) -> Result<(), Error> {
         self.target.check_shape()?;
         if self.target.witness != self.request.witness

@@ -19,6 +19,7 @@ on:
       - research/continuity-openssl-peer/root_target_fixture.py
       - research/continuity-openssl-peer/root_retirement*.py
       - research/continuity-openssl-peer/root_successor*.py
+      - research/continuity-openssl-peer/root_transition*.py
       - research/continuity-openssl-peer/tests/root_successor_origin.py
       - research/continuity-openssl-peer/enrollment_session_checks.py
       - research/continuity-openssl-peer/native/**
@@ -47,6 +48,8 @@ on:
       - artifact/continuity_host_roster.py
       - artifact/test_continuity_host_roster.py
       - artifact/continuity_independent_python*.py
+      - artifact/continuity_independent_install.py
+      - artifact/test_reference_account_workflow.py
       - crates/**
       - research/continuity-identity-candidate/src/**
       - research/continuity-identity-candidate/Cargo.toml
@@ -68,6 +71,7 @@ on:
       - research/continuity-openssl-peer/root_target_fixture.py
       - research/continuity-openssl-peer/root_retirement*.py
       - research/continuity-openssl-peer/root_successor*.py
+      - research/continuity-openssl-peer/root_transition*.py
       - research/continuity-openssl-peer/tests/root_successor_origin.py
       - research/continuity-openssl-peer/enrollment_session_checks.py
       - research/continuity-openssl-peer/native/**
@@ -96,6 +100,8 @@ on:
       - artifact/continuity_host_roster.py
       - artifact/test_continuity_host_roster.py
       - artifact/continuity_independent_python*.py
+      - artifact/continuity_independent_install.py
+      - artifact/test_reference_account_workflow.py
       - crates/**
       - research/continuity-identity-candidate/src/**
       - research/continuity-identity-candidate/Cargo.toml
@@ -351,14 +357,14 @@ jobs:
             --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-retirement-cuts \
             --output "$PWD/target/reference-account-ci/root-retirement-cuts" \
             > target/reference-account-ci/root-retirement-cuts.stdout 2> target/reference-account-ci/root-retirement-cuts.stderr
-          for mode in steady credential before after parent ready peer peer-credential peer-before peer-after peer-root-revocation peer-root-replacement peer-root-continuation; do
+          for mode in steady credential before after parent ready peer peer-credential peer-before peer-after; do
             sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
               --implementation-root "$installed_reference/installed" --provider-root "$RUNNER_TEMP/reference-provider" \
               --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-successor "$mode" \
               --output "$PWD/target/reference-account-ci/root-successor-$mode" \
               > "target/reference-account-ci/root-successor-$mode.stdout" 2> "target/reference-account-ci/root-successor-$mode.stderr"
           done
-          for mode in peer peer-credential peer-before peer-after peer-root-continuation; do
+          for mode in peer peer-credential peer-before peer-after; do
             sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
               --implementation-root "$installed_reference/installed" --provider-root "$RUNNER_TEMP/reference-provider" \
               --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-successor-process-restart "$mode" \
@@ -379,20 +385,6 @@ jobs:
             if ! wait "$root_cut_pid"; then root_cut_status=1; fi
           done
           test "$root_cut_status" -eq 0
-          later_cut_pids=()
-          for phase in bind retire; do
-            sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
-              --implementation-root "$installed_reference/installed" --provider-root "$RUNNER_TEMP/reference-provider" \
-              --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-successor-later-cuts "$phase" \
-              --output "$PWD/target/reference-account-ci/later-root-cuts-$phase" \
-              > "target/reference-account-ci/later-root-cuts-$phase.stdout" 2> "target/reference-account-ci/later-root-cuts-$phase.stderr" &
-            later_cut_pids+=("$!")
-          done
-          later_cut_status=0
-          for later_cut_pid in "${later_cut_pids[@]}"; do
-            if ! wait "$later_cut_pid"; then later_cut_status=1; fi
-          done
-          test "$later_cut_status" -eq 0
           sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
             --implementation-root "$installed_reference/installed" --provider-root "$RUNNER_TEMP/reference-provider" \
             --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-successor-cancellation \
@@ -410,4 +402,128 @@ jobs:
         with:
           name: reference-account-${{ matrix.os }}
           path: target/reference-account-ci/
+          if-no-files-found: error
+
+  root-continuation:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x86_64
+          - os: macos-15
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    # Separate the new complete lifecycle workload from the existing account job.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Prepare native OpenSSL on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+      - name: Select native OpenSSL on Apple Silicon
+        if: runner.os == 'macOS'
+        run: |
+          openssl_prefix=$(brew --prefix openssl@3)
+          echo "OPENSSL_DIR=$openssl_prefix" >> "$GITHUB_ENV"
+      - name: Verify the source and supported host
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+          test "$(uname -m)" = "$EXPECTED_ARCH"
+          mkdir -p target/reference-root-ci
+          git rev-parse HEAD > target/reference-root-ci/source-head.txt
+          rustc -vV > target/reference-root-ci/rustc.txt
+          uname -a > target/reference-root-ci/host.txt
+          pkg-config --modversion openssl > target/reference-root-ci/openssl.txt
+      - name: Verify independent root continuation from the installed wheel
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/reference-root-build
+          PEER_PYTHON: ${{ steps.python.outputs.python-path }}
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          "$PEER_PYTHON" -I -m venv "$RUNNER_TEMP/reference-wheel-build"
+          "$RUNNER_TEMP/reference-wheel-build/bin/python" -I -m pip install \
+            --isolated --disable-pip-version-check --index-url https://pypi.org/simple \
+            --only-binary=:all: --no-deps --require-hashes \
+            -r research/continuity-openssl-peer/build-requirements.txt \
+            > target/reference-root-ci/wheel-backend.stdout 2> target/reference-root-ci/wheel-backend.stderr
+          "$PEER_PYTHON" -I -m pip install --isolated --disable-pip-version-check \
+            --index-url https://pypi.org/simple --only-binary=:all: --no-deps --require-hashes \
+            --target "$RUNNER_TEMP/reference-provider" -r research/continuity-openssl-peer/requirements.txt \
+            > target/reference-root-ci/provider.stdout 2> target/reference-root-ci/provider.stderr
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          export SOURCE_DATE_EPOCH
+          "$RUNNER_TEMP/reference-wheel-build/bin/python" -I -m pip wheel \
+            --isolated --disable-pip-version-check --no-index --no-deps --no-build-isolation \
+            --wheel-dir "$RUNNER_TEMP/reference-wheel" research/continuity-openssl-peer \
+            > target/reference-root-ci/wheel-build.stdout 2> target/reference-root-ci/wheel-build.stderr
+          sh artifact/python-run.sh artifact/continuity_independent_install.py \
+             --wheel "$RUNNER_TEMP/reference-wheel/qperiapt_continuity_reference-0.0.0-py3-none-any.whl" \
+             --output "$PWD/target/reference-root-ci/installation" \
+             > target/reference-root-ci/installation.stdout 2> target/reference-root-ci/installation.stderr
+          installed_reference=$(jq -er '.installed' target/reference-root-ci/installation/RESULT.json)
+          cargo build --locked --release --manifest-path research/continuity-openssl-peer/native/Cargo.toml \
+             > target/reference-root-ci/root-counterpart-build.stdout 2> target/reference-root-ci/root-counterpart-build.stderr
+          for mode in peer-root-revocation peer-root-replacement peer-root-continuation replan-plan replan-decision; do
+            sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
+               --implementation-root "$installed_reference" --provider-root "$RUNNER_TEMP/reference-provider" \
+               --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-successor "$mode" \
+               --output "$PWD/target/reference-root-ci/root-successor-$mode" \
+               > "target/reference-root-ci/root-successor-$mode.stdout" 2> "target/reference-root-ci/root-successor-$mode.stderr"
+          done
+          sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
+             --implementation-root "$installed_reference" --provider-root "$RUNNER_TEMP/reference-provider" \
+             --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-successor-process-restart peer-root-continuation \
+             --output "$PWD/target/reference-root-ci/root-successor-process-restart" \
+             > target/reference-root-ci/root-successor-process-restart.stdout 2> target/reference-root-ci/root-successor-process-restart.stderr
+          later_cut_pids=()
+          for phase in bind retire; do
+            sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
+              --implementation-root "$installed_reference" --provider-root "$RUNNER_TEMP/reference-provider" \
+              --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-successor-later-cuts "$phase" \
+              --output "$PWD/target/reference-root-ci/later-root-cuts-$phase" \
+              > "target/reference-root-ci/later-root-cuts-$phase.stdout" 2> "target/reference-root-ci/later-root-cuts-$phase.stderr" &
+            later_cut_pids+=("$!")
+          done
+          later_cut_status=0
+          for later_cut_pid in "${later_cut_pids[@]}"; do
+            if ! wait "$later_cut_pid"; then later_cut_status=1; fi
+          done
+          test "$later_cut_status" -eq 0
+          transition_pids=()
+          for closure in plan decision; do
+            sh artifact/python-run.sh research/continuity-openssl-peer/enrollment_session_checks.py \
+              --implementation-root "$installed_reference" --provider-root "$RUNNER_TEMP/reference-provider" \
+              --native "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" --root-transition-cuts "$closure" \
+              --output "$PWD/target/reference-root-ci/root-transition-cuts-$closure" \
+              > "target/reference-root-ci/root-transition-cuts-$closure.stdout" 2> "target/reference-root-ci/root-transition-cuts-$closure.stderr" &
+            transition_pids+=("$!")
+          done
+          transition_status=0
+          for transition_pid in "${transition_pids[@]}"; do
+            if ! wait "$transition_pid"; then transition_status=1; fi
+          done
+          test "$transition_status" -eq 0
+          git diff --exit-code
+      - name: Retain root continuation build and regression results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: reference-root-continuation-${{ matrix.os }}
+          path: target/reference-root-ci/
           if-no-files-found: error

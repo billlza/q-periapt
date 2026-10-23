@@ -459,7 +459,14 @@ The latter two restart the witness before recovering the original send intent.
 PID, terminal `SIGKILL` status, original-file hashes and public protocol frames
 are retained in `PROCESS_RESTARTS.json` and `NATIVE.json`. These fixed-clock,
 POSIX process tests do not establish power-loss, mobile or PCS guarantees;
-cross-platform qualification and closure-bound fence transfer remain separate.
+cross-platform qualification remains separate. For a closed bound replacement,
+`RootRecovery.transition_after_noncommit` consumes the original recovery owner
+and moves its existing fences to a fresh independently approved plan with the
+same signed freeze. After an uncertain result, use `RootRecovery.resume_transition`
+with the original storage, keys and exact approval/proofs. Neither method revives
+old-root traffic or resets a missing fence. The `replan-plan` and `replan-decision`
+scenarios check both closure types through successor traffic; their process-cut
+groups exercise the registry and parent/child publication boundaries.
 
 `--root-successor peer-root-revocation` then prepares a separately approved third
 root after actual successor traffic and rekey. The cached session and a fresh

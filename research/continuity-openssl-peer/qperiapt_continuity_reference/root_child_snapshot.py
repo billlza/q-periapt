@@ -33,7 +33,7 @@ class Observation:
 
 
 class _View(WitnessJournal):
-    def __init__(self, path, scope, key, context, access, allow_unbound):
+    def __init__(self, path, scope, key, context, access, allow_unbound, transition=None):
         require(type(access) is _RecoveryAccess and type(allow_unbound) is bool,
                 'original root metadata access required')
         access.check()
@@ -41,6 +41,7 @@ class _View(WitnessJournal):
         Session._scope(context, scope)
         access.check_scope(context.devices[0].pin.account, context.family, context.witness.pin)
         self._access, self._allow_unbound = access, allow_unbound
+        self._transition = transition
         super().__init__(path, scope, key, Session._validator(context), context.witness, None)
 
     def _check_root(self):
@@ -49,7 +50,7 @@ class _View(WitnessJournal):
 
     def _admit_root_fence(self):
         from .root_fence import read
-        read(self, self._access, self.profile.pin, 1)
+        read(self, self._access, self.profile.pin, 1, transition=self._transition)
 
     def _decode(self, wire):
         self._check_root(); prefix = self._image_prefix(); offset = len(prefix)
@@ -149,7 +150,7 @@ def open_child(parent, image, now):
     context = image.child.inputs.original(image.child.context, now)
     validate_context(parent, image, context)
     scope, key = selected_parts(parent._key, parent._registration.scope.identity, image, context)
-    journal = _View(image.child.path, scope, key, context, parent._access, parent._adoption_pending)
+    journal = _View(image.child.path, scope, key, context, parent._access, parent._adoption_pending,parent._transition)
     return journal, context
 
 

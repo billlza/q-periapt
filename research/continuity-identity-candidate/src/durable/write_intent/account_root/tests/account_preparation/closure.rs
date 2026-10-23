@@ -3,6 +3,40 @@ use super::*;
 use crate::AnchorAccountReplacementState as WitnessState;
 #[path = "closure/recovery.rs"]
 mod recovery;
+
+#[test]
+fn account_plan_matches_exact_noncommit_without_readmitting_expired_target() {
+    let p = Prepared::with_target_until(Some(160));
+    let frozen = p.frozen();
+    let proposal = p.plan.bind(&frozen).expect("original frozen proposal");
+    let mut witness = p.c.witness.lock().expect("original witness");
+    witness
+        .close_account_replacement(&proposal)
+        .expect("original terminal close");
+    let wire = witness
+        .closed_account_replacement_receipt(&proposal)
+        .expect("signed original close");
+    let closed =
+        p.c.pin
+            .verify_closed_account_replacement(&proposal, &wire)
+            .expect("verified original close");
+    p.plan
+        .verify_closed_replacement(&closed)
+        .expect("historical plan match");
+    let mut changed = p.plan.to_bytes().expect("original plan");
+    // Change only the independently retained freeze operation, keeping a valid
+    // canonical target. The original closure cannot authorize this expectation.
+    changed[48] ^= 1;
+    let other =
+        AnchorAccountReplacementPlan::from_trusted_state(&changed).expect("different valid plan");
+    assert!(other.verify_closed_replacement(&closed).is_err());
+    assert_eq!(
+        witness
+            .account_root_replacement_status(&proposal)
+            .expect("closed status"),
+        WitnessState::Closed
+    );
+}
 pub(super) fn close_plan(p: &Prepared) -> crate::AnchorClosedAccountPreparation {
     let mut witness = p.c.witness.lock().expect("original witness");
     assert_eq!(

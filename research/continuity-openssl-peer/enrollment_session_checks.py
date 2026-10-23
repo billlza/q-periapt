@@ -157,6 +157,7 @@ def exercise(args, label):
                 successor_cut=args.root_successor_cut,
                 successor_cancel=args.root_successor_cancel,
                 later_cut=args.root_later_cut,
+                transition_cut=args.root_transition_cut,
                 client_path=client_path, identity=identity, key=key, session_path=session_path, pins=pins, materials=materials,
                 context=context, transport=transport, bridge=bridge, refuse=refuse, public=public)
             result.update(profile=label, native_commands=len(native.commands), witness_requests=len(bridge.records), refusals=refusals)
@@ -314,12 +315,14 @@ def main():
     root_mode.add_argument('--root-retirement-cuts',action='store_true')
     root_mode.add_argument('--root-successor',choices=('steady','credential','before','after','parent','ready',
                                                      'peer','peer-credential','peer-before','peer-after',
-                                                     'peer-root-revocation','peer-root-replacement','peer-root-continuation'))
+                                                     'peer-root-revocation','peer-root-replacement','peer-root-continuation',
+                                                     'replan-plan','replan-decision'))
     root_mode.add_argument('--root-successor-cuts',nargs='?',const='all',
                           choices=('all','configuration','child','registration','ready','activation'))
     root_mode.add_argument('--root-successor-cancellation',nargs='?',const='all',choices=('all','owner','registry'))
     root_mode.add_argument('--root-successor-process-restart', choices=('peer','peer-credential','peer-before','peer-after','peer-root-continuation'))
     root_mode.add_argument('--root-successor-later-cuts', nargs='?', const='all', choices=('all','bind','retire'))
+    root_mode.add_argument('--root-transition-cuts',choices=('plan','decision'))
     root_mode.add_argument('--root-child-inspection', choices=('steady', 'ordinary-before', 'ordinary-after',
                                                              'credential', 'credential-terminal', 'credential-closed',
                                                              'roster', 'roster-terminal', 'roster-closed',
@@ -332,6 +335,9 @@ def main():
     if args.root_successor is not None:
         args.root_retirement=args.root_child_inspection='credential' if args.root_successor in ('credential','peer-credential') else 'steady'
     args.root_retirement_cut=None;args.root_successor_cut=None;args.root_successor_cancel=None;args.root_later_cut=None
+    args.root_transition_cut=None
+    if args.root_transition_cuts:
+        args.root_retirement=args.root_child_inspection='steady';args.root_successor='replan-'+args.root_transition_cuts
     if args.root_retirement_cuts:args.root_retirement=args.root_child_inspection='steady'
     if args.root_successor_cuts or args.root_successor_cancellation:
         args.root_retirement=args.root_child_inspection='steady';args.root_successor='peer'
@@ -353,7 +359,14 @@ def main():
     args.output.mkdir()
     args.adoption_cut = None
     args.adoption_expiry = None
-    if args.root_successor_later_cuts:
+    if args.root_transition_cuts:
+        from root_transition_cuts import CUTS
+        profiles=[]
+        for index,cut in enumerate(CUTS):
+            selected=copy.copy(args);selected.root_transition_cut=cut
+            selected.output=args.output/(cut[0]+'-'+str(index));selected.output.mkdir()
+            profiles.append(exercise(selected,'witness'))
+    elif args.root_successor_later_cuts:
         from root_retirement_cuts import CUTS
         profiles=[]
         for index,cut in enumerate(CUTS):

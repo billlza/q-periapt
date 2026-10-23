@@ -143,7 +143,7 @@ class PrivateDirectory:
                     + tuple("authority-r-" + str(i) for i in range(1, 6))
                     + tuple("authority-p-" + str(i) for i in range(1, 6))))
                     or (name == "intent" and fixed_slot == "initial-intent")
-                    or (name == "root-fence" and fixed_slot in ('root-fence-pending', 'root-fence-retired')),
+                    or (name == "root-fence" and fixed_slot in ('root-fence-pending', 'root-fence-retired', 'root-fence-transition')),
                     "unknown reserved publication slot")
             self._publish_fixed(name, ".stage-" + fixed_slot, value)
             return

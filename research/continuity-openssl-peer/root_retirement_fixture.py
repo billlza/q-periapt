@@ -25,7 +25,7 @@ def pair(wire):
     r=Reader(wire);result=[r.take(r.integer(4)) for _ in range(2)];r.finish();return result
 
 
-def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None,successor=None,successor_cut=None,successor_cancel=None,later_cut=None):
+def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,session_path,context,observation,refuse,mode,cut=None,successor=None,successor_cut=None,successor_cancel=None,later_cut=None,transition_cut=None):
     def reopen():return RootRecovery.open(client_path,identity,key,registry,plan.operation)
     paths=(client_path/'registration',session_path)
     def originals():
@@ -63,6 +63,11 @@ def exercise(recovery,registry,plan,*,bridge,now,client_path,identity,key,sessio
         refuse('fenced-raw-session',lambda:WitnessJournal(session_path,scope,child_key,Session._validator(context),
                context.witness,None),'original account root is fenced')
         recovery=reopen();require(recovery.inspect_child(now)==observation,'fence changed retained child metadata')
+        if successor in ('replan-plan','replan-decision'):
+            from root_transition_fixture import exercise as replan_original
+            return replan_original(recovery,registry,plan,freeze,bridge=bridge,now=now,client_path=client_path,
+                identity=identity,key=key,session_path=session_path,context=context,observation=observation,
+                refuse=refuse,closure=successor.removeprefix('replan-'),cut=transition_cut)
         native_decision,retired=pair(bridge.call('root-original-retirement',51,request+field(decision.wire())))
         decision.verify_decision(native_decision);decision.verify_retirement(retired)
         pending_fences={str(p/'root-fence'):(p/'root-fence').read_bytes() for p in paths}
