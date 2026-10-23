@@ -1014,6 +1014,31 @@ def format_marker(**overrides: int) -> str:
     )
 
 
+def _immutable_workflow_reference(
+    reference: str, root: pathlib.Path, tracked: set[str]
+) -> bool:
+    action_ref = re.compile(
+        r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
+        r"(?:/[A-Za-z0-9_.-]+)*@([0-9a-f]{40})"
+    )
+    if action_ref.fullmatch(reference) is not None:
+        return True
+    local = re.fullmatch(
+        r"\./(\.github/workflows/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.ya?ml)",
+        reference,
+    )
+    if local is None or local.group(1) not in tracked:
+        return False
+    # A local reusable workflow resolves to the caller's exact commit. Its
+    # syntax/inputs are checked by actionlint; this gate checks source identity.
+    target = root / local.group(1)
+    return (
+        target.is_file()
+        and not target.is_symlink()
+        and target.resolve() == root.resolve() / local.group(1)
+    )
+
+
 class BoundVerifierWiringTests(unittest.TestCase):
     current_proof_inputs: dict[str, str]
 
@@ -1035,10 +1060,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
         )
 
     def test_every_workflow_action_is_full_sha_pinned(self) -> None:
-        action_ref = re.compile(
-            r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
-            r"(?:/[A-Za-z0-9_.-]+)*@([0-9a-f]{40})$"
-        )
+        tracked = set(subprocess.check_output(
+            ["git", "ls-files", "-z", "--", ".github/workflows"], cwd=ROOT,
+        ).decode("utf-8").split("\0"))
         workflows = sorted((ROOT / ".github" / "workflows").glob("*.y*ml"))
         self.assertTrue(workflows)
         action_count = 0
@@ -1050,9 +1074,51 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 with self.subTest(
                     workflow=workflow.relative_to(ROOT), reference=reference
                 ):
-                    self.assertIsNotNone(action_ref.fullmatch(reference))
+                    self.assertTrue(_immutable_workflow_reference(reference, ROOT, tracked))
                 action_count += 1
         self.assertGreater(action_count, 20)
+
+    def test_remote_workflow_references_still_require_full_commit_hashes(self) -> None:
+        self.assertTrue(_immutable_workflow_reference("actions/checkout@" + "a" * 40, ROOT, set()))
+        for reference in ("actions/checkout@main", "actions/checkout@v7", "actions/checkout@abcdef0",
+                          "owner/repo/.github/workflows/build.yml@main", "actions/checkout"):
+            with self.subTest(reference=reference):
+                self.assertFalse(_immutable_workflow_reference(reference, ROOT, set()))
+
+    def test_local_workflow_reference_requires_canonical_tracked_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            relative = ".github/workflows/callee.yml"
+            target = root / relative
+            target.parent.mkdir(parents=True)
+            target.write_text("on:\n  workflow_call:\n", encoding="utf-8")
+            tracked = {relative}
+            self.assertTrue(_immutable_workflow_reference("./" + relative, root, tracked))
+            self.assertFalse(_immutable_workflow_reference("./" + relative, root, set()))
+            for reference in ("./.github/workflows/missing.yml", "./.github/workflows/../callee.yml",
+                              "./.github/workflows/callee.yml@main", "./.github/actions/callee.yml",
+                              "./.github/workflows/${{ inputs.workflow }}.yml"):
+                with self.subTest(reference=reference):
+                    self.assertFalse(_immutable_workflow_reference(reference, root, tracked))
+            target.unlink()
+            self.assertFalse(_immutable_workflow_reference("./" + relative, root, tracked))
+
+    def test_local_workflow_reference_rejects_symlinked_file_and_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            relative = ".github/workflows/callee.yml"
+            outside = root / "outside"
+            outside.mkdir()
+            original = outside / "callee.yml"
+            original.write_text("on:\n  workflow_call:\n", encoding="utf-8")
+            target = root / relative
+            target.parent.mkdir(parents=True)
+            target.symlink_to(original)
+            self.assertFalse(_immutable_workflow_reference("./" + relative, root, {relative}))
+            target.unlink()
+            target.parent.rmdir()
+            target.parent.symlink_to(outside, target_is_directory=True)
+            self.assertFalse(_immutable_workflow_reference("./" + relative, root, {relative}))
 
     def test_tls_standard_baseline_and_private_groups_are_not_conflated(self) -> None:
         authorities = {
