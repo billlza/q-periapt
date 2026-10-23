@@ -15,23 +15,36 @@ def native(text):
     expected = {(os, toolchain, part) for os, toolchain in (
         ('ubuntu-24.04', '1.98.1'), ('ubuntu-24.04', '1.90.0'), ('macos-15', '1.98.1'))
         for part in ('suite', 'capacity')}
+    expected.update(('ubuntu-24.04', toolchain, 'release') for toolchain in ('1.98.1', '1.90.0'))
     if len(rows) != len(expected) or set(rows) != expected:
-        raise ValueError('each compiler and platform needs both Debug partitions')
+        raise ValueError('both Debug partitions and separate Linux Release budgets are required')
     if ('timeout-minutes: 90' not in block or 'fail-fast: false' not in block
             or 'continue-on-error:' in block):
         raise ValueError('native failure or timeout contract changed')
     suite = block.split('      - name: Check and exercise candidate with the selected compiler\n', 1)[1].split('\n      - ', 1)[0]
     capacity = block.split('      - name: Exercise the complete Debug capacity scenario\n', 1)[1].split('\n      - ', 1)[0]
+    release = block.split('      - name: Exercise the complete Release candidate\n', 1)[1].split('\n      - ', 1)[0]
+    sdk_release = block.split('      - name: Verify sealed SDK operations in Release\n', 1)[1].split('\n      - ', 1)[0]
     for part, body in (('suite', suite), ('capacity', capacity)):
         if f"if: matrix.partition == '{part}'" not in body:
             raise ValueError('partition execution condition differs')
         if 'test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1' not in body:
             raise ValueError('missing test or overlapping skip must refuse')
     if ('-- --skip "$CAPACITY_TEST" --nocapture' not in suite
-            or '--release -- --nocapture' not in suite
+            or '--release' in suite
             or '--lib "$CAPACITY_TEST" -- --exact --nocapture' not in capacity
             or 'test result: ok\\. 1 passed; 0 failed; 0 ignored;' not in capacity):
         raise ValueError('complementary Debug or complete Release coverage changed')
+    condition = "if: matrix.partition == 'release' || (matrix.os == 'macos-15' && matrix.partition == 'suite')"
+    if condition not in release or condition not in sdk_release:
+        raise ValueError('Release must run exactly once per compiler outside Linux Debug')
+    candidate_command = 'cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture'
+    sdk_command = 'cargo +"$CANDIDATE_TOOLCHAIN" test --locked --release -p q-periapt-sdk --features sealed-operations'
+    if (release.count(candidate_command) != 1 or block.count(candidate_command) != 1
+            or sdk_release.count(sdk_command) != 1 or block.count(sdk_command) != 1
+            or '--skip' in release or '--ignored' in release
+            or 'source-commit.txt' not in release or 'rustc.txt' not in release):
+        raise ValueError('complete candidate and sealed SDK Release execution or provenance changed')
     if '${{ matrix.toolchain }}-${{ matrix.partition }}' not in block:
         raise ValueError('native artifacts collide')
     if "if: always() && matrix.os == 'macos-15' && matrix.partition == 'suite'" not in block:
@@ -137,6 +150,19 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
             self.assertNotEqual(changed, self.independent)
             with self.assertRaises(ValueError):
                 independent(changed)
+
+    def test_release_cannot_return_to_linux_debug_or_lose_sdk_coverage(self):
+        for before, after in (
+            ('partition: release', 'partition: omitted'),
+            ("if: matrix.partition == 'release' || (matrix.os == 'macos-15' && matrix.partition == 'suite')",
+             "if: matrix.partition == 'suite'"),
+            ('cargo +"$CANDIDATE_TOOLCHAIN" test --locked --release -p q-periapt-sdk --features sealed-operations',
+             'true'),
+        ):
+            changed = self.native.replace(before, after)
+            self.assertNotEqual(changed, self.native)
+            with self.assertRaises(ValueError):
+                native(changed)
 
 
 if __name__ == '__main__':
