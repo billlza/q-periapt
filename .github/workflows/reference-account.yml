@@ -136,10 +136,20 @@ jobs:
         include:
           - os: ubuntu-24.04
             arch: x86_64
+            lane: validation
           - os: macos-15
             arch: arm64
+            lane: validation
+          - os: ubuntu-24.04
+            arch: x86_64
+            lane: exchange
+          - os: macos-15
+            arch: arm64
+            lane: exchange
+    name: account-${{ matrix.lane }} (${{ matrix.os }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
-    # Includes cold builds of the account host and independent native counterpart.
+    # Keep native regression and the full installed exchange within separate budgets.
+    # Exchange builds and original-state fixtures remain together on one host.
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -170,16 +180,20 @@ jobs:
         env:
           EXPECTED_COMMIT: ${{ github.sha }}
           EXPECTED_ARCH: ${{ matrix.arch }}
+          ACCOUNT_LANE: ${{ matrix.lane }}
         run: |
+          case "$ACCOUNT_LANE" in validation|exchange) ;; *) exit 2 ;; esac
           test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
           test "$(uname -m)" = "$EXPECTED_ARCH"
           mkdir -p target/reference-account-ci
+          printf '%s\n' "$ACCOUNT_LANE" > target/reference-account-ci/lane.txt
           git rev-parse HEAD > target/reference-account-ci/source-head.txt
           rustc -vV > target/reference-account-ci/rustc.txt
           uname -a > target/reference-account-ci/host.txt
           pkg-config --modversion openssl > target/reference-account-ci/openssl.txt
           node --version > target/reference-account-ci/node.txt
       - name: Verify browser recovery and exact integer transport
+        if: matrix.lane == 'validation'
         run: |
           for module in research/continuity-reference-app/web/*.mjs; do
             node --check "$module"
@@ -187,7 +201,8 @@ jobs:
           node --input-type=module --check < research/continuity-reference-app/web/app.js
           node --test --test-reporter=tap research/continuity-reference-app/tests/web/*.test.mjs \
             > target/reference-account-ci/web-tests.stdout 2> target/reference-account-ci/web-tests.stderr
-      - name: Verify account, enrollment transactions and process recovery
+      - name: Verify account Debug regression and lint
+        if: matrix.lane == 'validation'
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/reference-account-build
         run: |
@@ -198,17 +213,23 @@ jobs:
             > target/reference-account-ci/tests.stdout 2> target/reference-account-ci/tests.stderr
           cargo clippy --locked --all-targets --manifest-path "$manifest" -- -D warnings \
             > target/reference-account-ci/clippy.stdout 2> target/reference-account-ci/clippy.stderr
+      - name: Build account and native release executables
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/reference-account-build
+        run: |
+          manifest=research/continuity-reference-app/Cargo.toml
           cargo build --locked --release --manifest-path "$manifest" \
             > target/reference-account-ci/build.stdout 2> target/reference-account-ci/build.stderr
           cargo build --locked --release --manifest-path "$manifest" --example inbox-crash-probe --example account-client-probe --example credential-recovery-probe \
             > target/reference-account-ci/inbox-probe-build.stdout 2> target/reference-account-ci/inbox-probe-build.stderr
+      - name: Verify account Release regression and native signers
+        if: matrix.lane == 'validation'
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/reference-account-build
+        run: |
+          manifest=research/continuity-reference-app/Cargo.toml
           cargo test --locked --release --manifest-path "$manifest" \
             > target/reference-account-ci/release-tests.stdout 2> target/reference-account-ci/release-tests.stderr
-          cargo test --locked --release --manifest-path "$manifest" --lib --no-run --message-format=json \
-            > target/reference-account-ci/root-test-artifacts.jsonl 2> target/reference-account-ci/root-test-artifacts.stderr
-          QPERIAPT_INDEPENDENT_ROOT_REGISTRY_FIXTURE="$PWD/target/reference-account-ci/root-registry-inputs" \
-            cargo test --locked --release --manifest-path "$manifest" --lib original_root_registry_fixture_child -- --nocapture \
-            > target/reference-account-ci/root-registry-inputs.stdout 2> target/reference-account-ci/root-registry-inputs.stderr
           reference_build="$CARGO_TARGET_DIR"
           export CARGO_TARGET_DIR="$RUNNER_TEMP/reference-identity-build"
           native_manifest=research/continuity-identity-candidate/Cargo.toml
@@ -225,6 +246,21 @@ jobs:
           cargo clippy --locked --manifest-path "$native_manifest" --lib -- -D warnings \
             > target/reference-account-ci/native-signers-clippy.stdout 2> target/reference-account-ci/native-signers-clippy.stderr
           export CARGO_TARGET_DIR="$reference_build"
+      - name: Prepare the original root registry inputs
+        if: matrix.lane == 'exchange'
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/reference-account-build
+        run: |
+          manifest=research/continuity-reference-app/Cargo.toml
+          cargo test --locked --release --manifest-path "$manifest" --lib --no-run --message-format=json \
+            > target/reference-account-ci/root-test-artifacts.jsonl 2> target/reference-account-ci/root-test-artifacts.stderr
+          QPERIAPT_INDEPENDENT_ROOT_REGISTRY_FIXTURE="$PWD/target/reference-account-ci/root-registry-inputs" \
+            cargo test --locked --release --manifest-path "$manifest" --lib original_root_registry_fixture_child -- --nocapture \
+            > target/reference-account-ci/root-registry-inputs.stdout 2> target/reference-account-ci/root-registry-inputs.stderr
+      - name: Record native executable and dependency identities
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/reference-account-build
+        run: |
           shasum -a 256 "$CARGO_TARGET_DIR/release/q-periapt-continuity-reference-app" \
             "$CARGO_TARGET_DIR/release/q-periapt-native-device" \
             "$CARGO_TARGET_DIR/release/q-periapt-native-session" \
@@ -237,6 +273,7 @@ jobs:
           cp research/continuity-reference-app/Cargo.lock target/reference-account-ci/Cargo.lock
           git diff --exit-code
       - name: Build and consume the independent enrollment exchange wheel
+        if: matrix.lane == 'exchange'
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/reference-account-build
           PEER_PYTHON: ${{ steps.python.outputs.python-path }}
@@ -412,7 +449,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: reference-account-${{ matrix.os }}
+          name: reference-account-${{ matrix.os }}-${{ matrix.lane }}
           path: target/reference-account-ci/
           if-no-files-found: error
 
