@@ -609,6 +609,15 @@ impl AnchorStore {
         image: &mut Image,
         advance_revision: bool,
     ) -> Result<(), DurableError> {
+        self.persist_image_checked(image, advance_revision, || Ok(()))
+    }
+
+    fn persist_image_checked(
+        &mut self,
+        image: &mut Image,
+        advance_revision: bool,
+        admit_commit: impl FnOnce() -> Result<(), DurableError>,
+    ) -> Result<(), DurableError> {
         let result = (|| {
             let active = self.active.as_ref().ok_or(DurableError::Closed)?;
             if advance_revision {
@@ -631,6 +640,7 @@ impl AnchorStore {
                 drop(current);
                 table.insert("image", bytes.as_slice()).map_err(storage)?;
             }
+            admit_commit()?;
             tx.commit().map_err(DurableError::CommitUncertain)?;
             image.digest = image_digest(&bytes);
             #[cfg(all(test, unix))]

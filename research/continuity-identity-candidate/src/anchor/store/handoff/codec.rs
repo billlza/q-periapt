@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 const TAG: &[u8; 8] = b"QPAHC001";
+const RETIRED_TAG: &[u8; 8] = b"QPAHC002";
 
 pub(super) fn put(bytes: &[u8], out: &mut Vec<u8>) -> Result<(), DurableError> {
     out.extend_from_slice(
@@ -24,7 +25,12 @@ fn raw_wrap(content: &[u8], journal: Option<&Journal>) -> Result<Vec<u8>, Durabl
     let Some(journal) = journal else {
         return Ok(content.to_vec());
     };
-    let mut out = TAG.to_vec();
+    let mut out = if journal.retired.is_some() {
+        RETIRED_TAG
+    } else {
+        TAG
+    }
+    .to_vec();
     put(content, &mut out)?;
     out.push(u8::try_from(journal.cancelled.len()).map_err(|_| DurableError::Capacity)?);
     for r in &journal.cancelled {
@@ -38,6 +44,11 @@ fn raw_wrap(content: &[u8], journal: Option<&Journal>) -> Result<Vec<u8>, Durabl
             put(&r.plan.to_bytes(), &mut out)?;
             put(r.as_bytes(), &mut out)?;
         }
+    }
+    if let Some(retired) = &journal.retired {
+        put(&retired.approval.to_bytes(), &mut out)?;
+        put(&retired.acknowledgement, &mut out)?;
+        put(retired.receipt.as_bytes(), &mut out)?;
     }
     if out.len().checked_add(32).ok_or(DurableError::Capacity)? > MAX_IMAGE {
         return Err(DurableError::Capacity);
@@ -57,6 +68,7 @@ pub(in super::super) fn validate(
     if journal.cancelled.len() > MAX_CANCELLED
         || (journal.cancelled.is_empty() && journal.frozen.is_none())
         || (journal.cancelled.len() == MAX_CANCELLED && journal.frozen.is_some())
+        || (journal.retired.is_some() && journal.frozen.is_none())
     {
         return Err(DurableError::Corrupt);
     }
@@ -87,6 +99,7 @@ pub(in super::super) fn validate(
         let prior = Journal {
             cancelled: journal.cancelled.clone(),
             frozen: None,
+            retired: None,
         };
         let prior = if prior.cancelled.is_empty() {
             None
@@ -95,6 +108,9 @@ pub(in super::super) fn validate(
         };
         if source_commitment(&raw_wrap(content, prior)?) != r.plan.commitment {
             return Err(DurableError::Corrupt);
+        }
+        if let Some(retired) = &journal.retired {
+            retired.verify(r)?;
         }
     }
     Ok(())
@@ -116,15 +132,16 @@ pub(in super::super) fn unwrap<'a>(
     pin: &AnchorPin,
     bytes: &'a [u8],
 ) -> Result<(&'a [u8], Option<Journal>), DurableError> {
-    if !bytes.starts_with(TAG) {
+    if !bytes.starts_with(TAG) && !bytes.starts_with(RETIRED_TAG) {
         return Ok((bytes, None));
     }
     let mut d = Decoder::new(bytes);
-    if d.array::<8>()? != *TAG {
+    let tag = d.array::<8>()?;
+    if tag != *TAG && tag != *RETIRED_TAG {
         return Err(DurableError::Corrupt);
     }
     let content = take(&mut d)?;
-    if content.starts_with(TAG) {
+    if content.starts_with(TAG) || content.starts_with(RETIRED_TAG) {
         return Err(DurableError::Corrupt);
     }
     let [count] = d.array()?;
@@ -147,6 +164,34 @@ pub(in super::super) fn unwrap<'a>(
         [1] => Some(read(&mut d)?),
         _ => return Err(DurableError::Corrupt),
     };
+    let retired = if tag == *RETIRED_TAG {
+        let freeze = frozen.as_ref().ok_or(DurableError::Corrupt)?;
+        let approval = AnchorHandoffTargetApproval::restore_trusted_state(
+            take(&mut d)?,
+            &freeze.plan.source,
+            &freeze.plan.target,
+        )?;
+        let acknowledgement = take(&mut d)?.to_vec();
+        let receipt = approval.verify_retirement_receipt(
+            freeze.as_bytes(),
+            &acknowledgement,
+            take(&mut d)?,
+        )?;
+        Some(retirement::Retirement {
+            approval,
+            acknowledgement,
+            receipt,
+        })
+    } else {
+        None
+    };
     d.finish()?;
-    Ok((content, Some(Journal { cancelled, frozen })))
+    Ok((
+        content,
+        Some(Journal {
+            cancelled,
+            frozen,
+            retired,
+        }),
+    ))
 }

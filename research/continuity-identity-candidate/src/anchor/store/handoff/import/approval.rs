@@ -5,7 +5,7 @@ use super::*;
 /// Public bytes and approval identifiers do not confer control-plane permission.
 #[derive(Clone)]
 pub struct AnchorHandoffTargetApproval {
-    pub(super) plan: AnchorHandoffPlan,
+    pub(in crate::anchor::store::handoff) plan: AnchorHandoffPlan,
     validity: Validity,
     authorization: [u8; 32],
 }
@@ -61,7 +61,7 @@ impl AnchorHandoffTargetApproval {
         Self::from_trusted_state(&plan, source, target, validity, authorization)
     }
 
-    pub(super) fn admit(&self, now: u64) -> Result<(), Error> {
+    pub(in crate::anchor::store::handoff) fn admit(&self, now: u64) -> Result<(), Error> {
         self.plan.validity.check(now)?;
         self.validity.check(now)
     }

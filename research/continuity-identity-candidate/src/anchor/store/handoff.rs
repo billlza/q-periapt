@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Source freeze/cancellation. Neither receipt authorizes target activation.
+//! Source handoff decisions. No receipt grants current client permission.
 use super::*;
 
 mod codec;
 mod import;
+mod retirement;
 pub(super) use codec::{unwrap, validate, wrap};
 pub use import::{
     AnchorHandoffImportReceipt, AnchorHandoffTarget, AnchorHandoffTargetApproval,
@@ -111,20 +112,26 @@ impl AnchorHandoffPlan {
         Ok(result)
     }
 
-    /// Authenticate only this exact source freeze/cancellation observation.
-    /// Freeze is not retirement; neither outcome activates a target or renews a
-    /// client. Historical observations remain readable after admission expires.
+    /// Authenticate this exact historical source decision. Retirement must also
+    /// match the independently retained target approval, freeze and import
+    /// acknowledgement before it can complete that target's transfer. No outcome
+    /// grants client permission; observations remain readable after expiry.
     pub fn verify_receipt(&self, wire: &[u8]) -> Result<AnchorHandoffReceipt, Error> {
         let (body, signature) = open_envelope(wire)?;
         let mut d = Decoder::new(body);
         let state = match d.array::<8>()? {
             tag if tag == *b"QPAHFR01" => AnchorHandoffState::Frozen,
             tag if tag == *b"QPAHCL01" => AnchorHandoffState::Cancelled,
+            tag if tag == *b"QPAHRT01" => AnchorHandoffState::Retired,
             _ => return Err(Error::Encoding),
         };
         let expected = self.to_bytes();
         if d.take(expected.len())? != expected {
             return Err(Error::Scope);
+        }
+        if state == AnchorHandoffState::Retired {
+            d.take(3 * 32)?;
+            self.validity.check(d.u64()?)?;
         }
         d.finish()?;
         self.source.key.verify(state.purpose(), body, signature)?;
@@ -143,18 +150,22 @@ pub enum AnchorHandoffState {
     Frozen,
     /// This operation was cancelled durably and can never be frozen again.
     Cancelled,
+    /// The source irreversibly relinquished this exact frozen authority.
+    Retired,
 }
 impl AnchorHandoffState {
     fn purpose(self) -> Purpose {
         match self {
             Self::Frozen => Purpose::AnchorHandoffFreeze,
             Self::Cancelled => Purpose::AnchorHandoffCancellation,
+            Self::Retired => Purpose::AnchorHandoffRetirement,
         }
     }
     fn tag(self) -> &'static [u8; 8] {
         match self {
             Self::Frozen => b"QPAHFR01",
             Self::Cancelled => b"QPAHCL01",
+            Self::Retired => b"QPAHRT01",
         }
     }
 }
@@ -181,6 +192,9 @@ impl AnchorHandoffReceipt {
         state: AnchorHandoffState,
         key: &AnchorSigningKey,
     ) -> Result<Self, Error> {
+        if state == AnchorHandoffState::Retired {
+            return Err(Error::State);
+        }
         let mut body = state.tag().to_vec();
         body.extend_from_slice(&plan.to_bytes());
         let wire = envelope(&body, &key.sign(state.purpose(), &body)?)?;
@@ -192,13 +206,15 @@ impl AnchorHandoffReceipt {
 pub(super) struct Journal {
     cancelled: Vec<AnchorHandoffReceipt>,
     pub(super) frozen: Option<AnchorHandoffReceipt>,
+    retired: Option<retirement::Retirement>,
 }
 impl Journal {
     fn observe(&self, plan: &AnchorHandoffPlan) -> Result<AnchorHandoffReceipt, DurableError> {
         let found = self
-            .cancelled
+            .retired
             .iter()
-            .chain(self.frozen.iter())
+            .map(|retired| &retired.receipt)
+            .chain(self.cancelled.iter().chain(self.frozen.iter()))
             .find(|r| r.plan.operation == plan.operation)
             .ok_or(DurableError::Absent)?;
         if found.plan.to_bytes() != plan.to_bytes() {
@@ -266,6 +282,9 @@ impl AnchorStore {
         if observed.state == AnchorHandoffState::Cancelled {
             return Ok(observed);
         }
+        if observed.state == AnchorHandoffState::Retired {
+            return Err(Error::Retired.into());
+        }
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
         let receipt =
             AnchorHandoffReceipt::sign(plan, AnchorHandoffState::Cancelled, &owner.signer)?;
@@ -289,26 +308,13 @@ impl AnchorStore {
     }
 
     /// Recover the exact complete state bound by the retained freeze receipt.
-    /// The source remains frozen. This is not permission to activate a target;
-    /// target approval, import and irreversible source retirement are separate.
+    /// The source remains frozen or retired. This is retained public metadata,
+    /// not permission to activate a target or serve client requests.
     pub fn frozen_handoff_state(
         &mut self,
         plan: &AnchorHandoffPlan,
     ) -> Result<AnchorHandoffSourceState, DurableError> {
-        let mut image = self.handoff_image()?;
-        let journal = image.handoff.as_mut().ok_or(DurableError::Absent)?;
-        if journal.observe(plan)?.state != AnchorHandoffState::Frozen {
-            return Err(Error::Retired.into());
-        }
-        journal.frozen = None;
-        if journal.cancelled.is_empty() {
-            image.handoff = None;
-        }
-        let state = AnchorHandoffSourceState::from_image(&plan.source, &image)?;
-        if state.commitment() != plan.commitment {
-            return Err(DurableError::Corrupt);
-        }
-        Ok(state)
+        retained_source(self.handoff_image()?, plan)
     }
 }
 
@@ -335,6 +341,35 @@ impl AnchorHandoffObserver {
             .ok_or(DurableError::Absent)?
             .observe(plan)
     }
+
+    /// Recover all original frozen metadata after retirement without the old
+    /// signing key. The historical bytes do not revive source authority.
+    pub fn retained_source_state(
+        &self,
+        plan: &AnchorHandoffPlan,
+    ) -> Result<AnchorHandoffSourceState, DurableError> {
+        retained_source(load(&self.db, &self.wrapping, &self.pin)?, plan)
+    }
+}
+
+fn retained_source(
+    mut image: Image,
+    plan: &AnchorHandoffPlan,
+) -> Result<AnchorHandoffSourceState, DurableError> {
+    let journal = image.handoff.as_mut().ok_or(DurableError::Absent)?;
+    if journal.observe(plan)?.state == AnchorHandoffState::Cancelled {
+        return Err(Error::Retired.into());
+    }
+    journal.frozen = None;
+    journal.retired = None;
+    if journal.cancelled.is_empty() {
+        image.handoff = None;
+    }
+    let state = AnchorHandoffSourceState::from_image(&plan.source, &image)?;
+    if state.commitment() != plan.commitment {
+        return Err(DurableError::Corrupt);
+    }
+    Ok(state)
 }
 
 fn source_commitment(bytes: &[u8]) -> [u8; 32] {

@@ -107,11 +107,10 @@ refuses a new freeze and leaves ordinary source service available, without erasi
 old decisions. Authenticated history acknowledgement/compaction remains required
 before final protocol admission; this bound is not a finished lifetime policy.
 
-This implements the source freeze/cancellation phase. Irreversible source
-retirement, target activation, mixed historical authorities,
+This implements the source freeze/cancellation phase. Target activation, mixed historical authorities,
 successive witness-key transfers and client-specific original-operation adoption
 are still required. In particular, a freeze receipt must never stand in for the
-missing retirement transaction. The candidate format and APIs are not frozen or
+separate retirement transaction below. The candidate format and APIs are not frozen or
 admitted into the final ABI. Power-loss, installed bindings, independent target
 implementation and device acceptance remain separate gates.
 
@@ -153,11 +152,56 @@ The candidate `QPAHI001` image allows the complete original 1 MiB source image
 budget plus 32 KiB of bounded approval and lifecycle metadata. It reserves space
 for cancellation before publication. MAC validation precedes parsing, followed
 by source/target signatures and all complete-image invariants. The import remains
-an independent inactive phase: source retirement and target activation, mixed
+an independent inactive phase: target activation, mixed
 historical-authority resolution, client account/policy adoption, successive
 witness-key transfers and lifetime history compaction remain required. Target
 activation must also apply the existing key-separation checks to inherited
 clients and authorities. No new format or Rust API here is a final ABI admission.
+
+### Irreversible source retirement candidate
+
+`retire_handoff` requires the source's original durable Frozen decision, the
+independently retained target approval and the exact target-signed import
+acknowledgement. It reads a trusted fallible clock before signing and immediately
+before the database commit. Both source and target admission intervals must still
+admit the commit-time reading, and time cannot move backwards within the operation.
+Expiry or a clock error before commit cannot authorize retirement.
+
+The purpose-30 `QPAHRT01` certificate binds the exact source plan, domain-separated
+commitments to the target approval, original freeze and import acknowledgement,
+and the initial admission time. Its signed body remains within the existing
+16 KiB bound. The `QPAHC002` source image retains the full approval, original freeze,
+exact acknowledgement and exact retirement certificate alongside the unchanged
+complete original state and prior cancellation history. Source images without a
+retirement continue using their previous encoding. The existing 1 MiB image bound
+and all complete-image checks remain in force; a capacity refusal leaves the
+source Frozen and cancellable, rather than dropping history to fit.
+
+The certificate is prepared internally and never released before Retired and its
+exact bytes commit together. Signing failure leaves Frozen. A storage or commit
+error closes the owner and preserves an unknown outcome; reopen that original
+store before deciding what happened. A pre-commit admission failure aborts the
+transaction. Successful retirement never advances or reconstructs original
+content revisions, subject IDs, G/P/R operations, heads or historical records.
+
+Retired keeps every ordinary source read, mutation and retry suspended. The same
+operation cannot be cancelled, frozen again or re-signed with another target
+approval or acknowledgement. Exact retirement retries return the retained bytes
+without a fresh clock reading or signing key. `AnchorHandoffObserver` can recover
+the exact certificate and full original metadata using the original public pin
+and storage authentication alone, including after removal of the old signer.
+Admission expiry does not invalidate observation of a committed decision.
+
+`AnchorHandoffPlan::verify_receipt` verifies a historical source statement.
+`AnchorHandoffTargetApproval::verify_retirement_receipt` additionally requires
+the exact independently retained target approval, original freeze and original
+import acknowledgement. A valid source signature alone does not establish that
+target binding. Neither verifier activates an import or grants client permission.
+The target remains inactive until its separate activation transaction is
+implemented. Mixed historical authority resolution, successive witness transfers,
+per-client account-root/policy-root adoption, original-operation continuation,
+history compaction, installed/independent/device/power-loss qualification and
+final protocol/ABI admission remain open.
 
 ### Immutable original identity and legacy witness migration
 

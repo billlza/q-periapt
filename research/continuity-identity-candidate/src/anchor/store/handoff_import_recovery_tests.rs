@@ -60,7 +60,7 @@ fn imported_cancellation_each_sync_failure_reconciles_original_exact_bytes() {
     );
 }
 
-fn trusted_pin(path: &Path) -> AnchorPin {
+pub(super) fn trusted_pin(path: &Path) -> AnchorPin {
     let bytes = fs::read(path).expect("retained public pin");
     let mut d = Decoder::new(&bytes);
     let pin = AnchorPin::new(

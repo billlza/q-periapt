@@ -2,6 +2,8 @@
 use super::*;
 #[path = "handoff_import_recovery_tests.rs"]
 mod recovery;
+#[path = "handoff_retirement_tests.rs"]
+mod retirement;
 #[path = "handoff_import_validation_tests.rs"]
 mod validation;
 
