@@ -9,6 +9,9 @@ use crate::{
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 
+mod reply_checks;
+pub(crate) mod transferred;
+pub use transferred::AnchorHandoffReplyContext;
 mod pending_recovery;
 pub use pending_recovery::AnchorPendingWriteRecoveryProposal;
 pub(crate) use pending_recovery::{PendingWriteRecoveryScope, MAX_PENDING_RECOVERY_METADATA};
@@ -1039,109 +1042,17 @@ impl AnchorPin {
         {
             return Err(Error::Scope);
         }
-        let [outcome] = d.array()?;
-        let outcome = match outcome {
-            1 => AnchorOutcome::Current,
-            2 => AnchorOutcome::Advanced,
-            3 => AnchorOutcome::AlreadyAppliedExact,
-            4 => AnchorOutcome::Conflict,
-            5 => AnchorOutcome::AuthorityCurrent,
-            6 => AnchorOutcome::AuthorityDenied,
-            7 => AnchorOutcome::CredentialPrepared,
-            8 => AnchorOutcome::CredentialApplied,
-            9 => AnchorOutcome::CredentialClosed,
-            10 => AnchorOutcome::CredentialUnavailable,
-            11 => AnchorOutcome::CredentialAcknowledged,
-            12 => AnchorOutcome::PolicyPrepared,
-            13 => AnchorOutcome::PolicyApplied,
-            14 => AnchorOutcome::PolicyClosed,
-            15 => AnchorOutcome::PolicyUnavailable,
-            16 => AnchorOutcome::PolicyAcknowledged,
-            17 => AnchorOutcome::RosterPrepared,
-            18 => AnchorOutcome::RosterApplied,
-            19 => AnchorOutcome::RosterClosed,
-            20 => AnchorOutcome::RosterUnavailable,
-            21 => AnchorOutcome::RosterAcknowledged,
-            _ => return Err(Error::Encoding),
-        };
+        let outcome = reply_checks::decode_outcome(&mut d)?;
         let head = AnchorHead::decode(&mut d)?;
         let last = decode_last(&mut d, head)?;
         d.finish()?;
-        match (request.operation.0, outcome) {
-            (Command::Query, AnchorOutcome::Current) => {}
-            (
-                Command::RosterStatus(_),
-                AnchorOutcome::RosterPrepared
-                | AnchorOutcome::RosterApplied
-                | AnchorOutcome::RosterClosed
-                | AnchorOutcome::RosterUnavailable,
-            ) => {}
-            (
-                Command::RosterCommit(_) | Command::RosterClose(_),
-                AnchorOutcome::RosterApplied
-                | AnchorOutcome::RosterClosed
-                | AnchorOutcome::RosterUnavailable,
-            ) => {}
-            (
-                Command::RosterAcknowledge(_),
-                AnchorOutcome::RosterAcknowledged | AnchorOutcome::RosterUnavailable,
-            ) => {}
-            (
-                Command::PolicyStatus(_),
-                AnchorOutcome::PolicyPrepared
-                | AnchorOutcome::PolicyApplied
-                | AnchorOutcome::PolicyClosed
-                | AnchorOutcome::PolicyUnavailable,
-            ) => {}
-            (
-                Command::PolicyCommit(_) | Command::PolicyClose(_),
-                AnchorOutcome::PolicyApplied
-                | AnchorOutcome::PolicyClosed
-                | AnchorOutcome::PolicyUnavailable,
-            ) => {}
-            (
-                Command::PolicyAcknowledge(_),
-                AnchorOutcome::PolicyAcknowledged | AnchorOutcome::PolicyUnavailable,
-            ) => {}
-            (
-                Command::AdmitAuthority(_)
-                | Command::AdmitContinuation(..)
-                | Command::AdmitPolicy(..),
-                AnchorOutcome::AuthorityCurrent | AnchorOutcome::AuthorityDenied,
-            ) => {}
-            (
-                Command::CredentialStatus(_),
-                AnchorOutcome::CredentialPrepared
-                | AnchorOutcome::CredentialApplied
-                | AnchorOutcome::CredentialClosed
-                | AnchorOutcome::CredentialUnavailable,
-            ) => {}
-            (
-                Command::CredentialCommit(_) | Command::CredentialClose(_),
-                AnchorOutcome::CredentialApplied
-                | AnchorOutcome::CredentialClosed
-                | AnchorOutcome::CredentialUnavailable,
-            ) => {}
-            (
-                Command::CredentialAcknowledge(_),
-                AnchorOutcome::CredentialAcknowledged | AnchorOutcome::CredentialUnavailable,
-            ) => {}
-            (
-                Command::Advance(_, next) | Command::Fence(_, next),
-                AnchorOutcome::Advanced | AnchorOutcome::AlreadyAppliedExact,
-            ) if head == next && last == Some(request.command) => {}
-            (
-                Command::Advance(expected, _) | Command::Fence(expected, _),
-                AnchorOutcome::Conflict,
-            ) if head != expected
-                && !(Some(head) == request.operation.next() && last == Some(request.command)) => {}
-            _ => return Err(Error::State),
-        }
+        reply_checks::validate(request.operation, request.command, outcome, head, last)?;
         request
             .closed
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .map_err(|_| Error::Closed)?;
         Ok(AnchorReply {
+            handoff: None,
             authority: self.binding,
             subject: request.subject,
             operation: request.operation,
@@ -1326,6 +1237,7 @@ pub enum AnchorCredentialCancellationState {
 }
 /// A reply authenticated against the caller's fresh attempt and pinned witness.
 pub struct AnchorReply {
+    handoff: Option<AnchorHandoffReplyContext>,
     authority: [u8; 32],
     subject: AnchorSubject,
     operation: AnchorOperation,
@@ -1335,6 +1247,19 @@ pub struct AnchorReply {
     last: Option<[u8; 32]>,
 }
 impl AnchorReply {
+    /// Actual signer of this reply; it may differ from the original command authority.
+    pub fn signing_witness_binding(&self) -> [u8; 32] {
+        self.handoff
+            .map_or(self.authority, |context| context.current_witness_binding())
+    }
+    /// Original authority used for the stable operation identity and G/P/R proposals.
+    pub fn logical_witness_binding(&self) -> [u8; 32] {
+        self.authority
+    }
+    /// Verified handoff provenance, present only for the distinct transferred wire protocol.
+    pub fn handoff_context(&self) -> Option<&AnchorHandoffReplyContext> {
+        self.handoff.as_ref()
+    }
     /// Exact outcome; this is not a caller-supplied adapter flag.
     pub fn outcome(&self) -> AnchorOutcome {
         self.outcome
@@ -1426,7 +1351,7 @@ impl AnchorReply {
     }
 }
 
-fn command_id(
+pub(crate) fn command_id(
     authority: &[u8; 32],
     subject: AnchorSubject,
     operation: AnchorOperation,

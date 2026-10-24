@@ -19,6 +19,7 @@ pub(super) fn check(
     original: &Image,
     current: &Image,
     history: &AnchorHandoffHistory,
+    authorized: &BTreeMap<[u8; 32], [u8; 32]>,
 ) -> Result<(), DurableError> {
     if current.namespace != original.namespace
         || current.namespace != history.namespace_binding()
@@ -27,11 +28,34 @@ pub(super) fn check(
     {
         return Err(DurableError::Corrupt);
     }
-    retained(&original.entries, &current.entries, |entry| {
-        let mut bytes = Vec::new();
-        encode_entry(entry, history, EntryFormat::COMPLETE, &mut bytes)?;
-        Ok(bytes)
-    })?;
+    for (id, old) in &original.entries {
+        let next = current.entries.get(id).ok_or(DurableError::Suspended)?;
+        let encode = |entry: &Entry| {
+            let mut bytes = Vec::new();
+            encode_entry(entry, history, EntryFormat::COMPLETE, &mut bytes)?;
+            Ok::<_, DurableError>(bytes)
+        };
+        if authorized.contains_key(id) {
+            // Cold open validates every indexed public authorization before
+            // returning an owner. Live owners require its exact cached index.
+            // Only the authenticated transferred command path can change these
+            // entries; legacy and management paths retain their inherited fence.
+            if next.subject != old.subject
+                || next.device != old.device
+                || next.genesis != old.genesis
+                || next.original_identity != old.original_identity
+                || next.head.fence < old.head.fence
+                || next.head.revision < old.head.revision
+                || next.renewal_floor < old.renewal_floor
+                || next.policy_floor < old.policy_floor
+            {
+                return Err(DurableError::Suspended);
+            }
+            encode(next)?;
+        } else if encode(old)? != encode(next)? {
+            return Err(DurableError::Suspended);
+        }
+    }
     retained(&original.replacements, &current.replacements, |p| {
         Ok(p.to_bytes()?)
     })?;

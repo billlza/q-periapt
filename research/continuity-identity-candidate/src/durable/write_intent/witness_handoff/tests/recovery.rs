@@ -13,6 +13,7 @@ fn fault_owner(c: &Case, after: bool) -> (Owners, Arc<AtomicUsize>, Arc<AtomicUs
     let (db, remaining, count, _) = crate::durable::tests::fault_database_path(&c.path(), after);
     (
         Owners {
+            client: None,
             db,
             key: c.key(),
             plan: c.plan.clone(),
@@ -138,6 +139,23 @@ fn witness_journal_adoption_crash_child() {
         owner
             .adopt_authorization(&fs::read(root.join("receipt")).expect("original receipt"))
             .expect("adopt");
+    }
+    if stage.starts_with("reconcile-") {
+        let address = fs::read_to_string(root.join("current-peer"))
+            .expect("owned endpoint")
+            .parse()
+            .expect("address");
+        owner
+            .attach_current_witness(
+                crate::DeviceSigningKey::deterministic([111; 32], [112; 32])
+                    .expect("original device signer"),
+                Box::new(crate::AnchorTcpTransport::new(address)),
+                Duration::from_secs(3),
+            )
+            .expect("attach adopted current witness");
+        owner
+            .recover_original_pending()
+            .expect("original pending recovery");
     }
     fs::write(root.join("returned"), b"returned").expect("return marker");
 }

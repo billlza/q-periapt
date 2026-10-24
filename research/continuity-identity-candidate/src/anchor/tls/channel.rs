@@ -200,7 +200,13 @@ impl Channel {
     }
     pub(super) fn send_frame(&mut self, bytes: &[u8]) -> io::Result<()> {
         self.check()?;
-        if bytes.is_empty() || bytes.len() > REQUEST_BYTES {
+        if !matches!(
+            bytes.len(),
+            REQUEST_BYTES
+                | REPLY_BYTES
+                | super::super::transferred::REQUEST_BYTES
+                | super::super::transferred::REPLY_BYTES
+        ) {
             return Err(invalid("witness TLS frame exceeds bound"));
         }
         self.connection
@@ -230,15 +236,35 @@ impl Channel {
         self.check()
     }
     pub(super) fn receive_frame(&mut self, expected: usize) -> io::Result<Vec<u8>> {
+        self.receive_framed(Some(expected))
+    }
+    pub(super) fn receive_request_frame(&mut self) -> io::Result<Vec<u8>> {
+        self.receive_framed(None)
+    }
+    fn receive_framed(&mut self, expected: Option<usize>) -> io::Result<Vec<u8>> {
         let mut prefix = [0; 4];
         self.receive(&mut prefix)?;
-        if u32::from_be_bytes(prefix) as usize != expected || expected > REQUEST_BYTES {
+        let length = u32::from_be_bytes(prefix) as usize;
+        let valid = match expected {
+            Some(expected) => {
+                length == expected
+                    && matches!(
+                        expected,
+                        REQUEST_BYTES
+                            | REPLY_BYTES
+                            | super::super::transferred::REQUEST_BYTES
+                            | super::super::transferred::REPLY_BYTES
+                    )
+            }
+            None => super::super::transferred::reply_width(length).is_some(),
+        };
+        if !valid {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "witness TLS frame width differs",
             ));
         }
-        let mut bytes = vec![0; expected];
+        let mut bytes = vec![0; length];
         self.receive(&mut bytes)?;
         Ok(bytes)
     }

@@ -74,7 +74,13 @@ impl Profile {
     }
     fn accepts(self, length: usize, reply: bool) -> bool {
         match self {
-            Self::Witness => length == if reply { 3659 } else { 3674 },
+            Self::Witness => {
+                if reply {
+                    matches!(length, 3659 | crate::anchor::transferred::REPLY_BYTES)
+                } else {
+                    crate::anchor::transferred::reply_width(length).is_some()
+                }
+            }
             Self::Session => (10..=crate::contract::MAX_CONNECTION_FRAME_BYTES).contains(&length),
         }
     }
@@ -136,7 +142,11 @@ impl HttpTransport {
         };
         let bytes = attempt.exchange.reply().await.map_err(host)?;
         self.remaining(deadline)?;
-        if !self.profile.accepts(bytes.length() as usize, true) {
+        if !self.profile.accepts(bytes.length() as usize, true)
+            || (matches!(self.profile, Profile::Witness)
+                && crate::anchor::transferred::reply_width(request.len())
+                    != Some(bytes.length() as usize))
+        {
             return Err(io::ErrorKind::InvalidData.into());
         }
         Ok(bytes.to_vec())

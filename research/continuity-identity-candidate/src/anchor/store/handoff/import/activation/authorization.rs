@@ -164,6 +164,37 @@ fn entry_digest(entry: &Entry, history: &AnchorHandoffHistory) -> Result<[u8; 32
         &bytes,
     ))
 }
+pub(super) fn verified_contexts(
+    db: &Database,
+    approval: &AnchorHandoffTargetApproval,
+    image: &ImportedImage,
+    original: &Image,
+) -> Result<BTreeMap<[u8; 32], crate::AnchorHandoffReplyContext>, DurableError> {
+    if image.client_index.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let activation = image.activation.as_ref().ok_or(DurableError::Corrupt)?;
+    let (_, history) = verify(
+        approval,
+        &image.freeze,
+        &image.acknowledgement,
+        &activation.retirement,
+        &activation.receipt,
+    )?;
+    load_records(db, approval, image, original)?
+        .into_iter()
+        .map(|(id, record)| {
+            Ok((
+                id,
+                crate::AnchorHandoffReplyContext::verified(
+                    &record.request.approved,
+                    &history,
+                    record.receipt.as_bytes(),
+                )?,
+            ))
+        })
+        .collect()
+}
 fn check_request(
     request: &RetainedAdoptionRequest,
     id: [u8; 32],

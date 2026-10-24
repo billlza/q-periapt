@@ -31,9 +31,8 @@ pub(in crate::anchor) fn checked_remaining(
 }
 impl AnchorTransport for AnchorTcpTransport {
     fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>> {
-        if request.len() != 3674 {
-            return Err(io::ErrorKind::InvalidInput.into());
-        }
+        let reply_bytes = crate::anchor::transferred::reply_width(request.len())
+            .ok_or(io::ErrorKind::InvalidInput)?;
         let mut stream = crate::connect::tcp(self.address, deadline, &self.cancel)?;
         checked_remaining(deadline, &self.cancel)?;
         stream.set_nonblocking(false)?;
@@ -47,10 +46,10 @@ impl AnchorTransport for AnchorTcpTransport {
         send(&mut stream, request, deadline, &self.cancel)?;
         let mut length = [0; 4];
         receive(&mut stream, &mut length, deadline, &self.cancel)?;
-        if u32::from_be_bytes(length) != 3659 {
+        if u32::from_be_bytes(length) as usize != reply_bytes {
             return Err(io::ErrorKind::InvalidData.into());
         }
-        let mut response = vec![0; 3659];
+        let mut response = vec![0; reply_bytes];
         receive(&mut stream, &mut response, deadline, &self.cancel)?;
         Ok(response)
     }

@@ -7,7 +7,10 @@ use crate::{
 };
 
 impl PendingWrite {
-    fn policy_proposal(&self, image: &Image) -> Result<Proposal, DurableError> {
+    pub(in crate::durable::write_intent) fn policy_proposal(
+        &self,
+        image: &Image,
+    ) -> Result<Proposal, DurableError> {
         let Some(BoundTransaction::Policy(binding)) = self.binding else {
             return Err(DurableError::Conflict);
         };

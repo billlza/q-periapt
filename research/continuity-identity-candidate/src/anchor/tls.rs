@@ -95,9 +95,8 @@ impl AnchorTlsTransport {
 }
 impl AnchorTransport for AnchorTlsTransport {
     fn exchange(&mut self, request: &[u8], deadline: Instant) -> io::Result<Vec<u8>> {
-        if request.len() != REQUEST_BYTES {
-            return Err(invalid("invalid witness request width"));
-        }
+        let reply_bytes = super::transferred::reply_width(request.len())
+            .ok_or_else(|| invalid("invalid witness request width"))?;
         attempt_budget(deadline, &self.cancel)?;
         let stream = crate::connect::tcp(self.address, deadline, &self.cancel)?;
         checked_remaining(deadline, &self.cancel)?;
@@ -120,7 +119,7 @@ impl AnchorTransport for AnchorTlsTransport {
         }
         channel.send_frame(request)?;
         channel.close()?;
-        let reply = channel.receive_frame(REPLY_BYTES)?;
+        let reply = channel.receive_frame(reply_bytes)?;
         // Require the exact one-response stream boundary. Truncation, trailing
         // data or cancellation withholds the reply; no commit outcome is inferred.
         channel.receive_close()?;
@@ -257,7 +256,7 @@ impl AnchorTlsServer {
                 "unconfigured witness TLS client",
             ));
         }
-        let request = channel.receive_frame(REQUEST_BYTES)?;
+        let request = channel.receive_request_frame()?;
         channel.receive_close()?;
         // A complete frame is required before taking the shared store. The same
         // canonical decoder checks the requested authority/subject before any I/O
@@ -276,7 +275,14 @@ impl AnchorTlsServer {
             }
         };
         let pin = owner.pin().map_err(io::Error::other)?;
-        let subject = incoming(&pin, &request).map_err(io::Error::other)?.subject;
+        let subject = if super::transferred::is_request(&request) {
+            super::transferred::incoming(&pin, &request)
+                .map_err(io::Error::other)?
+                .request
+                .subject
+        } else {
+            incoming(&pin, &request).map_err(io::Error::other)?.subject
+        };
         if !self
             .peers
             .iter()
@@ -292,7 +298,7 @@ impl AnchorTlsServer {
         let reply = owner.handle(&request, now).map_err(io::Error::other)?;
         drop(owner);
         checked_remaining(deadline, &cancel)?;
-        if reply.len() != REPLY_BYTES {
+        if Some(reply.len()) != super::transferred::reply_width(request.len()) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "invalid witness reply width",

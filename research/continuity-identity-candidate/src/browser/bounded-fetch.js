@@ -19,7 +19,8 @@ export function httpEndpoint(value, loopback) {
 export class HttpExchange {
   #controller = new AbortController(); #timer; #poll; #cancelled; #reason; #finished = false; #outcome;
   static start(endpoint, request, milliseconds, cancelled, profile) {
-    const bounds = profile === 1 ? [3674, 3674, 3659, 3659] : profile === 2 ? [10, 32768, 10, 32768] : undefined;
+    const witness = request instanceof Uint8Array && request.length === 3802 ? [3802, 3802, 3787, 3787] : [3674, 3674, 3659, 3659];
+    const bounds = profile === 1 ? witness : profile === 2 ? [10, 32768, 10, 32768] : undefined;
     if (!bounds || !(request instanceof Uint8Array) || request.length < bounds[0] || request.length > bounds[1]
         || !Number.isFinite(milliseconds) || milliseconds <= 0 || milliseconds > 60000
         || typeof cancelled !== 'function') throw fail('InvalidResponse');

@@ -26,6 +26,9 @@ pub(super) struct Case {
     pub(super) journal: DeviceJournal,
     pub(super) plan: WitnessJournalAdoptionPlan,
     pub(super) receipt: Vec<u8>,
+    pub(super) target: Option<AnchorStore>,
+    target_approval: AnchorHandoffTargetApproval,
+    retirement: Vec<u8>,
     device: VerifiedDevice,
     policy: VerifiedSessionPolicy,
     identity: JournalIdentity,
@@ -232,7 +235,12 @@ impl Case {
         }
         let mut source = shared.lock().expect("source");
         let target_key = JournalKey::provision(&root.join("target/key")).expect("target wrapping");
-        let target_signer = AnchorSigningKey::generate().expect("target signer");
+        let target_signer = AnchorSigningKey::provision(
+            &root.join("target/signer"),
+            &target_key,
+            SigningKeyId::from_trusted_state([131; 32]).expect("target key ID"),
+        )
+        .expect("target signer");
         let target_pin = AnchorPin::new(
             AnchorIdentity::generate().expect("target identity"),
             target_signer.public_key().expect("target public"),
@@ -349,6 +357,9 @@ impl Case {
             journal,
             plan,
             receipt,
+            target: Some(target),
+            target_approval,
+            retirement: retired.as_bytes().to_vec(),
             device,
             policy: old,
             identity,
@@ -388,6 +399,29 @@ impl Case {
         for (name, bytes) in &self.public_inputs {
             fs::write(self.root.as_path().join(name), bytes).expect("owned public expectation");
         }
+    }
+    pub(super) fn reopen_target(&mut self) {
+        if let Some(mut target) = self.target.take() {
+            target.close();
+        }
+        let key = JournalKey::open(&self.root.join("target/key")).expect("target key");
+        let signer = AnchorSigningKey::open(
+            &self.root.join("target/signer"),
+            &key,
+            SigningKeyId::from_trusted_state([131; 32]).expect("ID"),
+        )
+        .expect("original target signer");
+        self.target = Some(
+            AnchorHandoffTarget::open(
+                &self.root.join("target/state.redb"),
+                key,
+                self.target_approval.clone(),
+            )
+            .expect("same retained target")
+            .activate(&self.retirement, signer)
+            .expect("exact original activation")
+            .0,
+        );
     }
 }
 pub(super) fn restore_child_plan(root: &Path) -> WitnessJournalAdoptionPlan {
@@ -438,6 +472,7 @@ pub(super) fn restore_child_plan(root: &Path) -> WitnessJournalAdoptionPlan {
         approved: restored.approved,
         history,
         account: restored.account,
+        device: PublicKey::decode(&read("device")).expect("original device"),
     }
 }
 pub(super) fn rows(db: &Database) -> (Vec<u8>, Option<Vec<u8>>) {

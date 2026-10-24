@@ -2009,6 +2009,15 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/support.rs',
             'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/recovery.rs',
             'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/validation.rs',
+            'research/continuity-identity-candidate/src/anchor/reply_checks.rs',
+            'research/continuity-identity-candidate/src/anchor/transferred.rs',
+            'research/continuity-identity-candidate/src/anchor/store/commands.rs',
+            'research/continuity-identity-candidate/src/anchor/store/transferred.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/reconciliation.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/reconciliation/operation.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/transferred.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/transferred/network.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/transferred/recovery.rs',
             'research/continuity-identity-candidate/src/session_policy/handoff_adoption/wire.rs',
         )
         for missing in required:

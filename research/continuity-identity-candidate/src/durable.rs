@@ -89,6 +89,7 @@ pub use write_intent::account_root::{
 };
 pub use write_intent::witness_handoff::{
     WitnessJournalAdoption, WitnessJournalAdoptionPlan, WitnessJournalAdoptionState,
+    WitnessPendingRecovery,
 };
 pub(crate) use write_intent::CredentialCancellationTarget;
 pub(crate) use write_intent::WitnessedCredentialIntent;

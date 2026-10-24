@@ -142,7 +142,8 @@ pub(super) fn validate(
         &activation.receipt,
     )?;
     let current = image_codec::decode_content(&history, &activation.content)?;
-    inherited::check(original, &current, &history).map_err(stored_inheritance_error)
+    inherited::check(original, &current, &history, &image.client_index)
+        .map_err(stored_inheritance_error)
 }
 
 // Verified immutable proofs are cached by this controlled owner. Each load still
@@ -150,6 +151,7 @@ pub(super) fn validate(
 // current content. No incoming state can select new history keys/checkpoints.
 pub(in crate::anchor::store) struct Transferred {
     client_index: BTreeMap<[u8; 32], [u8; 32]>,
+    client_contexts: BTreeMap<[u8; 32], crate::AnchorHandoffReplyContext>,
     approval: AnchorHandoffTargetApproval,
     immutable: [u8; 32],
     history: AnchorHandoffHistory,
@@ -184,10 +186,11 @@ impl Transferred {
     ) -> Result<Self, DurableError> {
         let original = storage::validate_source(key, &approval, &image.source, &image.freeze)?;
         validate(&approval, image, &original)?;
-        authorization::load_records(db, &approval, image, &original)?;
+        let client_contexts = authorization::verified_contexts(db, &approval, image, &original)?;
         let activation = image.activation.as_ref().ok_or(DurableError::Absent)?;
         Ok(Self {
             client_index: image.client_index.clone(),
+            client_contexts,
             immutable: immutable(image)?,
             history: history(
                 &approval,
@@ -201,6 +204,15 @@ impl Transferred {
     }
     pub(in crate::anchor::store) fn namespace(&self) -> [u8; 32] {
         self.history.namespace_binding()
+    }
+    pub(in crate::anchor::store) fn client_context(
+        &self,
+        subject: AnchorSubject,
+    ) -> Result<crate::AnchorHandoffReplyContext, DurableError> {
+        self.client_contexts
+            .get(&subject.id(&self.namespace()))
+            .copied()
+            .ok_or(DurableError::Suspended)
     }
     fn admit(&self, image: &ImportedImage) -> Result<(), DurableError> {
         if immutable(image)? != self.immutable || image.client_index != self.client_index {
@@ -217,7 +229,7 @@ impl Transferred {
         self.admit(&saved)?;
         let activation = saved.activation.as_ref().ok_or(DurableError::Corrupt)?;
         let mut image = image_codec::decode_content(&self.history, &activation.content)?;
-        inherited::check(&self.original, &image, &self.history)
+        inherited::check(&self.original, &image, &self.history, &self.client_index)
             .map_err(stored_inheritance_error)?;
         image.inherited = self.original.entries.keys().copied().collect();
         image.digest = saved.digest;
@@ -230,7 +242,7 @@ impl Transferred {
         image: &mut Image,
         admit_commit: impl FnOnce() -> Result<(), DurableError>,
     ) -> Result<(), DurableError> {
-        inherited::check(&self.original, image, &self.history)?;
+        inherited::check(&self.original, image, &self.history, &self.client_index)?;
         let mut saved = storage::load_authenticated(db, key, &self.approval)?;
         self.admit(&saved)?;
         if saved.digest != image.digest {

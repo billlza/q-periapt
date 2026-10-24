@@ -62,6 +62,9 @@ use policy_renewal::PolicyRenewal;
 mod renewal;
 use renewal::{CredentialRenewalRecord, PolicyAuthority};
 
+mod commands;
+mod transferred;
+
 struct Entry {
     subject: AnchorSubject,
     original_identity: Option<OriginalIdentity>,
@@ -454,6 +457,9 @@ impl AnchorStore {
     /// state/fence mutation commits. Fresh query challenges prevent receipt replay;
     /// a missing reply always requires reconciliation of the original command.
     pub fn handle(&mut self, wire: &[u8], now: u64) -> Result<Vec<u8>, AnchorError> {
+        if crate::anchor::transferred::is_request(wire) {
+            return self.handle_transferred(wire, now);
+        }
         let pin = self.pin()?;
         let request = incoming(&pin, wire)?;
         let mut image = self.image()?;
@@ -471,130 +477,9 @@ impl AnchorStore {
         entry
             .device
             .verify(Purpose::AnchorRequest, request.body, request.signature)?;
-        let roster_pending = entry
-            .independent_roster
-            .as_ref()
-            .is_some_and(RosterRefresh::pending);
-        let mut changed = false;
-        let outcome = match request.operation.0 {
-            Command::Query => AnchorOutcome::Current,
-            Command::PolicyCommit(_)
-            | Command::PolicyStatus(_)
-            | Command::PolicyClose(_)
-            | Command::PolicyAcknowledge(_) => {
-                let (result, mutation) = entry.handle_independent_policy(&request, now)?;
-                changed = mutation;
-                result
-            }
-            Command::AdmitPolicy(authority, statement) => {
-                let live = |v: Validity| match v.check(now) {
-                    Ok(()) => Ok(true),
-                    Err(Error::Validity) => Ok(false),
-                    Err(e) => Err(e),
-                };
-                let state = entry.independent_policy.as_ref();
-                let current = state.and_then(|s| s.current);
-                if !roster_pending
-                    && entry.authority == authority
-                    && state.is_some_and(|s| !s.pending())
-                    && current.is_some_and(|p| p.statement == statement)
-                    && live(entry.validity)?
-                {
-                    AnchorOutcome::AuthorityCurrent
-                } else {
-                    AnchorOutcome::AuthorityDenied
-                }
-            }
-            Command::AdmitAuthority(expected) => {
-                let live = match entry.validity.check(now) {
-                    Ok(()) => true,
-                    Err(Error::Validity) => false,
-                    Err(error) => return Err(error.into()),
-                };
-                if !roster_pending
-                    && entry.policy_authorization.is_none()
-                    && entry
-                        .independent_policy
-                        .as_ref()
-                        .is_none_or(|s| s.current.is_none() && !s.pending())
-                    && entry.authority == expected
-                    && live
-                {
-                    AnchorOutcome::AuthorityCurrent
-                } else {
-                    AnchorOutcome::AuthorityDenied
-                }
-            }
-            Command::AdmitContinuation(authority, credential, statement) => {
-                let live = |validity: Validity| match validity.check(now) {
-                    Ok(()) => Ok(true),
-                    Err(Error::Validity) => Ok(false),
-                    Err(error) => Err(error),
-                };
-                let policy_live = match entry.policy_authorization {
-                    Some(policy) => policy.statement == statement && live(policy.validity)?,
-                    None => false,
-                };
-                if !roster_pending
-                    && entry.authority == authority
-                    && entry.renewal.is_none()
-                    && entry.credential_authorization == Some(credential)
-                    && policy_live
-                    && live(entry.validity)?
-                {
-                    AnchorOutcome::AuthorityCurrent
-                } else {
-                    AnchorOutcome::AuthorityDenied
-                }
-            }
-            Command::RosterCommit(_)
-            | Command::RosterStatus(_)
-            | Command::RosterClose(_)
-            | Command::RosterAcknowledge(_) => {
-                let (outcome, mutation) = entry.handle_independent_roster(&request, now)?;
-                changed = mutation;
-                outcome
-            }
-            Command::CredentialCommit(_)
-            | Command::CredentialStatus(_)
-            | Command::CredentialClose(_)
-            | Command::CredentialAcknowledge(_) => {
-                let (outcome, mutation) = entry.handle_renewal(&request, now)?;
-                changed = mutation;
-                outcome
-            }
-            Command::Advance(expected, next) | Command::Fence(expected, next) => {
-                // Neither ordinary commands nor a writer fence may bypass an
-                // unacknowledged joint transition, including its terminal state.
-                if entry
-                    .independent_roster
-                    .as_ref()
-                    .is_some_and(RosterRefresh::pending)
-                    || entry.renewal.is_some()
-                    || entry
-                        .independent_policy
-                        .as_ref()
-                        .is_some_and(PolicyRenewal::pending)
-                {
-                    return Err(Error::State.into());
-                }
-                if entry.head == next && entry.last == Some(request.command) {
-                    // Exact last-command confirmation is read-only after expiry too.
-                    AnchorOutcome::AlreadyAppliedExact
-                } else {
-                    entry.validity.check(now)?;
-                    if entry.head != expected {
-                        AnchorOutcome::Conflict
-                    } else {
-                        entry.head = next;
-                        entry.last = Some(request.command);
-                        AnchorOutcome::Advanced
-                    }
-                }
-            }
-        };
+        let (outcome, changed) = entry.execute(&request, now)?;
         let (head, last) = (entry.head, entry.last);
-        if changed || outcome == AnchorOutcome::Advanced {
+        if changed {
             self.persist(&mut image)?;
         }
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;

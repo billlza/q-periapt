@@ -123,6 +123,7 @@ mod tests;
 #[cfg(all(test, windows))]
 mod windows_key_reopen;
 
+pub use anchor::AnchorHandoffReplyContext;
 pub use anchor::{
     AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementId,
     AnchorAccountReplacementPlan, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
@@ -157,6 +158,7 @@ pub use crypto::{
     AnchorSigningKey, DeviceSigningKey, PolicySigningKey, PublicKey, RootSigningKey, SigningKeyId,
     PUBLIC_KEY_BYTES,
 };
+pub use durable::WitnessPendingRecovery;
 pub use durable::{
     AbandonedDelivery, AbandonedEpoch, AbandonedSession, AccountRootJournalRecovery,
     AccountRootJournalState, AccountRootJournalTransition, BootstrapCancellation,

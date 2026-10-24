@@ -89,6 +89,7 @@ impl From<Error> for AnchorClientError {
 /// has not dispatched or moved the signing owner.
 pub struct AnchorClient {
     pin: AnchorPin,
+    handoff: Option<Box<super::transferred::Authority>>,
     signer: Option<DeviceSigningKey>,
     transport: Box<dyn AnchorTransport>,
     timeout: Duration,
@@ -115,6 +116,7 @@ impl AnchorClient {
         }
         Ok(Self {
             pin,
+            handoff: None,
             signer: Some(signer),
             transport,
             timeout,
@@ -122,6 +124,25 @@ impl AnchorClient {
     }
     pub(crate) fn pin(&self) -> &AnchorPin {
         &self.pin
+    }
+    // Only the durable journal adoption owner supplies this verified context.
+    // pin() remains the original command/policy authority; the distinct wire
+    // verifier below uses the current signer and exposes that provenance.
+    pub(crate) fn from_handoff(
+        authority: super::transferred::Authority,
+        signer: DeviceSigningKey,
+        transport: Box<dyn AnchorTransport>,
+        timeout: Duration,
+    ) -> Result<Self, AnchorClientError> {
+        if signer
+            .public_key()?
+            .shares_component(authority.current().public_key())
+        {
+            return Err(Error::Scope.into());
+        }
+        let mut client = Self::new(authority.logical.clone(), signer, transport, timeout)?;
+        client.handoff = Some(Box::new(authority));
+        Ok(client)
     }
     pub(crate) fn check_device(&self, device: &VerifiedDevice) -> Result<(), Error> {
         self.signer
@@ -150,7 +171,12 @@ impl AnchorClient {
             .map_err(AnchorClientError::Transport)?
             .min(deadline);
         remaining(deadline).map_err(AnchorClientError::Transport)?;
-        let request = AnchorRequest::new(&self.pin, subject, operation, &signer)?;
+        let request = match &self.handoff {
+            None => Attempt::Original(AnchorRequest::new(&self.pin, subject, operation, &signer)?),
+            Some(authority) => {
+                Attempt::Transferred(authority.request(subject, operation, &signer)?)
+            }
+        };
         remaining(deadline).map_err(AnchorClientError::Transport)?;
         let wire = self
             .transport
@@ -158,9 +184,25 @@ impl AnchorClient {
             .await
             .map_err(AnchorClientError::Transport)?;
         remaining(deadline).map_err(AnchorClientError::Transport)?;
-        let reply = self.pin.verify_reply(&request, &wire)?;
+        let reply = match (&request, &self.handoff) {
+            (Attempt::Original(request), None) => self.pin.verify_reply(request, &wire)?,
+            (Attempt::Transferred(request), Some(authority)) => authority.verify(request, &wire)?,
+            _ => return Err(Error::State.into()),
+        };
         remaining(deadline).map_err(AnchorClientError::Transport)?;
         self.signer = Some(signer);
         Ok(reply)
+    }
+}
+enum Attempt {
+    Original(AnchorRequest),
+    Transferred(super::transferred::Request),
+}
+impl Attempt {
+    fn as_bytes(&self) -> &[u8] {
+        match self {
+            Self::Original(r) => r.as_bytes(),
+            Self::Transferred(r) => r.as_bytes(),
+        }
     }
 }

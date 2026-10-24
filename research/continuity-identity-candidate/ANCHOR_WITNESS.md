@@ -1259,9 +1259,9 @@ requires the deployment's independent retained-checkpoint guarantees.
 
 The receipt establishes durable server authorization only. The original journal
 must separately adopt it as described below, and legacy requests for inherited
-entries remain suspended. A transfer-aware request/reply must preserve original
-command IDs and prove the current witness without impersonating an old v1
-receipt. Successive handoffs, full client-capacity execution, historical
+entries remain suspended. The separate transferred request/reply below preserves
+original command IDs and authenticates the current witness. Successive handoffs,
+full client-capacity execution, historical
 compaction, installed/independent consumers, device and power-loss qualification,
 formal correspondence and final ABI admission remain open.
 
@@ -1297,9 +1297,9 @@ Ordinary, original credential/policy/roster-recovery and account-root paths refu
 this fenced state. An existing account-root fence also refuses a new witness
 adoption; no row is silently discarded. Original G/P/R and cancellation formats
 remain intact. This owner retains control-plane selection only: it cannot be
-converted into an ordinary `DeviceJournal` or traffic `AnchorClient`. Fresh
-transfer-aware evidence and exact original-operation reconciliation are still
-required before releasing either owner. The enrollment/installation coordinator
+converted into an ordinary `DeviceJournal` or traffic `AnchorClient`. Its dedicated
+recovery method below obtains fresh transferred evidence and reconciles the exact
+original operation; operational owner release is still separate. The enrollment/installation coordinator
 must carry this adopted checkpoint instead of reopening through the old entry.
 
 The local component tests retain a real generated secret prekey and actual sealed
@@ -1307,6 +1307,62 @@ P renewal through Prepared, witness-Applied and locally-installed/unacknowledged
 states. Preparation and adoption each have real process-loss and synchronous I/O
 fault checks. Missing control, MAC-valid image/pending substitutions, altered
 target signatures, foreign decisions and exact historical retry are covered.
-Equivalent complete G/R/cancellation and account-root interleavings, transfer-aware
-network recovery, installed/independent/device/power-loss qualification and final
+Equivalent complete G/R/cancellation and account-root interleavings,
+installed/independent/device/power-loss qualification and final
 ABI admission remain required; this component is not the completed handoff path.
+
+## Transferred requests and original-operation recovery
+
+The distinct `QPATRQ01` / `QPATRS01` messages use signature purposes 34 and 35.
+Their common context is five 32-byte commitments, in order: immutable namespace,
+original logical witness, current signing witness, verified history checkpoint,
+and exact target client-authorization receipt. The authorization commitment uses
+`Q-PERIAPT-TRANSFERRED-WITNESS-AUTHORIZATION/v1` over the full retained receipt.
+Every request and response authenticates the full context and original subject.
+
+The request body is `tag || context || subject || command || challenge || operation`.
+The command keeps the original `Q-PERIAPT-CONTINUITY-ANCHOR-COMMAND/v1` derivation
+under the **logical** witness. Each attempt generates a fresh challenge; its
+commitment uses `Q-PERIAPT-TRANSFERRED-WITNESS-REQUEST/v1` over the complete body.
+The response body is `tag || context || subject || attempt || command || outcome || head || last`.
+The existing canonical operation, outcome, head and last-command encodings apply.
+With the current fixed signature profile, the envelopes are exactly 3,802 and
+3,787 bytes. Direct v1 envelopes remain exactly 3,674 and 3,659 bytes. TCP, TLS
+and Fetch select one exact request/response pair; they do not accept a size range
+or retry another format. TLS retains its framing ALPN and certificate/subject
+admission; the signed message tags and purposes distinguish these protocols.
+
+The target requires the exact independently verified authorization in its durable
+index. Cold open verifies the proofs before constructing cached client contexts;
+each live load still authenticates the complete index and proof-row hashes.
+Authorized transferred requests and direct requests share one command state
+machine and one closed-outcome validator. Inherited identity, genesis and minimum
+head/floor constraints remain checked. Inherited entries without authorization
+remain byte-exact, and legacy current-pin requests cannot use an authorization
+to bypass their inherited fence. Management shortcuts remain separately fenced.
+
+`AnchorReply::logical_witness_binding`, `signing_witness_binding` and
+`handoff_context` expose the distinction: a current B signature is never passed
+off as an A-signed v1 receipt. The v1 verifier rejects transferred envelopes.
+G/P/R interpreters retain their original proposal and command binding, using the
+explicitly verified transferred provenance for the fresh current-signer proof.
+
+After durable journal adoption, `attach_current_witness` takes the original device
+signer and a bounded carrier. `recover_original_pending` queries only the exact
+retained operation. It sends no Commit, Close, ACK or new work. A verified exact
+Applied result installs the **original already sealed target**, atomically with
+the control row's image commitment, and retains the original pending bytes.
+Prepared, Closed, Acknowledged and Unavailable retain their distinct meanings;
+Unavailable is not proof of non-commit. Dropping a polled asynchronous attempt or
+an error consumes this journal lease and signing owner. Reopen the same plan and
+retry the same original state after any uncertain result. Traffic permission and
+coordinator acknowledgement are still separate from this recovery observation.
+
+Current local tests execute the real signed P recovery over TCP after policy
+expiry, across all three retained P states, including lost/replayed responses,
+local install I/O faults and process loss. They also verify unchanged command IDs
+after target reopen, current-signer provenance, device-signed context substitution
+refusal and refusal before local adoption. Fetch framing is checked over actual
+loopback HTTP on Node; this is not physical-device or browser runtime acceptance.
+Complete transferred TLS/Fetch runtime, all G/R/cancellation interleavings,
+installation coordination and operational-owner release remain open gates.

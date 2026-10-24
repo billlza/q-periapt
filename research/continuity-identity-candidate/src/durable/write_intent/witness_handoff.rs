@@ -6,8 +6,10 @@ use crate::{
     HistoricalAnchorHandoffAdoption,
 };
 mod codec;
+mod reconciliation;
 mod transaction;
 use codec::Fence;
+pub use reconciliation::WitnessPendingRecovery;
 #[cfg(all(test, unix))]
 mod tests;
 
@@ -22,6 +24,7 @@ pub struct WitnessJournalAdoptionPlan {
     approved: HistoricalAnchorHandoffAdoption,
     history: AnchorHandoffHistory,
     account: [u8; 32],
+    device: crate::PublicKey,
 }
 impl WitnessJournalAdoptionPlan {
     /// Revalidate both root approvals against independent identity, policy and
@@ -36,6 +39,7 @@ impl WitnessJournalAdoptionPlan {
             approved: approved.clone(),
             history: materials.history.clone(),
             account: materials.original_device.account,
+            device: materials.original_device.key.clone(),
         })
     }
     /// Exact public request to use for the target authorization transaction.
@@ -82,6 +86,7 @@ pub enum WitnessJournalAdoptionState {
     Adopted,
 }
 struct Owners {
+    client: Option<crate::AnchorClient>,
     db: Database,
     key: JournalKey,
     plan: WitnessJournalAdoptionPlan,
@@ -140,6 +145,7 @@ impl WitnessJournalAdoption {
         trusted_time: impl FnMut() -> Result<u64, DurableError>,
     ) -> Result<Self, DurableError> {
         Owners {
+            client: None,
             db: open_private_database(path)?,
             key,
             plan,
@@ -155,6 +161,7 @@ impl WitnessJournalAdoption {
         plan: WitnessJournalAdoptionPlan,
     ) -> Result<Self, DurableError> {
         let owner = Owners {
+            client: None,
             db: open_private_database(path)?,
             key,
             plan,
@@ -214,6 +221,7 @@ impl DeviceJournal {
     ) -> Result<WitnessJournalAdoption, DurableError> {
         let active = self.active.take().ok_or(DurableError::Closed)?;
         Owners {
+            client: None,
             db: active.db,
             key: active.key,
             plan,

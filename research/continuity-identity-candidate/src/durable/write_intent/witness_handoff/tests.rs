@@ -3,6 +3,7 @@ use super::*;
 use std::{fs, path::PathBuf, time::Duration};
 mod recovery;
 mod support;
+mod transferred;
 mod validation;
 use support::*;
 

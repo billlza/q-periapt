@@ -912,6 +912,8 @@ jobs:
         run: wasm-pack test --node crates/q-periapt-wasm --features signed-policy
       - name: Check shared Continuity engine for the browser target
         run: cargo +1.98.1 check --locked --manifest-path research/continuity-identity-candidate/Cargo.toml --lib --target wasm32-unknown-unknown
+      - name: Check exact original and transferred witness HTTP frames
+        run: node --test artifact/test_witness_fetch.mjs
       - name: Install pinned SDK npm producer in a private tool directory
         run: |
           npm install --prefix "$RUNNER_TEMP/qperiapt-npm" --ignore-scripts --no-fund npm@12.1.0
@@ -944,6 +946,7 @@ jobs:
       - name: Consume the same WASM archive on Node 24.0.0
         shell: bash
         run: |
+          node --test artifact/test_witness_fetch.mjs
           digests=$(sh artifact/python-run.sh -c 'from pathlib import Path; from evidence_io import load_json_object_snapshot; import re; record=load_json_object_snapshot(Path("target/sdk-wasm-package/INSTALLED_CONSUMER.json"), label="WASM producer receipt").value; values=[record["sha256"],record["manifest_sha256"]]; assert all(isinstance(value,str) and re.fullmatch(r"[0-9a-f]{64}",value) for value in values); print(" ".join(values))')
           read -r archive_sha manifest_sha <<< "$digests"
           sh artifact/python-run.sh artifact/wasm_sdk_package.py \

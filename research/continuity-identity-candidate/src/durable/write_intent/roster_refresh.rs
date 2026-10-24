@@ -38,7 +38,10 @@ impl DeviceJournal {
     }
 }
 impl PendingWrite {
-    fn roster_proposal(&self, image: &Image) -> Result<Proposal, DurableError> {
+    pub(in crate::durable::write_intent) fn roster_proposal(
+        &self,
+        image: &Image,
+    ) -> Result<Proposal, DurableError> {
         let Some(BoundTransaction::Roster { scope, .. }) = self.binding else {
             return Err(DurableError::Conflict);
         };

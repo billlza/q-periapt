@@ -370,6 +370,17 @@ impl PendingWrite {
             self.check_current(current)
         }
     }
+    fn check_retained_target(&self, current: &Image) -> Result<(), DurableError> {
+        if current.revision == self.next_revision
+            && current.digest == self.next_digest
+            && current.protection == self.protection
+            && current.local_account == self.local_account
+        {
+            Ok(())
+        } else {
+            Err(DurableError::Conflict)
+        }
+    }
 }
 
 fn authenticator(key: &JournalKey) -> Result<Hmac<Sha256>, DurableError> {
@@ -450,7 +461,10 @@ fn load_pending_snapshot(
         intent.check_current(&image)?;
     }
     if let Some(PendingIntent::Write(intent)) = &pending {
-        if matches!(
+        if matches!(admission, SnapshotAdmission::WitnessHandoff) && value.value() == intent.target
+        {
+            intent.check_retained_target(&image)?;
+        } else if matches!(
             (&admission, intent.binding),
             (
                 SnapshotAdmission::CredentialRecovery,
