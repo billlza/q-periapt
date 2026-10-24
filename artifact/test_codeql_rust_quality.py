@@ -1964,6 +1964,50 @@ class CodeQLRustQualityTests(unittest.TestCase):
                                      f"tracked Rust source count must be {codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT}"):
                 codeql_rust_quality.tracked_rust_paths()
 
+    def test_witness_handoff_inventory_requires_each_new_source(self) -> None:
+        tracked = sorted(codeql_rust_quality.tracked_rust_paths())
+        required = (
+            'research/continuity-identity-candidate/src/anchor/store/handoff.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/codec.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/history.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/history/tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/adoption.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/inherited.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/approval.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/storage.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/testing.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/retirement.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_activation_recovery_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_activation_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_adoption_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_history_integration_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_import_recovery_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_import_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_import_validation_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_lifecycle_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_retirement_recovery_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_retirement_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_source.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_source_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/image_authority.rs',
+            'research/continuity-identity-candidate/src/anchor/store/image_authority_tests.rs',
+            'research/continuity-identity-candidate/src/session_policy/handoff_adoption.rs',
+            'research/continuity-identity-candidate/src/session_policy/handoff_adoption/wire.rs',
+        )
+        for missing in required:
+            self.assertIn(missing, tracked)
+            raw = b"".join(p.encode() + b"\0" for p in tracked if p != missing)
+            with self.subTest(source=missing), mock.patch.object(
+                codeql_rust_quality, "run_git_bytes", return_value=raw
+            ), self.assertRaisesRegex(
+                codeql_rust_quality.CodeQLRustQualityError,
+                f"tracked Rust source count must be {codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT}",
+            ):
+                codeql_rust_quality.tracked_rust_paths()
+
     def test_reference_recovery_inventory_requires_each_new_source(self) -> None:
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
         required = (
