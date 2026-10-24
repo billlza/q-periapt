@@ -1258,10 +1258,55 @@ retained approval, but neither witness signing key. Whole-database rollback stil
 requires the deployment's independent retained-checkpoint guarantees.
 
 The receipt establishes durable server authorization only. The original journal
-has not yet adopted it, and legacy requests for inherited entries remain
-suspended. A new authenticated client control record must preserve existing
-sealed G/P/R digests; a transfer-aware request/reply must preserve original
+must separately adopt it as described below, and legacy requests for inherited
+entries remain suspended. A transfer-aware request/reply must preserve original
 command IDs and prove the current witness without impersonating an old v1
 receipt. Successive handoffs, full client-capacity execution, historical
 compaction, installed/independent consumers, device and power-loss qualification,
 formal correspondence and final ABI admission remain open.
+
+## Original journal adoption of the target authorization
+
+`WitnessJournalAdoptionPlan::new` revalidates both approvals against the original
+identity, original/current policy, independently pinned history and exact target
+activation. The host must retain those original inputs and its expected operation
+and checkpoint before beginning. Incoming database or network bytes cannot choose
+a replacement plan. `DeviceJournal::begin_witness_handoff` consumes the original
+owner, or `WitnessJournalAdoption::prepare_original` explicitly retries a first
+preparation on that same existing journal. Neither provisions missing storage.
+
+Preparation atomically records the exact public request, original encrypted-image
+digest, pending-intent digest and admission time in a separate `witness-handoff`
+row. Its MAC has a distinct derived key/domain. The fixed 16-KiB row budget
+reserves the complete target receipt before preparation succeeds. The original
+image, sealed pending target, revision, head and command identities are unchanged.
+New preparation checks time before the transaction and immediately before commit;
+an exact retained preparation is historical and does not create another decision.
+
+`adopt_authorization` authenticates the exact target receipt and durably records
+the selected authority. Reopen with `resume_original` and the same independently
+retained plan after an error or lost return. This entry requires the control row;
+absence, corruption or a competing plan fails. Recovery returns the original
+receipt without re-signing or resealing, including after its original admission
+window expires. It does not extend credential, roster, policy or runtime validity.
+Errors close the owner and may follow commit. Whole-database rollback or loss of
+the host's independent expected checkpoint remains outside a local-MAC guarantee.
+
+The shared journal snapshot reader recognizes and authenticates the control row.
+Ordinary, original credential/policy/roster-recovery and account-root paths refuse
+this fenced state. An existing account-root fence also refuses a new witness
+adoption; no row is silently discarded. Original G/P/R and cancellation formats
+remain intact. This owner retains control-plane selection only: it cannot be
+converted into an ordinary `DeviceJournal` or traffic `AnchorClient`. Fresh
+transfer-aware evidence and exact original-operation reconciliation are still
+required before releasing either owner. The enrollment/installation coordinator
+must carry this adopted checkpoint instead of reopening through the old entry.
+
+The local component tests retain a real generated secret prekey and actual sealed
+P renewal through Prepared, witness-Applied and locally-installed/unacknowledged
+states. Preparation and adoption each have real process-loss and synchronous I/O
+fault checks. Missing control, MAC-valid image/pending substitutions, altered
+target signatures, foreign decisions and exact historical retry are covered.
+Equivalent complete G/R/cancellation and account-root interleavings, transfer-aware
+network recovery, installed/independent/device/power-loss qualification and final
+ABI admission remain required; this component is not the completed handoff path.

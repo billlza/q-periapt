@@ -2002,6 +2002,13 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-identity-candidate/src/anchor/store/image_authority_tests.rs',
             'research/continuity-identity-candidate/src/session_policy/handoff_adoption.rs',
             'research/continuity-identity-candidate/src/session_policy/handoff_adoption/retained.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/codec.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/transaction.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/support.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/recovery.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/validation.rs',
             'research/continuity-identity-candidate/src/session_policy/handoff_adoption/wire.rs',
         )
         for missing in required:

@@ -68,6 +68,7 @@ pub(super) mod account_root;
 mod pending_recovery;
 mod retired_cleanup;
 mod roster_refresh;
+pub(super) mod witness_handoff;
 pub(super) use roster_refresh::reserve_roster_refresh;
 mod policy_renewal;
 #[cfg(all(test, unix))]
@@ -392,6 +393,7 @@ enum SnapshotAdmission<'a> {
     RosterRecovery,
     RetiredCleanup(&'a crate::AnchorRetiredSubject),
     AccountRootReplacement,
+    WitnessHandoff,
     AuthorityCheck,
 }
 
@@ -424,7 +426,11 @@ fn load_pending_snapshot(
     let image = unseal(key, owner, value.value())?;
     let pending = table.get("pending").map_err(storage)?;
     let root_fence = table.get("account-root-fence").map_err(storage)?;
-    let expected_rows = 1 + u64::from(pending.is_some()) + u64::from(root_fence.is_some());
+    let witness_fence = table.get(witness_handoff::ROW).map_err(storage)?;
+    let expected_rows = 1
+        + u64::from(pending.is_some())
+        + u64::from(root_fence.is_some())
+        + u64::from(witness_fence.is_some());
     if table.len().map_err(storage)? != expected_rows {
         return Err(DurableError::Corrupt);
     }
@@ -458,6 +464,7 @@ fn load_pending_snapshot(
             ) | (
                 SnapshotAdmission::RetiredCleanup(_)
                     | SnapshotAdmission::AccountRootReplacement
+                    | SnapshotAdmission::WitnessHandoff
                     | SnapshotAdmission::AuthorityCheck,
                 Some(_)
             )
@@ -476,6 +483,12 @@ fn load_pending_snapshot(
                 account_root::validate_retired_fence(key, fence.value(), *retired)?;
             }
             _ => return Err(DurableError::Suspended),
+        }
+    }
+    if let Some(fence) = witness_fence {
+        witness_handoff::validate_snapshot(key, &image, pending.as_ref(), fence.value())?;
+        if !matches!(admission, SnapshotAdmission::WitnessHandoff) {
+            return Err(DurableError::Suspended);
         }
     }
     Ok((image, pending))

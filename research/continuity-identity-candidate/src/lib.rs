@@ -175,6 +175,9 @@ pub use durable::{
     SessionClosureArchive, SessionClosureId, SessionClosureJournal, SessionClosureStatus,
     UnconfirmedMessage, UnconsumedDelivery, MAX_PREKEY_PUBLICATIONS,
 };
+pub use durable::{
+    WitnessJournalAdoption, WitnessJournalAdoptionPlan, WitnessJournalAdoptionState,
+};
 pub use identity::{
     AccountPin, CredentialRenewalAuthorization, CredentialRenewalId, CredentialRenewalMaterials,
     DeviceDescription, HistoricalCredentialRenewal, IssuedCredentialRenewal, IssuedRoster,
