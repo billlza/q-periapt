@@ -107,13 +107,57 @@ refuses a new freeze and leaves ordinary source service available, without erasi
 old decisions. Authenticated history acknowledgement/compaction remains required
 before final protocol admission; this bound is not a finished lifetime policy.
 
-This implements the source freeze/cancellation phase only. Target import,
-irreversible source retirement, target activation, mixed historical authorities,
+This implements the source freeze/cancellation phase. Irreversible source
+retirement, target activation, mixed historical authorities,
 successive witness-key transfers and client-specific original-operation adoption
 are still required. In particular, a freeze receipt must never stand in for the
 missing retirement transaction. The candidate format and APIs are not frozen or
 admitted into the final ABI. Power-loss, installed bindings, independent target
 implementation and device acceptance remain separate gates.
+
+### Independently approved inactive target import
+
+`AnchorHandoffTargetApproval` binds the exact source plan to the target operator's
+independently retained source and target pins, approval identifier and admission
+interval. Its constructors restore trusted control-plane configuration; public
+approval bytes are not a network authentication mechanism. The target signing key
+must match this exact target pin. Initial import requires both source and target
+admission intervals to be current.
+
+`AnchorHandoffTarget::provision_import` first authenticates the exact source freeze
+receipt, checks the full source commitment, and validates every original image
+record through the existing complete-image decoder and canonical encoder. It
+accepts unresolved G/P/R operations and preserves original namespace, revisions,
+heads, floors, identity classification and cancellation history. The original
+storage key and source private signer are never transferred. The target protects
+the complete imported metadata with its independently provisioned storage key.
+
+The target's purpose-29 acknowledgement binds its independently approved scope
+and the exact source freeze receipt. The new database stores that exact signed
+acknowledgement with the full source image before it is published through the
+existing private, non-replacing publication boundary. A publication error may
+already have committed: reopen the original destination with the same retained
+approval. Do not select a staging orphan, replace an existing import, or interpret
+absence after prior successful use as fresh first use.
+
+`AnchorHandoffTarget` exposes no ordinary witness handler and cannot be opened as
+an `AnchorStore`. A freeze receipt or target import acknowledgement cannot activate
+it. Reopening and historical receipt observation do not require either private
+signer or a current admission interval. Expiry never discards an unresolved import.
+Only the exact source's committed cancellation certificate can close it; that
+certificate and all original imported metadata remain retained after closure.
+Closure and retries use the original database transaction/digest CAS, and storage
+errors close the owner so the exact operation can be reconciled after reopen.
+
+The candidate `QPAHI001` image allows the complete original 1 MiB source image
+budget plus 32 KiB of bounded approval and lifecycle metadata. It reserves space
+for cancellation before publication. MAC validation precedes parsing, followed
+by source/target signatures and all complete-image invariants. The import remains
+an independent inactive phase: source retirement and target activation, mixed
+historical-authority resolution, client account/policy adoption, successive
+witness-key transfers and lifetime history compaction remain required. Target
+activation must also apply the existing key-separation checks to inherited
+clients and authorities. No new format or Rust API here is a final ABI admission.
 
 ### Immutable original identity and legacy witness migration
 

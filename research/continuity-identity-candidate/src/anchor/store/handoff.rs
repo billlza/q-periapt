@@ -3,8 +3,14 @@
 use super::*;
 
 mod codec;
+mod import;
 pub(super) use codec::{unwrap, validate, wrap};
+pub use import::{
+    AnchorHandoffImportReceipt, AnchorHandoffTarget, AnchorHandoffTargetApproval,
+    AnchorHandoffTargetState,
+};
 pub(super) const MAX_CANCELLED: usize = 16;
+const PLAN_BYTES: usize = 8 + 32 + 2 * (32 + PUBLIC_KEY_BYTES) + 8 + 32 + 16 + 32;
 
 /// Exact source transaction independently approved by the witness operator.
 /// This candidate format is not a client policy grant or a target approval.
@@ -75,6 +81,9 @@ impl AnchorHandoffPlan {
     /// Restore an independently approved exact intent. Shape checking here does
     /// not make a network-supplied descriptor an approved control-plane command.
     pub fn restore_trusted_state(bytes: &[u8]) -> Result<Self, Error> {
+        if bytes.len() != PLAN_BYTES {
+            return Err(Error::Encoding);
+        }
         let mut d = Decoder::new(bytes);
         if d.array::<8>()? != *b"QPAHPL01" {
             return Err(Error::Encoding);

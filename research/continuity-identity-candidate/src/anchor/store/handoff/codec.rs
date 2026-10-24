@@ -2,7 +2,7 @@
 use super::*;
 const TAG: &[u8; 8] = b"QPAHC001";
 
-fn put(bytes: &[u8], out: &mut Vec<u8>) -> Result<(), DurableError> {
+pub(super) fn put(bytes: &[u8], out: &mut Vec<u8>) -> Result<(), DurableError> {
     out.extend_from_slice(
         &u32::try_from(bytes.len())
             .map_err(|_| DurableError::Capacity)?
@@ -12,7 +12,7 @@ fn put(bytes: &[u8], out: &mut Vec<u8>) -> Result<(), DurableError> {
     Ok(())
 }
 
-fn take<'a>(d: &mut Decoder<'a>) -> Result<&'a [u8], Error> {
+pub(super) fn take<'a>(d: &mut Decoder<'a>) -> Result<&'a [u8], Error> {
     let length = usize::try_from(u32::from_be_bytes(d.array()?)).map_err(|_| Error::Capacity)?;
     if length > MAX_IMAGE {
         return Err(Error::Capacity);

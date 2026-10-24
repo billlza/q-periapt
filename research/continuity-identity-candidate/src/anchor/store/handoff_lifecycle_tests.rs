@@ -29,6 +29,7 @@ fn freeze_original(c: &mut Case, operations: [AnchorOperation; 4]) {
     c.store
         .cancel_handoff(&plan)
         .expect("cancel without resetting original transaction");
+    super::super::handoff_import::import_pending_then_cancel(c);
 }
 
 #[test]

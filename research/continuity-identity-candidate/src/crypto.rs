@@ -65,6 +65,7 @@ pub(crate) enum Purpose {
     PendingWriteRecovery = 26,
     AnchorHandoffFreeze = 27,
     AnchorHandoffCancellation = 28,
+    AnchorHandoffImport = 29,
 }
 
 /// Public verification keys for the fixed two-signature candidate profile.
