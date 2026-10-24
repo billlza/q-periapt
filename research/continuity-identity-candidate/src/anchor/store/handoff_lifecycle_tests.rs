@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 
+fn reply_after_import(c: &mut Case, request: &AnchorRequest) -> AnchorReply {
+    let wire = c
+        .store
+        .handle(request.as_bytes(), 180)
+        .expect("original operation after transfer at175");
+    c.pin
+        .verify_reply(request, &wire)
+        .expect("original source reply")
+}
+
 fn freeze_original(c: &mut Case, operations: [AnchorOperation; 4]) {
     let before = c
         .store
@@ -130,7 +140,7 @@ fn source_handoff_keeps_original_pending_policy_and_blocks_all_four_policy_comma
     );
     let q = request(&c, AnchorOperation::close_policy_renewal(&proposal));
     assert_eq!(
-        apply_request(&mut c, &q)
+        reply_after_import(&mut c, &q)
             .policy_renewal_state(&proposal)
             .expect("same original P"),
         crate::AnchorPolicyRenewalState::Closed
@@ -177,7 +187,7 @@ fn source_handoff_keeps_original_pending_roster_and_blocks_all_four_roster_comma
     );
     let q = request(&c, AnchorOperation::close_roster_refresh(&proposal));
     assert_eq!(
-        apply_request(&mut c, &q)
+        reply_after_import(&mut c, &q)
             .roster_refresh_state(&proposal)
             .expect("same original R"),
         crate::AnchorRosterRefreshState::Closed

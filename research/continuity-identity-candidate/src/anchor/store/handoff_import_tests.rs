@@ -6,6 +6,7 @@ mod recovery;
 mod validation;
 
 struct TargetFixture {
+    now: u64,
     directory: PathBuf,
     plan: AnchorHandoffPlan,
     approval: AnchorHandoffTargetApproval,
@@ -15,6 +16,9 @@ struct TargetFixture {
 }
 impl TargetFixture {
     fn new(c: &mut Case) -> Self {
+        Self::new_at(c, 150)
+    }
+    fn new_at(c: &mut Case, now: u64) -> Self {
         let directory = c
             .server
             .parent()
@@ -42,7 +46,7 @@ impl TargetFixture {
             [212; 32],
             &source,
             pin.clone(),
-            Validity::new(140, 160).expect("source admission"),
+            Validity::new(now - 10, now + 10).expect("source admission"),
             [213; 32],
         )
         .expect("source operator approval");
@@ -50,13 +54,13 @@ impl TargetFixture {
             &plan,
             &c.pin,
             &pin,
-            Validity::new(145, 155).expect("independent target admission"),
+            Validity::new(now - 5, now + 5).expect("independent target admission"),
             [214; 32],
         )
         .expect("target operator approval");
         let freeze = c
             .store
-            .freeze_handoff(&plan, 150)
+            .freeze_handoff(&plan, now)
             .expect("source freeze committed");
         fs::write(
             directory.join("source-pin"),
@@ -80,6 +84,7 @@ impl TargetFixture {
         fs::write(directory.join("source"), source.as_bytes()).expect("original source bytes");
         fs::write(directory.join("freeze"), freeze.as_bytes()).expect("original freeze receipt");
         Self {
+            now,
             directory,
             plan,
             approval,
@@ -106,7 +111,7 @@ impl TargetFixture {
             self.approval.clone(),
             &self.source,
             &self.freeze,
-            150,
+            self.now,
         )
         .expect("complete inactive import")
     }
@@ -122,7 +127,9 @@ fn target_key_id() -> SigningKeyId {
 // Used also by the actual pending-P/R fixtures. This imports their entire source
 // image, not a reconstruction of selected fields or an empty replacement store.
 pub(super) fn import_pending_then_cancel(c: &mut Case) {
-    let fixture = TargetFixture::new(c);
+    // G was prepared at170, P/R at150. Keep trusted fixture time monotonic
+    // and admit transfer independently of the original client's expired grant.
+    let fixture = TargetFixture::new_at(c, 175);
     let mut target = fixture.provision();
     assert_eq!(
         target
