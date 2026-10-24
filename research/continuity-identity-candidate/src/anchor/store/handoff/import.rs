@@ -61,7 +61,8 @@ impl AnchorHandoffTarget {
         now: u64,
     ) -> Result<Self, DurableError> {
         approval.admit(now)?;
-        storage::validate_source(&wrapping, &approval, source, freeze)?;
+        storage::validate_source(&wrapping, &approval, source, freeze)?
+            .check_witness_key(&approval.plan.target.key)?;
         let receipt = approval.sign_import(freeze, signer)?;
         let image = ImportedImage {
             source: source.to_vec(),

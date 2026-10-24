@@ -40,7 +40,9 @@ pub(super) fn validate_source(
     {
         return Err(DurableError::Corrupt);
     }
-    image.check_witness_key(&approval.plan.target.key)?;
+    // Reopening/cancelling a retained inactive import is historical recovery.
+    // Fresh target-key admission belongs before acknowledgement/publication,
+    // not in this shared authenticated decoder.
     Ok(image)
 }
 

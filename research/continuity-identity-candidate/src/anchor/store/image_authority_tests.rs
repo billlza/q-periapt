@@ -312,8 +312,89 @@ fn import_refuses_target_key_shared_with_inherited_device_before_acknowledgement
                 .state(),
             AnchorHandoffState::Frozen
         );
-        c.store
+        // Original QPAHI001 writer fixture: a previous version could retain
+        // this validly authenticated but inadmissible inactive target. Its
+        // observation/cancellation must not be mistaken for fresh admission.
+        let legacy_path = c.server.join("legacy-shared-target.redb");
+        let key_path = c.server.join("shared-target-key");
+        let key = JournalKey::open(&key_path).expect("same target wrapping");
+        let mut bytes = b"QPAHI001".to_vec();
+        for value in [
+            approval.to_bytes().as_slice(),
+            source.as_bytes(),
+            freeze.as_bytes(),
+            foreign_ack.as_slice(),
+        ] {
+            bytes.extend_from_slice(
+                &u32::try_from(value.len())
+                    .expect("bounded field")
+                    .to_be_bytes(),
+            );
+            bytes.extend_from_slice(value);
+        }
+        bytes.push(0);
+        let mut mac = authenticator(&key).expect("old writer authenticator");
+        mac.update(&bytes);
+        bytes.extend_from_slice(&mac.finalize().into_bytes());
+        let db = provision_private_database(&legacy_path, |db| {
+            let tx = transaction(db)?;
+            tx.open_table(TableDefinition::<&str, &[u8]>::new(
+                "continuity_anchor_handoff_import_v1",
+            ))
+            .map_err(storage)?
+            .insert("image", bytes.as_slice())
+            .map_err(storage)?;
+            tx.commit().map_err(DurableError::CommitUncertain)?;
+            Ok::<_, DurableError>(())
+        })
+        .expect("actual old-format durable image");
+        drop(db);
+        let mut legacy = AnchorHandoffTarget::open(&legacy_path, key, approval.clone())
+            .expect("old inactive import remains observable");
+        assert_eq!(
+            legacy.status().expect("inactive"),
+            AnchorHandoffTargetState::ImportedInactive
+        );
+        assert_eq!(
+            legacy
+                .import_receipt()
+                .expect("exact retained acknowledgement")
+                .as_bytes(),
+            foreign_ack
+        );
+        assert_eq!(
+            legacy.retained_source_state().expect("exact source"),
+            source.as_bytes()
+        );
+        let cancelled = c
+            .store
             .cancel_handoff(&plan)
             .expect("no irreversible source retirement");
+        legacy
+            .close_cancelled(cancelled.as_bytes())
+            .expect("original source can close old import");
+        legacy.close();
+        let mut legacy = AnchorHandoffTarget::open(
+            &legacy_path,
+            JournalKey::open(&key_path).expect("original wrapping"),
+            approval,
+        )
+        .expect("closed old import reopens");
+        assert_eq!(
+            legacy.status().expect("durable cancellation"),
+            AnchorHandoffTargetState::Cancelled
+        );
+        assert_eq!(
+            legacy
+                .cancellation_receipt()
+                .expect("original cancellation"),
+            cancelled.as_bytes()
+        );
+        assert_eq!(
+            legacy
+                .retained_source_state()
+                .expect("source retained after cancellation"),
+            source.as_bytes()
+        );
     }
 }
