@@ -68,6 +68,11 @@ impl AnchorStore {
             subject,
             namespace: image.namespace,
             predecessor: transferred.approval.plan.source.binding(),
+            logical: materials
+                .original_policy
+                .anchor_requirement()
+                .binding()
+                .ok_or(Error::Scope)?,
             successor: owner.pin.binding(),
             history: transferred.history.checkpoint(),
             activation: crate::session_policy::handoff_activation_digest(&activation.receipt),

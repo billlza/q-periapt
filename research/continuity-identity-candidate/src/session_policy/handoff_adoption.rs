@@ -4,7 +4,9 @@
 use super::*;
 use crate::{AnchorHandoffActivationReceipt, AnchorHandoffHistory, AnchorSubject, RootSigningKey};
 
+mod retained;
 mod wire;
+pub(crate) use retained::RetainedAdoptionRequest;
 pub(crate) use wire::activation_digest;
 use wire::{read_pair, verify_pair, BODY_BYTES};
 
@@ -39,6 +41,7 @@ pub struct AnchorHandoffAdoptionScope {
     pub(crate) subject: AnchorSubject,
     pub(crate) namespace: [u8; 32],
     pub(crate) predecessor: [u8; 32],
+    pub(crate) logical: [u8; 32],
     pub(crate) successor: [u8; 32],
     pub(crate) history: [u8; 32],
     pub(crate) activation: [u8; 32],
@@ -107,58 +110,27 @@ pub(crate) fn check_materials(
     s: &AnchorHandoffAdoptionScope,
     m: &AnchorHandoffAdoptionMaterials<'_>,
 ) -> Result<(), Error> {
-    AnchorHandoffAdoptionScope::decode(&s.encode())?;
-    // Preserve same-pin renewal. This dedicated statement changes only witness
-    // authority; it must not silently change any other signed policy property.
-    continuation::same_profile(m.original_policy, m.current_policy)?;
-    let original = m.original_device;
-    let current = m.current_device;
-    let journal = crate::JournalIdentity::from_trusted_state(s.subject.journal_parts().0)?;
-    if s.subject != AnchorSubject::for_device(journal, original, m.original_policy)?
-        || s.namespace != m.history.namespace_binding()
-        || s.history != m.history.checkpoint()
-        || s.successor != m.history.current_pin().binding()
-        || s.predecessor == s.successor
-        || s.history != m.activation.history_checkpoint()
-        || s.activation != activation_digest(m.activation.as_bytes())
-        || s.family != m.original_policy.family()
-        || s.policy != m.current_policy.checkpoint()
-        || s.credential_owner != crate::bootstrap::storage_owner(current)
-        || s.authority != current.authority_binding()
-        || original.authority_key != current.authority_key
-        || original.account != current.account
-        || original.key != current.key
-        || original.description.id != current.description.id
-        || original.description.generation != current.description.generation
-        || original.description.family != s.family
-        || current.description.family != s.family
-        || original.description.validity.from() != current.description.validity.from()
-        || original.description.validity.until() > current.description.validity.until()
-        || m.current_policy.checkpoint().version() < m.original_policy.checkpoint().version()
-        || (m.current_policy.checkpoint().version() == m.original_policy.checkpoint().version()
-            && m.current_policy.checkpoint() != m.original_policy.checkpoint())
-        || m.current_policy.validity().until() < m.original_policy.validity().until()
+    if m.original_device.authority_key != m.current_device.authority_key
+        || m.original_device.account != m.current_device.account
+        || m.original_device.key != m.current_device.key
+        || m.original_device.account != crate::identity::account_id(&m.current_device.authority_key)
     {
         return Err(Error::Scope);
     }
-    let logical = m
-        .original_policy
-        .anchor_requirement()
-        .binding()
-        .ok_or(Error::Scope)?;
-    for binding in [logical, s.predecessor, s.successor] {
-        let pin = m.history.historical_pin(binding)?;
-        if pin.public_key().shares_component(&current.key)
-            || pin.public_key().shares_component(&current.authority_key)
-        {
-            return Err(Error::Scope);
-        }
-        m.original_policy.check_external_signer(pin.public_key())?;
-    }
-    m.original_policy.check_external_signer(&current.key)?;
-    m.original_policy
-        .check_external_signer(&current.authority_key)?;
-    Ok(())
+    retained::check_claims(
+        s,
+        &retained::Claims {
+            original: &m.original_device.description,
+            current: &m.current_device.description,
+            roster: m.current_device.roster().checkpoint(),
+            account: &m.current_device.authority_key,
+            device: &m.current_device.key,
+            original_policy: m.original_policy,
+            current_policy: m.current_policy,
+            history: m.history,
+            activation: m.activation,
+        },
+    )
 }
 
 /// Signable two-root decision. The issuer must additionally authenticate the

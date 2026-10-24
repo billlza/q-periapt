@@ -1974,6 +1974,9 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-identity-candidate/src/anchor/store/handoff/import.rs',
             'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation.rs',
             'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/adoption.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/authorization.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/authorization/record.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/authorization/transaction.rs',
             'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/inherited.rs',
             'research/continuity-identity-candidate/src/anchor/store/handoff/import/approval.rs',
             'research/continuity-identity-candidate/src/anchor/store/handoff/import/storage.rs',
@@ -1982,6 +1985,9 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-identity-candidate/src/anchor/store/handoff_activation_recovery_tests.rs',
             'research/continuity-identity-candidate/src/anchor/store/handoff_activation_tests.rs',
             'research/continuity-identity-candidate/src/anchor/store/handoff_adoption_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_client_authorization_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_client_authorization_recovery_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_client_authorization_validation_tests.rs',
             'research/continuity-identity-candidate/src/anchor/store/handoff_history_integration_tests.rs',
             'research/continuity-identity-candidate/src/anchor/store/handoff_import_recovery_tests.rs',
             'research/continuity-identity-candidate/src/anchor/store/handoff_import_tests.rs',
@@ -1995,6 +2001,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-identity-candidate/src/anchor/store/image_authority.rs',
             'research/continuity-identity-candidate/src/anchor/store/image_authority_tests.rs',
             'research/continuity-identity-candidate/src/session_policy/handoff_adoption.rs',
+            'research/continuity-identity-candidate/src/session_policy/handoff_adoption/retained.rs',
             'research/continuity-identity-candidate/src/session_policy/handoff_adoption/wire.rs',
         )
         for missing in required:

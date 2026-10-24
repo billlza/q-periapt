@@ -2,6 +2,8 @@
 //! Target activation commits before returning a service owner or certificate.
 use super::*;
 mod adoption;
+pub(in crate::anchor::store::handoff::import) mod authorization;
+pub use authorization::AnchorHandoffClientAuthorizationReceipt;
 mod inherited;
 
 const BODY_BYTES: usize = 8 + 5 * 32;
@@ -147,6 +149,7 @@ pub(super) fn validate(
 // authenticates the complete row and checks its exact immutable commitment and
 // current content. No incoming state can select new history keys/checkpoints.
 pub(in crate::anchor::store) struct Transferred {
+    client_index: BTreeMap<[u8; 32], [u8; 32]>,
     approval: AnchorHandoffTargetApproval,
     immutable: [u8; 32],
     history: AnchorHandoffHistory,
@@ -174,14 +177,17 @@ fn immutable(image: &ImportedImage) -> Result<[u8; 32], DurableError> {
 }
 impl Transferred {
     fn new(
+        db: &Database,
         key: &JournalKey,
         approval: AnchorHandoffTargetApproval,
         image: &ImportedImage,
     ) -> Result<Self, DurableError> {
         let original = storage::validate_source(key, &approval, &image.source, &image.freeze)?;
         validate(&approval, image, &original)?;
+        authorization::load_records(db, &approval, image, &original)?;
         let activation = image.activation.as_ref().ok_or(DurableError::Absent)?;
         Ok(Self {
+            client_index: image.client_index.clone(),
             immutable: immutable(image)?,
             history: history(
                 &approval,
@@ -197,7 +203,7 @@ impl Transferred {
         self.history.namespace_binding()
     }
     fn admit(&self, image: &ImportedImage) -> Result<(), DurableError> {
-        if immutable(image)? != self.immutable {
+        if immutable(image)? != self.immutable || image.client_index != self.client_index {
             return Err(DurableError::Conflict);
         }
         Ok(())
@@ -335,7 +341,8 @@ impl AnchorHandoffTarget {
             testing::after_commit("activate");
         }
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let transferred = Transferred::new(&owner.wrapping, owner.approval.clone(), &image)?;
+        let transferred =
+            Transferred::new(&owner.db, &owner.wrapping, owner.approval.clone(), &image)?;
         let pin = owner.approval.plan.target.clone();
         let receipt = AnchorHandoffActivationReceipt {
             wire: image

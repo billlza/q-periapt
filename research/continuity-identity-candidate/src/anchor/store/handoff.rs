@@ -9,8 +9,9 @@ mod retirement;
 pub(super) use codec::{unwrap, validate, wrap};
 pub use history::AnchorHandoffHistory;
 pub use import::{
-    AnchorHandoffActivationReceipt, AnchorHandoffImportReceipt, AnchorHandoffTarget,
-    AnchorHandoffTargetApproval, AnchorHandoffTargetState,
+    AnchorHandoffActivationReceipt, AnchorHandoffClientAuthorizationReceipt,
+    AnchorHandoffImportReceipt, AnchorHandoffTarget, AnchorHandoffTargetApproval,
+    AnchorHandoffTargetState,
 };
 pub(super) const MAX_CANCELLED: usize = 16;
 const LEGACY_PLAN_BYTES: usize = 8 + 32 + 2 * (32 + PUBLIC_KEY_BYTES) + 8 + 32 + 16 + 32;

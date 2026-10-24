@@ -51,7 +51,7 @@ fn validate(
     key: &JournalKey,
     approval: &AnchorHandoffTargetApproval,
     image: &ImportedImage,
-) -> Result<(), DurableError> {
+) -> Result<Image, DurableError> {
     let original = validate_source(key, approval, &image.source, &image.freeze)?;
     activation::validate(approval, image, &original)?;
     approval.verify_import_receipt(&image.freeze, &image.acknowledgement)?;
@@ -60,7 +60,7 @@ fn validate(
             return Err(DurableError::Corrupt);
         }
     }
-    Ok(())
+    Ok(original)
 }
 
 pub(super) fn encode(
@@ -79,7 +79,15 @@ pub(super) fn seal(
     approval: &AnchorHandoffTargetApproval,
     image: &ImportedImage,
 ) -> Result<Vec<u8>, DurableError> {
-    let mut bytes = if image.activation.is_some() {
+    let mut bytes = if !image.client_index.is_empty() {
+        if image.activation.is_none()
+            || image.cancellation.is_some()
+            || image.client_index.len() > MAX_ENTRIES
+        {
+            return Err(DurableError::Corrupt);
+        }
+        b"QPAHI003"
+    } else if image.activation.is_some() {
         b"QPAHI002"
     } else {
         b"QPAHI001"
@@ -103,6 +111,19 @@ pub(super) fn seal(
         put(&activation.retirement, &mut bytes)?;
         put(&activation.receipt, &mut bytes)?;
         put(&activation.content, &mut bytes)?;
+    }
+    if !image.client_index.is_empty() {
+        bytes.extend_from_slice(
+            &u16::try_from(image.client_index.len())
+                .map_err(|_| DurableError::Capacity)?
+                .to_be_bytes(),
+        );
+        for (subject, commitment) in &image.client_index {
+            nonzero(subject)?;
+            nonzero(commitment)?;
+            bytes.extend_from_slice(subject);
+            bytes.extend_from_slice(commitment);
+        }
     }
     // The exact source cancellation has the same fixed-width plan/signature
     // layout as freeze. Reserve its complete record before publishing import.
@@ -147,7 +168,7 @@ fn decode_authenticated(
         let tag = d.array::<8>()?;
         let activated = match &tag {
             b"QPAHI001" if bytes.len() <= MAX_IMPORT_IMAGE => false,
-            b"QPAHI002" => true,
+            b"QPAHI002" | b"QPAHI003" => true,
             _ => return Err(DurableError::Corrupt),
         };
         if take(&mut d)? != approval.to_bytes() {
@@ -170,8 +191,28 @@ fn decode_authenticated(
         } else {
             None
         };
+        let mut client_index = BTreeMap::new();
+        if &tag == b"QPAHI003" {
+            let count = usize::from(d.u16()?);
+            if count == 0 || count > MAX_ENTRIES || cancellation.is_some() {
+                return Err(DurableError::Corrupt);
+            }
+            let mut previous = None;
+            for _ in 0..count {
+                let subject = d.array()?;
+                let commitment = d.array()?;
+                nonzero(&subject)?;
+                nonzero(&commitment)?;
+                if previous.is_some_and(|old| old >= subject) {
+                    return Err(DurableError::Corrupt);
+                }
+                client_index.insert(subject, commitment);
+                previous = Some(subject);
+            }
+        }
         d.finish()?;
         let image = ImportedImage {
+            client_index,
             activation,
             source,
             freeze,
@@ -198,7 +239,8 @@ pub(super) fn load_authenticated(
         .map_err(storage)?
         .map(|table| table.name().to_owned())
         .collect();
-    if tables != [IMPORT_TABLE.name()]
+    if !tables.iter().any(|name| name == IMPORT_TABLE.name())
+        || tables.len() > 2
         || tx.list_multimap_tables().map_err(storage)?.next().is_some()
     {
         return Err(DurableError::Corrupt);
@@ -211,7 +253,19 @@ pub(super) fn load_authenticated(
         .get("image")
         .map_err(storage)?
         .ok_or(DurableError::Corrupt)?;
-    decode_authenticated(key, approval, bytes.value())
+    let image = decode_authenticated(key, approval, bytes.value())?;
+    let expected = if image.client_index.is_empty() {
+        vec![IMPORT_TABLE.name()]
+    } else {
+        vec![IMPORT_TABLE.name(), activation::authorization::TABLE.name()]
+    };
+    if tables.len() != expected.len()
+        || tables.iter().any(|name| !expected.contains(&name.as_str()))
+    {
+        return Err(DurableError::Corrupt);
+    }
+    activation::authorization::check_row_hashes(&tx, &image.client_index)?;
+    Ok(image)
 }
 
 pub(super) fn load(
@@ -220,7 +274,8 @@ pub(super) fn load(
     approval: &AnchorHandoffTargetApproval,
 ) -> Result<ImportedImage, DurableError> {
     let image = load_authenticated(db, key, approval)?;
-    validate(key, approval, &image)?;
+    let original = validate(key, approval, &image)?;
+    activation::authorization::load_records(db, approval, &image, &original)?;
     Ok(image)
 }
 
@@ -252,6 +307,11 @@ pub(in crate::anchor::store::handoff) fn preflight_activation(
             .and_then(|n| n.checked_add(size))
             .ok_or(DurableError::Capacity)?;
     }
+    // Reserve every supported client's index before irreversible retirement.
+    // Complete fixed-bound proofs live in separate rows, not every data update.
+    total = total
+        .checked_add(2 + MAX_ENTRIES * 64)
+        .ok_or(DurableError::Capacity)?;
     if total > MAX_ACTIVATED_IMAGE {
         return Err(DurableError::Capacity);
     }

@@ -1214,3 +1214,54 @@ independent P. [Native joint-T composition](ENROLLMENT.md#original-joint-continu
 also retains actual original targets and T through R and later G/R. Full account-cohort maintenance,
 independent consumers and installed-package qualification for the new
 combination remain open.
+
+## Target authorization of an inherited client
+
+The candidate Rust handoff API separates source retirement, target activation,
+server authorization of an inherited client, and adoption by its original
+journal. `handoff_adoption_scope` reads the exact immutable imported entry,
+including unresolved G/P/R, heads, last commands and acknowledgements. The account
+and policy roots independently approve that scope. `prepare_witness_authorization`
+packages those approvals with bounded public identity and policy metadata;
+`authorize_handoff_client` verifies and commits the target's exact authorization.
+No source signing key or source storage key is supplied to this transaction.
+
+The 512-byte `QPAHAD02` statement explicitly distinguishes the immutable store
+namespace, the original policy/command witness, and the current verifying
+witness. It also binds the original subject, complete entry digest, current
+credential/roster/policy, exact activation, history checkpoint, operation and
+admission window. `QPAHAB02` holds both purpose-32 signatures. This supersedes the
+unpersisted candidate preparation format; it is not a frozen protocol or ABI.
+Cold verification binds the embedded account key through the original owner,
+the policy key through its family and exact policy digest, and the device key
+through the original imported entry. A self-signed replacement root is refused.
+Historical policy parsing cannot create an operating runtime or renew authority.
+
+The first authorization uses `QPAHI003`: a storage-MAC-protected primary image
+indexes complete proof rows by original subject and digest. The original source
+and activated entry bytes remain exact. Each proof row is bounded to 16 KiB;
+the index is bounded to the existing 256 clients. Activation preflight reserves
+the entire index within the existing primary-image limit before source
+retirement. Existing inactive `QPAHI001` and activated `QPAHI002` stores remain
+readable and acquire the new format only upon an authorization commit. This is
+a bounded representation, not a throughput result for 256 authorization calls.
+
+The row, primary index and revision commit in one immediate durable transaction.
+Admission is checked before signing and again before commit. On a transaction or
+readback error the owner closes; a lost response may follow a successful commit.
+Reopen the same target and retry the exact request to obtain the original
+purpose-33 receipt, without a new time decision, signature or database write.
+Missing, extra or detached rows are errors. Cold open revalidates both issuer
+proofs and the target receipt; a valid local storage MAC cannot replace those
+proofs. Reopening for observation needs the target storage key and independently
+retained approval, but neither witness signing key. Whole-database rollback still
+requires the deployment's independent retained-checkpoint guarantees.
+
+The receipt establishes durable server authorization only. The original journal
+has not yet adopted it, and legacy requests for inherited entries remain
+suspended. A new authenticated client control record must preserve existing
+sealed G/P/R digests; a transfer-aware request/reply must preserve original
+command IDs and prove the current witness without impersonating an old v1
+receipt. Successive handoffs, full client-capacity execution, historical
+compaction, installed/independent consumers, device and power-loss qualification,
+formal correspondence and final ABI admission remain open.

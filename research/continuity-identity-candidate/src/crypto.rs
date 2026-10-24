@@ -69,6 +69,7 @@ pub(crate) enum Purpose {
     AnchorHandoffRetirement = 30,
     AnchorHandoffActivation = 31,
     AnchorHandoffAdoption = 32,
+    AnchorHandoffClientAuthorization = 33,
 }
 
 /// Public verification keys for the fixed two-signature candidate profile.

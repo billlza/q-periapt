@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Real imported-state request and issuer tests; no durable client adoption claim.
 use super::*;
+#[path = "handoff_client_authorization_tests.rs"]
+mod authorization;
 use crate::anchor::store::policy_renewal::tests::{policy, Case as PolicyCase};
 use crate::{
     AnchorHandoffAdoptionApproval as Approval, AnchorHandoffAdoptionId as Id,
@@ -80,7 +82,7 @@ fn handoff_adoption_approvals_bind_both_roots_and_exact_import_without_granting_
     let before = fs::read(f.db_path()).expect("original target bytes");
     let m = materials(&c, &c.device, &c.original, &history, &activation);
     let s = scope(&mut active, &c, &m);
-    assert_eq!(s.to_bytes().len(), 480);
+    assert_eq!(s.to_bytes().len(), 512);
     assert_eq!(
         Scope::from_trusted_state(&s.to_bytes()).expect("retained scope"),
         s

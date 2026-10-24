@@ -27,7 +27,7 @@ pub use continuation::{
 };
 pub(crate) use handoff_adoption::{
     activation_digest as handoff_activation_digest,
-    check_materials as check_handoff_adoption_materials,
+    check_materials as check_handoff_adoption_materials, RetainedAdoptionRequest,
 };
 pub use handoff_adoption::{
     AnchorHandoffAdoptionApproval, AnchorHandoffAdoptionId, AnchorHandoffAdoptionMaterials,
@@ -283,6 +283,11 @@ impl PolicyPin {
     pub fn verify_historical(&self, wire: &[u8]) -> Result<HistoricalSessionPolicy, Error> {
         let (body, signature) = open_envelope(wire)?;
         self.root.verify(Purpose::SessionPolicy, body, signature)?;
+        self.decode_bound_body(body)
+    }
+    // Only after authentication of this exact body digest. Historical witness
+    // adoption uses the original policy issuer's separate approval of that digest.
+    fn decode_bound_body(&self, body: &[u8]) -> Result<HistoricalSessionPolicy, Error> {
         let mut decoder = Decoder::new(body);
         if decoder.array::<8>()? != *POLICY_TAG || decoder.array::<32>()? != self.family {
             return Err(Error::Scope);

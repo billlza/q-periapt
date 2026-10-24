@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 
-pub(super) const BODY_BYTES: usize = 8 + 13 * 32 + 40 + 16;
+pub(super) const BODY_BYTES: usize = 8 + 14 * 32 + 40 + 16;
 pub(super) const APPROVAL_BYTES: usize = 4 + BODY_BYTES + crate::crypto::SIGNATURE_BYTES;
-const TAG: &[u8; 8] = b"QPAHAD01";
-const CONTAINER: &[u8; 8] = b"QPAHAB01";
+const TAG: &[u8; 8] = b"QPAHAD02";
+const CONTAINER: &[u8; 8] = b"QPAHAB02";
 
 pub(crate) fn activation_digest(bytes: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-WITNESS-ADOPTION-ACTIVATION/v1", bytes)
@@ -19,6 +19,7 @@ impl AnchorHandoffAdoptionScope {
         for value in [
             self.namespace,
             self.predecessor,
+            self.logical,
             self.successor,
             self.history,
             self.activation,
@@ -51,6 +52,7 @@ impl AnchorHandoffAdoptionScope {
         };
         let namespace = field()?;
         let predecessor = field()?;
+        let logical = field()?;
         let successor = field()?;
         let history = field()?;
         let activation = field()?;
@@ -69,6 +71,7 @@ impl AnchorHandoffAdoptionScope {
             subject,
             namespace,
             predecessor,
+            logical,
             successor,
             history,
             activation,
