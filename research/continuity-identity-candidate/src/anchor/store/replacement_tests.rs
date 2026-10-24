@@ -1502,3 +1502,6 @@ fn retirement_head_does_not_identify_every_retained_local_write_intent() {
 
 #[path = "retired_cleanup_tests.rs"]
 mod cleanup;
+
+#[path = "handoff_lifecycle_tests.rs"]
+mod handoff_lifecycle;

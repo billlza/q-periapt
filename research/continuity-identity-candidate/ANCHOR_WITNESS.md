@@ -56,7 +56,7 @@ cutover, deployment authorization and witness-key transfer remain separate work.
 
 ### Complete source-state capture for handoff planning
 
-`AnchorStore::handoff_source_state` returns the original source pin, aggregate
+`AnchorStore::handoff_source_state` returns the original source pin, content
 revision, complete canonical state bytes and a domain-separated commitment. It
 reloads and authenticates the durable image and uses the same full-state encoder
 as storage, including pending and terminal G/P/R records, acknowledgement floors
@@ -67,9 +67,53 @@ private keys.
 This is a read-only control-plane observation. It does not freeze or retire the
 source and can become stale after capture. Its bytes and digest are unsigned
 metadata, not a freeze receipt or permission to import or activate a target.
-The full handoff transaction still needs atomic comparison with this state,
-independent source/target approval, authority history, retained terminal receipts
-and client-specific migration admission.
+Capture does not imply that a following freeze will still match this state.
+
+### Source freeze and cancellation candidate
+
+`AnchorHandoffPlan::from_trusted_state` binds an operator-approved operation,
+complete source commitment, source revision, independently chosen different target
+key, finite admission interval and retained approval digest. The digest is an
+identifier for the operator's decision, not an authentication mechanism. Restoring
+public plan bytes does not approve a network request. The target's independent
+approval and every client's account-root/policy-root admission remain separate.
+
+`freeze_handoff` compares that exact state and durably freezes it through the same
+image transaction and digest CAS used by ordinary updates. A racing ordinary write
+either precedes the captured state or conflicts with the frozen image. The common
+authenticated-image admission boundary suspends ordinary mutations, queries,
+trusted management and exact retries. `frozen_handoff_state` recovers the exact
+original content, including unresolved operations and previous cancellation
+history. It grants no authority to activate a target.
+
+The source signs its purpose-27 freeze receipt internally, commits its exact bytes
+with Frozen, and only then returns them. Trusted `cancel_handoff` similarly stores
+the purpose-28 cancellation receipt with its terminal decision before release.
+Cancellation is allowed after admission expiry; a cancelled operation cannot be
+reused. Exact retries return retained bytes without re-signing. Both decisions
+change the complete authenticated image commitment but leave the original content
+revision, subjects, heads, last commands and pending operations unchanged.
+`AnchorHandoffObserver` can reopen and authenticate these historical decisions
+with the retained public pin and storage key, without the private signing key.
+Neither receipt can be consumed as an ordinary witness reply or retirement proof.
+
+The authenticated `QPAHC001` envelope retains the unchanged complete inner image
+plus bounded cancellation history and an optional frozen decision. Legacy images
+without handoff records retain their original encoding. MAC verification precedes
+parsing; frozen content must match the signed plan's complete commitment. The
+same 1 MiB limit applies to the whole image. Up to 16 cancelled operations are
+retained; a freeze reserves cancellation space before committing. At capacity it
+refuses a new freeze and leaves ordinary source service available, without erasing
+old decisions. Authenticated history acknowledgement/compaction remains required
+before final protocol admission; this bound is not a finished lifetime policy.
+
+This implements the source freeze/cancellation phase only. Target import,
+irreversible source retirement, target activation, mixed historical authorities,
+successive witness-key transfers and client-specific original-operation adoption
+are still required. In particular, a freeze receipt must never stand in for the
+missing retirement transaction. The candidate format and APIs are not frozen or
+admitted into the final ABI. Power-loss, installed bindings, independent target
+implementation and device acceptance remain separate gates.
 
 ### Immutable original identity and legacy witness migration
 

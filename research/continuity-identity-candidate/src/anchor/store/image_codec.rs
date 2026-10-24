@@ -107,6 +107,14 @@ pub(super) fn encode(
 // The same complete canonical state feeds local storage authentication and a
 // prospective handoff commitment. This body has no authenticity on its own.
 pub(super) fn encode_body(pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, DurableError> {
+    let content = encode_content(pin, image)?;
+    if image.handoff.is_none() {
+        return Ok(content);
+    }
+    handoff::wrap(pin, image.revision, &content, image.handoff.as_ref())
+}
+
+pub(super) fn encode_content(pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, DurableError> {
     if image.entries.len() > MAX_ENTRIES {
         return Err(DurableError::Capacity);
     }
@@ -282,6 +290,7 @@ pub(super) fn decode(
         auth.update(body);
         auth.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
+        let (body, handoff) = handoff::unwrap(pin, body)?;
         let mut d = Decoder::new(body);
         let version = ImageVersion::decode(d.array()?)?;
         if d.array::<32>()? != pin.binding {
@@ -478,6 +487,7 @@ pub(super) fn decode(
             account_replacements,
             account_freezes,
             account_closures,
+            handoff,
         };
         image.check_replacements(pin)?;
         image.check_retired_cleanup(pin)?;
@@ -485,6 +495,10 @@ pub(super) fn decode(
         image.check_account_replacements(pin)?;
         image.check_account_freezes(pin)?;
         image.check_account_closures()?;
+        if image.handoff.is_some() {
+            let content = encode_content(pin, &image)?;
+            handoff::validate(pin, image.revision, &content, image.handoff.as_ref())?;
+        }
         if version == ImageVersion::V14 && !image.retired_reports.values().any(|r| r.acknowledged) {
             return Err(DurableError::Corrupt);
         }

@@ -25,6 +25,10 @@ mod image_codec;
 use image_codec::{decode, encode, encode_entry, EntryFormat};
 mod handoff_source;
 pub use handoff_source::AnchorHandoffSourceState;
+mod handoff;
+pub use handoff::{
+    AnchorHandoffObserver, AnchorHandoffPlan, AnchorHandoffReceipt, AnchorHandoffState,
+};
 mod image_version;
 use image_version::ImageVersion;
 mod account_replacement;
@@ -83,6 +87,7 @@ struct Image {
     account_replacements: BTreeMap<[u8; 32], AnchorAccountReplacementProposal>,
     account_freezes: BTreeMap<[u8; 32], AnchorFrozenAccount>,
     account_closures: BTreeMap<[u8; 32], account_replacement::closure::ClosureRecord>,
+    handoff: Option<handoff::Journal>,
 }
 struct Active {
     db: Database,
@@ -117,6 +122,7 @@ impl AnchorStore {
             account_replacements: BTreeMap::new(),
             account_freezes: BTreeMap::new(),
             account_closures: BTreeMap::new(),
+            handoff: None,
         };
         let bytes = encode(&wrapping, &pin, &image)?;
         let db = provision_private_database(path, |db| {
@@ -569,6 +575,17 @@ impl AnchorStore {
         }
     }
     fn image(&mut self) -> Result<Image, DurableError> {
+        let image = self.handoff_image()?;
+        if image
+            .handoff
+            .as_ref()
+            .is_some_and(|state| state.frozen.is_some())
+        {
+            return Err(DurableError::Suspended);
+        }
+        Ok(image)
+    }
+    fn handoff_image(&mut self) -> Result<Image, DurableError> {
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
         let result = load(&active.db, &active.wrapping, &active.pin);
         if result.is_err() {
@@ -577,9 +594,25 @@ impl AnchorStore {
         result
     }
     fn persist(&mut self, image: &mut Image) -> Result<(), DurableError> {
+        if image
+            .handoff
+            .as_ref()
+            .is_some_and(|state| state.frozen.is_some())
+        {
+            return Err(DurableError::Suspended);
+        }
+        self.persist_image(image, true)
+    }
+    fn persist_image(
+        &mut self,
+        image: &mut Image,
+        advance_revision: bool,
+    ) -> Result<(), DurableError> {
         let result = (|| {
             let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-            image.revision = increment(image.revision)?;
+            if advance_revision {
+                image.revision = increment(image.revision)?;
+            }
             let bytes = encode(&active.wrapping, &active.pin, image)?;
             let tx = transaction(&active.db)?;
             {

@@ -17,12 +17,23 @@ pub struct AnchorHandoffSourceState {
 }
 
 impl AnchorHandoffSourceState {
+    pub(super) fn from_image(pin: &AnchorPin, image: &Image) -> Result<Self, DurableError> {
+        let bytes = image_codec::encode_body(pin, image)?;
+        let commitment = digest(b"Q-PERIAPT-CONTINUITY-ANCHOR-HANDOFF-SOURCE/v1", &bytes);
+        Ok(Self {
+            pin: pin.clone(),
+            revision: image.revision,
+            bytes,
+            commitment,
+        })
+    }
     /// The source authority independently supplied when the store was opened.
     pub fn pin(&self) -> &AnchorPin {
         &self.pin
     }
 
-    /// Original aggregate revision, without advancing any subject or operation.
+    /// Original content revision. Handoff control decisions change the complete
+    /// commitment without advancing any subject, operation or content revision.
     pub fn revision(&self) -> u64 {
         self.revision
     }
@@ -50,13 +61,6 @@ impl AnchorStore {
     pub fn handoff_source_state(&mut self) -> Result<AnchorHandoffSourceState, DurableError> {
         let image = self.image()?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let bytes = image_codec::encode_body(&active.pin, &image)?;
-        let commitment = digest(b"Q-PERIAPT-CONTINUITY-ANCHOR-HANDOFF-SOURCE/v1", &bytes);
-        Ok(AnchorHandoffSourceState {
-            pin: active.pin.clone(),
-            revision: image.revision,
-            bytes,
-            commitment,
-        })
+        AnchorHandoffSourceState::from_image(&active.pin, &image)
     }
 }
