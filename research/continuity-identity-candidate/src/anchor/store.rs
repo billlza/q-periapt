@@ -23,6 +23,8 @@ mod pending_recovery;
 use lineage::OriginalIdentity;
 mod image_codec;
 use image_codec::{decode, encode, encode_entry, EntryFormat};
+mod handoff_source;
+pub use handoff_source::AnchorHandoffSourceState;
 mod image_version;
 use image_version::ImageVersion;
 mod account_replacement;

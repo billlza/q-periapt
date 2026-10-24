@@ -97,6 +97,16 @@ pub(super) fn encode(
     pin: &AnchorPin,
     image: &Image,
 ) -> Result<Vec<u8>, DurableError> {
+    let mut bytes = encode_body(pin, image)?;
+    let mut auth = authenticator(key)?;
+    auth.update(&bytes);
+    bytes.extend_from_slice(&auth.finalize().into_bytes());
+    Ok(bytes)
+}
+
+// The same complete canonical state feeds local storage authentication and a
+// prospective handoff commitment. This body has no authenticity on its own.
+pub(super) fn encode_body(pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, DurableError> {
     if image.entries.len() > MAX_ENTRIES {
         return Err(DurableError::Capacity);
     }
@@ -256,9 +266,6 @@ pub(super) fn encode(
     if bytes.len() + 32 > MAX_IMAGE {
         return Err(DurableError::Capacity);
     }
-    let mut auth = authenticator(key)?;
-    auth.update(&bytes);
-    bytes.extend_from_slice(&auth.finalize().into_bytes());
     Ok(bytes)
 }
 pub(super) fn decode(

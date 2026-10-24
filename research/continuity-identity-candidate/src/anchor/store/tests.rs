@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "handoff_source_tests.rs"]
+mod handoff_source;
 #[path = "pending_recovery_tests.rs"]
 mod pending_recovery;
 use crate::{

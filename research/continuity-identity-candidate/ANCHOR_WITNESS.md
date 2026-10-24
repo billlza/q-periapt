@@ -54,6 +54,23 @@ public state protected by HMAC, not encrypted state. Device journals and protect
 signing-owner files have their separate encryption contracts. Local account-owner
 cutover, deployment authorization and witness-key transfer remain separate work.
 
+### Complete source-state capture for handoff planning
+
+`AnchorStore::handoff_source_state` returns the original source pin, aggregate
+revision, complete canonical state bytes and a domain-separated commitment. It
+reloads and authenticates the durable image and uses the same full-state encoder
+as storage, including pending and terminal G/P/R records, acknowledgement floors
+and retained device/account history. Legacy entries retain their existing identity
+classification. The returned bytes exclude the keyed storage authenticator and
+private keys.
+
+This is a read-only control-plane observation. It does not freeze or retire the
+source and can become stale after capture. Its bytes and digest are unsigned
+metadata, not a freeze receipt or permission to import or activate a target.
+The full handoff transaction still needs atomic comparison with this state,
+independent source/target approval, authority history, retained terminal receipts
+and client-specific migration admission.
+
 ### Immutable original identity and legacy witness migration
 
 New `enroll` entries retain the original account, device ID, generation, credential
