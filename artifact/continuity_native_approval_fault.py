@@ -17,6 +17,7 @@ import time
 from unittest import mock
 from continuity_native_approval_instrument import source_inputs
 from git_provenance import git_commit
+from evidence_io import parse_strict_json_bytes
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'research/continuity-openssl-peer'
@@ -44,7 +45,7 @@ def read(path, maximum):
 
 
 def verify_build(build):
-    report = json.loads(read(build / 'BUILD.json', 1024 * 1024))
+    report = parse_strict_json_bytes(read(build / 'BUILD.json', 1024 * 1024), label='native publication fault build')
     require(report['completed_build'] is True and report['runtime_qualified'] is False, 'fault build scope differs')
     require(report['source_commit'] == git_commit(ROOT),
             'fault build source commit differs')
@@ -151,7 +152,8 @@ def exercise(args):
     with mock.patch.object(run.Counterpart, 'transfer', recover), mock.patch.object(sys, 'argv', argv):
         runpy.run_path(argv[0], run_name='__main__')
     require(observation is not None and observation['completed'], 'selected publication fault did not execute')
-    require(json.loads(read(args.output / 'RESULT.json', 32 * 1024**2))['completed'], 'complete lifecycle did not finish')
+    lifecycle = parse_strict_json_bytes(read(args.output / 'RESULT.json', 32 * 1024**2), label='native publication lifecycle')
+    require(lifecycle['completed'], 'complete lifecycle did not finish')
     require(verify_build(build) == before, 'fault build changed during lifecycle')
     require(digest(Path(__file__)) == driver_hash, 'fault driver changed during lifecycle')
     result = {'completed': True, 'case': args.case, 'source_commit': before['source_commit'],

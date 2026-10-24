@@ -63,6 +63,17 @@ class NativeApprovalQualificationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.verify(root, dict(report, **changes))
 
+    def test_duplicate_keys_and_nonstandard_numbers_are_rejected(self):
+        root, report = self.fixture()
+        encoded = json.dumps(report)
+        for data in ('{"completed_build":false,' + encoded[1:], encoded[:-1] + ',"extra":NaN}'):
+            (root / 'BUILD.json').write_text(data)
+            with mock.patch.object(fault, 'ROOT', root), \
+                 mock.patch.object(fault, 'source_inputs', return_value={'native-source.rs': 'b' * 64}), \
+                 mock.patch.object(fault, 'git_commit', return_value='a' * 40):
+                with self.assertRaises(ValueError):
+                    fault.verify_build(root)
+
 
 if __name__ == '__main__':
     unittest.main()
