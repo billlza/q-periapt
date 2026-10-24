@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "handoff_history_integration_tests.rs"]
+mod history;
 #[path = "handoff_import_recovery_tests.rs"]
 mod recovery;
 #[path = "handoff_retirement_tests.rs"]
@@ -21,6 +23,9 @@ impl TargetFixture {
         Self::new_at(c, 150)
     }
     fn new_at(c: &mut Case, now: u64) -> Self {
+        Self::with_legacy_plan(c, now, false)
+    }
+    fn with_legacy_plan(c: &mut Case, now: u64, legacy: bool) -> Self {
         let directory = c
             .server
             .parent()
@@ -52,6 +57,17 @@ impl TargetFixture {
             [213; 32],
         )
         .expect("source operator approval");
+        let plan = if legacy {
+            let mut bytes = plan.to_bytes();
+            bytes.truncate(bytes.len().checked_sub(72).expect("v2 history context"));
+            bytes
+                .get_mut(..8)
+                .expect("plan tag")
+                .copy_from_slice(b"QPAHPL01");
+            AnchorHandoffPlan::restore_trusted_state(&bytes).expect("original v1 approved plan")
+        } else {
+            plan
+        };
         let approval = AnchorHandoffTargetApproval::from_trusted_state(
             &plan,
             &c.pin,

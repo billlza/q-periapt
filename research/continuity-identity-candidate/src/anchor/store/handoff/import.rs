@@ -146,6 +146,31 @@ impl AnchorHandoffTarget {
         Ok(self.image()?.source)
     }
 
+    /// Verify the exact source retirement against the retained inactive import
+    /// and construct its historical namespace/authority proof. This is read-only:
+    /// it does not retain the new certificate, activate the target, change a
+    /// client policy, or authorize ordinary service. The current source image
+    /// admits only an original authority; transferred-image support is separate.
+    pub fn verify_source_retirement(
+        &mut self,
+        retirement: &[u8],
+    ) -> Result<AnchorHandoffHistory, DurableError> {
+        let image = self.image()?;
+        if image.cancellation.is_some() {
+            return Err(Error::Retired.into());
+        }
+        let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let mut history =
+            AnchorHandoffHistory::from_trusted_origin(owner.approval.plan.source.clone());
+        history.append_verified(
+            &owner.approval,
+            &image.freeze,
+            &image.acknowledgement,
+            retirement,
+        )?;
+        Ok(history)
+    }
+
     /// Close only from the exact original source's committed cancellation.
     /// A timeout, expiry, freeze/import receipt or missing reply cannot close it.
     /// Retain the complete original state and terminal bytes for reconciliation.

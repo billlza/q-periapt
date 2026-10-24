@@ -27,8 +27,9 @@ mod handoff_source;
 pub use handoff_source::AnchorHandoffSourceState;
 mod handoff;
 pub use handoff::{
-    AnchorHandoffImportReceipt, AnchorHandoffObserver, AnchorHandoffPlan, AnchorHandoffReceipt,
-    AnchorHandoffState, AnchorHandoffTarget, AnchorHandoffTargetApproval, AnchorHandoffTargetState,
+    AnchorHandoffHistory, AnchorHandoffImportReceipt, AnchorHandoffObserver, AnchorHandoffPlan,
+    AnchorHandoffReceipt, AnchorHandoffState, AnchorHandoffTarget, AnchorHandoffTargetApproval,
+    AnchorHandoffTargetState,
 };
 mod image_version;
 use image_version::ImageVersion;

@@ -74,6 +74,8 @@ pub(in super::super) fn validate(
     }
     let mut ids = std::collections::BTreeSet::new();
     for r in journal.cancelled.iter().chain(journal.frozen.iter()) {
+        r.plan
+            .require_history(history::HistoryContext::initial(pin))?;
         if r.plan.source.binding != pin.binding
             || r.plan.revision > revision
             || !ids.insert(r.plan.operation)

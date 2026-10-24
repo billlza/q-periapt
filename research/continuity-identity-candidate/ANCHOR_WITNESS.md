@@ -73,7 +73,8 @@ Capture does not imply that a following freeze will still match this state.
 
 `AnchorHandoffPlan::from_trusted_state` binds an operator-approved operation,
 complete source commitment, source revision, independently chosen different target
-key, finite admission interval and retained approval digest. The digest is an
+key, finite admission interval, retained approval digest and exact authority-history
+context. The digest is an
 identifier for the operator's decision, not an authentication mechanism. Restoring
 public plan bytes does not approve a network request. The target's independent
 approval and every client's account-root/policy-root admission remain separate.
@@ -202,6 +203,49 @@ implemented. Mixed historical authority resolution, successive witness transfers
 per-client account-root/policy-root adoption, original-operation continuation,
 history compaction, installed/independent/device/power-loss qualification and
 final protocol/ABI admission remain open.
+
+### Immutable namespace and historical authority proof
+
+New `QPAHPL02` plans also bind the original namespace, transition sequence and
+predecessor history checkpoint. These fields are covered by the existing freeze,
+import and retirement signatures through the exact plan bytes. A source key alone
+does not identify which predecessor history a later transfer belongs to. The
+`QPAHPL01` representation remains readable without changing its original signed
+bytes; a legacy plan can establish only the first transition from its own original
+namespace, never an unbound later transition.
+
+`AnchorHandoffHistory` starts from an independently retained original pin. It
+extends only after checking the matching source retirement, target approval,
+freeze and import acknowledgement, plus exact source key, immutable namespace,
+sequence and predecessor checkpoint. It refuses repeated operation IDs, reused
+historical signing components and incompatible branches even when their individual
+signatures are valid. Restoration requires independently retained origin/current
+pins and the exact checkpoint; an incoming proof cannot select those trust inputs.
+`historical_pin` resolves only keys present in this verified proof, while
+`require_current` accepts only its final authority. Neither is client admission.
+
+The canonical `QPAHHS01` proof retains up to eight complete transitions. A ninth
+returns Capacity without truncating or changing the existing proof. This is a
+bounded candidate representation, not the final lifetime history/compaction
+contract. The proof contains public keys and certificates, no private signing or
+storage keys. Signatures remain within the existing 16 KiB body limit.
+
+`AnchorHandoffTarget::verify_source_retirement` constructs this historical proof
+from the actual retained inactive import and an exact matching source retirement.
+It performs no writes and does not retain the new certificate or activate the
+target. Both legacy and bound first-transfer formats are exercised through actual
+source/import/retirement owners, including recovery after removal of the old test
+signer. The multiple-edge and eight-edge tests exercise the cryptographic metadata
+validator; they are not multiple activated-store transfers.
+
+The current ordinary source image still represents its original authority. Its
+freeze path, image decoder and target import refuse a fictitious noninitial
+history context, including one carrying a valid source signature. Connecting the
+verified history to a namespace-aware image and each mixed historical G/P/R,
+replacement and account-record validator remains necessary before target service.
+Global activation, each client's account-root/policy-root adoption, original
+operation continuation, real successive transfers and final ABI admission remain
+open. No historical-key lookup is used to admit new ordinary work.
 
 ### Immutable original identity and legacy witness migration
 

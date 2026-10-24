@@ -17,6 +17,12 @@ pub struct AnchorHandoffSourceState {
 }
 
 impl AnchorHandoffSourceState {
+    pub(super) fn history_context(&self) -> handoff::history::HistoryContext {
+        // The ordinary store currently serves only its independently supplied
+        // original authority. Transferred service must supply its authenticated
+        // history here when its namespace-aware image format is implemented.
+        handoff::history::HistoryContext::initial(&self.pin)
+    }
     pub(super) fn from_image(pin: &AnchorPin, image: &Image) -> Result<Self, DurableError> {
         let bytes = image_codec::encode_body(pin, image)?;
         let commitment = digest(b"Q-PERIAPT-CONTINUITY-ANCHOR-HANDOFF-SOURCE/v1", &bytes);

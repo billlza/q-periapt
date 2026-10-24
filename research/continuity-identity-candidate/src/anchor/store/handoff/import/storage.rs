@@ -23,6 +23,9 @@ pub(super) fn validate_source(
     {
         return Err(Error::Scope.into());
     }
+    approval
+        .plan
+        .require_history(history::HistoryContext::initial(&approval.plan.source))?;
     // The source signature/commitment above authenticates the transfer. Only
     // then seal locally to reuse the complete existing authenticated-image
     // decoder and every cross-record invariant. No source storage key is used.

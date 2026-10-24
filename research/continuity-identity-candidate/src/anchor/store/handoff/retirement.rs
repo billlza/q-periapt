@@ -57,7 +57,7 @@ impl AnchorHandoffTargetApproval {
         }
         let (body, _) = open_envelope(wire)?;
         let mut d = Decoder::new(body);
-        d.take(8 + PLAN_BYTES + 3 * 32)?;
+        d.take(8 + self.plan.to_bytes().len() + 3 * 32)?;
         let admitted_at = d.u64()?;
         d.finish()?;
         if body != self.retirement_body(freeze, acknowledgement, admitted_at)? {
@@ -82,6 +82,21 @@ impl Retirement {
         )?;
         Ok(())
     }
+}
+
+pub(super) fn sign_retirement(
+    approval: &AnchorHandoffTargetApproval,
+    freeze: &[u8],
+    acknowledgement: &[u8],
+    admitted_at: u64,
+    signer: &AnchorSigningKey,
+) -> Result<AnchorHandoffReceipt, Error> {
+    let body = approval.retirement_body(freeze, acknowledgement, admitted_at)?;
+    let wire = envelope(
+        &body,
+        &signer.sign(Purpose::AnchorHandoffRetirement, &body)?,
+    )?;
+    approval.verify_retirement_receipt(freeze, acknowledgement, &wire)
 }
 
 impl AnchorStore {
@@ -122,14 +137,14 @@ impl AnchorStore {
             return Err(Error::Retired.into());
         }
         let admitted_at = clock().map_err(DurableError::Io)?;
-        let body = approval.retirement_body(observed.as_bytes(), acknowledgement, admitted_at)?;
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let wire = envelope(
-            &body,
-            &owner.signer.sign(Purpose::AnchorHandoffRetirement, &body)?,
+        let receipt = sign_retirement(
+            approval,
+            observed.as_bytes(),
+            acknowledgement,
+            admitted_at,
+            &owner.signer,
         )?;
-        let receipt =
-            approval.verify_retirement_receipt(observed.as_bytes(), acknowledgement, &wire)?;
         journal.retired = Some(Retirement {
             approval: approval.clone(),
             acknowledgement: acknowledgement.to_vec(),

@@ -54,7 +54,8 @@ impl AnchorHandoffTargetApproval {
         if d.array::<8>()? != *b"QPAHTA01" {
             return Err(Error::Encoding);
         }
-        let plan = AnchorHandoffPlan::restore_trusted_state(d.take(PLAN_BYTES)?)?;
+        let plan_length = d.remaining().checked_sub(16 + 32).ok_or(Error::Encoding)?;
+        let plan = AnchorHandoffPlan::restore_trusted_state(d.take(plan_length)?)?;
         let validity = Validity::decode(&mut d)?;
         let authorization = d.array()?;
         d.finish()?;
@@ -79,7 +80,7 @@ impl AnchorHandoffTargetApproval {
         Ok(body)
     }
 
-    pub(super) fn sign_import(
+    pub(in crate::anchor::store::handoff) fn sign_import(
         &self,
         freeze: &[u8],
         signer: &AnchorSigningKey,

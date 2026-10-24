@@ -13,8 +13,10 @@ fn source_signature_and_matching_digest_do_not_excuse_malformed_complete_image()
         .expect("legacy complete-image count")
         .copy_from_slice(&257_u16.to_be_bytes());
     let mut plan = f.plan.to_bytes();
-    let end = plan.len();
-    plan.get_mut(end - 80..end - 48)
+    // Source commitment is in the common prefix, before validity, approval and
+    // the optional v2 namespace/history suffix. Keep that history unchanged.
+    let commitment_offset = 8 + 32 + 2 * (32 + PUBLIC_KEY_BYTES) + 8;
+    plan.get_mut(commitment_offset..commitment_offset + 32)
         .expect("source commitment field")
         .copy_from_slice(&digest(
             b"Q-PERIAPT-CONTINUITY-ANCHOR-HANDOFF-SOURCE/v1",

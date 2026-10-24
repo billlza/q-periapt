@@ -3,15 +3,18 @@
 use super::*;
 
 mod codec;
+pub(super) mod history;
 mod import;
 mod retirement;
 pub(super) use codec::{unwrap, validate, wrap};
+pub use history::AnchorHandoffHistory;
 pub use import::{
     AnchorHandoffImportReceipt, AnchorHandoffTarget, AnchorHandoffTargetApproval,
     AnchorHandoffTargetState,
 };
 pub(super) const MAX_CANCELLED: usize = 16;
-const PLAN_BYTES: usize = 8 + 32 + 2 * (32 + PUBLIC_KEY_BYTES) + 8 + 32 + 16 + 32;
+const LEGACY_PLAN_BYTES: usize = 8 + 32 + 2 * (32 + PUBLIC_KEY_BYTES) + 8 + 32 + 16 + 32;
+const PLAN_BYTES: usize = LEGACY_PLAN_BYTES + 72;
 
 /// Exact source transaction independently approved by the witness operator.
 /// This candidate format is not a client policy grant or a target approval.
@@ -24,6 +27,7 @@ pub struct AnchorHandoffPlan {
     commitment: [u8; 32],
     validity: Validity,
     authorization: [u8; 32],
+    history: Option<history::HistoryContext>,
 }
 
 impl AnchorHandoffPlan {
@@ -46,6 +50,7 @@ impl AnchorHandoffPlan {
             commitment: source.commitment(),
             validity,
             authorization,
+            history: Some(source.history_context()),
         };
         plan.check()?;
         Ok(plan)
@@ -56,6 +61,9 @@ impl AnchorHandoffPlan {
         nonzero(&self.commitment)?;
         nonzero(&self.authorization)?;
         generation(self.revision)?;
+        if let Some(context) = self.history {
+            context.check(&self.source)?;
+        }
         if self.source.binding == self.target.binding
             || self.source.key.shares_component(&self.target.key)
         {
@@ -66,7 +74,12 @@ impl AnchorHandoffPlan {
 
     /// Exact public intent for authenticated local retention, not permission.
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut out = b"QPAHPL01".to_vec();
+        let mut out = if self.history.is_some() {
+            b"QPAHPL02"
+        } else {
+            b"QPAHPL01"
+        }
+        .to_vec();
         out.extend_from_slice(&self.operation);
         for pin in [&self.source, &self.target] {
             out.extend_from_slice(pin.identity.as_bytes());
@@ -76,17 +89,23 @@ impl AnchorHandoffPlan {
         out.extend_from_slice(&self.commitment);
         self.validity.encode(&mut out);
         out.extend_from_slice(&self.authorization);
+        if let Some(context) = self.history {
+            context.encode(&mut out);
+        }
         out
     }
 
     /// Restore an independently approved exact intent. Shape checking here does
     /// not make a network-supplied descriptor an approved control-plane command.
     pub fn restore_trusted_state(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() != PLAN_BYTES {
+        if bytes.len() != PLAN_BYTES && bytes.len() != LEGACY_PLAN_BYTES {
             return Err(Error::Encoding);
         }
         let mut d = Decoder::new(bytes);
-        if d.array::<8>()? != *b"QPAHPL01" {
+        let tag = d.array::<8>()?;
+        if (tag != *b"QPAHPL01" || bytes.len() != LEGACY_PLAN_BYTES)
+            && (tag != *b"QPAHPL02" || bytes.len() != PLAN_BYTES)
+        {
             return Err(Error::Encoding);
         }
         let operation = d.array()?;
@@ -106,10 +125,23 @@ impl AnchorHandoffPlan {
             commitment: d.array()?,
             validity: Validity::decode(&mut d)?,
             authorization: d.array()?,
+            history: if tag == *b"QPAHPL02" {
+                Some(history::HistoryContext::decode(&mut d)?)
+            } else {
+                None
+            },
         };
         d.finish()?;
         result.check()?;
         Ok(result)
+    }
+
+    pub(super) fn require_history(&self, expected: history::HistoryContext) -> Result<(), Error> {
+        match self.history {
+            Some(actual) if actual == expected => Ok(()),
+            None if expected == history::HistoryContext::initial(&self.source) => Ok(()),
+            _ => Err(Error::Scope),
+        }
     }
 
     /// Authenticate this exact historical source decision. Retirement must also
@@ -253,6 +285,7 @@ impl AnchorStore {
             }
         }
         plan.validity.check(now)?;
+        plan.require_history(history::HistoryContext::initial(&plan.source))?;
         let body = image_codec::encode_body(&plan.source, &image)?;
         if image.revision != plan.revision || source_commitment(&body) != plan.commitment {
             return Err(DurableError::Conflict);

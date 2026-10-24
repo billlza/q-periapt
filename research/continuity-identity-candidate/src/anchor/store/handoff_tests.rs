@@ -145,7 +145,9 @@ fn stale_changed_competing_and_expired_plans_never_freeze_a_different_state() {
         Err(DurableError::Conflict)
     ));
     let mut changed = fresh.to_bytes();
-    *changed.last_mut().expect("approval byte") ^= 1;
+    // The approval remains in the common v1/v2 prefix; v2 appends history.
+    let approval_offset = 8 + 32 + 2 * (32 + PUBLIC_KEY_BYTES) + 8 + 32 + 16;
+    *changed.get_mut(approval_offset).expect("approval byte") ^= 1;
     let changed =
         AnchorHandoffPlan::restore_trusted_state(&changed).expect("different shaped descriptor");
     assert!(matches!(
