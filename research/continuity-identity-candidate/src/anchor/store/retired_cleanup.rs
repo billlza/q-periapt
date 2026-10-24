@@ -180,7 +180,7 @@ impl Image {
     fn admit_cleanup(
         &self,
         proposal: &AnchorRetiredCleanupProposal,
-        pin: &AnchorPin,
+        pin: &impl ImageAuthority,
     ) -> Result<(), DurableError> {
         let retired = match self.replacements.get(&proposal.replacement) {
             Some(replacement) => self.retired_observation(replacement, proposal.subject, pin)?,
@@ -189,12 +189,15 @@ impl Image {
         proposal.check_retirement(retired)?;
         Ok(())
     }
-    pub(super) fn check_retired_cleanup(&self, pin: &AnchorPin) -> Result<(), DurableError> {
+    pub(super) fn check_retired_cleanup(
+        &self,
+        pin: &impl ImageAuthority,
+    ) -> Result<(), DurableError> {
         if self.retired_cleanup.len() > MAX_ENTRIES {
             return Err(DurableError::Capacity);
         }
         for (id, proposal) in &self.retired_cleanup {
-            if *id != proposal.subject.id(&pin.binding) {
+            if *id != proposal.subject.id(&pin.namespace()) {
                 return Err(DurableError::Corrupt);
             }
             match self.admit_cleanup(proposal, pin) {
@@ -328,7 +331,7 @@ pub(super) fn encode_records(
 }
 pub(super) fn decode_records(
     d: &mut Decoder<'_>,
-    pin: &AnchorPin,
+    pin: &impl ImageAuthority,
     allow_empty: bool,
 ) -> Result<BTreeMap<[u8; 32], AnchorRetiredCleanupProposal>, DurableError> {
     let count = usize::from(d.u16()?);
@@ -344,7 +347,7 @@ pub(super) fn decode_records(
         }
         last = Some(id);
         let proposal = AnchorRetiredCleanupProposal::from_trusted_state(d.take(PROPOSAL_BYTES)?)?;
-        if id != proposal.subject.id(&pin.binding) {
+        if id != proposal.subject.id(&pin.namespace()) {
             return Err(DurableError::Corrupt);
         }
         records.insert(id, proposal);

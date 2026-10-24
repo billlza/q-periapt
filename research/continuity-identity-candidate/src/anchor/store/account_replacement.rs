@@ -142,6 +142,9 @@ impl AnchorAccountReplacementProposal {
             &self.to_bytes()?,
         ))
     }
+    pub(super) fn shares_witness_key(&self, key: &PublicKey) -> bool {
+        self.previous_root.shares_component(key) || self.successor_root.shares_component(key)
+    }
     fn check_shape(&self) -> Result<(), Error> {
         nonzero(&self.witness)?;
         if let Some(binding) = self.preparation {
@@ -256,13 +259,13 @@ impl Image {
         &self,
         subject: AnchorSubject,
         binding: [u8; 32],
-        pin: &AnchorPin,
+        pin: &impl ImageAuthority,
     ) -> Result<AnchorRetiredSubject, DurableError> {
         // Select by the original entry's account rather than serialize/hash every
         // account proposal on every retained-inventory validation.
         let account = self
             .entries
-            .get(&subject.id(&pin.binding))
+            .get(&subject.id(&pin.namespace()))
             .and_then(|entry| entry.original_identity.as_ref())
             .ok_or(DurableError::Absent)?
             .account;
@@ -270,7 +273,8 @@ impl Image {
             .account_replacements
             .get(&account)
             .ok_or(DurableError::Absent)?;
-        if proposal.witness != pin.binding || proposal.binding()? != binding {
+        pin.resolve(proposal.witness).map_err(|_| Error::Scope)?;
+        if proposal.binding()? != binding {
             return Err(Error::Scope.into());
         }
         Ok(AnchorRetiredSubject::from_account_proposal(
@@ -287,6 +291,15 @@ impl Image {
         account: [u8; 32],
         pin: &AnchorPin,
     ) -> Result<Vec<AnchorRetiredAccountSubject>, DurableError> {
+        self.account_snapshot_at(account, pin.binding, pin)
+    }
+    fn account_snapshot_at(
+        &self,
+        account: [u8; 32],
+        witness: [u8; 32],
+        pin: &impl ImageAuthority,
+    ) -> Result<Vec<AnchorRetiredAccountSubject>, DurableError> {
+        pin.resolve(witness)?;
         let mut result = Vec::new();
         for entry in self.entries.values() {
             // An unclassified legacy entry could belong to the retiring account.
@@ -299,7 +312,7 @@ impl Image {
                     subject: entry.subject,
                     head: entry.head,
                     last: entry.last,
-                    state: replacement::state_commitment(entry, pin)?,
+                    state: replacement::state_commitment_at(entry, witness, pin)?,
                 });
             }
         }
@@ -339,28 +352,37 @@ impl Image {
         }
         Ok(())
     }
-    pub(super) fn check_account_replacements(&self, pin: &AnchorPin) -> Result<(), DurableError> {
+    pub(super) fn check_account_replacements(
+        &self,
+        pin: &impl ImageAuthority,
+    ) -> Result<(), DurableError> {
         if self.account_replacements.len() > MAX_ENTRIES {
             return Err(DurableError::Capacity);
         }
         let mut operations = BTreeSet::new();
         for (account, p) in &self.account_replacements {
             p.check_shape()?;
+            let authority = pin.resolve(p.witness)?;
             self.check_preparation(p)?;
+            // A later decision may retain a preparation captured by an earlier
+            // authority. Its original state commitments must not be rehashed.
+            let snapshot_witness = self
+                .account_freezes
+                .get(account)
+                .map_or(p.witness, AnchorFrozenAccount::snapshot_witness);
             let target = self
                 .entries
-                .get(&p.target.id(&pin.binding))
+                .get(&p.target.id(&pin.namespace()))
                 .ok_or(DurableError::Corrupt)?;
             if account != &p.previous_account()
-                || p.witness != pin.binding
-                || p.previous_root.shares_component(&pin.key)
-                || p.successor_root.shares_component(&pin.key)
+                || p.previous_root.shares_component(&authority.key)
+                || p.successor_root.shares_component(&authority.key)
                 || !operations.insert(p.operation.0)
                 || target.subject != p.target
                 || target.genesis != p.genesis
                 || target.original_identity.as_ref() != Some(&p.identity)
                 || replacement::key_commitment(&target.device) != p.key
-                || self.account_snapshot(*account, pin)? != p.frozen
+                || self.account_snapshot_at(*account, snapshot_witness, pin)? != p.frozen
             {
                 return Err(DurableError::Corrupt);
             }

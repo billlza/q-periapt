@@ -24,7 +24,7 @@ impl EntryFormat {
 }
 pub(super) fn encode_entry(
     entry: &Entry,
-    pin: &AnchorPin,
+    pin: &impl ImageAuthority,
     format: EntryFormat,
     out: &mut Vec<u8>,
 ) -> Result<(), DurableError> {
@@ -114,10 +114,14 @@ pub(super) fn encode_body(pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, Dur
     handoff::wrap(pin, image.revision, &content, image.handoff.as_ref())
 }
 
-pub(super) fn encode_content(pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, DurableError> {
+pub(super) fn encode_content(
+    pin: &impl ImageAuthority,
+    image: &Image,
+) -> Result<Vec<u8>, DurableError> {
     if image.entries.len() > MAX_ENTRIES {
         return Err(DurableError::Capacity);
     }
+    image.check_witness_key(&pin.current().key)?;
     image.check_replacements(pin)?;
     image.check_retired_cleanup(pin)?;
     image.check_retired_reports(pin)?;
@@ -221,10 +225,13 @@ pub(super) fn encode_content(pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, 
     } else {
         b"QPANC002".to_vec()
     };
-    bytes.extend_from_slice(&pin.binding);
+    bytes.extend_from_slice(&pin.namespace());
     bytes.extend_from_slice(&image.revision.to_be_bytes());
     bytes.extend_from_slice(&(image.entries.len() as u16).to_be_bytes());
     for (id, entry) in &image.entries {
+        if *id != entry.subject.id(&pin.namespace()) {
+            return Err(DurableError::Corrupt);
+        }
         bytes.extend_from_slice(id);
         encode_entry(
             entry,
@@ -291,9 +298,34 @@ pub(super) fn decode(
         auth.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
         let (body, handoff) = handoff::unwrap(pin, body)?;
+        let mut image = decode_content(pin, body)?;
+        image.digest = image_digest(bytes);
+        image.handoff = handoff;
+        if image.handoff.is_some() {
+            let content = encode_content(pin, &image)?;
+            handoff::validate(pin, image.revision, &content, image.handoff.as_ref())?;
+        }
+        Ok(image)
+    })();
+    match result {
+        Err(DurableError::Protocol(Error::Encoding)) => Err(DurableError::Corrupt),
+        other => other,
+    }
+}
+
+// Caller must first authenticate the enclosing image or exact signed source
+// commitment. This parser selects no authority from untrusted record bytes.
+pub(super) fn decode_content(
+    pin: &impl ImageAuthority,
+    body: &[u8],
+) -> Result<Image, DurableError> {
+    let result = (|| {
+        if !(50..=MAX_IMAGE - 32).contains(&body.len()) {
+            return Err(DurableError::Corrupt);
+        }
         let mut d = Decoder::new(body);
         let version = ImageVersion::decode(d.array()?)?;
-        if d.array::<32>()? != pin.binding {
+        if d.array::<32>()? != pin.namespace() {
             return Err(DurableError::Conflict);
         }
         let revision = d.u64()?;
@@ -395,8 +427,8 @@ pub(super) fn decode(
             } else {
                 None
             };
-            if id != subject.id(&pin.binding)
-                || device.shares_component(&pin.key)
+            if id != subject.id(&pin.namespace())
+                || device.shares_component(&pin.current().key)
                 || !owners.insert(subject.owner)
                 || (last.is_none() && head.digest != genesis)
             {
@@ -479,7 +511,7 @@ pub(super) fn decode(
         }
         let image = Image {
             revision,
-            digest: image_digest(bytes),
+            digest: [0; 32],
             entries,
             replacements,
             retired_cleanup,
@@ -487,18 +519,15 @@ pub(super) fn decode(
             account_replacements,
             account_freezes,
             account_closures,
-            handoff,
+            handoff: None,
         };
+        image.check_witness_key(&pin.current().key)?;
         image.check_replacements(pin)?;
         image.check_retired_cleanup(pin)?;
         image.check_retired_reports(pin)?;
         image.check_account_replacements(pin)?;
         image.check_account_freezes(pin)?;
         image.check_account_closures()?;
-        if image.handoff.is_some() {
-            let content = encode_content(pin, &image)?;
-            handoff::validate(pin, image.revision, &content, image.handoff.as_ref())?;
-        }
         if version == ImageVersion::V14 && !image.retired_reports.values().any(|r| r.acknowledged) {
             return Err(DurableError::Corrupt);
         }

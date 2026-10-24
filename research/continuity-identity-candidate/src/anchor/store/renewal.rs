@@ -282,7 +282,10 @@ impl From<&AnchorCredentialRenewalCancellation> for RenewalScope {
 }
 
 impl Entry {
-    pub(super) fn check_renewal_state(&self, pin: &AnchorPin) -> Result<(), DurableError> {
+    pub(super) fn check_renewal_state(
+        &self,
+        pin: &impl ImageAuthority,
+    ) -> Result<(), DurableError> {
         self.check_independent_policy(pin)?;
         self.check_independent_roster(pin)?;
         if self.policy_floor == 1 || self.policy_floor == u64::MAX {
@@ -317,8 +320,8 @@ impl Entry {
             policy,
         }) = &self.renewal
         {
+            pin.resolve(cancellation.witness)?;
             if *version <= 1
-                || cancellation.witness != pin.binding
                 || cancellation.subject != self.subject
                 || cancellation.expected != self.head
                 || *version != self.renewal_floor
@@ -389,10 +392,8 @@ impl Entry {
                     return Err(DurableError::Corrupt);
                 }
             }
-            if proposal.witness != pin.binding
-                || proposal.subject != self.subject
-                || self.renewal_ack == Some(proposal.binding())
-            {
+            pin.resolve(proposal.witness)?;
+            if proposal.subject != self.subject || self.renewal_ack == Some(proposal.binding()) {
                 return Err(DurableError::Corrupt);
             }
             match record.phase {
@@ -412,7 +413,7 @@ impl Entry {
                         && self.validity == record.validity
                         && self.last
                             == Some(command_id(
-                                &pin.binding,
+                                &proposal.witness,
                                 self.subject,
                                 AnchorOperation::commit_credential_renewal(proposal),
                             )) => {}

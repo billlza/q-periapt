@@ -92,6 +92,12 @@ impl AnchorFrozenAccount {
             &self.to_bytes()?,
         ))
     }
+    pub(in crate::anchor::store) fn shares_witness_key(&self, key: &PublicKey) -> bool {
+        self.request.root.shares_component(key)
+    }
+    pub(in crate::anchor::store) fn snapshot_witness(&self) -> [u8; 32] {
+        self.request.witness
+    }
     fn check_shape(&self) -> Result<(), Error> {
         nonzero(&self.request.witness)?;
         if self.subjects.len() > MAX_ENTRIES {
@@ -125,7 +131,7 @@ impl Image {
     }
     pub(in crate::anchor::store) fn check_account_freezes(
         &self,
-        pin: &AnchorPin,
+        pin: &impl ImageAuthority,
     ) -> Result<(), DurableError> {
         if self.account_freezes.len() > MAX_ENTRIES {
             return Err(DurableError::Capacity);
@@ -133,10 +139,13 @@ impl Image {
         let mut operations = BTreeSet::new();
         for (account, frozen) in &self.account_freezes {
             frozen.check_shape()?;
-            frozen.request.check_pin(pin)?;
+            frozen
+                .request
+                .check_pin(pin.resolve(frozen.request.witness)?)?;
             if *account != frozen.request.account()
                 || !operations.insert(frozen.request.operation.0)
-                || self.account_snapshot(*account, pin)? != frozen.subjects
+                || self.account_snapshot_at(*account, frozen.request.witness, pin)?
+                    != frozen.subjects
             {
                 return Err(DurableError::Corrupt);
             }

@@ -1777,6 +1777,24 @@ fn host_ack_is_distinct_permanent_and_uses_the_already_admitted_storage_length()
     assert_retired(&mut f.c, AnchorOperation::query());
     eprintln!("RETIRED_HOST_ACK immutable=true fixed_storage_length=true purpose21_separate=true old_entry_unchanged=true");
 }
+
+#[test]
+fn historical_cleanup_codec_keeps_replacement_inventory_and_acknowledged_report() {
+    let (mut f, report) = host_ack_fixture(Some(false));
+    f.c.store
+        .acknowledge_retired_report(&report)
+        .expect("original host acknowledgement");
+    let image = f.c.store.image().expect("complete retirement state");
+    assert!(
+        !image.replacements.is_empty()
+            && !image.retired_cleanup.is_empty()
+            && !image.retired_reports.is_empty()
+    );
+    crate::anchor::store::tests::image_authority::retained_image_roundtrip(
+        &mut f.c.store,
+        &f.c.server,
+    );
+}
 #[test]
 fn every_host_ack_witness_sync_cut_recovers_only_the_original_decision() {
     for pending in [None, Some(false)] {

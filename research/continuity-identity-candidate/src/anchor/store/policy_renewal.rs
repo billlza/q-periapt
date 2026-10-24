@@ -128,7 +128,10 @@ impl Entry {
                 || self.renewal_ack.is_some()
                 || self.credential_owner != self.subject.owner)
     }
-    pub(super) fn check_independent_policy(&self, pin: &AnchorPin) -> Result<(), DurableError> {
+    pub(super) fn check_independent_policy(
+        &self,
+        pin: &impl ImageAuthority,
+    ) -> Result<(), DurableError> {
         let Some(s) = &self.independent_policy else {
             return Ok(());
         };
@@ -166,8 +169,8 @@ impl Entry {
         }
         if let Some(r) = s.record {
             let p = r.proposal;
-            if p.witness_binding() != pin.binding
-                || p.subject() != self.subject
+            pin.resolve(p.witness_binding())?;
+            if p.subject() != self.subject
                 || p.statement() != r.policy.statement
                 || !r.policy.validity.contains(r.validity)
                 || r.policy.checkpoint.version() <= 1
@@ -196,7 +199,7 @@ impl Entry {
                         && self.validity == r.validity
                         && self.last
                             == Some(command_id(
-                                &pin.binding,
+                                &p.witness_binding(),
                                 self.subject,
                                 AnchorOperation::commit_policy_renewal(&p),
                             ))

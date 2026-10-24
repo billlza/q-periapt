@@ -168,6 +168,20 @@ impl AnchorHandoffTarget {
             &image.acknowledgement,
             retirement,
         )?;
+        let original = storage::validate_source(
+            &owner.wrapping,
+            &owner.approval,
+            &image.source,
+            &image.freeze,
+        )?;
+        // Reuse the complete image validator with the verified historical
+        // resolver. Namespace and every retained operation remain byte-exact;
+        // recognizing their former authority grants no current client rights.
+        let content = image_codec::encode_content(&owner.approval.plan.source, &original)?;
+        let transferred = image_codec::decode_content(&history, &content)?;
+        if image_codec::encode_content(&history, &transferred)? != content {
+            return Err(DurableError::Corrupt);
+        }
         Ok(history)
     }
 

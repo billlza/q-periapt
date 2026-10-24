@@ -103,6 +103,25 @@ fn authority(
     c.admission(op, now)
 }
 #[test]
+fn historical_roster_codec_preserves_pending_and_applied_original_commands() {
+    for applied in [false, true] {
+        let (mut c, current, statement, head) = setup(true);
+        let device = c.device.clone();
+        let next = next(&c, 2);
+        let p = proposal(&c, &next, &current, statement, head, 86);
+        c.store
+            .prepare_roster_refresh(p, &device, &next, &current, 170)
+            .expect("real pending R after acknowledged P");
+        if applied {
+            exchange(&mut c, p, AnchorOperation::commit_roster_refresh(&p), 170);
+        }
+        crate::anchor::store::tests::image_authority::retained_image_roundtrip(
+            &mut c.store,
+            &c.server,
+        );
+    }
+}
+#[test]
 fn roster_and_head_apply_together_under_original_or_independent_policy() {
     for adopted in [false, true] {
         let (mut c, current, statement, head) = setup(adopted);

@@ -289,7 +289,15 @@ pub(super) fn key_commitment(key: &PublicKey) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-REPLACEMENT-KEY/v1", &key.encode())
 }
 pub(super) fn state_commitment(entry: &Entry, pin: &AnchorPin) -> Result<[u8; 32], DurableError> {
-    let mut bytes = pin.binding.to_vec();
+    state_commitment_at(entry, pin.binding, pin)
+}
+pub(super) fn state_commitment_at(
+    entry: &Entry,
+    witness: [u8; 32],
+    pin: &impl ImageAuthority,
+) -> Result<[u8; 32], DurableError> {
+    pin.resolve(witness)?;
+    let mut bytes = witness.to_vec();
     encode_entry(entry, pin, EntryFormat::COMPLETE, &mut bytes)?;
     Ok(digest(
         b"Q-PERIAPT-CONTINUITY-RETIRED-WITNESS-STATE/v1",
@@ -371,7 +379,7 @@ impl Image {
         }
         Ok(())
     }
-    pub(super) fn check_replacements(&self, pin: &AnchorPin) -> Result<(), DurableError> {
+    pub(super) fn check_replacements(&self, pin: &impl ImageAuthority) -> Result<(), DurableError> {
         if self.replacements.len() > MAX_ENTRIES {
             return Err(DurableError::Capacity);
         }
@@ -384,15 +392,13 @@ impl Image {
         let mut retired = BTreeSet::new();
         let mut successors = BTreeSet::new();
         for (binding, p) in &self.replacements {
-            if p.witness != pin.binding
-                || p.binding()? != *binding
-                || !successors.insert(p.target.id(&pin.binding))
-            {
+            pin.resolve(p.witness)?;
+            if p.binding()? != *binding || !successors.insert(p.target.id(&pin.namespace())) {
                 return Err(DurableError::Corrupt);
             }
             let target = self
                 .entries
-                .get(&p.target.id(&pin.binding))
+                .get(&p.target.id(&pin.namespace()))
                 .ok_or(DurableError::Corrupt)?;
             if target.subject != p.target
                 || target.genesis != p.genesis
@@ -402,7 +408,7 @@ impl Image {
                 return Err(DurableError::Corrupt);
             }
             for predecessor in &p.predecessors {
-                let id = predecessor.subject.id(&pin.binding);
+                let id = predecessor.subject.id(&pin.namespace());
                 if !retired.insert(id) {
                     return Err(DurableError::Corrupt);
                 }
@@ -424,7 +430,7 @@ impl Image {
                         )
                     || !entry
                         .matches_current_policy(predecessor.policy, predecessor.policy_validity)
-                    || predecessor.state != state_commitment(entry, pin)?
+                    || predecessor.state != state_commitment_at(entry, p.witness, pin)?
                     || p.roster.version() <= entry.roster_floor()
                 {
                     return Err(DurableError::Corrupt);
@@ -434,7 +440,7 @@ impl Image {
         for p in self.replacements.values() {
             let target = self
                 .entries
-                .get(&p.target.id(&pin.binding))
+                .get(&p.target.id(&pin.namespace()))
                 .ok_or(DurableError::Corrupt)?;
             let mut active = 0;
             let mut highest = 0;
@@ -453,7 +459,7 @@ impl Image {
                     return Err(DurableError::Corrupt);
                 }
                 highest = highest.max(identity.description.generation);
-                if !retired.contains(&entry.subject.id(&pin.binding)) {
+                if !retired.contains(&entry.subject.id(&pin.namespace())) {
                     active += 1;
                     live_generation = identity.description.generation;
                 }
@@ -693,11 +699,9 @@ impl Image {
         &self,
         p: &AnchorDeviceReplacementProposal,
         subject: AnchorSubject,
-        pin: &AnchorPin,
+        pin: &impl ImageAuthority,
     ) -> Result<AnchorRetiredSubject, DurableError> {
-        if p.witness != pin.binding {
-            return Err(Error::Scope.into());
-        }
+        pin.resolve(p.witness).map_err(|_| Error::Scope)?;
         let binding = p.binding()?;
         if self.replacements.get(&binding) != Some(p) {
             return Err(DurableError::Absent);
@@ -709,10 +713,10 @@ impl Image {
             .ok_or(Error::Scope)?;
         let entry = self
             .entries
-            .get(&subject.id(&pin.binding))
+            .get(&subject.id(&pin.namespace()))
             .ok_or(DurableError::Corrupt)?;
         Ok(AnchorRetiredSubject {
-            witness: pin.binding,
+            witness: p.witness,
             subject,
             head: entry.head,
             last: entry.last,

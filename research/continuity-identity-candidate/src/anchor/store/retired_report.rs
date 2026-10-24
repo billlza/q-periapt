@@ -112,25 +112,30 @@ impl Image {
     fn admit_report(
         &self,
         p: &AnchorRetiredReportProposal,
-        pin: &AnchorPin,
+        pin: &impl ImageAuthority,
     ) -> Result<(), DurableError> {
         nonzero(&p.report)?;
         if self
             .retired_cleanup
-            .get(&p.inventory.subject().id(&pin.binding))
+            .get(&p.inventory.subject().id(&pin.namespace()))
             != Some(&p.inventory)
         {
             return Err(DurableError::Conflict);
         }
         Ok(())
     }
-    pub(super) fn check_retired_reports(&self, pin: &AnchorPin) -> Result<(), DurableError> {
+    pub(super) fn check_retired_reports(
+        &self,
+        pin: &impl ImageAuthority,
+    ) -> Result<(), DurableError> {
         if self.retired_reports.len() > MAX_ENTRIES {
             return Err(DurableError::Capacity);
         }
         for (id, saved) in &self.retired_reports {
             let p = &saved.proposal;
-            if *id != p.inventory.subject().id(&pin.binding) || self.admit_report(p, pin).is_err() {
+            if *id != p.inventory.subject().id(&pin.namespace())
+                || self.admit_report(p, pin).is_err()
+            {
                 return Err(DurableError::Corrupt);
             }
         }
@@ -257,7 +262,7 @@ pub(super) fn encode_records(
 }
 pub(super) fn decode_records(
     d: &mut Decoder<'_>,
-    pin: &AnchorPin,
+    pin: &impl ImageAuthority,
     allow_acknowledged: bool,
     allow_empty: bool,
 ) -> Result<BTreeMap<[u8; 32], ReportRecord>, DurableError> {
@@ -284,7 +289,8 @@ pub(super) fn decode_records(
         };
         let p = AnchorRetiredReportProposal::from_trusted_state(&bytes)
             .map_err(|_| DurableError::Corrupt)?;
-        if id != p.inventory.subject().id(&pin.binding) || previous.is_some_and(|old| old >= id) {
+        if id != p.inventory.subject().id(&pin.namespace()) || previous.is_some_and(|old| old >= id)
+        {
             return Err(DurableError::Corrupt);
         }
         previous = Some(id);

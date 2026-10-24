@@ -127,7 +127,10 @@ impl Entry {
             }
         }
     }
-    pub(super) fn check_independent_roster(&self, pin: &AnchorPin) -> Result<(), DurableError> {
+    pub(super) fn check_independent_roster(
+        &self,
+        pin: &impl ImageAuthority,
+    ) -> Result<(), DurableError> {
         let Some(state) = &self.independent_roster else {
             return Ok(());
         };
@@ -151,8 +154,8 @@ impl Entry {
             let p = r.proposal;
             nonzero(&r.previous_authority)?;
             nonzero(&r.target_authority)?;
-            if p.witness_binding() != pin.binding
-                || p.subject() != self.subject
+            pin.resolve(p.witness_binding())?;
+            if p.subject() != self.subject
                 || !self.roster_policy_matches(p)
                 || r.previous_authority == r.target_authority
                 || p.scope().target.version() <= self.renewal_floor
@@ -192,7 +195,7 @@ impl Entry {
                         && p.scope().target.version() == state.floor
                         && self.last
                             == Some(command_id(
-                                &pin.binding,
+                                &p.witness_binding(),
                                 self.subject,
                                 AnchorOperation::commit_roster_refresh(&p),
                             ))

@@ -6,6 +6,8 @@ mod handoff;
 mod handoff_import;
 #[path = "handoff_source_tests.rs"]
 mod handoff_source;
+#[path = "image_authority_tests.rs"]
+pub(super) mod image_authority;
 #[path = "pending_recovery_tests.rs"]
 mod pending_recovery;
 use crate::{

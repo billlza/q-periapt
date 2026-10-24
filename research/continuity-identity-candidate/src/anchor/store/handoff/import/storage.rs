@@ -14,7 +14,7 @@ pub(super) fn validate_source(
     approval: &AnchorHandoffTargetApproval,
     source: &[u8],
     freeze: &[u8],
-) -> Result<(), DurableError> {
+) -> Result<Image, DurableError> {
     if source.len().checked_add(32).ok_or(DurableError::Capacity)? > MAX_IMAGE {
         return Err(DurableError::Capacity);
     }
@@ -40,7 +40,8 @@ pub(super) fn validate_source(
     {
         return Err(DurableError::Corrupt);
     }
-    Ok(())
+    image.check_witness_key(&approval.plan.target.key)?;
+    Ok(image)
 }
 
 fn validate(

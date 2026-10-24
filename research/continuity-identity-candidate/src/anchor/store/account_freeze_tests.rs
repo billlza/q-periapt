@@ -39,6 +39,33 @@ fn frozen_proposal(
         .expect("complete descriptor bound to original freeze")
 }
 #[test]
+fn historical_account_codec_keeps_freeze_closure_and_replacement_snapshots() {
+    let mut c = required_case();
+    let next = root_target(&c, 190, 192);
+    let freeze = freeze_request(&c, original_root(&c), 185);
+    let frozen = c.store.freeze_account(&freeze).expect("original freeze");
+    assert!(c
+        .store
+        .image()
+        .expect("retained freeze")
+        .check_witness_key(&original_root(&c))
+        .is_err());
+    let losing = frozen_proposal(&mut c, &frozen, &next, 186);
+    c.store
+        .close_account_replacement(&losing)
+        .expect("permanent original noncommit");
+    let winner = frozen_proposal(&mut c, &frozen, &next, 187);
+    root_commit(&mut c, &winner, &next, 150).expect("actual approved replacement");
+    let image = c.store.image().expect("complete account state");
+    assert!(image.check_witness_key(&next.device.authority_key).is_err());
+    assert!(
+        !image.account_freezes.is_empty()
+            && !image.account_closures.is_empty()
+            && !image.account_replacements.is_empty()
+    );
+    crate::anchor::store::tests::image_authority::retained_image_roundtrip(&mut c.store, &c.server);
+}
+#[test]
 fn account_freeze_captures_racing_head_blocks_namespace_and_enables_exact_replacement() {
     let mut c = required_case();
     let same_root = fresh(&c, 2, 2, 174);
