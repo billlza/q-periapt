@@ -30,7 +30,7 @@ class PolicyCapacity:
         args = (operation, approval, *policy_inputs(f, version))
         if f.bridge:
             proposal = f.value(name + "-prepare", "policy_prepare", args, now=now)
-            f.call(name + "-approval", 43, proposal + len(approval).to_bytes(2, "big") + approval + request, b"Prepared")
+            f.call(name + "-witness-approval", 43, proposal + len(approval).to_bytes(2, "big") + approval + request, b"Prepared")
         else:
             f.worker(name + "-stage", "policy_stage", args, now=now)
         return operation

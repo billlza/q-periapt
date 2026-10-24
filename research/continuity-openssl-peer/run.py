@@ -109,11 +109,14 @@ class Counterpart:
         return bytes(result)
 
     def exchange_record(self, name: str, command: int, wire: bytes) -> bytes:
-        reply = self.transfer(bytes([command]) + wire)
-        # Inputs and replies are public protocol bytes, including rejected
-        # signed controls. Keep them even when the expected result is wrong.
-        (self.cases / (name + ".input")).write_bytes(wire)
-        (self.cases / (name + ".output")).write_bytes(reply)
+        # Reserve both public transcript files before dispatch. Reusing a case
+        # must not overwrite an earlier command or execute an unrecordable one.
+        with (self.cases / (name + ".input")).open("xb") as request, \
+                (self.cases / (name + ".output")).open("xb") as response:
+            request.write(wire)
+            request.flush()
+            reply = self.transfer(bytes([command]) + wire)
+            response.write(reply)
         self.commands.append({"case": name, "command": command, "status": reply[0], "pid": self.process.pid,
                               "input_sha256": hashlib.sha256(wire).hexdigest(),
                               "output_sha256": hashlib.sha256(reply[1:]).hexdigest(),

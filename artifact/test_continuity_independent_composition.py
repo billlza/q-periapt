@@ -1,6 +1,58 @@
 """Reject partial or contradictory original lifecycle qualification receipts."""
+import importlib.util
+from pathlib import Path
+import tempfile
+from types import SimpleNamespace
 import unittest
 from continuity_independent_composition import verify_composition, verify_capacity
+
+
+class NativeTranscriptTests(unittest.TestCase):
+    def setUp(self):
+        source = Path(__file__).resolve().parent.parent / "research/continuity-openssl-peer/run.py"
+        spec = importlib.util.spec_from_file_location("independent_transcript_test", source)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.native = module.Counterpart.__new__(module.Counterpart)
+        self.native.cases = Path(temporary.name)
+        self.native.commands = []
+        self.native.process = SimpleNamespace(pid=123)
+        self.transfers = []
+        def transfer(wire):
+            self.transfers.append(wire)
+            return b"\x01reply"
+        self.native.transfer = transfer
+
+    def test_reused_name_preserves_original_bytes_before_native_dispatch(self):
+        self.native.exchange_record("approval", 41, b"original")
+        before = list(self.native.commands)
+        with self.assertRaises(FileExistsError):
+            self.native.exchange_record("approval", 43, b"replacement")
+        self.assertEqual(self.transfers, [b"\x29original"])
+        self.assertEqual(self.native.commands, before)
+        self.assertEqual((self.native.cases / "approval.input").read_bytes(), b"original")
+        self.assertEqual((self.native.cases / "approval.output").read_bytes(), b"\x01reply")
+
+    def test_existing_output_is_not_overwritten_or_dispatched(self):
+        path = self.native.cases / "approval.output"
+        path.write_bytes(b"retained response")
+        with self.assertRaises(FileExistsError):
+            self.native.exchange_record("approval", 41, b"request")
+        self.assertEqual(path.read_bytes(), b"retained response")
+        self.assertEqual(self.transfers, [])
+        self.assertEqual(self.native.commands, [])
+
+    def test_transport_failure_preserves_request_without_success_receipt(self):
+        def unavailable(wire):
+            raise TimeoutError("native output deadline")
+        self.native.transfer = unavailable
+        with self.assertRaisesRegex(TimeoutError, "native output deadline"):
+            self.native.exchange_record("approval", 41, b"request")
+        self.assertEqual((self.native.cases / "approval.input").read_bytes(), b"request")
+        self.assertEqual((self.native.cases / "approval.output").read_bytes(), b"")
+        self.assertEqual(self.native.commands, [])
 
 
 class CompositionCapacityTests(unittest.TestCase):
