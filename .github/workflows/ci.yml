@@ -2282,6 +2282,14 @@ jobs:
             target/continuity-installed-swift/android-jni-*-joint-policy-*/**
             target/continuity-installed-swift/android-jni-*-witness-joint-*/**
             target/continuity-installed-swift/android-jni-*-joint-cycle-*/**
+            target/continuity-installed-swift/android-jni-*-root-*/**
+            target/continuity-installed-swift/android-jni-*-retirement/**
+            target/continuity-installed-swift/android-jni-*-roster-*/**
+            target/continuity-installed-swift/android-jni-*-policy-roster/**
+            target/continuity-installed-swift/android-jni-*-recovery-first-use-public/**
+            target/continuity-installed-swift/android-jni-*-recovery-oracle-*/**
+            target/continuity-installed-swift/android-jni-*-recovery-witness-calls/**
+            target/continuity-installed-swift/android-jni-*-recovery-result-calls/**
             target/continuity-installed-swift/*.zip
             target/continuity-installed-swift/*.json
             target/continuity-installed-swift/*.stdout

@@ -80,6 +80,29 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
         native(self.native)
         independent(self.independent)
 
+    def test_installed_jni_public_directories_survive_artifact_selection(self):
+        block = self.native.split('  continuity-installed-swift:\n', 1)[1].split('\n  continuity-installed-coverage:', 1)[0]
+        retained = block.split('      - name: Retain native packages and selected public execution evidence\n', 1)[1]
+        match = re.search(r'          path: \|\n((?:            [^\n]+\n)+)', retained)
+        self.assertIsNotNone(match)
+        patterns = [line.strip() for line in match[1].splitlines()]
+        routes = (["root-" + route for route in ("original", "transition", "bound-transition", "adoption", "noncommit")]
+                  + ["retirement", "roster-local", "roster-peer", "roster-witness", "policy-roster",
+                     "recovery-first-use-public", "recovery-witness-calls", "recovery-result-calls"]
+                  + ["recovery-oracle-" + str(index) for index in range(4)])
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); required = set()
+            for profile in ("debug", "release"):
+                for route in routes:
+                    path = root / f"target/continuity-installed-swift/android-jni-{profile}-{route}/scope/public-result.bin"
+                    path.parent.mkdir(parents=True); path.write_bytes(b"public evidence")
+                    required.add(path)
+            private = root / "target/continuity-installed-swift/private/journal"
+            private.parent.mkdir(); private.write_bytes(b"must not be selected")
+            selected = {path for pattern in patterns for path in root.glob(pattern) if path.is_file()}
+            self.assertEqual(required - selected, set(), "JNI public evidence omitted from uploaded archive")
+            self.assertNotIn(private, selected)
+
     def test_catalog_guards_execute_without_optional_runner_tools(self):
         # Hosted Linux runners do not promise ripgrep. Execute both actual
         # workflow guards with only the standard system tools on PATH.

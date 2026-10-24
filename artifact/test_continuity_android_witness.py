@@ -2,6 +2,7 @@
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 import continuity_android_contract as contract
 
 import continuity_android_witness as witness
@@ -32,6 +33,51 @@ def fixture(root: Path, *, managed: bool = False) -> bytes:
 
 
 class AndroidWitnessTests(unittest.TestCase):
+    def test_export_replays_complete_unmanaged_and_managed_public_results(self):
+        for managed in (False, True):
+            with self.subTest(managed=managed), tempfile.TemporaryDirectory() as temp:
+                source = Path(temp) / "source"; source.mkdir()
+                output = Path(temp) / "output"; output.mkdir()
+                stdout = fixture(source, managed=managed)
+                verify = lambda data, path: witness.verify_execution(data, path, managed=managed)
+                expected = verify(stdout, source)
+                lane = "authority" if managed else "witness"
+                prefix = "android-jni-debug-" + lane + "-"
+                witness.export_public(stdout, source, output, prefix, expected,
+                                      managed=managed, verifier=verify)
+                for label in expected:
+                    self.assertEqual((output / (prefix + label + "-original.request.public")).read_bytes(),
+                                     (source / label / "original.request").read_bytes())
+                self.assertFalse(any(path.is_dir() for path in output.iterdir()))
+
+    def test_missing_export_member_is_rejected_by_original_reader(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp) / "source"; source.mkdir()
+            output = Path(temp) / "output"; output.mkdir()
+            stdout = fixture(source)
+            expected = witness.verify_execution(stdout, source)
+            public = witness.public
+            with patch.object(witness, "public", side_effect=lambda carrier, **kwargs:
+                              tuple(name for name in public(carrier, **kwargs) if name != "original.request")):
+                with self.assertRaises(ValueError):
+                    witness.export_public(stdout, source, output, "android-jni-debug-witness-",
+                                          expected, verifier=witness.verify_execution)
+
+    def test_export_verifies_retained_bytes_instead_of_source_only(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp) / "source"; source.mkdir()
+            output = Path(temp) / "output"; output.mkdir()
+            stdout = fixture(source)
+            expected = witness.verify_execution(stdout, source)
+            copy = witness.sdk.copy
+            def damaged(source_file, target_file, **kwargs):
+                copy(source_file, target_file, **kwargs)
+                if target_file.name.endswith("original.request.public"):
+                    target_file.write_bytes(b"truncated retained request")
+            with patch.object(witness.sdk, "copy", side_effect=damaged), self.assertRaises(ValueError):
+                witness.export_public(stdout, source, output, "android-jni-debug-witness-",
+                                      expected, verifier=witness.verify_execution)
+
     def test_managed_registry_requires_all_five_extra_processes(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); stdout = fixture(root, managed=True)

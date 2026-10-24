@@ -1,6 +1,8 @@
 """Read JNI witness outcomes; native execution verifies signatures and authorization."""
 from pathlib import Path
+from collections.abc import Callable
 import re
+import tempfile
 
 import continuity_android_contract as contract
 import rust_sdk_profile as sdk
@@ -23,6 +25,39 @@ def cases(carrier: str, *, managed: bool = False) -> tuple:
             ("unselected", "managed-unselected"), ("closed-registry", "managed-closed-registry"),
             ("cancelled-registry", "managed-cancelled-registry"))
     return selected
+
+
+def public(carrier: str, *, managed: bool = False) -> tuple[str, ...]:
+    """Complete public result and process-record closure of the witness reader."""
+    selected = cases(carrier, managed=managed)
+    return (tuple(name for name, _ in selected)
+            + tuple(name + "." + stream for name, _ in selected for stream in ("stdout", "stderr"))
+            + ("signed-witness-transcript",))
+
+
+def export_public(stdout: bytes, directory: Path, output: Path, prefix: str, outcomes: dict,
+                  *, managed: bool = False, extra_public: tuple[str, ...] = (),
+                  verifier: Callable[[bytes, Path], dict]) -> None:
+    """Replay the retained flat archive bytes through the original full reader."""
+    sdk.require(re.fullmatch(r"android-jni-(debug|release)-(witness|authority|credential)-", prefix)
+                is not None, "invalid witness public export prefix")
+    sdk.require(set(outcomes) == {carrier + "-" + trust for carrier in ("signed", "tls")
+                                 for trust in ("fixed", "recoverable")}, "incomplete witness export routes")
+    with tempfile.TemporaryDirectory(prefix="witness-export-readback-", dir=output) as temporary:
+        readback = Path(temporary)
+        for label in outcomes:
+            carrier = label.split("-", 1)[0]
+            # The inventory is a union: a repeated declaration refers to the
+            # same original public file, not a second output to overwrite.
+            names = dict.fromkeys(public(carrier, managed=managed) + extra_public)
+            for name in names:
+                relative = Path(name)
+                sdk.require(name and not relative.is_absolute() and ".." not in relative.parts
+                            and relative.as_posix() == name, "invalid witness public member")
+                retained = output / (prefix + label + "-" + name + ".public")
+                sdk.copy(directory / label / relative, retained)
+                sdk.copy(retained, readback / label / relative)
+        sdk.require(verifier(stdout, readback) == outcomes, "witness public export differs")
 
 
 def verify_execution(stdout: bytes, directory: Path, *, managed: bool = False, test: str | None = None) -> dict:

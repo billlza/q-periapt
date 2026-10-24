@@ -3,6 +3,9 @@ from pathlib import Path
 import tempfile
 import unittest
 import continuity_android_credential_terminal as terminal
+import continuity_android_credential as credential
+import continuity_android_remote_credential as remote
+import continuity_android_witness as witness
 from test_continuity_android_remote_credential import fixture as remote_fixture
 
 def fixture(root:Path)->bytes:
@@ -32,6 +35,19 @@ def fixture(root:Path)->bytes:
     return stdout
 
 class TerminalReaderTests(unittest.TestCase):
+    def test_export_preserves_base_witness_and_all_credential_layers(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source=Path(temp)/"source";source.mkdir()
+            output=Path(temp)/"output";output.mkdir()
+            stdout=fixture(source);expected=terminal.verify_execution(stdout,source)
+            witness.export_public(stdout,source,output,"android-jni-release-credential-",expected,
+                managed=True,extra_public=credential.PUBLIC+remote.PUBLIC+terminal.PUBLIC,
+                verifier=terminal.verify_execution)
+            for label in expected:
+                for name in ("original.request","credential-proposal","remote-admitted","terminal-no-commit-transcript"):
+                    self.assertEqual((output/("android-jni-release-credential-"+label+"-"+name+".public")).read_bytes(),
+                                     (source/label/name).read_bytes())
+
     def test_complete_and_missing_route(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);stdout=fixture(root);result=terminal.verify_execution(stdout,root)

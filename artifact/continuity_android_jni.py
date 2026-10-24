@@ -212,17 +212,14 @@ def qualify_android_jni(outside: Path, output: Path, native: dict, environment: 
                 witness_runtime = dict(env, QPC_ANDROID_CASES=str(witness_cases), QPC_ANDROID_DRIVER=str(driver), QPC_CONFIGURATION_RECEIVER=str(receiver))
                 witnessed_stdout = run([str(binary), "--exact", test, "--nocapture"],
                                        profile + "-" + lane, consumer, witness_runtime)
-                witness_outcomes = (terminal.verify_execution(witnessed_stdout, witness_cases) if lane == "credential"
-                                    else witnessed.verify_execution(witnessed_stdout, witness_cases, managed=managed))
+                verify_witness = (terminal.verify_execution if lane == "credential" else
+                                  lambda data, path: witnessed.verify_execution(data, path, managed=managed))
+                witness_outcomes = verify_witness(witnessed_stdout, witness_cases)
                 witness_results[lane] = witness_outcomes
-                for label in witness_outcomes:
-                    carrier = label.split("-", 1)[0]
-                    public = ["genesis", "signed-witness-transcript"]
-                    if managed: public += ["authority-created", "authority-reopened"]
-                    if lane == "credential": public += list(credential.PUBLIC) + list(remote_credential.PUBLIC) + list(terminal.PUBLIC)
-                    public += [name + "." + suffix for name, _ in witnessed.cases(carrier, managed=managed) for suffix in ("stdout", "stderr")]
-                    for name in public:
-                        sdk.copy(witness_cases / label / name, output / f"android-jni-{profile}-{lane}-{label}-{name}.public")
+                extra_public = credential.PUBLIC + remote_credential.PUBLIC + terminal.PUBLIC if lane == "credential" else ()
+                witnessed.export_public(witnessed_stdout, witness_cases, output,
+                    f"android-jni-{profile}-{lane}-", witness_outcomes, managed=managed,
+                    extra_public=extra_public, verifier=verify_witness)
             import continuity_android_policy_expiry as expiry
             expiry_results = {}
             for trust, test in expiry.TESTS.items():
