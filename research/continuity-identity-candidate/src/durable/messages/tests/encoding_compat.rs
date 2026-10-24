@@ -101,3 +101,85 @@ fn legacy_state_oracle_rejects_an_altered_encoding() {
     *encoded.first_mut().expect("tag byte") ^= 1;
     check(&state, &encoded);
 }
+
+#[test]
+fn intent_hash_keeps_frozen_field_and_domain_bindings() {
+    // Independently computed SHA3-256 vectors for the pre-streaming encoding.
+    struct Vector {
+        domain: &'static [u8],
+        first: &'static [u8],
+        second: &'static [u8],
+        expected: &'static str,
+    }
+    let cases = [
+        Vector {
+            domain: b"send-intent",
+            first: b"",
+            second: b"",
+            expected: "1e69c70e9e2c7274d7749c2f4a69a202c4b13f724f1baad425a1a0c519fb7809",
+        },
+        Vector {
+            domain: b"send-intent",
+            first: b"a",
+            second: b"bc",
+            expected: "dfc649642521b991d27415bbd8bf2acaefa66788fd53e3d76c1ba00fa80ab09c",
+        },
+        Vector {
+            domain: b"send-intent",
+            first: b"ab",
+            second: b"c",
+            expected: "a9d19688fe32d08589a53a360ddb074467fd9acc19366f0f558bca31b33f0840",
+        },
+        Vector {
+            domain: b"receive-intent",
+            first: b"message",
+            second: b"metadata",
+            expected: "1983f4a9d1c9df8b5f6d8bd761ba7c0a09c4ccabaa9488551f6d46bafe3bcc7a",
+        },
+    ];
+    for vector in cases {
+        let actual: String = intent(vector.domain, vector.first, vector.second)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        assert_eq!(actual, vector.expected);
+    }
+}
+
+#[test]
+fn intent_hash_matches_legacy_framing_at_rate_and_message_boundaries() {
+    let maximum_wire = MAX_PLAINTEXT + MESSAGE_HEADER + 16;
+    let first: Vec<u8> = (0..maximum_wire).map(|i| (i % 251) as u8).collect();
+    let second = vec![0x7b; MAX_AD];
+    for length in [
+        0,
+        1,
+        7,
+        8,
+        127,
+        128,
+        135,
+        136,
+        137,
+        255,
+        256,
+        271,
+        272,
+        273,
+        1024,
+        MAX_PLAINTEXT,
+        maximum_wire,
+    ] {
+        for ad_length in [0, 1, 135, 136, 137, MAX_AD] {
+            for name in [b"send-intent".as_slice(), b"receive-intent".as_slice()] {
+                let plaintext = first.get(..length).expect("message boundary");
+                let ad = second.get(..ad_length).expect("AD boundary");
+                let mut legacy = Zeroizing::new(Vec::new());
+                legacy.extend_from_slice(&(plaintext.len() as u64).to_be_bytes());
+                legacy.extend_from_slice(plaintext);
+                legacy.extend_from_slice(ad);
+                assert_eq!(*intent(name, plaintext, ad), digest(&label(name), &legacy));
+            }
+        }
+    }
+}

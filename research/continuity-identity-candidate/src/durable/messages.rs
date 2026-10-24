@@ -196,11 +196,7 @@ fn record_id(session: &[u8; 32]) -> [u8; 32] {
     digest(&label(b"record"), session)
 }
 fn intent(name: &[u8], first: &[u8], second: &[u8]) -> Zeroizing<[u8; 32]> {
-    let mut value = Zeroizing::new(Vec::with_capacity(8 + first.len() + second.len()));
-    value.extend_from_slice(&(first.len() as u64).to_be_bytes());
-    value.extend_from_slice(first);
-    value.extend_from_slice(second);
-    Zeroizing::new(digest(&label(name), &value))
+    Zeroizing::new(crate::crypto::digest_pair(&label(name), first, second))
 }
 fn step(
     seed: &ZeroizingBytes<32>,

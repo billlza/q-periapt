@@ -171,12 +171,27 @@ pub(crate) fn open_envelope(wire: &[u8]) -> Result<(&[u8], &[u8]), Error> {
 }
 
 pub(crate) fn digest(domain: &[u8], bytes: &[u8]) -> [u8; 32] {
+    let mut hash = digest_start(domain, bytes.len());
+    hash.update(bytes);
+    hash.finalize().into()
+}
+
+// The first field's length separates the two payloads; the outer digest still
+// commits to their complete encoded length. Callers bound both message fields.
+pub(crate) fn digest_pair(domain: &[u8], first: &[u8], second: &[u8]) -> [u8; 32] {
+    let mut hash = digest_start(domain, 8 + first.len() + second.len());
+    hash.update((first.len() as u64).to_be_bytes());
+    hash.update(first);
+    hash.update(second);
+    hash.finalize().into()
+}
+
+fn digest_start(domain: &[u8], length: usize) -> Sha3_256 {
     let mut hash = Sha3_256::new();
     hash.update((domain.len() as u64).to_be_bytes());
     hash.update(domain);
-    hash.update((bytes.len() as u64).to_be_bytes());
-    hash.update(bytes);
-    hash.finalize().into()
+    hash.update((length as u64).to_be_bytes());
+    hash
 }
 
 struct Material {
