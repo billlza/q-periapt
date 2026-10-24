@@ -123,7 +123,7 @@ impl AnchorStore {
         mut clock: impl FnMut() -> std::io::Result<u64>,
     ) -> Result<AnchorHandoffReceipt, DurableError> {
         let mut image = self.handoff_image()?;
-        let journal = image.handoff.as_mut().ok_or(DurableError::Absent)?;
+        let journal = image.handoff.as_ref().ok_or(DurableError::Absent)?;
         let observed = journal.observe(&approval.plan)?;
         if let Some(retired) = &journal.retired {
             if retired.approval.to_bytes() != approval.to_bytes()
@@ -136,6 +136,11 @@ impl AnchorStore {
         if observed.state != AnchorHandoffState::Frozen {
             return Err(Error::Retired.into());
         }
+        // An authenticated target acknowledgement is not evidence that a
+        // foreign implementation enforced our retained-key separation rules.
+        // Check independently before signing or making retirement irreversible.
+        // Historical exact retries above must retain their original decision.
+        image.check_witness_key(&approval.plan.target.key)?;
         let admitted_at = clock().map_err(DurableError::Io)?;
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
         let receipt = sign_retirement(
@@ -145,7 +150,7 @@ impl AnchorStore {
             admitted_at,
             &owner.signer,
         )?;
-        journal.retired = Some(Retirement {
+        image.handoff.as_mut().ok_or(DurableError::Absent)?.retired = Some(Retirement {
             approval: approval.clone(),
             acknowledgement: acknowledgement.to_vec(),
             receipt: receipt.clone(),

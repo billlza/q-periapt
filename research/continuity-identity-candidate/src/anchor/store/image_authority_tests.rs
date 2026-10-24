@@ -261,7 +261,7 @@ fn import_refuses_target_key_shared_with_inherited_device_before_acknowledgement
             &path,
             JournalKey::provision(&c.server.join("shared-target-key")).expect("wrapping"),
             &signer,
-            approval,
+            approval.clone(),
             source.as_bytes(),
             freeze.as_bytes(),
             150,
@@ -272,6 +272,39 @@ fn import_refuses_target_key_shared_with_inherited_device_before_acknowledgement
             result.as_ref().map(|_| "imported")
         );
         assert!(!path.exists(), "no target publication or acknowledgement");
+        // A foreign implementation can sign bytes even though the official
+        // target rejected import. The source must independently enforce this
+        // known key-separation condition before irreversible retirement.
+        let mut body = b"QPAHIA01".to_vec();
+        body.extend_from_slice(&approval.to_bytes());
+        body.extend_from_slice(&digest(
+            b"Q-PERIAPT-CONTINUITY-ANCHOR-HANDOFF-FREEZE/v1",
+            freeze.as_bytes(),
+        ));
+        let foreign_ack = envelope(
+            &body,
+            &signer
+                .sign(Purpose::AnchorHandoffImport, &body)
+                .expect("valid foreign target signature"),
+        )
+        .expect("foreign acknowledgement");
+        approval
+            .verify_import_receipt(freeze.as_bytes(), &foreign_ack)
+            .expect("signature and all bindings valid");
+        let mut clock_called = false;
+        let result = c.store.retire_handoff(&approval, &foreign_ack, || {
+            clock_called = true;
+            Ok(150)
+        });
+        assert!(
+            matches!(result, Err(DurableError::Protocol(Error::Scope))),
+            "source trusted inadmissible target: {:?}",
+            result.as_ref().map(|r| r.state())
+        );
+        assert!(
+            !clock_called,
+            "known key collision must fail before signing/admission"
+        );
         assert_eq!(
             c.store
                 .observe_handoff(&plan)
