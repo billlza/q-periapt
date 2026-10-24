@@ -189,14 +189,18 @@ pub use selection::{
     AuthenticatedPrekeySelection, ClassicalChoice, PqChoice, PrekeyQuality, PREKEY_SELECTION_BYTES,
 };
 pub use session_policy::{
-    bootstrap_suite_digest, AllowedPrekeyModes, AnchorRequirement, ApplicationSendBudget,
-    HistoricalPolicyContinuation, HistoricalPolicyContinuationMaterials, HistoricalPolicyRenewal,
+    bootstrap_suite_digest, AllowedPrekeyModes, AnchorHandoffAdoptionApproval,
+    AnchorHandoffAdoptionId, AnchorHandoffAdoptionMaterials, AnchorHandoffAdoptionScope,
+    AnchorHandoffAdoptionStatement, AnchorRequirement, ApplicationSendBudget,
+    HistoricalAnchorHandoffAdoption, HistoricalPolicyContinuation,
+    HistoricalPolicyContinuationMaterials, HistoricalPolicyRenewal,
     HistoricalPolicyRenewalMaterials, HistoricalSessionPolicy, IssuedSessionPolicy,
     PolicyCheckpoint, PolicyContinuationApproval, PolicyContinuationMaterials,
     PolicyContinuationScope, PolicyContinuationStatement, PolicyPin, PolicyRenewalApproval,
     PolicyRenewalId, PolicyRenewalMaterials, PolicyRenewalScope, PolicyRenewalStatement,
     SessionPolicyParameters, VerifiedPolicyContinuation, VerifiedPolicyRenewal,
-    VerifiedSessionPolicy, MAX_POLICY_CONTINUATION_BYTES, MAX_POLICY_RENEWAL_BYTES,
+    VerifiedSessionPolicy, MAX_ANCHOR_HANDOFF_ADOPTION_BYTES, MAX_POLICY_CONTINUATION_BYTES,
+    MAX_POLICY_RENEWAL_BYTES,
 };
 
 use std::fmt;

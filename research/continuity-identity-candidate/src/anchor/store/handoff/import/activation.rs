@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Target activation commits before returning a service owner or certificate.
 use super::*;
+mod adoption;
 mod inherited;
 
 const BODY_BYTES: usize = 8 + 5 * 32;

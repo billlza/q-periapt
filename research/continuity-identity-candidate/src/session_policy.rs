@@ -16,6 +16,7 @@ const POLICY_DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-SESSION-POLICY-CANDIDATE/v1"
 const FAMILY_DOMAIN: &[u8] = b"Q-PERIAPT-CONTINUITY-POLICY-AUTHORITY-CANDIDATE/v1";
 
 mod continuation;
+mod handoff_adoption;
 mod renewal;
 #[cfg(all(test, unix))]
 pub(crate) use continuation::tests::Case as PolicyContinuationTestCase;
@@ -23,6 +24,15 @@ pub use continuation::{
     HistoricalPolicyContinuation, HistoricalPolicyContinuationMaterials,
     PolicyContinuationApproval, PolicyContinuationMaterials, PolicyContinuationScope,
     PolicyContinuationStatement, VerifiedPolicyContinuation, MAX_POLICY_CONTINUATION_BYTES,
+};
+pub(crate) use handoff_adoption::{
+    activation_digest as handoff_activation_digest,
+    check_materials as check_handoff_adoption_materials,
+};
+pub use handoff_adoption::{
+    AnchorHandoffAdoptionApproval, AnchorHandoffAdoptionId, AnchorHandoffAdoptionMaterials,
+    AnchorHandoffAdoptionScope, AnchorHandoffAdoptionStatement, HistoricalAnchorHandoffAdoption,
+    MAX_ANCHOR_HANDOFF_ADOPTION_BYTES,
 };
 #[cfg(all(test, unix))]
 pub(crate) use renewal::tests::Case as PolicyRenewalTestCase;

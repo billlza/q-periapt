@@ -2,6 +2,8 @@
 use super::*;
 #[path = "handoff_activation_tests.rs"]
 pub(in crate::anchor::store) mod activation;
+#[path = "handoff_adoption_tests.rs"]
+mod adoption;
 #[path = "handoff_history_integration_tests.rs"]
 mod history;
 #[path = "handoff_import_recovery_tests.rs"]
