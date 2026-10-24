@@ -68,8 +68,9 @@ impl AnchorStore {
         subject: AnchorSubject,
         original: &VerifiedDevice,
     ) -> Result<(), DurableError> {
-        let id = subject.id(&self.pin()?.binding);
+        let id = subject.id(&self.namespace()?);
         let mut image = self.image()?;
+        let inherited = image.inherited.contains(&id);
         let entry = image.entries.get_mut(&id).ok_or(DurableError::Absent)?;
         let identity = OriginalIdentity::from_verified(original);
         if entry.subject != subject
@@ -83,6 +84,9 @@ impl AnchorStore {
             Some(retained) if retained == &identity => Ok(()),
             Some(_) => Err(DurableError::Conflict),
             None => {
+                if inherited {
+                    return Err(DurableError::Suspended);
+                }
                 entry.original_identity = Some(identity);
                 self.persist(&mut image)
             }

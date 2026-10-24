@@ -29,9 +29,9 @@ mod handoff_source;
 pub use handoff_source::AnchorHandoffSourceState;
 mod handoff;
 pub use handoff::{
-    AnchorHandoffHistory, AnchorHandoffImportReceipt, AnchorHandoffObserver, AnchorHandoffPlan,
-    AnchorHandoffReceipt, AnchorHandoffState, AnchorHandoffTarget, AnchorHandoffTargetApproval,
-    AnchorHandoffTargetState,
+    AnchorHandoffActivationReceipt, AnchorHandoffHistory, AnchorHandoffImportReceipt,
+    AnchorHandoffObserver, AnchorHandoffPlan, AnchorHandoffReceipt, AnchorHandoffState,
+    AnchorHandoffTarget, AnchorHandoffTargetApproval, AnchorHandoffTargetState,
 };
 mod image_version;
 use image_version::ImageVersion;
@@ -82,6 +82,8 @@ struct Entry {
     independent_roster: Option<RosterRefresh>,
 }
 struct Image {
+    namespace: [u8; 32],
+    inherited: std::collections::BTreeSet<[u8; 32]>,
     revision: u64,
     digest: [u8; 32],
     entries: BTreeMap<[u8; 32], Entry>,
@@ -94,6 +96,7 @@ struct Image {
     handoff: Option<handoff::Journal>,
 }
 struct Active {
+    transferred: Option<handoff::Transferred>,
     db: Database,
     wrapping: JournalKey,
     signer: AnchorSigningKey,
@@ -117,6 +120,8 @@ impl AnchorStore {
     ) -> Result<Self, DurableError> {
         let pin = AnchorPin::new(identity, signer.public_key()?);
         let image = Image {
+            namespace: pin.binding,
+            inherited: Default::default(),
             revision: 1,
             digest: [0; 32],
             entries: BTreeMap::new(),
@@ -140,6 +145,7 @@ impl AnchorStore {
         })?;
         Ok(Self {
             active: Some(Active {
+                transferred: None,
                 db,
                 wrapping,
                 signer,
@@ -160,6 +166,7 @@ impl AnchorStore {
         load(&db, &wrapping, &pin)?;
         Ok(Self {
             active: Some(Active {
+                transferred: None,
                 db,
                 wrapping,
                 signer,
@@ -175,6 +182,27 @@ impl AnchorStore {
             .ok_or(DurableError::Closed)?
             .pin
             .clone())
+    }
+    fn namespace(&self) -> Result<[u8; 32], DurableError> {
+        let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+        Ok(active
+            .transferred
+            .as_ref()
+            .map_or(active.pin.binding, |t| t.namespace()))
+    }
+    // Further source handoffs need the transferred-source transaction and
+    // per-client adoption protocol; never encode a current pin as the namespace.
+    fn require_original_source(&self) -> Result<(), DurableError> {
+        if self
+            .active
+            .as_ref()
+            .ok_or(DurableError::Closed)?
+            .transferred
+            .is_some()
+        {
+            return Err(DurableError::Suspended);
+        }
+        Ok(())
     }
     /// Release the database lease and erase this instance's wrapping/signing owners.
     pub fn close(&mut self) {
@@ -196,8 +224,7 @@ impl AnchorStore {
         let subject = genesis.subject;
         let genesis = genesis.digest;
         let validity = self.admit_enrollment(subject, device, policy, now)?;
-        let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let id = subject.id(&active.pin.binding);
+        let id = subject.id(&self.namespace()?);
         let mut image = self.image()?;
         image.require_live(subject)?;
         if let Some(entry) = image.entries.get(&id) {
@@ -297,7 +324,7 @@ impl AnchorStore {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<crate::RosterCheckpoint, DurableError> {
-        let id = subject.id(&self.pin()?.binding);
+        let id = subject.id(&self.namespace()?);
         let mut image = self.image()?;
         image.require_live(subject)?;
         let entry = match image.entries.get_mut(&id) {
@@ -388,7 +415,7 @@ impl AnchorStore {
         let next = grant.successor_device();
         let previous = grant.previous_device();
         let validity = self.admit_current_device(next, policy, now)?;
-        let id = subject.id(&self.pin()?.binding);
+        let id = subject.id(&self.namespace()?);
         let mut image = self.image()?;
         image.require_live(subject)?;
         let entry = image.entries.get_mut(&id).ok_or(DurableError::Absent)?;
@@ -433,9 +460,10 @@ impl AnchorStore {
         if image.subject_retired(request.subject) || image.subject_frozen(request.subject) {
             return Err(Error::Scope.into());
         }
+        image.require_adopted(request.subject)?;
         let entry = image
             .entries
-            .get_mut(&request.subject.id(&pin.binding))
+            .get_mut(&request.subject.id(&image.namespace))
             .ok_or(Error::Scope)?;
         if entry.subject != request.subject {
             return Err(Error::Scope.into());
@@ -591,7 +619,10 @@ impl AnchorStore {
     }
     fn handoff_image(&mut self) -> Result<Image, DurableError> {
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let result = load(&active.db, &active.wrapping, &active.pin);
+        let result = match &active.transferred {
+            None => load(&active.db, &active.wrapping, &active.pin),
+            Some(transferred) => transferred.load(&active.db, &active.wrapping),
+        };
         if result.is_err() {
             self.close();
         }
@@ -626,26 +657,30 @@ impl AnchorStore {
             if advance_revision {
                 image.revision = increment(image.revision)?;
             }
-            let bytes = encode(&active.wrapping, &active.pin, image)?;
-            let tx = transaction(&active.db)?;
-            {
-                let mut table = tx.open_table(TABLE).map_err(storage)?;
-                if table.len().map_err(storage)? != 1 {
-                    return Err(DurableError::Corrupt);
+            if let Some(transferred) = &active.transferred {
+                transferred.persist(&active.db, &active.wrapping, image, admit_commit)?;
+            } else {
+                let bytes = encode(&active.wrapping, &active.pin, image)?;
+                let tx = transaction(&active.db)?;
+                {
+                    let mut table = tx.open_table(TABLE).map_err(storage)?;
+                    if table.len().map_err(storage)? != 1 {
+                        return Err(DurableError::Corrupt);
+                    }
+                    let current = table
+                        .get("image")
+                        .map_err(storage)?
+                        .ok_or(DurableError::Corrupt)?;
+                    if image_digest(current.value()) != image.digest {
+                        return Err(DurableError::Conflict);
+                    }
+                    drop(current);
+                    table.insert("image", bytes.as_slice()).map_err(storage)?;
                 }
-                let current = table
-                    .get("image")
-                    .map_err(storage)?
-                    .ok_or(DurableError::Corrupt)?;
-                if image_digest(current.value()) != image.digest {
-                    return Err(DurableError::Conflict);
-                }
-                drop(current);
-                table.insert("image", bytes.as_slice()).map_err(storage)?;
+                admit_commit()?;
+                tx.commit().map_err(DurableError::CommitUncertain)?;
+                image.digest = image_digest(&bytes);
             }
-            admit_commit()?;
-            tx.commit().map_err(DurableError::CommitUncertain)?;
-            image.digest = image_digest(&bytes);
             #[cfg(all(test, unix))]
             tests::after_commit(image);
             Ok(())

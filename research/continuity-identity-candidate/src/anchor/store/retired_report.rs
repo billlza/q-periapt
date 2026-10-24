@@ -115,9 +115,11 @@ impl Image {
         pin: &impl ImageAuthority,
     ) -> Result<(), DurableError> {
         nonzero(&p.report)?;
+        pin.resolve(p.inventory.witness_binding())
+            .map_err(|_| Error::Scope)?;
         if self
             .retired_cleanup
-            .get(&p.inventory.subject().id(&pin.namespace()))
+            .get(&p.inventory.subject().id(&self.namespace))
             != Some(&p.inventory)
         {
             return Err(DurableError::Conflict);
@@ -133,7 +135,7 @@ impl Image {
         }
         for (id, saved) in &self.retired_reports {
             let p = &saved.proposal;
-            if *id != p.inventory.subject().id(&pin.namespace())
+            if *id != p.inventory.subject().id(&self.namespace)
                 || self.admit_report(p, pin).is_err()
             {
                 return Err(DurableError::Corrupt);
@@ -154,7 +156,7 @@ impl AnchorStore {
         let pin = self.pin()?;
         let mut image = self.image()?;
         image.admit_report(proposal, &pin)?;
-        let id = proposal.inventory.subject().id(&pin.binding);
+        let id = proposal.inventory.subject().id(&self.namespace()?);
         if let Some(saved) = image.retired_reports.get(&id) {
             return if &saved.proposal == proposal {
                 Ok(AnchorRetiredReportState::Retained)
@@ -186,7 +188,7 @@ impl AnchorStore {
         Ok(
             match image
                 .retired_reports
-                .get(&proposal.inventory.subject().id(&pin.binding))
+                .get(&proposal.inventory.subject().id(&self.namespace()?))
             {
                 Some(saved) if &saved.proposal == proposal => AnchorRetiredReportState::Retained,
                 Some(_) => return Err(DurableError::Conflict),
@@ -319,7 +321,7 @@ impl AnchorStore {
         image.admit_report(proposal, &pin)?;
         let saved = image
             .retired_reports
-            .get_mut(&proposal.inventory.subject().id(&pin.binding))
+            .get_mut(&proposal.inventory.subject().id(&self.namespace()?))
             .ok_or(DurableError::Absent)?;
         if &saved.proposal != proposal {
             return Err(DurableError::Conflict);
@@ -341,7 +343,7 @@ impl AnchorStore {
         image.admit_report(proposal, &pin)?;
         match image
             .retired_reports
-            .get(&proposal.inventory.subject().id(&pin.binding))
+            .get(&proposal.inventory.subject().id(&self.namespace()?))
         {
             Some(saved) if &saved.proposal != proposal => Err(DurableError::Conflict),
             Some(saved) if saved.acknowledged => {

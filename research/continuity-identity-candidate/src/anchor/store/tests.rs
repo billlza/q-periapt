@@ -3,7 +3,7 @@ use super::*;
 #[path = "handoff_tests.rs"]
 mod handoff;
 #[path = "handoff_import_tests.rs"]
-mod handoff_import;
+pub(super) mod handoff_import;
 #[path = "handoff_source_tests.rs"]
 mod handoff_source;
 #[path = "image_authority_tests.rs"]
@@ -494,6 +494,7 @@ fn unknown_commit_outcomes_reconcile_the_same_command_without_a_second_advance()
             let pin = AnchorPin::new(id, signer.public_key().expect("public"));
             c.store = AnchorStore {
                 active: Some(Active {
+                    transferred: None,
                     db,
                     wrapping,
                     signer,
@@ -1013,6 +1014,7 @@ fn with_fault_database(
     let pin = AnchorPin::new(id, signer.public_key().expect("public"));
     c.store = AnchorStore {
         active: Some(Active {
+            transferred: None,
             db,
             wrapping,
             signer,

@@ -104,6 +104,20 @@ fn target_import_crash_child() {
         AnchorHandoffTarget::open(&root.join("import.redb"), key, approval)
             .expect("original import")
     };
+    if stage == "activate" {
+        let signer = AnchorSigningKey::open(
+            &root.join("signer"),
+            &JournalKey::open(&root.join("wrapping")).expect("target wrapping"),
+            target_key_id(),
+        )
+        .expect("target signer");
+        owner
+            .activate(
+                &fs::read(root.join("retirement")).expect("original retirement"),
+                signer,
+            )
+            .expect("durable activation");
+    }
     if stage == "cancel" {
         owner
             .close_cancelled(&fs::read(root.join("cancel")).expect("source terminal bytes"))

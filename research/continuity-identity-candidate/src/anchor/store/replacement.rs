@@ -356,6 +356,7 @@ impl Image {
             .find(|(_, p)| p.predecessors.iter().any(|e| e.subject == subject))
     }
     pub(super) fn require_live(&self, subject: AnchorSubject) -> Result<(), DurableError> {
+        self.require_adopted(subject)?;
         if self.subject_retired(subject) || self.subject_frozen(subject) {
             return Err(Error::Scope.into());
         }
@@ -393,12 +394,12 @@ impl Image {
         let mut successors = BTreeSet::new();
         for (binding, p) in &self.replacements {
             pin.resolve(p.witness)?;
-            if p.binding()? != *binding || !successors.insert(p.target.id(&pin.namespace())) {
+            if p.binding()? != *binding || !successors.insert(p.target.id(&self.namespace)) {
                 return Err(DurableError::Corrupt);
             }
             let target = self
                 .entries
-                .get(&p.target.id(&pin.namespace()))
+                .get(&p.target.id(&self.namespace))
                 .ok_or(DurableError::Corrupt)?;
             if target.subject != p.target
                 || target.genesis != p.genesis
@@ -408,7 +409,7 @@ impl Image {
                 return Err(DurableError::Corrupt);
             }
             for predecessor in &p.predecessors {
-                let id = predecessor.subject.id(&pin.namespace());
+                let id = predecessor.subject.id(&self.namespace);
                 if !retired.insert(id) {
                     return Err(DurableError::Corrupt);
                 }
@@ -440,7 +441,7 @@ impl Image {
         for p in self.replacements.values() {
             let target = self
                 .entries
-                .get(&p.target.id(&pin.namespace()))
+                .get(&p.target.id(&self.namespace))
                 .ok_or(DurableError::Corrupt)?;
             let mut active = 0;
             let mut highest = 0;
@@ -459,7 +460,7 @@ impl Image {
                     return Err(DurableError::Corrupt);
                 }
                 highest = highest.max(identity.description.generation);
-                if !retired.contains(&entry.subject.id(&pin.namespace())) {
+                if !retired.contains(&entry.subject.id(&self.namespace)) {
                     active += 1;
                     live_generation = identity.description.generation;
                 }
@@ -514,9 +515,10 @@ impl AnchorStore {
             return Err(Error::Capacity.into());
         }
         for (subject, checkpoint, historical) in previous {
+            image.require_adopted(*subject)?;
             let entry = image
                 .entries
-                .get(&subject.id(&pin.binding))
+                .get(&subject.id(&self.namespace()?))
                 .ok_or(DurableError::Absent)?;
             p.predecessors.push(Predecessor {
                 subject: *subject,
@@ -540,7 +542,7 @@ impl AnchorStore {
         pin: &AnchorPin,
     ) -> Result<(), DurableError> {
         image.require_account_live(next.account_id())?;
-        if image.entries.contains_key(&p.target.id(&pin.binding)) {
+        if image.entries.contains_key(&p.target.id(&self.namespace()?)) {
             return Err(DurableError::Conflict);
         }
         let mut active = BTreeSet::new();
@@ -580,11 +582,12 @@ impl AnchorStore {
                 return Err(Error::Scope.into());
             }
             if image.retirement(entry.subject).is_none() {
-                active.insert(entry.subject.id(&pin.binding));
+                active.insert(entry.subject.id(&self.namespace()?));
             }
         }
         for old in &p.predecessors {
-            let id = old.subject.id(&pin.binding);
+            image.require_adopted(old.subject)?;
+            let id = old.subject.id(&self.namespace()?);
             if !supplied.insert(id) {
                 return Err(Error::Scope.into());
             }
@@ -655,7 +658,7 @@ impl AnchorStore {
             return Err(DurableError::Capacity);
         }
         image.entries.insert(
-            p.target.id(&pin.binding),
+            p.target.id(&self.namespace()?),
             Entry::at_genesis(p.target, p.genesis, next, p.validity)?,
         );
         image.replacements.insert(binding, p.clone());
@@ -713,7 +716,7 @@ impl Image {
             .ok_or(Error::Scope)?;
         let entry = self
             .entries
-            .get(&subject.id(&pin.namespace()))
+            .get(&subject.id(&self.namespace))
             .ok_or(DurableError::Corrupt)?;
         Ok(AnchorRetiredSubject {
             witness: p.witness,

@@ -60,3 +60,25 @@ impl Image {
         Ok(())
     }
 }
+
+impl Image {
+    pub(super) fn require_adopted(&self, subject: AnchorSubject) -> Result<(), DurableError> {
+        if self.inherited.contains(&subject.id(&self.namespace)) {
+            return Err(DurableError::Suspended);
+        }
+        Ok(())
+    }
+    pub(super) fn require_adopted_account(&self, account: [u8; 32]) -> Result<(), DurableError> {
+        for (id, entry) in &self.entries {
+            if self.inherited.contains(id)
+                && entry
+                    .original_identity
+                    .as_ref()
+                    .is_none_or(|i| i.account == account)
+            {
+                return Err(DurableError::Suspended);
+            }
+        }
+        Ok(())
+    }
+}

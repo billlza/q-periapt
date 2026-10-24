@@ -9,8 +9,8 @@ mod retirement;
 pub(super) use codec::{unwrap, validate, wrap};
 pub use history::AnchorHandoffHistory;
 pub use import::{
-    AnchorHandoffImportReceipt, AnchorHandoffTarget, AnchorHandoffTargetApproval,
-    AnchorHandoffTargetState,
+    AnchorHandoffActivationReceipt, AnchorHandoffImportReceipt, AnchorHandoffTarget,
+    AnchorHandoffTargetApproval, AnchorHandoffTargetState,
 };
 pub(super) const MAX_CANCELLED: usize = 16;
 const LEGACY_PLAN_BYTES: usize = 8 + 32 + 2 * (32 + PUBLIC_KEY_BYTES) + 8 + 32 + 16 + 32;
@@ -266,6 +266,7 @@ impl AnchorStore {
         plan: &AnchorHandoffPlan,
         now: u64,
     ) -> Result<AnchorHandoffReceipt, DurableError> {
+        self.require_original_source()?;
         let mut image = self.handoff_image()?;
         if self.pin()?.binding != plan.source.binding {
             return Err(Error::Scope.into());
@@ -309,6 +310,7 @@ impl AnchorStore {
         &mut self,
         plan: &AnchorHandoffPlan,
     ) -> Result<AnchorHandoffReceipt, DurableError> {
+        self.require_original_source()?;
         let mut image = self.handoff_image()?;
         let journal = image.handoff.as_mut().ok_or(DurableError::Absent)?;
         let observed = journal.observe(plan)?;
@@ -408,3 +410,7 @@ fn retained_source(
 fn source_commitment(bytes: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-ANCHOR-HANDOFF-SOURCE/v1", bytes)
 }
+
+pub(in crate::anchor::store) use import::activation::Transferred;
+
+pub(in crate::anchor::store::handoff) use import::preflight_activation;

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "handoff_activation_tests.rs"]
+pub(in crate::anchor::store) mod activation;
 #[path = "handoff_history_integration_tests.rs"]
 mod history;
 #[path = "handoff_import_recovery_tests.rs"]
@@ -26,11 +28,21 @@ impl TargetFixture {
         Self::with_legacy_plan(c, now, false)
     }
     fn with_legacy_plan(c: &mut Case, now: u64, legacy: bool) -> Self {
-        let directory = c
+        let root = c
             .server
             .parent()
             .expect("canonical owned root")
-            .join("target-import");
+            .to_path_buf();
+        Self::from_store(&mut c.store, &root, &c.pin, now, legacy)
+    }
+    fn from_store(
+        store: &mut AnchorStore,
+        root: &Path,
+        source_pin: &AnchorPin,
+        now: u64,
+        legacy: bool,
+    ) -> Self {
+        let directory = root.join("target-import");
         fs::DirBuilder::new()
             .mode(0o700)
             .create(&directory)
@@ -44,9 +56,8 @@ impl TargetFixture {
             AnchorIdentity::generate().expect("target identity"),
             signer.public_key().expect("target public key"),
         );
-        assert_ne!(pin.binding(), c.pin.binding());
-        let source = c
-            .store
+        assert_ne!(pin.binding(), source_pin.binding());
+        let source = store
             .handoff_source_state()
             .expect("complete original source");
         let plan = AnchorHandoffPlan::from_trusted_state(
@@ -70,21 +81,20 @@ impl TargetFixture {
         };
         let approval = AnchorHandoffTargetApproval::from_trusted_state(
             &plan,
-            &c.pin,
+            source_pin,
             &pin,
             Validity::new(now - 5, now + 5).expect("independent target admission"),
             [214; 32],
         )
         .expect("target operator approval");
-        let freeze = c
-            .store
+        let freeze = store
             .freeze_handoff(&plan, now)
             .expect("source freeze committed");
         fs::write(
             directory.join("source-pin"),
             [
-                c.pin.identity().as_bytes().as_slice(),
-                &c.pin.public_key().encode(),
+                source_pin.identity().as_bytes().as_slice(),
+                &source_pin.public_key().encode(),
             ]
             .concat(),
         )

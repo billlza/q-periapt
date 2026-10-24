@@ -43,6 +43,7 @@ impl AnchorStore {
     ) -> Result<AnchorAccountReplacementState, DurableError> {
         check_scope(plan.target(), &self.pin()?)?;
         let mut image = self.image()?;
+        image.require_adopted_account(plan.target().previous_account())?;
         if let Some(saved) = image
             .account_replacements
             .values()

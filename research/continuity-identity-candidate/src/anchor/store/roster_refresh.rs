@@ -353,7 +353,7 @@ impl AnchorStore {
         image.require_live(subject)?;
         let entry = image
             .entries
-            .get_mut(&subject.id(&pin.binding))
+            .get_mut(&subject.id(&self.namespace()?))
             .ok_or(DurableError::Absent)?;
         if entry.subject != subject
             || entry.device != next.key

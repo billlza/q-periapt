@@ -589,7 +589,7 @@ impl AnchorStore {
             Phase::Closed
         };
         let mut record = JointRenewalRecord::for_grant(proposal, grant, target_policy, phase)?;
-        let id = proposal.subject.id(&self.pin()?.binding);
+        let id = proposal.subject.id(&self.namespace()?);
         let mut image = self.image()?;
         image.require_live(proposal.subject)?;
         let entry = image.entries.get(&id).ok_or(DurableError::Absent)?;
@@ -782,7 +782,7 @@ impl AnchorStore {
         let scope = RenewalScope::from(&cancellation);
         self.check_renewal_scope(&scope, grant, policy)?;
         let version = grant.successor_checkpoint().version();
-        let id = cancellation.subject.id(&self.pin()?.binding);
+        let id = cancellation.subject.id(&self.namespace()?);
         let mut image = self.image()?;
         image.require_live(cancellation.subject)?;
         let entry = image.entries.get(&id).ok_or(DurableError::Absent)?;

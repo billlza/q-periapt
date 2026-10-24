@@ -46,7 +46,7 @@ impl AnchorStore {
         image.require_live(scope.subject)?;
         let entry = image
             .entries
-            .get_mut(&scope.subject.id(&pin.binding))
+            .get_mut(&scope.subject.id(&self.namespace()?))
             .ok_or(DurableError::Absent)?;
         let policy = entry
             .independent_policy

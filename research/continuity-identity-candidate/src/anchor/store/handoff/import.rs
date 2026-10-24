@@ -3,7 +3,10 @@
 use super::*;
 mod approval;
 pub use approval::{AnchorHandoffImportReceipt, AnchorHandoffTargetApproval};
+pub(in crate::anchor::store) mod activation;
 mod storage;
+pub use activation::AnchorHandoffActivationReceipt;
+pub(in crate::anchor::store::handoff) use storage::preflight_activation;
 #[cfg(all(test, unix))]
 mod testing;
 
@@ -14,6 +17,7 @@ const IMPORT_TABLE: TableDefinition<&str, &[u8]> =
 const MAX_IMPORT_IMAGE: usize = MAX_IMAGE + 32 * 1024;
 
 struct ImportedImage {
+    activation: Option<activation::Activation>,
     source: Vec<u8>,
     freeze: Vec<u8>,
     acknowledgement: Vec<u8>,
@@ -26,11 +30,13 @@ struct ImportedOwner {
     approval: AnchorHandoffTargetApproval,
 }
 
-/// Durable target state. Neither variant permits ordinary witness service.
+/// Durable target observation. Only explicit activation returns a service owner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AnchorHandoffTargetState {
     /// Complete original state is retained while source retirement is unresolved.
     ImportedInactive,
+    /// Target activation is committed; inherited clients still need adoption.
+    Activated,
     /// Exact source cancellation is retained; this import cannot be activated.
     Cancelled,
 }
@@ -65,6 +71,7 @@ impl AnchorHandoffTarget {
             .check_witness_key(&approval.plan.target.key)?;
         let receipt = approval.sign_import(freeze, signer)?;
         let image = ImportedImage {
+            activation: None,
             source: source.to_vec(),
             freeze: freeze.to_vec(),
             acknowledgement: receipt.as_bytes().to_vec(),
@@ -121,8 +128,11 @@ impl AnchorHandoffTarget {
 
     /// Reauthenticate current durable state; expiry never discards an import.
     pub fn status(&mut self) -> Result<AnchorHandoffTargetState, DurableError> {
-        Ok(if self.image()?.cancellation.is_some() {
+        let image = self.image()?;
+        Ok(if image.cancellation.is_some() {
             AnchorHandoffTargetState::Cancelled
+        } else if image.activation.is_some() {
+            AnchorHandoffTargetState::Activated
         } else {
             AnchorHandoffTargetState::ImportedInactive
         })
@@ -147,10 +157,11 @@ impl AnchorHandoffTarget {
         Ok(self.image()?.source)
     }
 
-    /// Verify the exact source retirement against the retained inactive import
+    /// Verify the exact source retirement against the retained import
     /// and construct its historical namespace/authority proof. This is read-only:
     /// it does not retain the new certificate, activate the target, change a
-    /// client policy, or authorize ordinary service. The current source image
+    /// client policy, or authorize ordinary service. After activation, only the
+    /// exact committed retirement may select this owner's history. The source image
     /// admits only an original authority; transferred-image support is separate.
     pub fn verify_source_retirement(
         &mut self,
@@ -159,6 +170,13 @@ impl AnchorHandoffTarget {
         let image = self.image()?;
         if image.cancellation.is_some() {
             return Err(Error::Retired.into());
+        }
+        if image
+            .activation
+            .as_ref()
+            .is_some_and(|activation| activation.retirement != retirement)
+        {
+            return Err(DurableError::Conflict);
         }
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
         let mut history =
@@ -194,6 +212,9 @@ impl AnchorHandoffTarget {
         cancellation: &[u8],
     ) -> Result<AnchorHandoffTargetState, DurableError> {
         let mut image = self.image()?;
+        if image.activation.is_some() {
+            return Err(Error::Retired.into());
+        }
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
         let verified = owner.approval.plan.verify_receipt(cancellation)?;
         if verified.state() != AnchorHandoffState::Cancelled {

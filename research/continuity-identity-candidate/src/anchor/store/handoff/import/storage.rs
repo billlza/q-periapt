@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::super::codec::{put, take};
 use super::*;
+pub(super) const MAX_ACTIVATED_IMAGE: usize = 2 * MAX_IMAGE + 64 * 1024;
 
 pub(super) fn image_digest(bytes: &[u8]) -> [u8; 32] {
     digest(
@@ -51,7 +52,8 @@ fn validate(
     approval: &AnchorHandoffTargetApproval,
     image: &ImportedImage,
 ) -> Result<(), DurableError> {
-    validate_source(key, approval, &image.source, &image.freeze)?;
+    let original = validate_source(key, approval, &image.source, &image.freeze)?;
+    activation::validate(approval, image, &original)?;
     approval.verify_import_receipt(&image.freeze, &image.acknowledgement)?;
     if let Some(wire) = &image.cancellation {
         if approval.plan.verify_receipt(wire)?.state() != AnchorHandoffState::Cancelled {
@@ -67,7 +69,22 @@ pub(super) fn encode(
     image: &ImportedImage,
 ) -> Result<Vec<u8>, DurableError> {
     validate(key, approval, image)?;
-    let mut bytes = b"QPAHI001".to_vec();
+    seal(key, approval, image)
+}
+
+// Callers either validate all public proofs or use the exact verified immutable
+// commitment cached by a transferred service owner, plus current content checks.
+pub(super) fn seal(
+    key: &JournalKey,
+    approval: &AnchorHandoffTargetApproval,
+    image: &ImportedImage,
+) -> Result<Vec<u8>, DurableError> {
+    let mut bytes = if image.activation.is_some() {
+        b"QPAHI002"
+    } else {
+        b"QPAHI001"
+    }
+    .to_vec();
     put(&approval.to_bytes(), &mut bytes)?;
     put(&image.source, &mut bytes)?;
     put(&image.freeze, &mut bytes)?;
@@ -79,9 +96,17 @@ pub(super) fn encode(
             put(wire, &mut bytes)?;
         }
     }
+    if let Some(activation) = &image.activation {
+        if image.cancellation.is_some() {
+            return Err(DurableError::Corrupt);
+        }
+        put(&activation.retirement, &mut bytes)?;
+        put(&activation.receipt, &mut bytes)?;
+        put(&activation.content, &mut bytes)?;
+    }
     // The exact source cancellation has the same fixed-width plan/signature
     // layout as freeze. Reserve its complete record before publishing import.
-    let completion = if image.cancellation.is_none() {
+    let completion = if image.cancellation.is_none() && image.activation.is_none() {
         4 + image.freeze.len()
     } else {
         0
@@ -90,7 +115,11 @@ pub(super) fn encode(
         .len()
         .checked_add(32 + completion)
         .ok_or(DurableError::Capacity)?
-        > MAX_IMPORT_IMAGE
+        > if image.activation.is_some() {
+            MAX_ACTIVATED_IMAGE
+        } else {
+            MAX_IMPORT_IMAGE
+        }
     {
         return Err(DurableError::Capacity);
     }
@@ -100,13 +129,13 @@ pub(super) fn encode(
     Ok(bytes)
 }
 
-fn decode(
+fn decode_authenticated(
     key: &JournalKey,
     approval: &AnchorHandoffTargetApproval,
     bytes: &[u8],
 ) -> Result<ImportedImage, DurableError> {
     let result = (|| {
-        if !(40..=MAX_IMPORT_IMAGE).contains(&bytes.len()) {
+        if !(40..=MAX_ACTIVATED_IMAGE).contains(&bytes.len()) {
             return Err(DurableError::Corrupt);
         }
         let (body, tag) = bytes.split_at(bytes.len() - 32);
@@ -115,9 +144,12 @@ fn decode(
         auth.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
-        if d.array::<8>()? != *b"QPAHI001" {
-            return Err(DurableError::Corrupt);
-        }
+        let tag = d.array::<8>()?;
+        let activated = match &tag {
+            b"QPAHI001" if bytes.len() <= MAX_IMPORT_IMAGE => false,
+            b"QPAHI002" => true,
+            _ => return Err(DurableError::Corrupt),
+        };
         if take(&mut d)? != approval.to_bytes() {
             return Err(DurableError::Conflict);
         }
@@ -129,15 +161,24 @@ fn decode(
             [1] => Some(take(&mut d)?.to_vec()),
             _ => return Err(DurableError::Corrupt),
         };
+        let activation = if activated {
+            Some(activation::Activation {
+                retirement: take(&mut d)?.to_vec(),
+                receipt: take(&mut d)?.to_vec(),
+                content: take(&mut d)?.to_vec(),
+            })
+        } else {
+            None
+        };
         d.finish()?;
         let image = ImportedImage {
+            activation,
             source,
             freeze,
             acknowledgement,
             cancellation,
             digest: image_digest(bytes),
         };
-        validate(key, approval, &image)?;
         Ok(image)
     })();
     match result {
@@ -146,7 +187,7 @@ fn decode(
     }
 }
 
-pub(super) fn load(
+pub(super) fn load_authenticated(
     db: &Database,
     key: &JournalKey,
     approval: &AnchorHandoffTargetApproval,
@@ -170,5 +211,49 @@ pub(super) fn load(
         .get("image")
         .map_err(storage)?
         .ok_or(DurableError::Corrupt)?;
-    decode(key, approval, bytes.value())
+    decode_authenticated(key, approval, bytes.value())
+}
+
+pub(super) fn load(
+    db: &Database,
+    key: &JournalKey,
+    approval: &AnchorHandoffTargetApproval,
+) -> Result<ImportedImage, DurableError> {
+    let image = load_authenticated(db, key, approval)?;
+    validate(key, approval, &image)?;
+    Ok(image)
+}
+
+pub(in crate::anchor::store::handoff) fn preflight_activation(
+    approval: &AnchorHandoffTargetApproval,
+    source: usize,
+    freeze: usize,
+    acknowledgement: usize,
+    retirement: usize,
+    content: usize,
+) -> Result<(), DurableError> {
+    if source.checked_add(32).ok_or(DurableError::Capacity)? > MAX_IMAGE
+        || content.checked_add(32).ok_or(DurableError::Capacity)? > MAX_IMAGE
+    {
+        return Err(DurableError::Capacity);
+    }
+    let mut total = 8usize + 1 + 32;
+    for size in [
+        approval.to_bytes().len(),
+        source,
+        freeze,
+        acknowledgement,
+        retirement,
+        activation::RECEIPT_BYTES,
+        content,
+    ] {
+        total = total
+            .checked_add(4)
+            .and_then(|n| n.checked_add(size))
+            .ok_or(DurableError::Capacity)?;
+    }
+    if total > MAX_ACTIVATED_IMAGE {
+        return Err(DurableError::Capacity);
+    }
+    Ok(())
 }

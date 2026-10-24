@@ -36,7 +36,7 @@ impl AnchorAccountFreezeRequest {
     }
 }
 impl AnchorFrozenAccount {
-    pub(super) fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    pub(in crate::anchor::store) fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         self.check_shape()?;
         let mut out = b"QPAFRZ01".to_vec();
         out.extend_from_slice(&self.request.to_bytes());

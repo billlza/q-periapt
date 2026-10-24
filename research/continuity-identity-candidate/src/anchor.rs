@@ -24,13 +24,13 @@ pub use store::{
     AnchorAccountReplacementPlan, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
     AnchorClosedAccountPreparation, AnchorClosedAccountReplacement,
     AnchorDeviceReplacementProposal, AnchorDeviceReplacementState, AnchorFrozenAccount,
-    AnchorHandoffHistory, AnchorHandoffImportReceipt, AnchorHandoffObserver, AnchorHandoffPlan,
-    AnchorHandoffReceipt, AnchorHandoffSourceState, AnchorHandoffState, AnchorHandoffTarget,
-    AnchorHandoffTargetApproval, AnchorHandoffTargetState, AnchorRetiredAccount,
-    AnchorRetiredAccountSubject, AnchorRetiredCleanup, AnchorRetiredCleanupProposal,
-    AnchorRetiredCleanupState, AnchorRetiredReport, AnchorRetiredReportAcknowledgement,
-    AnchorRetiredReportAcknowledgementState, AnchorRetiredReportProposal, AnchorRetiredReportState,
-    AnchorRetiredSubject, AnchorStore,
+    AnchorHandoffActivationReceipt, AnchorHandoffHistory, AnchorHandoffImportReceipt,
+    AnchorHandoffObserver, AnchorHandoffPlan, AnchorHandoffReceipt, AnchorHandoffSourceState,
+    AnchorHandoffState, AnchorHandoffTarget, AnchorHandoffTargetApproval, AnchorHandoffTargetState,
+    AnchorRetiredAccount, AnchorRetiredAccountSubject, AnchorRetiredCleanup,
+    AnchorRetiredCleanupProposal, AnchorRetiredCleanupState, AnchorRetiredReport,
+    AnchorRetiredReportAcknowledgement, AnchorRetiredReportAcknowledgementState,
+    AnchorRetiredReportProposal, AnchorRetiredReportState, AnchorRetiredSubject, AnchorStore,
 };
 mod transport;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]

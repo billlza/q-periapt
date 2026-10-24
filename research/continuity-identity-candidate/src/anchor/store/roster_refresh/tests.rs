@@ -649,3 +649,21 @@ fn every_roster_sync_fault_preserves_joint_head_authority_and_original_retry() {
     assert!(faults >= 24);
     eprintln!("ROSTER_STORE_SYNC faults={faults} exact_injected_error=true atomic_head_and_authority=true original_retry=true");
 }
+
+#[test]
+fn activation_preserves_pending_roster_until_explicit_client_adoption() {
+    let (mut c, current, statement, head) = setup(true);
+    let device = c.device.clone();
+    let next = next(&c, 2);
+    let p = proposal(&c, &next, &current, statement, head, 227);
+    c.store
+        .prepare_roster_refresh(p, &device, &next, &current, 170)
+        .expect("actual pending R");
+    crate::anchor::store::tests::handoff_import::activation::retains_pending(
+        &mut c.store,
+        &c.server,
+        &c.pin,
+        c.subject,
+        &c.signer,
+    );
+}

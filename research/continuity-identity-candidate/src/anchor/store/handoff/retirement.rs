@@ -122,6 +122,7 @@ impl AnchorStore {
         acknowledgement: &[u8],
         mut clock: impl FnMut() -> std::io::Result<u64>,
     ) -> Result<AnchorHandoffReceipt, DurableError> {
+        self.require_original_source()?;
         let mut image = self.handoff_image()?;
         let journal = image.handoff.as_ref().ok_or(DurableError::Absent)?;
         let observed = journal.observe(&approval.plan)?;
@@ -149,6 +150,16 @@ impl AnchorStore {
             acknowledgement,
             admitted_at,
             &owner.signer,
+        )?;
+        let source = self.frozen_handoff_state(&approval.plan)?;
+        let content = image_codec::encode_content(&approval.plan.source, &image)?;
+        preflight_activation(
+            approval,
+            source.as_bytes().len(),
+            observed.as_bytes().len(),
+            acknowledgement.len(),
+            receipt.as_bytes().len(),
+            content.len(),
         )?;
         image.handoff.as_mut().ok_or(DurableError::Absent)?.retired = Some(Retirement {
             approval: approval.clone(),

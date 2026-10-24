@@ -339,7 +339,7 @@ impl AnchorStore {
         image.require_live(proposal.subject())?;
         let entry = image
             .entries
-            .get_mut(&proposal.subject().id(&pin.binding))
+            .get_mut(&proposal.subject().id(&self.namespace()?))
             .ok_or(DurableError::Absent)?;
         if entry
             .independent_roster

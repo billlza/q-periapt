@@ -197,7 +197,7 @@ impl Image {
             return Err(DurableError::Capacity);
         }
         for (id, proposal) in &self.retired_cleanup {
-            if *id != proposal.subject.id(&pin.namespace()) {
+            if *id != proposal.subject.id(&self.namespace) {
                 return Err(DurableError::Corrupt);
             }
             match self.admit_cleanup(proposal, pin) {
@@ -225,7 +225,7 @@ impl AnchorStore {
         let pin = self.pin()?;
         let mut image = self.image()?;
         image.admit_cleanup(proposal, &pin)?;
-        let id = proposal.subject.id(&pin.binding);
+        let id = proposal.subject.id(&self.namespace()?);
         if let Some(saved) = image.retired_cleanup.get(&id) {
             return if saved == proposal {
                 Ok(AnchorRetiredCleanupState::Retained)
@@ -252,7 +252,7 @@ impl AnchorStore {
         Ok(
             match image
                 .retired_cleanup
-                .get(&proposal.subject.id(&pin.binding))
+                .get(&proposal.subject.id(&self.namespace()?))
             {
                 Some(saved) if saved == proposal => AnchorRetiredCleanupState::Retained,
                 Some(_) => return Err(DurableError::Conflict),

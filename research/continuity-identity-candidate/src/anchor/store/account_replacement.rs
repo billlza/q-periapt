@@ -265,7 +265,7 @@ impl Image {
         // account proposal on every retained-inventory validation.
         let account = self
             .entries
-            .get(&subject.id(&pin.namespace()))
+            .get(&subject.id(&self.namespace))
             .and_then(|entry| entry.original_identity.as_ref())
             .ok_or(DurableError::Absent)?
             .account;
@@ -291,6 +291,7 @@ impl Image {
         account: [u8; 32],
         pin: &AnchorPin,
     ) -> Result<Vec<AnchorRetiredAccountSubject>, DurableError> {
+        self.require_adopted_account(account)?;
         self.account_snapshot_at(account, pin.binding, pin)
     }
     fn account_snapshot_at(
@@ -345,7 +346,7 @@ impl Image {
                     .as_ref()
                     .is_some_and(|identity| identity.account == p.successor_account())
             })
-            || self.entries.contains_key(&p.target.id(&pin.binding))
+            || self.entries.contains_key(&p.target.id(&self.namespace))
             || self.account_snapshot(p.previous_account(), pin)? != p.frozen
         {
             return Err(DurableError::Conflict);
@@ -372,7 +373,7 @@ impl Image {
                 .map_or(p.witness, AnchorFrozenAccount::snapshot_witness);
             let target = self
                 .entries
-                .get(&p.target.id(&pin.namespace()))
+                .get(&p.target.id(&self.namespace))
                 .ok_or(DurableError::Corrupt)?;
             if account != &p.previous_account()
                 || p.previous_root.shares_component(&authority.key)
@@ -489,7 +490,7 @@ impl AnchorStore {
             return Err(DurableError::Capacity);
         }
         image.entries.insert(
-            p.target.id(&pin.binding),
+            p.target.id(&self.namespace()?),
             Entry::at_genesis(p.target, p.genesis, next, p.validity)?,
         );
         image

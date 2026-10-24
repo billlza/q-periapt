@@ -118,6 +118,9 @@ pub(super) fn encode_content(
     pin: &impl ImageAuthority,
     image: &Image,
 ) -> Result<Vec<u8>, DurableError> {
+    if image.namespace != pin.namespace() {
+        return Err(DurableError::Conflict);
+    }
     if image.entries.len() > MAX_ENTRIES {
         return Err(DurableError::Capacity);
     }
@@ -510,6 +513,8 @@ pub(super) fn decode_content(
             return Err(DurableError::Corrupt);
         }
         let image = Image {
+            namespace: pin.namespace(),
+            inherited: Default::default(),
             revision,
             digest: [0; 32],
             entries,

@@ -65,6 +65,7 @@ impl AnchorStore {
     /// quiescent store. The observation can become stale as soon as it returns;
     /// it grants no permission to reset, freeze, retire or activate an authority.
     pub fn handoff_source_state(&mut self) -> Result<AnchorHandoffSourceState, DurableError> {
+        self.require_original_source()?;
         let image = self.image()?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
         AnchorHandoffSourceState::from_image(&active.pin, &image)

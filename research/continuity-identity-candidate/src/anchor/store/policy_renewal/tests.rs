@@ -686,6 +686,7 @@ pub(in crate::anchor::store) fn fault(
     .expect("original signer");
     c.store = AnchorStore {
         active: Some(Active {
+            transferred: None,
             db,
             wrapping,
             signer,
@@ -1052,3 +1053,18 @@ fn credential_policy_composition_requires_explicit_witness_format() {
 
 #[path = "credential_cycle_tests.rs"]
 pub(in crate::anchor::store) mod credential_cycle;
+
+#[test]
+fn activation_preserves_pending_policy_until_explicit_client_adoption() {
+    let mut c = Case::new();
+    let approval = c.approval(&c.original, None, &c.target);
+    let p = c.proposal(&approval, c.initial, 226);
+    c.prepare(p, &approval).expect("actual original pending P");
+    crate::anchor::store::tests::handoff_import::activation::retains_pending(
+        &mut c.store,
+        &c.server,
+        &c.pin,
+        c.subject,
+        &c.signer,
+    );
+}
