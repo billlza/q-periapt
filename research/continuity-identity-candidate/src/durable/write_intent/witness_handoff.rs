@@ -6,9 +6,15 @@ use crate::{
     HistoricalAnchorHandoffAdoption,
 };
 mod codec;
+mod guard;
 mod reconciliation;
 mod transaction;
 use codec::Fence;
+pub(super) use guard::Guard;
+#[cfg(all(test, unix))]
+pub(super) fn test_boundary(stage: &str, after: bool) {
+    tests::boundary(stage, after);
+}
 pub use reconciliation::WitnessPendingRecovery;
 #[cfg(all(test, unix))]
 mod tests;
@@ -123,8 +129,9 @@ impl Owners {
     }
 }
 
-/// Exclusive owner of the original journal's durable witness selection. It does
-/// not expose a traffic owner until transfer-aware reconciliation is available.
+/// Exclusive owner of the original journal's durable witness selection. Its
+/// current client can be transferred to the original coordinator; the journal
+/// and installation still enforce all pending-work and traffic admission checks.
 /// Keep the independently approved plan when reopening; missing state never
 /// authorizes fallback to the old witness or provisioning another journal.
 /// ```compile_fail
@@ -234,6 +241,15 @@ pub(super) fn validate_snapshot(
     image: &Image,
     pending: Option<&PendingIntent>,
     wire: &[u8],
+    client: Option<&crate::AnchorClient>,
 ) -> Result<(), DurableError> {
-    Fence::decode(key, wire)?.check(image, pending)
+    let fence = Fence::decode(key, wire)?;
+    fence.check(image, pending)?;
+    if let Some(client) = client {
+        client.check_journal_selection(
+            &fence.request,
+            fence.receipt.as_deref().ok_or(DurableError::Suspended)?,
+        )?;
+    }
+    Ok(())
 }

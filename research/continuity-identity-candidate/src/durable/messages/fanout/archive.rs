@@ -275,7 +275,7 @@ impl FanoutAbandonmentJournal {
         if let Some(pending) = pending {
             write_intent::reconcile(&mut active, &pending).await?;
         }
-        let current = load(&active.db, &active.key, active.owner)?;
+        let current = active.load_image()?;
         binding.check(&current, &active.key)?;
         active.check_current(&current).await?;
         Ok(Self {

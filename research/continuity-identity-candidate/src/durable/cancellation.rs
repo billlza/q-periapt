@@ -498,7 +498,7 @@ impl BootstrapCancellationJournal {
         if let Some(pending) = pending {
             write_intent::reconcile(&mut active, &pending).await?;
         }
-        let current = load(&active.db, &active.key, owner)?;
+        let current = active.load_image()?;
         active.check_current(&current).await?;
         Ok(Self {
             journal: DeviceJournal {

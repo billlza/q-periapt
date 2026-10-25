@@ -47,6 +47,7 @@ impl DeviceEnrollment {
         &self,
         original: &VerifiedDevice,
         identity: JournalIdentity,
+        client: &AnchorClient,
     ) -> Result<(), DurableError> {
         let db = self
             .storage
@@ -58,6 +59,25 @@ impl DeviceEnrollment {
             original,
             identity,
             self.account_authority.as_ref(),
+            client,
+        )
+    }
+    pub(super) async fn check_original_witness_selection(
+        &self,
+        original: &VerifiedDevice,
+        identity: JournalIdentity,
+        client: &AnchorClient,
+    ) -> Result<(), DurableError> {
+        let db = self
+            .storage
+            .open_database(self.paths.installation.files()[1])
+            .await?;
+        crate::DeviceJournal::check_original_witness_selection(
+            &db,
+            &self.key().await?,
+            original,
+            identity,
+            client,
         )
     }
     pub(super) async fn open_original_journal(

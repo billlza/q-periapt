@@ -59,8 +59,13 @@ fn account_root_cleanup_reports_real_unconfirmed_traffic_and_exact_pending_views
             assert_eq!(reply.observed_head().digest(), pending.next_digest);
         }
         if stage == 2 {
-            apply(&c.journal.active.as_ref().expect("owner").db, &pending)
-                .expect("actual local apply");
+            apply(
+                &c.journal.active.as_ref().expect("owner").db,
+                &c.journal.active.as_ref().expect("owner").key,
+                &pending,
+                None,
+            )
+            .expect("actual local apply");
         }
         let original = rows(&c.journal.active.as_ref().expect("owner").db);
         let proposal = c.proposal(239);

@@ -202,7 +202,7 @@ fn pending_ciphertext_is_applied_exactly_once_and_reopening_checks_identity_firs
     let store = reopen(&path, f.local_device());
     let active = store.active.as_ref().expect("active");
     assert_eq!(disk_image(&active.db), pending.target);
-    apply(&active.db, &pending).expect("already applied exact");
+    apply(&active.db, &active.key, &pending, None).expect("already applied exact");
     assert_eq!(disk_image(&active.db), pending.target);
     let (image, intent) = load_snapshot(&active.db, &active.key, active.owner).expect("snapshot");
     assert_eq!(image.revision, pending.next_revision);
@@ -221,7 +221,7 @@ fn pending_ciphertext_is_applied_exactly_once_and_reopening_checks_identity_firs
         Err(DurableError::Conflict)
     ));
     assert!(matches!(
-        apply(&active.db, &pending),
+        apply(&active.db, &active.key, &pending, None),
         Err(DurableError::Conflict)
     ));
     assert_eq!(disk_image(&active.db), pending.target);
@@ -350,10 +350,10 @@ fn intent_authentication_and_full_prior_digest_prevent_grafts_and_forked_writes(
     ));
     reserve(active, &pending).expect("original plan");
     assert!(matches!(
-        apply(&active.db, &fork),
+        apply(&active.db, &active.key, &fork, None),
         Err(DurableError::Conflict)
     ));
-    apply(&active.db, &pending).expect("original succeeds");
+    apply(&active.db, &active.key, &pending, None).expect("original succeeds");
     assert_eq!(disk_image(&active.db), pending.target);
 }
 
@@ -580,7 +580,8 @@ fn cancellation_snapshot_authentication_scope_and_ordinary_recovery_exclusion() 
     image.revision += 1;
     let target = seal(&active.key, &image).expect("different real sealed target");
     let ordinary = PendingWrite::new(active, &image, &target).expect("ordinary intent");
-    reserve_bytes(&active.db, head.digest(), &wire).expect("target-free fixture reservation");
+    reserve_bytes(&active.db, &active.key, head.digest(), &wire, None)
+        .expect("target-free fixture reservation");
     assert!(matches!(
         load_snapshot(&active.db, &active.key, active.owner),
         Err(DurableError::Suspended)
@@ -607,7 +608,7 @@ fn cancellation_snapshot_authentication_scope_and_ordinary_recovery_exclusion() 
         Err(DurableError::Conflict)
     ));
     assert!(matches!(
-        apply(&active.db, &ordinary),
+        apply(&active.db, &active.key, &ordinary, None),
         Err(DurableError::Conflict)
     ));
     assert!(PendingWrite::decode(&active.key, active.owner, active.id, &wire).is_err());

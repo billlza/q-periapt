@@ -14,6 +14,16 @@ impl DeviceEnrollment {
         policy: &HistoricalSessionPolicy,
         id: JournalIdentity,
     ) -> Result<Option<WitnessedCredentialIntent>, DurableError> {
+        self.inspect_original_credential_intent_using(original, policy, id, None)
+            .await
+    }
+    pub(super) async fn inspect_original_credential_intent_using(
+        &self,
+        original: &VerifiedDevice,
+        policy: &HistoricalSessionPolicy,
+        id: JournalIdentity,
+        client: Option<&AnchorClient>,
+    ) -> Result<Option<WitnessedCredentialIntent>, DurableError> {
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])
@@ -24,6 +34,7 @@ impl DeviceEnrollment {
             original,
             policy,
             id,
+            client,
         )
     }
     pub(super) async fn reserve_original_credential_cancellation(

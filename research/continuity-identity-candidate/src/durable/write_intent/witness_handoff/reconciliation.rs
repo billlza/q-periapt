@@ -46,6 +46,7 @@ impl WitnessJournalAdoption {
                 &owner.plan.approved,
                 &owner.plan.history,
                 &receipt,
+                &owner.plan.request,
             )?;
             owner.client = Some(crate::AnchorClient::from_handoff(
                 authority, signer, transport, timeout,
@@ -56,6 +57,20 @@ impl WitnessJournalAdoption {
             self.close();
         }
         result
+    }
+
+    /// Consume this journal lease and transfer its already attached current
+    /// witness client to the original installation or renewal coordinator.
+    /// The durable selection remains required on every subsequent journal read
+    /// and transaction. This does not grant traffic permission, clear pending
+    /// work, or acknowledge a coordinator result.
+    pub fn into_current_witness(mut self) -> Result<crate::AnchorClient, DurableError> {
+        let mut owner = self.active.take().ok_or(DurableError::Closed)?;
+        let fence = owner.read()?;
+        let receipt = fence.receipt.ok_or(DurableError::Suspended)?;
+        let client = owner.client.take().ok_or(DurableError::AnchorRequired)?;
+        client.check_journal_selection(&fence.request, &receipt)?;
+        Ok(client)
     }
 }
 #[cfg_attr(

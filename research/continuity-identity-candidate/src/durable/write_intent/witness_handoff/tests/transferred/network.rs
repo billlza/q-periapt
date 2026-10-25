@@ -86,7 +86,9 @@ pub(super) fn server<T>(
         )
     })
 }
-pub(super) fn adopt(c: &mut Case) -> WitnessJournalAdoption {
+pub(in crate::durable::write_intent::witness_handoff::tests) fn adopt(
+    c: &mut Case,
+) -> WitnessJournalAdoption {
     let mut owner = if c.journal.active.is_some() {
         c.journal
             .begin_witness_handoff(c.plan.clone(), || Ok(180))
@@ -109,7 +111,9 @@ pub(super) fn attach(owner: &mut WitnessJournalAdoption, address: SocketAddr) {
         )
         .expect("current verified witness");
 }
-pub(super) fn pending_write(owner: &WitnessJournalAdoption) -> Result<PendingWrite, DurableError> {
+pub(in crate::durable::write_intent::witness_handoff::tests) fn pending_write(
+    owner: &WitnessJournalAdoption,
+) -> Result<PendingWrite, DurableError> {
     let (_, pending) = owner
         .active
         .as_ref()

@@ -397,6 +397,15 @@ pub(super) fn load_snapshot(
     load_snapshot_as(db, key, owner, SnapshotAdmission::Ordinary)
 }
 
+pub(super) fn load_snapshot_with_client(
+    db: &Database,
+    key: &JournalKey,
+    owner: [u8; 32],
+    client: Option<&crate::AnchorClient>,
+) -> Result<(Image, Option<PendingWrite>), DurableError> {
+    load_snapshot_as_with_client(db, key, owner, SnapshotAdmission::Ordinary, client)
+}
+
 enum SnapshotAdmission<'a> {
     Ordinary,
     CredentialRecovery,
@@ -414,7 +423,16 @@ fn load_snapshot_as(
     owner: [u8; 32],
     admission: SnapshotAdmission<'_>,
 ) -> Result<(Image, Option<PendingWrite>), DurableError> {
-    let (image, pending) = load_pending_snapshot(db, key, owner, admission)?;
+    load_snapshot_as_with_client(db, key, owner, admission, None)
+}
+fn load_snapshot_as_with_client(
+    db: &Database,
+    key: &JournalKey,
+    owner: [u8; 32],
+    admission: SnapshotAdmission<'_>,
+    client: Option<&crate::AnchorClient>,
+) -> Result<(Image, Option<PendingWrite>), DurableError> {
+    let (image, pending) = load_pending_snapshot_with_client(db, key, owner, admission, client)?;
     match pending {
         Some(PendingIntent::Cancellation(_)) => Err(DurableError::Suspended),
         Some(PendingIntent::Write(p)) => Ok((image, Some(p))),
@@ -427,6 +445,15 @@ fn load_pending_snapshot(
     key: &JournalKey,
     owner: [u8; 32],
     admission: SnapshotAdmission<'_>,
+) -> Result<(Image, Option<PendingIntent>), DurableError> {
+    load_pending_snapshot_with_client(db, key, owner, admission, None)
+}
+fn load_pending_snapshot_with_client(
+    db: &Database,
+    key: &JournalKey,
+    owner: [u8; 32],
+    admission: SnapshotAdmission<'_>,
+    client: Option<&crate::AnchorClient>,
 ) -> Result<(Image, Option<PendingIntent>), DurableError> {
     let read = db.begin_read().map_err(storage)?;
     let table = image_table(&read)?;
@@ -461,7 +488,9 @@ fn load_pending_snapshot(
         intent.check_current(&image)?;
     }
     if let Some(PendingIntent::Write(intent)) = &pending {
-        if matches!(admission, SnapshotAdmission::WitnessHandoff) && value.value() == intent.target
+        if (matches!(admission, SnapshotAdmission::WitnessHandoff)
+            || client.is_some_and(crate::AnchorClient::is_transferred))
+            && value.value() == intent.target
         {
             intent.check_retained_target(&image)?;
         } else if matches!(
@@ -500,17 +529,24 @@ fn load_pending_snapshot(
         }
     }
     if let Some(fence) = witness_fence {
-        witness_handoff::validate_snapshot(key, &image, pending.as_ref(), fence.value())?;
-        if !matches!(admission, SnapshotAdmission::WitnessHandoff) {
+        witness_handoff::validate_snapshot(key, &image, pending.as_ref(), fence.value(), client)?;
+        if client.is_none() && !matches!(admission, SnapshotAdmission::WitnessHandoff) {
             return Err(DurableError::Suspended);
         }
+    } else if client.is_some_and(crate::AnchorClient::is_transferred) {
+        return Err(DurableError::Suspended);
     }
     Ok((image, pending))
 }
 
 // The writer lease is held throughout. The expected image and exact intent are
 // still checked inside the write transaction, not from a cached pre-lock read.
-fn apply(db: &Database, pending: &PendingWrite) -> Result<(), DurableError> {
+fn apply(
+    db: &Database,
+    key: &JournalKey,
+    pending: &PendingWrite,
+    client: Option<&crate::AnchorClient>,
+) -> Result<(), DurableError> {
     // Ordinary recovery cannot commit a credential or independent-policy
     // transition without its exact witness head-and-authority transaction.
     if pending.binding.is_some() {
@@ -519,6 +555,7 @@ fn apply(db: &Database, pending: &PendingWrite) -> Result<(), DurableError> {
     let tx = transaction(db)?;
     {
         let mut table = tx.open_table(TABLE).map_err(storage)?;
+        let guard = witness_handoff::Guard::read(&table, key, client)?;
         let current = table
             .get("image")
             .map_err(storage)?
@@ -530,13 +567,20 @@ fn apply(db: &Database, pending: &PendingWrite) -> Result<(), DurableError> {
         drop(current);
         let saved = table.get("pending").map_err(storage)?;
         match saved.as_ref() {
-            None if current_digest == pending.next_digest && table.len().map_err(storage)? == 1 => {
+            None if current_digest == pending.next_digest
+                && table.len().map_err(storage)? == 1 + guard.rows() =>
+            {
                 return Ok(()); // Exact state already committed; no second advance.
             }
             Some(saved)
                 if saved.value() == pending.wire
-                    && current_digest == pending.expected_digest
-                    && table.len().map_err(storage)? == 2 => {}
+                    // Transfer recovery can have installed this exact target
+                    // while retaining its intent. The selected guard and the
+                    // fresh exact witness retry still precede removal.
+                    && (current_digest == pending.expected_digest
+                        || (current_digest == pending.next_digest
+                            && client.is_some_and(crate::AnchorClient::is_transferred)))
+                    && table.len().map_err(storage)? == 2 + guard.rows() => {}
             _ => return Err(DurableError::Conflict),
         }
         drop(saved);
@@ -544,8 +588,18 @@ fn apply(db: &Database, pending: &PendingWrite) -> Result<(), DurableError> {
             .insert("image", pending.target.as_slice())
             .map_err(storage)?;
         table.remove("pending").map_err(storage)?;
+        guard.update(&mut table, key)?;
     }
-    tx.commit().map_err(DurableError::CommitUncertain)
+    #[cfg(all(test, unix))]
+    if client.is_some_and(crate::AnchorClient::is_transferred) {
+        witness_handoff::test_boundary("ordinary-apply", false);
+    }
+    tx.commit().map_err(DurableError::CommitUncertain)?;
+    #[cfg(all(test, unix))]
+    if client.is_some_and(crate::AnchorClient::is_transferred) {
+        witness_handoff::test_boundary("ordinary-apply", true);
+    }
+    Ok(())
 }
 
 #[cfg_attr(
@@ -585,7 +639,7 @@ pub(super) async fn reconcile(
             pending.next_digest,
         )
         .await?;
-    apply(&active.db, pending)
+    apply(&active.db, &active.key, pending, active.anchor_client())
 }
 
 pub(super) fn reserve_credential_renewal(
@@ -606,7 +660,12 @@ pub(super) fn reserve_credential_renewal(
         tests::after_bound_preparation();
         tests::after_intent(&pending, image);
     }
-    let (current, readback) = load_snapshot(&active.db, &active.key, active.owner)?;
+    let (current, readback) = load_snapshot_with_client(
+        &active.db,
+        &active.key,
+        active.owner,
+        active.anchor_client(),
+    )?;
     let readback = readback.ok_or(DurableError::Conflict)?;
     if readback.wire != pending.wire {
         return Err(DurableError::Conflict);
@@ -648,6 +707,7 @@ impl DeviceJournal {
             original,
             policy,
             expected_id,
+            None,
         )
     }
     pub(crate) fn inspect_witnessed_credential_intent_in_database(
@@ -656,12 +716,14 @@ impl DeviceJournal {
         original: &crate::VerifiedDevice,
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         expected_id: JournalIdentity,
+        client: Option<&crate::AnchorClient>,
     ) -> Result<Option<WitnessedCredentialIntent>, DurableError> {
-        let (image, pending) = load_pending_snapshot(
+        let (image, pending) = load_pending_snapshot_with_client(
             db,
             key,
             bootstrap::storage_owner(original),
             SnapshotAdmission::CredentialRecovery,
+            client,
         )?;
         credential_cancellation::check_scope(&image, original, policy.as_ref(), expected_id)?;
         pending
@@ -733,8 +795,13 @@ pub(super) async fn recover_witnessed_credential_intent(
     use crate::AnchorCredentialRenewalState as State;
     let policy = policy.as_ref();
     let owner = bootstrap::storage_owner(original);
-    let (image, pending) =
-        load_pending_snapshot(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
+    let (image, pending) = load_pending_snapshot_with_client(
+        db,
+        key,
+        owner,
+        SnapshotAdmission::CredentialRecovery,
+        Some(client),
+    )?;
     if image.id != expected_id.0 || image.local_account != original.account_id() {
         return Err(DurableError::Conflict);
     }
@@ -763,11 +830,16 @@ pub(super) async fn recover_witnessed_credential_intent(
             let PendingIntent::Write(pending) = &pending else {
                 return Err(DurableError::Conflict);
             };
-            apply_bound_target(db, pending)?;
+            apply_bound_target(db, key, pending, Some(client))?;
             #[cfg(all(test, unix))]
             tests::after_credential_recovery();
-            let (current, readback) =
-                load_pending_snapshot(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
+            let (current, readback) = load_pending_snapshot_with_client(
+                db,
+                key,
+                owner,
+                SnapshotAdmission::CredentialRecovery,
+                Some(client),
+            )?;
             if current.revision != pending.next_revision
                 || current.digest != pending.next_digest
                 || readback.ok_or(DurableError::Conflict)?.wire() != pending.wire
@@ -809,8 +881,13 @@ impl DeviceJournal {
             _ => return Err(DurableError::Conflict),
         };
         let owner = bootstrap::storage_owner(original);
-        let (image, pending) =
-            load_pending_snapshot(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
+        let (image, pending) = load_pending_snapshot_with_client(
+            db,
+            key,
+            owner,
+            SnapshotAdmission::CredentialRecovery,
+            Some(client),
+        )?;
         image.protection.check_policy(policy)?;
         if image.id != expected_id.0
             || image.local_account != original.account_id()
@@ -852,49 +929,24 @@ impl DeviceJournal {
         // monotonic witness cannot replace an unacknowledged terminal slot. Its
         // bounded last-ACK may have been overwritten by later approved work.
         // It never creates an Applied/Closed fact and never authorizes image edits.
-        let tx = transaction(db)?;
-        {
-            let mut table = tx.open_table(TABLE).map_err(storage)?;
-            let current = table
-                .get("image")
-                .map_err(storage)?
-                .ok_or(DurableError::Corrupt)?;
-            if image_hash(current.value()) != expected.digest() {
-                return Err(DurableError::Conflict);
-            }
-            drop(current);
-            let saved = table.get("pending").map_err(storage)?;
-            match (saved.as_ref(), pending.as_ref()) {
-                (None, None) if table.len().map_err(storage)? == 1 => return Ok(()),
-                (Some(saved), Some(pending))
-                    if saved.value() == pending.wire() && table.len().map_err(storage)? == 2 => {}
-                _ => return Err(DurableError::Conflict),
-            }
-            drop(saved);
-            table.remove("pending").map_err(storage)?;
-        }
-        tx.commit().map_err(DurableError::CommitUncertain)?;
-        let (readback, retained) = load_snapshot(db, key, owner)?;
-        if retained.is_some()
-            || readback
-                .protection
-                .head(readback.revision, readback.digest)?
-                != expected
-        {
-            return Err(DurableError::Conflict);
-        }
-        Ok(())
+        remove_retired_bound_pending(db, key, owner, expected, pending.as_ref(), Some(client))
     }
 }
 
-fn apply_bound_target(db: &Database, pending: &PendingWrite) -> Result<(), DurableError> {
+fn apply_bound_target(
+    db: &Database,
+    key: &JournalKey,
+    pending: &PendingWrite,
+    client: Option<&crate::AnchorClient>,
+) -> Result<(), DurableError> {
     if pending.binding.is_none() {
         return Err(DurableError::Conflict);
     }
     let tx = transaction(db)?;
     {
         let mut table = tx.open_table(TABLE).map_err(storage)?;
-        if table.len().map_err(storage)? != 2 {
+        let guard = witness_handoff::Guard::read(&table, key, client)?;
+        if table.len().map_err(storage)? != 2 + guard.rows() {
             return Err(DurableError::Conflict);
         }
         let saved = table
@@ -919,22 +971,34 @@ fn apply_bound_target(db: &Database, pending: &PendingWrite) -> Result<(), Durab
         table
             .insert("image", pending.target.as_slice())
             .map_err(storage)?;
+        guard.update(&mut table, key)?;
     }
     tx.commit().map_err(DurableError::CommitUncertain)
 }
 
 fn reserve(active: &Active, pending: &PendingWrite) -> Result<(), DurableError> {
-    reserve_bytes(&active.db, pending.expected_digest, &pending.wire)
+    reserve_bytes(
+        &active.db,
+        &active.key,
+        pending.expected_digest,
+        &pending.wire,
+        active.anchor_client(),
+    )
 }
 fn reserve_bytes(
     db: &Database,
+    key: &JournalKey,
     expected_digest: [u8; 32],
     wire: &[u8],
+    client: Option<&crate::AnchorClient>,
 ) -> Result<(), DurableError> {
     let tx = transaction(db)?;
     {
         let mut table = tx.open_table(TABLE).map_err(storage)?;
-        if table.len().map_err(storage)? != 1 || table.get("pending").map_err(storage)?.is_some() {
+        let guard = witness_handoff::Guard::read(&table, key, client)?;
+        if table.len().map_err(storage)? != 1 + guard.rows()
+            || table.get("pending").map_err(storage)?.is_some()
+        {
             return Err(DurableError::Conflict);
         }
         let current = table
@@ -946,8 +1010,18 @@ fn reserve_bytes(
         }
         drop(current);
         table.insert("pending", wire).map_err(storage)?;
+        guard.update(&mut table, key)?;
     }
-    tx.commit().map_err(DurableError::CommitUncertain)
+    #[cfg(all(test, unix))]
+    if client.is_some_and(crate::AnchorClient::is_transferred) {
+        witness_handoff::test_boundary("ordinary-reserve", false);
+    }
+    tx.commit().map_err(DurableError::CommitUncertain)?;
+    #[cfg(all(test, unix))]
+    if client.is_some_and(crate::AnchorClient::is_transferred) {
+        witness_handoff::test_boundary("ordinary-reserve", true);
+    }
+    Ok(())
 }
 
 /// Read-only cleanup admission. An untrusted header is only a decryption hint;
@@ -994,7 +1068,7 @@ pub(super) fn recover(
         return Err(DurableError::AnchorRequired);
     }
     if let Some(pending) = pending {
-        apply(db, &pending)?;
+        apply(db, key, &pending, None)?;
         let recovered = load(db, key, owner)?;
         if recovered.id != image.id
             || recovered.revision != pending.next_revision
@@ -1016,10 +1090,12 @@ fn remove_retired_bound_pending(
     owner: [u8; 32],
     expected: crate::AnchorHead,
     pending: Option<&PendingIntent>,
+    client: Option<&crate::AnchorClient>,
 ) -> Result<(), DurableError> {
     let tx = transaction(db)?;
     {
         let mut table = tx.open_table(TABLE).map_err(storage)?;
+        let guard = witness_handoff::Guard::read(&table, key, client)?;
         let current = table
             .get("image")
             .map_err(storage)?
@@ -1030,16 +1106,18 @@ fn remove_retired_bound_pending(
         drop(current);
         let saved = table.get("pending").map_err(storage)?;
         match (saved.as_ref(), pending) {
-            (None, None) if table.len().map_err(storage)? == 1 => return Ok(()),
+            (None, None) if table.len().map_err(storage)? == 1 + guard.rows() => return Ok(()),
             (Some(saved), Some(pending))
-                if saved.value() == pending.wire() && table.len().map_err(storage)? == 2 => {}
+                if saved.value() == pending.wire()
+                    && table.len().map_err(storage)? == 2 + guard.rows() => {}
             _ => return Err(DurableError::Conflict),
         }
         drop(saved);
         table.remove("pending").map_err(storage)?;
+        guard.update(&mut table, key)?;
     }
     tx.commit().map_err(DurableError::CommitUncertain)?;
-    let (readback, retained) = load_snapshot(db, key, owner)?;
+    let (readback, retained) = load_snapshot_with_client(db, key, owner, client)?;
     if retained.is_some()
         || readback
             .protection

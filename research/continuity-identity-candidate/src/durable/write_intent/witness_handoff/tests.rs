@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
 use std::{fs, path::PathBuf, time::Duration};
+mod operating;
 mod recovery;
 mod support;
 mod transferred;

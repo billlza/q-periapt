@@ -281,7 +281,7 @@ impl DeviceJournal {
             };
         }
         let pending = PendingCancellation::new(key, &image, cancellation)?;
-        reserve_bytes(db, image.digest, &pending.wire)?;
+        reserve_bytes(db, key, image.digest, &pending.wire, None)?;
         let (image, readback) =
             load_pending_snapshot(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
         let readback = readback.ok_or(DurableError::Conflict)?;

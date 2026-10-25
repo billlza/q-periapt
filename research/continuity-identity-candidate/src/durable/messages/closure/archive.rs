@@ -396,7 +396,7 @@ impl SessionClosureJournal {
         if let Some(pending) = pending {
             write_intent::reconcile(&mut active, &pending).await?;
         }
-        let current = load(&active.db, &active.key, active.owner)?;
+        let current = active.load_image()?;
         scope.check(&current)?;
         active.check_current(&current).await?;
         Ok(Self {

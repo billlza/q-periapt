@@ -1293,11 +1293,11 @@ Errors close the owner and may follow commit. Whole-database rollback or loss of
 the host's independent expected checkpoint remains outside a local-MAC guarantee.
 
 The shared journal snapshot reader recognizes and authenticates the control row.
-Ordinary, original credential/policy/roster-recovery and account-root paths refuse
+Old clients and entry points without the exact selected current client refuse
 this fenced state. An existing account-root fence also refuses a new witness
 adoption; no row is silently discarded. Original G/P/R and cancellation formats
-remain intact. This owner retains control-plane selection only: it cannot be
-converted into an ordinary `DeviceJournal` or traffic `AnchorClient`. Its dedicated
+remain intact. `into_current_witness` consumes the journal lease and transfers
+only the already attached client to the original journal or coordinator. Its dedicated
 recovery method below obtains fresh transferred evidence and reconciles the exact
 original operation; operational owner release is still separate. The enrollment/installation coordinator
 must carry this adopted checkpoint instead of reopening through the old entry.
@@ -1364,5 +1364,22 @@ local install I/O faults and process loss. They also verify unchanged command ID
 after target reopen, current-signer provenance, device-signed context substitution
 refusal and refusal before local adoption. Fetch framing is checked over actual
 loopback HTTP on Node; this is not physical-device or browser runtime acceptance.
-Complete transferred TLS/Fetch runtime, all G/R/cancellation interleavings,
-installation coordination and operational-owner release remain open gates.
+The selected client admits the original `DeviceJournal` through its existing
+opening path. Every read binds the exact retained approval request and target
+receipt to that client, and validates the control row against the image and
+pending intent. Reservation, target installation and intent removal update the
+control row in the same transaction. A missing row never selects the legacy
+route. An exact ordinary target already installed by recovery can finish its
+retained intent after a fresh exact witness retry, without resealing or a new ID.
+Bound G/P/R intents remain suspended until their original coordinator records
+its terminal result and acknowledges it; selection alone cannot clear them.
+
+Local tests exercise new prekey work on the original journal, cold reopening of
+both owners, existing P recovery, and ordinary intent completion over real TCP.
+They retain the original secret prekey, reject old clients and missing or altered
+control metadata before dispatch, and cover ordinary reservation/application
+with four process-kill boundaries and ten synchronous I/O fault placements.
+These are journal and transaction-kernel tests. Complete transferred TLS/Fetch
+runtime, an enrollment factory using its retained signer, actual full
+G/R/cancellation/parent interleavings, installation coordination and successive
+handoffs remain open gates.

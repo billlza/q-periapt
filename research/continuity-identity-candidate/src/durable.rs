@@ -638,6 +638,23 @@ struct Active {
     account_authority: Option<JournalAccountAuthority>,
     enrollment_completion: Option<std::sync::Arc<crate::enrollment::EnrollmentPolicyCompletion>>,
 }
+impl Active {
+    fn anchor_client(&self) -> Option<&crate::AnchorClient> {
+        self.anchor.as_ref().map(|a| &a.client)
+    }
+    fn load_image(&self) -> Result<Image, DurableError> {
+        let (image, pending) = write_intent::load_snapshot_with_client(
+            &self.db,
+            &self.key,
+            self.owner,
+            self.anchor_client(),
+        )?;
+        if pending.is_some() {
+            return Err(DurableError::Suspended);
+        }
+        Ok(image)
+    }
+}
 
 /// Owned, encrypted macOS/Linux device journal with an exclusive database
 /// lifetime lock. Every successful response is persisted before bytes are returned.
@@ -833,7 +850,7 @@ impl DeviceJournal {
     ) -> Result<crate::AnchorGenesis, DurableError> {
         self.check_policy(policy)?;
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let image = load(&active.db, &active.key, active.owner)?;
+        let image = active.load_image()?;
         if image.owner != bootstrap::storage_owner(device)
             || image.id != active.id
             || image.protection != active.protection
@@ -859,7 +876,7 @@ impl DeviceJournal {
     }
     async fn image_attempt(&mut self) -> Result<Image, DurableError> {
         let active = self.active.as_mut().ok_or(DurableError::Closed)?;
-        let mut image = load(&active.db, &active.key, active.owner)?;
+        let mut image = active.load_image()?;
         if image.id == active.id && image.protection == active.protection {
             active.attach_account_authority(&mut image)?;
             active.check_current(&image).await?;

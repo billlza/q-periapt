@@ -84,7 +84,7 @@ impl DeviceJournal {
             .await?;
         approved.confirm_reply(&reply)?;
         if let Some(pending) = &pending {
-            apply(db, pending)?;
+            apply(db, key, pending, Some(client))?;
         }
         let (readback, retained) =
             load_pending_snapshot(db, key, owner, SnapshotAdmission::Ordinary)?;

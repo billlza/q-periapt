@@ -55,11 +55,12 @@ pub(in crate::durable) fn reserve_policy_renewal(
     reserve(active, &pending)?;
     #[cfg(all(test, unix))]
     tests::after_bound_preparation();
-    let (current, readback) = load_snapshot_as(
+    let (current, readback) = load_snapshot_as_with_client(
         &active.db,
         &active.key,
         active.owner,
         SnapshotAdmission::PolicyRecovery,
+        active.anchor_client(),
     )?;
     let readback = readback.ok_or(DurableError::Conflict)?;
     if readback.wire != pending.wire {
@@ -83,7 +84,7 @@ impl DeviceJournal {
         id: JournalIdentity,
     ) -> Result<Option<Proposal>, DurableError> {
         let db = open_private_database(path)?;
-        Self::inspect_policy_renewal_preparation_in_database(&db, &key, original, policy, id)
+        Self::inspect_policy_renewal_preparation_in_database(&db, &key, original, policy, id, None)
     }
     pub(crate) fn inspect_policy_renewal_preparation_in_database(
         db: &Database,
@@ -91,12 +92,14 @@ impl DeviceJournal {
         original: &VerifiedDevice,
         policy: &HistoricalSessionPolicy,
         id: JournalIdentity,
+        client: Option<&crate::AnchorClient>,
     ) -> Result<Option<Proposal>, DurableError> {
-        let (image, pending) = load_pending_snapshot(
+        let (image, pending) = load_pending_snapshot_with_client(
             db,
             key,
             bootstrap::storage_owner(original),
             SnapshotAdmission::PolicyRecovery,
+            client,
         )?;
         credential_cancellation::check_scope(&image, original, policy, id)?;
         match pending {
@@ -148,8 +151,13 @@ pub(in crate::durable) async fn recover_policy_renewal(
     client: &mut crate::AnchorClient,
 ) -> Result<State, DurableError> {
     let owner = bootstrap::storage_owner(original);
-    let (image, pending) =
-        load_pending_snapshot(db, key, owner, SnapshotAdmission::PolicyRecovery)?;
+    let (image, pending) = load_pending_snapshot_with_client(
+        db,
+        key,
+        owner,
+        SnapshotAdmission::PolicyRecovery,
+        Some(client),
+    )?;
     credential_cancellation::check_scope(&image, original, policy, id)?;
     let Some(PendingIntent::Write(pending)) = pending else {
         return Err(DurableError::Conflict);
@@ -177,9 +185,14 @@ pub(in crate::durable) async fn recover_policy_renewal(
     let state = reply.policy_renewal_state(&proposal)?;
     match state {
         State::Applied => {
-            apply_bound_target(db, &pending)?;
-            let (after, retained) =
-                load_pending_snapshot(db, key, owner, SnapshotAdmission::PolicyRecovery)?;
+            apply_bound_target(db, key, &pending, Some(client))?;
+            let (after, retained) = load_pending_snapshot_with_client(
+                db,
+                key,
+                owner,
+                SnapshotAdmission::PolicyRecovery,
+                Some(client),
+            )?;
             if after.protection.head(after.revision, after.digest)? != proposal.target_head()
                 || retained.ok_or(DurableError::Conflict)?.wire() != pending.wire
             {
@@ -215,8 +228,13 @@ impl DeviceJournal {
     ) -> Result<(), DurableError> {
         terminal.approval().check_original_policy(policy)?;
         let owner = bootstrap::storage_owner(original);
-        let (image, pending) =
-            load_pending_snapshot(db, key, owner, SnapshotAdmission::PolicyRecovery)?;
+        let (image, pending) = load_pending_snapshot_with_client(
+            db,
+            key,
+            owner,
+            SnapshotAdmission::PolicyRecovery,
+            Some(client),
+        )?;
         credential_cancellation::check_scope(&image, original, policy, id)?;
         let proposal = terminal.proposal();
         let expected = match terminal.disposition() {
@@ -261,6 +279,6 @@ impl DeviceJournal {
         }
         // Unavailable is usable only with this already durable exact terminal;
         // it cannot invent an Applied/Closed result or authorize an image change.
-        remove_retired_bound_pending(db, key, owner, expected, pending.as_ref())
+        remove_retired_bound_pending(db, key, owner, expected, pending.as_ref(), Some(client))
     }
 }

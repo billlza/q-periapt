@@ -465,6 +465,16 @@ impl DeviceEnrollment {
         policy: &HistoricalSessionPolicy,
         id: JournalIdentity,
     ) -> Result<Option<Proposal>, DurableError> {
+        self.inspect_original_roster_preparation_using(original, policy, id, None)
+            .await
+    }
+    async fn inspect_original_roster_preparation_using(
+        &self,
+        original: &VerifiedDevice,
+        policy: &HistoricalSessionPolicy,
+        id: JournalIdentity,
+        client: Option<&AnchorClient>,
+    ) -> Result<Option<Proposal>, DurableError> {
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])
@@ -475,6 +485,7 @@ impl DeviceEnrollment {
             original,
             policy,
             id,
+            client,
         )
     }
 
@@ -527,7 +538,7 @@ impl DeviceEnrollment {
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<Option<Proposal>, DurableError> {
         let result = self
-            .recover_witnessed_roster_refresh_preparation_attempt(original_policy)
+            .recover_witnessed_roster_refresh_preparation_attempt(original_policy, None)
             .await;
         if result.is_err() {
             self.close();
@@ -537,6 +548,7 @@ impl DeviceEnrollment {
     async fn recover_witnessed_roster_refresh_preparation_attempt(
         &mut self,
         original_policy: &HistoricalSessionPolicy,
+        client: Option<&AnchorClient>,
     ) -> Result<Option<Proposal>, DurableError> {
         let image = self.image()?;
         let (original, id) = self.roster_witness_scope(&image, original_policy)?;
@@ -549,7 +561,7 @@ impl DeviceEnrollment {
         }
         let lease = self.witness_lease(&original, original_policy, id).await?;
         let found = self
-            .inspect_original_roster_preparation(&original, original_policy, id)
+            .inspect_original_roster_preparation_using(&original, original_policy, id, client)
             .await?;
         if let Some(p) = found {
             self.retain_roster_proposal(image, original_policy, p)?;
@@ -720,7 +732,7 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         if r.coordination.is_none() {
-            self.recover_witnessed_roster_refresh_preparation(policy)
+            self.recover_witnessed_roster_refresh_preparation_attempt(policy, Some(client))
                 .await?
                 .ok_or(DurableError::Suspended)?;
             image = self.image()?;
@@ -754,6 +766,8 @@ impl DeviceEnrollment {
         if c.retired {
             return Ok(c.terminal.ok_or(DurableError::Corrupt)?.state());
         }
+        self.check_original_witness_selection(&original, id, client)
+            .await?;
         if c.terminal.is_none() {
             match action {
                 Action::Status => {}
@@ -761,7 +775,7 @@ impl DeviceEnrollment {
                     policy: current,
                     now,
                 } => {
-                    self.authorize_journal_commit(&original, id).await?;
+                    self.authorize_journal_commit(&original, id, client).await?;
                     image.check_time_floor(now)?;
                     let Phase::Accepted { admission, .. } = &image.phase else {
                         return Err(DurableError::Corrupt);

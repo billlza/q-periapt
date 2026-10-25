@@ -76,7 +76,7 @@ impl Protection {
 }
 
 pub(super) struct AttachedAnchor {
-    client: AnchorClient,
+    pub(super) client: AnchorClient,
     subject: AnchorSubject,
 }
 pub(super) fn cleanup_signer_binding(key: &crate::PublicKey) -> [u8; 32] {
@@ -422,7 +422,7 @@ impl DeviceJournal {
         client: AnchorClient,
     ) -> Result<(), DurableError> {
         let active = self.active.as_mut().ok_or(DurableError::Closed)?;
-        let image = load(&active.db, &active.key, active.owner)?;
+        let image = active.load_image()?;
         if image.id != active.id
             || image.protection != active.protection
             || image.revision != 1
@@ -566,7 +566,8 @@ impl DeviceJournal {
         admission: AccountAuthorityOpen,
     ) -> Result<Self, DurableError> {
         let owner = bootstrap::storage_owner(device);
-        let (image, pending) = write_intent::load_snapshot(&db, &key, owner)?;
+        let (image, pending) =
+            write_intent::load_snapshot_with_client(&db, &key, owner, Some(&client))?;
         if image.id != expected_id.0 || image.local_account != device.account_id() {
             return Err(DurableError::Conflict);
         }
@@ -585,7 +586,7 @@ impl DeviceJournal {
         if let Some(pending) = pending {
             write_intent::reconcile(&mut active, &pending).await?;
         }
-        let current = load(&active.db, &active.key, owner)?;
+        let current = active.load_image()?;
         active.check_current(&current).await?;
         active.check_account_authority(&current)?;
         Ok(Self {

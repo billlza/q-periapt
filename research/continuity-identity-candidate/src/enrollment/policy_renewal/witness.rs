@@ -593,7 +593,7 @@ impl DeviceEnrollment {
         original_policy: &HistoricalSessionPolicy,
     ) -> Result<Option<Proposal>, DurableError> {
         let result = self
-            .recover_witnessed_policy_renewal_preparation_attempt(original_policy)
+            .recover_witnessed_policy_renewal_preparation_attempt(original_policy, None)
             .await;
         if result.is_err() {
             self.close();
@@ -603,6 +603,7 @@ impl DeviceEnrollment {
     async fn recover_witnessed_policy_renewal_preparation_attempt(
         &mut self,
         original_policy: &HistoricalSessionPolicy,
+        client: Option<&AnchorClient>,
     ) -> Result<Option<Proposal>, DurableError> {
         let image = self.image()?;
         let (original, id) = self.policy_witness_scope(&image, original_policy)?;
@@ -611,7 +612,7 @@ impl DeviceEnrollment {
         }
         let lease = self.witness_lease(&original, original_policy, id).await?;
         let observed = self
-            .inspect_original_policy_preparation(&original, original_policy, id)
+            .inspect_original_policy_preparation_using(&original, original_policy, id, client)
             .await?;
         let result = match observed {
             Some(p) => Some(self.retain_policy_proposal(image, original_policy, p)?),
@@ -637,6 +638,16 @@ impl DeviceEnrollment {
         policy: &HistoricalSessionPolicy,
         id: JournalIdentity,
     ) -> Result<Option<Proposal>, DurableError> {
+        self.inspect_original_policy_preparation_using(original, policy, id, None)
+            .await
+    }
+    async fn inspect_original_policy_preparation_using(
+        &self,
+        original: &VerifiedDevice,
+        policy: &HistoricalSessionPolicy,
+        id: JournalIdentity,
+        client: Option<&AnchorClient>,
+    ) -> Result<Option<Proposal>, DurableError> {
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])
@@ -647,6 +658,7 @@ impl DeviceEnrollment {
             original,
             policy,
             id,
+            client,
         )
     }
 
@@ -901,7 +913,7 @@ impl DeviceEnrollment {
             if pending.operation != operation || pending.statement != statement {
                 return Err(DurableError::Conflict);
             }
-            self.recover_witnessed_policy_renewal_preparation(policy)
+            self.recover_witnessed_policy_renewal_preparation_attempt(policy, Some(client))
                 .await?
                 .ok_or(DurableError::Suspended)?;
             image = self.image()?;
@@ -943,11 +955,13 @@ impl DeviceEnrollment {
                 return Ok(state.state());
             }
         }
+        self.check_original_witness_selection(&original, id, client)
+            .await?;
         if c.terminal.is_none() {
             match action {
                 Action::Status => {}
                 Action::Commit { target, now, .. } => {
-                    self.authorize_journal_commit(&original, id).await?;
+                    self.authorize_journal_commit(&original, id, client).await?;
                     image.check_time_floor(now)?;
                     let current = self.policy_witness_current_device(&image)?;
                     admit(&current, target, now)?;

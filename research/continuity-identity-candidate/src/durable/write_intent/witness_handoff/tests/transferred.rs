@@ -2,15 +2,20 @@
 use super::*;
 use crate::anchor::transferred::Authority;
 use crate::{AnchorOperation, AnchorOutcome, AnchorRequest, DeviceSigningKey};
-mod network;
+pub(super) mod network;
 mod recovery;
 
 fn signer() -> DeviceSigningKey {
     DeviceSigningKey::deterministic([111; 32], [112; 32]).expect("original test device signer")
 }
 fn authority(c: &Case) -> Authority {
-    Authority::verified(&c.plan.approved, &c.plan.history, &c.receipt)
-        .expect("verified original authority selection")
+    Authority::verified(
+        &c.plan.approved,
+        &c.plan.history,
+        &c.receipt,
+        &c.plan.request,
+    )
+    .expect("verified original authority selection")
 }
 
 #[test]

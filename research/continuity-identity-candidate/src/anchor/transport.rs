@@ -125,6 +125,20 @@ impl AnchorClient {
     pub(crate) fn pin(&self) -> &AnchorPin {
         &self.pin
     }
+    pub(crate) fn is_transferred(&self) -> bool {
+        self.handoff.is_some()
+    }
+    pub(crate) fn check_journal_selection(
+        &self,
+        request: &[u8],
+        receipt: &[u8],
+    ) -> Result<(), Error> {
+        self.signer.as_ref().ok_or(Error::Closed)?;
+        self.handoff
+            .as_ref()
+            .ok_or(Error::Scope)?
+            .check_selection(request, receipt)
+    }
     // Only the durable journal adoption owner supplies this verified context.
     // pin() remains the original command/policy authority; the distinct wire
     // verifier below uses the current signer and exposes that provenance.

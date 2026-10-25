@@ -29,9 +29,9 @@ pub(super) struct Case {
     pub(super) target: Option<AnchorStore>,
     target_approval: AnchorHandoffTargetApproval,
     retirement: Vec<u8>,
-    device: VerifiedDevice,
-    policy: VerifiedSessionPolicy,
-    identity: JournalIdentity,
+    pub(super) device: VerifiedDevice,
+    pub(super) policy: VerifiedSessionPolicy,
+    pub(super) identity: JournalIdentity,
     public_inputs: Vec<(&'static str, Vec<u8>)>,
 }
 fn policy(

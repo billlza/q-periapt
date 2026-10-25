@@ -554,7 +554,7 @@ impl DeviceEnrollment {
         now: u64,
     ) -> Result<Option<Proposal>, DurableError> {
         let result = self
-            .recover_witnessed_preparation(policy.as_ref(), now)
+            .recover_witnessed_preparation(policy.as_ref(), now, None)
             .await
             .and_then(|intent| intent.map(WitnessedCredentialIntent::proposal).transpose());
         if result.is_err() {
@@ -566,9 +566,10 @@ impl DeviceEnrollment {
         &mut self,
         policy: &crate::HistoricalSessionPolicy,
         now: u64,
+        client: Option<&AnchorClient>,
     ) -> Result<Option<WitnessedCredentialIntent>, DurableError> {
         let result = self
-            .recover_witnessed_preparation_attempt(policy, now)
+            .recover_witnessed_preparation_attempt(policy, now, client)
             .await;
         if result.is_err() {
             self.close();
@@ -579,6 +580,7 @@ impl DeviceEnrollment {
         &mut self,
         policy: &crate::HistoricalSessionPolicy,
         now: u64,
+        client: Option<&AnchorClient>,
     ) -> Result<Option<WitnessedCredentialIntent>, DurableError> {
         let image = self.image_for_witnessed_credential()?;
         let (original, id) = self.witness_scope(&image, policy, now).await?;
@@ -597,7 +599,7 @@ impl DeviceEnrollment {
         let grant = self.pending_grant(&image, &original, policy)?;
         let _lease = self.witness_lease(&original, policy, id).await?;
         let proposal = self
-            .inspect_original_credential_intent(&original, policy, id)
+            .inspect_original_credential_intent_using(&original, policy, id, client)
             .await?;
         let Some(proposal) = proposal else {
             if coordination.is_some() {
@@ -1027,7 +1029,8 @@ impl DeviceEnrollment {
                 if pending.operation != operation || pending.statement != statement {
                     return Err(DurableError::Conflict);
                 }
-                self.recover_witnessed_preparation(policy, now).await?;
+                self.recover_witnessed_preparation(policy, now, Some(client))
+                    .await?;
                 image = self.image_for_witnessed_credential()?;
             }
         }
@@ -1070,6 +1073,8 @@ impl DeviceEnrollment {
             return Err(DurableError::Conflict);
         }
         let _lease = self.witness_lease(&original, policy, id).await?;
+        self.check_original_witness_selection(&original, id, client)
+            .await?;
         if coord.terminal.is_none() {
             let grant = self.pending_grant(&image, &original, policy)?;
             self.check_witnessed_pending(&image, &original, &grant, proposal)?;
@@ -1090,7 +1095,7 @@ impl DeviceEnrollment {
             // Verify exact retained intent before dispatching even an explicit
             // command. A substituted local proposal cannot cause remote work.
             if self
-                .inspect_original_credential_intent(&original, policy, id)
+                .inspect_original_credential_intent_using(&original, policy, id, Some(client))
                 .await?
                 != Some(proposal)
             {
@@ -1099,7 +1104,7 @@ impl DeviceEnrollment {
             let command = match action {
                 RenewalAction::Observe => None,
                 RenewalAction::Commit(current) => {
-                    self.authorize_journal_commit(&original, id).await?;
+                    self.authorize_journal_commit(&original, id, client).await?;
                     let adopted = renewal
                         .adopted_policy
                         .as_deref()

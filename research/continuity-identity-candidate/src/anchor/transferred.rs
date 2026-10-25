@@ -92,12 +92,14 @@ pub(crate) struct Authority {
     pub(crate) logical: AnchorPin,
     current: AnchorPin,
     subject: AnchorSubject,
+    selection_request: [u8; 32],
 }
 impl Authority {
     pub(crate) fn verified(
         approved: &HistoricalAnchorHandoffAdoption,
         history: &AnchorHandoffHistory,
         receipt: &[u8],
+        request: &[u8],
     ) -> Result<Self, Error> {
         let context = AnchorHandoffReplyContext::verified(approved, history, receipt)?;
         Ok(Self {
@@ -105,10 +107,20 @@ impl Authority {
             logical: history.historical_pin(context.logical)?.clone(),
             current: history.current_pin().clone(),
             subject: approved.scope().subject(),
+            selection_request: digest(b"Q-PERIAPT-JOURNAL-WITNESS-SELECTION/v1", request),
         })
     }
     pub(crate) fn current(&self) -> &AnchorPin {
         &self.current
+    }
+    pub(crate) fn check_selection(&self, request: &[u8], receipt: &[u8]) -> Result<(), Error> {
+        if self.selection_request != digest(b"Q-PERIAPT-JOURNAL-WITNESS-SELECTION/v1", request)
+            || self.context.authorization
+                != digest(b"Q-PERIAPT-TRANSFERRED-WITNESS-AUTHORIZATION/v1", receipt)
+        {
+            return Err(Error::Scope);
+        }
+        Ok(())
     }
     pub(crate) fn request(
         &self,
