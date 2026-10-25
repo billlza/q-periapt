@@ -38,8 +38,9 @@ pub(super) fn check(
         if authorized.contains_key(id) {
             // Cold open validates every indexed public authorization before
             // returning an owner. Live owners require its exact cached index.
-            // Only the authenticated transferred command path can change these
-            // entries; legacy and management paths retain their inherited fence.
+            // Transferred requests and the explicitly receipt-bound independent
+            // control plane may change these entries. Legacy management retains
+            // its inherited fence; neither path can adopt another subject.
             if next.subject != old.subject
                 || next.device != old.device
                 || next.genesis != old.genesis

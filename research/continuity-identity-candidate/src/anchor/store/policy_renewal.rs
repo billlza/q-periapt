@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Phase {
+pub(super) enum Phase {
     Prepared,
     Applied,
     Closed,
@@ -307,11 +307,32 @@ impl AnchorStore {
         m: &HistoricalPolicyRenewalMaterials<'_>,
         phase: Phase,
     ) -> Result<State, DurableError> {
+        let scope = super::transferred_control::Scope::original(self, proposal.subject())?;
+        self.retain_policy_renewal_controlled(
+            scope.bind(proposal, proposal.subject())?,
+            approval,
+            m,
+            phase,
+        )
+    }
+    pub(super) fn retain_policy_renewal_controlled(
+        &mut self,
+        controlled: super::transferred_control::Proposal<Proposal>,
+        approval: &HistoricalPolicyRenewal,
+        m: &HistoricalPolicyRenewalMaterials<'_>,
+        phase: Phase,
+    ) -> Result<State, DurableError> {
+        let super::transferred_control::Proposal {
+            scope: control,
+            value: proposal,
+        } = controlled;
         let verified =
             HistoricalPolicyRenewal::from_bytes(approval.as_bytes(), approval.scope(), m)?;
-        let pin = self.pin()?;
+        let pin = &control.logical;
         let scope = verified.scope();
         let current = m.current_device;
+        control.check_keys(current, m.original)?;
+        control.check_keys(current, m.target)?;
         if proposal.witness_binding() != pin.binding
             || proposal.operation() != scope.operation
             || proposal.statement() != verified.statement_digest()
@@ -336,7 +357,7 @@ impl AnchorStore {
             phase,
         };
         let mut image = self.image()?;
-        image.require_live(proposal.subject())?;
+        control.live(self, &image)?;
         let entry = image
             .entries
             .get_mut(&proposal.subject().id(&self.namespace()?))

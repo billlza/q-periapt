@@ -263,7 +263,7 @@ impl Entry {
         }
     }
 }
-enum Admission<'a> {
+pub(super) enum Admission<'a> {
     Prepare(&'a VerifiedSessionPolicy, u64),
     Close(&'a HistoricalSessionPolicy),
 }
@@ -309,8 +309,29 @@ impl AnchorStore {
         next: &VerifiedDevice,
         admission: Admission<'_>,
     ) -> Result<State, DurableError> {
-        let pin = self.pin()?;
+        let scope = super::transferred_control::Scope::original(self, proposal.subject())?;
+        self.retain_roster_refresh_controlled(
+            scope.bind(proposal, proposal.subject())?,
+            previous,
+            next,
+            admission,
+        )
+    }
+    pub(super) fn retain_roster_refresh_controlled(
+        &mut self,
+        controlled: super::transferred_control::Proposal<Proposal>,
+        previous: &VerifiedDevice,
+        next: &VerifiedDevice,
+        admission: Admission<'_>,
+    ) -> Result<State, DurableError> {
+        let super::transferred_control::Proposal {
+            scope: control,
+            value: proposal,
+        } = controlled;
+        let pin = &control.logical;
         let policy = admission.history();
+        control.check_keys(previous, policy)?;
+        control.check_keys(next, policy)?;
         let scope = *proposal.scope();
         let subject = proposal.subject();
         if proposal.witness_binding() != pin.binding
@@ -350,7 +371,7 @@ impl AnchorStore {
             phase,
         };
         let mut image = self.image()?;
-        image.require_live(subject)?;
+        control.live(self, &image)?;
         let entry = image
             .entries
             .get_mut(&subject.id(&self.namespace()?))
@@ -402,7 +423,7 @@ impl AnchorStore {
             return Err(Error::Retired.into());
         }
         if let Admission::Prepare(current, now) = admission {
-            self.admit_current_device(next, current, now)?;
+            control.admit(self, next, current, now)?;
         }
         let state = entry
             .independent_roster

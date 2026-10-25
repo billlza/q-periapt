@@ -1339,7 +1339,9 @@ Authorized transferred requests and direct requests share one command state
 machine and one closed-outcome validator. Inherited identity, genesis and minimum
 head/floor constraints remain checked. Inherited entries without authorization
 remain byte-exact, and legacy current-pin requests cannot use an authorization
-to bypass their inherited fence. Management shortcuts remain separately fenced.
+to bypass their inherited fence. Legacy management remains separately fenced;
+the explicit receipt-bound control plane below admits one selected inherited
+subject through the existing G/P/R state machines.
 
 `AnchorReply::logical_witness_binding`, `signing_witness_binding` and
 `handoff_context` expose the distinction: a current B signature is never passed
@@ -1380,6 +1382,51 @@ They retain the original secret prekey, reject old clients and missing or altere
 control metadata before dispatch, and cover ordinary reservation/application
 with four process-kill boundaries and ten synchronous I/O fault placements.
 These are journal and transaction-kernel tests. Complete transferred TLS/Fetch
-runtime, an enrollment factory using its retained signer, actual full
-G/R/cancellation/parent interleavings, installation coordination and successive
-handoffs remain open gates.
+runtime, all lifecycle interleavings and successive handoffs remain open gates.
+
+### Retained enrollment selection and independent target control
+
+The original `DeviceEnrollment` can prepare, adopt and observe the same journal
+selection and construct `current_witness_anchor_client` using its existing
+protected signer. It never generates a replacement signer on absence. The parent
+retains one bounded `QPEWAH01` row (at most 16 KiB), authenticated with a distinct
+enrollment MAC domain. It binds the original signer identity, exact independently
+approved request, original admission time and exact target receipt. Capacity for
+the full future receipt is checked before the first child commit. Child
+preparation/adoption commits before the corresponding parent record. Errors may
+follow either commit; reopen and retry the same plan. Once a parent selection
+exists, a missing child row is an error, never first-use provisioning. Neither
+Prepared nor Adopted alone grants current traffic permission.
+
+Parent writes retain and validate the selection. G/P/R preparation and recovery
+check the parent before interpreting child state. An old journal backup cannot
+make a selected parent report an absent operation or release an old client.
+Whole-database rollback still needs the host's independently retained expected
+plan/checkpoint; a storage MAC alone cannot prevent it. Metadata recovery does
+not require the device signer, but constructing a signing client does.
+
+`AnchorStore::transferred_control` borrows the current target and requires its
+exact already committed `AnchorHandoffClientAuthorizationReceipt`. It matches
+the receipt to the durable client context and independently verified history,
+including subject, namespace, logical/current witness and authorization digest.
+The restricted control plane prepares or closes G/P/R targets for that one
+subject using the original independent issuer approvals. It does not alter the
+store pin or make legacy management admissible. Historical and current witness
+key-separation checks remain; preparation applies the existing policy/admission
+checks. Close retains historical outcomes and version floors, including after
+expiry. It never relabels Applied as Closed or signs an old v1 reply with the new
+witness. Ordinary request bytes cannot obtain this control plane; authenticating
+the operator remains the host's responsibility.
+
+Native tests retain actual original device secrets, installation, journal and
+sealed G/P/R targets across selection and cold target reopening. They cover new
+G/P/R preparation, exact retry, commit or post-expiry close, original parent
+terminal/ACK, missing signer, foreign plan/receipt, authenticated parent-record
+substitution, child/parent process cuts and parent synchronization faults.
+Additional store tests check rejected foreign subjects/approvals and expired
+preparation, unchanged entry bytes on rejection, persisted authorization and
+transaction I/O cuts. Explicit store-only target digests in admission tests do
+not substitute for the enrollment tests' actual sealed targets. Grant-only
+cancellation after selection, all continued/independent-policy combinations,
+retirement/account-root composition, successive witness transfer, full platform
+and power-loss acceptance, final ABI and protocol freeze remain open.

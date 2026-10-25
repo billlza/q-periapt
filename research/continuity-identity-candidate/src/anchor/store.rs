@@ -64,6 +64,8 @@ use renewal::{CredentialRenewalRecord, PolicyAuthority};
 
 mod commands;
 mod transferred;
+mod transferred_control;
+pub use transferred_control::AnchorTransferredControl;
 
 struct Entry {
     subject: AnchorSubject,
@@ -278,6 +280,16 @@ impl AnchorStore {
         policy: &VerifiedSessionPolicy,
         now: u64,
     ) -> Result<Validity, DurableError> {
+        let binding = self.pin()?.binding();
+        self.admit_current_device_with_binding(device, policy, now, binding)
+    }
+    fn admit_current_device_with_binding(
+        &self,
+        device: &VerifiedDevice,
+        policy: &VerifiedSessionPolicy,
+        now: u64,
+        binding: [u8; 32],
+    ) -> Result<Validity, DurableError> {
         let quality = [
             PrekeyQuality::OneTimeBoth,
             PrekeyQuality::ReusableBoth,
@@ -293,7 +305,7 @@ impl AnchorStore {
         if policy
             .anchor_requirement()
             .binding()
-            .is_some_and(|binding| binding != active.pin.binding())
+            .is_some_and(|required| required != binding)
         {
             return Err(Error::Scope.into());
         }

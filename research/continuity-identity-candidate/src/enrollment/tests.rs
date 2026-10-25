@@ -12,6 +12,8 @@ pub(super) mod renewal;
 mod replacement_request;
 #[path = "roster_tests.rs"]
 mod roster;
+#[path = "witness_handoff_tests.rs"]
+mod witness_handoff;
 #[path = "witness_renewal_tests.rs"]
 mod witness_renewal;
 use crate::{
@@ -27,12 +29,28 @@ use std::{
     },
 };
 
+// Deliberate corruption/rollback fixture writer. Product writes validate the
+// retained witness selection; negative tests must still inject invalid bytes.
+pub(super) fn witness_selection_boundary(stage: &str, after: bool) {
+    witness_handoff::process_boundary(stage, after);
+}
+fn write(database: &Database, bytes: &[u8]) -> Result<(), DurableError> {
+    let tx = transaction(database)?;
+    tx.open_table(TABLE)
+        .map_err(storage)?
+        .insert("enrollment", bytes)
+        .map_err(storage)?;
+    initial_boundary("before-commit");
+    tx.commit().map_err(DurableError::CommitUncertain)
+}
+
 struct Case {
     _directory: tempfile::TempDir,
     paths: EnrollmentPaths,
     intent: EnrollmentIntent,
     root: RootSigningKey,
     policy: VerifiedSessionPolicy,
+    initial_policy_wire: Vec<u8>,
 }
 fn paths(path: &Path) -> EnrollmentPaths {
     EnrollmentPaths::new(
@@ -70,6 +88,7 @@ fn case_with_anchor(anchor: crate::AnchorRequirement) -> Case {
         intent,
         root,
         policy,
+        initial_policy_wire: issued.as_bytes().to_vec(),
     }
 }
 fn create(c: &Case) -> DeviceEnrollment {

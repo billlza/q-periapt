@@ -56,6 +56,27 @@ impl WitnessJournalAdoptionPlan {
     pub fn scope(&self) -> &crate::AnchorHandoffAdoptionScope {
         self.approved.scope()
     }
+    pub(crate) fn check_original_enrollment(
+        &self,
+        device: &crate::VerifiedDevice,
+        policy: &crate::HistoricalSessionPolicy,
+        identity: JournalIdentity,
+    ) -> Result<(), DurableError> {
+        let scope = self.scope();
+        if self.account != device.account_id()
+            || self.device != device.key
+            || scope.subject.journal_parts()
+                != (
+                    *identity.as_bytes(),
+                    bootstrap::storage_owner(device),
+                    policy.checkpoint().digest(),
+                )
+            || policy.anchor_requirement().binding() != Some(scope.logical)
+        {
+            return Err(Error::Scope.into());
+        }
+        Ok(())
+    }
     fn check_image(&self, image: &Image) -> Result<(), DurableError> {
         let Protection::Required {
             policy, witness, ..
@@ -151,9 +172,17 @@ impl WitnessJournalAdoption {
         plan: WitnessJournalAdoptionPlan,
         trusted_time: impl FnMut() -> Result<u64, DurableError>,
     ) -> Result<Self, DurableError> {
+        Self::prepare_in_database(open_private_database(path)?, key, plan, trusted_time)
+    }
+    pub(crate) fn prepare_in_database(
+        db: Database,
+        key: JournalKey,
+        plan: WitnessJournalAdoptionPlan,
+        trusted_time: impl FnMut() -> Result<u64, DurableError>,
+    ) -> Result<Self, DurableError> {
         Owners {
             client: None,
-            db: open_private_database(path)?,
+            db,
             key,
             plan,
         }
@@ -167,9 +196,16 @@ impl WitnessJournalAdoption {
         key: JournalKey,
         plan: WitnessJournalAdoptionPlan,
     ) -> Result<Self, DurableError> {
+        Self::resume_in_database(open_private_database(path)?, key, plan)
+    }
+    pub(crate) fn resume_in_database(
+        db: Database,
+        key: JournalKey,
+        plan: WitnessJournalAdoptionPlan,
+    ) -> Result<Self, DurableError> {
         let owner = Owners {
             client: None,
-            db: open_private_database(path)?,
+            db,
             key,
             plan,
         };
@@ -177,6 +213,10 @@ impl WitnessJournalAdoption {
         Ok(Self {
             active: Some(owner),
         })
+    }
+    pub(crate) fn enrollment_selection(&self) -> Result<(u64, Option<Vec<u8>>), DurableError> {
+        let fence = self.active.as_ref().ok_or(DurableError::Closed)?.read()?;
+        Ok((fence.prepared_at, fence.receipt))
     }
     /// Observe authenticated local progress without contacting either witness.
     pub fn status(&mut self) -> Result<WitnessJournalAdoptionState, DurableError> {

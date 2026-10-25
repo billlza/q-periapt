@@ -2024,6 +2024,19 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/transferred/network.rs',
             'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/transferred/recovery.rs',
             'research/continuity-identity-candidate/src/session_policy/handoff_adoption/wire.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_transferred_control_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/transferred_control.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff/codec.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff_tests/faults.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff_tests/fixture.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff_tests/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff_tests/transfer.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff_tests/validation.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_credential_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_policy_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_roster_tests.rs',
         )
         for missing in required:
             self.assertIn(missing, tracked)

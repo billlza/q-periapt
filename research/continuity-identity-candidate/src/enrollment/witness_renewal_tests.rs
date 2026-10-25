@@ -2,6 +2,8 @@
 use super::*;
 #[path = "account_renewal_tests.rs"]
 mod account_renewal;
+#[path = "witness_transfer_credential_tests.rs"]
+mod witness_transfer;
 use crate::{
     AnchorCredentialRenewalProposal as Proposal, AnchorStore, CredentialRenewalStatus,
     DeviceJournal, Validity,

@@ -282,6 +282,7 @@ impl DeviceEnrollment {
         timeout: Duration,
     ) -> Result<AnchorClient, DurableError> {
         let image = self.image_for_witnessed_credential()?;
+        self.check_witness_client(None)?;
         let original = self.original_device(&image, now).await?;
         let Phase::Accepted {
             admission,
@@ -708,7 +709,7 @@ impl DeviceEnrollment {
         }
         let lease = self.witness_lease(&original, original_policy, id).await?;
         let proposal = match self
-            .inspect_original_credential_intent(&original, original_policy, id)
+            .inspect_original_credential_intent_using(&original, original_policy, id, Some(&client))
             .await?
             .map(WitnessedCredentialIntent::proposal)
             .transpose()?

@@ -2,6 +2,8 @@
 use super::*;
 #[path = "witness_independent_policy_unprepared_tests.rs"]
 mod unprepared;
+#[path = "witness_transfer_policy_tests.rs"]
+mod witness_transfer;
 use crate::{
     AnchorPolicyRenewalProposal as PolicyProposal, AnchorPolicyRenewalState as State,
     PolicyRenewalId, PolicyRenewalRequest, PolicyRenewalStatement, VerifiedPolicyRenewal,

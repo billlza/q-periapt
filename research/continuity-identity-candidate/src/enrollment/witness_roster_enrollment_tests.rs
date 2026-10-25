@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Original enrollment terminal/ACK/cleanup on the actual R target.
 use super::*;
+#[path = "witness_transfer_roster_tests.rs"]
+mod witness_transfer;
 use crate::{
     WitnessedRosterRefreshDisposition as RDisposition, WitnessedRosterRefreshProgress as RProgress,
 };

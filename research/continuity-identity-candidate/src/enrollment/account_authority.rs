@@ -49,6 +49,7 @@ impl DeviceEnrollment {
         identity: JournalIdentity,
         client: &AnchorClient,
     ) -> Result<(), DurableError> {
+        self.check_witness_client(Some(client))?;
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])
@@ -68,6 +69,7 @@ impl DeviceEnrollment {
         identity: JournalIdentity,
         client: &AnchorClient,
     ) -> Result<(), DurableError> {
+        self.check_witness_client(Some(client))?;
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])
@@ -87,6 +89,7 @@ impl DeviceEnrollment {
         identity: JournalIdentity,
         client: AnchorClient,
     ) -> Result<crate::DeviceJournal, DurableError> {
+        self.check_witness_client(Some(&client))?;
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])
@@ -140,6 +143,7 @@ impl DeviceEnrollment {
         policy: &impl AsRef<crate::HistoricalSessionPolicy>,
         anchor: Option<AnchorClient>,
     ) -> Result<DeviceService, DurableError> {
+        self.check_witness_client(anchor.as_ref())?;
         DeviceInstallation::reconcile_original_enrollment_with_storage(
             self.storage.clone(),
             self.paths.installation.clone(),

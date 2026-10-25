@@ -342,6 +342,7 @@ impl DeviceEnrollment {
         now: u64,
         client: AnchorClient,
     ) -> Result<Proposal, DurableError> {
+        self.check_witness_client(Some(&client))?;
         let mut image = self.image()?;
         image.check_time_floor(now)?;
         let (original, id) = self.roster_witness_scope(&image, original_policy)?;
@@ -415,7 +416,12 @@ impl DeviceEnrollment {
         }
         let lease = self.witness_lease(&original, original_policy, id).await?;
         let proposal = match self
-            .inspect_original_roster_preparation(&original, original_policy, id)
+            .inspect_original_roster_preparation_using(
+                &original,
+                original_policy,
+                id,
+                Some(&client),
+            )
             .await?
         {
             Some(p) => p,
@@ -475,6 +481,7 @@ impl DeviceEnrollment {
         id: JournalIdentity,
         client: Option<&AnchorClient>,
     ) -> Result<Option<Proposal>, DurableError> {
+        self.check_witness_client(client)?;
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])

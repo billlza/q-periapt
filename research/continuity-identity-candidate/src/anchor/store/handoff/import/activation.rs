@@ -205,6 +205,12 @@ impl Transferred {
     pub(in crate::anchor::store) fn namespace(&self) -> [u8; 32] {
         self.history.namespace_binding()
     }
+    pub(in crate::anchor::store) fn logical_pin(
+        &self,
+        binding: [u8; 32],
+    ) -> Result<AnchorPin, DurableError> {
+        Ok(self.history.historical_pin(binding)?.clone())
+    }
     pub(in crate::anchor::store) fn client_context(
         &self,
         subject: AnchorSubject,

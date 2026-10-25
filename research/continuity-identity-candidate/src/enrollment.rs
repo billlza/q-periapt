@@ -13,7 +13,9 @@ use crate::{
 use hmac::{Hmac, Mac};
 #[cfg(all(test, unix))]
 use q_periapt_host_store::filesystem::open_private_database;
-use redb::{Database, ReadableDatabase, ReadableTableMetadata, TableDefinition, TableHandle};
+use redb::{
+    Database, ReadableDatabase, ReadableTable, ReadableTableMetadata, TableDefinition, TableHandle,
+};
 use sha2::Sha256;
 use std::{
     path::{Path, PathBuf},
@@ -49,6 +51,7 @@ mod retirement;
 pub use retirement::{RetiredDeviceEnrollment, SigningFileErasureState};
 mod roster_refresh;
 mod roster_resolution;
+mod witness_handoff;
 pub(crate) use policy_renewal::{EnrollmentPolicyCompletion, PersistedPolicyTerminal};
 use policy_renewal::{PolicyDeviceBinding, RetainedPolicyRenewal};
 pub use policy_renewal::{
@@ -490,7 +493,7 @@ impl DeviceEnrollment {
         let bytes = encode(&key, binding, &image)?;
         let database = store
             .provision_database(&paths.configuration, |database| {
-                write(database, &bytes)?;
+                write_with_selection(database, &key, binding, &bytes)?;
                 #[cfg(all(test, unix))]
                 tests::initial_boundary("after-commit");
                 Ok::<_, DurableError>(())
@@ -619,7 +622,7 @@ impl DeviceEnrollment {
         let result = (|| {
             let active = self.active.as_ref().ok_or(DurableError::Closed)?;
             let bytes = encode(&active.key, self.binding, image)?;
-            write(&active.database, &bytes)?;
+            write_with_selection(&active.database, &active.key, self.binding, &bytes)?;
             #[cfg(all(test, unix))]
             tests::after_commit(&bytes);
             Ok(())
@@ -1050,6 +1053,7 @@ impl DeviceEnrollment {
         timeout: Duration,
     ) -> Result<AnchorClient, DurableError> {
         let image = self.image_without_policy_renewal()?;
+        self.check_witness_client(None)?;
         let device = self.admitted(&image, policy, now).await?;
         if policy.anchor_requirement().binding() != Some(pin.binding()) {
             return Err(Error::Scope.into());
@@ -1074,6 +1078,7 @@ impl DeviceEnrollment {
         anchor: Option<AnchorClient>,
     ) -> Result<EnrolledDevice, DurableError> {
         let mut image = self.image_without_policy_renewal()?;
+        self.check_witness_client(anchor.as_ref())?;
         if image.renewal.is_some() {
             return self.activate_renewed(image, policy, now, anchor).await;
         }
@@ -1567,6 +1572,7 @@ fn load_snapshot(
 struct EnrollmentSnapshot {
     image: Image,
     retirement: Option<retirement::State>,
+    witness_handoff: Option<witness_handoff::State>,
     // Ordinary activation must not carry the full two-root proposal by value.
     root_replacement: Option<Box<account_root::State>>,
 }
@@ -1594,8 +1600,15 @@ fn read_snapshot(
         .map_err(storage)?
         .map(|row| account_root::State::decode(row.value(), key, binding))
         .transpose()?;
+    let witness_handoff = table
+        .get(witness_handoff::ROW)
+        .map_err(storage)?
+        .map(|row| witness_handoff::State::decode(key, binding, row.value()))
+        .transpose()?;
     if table.len().map_err(storage)?
-        != 1 + u64::from(retirement.is_some()) + u64::from(root_replacement.is_some())
+        != 1 + u64::from(retirement.is_some())
+            + u64::from(root_replacement.is_some())
+            + u64::from(witness_handoff.is_some())
     {
         return Err(DurableError::Corrupt);
     }
@@ -1605,6 +1618,12 @@ fn read_snapshot(
         .ok_or(DurableError::Corrupt)?;
     let wire = saved.value();
     let image = decode_image(wire, key, binding)?;
+    if let Some(state) = &witness_handoff {
+        state.check_image(&image)?;
+        if root_replacement.is_some() {
+            return Err(DurableError::Conflict);
+        }
+    }
     if let Some(state) = &retirement {
         state.check_image(&image, wire)?;
     }
@@ -1617,6 +1636,7 @@ fn read_snapshot(
     Ok(EnrollmentSnapshot {
         image,
         retirement,
+        witness_handoff,
         root_replacement,
     })
 }
@@ -1901,12 +1921,21 @@ fn decode_image(wire: &[u8], key: &JournalKey, binding: [u8; 32]) -> Result<Imag
     }
     Ok(image)
 }
-fn write(database: &Database, bytes: &[u8]) -> Result<(), DurableError> {
+fn write_with_selection(
+    database: &Database,
+    key: &JournalKey,
+    binding: [u8; 32],
+    bytes: &[u8],
+) -> Result<(), DurableError> {
     let tx = transaction(database)?;
-    tx.open_table(TABLE)
-        .map_err(storage)?
-        .insert("enrollment", bytes)
-        .map_err(storage)?;
+    {
+        let mut table = tx.open_table(TABLE).map_err(storage)?;
+        if let Some(selected) = table.get(witness_handoff::ROW).map_err(storage)? {
+            witness_handoff::State::decode(key, binding, selected.value())?
+                .check_image(&decode_image(bytes, key, binding)?)?;
+        }
+        table.insert("enrollment", bytes).map_err(storage)?;
+    }
     #[cfg(all(test, unix))]
     tests::initial_boundary("before-commit");
     tx.commit().map_err(DurableError::CommitUncertain)?;

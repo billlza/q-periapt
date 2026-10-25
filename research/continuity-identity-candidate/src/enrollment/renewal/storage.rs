@@ -24,6 +24,7 @@ impl DeviceEnrollment {
         id: JournalIdentity,
         client: Option<&AnchorClient>,
     ) -> Result<Option<WitnessedCredentialIntent>, DurableError> {
+        self.check_witness_client(client)?;
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])
@@ -44,6 +45,7 @@ impl DeviceEnrollment {
         id: JournalIdentity,
         target: crate::durable::CredentialCancellationTarget<'_>,
     ) -> Result<crate::AnchorCredentialRenewalCancellation, DurableError> {
+        self.check_witness_client(None)?;
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])
@@ -73,6 +75,7 @@ impl DeviceEnrollment {
         intent: WitnessedCredentialIntent,
         client: &mut AnchorClient,
     ) -> Result<crate::AnchorCredentialRenewalState, DurableError> {
+        self.check_witness_client(Some(client))?;
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])
@@ -96,6 +99,7 @@ impl DeviceEnrollment {
         terminal: &PersistedRenewalTerminal,
         client: &mut AnchorClient,
     ) -> Result<(), DurableError> {
+        self.check_witness_client(Some(client))?;
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])

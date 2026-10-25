@@ -142,7 +142,7 @@ pub use anchor::{
     AnchorRetiredReportAcknowledgement, AnchorRetiredReportAcknowledgementState,
     AnchorRetiredReportProposal, AnchorRetiredReportState, AnchorRetiredSubject,
     AnchorRosterRefreshProposal, AnchorRosterRefreshState, AnchorStore, AnchorSubject,
-    AnchorTransport, RosterRefreshId, RosterRefreshScope,
+    AnchorTransferredControl, AnchorTransport, RosterRefreshId, RosterRefreshScope,
 };
 pub use bootstrap::{
     BootstrapContext, BootstrapRole, DirectoryExpectation, InitiatorOperation, InitiatorOutcome,

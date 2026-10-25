@@ -481,6 +481,7 @@ impl DeviceEnrollment {
         transport: Box<dyn AnchorTransport>,
         timeout: Duration,
     ) -> Result<AnchorClient, DurableError> {
+        self.check_witness_client(None)?;
         let (image, original) = scope;
         if original_policy.anchor_requirement().binding() != Some(pin.binding()) {
             return Err(DurableError::Conflict);
@@ -648,6 +649,7 @@ impl DeviceEnrollment {
         id: JournalIdentity,
         client: Option<&AnchorClient>,
     ) -> Result<Option<Proposal>, DurableError> {
+        self.check_witness_client(client)?;
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])
@@ -718,7 +720,12 @@ impl DeviceEnrollment {
         )?;
         let lease = self.witness_lease(&original, original_policy, id).await?;
         let proposal = match self
-            .inspect_original_policy_preparation(&original, original_policy, id)
+            .inspect_original_policy_preparation_using(
+                &original,
+                original_policy,
+                id,
+                Some(&client),
+            )
             .await?
         {
             Some(p) => p,

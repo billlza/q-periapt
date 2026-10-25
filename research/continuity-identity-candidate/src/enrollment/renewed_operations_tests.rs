@@ -143,6 +143,7 @@ fn current_successor_bootstraps_both_roles_in_original_store_and_reopens_under_n
             root,
             policy,
             _directory,
+            initial_policy_wire: _,
         } = c;
         let policy = Arc::new(policy);
         let (_, other_issued, other_pin, other_runtime) =

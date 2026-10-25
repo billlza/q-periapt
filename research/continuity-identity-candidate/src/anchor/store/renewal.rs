@@ -510,8 +510,18 @@ impl AnchorStore {
         grant: &HistoricalCredentialRenewal,
         policy: &HistoricalSessionPolicy,
     ) -> Result<(), DurableError> {
-        let pin = self.pin()?;
+        let control = super::transferred_control::Scope::original(self, proposal.subject)?;
+        Self::check_renewal_scope_controlled(proposal, grant, policy, &control)
+    }
+    fn check_renewal_scope_controlled(
+        proposal: &RenewalScope,
+        grant: &HistoricalCredentialRenewal,
+        policy: &HistoricalSessionPolicy,
+        control: &super::transferred_control::Scope,
+    ) -> Result<(), DurableError> {
+        let pin = &control.logical;
         let next = grant.successor_device();
+        control.check_keys(next, policy)?;
         if proposal.witness != pin.binding
             || proposal.operation != grant.operation()
             || proposal.statement != grant.statement_digest()
@@ -577,12 +587,41 @@ impl AnchorStore {
         current: Option<(&VerifiedSessionPolicy, u64)>,
         continuation: Option<&crate::HistoricalPolicyContinuation>,
     ) -> Result<AnchorCredentialRenewalState, DurableError> {
+        let control = super::transferred_control::Scope::original(self, proposal.subject())?;
+        self.retain_credential_renewal_controlled(
+            control.bind(proposal, proposal.subject())?,
+            grant,
+            policy,
+            target_policy,
+            current,
+            continuation,
+        )
+    }
+    pub(super) fn retain_credential_renewal_controlled(
+        &mut self,
+        controlled: super::transferred_control::Proposal<AnchorCredentialRenewalProposal>,
+        grant: &HistoricalCredentialRenewal,
+        policy: &HistoricalSessionPolicy,
+        target_policy: &HistoricalSessionPolicy,
+        current: Option<(&VerifiedSessionPolicy, u64)>,
+        continuation: Option<&crate::HistoricalPolicyContinuation>,
+    ) -> Result<AnchorCredentialRenewalState, DurableError> {
+        let super::transferred_control::Proposal {
+            scope: control,
+            value: proposal,
+        } = controlled;
         if proposal.adopts_policy() != continuation.is_some()
             || current.is_some_and(|(p, _)| p.checkpoint() != target_policy.checkpoint())
         {
             return Err(DurableError::Conflict);
         }
-        self.check_renewal_scope(&RenewalScope::from(&proposal), grant, policy)?;
+        Self::check_renewal_scope_controlled(
+            &RenewalScope::from(&proposal),
+            grant,
+            policy,
+            &control,
+        )?;
+        control.check_keys(grant.successor_device(), target_policy)?;
         let phase = if current.is_some() {
             Phase::Prepared
         } else {
@@ -591,7 +630,7 @@ impl AnchorStore {
         let mut record = JointRenewalRecord::for_grant(proposal, grant, target_policy, phase)?;
         let id = proposal.subject.id(&self.namespace()?);
         let mut image = self.image()?;
-        image.require_live(proposal.subject)?;
+        control.live(self, &image)?;
         let entry = image.entries.get(&id).ok_or(DurableError::Absent)?;
         if entry
             .independent_roster
@@ -679,7 +718,7 @@ impl AnchorStore {
             }
         }
         if let Some((policy, now)) = current {
-            self.admit_current_device(grant.successor_device(), policy, now)?;
+            control.admit(self, grant.successor_device(), policy, now)?;
         }
         let entry = image.entries.get_mut(&id).ok_or(DurableError::Absent)?;
         if phase == Phase::Closed {
@@ -703,7 +742,7 @@ impl AnchorStore {
         self.persist(&mut image)?;
         if let Some((policy, now)) = current {
             // Preserve committed preparation if this instance closes concurrently.
-            self.admit_current_device(grant.successor_device(), policy, now)?;
+            control.admit(self, grant.successor_device(), policy, now)?;
         }
         Ok(phase.state())
     }
