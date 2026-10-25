@@ -16,13 +16,24 @@ pub(super) fn validate_source(
     source: &[u8],
     freeze: &[u8],
 ) -> Result<Image, DurableError> {
-    if source.len().checked_add(32).ok_or(DurableError::Capacity)? > MAX_IMAGE {
+    let maximum = if archive::is_capture(source) {
+        activation::source::MAX_SOURCE
+    } else {
+        MAX_IMAGE - 32
+    };
+    if source.len() > maximum {
         return Err(DurableError::Capacity);
     }
     if approval.plan.verify_receipt(freeze)?.state() != AnchorHandoffState::Frozen
         || source_commitment(source) != approval.plan.commitment
     {
         return Err(Error::Scope.into());
+    }
+    if archive::is_capture(source) {
+        return archive::validate_source(key, approval, source);
+    }
+    if source.len().checked_add(32).ok_or(DurableError::Capacity)? > MAX_IMAGE {
+        return Err(DurableError::Capacity);
     }
     approval
         .plan
@@ -52,6 +63,9 @@ pub(super) fn validate(
     approval: &AnchorHandoffTargetApproval,
     image: &ImportedImage,
 ) -> Result<Image, DurableError> {
+    if image.source_archived != archive::is_capture(&image.source) {
+        return Err(DurableError::Corrupt);
+    }
     let original = validate_source(key, approval, &image.source, &image.freeze)?;
     activation::validate(approval, image, &original)?;
     approval.verify_import_receipt(&image.freeze, &image.acknowledgement)?;
@@ -79,6 +93,9 @@ pub(super) fn seal(
     approval: &AnchorHandoffTargetApproval,
     image: &ImportedImage,
 ) -> Result<Vec<u8>, DurableError> {
+    if image.source_archived {
+        return archive::seal_primary(key, approval, image);
+    }
     if image.client_index.len() > MAX_ENTRIES {
         return Err(DurableError::Capacity);
     }
@@ -179,14 +196,22 @@ pub(super) fn decode_authenticated(
         let mut d = Decoder::new(body);
         let tag = d.array::<8>()?;
         let activated = match &tag {
-            b"QPAHI001" if bytes.len() <= MAX_IMPORT_IMAGE => false,
+            b"QPAHI001" | b"QPAHI005" if bytes.len() <= MAX_IMPORT_IMAGE => false,
             b"QPAHI002" | b"QPAHI003" | b"QPAHI004" => true,
             _ => return Err(DurableError::Corrupt),
         };
         if take(&mut d)? != approval.to_bytes() {
             return Err(DurableError::Conflict);
         }
-        let source = take(&mut d)?.to_vec();
+        let source_archived = &tag == b"QPAHI005";
+        let source = if source_archived {
+            if d.array::<32>()? != approval.plan.commitment {
+                return Err(DurableError::Conflict);
+            }
+            Vec::new() // Resolved from the exact indexed archive in this read transaction.
+        } else {
+            take(&mut d)?.to_vec()
+        };
         let freeze = take(&mut d)?.to_vec();
         let acknowledgement = take(&mut d)?.to_vec();
         let cancellation = match d.array::<1>()? {
@@ -232,6 +257,7 @@ pub(super) fn decode_authenticated(
         };
         d.finish()?;
         let image = ImportedImage {
+            source_archived,
             source_control,
             client_index,
             activation,
@@ -274,7 +300,7 @@ pub(super) fn load_authenticated(
         .get("image")
         .map_err(storage)?
         .ok_or(DurableError::Corrupt)?;
-    let image = decode_authenticated(key, approval, bytes.value())?;
+    let mut image = decode_authenticated(key, approval, bytes.value())?;
     let mut expected = if image.client_index.is_empty() {
         vec![IMPORT_TABLE.name()]
     } else {
@@ -283,10 +309,16 @@ pub(super) fn load_authenticated(
     if image.source_control.is_some() {
         expected.push(source_control::TABLE.name());
     }
+    if image.source_archived {
+        expected.push(archive::TABLE.name());
+    }
     if tables.len() != expected.len()
         || tables.iter().any(|name| !expected.contains(&name.as_str()))
     {
         return Err(DurableError::Corrupt);
+    }
+    if image.source_archived {
+        image.source = archive::read(&tx, approval)?;
     }
     activation::authorization::check_row_hashes(&tx, &image.client_index)?;
     source_control::check_row_hash(&tx, key, image.source_control)?;

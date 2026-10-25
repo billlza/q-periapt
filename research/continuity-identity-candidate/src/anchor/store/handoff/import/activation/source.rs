@@ -8,7 +8,7 @@ const CONTROL_TAG: &[u8; 8] = b"QPAHSS02";
 // The complete current import and all separately stored authorization rows are
 // retained. Capture has a distinct bound; no existing image limit is increased.
 const MAX_HISTORY: usize = super::super::super::history::MAX_HISTORY_BYTES;
-const MAX_SOURCE: usize = 8
+pub(in crate::anchor::store::handoff::import) const MAX_SOURCE: usize = 8
     + 8
     + MAX_HISTORY
     + storage::MAX_ACTIVATED_IMAGE

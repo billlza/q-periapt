@@ -361,6 +361,9 @@ impl AnchorHandoffTarget {
         if image.cancellation.is_some() {
             return Err(Error::Retired.into());
         }
+        if image.source_archived {
+            return Err(DurableError::Suspended);
+        }
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
         if signer.public_key()? != owner.approval.plan.target.key {
             return Err(Error::Scope.into());

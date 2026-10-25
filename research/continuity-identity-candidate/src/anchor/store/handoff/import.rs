@@ -2,6 +2,7 @@
 //! Independently approved, durable inactive import. No ordinary witness API.
 use super::*;
 mod approval;
+mod archive;
 pub use approval::{AnchorHandoffImportReceipt, AnchorHandoffTargetApproval};
 pub(in crate::anchor::store) mod activation;
 mod source_control;
@@ -19,6 +20,7 @@ const MAX_IMPORT_IMAGE: usize = MAX_IMAGE + 32 * 1024;
 
 #[derive(Clone)]
 struct ImportedImage {
+    source_archived: bool,
     source_control: Option<[u8; 32]>,
     client_index: BTreeMap<[u8; 32], [u8; 32]>,
     activation: Option<activation::Activation>,
@@ -75,6 +77,7 @@ impl AnchorHandoffTarget {
             .check_witness_key(&approval.plan.target.key)?;
         let receipt = approval.sign_import(freeze, signer)?;
         let image = ImportedImage {
+            source_archived: archive::is_capture(source),
             source_control: None,
             client_index: BTreeMap::new(),
             activation: None,
@@ -87,6 +90,9 @@ impl AnchorHandoffTarget {
         let bytes = storage::encode(&wrapping, &approval, &image)?;
         let db = provision_private_database(path, |db| {
             let tx = transaction(db)?;
+            if image.source_archived {
+                archive::publish(&tx, &approval, &image.source)?;
+            }
             tx.open_table(IMPORT_TABLE)
                 .map_err(storage)?
                 .insert("image", bytes.as_slice())
@@ -176,6 +182,9 @@ impl AnchorHandoffTarget {
         let image = self.image()?;
         if image.cancellation.is_some() {
             return Err(Error::Retired.into());
+        }
+        if image.source_archived {
+            return Err(DurableError::Suspended);
         }
         if image
             .activation

@@ -1505,10 +1505,37 @@ before freezing; expiry cannot silently cancel or reuse a plan. Process-loss
 and synchronization-failure tests cover these reversible source transactions,
 with owner cleanup and precise retries against the original database.
 
-Successive retirement, complete historical import/activation and fresh client
+Successive retirement, activation with complete history and fresh client
 re-adoption still require integration. Their existing refusal remains in place:
 the original importer cannot treat this capture as an initial-authority image.
 Downstream storage must preserve all historical proofs and separately bound
 client approvals rather than flattening them into a current pin. This reversible
 source transaction does not complete the second transfer or establish power-loss,
 compaction, full client-capacity or physical-platform acceptance.
+
+### Inactive import of an activated source
+
+The existing import entry point also accepts the complete `QPAHSS01`/`QPAHSS02`
+snapshot under an exact signed freeze and independently retained successor plan.
+It verifies the encoded origin against the approved namespace binding, replays
+all history signatures and checks the exact sequence/checkpoint/current pin.
+The current history supplies the prior target approval to the existing complete
+capture validator. A current source signature cannot replace old signatures or
+omit client records. The prospective target cannot reuse any historical key or
+operation, exceed the history bound, or reset the source to a fresh namespace.
+
+`QPAHI005` indexes one immutable public source-archive row by its signed commitment
+inside the new target's authenticated primary row. Both rows publish in one
+transaction. The primary-image limits are unchanged; the separate archive uses
+the existing full-capture bound. Missing/extra rows, changed bytes or invalid
+nested state fail on open/use. Exact cancellation updates the primary decision
+and retains the complete archive; expired admission does not delete it. Old
+import formats remain unchanged. No source storage key or private signer is an
+input, including during cold observation.
+
+The imported target remains inactive. Source retirement and target activation
+are still refused until their full-history transaction and preflight are
+integrated. In particular, an operating owner must not re-read or rewrite the
+whole immutable archive on ordinary data updates. These checks cover current
+emitted snapshots, not complete repeated target activation, fresh client adoption,
+history compaction, physical power loss or final ABI acceptance.

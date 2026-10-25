@@ -141,24 +141,7 @@ impl AnchorHandoffHistory {
         acknowledgement: &[u8],
         retirement: &[u8],
     ) -> Result<(), DurableError> {
-        if self.transitions.len() >= MAX_TRANSITIONS {
-            return Err(DurableError::Capacity);
-        }
-        let plan = &approval.plan;
-        if plan.source.binding != self.current_pin().binding
-            || self
-                .transitions
-                .iter()
-                .any(|old| old.approval.plan.operation == plan.operation)
-            || std::iter::once(&self.origin)
-                .chain(self.transitions.iter().map(|old| &old.approval.plan.target))
-                .any(|pin| {
-                    pin.binding == plan.target.binding || pin.key.shares_component(&plan.target.key)
-                })
-        {
-            return Err(Error::Scope.into());
-        }
-        plan.require_history(self.context)?;
+        self.admit_successor(&approval.plan)?;
         approval.verify_retirement_receipt(freeze, acknowledgement, retirement)?;
         let transition = Transition {
             approval: approval.clone(),
@@ -180,6 +163,72 @@ impl AnchorHandoffHistory {
         next.to_bytes()?;
         *self = next;
         Ok(())
+    }
+
+    // Admission is shared by prospective imports and committed history extension.
+    // A target acknowledgement must not promise a transition that cannot fit or
+    // that would reuse an earlier authority/key/operation.
+    pub(in crate::anchor::store::handoff) fn admit_successor(
+        &self,
+        plan: &AnchorHandoffPlan,
+    ) -> Result<(), DurableError> {
+        if self.transitions.len() >= MAX_TRANSITIONS {
+            return Err(DurableError::Capacity);
+        }
+        if plan.source.binding != self.current_pin().binding
+            || self
+                .transitions
+                .iter()
+                .any(|old| old.approval.plan.operation == plan.operation)
+            || std::iter::once(&self.origin)
+                .chain(self.transitions.iter().map(|old| &old.approval.plan.target))
+                .any(|pin| {
+                    pin.binding == plan.target.binding || pin.key.shares_component(&plan.target.key)
+                })
+        {
+            return Err(Error::Scope.into());
+        }
+        plan.require_history(self.context)?;
+        Ok(())
+    }
+
+    pub(in crate::anchor::store::handoff) fn restore_approved_source(
+        bytes: &[u8],
+        plan: &AnchorHandoffPlan,
+    ) -> Result<Self, DurableError> {
+        let context = plan.history.ok_or(Error::Scope)?;
+        if bytes.len() > MAX_HISTORY_BYTES || context.sequence == 0 {
+            return Err(Error::Scope.into());
+        }
+        let mut d = Decoder::new(bytes);
+        if d.array::<8>()? != *b"QPAHHS01" {
+            return Err(Error::Encoding.into());
+        }
+        let origin = AnchorPin::new(
+            AnchorIdentity::from_trusted_state(d.array()?)?,
+            PublicKey::decode(d.take(PUBLIC_KEY_BYTES)?)?,
+        );
+        // The encoded origin is only a candidate preimage of the independently
+        // approved namespace binding. It does not establish its own root trust.
+        if origin.binding != context.namespace {
+            return Err(Error::Scope.into());
+        }
+        let history =
+            Self::restore_trusted_state(bytes, &origin, &plan.source, context.checkpoint)?;
+        if history.context != context {
+            return Err(Error::Scope.into());
+        }
+        history.admit_successor(plan)?;
+        Ok(history)
+    }
+
+    pub(in crate::anchor::store::handoff) fn current_approval(
+        &self,
+    ) -> Result<&AnchorHandoffTargetApproval, DurableError> {
+        self.transitions
+            .last()
+            .map(|entry| &entry.approval)
+            .ok_or(Error::Scope.into())
     }
 
     /// Canonical bounded public proof. No private signer or storage key is included.

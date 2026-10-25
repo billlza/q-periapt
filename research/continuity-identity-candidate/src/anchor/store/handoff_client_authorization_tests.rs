@@ -6,6 +6,8 @@ mod control;
 mod recovery;
 #[path = "handoff_successive_freeze_tests.rs"]
 mod successive_freeze;
+#[path = "handoff_successive_import_tests.rs"]
+mod successive_import;
 #[path = "handoff_successive_source_tests.rs"]
 mod successive_source;
 #[path = "handoff_client_authorization_validation_tests.rs"]
