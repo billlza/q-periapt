@@ -2,6 +2,7 @@
 """P/G/P/G/R/P/G and actual peer removal on one original registered session."""
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 from dataclasses import replace
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -110,6 +111,20 @@ def continue_roster(f, count, journal, session, native_journal, message, origina
             "scope": "Original R under P3 survives P4 and G18, then actual receiving peer removal denies old and fresh traffic."}
 
 
+def run_profile(args, members, witnessed):
+    from policy_credential_checks import scenario
+    return scenario(args, members, witnessed, after_credentials=continue_roster)
+
+
+def run_profiles(args):
+    # Each profile owns a distinct journal, native process and bridge. Bound
+    # concurrency to two; the caller's existing 900-second whole-command limit
+    # and all per-worker/transport deadlines remain unchanged.
+    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="policy-composition") as pool:
+        pending = [pool.submit(run_profile, args, n, w) for n in (3, 32) for w in (False, True)]
+        return [result.result() for result in pending]
+
+
 def main():
     sys.path.append(str(Path(__file__).resolve().parent))
     from run import arguments
@@ -118,7 +133,6 @@ def main():
     args.output, args.native, args.provider_root = args.output.resolve(), args.native.resolve(), args.provider_root.resolve()
     crypto, backend = load_provider(args.provider_root)
     from qperiapt_continuity_reference.wire import require
-    from policy_credential_checks import scenario
     root = Path(__file__).resolve().parent
     def inventory():
         paths = [*sorted((root / "qperiapt_continuity_reference").glob("*.py")), *sorted(root.glob("*.py")),
@@ -129,7 +143,7 @@ def main():
     report = {"source_files": before, "native_sha256": native,
               "provider": {"cryptography": crypto.__version__, "openssl": backend.openssl_version_text()}}
     (args.output / "INPUTS.json").write_text(json.dumps(report, indent=2) + "\n")
-    report["profiles"] = [scenario(args, n, w, after_credentials=continue_roster) for n in (3, 32) for w in (False, True)]
+    report["profiles"] = run_profiles(args)
     require(before == inventory() and native == hashlib.sha256(args.native.read_bytes()).hexdigest(), "composition inputs changed")
     (args.output / "RESULT.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps([{k:r[k] for k in ("members", "witnessed", "workers", "process_kills")} for r in report["profiles"]]))

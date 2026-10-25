@@ -2,9 +2,62 @@
 import importlib.util
 from pathlib import Path
 import tempfile
+import threading
 from types import SimpleNamespace
 import unittest
+from unittest import mock
 from continuity_independent_composition import verify_composition, verify_capacity
+
+
+class CompositionSchedulingTests(unittest.TestCase):
+    def setUp(self):
+        source = Path(__file__).resolve().parent.parent / "research/continuity-openssl-peer/policy_composition_checks.py"
+        spec = importlib.util.spec_from_file_location("composition_scheduling_test", source)
+        self.driver = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.driver)
+
+    def test_independent_profiles_overlap_with_bounded_concurrency_and_stable_order(self):
+        barrier = threading.Barrier(2, timeout=5)
+        guard = threading.Lock()
+        active, peak, observed = 0, 0, []
+
+        def profile(args, members, witnessed):
+            nonlocal active, peak
+            self.assertIs(args, sentinel)
+            with guard:
+                active += 1
+                peak = max(peak, active)
+                observed.append((members, witnessed))
+            try:
+                barrier.wait()
+                return members, witnessed
+            finally:
+                with guard:
+                    active -= 1
+
+        sentinel = object()
+        with mock.patch.object(self.driver, "run_profile", side_effect=profile):
+            result = self.driver.run_profiles(sentinel)
+        expected = [(3, False), (3, True), (32, False), (32, True)]
+        self.assertEqual(result, expected)
+        self.assertCountEqual(observed, expected)
+        self.assertEqual((peak, active), (2, 0))
+
+    def test_any_profile_failure_is_propagated_without_a_complete_result(self):
+        observed = []
+        failure = ValueError("original profile assertion failed")
+
+        def profile(_args, members, witnessed):
+            observed.append((members, witnessed))
+            if (members, witnessed) == (32, False):
+                raise failure
+            return members, witnessed
+
+        with mock.patch.object(self.driver, "run_profile", side_effect=profile):
+            with self.assertRaises(ValueError) as caught:
+                self.driver.run_profiles(object())
+        self.assertIs(caught.exception, failure)
+        self.assertCountEqual(observed, [(3, False), (3, True), (32, False), (32, True)])
 
 
 class NativeTranscriptTests(unittest.TestCase):
