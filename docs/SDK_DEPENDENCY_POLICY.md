@@ -47,6 +47,23 @@ Older package, performance and device results retain their original lockfile;
 they do not qualify the patched build. Downstream Cargo users must resolve the
 patched verifier and audit their own lockfile.
 
+The 2026-10-25 dependency update selects crypto-bigint 0.7.9 in the workspace,
+Continuity candidate, independent native peer and reference-account lockfiles.
+[Upstream 0.7.9](https://github.com/RustCrypto/crypto-bigint/pull/1374)
+withdraws the earlier 0.7.x releases and fixes the `NonZero<T>` multiplication
+implementation by requiring an integer type. The dependency's Rust 1.87 minimum
+remains below the SDK's Rust 1.90 minimum. No other dependency resolution changes.
+Two 2d8 CI consumers compiled their candidate package but stopped at the strict
+warning gate after Cargo reported 0.7.6 as yanked; those failures remain recorded.
+The installed JNI/Swift owner paths had not yet executed in those jobs.
+
+Updated lockfiles and the unchanged fuzz lockfile pass the strict audit against
+advisory database `21d909e4c8bd4e14c7aea58bf980c881a0053ab1`, without ignored
+advisories or warnings. Local P-256 signature/binding regressions and actual
+candidate-package compilation are separate from final installed-language CI.
+Earlier package, constant-time, performance and physical-device evidence retains
+its exact dependency identity and does not qualify the updated build.
+
 ## Storage contract
 
 redb 4.3 changes both storage APIs and locking behavior. The shared protected
