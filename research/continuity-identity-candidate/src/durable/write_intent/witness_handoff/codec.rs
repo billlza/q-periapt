@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
-const MAX_BYTES: usize = 16 * 1024;
-const RECEIPT_BYTES: usize = 4 + 80 + crate::crypto::SIGNATURE_BYTES;
+const MAX_BYTES: usize = lineage::DECISION_BYTES;
+const RECEIPT_BYTES: usize = lineage::RECEIPT_BYTES;
 
 #[derive(Clone)]
 pub(super) struct Fence {
@@ -10,6 +10,7 @@ pub(super) struct Fence {
     pub(super) request: Vec<u8>,
     pub(super) prepared_at: u64,
     pub(super) receipt: Option<Vec<u8>>,
+    pub(super) lineage: WitnessAdoptionLineage,
 }
 pub(super) fn pending_digest(wire: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-WITNESS-HANDOFF-PENDING/v1", wire)
@@ -32,6 +33,7 @@ impl Fence {
             request: plan.request.clone(),
             prepared_at,
             receipt: None,
+            lineage: WitnessAdoptionLineage::default(),
         }
     }
     pub(super) fn check(
@@ -39,6 +41,7 @@ impl Fence {
         image: &Image,
         pending: Option<&PendingIntent>,
     ) -> Result<(), DurableError> {
+        self.lineage.check(&self.request, self.prepared_at)?;
         let scope =
             crate::session_policy::RetainedAdoptionRequest::unverified_scope(&self.request)?;
         let Protection::Required {
@@ -58,7 +61,13 @@ impl Fence {
         Ok(())
     }
     pub(super) fn encode(&self, key: &JournalKey) -> Result<Vec<u8>, DurableError> {
-        let mut out = b"QPWJAH01".to_vec();
+        self.lineage.check(&self.request, self.prepared_at)?;
+        let mut out = if self.lineage.is_empty() {
+            b"QPWJAH01"
+        } else {
+            b"QPWJAH02"
+        }
+        .to_vec();
         out.extend_from_slice(&self.image);
         out.push(u8::from(self.pending.is_some()));
         out.extend_from_slice(&self.pending.unwrap_or([0; 32]));
@@ -94,13 +103,24 @@ impl Fence {
         {
             return Err(DurableError::Capacity);
         }
+        if !self.lineage.is_empty() {
+            out.extend_from_slice(&self.lineage.encode()?);
+        }
+        if out
+            .len()
+            .checked_add(reserved + 32)
+            .ok_or(DurableError::Capacity)?
+            > self.lineage.maximum_bytes()
+        {
+            return Err(DurableError::Capacity);
+        }
         let mut auth = mac(key)?;
         auth.update(&out);
         out.extend_from_slice(&auth.finalize().into_bytes());
         Ok(out)
     }
     pub(super) fn decode(key: &JournalKey, wire: &[u8]) -> Result<Self, DurableError> {
-        if !(119..=MAX_BYTES).contains(&wire.len()) {
+        if !(119..=WitnessAdoptionLineage::MAX_BYTES).contains(&wire.len()) {
             return Err(DurableError::Corrupt);
         }
         let (body, tag) = wire.split_at(wire.len() - 32);
@@ -109,9 +129,11 @@ impl Fence {
         auth.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
-        if d.array::<8>()? != *b"QPWJAH01" {
-            return Err(DurableError::Corrupt);
-        }
+        let successive = match d.array::<8>()? {
+            tag if tag == *b"QPWJAH01" && wire.len() <= MAX_BYTES => false,
+            tag if tag == *b"QPWJAH02" => true,
+            _ => return Err(DurableError::Corrupt),
+        };
         let image = d.array()?;
         crate::codec::nonzero(&image)?;
         let [present] = d.array()?;
@@ -135,6 +157,11 @@ impl Fence {
             RECEIPT_BYTES => Some(d.take(len)?.to_vec()),
             _ => return Err(DurableError::Corrupt),
         };
+        let lineage = if successive {
+            WitnessAdoptionLineage::decode(&mut d)?
+        } else {
+            WitnessAdoptionLineage::default()
+        };
         d.finish()?;
         let result = Self {
             image,
@@ -142,6 +169,7 @@ impl Fence {
             request,
             prepared_at,
             receipt,
+            lineage,
         };
         if result.encode(key)? != wire {
             return Err(DurableError::Corrupt);

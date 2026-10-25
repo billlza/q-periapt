@@ -2,6 +2,8 @@
 use super::*;
 use crate::enrollment::tests::witness_handoff::transfer::Transfer;
 use crate::{AnchorOperation, AnchorSubject};
+#[path = "witness_transfer_policy_tests/successive.rs"]
+mod successive;
 
 #[test]
 fn enrollment_witness_selection_policy_metadata_refuses_rollback_before_reporting_absence() {

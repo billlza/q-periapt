@@ -87,6 +87,7 @@ pub(crate) use write_intent::account_root::transfer as account_root_transfer;
 pub use write_intent::account_root::{
     AccountRootJournalRecovery, AccountRootJournalState, AccountRootJournalTransition,
 };
+pub(crate) use write_intent::witness_handoff::{WitnessAdoptionLineage, WitnessSelectionProgress};
 pub use write_intent::witness_handoff::{
     WitnessJournalAdoption, WitnessJournalAdoptionPlan, WitnessJournalAdoptionState,
     WitnessPendingRecovery,

@@ -474,6 +474,7 @@ pub(super) fn restore_child_plan(root: &Path) -> WitnessJournalAdoptionPlan {
         history,
         account: restored.account,
         device: PublicKey::decode(&read("device")).expect("original device"),
+        predecessor: None,
     }
 }
 pub(super) fn rows(db: &Database) -> (Vec<u8>, Option<Vec<u8>>) {

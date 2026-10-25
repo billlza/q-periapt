@@ -52,38 +52,6 @@ pub(in crate::enrollment::tests) fn restore(
     WitnessJournalAdoptionPlan,
 ) {
     let read = |name| fs::read(root.join(name)).expect("original public input");
-    let pin = |name| {
-        let raw = read(name);
-        let mut d = Decoder::new(&raw);
-        let id = AnchorIdentity::from_trusted_state(d.array().expect("ID")).expect("identity");
-        let key = PublicKey::decode(d.take(PUBLIC_KEY_BYTES).expect("public key")).expect("key");
-        d.finish().expect("complete pin");
-        AnchorPin::new(id, key)
-    };
-    let origin = pin("origin-pin");
-    let current = pin("current-pin");
-    let history = AnchorHandoffHistory::restore_trusted_state(
-        &read("history"),
-        &origin,
-        &current,
-        read("checkpoint").try_into().expect("checkpoint"),
-    )
-    .expect("exact retained history");
-    let target = AnchorHandoffTargetApproval::restore_trusted_state(
-        &read("target-approval"),
-        &origin,
-        &current,
-    )
-    .expect("independent target approval");
-    let activation = target
-        .verify_activation_receipt(
-            &history,
-            &read("freeze"),
-            &read("ack"),
-            &read("retired"),
-            &read("activation"),
-        )
-        .expect("actual original activation");
     let checkpoint = read("policy-checkpoint");
     let mut d = Decoder::new(&checkpoint);
     let expected =
@@ -115,9 +83,53 @@ pub(in crate::enrollment::tests) fn restore(
     let original = owner
         .original_device_metadata(&image)
         .expect("original device");
+    let (plan, _) = restore_plan(root, &original, &policy);
+    (owner, policy, plan)
+}
+pub(in crate::enrollment::tests) fn restore_plan(
+    root: &Path,
+    original: &VerifiedDevice,
+    policy: &VerifiedSessionPolicy,
+) -> (
+    WitnessJournalAdoptionPlan,
+    AnchorHandoffClientAuthorizationReceipt,
+) {
+    let read = |name| fs::read(root.join(name)).expect("independently retained public input");
+    let pin = |name| {
+        let raw = read(name);
+        let mut d = Decoder::new(&raw);
+        let id = AnchorIdentity::from_trusted_state(d.array().expect("ID")).expect("identity");
+        let key = PublicKey::decode(d.take(PUBLIC_KEY_BYTES).expect("public key")).expect("key");
+        d.finish().expect("complete pin");
+        AnchorPin::new(id, key)
+    };
+    let origin = pin("origin-pin");
+    let current = pin("current-pin");
+    let history = AnchorHandoffHistory::restore_trusted_state(
+        &read("history"),
+        &origin,
+        &current,
+        read("checkpoint").try_into().expect("checkpoint"),
+    )
+    .expect("exact retained history");
+    let target = AnchorHandoffTargetApproval::restore_trusted_state(
+        &read("target-approval"),
+        &pin("source-pin"),
+        &current,
+    )
+    .expect("independent target approval");
+    let activation = target
+        .verify_activation_receipt(
+            &history,
+            &read("freeze"),
+            &read("ack"),
+            &read("retired"),
+            &read("activation"),
+        )
+        .expect("actual original activation");
     let materials = AnchorHandoffAdoptionMaterials {
-        original_device: &original,
-        current_device: &original,
+        original_device: original,
+        current_device: original,
         original_policy: policy.historical(),
         current_policy: policy.historical(),
         history: &history,
@@ -136,7 +148,10 @@ pub(in crate::enrollment::tests) fn restore(
     .expect("exact two-root consent");
     let plan =
         WitnessJournalAdoptionPlan::new(&approved, &materials).expect("original verified plan");
-    (owner, policy, plan)
+    let receipt =
+        AnchorHandoffClientAuthorizationReceipt::verify(&read("receipt"), &approved, &history)
+            .expect("exact independently verified current target receipt");
+    (plan, receipt)
 }
 #[test]
 fn enrollment_witness_selection_process_child() {

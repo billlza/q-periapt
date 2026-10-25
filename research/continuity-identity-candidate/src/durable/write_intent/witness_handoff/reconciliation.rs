@@ -49,7 +49,11 @@ impl WitnessJournalAdoption {
                 &owner.plan.request,
             )?;
             owner.client = Some(crate::AnchorClient::from_handoff(
-                authority, signer, transport, timeout,
+                authority,
+                fence.lineage.checkpoint(fence.prepared_at)?,
+                signer,
+                transport,
+                timeout,
             )?);
             Ok(())
         })();
@@ -69,7 +73,11 @@ impl WitnessJournalAdoption {
         let fence = owner.read()?;
         let receipt = fence.receipt.ok_or(DurableError::Suspended)?;
         let client = owner.client.take().ok_or(DurableError::AnchorRequired)?;
-        client.check_journal_selection(&fence.request, &receipt)?;
+        client.check_journal_selection(
+            &fence.request,
+            &receipt,
+            fence.lineage.checkpoint(fence.prepared_at)?,
+        )?;
         Ok(client)
     }
 }

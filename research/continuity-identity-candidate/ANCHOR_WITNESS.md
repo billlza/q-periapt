@@ -1277,7 +1277,7 @@ preparation on that same existing journal. Neither provisions missing storage.
 
 Preparation atomically records the exact public request, original encrypted-image
 digest, pending-intent digest and admission time in a separate `witness-handoff`
-row. Its MAC has a distinct derived key/domain. The fixed 16-KiB row budget
+row. Its MAC has a distinct derived key/domain. The first selection's 16-KiB budget
 reserves the complete target receipt before preparation succeeds. The original
 image, sealed pending target, revision, head and command identities are unchanged.
 New preparation checks time before the transaction and immediately before commit;
@@ -1389,7 +1389,7 @@ runtime, all lifecycle interleavings and successive handoffs remain open gates.
 The original `DeviceEnrollment` can prepare, adopt and observe the same journal
 selection and construct `current_witness_anchor_client` using its existing
 protected signer. It never generates a replacement signer on absence. The parent
-retains one bounded `QPEWAH01` row (at most 16 KiB), authenticated with a distinct
+retains its first selection in a `QPEWAH01` row (at most 16 KiB), authenticated with a distinct
 enrollment MAC domain. It binds the original signer identity, exact independently
 approved request, original admission time and exact target receipt. Capacity for
 the full future receipt is checked before the first child commit. Child
@@ -1574,6 +1574,69 @@ certificates, broken activation signatures or a well-formed current image that
 silently drops the original pending P. Restoring the exact owned test bytes
 restores original-state recovery; no automatic fallback is introduced.
 
-This server path is not full repeated client adoption. The original client
-journal's second selection, full client-capacity execution, history compaction,
-physical power loss and final ABI acceptance remain qualification gates.
+### Successive original-client selection
+
+`WitnessJournalAdoptionPlan::continue_from` binds a newly and independently
+approved plan to the previously retained plan and its exact verified target
+receipt. It requires a strict complete-history extension, the same original
+subject, namespace, logical witness, account and device, nondecreasing policy,
+and distinct adoption IDs. Offline clients may skip intermediate retired
+witnesses when the full history extends their last locally selected witness.
+Neither incoming storage bytes nor a target's new receipt can choose or replace
+the expected predecessor. A Prepared or unknown predecessor must first be
+reconciled under its original plan and receipt, even if its witness has retired.
+
+The first `QPWJAH01`/`QPEWAH01` encodings remain unchanged. Later selections use
+`QPWJAH02`/`QPEWAH02`, retaining every prior exact request, preparation time and
+receipt. Each decision keeps its 16-KiB limit; the separate metadata envelope is
+bounded to eight decisions, matching the server's eight-transition bound.
+The original encrypted image, pending G/P/R target, keys, command IDs and business
+capacity are not rewritten or enlarged. Full future-receipt capacity is reserved
+before the child's new decision can commit.
+
+Preparation compares and replaces only the exact adopted predecessor. A child
+that already committed the new selection can be reconciled into its lagging
+parent using that same new plan; missing rows or an old child under an already
+advanced parent are errors. Owner release requires both stores to agree.
+An attached `AnchorClient` pins the lineage and preparation time as well as its
+current authorization. Journal updates preserve that checkpoint while changing
+only the original operation's image/pending digests. The host must independently
+retain the complete expected plan/checkpoint chain; MACs cannot prevent a whole
+store rollback or recover a checkpoint that the host has forgotten.
+
+Local tests cover second selection at three original P stages, all eight local
+selections and an offline skipped intermediate selection. They retain expiry
+refusal, exact original operation completion and owner admission. Further tests
+reject unresolved predecessors, omitted rows, old parent/child combinations,
+MAC-valid omitted or substituted history, and a changed lineage under an
+already attached client before any request is dispatched. Eight second-selection
+child/parent prepare/adopt process cuts use real SIGKILL and a fresh recovery PID;
+the original P then completes over actual TCP. Separately calibrated child and
+parent transactions cover before/after-sync errors without counting database
+close syncs as transaction barriers. A real generated PQ prekey precedes P in
+these fixtures; its complete retained record, including sealed recovery material,
+is compared by digest after recovery. Retention does not grant permission to
+republish through the ordinary original-policy prekey API after P adoption;
+that API's refusal under both P0 and P1 is retained.
+
+Additional second-selection tests retain original G and R in Prepared,
+witness-Applied and locally-installed/unacknowledged states. R covers both the
+original policy and a previously adopted independent P. Current-target TCP
+reconciliation completes the exact original operation and parent ACK; historical
+closure remains possible after expiry. Grant-only cancellation covers reservation
+before or after the second selection, both with and without the device signer.
+Selection preserves its exact pending intent; the old target's receipt cannot
+authorize the new target's control interface.
+
+Account-root replacement is still a separate transaction. An existing original
+root intent makes public enrollment open refuse an ordinary owner; restricted
+storage admission cannot use a new Witness plan to replace it. Conversely, a
+selected original parent refuses the legacy account-root transaction without
+altering its journal or retained selection. Tests use actual inactive target
+enrollments and replacement proposals. This mutual exclusion is a safety boundary,
+not completed support for account-root replacement under a transferred Witness.
+That combined lifecycle requires an explicit current-authority transaction and
+recovery contract. Complete G/R/cancellation interruption matrices, full
+client-capacity execution, history compaction, installed/independent consumers,
+physical power loss, platform-wide evidence, final ABI admission and complete
+Witness qualification remain open.

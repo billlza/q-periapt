@@ -48,18 +48,44 @@ impl Owners {
         self,
         mut clock: impl FnMut() -> Result<u64, DurableError>,
     ) -> Result<WitnessJournalAdoption, DurableError> {
-        match self.read() {
-            Ok(_) => return Ok(WitnessJournalAdoption { active: Some(self) }),
-            Err(DurableError::Absent) => {}
+        let previous = match self.stored_selection() {
+            Ok(fence) if fence.request == self.plan.request => {
+                self.plan.check_selection(
+                    &fence.request,
+                    fence.prepared_at,
+                    fence.receipt.as_deref(),
+                    &fence.lineage,
+                )?;
+                return Ok(WitnessJournalAdoption { active: Some(self) });
+            }
+            Ok(fence) => {
+                self.plan.check_predecessor(
+                    &fence.request,
+                    fence.prepared_at,
+                    fence.receipt.as_deref(),
+                    &fence.lineage,
+                )?;
+                Some(fence)
+            }
+            Err(DurableError::Absent) if !self.plan.has_predecessor() => None,
             Err(error) => return Err(error),
-        }
+        };
         let (image, pending) = self.snapshot()?;
         let now = clock()?;
         self.plan.approved.check_admission(now)?;
-        let next = Fence::new(&image, pending.as_ref(), &self.plan, now);
+        let mut next = Fence::new(&image, pending.as_ref(), &self.plan, now);
+        if let Some(previous) = &previous {
+            next.lineage = previous.lineage.append(
+                &previous.request,
+                previous.prepared_at,
+                previous.receipt.as_deref().ok_or(DurableError::Suspended)?,
+            )?;
+        }
+        self.plan
+            .check_selection(&next.request, next.prepared_at, None, &next.lineage)?;
         next.check(&image, pending.as_ref())?;
         self.save(
-            None,
+            previous.as_ref(),
             &next,
             || {
                 let commit_time = clock()?;

@@ -90,6 +90,7 @@ impl From<Error> for AnchorClientError {
 pub struct AnchorClient {
     pin: AnchorPin,
     handoff: Option<Box<super::transferred::Authority>>,
+    selection_checkpoint: Option<[u8; 32]>,
     signer: Option<DeviceSigningKey>,
     transport: Box<dyn AnchorTransport>,
     timeout: Duration,
@@ -117,6 +118,7 @@ impl AnchorClient {
         Ok(Self {
             pin,
             handoff: None,
+            selection_checkpoint: None,
             signer: Some(signer),
             transport,
             timeout,
@@ -132,8 +134,12 @@ impl AnchorClient {
         &self,
         request: &[u8],
         receipt: &[u8],
+        selection_checkpoint: [u8; 32],
     ) -> Result<(), Error> {
         self.signer.as_ref().ok_or(Error::Closed)?;
+        if self.selection_checkpoint != Some(selection_checkpoint) {
+            return Err(Error::Scope);
+        }
         self.handoff
             .as_ref()
             .ok_or(Error::Scope)?
@@ -144,6 +150,7 @@ impl AnchorClient {
     // verifier below uses the current signer and exposes that provenance.
     pub(crate) fn from_handoff(
         authority: super::transferred::Authority,
+        selection_checkpoint: [u8; 32],
         signer: DeviceSigningKey,
         transport: Box<dyn AnchorTransport>,
         timeout: Duration,
@@ -156,6 +163,7 @@ impl AnchorClient {
         }
         let mut client = Self::new(authority.logical.clone(), signer, transport, timeout)?;
         client.handoff = Some(Box::new(authority));
+        client.selection_checkpoint = Some(selection_checkpoint);
         Ok(client)
     }
     pub(crate) fn check_device(&self, device: &VerifiedDevice) -> Result<(), Error> {

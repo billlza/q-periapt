@@ -3,6 +3,8 @@
 use super::*;
 use crate::enrollment::tests::witness_handoff::transfer::Transfer;
 use crate::{AnchorOperation, AnchorSubject, LeafKind, PrekeyId, WitnessJournalAdoptionState};
+#[path = "witness_transfer_credential_tests/successive.rs"]
+mod successive;
 
 #[test]
 fn enrollment_witness_selection_prepares_new_credential_after_transfer() {

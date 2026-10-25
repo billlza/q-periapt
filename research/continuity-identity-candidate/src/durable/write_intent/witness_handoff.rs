@@ -8,10 +8,14 @@ use crate::{
 mod cancellation;
 mod codec;
 mod guard;
+mod lineage;
 mod reconciliation;
+mod successor;
 mod transaction;
 use codec::Fence;
 pub(super) use guard::{Guard, Selection};
+pub(crate) use lineage::WitnessAdoptionLineage;
+use successor::Predecessor;
 #[cfg(all(test, unix))]
 pub(super) fn test_boundary(stage: &str, after: bool) {
     tests::boundary(stage, after);
@@ -32,6 +36,7 @@ pub struct WitnessJournalAdoptionPlan {
     history: AnchorHandoffHistory,
     account: [u8; 32],
     device: crate::PublicKey,
+    predecessor: Option<Box<Predecessor>>,
 }
 impl WitnessJournalAdoptionPlan {
     /// Revalidate both root approvals against independent identity, policy and
@@ -47,6 +52,7 @@ impl WitnessJournalAdoptionPlan {
             history: materials.history.clone(),
             account: materials.original_device.account,
             device: materials.original_device.key.clone(),
+            predecessor: None,
         })
     }
     /// Exact public request to use for the target authorization transaction.
@@ -119,6 +125,11 @@ struct Owners {
     key: JournalKey,
     plan: WitnessJournalAdoptionPlan,
 }
+pub(crate) struct WitnessSelectionProgress {
+    pub(crate) prepared_at: u64,
+    pub(crate) receipt: Option<Vec<u8>>,
+    pub(crate) lineage: WitnessAdoptionLineage,
+}
 impl Owners {
     fn snapshot(&self) -> Result<(Image, Option<PendingIntent>), DurableError> {
         let owner = self.plan.scope().subject.journal_parts().1;
@@ -131,7 +142,7 @@ impl Owners {
         self.plan.check_image(&snapshot.0)?;
         Ok(snapshot)
     }
-    fn read(&self) -> Result<Fence, DurableError> {
+    fn stored_selection(&self) -> Result<Fence, DurableError> {
         let (image, pending) = self.snapshot()?;
         let read = self.db.begin_read().map_err(storage)?;
         let table = image_table(&read)?;
@@ -141,12 +152,16 @@ impl Owners {
             .ok_or(DurableError::Absent)?;
         let fence = Fence::decode(&self.key, saved.value())?;
         fence.check(&image, pending.as_ref())?;
-        if fence.request != self.plan.request {
-            return Err(DurableError::Conflict);
-        }
-        if let Some(receipt) = &fence.receipt {
-            self.plan.verify_receipt(receipt)?;
-        }
+        Ok(fence)
+    }
+    fn read(&self) -> Result<Fence, DurableError> {
+        let fence = self.stored_selection()?;
+        self.plan.check_selection(
+            &fence.request,
+            fence.prepared_at,
+            fence.receipt.as_deref(),
+            &fence.lineage,
+        )?;
         Ok(fence)
     }
 }
@@ -164,9 +179,11 @@ pub struct WitnessJournalAdoption {
     active: Option<Owners>,
 }
 impl WitnessJournalAdoption {
-    /// Reconcile a first preparation on existing original storage. A retained
-    /// exact preparation is historical; absence requires a fresh decision within
-    /// the original admission interval. A different plan is never replaced.
+    /// Prepare on existing original storage or reconcile this exact preparation.
+    /// An explicitly approved `continue_from` plan can advance only its exact
+    /// durably adopted predecessor. Other existing decisions are never replaced;
+    /// missing state is admissible only for a first selection. New decisions
+    /// require fresh admission, while exact retained retries are historical.
     pub fn prepare_original(
         path: &Path,
         key: JournalKey,
@@ -215,9 +232,13 @@ impl WitnessJournalAdoption {
             active: Some(owner),
         })
     }
-    pub(crate) fn enrollment_selection(&self) -> Result<(u64, Option<Vec<u8>>), DurableError> {
+    pub(crate) fn enrollment_selection(&self) -> Result<WitnessSelectionProgress, DurableError> {
         let fence = self.active.as_ref().ok_or(DurableError::Closed)?.read()?;
-        Ok((fence.prepared_at, fence.receipt))
+        Ok(WitnessSelectionProgress {
+            prepared_at: fence.prepared_at,
+            receipt: fence.receipt,
+            lineage: fence.lineage,
+        })
     }
     /// Observe authenticated local progress without contacting either witness.
     pub fn status(&mut self) -> Result<WitnessJournalAdoptionState, DurableError> {
@@ -290,6 +311,7 @@ pub(super) fn validate_snapshot(
         client.check_journal_selection(
             &fence.request,
             fence.receipt.as_deref().ok_or(DurableError::Suspended)?,
+            fence.lineage.checkpoint(fence.prepared_at)?,
         )?;
     }
     Ok(())

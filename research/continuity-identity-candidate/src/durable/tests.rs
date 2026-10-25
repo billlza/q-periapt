@@ -18,6 +18,18 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// Authenticate deliberate control-row corruption in owned test fixtures.
+/// Kept under the existing Unix test module, never in the public key API.
+pub(crate) fn authenticate_witness_control(key: &JournalKey, body: &[u8]) -> Vec<u8> {
+    let derived = key
+        .witness_handoff_key()
+        .expect("owned fixture control key");
+    let mut mac = <hmac::Hmac<sha2::Sha256> as hmac::KeyInit>::new_from_slice(derived.as_bytes())
+        .expect("fixed key");
+    hmac::Mac::update(&mut mac, body);
+    [body, hmac::Mac::finalize(mac).into_bytes().as_slice()].concat()
+}
+
 pub(crate) fn directory() -> tempfile::TempDir {
     tempfile::Builder::new()
         .prefix("continuity-journal-")
@@ -1235,6 +1247,30 @@ pub(crate) struct JournalSnapshot {
     pub(crate) digest: [u8; 32],
 }
 impl DeviceJournal {
+    /// Compare a real available prekey's full retained record without exporting
+    /// its sealed recovery material or asserting permission to republish it.
+    pub(crate) fn test_retained_prekey_digest(&mut self, request: crate::PrekeyId) -> [u8; 32] {
+        let image = self.image().expect("authenticated original image");
+        let id = digest(
+            b"Q-PERIAPT-CONTINUITY-PREKEY-INVENTORY-ID/v1",
+            request.as_bytes(),
+        );
+        let record = image.records.get(&id).expect("retained original prekey");
+        assert!(record.kind == RecordKind::Prekey);
+        assert!(record.phase == DurableStatus::PrekeyAvailable);
+        assert_eq!(record.authorities, [image.local_account]);
+        assert!(
+            record.keys.is_empty() && record.prekeys.is_empty() && record.cancellation.is_none()
+        );
+        let mut hash = <sha2::Sha256 as sha2::Digest>::new();
+        sha2::Digest::update(&mut hash, b"Q-PERIAPT-TEST-RETAINED-PREKEY/v1");
+        sha2::Digest::update(&mut hash, id);
+        sha2::Digest::update(&mut hash, record.context);
+        sha2::Digest::update(&mut hash, [record.kind as u8, record.phase as u8]);
+        sha2::Digest::update(&mut hash, image.local_account);
+        sha2::Digest::update(&mut hash, &record.payload);
+        sha2::Digest::finalize(hash).into()
+    }
     pub(crate) fn test_snapshot(&mut self) -> JournalSnapshot {
         let image = self.image().expect("authenticated test image");
         JournalSnapshot {

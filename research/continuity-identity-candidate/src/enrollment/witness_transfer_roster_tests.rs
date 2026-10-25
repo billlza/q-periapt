@@ -2,6 +2,8 @@
 use super::*;
 use crate::enrollment::tests::witness_handoff::transfer::Transfer;
 use crate::AnchorSubject;
+#[path = "witness_transfer_roster_tests/successive.rs"]
+mod successive;
 
 #[test]
 fn enrollment_witness_selection_prepares_new_roster_after_transfer() {

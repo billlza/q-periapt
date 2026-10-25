@@ -42,6 +42,7 @@ impl DeviceEnrollment {
                 .check_journal_selection(
                     &state.request,
                     state.receipt.as_deref().ok_or(DurableError::Suspended)?,
+                    state.lineage.checkpoint(state.prepared_at)?,
                 )
                 .map_err(Into::into),
             None if client.is_some_and(AnchorClient::is_transferred) => {
@@ -137,14 +138,27 @@ impl DeviceEnrollment {
     ) -> Result<WitnessJournalAdoptionState, DurableError> {
         let progress = child.enrollment_selection()?;
         if let Some(old) = previous {
-            old.check_plan(plan)?;
-            old.check_child(&progress)?;
+            if old.preparation_is_successor(plan)? {
+                let expected = old.lineage.append(
+                    &old.request,
+                    old.prepared_at,
+                    old.receipt.as_deref().ok_or(DurableError::Suspended)?,
+                )?;
+                if progress.lineage != expected {
+                    return Err(DurableError::Conflict);
+                }
+            } else {
+                old.check_child(&progress)?;
+            }
+        } else if plan.has_predecessor() {
+            return Err(DurableError::Absent);
         }
         let next = State {
             identity: image.identity,
             request: plan.authorization_request().to_vec(),
-            prepared_at: progress.0,
-            receipt: progress.1,
+            prepared_at: progress.prepared_at,
+            receipt: progress.receipt,
+            lineage: progress.lineage,
         };
         next.check_image(image)?;
         self.save_witness_selection(previous, &next)?;
@@ -156,8 +170,10 @@ impl DeviceEnrollment {
     maybe_async::must_be_sync
 )]
 impl DeviceEnrollment {
-    /// Prepare or reconcile the same independently approved witness selection on
-    /// the existing installation. Child preparation precedes parent publication;
+    /// Prepare or reconcile an independently approved witness selection on the
+    /// existing installation. Advancing an adopted selection requires the exact
+    /// predecessor retained in a `continue_from` plan; a Prepared predecessor
+    /// cannot be replaced. Child preparation precedes parent publication;
     /// no current client is released until both agree. Once the parent records a
     /// selection, a missing child control row is never recreated. Exact historical
     /// retries retain the first decision; this does not extend traffic permission.
@@ -186,18 +202,20 @@ impl DeviceEnrollment {
     ) -> Result<WitnessJournalAdoptionState, DurableError> {
         let image = self.image()?;
         let (original, id) = self.witness_handoff_scope(&image, policy, &plan)?;
-        State::reserve_capacity(plan.authorization_request().len())?;
+        State::reserve_capacity(&plan)?;
         let previous = self.witness_selection()?;
-        if let Some(old) = &previous {
-            old.check_plan(&plan)?;
-        }
+        let successor = match &previous {
+            Some(old) => old.preparation_is_successor(&plan)?,
+            None if plan.has_predecessor() => return Err(DurableError::Absent),
+            None => false,
+        };
         let _installation = self.witness_lease(&original, policy, id).await?;
         let key = self.key().await?;
         let db = self
             .storage
             .open_database(self.paths.installation.files()[1])
             .await?;
-        let child = if previous.is_some() {
+        let child = if previous.is_some() && !successor {
             WitnessJournalAdoption::resume_in_database(db, key, plan.clone())?
         } else {
             WitnessJournalAdoption::prepare_in_database(db, key, plan.clone(), trusted_time)?

@@ -38,13 +38,18 @@ impl Guard {
         match selection {
             Selection::Client(client) => client
                 .ok_or(DurableError::Suspended)?
-                .check_journal_selection(&fence.request, receipt)?,
+                .check_journal_selection(
+                    &fence.request,
+                    receipt,
+                    fence.lineage.checkpoint(fence.prepared_at)?,
+                )?,
             Selection::Adopted(plan) => {
-                if fence.request != plan.request {
-                    return Err(DurableError::Conflict);
-                }
-                plan.verify_receipt(receipt)?;
-                plan.scope().validity().check(fence.prepared_at)?;
+                plan.check_selection(
+                    &fence.request,
+                    fence.prepared_at,
+                    Some(receipt),
+                    &fence.lineage,
+                )?;
             }
         }
         let image = table

@@ -77,6 +77,26 @@ pub struct AnchorHandoffHistory {
     transitions: Vec<Transition>,
 }
 impl AnchorHandoffHistory {
+    pub(crate) const MAX_TRANSITIONS: usize = MAX_TRANSITIONS;
+
+    pub(crate) fn require_extension_of(&self, prior: &Self) -> Result<(), Error> {
+        if self.origin.binding != prior.origin.binding
+            || self.sequence() <= prior.sequence()
+            || !prior
+                .transitions
+                .iter()
+                .zip(&self.transitions)
+                .all(|(old, next)| {
+                    old.approval.to_bytes() == next.approval.to_bytes()
+                        && old.freeze == next.freeze
+                        && old.acknowledgement == next.acknowledgement
+                        && old.retirement == next.retirement
+                })
+        {
+            return Err(Error::Scope);
+        }
+        Ok(())
+    }
     pub(in crate::anchor::store) fn context(&self) -> HistoryContext {
         self.context
     }

@@ -24,6 +24,31 @@ pub(in crate::enrollment::tests) struct Transfer {
     pub(in crate::enrollment::tests) requests: Arc<AtomicUsize>,
 }
 impl Transfer {
+    pub(in crate::enrollment::tests) fn successor(
+        &self,
+        c: &Case,
+        original: &VerifiedDevice,
+        current: &VerifiedDevice,
+        policy: &HistoricalSessionPolicy,
+        subject: AnchorSubject,
+        decision: (u64, u8),
+    ) -> Self {
+        let mut next = Self::with_decision(
+            &mut self.target.lock().expect("actual selected source"),
+            c,
+            original,
+            current,
+            policy,
+            subject,
+            decision,
+        );
+        next.plan = next
+            .plan
+            .clone()
+            .continue_from(&self.plan, &self.control)
+            .expect("independently retained exact predecessor and target receipt");
+        next
+    }
     pub(in crate::enrollment::tests) fn reopen_target(&self) {
         let path = self
             ._directory
@@ -76,6 +101,26 @@ impl Transfer {
         subject: AnchorSubject,
         at: u64,
     ) -> Self {
+        Self::with_decision(
+            source,
+            c,
+            original,
+            current,
+            current_policy,
+            subject,
+            (at, 75),
+        )
+    }
+    pub(in crate::enrollment::tests) fn with_decision(
+        source: &mut AnchorStore,
+        c: &Case,
+        original: &VerifiedDevice,
+        current: &VerifiedDevice,
+        current_policy: &HistoricalSessionPolicy,
+        subject: AnchorSubject,
+        decision: (u64, u8),
+    ) -> Self {
+        let (at, operation) = decision;
         let directory = directory();
         let path = directory.path().canonicalize().expect("target directory");
         let origin = source.pin().expect("original source pin");
@@ -95,7 +140,7 @@ impl Transfer {
             .handoff_source_state()
             .expect("full original witness state");
         let transfer = AnchorHandoffPlan::from_trusted_state(
-            [75; 32],
+            [operation; 32],
             &image,
             target_pin.clone(),
             Validity::new(at, until).expect("transfer interval"),
@@ -173,9 +218,20 @@ impl Transfer {
             .authorize_handoff_client(plan.authorization_request(), || Ok(adopt_at))
             .expect("target authorization");
         let receipt = control.as_bytes().to_vec();
+        let namespace = history
+            .historical_pin(history.namespace_binding())
+            .expect("original namespace pin");
         let public_inputs = vec![
             (
                 "origin-pin",
+                [
+                    namespace.identity().as_bytes().as_slice(),
+                    &namespace.public_key().encode(),
+                ]
+                .concat(),
+            ),
+            (
+                "source-pin",
                 [
                     origin.identity().as_bytes().as_slice(),
                     &origin.public_key().encode(),

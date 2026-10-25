@@ -7,6 +7,8 @@ use crate::{AnchorSubject, LeafKind, PrekeyId};
 mod faults;
 #[path = "witness_transfer_cancellation_tests/process.rs"]
 mod process;
+#[path = "witness_transfer_cancellation_tests/successive.rs"]
+mod successive;
 #[path = "witness_transfer_cancellation_tests/validation.rs"]
 mod validation;
 
