@@ -2,6 +2,14 @@
 use std::path::Path;
 
 pub(super) fn after_commit(stage: &str) {
+    target_boundary(stage, true);
+}
+
+pub(super) fn before_commit(stage: &str) {
+    target_boundary(stage, false);
+}
+
+fn target_boundary(stage: &str, committed: bool) {
     let Ok(expected) = std::env::var("QPERIAPT_HANDOFF_TARGET_STAGE") else {
         return;
     };
@@ -11,7 +19,15 @@ pub(super) fn after_commit(stage: &str) {
     let path =
         std::env::var_os("QPERIAPT_HANDOFF_TARGET_DIR").expect("test-owned target directory");
     let path = Path::new(&path);
-    std::fs::write(path.join("ready.tmp"), b"committed").expect("test marker");
+    std::fs::write(
+        path.join("ready.tmp"),
+        if committed {
+            b"committed".as_slice()
+        } else {
+            b"before-commit".as_slice()
+        },
+    )
+    .expect("test marker");
     std::fs::rename(path.join("ready.tmp"), path.join("ready")).expect("publish test marker");
     loop {
         std::thread::park();

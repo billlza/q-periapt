@@ -6,7 +6,9 @@ mod recovery;
 mod validation;
 
 fn setup(kind: &str, applied: bool, cancelled_before: bool) -> (Prepared, TargetFixture) {
-    let mut f = Prepared::new(Some((kind, applied)));
+    next_from(Prepared::new(Some((kind, applied))), cancelled_before)
+}
+fn next_from(mut f: Prepared, cancelled_before: bool) -> (Prepared, TargetFixture) {
     f.active
         .authorize_handoff_client(&f.request, || Ok(180))
         .expect("existing B client approval");
@@ -115,7 +117,7 @@ fn successive_import_preserves_complete_source_and_exact_cancellation() {
                 .expect("C signer and approved plan");
             assert!(matches!(
                 target.activate(&f.retired, next.signer()),
-                Err(DurableError::Suspended)
+                Err(DurableError::Protocol(Error::Scope))
             ));
             target.close();
             let withheld = [next.directory.join("signer"), f.f.directory.join("signer")];
@@ -136,9 +138,8 @@ fn successive_import_preserves_complete_source_and_exact_cancellation() {
                 ack.as_bytes()
             );
             assert!(matches!(
-                f.active
-                    .retire_handoff(&next.approval, ack.as_bytes(), || Ok(185)),
-                Err(DurableError::Suspended)
+                f.active.retire_handoff(&next.approval, &[], || Ok(185)),
+                Err(DurableError::Protocol(Error::Encoding))
             ));
             let cancelled = f
                 .active
@@ -185,3 +186,6 @@ fn successive_import_preserves_complete_source_and_exact_cancellation() {
         }
     }
 }
+
+#[path = "handoff_successive_activation_tests.rs"]
+mod activation;

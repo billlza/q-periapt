@@ -1505,13 +1505,12 @@ before freezing; expiry cannot silently cancel or reuse a plan. Process-loss
 and synchronization-failure tests cover these reversible source transactions,
 with owner cleanup and precise retries against the original database.
 
-Successive retirement, activation with complete history and fresh client
-re-adoption still require integration. Their existing refusal remains in place:
-the original importer cannot treat this capture as an initial-authority image.
-Downstream storage must preserve all historical proofs and separately bound
-client approvals rather than flattening them into a current pin. This reversible
-source transaction does not complete the second transfer or establish power-loss,
-compaction, full client-capacity or physical-platform acceptance.
+The complete-history server transaction below extends these reversible decisions
+to retirement and activation. Client journal re-adoption remains a separate gate.
+Downstream storage preserves all historical proofs and separately bound client
+approvals rather than flattening them into a current pin. This source transaction
+does not establish power-loss, compaction, full client-capacity or physical-platform
+acceptance.
 
 ### Inactive import of an activated source
 
@@ -1533,9 +1532,48 @@ and retains the complete archive; expired admission does not delete it. Old
 import formats remain unchanged. No source storage key or private signer is an
 input, including during cold observation.
 
-The imported target remains inactive. Source retirement and target activation
-are still refused until their full-history transaction and preflight are
-integrated. In particular, an operating owner must not re-read or rewrite the
-whole immutable archive on ordinary data updates. These checks cover current
-emitted snapshots, not complete repeated target activation, fresh client adoption,
-history compaction, physical power loss or final ABI acceptance.
+Import alone leaves the target inactive. The server retirement/activation path
+verifies and extends the complete preceding history, reserving current-image,
+all client-index entries and a future source-control digest before retirement.
+`QPAHI006` retains an activated archived source; `QPAHSS03` captures its complete
+prior archive, current image, history, client records and source control. Each
+recursive validation consumes one approved history transition. The total capture
+bound is eight per-layer bounds, matching the existing eight-transition limit;
+individual image, proof and control-row bounds are unchanged.
+
+Cold opening and explicit capture authenticate the complete immutable archive.
+A live owner retains its verified original state and history; ordinary requests
+authenticate current metadata and its immutable commitment without reading,
+hashing or rewriting the full archive. Exact archive membership is still checked.
+Missing or corrupt retained state is an error, never an empty fallback. Large
+optional journals and live owners use owned heap allocations so ordinary image
+movement and nested validation do not copy their entire inline representations.
+
+The successor preserves the original namespace, heads and logical command IDs.
+Old client grants do not authorize the new target: fresh independent account and
+policy approval is required. Activation receipt verification requires the exact
+complete history and its final transition, not a newly initialized current pin.
+Local tests exercise three successive server transitions with original P
+status/commit/retry, all six Prepared/Applied G/P/R images, and the eight-transition
+limit with cold reopen and original P status at each step. A ninth import is
+rejected before publication and leaves the original source cancellable.
+
+Both the first successive source and an already archived source have real
+SIGKILL cuts before/after retirement and activation commits (eight process kills).
+The same two paths calibrate three retirement and two activation sync barriers,
+then inject failure before/after every barrier (twenty faults); database-close
+syncs are measured separately. Recovery inspects the original durable outcome,
+replays any already retained certificate exactly, and executes the original P
+status, commit and exact retry after fresh client authorization. These process
+and I/O tests do not simulate hardware power loss.
+
+Receipt checks refuse a prior history, a reset current-pin history, an earlier
+valid retirement and modified activation signatures. Cold opening also rejects
+modified archives and, even with a valid target MAC, substituted historical
+certificates, broken activation signatures or a well-formed current image that
+silently drops the original pending P. Restoring the exact owned test bytes
+restores original-state recovery; no automatic fallback is introduced.
+
+This server path is not full repeated client adoption. The original client
+journal's second selection, full client-capacity execution, history compaction,
+physical power loss and final ABI acceptance remain qualification gates.

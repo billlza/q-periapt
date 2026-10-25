@@ -299,10 +299,10 @@ fn successive_source_freeze_rejects_a_capture_before_client_authorization() {
             .as_bytes(),
         snapshot.as_bytes()
     );
-    // Reversible source decisions must not bypass the pending full C admission.
+    // A prior target approval is not the independently approved current plan.
     assert!(matches!(
         f.active.retire_handoff(&f.f.approval, &[], || Ok(182)),
-        Err(DurableError::Suspended)
+        Err(DurableError::Absent)
     ));
     f.active
         .cancel_handoff(&current)

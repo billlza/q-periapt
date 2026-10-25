@@ -111,7 +111,7 @@ pub(super) fn encode_body(pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, Dur
     if image.handoff.is_none() {
         return Ok(content);
     }
-    handoff::wrap(pin, image.revision, &content, image.handoff.as_ref())
+    handoff::wrap(pin, image.revision, &content, image.handoff.as_deref())
 }
 
 pub(super) fn encode_content(
@@ -303,10 +303,10 @@ pub(super) fn decode(
         let (body, handoff) = handoff::unwrap(pin, body)?;
         let mut image = decode_content(pin, body)?;
         image.digest = image_digest(bytes);
-        image.handoff = handoff;
+        image.handoff = handoff.map(Box::new);
         if image.handoff.is_some() {
             let content = encode_content(pin, &image)?;
-            handoff::validate(pin, image.revision, &content, image.handoff.as_ref())?;
+            handoff::validate(pin, image.revision, &content, image.handoff.as_deref())?;
         }
         Ok(image)
     })();

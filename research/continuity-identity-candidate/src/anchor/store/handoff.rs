@@ -295,7 +295,7 @@ impl AnchorStore {
         }
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
         let receipt = AnchorHandoffReceipt::sign(plan, AnchorHandoffState::Frozen, &owner.signer)?;
-        image.handoff.get_or_insert_with(Journal::default).frozen = Some(receipt.clone());
+        image.handoff.get_or_insert_with(Box::default).frozen = Some(receipt.clone());
         // Cancellation moves this same-sized receipt into the retained history.
         // Reserve that space before the freeze; never require a later reset.
         self.preflight_handoff_image(&image)?;
@@ -431,3 +431,6 @@ fn source_commitment(bytes: &[u8]) -> [u8; 32] {
 pub(in crate::anchor::store) use import::activation::Transferred;
 
 pub(in crate::anchor::store::handoff) use import::preflight_activation;
+
+#[cfg(test)]
+pub(super) use import::take_archive_reads;

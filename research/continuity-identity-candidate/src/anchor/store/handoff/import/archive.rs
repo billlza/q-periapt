@@ -1,13 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Immutable complete prior-state archive, outside the bounded primary row.
+//! Immutable complete prior-state archive, outside the bounded current row.
 use super::*;
+mod source;
+pub(super) use source::Source;
 
 pub(super) const TABLE: TableDefinition<&str, &[u8]> =
     TableDefinition::new("continuity_anchor_handoff_source_archive_v1");
 const MAX_ARCHIVE: usize = activation::source::MAX_SOURCE;
 
+#[cfg(test)]
+std::thread_local! {static SOURCE_READS: std::cell::Cell<usize> = const {std::cell::Cell::new(0)};}
+#[cfg(test)]
+pub(in crate::anchor::store) fn take_archive_reads() -> usize {
+    SOURCE_READS.with(|count| count.replace(0))
+}
+
 pub(super) fn is_capture(bytes: &[u8]) -> bool {
-    bytes.starts_with(b"QPAHSS01") || bytes.starts_with(b"QPAHSS02")
+    bytes.starts_with(b"QPAHSS01")
+        || bytes.starts_with(b"QPAHSS02")
+        || bytes.starts_with(b"QPAHSS03")
 }
 fn admit_bytes(approval: &AnchorHandoffTargetApproval, source: &[u8]) -> Result<(), DurableError> {
     if source.len() > MAX_ARCHIVE {
@@ -18,12 +29,11 @@ fn admit_bytes(approval: &AnchorHandoffTargetApproval, source: &[u8]) -> Result<
     }
     Ok(())
 }
-
 pub(super) fn validate_source(
     key: &JournalKey,
     approval: &AnchorHandoffTargetApproval,
     source: &[u8],
-) -> Result<Image, DurableError> {
+) -> Result<storage::SourceState, DurableError> {
     admit_bytes(approval, source)?;
     let mut d = Decoder::new(source);
     d.take(8)?;
@@ -34,9 +44,13 @@ pub(super) fn validate_source(
     if image.revision != approval.plan.revision {
         return Err(DurableError::Corrupt);
     }
-    Ok(image)
+    Ok(storage::SourceState {
+        image,
+        history,
+        commitment: source_commitment(source),
+        archived: true,
+    })
 }
-
 pub(super) fn publish(
     tx: &redb::WriteTransaction,
     approval: &AnchorHandoffTargetApproval,
@@ -50,65 +64,32 @@ pub(super) fn publish(
     table.insert("source", source).map_err(storage)?;
     Ok(())
 }
-
-pub(super) fn read(
-    tx: &redb::ReadTransaction,
-    approval: &AnchorHandoffTargetApproval,
-) -> Result<Vec<u8>, DurableError> {
+pub(super) fn check_membership(tx: &redb::ReadTransaction) -> Result<(), DurableError> {
     let table = tx.open_table(TABLE).map_err(storage)?;
     if table.len().map_err(storage)? != 1 {
         return Err(DurableError::Corrupt);
     }
+    let value = table
+        .get("source")
+        .map_err(storage)?
+        .ok_or(DurableError::Corrupt)?;
+    if value.value().len() > MAX_ARCHIVE || !is_capture(value.value()) {
+        return Err(DurableError::Corrupt);
+    }
+    Ok(())
+}
+fn read(
+    tx: &redb::ReadTransaction,
+    approval: &AnchorHandoffTargetApproval,
+) -> Result<Vec<u8>, DurableError> {
+    #[cfg(test)]
+    SOURCE_READS.with(|count| count.set(count.get().checked_add(1).expect("bounded test reads")));
+    check_membership(tx)?;
+    let table = tx.open_table(TABLE).map_err(storage)?;
     let row = table
         .get("source")
         .map_err(storage)?
         .ok_or(DurableError::Corrupt)?;
     admit_bytes(approval, row.value())?;
     Ok(row.value().to_vec())
-}
-
-pub(super) fn seal_primary(
-    key: &JournalKey,
-    approval: &AnchorHandoffTargetApproval,
-    image: &ImportedImage,
-) -> Result<Vec<u8>, DurableError> {
-    // Successive activation needs full prior-history admission and its own
-    // immutable-archive operating boundary. Never route this import through the
-    // first-transition owner merely because the primary row fits.
-    if image.activation.is_some()
-        || image.source_control.is_some()
-        || !image.client_index.is_empty()
-    {
-        return Err(DurableError::Suspended);
-    }
-    admit_bytes(approval, &image.source)?;
-    let mut bytes = b"QPAHI005".to_vec();
-    super::super::codec::put(&approval.to_bytes(), &mut bytes)?;
-    bytes.extend_from_slice(&approval.plan.commitment);
-    super::super::codec::put(&image.freeze, &mut bytes)?;
-    super::super::codec::put(&image.acknowledgement, &mut bytes)?;
-    match &image.cancellation {
-        None => bytes.push(0),
-        Some(wire) => {
-            bytes.push(1);
-            super::super::codec::put(wire, &mut bytes)?;
-        }
-    }
-    let reserved = if image.cancellation.is_none() {
-        4 + image.freeze.len()
-    } else {
-        0
-    };
-    if bytes
-        .len()
-        .checked_add(32 + reserved)
-        .ok_or(DurableError::Capacity)?
-        > MAX_IMPORT_IMAGE
-    {
-        return Err(DurableError::Capacity);
-    }
-    let mut auth = authenticator(key)?;
-    auth.update(&bytes);
-    bytes.extend_from_slice(&auth.finalize().into_bytes());
-    Ok(bytes)
 }

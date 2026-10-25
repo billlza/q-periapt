@@ -37,11 +37,12 @@ impl AnchorHandoffActivationReceipt {
 
 pub(super) fn history(
     approval: &AnchorHandoffTargetApproval,
+    prior: &AnchorHandoffHistory,
     freeze: &[u8],
     acknowledgement: &[u8],
     retirement: &[u8],
 ) -> Result<AnchorHandoffHistory, DurableError> {
-    let mut history = AnchorHandoffHistory::from_trusted_origin(approval.plan.source.clone());
+    let mut history = prior.clone();
     history.append_verified(approval, freeze, acknowledgement, retirement)?;
     Ok(history)
 }
@@ -79,13 +80,14 @@ fn receipt_body(
 
 fn verify(
     approval: &AnchorHandoffTargetApproval,
+    history: &AnchorHandoffHistory,
     freeze: &[u8],
     acknowledgement: &[u8],
     retirement: &[u8],
     wire: &[u8],
 ) -> Result<(AnchorHandoffActivationReceipt, AnchorHandoffHistory), DurableError> {
-    let history = history(approval, freeze, acknowledgement, retirement)?;
-    let expected = receipt_body(approval, freeze, acknowledgement, retirement, &history);
+    history.require_tail(approval, freeze, acknowledgement, retirement)?;
+    let expected = receipt_body(approval, freeze, acknowledgement, retirement, history);
     let (actual, signature) = open_envelope(wire)?;
     if expected.len() != BODY_BYTES || actual != expected {
         return Err(Error::Scope.into());
@@ -100,7 +102,7 @@ fn verify(
             wire: wire.to_vec(),
             checkpoint: history.checkpoint(),
         },
-        history,
+        history.clone(),
     ))
 }
 impl AnchorHandoffTargetApproval {
@@ -109,12 +111,13 @@ impl AnchorHandoffTargetApproval {
     /// certificate grants no inherited client permission or operating reply.
     pub fn verify_activation_receipt(
         &self,
+        history: &AnchorHandoffHistory,
         freeze: &[u8],
         acknowledgement: &[u8],
         retirement: &[u8],
         wire: &[u8],
     ) -> Result<AnchorHandoffActivationReceipt, DurableError> {
-        Ok(verify(self, freeze, acknowledgement, retirement, wire)?.0)
+        Ok(verify(self, history, freeze, acknowledgement, retirement, wire)?.0)
     }
 }
 
@@ -125,10 +128,32 @@ fn stored_inheritance_error(error: DurableError) -> DurableError {
     }
 }
 
+pub(super) fn verified_activation(
+    approval: &AnchorHandoffTargetApproval,
+    image: &ImportedImage,
+    source: &storage::SourceState,
+) -> Result<(AnchorHandoffActivationReceipt, AnchorHandoffHistory), DurableError> {
+    let activation = image.activation.as_ref().ok_or(DurableError::Absent)?;
+    let history = history(
+        approval,
+        &source.history,
+        &image.freeze,
+        &image.acknowledgement,
+        &activation.retirement,
+    )?;
+    verify(
+        approval,
+        &history,
+        &image.freeze,
+        &image.acknowledgement,
+        &activation.retirement,
+        &activation.receipt,
+    )
+}
 pub(super) fn validate(
     approval: &AnchorHandoffTargetApproval,
     image: &ImportedImage,
-    original: &Image,
+    source: &storage::SourceState,
 ) -> Result<(), DurableError> {
     let Some(activation) = &image.activation else {
         return Ok(());
@@ -136,15 +161,9 @@ pub(super) fn validate(
     if image.cancellation.is_some() {
         return Err(DurableError::Corrupt);
     }
-    let (_, history) = verify(
-        approval,
-        &image.freeze,
-        &image.acknowledgement,
-        &activation.retirement,
-        &activation.receipt,
-    )?;
+    let (_, history) = verified_activation(approval, image, source)?;
     let current = image_codec::decode_content(&history, &activation.content)?;
-    inherited::check(original, &current, &history, &image.client_index)
+    inherited::check(&source.image, &current, &history, &image.client_index)
         .map_err(stored_inheritance_error)
 }
 
@@ -157,7 +176,7 @@ pub(in crate::anchor::store) struct Transferred {
     approval: AnchorHandoffTargetApproval,
     immutable: [u8; 32],
     history: AnchorHandoffHistory,
-    original: Image,
+    original: storage::SourceState,
 }
 fn immutable(image: &ImportedImage) -> Result<[u8; 32], DurableError> {
     let activation = image.activation.as_ref().ok_or(DurableError::Corrupt)?;
@@ -165,8 +184,8 @@ fn immutable(image: &ImportedImage) -> Result<[u8; 32], DurableError> {
         return Err(DurableError::Corrupt);
     }
     let mut body = b"QPAHAC-IMMUTABLE/v1".to_vec();
+    super::super::codec::put(&image.source.commitment(), &mut body)?;
     for value in [
-        &image.source,
         &image.freeze,
         &image.acknowledgement,
         &activation.retirement,
@@ -186,10 +205,10 @@ impl Transferred {
         approval: AnchorHandoffTargetApproval,
         image: &ImportedImage,
     ) -> Result<Self, DurableError> {
-        let original = storage::validate_source(key, &approval, &image.source, &image.freeze)?;
+        let original = storage::source_state(db, key, &approval, image)?;
         validate(&approval, image, &original)?;
         let client_contexts = authorization::verified_contexts(db, &approval, image, &original)?;
-        source_control::verify_image(db, key, &approval, image)?;
+        source_control::verify_image(db, key, &approval, image, &original)?;
         let activation = image.activation.as_ref().ok_or(DurableError::Absent)?;
         Ok(Self {
             client_index: image.client_index.clone(),
@@ -197,6 +216,7 @@ impl Transferred {
             immutable: immutable(image)?,
             history: history(
                 &approval,
+                &original.history,
                 &image.freeze,
                 &image.acknowledgement,
                 &activation.retirement,
@@ -238,8 +258,13 @@ impl Transferred {
         self.admit(&saved)?;
         let activation = saved.activation.as_ref().ok_or(DurableError::Corrupt)?;
         let mut image = image_codec::decode_content(&self.history, &activation.content)?;
-        inherited::check(&self.original, &image, &self.history, &self.client_index)
-            .map_err(stored_inheritance_error)?;
+        inherited::check(
+            &self.original.image,
+            &image,
+            &self.history,
+            &self.client_index,
+        )
+        .map_err(stored_inheritance_error)?;
         image.handoff = source_control::load(
             db,
             key,
@@ -247,8 +272,9 @@ impl Transferred {
             &saved,
             &self.history,
             image.revision,
-        )?;
-        image.inherited = self.original.entries.keys().copied().collect();
+        )?
+        .map(Box::new);
+        image.inherited = self.original.image.entries.keys().copied().collect();
         image.digest = saved.digest;
         Ok(image)
     }
@@ -284,12 +310,17 @@ impl Transferred {
             return Err(DurableError::Suspended);
         }
         source_control::same(
-            image.handoff.as_ref(),
+            image.handoff.as_deref(),
             journal.as_ref(),
             &self.history,
             before.revision,
         )?;
-        inherited::check(&self.original, image, &self.history, &self.client_index)?;
+        inherited::check(
+            &self.original.image,
+            image,
+            &self.history,
+            &self.client_index,
+        )?;
         saved
             .activation
             .as_mut()
@@ -350,8 +381,8 @@ impl AnchorHandoffTarget {
     /// Retain the original approval, retirement, target key and path. An error
     /// may follow commit: reopen this same target, inspect its activation receipt
     /// and retry these exact inputs. A different retirement cannot replace it.
-    /// Further handoff and inherited-client adoption remain separate candidate
-    /// integration gates; this owner must not bypass them through legacy methods.
+    /// A further handoff retains the complete preceding history. Each target
+    /// requires fresh client approval; activation cannot replace client adoption.
     pub fn activate(
         &mut self,
         retirement: &[u8],
@@ -361,15 +392,14 @@ impl AnchorHandoffTarget {
         if image.cancellation.is_some() {
             return Err(Error::Retired.into());
         }
-        if image.source_archived {
-            return Err(DurableError::Suspended);
-        }
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
         if signer.public_key()? != owner.approval.plan.target.key {
             return Err(Error::Scope.into());
         }
+        let original = storage::source_state(&owner.db, &owner.wrapping, &owner.approval, &image)?;
         let history = history(
             &owner.approval,
+            &original.history,
             &image.freeze,
             &image.acknowledgement,
             retirement,
@@ -379,17 +409,13 @@ impl AnchorHandoffTarget {
                 return Err(DurableError::Conflict);
             }
         } else {
-            let original = storage::validate_source(
-                &owner.wrapping,
-                &owner.approval,
-                &image.source,
-                &image.freeze,
-            )?;
-            original.check_witness_key(&owner.approval.plan.target.key)?;
-            let content = image_codec::encode_content(&history, &original)?;
+            original
+                .image
+                .check_witness_key(&owner.approval.plan.target.key)?;
+            let content = image_codec::encode_content(&history, &original.image)?;
             storage::preflight_activation(
                 &owner.approval,
-                image.source.len(),
+                &image.source.resolve(&owner.db, &owner.approval)?,
                 image.freeze.len(),
                 image.acknowledgement.len(),
                 retirement.len(),
@@ -434,13 +460,13 @@ impl AnchorHandoffTarget {
         let owner = self.active.take().ok_or(DurableError::Closed)?;
         Ok((
             AnchorStore {
-                active: Some(Active {
+                active: Some(Box::new(Active {
                     db: owner.db,
                     wrapping: owner.wrapping,
                     signer,
                     pin,
                     transferred: Some(transferred),
-                }),
+                })),
             },
             receipt,
         ))
@@ -450,8 +476,10 @@ impl AnchorHandoffTarget {
         let image = self.image()?;
         let activation = image.activation.as_ref().ok_or(DurableError::Absent)?;
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let original = storage::source_state(&owner.db, &owner.wrapping, &owner.approval, &image)?;
         let history = history(
             &owner.approval,
+            &original.history,
             &image.freeze,
             &image.acknowledgement,
             &activation.retirement,

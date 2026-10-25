@@ -98,7 +98,9 @@ struct Image {
     account_replacements: BTreeMap<[u8; 32], AnchorAccountReplacementProposal>,
     account_freezes: BTreeMap<[u8; 32], AnchorFrozenAccount>,
     account_closures: BTreeMap<[u8; 32], account_replacement::closure::ClosureRecord>,
-    handoff: Option<handoff::Journal>,
+    // Optional handoff receipts are large. Keep image moves and nested source
+    // validation bounded by a pointer rather than the entire absent journal.
+    handoff: Option<Box<handoff::Journal>>,
 }
 struct Active {
     transferred: Option<handoff::Transferred>,
@@ -112,7 +114,9 @@ struct Active {
 /// data-plane requests. Keep its state independent of protected journal snapshots.
 /// Its own storage/key continuity remains a deployment trust requirement.
 pub struct AnchorStore {
-    active: Option<Active>,
+    // Moving the public owner must not copy its signer and verified history
+    // onto each caller's stack. Closing still drops this entire controlled state.
+    active: Option<Box<Active>>,
 }
 impl AnchorStore {
     /// Provision a new empty witness. The instance ID and verification key must be
@@ -149,13 +153,13 @@ impl AnchorStore {
             Ok::<_, DurableError>(())
         })?;
         Ok(Self {
-            active: Some(Active {
+            active: Some(Box::new(Active {
                 transferred: None,
                 db,
                 wrapping,
                 signer,
                 pin,
-            }),
+            })),
         })
     }
     /// Reopen the same witness instance and key. Missing/corrupt state never creates
@@ -170,13 +174,13 @@ impl AnchorStore {
         let db = open_private_database(path)?;
         load(&db, &wrapping, &pin)?;
         Ok(Self {
-            active: Some(Active {
+            active: Some(Box::new(Active {
                 transferred: None,
                 db,
                 wrapping,
                 signer,
                 pin,
-            }),
+            })),
         })
     }
     /// Return provisioning metadata from the existing trusted owner.
@@ -194,20 +198,6 @@ impl AnchorStore {
             .transferred
             .as_ref()
             .map_or(active.pin.binding, |t| t.namespace()))
-    }
-    // Irreversible successive retirement still needs complete target import and
-    // activation admission; reversible source freeze/cancellation is separate.
-    fn require_original_source(&self) -> Result<(), DurableError> {
-        if self
-            .active
-            .as_ref()
-            .ok_or(DurableError::Closed)?
-            .transferred
-            .is_some()
-        {
-            return Err(DurableError::Suspended);
-        }
-        Ok(())
     }
     /// Release the database lease and erase this instance's wrapping/signing owners.
     pub fn close(&mut self) {

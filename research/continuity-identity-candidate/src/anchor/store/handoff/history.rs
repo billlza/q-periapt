@@ -2,7 +2,7 @@
 //! Historical namespace and authority proof, never live client admission.
 use super::*;
 
-const MAX_TRANSITIONS: usize = 8;
+pub(in crate::anchor::store) const MAX_TRANSITIONS: usize = 8;
 pub(in crate::anchor::store) const MAX_HISTORY_BYTES: usize =
     MAX_TRANSITIONS * 32 * 1024 + PUBLIC_KEY_BYTES + 128;
 #[cfg(all(test, unix))]
@@ -229,6 +229,24 @@ impl AnchorHandoffHistory {
             .last()
             .map(|entry| &entry.approval)
             .ok_or(Error::Scope.into())
+    }
+
+    pub(in crate::anchor::store::handoff) fn require_tail(
+        &self,
+        approval: &AnchorHandoffTargetApproval,
+        freeze: &[u8],
+        acknowledgement: &[u8],
+        retirement: &[u8],
+    ) -> Result<(), DurableError> {
+        let tail = self.transitions.last().ok_or(Error::Scope)?;
+        if tail.approval.to_bytes() != approval.to_bytes()
+            || tail.freeze != freeze
+            || tail.acknowledgement != acknowledgement
+            || tail.retirement != retirement
+        {
+            return Err(Error::Scope.into());
+        }
+        Ok(())
     }
 
     /// Canonical bounded public proof. No private signer or storage key is included.

@@ -31,6 +31,13 @@ impl Prepared {
         } else {
             (c.device.clone(), c.original.clone())
         };
+        Self::from_case(c, device, policy)
+    }
+    fn from_case(
+        mut c: PolicyCase,
+        device: VerifiedDevice,
+        policy: HistoricalSessionPolicy,
+    ) -> Self {
         let f = TargetFixture::from_store(&mut c.store, &c.server, &c.pin, 175, false);
         let mut target = f.provision();
         let ack = target.import_receipt().expect("import");

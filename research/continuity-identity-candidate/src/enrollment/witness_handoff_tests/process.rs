@@ -77,6 +77,7 @@ pub(in crate::enrollment::tests) fn restore(
     .expect("independent target approval");
     let activation = target
         .verify_activation_receipt(
+            &history,
             &read("freeze"),
             &read("ack"),
             &read("retired"),

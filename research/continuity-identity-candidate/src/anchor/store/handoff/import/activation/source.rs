@@ -5,17 +5,23 @@ use super::*;
 
 const TAG: &[u8; 8] = b"QPAHSS01";
 const CONTROL_TAG: &[u8; 8] = b"QPAHSS02";
+const ARCHIVE_TAG: &[u8; 8] = b"QPAHSS03";
 // The complete current import and all separately stored authorization rows are
 // retained. Capture has a distinct bound; no existing image limit is increased.
 const MAX_HISTORY: usize = super::super::super::history::MAX_HISTORY_BYTES;
-pub(in crate::anchor::store::handoff::import) const MAX_SOURCE: usize = 8
+const MAX_LAYER: usize = 8
     + 8
     + MAX_HISTORY
     + storage::MAX_ACTIVATED_IMAGE
     + 2
     + MAX_ENTRIES * (32 + 4 + authorization::MAX_RECORD_BYTES)
     + 4
-    + source_control::MAX_CONTROL_IMAGE;
+    + source_control::MAX_CONTROL_IMAGE
+    + 4;
+// Each transition retains one complete prior snapshot. Bound total history by
+// the existing transition limit, keeping all individual current-row limits.
+pub(in crate::anchor::store::handoff::import) const MAX_SOURCE: usize =
+    MAX_LAYER * super::super::super::history::MAX_TRANSITIONS;
 
 fn take<'a>(d: &mut Decoder<'a>, maximum: usize) -> Result<&'a [u8], Error> {
     let length = usize::try_from(u32::from_be_bytes(d.array()?)).map_err(|_| Error::Capacity)?;
@@ -36,33 +42,19 @@ pub(in crate::anchor::store) fn validate_capture(
     }
     let mut d = Decoder::new(bytes);
     let tag = d.array::<8>()?;
-    if (tag != *TAG && tag != *CONTROL_TAG)
+    if ![*TAG, *CONTROL_TAG, *ARCHIVE_TAG].contains(&tag)
         || take(&mut d, MAX_HISTORY)? != expected_history.to_bytes()?
         || expected_history.current_pin().binding() != approval.plan.target.binding()
     {
         return Err(Error::Scope.into());
     }
     let body = take(&mut d, storage::MAX_ACTIVATED_IMAGE)?;
-    // Reuse the complete existing decoder under a local test/target key. This
-    // does not authenticate mutable state: the later exact source freeze must
-    // sign its commitment before any future import can admit it.
     let mut sealed = body.to_vec();
     let mut auth = authenticator(local_key)?;
     auth.update(body);
     sealed.extend_from_slice(&auth.finalize().into_bytes());
     let saved = storage::decode_authenticated(local_key, approval, &sealed)?;
-    let original = storage::validate(local_key, approval, &saved)?;
-    let activated = saved.activation.as_ref().ok_or(DurableError::Absent)?;
-    let (_, checked) = verify(
-        approval,
-        &saved.freeze,
-        &saved.acknowledgement,
-        &activated.retirement,
-        &activated.receipt,
-    )?;
-    if checked.to_bytes()? != expected_history.to_bytes()?
-        || storage::seal(local_key, approval, &saved)? != sealed
-    {
+    if saved.source.is_archived() != (tag == *ARCHIVE_TAG) {
         return Err(DurableError::Corrupt);
     }
     let count = usize::from(d.u16()?);
@@ -79,13 +71,31 @@ pub(in crate::anchor::store) fn validate_capture(
         rows.insert(id, take(&mut d, authorization::MAX_RECORD_BYTES)?.to_vec());
         previous = Some(id);
     }
-    let control = if tag == *CONTROL_TAG {
+    let raw_source = if tag == *ARCHIVE_TAG {
+        take(&mut d, MAX_SOURCE)?
+    } else {
+        saved.source.inline().ok_or(DurableError::Corrupt)?
+    };
+    saved.source.check_payload(approval, raw_source)?;
+    let control = if tag == *CONTROL_TAG || (tag == *ARCHIVE_TAG && saved.source_control.is_some())
+    {
         Some(take(&mut d, source_control::MAX_CONTROL_IMAGE)?)
     } else {
         None
     };
     d.finish()?;
+    // The approved source context decreases by one transition before each
+    // nested capture validation; an initial-context capture is rejected.
+    let original = storage::validate_source(local_key, approval, raw_source, &saved.freeze)?;
+    storage::validate(approval, &saved, &original)?;
+    let (_, checked) = verified_activation(approval, &saved, &original)?;
+    if checked.to_bytes()? != expected_history.to_bytes()?
+        || storage::seal(local_key, approval, &saved)? != sealed
+    {
+        return Err(DurableError::Corrupt);
+    }
     authorization::decode_records(&rows, approval, &saved, &original)?;
+    let activated = saved.activation.as_ref().ok_or(DurableError::Absent)?;
     let mut image = image_codec::decode_content(expected_history, &activated.content)?;
     image.handoff = match (saved.source_control, control) {
         (None, None) => None,
@@ -94,7 +104,7 @@ pub(in crate::anchor::store) fn validate_capture(
             if journal.frozen.is_some() {
                 return Err(DurableError::Suspended);
             }
-            Some(journal)
+            Some(Box::new(journal))
         }
         _ => return Err(DurableError::Corrupt),
     };
@@ -120,7 +130,14 @@ pub(in crate::anchor::store::handoff::import) fn wire(
     let sealed = storage::seal(key, approval, &selected)?;
     let end = sealed.len().checked_sub(32).ok_or(DurableError::Corrupt)?;
     let records = authorization::capture_rows(db, &saved.client_index)?;
-    let mut bytes = if public.is_some() { CONTROL_TAG } else { TAG }.to_vec();
+    let mut bytes = if saved.source.is_archived() {
+        ARCHIVE_TAG
+    } else if public.is_some() {
+        CONTROL_TAG
+    } else {
+        TAG
+    }
+    .to_vec();
     super::super::super::codec::put(&history.to_bytes()?, &mut bytes)?;
     super::super::super::codec::put(sealed.get(..end).ok_or(DurableError::Corrupt)?, &mut bytes)?;
     bytes.extend_from_slice(
@@ -131,6 +148,9 @@ pub(in crate::anchor::store::handoff::import) fn wire(
     for (id, record) in records {
         bytes.extend_from_slice(&id);
         super::super::super::codec::put(&record, &mut bytes)?;
+    }
+    if saved.source.is_archived() {
+        super::super::super::codec::put(&saved.source.resolve(db, approval)?, &mut bytes)?;
     }
     if let Some(public) = public {
         super::super::super::codec::put(&public, &mut bytes)?;
@@ -160,7 +180,7 @@ impl Transferred {
             &saved,
             &self.history,
             expected.revision,
-            expected.handoff.as_ref(),
+            expected.handoff.as_deref(),
         )?;
         let restored = validate_capture(&bytes, key, &self.approval, &self.history)?;
         if image_codec::encode_content(&self.history, &restored)?

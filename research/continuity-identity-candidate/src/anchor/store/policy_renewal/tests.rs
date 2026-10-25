@@ -685,13 +685,13 @@ pub(in crate::anchor::store) fn fault(
     )
     .expect("original signer");
     c.store = AnchorStore {
-        active: Some(Active {
+        active: Some(Box::new(Active {
             transferred: None,
             db,
             wrapping,
             signer,
             pin: c.pin.clone(),
-        }),
+        })),
     };
     (remaining, count)
 }

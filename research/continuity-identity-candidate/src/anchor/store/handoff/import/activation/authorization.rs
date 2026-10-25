@@ -124,7 +124,7 @@ pub(in crate::anchor::store::handoff::import) fn load_records(
     db: &Database,
     approval: &AnchorHandoffTargetApproval,
     image: &ImportedImage,
-    original: &Image,
+    original: &storage::SourceState,
 ) -> Result<BTreeMap<[u8; 32], Record>, DurableError> {
     if image.client_index.is_empty() {
         return Ok(BTreeMap::new());
@@ -164,19 +164,12 @@ pub(in crate::anchor::store::handoff::import) fn decode_records(
     bytes: &BTreeMap<[u8; 32], Vec<u8>>,
     approval: &AnchorHandoffTargetApproval,
     image: &ImportedImage,
-    original: &Image,
+    original: &storage::SourceState,
 ) -> Result<BTreeMap<[u8; 32], Record>, DurableError> {
     if bytes.len() != image.client_index.len() || bytes.len() > MAX_ENTRIES {
         return Err(DurableError::Corrupt);
     }
-    let activated = image.activation.as_ref().ok_or(DurableError::Corrupt)?;
-    let (receipt, history) = verify(
-        approval,
-        &image.freeze,
-        &image.acknowledgement,
-        &activated.retirement,
-        &activated.receipt,
-    )?;
+    let (receipt, history) = verified_activation(approval, image, original)?;
     let mut operations = std::collections::BTreeSet::new();
     let mut records = BTreeMap::new();
     for (id, commitment) in &image.client_index {
@@ -184,7 +177,7 @@ pub(in crate::anchor::store::handoff::import) fn decode_records(
         if value.len() > MAX_RECORD_BYTES || record_digest(value) != *commitment {
             return Err(DurableError::Corrupt);
         }
-        let record = Record::decode(value, *id, original, approval, &history, &receipt)?;
+        let record = Record::decode(value, *id, &original.image, approval, &history, &receipt)?;
         if !operations.insert(*record.request.scope().operation().as_bytes()) {
             return Err(DurableError::Corrupt);
         }
@@ -205,19 +198,12 @@ pub(super) fn verified_contexts(
     db: &Database,
     approval: &AnchorHandoffTargetApproval,
     image: &ImportedImage,
-    original: &Image,
+    original: &storage::SourceState,
 ) -> Result<BTreeMap<[u8; 32], crate::AnchorHandoffReplyContext>, DurableError> {
     if image.client_index.is_empty() {
         return Ok(BTreeMap::new());
     }
-    let activation = image.activation.as_ref().ok_or(DurableError::Corrupt)?;
-    let (_, history) = verify(
-        approval,
-        &image.freeze,
-        &image.acknowledgement,
-        &activation.retirement,
-        &activation.receipt,
-    )?;
+    let (_, history) = verified_activation(approval, image, original)?;
     load_records(db, approval, image, original)?
         .into_iter()
         .map(|(id, record)| {
@@ -278,14 +264,9 @@ impl AnchorHandoffTarget {
     ) -> Result<AnchorHandoffClientAuthorizationReceipt, DurableError> {
         let image = self.image()?;
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let original = storage::validate_source(
-            &owner.wrapping,
-            &owner.approval,
-            &image.source,
-            &image.freeze,
-        )?;
+        let original = storage::source_state(&owner.db, &owner.wrapping, &owner.approval, &image)?;
         load_records(&owner.db, &owner.approval, &image, &original)?
-            .remove(&subject.id(&original.namespace))
+            .remove(&subject.id(&original.image.namespace))
             .map(|r| r.receipt)
             .ok_or(DurableError::Absent)
     }

@@ -122,7 +122,6 @@ impl AnchorStore {
         acknowledgement: &[u8],
         mut clock: impl FnMut() -> std::io::Result<u64>,
     ) -> Result<AnchorHandoffReceipt, DurableError> {
-        self.require_original_source()?;
         let mut image = self.handoff_image()?;
         let journal = image.handoff.as_ref().ok_or(DurableError::Absent)?;
         let observed = journal.observe(&approval.plan)?;
@@ -152,10 +151,26 @@ impl AnchorStore {
             &owner.signer,
         )?;
         let source = self.frozen_handoff_state(&approval.plan)?;
-        let content = image_codec::encode_content(&approval.plan.source, &image)?;
+        let original = import::validate_retirement_source(
+            &self.active.as_ref().ok_or(DurableError::Closed)?.wrapping,
+            approval,
+            source.as_bytes(),
+            observed.as_bytes(),
+        )?;
+        let mut history = original.history.clone();
+        history.append_verified(
+            approval,
+            observed.as_bytes(),
+            acknowledgement,
+            receipt.as_bytes(),
+        )?;
+        let content = image_codec::encode_content(&original.history, &image)?;
+        if content != image_codec::encode_content(&original.history, &original.image)? {
+            return Err(DurableError::Conflict);
+        }
         preflight_activation(
             approval,
-            source.as_bytes().len(),
+            source.as_bytes(),
             observed.as_bytes().len(),
             acknowledgement.len(),
             receipt.as_bytes().len(),
@@ -168,7 +183,7 @@ impl AnchorStore {
         });
         // The unchanged complete state and all three exact certificates must fit
         // before irreversible work. Capacity failure leaves Frozen cancellable.
-        image_codec::encode_body(&approval.plan.source, &image)?;
+        self.preflight_handoff_image(&image)?;
         self.persist_image_checked(&mut image, false, || {
             let now = clock().map_err(DurableError::Io)?;
             if now < admitted_at {

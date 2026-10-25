@@ -54,6 +54,7 @@ impl AnchorStore {
         let activation = image.activation.as_ref().ok_or(DurableError::Corrupt)?;
         let (activation_receipt, history) = verify(
             &transferred.approval,
+            &transferred.history,
             &image.freeze,
             &image.acknowledgement,
             &activation.retirement,
@@ -61,6 +62,7 @@ impl AnchorStore {
         )?;
         let entry = transferred
             .original
+            .image
             .entries
             .get(&id)
             .ok_or(DurableError::Absent)?;
@@ -73,7 +75,7 @@ impl AnchorStore {
         check_request(
             &request,
             id,
-            &transferred.original,
+            &transferred.original.image,
             &transferred.approval,
             &history,
         )?;

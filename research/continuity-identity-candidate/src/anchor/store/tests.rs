@@ -493,13 +493,13 @@ fn unknown_commit_outcomes_reconcile_the_same_command_without_a_second_advance()
             let (wrapping, signer, id) = owners(&c.server);
             let pin = AnchorPin::new(id, signer.public_key().expect("public"));
             c.store = AnchorStore {
-                active: Some(Active {
+                active: Some(Box::new(Active {
                     transferred: None,
                     db,
                     wrapping,
                     signer,
                     pin,
-                }),
+                })),
             };
             remaining.store(cut, Ordering::SeqCst);
             assert!(matches!(
@@ -1013,13 +1013,13 @@ fn with_fault_database(
     let (wrapping, signer, id) = owners(&c.server);
     let pin = AnchorPin::new(id, signer.public_key().expect("public"));
     c.store = AnchorStore {
-        active: Some(Active {
+        active: Some(Box::new(Active {
             transferred: None,
             db,
             wrapping,
             signer,
             pin,
-        }),
+        })),
     };
     (remaining, count)
 }

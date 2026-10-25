@@ -67,6 +67,9 @@ fn activation_serves_new_enrollment_without_adopting_or_changing_inherited_clien
         .expect("original import")
         .as_bytes()
         .to_vec();
+    let history = target
+        .verify_source_retirement(&retirement)
+        .expect("verified complete history");
     let (mut active, activation) = target
         .activate(&retirement, f.signer())
         .expect("durable activation");
@@ -74,6 +77,7 @@ fn activation_serves_new_enrollment_without_adopting_or_changing_inherited_clien
     let verified = f
         .approval
         .verify_activation_receipt(
+            &history,
             &f.freeze,
             &acknowledgement,
             &retirement,
@@ -87,6 +91,7 @@ fn activation_serves_new_enrollment_without_adopting_or_changing_inherited_clien
     assert!(f
         .approval
         .verify_activation_receipt(
+            &history,
             &f.freeze,
             &acknowledgement,
             &f.freeze,

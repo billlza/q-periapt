@@ -44,6 +44,16 @@ impl TargetFixture {
         now: u64,
         legacy: bool,
     ) -> Self {
+        Self::from_store_operation(store, root, source_pin, now, legacy, 212)
+    }
+    fn from_store_operation(
+        store: &mut AnchorStore,
+        root: &Path,
+        source_pin: &AnchorPin,
+        now: u64,
+        legacy: bool,
+        operation: u8,
+    ) -> Self {
         let directory = root.join("target-import");
         fs::DirBuilder::new()
             .mode(0o700)
@@ -63,11 +73,11 @@ impl TargetFixture {
             .handoff_source_state()
             .expect("complete original source");
         let plan = AnchorHandoffPlan::from_trusted_state(
-            [212; 32],
+            [operation; 32],
             &source,
             pin.clone(),
             Validity::new(now - 10, now + 10).expect("source admission"),
-            [213; 32],
+            [operation.wrapping_add(1); 32],
         )
         .expect("source operator approval");
         let plan = if legacy {
@@ -86,7 +96,7 @@ impl TargetFixture {
             source_pin,
             &pin,
             Validity::new(now - 5, now + 5).expect("independent target admission"),
-            [214; 32],
+            [operation.wrapping_add(2); 32],
         )
         .expect("target operator approval");
         let freeze = store

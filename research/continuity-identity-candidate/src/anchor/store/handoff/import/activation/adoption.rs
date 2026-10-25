@@ -32,6 +32,7 @@ impl AnchorStore {
         }
         let entry = transferred
             .original
+            .image
             .entries
             .get(&id)
             .ok_or(DurableError::Absent)?;

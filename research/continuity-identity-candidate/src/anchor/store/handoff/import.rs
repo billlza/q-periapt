@@ -4,11 +4,14 @@ use super::*;
 mod approval;
 mod archive;
 pub use approval::{AnchorHandoffImportReceipt, AnchorHandoffTargetApproval};
+#[cfg(test)]
+pub(in crate::anchor::store) use archive::take_archive_reads;
 pub(in crate::anchor::store) mod activation;
 mod source_control;
 mod storage;
 pub use activation::{AnchorHandoffActivationReceipt, AnchorHandoffClientAuthorizationReceipt};
 pub(in crate::anchor::store::handoff) use storage::preflight_activation;
+pub(in crate::anchor::store::handoff) use storage::validate_source as validate_retirement_source;
 #[cfg(all(test, unix))]
 mod testing;
 
@@ -20,11 +23,10 @@ const MAX_IMPORT_IMAGE: usize = MAX_IMAGE + 32 * 1024;
 
 #[derive(Clone)]
 struct ImportedImage {
-    source_archived: bool,
     source_control: Option<[u8; 32]>,
     client_index: BTreeMap<[u8; 32], [u8; 32]>,
     activation: Option<activation::Activation>,
-    source: Vec<u8>,
+    source: archive::Source,
     freeze: Vec<u8>,
     acknowledgement: Vec<u8>,
     cancellation: Option<Vec<u8>>,
@@ -73,25 +75,26 @@ impl AnchorHandoffTarget {
         now: u64,
     ) -> Result<Self, DurableError> {
         approval.admit(now)?;
-        storage::validate_source(&wrapping, &approval, source, freeze)?
+        let original = storage::validate_source(&wrapping, &approval, source, freeze)?;
+        original
+            .image
             .check_witness_key(&approval.plan.target.key)?;
         let receipt = approval.sign_import(freeze, signer)?;
         let image = ImportedImage {
-            source_archived: archive::is_capture(source),
             source_control: None,
             client_index: BTreeMap::new(),
             activation: None,
-            source: source.to_vec(),
+            source: archive::Source::captured(source),
             freeze: freeze.to_vec(),
             acknowledgement: receipt.as_bytes().to_vec(),
             cancellation: None,
             digest: [0; 32],
         };
-        let bytes = storage::encode(&wrapping, &approval, &image)?;
+        let bytes = storage::encode(&wrapping, &approval, &image, &original)?;
         let db = provision_private_database(path, |db| {
             let tx = transaction(db)?;
-            if image.source_archived {
-                archive::publish(&tx, &approval, &image.source)?;
+            if image.source.is_archived() {
+                archive::publish(&tx, &approval, source)?;
             }
             tx.open_table(IMPORT_TABLE)
                 .map_err(storage)?
@@ -166,15 +169,17 @@ impl AnchorHandoffTarget {
     /// Retained complete original metadata, including after exact cancellation.
     /// These bytes alone grant no authority or permission to serve requests.
     pub fn retained_source_state(&mut self) -> Result<Vec<u8>, DurableError> {
-        Ok(self.image()?.source)
+        let image = self.image()?;
+        let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
+        image.source.resolve(&owner.db, &owner.approval)
     }
 
     /// Verify the exact source retirement against the retained import
     /// and construct its historical namespace/authority proof. This is read-only:
     /// it does not retain the new certificate, activate the target, change a
     /// client policy, or authorize ordinary service. After activation, only the
-    /// exact committed retirement may select this owner's history. The source image
-    /// admits only an original authority; transferred-image support is separate.
+    /// exact committed retirement may select this owner's history. A transferred
+    /// source retains and verifies its entire preceding authority history.
     pub fn verify_source_retirement(
         &mut self,
         retirement: &[u8],
@@ -182,9 +187,6 @@ impl AnchorHandoffTarget {
         let image = self.image()?;
         if image.cancellation.is_some() {
             return Err(Error::Retired.into());
-        }
-        if image.source_archived {
-            return Err(DurableError::Suspended);
         }
         if image
             .activation
@@ -194,24 +196,15 @@ impl AnchorHandoffTarget {
             return Err(DurableError::Conflict);
         }
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let mut history =
-            AnchorHandoffHistory::from_trusted_origin(owner.approval.plan.source.clone());
-        history.append_verified(
+        let original = storage::source_state(&owner.db, &owner.wrapping, &owner.approval, &image)?;
+        let history = activation::history(
             &owner.approval,
+            &original.history,
             &image.freeze,
             &image.acknowledgement,
             retirement,
         )?;
-        let original = storage::validate_source(
-            &owner.wrapping,
-            &owner.approval,
-            &image.source,
-            &image.freeze,
-        )?;
-        // Reuse the complete image validator with the verified historical
-        // resolver. Namespace and every retained operation remain byte-exact;
-        // recognizing their former authority grants no current client rights.
-        let content = image_codec::encode_content(&owner.approval.plan.source, &original)?;
+        let content = image_codec::encode_content(&original.history, &original.image)?;
         let transferred = image_codec::decode_content(&history, &content)?;
         if image_codec::encode_content(&history, &transferred)? != content {
             return Err(DurableError::Corrupt);
@@ -263,7 +256,9 @@ impl AnchorHandoffTarget {
     fn persist(&mut self, image: &mut ImportedImage) -> Result<(), DurableError> {
         let result = (|| {
             let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
-            let bytes = storage::encode(&owner.wrapping, &owner.approval, image)?;
+            let original =
+                storage::source_state(&owner.db, &owner.wrapping, &owner.approval, image)?;
+            let bytes = storage::encode(&owner.wrapping, &owner.approval, image, &original)?;
             let tx = transaction(&owner.db)?;
             {
                 let mut table = tx.open_table(IMPORT_TABLE).map_err(storage)?;
@@ -279,6 +274,10 @@ impl AnchorHandoffTarget {
                 }
                 drop(current);
                 table.insert("image", bytes.as_slice()).map_err(storage)?;
+            }
+            #[cfg(all(test, unix))]
+            if image.activation.is_some() {
+                testing::before_commit("activate-before");
             }
             tx.commit().map_err(DurableError::CommitUncertain)?;
             image.digest = storage::image_digest(&bytes);

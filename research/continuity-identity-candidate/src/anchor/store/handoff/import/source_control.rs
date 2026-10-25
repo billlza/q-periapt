@@ -124,6 +124,7 @@ pub(super) fn verify_image(
     key: &JournalKey,
     approval: &AnchorHandoffTargetApproval,
     saved: &ImportedImage,
+    source: &storage::SourceState,
 ) -> Result<Option<Journal>, DurableError> {
     if saved.source_control.is_none() {
         return Ok(None);
@@ -131,6 +132,7 @@ pub(super) fn verify_image(
     let active = saved.activation.as_ref().ok_or(DurableError::Corrupt)?;
     let history = activation::history(
         approval,
+        &source.history,
         &saved.freeze,
         &saved.acknowledgement,
         &active.retirement,
@@ -257,7 +259,8 @@ impl AnchorHandoffTarget {
     ) -> Result<AnchorHandoffReceipt, DurableError> {
         let saved = self.image()?;
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
-        verify_image(&owner.db, &owner.wrapping, &owner.approval, &saved)?
+        let source = storage::source_state(&owner.db, &owner.wrapping, &owner.approval, &saved)?;
+        verify_image(&owner.db, &owner.wrapping, &owner.approval, &saved, &source)?
             .ok_or(DurableError::Absent)?
             .observe(plan)
     }
@@ -269,7 +272,8 @@ impl AnchorHandoffTarget {
     ) -> Result<AnchorHandoffSourceState, DurableError> {
         let saved = self.image()?;
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let journal = verify_image(&owner.db, &owner.wrapping, &owner.approval, &saved)?
+        let source = storage::source_state(&owner.db, &owner.wrapping, &owner.approval, &saved)?;
+        let journal = verify_image(&owner.db, &owner.wrapping, &owner.approval, &saved, &source)?
             .ok_or(DurableError::Absent)?;
         if journal.observe(plan)?.state == AnchorHandoffState::Cancelled {
             return Err(Error::Retired.into());
@@ -277,6 +281,7 @@ impl AnchorHandoffTarget {
         let active = saved.activation.as_ref().ok_or(DurableError::Corrupt)?;
         let history = activation::history(
             &owner.approval,
+            &source.history,
             &saved.freeze,
             &saved.acknowledgement,
             &active.retirement,

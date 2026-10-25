@@ -453,6 +453,7 @@ pub(super) fn restore_child_plan(root: &Path) -> WitnessJournalAdoptionPlan {
     .expect("target expectation");
     let activation = approval
         .verify_activation_receipt(
+            &history,
             &read("freeze"),
             &read("ack"),
             &read("retired"),
