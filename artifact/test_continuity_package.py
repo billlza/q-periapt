@@ -99,6 +99,15 @@ STDOUT = ("\n".join(f"test {name} ... ok" for name in sorted(package.TESTS)) +
 
 
 class ContinuityPackageTests(unittest.TestCase):
+    def test_failed_child_diagnostics_are_bound_to_package_source(self):
+        sources = package.source_inputs()['files']
+        for relative in ('artifact/continuity_process_failure.py', 'artifact/continuity_process_crash.py',
+                         'artifact/test_continuity_process_failure.py', 'artifact/test_continuity_process_crash.py',
+                         'bindings/c/ContinuityPackageConsumer/tests/common/process_diagnostics.rs',
+                         'bindings/c/ContinuityPackageConsumer/tests/process_diagnostics.rs'):
+            with self.subTest(relative=relative):
+                self.assertEqual(sources[relative], sdk.snapshot(package.ROOT / relative).sha256)
+
     def test_final_archive_check_uses_original_record_and_refuses_substitution(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp).resolve()

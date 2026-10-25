@@ -15,6 +15,7 @@ import continuity_c_managed as managed
 import continuity_c_witness as witness
 import continuity_c_witness_tls as witness_tls
 import continuity_c_witness_openssl as witness_openssl
+import continuity_process_failure as process_failure
 import rust_sdk_profile as sdk
 import continuity_profiles as profiles_contract
 from evidence_io import parse_strict_json_bytes
@@ -117,7 +118,7 @@ EXPORTS |= {"qpc_configuration_v1_" + name for name in (
 
 def built_artifact(stdout: bytes, consumer: Path, build: Path, *, library: bool, unit: bool = False,
                    test_name: str = "c_owner") -> Path:
-    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault", "enrollment", "enrollment_witness", "retirement", "first_configuration", "managed", "root", "android"), "unknown installed C test target")
+    sdk.require(test_name in ("c_owner", "sync_fault", "witness", "account_cleanup", "account_witness", "setup", "setup_fault", "setup_witness_fault", "enrollment", "enrollment_witness", "retirement", "first_configuration", "managed", "root", "android", "process_diagnostics"), "unknown installed C test target")
     messages = [parse_strict_json_bytes(line, label="C consumer Cargo message") for line in stdout.splitlines()]
     target = LIBRARY if library or unit else test_name
     items = [m for m in messages if m.get("reason") == "compiler-artifact" and m["target"]["name"] == target
@@ -457,7 +458,8 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
                 "OPENSSL_ENGINES", "SSL_CERT_FILE", "SSL_CERT_DIR"):
         env.pop(key, None)
     def run(argv, label, cwd=consumer, *, runtime=None):
-        return sdk.command(argv, output / ("c-" + label), cwd, environment=env if runtime is None else runtime)
+        return process_failure.command(argv, output / ("c-" + label), cwd,
+                                       environment=env if runtime is None else runtime)
     metadata = parse_strict_json_bytes(run([*cargo, "metadata", "--offline", "--format-version", "1"],
                                          "metadata"), label="C installed dependency resolution")
     lock = sdk.snapshot(consumer / "Cargo.lock")
@@ -484,6 +486,16 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
     for profile in profiles:
         extra = ["--release"] if profile == "release" else []
         build = outside / "build" / profile
+        diagnostic_build = run([*cargo, "test", "--locked", "--offline", "--test", "process_diagnostics",
+                                "--no-run", "--message-format=json", "-j", "2", *extra],
+                               "process-diagnostics-build-" + profile)
+        diagnostic_test = built_artifact(diagnostic_build, consumer, build, library=False,
+                                         test_name="process_diagnostics")
+        diagnostic_stdout = run([str(diagnostic_test)], "process-diagnostics-contract-" + profile)
+        process_failure.verify_contract(diagnostic_stdout)
+        result.setdefault("process_diagnostics_contract", {})[profile] = {
+            "completed": True, "tests": len(process_failure.CONTRACT_TESTS),
+            "binary_sha256": sdk.snapshot(diagnostic_test, maximum=MAX_BINARY).sha256}
         built = run([*cargo, "rustc", "--locked", "--offline", "--lib", "--message-format=json", "-j", "2",
                      *extra, "--", "-C", "link-arg=" + linker_name], "library-" + profile)
         library = built_artifact(built, consumer, build, library=True)

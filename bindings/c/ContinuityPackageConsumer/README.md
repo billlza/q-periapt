@@ -8,6 +8,15 @@ chosen authority. Use the explicit reconcile/open paths for uncertain or existin
 state; an open failure never authorizes creating a replacement identity.
 This is an unpublished `qpc-owner/1` candidate, separate from product SDK ABI 2.
 
+The installed C test harness retains a bounded failure event before removing a
+failed child's temporary fixture: PID, parent PID, executable basename, scenario,
+times, exit status and stream sizes. On macOS, the package collector may also
+retain a matching crash report's exception category and at most 32 stack frames.
+It excludes raw reports, registers, application messages, paths and device IDs;
+missing, ambiguous or incomplete observations remain explicit. Diagnostics never
+retry the SDK operation or change the original failed command's result. Both
+build profiles execute the separate process-diagnostic contract tests.
+
 For an existing registration, same-key credential renewal preserves its original identity.
 Export `qpc_enrollment_v1_credential_renewal_request`, or its required-witness
 variant `qpc_enrollment_v1_witnessed_credential_renewal_request`, before asking the

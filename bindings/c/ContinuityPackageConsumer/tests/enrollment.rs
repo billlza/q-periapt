@@ -6,6 +6,8 @@ mod fixture;
 mod openssl_host;
 #[path = "common/peer_bundle.rs"]
 mod peer_bundle;
+#[path = "common/process_diagnostics.rs"]
+mod process_diagnostics;
 #[path = "common/receiver_process.rs"]
 mod receiver_process;
 #[path = "common/witness.rs"]
@@ -87,7 +89,11 @@ fn run(path: &Path, label: &str, args: &[OsString]) -> Result<String> {
     run_client(&executable()?, path, label, args)
 }
 fn run_client(client: &Path, path: &Path, label: &str, args: &[OsString]) -> Result<String> {
-    let output = Command::new(client).args(args).output()?;
+    let captured = process_diagnostics::capture(client, args, label)?;
+    if let Some(event) = captured.failure_line() {
+        eprintln!("{event}");
+    }
+    let output = captured.output;
     fixture::store(path, &format!("enrollment-{label}.stdout"), &output.stdout)?;
     fixture::store(path, &format!("enrollment-{label}.stderr"), &output.stderr)?;
     if !output.status.success() || !output.stderr.is_empty() {
