@@ -8,6 +8,8 @@ mod import;
 mod retirement;
 pub(super) use codec::{unwrap, validate, wrap};
 pub use history::AnchorHandoffHistory;
+#[cfg(all(test, unix))]
+pub(in crate::anchor::store) use import::activation::source::validate_capture;
 pub use import::{
     AnchorHandoffActivationReceipt, AnchorHandoffClientAuthorizationReceipt,
     AnchorHandoffImportReceipt, AnchorHandoffTarget, AnchorHandoffTargetApproval,

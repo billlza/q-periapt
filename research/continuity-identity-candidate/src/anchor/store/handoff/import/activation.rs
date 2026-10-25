@@ -5,6 +5,7 @@ mod adoption;
 pub(in crate::anchor::store::handoff::import) mod authorization;
 pub use authorization::AnchorHandoffClientAuthorizationReceipt;
 mod inherited;
+pub(in crate::anchor::store) mod source;
 
 const BODY_BYTES: usize = 8 + 5 * 32;
 pub(super) const RECEIPT_BYTES: usize = 4 + BODY_BYTES + crate::crypto::SIGNATURE_BYTES;

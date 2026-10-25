@@ -14,7 +14,7 @@ fn retired(c: &mut Case, now: u64) -> (TargetFixture, AnchorHandoffTarget, Vec<u
     (f, target, retirement.as_bytes().to_vec())
 }
 
-fn new_client(
+pub(in crate::anchor::store) fn new_client(
     store: AnchorStore,
     pin: &AnchorPin,
 ) -> crate::anchor::store::policy_renewal::tests::Case {
@@ -123,9 +123,29 @@ fn activation_serves_new_enrollment_without_adopting_or_changing_inherited_clien
         active.enroll(&c.genesis, device, policy, 150),
         Err(DurableError::Suspended)
     ));
+    let captured = active
+        .handoff_source_state()
+        .expect("complete public successor capture");
+    assert_eq!(captured.pin().binding(), f.pin.binding());
+    let next_signer = AnchorSigningKey::generate().expect("independent third key");
+    let next_pin = AnchorPin::new(
+        AnchorIdentity::generate().expect("third identity"),
+        next_signer.public_key().expect("third public key"),
+    );
+    let next_plan = AnchorHandoffPlan::from_trusted_state(
+        [225; 32],
+        &captured,
+        next_pin,
+        Validity::new(140, 160).expect("next interval"),
+        [226; 32],
+    )
+    .expect("exact prospective next plan");
     assert!(
-        matches!(active.handoff_source_state(), Err(DurableError::Suspended)),
-        "successive transfer needs its own integration, never a rewritten namespace"
+        matches!(
+            active.freeze_handoff(&next_plan, 150),
+            Err(DurableError::Suspended)
+        ),
+        "public capture alone cannot bypass the not-yet-integrated successive transaction"
     );
     let mut next = new_client(active, &f.pin);
     let approval = next.approval(&next.original, None, &next.target);

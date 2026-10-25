@@ -47,7 +47,7 @@ pub(super) fn validate_source(
     Ok(image)
 }
 
-fn validate(
+pub(super) fn validate(
     key: &JournalKey,
     approval: &AnchorHandoffTargetApproval,
     image: &ImportedImage,
@@ -150,7 +150,7 @@ pub(super) fn seal(
     Ok(bytes)
 }
 
-fn decode_authenticated(
+pub(super) fn decode_authenticated(
     key: &JournalKey,
     approval: &AnchorHandoffTargetApproval,
     bytes: &[u8],

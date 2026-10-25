@@ -3,7 +3,8 @@
 use super::*;
 
 const MAX_TRANSITIONS: usize = 8;
-const MAX_HISTORY_BYTES: usize = MAX_TRANSITIONS * 32 * 1024 + PUBLIC_KEY_BYTES + 128;
+pub(in crate::anchor::store) const MAX_HISTORY_BYTES: usize =
+    MAX_TRANSITIONS * 32 * 1024 + PUBLIC_KEY_BYTES + 128;
 #[cfg(all(test, unix))]
 mod tests;
 
@@ -76,6 +77,9 @@ pub struct AnchorHandoffHistory {
     transitions: Vec<Transition>,
 }
 impl AnchorHandoffHistory {
+    pub(in crate::anchor::store) fn context(&self) -> HistoryContext {
+        self.context
+    }
     /// Establish the independently retained original namespace and authority.
     /// Never derive this root trust from an incoming history or peer response.
     pub fn from_trusted_origin(origin: AnchorPin) -> Self {

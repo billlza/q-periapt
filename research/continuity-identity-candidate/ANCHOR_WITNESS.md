@@ -1462,3 +1462,36 @@ do not establish browser cancellation, every mixed G/P/R or account-root
 interleaving, physical power loss, installed bindings or independent execution.
 Retirement/account-root composition, successive witness transfer, full platform
 acceptance, final ABI and protocol freeze remain open.
+
+### Complete source capture after target activation
+
+An activated owner can now produce a prospective `QPAHSS01` source capture. It
+contains the exact verified history, the entire prior import and current image
+without the source storage MAC, and every indexed client authorization row.
+The original import, activation and client receipts are retained byte-for-byte;
+the namespace and original logical command bindings are not rewritten. The
+capture has a separate bound derived from the existing image, history and
+256-client proof limits; it does not increase any individual stored-image limit.
+
+The capture decoder reuses the complete imported-state and client-proof
+validators with a separate local key. It checks every record, exact index/hash,
+canonical order, public signature and independently supplied history. A local
+MAC used to invoke that decoder is not source authentication. This unsigned
+observation may become stale immediately: a future exact source freeze must
+bind its commitment before a successor can admit it. No capture, plan or history
+alone grants permission to serve a client.
+
+Native store tests retain unresolved Prepared/Applied G/P/R, exact client
+authorizations, and mixed entries from the old and current Witness. They check
+read-only capture, cold reopening, verification with a different local key,
+missing records and modified signatures even after repairing a public row hash.
+The store-wide revision advances on a separate client-authorization commit;
+capture itself changes neither that revision nor the original subject entry.
+
+Successive freeze/retirement/import/activation still require their durable
+transaction integration. Their existing refusal remains in place. In particular,
+the original importer cannot treat this capture as an initial-authority image,
+and downstream storage must preserve all historical proofs and separately bound
+client approvals rather than flattening them into a current pin. These tests do
+not establish a completed second transfer, crash/power-loss recovery of that
+transfer, client re-adoption, compaction, or physical-platform acceptance.

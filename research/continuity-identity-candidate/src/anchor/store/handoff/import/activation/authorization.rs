@@ -8,7 +8,7 @@ use record::Record;
 
 pub(in crate::anchor::store::handoff::import) const TABLE: TableDefinition<&[u8], &[u8]> =
     TableDefinition::new("continuity_anchor_handoff_clients_v1");
-const MAX_RECORD_BYTES: usize = 16 * 1024;
+pub(in crate::anchor::store::handoff::import) const MAX_RECORD_BYTES: usize = 16 * 1024;
 const RECEIPT_BYTES: usize = 4 + 80 + crate::crypto::SIGNATURE_BYTES;
 
 /// Exact target authorization of one original client's dual-approved transfer.
@@ -126,9 +126,48 @@ pub(in crate::anchor::store::handoff::import) fn load_records(
     image: &ImportedImage,
     original: &Image,
 ) -> Result<BTreeMap<[u8; 32], Record>, DurableError> {
-    let mut records = BTreeMap::new();
     if image.client_index.is_empty() {
-        return Ok(records);
+        return Ok(BTreeMap::new());
+    }
+    decode_records(
+        &capture_rows(db, &image.client_index)?,
+        approval,
+        image,
+        original,
+    )
+}
+
+pub(in crate::anchor::store::handoff::import) fn capture_rows(
+    db: &Database,
+    index: &BTreeMap<[u8; 32], [u8; 32]>,
+) -> Result<BTreeMap<[u8; 32], Vec<u8>>, DurableError> {
+    if index.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let read = db.begin_read().map_err(storage)?;
+    check_row_hashes(&read, index)?;
+    let table = read.open_table(TABLE).map_err(storage)?;
+    let mut bytes = BTreeMap::new();
+    for id in index.keys() {
+        let value = table
+            .get(id.as_slice())
+            .map_err(storage)?
+            .ok_or(DurableError::Corrupt)?;
+        bytes.insert(*id, value.value().to_vec());
+    }
+    Ok(bytes)
+}
+
+// Used by both the database reader and a complete public source capture. No
+// unindexed row, absent row or valid signature from another subject is accepted.
+pub(in crate::anchor::store::handoff::import) fn decode_records(
+    bytes: &BTreeMap<[u8; 32], Vec<u8>>,
+    approval: &AnchorHandoffTargetApproval,
+    image: &ImportedImage,
+    original: &Image,
+) -> Result<BTreeMap<[u8; 32], Record>, DurableError> {
+    if bytes.len() != image.client_index.len() || bytes.len() > MAX_ENTRIES {
+        return Err(DurableError::Corrupt);
     }
     let activated = image.activation.as_ref().ok_or(DurableError::Corrupt)?;
     let (receipt, history) = verify(
@@ -138,16 +177,14 @@ pub(in crate::anchor::store::handoff::import) fn load_records(
         &activated.retirement,
         &activated.receipt,
     )?;
-    let read = db.begin_read().map_err(storage)?;
-    check_row_hashes(&read, &image.client_index)?;
-    let table = read.open_table(TABLE).map_err(storage)?;
     let mut operations = std::collections::BTreeSet::new();
-    for id in image.client_index.keys() {
-        let value = table
-            .get(id.as_slice())
-            .map_err(storage)?
-            .ok_or(DurableError::Corrupt)?;
-        let record = Record::decode(value.value(), *id, original, approval, &history, &receipt)?;
+    let mut records = BTreeMap::new();
+    for (id, commitment) in &image.client_index {
+        let value = bytes.get(id).ok_or(DurableError::Corrupt)?;
+        if value.len() > MAX_RECORD_BYTES || record_digest(value) != *commitment {
+            return Err(DurableError::Corrupt);
+        }
+        let record = Record::decode(value, *id, original, approval, &history, &receipt)?;
         if !operations.insert(*record.request.scope().operation().as_bytes()) {
             return Err(DurableError::Corrupt);
         }
