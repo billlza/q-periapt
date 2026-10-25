@@ -9,7 +9,7 @@ use fixture::Fixture;
 #[path = "witness_handoff_tests/faults.rs"]
 mod faults;
 #[path = "witness_handoff_tests/process.rs"]
-mod process;
+pub(super) mod process;
 #[path = "witness_handoff_tests/validation.rs"]
 mod validation;
 pub(super) fn process_boundary(stage: &str, after: bool) {

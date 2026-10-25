@@ -2037,6 +2037,16 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-identity-candidate/src/enrollment/witness_transfer_credential_tests.rs',
             'research/continuity-identity-candidate/src/enrollment/witness_transfer_policy_tests.rs',
             'research/continuity-identity-candidate/src/enrollment/witness_transfer_roster_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/renewal/cancellation.rs',
+            'research/continuity-identity-candidate/src/anchor/store/transferred_control/cancellation.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/cancellation.rs',
+            'research/continuity-identity-candidate/src/enrollment/renewal/witness/cancellation.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff/cancellation.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_cancellation_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_cancellation_tests/faults.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_cancellation_tests/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_cancellation_tests/validation.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_joint_cancellation_tests.rs',
         )
         for missing in required:
             self.assertIn(missing, tracked)

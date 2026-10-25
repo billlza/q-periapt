@@ -39,12 +39,19 @@ impl DeviceEnrollment {
         )
     }
     pub(super) async fn reserve_original_credential_cancellation(
-        &self,
+        &mut self,
         original: &VerifiedDevice,
         policy: &HistoricalSessionPolicy,
         id: JournalIdentity,
         target: crate::durable::CredentialCancellationTarget<'_>,
+        plan: Option<&crate::WitnessJournalAdoptionPlan>,
     ) -> Result<crate::AnchorCredentialRenewalCancellation, DurableError> {
+        if let Some(plan) = plan {
+            let mut child = self
+                .selected_cancellation_journal(policy, plan.clone())
+                .await?;
+            return child.reserve_credential_cancellation(original, policy, id, target);
+        }
         self.check_witness_client(None)?;
         let db = self
             .storage

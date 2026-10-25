@@ -6,6 +6,7 @@ use crate::{
     AnchorPolicyRenewalState, AnchorRosterRefreshProposal, AnchorRosterRefreshState,
     HistoricalSessionPolicy, VerifiedCredentialRenewal, VerifiedPolicyRenewal,
 };
+mod cancellation;
 
 #[derive(Clone)]
 pub(super) struct Scope {

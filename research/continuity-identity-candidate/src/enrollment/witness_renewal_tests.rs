@@ -4,6 +4,8 @@ use super::*;
 mod account_renewal;
 #[path = "witness_transfer_credential_tests.rs"]
 mod witness_transfer;
+#[path = "witness_transfer_cancellation_tests.rs"]
+mod witness_transfer_cancellation;
 use crate::{
     AnchorCredentialRenewalProposal as Proposal, AnchorStore, CredentialRenewalStatus,
     DeviceJournal, Validity,

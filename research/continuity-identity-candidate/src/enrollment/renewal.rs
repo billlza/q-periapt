@@ -542,6 +542,17 @@ impl DeviceEnrollment {
         image: &Image,
         now: u64,
     ) -> Result<VerifiedDevice, DurableError> {
+        let original = self.original_device_metadata_at(image, now)?;
+        self.signer(image.identity, false)
+            .await?
+            .check_device(&original)?;
+        Ok(original)
+    }
+    pub(super) fn original_device_metadata_at(
+        &self,
+        image: &Image,
+        now: u64,
+    ) -> Result<VerifiedDevice, DurableError> {
         image.check_time_floor(now)?;
         let original = self.original_device_metadata(image)?;
         if original
@@ -553,9 +564,6 @@ impl DeviceEnrollment {
         {
             return Err(Error::Validity.into());
         }
-        self.signer(image.identity, false)
-            .await?
-            .check_device(&original)?;
         Ok(original)
     }
     // Public signatures and the original enrollment intent suffice for status

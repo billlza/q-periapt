@@ -28,6 +28,83 @@ fn stage_g(f: &Fixture, a: &Approval, g: &crate::VerifiedCredentialRenewal) {
         .expect("original G staged");
     owner.close();
 }
+
+#[test]
+fn transferred_cancellation_retains_independently_adopted_policy_and_original_g() {
+    use crate::enrollment::tests::witness_handoff::transfer::Transfer;
+    let (f, a) = adopted();
+    let g = credential::grant(&f, &f.original, 2, 280);
+    stage_g(&f, &a, &g);
+    let subject =
+        crate::AnchorSubject::for_device(f.id, &f.original, &f.c.policy).expect("original subject");
+    let transfer = Transfer::new(
+        &mut f.carrier.store.lock().expect("source"),
+        &f.c,
+        &f.original,
+        &f.original,
+        a.target.historical(),
+        subject,
+        185,
+    );
+    transfer.adopt_parent(&f.c, 190).close();
+    let before = journal(&f);
+    let mut owner = open(&f.c);
+    let cancellation = owner
+        .prepare_witnessed_credential_cancellation_with_witness_plan(
+            f.c.policy.historical(),
+            transfer.plan.clone(),
+            500,
+        )
+        .expect("retained P and target-free G");
+    assert_eq!(
+        cancellation.policy_renewal(),
+        Some(a.proof.statement_digest())
+    );
+    assert_eq!(transfer.requests.load(Ordering::SeqCst), 0);
+    assert!(journal(&f).0 == before.0);
+    {
+        let mut target = transfer.target.lock().expect("target");
+        let mut control = target
+            .transferred_control(&transfer.control)
+            .expect("exact current target authorization");
+        assert!(control
+            .close_unprepared_credential_renewal(
+                cancellation,
+                g.historical(),
+                f.c.policy.historical()
+            )
+            .is_err());
+        control
+            .close_unprepared_policy_renewed_credential_renewal(
+                cancellation,
+                g.historical(),
+                f.c.policy.historical(),
+                a.target.historical(),
+            )
+            .expect("independent P retained by G closure");
+    }
+    transfer.reopen_target();
+    transfer.set_time(500);
+    let mut client = transfer.client(&mut owner, &f.c);
+    assert_eq!(
+        owner
+            .reconcile_witnessed_credential_renewal(
+                g.operation(),
+                g.statement_digest(),
+                f.c.policy.historical(),
+                500,
+                &mut client
+            )
+            .expect("original closure and ACK"),
+        GStatus::Closed {
+            operation: g.operation(),
+            statement: g.statement_digest(),
+            target: g.successor_device().roster().checkpoint()
+        }
+    );
+    owner.close();
+    assert!(journal(&f) == before);
+}
 fn prepared_g(f: &Fixture, a: &Approval, g: &crate::VerifiedCredentialRenewal) -> GProposal {
     stage_g(f, a, g);
     let mut owner = open(&f.c);

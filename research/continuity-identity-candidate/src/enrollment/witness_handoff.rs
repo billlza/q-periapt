@@ -6,6 +6,7 @@ use crate::{
     WitnessJournalAdoptionState,
 };
 use redb::ReadableTable;
+mod cancellation;
 mod codec;
 pub(super) use codec::State;
 pub(super) const ROW: &str = "witness-handoff";

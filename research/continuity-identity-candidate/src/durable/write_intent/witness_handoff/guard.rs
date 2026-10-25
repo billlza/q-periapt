@@ -4,26 +4,49 @@ use super::*;
 use redb::ReadableTable;
 
 pub(in crate::durable::write_intent) struct Guard(Option<Fence>);
+#[derive(Clone, Copy)]
+pub(in crate::durable::write_intent) enum Selection<'a> {
+    Client(Option<&'a crate::AnchorClient>),
+    Adopted(&'a WitnessJournalAdoptionPlan),
+}
 impl Guard {
     pub(in crate::durable::write_intent) fn read(
         table: &impl ReadableTable<&'static str, &'static [u8]>,
         key: &JournalKey,
         client: Option<&crate::AnchorClient>,
     ) -> Result<Self, DurableError> {
+        Self::read_selected(table, key, Selection::Client(client))
+    }
+    pub(in crate::durable::write_intent) fn read_selected(
+        table: &impl ReadableTable<&'static str, &'static [u8]>,
+        key: &JournalKey,
+        selection: Selection<'_>,
+    ) -> Result<Self, DurableError> {
         let saved = table.get(ROW).map_err(storage)?;
         let Some(saved) = saved else {
-            if client.is_some_and(crate::AnchorClient::is_transferred) {
-                return Err(DurableError::Suspended);
-            }
-            return Ok(Self(None));
+            return match selection {
+                Selection::Client(client)
+                    if !client.is_some_and(crate::AnchorClient::is_transferred) =>
+                {
+                    Ok(Self(None))
+                }
+                _ => Err(DurableError::Suspended),
+            };
         };
         let fence = Fence::decode(key, saved.value())?;
-        client
-            .ok_or(DurableError::Suspended)?
-            .check_journal_selection(
-                &fence.request,
-                fence.receipt.as_deref().ok_or(DurableError::Suspended)?,
-            )?;
+        let receipt = fence.receipt.as_deref().ok_or(DurableError::Suspended)?;
+        match selection {
+            Selection::Client(client) => client
+                .ok_or(DurableError::Suspended)?
+                .check_journal_selection(&fence.request, receipt)?,
+            Selection::Adopted(plan) => {
+                if fence.request != plan.request {
+                    return Err(DurableError::Conflict);
+                }
+                plan.verify_receipt(receipt)?;
+                plan.scope().validity().check(fence.prepared_at)?;
+            }
+        }
         let image = table
             .get("image")
             .map_err(storage)?

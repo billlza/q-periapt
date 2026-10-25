@@ -1426,7 +1426,39 @@ substitution, child/parent process cuts and parent synchronization faults.
 Additional store tests check rejected foreign subjects/approvals and expired
 preparation, unchanged entry bytes on rejection, persisted authorization and
 transaction I/O cuts. Explicit store-only target digests in admission tests do
-not substitute for the enrollment tests' actual sealed targets. Grant-only
-cancellation after selection, all continued/independent-policy combinations,
-retirement/account-root composition, successive witness transfer, full platform
-and power-loss acceptance, final ABI and protocol freeze remain open.
+not substitute for the enrollment tests' actual sealed targets.
+
+`prepare_witnessed_credential_cancellation_with_witness_plan` reserves a staged
+G, G/T, later G retaining T, or G following an acknowledged independent P under
+the host's exact independent adoption plan. The original parent and child must
+both retain the same completed selection, preparation time and target receipt.
+The child verifies the target signature against the approved history before any
+reservation. Missing records, a different plan or mismatched authenticated
+metadata close the caller; they never authorize fallback to the former Witness.
+The existing entry without a plan still refuses a selected journal.
+
+Cancellation preparation uses the original signed enrollment metadata and grant,
+not a device signing file or current SDK runtime. It sends no request and seals
+no new target. Both the untransferred and selected paths preserve the original
+image and reserve only the exact cancellation binding. The common write
+transaction checks the selected row again and atomically updates its pending
+commitment. Public metadata alone does not authorize traffic; later Status/ACK
+still uses the original device signer and a fresh current-Witness request.
+
+The restricted target control exposes the existing grant-only closure for G,
+G/T, retained T and independently adopted P. Independent operator and issuer
+approval remain required. Existing proposals conflict, version floors survive,
+and a caller cannot drop T/P bindings by selecting the plain-G entry. Parent
+terminal durability precedes ACK and local cleanup. Expiry does not erase an
+unresolved operation or turn it into permission to recreate state.
+
+Native selected-cancellation tests retain a real sealed prekey and use explicit
+protocol test times. They cover exact retry/cold target reopening, unavailable
+status, each G/T/P mode, signer absence, foreign plans/subjects, missing rows and
+MAC-valid conflicting parent metadata. Plain-G process tests kill a real child
+before/after child reservation and parent coordination; parent and child sync
+faults are calibrated separately from database close housekeeping. These checks
+do not establish browser cancellation, every mixed G/P/R or account-root
+interleaving, physical power loss, installed bindings or independent execution.
+Retirement/account-root composition, successive witness transfer, full platform
+acceptance, final ABI and protocol freeze remain open.

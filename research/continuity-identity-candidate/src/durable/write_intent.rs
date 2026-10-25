@@ -992,10 +992,25 @@ fn reserve_bytes(
     wire: &[u8],
     client: Option<&crate::AnchorClient>,
 ) -> Result<(), DurableError> {
+    reserve_bytes_selected(
+        db,
+        key,
+        expected_digest,
+        wire,
+        witness_handoff::Selection::Client(client),
+    )
+}
+fn reserve_bytes_selected(
+    db: &Database,
+    key: &JournalKey,
+    expected_digest: [u8; 32],
+    wire: &[u8],
+    selection: witness_handoff::Selection<'_>,
+) -> Result<(), DurableError> {
     let tx = transaction(db)?;
     {
         let mut table = tx.open_table(TABLE).map_err(storage)?;
-        let guard = witness_handoff::Guard::read(&table, key, client)?;
+        let guard = witness_handoff::Guard::read_selected(&table, key, selection)?;
         if table.len().map_err(storage)? != 1 + guard.rows()
             || table.get("pending").map_err(storage)?.is_some()
         {
@@ -1013,13 +1028,21 @@ fn reserve_bytes(
         guard.update(&mut table, key)?;
     }
     #[cfg(all(test, unix))]
-    if client.is_some_and(crate::AnchorClient::is_transferred) {
+    if matches!(selection, witness_handoff::Selection::Client(Some(c)) if c.is_transferred()) {
         witness_handoff::test_boundary("ordinary-reserve", false);
+    }
+    #[cfg(all(test, unix))]
+    if matches!(selection, witness_handoff::Selection::Adopted(_)) {
+        witness_handoff::test_boundary("cancellation-reserve", false);
     }
     tx.commit().map_err(DurableError::CommitUncertain)?;
     #[cfg(all(test, unix))]
-    if client.is_some_and(crate::AnchorClient::is_transferred) {
+    if matches!(selection, witness_handoff::Selection::Client(Some(c)) if c.is_transferred()) {
         witness_handoff::test_boundary("ordinary-reserve", true);
+    }
+    #[cfg(all(test, unix))]
+    if matches!(selection, witness_handoff::Selection::Adopted(_)) {
+        witness_handoff::test_boundary("cancellation-reserve", true);
     }
     Ok(())
 }

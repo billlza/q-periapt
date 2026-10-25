@@ -24,8 +24,15 @@ pub(super) fn boundary(stage: &str, after: bool) {
     }
 }
 fn publish(f: &Fixture, root: &Path) {
-    f.transfer.publish_public_inputs(root);
-    let d = &f.c.intent.description;
+    publish_case(&f.c, &f.transfer, root);
+}
+pub(in crate::enrollment::tests) fn publish_case(
+    c: &Case,
+    transfer: &super::transfer::Transfer,
+    root: &Path,
+) {
+    transfer.publish_public_inputs(root);
+    let d = &c.intent.description;
     let description = [
         d.id.as_slice(),
         d.generation.to_be_bytes().as_slice(),
@@ -35,9 +42,9 @@ fn publish(f: &Fixture, root: &Path) {
     ]
     .concat();
     fs::write(root.join("intent-description"), description).expect("independent public intent");
-    fs::write(root.join("policy-family"), f.c.policy.family()).expect("independent family");
+    fs::write(root.join("policy-family"), c.policy.family()).expect("independent family");
 }
-fn restore(
+pub(in crate::enrollment::tests) fn restore(
     root: &Path,
 ) -> (
     DeviceEnrollment,

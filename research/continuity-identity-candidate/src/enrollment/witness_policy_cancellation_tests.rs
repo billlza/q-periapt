@@ -5,6 +5,8 @@ use crate::{
     AnchorCredentialRenewalCancellation as Cancellation, HistoricalPolicyContinuation,
     HistoricalPolicyContinuationMaterials,
 };
+#[path = "witness_transfer_joint_cancellation_tests.rs"]
+mod transferred;
 
 fn reserve(f: &Fixture, now: u64) -> Cancellation {
     open(&f.c)

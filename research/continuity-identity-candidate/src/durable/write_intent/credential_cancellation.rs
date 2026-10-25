@@ -231,10 +231,37 @@ impl DeviceJournal {
         id: JournalIdentity,
         target: CredentialCancellationTarget<'_>,
     ) -> Result<Cancellation, DurableError> {
+        Self::reserve_bound_cancellation_selected(db, key, original, policy, id, target, None)
+    }
+    pub(super) fn reserve_bound_cancellation_selected(
+        db: &Database,
+        key: &JournalKey,
+        original: &crate::VerifiedDevice,
+        policy: &crate::HistoricalSessionPolicy,
+        id: JournalIdentity,
+        target: CredentialCancellationTarget<'_>,
+        plan: Option<&crate::WitnessJournalAdoptionPlan>,
+    ) -> Result<Cancellation, DurableError> {
         let grant = target.grant;
         let owner = bootstrap::storage_owner(original);
-        let (image, pending) =
-            load_pending_snapshot(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
+        let admission = || {
+            if plan.is_some() {
+                SnapshotAdmission::WitnessHandoff
+            } else {
+                SnapshotAdmission::CredentialRecovery
+            }
+        };
+        let (image, pending) = load_pending_snapshot(db, key, owner, admission())?;
+        if let Some(plan) = plan {
+            plan.check_original_enrollment(original, policy, id)?;
+            let read = db.begin_read().map_err(storage)?;
+            let table = image_table(&read)?;
+            witness_handoff::Guard::read_selected(
+                &table,
+                key,
+                witness_handoff::Selection::Adopted(plan),
+            )?;
+        }
         check_scope(&image, original, policy, id)?;
         rosters::check_credential_cancellation(&image, grant, target.completed)?;
         rosters::check_policy_cancellation(&image, grant, target.continuation, target.adopts)?;
@@ -281,9 +308,12 @@ impl DeviceJournal {
             };
         }
         let pending = PendingCancellation::new(key, &image, cancellation)?;
-        reserve_bytes(db, key, image.digest, &pending.wire, None)?;
-        let (image, readback) =
-            load_pending_snapshot(db, key, owner, SnapshotAdmission::CredentialRecovery)?;
+        let selection = plan.map_or(
+            witness_handoff::Selection::Client(None),
+            witness_handoff::Selection::Adopted,
+        );
+        reserve_bytes_selected(db, key, image.digest, &pending.wire, selection)?;
+        let (image, readback) = load_pending_snapshot(db, key, owner, admission())?;
         let readback = readback.ok_or(DurableError::Conflict)?;
         if readback.wire() != pending.wire
             || readback.credential_intent(&image)?

@@ -5,12 +5,13 @@ use crate::{
     AnchorHandoffAdoptionMaterials, AnchorHandoffClientAuthorizationReceipt, AnchorHandoffHistory,
     HistoricalAnchorHandoffAdoption,
 };
+mod cancellation;
 mod codec;
 mod guard;
 mod reconciliation;
 mod transaction;
 use codec::Fence;
-pub(super) use guard::Guard;
+pub(super) use guard::{Guard, Selection};
 #[cfg(all(test, unix))]
 pub(super) fn test_boundary(stage: &str, after: bool) {
     tests::boundary(stage, after);
