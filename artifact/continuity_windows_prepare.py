@@ -10,6 +10,7 @@ from evidence_io import parse_strict_json_bytes
 from continuity_c_consumer import EXPORTS
 import continuity_package as candidate
 import continuity_package_archive as bundle
+from continuity_windows_bundle import components
 import rust_sdk_profile as sdk
 
 
@@ -82,7 +83,7 @@ def prepare(args) -> None:
     manifest += '\n[patch.crates-io]\n'
     manifest += ''.join(f'{name} = {{ path = "packages/{name}-{version}" }}\n' for name, version in versions.items())
     files['Cargo.toml'] = manifest.encode()
-    zipped = bundle.archive(files)
+    zipped = bundle.archive(files, components=components(versions))
     (output / 'consumer.zip').write_bytes(zipped)
     sdk.write_json(output / 'INPUT.json', {
         'schema': 1, 'network_public_inventory': public_inventory(), 'exports': sorted(EXPORTS), 'rustc': compiler.decode(), 'scope': 'Unpublished installed Windows candidate; no protocol or release admission',

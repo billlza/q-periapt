@@ -13,6 +13,7 @@ import time
 
 from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 import continuity_package_archive as bundle
+from continuity_windows_bundle import components
 from installed_rust_graph import require, verify_resolution
 from continuity_connection_public import capture
 from continuity_windows_c_public import CASES, capture_case
@@ -35,7 +36,7 @@ def consume(args):
     require(hashlib.sha256(payload).hexdigest() == receipt['zip_sha256'], 'input archive changed')
     outside = Path(tempfile.mkdtemp(prefix='qpc-installed-windows-')).resolve()
     consumer, build = outside / 'consumer', outside / 'build'
-    bundle.unpack(payload, receipt['files'], consumer)
+    bundle.unpack(payload, receipt['files'], consumer, components=components(receipt['versions']))
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(('CARGO_', 'RUST', 'QPC_', 'QPERIAPT_', 'AWS_LC_'))}
     private_root = args.private_root.resolve()
