@@ -8,9 +8,9 @@ pub(super) const TABLE: TableDefinition<&str, &[u8]> =
     TableDefinition::new("continuity_anchor_handoff_source_archive_v1");
 const MAX_ARCHIVE: usize = activation::source::MAX_SOURCE;
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 std::thread_local! {static SOURCE_READS: std::cell::Cell<usize> = const {std::cell::Cell::new(0)};}
-#[cfg(test)]
+#[cfg(all(test, unix))]
 pub(in crate::anchor::store) fn take_archive_reads() -> usize {
     SOURCE_READS.with(|count| count.replace(0))
 }
@@ -82,7 +82,7 @@ fn read(
     tx: &redb::ReadTransaction,
     approval: &AnchorHandoffTargetApproval,
 ) -> Result<Vec<u8>, DurableError> {
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     SOURCE_READS.with(|count| count.set(count.get().checked_add(1).expect("bounded test reads")));
     check_membership(tx)?;
     let table = tx.open_table(TABLE).map_err(storage)?;

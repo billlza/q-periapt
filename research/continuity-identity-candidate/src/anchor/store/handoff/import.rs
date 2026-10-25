@@ -4,7 +4,7 @@ use super::*;
 mod approval;
 mod archive;
 pub use approval::{AnchorHandoffImportReceipt, AnchorHandoffTargetApproval};
-#[cfg(test)]
+#[cfg(all(test, unix))]
 pub(in crate::anchor::store) use archive::take_archive_reads;
 pub(in crate::anchor::store) mod activation;
 mod source_control;

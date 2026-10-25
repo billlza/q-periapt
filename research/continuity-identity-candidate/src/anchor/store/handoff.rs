@@ -432,5 +432,5 @@ pub(in crate::anchor::store) use import::activation::Transferred;
 
 pub(in crate::anchor::store::handoff) use import::preflight_activation;
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 pub(super) use import::take_archive_reads;
