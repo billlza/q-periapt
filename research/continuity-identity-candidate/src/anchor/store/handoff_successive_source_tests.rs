@@ -334,18 +334,32 @@ fn successive_source_capture_binds_authorization_revision_without_rewriting_the_
     context.extend_from_slice(&f.history.checkpoint());
     assert_eq!(context.len(), 72);
     assert!(plan.to_bytes().ends_with(&context));
-    assert!(
-        matches!(
-            f.active.freeze_handoff(&plan, 180),
-            Err(DurableError::Suspended)
-        ),
-        "capture does not substitute for the successive durable transaction"
-    );
+    f.active
+        .freeze_handoff(&plan, 180)
+        .expect("separate durable freeze");
     assert_eq!(
         f.active
-            .handoff_source_state()
-            .expect("unchanged current owner")
+            .frozen_handoff_state(&plan)
+            .expect("exact authenticated source")
             .as_bytes(),
         after.as_bytes()
     );
+    f.active
+        .cancel_handoff(&plan)
+        .expect("explicit current-source cancellation");
+    let current = f
+        .active
+        .handoff_source_state()
+        .expect("complete cancelled history");
+    assert!(current.as_bytes().starts_with(b"QPAHSS02"));
+    assert_eq!(current.revision(), after.revision());
+    assert_ne!(current.commitment(), after.commitment());
+    assert_eq!(f.original_entry(), entry);
+    validate_capture(
+        current.as_bytes(),
+        &local_key(&f),
+        &f.f.approval,
+        &f.history,
+    )
+    .expect("cancelled control state independently decodes");
 }

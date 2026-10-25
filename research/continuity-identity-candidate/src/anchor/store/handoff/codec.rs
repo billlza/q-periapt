@@ -21,7 +21,10 @@ pub(super) fn take<'a>(d: &mut Decoder<'a>) -> Result<&'a [u8], Error> {
     d.take(length)
 }
 
-fn raw_wrap(content: &[u8], journal: Option<&Journal>) -> Result<Vec<u8>, DurableError> {
+pub(in crate::anchor::store::handoff) fn raw_wrap(
+    content: &[u8],
+    journal: Option<&Journal>,
+) -> Result<Vec<u8>, DurableError> {
     let Some(journal) = journal else {
         return Ok(content.to_vec());
     };
@@ -65,6 +68,37 @@ pub(in super::super) fn validate(
     let Some(journal) = journal else {
         return Ok(());
     };
+    validate_decisions(
+        pin,
+        history::HistoryContext::initial(pin),
+        revision,
+        journal,
+    )?;
+    if let Some(r) = &journal.frozen {
+        if source_commitment(&raw_wrap(content, prior(journal).as_ref())?) != r.plan.commitment {
+            return Err(DurableError::Corrupt);
+        }
+    }
+    Ok(())
+}
+
+pub(in crate::anchor::store::handoff) fn prior(journal: &Journal) -> Option<Journal> {
+    if journal.cancelled.is_empty() {
+        return None;
+    }
+    Some(Journal {
+        cancelled: journal.cancelled.clone(),
+        frozen: None,
+        retired: None,
+    })
+}
+
+pub(in crate::anchor::store::handoff) fn validate_decisions(
+    pin: &AnchorPin,
+    context: history::HistoryContext,
+    revision: u64,
+    journal: &Journal,
+) -> Result<(), DurableError> {
     if journal.cancelled.len() > MAX_CANCELLED
         || (journal.cancelled.is_empty() && journal.frozen.is_none())
         || (journal.cancelled.len() == MAX_CANCELLED && journal.frozen.is_some())
@@ -74,8 +108,7 @@ pub(in super::super) fn validate(
     }
     let mut ids = std::collections::BTreeSet::new();
     for r in journal.cancelled.iter().chain(journal.frozen.iter()) {
-        r.plan
-            .require_history(history::HistoryContext::initial(pin))?;
+        r.plan.require_history(context)?;
         if r.plan.source.binding != pin.binding
             || r.plan.revision > revision
             || !ids.insert(r.plan.operation)
@@ -96,19 +129,6 @@ pub(in super::super) fn validate(
     }
     if let Some(r) = &journal.frozen {
         if r.state != AnchorHandoffState::Frozen || r.plan.revision != revision {
-            return Err(DurableError::Corrupt);
-        }
-        let prior = Journal {
-            cancelled: journal.cancelled.clone(),
-            frozen: None,
-            retired: None,
-        };
-        let prior = if prior.cancelled.is_empty() {
-            None
-        } else {
-            Some(&prior)
-        };
-        if source_commitment(&raw_wrap(content, prior)?) != r.plan.commitment {
             return Err(DurableError::Corrupt);
         }
         if let Some(retired) = &journal.retired {

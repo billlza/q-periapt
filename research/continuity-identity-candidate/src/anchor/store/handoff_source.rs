@@ -83,10 +83,16 @@ impl AnchorStore {
     /// import; those transactions retain their separate admission requirements.
     pub fn handoff_source_state(&mut self) -> Result<AnchorHandoffSourceState, DurableError> {
         let image = self.image()?;
+        self.captured_handoff_state(&image)
+    }
+    pub(super) fn captured_handoff_state(
+        &self,
+        image: &Image,
+    ) -> Result<AnchorHandoffSourceState, DurableError> {
         let active = self.active.as_ref().ok_or(DurableError::Closed)?;
         match &active.transferred {
-            None => AnchorHandoffSourceState::from_image(&active.pin, &image),
-            Some(transferred) => transferred.capture_source(&active.db, &active.wrapping, &image),
+            None => AnchorHandoffSourceState::from_image(&active.pin, image),
+            Some(transferred) => transferred.capture_source(&active.db, &active.wrapping, image),
         }
     }
 }

@@ -1477,7 +1477,7 @@ The capture decoder reuses the complete imported-state and client-proof
 validators with a separate local key. It checks every record, exact index/hash,
 canonical order, public signature and independently supplied history. A local
 MAC used to invoke that decoder is not source authentication. This unsigned
-observation may become stale immediately: a future exact source freeze must
+observation may become stale immediately: an exact source freeze must
 bind its commitment before a successor can admit it. No capture, plan or history
 alone grants permission to serve a client.
 
@@ -1488,10 +1488,27 @@ missing records and modified signatures even after repairing a public row hash.
 The store-wide revision advances on a separate client-authorization commit;
 capture itself changes neither that revision nor the original subject entry.
 
-Successive freeze/retirement/import/activation still require their durable
-transaction integration. Their existing refusal remains in place. In particular,
-the original importer cannot treat this capture as an initial-authority image,
-and downstream storage must preserve all historical proofs and separately bound
-client approvals rather than flattening them into a current pin. These tests do
-not establish a completed second transfer, crash/power-loss recovery of that
-transfer, client re-adoption, compaction, or physical-platform acceptance.
+An activated target can freeze an independently approved successor plan and
+cancel that exact plan. `QPAHI004` indexes a separate `QPAHSC01` source-control
+row in the same atomic commit. The row reuses the original handoff decision
+codec, binds the current history and has a separate MAC domain. Missing or extra
+control state is corruption, never permission to resume. A frozen owner refuses
+current requests and client-authorization changes, including after reopening.
+Ordinary writes preserve the verified control journal; source-control writes
+cannot change the underlying data image or its revision.
+
+`QPAHSS02` captures retain prior cancellation history without exporting its MAC.
+Exact frozen-state reconstruction preserves the complete pre-freeze commitment,
+client proofs and original pending operations. A keyless observer can recover
+the retained freeze/cancellation after expiry. Cancellation capacity is reserved
+before freezing; expiry cannot silently cancel or reuse a plan. Process-loss
+and synchronization-failure tests cover these reversible source transactions,
+with owner cleanup and precise retries against the original database.
+
+Successive retirement, complete historical import/activation and fresh client
+re-adoption still require integration. Their existing refusal remains in place:
+the original importer cannot treat this capture as an initial-authority image.
+Downstream storage must preserve all historical proofs and separately bound
+client approvals rather than flattening them into a current pin. This reversible
+source transaction does not complete the second transfer or establish power-loss,
+compaction, full client-capacity or physical-platform acceptance.

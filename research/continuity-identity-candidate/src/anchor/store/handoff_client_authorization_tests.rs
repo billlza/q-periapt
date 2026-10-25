@@ -4,6 +4,8 @@ use super::*;
 mod control;
 #[path = "handoff_client_authorization_recovery_tests.rs"]
 mod recovery;
+#[path = "handoff_successive_freeze_tests.rs"]
+mod successive_freeze;
 #[path = "handoff_successive_source_tests.rs"]
 mod successive_source;
 #[path = "handoff_client_authorization_validation_tests.rs"]

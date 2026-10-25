@@ -4,6 +4,7 @@
 use super::*;
 
 const TAG: &[u8; 8] = b"QPAHSS01";
+const CONTROL_TAG: &[u8; 8] = b"QPAHSS02";
 // The complete current import and all separately stored authorization rows are
 // retained. Capture has a distinct bound; no existing image limit is increased.
 const MAX_HISTORY: usize = super::super::super::history::MAX_HISTORY_BYTES;
@@ -12,7 +13,9 @@ const MAX_SOURCE: usize = 8
     + MAX_HISTORY
     + storage::MAX_ACTIVATED_IMAGE
     + 2
-    + MAX_ENTRIES * (32 + 4 + authorization::MAX_RECORD_BYTES);
+    + MAX_ENTRIES * (32 + 4 + authorization::MAX_RECORD_BYTES)
+    + 4
+    + source_control::MAX_CONTROL_IMAGE;
 
 fn take<'a>(d: &mut Decoder<'a>, maximum: usize) -> Result<&'a [u8], Error> {
     let length = usize::try_from(u32::from_be_bytes(d.array()?)).map_err(|_| Error::Capacity)?;
@@ -32,7 +35,8 @@ pub(in crate::anchor::store) fn validate_capture(
         return Err(DurableError::Capacity);
     }
     let mut d = Decoder::new(bytes);
-    if d.array::<8>()? != *TAG
+    let tag = d.array::<8>()?;
+    if (tag != *TAG && tag != *CONTROL_TAG)
         || take(&mut d, MAX_HISTORY)? != expected_history.to_bytes()?
         || expected_history.current_pin().binding() != approval.plan.target.binding()
     {
@@ -75,13 +79,66 @@ pub(in crate::anchor::store) fn validate_capture(
         rows.insert(id, take(&mut d, authorization::MAX_RECORD_BYTES)?.to_vec());
         previous = Some(id);
     }
+    let control = if tag == *CONTROL_TAG {
+        Some(take(&mut d, source_control::MAX_CONTROL_IMAGE)?)
+    } else {
+        None
+    };
     d.finish()?;
     authorization::decode_records(&rows, approval, &saved, &original)?;
-    let image = image_codec::decode_content(expected_history, &activated.content)?;
-    if image.handoff.is_some() {
-        return Err(DurableError::Corrupt);
-    }
+    let mut image = image_codec::decode_content(expected_history, &activated.content)?;
+    image.handoff = match (saved.source_control, control) {
+        (None, None) => None,
+        (Some(expected), Some(bytes)) if source_control::digest_public(bytes) == expected => {
+            let journal = source_control::public_journal(bytes, expected_history, image.revision)?;
+            if journal.frozen.is_some() {
+                return Err(DurableError::Suspended);
+            }
+            Some(journal)
+        }
+        _ => return Err(DurableError::Corrupt),
+    };
     Ok(image)
+}
+
+// Construct the exact public view for a selected source Journal. Reconstructing
+// its cancelled-only predecessor is read-only and must match the freeze digest.
+pub(in crate::anchor::store::handoff::import) fn wire(
+    db: &Database,
+    key: &JournalKey,
+    approval: &AnchorHandoffTargetApproval,
+    saved: &ImportedImage,
+    history: &AnchorHandoffHistory,
+    revision: u64,
+    journal: Option<&Journal>,
+) -> Result<Vec<u8>, DurableError> {
+    let public = journal
+        .map(|j| source_control::public_bytes(history, revision, j))
+        .transpose()?;
+    let mut selected = saved.clone();
+    selected.source_control = public.as_deref().map(source_control::digest_public);
+    let sealed = storage::seal(key, approval, &selected)?;
+    let end = sealed.len().checked_sub(32).ok_or(DurableError::Corrupt)?;
+    let records = authorization::capture_rows(db, &saved.client_index)?;
+    let mut bytes = if public.is_some() { CONTROL_TAG } else { TAG }.to_vec();
+    super::super::super::codec::put(&history.to_bytes()?, &mut bytes)?;
+    super::super::super::codec::put(sealed.get(..end).ok_or(DurableError::Corrupt)?, &mut bytes)?;
+    bytes.extend_from_slice(
+        &u16::try_from(records.len())
+            .map_err(|_| DurableError::Capacity)?
+            .to_be_bytes(),
+    );
+    for (id, record) in records {
+        bytes.extend_from_slice(&id);
+        super::super::super::codec::put(&record, &mut bytes)?;
+    }
+    if let Some(public) = public {
+        super::super::super::codec::put(&public, &mut bytes)?;
+    }
+    if bytes.len() > MAX_SOURCE {
+        return Err(DurableError::Capacity);
+    }
+    Ok(bytes)
 }
 
 impl Transferred {
@@ -96,24 +153,15 @@ impl Transferred {
         if saved.digest != expected.digest {
             return Err(DurableError::Conflict);
         }
-        let records = authorization::capture_rows(db, &saved.client_index)?;
-        let sealed = storage::seal(key, &self.approval, &saved)?;
-        let end = sealed.len().checked_sub(32).ok_or(DurableError::Corrupt)?;
-        let mut bytes = TAG.to_vec();
-        super::super::super::codec::put(&self.history.to_bytes()?, &mut bytes)?;
-        super::super::super::codec::put(
-            sealed.get(..end).ok_or(DurableError::Corrupt)?,
-            &mut bytes,
+        let bytes = wire(
+            db,
+            key,
+            &self.approval,
+            &saved,
+            &self.history,
+            expected.revision,
+            expected.handoff.as_ref(),
         )?;
-        bytes.extend_from_slice(
-            &u16::try_from(records.len())
-                .map_err(|_| DurableError::Capacity)?
-                .to_be_bytes(),
-        );
-        for (id, record) in records {
-            bytes.extend_from_slice(&id);
-            super::super::super::codec::put(&record, &mut bytes)?;
-        }
         let restored = validate_capture(&bytes, key, &self.approval, &self.history)?;
         if image_codec::encode_content(&self.history, &restored)?
             != image_codec::encode_content(&self.history, expected)?

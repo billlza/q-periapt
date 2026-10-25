@@ -269,7 +269,6 @@ impl AnchorStore {
         plan: &AnchorHandoffPlan,
         now: u64,
     ) -> Result<AnchorHandoffReceipt, DurableError> {
-        self.require_original_source()?;
         let mut image = self.handoff_image()?;
         if self.pin()?.binding != plan.source.binding {
             return Err(Error::Scope.into());
@@ -289,9 +288,9 @@ impl AnchorStore {
             }
         }
         plan.validity.check(now)?;
-        plan.require_history(history::HistoryContext::initial(&plan.source))?;
-        let body = image_codec::encode_body(&plan.source, &image)?;
-        if image.revision != plan.revision || source_commitment(&body) != plan.commitment {
+        let source = self.captured_handoff_state(&image)?;
+        plan.require_history(source.history_context())?;
+        if image.revision != plan.revision || source.commitment() != plan.commitment {
             return Err(DurableError::Conflict);
         }
         let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
@@ -299,7 +298,7 @@ impl AnchorStore {
         image.handoff.get_or_insert_with(Journal::default).frozen = Some(receipt.clone());
         // Cancellation moves this same-sized receipt into the retained history.
         // Reserve that space before the freeze; never require a later reset.
-        image_codec::encode_body(&plan.source, &image)?;
+        self.preflight_handoff_image(&image)?;
         self.persist_image(&mut image, false)?;
         Ok(receipt)
     }
@@ -313,7 +312,6 @@ impl AnchorStore {
         &mut self,
         plan: &AnchorHandoffPlan,
     ) -> Result<AnchorHandoffReceipt, DurableError> {
-        self.require_original_source()?;
         let mut image = self.handoff_image()?;
         let journal = image.handoff.as_mut().ok_or(DurableError::Absent)?;
         let observed = journal.observe(plan)?;
@@ -328,7 +326,7 @@ impl AnchorStore {
             AnchorHandoffReceipt::sign(plan, AnchorHandoffState::Cancelled, &owner.signer)?;
         journal.cancelled.push(receipt.clone());
         journal.frozen = None;
-        image_codec::encode_body(&plan.source, &image)?;
+        self.preflight_handoff_image(&image)?;
         self.persist_image(&mut image, false)?;
         Ok(receipt)
     }
@@ -352,7 +350,19 @@ impl AnchorStore {
         &mut self,
         plan: &AnchorHandoffPlan,
     ) -> Result<AnchorHandoffSourceState, DurableError> {
-        retained_source(self.handoff_image()?, plan)
+        let image = retained_image(self.handoff_image()?, plan)?;
+        let state = self.captured_handoff_state(&image)?;
+        if state.commitment() != plan.commitment {
+            return Err(DurableError::Corrupt);
+        }
+        Ok(state)
+    }
+    fn preflight_handoff_image(&self, image: &Image) -> Result<(), DurableError> {
+        let active = self.active.as_ref().ok_or(DurableError::Closed)?;
+        match &active.transferred {
+            Some(t) => t.preflight_handoff(&active.db, &active.wrapping, image),
+            None => image_codec::encode_body(&active.pin, image).map(|_| ()),
+        }
     }
 }
 
@@ -391,9 +401,17 @@ impl AnchorHandoffObserver {
 }
 
 fn retained_source(
-    mut image: Image,
+    image: Image,
     plan: &AnchorHandoffPlan,
 ) -> Result<AnchorHandoffSourceState, DurableError> {
+    let image = retained_image(image, plan)?;
+    let state = AnchorHandoffSourceState::from_image(&plan.source, &image)?;
+    if state.commitment() != plan.commitment {
+        return Err(DurableError::Corrupt);
+    }
+    Ok(state)
+}
+fn retained_image(mut image: Image, plan: &AnchorHandoffPlan) -> Result<Image, DurableError> {
     let journal = image.handoff.as_mut().ok_or(DurableError::Absent)?;
     if journal.observe(plan)?.state == AnchorHandoffState::Cancelled {
         return Err(Error::Retired.into());
@@ -403,11 +421,7 @@ fn retained_source(
     if journal.cancelled.is_empty() {
         image.handoff = None;
     }
-    let state = AnchorHandoffSourceState::from_image(&plan.source, &image)?;
-    if state.commitment() != plan.commitment {
-        return Err(DurableError::Corrupt);
-    }
-    Ok(state)
+    Ok(image)
 }
 
 fn source_commitment(bytes: &[u8]) -> [u8; 32] {

@@ -10,6 +10,7 @@ pub(in crate::anchor::store) mod source;
 const BODY_BYTES: usize = 8 + 5 * 32;
 pub(super) const RECEIPT_BYTES: usize = 4 + BODY_BYTES + crate::crypto::SIGNATURE_BYTES;
 
+#[derive(Clone)]
 pub(super) struct Activation {
     pub(super) retirement: Vec<u8>,
     pub(super) receipt: Vec<u8>,
@@ -34,7 +35,7 @@ impl AnchorHandoffActivationReceipt {
     }
 }
 
-fn history(
+pub(super) fn history(
     approval: &AnchorHandoffTargetApproval,
     freeze: &[u8],
     acknowledgement: &[u8],
@@ -188,6 +189,7 @@ impl Transferred {
         let original = storage::validate_source(key, &approval, &image.source, &image.freeze)?;
         validate(&approval, image, &original)?;
         let client_contexts = authorization::verified_contexts(db, &approval, image, &original)?;
+        source_control::verify_image(db, key, &approval, image)?;
         let activation = image.activation.as_ref().ok_or(DurableError::Absent)?;
         Ok(Self {
             client_index: image.client_index.clone(),
@@ -238,6 +240,14 @@ impl Transferred {
         let mut image = image_codec::decode_content(&self.history, &activation.content)?;
         inherited::check(&self.original, &image, &self.history, &self.client_index)
             .map_err(stored_inheritance_error)?;
+        image.handoff = source_control::load(
+            db,
+            key,
+            &self.approval,
+            &saved,
+            &self.history,
+            image.revision,
+        )?;
         image.inherited = self.original.entries.keys().copied().collect();
         image.digest = saved.digest;
         Ok(image)
@@ -249,12 +259,37 @@ impl Transferred {
         image: &mut Image,
         admit_commit: impl FnOnce() -> Result<(), DurableError>,
     ) -> Result<(), DurableError> {
-        inherited::check(&self.original, image, &self.history, &self.client_index)?;
         let mut saved = storage::load_authenticated(db, key, &self.approval)?;
         self.admit(&saved)?;
         if saved.digest != image.digest {
             return Err(DurableError::Conflict);
         }
+        let before = image_codec::decode_content(
+            &self.history,
+            &saved
+                .activation
+                .as_ref()
+                .ok_or(DurableError::Corrupt)?
+                .content,
+        )?;
+        let journal = source_control::load(
+            db,
+            key,
+            &self.approval,
+            &saved,
+            &self.history,
+            before.revision,
+        )?;
+        if journal.as_ref().is_some_and(|j| j.frozen.is_some()) {
+            return Err(DurableError::Suspended);
+        }
+        source_control::same(
+            image.handoff.as_ref(),
+            journal.as_ref(),
+            &self.history,
+            before.revision,
+        )?;
+        inherited::check(&self.original, image, &self.history, &self.client_index)?;
         saved
             .activation
             .as_mut()
@@ -281,6 +316,27 @@ impl Transferred {
         tx.commit().map_err(DurableError::CommitUncertain)?;
         image.digest = storage::image_digest(&bytes);
         Ok(())
+    }
+    pub(in crate::anchor::store) fn preflight_handoff(
+        &self,
+        db: &Database,
+        key: &JournalKey,
+        image: &Image,
+    ) -> Result<(), DurableError> {
+        let saved = storage::load_authenticated(db, key, &self.approval)?;
+        self.admit(&saved)?;
+        source_control::preflight(db, key, &self.approval, &saved, &self.history, image)
+    }
+    pub(in crate::anchor::store) fn persist_handoff(
+        &self,
+        db: &Database,
+        key: &JournalKey,
+        image: &mut Image,
+        admit: impl FnOnce() -> Result<(), DurableError>,
+    ) -> Result<(), DurableError> {
+        let saved = storage::load_authenticated(db, key, &self.approval)?;
+        self.admit(&saved)?;
+        source_control::persist(db, key, &self.approval, &saved, &self.history, image, admit)
     }
 }
 

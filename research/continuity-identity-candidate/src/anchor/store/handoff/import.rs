@@ -4,6 +4,7 @@ use super::*;
 mod approval;
 pub use approval::{AnchorHandoffImportReceipt, AnchorHandoffTargetApproval};
 pub(in crate::anchor::store) mod activation;
+mod source_control;
 mod storage;
 pub use activation::{AnchorHandoffActivationReceipt, AnchorHandoffClientAuthorizationReceipt};
 pub(in crate::anchor::store::handoff) use storage::preflight_activation;
@@ -16,7 +17,9 @@ const IMPORT_TABLE: TableDefinition<&str, &[u8]> =
 // bounded envelope for the two approvals and exact lifecycle certificates.
 const MAX_IMPORT_IMAGE: usize = MAX_IMAGE + 32 * 1024;
 
+#[derive(Clone)]
 struct ImportedImage {
+    source_control: Option<[u8; 32]>,
     client_index: BTreeMap<[u8; 32], [u8; 32]>,
     activation: Option<activation::Activation>,
     source: Vec<u8>,
@@ -72,6 +75,7 @@ impl AnchorHandoffTarget {
             .check_witness_key(&approval.plan.target.key)?;
         let receipt = approval.sign_import(freeze, signer)?;
         let image = ImportedImage {
+            source_control: None,
             client_index: BTreeMap::new(),
             activation: None,
             source: source.to_vec(),

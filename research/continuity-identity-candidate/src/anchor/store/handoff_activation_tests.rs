@@ -140,13 +140,19 @@ fn activation_serves_new_enrollment_without_adopting_or_changing_inherited_clien
         [226; 32],
     )
     .expect("exact prospective next plan");
-    assert!(
-        matches!(
-            active.freeze_handoff(&next_plan, 150),
-            Err(DurableError::Suspended)
-        ),
-        "public capture alone cannot bypass the not-yet-integrated successive transaction"
+    active
+        .freeze_handoff(&next_plan, 150)
+        .expect("independently approved current-source freeze");
+    assert_eq!(
+        active
+            .frozen_handoff_state(&next_plan)
+            .expect("same complete source")
+            .as_bytes(),
+        captured.as_bytes()
     );
+    let cancelled = active
+        .cancel_handoff(&next_plan)
+        .expect("cancel before new enrollment");
     let mut next = new_client(active, &f.pin);
     let approval = next.approval(&next.original, None, &next.target);
     let p = next.proposal(&approval, next.initial, 222);
@@ -179,6 +185,13 @@ fn activation_serves_new_enrollment_without_adopting_or_changing_inherited_clien
         .expect("same activation retry");
     assert_eq!(replay.as_bytes(), activation.as_bytes());
     next.store = restored;
+    assert_eq!(
+        next.store
+            .observe_handoff(&next_plan)
+            .expect("ordinary writes retain source history")
+            .as_bytes(),
+        cancelled.as_bytes()
+    );
     assert_eq!(
         next.store.namespace().expect("original namespace"),
         c.pin.binding()

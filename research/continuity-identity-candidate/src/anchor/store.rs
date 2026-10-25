@@ -195,8 +195,8 @@ impl AnchorStore {
             .as_ref()
             .map_or(active.pin.binding, |t| t.namespace()))
     }
-    // Further source handoffs need the transferred-source transaction and
-    // per-client adoption protocol; never encode a current pin as the namespace.
+    // Irreversible successive retirement still needs complete target import and
+    // activation admission; reversible source freeze/cancellation is separate.
     fn require_original_source(&self) -> Result<(), DurableError> {
         if self
             .active
@@ -555,7 +555,16 @@ impl AnchorStore {
                 image.revision = increment(image.revision)?;
             }
             if let Some(transferred) = &active.transferred {
-                transferred.persist(&active.db, &active.wrapping, image, admit_commit)?;
+                if advance_revision {
+                    transferred.persist(&active.db, &active.wrapping, image, admit_commit)?;
+                } else {
+                    transferred.persist_handoff(
+                        &active.db,
+                        &active.wrapping,
+                        image,
+                        admit_commit,
+                    )?;
+                }
             } else {
                 let bytes = encode(&active.wrapping, &active.pin, image)?;
                 let tx = transaction(&active.db)?;

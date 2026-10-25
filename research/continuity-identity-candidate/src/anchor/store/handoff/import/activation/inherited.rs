@@ -24,7 +24,6 @@ pub(super) fn check(
     if current.namespace != original.namespace
         || current.namespace != history.namespace_binding()
         || current.revision < original.revision
-        || current.handoff.is_some()
     {
         return Err(DurableError::Corrupt);
     }
