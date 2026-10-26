@@ -1,10 +1,14 @@
 """Reject source substitution and success-shaped incomplete package execution."""
 import copy
+import contextlib
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
+from bounded_process import capture_output
 import continuity_package as package
 import rust_sdk_profile as sdk
 from test_rust_sdk_profile import archive
@@ -99,6 +103,94 @@ STDOUT = ("\n".join(f"test {name} ... ok" for name in sorted(package.TESTS)) +
 
 
 class ContinuityPackageTests(unittest.TestCase):
+    def test_interleaved_rlib_cdylib_sources_cannot_replace_fresh_consumer_dependencies(self):
+        # Cargo can leave a dependency fingerprint fresh after another source
+        # root replaces its unhashed rlib. Exercise real compilation and linking.
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            producer, rust, native = package.build_directories(root)
+            self.assertEqual(native, root / "build", "native readers retain this path")
+            for name, value in (("a", 1), ("b", 2), ("c", 3)):
+                source = root / name
+                (source / "src").mkdir(parents=True)
+                (source / "Cargo.toml").write_text(
+                    '[package]\nname="artifact-isolation-probe"\nversion="0.0.0"\n'
+                    'edition="2021"\n[lib]\ncrate-type=["rlib","cdylib"]\n[workspace]\n')
+                (source / "src/lib.rs").write_text(f'pub fn value() -> u32 {{ {value} }}\n')
+            for name, dependency in (("rust-client", "a"), ("native-client", "c")):
+                source = root / name
+                (source / "src").mkdir(parents=True)
+                (source / "Cargo.toml").write_text(
+                    f'[package]\nname="{name}"\nversion="0.0.0"\nedition="2021"\n'
+                    f'[dependencies]\nartifact-isolation-probe={{path="../{dependency}"}}\n'
+                    '[profile.dev.package."*"]\nopt-level=3\n[workspace]\n')
+                (source / "src/main.rs").write_text(
+                    'fn main() { println!("{}", artifact_isolation_probe::value()); }\n')
+            environment = {k: v for k, v in os.environ.items()
+                           if not k.startswith(("CARGO_", "RUST")) or k == "RUSTUP_HOME"}
+            environment.update(CARGO_HOME=str(root / "cargo-home"), CARGO_NET_OFFLINE="true",
+                               CARGO_INCREMENTAL="0", RUSTFLAGS="-D warnings")
+
+            def run(argv, target):
+                with contextlib.chdir(root):
+                    result = capture_output(argv, timeout_seconds=120,
+                        maximum_stdout_bytes=512 * 1024, maximum_stderr_bytes=512 * 1024,
+                        environment=dict(environment, CARGO_TARGET_DIR=str(target)))
+                self.assertEqual(result.returncode, 0, result.stderr.decode())
+                return result.stdout.decode().strip()
+
+            def consumer(name, target, revision):
+                run(["rustup", "run", "1.98.1", "cargo", "rustc", "--offline", "--manifest-path",
+                     str(root / name / "Cargo.toml"), "--", "-C", f"metadata=revision{revision}"], target)
+                suffix = ".exe" if os.name == "nt" else ""
+                return run([str(target / "debug" / (name + suffix))], target)
+
+            self.assertEqual(consumer("rust-client", rust, 1), "1")
+            self.assertEqual(consumer("native-client", native, 1), "3")
+            run(["rustup", "run", "1.98.1", "cargo", "build", "--offline", "--manifest-path",
+                 str(root / "b/Cargo.toml")], producer)
+            self.assertEqual(consumer("rust-client", rust, 2), "1")
+            self.assertEqual(consumer("native-client", native, 2), "3")
+
+    def test_package_compiler_uses_declared_producer_target_without_mutating_consumers(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            candidate = root / "research/candidate"
+            candidate.mkdir(parents=True)
+            (candidate / "Cargo.toml").write_bytes(b"candidate manifest")
+            output = root / "output"
+            output.mkdir()
+            build = root / "producer-build"
+            environment = {"CARGO_TARGET_DIR": str(root / "native-build"), "CARGO_NET_OFFLINE": "true"}
+            original = dict(environment)
+            observed = []
+
+            def run(argv, label, *, env=None):
+                if label == "candidate-sources":
+                    return b"research/candidate/Cargo.toml\n"
+                env = environment if env is None else env
+                observed.append((label, dict(env)))
+                if label == "package-list":
+                    return b"Cargo.toml\n"
+                if label == "package":
+                    destination = Path(env["CARGO_TARGET_DIR"]) / "package"
+                    destination.mkdir(parents=True)
+                    (destination / f"{package.NAME}-{package.VERSION}.crate").write_bytes(b"archive")
+                    for suffix in ("stdout", "stderr"):
+                        (output / f"package.{suffix}").write_text("")
+                return b""
+
+            with patch.object(package, "ROOT", root), patch.object(package, "CANDIDATE", candidate), \
+                    patch.object(sdk, "CONSUMER_CRATES", ()), \
+                    patch.object(package, "validate_candidate", return_value={"Cargo.toml": b"manifest"}), \
+                    patch.object(sdk, "validate_cargo_package_completion"):
+                package.package_candidate(["cargo"], root / "source", build, root,
+                                          {"crates": {}}, {}, output, run, environment)
+            self.assertEqual(environment, original)
+            self.assertEqual([label for label, _ in observed], ["fetch", "package-list", "package"])
+            self.assertTrue(all(env["CARGO_TARGET_DIR"] == str(build) for _, env in observed))
+            self.assertEqual([env["CARGO_NET_OFFLINE"] for _, env in observed], ["false", "true", "true"])
+
     def test_failed_child_diagnostics_are_bound_to_package_source(self):
         sources = package.source_inputs()['files']
         for relative in ('artifact/continuity_process_failure.py', 'artifact/continuity_process_crash.py',

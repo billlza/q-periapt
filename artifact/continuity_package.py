@@ -120,6 +120,7 @@ def verify_resolution(metadata: dict, consumer: Path, lock: bytes, original: byt
 def package_candidate(cargo: list[str], producer: Path, build: Path, sdk_output: Path,
                       cohort: dict, packages: dict, output: Path, run, environment: dict) -> tuple[dict, dict[str, bytes]]:
     """Cargo-package the candidate against exactly validated installed SDK archives."""
+    producer_environment = dict(environment, CARGO_TARGET_DIR=str(build))
     for name in sdk.CONSUMER_CRATES:
         record = cohort["crates"][name]
         members = sdk.validate_archive(sdk.snapshot(sdk_output / "crates" / record["file"]).data,
@@ -140,11 +141,11 @@ def package_candidate(cargo: list[str], producer: Path, build: Path, sdk_output:
         path = producer / "crates" / name
         patches.extend(["--config", f"patch.crates-io.{name}.path=" + json.dumps(str(path))])
     run([*cargo, "fetch", "--locked", *manifest, *patches], "fetch",
-        env=dict(environment, CARGO_NET_OFFLINE="false"))
+        env=dict(producer_environment, CARGO_NET_OFFLINE="false"))
     package_args = [*cargo, "package", *manifest, "--locked", "--offline", "--all-features", *patches]
-    listed = run([*package_args, "--list"], "package-list").decode().splitlines()
+    listed = run([*package_args, "--list"], "package-list", env=producer_environment).decode().splitlines()
     sdk.require(len(listed) == len(set(listed)), "duplicate candidate package members")
-    run([*package_args, "-j", "2"], "package")
+    run([*package_args, "-j", "2"], "package", env=producer_environment)
     streams = [(output / f"package.{suffix}").read_text() for suffix in ("stdout", "stderr")]
     sdk.validate_cargo_package_completion(NAME, streams)
     filename = f"{NAME}-{VERSION}.crate"
@@ -293,6 +294,11 @@ def validate_swift_minimum(selected: bool, toolchain: Path | None) -> None:
                 "--with-swift-consumer requires --swift-minimum-toolchain-root; the tool option requires Swift")
 
 
+def build_directories(outside: Path) -> tuple[Path, Path, Path]:
+    """Separate producer/Rust/C outputs; retain the native readers' build path."""
+    return outside / "package-build", outside / "rust-build", outside / "build"
+
+
 def qualify(args: argparse.Namespace) -> dict:
     profiles = profiles_contract.validate_profiles(
         profiles_contract.PROFILES if args.build_profile is None else (args.build_profile,))
@@ -333,6 +339,7 @@ def qualify(args: argparse.Namespace) -> dict:
     output.mkdir(parents=True, mode=0o700)
     outside = Path(tempfile.mkdtemp(prefix="qperiapt-continuity-package-")).resolve()
     sdk.require(not outside.is_relative_to(ROOT), "installed consumer must be outside checkout")
+    producer_build, rust_build, native_build = build_directories(outside)
     sdk.write_json(output / "location.json", {"path": str(outside)})
     sdk.write_json(output / "sources-before.json", before)
     result = {"schema_version": 1, "kind": "qperiapt.continuity_candidate_package"
@@ -358,7 +365,7 @@ def qualify(args: argparse.Namespace) -> dict:
         environment.update(CARGO_HOME=str(home), CARGO_NET_OFFLINE="true", CARGO_TERM_COLOR="never",
                            # Reapply CI's fixed transfer policy after rejecting inherited Cargo overrides.
                            CARGO_HTTP_MULTIPLEXING="false",
-                           CARGO_TARGET_DIR=str(outside / "build"), CARGO_INCREMENTAL="0",
+                           CARGO_TARGET_DIR=str(native_build), CARGO_INCREMENTAL="0",
                            RUSTC=str(toolchain / "bin/rustc"), RUSTDOC=str(toolchain / "bin/rustdoc"),
                            RUSTFLAGS="-D warnings", RUSTDOCFLAGS="-D warnings",
                            PATH=str(toolchain / "bin") + os.pathsep + environment.get("PATH", os.defpath))
@@ -368,9 +375,13 @@ def qualify(args: argparse.Namespace) -> dict:
         environment[library_key] = str(toolchain / "lib")
         result["compiler_library_path"] = {library_key: str(toolchain / "lib")}
         cargo = [str(toolchain / "bin/cargo")]
+        # rlib+cdylib outputs have unhashed filenames. Separate source roots and
+        # the Rust opt0/C opt3 dependency profiles so a later build cannot replace
+        # an artifact whose earlier Cargo fingerprint still reports it as fresh.
+        rust_environment = dict(environment, CARGO_TARGET_DIR=str(rust_build))
 
         def run(argv: list[str], label: str, cwd: Path = ROOT, *, env=None) -> bytes:
-            return sdk.command(argv, output / label, cwd, environment=environment if env is None else env)
+            return sdk.command(argv, output / label, cwd, environment=rust_environment if env is None else env)
 
         compiler = run([str(toolchain / "bin/rustc"), "--version", "--verbose"], "rustc").decode()
         sdk.require(compiler.splitlines()[0] == "rustc 1.98.1 (48a229cea 2026-09-01)",
@@ -379,7 +390,7 @@ def qualify(args: argparse.Namespace) -> dict:
         metadata = parse_strict_json_bytes(run([*cargo, "metadata", "--locked", "--offline", "--no-deps",
                                                 "--format-version", "1"], "workspace-metadata"), label="SDK metadata")
         packages = sdk.classify(metadata)
-        result["archive"], files = package_candidate(cargo, outside / "source", outside / "build",
+        result["archive"], files = package_candidate(cargo, outside / "source", producer_build,
             args.report.parent, cohort, packages, output, run, environment)
         destination = consumer / "packages" / f"{NAME}-{VERSION}"
         for relative, content in files.items():
@@ -401,9 +412,9 @@ def qualify(args: argparse.Namespace) -> dict:
             built = run([*cargo, "test", "--locked", "--offline", "-j", "2", "--no-run",
                          "--message-format=json", "--test", "owned_connection",
                          *(["--release"] if profile == "release" else [])], "build-" + profile, consumer)
-            executable = built_test_binary(built, consumer, outside / "build" / profile)
+            executable = built_test_binary(built, consumer, rust_build / profile)
             binary = sdk.snapshot(executable, maximum=256 * 1024**2)
-            runtime_environment = {k: v for k, v in environment.items() if not k.startswith(("DYLD_", "LD_"))}
+            runtime_environment = {k: v for k, v in rust_environment.items() if not k.startswith(("DYLD_", "LD_"))}
             tested = run([str(executable), "--nocapture"], "consumer-" + profile, consumer,
                          env=dict(runtime_environment, QPERIAPT_PUBLIC_SERVICE_EVIDENCE=str(evidence)))
             roster = evidence.with_name(evidence.name + "-roster-renewal") / "public"
