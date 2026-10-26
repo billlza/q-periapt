@@ -151,6 +151,89 @@ class ContinuityPackageTests(unittest.TestCase):
                  str(root / "b/Cargo.toml")], producer)
             self.assertEqual(consumer("rust-client", rust, 2), "1")
             self.assertEqual(consumer("native-client", native, 2), "3")
+            for directory in (producer, rust):
+                reclaimed = package.retire_completed_build(root, directory)
+                self.assertTrue(reclaimed["completed"])
+                self.assertGreater(reclaimed["files"], 0)
+                self.assertGreater(reclaimed["unique_inode_allocated_bytes"], 0)
+                self.assertFalse(directory.exists())
+            # Actual C-side compilation/linking still consumes its own rlib.
+            self.assertEqual(consumer("native-client", native, 3), "3")
+
+    def test_build_retirement_preserves_sources_archive_and_native_outputs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            producer, rust, native = package.build_directories(root)
+            for directory in (producer, rust, native, root / "source", root / "consumer"):
+                directory.mkdir()
+                (directory / "retained").write_bytes(b"original")
+            archive = root / "verified.crate"
+            archive.write_bytes(b"verified archive")
+            for directory in (producer, rust):
+                receipt = package.retire_completed_build(root, directory)
+                self.assertEqual(receipt["files"], 1)
+                self.assertEqual(receipt["logical_bytes"], len(b"original"))
+                self.assertIsInstance(receipt["filesystem_free_after"], int)
+            for directory in (native, root / "source", root / "consumer"):
+                self.assertEqual((directory / "retained").read_bytes(), b"original")
+            self.assertEqual(archive.read_bytes(), b"verified archive")
+
+    def test_build_retirement_refuses_active_unknown_external_and_linked_roots(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            outside = root / "private"
+            outside.mkdir()
+            external = root / "rust-build"
+            external.mkdir()
+            (external / "retained").write_bytes(b"external")
+            (outside / "package-build").symlink_to(external, target_is_directory=True)
+            (outside / "build").mkdir()
+            (outside / "other").mkdir()
+            for directory in (outside / "build", outside / "other", external,
+                              outside / "package-build", outside / "missing", outside):
+                with self.subTest(directory=directory), self.assertRaises(ValueError):
+                    package.retire_completed_build(outside, directory)
+            self.assertEqual((external / "retained").read_bytes(), b"external")
+            self.assertTrue((outside / "build").is_dir())
+
+    def test_build_retirement_unlinks_nested_symlink_without_touching_its_target(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            build = root / "package-build"
+            build.mkdir()
+            kept = root / "kept"
+            kept.mkdir()
+            (kept / "original").write_bytes(b"keep")
+            (build / "linked").symlink_to(kept, target_is_directory=True)
+            package.retire_completed_build(root, build)
+            self.assertEqual((kept / "original").read_bytes(), b"keep")
+
+    def test_build_retirement_propagates_io_failure(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            build = root / "rust-build"
+            build.mkdir()
+            (build / "original").write_bytes(b"original")
+            with patch.object(package.shutil, "rmtree", side_effect=OSError("removal failed")):
+                with self.assertRaisesRegex(OSError, "removal failed"):
+                    package.retire_completed_build(root, build)
+            self.assertEqual((build / "original").read_bytes(), b"original")
+
+    def test_build_retirement_counts_hardlinked_files_without_claiming_reclaimed_space(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            kept = root / "kept"
+            kept.write_bytes(b"original")
+            build = root / "rust-build"
+            build.mkdir()
+            for name in ("one", "two"):
+                os.link(kept, build / name)
+            allocated = kept.stat().st_blocks * 512
+            receipt = package.retire_completed_build(root, build)
+            self.assertEqual(receipt["files"], 2)
+            self.assertEqual(receipt["logical_bytes"], len(b"original") * 2)
+            self.assertEqual(receipt["unique_inode_allocated_bytes"], allocated)
+            self.assertEqual(kept.read_bytes(), b"original")
 
     def test_package_compiler_uses_declared_producer_target_without_mutating_consumers(self):
         with tempfile.TemporaryDirectory() as temp:

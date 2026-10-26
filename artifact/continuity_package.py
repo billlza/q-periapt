@@ -299,6 +299,42 @@ def build_directories(outside: Path) -> tuple[Path, Path, Path]:
     return outside / "package-build", outside / "rust-build", outside / "build"
 
 
+def retire_completed_build(outside: Path, directory: Path) -> dict:
+    """Reclaim a finished private build after its archive/execution was verified."""
+    sdk.require(outside.is_absolute() and outside.resolve(strict=True) == outside
+                and directory.parent == outside
+                and directory.name in {"package-build", "rust-build"}
+                and not directory.is_symlink() and directory.is_dir(),
+                "only a completed isolated producer/Rust build may be retired")
+    before = shutil.disk_usage(outside)
+    pending = [directory]
+    seen = set()
+    files = logical = allocated = 0
+    while pending:
+        with os.scandir(pending.pop()) as entries:
+            for entry in entries:
+                stat = entry.stat(follow_symlinks=False)
+                if entry.is_dir(follow_symlinks=False):
+                    pending.append(Path(entry.path))
+                else:
+                    files += 1
+                    logical += stat.st_size
+                inode = stat.st_dev, stat.st_ino
+                if inode not in seen:
+                    seen.add(inode)
+                    allocated += stat.st_blocks * 512
+    # Do not follow build-script symlinks or ignore removal errors. The native
+    # build and extracted source/archive inputs have separate lifetimes.
+    shutil.rmtree(directory)
+    sdk.require(not directory.exists() and not directory.is_symlink(),
+                "completed build retirement did not remove its original directory")
+    after = shutil.disk_usage(outside)
+    return {"schema_version": 1, "completed": True, "directory": str(directory),
+            "files": files, "logical_bytes": logical, "unique_inode_allocated_bytes": allocated,
+            "filesystem_free_before": before.free, "filesystem_free_after": after.free,
+            "scope": "completed build outputs only; inode allocation is not reclaimed bytes; filesystem space is not per-user quota headroom"}
+
+
 def qualify(args: argparse.Namespace) -> dict:
     profiles = profiles_contract.validate_profiles(
         profiles_contract.PROFILES if args.build_profile is None else (args.build_profile,))
@@ -392,6 +428,9 @@ def qualify(args: argparse.Namespace) -> dict:
         packages = sdk.classify(metadata)
         result["archive"], files = package_candidate(cargo, outside / "source", producer_build,
             args.report.parent, cohort, packages, output, run, environment)
+        verify_candidate_archive(output, result["archive"])
+        sdk.write_json(output / "package-build-storage.json",
+                       retire_completed_build(outside, producer_build))
         destination = consumer / "packages" / f"{NAME}-{VERSION}"
         for relative, content in files.items():
             path = destination / relative
@@ -446,6 +485,8 @@ def qualify(args: argparse.Namespace) -> dict:
                                                        "bytes": binary.size}
         run([*cargo, "clippy", "--locked", "--offline", "--all-targets", "-j", "2", "--", "-D", "warnings"],
             "consumer-clippy", consumer)
+        sdk.write_json(output / "rust-build-storage.json",
+                       retire_completed_build(outside, rust_build))
         if args.with_c_consumer:
             from continuity_c_consumer import qualify_c
             result["c_consumer"] = qualify_c(outside, output, cargo, environment, files,
