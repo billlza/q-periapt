@@ -610,11 +610,16 @@ jobs:
         with:
           toolchain: 1.98.1
           targets: riscv64gc-unknown-linux-gnu
-      - run: sudo apt-get update && sudo apt-get install -y qemu-user-static gcc-riscv64-linux-gnu
+      - name: Install the RISC-V user-mode emulator and cross compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user gcc-riscv64-linux-gnu
+          qemu-riscv64 --version
+          riscv64-linux-gnu-gcc --version
       - name: Run the byte-identity KATs on riscv64 under qemu-user
         env:
           CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
-          CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_RUNNER: qemu-riscv64-static -L /usr/riscv64-linux-gnu
+          CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_RUNNER: qemu-riscv64 -L /usr/riscv64-linux-gnu
         run: cargo test --release --locked --target riscv64gc-unknown-linux-gnu -p q-periapt-backends reference_vector
 
   # Cross-compiler differential: the constant-time / behaviour must not depend on
