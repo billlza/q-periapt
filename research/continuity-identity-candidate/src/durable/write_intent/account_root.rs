@@ -7,8 +7,11 @@ use crate::{
 
 mod codec;
 mod witness;
-pub(crate) use witness::Binding as RootWitnessBinding;
-pub use witness::{TransferredAccountRootJournalPlan, TransferredAccountRootPreparation};
+pub(crate) use witness::{lineage as root_attempts, Binding as RootWitnessBinding};
+pub use witness::{
+    TransferredAccountRootJournalPlan, TransferredAccountRootJournalTransition,
+    TransferredAccountRootPreparation,
+};
 pub(crate) mod transfer;
 pub use transfer::AccountRootJournalTransition;
 
@@ -17,13 +20,15 @@ const TAG: &[u8; 8] = b"QPARJF01";
 const TRANSFER_TAG: &[u8; 8] = b"QPARJF02";
 const RECEIPT_BYTES: usize = 3449;
 const WITNESS_TAG: &[u8; 8] = b"QPARJF03";
+const ATTEMPT_TAG: &[u8; 8] = b"QPARJF04";
 const WITNESS_RECEIPT_BYTES: usize = crate::AnchorTransferredAccountDecision::WIRE_BYTES;
 const MAX_FENCE_BYTES: usize = 207
     + 65_536
     + WITNESS_RECEIPT_BYTES
     + 129
     + 2
-    + transfer::MAX_TRANSFERS * transfer::TRANSFER_BYTES;
+    + transfer::MAX_TRANSFERS * transfer::TRANSFER_BYTES
+    + root_attempts::MAX_BYTES;
 
 #[derive(Clone, Eq, PartialEq)]
 struct Fence {
@@ -35,6 +40,7 @@ struct Fence {
     history: Vec<transfer::Transfer>,
     authority: Option<witness::Binding>,
     selection: Option<[u8; 32]>,
+    attempts: root_attempts::Attempts,
 }
 fn pending_digest(bytes: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-ACCOUNT-ROOT-LOCAL-INTENT/v1", bytes)
@@ -102,6 +108,7 @@ impl Fence {
             history: Vec::new(),
             authority: None,
             selection: None,
+            attempts: root_attempts::Attempts::default(),
         })
     }
     fn check(
@@ -111,6 +118,8 @@ impl Fence {
         pending: Option<&PendingIntent>,
     ) -> Result<(), DurableError> {
         transfer::check_history(&self.history, &self.proposal)?;
+        self.attempts
+            .check(&self.proposal, self.authority.as_ref())?;
         if self.subject
             != subject(
                 key,
@@ -171,6 +180,7 @@ pub(super) fn validate_transferred_retired_snapshot(
     let plan = context.plan();
     if fence.authority.as_ref() != Some(&plan.binding()?)
         || fence.proposal != *plan.proposal()
+        || &fence.attempts != plan.attempts()
         || fence.subject != context.retired_subject().subject()
         || fence.receipt.as_deref() != Some(context.decision())
     {
@@ -306,6 +316,9 @@ impl Owners {
         drop(table);
         drop(read);
         if !exists {
+            if !next.attempts.is_empty() {
+                return Err(DurableError::Absent);
+            }
             self.save(None, &next, "fence")?;
         }
         self.read()?;

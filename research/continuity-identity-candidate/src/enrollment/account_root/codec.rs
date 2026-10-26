@@ -16,10 +16,11 @@ impl State {
         mac.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
-        let (extended, context) = match &d.array::<8>()? {
-            tag if tag == TAG => (false, false),
-            tag if tag == TRANSFER_TAG => (true, false),
-            tag if tag == CONTEXT_TAG => (false, true),
+        let (extended, context, attempted) = match &d.array::<8>()? {
+            tag if tag == TAG => (false, false, false),
+            tag if tag == TRANSFER_TAG => (true, false, false),
+            tag if tag == CONTEXT_TAG => (false, true, false),
+            tag if tag == ATTEMPT_TAG => (false, true, true),
             _ => return Err(DurableError::Conflict),
         };
         if d.array::<32>()? != binding {
@@ -77,6 +78,11 @@ impl State {
         } else {
             (None, None, None)
         };
+        let attempts = if attempted {
+            crate::durable::root_attempts::Attempts::decode(&mut d)?
+        } else {
+            crate::durable::root_attempts::Attempts::default()
+        };
         d.finish()?;
         transfer::check_history(&history, &proposal)?;
         let result = Self {
@@ -89,6 +95,7 @@ impl State {
             child,
             authority,
             selection,
+            attempts,
         };
         result.check_context()?;
         Ok(Box::new(result))
@@ -103,7 +110,9 @@ impl State {
         let proposal = self.proposal.to_bytes()?;
         let receipt = self.receipt.as_deref().unwrap_or(&[]);
         let extended = !self.history.is_empty();
-        let mut wire = if self.child.is_some() {
+        let mut wire = if !self.attempts.is_empty() {
+            ATTEMPT_TAG
+        } else if self.child.is_some() {
             CONTEXT_TAG
         } else if extended {
             TRANSFER_TAG
@@ -144,6 +153,9 @@ impl State {
                 wire.extend_from_slice(&selection);
             }
         }
+        if !self.attempts.is_empty() {
+            self.attempts.encode(&mut wire)?;
+        }
         let mut mac = auth(key)?;
         mac.update(&wire);
         wire.extend_from_slice(&mac.finalize().into_bytes());
@@ -153,6 +165,8 @@ impl State {
         Ok(wire)
     }
     fn check_context(&self) -> Result<(), DurableError> {
+        self.attempts
+            .check(&self.proposal, self.authority.as_ref())?;
         if self.child.is_none() && (self.authority.is_some() || self.selection.is_some()) {
             return Err(DurableError::Corrupt);
         }

@@ -3,7 +3,10 @@
 use super::super::super::process::inputs as original;
 use super::*;
 
-pub(super) fn publish(c: &Case, root: &Path) {
+pub(in crate::enrollment::account_root::tests::transferred::next_attempt) fn publish(
+    c: &Case,
+    root: &Path,
+) {
     original::publish(&c.s.t, &c.s.closed);
     c.s.recovery.publish(root);
     let account = &c.next.account;
@@ -51,7 +54,7 @@ pub(super) fn publish(c: &Case, root: &Path) {
     parent.close();
 }
 
-pub(super) fn restore(
+pub(in crate::enrollment::account_root::tests::transferred::next_attempt) fn restore(
     root: &Path,
     previous: &PublicKey,
     history: &AnchorHandoffHistory,

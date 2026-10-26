@@ -91,6 +91,7 @@ impl Owners {
             history: Vec::new(),
             authority: Some(plan.binding()?),
             selection: self.selection(plan, image, pending)?,
+            attempts: plan.attempts.clone(),
         })
     }
     pub(in crate::durable::write_intent::account_root) fn check_authority(
@@ -98,10 +99,16 @@ impl Owners {
         fence: &Fence,
     ) -> Result<(), DurableError> {
         match &self.transferred {
-            None if fence.authority.is_none() && fence.selection.is_none() => Ok(()),
+            None if fence.authority.is_none()
+                && fence.selection.is_none()
+                && fence.attempts.is_empty() =>
+            {
+                Ok(())
+            }
             Some(plan)
                 if fence.authority.as_ref() == Some(&plan.binding()?)
-                    && fence.proposal == *plan.proposal() =>
+                    && fence.proposal == *plan.proposal()
+                    && fence.attempts == plan.attempts =>
             {
                 let (image, pending) =
                     load_pending_snapshot(&self.db, &self.key, self.owner, self.admission())?;

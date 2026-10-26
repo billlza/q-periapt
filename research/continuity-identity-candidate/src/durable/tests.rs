@@ -30,6 +30,16 @@ pub(crate) fn authenticate_witness_control(key: &JournalKey, body: &[u8]) -> Vec
     [body, hmac::Mac::finalize(mac).into_bytes().as_slice()].concat()
 }
 
+pub(crate) fn authenticate_account_root_fence(key: &JournalKey, body: &[u8]) -> Vec<u8> {
+    let derived = key
+        .account_root_fence_key()
+        .expect("owned fixture fence key");
+    let mut mac = <hmac::Hmac<sha2::Sha256> as hmac::KeyInit>::new_from_slice(derived.as_bytes())
+        .expect("fixed key");
+    hmac::Mac::update(&mut mac, body);
+    [body, hmac::Mac::finalize(mac).into_bytes().as_slice()].concat()
+}
+
 pub(crate) fn directory() -> tempfile::TempDir {
     tempfile::Builder::new()
         .prefix("continuity-journal-")

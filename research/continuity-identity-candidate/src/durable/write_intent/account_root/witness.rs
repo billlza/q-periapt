@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Current account authority never rewrites the original logical Witness binding.
 use super::*;
+pub(crate) mod lineage;
+mod next_attempt;
+pub use next_attempt::TransferredAccountRootJournalTransition;
 mod owner;
 mod preparation;
 pub use preparation::TransferredAccountRootPreparation;
@@ -50,8 +53,12 @@ pub struct TransferredAccountRootJournalPlan {
     approval: AnchorTransferredAccountReplacementApproval,
     history: AnchorHandoffHistory,
     selection: Option<WitnessJournalAdoptionPlan>,
+    attempts: lineage::Attempts,
 }
 impl TransferredAccountRootJournalPlan {
+    pub(crate) fn attempts(&self) -> &lineage::Attempts {
+        &self.attempts
+    }
     pub(crate) fn logical_pin(&self) -> &AnchorPin {
         &self.logical
     }
@@ -80,6 +87,7 @@ impl TransferredAccountRootJournalPlan {
             approval,
             history,
             selection,
+            attempts: lineage::Attempts::default(),
         })
     }
     /// Exact approved successor and complete frozen account; not a decision.

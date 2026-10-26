@@ -4,6 +4,8 @@ use super::*;
 impl Fence {
     pub(super) fn encode(&self, key: &JournalKey) -> Result<Vec<u8>, DurableError> {
         transfer::check_history(&self.history, &self.proposal)?;
+        self.attempts
+            .check(&self.proposal, self.authority.as_ref())?;
         let proposal = self.proposal.to_bytes()?;
         let receipt = self.receipt.as_deref().unwrap_or(&[]);
         let witness = self.authority.is_some();
@@ -19,7 +21,9 @@ impl Fence {
             return Err(DurableError::Corrupt);
         }
         let extended = !self.history.is_empty();
-        let mut bytes = if witness {
+        let mut bytes = if !self.attempts.is_empty() {
+            ATTEMPT_TAG
+        } else if witness {
             WITNESS_TAG
         } else if extended {
             TRANSFER_TAG
@@ -51,6 +55,9 @@ impl Fence {
             bytes.push(u8::from(self.selection.is_some()));
             bytes.extend_from_slice(&self.selection.unwrap_or([0; 32]));
         }
+        if !self.attempts.is_empty() {
+            self.attempts.encode(&mut bytes)?;
+        }
         let mut auth = mac(key)?;
         auth.update(&bytes);
         bytes.extend_from_slice(&auth.finalize().into_bytes());
@@ -69,10 +76,11 @@ impl Fence {
         auth.verify_slice(tag)
             .map_err(|_| DurableError::Authentication)?;
         let mut d = Decoder::new(body);
-        let (extended, witness) = match &d.array::<8>()? {
-            tag if tag == TAG => (false, false),
-            tag if tag == TRANSFER_TAG => (true, false),
-            tag if tag == WITNESS_TAG => (false, true),
+        let (extended, witness, attempted) = match &d.array::<8>()? {
+            tag if tag == TAG => (false, false, false),
+            tag if tag == TRANSFER_TAG => (true, false, false),
+            tag if tag == WITNESS_TAG => (false, true, false),
+            tag if tag == ATTEMPT_TAG => (false, true, true),
             _ => return Err(DurableError::Corrupt),
         };
         let subject = AnchorSubject::from_trusted_state(d.take(96)?)?;
@@ -129,7 +137,13 @@ impl Fence {
         } else {
             (None, None)
         };
+        let attempts = if attempted {
+            root_attempts::Attempts::decode(&mut d)?
+        } else {
+            root_attempts::Attempts::default()
+        };
         d.finish()?;
+        attempts.check(&proposal, authority.as_ref())?;
         transfer::check_history(&history, &proposal)?;
         Ok(Self {
             subject,
@@ -140,6 +154,7 @@ impl Fence {
             history,
             authority,
             selection,
+            attempts,
         })
     }
 }

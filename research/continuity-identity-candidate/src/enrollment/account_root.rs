@@ -14,6 +14,7 @@ const TAG: &[u8; 8] = b"QPERPL01";
 const TRANSFER_TAG: &[u8; 8] = b"QPERPL02";
 const RECEIPT_BYTES: usize = 3449;
 const CONTEXT_TAG: &[u8; 8] = b"QPERPL03";
+const ATTEMPT_TAG: &[u8; 8] = b"QPERPL04";
 const CURRENT_RECEIPT_BYTES: usize = crate::AnchorTransferredAccountDecision::WIRE_BYTES;
 #[cfg(all(test, unix))]
 pub(super) fn managed_boundary(stage: &str) {
@@ -24,7 +25,8 @@ const MAX_BYTES: usize = 174
     + CURRENT_RECEIPT_BYTES
     + 163
     + 2
-    + transfer::MAX_TRANSFERS * transfer::TRANSFER_BYTES;
+    + transfer::MAX_TRANSFERS * transfer::TRANSFER_BYTES
+    + crate::durable::root_attempts::MAX_BYTES;
 
 #[derive(Clone, Eq, PartialEq)]
 pub(super) struct State {
@@ -37,6 +39,7 @@ pub(super) struct State {
     child: Option<[u8; 32]>,
     authority: Option<crate::durable::RootWitnessBinding>,
     selection: Option<[u8; 32]>,
+    attempts: crate::durable::root_attempts::Attempts,
 }
 fn image_digest(wire: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-ROOT-ENROLLMENT/v1", wire)
@@ -317,6 +320,7 @@ impl AccountRootEnrollmentRecovery {
                     child: None,
                     authority: None,
                     selection: None,
+                    attempts: crate::durable::root_attempts::Attempts::default(),
                 }
             }
         };

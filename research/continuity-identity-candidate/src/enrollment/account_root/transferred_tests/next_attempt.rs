@@ -2,6 +2,8 @@
 //! Independently approved next server/registry attempt keeps the old full freeze.
 use super::fixture::Work;
 use super::*;
+#[path = "next_attempt/client.rs"]
+mod client;
 #[path = "next_attempt/support.rs"]
 mod support;
 use crate::AccountAuthorityReplacementState as State;

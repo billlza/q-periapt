@@ -57,6 +57,9 @@ impl TransferredRetirementContext {
                 bytes.extend_from_slice(&selection.retirement_binding()?);
             }
         }
+        if !plan.attempts().is_empty() {
+            plan.attempts().encode(&mut bytes)?;
+        }
         let binding = digest(b"Q-PERIAPT-TRANSFERRED-RETIREMENT-CONTEXT/v1", &bytes);
         Ok(Self {
             plan,

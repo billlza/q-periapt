@@ -1933,6 +1933,42 @@ Closed, complete G/R/cancellation and continuous-history composition,256 actual
 clients, independent/foreign-platform and physical power-loss admission, final ABI
 and PCS remain open. Native process crashes are not physical power-loss evidence.
 
+### Original client transition after transferred non-commit
+
+`TransferredAccountRootJournalTransition::verify` authenticates the exact old
+purpose-37 Closed proof and the separately approved next full proposal. The old
+account root, logical Witness, complete signed freeze, every frozen subject and
+observation, and retained client-selection lineage must remain identical. The
+new operation ID must be unused; its authority history must equal or extend the
+old history and end at the approved new Witness. A Committed proof, missing
+closure, changed original freeze or network-selected trust cannot authorize this
+transition. Expiry does not erase an authentic historical closure or grant current
+traffic; current admission remains the server's independent responsibility.
+
+The restricted journal and enrollment transition APIs preserve the original sealed
+image, pending operations, keys, command identities and selection bytes. Preflight
+holds the child lease and checks the exact old or already-next descriptor. The
+parent publishes the next child checkpoint before the child commits its fence;
+errors may follow either commit. An exact retry repairs a child left at the old
+fence after parent publication. A child ahead of an old parent, a missing fence,
+or incompatible image/pending/checkpoint is refused, without resetting storage.
+Neither a failed read nor a Closed result permits old-account traffic.
+
+`QPARJF04` and `QPERPL04` add a bounded prefix of at most 256 attempts. Each entry
+retains the old operation ID, both proposal and authority commitments, and the
+complete original signed Closed bytes. The chain is contiguous, forbids reused
+operations and ends at the independently retained next plan. Local MAC validity
+alone cannot authorize altered history. The next terminal receipt has reserved
+space before either intent is published. Earlier layouts retain their original
+encoding when this history is empty; older readers reject the new tags. Retain
+all original independent approvals and closures needed to reconstruct the typed
+transition after restart. The cleanup context also binds the complete prefix.
+
+These are the original parent/journal components. The managed registry controller
+still needs to coordinate this new transition with its existing preparation,
+binding, successor activation and cleanup workflow. Installed/foreign-language,
+physical power-loss and final ABI qualification remain separate requirements.
+
 ### Historical accounting under transferred Witness authority
 
 The server now retains each independently approved inventory, report and host-ACK

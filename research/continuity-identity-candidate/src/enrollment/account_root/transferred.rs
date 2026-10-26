@@ -5,6 +5,7 @@ use crate::{
     AnchorAccountReplacementState, AnchorTransferredAccountDecision,
     TransferredAccountRootJournalPlan,
 };
+mod next_attempt;
 mod transaction;
 
 fn selected_binding(enrollment: &DeviceEnrollment) -> Result<Option<[u8; 32]>, DurableError> {
@@ -35,7 +36,9 @@ impl Owners {
         match (&self.transferred, &self.state.authority) {
             (None, None) if self.state.selection.is_none() => Ok(()),
             (Some(plan), Some(binding))
-                if binding == &plan.binding()? && self.state.proposal == *plan.proposal() =>
+                if binding == &plan.binding()?
+                    && self.state.proposal == *plan.proposal()
+                    && &self.state.attempts == plan.attempts() =>
             {
                 let Phase::Accepted { admission, .. } = &snapshot.image.phase else {
                     return Err(DurableError::Suspended);

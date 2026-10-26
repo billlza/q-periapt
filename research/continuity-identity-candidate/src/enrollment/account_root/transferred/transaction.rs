@@ -56,9 +56,13 @@ impl AccountRootEnrollmentRecovery {
         };
         plan.check_parent(&original, admission.journal, admission.policy)?;
         let fresh = snapshot.root_replacement.is_none();
+        if fresh && !plan.attempts().is_empty() {
+            return Err(DurableError::Absent);
+        }
         if let Some(state) = &snapshot.root_replacement {
             if state.proposal != *plan.proposal()
                 || state.authority.as_ref() != Some(&plan.binding()?)
+                || &state.attempts != plan.attempts()
                 || state.child.is_none()
             {
                 return Err(DurableError::Conflict);
@@ -103,6 +107,7 @@ impl AccountRootEnrollmentRecovery {
                     child: Some(child.checkpoint()),
                     authority: Some(plan.binding()?),
                     selection: selected_binding(&enrollment)?,
+                    attempts: plan.attempts().clone(),
                 };
                 save(&enrollment, None, &state, "intent")?;
                 state

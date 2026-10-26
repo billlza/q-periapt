@@ -25,6 +25,7 @@ impl State {
         let plan = context.plan();
         if self.authority.as_ref() != Some(&plan.binding()?)
             || self.proposal != *plan.proposal()
+            || &self.attempts != plan.attempts()
             || self.receipt.as_deref() != Some(context.decision())
             || self.child.is_none()
             || *self.journal.as_bytes() != context.retired_subject().subject().journal_parts().0
