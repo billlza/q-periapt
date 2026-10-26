@@ -1735,3 +1735,46 @@ establish client journal/enrollment/registry composition, all crash or power-los
 cuts, final platform/installed/independent qualification, final ABI admission or
 PCS. Independent host checkpoint retention remains necessary against rollback
 of valid prior state; a stored signature cannot establish that it is the latest.
+
+### Original journal fencing under transferred account authority
+
+`TransferredAccountRootJournalPlan` independently binds the original logical
+Witness, approved account transition, exact verified history and expected local
+Witness selection. An absent selection is an explicit expectation of no control
+row; it is not permission to disregard a prepared or adopted row. A selected
+plan must match its complete verified lineage and original journal scope.
+
+The existing `AccountRootJournalRecovery` type consumes an ordinary journal or a
+`WitnessJournalAdoption` into restricted recovery. `QPARJF03` retains the original
+sealed image and pending digest, original logical Witness, full-approval hash,
+history checkpoint and exact selection-row hash. Preparation and proof retention
+check those bytes inside their write transactions. They do not reseal the image,
+change its Witness binding, replace pending targets, recompute command IDs or
+remove a selection. The first purpose-37 outcome is retained exactly, with distinct
+`WitnessCommitted` and `WitnessClosed` states. Closure preserves the old fence;
+neither state returns an operating owner. Retirement-only observation rejects a
+closed result. The original `QPARJF01/02` layouts and purpose-22 rules remain.
+
+Reopening requires the same independently retained plan, original identity and
+storage. Changed or missing selection, substituted history and invalid outcome
+signatures are refused even when the local MAC is valid. The old ordinary,
+Witness-adoption and root-transition interfaces cannot bypass this combined
+fence. A caller must retain its independent parent checkpoint against rollback
+of valid old state; the child fence alone does not provide whole-host rollback
+protection. Missing state is never proof that the server did not commit.
+
+Local tests use actual sealed secret prekeys and P Prepared, server Applied, and
+locally installed target with pending retained, plus a no-pending journal. Across
+no/prepared/adopted Witness selection and committed/closed server outcomes, the
+24 combinations preserve the original image, pending and selection bytes. Sixteen
+synchronous I/O cuts and eight actual SIGKILL/new-PID recoveries cover the two
+local commits and both outcomes. Existing source/profile/package checks remain
+separate from physical power-loss and complete platform acceptance.
+
+This is the original-journal child layer. Enrollment/installation parent intent,
+parent ACK/reopen ordering and account-authority registry composition remain open.
+So do full real G/R/cancellation matrices, transfer to a new approved root attempt
+after closure, closure of an unrecorded older-Witness attempt under a later
+Witness, mixed histories, full client capacity, independent/installed/device
+consumers, final ABI and PCS. The legacy root-transition and cleanup paths keep
+their refusal until those combined contracts are implemented and validated.

@@ -413,6 +413,7 @@ enum SnapshotAdmission<'a> {
     RosterRecovery,
     RetiredCleanup(&'a crate::AnchorRetiredSubject),
     AccountRootReplacement,
+    TransferredAccountRootReplacement,
     WitnessHandoff,
     AuthorityCheck,
 }
@@ -488,8 +489,11 @@ fn load_pending_snapshot_with_client(
         intent.check_current(&image)?;
     }
     if let Some(PendingIntent::Write(intent)) = &pending {
-        if (matches!(admission, SnapshotAdmission::WitnessHandoff)
-            || client.is_some_and(crate::AnchorClient::is_transferred))
+        if (matches!(
+            admission,
+            SnapshotAdmission::WitnessHandoff
+                | SnapshotAdmission::TransferredAccountRootReplacement
+        ) || client.is_some_and(crate::AnchorClient::is_transferred))
             && value.value() == intent.target
         {
             intent.check_retained_target(&image)?;
@@ -507,6 +511,7 @@ fn load_pending_snapshot_with_client(
             ) | (
                 SnapshotAdmission::RetiredCleanup(_)
                     | SnapshotAdmission::AccountRootReplacement
+                    | SnapshotAdmission::TransferredAccountRootReplacement
                     | SnapshotAdmission::WitnessHandoff
                     | SnapshotAdmission::AuthorityCheck,
                 Some(_)
@@ -521,7 +526,8 @@ fn load_pending_snapshot_with_client(
     if let Some(fence) = root_fence {
         account_root::validate_fence_snapshot(key, &image, pending.as_ref(), fence.value())?;
         match admission {
-            SnapshotAdmission::AccountRootReplacement => {}
+            SnapshotAdmission::AccountRootReplacement
+            | SnapshotAdmission::TransferredAccountRootReplacement => {}
             SnapshotAdmission::RetiredCleanup(retired) => {
                 account_root::validate_retired_fence(key, fence.value(), *retired)?;
             }
@@ -530,7 +536,13 @@ fn load_pending_snapshot_with_client(
     }
     if let Some(fence) = witness_fence {
         witness_handoff::validate_snapshot(key, &image, pending.as_ref(), fence.value(), client)?;
-        if client.is_none() && !matches!(admission, SnapshotAdmission::WitnessHandoff) {
+        if client.is_none()
+            && !matches!(
+                admission,
+                SnapshotAdmission::WitnessHandoff
+                    | SnapshotAdmission::TransferredAccountRootReplacement
+            )
+        {
             return Err(DurableError::Suspended);
         }
     } else if client.is_some_and(crate::AnchorClient::is_transferred) {

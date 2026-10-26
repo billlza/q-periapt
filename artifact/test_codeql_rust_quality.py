@@ -1967,6 +1967,14 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_witness_handoff_inventory_requires_each_new_source(self) -> None:
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
         required = (
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/codec.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/witness.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/witness/owner.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/witness/transaction.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/witness.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/witness/validation.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/witness/recovery.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/witness/process.rs',
             'research/continuity-identity-candidate/src/anchor/store/account_replacement/transferred.rs',
             'research/continuity-identity-candidate/src/anchor/store/account_replacement/transferred/codec.rs',
             'research/continuity-identity-candidate/src/anchor/store/account_replacement/transferred/record.rs',

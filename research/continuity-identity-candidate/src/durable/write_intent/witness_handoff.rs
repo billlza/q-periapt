@@ -22,9 +22,27 @@ pub(super) fn test_boundary(stage: &str, after: bool) {
 }
 pub use reconciliation::WitnessPendingRecovery;
 #[cfg(all(test, unix))]
-mod tests;
+pub(in crate::durable::write_intent) mod tests;
 
 pub(super) const ROW: &str = "witness-handoff";
+
+pub(super) fn check_account_root_selection(
+    key: &JournalKey,
+    image: &Image,
+    pending: Option<&PendingIntent>,
+    wire: &[u8],
+    plan: &WitnessJournalAdoptionPlan,
+) -> Result<(), DurableError> {
+    let fence = Fence::decode(key, wire)?;
+    fence.check(image, pending)?;
+    plan.check_image(image)?;
+    plan.check_selection(
+        &fence.request,
+        fence.prepared_at,
+        fence.receipt.as_deref(),
+        &fence.lineage,
+    )
+}
 
 /// Independently verified exact approval and history for one original journal.
 /// Retain these original inputs in the host's authenticated controller before
@@ -39,6 +57,19 @@ pub struct WitnessJournalAdoptionPlan {
     predecessor: Option<Box<Predecessor>>,
 }
 impl WitnessJournalAdoptionPlan {
+    pub(super) fn check_account_root_history(
+        &self,
+        logical: &crate::AnchorPin,
+        history: &AnchorHandoffHistory,
+    ) -> Result<(), DurableError> {
+        if self.scope().logical != logical.binding() {
+            return Err(Error::Scope.into());
+        }
+        if history.checkpoint() != self.history.checkpoint() {
+            history.require_extension_of(&self.history)?;
+        }
+        Ok(())
+    }
     /// Revalidate both root approvals against independent identity, policy and
     /// activation material. Expired material is historical, not renewed traffic
     /// permission. New local preparation separately checks the admission window.
@@ -179,6 +210,24 @@ pub struct WitnessJournalAdoption {
     active: Option<Owners>,
 }
 impl WitnessJournalAdoption {
+    /// Consume this prepared/adopted selection into an independently approved
+    /// account-root recovery. The selection and original pending work remain
+    /// byte-for-byte retained; this does not release a traffic-capable owner.
+    pub fn begin_account_root_replacement(
+        mut self,
+        plan: crate::TransferredAccountRootJournalPlan,
+    ) -> Result<crate::AccountRootJournalRecovery, DurableError> {
+        let owner = self.active.take().ok_or(DurableError::Closed)?;
+        owner.read()?;
+        let (identity, original_owner, _) = owner.plan.scope().subject.journal_parts();
+        crate::AccountRootJournalRecovery::prepare_transferred_database(
+            owner.db,
+            owner.key,
+            original_owner,
+            JournalIdentity(identity),
+            plan,
+        )
+    }
     /// Prepare on existing original storage or reconcile this exact preparation.
     /// An explicitly approved `continue_from` plan can advance only its exact
     /// durably adopted predecessor. Other existing decisions are never replaced;

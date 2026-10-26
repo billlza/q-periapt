@@ -20,18 +20,18 @@ impl AnchorTransport for Carrier {
             .map_err(|e| io::Error::other(e.to_string()))
     }
 }
-pub(super) struct Case {
+pub(in crate::durable::write_intent) struct Case {
     _directory: tempfile::TempDir,
-    pub(super) root: PathBuf,
-    pub(super) journal: DeviceJournal,
-    pub(super) plan: WitnessJournalAdoptionPlan,
-    pub(super) receipt: Vec<u8>,
-    pub(super) target: Option<AnchorStore>,
+    pub(in crate::durable::write_intent) root: PathBuf,
+    pub(in crate::durable::write_intent) journal: DeviceJournal,
+    pub(in crate::durable::write_intent) plan: WitnessJournalAdoptionPlan,
+    pub(in crate::durable::write_intent) receipt: Vec<u8>,
+    pub(in crate::durable::write_intent) target: Option<AnchorStore>,
     target_approval: AnchorHandoffTargetApproval,
     retirement: Vec<u8>,
-    pub(super) device: VerifiedDevice,
-    pub(super) policy: VerifiedSessionPolicy,
-    pub(super) identity: JournalIdentity,
+    pub(in crate::durable::write_intent) device: VerifiedDevice,
+    pub(in crate::durable::write_intent) policy: VerifiedSessionPolicy,
+    pub(in crate::durable::write_intent) identity: JournalIdentity,
     public_inputs: Vec<(&'static str, Vec<u8>)>,
 }
 fn policy(
@@ -63,7 +63,10 @@ fn policy(
     .expect("verified policy")
 }
 impl Case {
-    pub(super) fn new(pending_policy: Option<u8>) -> Self {
+    pub(in crate::durable::write_intent) fn history(&self) -> AnchorHandoffHistory {
+        self.plan.history.clone()
+    }
+    pub(in crate::durable::write_intent) fn new(pending_policy: Option<u8>) -> Self {
         let directory = crate::durable::tests::directory();
         let root = directory.path().canonicalize().expect("root");
         for child in ["client", "source", "target"] {
@@ -324,6 +327,24 @@ impl Case {
             .as_bytes()
             .to_vec();
         let public_inputs = vec![
+            ("original-certificate", certificate.clone()),
+            (
+                "original-root",
+                account
+                    .public_key()
+                    .expect("independent original root")
+                    .encode(),
+            ),
+            ("original-roster", roster.as_bytes().to_vec()),
+            (
+                "original-checkpoint",
+                [
+                    roster.checkpoint().version().to_be_bytes().as_slice(),
+                    &roster.checkpoint().digest(),
+                ]
+                .concat(),
+            ),
+            ("original-family", old.family().to_vec()),
             (
                 "origin-pin",
                 [
@@ -366,24 +387,24 @@ impl Case {
             public_inputs,
         }
     }
-    pub(super) fn path(&self) -> PathBuf {
+    pub(in crate::durable::write_intent) fn path(&self) -> PathBuf {
         self.root.as_path().join("client/state.redb")
     }
-    pub(super) fn key(&self) -> JournalKey {
+    pub(in crate::durable::write_intent) fn key(&self) -> JournalKey {
         JournalKey::open(&self.root.as_path().join("client/key")).expect("original key")
     }
-    pub(super) fn resume(&self) -> WitnessJournalAdoption {
+    pub(in crate::durable::write_intent) fn resume(&self) -> WitnessJournalAdoption {
         WitnessJournalAdoption::resume_original(&self.path(), self.key(), self.plan.clone())
             .expect("same original adoption")
     }
-    pub(super) fn original_rows(&self) -> (Vec<u8>, Option<Vec<u8>>) {
+    pub(in crate::durable::write_intent) fn original_rows(&self) -> (Vec<u8>, Option<Vec<u8>>) {
         if let Some(active) = &self.journal.active {
             rows(&active.db)
         } else {
             rows(&open_private_database(&self.path()).expect("original database"))
         }
     }
-    pub(super) fn assert_ordinary_refused(&self) {
+    pub(in crate::durable::write_intent) fn assert_ordinary_refused(&self) {
         assert!(matches!(
             DeviceJournal::recover_anchor_genesis(
                 &self.path(),
@@ -395,12 +416,12 @@ impl Case {
             Err(DurableError::Suspended)
         ));
     }
-    pub(super) fn publish_child_inputs(&self) {
+    pub(in crate::durable::write_intent) fn publish_child_inputs(&self) {
         for (name, bytes) in &self.public_inputs {
             fs::write(self.root.as_path().join(name), bytes).expect("owned public expectation");
         }
     }
-    pub(super) fn reopen_target(&mut self) {
+    pub(in crate::durable::write_intent) fn reopen_target(&mut self) {
         if let Some(mut target) = self.target.take() {
             target.close();
         }
@@ -424,7 +445,9 @@ impl Case {
         );
     }
 }
-pub(super) fn restore_child_plan(root: &Path) -> WitnessJournalAdoptionPlan {
+pub(in crate::durable::write_intent) fn restore_child_plan(
+    root: &Path,
+) -> WitnessJournalAdoptionPlan {
     let read =
         |name| fs::read(root.join(name)).expect("original independently retained public input");
     let pin = |name| {
@@ -477,7 +500,7 @@ pub(super) fn restore_child_plan(root: &Path) -> WitnessJournalAdoptionPlan {
         predecessor: None,
     }
 }
-pub(super) fn rows(db: &Database) -> (Vec<u8>, Option<Vec<u8>>) {
+pub(in crate::durable::write_intent) fn rows(db: &Database) -> (Vec<u8>, Option<Vec<u8>>) {
     let read = db.begin_read().expect("read");
     let table = image_table(&read).expect("table");
     let image = table

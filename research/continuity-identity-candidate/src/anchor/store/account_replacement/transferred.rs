@@ -55,6 +55,12 @@ pub struct AnchorTransferredAccountReplacementApproval {
     scope: Scope,
 }
 impl AnchorTransferredAccountReplacementApproval {
+    pub(crate) fn check_retained_history(
+        &self,
+        history: &AnchorHandoffHistory,
+    ) -> Result<(), DurableError> {
+        self.check(history)
+    }
     /// Bind the exact proposed transition to independently selected roots,
     /// genesis, credential, roster, policy and verified Witness history.
     pub fn from_trusted_state(
@@ -128,6 +134,7 @@ pub struct AnchorTransferredAccountDecision {
     wire: Vec<u8>,
 }
 impl AnchorTransferredAccountDecision {
+    pub(crate) const WIRE_BYTES: usize = record::WIRE_BYTES;
     /// Original signed bytes; recovery returns them without re-signing.
     pub fn as_bytes(&self) -> &[u8] {
         &self.wire

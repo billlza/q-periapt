@@ -593,3 +593,6 @@ fn account_root_local_process_loss_at_both_commits_keeps_one_fence_and_original_
     }
     eprintln!("ACCOUNT_ROOT_LOCAL_PROCESS cuts=4 original_inventory=true no_early_return=true same_proposal=true");
 }
+
+#[path = "tests/witness.rs"]
+mod witness;

@@ -3,7 +3,7 @@ use super::*;
 use std::{fs, path::PathBuf, time::Duration};
 mod operating;
 mod recovery;
-mod support;
+pub(in crate::durable::write_intent) mod support;
 mod transferred;
 mod validation;
 use support::*;

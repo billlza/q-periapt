@@ -5,6 +5,9 @@ use crate::{
     AnchorAccountReplacementProposal as Proposal, AnchorPin, AnchorRetiredAccount, AnchorSubject,
 };
 
+mod codec;
+mod witness;
+pub use witness::TransferredAccountRootJournalPlan;
 pub(crate) mod transfer;
 pub use transfer::AccountRootJournalTransition;
 
@@ -12,8 +15,14 @@ const ROW: &str = "account-root-fence";
 const TAG: &[u8; 8] = b"QPARJF01";
 const TRANSFER_TAG: &[u8; 8] = b"QPARJF02";
 const RECEIPT_BYTES: usize = 3449;
-const MAX_FENCE_BYTES: usize =
-    207 + 65_536 + RECEIPT_BYTES + 2 + transfer::MAX_TRANSFERS * transfer::TRANSFER_BYTES;
+const WITNESS_TAG: &[u8; 8] = b"QPARJF03";
+const WITNESS_RECEIPT_BYTES: usize = crate::AnchorTransferredAccountDecision::WIRE_BYTES;
+const MAX_FENCE_BYTES: usize = 207
+    + 65_536
+    + WITNESS_RECEIPT_BYTES
+    + 129
+    + 2
+    + transfer::MAX_TRANSFERS * transfer::TRANSFER_BYTES;
 
 #[derive(Clone, Eq, PartialEq)]
 struct Fence {
@@ -23,6 +32,8 @@ struct Fence {
     proposal: Proposal,
     receipt: Option<Vec<u8>>,
     history: Vec<transfer::Transfer>,
+    authority: Option<witness::Binding>,
+    selection: Option<[u8; 32]>,
 }
 fn pending_digest(bytes: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-ACCOUNT-ROOT-LOCAL-INTENT/v1", bytes)
@@ -37,6 +48,7 @@ fn subject(
     image: &Image,
     pending: Option<&PendingIntent>,
     proposal: &Proposal,
+    logical_witness: Option<[u8; 32]>,
 ) -> Result<AnchorSubject, DurableError> {
     let Protection::Required {
         policy, witness, ..
@@ -44,7 +56,9 @@ fn subject(
     else {
         return Err(DurableError::AnchorRequired);
     };
-    if proposal.previous_account() != image.local_account || proposal.witness_binding() != witness {
+    if proposal.previous_account() != image.local_account
+        || logical_witness.unwrap_or(proposal.witness_binding()) != witness
+    {
         return Err(Error::Scope.into());
     }
     let subject = proposal
@@ -71,12 +85,14 @@ impl Fence {
         proposal: Proposal,
     ) -> Result<Self, DurableError> {
         Ok(Self {
-            subject: subject(key, image, pending, &proposal)?,
+            subject: subject(key, image, pending, &proposal, None)?,
             image: image.digest,
             pending: pending.map(|p| pending_digest(p.wire())),
             proposal,
             receipt: None,
             history: Vec::new(),
+            authority: None,
+            selection: None,
         })
     }
     fn check(
@@ -86,105 +102,20 @@ impl Fence {
         pending: Option<&PendingIntent>,
     ) -> Result<(), DurableError> {
         transfer::check_history(&self.history, &self.proposal)?;
-        if self.subject != subject(key, image, pending, &self.proposal)?
+        if self.subject
+            != subject(
+                key,
+                image,
+                pending,
+                &self.proposal,
+                self.authority.as_ref().map(|a| a.logical),
+            )?
             || self.image != image.digest
             || self.pending != pending.map(|p| pending_digest(p.wire()))
         {
             return Err(DurableError::Conflict);
         }
         Ok(())
-    }
-    fn encode(&self, key: &JournalKey) -> Result<Vec<u8>, DurableError> {
-        transfer::check_history(&self.history, &self.proposal)?;
-        let proposal = self.proposal.to_bytes()?;
-        let receipt = self.receipt.as_deref().unwrap_or(&[]);
-        if !receipt.is_empty() && receipt.len() != RECEIPT_BYTES {
-            return Err(DurableError::Corrupt);
-        }
-        let extended = !self.history.is_empty();
-        let mut bytes = if extended { TRANSFER_TAG } else { TAG }.to_vec();
-        bytes.extend_from_slice(&self.subject.to_bytes());
-        bytes.extend_from_slice(&self.image);
-        bytes.push(u8::from(self.pending.is_some()));
-        bytes.extend_from_slice(&self.pending.unwrap_or([0; 32]));
-        bytes.extend_from_slice(
-            &u32::try_from(proposal.len())
-                .map_err(|_| DurableError::Capacity)?
-                .to_be_bytes(),
-        );
-        bytes.extend_from_slice(&proposal);
-        bytes.extend_from_slice(
-            &u16::try_from(receipt.len())
-                .map_err(|_| DurableError::Capacity)?
-                .to_be_bytes(),
-        );
-        bytes.extend_from_slice(receipt);
-        if extended {
-            transfer::encode_history(&self.history, &mut bytes)?;
-        }
-        let mut auth = mac(key)?;
-        auth.update(&bytes);
-        bytes.extend_from_slice(&auth.finalize().into_bytes());
-        if bytes.len() > MAX_FENCE_BYTES {
-            return Err(DurableError::Capacity);
-        }
-        Ok(bytes)
-    }
-    fn decode(key: &JournalKey, bytes: &[u8]) -> Result<Self, DurableError> {
-        if !(207..=MAX_FENCE_BYTES).contains(&bytes.len()) {
-            return Err(DurableError::Corrupt);
-        }
-        let (body, tag) = bytes.split_at(bytes.len() - 32);
-        let mut auth = mac(key)?;
-        auth.update(body);
-        auth.verify_slice(tag)
-            .map_err(|_| DurableError::Authentication)?;
-        let mut d = Decoder::new(body);
-        let extended = match &d.array::<8>()? {
-            tag if tag == TAG => false,
-            tag if tag == TRANSFER_TAG => true,
-            _ => return Err(DurableError::Corrupt),
-        };
-        let subject = AnchorSubject::from_trusted_state(d.take(96)?)?;
-        let image = d.array()?;
-        crate::codec::nonzero(&image)?;
-        let [present] = d.array()?;
-        let fingerprint = d.array()?;
-        let pending = match present {
-            0 if fingerprint == [0; 32] => None,
-            1 => {
-                crate::codec::nonzero(&fingerprint)?;
-                Some(fingerprint)
-            }
-            _ => return Err(DurableError::Corrupt),
-        };
-        let size =
-            usize::try_from(u32::from_be_bytes(d.array()?)).map_err(|_| DurableError::Capacity)?;
-        if size > 65_536 {
-            return Err(DurableError::Capacity);
-        }
-        let proposal = Proposal::from_trusted_state(d.take(size)?)?;
-        let size = usize::from(d.u16()?);
-        let receipt = match size {
-            0 => None,
-            RECEIPT_BYTES => Some(d.take(size)?.to_vec()),
-            _ => return Err(DurableError::Corrupt),
-        };
-        let history = if extended {
-            transfer::decode_history(&mut d)?
-        } else {
-            Vec::new()
-        };
-        d.finish()?;
-        transfer::check_history(&history, &proposal)?;
-        Ok(Self {
-            subject,
-            image,
-            pending,
-            proposal,
-            receipt,
-            history,
-        })
     }
 }
 
@@ -203,6 +134,9 @@ pub(super) fn validate_retired_fence(
     retired: crate::AnchorRetiredSubject,
 ) -> Result<(), DurableError> {
     let fence = Fence::decode(key, wire)?;
+    if fence.authority.is_some() {
+        return Err(DurableError::Suspended);
+    }
     let frozen = fence.proposal.predecessor_observation(retired.subject())?;
     if fence.subject != retired.subject()
         || fence.proposal.witness_binding() != retired.witness_binding()
@@ -215,13 +149,15 @@ pub(super) fn validate_retired_fence(
     Ok(())
 }
 
-/// Original local fence state. Neither variant is permission to operate a successor.
+/// Original local fence state. No variant grants permission to operate a successor.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AccountRootJournalState {
     /// Original image and pending intent are locally frozen; witness outcome is unknown.
     LocalFenced,
     /// An authentic receipt for the exact original witness decision is durably retained.
     WitnessCommitted,
+    /// Exact current-authority non-commit is retained; the original remains fenced.
+    WitnessClosed,
 }
 struct Owners {
     db: Database,
@@ -230,6 +166,7 @@ struct Owners {
     identity: JournalIdentity,
     pin: AnchorPin,
     proposal: Proposal,
+    transferred: Option<Box<TransferredAccountRootJournalPlan>>,
 }
 impl Owners {
     fn read(&self) -> Result<Fence, DurableError> {
@@ -240,12 +177,8 @@ impl Owners {
         Ok(fence)
     }
     fn read_snapshot(&self) -> Result<Fence, DurableError> {
-        let (image, pending) = load_pending_snapshot(
-            &self.db,
-            &self.key,
-            self.owner,
-            SnapshotAdmission::AccountRootReplacement,
-        )?;
+        let (image, pending) =
+            load_pending_snapshot(&self.db, &self.key, self.owner, self.admission())?;
         if image.id != *self.identity.as_bytes() {
             return Err(DurableError::Conflict);
         }
@@ -260,8 +193,9 @@ impl Owners {
         if self.pin.binding() != fence.proposal.witness_binding() {
             return Err(DurableError::Conflict);
         }
+        self.check_authority(&fence)?;
         if let Some(receipt) = &fence.receipt {
-            self.pin.verify_retired_account(&fence.proposal, receipt)?;
+            self.verify_outcome(receipt)?;
         }
         Ok(fence)
     }
@@ -285,15 +219,26 @@ impl Owners {
             }
             drop(image);
             let pending = table.get("pending").map_err(storage)?;
+            let selected = table.get(witness_handoff::ROW).map_err(storage)?;
+            if selected
+                .as_ref()
+                .map(|v| witness::selection_digest(v.value()))
+                != next.selection
+            {
+                return Err(DurableError::Conflict);
+            }
             if pending.as_ref().map(|p| pending_digest(p.value())) != next.pending
                 || table.get(ROW).map_err(storage)?.as_ref().map(|v| v.value())
                     != expected.as_deref()
                 || table.len().map_err(storage)?
-                    != 1 + u64::from(pending.is_some()) + u64::from(previous.is_some())
+                    != 1 + u64::from(pending.is_some())
+                        + u64::from(previous.is_some())
+                        + u64::from(selected.is_some())
             {
                 return Err(DurableError::Conflict);
             }
             drop(pending);
+            drop(selected);
             table.insert(ROW, wire.as_slice()).map_err(storage)?;
         }
         #[cfg(all(test, unix))]
@@ -308,16 +253,12 @@ impl Owners {
         if self.pin.binding() != self.proposal.witness_binding() {
             return Err(Error::Scope.into());
         }
-        let (image, pending) = load_pending_snapshot(
-            &self.db,
-            &self.key,
-            self.owner,
-            SnapshotAdmission::AccountRootReplacement,
-        )?;
+        let (image, pending) =
+            load_pending_snapshot(&self.db, &self.key, self.owner, self.admission())?;
         if image.id != *self.identity.as_bytes() {
             return Err(DurableError::Conflict);
         }
-        let next = Fence::new(&self.key, &image, pending.as_ref(), self.proposal.clone())?;
+        let next = self.new_fence(&image, pending.as_ref())?;
         let read = self.db.begin_read().map_err(storage)?;
         let table = image_table(&read)?;
         let exists = table.get(ROW).map_err(storage)?.is_some();
@@ -363,6 +304,7 @@ impl DeviceJournal {
             identity: JournalIdentity(active.id),
             pin,
             proposal,
+            transferred: None,
         }
         .prepare()
     }
@@ -388,6 +330,7 @@ impl AccountRootJournalRecovery {
             identity,
             pin,
             proposal,
+            transferred: None,
         }
         .prepare()
     }
@@ -411,12 +354,11 @@ impl AccountRootJournalRecovery {
             .active
             .as_ref()
             .ok_or(DurableError::Closed)
-            .and_then(|o| o.read())
-            .map(|f| {
-                if f.receipt.is_some() {
-                    AccountRootJournalState::WitnessCommitted
-                } else {
-                    AccountRootJournalState::LocalFenced
+            .and_then(|o| {
+                let f = o.read()?;
+                match f.receipt {
+                    Some(wire) => o.verify_outcome(&wire),
+                    None => Ok(AccountRootJournalState::LocalFenced),
                 }
             });
         if result.is_err() {
@@ -435,7 +377,17 @@ impl AccountRootJournalRecovery {
         let result = (|| {
             let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
             let original = owners.read()?;
-            owners.pin.verify_retired_account(&owners.proposal, wire)?;
+            if owners.verify_outcome(wire)? != AccountRootJournalState::WitnessCommitted {
+                return Err(Error::Scope.into());
+            }
+            if owners.transferred.is_some()
+                && original
+                    .receipt
+                    .as_deref()
+                    .is_some_and(|saved| saved != wire)
+            {
+                return Err(DurableError::Conflict);
+            }
             if original.receipt.is_none() {
                 let mut next = original.clone();
                 next.receipt = Some(wire.to_vec());
@@ -456,9 +408,7 @@ impl AccountRootJournalRecovery {
             let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
             let fence = owners.read()?;
             let receipt = fence.receipt.ok_or(DurableError::Absent)?;
-            Ok(owners
-                .pin
-                .verify_retired_account(&owners.proposal, &receipt)?)
+            owners.verified_retirement(&receipt)
         })();
         if result.is_err() {
             self.close();

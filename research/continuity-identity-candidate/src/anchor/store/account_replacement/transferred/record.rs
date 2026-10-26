@@ -2,7 +2,7 @@
 //! Fixed-size signed decisions alongside immutable proposal and freeze records.
 use super::*;
 const BODY_BYTES: usize = 8 + codec::SCOPE_BYTES + 5 * 32 + 1 + 8;
-const WIRE_BYTES: usize = 4 + BODY_BYTES + crate::crypto::SIGNATURE_BYTES;
+pub(super) const WIRE_BYTES: usize = 4 + BODY_BYTES + crate::crypto::SIGNATURE_BYTES;
 
 #[derive(Clone)]
 pub(in crate::anchor::store) struct Record {

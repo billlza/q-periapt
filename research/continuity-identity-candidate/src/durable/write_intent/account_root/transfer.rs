@@ -139,6 +139,9 @@ impl Owners {
         &self,
         transition: &AccountRootJournalTransition,
     ) -> Result<(Fence, Fence), DurableError> {
+        if self.transferred.is_some() {
+            return Err(DurableError::Suspended);
+        }
         transition.check_scope()?;
         let original = self.read_snapshot()?;
         if original.proposal == transition.next {
@@ -233,6 +236,7 @@ impl AccountRootJournalRecovery {
             identity,
             pin,
             proposal: transition.next.clone(),
+            transferred: None,
         };
         owners.transfer(transition)?;
         Ok(Self {

@@ -82,6 +82,7 @@ impl AccountRootJournalRecovery {
             identity,
             pin,
             proposal: parent.proposal.clone(),
+            transferred: None,
         };
         owners.reconcile_parent(&parent)?;
         Ok(Self {
