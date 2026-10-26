@@ -99,7 +99,7 @@ fn validate(
     }
     Ok(original)
 }
-fn original_digest(enrollment: &DeviceEnrollment) -> Result<[u8; 32], DurableError> {
+pub(super) fn original_digest(enrollment: &DeviceEnrollment) -> Result<[u8; 32], DurableError> {
     let active = enrollment.active.as_ref().ok_or(DurableError::Closed)?;
     let tx = active.database.begin_read().map_err(storage)?;
     let table = tx.open_table(TABLE).map_err(storage)?;

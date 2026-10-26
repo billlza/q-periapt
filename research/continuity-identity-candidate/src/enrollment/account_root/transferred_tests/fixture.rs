@@ -3,9 +3,17 @@ use super::*;
 #[path = "policy.rs"]
 mod policy;
 use policy::prepare_policy;
+enum Managed {
+    No,
+    Registry,
+    Controller,
+}
 pub(super) struct Transferred {
     pub(super) f: Fixture,
     pub(super) registry: Option<super::registry::OriginalRegistry>,
+    pub(super) registry_recovery: Option<super::registry::RegistryRecovery>,
+    pub(super) registry_before: Option<Vec<u8>>,
+    pub(super) controller: Option<ManagedAccountRootReplacement>,
     pub(super) target: AnchorStore,
     pub(super) history: AnchorHandoffHistory,
     pub(super) successor: Account,
@@ -15,6 +23,7 @@ pub(super) struct Transferred {
     pub(super) frozen: AnchorFrozenAccount,
     pub(super) selected: Option<WitnessJournalAdoptionPlan>,
     pub(super) pre_pending: Vec<u8>,
+    pub(super) pre_parent: Vec<u8>,
     pub(super) live: Option<EnrolledDevice>,
     pub(super) public_inputs: Vec<(&'static str, Vec<u8>)>,
 }
@@ -23,17 +32,21 @@ impl Transferred {
         Self::at(None, 0)
     }
     pub(super) fn at(stage: Option<u8>, selection: u8) -> Self {
-        Self::build(stage, selection, false, false)
+        Self::build(stage, selection, false, Managed::No)
     }
     pub(super) fn with_live_owner() -> Self {
-        Self::build(None, 0, true, false)
+        Self::build(None, 0, true, Managed::No)
     }
     pub(super) fn with_registry(stage: Option<u8>, selection: u8) -> Self {
-        Self::build(stage, selection, false, true)
+        Self::build(stage, selection, false, Managed::Registry)
     }
-    fn build(stage: Option<u8>, selection: u8, retain_live: bool, managed: bool) -> Self {
+    pub(super) fn with_controller(stage: Option<u8>, selection: u8) -> Self {
+        Self::build(stage, selection, false, Managed::Controller)
+    }
+    fn build(stage: Option<u8>, selection: u8, retain_live: bool, managed: Managed) -> Self {
         let f = fixture();
-        let mut registry = managed.then(|| super::registry::OriginalRegistry::new(&f));
+        let mut registry =
+            (!matches!(managed, Managed::No)).then(|| super::registry::OriginalRegistry::new(&f));
         let mut active = match &registry {
             Some(registry) => registry.activate(&f),
             None => f.activate(),
@@ -55,6 +68,7 @@ impl Transferred {
         active.close();
         let pre_pending =
             fs::read(f.original.paths.installation.files()[1]).expect("original pre-P backup");
+        let pre_parent = fs::read(&f.original.paths.configuration).expect("original pre-P parent");
         let renewed =
             stage.map(|stage| prepare_policy(&f, stage, registry.as_ref().map(|r| r.authority())));
         let live = retain_live.then(|| f.activate());
@@ -298,7 +312,35 @@ impl Transferred {
             before.as_bytes(),
             "preparation must not change the Witness or any pending operation"
         );
-        if let Some(registry) = &mut registry {
+        let mut controller = None;
+        let mut registry_recovery = None;
+        let mut registry_before = None;
+        if matches!(managed, Managed::Controller) {
+            let original = registry
+                .take()
+                .expect("registry already bound before real P");
+            registry_recovery = Some(original.recovery());
+            registry_before = Some(crate::account_authority::tests::snapshot_registry(
+                &original.owner,
+            ));
+            let plan = TransferredAccountRootPreparation::new(
+                preparation.clone(),
+                f.pin.clone(),
+                history.clone(),
+                selected.clone(),
+            )
+            .expect("original managed target context");
+            controller = Some(
+                ManagedAccountRootReplacement::begin_transferred(
+                    original.owner,
+                    original.expected,
+                    plan,
+                    f.original.paths.clone(),
+                    f.original.intent.clone(),
+                )
+                .expect("controller durably prepares before remote freeze"),
+            );
+        } else if let Some(registry) = &mut registry {
             registry.prepare(&preparation, &history);
         }
         public_inputs.push((
@@ -354,6 +396,9 @@ impl Transferred {
         Self {
             f,
             registry,
+            registry_recovery,
+            registry_before,
+            controller,
             target,
             history,
             successor,
@@ -363,6 +408,7 @@ impl Transferred {
             frozen,
             selected,
             pre_pending,
+            pre_parent,
             live,
             public_inputs,
         }

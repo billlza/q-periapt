@@ -8,7 +8,7 @@ use crate::{
 mod codec;
 mod witness;
 pub(crate) use witness::Binding as RootWitnessBinding;
-pub use witness::TransferredAccountRootJournalPlan;
+pub use witness::{TransferredAccountRootJournalPlan, TransferredAccountRootPreparation};
 pub(crate) mod transfer;
 pub use transfer::AccountRootJournalTransition;
 

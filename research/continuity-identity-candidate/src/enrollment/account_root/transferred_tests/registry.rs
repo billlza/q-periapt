@@ -3,6 +3,60 @@
 use super::*;
 use crate::AccountAuthorityReplacementState as State;
 
+#[derive(Clone)]
+pub(super) struct RegistryRecovery {
+    pub(super) expected: AccountAuthorityCheckpoint,
+    pub(super) path: std::path::PathBuf,
+    key: std::path::PathBuf,
+    identity: AccountAuthorityIdentity,
+}
+impl RegistryRecovery {
+    pub(super) fn publish(&self, root: &std::path::Path) {
+        let mut bytes = self.identity.as_bytes().to_vec();
+        bytes.extend_from_slice(self.expected.application().as_bytes());
+        bytes.extend_from_slice(&self.expected.revision().to_be_bytes());
+        bytes.extend_from_slice(&self.expected.account());
+        fs::write(root.join("registry-inputs"), bytes)
+            .expect("original independent registry checkpoint");
+    }
+    pub(super) fn restore(root: &std::path::Path) -> Self {
+        let bytes =
+            fs::read(root.join("registry-inputs")).expect("original public registry inputs");
+        let mut d = Decoder::new(&bytes);
+        let identity = AccountAuthorityIdentity::from_trusted_state(d.array().expect("identity"))
+            .expect("registry identity");
+        let app = ApplicationAccountId::from_trusted_state(d.array().expect("application"))
+            .expect("application");
+        let expected = AccountAuthorityCheckpoint::from_trusted_state(
+            app,
+            d.u64().expect("revision"),
+            d.array().expect("account"),
+        )
+        .expect("original checkpoint");
+        d.finish().expect("complete inputs");
+        let base = root.parent().expect("original fixture directory");
+        Self {
+            identity,
+            expected,
+            path: base.join("original-registry"),
+            key: base.join("original-registry-key"),
+        }
+    }
+    pub(super) fn open(&self, f: &Fixture) -> AccountAuthorityStore {
+        self.open_with(f.policy.family(), f.pin.clone())
+    }
+    pub(super) fn open_with(&self, family: [u8; 32], pin: AnchorPin) -> AccountAuthorityStore {
+        AccountAuthorityStore::open(
+            &self.path,
+            JournalKey::open(&self.key).expect("original registry key"),
+            self.identity,
+            family,
+            pin,
+        )
+        .expect("same original registry identity and pin")
+    }
+}
+
 pub(super) struct OriginalRegistry {
     pub(super) owner: AccountAuthorityStore,
     pub(super) identity: AccountAuthorityIdentity,
@@ -15,6 +69,14 @@ pub(super) struct OriginalRegistry {
     other: AccountAuthorityLease,
 }
 impl OriginalRegistry {
+    pub(super) fn recovery(&self) -> RegistryRecovery {
+        RegistryRecovery {
+            expected: self.expected,
+            path: self.path.clone(),
+            key: self.key.clone(),
+            identity: self.identity,
+        }
+    }
     pub(super) fn new(f: &Fixture) -> Self {
         let base = f
             ._dir

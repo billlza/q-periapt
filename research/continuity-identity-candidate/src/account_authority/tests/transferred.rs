@@ -10,6 +10,22 @@ pub(crate) fn restore_registry_snapshot(path: &Path, bytes: &[u8]) {
     let db = open_private_database(path).expect("same closed test database");
     codec::write(&db, bytes).expect("restore exact owned fixture snapshot");
 }
+pub(crate) fn changed_managed_checkpoint(
+    store: &AccountAuthorityStore,
+    checkpoint: Option<[u8; 32]>,
+) -> Vec<u8> {
+    let active = store.active.as_ref().expect("original owned registry");
+    let mut image = active.image.clone();
+    image
+        .replacements
+        .first_mut()
+        .expect("original operation")
+        .transferred
+        .as_mut()
+        .expect("transferred plan")
+        .managed = checkpoint;
+    codec::encode(&image, &active.key, store.binding).expect("owned MAC-valid alternate fixture")
+}
 pub(crate) fn rejects_transferred_images(store: &AccountAuthorityStore) {
     let active = store.active.as_ref().expect("active original registry");
     let read = |image: &Image| -> Result<_, DurableError> {

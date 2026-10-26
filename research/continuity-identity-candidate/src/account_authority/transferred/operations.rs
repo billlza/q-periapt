@@ -12,6 +12,43 @@ impl AccountAuthorityStore {
         plan: Plan,
         history: &AnchorHandoffHistory,
     ) -> Result<AccountAuthorityReplacementState, DurableError> {
+        self.prepare_transferred(expected, plan, history, None)
+    }
+    pub(crate) fn begin_managed_transferred_preparation(
+        &mut self,
+        expected: AccountAuthorityCheckpoint,
+        plan: Plan,
+        history: &AnchorHandoffHistory,
+        checkpoint: [u8; 32],
+    ) -> Result<AccountAuthorityReplacementState, DurableError> {
+        crate::codec::nonzero(&checkpoint)?;
+        self.prepare_transferred(expected, plan, history, Some(checkpoint))
+    }
+    pub(crate) fn managed_transferred_checkpoint(
+        &self,
+        operation: AnchorAccountReplacementId,
+    ) -> Result<[u8; 32], DurableError> {
+        self.active
+            .as_ref()
+            .ok_or(DurableError::Closed)?
+            .image
+            .replacements
+            .iter()
+            .find(|r| r.proposal.operation() == operation)
+            .ok_or(DurableError::Absent)?
+            .transferred
+            .as_ref()
+            .ok_or(DurableError::Conflict)?
+            .managed
+            .ok_or(DurableError::Suspended)
+    }
+    fn prepare_transferred(
+        &mut self,
+        expected: AccountAuthorityCheckpoint,
+        plan: Plan,
+        history: &AnchorHandoffHistory,
+        managed: Option<[u8; 32]>,
+    ) -> Result<AccountAuthorityReplacementState, DurableError> {
         plan.check(history)?;
         let mut image = self
             .active
@@ -29,6 +66,7 @@ impl AccountAuthorityStore {
                 || old.revision != expected.revision
                 || old.proposal.previous_account() != expected.account
                 || transfer.plan != plan
+                || transfer.managed != managed
             {
                 return Err(DurableError::Conflict);
             }
@@ -70,6 +108,7 @@ impl AccountAuthorityStore {
                 frozen: None,
                 approval: None,
                 receipt: None,
+                managed,
             })),
         });
         self.save(image, expected.application)?;

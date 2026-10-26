@@ -40,7 +40,7 @@ impl AccountRootEnrollmentRecovery {
         )
         .await
     }
-    pub(in crate::enrollment::account_root) async fn prepare_transferred(
+    pub(in crate::enrollment) async fn prepare_transferred(
         enrollment: DeviceEnrollment,
         plan: TransferredAccountRootJournalPlan,
     ) -> Result<Self, DurableError> {

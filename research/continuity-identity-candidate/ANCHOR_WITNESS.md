@@ -1848,11 +1848,11 @@ Native tests bind this plan to real no-pending and three P states, preserve jour
 rows, and compare the result with the actual current Witness's exact proposal.
 A separate actual-server test observes fresh target activation and prekey
 generation after Committed, and refuses activation after Closed. These are
-prerequisites for managed integration. The original registry contract below
-retains the transferred intent and per-account Witness mapping; the owning
-controller still must coordinate it with parent/child fences and successor
-admission. No complete managed cutover, new approved attempt after Closed,
-physical-device or final-ABI claim follows from these preparation tests.
+prerequisites for managed integration. The registry and controlled operation below
+retain the transferred intent, original local state and per-account Witness
+mapping through parent/child fencing and successor admission. Historical cleanup,
+new approved attempts after Closed, physical-device and final-ABI admission remain
+separate; these preparation tests alone do not establish them.
 
 ### Original account registry through a transferred root decision
 
@@ -1882,9 +1882,51 @@ against compromise of its own authentication key. The shared history and full
 record bounds retain the existing64-account/256-operation limits without silently
 truncating history.
 
-The registry primitive and per-account runtime binding are implemented; the same
-`ManagedAccountRootReplacement` owner still needs transferred-mode coordination
-across registry, parent/child fences, successor activation and cleanup. Direct
-primitive composition in a test is not that integrated product owner. Continuous
-history/cancellation/closed-attempt transitions, independent/foreign-platform and
-physical power-loss admission, final ABI and PCS remain separate requirements.
+The same `ManagedAccountRootReplacement` owner now coordinates preparation,
+parent/child fences, exact decisions, registry publication and successor activation.
+Its transferred preparation retains the independently approved target, original
+logical Witness, exact history and any original client-selection lineage in
+`TransferredAccountRootPreparation`. `begin_transferred` inspects the original
+parent and child without requiring a live old service or opening its signer.
+It requires the journal's original registry/checkpoint binding; a new registry
+created after the journal cannot substitute. It does not apply or reseal pending
+G/P/R work. An exact repeated begin reconciles its existing operation; only
+explicit absence permits that same approved begin to commit its first record.
+`resume_transferred_original` never creates a missing operation.
+
+`QPAAST05` adds a nonzero original-state commitment to a managed transferred
+record, atomically with its pre-freeze intent. It binds the authenticated parent
+image, child image, exact pending/selection bytes, target and independent history.
+Reopening checks it before parent/child reconstruction. Returning both parent and
+child to a pre-P backup while retaining the current registry is therefore refused;
+restoring the correct original files permits the same operation to continue.
+Formats01..04 remain readable; a raw transferred record without this managed
+checkpoint cannot be silently upgraded into a managed operation. The commitment
+does not prevent rollback of all independent host state together.
+
+After the separate full freeze and account-root approval, the controller keeps
+child-fence and parent-intent order, then retains purpose37 in child, parent and
+registry order. Resume finishes a missing parent/registry acknowledgement from
+the exact retained proof; a registry result can restore a compatible original
+parent/child backup. Committed activates only the independently enrolled target
+with fresh current-Witness admission and the original registry. Close/drop revokes
+delegated target operations. Closed releases neither account and cannot be used
+as a fresh operating reply. Bad freeze/approval/signature inputs are rejected
+before mutation; storage errors close owners and can follow commit.
+
+Focused native tests exercise24 no-pending/P-stage/selection/outcome combinations,
+MAC-valid checkpoint changes/removal, joint parent/child rollback, exact recovery,
+actual target prekey operations and controller-close revocation. Twenty-two
+SIGKILL/new-PID recoveries cover registry binding, both sides of parent intent,
+child fence, child receipt and parent ACK, and the final decision/registry returns.
+Thirty-two measured registry sync faults cover preparation, binding and outcome,
+before and after each barrier for both permanent results. The preparation fault
+case replays the exact original pre-prepare registry after a fixture already proved
+local intent preceded remote freeze; it is not a remote freeze-interruption test.
+
+Purpose37 historical cleanup and host acknowledgements still need to preserve
+both logical journal Witness and current signing authority; the existing legacy
+cleanup path refuses this context. A new independently approved attempt after
+Closed, complete G/R/cancellation and continuous-history composition,256 actual
+clients, independent/foreign-platform and physical power-loss admission, final ABI
+and PCS remain open. Native process crashes are not physical power-loss evidence.

@@ -9,6 +9,7 @@ const TAG: &[u8; 8] = b"QPAAST01";
 const PREPARATION_TAG: &[u8; 8] = b"QPAAST02";
 const TERMINAL_TAG: &[u8; 8] = b"QPAAST03";
 const TRANSFER_TAG: &[u8; 8] = b"QPAAST04";
+const MANAGED_TRANSFER_TAG: &[u8; 8] = b"QPAAST05";
 const MAX_BYTES: usize = 76
     + transferred::codec::MAX_HISTORY
     + MAX_REPLACEMENTS * transferred::codec::MAX_RECORD
@@ -50,9 +51,18 @@ pub(super) fn encode(
         return Err(DurableError::Capacity);
     }
     let transfer = image.history.is_some();
+    let managed = image
+        .replacements
+        .iter()
+        .any(|r| r.transferred.as_ref().is_some_and(|r| r.managed.is_some()));
     let terminal = transfer || image.replacements.iter().any(|r| r.decision.extended());
     let preparations = terminal || image.replacements.iter().any(|r| r.preparation.is_some());
-    let mut wire = if transfer {
+    let mut wire = if managed {
+        if !transfer {
+            return Err(DurableError::Corrupt);
+        }
+        MANAGED_TRANSFER_TAG
+    } else if transfer {
         TRANSFER_TAG
     } else if terminal {
         TERMINAL_TAG
@@ -125,7 +135,7 @@ pub(super) fn encode(
             wire.extend_from_slice(bytes);
         }
         if transfer {
-            transferred::codec::encode(record.transferred.as_deref(), &mut wire)?;
+            transferred::codec::encode(record.transferred.as_deref(), &mut wire, managed)?;
         } else if record.transferred.is_some() {
             return Err(DurableError::Corrupt);
         }
@@ -156,11 +166,12 @@ pub(super) fn decode(
         .map_err(|_| DurableError::Authentication)?;
     let mut d = Decoder::new(body);
     let version = d.array::<8>()?;
-    let (preparations, terminal, transfer) = match &version {
-        tag if tag == TAG => (false, false, false),
-        tag if tag == PREPARATION_TAG => (true, false, false),
-        tag if tag == TERMINAL_TAG => (true, true, false),
-        tag if tag == TRANSFER_TAG => (true, true, true),
+    let (preparations, terminal, transfer, managed) = match &version {
+        tag if tag == TAG => (false, false, false, false),
+        tag if tag == PREPARATION_TAG => (true, false, false, false),
+        tag if tag == TERMINAL_TAG => (true, true, false, false),
+        tag if tag == TRANSFER_TAG => (true, true, true, false),
+        tag if tag == MANAGED_TRANSFER_TAG => (true, true, true, true),
         _ => return Err(DurableError::Conflict),
     };
     if d.array::<32>()? != binding {
@@ -243,7 +254,7 @@ pub(super) fn decode(
         };
         let transferred = history
             .as_ref()
-            .map(|h| transferred::codec::decode(&mut d, h))
+            .map(|h| transferred::codec::decode(&mut d, h, managed))
             .transpose()?
             .flatten();
         replacements.push(Replacement {
@@ -256,7 +267,11 @@ pub(super) fn decode(
         });
     }
     d.finish()?;
-    if (transfer && replacements.iter().all(|r| r.transferred.is_none()))
+    if managed
+        != replacements
+            .iter()
+            .any(|r| r.transferred.as_ref().is_some_and(|r| r.managed.is_some()))
+        || (transfer && replacements.iter().all(|r| r.transferred.is_none()))
         || (terminal && !transfer && replacements.iter().all(|r| !r.decision.extended()))
         || (preparations && !terminal && replacements.iter().all(|r| r.preparation.is_none()))
     {

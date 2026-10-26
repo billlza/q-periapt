@@ -4,6 +4,8 @@ use crate::*;
 
 #[path = "transferred_tests/fixture.rs"]
 mod fixture;
+#[path = "transferred_tests/managed.rs"]
+mod managed;
 #[path = "transferred_tests/preparation.rs"]
 mod preparation;
 #[path = "transferred_tests/process.rs"]

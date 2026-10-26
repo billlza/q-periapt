@@ -5,6 +5,7 @@ use crate::{codec::Decoder, AnchorIdentity, PUBLIC_KEY_BYTES};
 pub(in crate::account_authority) const MAX_HISTORY: usize =
     AnchorHandoffHistory::MAX_BYTES + 2 * (32 + PUBLIC_KEY_BYTES) + 32 + 4;
 pub(in crate::account_authority) const MAX_RECORD: usize = 1
+    + 33
     + 32
     + 16
     + Plan::MAX_BYTES
@@ -65,6 +66,7 @@ pub(in crate::account_authority) fn decode_history(
 pub(in crate::account_authority) fn encode(
     record: Option<&Record>,
     out: &mut Vec<u8>,
+    managed: bool,
 ) -> Result<(), DurableError> {
     let Some(record) = record else {
         out.push(0);
@@ -91,11 +93,24 @@ pub(in crate::account_authority) fn encode(
             .unwrap_or_default(),
         out,
     )?;
-    put(record.receipt.as_deref().unwrap_or(&[]), out)
+    put(record.receipt.as_deref().unwrap_or(&[]), out)?;
+    if managed {
+        match record.managed {
+            None => out.push(0),
+            Some(checkpoint) => {
+                out.push(1);
+                out.extend_from_slice(&checkpoint);
+            }
+        }
+    } else if record.managed.is_some() {
+        return Err(DurableError::Corrupt);
+    }
+    Ok(())
 }
 pub(in crate::account_authority) fn decode(
     d: &mut Decoder<'_>,
     history: &AnchorHandoffHistory,
+    managed: bool,
 ) -> Result<Option<Box<Record>>, DurableError> {
     match d.array::<1>()? {
         [0] => return Ok(None),
@@ -125,11 +140,21 @@ pub(in crate::account_authority) fn decode(
     } else {
         Some(bytes.to_vec())
     };
+    let managed = if managed {
+        match d.array::<1>()? {
+            [0] => None,
+            [1] => Some(d.array()?),
+            _ => return Err(DurableError::Corrupt),
+        }
+    } else {
+        None
+    };
     Ok(Some(Box::new(Record {
         logical,
         plan,
         frozen,
         approval,
         receipt,
+        managed,
     })))
 }

@@ -178,8 +178,8 @@ pub use durable::{
     RekeyControlStep, RekeyFlight, RekeyOfferStatus, RekeyProgress, RekeyRequestStatus,
     RekeyResponseStatus, ReservedAbandonment, RosterRefreshMaterials, SendProgress, SessionClosure,
     SessionClosureArchive, SessionClosureId, SessionClosureJournal, SessionClosureStatus,
-    TransferredAccountRootJournalPlan, UnconfirmedMessage, UnconsumedDelivery,
-    MAX_PREKEY_PUBLICATIONS,
+    TransferredAccountRootJournalPlan, TransferredAccountRootPreparation, UnconfirmedMessage,
+    UnconsumedDelivery, MAX_PREKEY_PUBLICATIONS,
 };
 pub use durable::{
     WitnessJournalAdoption, WitnessJournalAdoptionPlan, WitnessJournalAdoptionState,

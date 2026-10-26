@@ -33,6 +33,24 @@ impl Owners {
         proposal: &Proposal,
         transition: Option<&AccountRootJournalTransition>,
     ) -> Result<Original, DurableError> {
+        if let Operation::Transferred(plan) = &self.operation {
+            if transition.is_some() {
+                return Err(DurableError::Conflict);
+            }
+            self.check_transferred_checkpoint(&enrollment, false)
+                .await?;
+            let approval = self.registry.transferred_approval(self.operation.id())?;
+            if approval.proposal() != proposal {
+                return Err(DurableError::Conflict);
+            }
+            return Ok(Original::Fenced(
+                AccountRootEnrollmentRecovery::prepare_transferred(
+                    enrollment,
+                    plan.bind(approval.clone())?,
+                )
+                .await?,
+            ));
+        }
         if let Some(retired) = enrollment.retained_root_cleanup(&self.pin, proposal)? {
             if !self.registry_committed(proposal)? {
                 return Err(DurableError::Conflict);
@@ -75,9 +93,16 @@ impl Owners {
             }
         };
         let original = match (proposal, self.original.take()) {
-            (None, None) => Original::Preparing(Box::new(
-                DeviceEnrollment::open(self.paths.clone(), self.intent.clone()).await?,
-            )),
+            (None, None) => {
+                let enrollment = if matches!(self.operation, Operation::Transferred(_)) {
+                    DeviceEnrollment::open_original_storage(self.paths.clone(), self.intent.clone())
+                        .await?
+                } else {
+                    DeviceEnrollment::open(self.paths.clone(), self.intent.clone()).await?
+                };
+                self.check_preparing_original(&enrollment).await?;
+                Original::Preparing(Box::new(enrollment))
+            }
             (None, Some(original @ Original::Preparing(_))) => original,
             (None, Some(_)) => return Err(DurableError::Conflict),
             (Some(proposal), None) => {
@@ -101,6 +126,7 @@ impl Owners {
             }
         };
         self.original = Some(original);
+        self.reconcile_transferred_decision()?;
         Ok(())
     }
     async fn check_original(

@@ -87,7 +87,7 @@ pub(crate) use write_intent::account_root::transfer as account_root_transfer;
 pub(crate) use write_intent::account_root::RootWitnessBinding;
 pub use write_intent::account_root::{
     AccountRootJournalRecovery, AccountRootJournalState, AccountRootJournalTransition,
-    TransferredAccountRootJournalPlan,
+    TransferredAccountRootJournalPlan, TransferredAccountRootPreparation,
 };
 pub(crate) use write_intent::witness_handoff::{WitnessAdoptionLineage, WitnessSelectionProgress};
 pub use write_intent::witness_handoff::{

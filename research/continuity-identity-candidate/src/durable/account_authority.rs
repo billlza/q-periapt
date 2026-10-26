@@ -162,6 +162,33 @@ pub(super) fn admit_reopen(
     }
 }
 
+// Historical original-scope inspection, never an operating admission. The
+// controller independently checks the original registry operation/checkpoint.
+pub(super) fn check_root_preparation(
+    image: &Image,
+    pending: Option<&write_intent::PendingWrite>,
+    key: &JournalKey,
+    registry: ([u8; 32], AccountAuthorityCheckpoint),
+    family: [u8; 32],
+    logical: [u8; 32],
+) -> Result<(), DurableError> {
+    let expected = Scope {
+        registry: registry.0,
+        local: registry.1,
+    };
+    if retained_scope(image, pending, key)? != Some(expected)
+        || image.local_account != registry.1.account()
+        || !matches!(image.protection, Protection::Required { witness, .. } if witness == logical)
+        || rosters::current(image, &image.local_account)?
+            .continuation_authority()
+            .1
+            != family
+    {
+        return Err(DurableError::Conflict);
+    }
+    Ok(())
+}
+
 // A pending initial binding is allowed only inside the owning installation
 // activation. The caller must commit adopt_account_authority before release.
 pub(crate) enum AccountAuthorityOpen {

@@ -240,7 +240,8 @@ pub(crate) fn rejects_terminal_images(store: &AccountAuthorityStore) {
 #[path = "tests/transferred.rs"]
 mod transferred;
 pub(crate) use transferred::{
-    rejects_transferred_images, restore_registry_snapshot, snapshot_registry,
+    changed_managed_checkpoint, rejects_transferred_images, restore_registry_snapshot,
+    snapshot_registry,
 };
 
 pub(super) fn transferred_boundary(image: &Image, after: bool) {

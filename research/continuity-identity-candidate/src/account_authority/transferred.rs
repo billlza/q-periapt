@@ -17,6 +17,7 @@ pub(super) struct Record {
     pub(super) frozen: Option<AnchorFrozenAccount>,
     pub(super) approval: Option<Approval>,
     pub(super) receipt: Option<Vec<u8>>,
+    pub(super) managed: Option<[u8; 32]>,
 }
 impl Replacement {
     pub(super) fn preparation_request(&self) -> Option<&AnchorAccountFreezeRequest> {
@@ -35,6 +36,9 @@ impl Record {
     ) -> Result<(), DurableError> {
         self.plan.check(history)?;
         history.historical_pin(self.logical)?;
+        if let Some(checkpoint) = self.managed {
+            crate::codec::nonzero(&checkpoint)?;
+        }
         if record.preparation.is_some() {
             return Err(DurableError::Corrupt);
         }

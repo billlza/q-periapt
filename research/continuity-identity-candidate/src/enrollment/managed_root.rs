@@ -13,6 +13,7 @@ mod original;
 use original::Original;
 mod cleanup;
 use operation::Operation;
+mod transferred;
 mod transition;
 pub use transition::ManagedAccountRootTransition;
 
@@ -59,7 +60,8 @@ impl Owners {
 }
 
 /// Coordinates one independently approved account-root replacement using the
-/// original registry, enrollment and journal. No new storage format is introduced.
+/// original registry, enrollment and journal. Transferred operations retain the
+/// current Witness approval in the original registry's versioned format.
 /// Witness freeze/replacement approval and target issuance remain independent
 /// control-plane actions. This owner verifies their receipts; it cannot approve them.
 ///

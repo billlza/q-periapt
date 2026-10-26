@@ -2,6 +2,8 @@
 //! Current account authority never rewrites the original logical Witness binding.
 use super::*;
 mod owner;
+mod preparation;
+pub use preparation::TransferredAccountRootPreparation;
 mod transaction;
 use crate::{
     AnchorHandoffHistory, AnchorTransferredAccountDecision,
