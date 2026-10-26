@@ -62,6 +62,7 @@ mod storage;
 pub use anchor::tls as anchor_tls;
 pub use cancellation::Cancellation;
 pub use durable::retired_report as retired_device;
+pub use durable::retired_report::TransferredRetirementContext;
 pub use enrollment::{
     AccountRootEnrollmentRecovery, AccountRootEnrollmentState, CredentialRenewalRequest,
     CredentialRenewalStatus, DeviceEnrollment, EnrolledDevice, EnrollmentExtensionApproval,

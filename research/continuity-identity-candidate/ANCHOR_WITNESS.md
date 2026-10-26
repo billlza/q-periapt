@@ -1924,9 +1924,10 @@ before and after each barrier for both permanent results. The preparation fault
 case replays the exact original pre-prepare registry after a fixture already proved
 local intent preceded remote freeze; it is not a remote freeze-interruption test.
 
-Purpose37 client cleanup and host acknowledgements still need to preserve
-both logical journal Witness and current signing authority; the existing legacy
-client cleanup path refuses this context. A new independently approved attempt after
+The original managed parent still needs to carry transferred cleanup through
+signer erasure and cold controller recovery. The restricted installation path
+below preserves logical journal Witness and current signing authority separately;
+the legacy contextless cleanup entry continues to refuse transferred state. A new independently approved attempt after
 Closed, complete G/R/cancellation and continuous-history composition,256 actual
 clients, independent/foreign-platform and physical power-loss admission, final ABI
 and PCS remain open. Native process crashes are not physical power-loss evidence.
@@ -1974,7 +1975,50 @@ three stage commits; sixteen measured sync failures cover before/after all
 3/2/3 calibrated transaction barriers in the observed runs. The tests require
 complete coverage of every measured barrier, rather than a fixed total. They use
 independent inventory/report expectations and real Witness/account transactions.
-They do not yet construct a complete
-transferred client loss report, perform host accounting effects or erase an
-original journal/signer. Connecting that existing client workflow, real pending
-G/P/R/cancellation composition, physical power loss and final ABI remain required.
+Those server tests do not construct the client report or execute external host
+effects. The installation boundary below separately reads the actual original
+client inventory and report. Parent signer cleanup, complete G/P/R/cancellation
+composition, physical power loss and final ABI remain required.
+
+### Original installation cleanup after Witness handoff
+
+`TransferredRetirementContext` requires the complete independently retained
+root plan, exact purpose-37 Committed decision, original subject and independently
+verified equal-or-extended accounting history. It distinguishes the logical
+storage Witness, historical retirement signer and current accounting signer.
+The context binding includes the original selection plan and predecessor chain;
+a later history tail cannot change the original inventory or decision.
+
+`RetiredInstallationRecovery::open_transferred` uses the existing installation,
+wrapping key, journal, archives and request identity. `QPCICL02` binds the saved
+inventory to that context; the bounded `QPTCCP01` control row authenticates the
+exact independent stage approvals and verified receipts with a separately derived
+MAC key. `prepare_transferred_stage` commits the selected approval before dispatch.
+Receipt verification cannot select a missing approval, change a prepared decision,
+or skip a preceding verified receipt. Unknown commit retries the same original
+approval. A prepared request for a retired authority is not silently replaced;
+independent closure/reapproval of such an uncommitted request remains open.
+
+The shared report projector retains all source/target roles, prekey metadata and
+original pending identities. A separately approved Report receipt precedes report
+release; a durable complete host accounting record and separately approved
+Acknowledged receipt precede logical erasure. The server does not execute external
+effects. Tests persist a real complete host record, not arbitrary effect claims.
+
+`QPRJER02` retains the exact ACK and context under the original key. Its atomic
+transaction verifies the full original image, pending intent, account fence and
+Witness selection before replacing those rows with the authenticated terminal.
+Cold terminal verification requires the independently retained context and local
+approval/receipt prefix, not an erased signer or an assumed absent journal.
+Installation, parent, signer, archive and wrapping-key files remain unchanged by
+journal erasure. Old pages, backups and copied secrets are outside this logical
+erasure guarantee. The legacy formats and legacy receipt checks remain intact.
+
+The focused client cases use actual sealed prekeys, no pending operation or three
+real P phases, absent/prepared/adopted Witness selection, and a later B-to-C
+accounting handoff. They check missing/corrupt or MAC-valid inconsistent control,
+wrong selection, unknown response, wrong receipt purpose, each measured config
+and journal transaction sync failure, and real before/after SIGKILL/new-process
+recovery. This is not the complete managed parent/signer retirement transaction,
+a complete G/R/cancellation matrix, physical power-loss evidence, a final ABI or
+release acceptance.

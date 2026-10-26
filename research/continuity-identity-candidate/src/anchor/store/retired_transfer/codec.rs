@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
-const APPROVAL_BYTES: usize = 8 + 4 * 32 + 16 + 32 + 313 + 1 + 32 + 32;
+pub(super) const APPROVAL_BYTES: usize = 8 + 4 * 32 + 16 + 32 + 313 + 1 + 32 + 32;
 pub(super) const WIRE_BYTES: usize = 4 + APPROVAL_BYTES + 8 + crate::crypto::SIGNATURE_BYTES;
 impl AnchorTransferredCleanupApproval {
+    pub(crate) const BYTES: usize = APPROVAL_BYTES;
     /// Canonical independent approval. No network input may select this expectation.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut b = b"QPTCLA01".to_vec();
@@ -85,6 +86,7 @@ impl AnchorTransferredCleanupApproval {
     }
 }
 impl AnchorTransferredCleanupReceipt {
+    pub(crate) const BYTES: usize = WIRE_BYTES;
     pub(super) fn sign(
         approval: &AnchorTransferredCleanupApproval,
         at: u64,

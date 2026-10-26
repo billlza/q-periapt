@@ -296,7 +296,7 @@ fn journal_erasure_every_sync_cut_is_exact_original_or_authenticated_terminal() 
             &calibration.key(),
             identity(&calibration),
             calibration.retired,
-            &calibration.pin,
+            ReceiptAuthority::Legacy(&calibration.pin),
             &expected,
             &wire,
         )
@@ -318,7 +318,7 @@ fn journal_erasure_every_sync_cut_is_exact_original_or_authenticated_terminal() 
             &calibration.key(),
             identity(&calibration),
             calibration.retired,
-            &calibration.pin,
+            ReceiptAuthority::Legacy(&calibration.pin),
             &expected,
             &fresh,
         )
@@ -339,7 +339,7 @@ fn journal_erasure_every_sync_cut_is_exact_original_or_authenticated_terminal() 
                         &c.key(),
                         identity(&c),
                         c.retired,
-                        &c.pin,
+                        ReceiptAuthority::Legacy(&c.pin),
                         &expected,
                         &wire,
                     ),

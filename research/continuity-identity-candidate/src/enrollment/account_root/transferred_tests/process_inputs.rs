@@ -97,7 +97,7 @@ pub(crate) struct RegistryInputs {
     pub(crate) preparation: AnchorTransferredAccountReplacementPlan,
     pub(crate) frozen: AnchorFrozenAccount,
 }
-pub(super) fn restore(root: &Path) -> (EnrollmentIntent, TransferredAccountRootJournalPlan) {
+pub(crate) fn restore(root: &Path) -> (EnrollmentIntent, TransferredAccountRootJournalPlan) {
     let r = restore_registry(root);
     (
         r.intent,

@@ -46,7 +46,7 @@ fn approval(
     )
     .expect("independent stage approval")
 }
-fn handoff(t: &mut Transferred) -> (PathBuf, PathBuf, AnchorHandoffTargetApproval) {
+pub(super) fn handoff(t: &mut Transferred) -> (PathBuf, PathBuf, AnchorHandoffTargetApproval) {
     let base = t.f._dir.path().canonicalize().expect("owned directory");
     let path = base.join("C-store");
     let key_path = base.join("C-key");

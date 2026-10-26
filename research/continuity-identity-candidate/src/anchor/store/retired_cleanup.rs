@@ -170,6 +170,19 @@ pub struct AnchorRetiredCleanup {
     proposal: AnchorRetiredCleanupProposal,
 }
 impl AnchorRetiredCleanup {
+    pub(crate) fn from_transferred(
+        receipt: &AnchorTransferredCleanupReceipt,
+        expected: &AnchorRetiredCleanupProposal,
+    ) -> Result<Self, DurableError> {
+        if receipt.stage() != AnchorTransferredCleanupStage::Inventory
+            || receipt.approval().approved_inventory() != expected
+        {
+            return Err(Error::Scope.into());
+        }
+        Ok(Self {
+            proposal: expected.clone(),
+        })
+    }
     /// Original independently retained inventory; no runtime permission is exposed.
     pub fn proposal(&self) -> &AnchorRetiredCleanupProposal {
         &self.proposal

@@ -9,7 +9,9 @@ use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
 mod inspect;
+pub(crate) mod transferred;
 pub(in crate::durable) use inspect::decode_public_view;
+pub use transferred::TransferredRetirementContext;
 
 /// Authenticated local journal state for one independently retained retired report.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

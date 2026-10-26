@@ -412,6 +412,7 @@ enum SnapshotAdmission<'a> {
     PolicyRecovery,
     RosterRecovery,
     RetiredCleanup(&'a crate::AnchorRetiredSubject),
+    TransferredRetiredCleanup(&'a crate::TransferredRetirementContext),
     AccountRootReplacement,
     TransferredAccountRootReplacement,
     WitnessHandoff,
@@ -493,6 +494,7 @@ fn load_pending_snapshot_with_client(
             admission,
             SnapshotAdmission::WitnessHandoff
                 | SnapshotAdmission::TransferredAccountRootReplacement
+                | SnapshotAdmission::TransferredRetiredCleanup(_)
         ) || client.is_some_and(crate::AnchorClient::is_transferred))
             && value.value() == intent.target
         {
@@ -510,6 +512,7 @@ fn load_pending_snapshot_with_client(
                 Some(BoundTransaction::Roster { .. })
             ) | (
                 SnapshotAdmission::RetiredCleanup(_)
+                    | SnapshotAdmission::TransferredRetiredCleanup(_)
                     | SnapshotAdmission::AccountRootReplacement
                     | SnapshotAdmission::TransferredAccountRootReplacement
                     | SnapshotAdmission::WitnessHandoff
@@ -531,8 +534,20 @@ fn load_pending_snapshot_with_client(
             SnapshotAdmission::RetiredCleanup(retired) => {
                 account_root::validate_retired_fence(key, fence.value(), *retired)?;
             }
+            SnapshotAdmission::TransferredRetiredCleanup(context) => {
+                account_root::validate_transferred_retired_snapshot(
+                    key,
+                    &image,
+                    pending.as_ref(),
+                    fence.value(),
+                    witness_fence.as_ref().map(|v| v.value()),
+                    context,
+                )?;
+            }
             _ => return Err(DurableError::Suspended),
         }
+    } else if matches!(admission, SnapshotAdmission::TransferredRetiredCleanup(_)) {
+        return Err(DurableError::Suspended);
     }
     if let Some(fence) = witness_fence {
         witness_handoff::validate_snapshot(key, &image, pending.as_ref(), fence.value(), client)?;
@@ -541,6 +556,7 @@ fn load_pending_snapshot_with_client(
                 admission,
                 SnapshotAdmission::WitnessHandoff
                     | SnapshotAdmission::TransferredAccountRootReplacement
+                    | SnapshotAdmission::TransferredRetiredCleanup(_)
             )
         {
             return Err(DurableError::Suspended);

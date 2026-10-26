@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Atomic logical retirement of the exact independently acknowledged journal inventory.
 use super::*;
-use crate::{retired_device::JournalErasureState, AnchorPin, AnchorRetiredReportProposal};
+use crate::{
+    durable::retired_report::transferred::authority::ReceiptAuthority,
+    retired_device::JournalErasureState, AnchorRetiredReportProposal,
+    AnchorTransferredCleanupReceipt,
+};
 
 const TAG: &[u8; 8] = b"QPRJER01";
+const TRANSFERRED_TAG: &[u8; 8] = b"QPRJER02";
 const RECEIPT_BYTES: usize = 3730;
-const BODY_BYTES: usize = 8 + RECEIPT_BYTES;
-const TERMINAL_BYTES: usize = BODY_BYTES + 32;
 
 struct Scope<'a> {
     key: &'a JournalKey,
     identity: JournalIdentity,
     retired: AnchorRetiredSubject,
-    pin: &'a AnchorPin,
+    authority: ReceiptAuthority<'a>,
     report: &'a AnchorRetiredReportProposal,
 }
 impl<'a> Scope<'a> {
@@ -20,20 +23,19 @@ impl<'a> Scope<'a> {
         key: &'a JournalKey,
         identity: JournalIdentity,
         retired: AnchorRetiredSubject,
-        pin: &'a AnchorPin,
+        authority: ReceiptAuthority<'a>,
         report: &'a AnchorRetiredReportProposal,
     ) -> Result<Self, DurableError> {
         report.inventory().check_retirement(retired)?;
-        if *identity.as_bytes() != report.inventory().subject().journal_parts().0
-            || pin.binding() != retired.witness_binding()
-        {
+        authority.check_scope(retired)?;
+        if *identity.as_bytes() != report.inventory().subject().journal_parts().0 {
             return Err(DurableError::Conflict);
         }
         Ok(Self {
             key,
             identity,
             retired,
-            pin,
+            authority,
             report,
         })
     }
@@ -49,8 +51,7 @@ impl<'a> Scope<'a> {
             .map_err(|_| Error::Provider.into())
     }
     fn verify_receipt(&self, wire: &[u8]) -> Result<(), DurableError> {
-        self.pin
-            .verify_retired_report_acknowledgement(self.retired, self.report, wire)?;
+        self.authority.verify_ack(self.retired, self.report, wire)?;
         Ok(())
     }
     fn read_terminal(&self, db: &Database) -> Result<bool, DurableError> {
@@ -60,26 +61,46 @@ impl<'a> Scope<'a> {
             return Ok(false);
         };
         let bytes = row.value();
+        let (tag, offset, receipt_bytes) = if self.authority.context().is_some() {
+            (TRANSFERRED_TAG, 40, AnchorTransferredCleanupReceipt::BYTES)
+        } else {
+            (TAG, 8, RECEIPT_BYTES)
+        };
+        let body_bytes = offset + receipt_bytes;
         if table.len().map_err(storage)? != 1
-            || bytes.len() != TERMINAL_BYTES
-            || bytes.get(..8) != Some(TAG.as_slice())
+            || bytes.len() != body_bytes + 32
+            || bytes.get(..8) != Some(tag.as_slice())
         {
             return Err(DurableError::Corrupt);
         }
-        let body = bytes.get(..BODY_BYTES).ok_or(DurableError::Corrupt)?;
+        let body = bytes.get(..body_bytes).ok_or(DurableError::Corrupt)?;
         let mut mac = self.authenticator()?;
         mac.update(body);
-        mac.verify_slice(bytes.get(BODY_BYTES..).ok_or(DurableError::Corrupt)?)
+        mac.verify_slice(bytes.get(body_bytes..).ok_or(DurableError::Corrupt)?)
             .map_err(|_| DurableError::Corrupt)?;
-        self.verify_receipt(body.get(8..).ok_or(DurableError::Corrupt)?)?;
+        if let Some(context) = self.authority.context() {
+            if body.get(8..40) != Some(context.binding().as_slice()) {
+                return Err(DurableError::Conflict);
+            }
+        }
+        self.verify_receipt(body.get(offset..).ok_or(DurableError::Corrupt)?)?;
         Ok(true)
     }
-    fn check_inventory(&self, db: &Database) -> Result<(), DurableError> {
-        let (_, _, actual) = snapshot(db, self.key, self.identity, self.retired)?;
+    fn check_inventory(
+        &self,
+        db: &Database,
+    ) -> Result<(Image, Option<PendingIntent>), DurableError> {
+        let (image, pending, actual) = snapshot(
+            db,
+            self.key,
+            self.identity,
+            self.retired,
+            self.authority.context(),
+        )?;
         if &actual != self.report.inventory() {
             return Err(DurableError::Conflict);
         }
-        Ok(())
+        Ok((image, pending))
     }
     fn erase(&self, db: &Database, receipt: &[u8]) -> Result<(), DurableError> {
         // The caller verifies this receipt before database admission. A saved terminal
@@ -87,8 +108,14 @@ impl<'a> Scope<'a> {
         if self.read_terminal(db)? {
             return Ok(());
         }
-        self.check_inventory(db)?;
-        let mut terminal = TAG.to_vec();
+        let (original_image, original_pending) = self.check_inventory(db)?;
+        let mut terminal = if let Some(context) = self.authority.context() {
+            let mut body = TRANSFERRED_TAG.to_vec();
+            body.extend_from_slice(&context.binding());
+            body
+        } else {
+            TAG.to_vec()
+        };
         terminal.extend_from_slice(receipt);
         let mut mac = self.authenticator()?;
         mac.update(&terminal);
@@ -105,8 +132,23 @@ impl<'a> Scope<'a> {
                 .ok_or(DurableError::Corrupt)?;
             let pending = table.get("pending").map_err(storage)?;
             let root_fence = table.get("account-root-fence").map_err(storage)?;
-            if let Some(fence) = &root_fence {
-                account_root::validate_retired_fence(self.key, fence.value(), self.retired)?;
+            let selection = table.get(witness_handoff::ROW).map_err(storage)?;
+            if let Some(context) = self.authority.context() {
+                account_root::validate_transferred_retired_snapshot(
+                    self.key,
+                    &original_image,
+                    original_pending.as_ref(),
+                    root_fence.as_ref().ok_or(DurableError::Conflict)?.value(),
+                    selection.as_ref().map(|row| row.value()),
+                    context,
+                )?;
+            } else {
+                if selection.is_some() {
+                    return Err(DurableError::Suspended);
+                }
+                if let Some(fence) = &root_fence {
+                    account_root::validate_retired_fence(self.key, fence.value(), self.retired)?;
+                }
             }
             let pending_hash = pending
                 .as_ref()
@@ -114,13 +156,17 @@ impl<'a> Scope<'a> {
             if image_hash(image.value()) != inventory.stored_image_digest()
                 || pending_hash != inventory.pending_intent_digest()
                 || table.len().map_err(storage)?
-                    != 1 + u64::from(pending.is_some()) + u64::from(root_fence.is_some())
+                    != 1 + u64::from(pending.is_some())
+                        + u64::from(root_fence.is_some())
+                        + u64::from(selection.is_some())
             {
                 return Err(DurableError::Conflict);
             }
             drop(image);
             drop(pending);
             drop(root_fence);
+            drop(selection);
+            table.remove(witness_handoff::ROW).map_err(storage)?;
             table.remove("account-root-fence").map_err(storage)?;
             table.remove("image").map_err(storage)?;
             table.remove("pending").map_err(storage)?;
@@ -143,10 +189,10 @@ impl DeviceJournal {
         key: &JournalKey,
         identity: JournalIdentity,
         retired: AnchorRetiredSubject,
-        pin: &AnchorPin,
+        authority: ReceiptAuthority<'_>,
         report: &AnchorRetiredReportProposal,
     ) -> Result<bool, DurableError> {
-        let scope = Scope::new(key, identity, retired, pin, report)?;
+        let scope = Scope::new(key, identity, retired, authority, report)?;
         scope.read_terminal(db)
     }
     pub(crate) fn retired_journal_state(
@@ -154,10 +200,10 @@ impl DeviceJournal {
         key: &JournalKey,
         identity: JournalIdentity,
         retired: AnchorRetiredSubject,
-        pin: &AnchorPin,
+        authority: ReceiptAuthority<'_>,
         report: &AnchorRetiredReportProposal,
     ) -> Result<JournalErasureState, DurableError> {
-        let scope = Scope::new(key, identity, retired, pin, report)?;
+        let scope = Scope::new(key, identity, retired, authority, report)?;
         if scope.read_terminal(db)? {
             return Ok(JournalErasureState::Erased);
         }
@@ -169,11 +215,11 @@ impl DeviceJournal {
         key: &JournalKey,
         identity: JournalIdentity,
         retired: AnchorRetiredSubject,
-        pin: &AnchorPin,
+        authority: ReceiptAuthority<'_>,
         report: &AnchorRetiredReportProposal,
         receipt: &[u8],
     ) -> Result<(), DurableError> {
-        let scope = Scope::new(key, identity, retired, pin, report)?;
+        let scope = Scope::new(key, identity, retired, authority, report)?;
         scope.verify_receipt(receipt)?;
         scope.erase(db, receipt)
     }

@@ -59,6 +59,18 @@ pub struct AnchorTransferredCleanupApproval {
     stage: AnchorTransferredCleanupStage,
 }
 impl AnchorTransferredCleanupApproval {
+    pub(crate) fn operator_decision(&self) -> [u8; 32] {
+        self.decision
+    }
+    pub(crate) fn validity(&self) -> Validity {
+        self.validity
+    }
+    pub(crate) fn approved_inventory(&self) -> &AnchorRetiredCleanupProposal {
+        &self.inventory
+    }
+    pub(crate) fn approved_report(&self) -> Result<AnchorRetiredReportProposal, DurableError> {
+        self.report_proposal()
+    }
     /// Authenticate account retirement, exact inventory and previous stage before
     /// retaining an independent decision. ACK creation must follow durable host
     /// accounting deduplicated by the original report ID. It does not perform it.

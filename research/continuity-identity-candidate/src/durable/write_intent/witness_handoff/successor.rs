@@ -7,6 +7,37 @@ pub(super) struct Predecessor {
     receipt: Vec<u8>,
 }
 impl WitnessJournalAdoptionPlan {
+    pub(crate) fn retirement_binding(&self) -> Result<[u8; 32], DurableError> {
+        let mut bytes = Vec::new();
+        let mut current = self;
+        let mut count = 0;
+        loop {
+            count += 1;
+            if count > AnchorHandoffHistory::MAX_TRANSITIONS {
+                return Err(DurableError::Capacity);
+            }
+            bytes.extend_from_slice(&digest(
+                b"Q-PERIAPT-RETIRED-SELECTION-REQUEST/v1",
+                &current.request,
+            ));
+            bytes.extend_from_slice(&current.history.checkpoint());
+            match current.predecessor.as_deref() {
+                None => {
+                    bytes.push(0);
+                    break;
+                }
+                Some(previous) => {
+                    bytes.push(1);
+                    bytes.extend_from_slice(&digest(
+                        b"Q-PERIAPT-RETIRED-SELECTION-RECEIPT/v1",
+                        &previous.receipt,
+                    ));
+                    current = &previous.plan;
+                }
+            }
+        }
+        Ok(digest(b"Q-PERIAPT-RETIRED-SELECTION-PLAN/v1", &bytes))
+    }
     /// Approve a later selection for this same original journal. Retain the
     /// previously selected plan and its exact verified target receipt as trusted
     /// input. A complete strict history extension may skip intermediate retired

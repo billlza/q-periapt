@@ -34,6 +34,19 @@ pub struct AnchorRetiredReportAcknowledgement {
     proposal: AnchorRetiredReportProposal,
 }
 impl AnchorRetiredReportAcknowledgement {
+    pub(crate) fn from_transferred(
+        receipt: &AnchorTransferredCleanupReceipt,
+        expected: &AnchorRetiredReportProposal,
+    ) -> Result<Self, DurableError> {
+        if receipt.stage() != AnchorTransferredCleanupStage::Acknowledged
+            || receipt.approval().approved_report()? != *expected
+        {
+            return Err(Error::Scope.into());
+        }
+        Ok(Self {
+            proposal: expected.clone(),
+        })
+    }
     /// Original report and inventory to which the host decision is permanently bound.
     pub fn proposal(&self) -> &AnchorRetiredReportProposal {
         &self.proposal
@@ -103,6 +116,19 @@ pub struct AnchorRetiredReport {
     proposal: AnchorRetiredReportProposal,
 }
 impl AnchorRetiredReport {
+    pub(crate) fn from_transferred(
+        receipt: &AnchorTransferredCleanupReceipt,
+        expected: &AnchorRetiredReportProposal,
+    ) -> Result<Self, DurableError> {
+        if receipt.stage() != AnchorTransferredCleanupStage::Report
+            || receipt.approval().approved_report()? != *expected
+        {
+            return Err(Error::Scope.into());
+        }
+        Ok(Self {
+            proposal: expected.clone(),
+        })
+    }
     /// Original authenticated report proposal, without ACK authority.
     pub fn proposal(&self) -> &AnchorRetiredReportProposal {
         &self.proposal

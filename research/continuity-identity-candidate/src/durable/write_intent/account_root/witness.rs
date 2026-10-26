@@ -52,6 +52,15 @@ pub struct TransferredAccountRootJournalPlan {
     selection: Option<WitnessJournalAdoptionPlan>,
 }
 impl TransferredAccountRootJournalPlan {
+    pub(crate) fn logical_pin(&self) -> &AnchorPin {
+        &self.logical
+    }
+    pub(crate) fn history(&self) -> &AnchorHandoffHistory {
+        &self.history
+    }
+    pub(crate) fn approval(&self) -> &AnchorTransferredAccountReplacementApproval {
+        &self.approval
+    }
     /// The host supplies authenticated original trust, the exact approved full
     /// account transition and independently verified history. Retain this same
     /// context for restart; a later history is not an interchangeable expectation.

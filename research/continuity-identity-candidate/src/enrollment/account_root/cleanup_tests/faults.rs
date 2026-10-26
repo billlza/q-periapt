@@ -87,7 +87,13 @@ fn account_root_cleanup_each_parent_and_journal_sync_cut_recovers_original_ident
         .expect("original journal");
     let erase = |db: &Database| {
         DeviceJournal::erase_retired_journal_in_database(
-            db, &key, identity, retired, &f.pin, &report, &ack,
+            db,
+            &key,
+            identity,
+            retired,
+            crate::retired_device::transferred::authority::ReceiptAuthority::Legacy(&f.pin),
+            &report,
+            &ack,
         )
     };
     let (db, _, count, _) = fault_database_path(path, false);

@@ -158,6 +158,38 @@ pub(super) fn validate_retired_fence(
     Ok(())
 }
 
+pub(super) fn validate_transferred_retired_snapshot(
+    key: &JournalKey,
+    image: &Image,
+    pending: Option<&PendingIntent>,
+    wire: &[u8],
+    selection: Option<&[u8]>,
+    context: &crate::TransferredRetirementContext,
+) -> Result<(), DurableError> {
+    let fence = Fence::decode(key, wire)?;
+    fence.check(key, image, pending)?;
+    let plan = context.plan();
+    if fence.authority.as_ref() != Some(&plan.binding()?)
+        || fence.proposal != *plan.proposal()
+        || fence.subject != context.retired_subject().subject()
+        || fence.receipt.as_deref() != Some(context.decision())
+    {
+        return Err(DurableError::Conflict);
+    }
+    let retained = match (plan.selection(), selection) {
+        (None, None) => None,
+        (Some(expected), Some(wire)) => {
+            witness_handoff::check_account_root_selection(key, image, pending, wire, expected)?;
+            Some(witness::selection_digest(wire))
+        }
+        _ => return Err(DurableError::Conflict),
+    };
+    if fence.selection != retained {
+        return Err(DurableError::Conflict);
+    }
+    Ok(())
+}
+
 /// Original local fence state. No variant grants permission to operate a successor.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AccountRootJournalState {

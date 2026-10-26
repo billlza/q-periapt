@@ -8,7 +8,11 @@ fn check_scope(
     image: &Image,
     expected: JournalIdentity,
     retired: AnchorRetiredSubject,
+    context: Option<&crate::TransferredRetirementContext>,
 ) -> Result<(), DurableError> {
+    if context.is_some_and(|c| c.retired_subject() != retired) {
+        return Err(DurableError::Conflict);
+    }
     let (journal, owner, policy) = retired.subject().journal_parts();
     let Protection::Required {
         witness,
@@ -21,7 +25,7 @@ fn check_scope(
     if image.id != *expected.as_bytes()
         || image.id != journal
         || image.owner != owner
-        || witness != retired.witness_binding()
+        || witness != context.map_or(retired.witness_binding(), |c| c.logical())
         || original != policy
     {
         return Err(DurableError::Conflict);
@@ -51,15 +55,16 @@ impl DeviceJournal {
         retired: AnchorRetiredSubject,
     ) -> Result<AnchorRetiredCleanupProposal, DurableError> {
         let db = open_private_database(path)?;
-        Self::retired_cleanup_inventory_in_database(&db, key, expected, retired)
+        Self::retired_cleanup_inventory_in_database(&db, key, expected, retired, None)
     }
     pub(crate) fn retired_cleanup_inventory_in_database(
         db: &Database,
         key: &JournalKey,
         expected: JournalIdentity,
         retired: AnchorRetiredSubject,
+        context: Option<&crate::TransferredRetirementContext>,
     ) -> Result<AnchorRetiredCleanupProposal, DurableError> {
-        Ok(snapshot(db, key, expected, retired)?.2)
+        Ok(snapshot(db, key, expected, retired, context)?.2)
     }
 }
 
@@ -68,18 +73,22 @@ fn snapshot(
     key: &JournalKey,
     expected: JournalIdentity,
     retired: AnchorRetiredSubject,
+    context: Option<&crate::TransferredRetirementContext>,
 ) -> Result<(Image, Option<PendingIntent>, AnchorRetiredCleanupProposal), DurableError> {
     let (_, owner, _) = retired.subject().journal_parts();
-    let (image, pending) =
-        load_pending_snapshot(db, key, owner, SnapshotAdmission::RetiredCleanup(&retired))?;
-    check_scope(&image, expected, retired)?;
+    let admission = context.map_or(
+        SnapshotAdmission::RetiredCleanup(&retired),
+        SnapshotAdmission::TransferredRetiredCleanup,
+    );
+    let (image, pending) = load_pending_snapshot(db, key, owner, admission)?;
+    check_scope(&image, expected, retired, context)?;
     let current = image.protection.head(image.revision, image.digest)?;
     if current != retired.observed_head() {
         let Some(PendingIntent::Write(pending)) = &pending else {
             return Err(DurableError::Conflict);
         };
         let target = pending.authenticated_target(key, owner)?;
-        check_scope(&target, expected, retired)?;
+        check_scope(&target, expected, retired, context)?;
         if target.protection.head(target.revision, target.digest)? != retired.observed_head() {
             return Err(DurableError::Conflict);
         }
@@ -102,7 +111,7 @@ impl DeviceJournal {
         archives: &mut crate::SessionArchiveStore,
     ) -> Result<crate::retired_device::Report, DurableError> {
         let db = open_private_database(path)?;
-        Self::retired_report_in_database(&db, key, expected, retired, retained, archives)
+        Self::retired_report_in_database(&db, key, expected, retired, retained, archives, None)
     }
     pub(crate) fn retired_report_in_database(
         db: &Database,
@@ -111,9 +120,10 @@ impl DeviceJournal {
         retired: AnchorRetiredSubject,
         retained: &crate::AnchorRetiredCleanup,
         archives: &mut crate::SessionArchiveStore,
+        context: Option<&crate::TransferredRetirementContext>,
     ) -> Result<crate::retired_device::Report, DurableError> {
         use crate::retired_device::{Intent, Transaction, ViewRole};
-        let (image, pending, inventory) = snapshot(db, key, expected, retired)?;
+        let (image, pending, inventory) = snapshot(db, key, expected, retired, context)?;
         if &inventory != retained.proposal() {
             return Err(DurableError::Conflict);
         }
@@ -124,7 +134,7 @@ impl DeviceJournal {
             Some(PendingIntent::Cancellation(p)) => Intent::Cancellation(p.cancellation.to_bytes()),
             Some(PendingIntent::Write(p)) => {
                 let target = p.authenticated_target(key, image.owner)?;
-                check_scope(&target, expected, retired)?;
+                check_scope(&target, expected, retired, context)?;
                 let target_head = target.protection.head(target.revision, target.digest)?;
                 if current != target_head {
                     let target_committed = target_head == retired.observed_head();

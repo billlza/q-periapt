@@ -214,6 +214,8 @@ struct Configuration {
     scope: Vec<u8>,
     status: InstallationStatus,
     retired: Option<crate::AnchorRetiredCleanupProposal>,
+    retired_context: Option<[u8; 32]>,
+    retired_control: Option<Vec<u8>>,
     retired_report: Option<crate::AnchorRetiredReportProposal>,
     retired_ack: Option<crate::AnchorRetiredReportProposal>,
 }
@@ -230,8 +232,12 @@ fn read_configuration(db: &Database) -> Result<Configuration, DurableError> {
     let cleanup = table.get("retired-cleanup").map_err(storage)?;
     let report = table.get("retired-report").map_err(storage)?;
     let ack = table.get("retired-ack").map_err(storage)?;
+    let control = table.get("retired-authority").map_err(storage)?;
     if table.len().map_err(storage)?
-        != 1 + u64::from(cleanup.is_some()) + u64::from(report.is_some()) + u64::from(ack.is_some())
+        != 1 + u64::from(cleanup.is_some())
+            + u64::from(report.is_some())
+            + u64::from(ack.is_some())
+            + u64::from(control.is_some())
     {
         return Err(DurableError::Corrupt);
     }
@@ -256,9 +262,20 @@ fn read_configuration(db: &Database) -> Result<Configuration, DurableError> {
         2 => InstallationStatus::Active,
         _ => return Err(DurableError::Corrupt),
     };
-    let retired = cleanup
+    let retired_request = cleanup
         .map(|row| retired::decode_request(row.value(), binding, status))
         .transpose()?;
+    let retired_context = retired_request.as_ref().and_then(|(_, context)| *context);
+    let retired = retired_request.map(|(proposal, _)| proposal);
+    let retired_control = control.map(|row| row.value().to_vec());
+    if retired_context
+        != retired_control
+            .as_deref()
+            .map(crate::retired_device::transferred::control::Control::context_binding)
+            .transpose()?
+    {
+        return Err(DurableError::Corrupt);
+    }
     let retired_report = report
         .map(|row| {
             let proposal = crate::AnchorRetiredReportProposal::from_trusted_state(row.value())
@@ -289,6 +306,8 @@ fn read_configuration(db: &Database) -> Result<Configuration, DurableError> {
         scope: binding.to_vec(),
         status,
         retired,
+        retired_context,
+        retired_control,
         retired_report,
         retired_ack,
     })
