@@ -1,8 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "pending.rs"]
+mod pending;
 #[path = "policy.rs"]
 mod policy;
-use policy::prepare_policy;
+
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Work {
+    None,
+    Policy(u8),
+    Credential(u8),
+    Roster(u8),
+    Cancellation(bool),
+}
+
 enum Managed {
     No,
     Registry,
@@ -26,24 +37,43 @@ pub(super) struct Transferred {
     pub(super) pre_parent: Vec<u8>,
     pub(super) live: Option<EnrolledDevice>,
     pub(super) public_inputs: Vec<(&'static str, Vec<u8>)>,
+    pub(super) expected_intent: crate::retired_device::Intent,
 }
 impl Transferred {
     pub(super) fn new() -> Self {
         Self::at(None, 0)
     }
     pub(super) fn at(stage: Option<u8>, selection: u8) -> Self {
-        Self::build(stage, selection, false, Managed::No)
+        Self::build(
+            stage.map_or(Work::None, Work::Policy),
+            selection,
+            false,
+            Managed::No,
+        )
     }
     pub(super) fn with_live_owner() -> Self {
-        Self::build(None, 0, true, Managed::No)
+        Self::build(Work::None, 0, true, Managed::No)
     }
     pub(super) fn with_registry(stage: Option<u8>, selection: u8) -> Self {
-        Self::build(stage, selection, false, Managed::Registry)
+        Self::build(
+            stage.map_or(Work::None, Work::Policy),
+            selection,
+            false,
+            Managed::Registry,
+        )
     }
     pub(super) fn with_controller(stage: Option<u8>, selection: u8) -> Self {
-        Self::build(stage, selection, false, Managed::Controller)
+        Self::build(
+            stage.map_or(Work::None, Work::Policy),
+            selection,
+            false,
+            Managed::Controller,
+        )
     }
-    fn build(stage: Option<u8>, selection: u8, retain_live: bool, managed: Managed) -> Self {
+    pub(super) fn with_pending(work: Work, selection: u8) -> Self {
+        Self::build(work, selection, false, Managed::Controller)
+    }
+    fn build(work: Work, selection: u8, retain_live: bool, managed: Managed) -> Self {
         let f = fixture();
         let mut registry =
             (!matches!(managed, Managed::No)).then(|| super::registry::OriginalRegistry::new(&f));
@@ -69,8 +99,7 @@ impl Transferred {
         let pre_pending =
             fs::read(f.original.paths.installation.files()[1]).expect("original pre-P backup");
         let pre_parent = fs::read(&f.original.paths.configuration).expect("original pre-P parent");
-        let renewed =
-            stage.map(|stage| prepare_policy(&f, stage, registry.as_ref().map(|r| r.authority())));
+        let pending = pending::prepare(&f, work, registry.as_ref().map(|r| r.authority()));
         let live = retain_live.then(|| f.activate());
         let base = f._dir.path().canonicalize().expect("owned directory");
         let mut source = f.witness.lock().expect("original witness");
@@ -126,9 +155,9 @@ impl Transferred {
             ]
             .concat()
         };
-        let current = renewed
+        let current = pending
+            .policy
             .as_ref()
-            .filter(|_| stage.is_some_and(|s| s >= 1))
             .map_or(&f.policy, |(policy, _)| policy);
         let mut public_inputs = vec![
             (
@@ -150,12 +179,31 @@ impl Transferred {
             ("original-policy-checkpoint", checkpoint(&f.policy)),
             (
                 "current-policy",
-                renewed
+                pending
+                    .policy
                     .as_ref()
-                    .filter(|_| stage.is_some_and(|s| s >= 1))
                     .map_or_else(|| f.policy_wire.clone(), |(_, wire)| wire.clone()),
             ),
             ("current-policy-checkpoint", checkpoint(current)),
+            ("current-credential", pending.certificate.clone()),
+            (
+                "current-roster",
+                pending.current.roster().as_bytes().to_vec(),
+            ),
+            (
+                "current-account-checkpoint",
+                [
+                    pending
+                        .current
+                        .roster()
+                        .checkpoint()
+                        .version()
+                        .to_be_bytes()
+                        .as_slice(),
+                    &pending.current.roster().checkpoint().digest(),
+                ]
+                .concat(),
+            ),
             (
                 "policy-root",
                 f.issuer
@@ -168,14 +216,10 @@ impl Transferred {
         let selected = if selection == 0 {
             None
         } else {
-            let current_policy = if stage.is_some_and(|s| s >= 1) {
-                renewed.as_ref().expect("P target").0.historical()
-            } else {
-                f.policy.historical()
-            };
+            let current_policy = current.historical();
             let materials = AnchorHandoffAdoptionMaterials {
                 original_device: &f.original.device,
-                current_device: &f.original.device,
+                current_device: &pending.current,
                 original_policy: f.policy.historical(),
                 current_policy,
                 history: &history,
@@ -411,6 +455,7 @@ impl Transferred {
             pre_parent,
             live,
             public_inputs,
+            expected_intent: pending.expected,
         }
     }
     pub(super) fn plan(&self) -> TransferredAccountRootJournalPlan {

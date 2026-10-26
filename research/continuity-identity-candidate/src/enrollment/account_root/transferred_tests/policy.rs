@@ -41,7 +41,7 @@ pub(super) fn prepare_policy(
     f: &Fixture,
     stage: u8,
     authority: Option<JournalAccountAuthority>,
-) -> (VerifiedSessionPolicy, Vec<u8>) {
+) -> (VerifiedSessionPolicy, Vec<u8>, AnchorPolicyRenewalProposal) {
     let mut owner = DeviceEnrollment::open(f.original.paths.clone(), f.original.intent.clone())
         .expect("same original parent");
     if let Some(authority) = authority {
@@ -128,5 +128,5 @@ pub(super) fn prepare_policy(
         }
     }
     owner.close();
-    (target, wire)
+    (target, wire, proposal)
 }

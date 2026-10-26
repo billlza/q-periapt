@@ -19,7 +19,7 @@ fn context(t: &Transferred) -> TransferredAccountRootPreparation {
     )
     .expect("independently retained exact original context")
 }
-fn resume(t: &Transferred) -> Result<ManagedAccountRootReplacement, DurableError> {
+pub(super) fn resume(t: &Transferred) -> Result<ManagedAccountRootReplacement, DurableError> {
     let registry = t
         .registry_recovery
         .as_ref()

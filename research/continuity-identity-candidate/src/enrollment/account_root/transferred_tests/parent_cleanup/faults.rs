@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
+use super::super::fixture::Work;
 use super::*;
 use crate::crypto::{inject_signer_io, SignerIoFault, SignerIoStage};
 use crate::durable::tests::{assert_sync_failure, fault_database_path};
@@ -96,7 +97,7 @@ fn transferred_parent_cleanup_missing_rows_bad_proofs_and_independent_checkpoint
     owner.close();
 }
 
-fn parent_sync(flow: &Flow, ack: Option<&[u8]>) {
+fn parent_sync(flow: &Flow, ack: Option<&[u8]>, work: Option<Work>) {
     let path = &flow.t.f.original.paths.configuration;
     let baseline = fs::read(path).expect("closed parent");
     let signer = fs::read(&flow.t.f.original.paths.signer).expect("retained signer");
@@ -154,7 +155,11 @@ fn parent_sync(flow: &Flow, ack: Option<&[u8]>) {
                 );
             }
             owner.close();
-            eprintln!("TRANSFERRED_PARENT_SYNC signer_plan={} after={after} cut={cut} calibrated={barriers} close_syncs={} exact_original=true",ack.is_some(),observed-cut);
+            if let Some(work) = work {
+                eprintln!("TRANSFERRED_MIXED_SYNC work={work:?} signer_plan={} after={after} cut={cut} calibrated={barriers} close_syncs={} exact_original=true",ack.is_some(),observed-cut);
+            } else {
+                eprintln!("TRANSFERRED_PARENT_SYNC signer_plan={} after={after} cut={cut} calibrated={barriers} close_syncs={} exact_original=true",ack.is_some(),observed-cut);
+            }
         }
     }
 }
@@ -162,12 +167,12 @@ fn parent_sync(flow: &Flow, ack: Option<&[u8]>) {
 fn transferred_parent_cleanup_every_parent_sync_preserves_original_root_selection_and_proof() {
     let (mut flow, mut root) = prepared(Some(2), 2);
     root.close();
-    parent_sync(&flow, None);
+    parent_sync(&flow, None, None);
     let mut parent = reopen(&flow);
     let ack = report_ack(&mut flow, &mut parent);
     erase_journal(&flow, &mut parent, &ack);
     parent.close();
-    parent_sync(&flow, Some(&ack));
+    parent_sync(&flow, Some(&ack), None);
 }
 
 #[test]
@@ -224,4 +229,26 @@ fn transferred_parent_cleanup_signer_io_errors_close_managed_owner_and_recover_s
         );
         eprintln!("TRANSFERRED_PARENT_SIGNER_IO case={index} closed_controller=true original_plan=true terminal=true");
     }
+}
+
+fn mixed_sync(work: Work) {
+    let mut flow = commit_managed(Transferred::with_pending(work, 2));
+    parent_sync(&flow, None, Some(work));
+    let mut parent = reopen(&flow);
+    let ack = report_ack(&mut flow, &mut parent);
+    erase_journal(&flow, &mut parent, &ack);
+    parent.close();
+    parent_sync(&flow, Some(&ack), Some(work));
+}
+#[test]
+fn transferred_mixed_cleanup_every_credential_parent_sync() {
+    mixed_sync(Work::Credential(1));
+}
+#[test]
+fn transferred_mixed_cleanup_every_roster_parent_sync() {
+    mixed_sync(Work::Roster(1));
+}
+#[test]
+fn transferred_mixed_cleanup_every_cancellation_parent_sync() {
+    mixed_sync(Work::Cancellation(true));
 }

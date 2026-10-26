@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Kill the original controller at durable parent and signer-file boundaries.
+use super::super::fixture::Work;
 use super::super::{process::inputs, registry::RegistryRecovery};
 use super::*;
 use std::{
@@ -75,7 +76,7 @@ fn command(root: &Path, log: &str) -> Command {
     command
 }
 
-fn kill_and_recover(root: &Path, action: &str, stage: &str, after: bool) {
+fn kill_and_recover(root: &Path, action: &str, stage: &str, after: bool) -> (u32, u32) {
     let cut = format!("{stage}-{}", if after { "after" } else { "before" });
     let signer = action == "signer";
     let ready = root.join(if signer { "signer-ready" } else { "ready" });
@@ -139,11 +140,10 @@ fn kill_and_recover(root: &Path, action: &str, stage: &str, after: bool) {
         fs::read_to_string(root.join("cleanup-returned")).expect("actual result"),
         action
     );
-    eprintln!("TRANSFERRED_PARENT_SIGKILL action={action} cut={cut} killed={killed} recovered={recovered_pid} same_registry=true same_operation=true");
+    (killed, recovered_pid)
 }
 
-#[test]
-fn transferred_parent_cleanup_sigkill_reopens_original_controller_without_erased_secrets() {
+fn run_original(work: Option<Work>) {
     for (action, stage) in [
         ("inventory", "cleanup-parent"),
         ("signer-plan", "cleanup-parent"),
@@ -154,7 +154,10 @@ fn transferred_parent_cleanup_sigkill_reopens_original_controller_without_erased
         ("signer", "DirectorySync"),
     ] {
         for after in [false, true] {
-            let mut flow = managed(Some(2), 2);
+            let mut flow = match work {
+                Some(work) => commit_managed(Transferred::with_pending(work, 2)),
+                None => managed(Some(2), 2),
+            };
             let original = original_parent(&flow.t);
             let roots = [
                 crate::enrollment::account_root::ROW,
@@ -194,7 +197,13 @@ fn transferred_parent_cleanup_sigkill_reopens_original_controller_without_erased
                 .expect("original registry")
                 .publish(&root);
             fs::write(root.join("cleanup-action"), action).expect("fixed action");
-            kill_and_recover(&root, action, stage, after);
+            let (killed, recovered) = kill_and_recover(&root, action, stage, after);
+            let cut = format!("{stage}-{}", if after { "after" } else { "before" });
+            if let Some(work) = work {
+                eprintln!("TRANSFERRED_MIXED_SIGKILL work={work:?} action={action} cut={cut} killed={killed} recovered={recovered} same_registry=true same_operation=true");
+            } else {
+                eprintln!("TRANSFERRED_PARENT_SIGKILL action={action} cut={cut} killed={killed} recovered={recovered} same_registry=true same_operation=true");
+            }
             assert!(original_parent(&flow.t) == original);
             assert!(fs::read(&flow.t.f.original.paths.wrapping).expect("original key") == key);
             for (name, original) in [
@@ -238,4 +247,21 @@ fn transferred_parent_cleanup_sigkill_reopens_original_controller_without_erased
             );
         }
     }
+}
+
+#[test]
+fn transferred_parent_cleanup_sigkill_reopens_original_controller_without_erased_secrets() {
+    run_original(None);
+}
+#[test]
+fn transferred_mixed_cleanup_process_credential_applied_without_local_ack() {
+    run_original(Some(Work::Credential(1)));
+}
+#[test]
+fn transferred_mixed_cleanup_process_roster_applied_without_local_ack() {
+    run_original(Some(Work::Roster(1)));
+}
+#[test]
+fn transferred_mixed_cleanup_process_cancellation_closed_without_local_ack() {
+    run_original(Some(Work::Cancellation(true)));
 }

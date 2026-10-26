@@ -21,6 +21,8 @@ use fixture::Transferred;
 mod cleanup;
 #[path = "transferred_tests/client_cleanup.rs"]
 mod client_cleanup;
+#[path = "transferred_tests/mixed_cleanup.rs"]
+mod mixed_cleanup;
 #[path = "transferred_tests/parent_cleanup.rs"]
 mod parent_cleanup;
 

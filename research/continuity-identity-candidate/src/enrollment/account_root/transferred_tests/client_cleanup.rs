@@ -145,6 +145,7 @@ impl Flow {
         let verified = owner
             .verify_report_retention(&retained, &pin, second.as_bytes())
             .expect("independent exact report retention");
+        assert_eq!(report.intent(), &self.t.expected_intent);
         assert_eq!(report.proposal(), &expected);
         assert_eq!(verified.proposal(), &expected);
         (report, verified, second)

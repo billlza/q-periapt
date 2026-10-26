@@ -149,9 +149,32 @@ pub(crate) fn restore_registry(root: &Path) -> RegistryInputs {
         .expect("original complete handoff");
     let original_policy = policy(root, "original-policy");
     let current_policy = policy(root, "current-policy");
+    let checkpoint = read(root, "current-account-checkpoint");
+    let mut decoder = Decoder::new(&checkpoint);
+    let checkpoint = RosterCheckpoint::from_trusted_state(
+        decoder.u64().expect("current roster version"),
+        decoder.array().expect("current roster digest"),
+    )
+    .expect("independently retained current roster checkpoint");
+    decoder
+        .finish()
+        .expect("complete current device checkpoint");
+    let current_device = AccountPin::new(
+        original.account_id(),
+        intent.root.clone(),
+        checkpoint,
+        original_policy.family(),
+    )
+    .expect("original root and exact independently selected current roster")
+    .verify_device(
+        &read(root, "current-credential"),
+        &read(root, "current-roster"),
+        185,
+    )
+    .expect("exact signed current handoff material; no credential re-signing");
     let selection_materials = AnchorHandoffAdoptionMaterials {
         original_device: &original,
-        current_device: &original,
+        current_device: &current_device,
         original_policy: original_policy.historical(),
         current_policy: current_policy.historical(),
         history: &history,

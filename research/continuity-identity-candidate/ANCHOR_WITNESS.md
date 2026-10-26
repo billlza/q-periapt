@@ -2073,3 +2073,24 @@ faults include every header prefix and both sides of all five boundaries. Missin
 rows, wrong ACKs and MAC-valid checkpoint substitutions are rejected. This does
 not close the full G/R/cancellation, continuous-history, capacity, installed
 foreign-platform, physical power-loss, final ABI or multi-epoch PCS requirements.
+
+The transferred fixture now prepares real credential renewal (G), roster refresh
+(R), or target-free credential cancellation through the public enrollment and
+independent Witness APIs. G/R each retain their original Prepared, server-Applied,
+and locally installed-with-pending states across absent/prepared/adopted Witness
+selection; cancellation retains both unresolved and independently signed Closed
+states. The 24 committed-root cases preserve exact operation metadata, original
+sealed prekeys and view roles through full journal/signer cleanup and cold managed
+recovery. Eight root-Closed cases refuse cleanup and retain the original pending
+work. Process reconstruction uses the independently retained exact signed current
+credential, roster and checkpoint, without reissuing credentials or replacing IDs.
+
+For server-Applied G/R and signed-Closed cancellation, fourteen actual SIGKILL
+boundaries per kind cover the same two parent commits and five signer-file
+boundaries, followed by new-process recovery of the original registry and intent.
+Every measured parent transaction sync point is faulted before and after; barrier
+counts are calibrated per kind rather than copied from P. This extends the
+original cleanup boundary, not independent new-attempt approval after a root
+Closed decision, obsolete-authority request closure/reapproval, all operational
+G/R/cancellation interleavings, or continuous-history/platform/power-loss/ABI/PCS
+qualification.

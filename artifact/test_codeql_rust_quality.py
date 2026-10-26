@@ -1982,6 +1982,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-identity-candidate/src/durable/retired_report/transferred/control.rs',
             'research/continuity-identity-candidate/src/durable/retired_report/transferred/control/codec.rs',
             'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/parent_cleanup.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/pending.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/mixed_cleanup.rs',
             'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/parent_cleanup/faults.rs',
             'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/parent_cleanup/process.rs',
             'research/continuity-identity-candidate/src/enrollment/retirement/codec.rs',

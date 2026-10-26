@@ -49,7 +49,7 @@ fn original_preparation(flow: &Flow) -> TransferredAccountRootPreparation {
     )
     .expect("original operation context, not later accounting history")
 }
-fn resume_managed(flow: &Flow) -> Result<ManagedAccountRootReplacement, DurableError> {
+pub(super) fn resume_managed(flow: &Flow) -> Result<ManagedAccountRootReplacement, DurableError> {
     let original = flow
         .t
         .registry_recovery
@@ -65,7 +65,9 @@ fn resume_managed(flow: &Flow) -> Result<ManagedAccountRootReplacement, DurableE
     )
 }
 fn managed(stage: Option<u8>, selection: u8) -> Flow {
-    let mut t = Transferred::with_controller(stage, selection);
+    commit_managed(Transferred::with_controller(stage, selection))
+}
+pub(super) fn commit_managed(mut t: Transferred) -> Flow {
     let plan = t.plan();
     let mut owner = t
         .controller
