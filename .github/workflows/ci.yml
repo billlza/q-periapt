@@ -2439,11 +2439,11 @@ jobs:
   # Actual-signature Continuity candidate, isolated from the SDK publication graph.
   continuity-identity-candidate:
     runs-on: ${{ matrix.os }}
-    # Each complete 32-device Debug scenario has its own Linux budget. The
-    # original-owner G/R scenario was the sole unfinished test at the 1.90
-    # whole-job deadline; the same scenario passed on 1.98 in over 39 minutes.
-    # Keep all cases/assertions and the 90-minute bound. Full Linux Release
-    # remains a separate unfiltered job.
+    # Linux Debug enrollment and the remaining suite have complementary filters.
+    # Each complete 32-device scenario retains its own budget. The full Debug
+    # suite grew to 1392 library cases and exhausted both Linux job budgets while
+    # still making progress. Keep every case and the original 90-minute bound.
+    # Full Linux Release remains a separate unfiltered job.
     # macOS retains its completed combined suite; no test workload is reduced.
     timeout-minutes: 90
     env:
@@ -2485,6 +2485,12 @@ jobs:
           - os: ubuntu-24.04
             toolchain: 1.90.0
             partition: roster-capacity
+          - os: ubuntu-24.04
+            toolchain: 1.98.1
+            partition: enrollment
+          - os: ubuntu-24.04
+            toolchain: 1.90.0
+            partition: enrollment
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -2542,9 +2548,27 @@ jobs:
           candidate_skips=(--skip "$CAPACITY_TEST")
           if [ "$RUNNER_OS" = Linux ]; then
             candidate_skips+=(--skip "$ROSTER_CAPACITY_TEST")
+            candidate_skips+=(--skip 'enrollment::')
           fi
           # Explicit failure exit lets Bash print timing before preserving the test status.
           { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- "${candidate_skips[@]}" --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug.log"
+      - name: Exercise the complete Debug enrollment partition
+        if: matrix.partition == 'enrollment'
+        shell: bash
+        env:
+          CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
+        run: |
+          candidate_log=target/continuity-native-checks
+          mkdir -p "$candidate_log"
+          git rev-parse HEAD > "$candidate_log/source-commit.txt"
+          rustc +"$CANDIDATE_TOOLCHAIN" -vV > "$candidate_log/rustc.txt"
+          candidate_manifest=research/continuity-identity-candidate/Cargo.toml
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib -- --list > "$candidate_log/debug-catalog.txt"
+          test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
+          test "$(grep -c -F "$ROSTER_CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
+          test "$(grep -c -F 'enrollment::' "$candidate_log/debug-catalog.txt")" -gt 2
+          # The full cargo test selection also preserves integration and doc tests.
+          { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked 'enrollment::' -- --skip "$CAPACITY_TEST" --skip "$ROSTER_CAPACITY_TEST" --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-enrollment.log"
       - name: Exercise the complete Release candidate
         if: matrix.partition == 'release' || (matrix.os == 'macos-15' && matrix.partition == 'suite')
         shell: bash

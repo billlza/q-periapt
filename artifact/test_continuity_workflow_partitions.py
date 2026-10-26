@@ -16,7 +16,8 @@ def native(text):
         ('ubuntu-24.04', '1.98.1'), ('ubuntu-24.04', '1.90.0'), ('macos-15', '1.98.1'))
         for part in ('suite', 'capacity')}
     expected.update(('ubuntu-24.04', toolchain, 'release') for toolchain in ('1.98.1', '1.90.0'))
-    expected.update(('ubuntu-24.04', toolchain, 'roster-capacity') for toolchain in ('1.98.1', '1.90.0'))
+    expected.update(('ubuntu-24.04', toolchain, part)
+                    for toolchain in ('1.98.1', '1.90.0') for part in ('roster-capacity', 'enrollment'))
     if len(rows) != len(expected) or set(rows) != expected:
         raise ValueError('both Debug partitions and separate Linux Release budgets are required')
     if ('timeout-minutes: 90' not in block or 'fail-fast: false' not in block
@@ -25,6 +26,7 @@ def native(text):
     suite = block.split('      - name: Check and exercise candidate with the selected compiler\n', 1)[1].split('\n      - ', 1)[0]
     capacity = block.split('      - name: Exercise the complete Debug capacity scenario\n', 1)[1].split('\n      - ', 1)[0]
     roster = block.split('      - name: Exercise the complete Debug roster capacity scenario\n', 1)[1].split('\n      - ', 1)[0]
+    enrollment = block.split('      - name: Exercise the complete Debug enrollment partition\n', 1)[1].split('\n      - ', 1)[0]
     release = block.split('      - name: Exercise the complete Release candidate\n', 1)[1].split('\n      - ', 1)[0]
     sdk_release = block.split('      - name: Verify sealed SDK operations in Release\n', 1)[1].split('\n      - ', 1)[0]
     for part, body in (('suite', suite), ('capacity', capacity)):
@@ -34,7 +36,7 @@ def native(text):
             raise ValueError('missing test or overlapping skip must refuse')
     if ('-- "${candidate_skips[@]}" --nocapture' not in suite
             or 'candidate_skips=(--skip "$CAPACITY_TEST")' not in suite
-            or 'if [ "$RUNNER_OS" = Linux ]; then\n            candidate_skips+=(--skip "$ROSTER_CAPACITY_TEST")\n          fi' not in suite
+            or 'if [ "$RUNNER_OS" = Linux ]; then\n            candidate_skips+=(--skip "$ROSTER_CAPACITY_TEST")\n            candidate_skips+=(--skip \'enrollment::\')\n          fi' not in suite
             or '--release' in suite
             or '--lib "$CAPACITY_TEST" -- --exact --nocapture' not in capacity
             or 'test result: ok\\. 1 passed; 0 failed; 0 ignored;' not in capacity):
@@ -45,6 +47,16 @@ def native(text):
             or '--lib "$ROSTER_CAPACITY_TEST" -- --exact --nocapture' not in roster
             or 'test result: ok\\. 1 passed; 0 failed; 0 ignored;' not in roster):
         raise ValueError('complete original-owner roster capacity must execute separately on Linux')
+    enrollment_command = ('cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" '
+                          '--all-features --locked \'enrollment::\' -- --skip "$CAPACITY_TEST" '
+                          '--skip "$ROSTER_CAPACITY_TEST" --nocapture')
+    if ("if: matrix.partition == 'enrollment'" not in enrollment
+            or enrollment.count(enrollment_command) != 1
+            or guard not in enrollment
+            or 'test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1' not in enrollment
+            or 'source-commit.txt' not in enrollment or 'rustc.txt' not in enrollment
+            or 'test "$(grep -c -F \'enrollment::\' "$candidate_log/debug-catalog.txt")" -gt 2' not in enrollment):
+        raise ValueError('enrollment must complement the Linux suite including non-library tests')
     condition = "if: matrix.partition == 'release' || (matrix.os == 'macos-15' && matrix.partition == 'suite')"
     if condition not in release or condition not in sdk_release:
         raise ValueError('Release must run exactly once per compiler outside Linux Debug')
@@ -118,8 +130,8 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
         # workflow guards with only the standard system tools on PATH.
         guards = [line.strip() for line in self.native.splitlines()
                   if line.strip().startswith('test "$(')
-                  and 'debug-catalog.txt' in line]
-        self.assertEqual(len(guards), 4)
+                  and 'debug-catalog.txt' in line and 'enrollment::' not in line]
+        self.assertEqual(len(guards), 6)
         with tempfile.TemporaryDirectory() as directory:
             catalog = Path(directory) / 'debug-catalog.txt'
             binaries = Path(directory) / 'bin'
@@ -168,25 +180,49 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
                             capture_output=True, text=True, timeout=10, check=False)
                         self.assertEqual(result.returncode == 0, accepted, result.stderr)
 
+    def test_enrollment_partition_refuses_an_empty_ordinary_selection(self):
+        guards = [line.strip() for line in self.native.splitlines()
+                  if line.strip().startswith('test "$(')
+                  and "grep -c -F 'enrollment::'" in line]
+        self.assertEqual(len(guards), 1)
+        with tempfile.TemporaryDirectory() as directory:
+            catalog = Path(directory) / 'debug-catalog.txt'
+            for count in (0, 1, 2, 3):
+                catalog.write_text(''.join(f'enrollment::case_{n}: test\n' for n in range(count)))
+                result = subprocess.run(['/bin/bash', '-euo', 'pipefail', '-c', guards[0]],
+                    env={**os.environ, 'PATH': '/usr/bin:/bin', 'candidate_log': directory},
+                    capture_output=True, text=True, timeout=10, check=False)
+                self.assertEqual(result.returncode == 0, count > 2, result.stderr)
+
     def test_linux_debug_partition_union_is_complete_without_duplicates(self):
         suite = self.native.split('      - name: Check and exercise candidate with the selected compiler\n', 1)[1].split('\n      - ', 1)[0]
         selection = 'candidate_skips=' + suite.split('candidate_skips=', 1)[1].split('          # Explicit failure', 1)[0]
-        catalogue = {'module::fanout_capacity', 'module::roster_capacity', 'module::ordinary'}
+        catalogue = {'enrollment::fanout_capacity', 'enrollment::roster_capacity',
+                     'module::ordinary', 'enrollment::ordinary', 'other::enrollment::nested'}
         for os_name in ('Linux', 'macOS'):
             result = subprocess.run(['/bin/bash', '-euo', 'pipefail', '-c', selection + '\nprintf "%s\\n" "${candidate_skips[@]}"'],
-                env={**os.environ, 'RUNNER_OS': os_name, 'CAPACITY_TEST': 'module::fanout_capacity', 'ROSTER_CAPACITY_TEST': 'module::roster_capacity'},
+                env={**os.environ, 'RUNNER_OS': os_name, 'CAPACITY_TEST': 'enrollment::fanout_capacity', 'ROSTER_CAPACITY_TEST': 'enrollment::roster_capacity'},
                 capture_output=True, text=True, timeout=10, check=False)
             self.assertEqual(result.returncode, 0, result.stderr)
             args = result.stdout.splitlines()
-            self.assertEqual(args[::2], ['--skip'] * (2 if os_name == 'Linux' else 1))
-            expected = ['module::fanout_capacity', 'module::roster_capacity'] if os_name == 'Linux' else ['module::fanout_capacity']
+            expected = (['enrollment::fanout_capacity', 'enrollment::roster_capacity', 'enrollment::']
+                        if os_name == 'Linux' else ['enrollment::fanout_capacity'])
+            self.assertEqual(args[::2], ['--skip'] * len(expected))
             self.assertEqual(args[1::2], expected)
-            executed = [catalogue - set(expected), *({name} for name in expected)]
+            executed = [{n for n in catalogue if not any(skip in n for skip in expected)},
+                        {'enrollment::fanout_capacity'}]
+            if os_name == 'Linux':
+                executed.extend([{'enrollment::roster_capacity'},
+                    {n for n in catalogue if 'enrollment::' in n
+                     and not any(skip in n for skip in expected[:2])}])
             self.assertEqual(set.union(*executed), catalogue)
             self.assertEqual(sum(map(len, executed)), len(catalogue))
 
     def test_missing_capacity_or_silent_skipping_refuses(self):
         for before, after in (("partition: capacity", "partition: omitted"),
+                              ("partition: enrollment", "partition: omitted"),
+                              ("candidate_skips+=(--skip 'enrollment::')", "candidate_skips+=(--skip 'missing::')"),
+                              ("--locked 'enrollment::' --", "--locked --lib 'enrollment::' --"),
                               ("partition: roster-capacity", "partition: omitted"),
                               ('-- --exact --nocapture', '-- --nocapture'),
                               ('grep -c -F "$CAPACITY_TEST"', 'grep -c -F -x "$CAPACITY_TEST: test"'),
@@ -221,7 +257,7 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
     def test_phase_timing_keeps_test_failures_and_records_cpu_and_wall_time(self):
         lines = [line.strip() for line in self.native.splitlines()
                  if line.strip().startswith('{ time cargo +"$CANDIDATE_TOOLCHAIN" test ')]
-        self.assertEqual(len(lines), 6)
+        self.assertEqual(len(lines), 7)
         timing = re.search(r"TIMEFORMAT: '(QPERIAPT_CI_TIME [^']+)'", self.native)
         self.assertIsNotNone(timing)
         with tempfile.TemporaryDirectory() as directory:
