@@ -58,6 +58,12 @@ def native(text):
             or 'source-commit.txt' not in enrollment or 'rustc.txt' not in enrollment
             or 'test "$(grep -c -F \'enrollment::\' "$candidate_log/debug-catalog.txt")" -gt 2' not in enrollment):
         raise ValueError('enrollment must complement the Linux suite including non-library tests')
+    enrollment_doc_command = ('cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" '
+                              '--all-features --locked --doc \'enrollment::\' -- --nocapture')
+    if (enrollment.count(enrollment_doc_command) != 1
+            or 'tee "$candidate_log/debug-enrollment-doc.log"' not in enrollment
+            or 'grep \'^test result: ok\\. 2 passed; 0 failed; 0 ignored;\' "$candidate_log/debug-enrollment-doc.log"' not in enrollment):
+        raise ValueError('both enrollment type-isolation doctests must actually execute')
     condition = "if: matrix.partition == 'release'"
     if any(condition not in {line.strip() for line in body.splitlines()}
            for body in (release, sdk_release)):
@@ -220,6 +226,78 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
             self.assertEqual(set.union(*executed), catalogue)
             self.assertEqual(sum(map(len, executed)), len(catalogue))
 
+    def test_actual_enrollment_doc_command_rejects_missing_or_broken_doctests(self):
+        # Exercise Cargo itself: a positional filter on this rlib/cdylib target
+        # previously passed without executing any doctests.
+        block = self.native.split('      - name: Exercise the complete Debug enrollment partition\n', 1)[1].split('\n      - ', 1)[0]
+        lines = [line.strip() for line in block.splitlines()
+                 if 'debug-enrollment-doc.log' in line]
+        self.assertEqual(len(lines), 2)
+        source = '''pub mod enrollment {
+    /// ```compile_fail
+    /// let _: u8 = "invalid";
+    /// ```
+    pub struct Original;
+    /// ```compile_fail
+    /// let _: bool = 0;
+    /// ```
+    pub struct Retired;
+}
+/// ```compile_fail
+/// let _valid = 1;
+/// ```
+pub struct OutsideSelection;
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            (root / 'src').mkdir()
+            (root / 'Cargo.toml').write_text(
+                '[package]\nname="workflow-doc-selection"\nversion="0.0.0"\nedition="2021"\n'
+                '[lib]\ncrate-type=["rlib","cdylib"]\n[workspace]\n')
+            (root / 'Cargo.lock').write_text(
+                'version = 4\n[[package]]\nname = "workflow-doc-selection"\nversion = "0.0.0"\n')
+            environment = {key: value for key, value in os.environ.items()
+                           if not key.startswith(('CARGO_', 'RUST')) or key == 'RUSTUP_HOME'}
+            environment.update(CARGO_HOME=str(root / 'cargo-home'),
+                               CARGO_TARGET_DIR=str(root / 'build'),
+                               CARGO_NET_OFFLINE='true', CARGO_TERM_COLOR='never',
+                               CANDIDATE_TOOLCHAIN='1.98.1',
+                               candidate_manifest=str(root / 'Cargo.toml'),
+                               candidate_log=str(root))
+            for label, selected_source, accepted in (
+                ('complete', source, True),
+                ('missing', source.replace('    /// ```compile_fail\n    /// let _: bool = 0;\n    /// ```\n', ''), False),
+                ('broken', source.replace('let _: bool = 0;', 'let _: bool = true;'), False),
+            ):
+                with self.subTest(case=label):
+                    (root / 'src/lib.rs').write_text(selected_source)
+                    result = subprocess.run(
+                        ['/bin/bash', '-euo', 'pipefail', '-c', '\n'.join(lines)],
+                        cwd=root, env=environment, capture_output=True, text=True,
+                        timeout=120, check=False)
+                    self.assertEqual(result.returncode == 0, accepted,
+                                     result.stdout + result.stderr)
+                    output = (root / 'debug-enrollment-doc.log').read_text()
+                    if accepted:
+                        self.assertIn('enrollment::Original', output)
+                        self.assertIn('enrollment::Retired', output)
+                    elif label == 'missing':
+                        self.assertIn('test result: ok. 1 passed;', output)
+                    else:
+                        self.assertIn('test result: FAILED.', output)
+
+    def test_enrollment_doctests_cannot_be_omitted_or_weakened(self):
+        for before, after in (
+            ("--locked --doc 'enrollment::' --", "--locked 'enrollment::' --"),
+            ("--doc 'enrollment::'", "--doc 'missing::'"),
+            ('debug-enrollment-doc.log', 'omitted.log'),
+            ('2 passed; 0 failed; 0 ignored;', '0 passed; 0 failed; 0 ignored;'),
+        ):
+            changed = self.native.replace(before, after)
+            self.assertNotEqual(changed, self.native)
+            with self.assertRaises(ValueError):
+                native(changed)
+
     def test_missing_capacity_or_silent_skipping_refuses(self):
         for before, after in (("partition: capacity", "partition: omitted"),
                               ("partition: enrollment", "partition: omitted"),
@@ -261,7 +339,7 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
     def test_phase_timing_keeps_test_failures_and_records_cpu_and_wall_time(self):
         lines = [line.strip() for line in self.native.splitlines()
                  if line.strip().startswith('{ time cargo +"$CANDIDATE_TOOLCHAIN" test ')]
-        self.assertEqual(len(lines), 7)
+        self.assertEqual(len(lines), 8)
         timing = re.search(r"TIMEFORMAT: '(QPERIAPT_CI_TIME [^']+)'", self.native)
         self.assertIsNotNone(timing)
         with tempfile.TemporaryDirectory() as directory:

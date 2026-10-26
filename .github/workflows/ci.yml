@@ -2570,8 +2570,11 @@ jobs:
           test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
           test "$(grep -c -F "$ROSTER_CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
           test "$(grep -c -F 'enrollment::' "$candidate_log/debug-catalog.txt")" -gt 2
-          # The full cargo test selection also preserves integration and doc tests.
+          # The filtered target selection does not execute this crate's doctests.
+          # Run the enrollment type-isolation doctests explicitly as well.
           { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked 'enrollment::' -- --skip "$CAPACITY_TEST" --skip "$ROSTER_CAPACITY_TEST" --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-enrollment.log"
+          { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --doc 'enrollment::' -- --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-enrollment-doc.log"
+          grep '^test result: ok\. 2 passed; 0 failed; 0 ignored;' "$candidate_log/debug-enrollment-doc.log"
       - name: Exercise the complete Release candidate
         if: matrix.partition == 'release'
         shell: bash
