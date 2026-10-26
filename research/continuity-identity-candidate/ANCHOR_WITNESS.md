@@ -1771,10 +1771,56 @@ synchronous I/O cuts and eight actual SIGKILL/new-PID recoveries cover the two
 local commits and both outcomes. Existing source/profile/package checks remain
 separate from physical power-loss and complete platform acceptance.
 
-This is the original-journal child layer. Enrollment/installation parent intent,
-parent ACK/reopen ordering and account-authority registry composition remain open.
-So do full real G/R/cancellation matrices, transfer to a new approved root attempt
+The process evidence above applies to the original-journal child layer. The
+enrollment parent contract below has separate validation; installation and
+account-authority registry composition remain open. So do full real G/R/cancellation
+matrices, transfer to a new approved root attempt
 after closure, closure of an unrecorded older-Witness attempt under a later
 Witness, mixed histories, full client capacity, independent/installed/device
 consumers, final ABI and PCS. The legacy root-transition and cleanup paths keep
 their refusal until those combined contracts are implemented and validated.
+
+### Original enrollment parent under transferred account authority
+
+The existing `AccountRootEnrollmentRecovery` accepts the same independently
+retained `TransferredAccountRootJournalPlan`. A live enrolled owner can be
+consumed, or the original parent can be reopened without its signer. Preparation
+holds the original child lease while validating the complete root context before
+publishing the parent intent. A verified child Witness selection ahead of its
+parent is reconciled using the existing selection/lineage checks before the root
+intent captures its exact parent-row hash. A missing child selection is refused;
+it is never inferred to mean permission to use the old Witness.
+
+`QPERPL03` retains the original enrollment digest, exact proposal, current-authority
+binding, exact parent selection-row hash and a child preparation checkpoint. The
+checkpoint covers the canonical child fence with its receipt omitted, including
+the original sealed image, pending work and selected authority. A backup that
+loses pending or selection cannot be used merely because its old witnessed head
+still matches the same account proposal. New legacy intents also capture this
+checkpoint; old `QPERPL01/02` records keep their existing contract and format.
+
+Parent intent precedes child fencing. The exact purpose-37 result is retained in
+the child before its parent ACK. Reopening can complete a missing parent ACK from
+that authenticated child result, or restore the child fence and exact result from
+a compatible backup under the independently retained parent checkpoint. Neither
+Committed nor Closed releases traffic or a successor installer. Closed remains
+permanent non-commit with the original state retained. Recovery does not generate
+a signer, replace the wrapping key, reseal image/pending data or recompute IDs.
+Whole-host rollback still requires independent trusted checkpoint retention.
+
+Focused native checks cover 24 no-pending/P-state/selection/outcome combinations,
+three child-ahead selection cases, missing selection on either side, MAC-valid
+scope/checkpoint/receipt damage, a backup losing pending, signer-free result
+recovery and consuming an actual enrolled owner. Parent intent has three measured
+transaction sync barriers and receipt retention has two; both sides of all of
+them are faulted for Committed and Closed, totalling 20 injected failures. Close
+syncs are recorded separately. Sixteen actual SIGKILL/new-process recoveries cover
+both sides of parent intent, child fence, child receipt and parent ACK for both
+Committed and Closed. Each uses an adopted Witness selection and a real installed
+P target with pending retained. The recovery process authenticates the original
+saved policy signatures, activation history, dual-root selection and root approval;
+it does not regenerate identity or re-sign the operation. Original key files,
+image/pending/selection bytes and exact returned decisions are checked separately.
+These tests do not establish full G/R/cancellation composition, the installed
+language/platform matrix, physical power-loss behavior or registry/cleanup
+integration. Existing child-only and legacy parent tests remain separate evidence.

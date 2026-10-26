@@ -13,6 +13,9 @@ impl Owners {
         managed_initial: bool,
     ) -> Result<Option<State>, DurableError> {
         self.read()?;
+        if self.transferred.is_some() {
+            return Err(DurableError::Suspended);
+        }
         if &self.state.proposal == transition.next_proposal() {
             if managed_initial && self.state.history.is_empty() {
                 return Ok(None);
@@ -49,6 +52,12 @@ impl Owners {
             let mut next = self.state.clone();
             next.proposal = transition.next_proposal().clone();
             next.history.push(marker);
+            next.child = Some(
+                self.journal
+                    .as_mut()
+                    .ok_or(DurableError::Closed)?
+                    .transition_checkpoint(transition)?,
+            );
             Ok(Some(next))
         }
     }
@@ -172,6 +181,7 @@ impl AccountRootEnrollmentRecovery {
             pin,
             state,
             journal: None,
+            transferred: None,
         };
         owners.transition(transition, allow_initial).await?;
         Ok(Self {

@@ -137,6 +137,15 @@ impl DeviceEnrollment {
         child: &WitnessJournalAdoption,
     ) -> Result<WitnessJournalAdoptionState, DurableError> {
         let progress = child.enrollment_selection()?;
+        self.retain_witness_progress(image, plan, previous, progress)
+    }
+    pub(in crate::enrollment) fn retain_witness_progress(
+        &self,
+        image: &Image,
+        plan: &WitnessJournalAdoptionPlan,
+        previous: Option<&State>,
+        progress: crate::durable::WitnessSelectionProgress,
+    ) -> Result<WitnessJournalAdoptionState, DurableError> {
         if let Some(old) = previous {
             if old.preparation_is_successor(plan)? {
                 let expected = old.lineage.append(

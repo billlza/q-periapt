@@ -5,6 +5,7 @@ use super::*;
 pub(crate) struct ParentCheckpoint<'a> {
     pub(crate) proposal: &'a Proposal,
     pub(crate) history: &'a [Transfer],
+    pub(crate) child: Option<[u8; 32]>,
 }
 impl ParentCheckpoint<'_> {
     fn admits(&self, child: &Fence) -> Result<(), DurableError> {
@@ -25,7 +26,10 @@ impl ParentCheckpoint<'_> {
     }
 }
 impl Owners {
-    fn reconcile_parent(&mut self, parent: &ParentCheckpoint<'_>) -> Result<(), DurableError> {
+    fn planned_parent(
+        &self,
+        parent: &ParentCheckpoint<'_>,
+    ) -> Result<(Option<Fence>, Fence), DurableError> {
         check_history(parent.history, parent.proposal)?;
         if self.pin.binding() != parent.proposal.witness_binding() {
             return Err(Error::Scope.into());
@@ -57,6 +61,14 @@ impl Owners {
         next.history = parent.history.to_vec();
         next.receipt = original.as_ref().and_then(|f| f.receipt.clone());
         next.check(&self.key, &image, pending.as_ref())?;
+        let checkpoint = next.preparation_checkpoint(&self.key)?;
+        if parent.child.is_some_and(|expected| checkpoint != expected) {
+            return Err(DurableError::Conflict);
+        }
+        Ok((original, next))
+    }
+    fn reconcile_parent(&mut self, parent: &ParentCheckpoint<'_>) -> Result<(), DurableError> {
+        let (original, next) = self.planned_parent(parent)?;
         if original.as_ref() != Some(&next) {
             self.save(original.as_ref(), &next, "parent-handoff")?;
         }
@@ -64,7 +76,94 @@ impl Owners {
         Ok(())
     }
 }
+// Retain the exact child lease while the independent parent publishes its intent.
+// Preflight is read-only; only commit() may retain/reconstruct the original fence.
+pub(crate) struct ParentPreparation<'a> {
+    owners: Owners,
+    parent: Option<ParentCheckpoint<'a>>,
+    checkpoint: [u8; 32],
+    selection: Option<crate::durable::WitnessSelectionProgress>,
+}
+impl ParentPreparation<'_> {
+    pub(crate) fn checkpoint(&self) -> [u8; 32] {
+        self.checkpoint
+    }
+    pub(crate) fn selection(&self) -> Option<&crate::durable::WitnessSelectionProgress> {
+        self.selection.as_ref()
+    }
+    pub(crate) fn commit(mut self) -> Result<AccountRootJournalRecovery, DurableError> {
+        if let Some(mut parent) = self.parent {
+            parent.child = Some(self.checkpoint);
+            self.owners.reconcile_parent(&parent)?;
+            Ok(AccountRootJournalRecovery {
+                active: Some(Box::new(self.owners)),
+            })
+        } else {
+            let (next, _) = self.owners.transferred_preparation()?;
+            if next.preparation_checkpoint(&self.owners.key)? != self.checkpoint {
+                return Err(DurableError::Conflict);
+            }
+            self.owners.prepare()
+        }
+    }
+}
 impl AccountRootJournalRecovery {
+    pub(crate) fn prepare_parent<'a>(
+        path: &Path,
+        key: JournalKey,
+        original: &VerifiedDevice,
+        identity: JournalIdentity,
+        pin: AnchorPin,
+        parent: ParentCheckpoint<'a>,
+    ) -> Result<ParentPreparation<'a>, DurableError> {
+        let owners = Owners {
+            db: open_private_database(path)?,
+            key,
+            owner: bootstrap::storage_owner(original),
+            identity,
+            pin,
+            proposal: parent.proposal.clone(),
+            transferred: None,
+        };
+        let (_, next) = owners.planned_parent(&parent)?;
+        let checkpoint = next.preparation_checkpoint(&owners.key)?;
+        Ok(ParentPreparation {
+            owners,
+            parent: Some(parent),
+            checkpoint,
+            selection: None,
+        })
+    }
+    pub(crate) fn prepare_transferred_parent(
+        path: &Path,
+        key: JournalKey,
+        original: &VerifiedDevice,
+        identity: JournalIdentity,
+        plan: TransferredAccountRootJournalPlan,
+        expected_child: Option<[u8; 32]>,
+    ) -> Result<ParentPreparation<'static>, DurableError> {
+        let pin = plan.witness_pin()?.clone();
+        let owners = Owners {
+            db: open_private_database(path)?,
+            key,
+            owner: bootstrap::storage_owner(original),
+            identity,
+            pin,
+            proposal: plan.proposal().clone(),
+            transferred: Some(Box::new(plan)),
+        };
+        let (next, selection) = owners.transferred_preparation()?;
+        let checkpoint = next.preparation_checkpoint(&owners.key)?;
+        if expected_child.is_some_and(|expected| expected != checkpoint) {
+            return Err(DurableError::Conflict);
+        }
+        Ok(ParentPreparation {
+            owners,
+            parent: None,
+            checkpoint,
+            selection,
+        })
+    }
     // The caller holds and authenticates the independent enrollment parent. This
     // is deliberately not an external journal API accepting arbitrary history.
     pub(crate) fn resume_parent(

@@ -8,7 +8,7 @@ impl State {
         &self,
         inventory: &AnchorRetiredCleanupProposal,
     ) -> Result<(), DurableError> {
-        if self.receipt.is_none() {
+        if self.receipt.is_none() || self.authority.is_some() {
             return Err(DurableError::Suspended);
         }
         inventory.check_account_proposal(&self.proposal)?;
@@ -19,6 +19,9 @@ impl State {
         pin: &AnchorPin,
         subject: crate::AnchorSubject,
     ) -> Result<AnchorRetiredSubject, DurableError> {
+        if self.authority.is_some() {
+            return Err(DurableError::Suspended);
+        }
         let receipt = self.receipt.as_deref().ok_or(DurableError::Suspended)?;
         let retired = pin.verify_retired_account(&self.proposal, receipt)?;
         if subject.journal_parts().0 != *self.journal.as_bytes() {

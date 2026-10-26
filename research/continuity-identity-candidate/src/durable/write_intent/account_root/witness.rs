@@ -9,20 +9,20 @@ use crate::{
 };
 
 #[derive(Clone, Eq, PartialEq)]
-pub(super) struct Binding {
-    pub(super) logical: [u8; 32],
+pub(crate) struct Binding {
+    pub(crate) logical: [u8; 32],
     approval: [u8; 32],
     history: [u8; 32],
 }
 impl Binding {
-    pub(super) fn encode(&self, out: &mut Vec<u8>) -> Result<(), Error> {
+    pub(crate) fn encode(&self, out: &mut Vec<u8>) -> Result<(), Error> {
         for value in [self.logical, self.approval, self.history] {
             crate::codec::nonzero(&value)?;
             out.extend_from_slice(&value);
         }
         Ok(())
     }
-    pub(super) fn decode(d: &mut Decoder<'_>) -> Result<Self, Error> {
+    pub(crate) fn decode(d: &mut Decoder<'_>) -> Result<Self, Error> {
         let value = Self {
             logical: d.array()?,
             approval: d.array()?,
@@ -75,7 +75,7 @@ impl TransferredAccountRootJournalPlan {
     pub fn proposal(&self) -> &Proposal {
         self.approval.proposal()
     }
-    fn binding(&self) -> Result<Binding, DurableError> {
+    pub(crate) fn binding(&self) -> Result<Binding, DurableError> {
         Ok(Binding {
             logical: self.logical.binding(),
             approval: digest(
@@ -85,7 +85,45 @@ impl TransferredAccountRootJournalPlan {
             history: self.history.checkpoint(),
         })
     }
-    fn verify(&self, wire: &[u8]) -> Result<AnchorTransferredAccountDecision, DurableError> {
+    pub(crate) fn verify(
+        &self,
+        wire: &[u8],
+    ) -> Result<AnchorTransferredAccountDecision, DurableError> {
         self.approval.verify_decision(&self.history, wire)
+    }
+    pub(crate) fn selection(&self) -> Option<&WitnessJournalAdoptionPlan> {
+        self.selection.as_ref()
+    }
+    pub(crate) fn witness_pin(&self) -> Result<&AnchorPin, Error> {
+        self.history
+            .historical_pin(self.proposal().witness_binding())
+    }
+    pub(crate) fn check_parent(
+        &self,
+        original: &VerifiedDevice,
+        identity: JournalIdentity,
+        policy: [u8; 32],
+    ) -> Result<(), DurableError> {
+        if self.proposal().previous_account() != original.account_id()
+            || !self.proposal().predecessors().any(|s| {
+                s.journal_parts()
+                    == (
+                        *identity.as_bytes(),
+                        bootstrap::storage_owner(original),
+                        policy,
+                    )
+            })
+        {
+            return Err(Error::Scope.into());
+        }
+        if let Some(selected) = &self.selection {
+            selected.check_original_enrollment_binding(
+                original,
+                identity,
+                policy,
+                self.logical.binding(),
+            )?;
+        }
+        Ok(())
     }
 }

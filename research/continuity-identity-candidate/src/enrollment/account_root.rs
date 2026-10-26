@@ -5,18 +5,26 @@ use crate::durable::account_root_transfer::{self as transfer, ParentCheckpoint, 
 use crate::{AccountRootJournalRecovery, AnchorAccountReplacementProposal as Proposal};
 use redb::ReadableTable;
 pub(super) mod cleanup;
+mod codec;
+mod transferred;
 mod transition;
 
 pub(super) const ROW: &str = "root-replacement";
 const TAG: &[u8; 8] = b"QPERPL01";
 const TRANSFER_TAG: &[u8; 8] = b"QPERPL02";
 const RECEIPT_BYTES: usize = 3449;
+const CONTEXT_TAG: &[u8; 8] = b"QPERPL03";
+const CURRENT_RECEIPT_BYTES: usize = crate::AnchorTransferredAccountDecision::WIRE_BYTES;
 #[cfg(all(test, unix))]
 pub(super) fn managed_boundary(stage: &str) {
     tests::at_boundary(&format!("managed-{stage}"), true);
 }
-const MAX_BYTES: usize =
-    174 + 65_536 + RECEIPT_BYTES + 2 + transfer::MAX_TRANSFERS * transfer::TRANSFER_BYTES;
+const MAX_BYTES: usize = 174
+    + 65_536
+    + CURRENT_RECEIPT_BYTES
+    + 163
+    + 2
+    + transfer::MAX_TRANSFERS * transfer::TRANSFER_BYTES;
 
 #[derive(Clone, Eq, PartialEq)]
 pub(super) struct State {
@@ -26,99 +34,25 @@ pub(super) struct State {
     proposal: Proposal,
     receipt: Option<Vec<u8>>,
     history: Vec<Transfer>,
+    child: Option<[u8; 32]>,
+    authority: Option<crate::durable::RootWitnessBinding>,
+    selection: Option<[u8; 32]>,
 }
 fn image_digest(wire: &[u8]) -> [u8; 32] {
     digest(b"Q-PERIAPT-CONTINUITY-ROOT-ENROLLMENT/v1", wire)
 }
+pub(super) fn selection_binding(wire: &[u8]) -> [u8; 32] {
+    digest(b"Q-PERIAPT-ROOT-PARENT-WITNESS-SELECTION/v1", wire)
+}
 impl State {
-    pub(super) fn decode(
-        wire: &[u8],
-        key: &JournalKey,
-        binding: [u8; 32],
-    ) -> Result<Box<Self>, DurableError> {
-        if !(174..=MAX_BYTES).contains(&wire.len()) {
-            return Err(DurableError::Corrupt);
-        }
-        let (body, tag) = wire.split_at(wire.len() - 32);
-        let mut mac = auth(key)?;
-        mac.update(body);
-        mac.verify_slice(tag)
-            .map_err(|_| DurableError::Authentication)?;
-        let mut d = Decoder::new(body);
-        let extended = match &d.array::<8>()? {
-            tag if tag == TAG => false,
-            tag if tag == TRANSFER_TAG => true,
-            _ => return Err(DurableError::Conflict),
-        };
-        if d.array::<32>()? != binding {
+    pub(super) fn check_selection_binding(
+        &self,
+        selected: Option<[u8; 32]>,
+    ) -> Result<(), DurableError> {
+        if (self.authority.is_none() && selected.is_some()) || self.selection != selected {
             return Err(DurableError::Conflict);
         }
-        let identity = SigningKeyId::from_trusted_state(d.array()?)?;
-        let image = d.array()?;
-        crate::codec::nonzero(&image)?;
-        let journal = JournalIdentity::from_trusted_state(d.array()?)?;
-        let n =
-            usize::try_from(u32::from_be_bytes(d.array()?)).map_err(|_| DurableError::Capacity)?;
-        if n > 65_536 {
-            return Err(DurableError::Capacity);
-        }
-        let proposal = Proposal::from_trusted_state(d.take(n)?)?;
-        let receipt = match usize::from(d.u16()?) {
-            0 => None,
-            RECEIPT_BYTES => Some(d.take(RECEIPT_BYTES)?.to_vec()),
-            _ => return Err(DurableError::Corrupt),
-        };
-        let history = if extended {
-            transfer::decode_history(&mut d)?
-        } else {
-            Vec::new()
-        };
-        d.finish()?;
-        transfer::check_history(&history, &proposal)?;
-        Ok(Box::new(Self {
-            identity,
-            image,
-            journal,
-            proposal,
-            receipt,
-            history,
-        }))
-    }
-    fn encode(&self, key: &JournalKey, binding: [u8; 32]) -> Result<Vec<u8>, DurableError> {
-        transfer::check_history(&self.history, &self.proposal)?;
-        let proposal = self.proposal.to_bytes()?;
-        let receipt = self.receipt.as_deref().unwrap_or(&[]);
-        if !receipt.is_empty() && receipt.len() != RECEIPT_BYTES {
-            return Err(DurableError::Corrupt);
-        }
-        let extended = !self.history.is_empty();
-        let mut wire = if extended { TRANSFER_TAG } else { TAG }.to_vec();
-        wire.extend_from_slice(&binding);
-        wire.extend_from_slice(self.identity.as_bytes());
-        wire.extend_from_slice(&self.image);
-        wire.extend_from_slice(self.journal.as_bytes());
-        wire.extend_from_slice(
-            &u32::try_from(proposal.len())
-                .map_err(|_| DurableError::Capacity)?
-                .to_be_bytes(),
-        );
-        wire.extend_from_slice(&proposal);
-        wire.extend_from_slice(
-            &u16::try_from(receipt.len())
-                .map_err(|_| DurableError::Capacity)?
-                .to_be_bytes(),
-        );
-        wire.extend_from_slice(receipt);
-        if extended {
-            transfer::encode_history(&self.history, &mut wire)?;
-        }
-        let mut mac = auth(key)?;
-        mac.update(&wire);
-        wire.extend_from_slice(&mac.finalize().into_bytes());
-        if wire.len() > MAX_BYTES {
-            return Err(DurableError::Capacity);
-        }
-        Ok(wire)
+        Ok(())
     }
     pub(super) fn check_image(&self, image: &Image, wire: &[u8]) -> Result<(), DurableError> {
         let Phase::Accepted { admission, .. } = &image.phase else {
@@ -189,7 +123,10 @@ fn save(
     let tx = transaction(&active.database)?;
     {
         let mut table = tx.open_table(TABLE).map_err(storage)?;
-        if table.len().map_err(storage)? != 1 + u64::from(previous.is_some())
+        let witness = table.get(witness_handoff::ROW).map_err(storage)?;
+        next.check_selection_binding(witness.as_ref().map(|row| selection_binding(row.value())))?;
+        if table.len().map_err(storage)?
+            != 1 + u64::from(previous.is_some()) + u64::from(witness.is_some())
             || table.get(ROW).map_err(storage)?.as_ref().map(|v| v.value()) != expected.as_deref()
             || table
                 .get("enrollment")
@@ -200,6 +137,7 @@ fn save(
         {
             return Err(DurableError::Conflict);
         }
+        drop(witness);
         table.insert(ROW, wire.as_slice()).map_err(storage)?;
     }
     #[cfg(all(test, unix))]
@@ -217,6 +155,7 @@ struct Owners {
     enrollment: DeviceEnrollment,
     pin: AnchorPin,
     state: State,
+    transferred: Option<Box<crate::TransferredAccountRootJournalPlan>>,
 }
 #[cfg_attr(
     not(all(target_arch = "wasm32", target_os = "unknown")),
@@ -241,15 +180,31 @@ impl Owners {
             &self.pin,
             &self.state.proposal,
         )?;
+        self.check_authority(&snapshot, &original)?;
         if let Some(receipt) = &self.state.receipt {
-            self.pin
-                .verify_retired_account(&self.state.proposal, receipt)?;
+            self.outcome(receipt)?;
         }
         Ok(original)
     }
     async fn fence_journal(&mut self) -> Result<(), DurableError> {
         let original = self.read()?;
         self.journal = None;
+        if let Some(plan) = &self.transferred {
+            let child = AccountRootJournalRecovery::prepare_transferred_parent(
+                self.enrollment.paths.installation.files()[1],
+                self.enrollment.key().await?,
+                &original,
+                self.state.journal,
+                (**plan).clone(),
+                self.state.child,
+            )?;
+            let mut journal = child.commit()?;
+            if let Some(receipt) = &self.state.receipt {
+                journal.retain_account_decision(receipt)?;
+            }
+            self.journal = Some(journal);
+            return Ok(());
+        }
         let mut journal = AccountRootJournalRecovery::resume_parent(
             self.enrollment.paths.installation.files()[1],
             self.enrollment.key().await?,
@@ -259,6 +214,7 @@ impl Owners {
             ParentCheckpoint {
                 proposal: &self.state.proposal,
                 history: &self.state.history,
+                child: self.state.child,
             },
         )?;
         if let Some(receipt) = &self.state.receipt {
@@ -269,13 +225,15 @@ impl Owners {
     }
 }
 
-/// Durable parent observations; neither state admits the target account.
+/// Durable parent observations; none admits the target account.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AccountRootEnrollmentState {
     /// Exact intent is retained outside journal backups. Witness outcome is unknown.
     IntentRetained,
     /// Exact signed historical retirement is retained in the parent enrollment.
     WitnessCommitted,
+    /// Original current-authority non-commit is retained; no original or target traffic is released.
+    WitnessClosed,
 }
 /// Restricted root-replacement owner retaining the original enrollment lease.
 /// The host independently authenticates approval of the exact complete proposal.
@@ -338,33 +296,56 @@ impl AccountRootEnrollmentRecovery {
         if snapshot.retirement.is_some() {
             return Err(DurableError::Conflict);
         }
-        validate(&enrollment, &snapshot.image, &pin, &proposal)?;
-        let state = match snapshot.root_replacement {
+        let original = validate(&enrollment, &snapshot.image, &pin, &proposal)?;
+        let fresh = snapshot.root_replacement.is_none();
+        let mut state = match snapshot.root_replacement {
             Some(state) if state.proposal == proposal => *state,
             Some(_) => return Err(DurableError::Conflict),
             None => {
                 let Phase::Accepted { admission, .. } = snapshot.image.phase else {
                     return Err(DurableError::Suspended);
                 };
-                let state = State {
+                State {
                     identity: snapshot.image.identity,
                     image: original_digest(&enrollment)?,
                     journal: admission.journal,
                     proposal,
                     receipt: None,
                     history: Vec::new(),
-                };
-                save(&enrollment, None, &state, "intent")?;
-                state
+                    child: None,
+                    authority: None,
+                    selection: None,
+                }
             }
         };
-        let mut owners = Owners {
+        let child = AccountRootJournalRecovery::prepare_parent(
+            enrollment.paths.installation.files()[1],
+            enrollment.key().await?,
+            &original,
+            state.journal,
+            pin.clone(),
+            ParentCheckpoint {
+                proposal: &state.proposal,
+                history: &state.history,
+                child: state.child,
+            },
+        )?;
+        if fresh {
+            state.child = Some(child.checkpoint());
+            save(&enrollment, None, &state, "intent")?;
+        }
+        let mut journal = child.commit()?;
+        if let Some(receipt) = &state.receipt {
+            journal.retain_witness_retirement(receipt)?;
+        }
+        let owners = Owners {
             enrollment,
             pin,
             state,
-            journal: None,
+            journal: Some(journal),
+            transferred: None,
         };
-        owners.fence_journal().await?;
+        owners.read()?;
         Ok(Self {
             active: Some(Box::new(owners)),
         })
@@ -386,11 +367,10 @@ impl AccountRootEnrollmentRecovery {
         let result = (|| {
             let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
             owners.read()?;
-            Ok(if owners.state.receipt.is_some() {
-                AccountRootEnrollmentState::WitnessCommitted
-            } else {
-                AccountRootEnrollmentState::IntentRetained
-            })
+            match &owners.state.receipt {
+                Some(wire) => owners.outcome(wire),
+                None => Ok(AccountRootEnrollmentState::IntentRetained),
+            }
         })();
         if result.is_err() {
             self.close();
@@ -408,6 +388,9 @@ impl AccountRootEnrollmentRecovery {
         let result = (|| {
             let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
             owners.read()?;
+            if owners.transferred.is_some() {
+                return Err(DurableError::Suspended);
+            }
             owners
                 .pin
                 .verify_retired_account(&owners.state.proposal, receipt)?;

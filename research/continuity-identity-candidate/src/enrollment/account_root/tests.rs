@@ -19,6 +19,8 @@ mod managed;
 mod process;
 #[path = "registry_activation_tests.rs"]
 mod registry_activation;
+#[path = "transferred_tests.rs"]
+mod transferred;
 #[path = "transition_tests.rs"]
 mod transition;
 
@@ -65,6 +67,9 @@ struct Fixture {
     policy: VerifiedSessionPolicy,
     original: Account,
     target: Account,
+    issuer: crate::PolicySigningKey,
+    runtime: Arc<q_periapt_sdk::Runtime>,
+    policy_wire: Vec<u8>,
 }
 fn paths(path: &Path) -> EnrollmentPaths {
     EnrollmentPaths::new(
@@ -154,12 +159,12 @@ fn fixture_with_target_until(until: u64) -> Fixture {
     )
     .expect("witness");
     let pin = store.pin().expect("pin");
-    let (_, issued, policy_pin, runtime) = crate::tests::session_policy_fixture_with_anchor(
+    let (issuer, issued, policy_pin, runtime) = crate::tests::session_policy_fixture_with_anchor(
         &[PrekeyQuality::OneTimeBoth],
         AnchorRequirement::required(&pin),
     );
     let policy = policy_pin
-        .verify(issued.as_bytes(), runtime, 150)
+        .verify(issued.as_bytes(), Arc::clone(&runtime), 150)
         .expect("policy");
     let original = account(&path.join("original"), &policy);
     let target = account_at(&path.join("target"), &policy, until, 150);
@@ -173,6 +178,9 @@ fn fixture_with_target_until(until: u64) -> Fixture {
         policy,
         original,
         target,
+        issuer,
+        runtime,
+        policy_wire: issued.as_bytes().to_vec(),
     };
     f.activate().close();
     f

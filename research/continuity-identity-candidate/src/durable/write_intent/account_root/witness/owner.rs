@@ -2,6 +2,39 @@
 //! Match the exact approved authority and retained selection on every read.
 use super::*;
 impl Owners {
+    pub(in crate::durable::write_intent::account_root) fn transferred_preparation(
+        &self,
+    ) -> Result<(Fence, Option<crate::durable::WitnessSelectionProgress>), DurableError> {
+        let plan = self.transferred.as_ref().ok_or(DurableError::Suspended)?;
+        let (image, pending) =
+            load_pending_snapshot(&self.db, &self.key, self.owner, self.admission())?;
+        if image.id != *self.identity.as_bytes() {
+            return Err(DurableError::Conflict);
+        }
+        let next = self.new_fence(&image, pending.as_ref())?;
+        let read = self.db.begin_read().map_err(storage)?;
+        let table = image_table(&read)?;
+        if table.get(ROW).map_err(storage)?.is_some() {
+            self.read()?;
+        }
+        let progress = match plan.selection() {
+            Some(selected) => {
+                let row = table
+                    .get(witness_handoff::ROW)
+                    .map_err(storage)?
+                    .ok_or(DurableError::Suspended)?;
+                Some(witness_handoff::check_account_root_selection(
+                    &self.key,
+                    &image,
+                    pending.as_ref(),
+                    row.value(),
+                    selected,
+                )?)
+            }
+            None => None,
+        };
+        Ok((next, progress))
+    }
     pub(in crate::durable::write_intent::account_root) fn admission(
         &self,
     ) -> SnapshotAdmission<'_> {

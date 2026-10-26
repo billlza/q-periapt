@@ -185,6 +185,20 @@ impl Owners {
     }
 }
 impl AccountRootJournalRecovery {
+    pub(crate) fn transition_checkpoint(
+        &mut self,
+        transition: &AccountRootJournalTransition,
+    ) -> Result<[u8; 32], DurableError> {
+        let result = (|| {
+            let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
+            let (_, next) = owners.prepared_transition(transition)?;
+            next.preparation_checkpoint(&owners.key)
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
     // Validate the exact local image/pending snapshot while retaining this child
     // lease, before its enrollment commits a new parent expectation.
     pub(crate) fn validate_transition(

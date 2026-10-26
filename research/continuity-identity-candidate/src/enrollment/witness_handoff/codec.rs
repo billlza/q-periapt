@@ -59,7 +59,10 @@ impl State {
         }
         Ok(())
     }
-    pub(super) fn check_plan(&self, plan: &WitnessJournalAdoptionPlan) -> Result<(), DurableError> {
+    pub(in crate::enrollment) fn check_plan(
+        &self,
+        plan: &WitnessJournalAdoptionPlan,
+    ) -> Result<(), DurableError> {
         plan.check_selection(
             &self.request,
             self.prepared_at,

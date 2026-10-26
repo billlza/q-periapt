@@ -405,9 +405,15 @@ integration is qualified separately.
 signer, retains the exact independently approved proposal in its original
 enrollment database, then fences the original journal. The existing enrollment
 lease and wrapping-key/path binding remain authoritative. Its separate
-`root-replacement` row uses `QPERPL01` and authenticates the unchanged enrollment
+`root-replacement` row authenticates the unchanged enrollment
 image, signing identity, journal identity and complete proposal. It does not
 rewrite the original enrollment, key, credential, policy or roster history.
+New intents use `QPERPL03` and also retain the exact child preparation checkpoint.
+Read-only child validation and its exclusive lease precede parent publication;
+an incompatible proposal cannot first leave an unusable parent intent behind.
+Existing `QPERPL01/02` records retain their original compatibility contract; an
+older record without this checkpoint does not acquire a retroactive guarantee
+against a backup that discards pending work.
 
 `AccountRootEnrollmentRecovery::resume_original` opens only those existing paths
 and the independently retained original intent. A failed first parent commit can
@@ -731,8 +737,9 @@ reconcile either side of those commits. Original enrollment bytes, signing
 identity, journal identity and encrypted image/pending bytes remain unchanged.
 This coordinates two commits; it does not claim a cross-database atomic commit.
 
-The parent uses `QPERPL02` only when it has transition history; ordinary root
-fences retain the exact `QPERPL01` layout. It reuses the journal's bounded history
+The original `QPERPL02` layout represents transition history and `QPERPL01` has
+none. Both remain readable. New intents/transitions use `QPERPL03` with an exact
+child preparation checkpoint and explicit optional history. It reuses the journal's bounded history
 codec and validation, including its 256-entry limit. The parent MAC and original
 enrollment binding authenticate that locally retained authorization. It is not a
 transferable witness receipt and does not protect a rollback of the whole host.

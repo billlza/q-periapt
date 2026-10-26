@@ -32,7 +32,7 @@ pub(super) fn check_account_root_selection(
     pending: Option<&PendingIntent>,
     wire: &[u8],
     plan: &WitnessJournalAdoptionPlan,
-) -> Result<(), DurableError> {
+) -> Result<WitnessSelectionProgress, DurableError> {
     let fence = Fence::decode(key, wire)?;
     fence.check(image, pending)?;
     plan.check_image(image)?;
@@ -41,7 +41,12 @@ pub(super) fn check_account_root_selection(
         fence.prepared_at,
         fence.receipt.as_deref(),
         &fence.lineage,
-    )
+    )?;
+    Ok(WitnessSelectionProgress {
+        prepared_at: fence.prepared_at,
+        receipt: fence.receipt,
+        lineage: fence.lineage,
+    })
 }
 
 /// Independently verified exact approval and history for one original journal.
@@ -100,6 +105,20 @@ impl WitnessJournalAdoptionPlan {
         policy: &crate::HistoricalSessionPolicy,
         identity: JournalIdentity,
     ) -> Result<(), DurableError> {
+        self.check_original_enrollment_binding(
+            device,
+            identity,
+            policy.checkpoint().digest(),
+            policy.anchor_requirement().binding().ok_or(Error::Scope)?,
+        )
+    }
+    pub(crate) fn check_original_enrollment_binding(
+        &self,
+        device: &crate::VerifiedDevice,
+        identity: JournalIdentity,
+        policy: [u8; 32],
+        logical: [u8; 32],
+    ) -> Result<(), DurableError> {
         let scope = self.scope();
         if self.account != device.account_id()
             || self.device != device.key
@@ -107,9 +126,9 @@ impl WitnessJournalAdoptionPlan {
                 != (
                     *identity.as_bytes(),
                     bootstrap::storage_owner(device),
-                    policy.checkpoint().digest(),
+                    policy,
                 )
-            || policy.anchor_requirement().binding() != Some(scope.logical)
+            || logical != scope.logical
         {
             return Err(Error::Scope.into());
         }
@@ -156,6 +175,7 @@ struct Owners {
     key: JournalKey,
     plan: WitnessJournalAdoptionPlan,
 }
+#[derive(Clone)]
 pub(crate) struct WitnessSelectionProgress {
     pub(crate) prepared_at: u64,
     pub(crate) receipt: Option<Vec<u8>>,

@@ -1600,9 +1600,11 @@ fn read_snapshot(
         .map_err(storage)?
         .map(|row| account_root::State::decode(row.value(), key, binding))
         .transpose()?;
-    let witness_handoff = table
-        .get(witness_handoff::ROW)
-        .map_err(storage)?
+    let witness_row = table.get(witness_handoff::ROW).map_err(storage)?;
+    let witness_binding = witness_row
+        .as_ref()
+        .map(|row| account_root::selection_binding(row.value()));
+    let witness_handoff = witness_row
         .map(|row| witness_handoff::State::decode(key, binding, row.value()))
         .transpose()?;
     if table.len().map_err(storage)?
@@ -1620,15 +1622,13 @@ fn read_snapshot(
     let image = decode_image(wire, key, binding)?;
     if let Some(state) = &witness_handoff {
         state.check_image(&image)?;
-        if root_replacement.is_some() {
-            return Err(DurableError::Conflict);
-        }
     }
     if let Some(state) = &retirement {
         state.check_image(&image, wire)?;
     }
     if let Some(state) = &root_replacement {
         state.check_image(&image, wire)?;
+        state.check_selection_binding(witness_binding)?;
         if let Some(retirement) = &retirement {
             retirement.check_account_retirement(state)?;
         }

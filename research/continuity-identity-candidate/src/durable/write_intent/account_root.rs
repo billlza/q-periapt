@@ -7,6 +7,7 @@ use crate::{
 
 mod codec;
 mod witness;
+pub(crate) use witness::Binding as RootWitnessBinding;
 pub use witness::TransferredAccountRootJournalPlan;
 pub(crate) mod transfer;
 pub use transfer::AccountRootJournalTransition;
@@ -78,6 +79,14 @@ fn subject(
     Ok(subject)
 }
 impl Fence {
+    fn preparation_checkpoint(&self, key: &JournalKey) -> Result<[u8; 32], DurableError> {
+        let mut preparation = self.clone();
+        preparation.receipt = None;
+        Ok(digest(
+            b"Q-PERIAPT-ACCOUNT-ROOT-CHILD-PREPARATION/v1",
+            &preparation.encode(key)?,
+        ))
+    }
     fn new(
         key: &JournalKey,
         image: &Image,
