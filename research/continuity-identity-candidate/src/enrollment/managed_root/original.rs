@@ -37,41 +37,9 @@ impl Owners {
             if transition.is_some() {
                 return Err(DurableError::Conflict);
             }
-            let approval = self.registry.transferred_approval(self.operation.id())?;
-            if approval.proposal() != proposal {
-                return Err(DurableError::Conflict);
-            }
-            if self.state()? == State::Committed {
-                let decision = self
-                    .registry
-                    .transferred_account_decision(self.operation.id())?;
-                if let Some(context) = enrollment.retained_transferred_cleanup(
-                    plan.bind(approval.clone())?,
-                    decision.as_bytes(),
-                    self.cleanup_history
-                        .clone()
-                        .unwrap_or_else(|| plan.history.clone()),
-                )? {
-                    let retired =
-                        RetiredDeviceEnrollment::from_transferred_enrollment(enrollment, context)
-                            .await?;
-                    retired.check_transferred_managed_checkpoint(
-                        plan,
-                        self.registry
-                            .managed_transferred_checkpoint(self.operation.id())?,
-                    )?;
-                    return Ok(Original::Retired(Box::new(retired)));
-                }
-            }
-            self.check_transferred_checkpoint(&enrollment, false)
-                .await?;
-            return Ok(Original::Fenced(
-                AccountRootEnrollmentRecovery::prepare_transferred(
-                    enrollment,
-                    plan.bind(approval.clone())?,
-                )
-                .await?,
-            ));
+            return self
+                .admit_transferred_original(enrollment, proposal, plan)
+                .await;
         }
         if let Some(retired) = enrollment.retained_root_cleanup(&self.pin, proposal)? {
             if !self.registry_committed(proposal)? {

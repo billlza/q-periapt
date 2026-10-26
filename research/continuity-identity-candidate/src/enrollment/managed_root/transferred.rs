@@ -11,6 +11,53 @@ use crate::{
     maybe_async::must_be_sync
 )]
 impl Owners {
+    // Keep the transferred approval/cleanup frame out of ordinary root recovery.
+    // The two admission paths are exclusive but both perform deep verification.
+    #[inline(never)]
+    pub(super) async fn admit_transferred_original(
+        &self,
+        enrollment: DeviceEnrollment,
+        proposal: &Proposal,
+        plan: &TransferredAccountRootPreparation,
+    ) -> Result<Original, DurableError> {
+        let approval = self.registry.transferred_approval(self.operation.id())?;
+        if approval.proposal() != proposal {
+            return Err(DurableError::Conflict);
+        }
+        if self.state()? == State::Committed {
+            let decision = self
+                .registry
+                .transferred_account_decision(self.operation.id())?;
+            if let Some(context) = enrollment.retained_transferred_cleanup(
+                plan.bind(approval.clone())?,
+                decision.as_bytes(),
+                self.cleanup_history
+                    .clone()
+                    .unwrap_or_else(|| plan.history.clone()),
+            )? {
+                let retired = crate::RetiredDeviceEnrollment::from_transferred_enrollment(
+                    enrollment, context,
+                )
+                .await?;
+                retired.check_transferred_managed_checkpoint(
+                    plan,
+                    self.registry
+                        .managed_transferred_checkpoint(self.operation.id())?,
+                )?;
+                return Ok(Original::Retired(Box::new(retired)));
+            }
+        }
+        self.check_transferred_checkpoint(&enrollment, false)
+            .await?;
+        Ok(Original::Fenced(
+            AccountRootEnrollmentRecovery::prepare_transferred(
+                enrollment,
+                plan.bind(approval.clone())?,
+            )
+            .await?,
+        ))
+    }
+
     pub(super) async fn check_preparing_original(
         &self,
         enrollment: &DeviceEnrollment,
