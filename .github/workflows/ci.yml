@@ -2434,15 +2434,17 @@ jobs:
   # Actual-signature Continuity candidate, isolated from the SDK publication graph.
   continuity-identity-candidate:
     runs-on: ${{ matrix.os }}
-    # The 1,140-test Linux Debug run reached this bound with the complete
-    # 32-device fanout scenario still active. Run that exact Debug test in its
-    # own job. Linux's remaining Debug suite takes 66-70 minutes, so its full
-    # Release run also needs a separate job under the same 90-minute bound.
+    # Each complete 32-device Debug scenario has its own Linux budget. The
+    # original-owner G/R scenario was the sole unfinished test at the 1.90
+    # whole-job deadline; the same scenario passed on 1.98 in over 39 minutes.
+    # Keep all cases/assertions and the 90-minute bound. Full Linux Release
+    # remains a separate unfiltered job.
     # macOS retains its completed combined suite; no test workload is reduced.
     timeout-minutes: 90
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-identity-build
       CAPACITY_TEST: enrollment::tests::witness_renewal::policy_transaction::sessions::fanout::account_roster::native_common_account_roster_capacity_fanout_and_removal
+      ROSTER_CAPACITY_TEST: enrollment::tests::witness_renewal::account_renewal::roster::native_common_account_roster_capacity_original_owners_after_complete_g
       TIMEFORMAT: 'QPERIAPT_CI_TIME wall_seconds=%R user_seconds=%U system_seconds=%S cpu_percent=%P'
     strategy:
       fail-fast: false
@@ -2472,6 +2474,12 @@ jobs:
           - os: ubuntu-24.04
             toolchain: 1.90.0
             partition: release
+          - os: ubuntu-24.04
+            toolchain: 1.98.1
+            partition: roster-capacity
+          - os: ubuntu-24.04
+            toolchain: 1.90.0
+            partition: roster-capacity
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -2525,8 +2533,13 @@ jobs:
           done
           cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib -- --list > "$candidate_log/debug-catalog.txt"
           test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
+          test "$(grep -c -F "$ROSTER_CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
+          candidate_skips=(--skip "$CAPACITY_TEST")
+          if [ "$RUNNER_OS" = Linux ]; then
+            candidate_skips+=(--skip "$ROSTER_CAPACITY_TEST")
+          fi
           # Explicit failure exit lets Bash print timing before preserving the test status.
-          { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- --skip "$CAPACITY_TEST" --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug.log"
+          { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- "${candidate_skips[@]}" --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug.log"
       - name: Exercise the complete Release candidate
         if: matrix.partition == 'release' || (matrix.os == 'macos-15' && matrix.partition == 'suite')
         shell: bash
@@ -2554,6 +2567,21 @@ jobs:
           test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
           { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib "$CAPACITY_TEST" -- --exact --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-capacity.log"
           grep '^test result: ok\. 1 passed; 0 failed; 0 ignored;' "$candidate_log/debug-capacity.log"
+      - name: Exercise the complete Debug roster capacity scenario
+        if: matrix.partition == 'roster-capacity'
+        shell: bash
+        env:
+          CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
+        run: |
+          candidate_log=target/continuity-native-checks
+          mkdir -p "$candidate_log"
+          git rev-parse HEAD > "$candidate_log/source-commit.txt"
+          rustc +"$CANDIDATE_TOOLCHAIN" -vV > "$candidate_log/rustc.txt"
+          candidate_manifest=research/continuity-identity-candidate/Cargo.toml
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib -- --list > "$candidate_log/debug-catalog.txt"
+          test "$(grep -c -F "$ROSTER_CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
+          { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --lib "$ROSTER_CAPACITY_TEST" -- --exact --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-roster-capacity.log"
+          grep '^test result: ok\. 1 passed; 0 failed; 0 ignored;' "$candidate_log/debug-roster-capacity.log"
       - name: Verify sealed SDK operations with the selected compiler
         if: matrix.partition == 'suite'
         shell: bash

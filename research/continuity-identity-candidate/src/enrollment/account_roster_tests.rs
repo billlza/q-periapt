@@ -180,17 +180,26 @@ fn preserve(c: AccountCase, error: DurableError) -> DurableError {
     error
 }
 fn complete_account(members: usize) -> Result<(), DurableError> {
+    let started = std::time::Instant::now();
+    let progress = |phase: &str, index: usize| {
+        eprintln!("COMMON_ACCOUNT_ROSTER_PROGRESS members={members} phase={phase} member={index} elapsed_ms={}", started.elapsed().as_millis());
+    };
+    progress("begin", 0);
     let c = AccountCase::with_members(true, 190, members);
+    progress("identities", 0);
     for index in 0..members {
         let (paths, intent, _, _) = member(&c, index);
         session::renew(&c, index, paths, intent).close();
+        progress("credential-renewed", index);
     }
     let roster = target_roster(&c, 3);
+    progress("target-roster", 0);
     for index in 0..members {
         let target = device_at(&c, index, &roster);
         if let Err(error) = refresh(&c, index, &target) {
             return Err(preserve(c, error));
         }
+        progress("roster-refreshed", index);
         let (paths, intent, original, id) = member(&c, index);
         let before = snapshot(paths);
         let mut owner = DeviceEnrollment::open(paths.clone(), intent.clone())?;
@@ -204,7 +213,9 @@ fn complete_account(members: usize) -> Result<(), DurableError> {
         assert_eq!(service.stores()?.0.identity()?, id);
         active.close();
         assert_eq!(snapshot(paths), before);
+        progress("owner-reopened", index);
     }
+    progress("complete", members);
     eprintln!("COMMON_ACCOUNT_ROSTER members={members} original_installations={members} complete_G_then_R=true exact_receipt=true exact_target=true");
     Ok(())
 }
