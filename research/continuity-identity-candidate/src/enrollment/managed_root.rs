@@ -70,7 +70,9 @@ impl Owners {
 /// Dedicated witness-receipt methods reject invalid bytes before mutation and
 /// preserve the owner. Cleanup callback errors follow that method's close contract.
 /// A storage/recovery error can follow a commit: reopen the original registry and use
-/// `resume_original` with the same retained inputs, then replay the same receipt.
+/// `resume_original` for original-authority operations or
+/// `resume_transferred_original` for transferred operations with the same retained
+/// inputs, then replay the same receipt.
 pub struct ManagedAccountRootReplacement {
     active: Option<Box<Owners>>,
 }

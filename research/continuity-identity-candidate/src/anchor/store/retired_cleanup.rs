@@ -177,7 +177,19 @@ impl AnchorRetiredCleanup {
 }
 
 impl Image {
-    fn admit_cleanup(
+    pub(super) fn require_legacy_cleanup(
+        &self,
+        subject: AnchorSubject,
+    ) -> Result<(), DurableError> {
+        if self
+            .retired_transfers
+            .contains_key(&subject.id(&self.namespace))
+        {
+            return Err(DurableError::Suspended);
+        }
+        Ok(())
+    }
+    pub(super) fn admit_cleanup(
         &self,
         proposal: &AnchorRetiredCleanupProposal,
         pin: &impl ImageAuthority,
@@ -224,6 +236,7 @@ impl AnchorStore {
     ) -> Result<AnchorRetiredCleanupState, DurableError> {
         let pin = self.pin()?;
         let mut image = self.image()?;
+        image.require_legacy_cleanup(proposal.subject())?;
         image.admit_cleanup(proposal, &pin)?;
         let id = proposal.subject.id(&self.namespace()?);
         if let Some(saved) = image.retired_cleanup.get(&id) {
@@ -248,6 +261,7 @@ impl AnchorStore {
     ) -> Result<AnchorRetiredCleanupState, DurableError> {
         let pin = self.pin()?;
         let image = self.image()?;
+        image.require_legacy_cleanup(proposal.subject())?;
         image.admit_cleanup(proposal, &pin)?;
         Ok(
             match image

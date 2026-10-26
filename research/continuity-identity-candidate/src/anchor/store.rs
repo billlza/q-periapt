@@ -55,8 +55,13 @@ pub use retired_report::{
     AnchorRetiredReportAcknowledgementState, AnchorRetiredReportProposal, AnchorRetiredReportState,
 };
 mod retired_cleanup;
+mod retired_transfer;
 pub use retired_cleanup::{
     AnchorRetiredCleanup, AnchorRetiredCleanupProposal, AnchorRetiredCleanupState,
+};
+pub use retired_transfer::{
+    AnchorTransferredCleanupApproval, AnchorTransferredCleanupMaterials,
+    AnchorTransferredCleanupReceipt, AnchorTransferredCleanupStage,
 };
 mod roster_refresh;
 use roster_refresh::RosterRefresh;
@@ -102,6 +107,7 @@ struct Image {
     account_freezes: BTreeMap<[u8; 32], AnchorFrozenAccount>,
     account_closures: BTreeMap<[u8; 32], account_replacement::closure::ClosureRecord>,
     account_decisions: BTreeMap<[u8; 32], account_replacement::transferred::Record>,
+    retired_transfers: BTreeMap<[u8; 32], retired_transfer::Record>,
     // Optional handoff receipts are large. Keep image moves and nested source
     // validation bounded by a pointer rather than the entire absent journal.
     handoff: Option<Box<handoff::Journal>>,
@@ -145,6 +151,7 @@ impl AnchorStore {
             account_freezes: BTreeMap::new(),
             account_closures: BTreeMap::new(),
             account_decisions: BTreeMap::new(),
+            retired_transfers: BTreeMap::new(),
             handoff: None,
         };
         let bytes = encode(&wrapping, &pin, &image)?;

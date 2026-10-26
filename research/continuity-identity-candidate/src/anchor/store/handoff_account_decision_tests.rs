@@ -7,6 +7,8 @@ use crate::{
     AnchorTransferredAccountReplacementApproval as Approval,
     AnchorTransferredAccountReplacementMaterials as Materials,
 };
+#[path = "handoff_account_decision_tests/cleanup.rs"]
+mod cleanup;
 #[path = "handoff_account_decision_tests/coverage.rs"]
 mod coverage;
 #[path = "handoff_account_decision_tests/process.rs"]

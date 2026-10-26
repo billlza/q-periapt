@@ -15,7 +15,7 @@ fn pin(root: &Path, name: &str) -> AnchorPin {
     d.finish().expect("exact pin");
     pin
 }
-fn retain(c: &RetirementCase, n: &Next, a: &Approval) {
+pub(super) fn retain(c: &RetirementCase, n: &Next, a: &Approval) {
     let p = n.policy.checkpoint();
     let roster = n.device.roster().checkpoint();
     for (name, bytes) in [
@@ -142,7 +142,12 @@ fn transferred_account_decision_process_child() {
         .expect("original imported store")
         .activate(&read(root, "decision-retired"), signer)
         .expect("original activation");
-    let close = std::env::var("QPERIAPT_ACCOUNT_DECISION_ACTION").expect("action") == "close";
+    let action = std::env::var("QPERIAPT_ACCOUNT_DECISION_ACTION").expect("action");
+    if action == "cleanup" {
+        super::cleanup::execute_child(&mut active, &history, &a, root);
+        return;
+    }
+    let close = action == "close";
     let decision = if close {
         active.close_transferred_account_replacement(&a)
     } else {

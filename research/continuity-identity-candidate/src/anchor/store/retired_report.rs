@@ -155,6 +155,7 @@ impl AnchorStore {
     ) -> Result<AnchorRetiredReportState, DurableError> {
         let pin = self.pin()?;
         let mut image = self.image()?;
+        image.require_legacy_cleanup(proposal.inventory.subject())?;
         image.admit_report(proposal, &pin)?;
         let id = proposal.inventory.subject().id(&self.namespace()?);
         if let Some(saved) = image.retired_reports.get(&id) {
@@ -184,6 +185,7 @@ impl AnchorStore {
     ) -> Result<AnchorRetiredReportState, DurableError> {
         let pin = self.pin()?;
         let image = self.image()?;
+        image.require_legacy_cleanup(proposal.inventory.subject())?;
         image.admit_report(proposal, &pin)?;
         Ok(
             match image
@@ -318,6 +320,7 @@ impl AnchorStore {
     ) -> Result<AnchorRetiredReportAcknowledgementState, DurableError> {
         let pin = self.pin()?;
         let mut image = self.image()?;
+        image.require_legacy_cleanup(proposal.inventory.subject())?;
         image.admit_report(proposal, &pin)?;
         let saved = image
             .retired_reports
@@ -340,6 +343,7 @@ impl AnchorStore {
     ) -> Result<AnchorRetiredReportAcknowledgementState, DurableError> {
         let pin = self.pin()?;
         let image = self.image()?;
+        image.require_legacy_cleanup(proposal.inventory.subject())?;
         image.admit_report(proposal, &pin)?;
         match image
             .retired_reports

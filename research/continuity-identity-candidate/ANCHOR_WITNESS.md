@@ -1924,9 +1924,55 @@ before and after each barrier for both permanent results. The preparation fault
 case replays the exact original pre-prepare registry after a fixture already proved
 local intent preceded remote freeze; it is not a remote freeze-interruption test.
 
-Purpose37 historical cleanup and host acknowledgements still need to preserve
+Purpose37 client cleanup and host acknowledgements still need to preserve
 both logical journal Witness and current signing authority; the existing legacy
-cleanup path refuses this context. A new independently approved attempt after
+client cleanup path refuses this context. A new independently approved attempt after
 Closed, complete G/R/cancellation and continuous-history composition,256 actual
 clients, independent/foreign-platform and physical power-loss admission, final ABI
 and PCS remain open. Native process crashes are not physical power-loss evidence.
+
+### Historical accounting under transferred Witness authority
+
+The server now retains each independently approved inventory, report and host-ACK
+stage atomically with its original purpose-38 signature. `QPTCLA01` binds the
+namespace, complete history checkpoint, current signer, operator decision and
+validity to the exact purpose-37 account retirement, unchanged inventory and
+report identities, stage, and immediately preceding proof. `QPTCLR01` also binds
+the trusted commit time. Closed account attempts cannot authorize this path;
+inventory retention is not report retention, and neither is a host ACK.
+
+`QPANC022` retains the signed prefix alongside the existing inventory/report
+records. Existing formats remain unchanged when no transferred cleanup is present.
+Decoding checks the complete prefix, signatures, retirement, monotone stage times,
+matching original records and history. Missing proofs, altered ACK state, different
+reports and reused operator decision IDs cannot create a successful transition.
+An inherited subject's historical accounting exception requires this exact proof
+chain; the general inherited-state fence remains in place. New records cannot
+also issue legacy purpose19/20/21 receipts.
+
+First inventory admission reserves space for both remaining signatures and the
+report row within the existing1MiB image limit. Later ordinary mutations cannot
+consume that reservation. Capacity failure is explicit, not a partial cleanup or
+an increased storage limit. Stage time is checked before signing and immediately
+before commit. Storage errors close the owner and may follow commit. Retry with
+the same independently retained approval returns the exact signature without a
+clock call, re-signing or rewrite. `AnchorHandoffTarget` can observe retained
+receipts without the Witness signing key.
+
+After B retains inventory, an independently approved C can retain the next report
+and ACK following a complete B-to-C handoff. The inventory identity and B's
+signature stay unchanged. Restoring B's independent approval against the extended
+history preserves B's signer/checkpoint; it cannot silently become a C approval.
+The host must durably retain and deduplicate the report's actual accounting
+effects before independently approving Acknowledged. The server does not perform,
+replay, or prove those external effects.
+
+Six native server/accounting tests cover exact B-to-C recovery, malformed and
+conflicting proofs, stage/time refusals, capacity reservation and authenticated
+record damage. Six real SIGKILL/new-PID recoveries cover both sides of each of the
+three stage commits; eighteen measured sync failures cover before/after every
+transaction barrier. These tests use independent inventory/report expectations
+and real Witness/account transactions. They do not yet construct a complete
+transferred client loss report, perform host accounting effects or erase an
+original journal/signer. Connecting that existing client workflow, real pending
+G/P/R/cancellation composition, physical power loss and final ABI remain required.

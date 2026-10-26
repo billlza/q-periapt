@@ -375,6 +375,27 @@ impl Transferred {
 }
 
 impl AnchorHandoffTarget {
+    /// Recover the exact signed historical accounting stage without any Witness
+    /// private key. The original approved operation remains independently pinned.
+    pub fn transferred_cleanup_receipt(
+        &mut self,
+        approval: &AnchorTransferredCleanupApproval,
+    ) -> Result<AnchorTransferredCleanupReceipt, DurableError> {
+        let saved = self.image()?;
+        let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let source = storage::source_state(&owner.db, &owner.wrapping, &owner.approval, &saved)?;
+        let (_, history) = verified_activation(&owner.approval, &saved, &source)?;
+        let image = image_codec::decode_content(
+            &history,
+            &saved
+                .activation
+                .as_ref()
+                .ok_or(DurableError::Absent)?
+                .content,
+        )?;
+        retired_transfer::observe(&image, &history, approval)
+    }
+
     /// Read the exact account retirement/closure using the original storage key
     /// and public approvals, without any Witness private signing key.
     pub fn transferred_account_decision(

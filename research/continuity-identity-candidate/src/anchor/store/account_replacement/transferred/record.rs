@@ -134,6 +134,9 @@ impl Record {
     pub(in crate::anchor::store) fn as_bytes(&self) -> &[u8] {
         &self.wire
     }
+    pub(in crate::anchor::store) fn committed_at(&self) -> Result<u64, DurableError> {
+        self.committed.ok_or(DurableError::Suspended)
+    }
     pub(super) fn decision_id(&self) -> [u8; 32] {
         self.scope.decision
     }

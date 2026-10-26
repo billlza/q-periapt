@@ -132,6 +132,8 @@ pub(super) fn encode_content(
     image.check_account_freezes(pin)?;
     image.check_account_closures()?;
     image.check_account_decisions(pin)?;
+    image.check_retired_transfers(pin)?;
+    let retired_transfer_format = !image.retired_transfers.is_empty();
     let account_decision_format = !image.account_decisions.is_empty();
     let credential_policy_format = image
         .entries
@@ -195,7 +197,9 @@ pub(super) fn encode_content(
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
     });
-    let mut bytes = if account_decision_format {
+    let mut bytes = if retired_transfer_format {
+        b"QPANC022".to_vec()
+    } else if account_decision_format {
         b"QPANC021".to_vec()
     } else if roster_credential_format {
         b"QPANC020".to_vec()
@@ -294,7 +298,10 @@ pub(super) fn encode_content(
             &mut bytes,
         )?;
     }
-    if bytes.len() + 32 > MAX_IMAGE {
+    if retired_transfer_format {
+        retired_transfer::codec::encode_records(&image.retired_transfers, &mut bytes)?;
+    }
+    if bytes.len() + 32 + image.retired_transfer_reserve()? > MAX_IMAGE {
         return Err(DurableError::Capacity);
     }
     Ok(bytes)
@@ -521,6 +528,11 @@ pub(super) fn decode_content(
         } else {
             BTreeMap::new()
         };
+        let retired_transfers = if version >= ImageVersion::V22 {
+            retired_transfer::codec::decode_records(&mut d, pin)?
+        } else {
+            BTreeMap::new()
+        };
         d.finish()?;
         if version >= ImageVersion::V10
             && version < ImageVersion::V16
@@ -543,6 +555,7 @@ pub(super) fn decode_content(
             account_freezes,
             account_closures,
             account_decisions,
+            retired_transfers,
             handoff: None,
         };
         image.check_witness_key(&pin.current().key)?;
@@ -553,6 +566,10 @@ pub(super) fn decode_content(
         image.check_account_freezes(pin)?;
         image.check_account_closures()?;
         image.check_account_decisions(pin)?;
+        image.check_retired_transfers(pin)?;
+        if body.len() + 32 + image.retired_transfer_reserve()? > MAX_IMAGE {
+            return Err(DurableError::Corrupt);
+        }
         if version == ImageVersion::V14 && !image.retired_reports.values().any(|r| r.acknowledged) {
             return Err(DurableError::Corrupt);
         }

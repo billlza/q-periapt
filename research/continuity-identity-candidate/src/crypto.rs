@@ -74,6 +74,7 @@ pub(crate) enum Purpose {
     AnchorTransferredReply = 35,
     AnchorTransferredAccountFreeze = 36,
     AnchorTransferredAccountDecision = 37,
+    AnchorTransferredCleanup = 38,
 }
 
 /// Public verification keys for the fixed two-signature candidate profile.

@@ -27,6 +27,16 @@ pub(super) fn check(
     {
         return Err(DurableError::Corrupt);
     }
+    current.check_retired_transfers(history)?;
+    for (id, before) in &original.retired_transfers {
+        if !current
+            .retired_transfers
+            .get(id)
+            .is_some_and(|after| after.preserves(before))
+        {
+            return Err(DurableError::Suspended);
+        }
+    }
     for (id, old) in &original.entries {
         let next = current.entries.get(id).ok_or(DurableError::Suspended)?;
         let encode = |entry: &Entry| {
@@ -70,11 +80,18 @@ pub(super) fn check(
     retained(&original.retired_cleanup, &current.retired_cleanup, |p| {
         Ok(p.to_bytes())
     })?;
-    retained(&original.retired_reports, &current.retired_reports, |r| {
-        let mut bytes = r.proposal.to_bytes();
-        bytes.push(u8::from(r.acknowledged));
-        Ok(bytes)
-    })?;
+    for (id, before) in &original.retired_reports {
+        let after = current
+            .retired_reports
+            .get(id)
+            .ok_or(DurableError::Suspended)?;
+        if after.proposal != before.proposal
+            || (after.acknowledged != before.acknowledged
+                && (before.acknowledged || !current.retired_transfers.contains_key(id)))
+        {
+            return Err(DurableError::Suspended);
+        }
+    }
     retained(&original.account_closures, &current.account_closures, |r| {
         let mut bytes = Vec::new();
         account_replacement::closure::encode_records(&BTreeMap::from([([1; 32], *r)]), &mut bytes)?;
@@ -114,14 +131,15 @@ pub(super) fn check(
             p.require_transfer_proof(history)?;
         }
     }
-    if current
-        .retired_cleanup
-        .keys()
-        .any(|id| original.entries.contains_key(id) && !original.retired_cleanup.contains_key(id))
-        || current.retired_reports.keys().any(|id| {
-            original.entries.contains_key(id) && !original.retired_reports.contains_key(id)
-        })
-    {
+    if current.retired_cleanup.keys().any(|id| {
+        original.entries.contains_key(id)
+            && !original.retired_cleanup.contains_key(id)
+            && !current.retired_transfers.contains_key(id)
+    }) || current.retired_reports.keys().any(|id| {
+        original.entries.contains_key(id)
+            && !original.retired_reports.contains_key(id)
+            && !current.retired_transfers.contains_key(id)
+    }) {
         return Err(DurableError::Suspended);
     }
     Ok(())

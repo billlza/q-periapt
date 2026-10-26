@@ -17,6 +17,8 @@ mod registry;
 #[path = "transferred_tests/target_activation.rs"]
 mod target_activation;
 use fixture::Transferred;
+#[path = "transferred_tests/cleanup.rs"]
+mod cleanup;
 
 const JOURNAL: redb::TableDefinition<&str, &[u8]> =
     redb::TableDefinition::new("continuity_device_candidate_v21");

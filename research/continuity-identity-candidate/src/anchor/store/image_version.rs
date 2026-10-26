@@ -24,6 +24,7 @@ pub(super) enum ImageVersion {
     V19,
     V20,
     V21,
+    V22,
 }
 impl ImageVersion {
     pub(super) fn decode(tag: [u8; 8]) -> Result<Self, DurableError> {
@@ -48,6 +49,7 @@ impl ImageVersion {
             b"QPANC019" => Ok(Self::V19),
             b"QPANC020" => Ok(Self::V20),
             b"QPANC021" => Ok(Self::V21),
+            b"QPANC022" => Ok(Self::V22),
             _ => Err(DurableError::Conflict),
         }
     }
