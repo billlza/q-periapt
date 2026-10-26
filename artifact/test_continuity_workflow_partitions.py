@@ -16,10 +16,11 @@ def native(text):
         ('ubuntu-24.04', '1.98.1'), ('ubuntu-24.04', '1.90.0'), ('macos-15', '1.98.1'))
         for part in ('suite', 'capacity')}
     expected.update(('ubuntu-24.04', toolchain, 'release') for toolchain in ('1.98.1', '1.90.0'))
+    expected.add(('macos-15', '1.98.1', 'release'))
     expected.update(('ubuntu-24.04', toolchain, part)
                     for toolchain in ('1.98.1', '1.90.0') for part in ('roster-capacity', 'enrollment'))
     if len(rows) != len(expected) or set(rows) != expected:
-        raise ValueError('both Debug partitions and separate Linux Release budgets are required')
+        raise ValueError('complete Debug partitions and separate Release budgets are required')
     if ('timeout-minutes: 90' not in block or 'fail-fast: false' not in block
             or 'continue-on-error:' in block):
         raise ValueError('native failure or timeout contract changed')
@@ -57,9 +58,10 @@ def native(text):
             or 'source-commit.txt' not in enrollment or 'rustc.txt' not in enrollment
             or 'test "$(grep -c -F \'enrollment::\' "$candidate_log/debug-catalog.txt")" -gt 2' not in enrollment):
         raise ValueError('enrollment must complement the Linux suite including non-library tests')
-    condition = "if: matrix.partition == 'release' || (matrix.os == 'macos-15' && matrix.partition == 'suite')"
-    if condition not in release or condition not in sdk_release:
-        raise ValueError('Release must run exactly once per compiler outside Linux Debug')
+    condition = "if: matrix.partition == 'release'"
+    if any(condition not in {line.strip() for line in body.splitlines()}
+           for body in (release, sdk_release)):
+        raise ValueError('Release must run exactly once per compiler outside Debug')
     candidate_command = 'cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture'
     sdk_command = 'cargo +"$CANDIDATE_TOOLCHAIN" test --locked --release -p q-periapt-sdk --features sealed-operations'
     if (release.count(candidate_command) != 1 or block.count(candidate_command) != 1
@@ -241,10 +243,12 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 independent(changed)
 
-    def test_release_cannot_return_to_linux_debug_or_lose_sdk_coverage(self):
+    def test_release_cannot_return_to_debug_or_lose_sdk_coverage(self):
         for before, after in (
             ('partition: release', 'partition: omitted'),
-            ("if: matrix.partition == 'release' || (matrix.os == 'macos-15' && matrix.partition == 'suite')",
+            ("if: matrix.partition == 'release'",
+             "if: matrix.partition == 'release' || (matrix.os == 'macos-15' && matrix.partition == 'suite')"),
+            ("if: matrix.partition == 'release'",
              "if: matrix.partition == 'suite'"),
             ('cargo +"$CANDIDATE_TOOLCHAIN" test --locked --release -p q-periapt-sdk --features sealed-operations',
              'true'),

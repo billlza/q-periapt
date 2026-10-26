@@ -2443,8 +2443,8 @@ jobs:
     # Each complete 32-device scenario retains its own budget. The full Debug
     # suite grew to 1392 library cases and exhausted both Linux job budgets while
     # still making progress. Keep every case and the original 90-minute bound.
-    # Full Linux Release remains a separate unfiltered job.
-    # macOS retains its completed combined suite; no test workload is reduced.
+    # Full Release has a separate unfiltered job on each platform. macOS also
+    # exhausted the combined Debug/Release budget after Debug completed.
     timeout-minutes: 90
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-identity-build
@@ -2478,6 +2478,9 @@ jobs:
             partition: release
           - os: ubuntu-24.04
             toolchain: 1.90.0
+            partition: release
+          - os: macos-15
+            toolchain: 1.98.1
             partition: release
           - os: ubuntu-24.04
             toolchain: 1.98.1
@@ -2570,7 +2573,7 @@ jobs:
           # The full cargo test selection also preserves integration and doc tests.
           { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked 'enrollment::' -- --skip "$CAPACITY_TEST" --skip "$ROSTER_CAPACITY_TEST" --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-enrollment.log"
       - name: Exercise the complete Release candidate
-        if: matrix.partition == 'release' || (matrix.os == 'macos-15' && matrix.partition == 'suite')
+        if: matrix.partition == 'release'
         shell: bash
         env:
           CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
@@ -2620,7 +2623,7 @@ jobs:
           cargo +"$CANDIDATE_TOOLCHAIN" clippy --locked -p q-periapt-sdk --features sealed-operations --all-targets -- -D warnings 2>&1 | tee target/continuity-native-checks/sdk-clippy.log
           { time cargo +"$CANDIDATE_TOOLCHAIN" test --locked -p q-periapt-sdk --features sealed-operations || exit "$?"; } 2>&1 | tee target/continuity-native-checks/sdk-debug.log
       - name: Verify sealed SDK operations in Release
-        if: matrix.partition == 'release' || (matrix.os == 'macos-15' && matrix.partition == 'suite')
+        if: matrix.partition == 'release'
         shell: bash
         env:
           CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
