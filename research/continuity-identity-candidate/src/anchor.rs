@@ -37,7 +37,7 @@ pub use store::{
     AnchorRetiredSubject, AnchorStore, AnchorTransferredAccountDecision,
     AnchorTransferredAccountFreezeApproval, AnchorTransferredAccountFreezeProposal,
     AnchorTransferredAccountReplacementApproval, AnchorTransferredAccountReplacementMaterials,
-    AnchorTransferredControl,
+    AnchorTransferredAccountReplacementPlan, AnchorTransferredControl,
 };
 mod transport;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]

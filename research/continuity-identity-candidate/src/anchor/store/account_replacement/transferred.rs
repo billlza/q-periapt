@@ -2,6 +2,8 @@
 //! Account-root decisions under an explicit current Witness, after a retained freeze.
 use super::*;
 mod codec;
+mod plan;
+pub use plan::AnchorTransferredAccountReplacementPlan;
 mod record;
 mod store;
 pub(in crate::anchor::store) use record::{decode_records, encode_records, Record};

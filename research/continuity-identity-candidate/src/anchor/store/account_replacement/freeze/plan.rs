@@ -13,6 +13,32 @@ pub struct AnchorAccountReplacementPlan {
 }
 impl AnchorAccountReplacementPlan {
     pub(crate) const MAX_BYTES: usize = 8192;
+    pub(in crate::anchor::store::account_replacement) fn from_target(
+        request: AnchorAccountFreezeRequest,
+        target: AnchorAccountReplacementProposal,
+    ) -> Result<Self, Error> {
+        let plan = Self { request, target };
+        plan.check()?;
+        Ok(plan)
+    }
+    // Only the distinct transferred plan may accept this proof. The legacy bind
+    // below deliberately continues to reject transferred account freezes.
+    pub(in crate::anchor::store::account_replacement) fn bind_transferred(
+        &self,
+        frozen: &AnchorFrozenAccount,
+        history: &AnchorHandoffHistory,
+    ) -> Result<AnchorAccountReplacementProposal, DurableError> {
+        self.check()?;
+        frozen.require_transfer_proof(history)?;
+        if frozen.request != self.request {
+            return Err(Error::Scope.into());
+        }
+        let mut p = self.target.clone();
+        p.frozen = frozen.subjects.clone();
+        p.preparation = Some(frozen.binding()?);
+        p.check_shape()?;
+        Ok(p)
+    }
     /// Exact independently approved witness-freeze request.
     pub fn request(&self) -> &AnchorAccountFreezeRequest {
         &self.request

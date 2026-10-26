@@ -20,7 +20,7 @@ pub use freeze::{
 };
 pub use transferred::{
     AnchorTransferredAccountDecision, AnchorTransferredAccountReplacementApproval,
-    AnchorTransferredAccountReplacementMaterials,
+    AnchorTransferredAccountReplacementMaterials, AnchorTransferredAccountReplacementPlan,
 };
 
 const MAX_PROPOSAL_BYTES: usize = 65_536;

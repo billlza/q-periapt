@@ -10,6 +10,8 @@ pub(super) struct Transferred {
     pub(super) successor: Account,
     pub(super) policy: VerifiedSessionPolicy,
     pub(super) approval: AnchorTransferredAccountReplacementApproval,
+    pub(super) preparation: AnchorTransferredAccountReplacementPlan,
+    pub(super) frozen: AnchorFrozenAccount,
     pub(super) selected: Option<WitnessJournalAdoptionPlan>,
     pub(super) pre_pending: Vec<u8>,
     pub(super) live: Option<EnrolledDevice>,
@@ -256,6 +258,36 @@ impl Transferred {
             &pin,
         )
         .expect("account scope");
+        let materials = AnchorTransferredAccountReplacementMaterials {
+            previous_root: &root,
+            genesis: &successor.genesis,
+            device: &successor.device,
+            policy: &policy,
+            history: &history,
+        };
+        let before = target
+            .handoff_source_state()
+            .expect("pre-freeze full image");
+        let preparation = target
+            .transferred_account_replacement_plan(
+                AnchorAccountReplacementId::from_trusted_state([206; 32]).expect("root ID"),
+                request.clone(),
+                &materials,
+                185,
+            )
+            .expect("exact target plan before account freeze");
+        assert_eq!(
+            target
+                .handoff_source_state()
+                .expect("same full image")
+                .as_bytes(),
+            before.as_bytes(),
+            "preparation must not change the Witness or any pending operation"
+        );
+        public_inputs.push((
+            "root-preparation",
+            preparation.to_bytes().expect("original plan"),
+        ));
         let proposed = target
             .transferred_account_freeze_proposal(&request, &history)
             .expect("full account observation");
@@ -288,6 +320,13 @@ impl Transferred {
                 185,
             )
             .expect("exact successor observation");
+        assert_eq!(
+            preparation
+                .bind(&frozen, &history)
+                .expect("original prepared target"),
+            proposal,
+            "freeze binding must preserve the independently prepared target"
+        );
         let approval = AnchorTransferredAccountReplacementApproval::from_trusted_state(
             proposal,
             &materials,
@@ -302,6 +341,8 @@ impl Transferred {
             successor,
             policy,
             approval,
+            preparation,
+            frozen,
             selected,
             pre_pending,
             live,

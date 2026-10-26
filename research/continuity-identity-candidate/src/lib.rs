@@ -144,8 +144,8 @@ pub use anchor::{
     AnchorRosterRefreshProposal, AnchorRosterRefreshState, AnchorStore, AnchorSubject,
     AnchorTransferredAccountDecision, AnchorTransferredAccountFreezeApproval,
     AnchorTransferredAccountFreezeProposal, AnchorTransferredAccountReplacementApproval,
-    AnchorTransferredAccountReplacementMaterials, AnchorTransferredControl, AnchorTransport,
-    RosterRefreshId, RosterRefreshScope,
+    AnchorTransferredAccountReplacementMaterials, AnchorTransferredAccountReplacementPlan,
+    AnchorTransferredControl, AnchorTransport, RosterRefreshId, RosterRefreshScope,
 };
 pub use bootstrap::{
     BootstrapContext, BootstrapRole, DirectoryExpectation, InitiatorOperation, InitiatorOutcome,

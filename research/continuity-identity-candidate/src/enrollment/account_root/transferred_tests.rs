@@ -4,10 +4,14 @@ use crate::*;
 
 #[path = "transferred_tests/fixture.rs"]
 mod fixture;
+#[path = "transferred_tests/preparation.rs"]
+mod preparation;
 #[path = "transferred_tests/process.rs"]
 mod process;
 #[path = "transferred_tests/recovery.rs"]
 mod recovery;
+#[path = "transferred_tests/target_activation.rs"]
+mod target_activation;
 use fixture::Transferred;
 
 const JOURNAL: redb::TableDefinition<&str, &[u8]> =

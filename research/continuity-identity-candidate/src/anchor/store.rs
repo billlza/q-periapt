@@ -43,6 +43,7 @@ pub use account_replacement::{
     AnchorRetiredAccount, AnchorRetiredAccountSubject, AnchorTransferredAccountDecision,
     AnchorTransferredAccountFreezeApproval, AnchorTransferredAccountFreezeProposal,
     AnchorTransferredAccountReplacementApproval, AnchorTransferredAccountReplacementMaterials,
+    AnchorTransferredAccountReplacementPlan,
 };
 mod replacement;
 pub use replacement::{

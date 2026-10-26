@@ -1,0 +1,167 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//! Retain the independently approved target before the transferred account freeze.
+use super::*;
+
+/// Original target and exact future freeze request under a verified successor
+/// Witness. This deliberately approves the snapshot returned for that request,
+/// not a transient read-only snapshot. The complete freeze still needs its own
+/// operator approval, followed by the exact account-root replacement approval.
+/// Persist this plan in the original host authority before submitting the freeze.
+/// It is neither a legacy preparation nor permission to operate either account.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AnchorTransferredAccountReplacementPlan {
+    plan: AnchorAccountReplacementPlan,
+    namespace: [u8; 32],
+    history: [u8; 32],
+}
+impl AnchorTransferredAccountReplacementPlan {
+    const MAX_BYTES: usize = 8 + 64 + AnchorAccountReplacementPlan::MAX_BYTES;
+
+    fn check(&self, history: &AnchorHandoffHistory) -> Result<(), DurableError> {
+        let witness = self.plan.target().witness_binding();
+        if self.namespace != history.namespace_binding()
+            || self.namespace == witness
+            || self.history != history.checkpoint_at(witness)?
+        {
+            return Err(Error::Scope.into());
+        }
+        closure::check_scope(self.plan.target(), history.historical_pin(witness)?)?;
+        Ok(())
+    }
+    /// Original operation identity, unchanged when the freeze becomes committed.
+    pub fn operation(&self) -> AnchorAccountReplacementId {
+        self.plan.operation()
+    }
+    /// Independently retained request; incoming freeze bytes cannot select it.
+    pub fn request(&self) -> &AnchorAccountFreezeRequest {
+        self.plan.request()
+    }
+    /// Match the original target and exact historical context to independent
+    /// enrollment and policy inputs. Expiry does not erase a historical plan.
+    pub fn verify_target(
+        &self,
+        m: &AnchorTransferredAccountReplacementMaterials<'_>,
+    ) -> Result<(), DurableError> {
+        self.check(m.history)?;
+        self.plan.verify_target(
+            m.previous_root,
+            m.genesis,
+            m.device,
+            m.policy,
+            m.history
+                .historical_pin(self.plan.target().witness_binding())?,
+        )
+    }
+    /// Bind only the original signed, complete transferred freeze. The returned
+    /// proposal preserves every target input and operation ID; it is not itself
+    /// the independently authenticated approval required to retire the account.
+    pub fn bind(
+        &self,
+        frozen: &AnchorFrozenAccount,
+        history: &AnchorHandoffHistory,
+    ) -> Result<AnchorAccountReplacementProposal, DurableError> {
+        self.check(history)?;
+        self.plan.bind_transferred(frozen, history)
+    }
+    /// Canonical host-retained public intent; serialization grants no authority.
+    pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+        let mut out = b"QPTARP01".to_vec();
+        out.extend_from_slice(&self.namespace);
+        out.extend_from_slice(&self.history);
+        out.extend_from_slice(&self.plan.to_bytes()?);
+        if out.len() > Self::MAX_BYTES {
+            return Err(Error::Capacity);
+        }
+        Ok(out)
+    }
+    /// Restore the original host record against independently retained target
+    /// materials and verified history. Never use a network-selected record as
+    /// account recovery approval. An extended history preserves the exact prefix.
+    pub fn restore_trusted_state(
+        bytes: &[u8],
+        m: &AnchorTransferredAccountReplacementMaterials<'_>,
+    ) -> Result<Self, DurableError> {
+        if bytes.len() > Self::MAX_BYTES {
+            return Err(Error::Capacity.into());
+        }
+        let mut d = Decoder::new(bytes);
+        if d.array::<8>()? != *b"QPTARP01" {
+            return Err(Error::Encoding.into());
+        }
+        let namespace = d.array()?;
+        let history = d.array()?;
+        let plan = AnchorAccountReplacementPlan::from_trusted_state(d.take(d.remaining())?)?;
+        d.finish()?;
+        let restored = Self {
+            plan,
+            namespace,
+            history,
+        };
+        restored.verify_target(m)?;
+        Ok(restored)
+    }
+    /// Commitment to the complete retained target, freeze request and history.
+    pub fn binding(&self) -> Result<[u8; 32], Error> {
+        Ok(digest(
+            b"Q-PERIAPT-TRANSFERRED-ACCOUNT-PREPARATION/v1",
+            &self.to_bytes()?,
+        ))
+    }
+}
+
+impl AnchorStore {
+    /// Read-only preparation before a whole-account freeze under the current
+    /// Witness. The host independently authenticates the target approval and
+    /// persists it before freezing. No account, pending command or ID is changed.
+    /// Fresh enrollment admission is checked here and again at actual commitment.
+    pub fn transferred_account_replacement_plan(
+        &mut self,
+        operation: AnchorAccountReplacementId,
+        request: AnchorAccountFreezeRequest,
+        m: &AnchorTransferredAccountReplacementMaterials<'_>,
+        now: u64,
+    ) -> Result<AnchorTransferredAccountReplacementPlan, DurableError> {
+        let current = self.pin()?;
+        let history = self
+            .active
+            .as_ref()
+            .ok_or(DurableError::Closed)?
+            .transferred
+            .as_ref()
+            .ok_or(DurableError::Suspended)?
+            .history();
+        if history.checkpoint() != m.history.checkpoint()
+            || history.namespace_binding() != m.history.namespace_binding()
+        {
+            return Err(Error::Scope.into());
+        }
+        let validity = self.admit_enrollment(m.genesis.subject, m.device, m.policy, now)?;
+        let image = self.image()?;
+        image.require_account_live(crate::identity::account_id(m.previous_root))?;
+        let mut target = Target {
+            genesis: m.genesis,
+            device: m.device,
+            policy: m.policy,
+            pin: &current,
+        }
+        .proposal(
+            operation,
+            (m.previous_root, None),
+            validity,
+            image.account_snapshot_at(
+                crate::identity::account_id(m.previous_root),
+                current.binding(),
+                m.history,
+            )?,
+        )?;
+        image.check_new_account_replacement_at(&target, m.history)?;
+        target.frozen.clear();
+        let plan = AnchorTransferredAccountReplacementPlan {
+            plan: AnchorAccountReplacementPlan::from_target(request, target)?,
+            namespace: m.history.namespace_binding(),
+            history: m.history.checkpoint(),
+        };
+        plan.verify_target(m)?;
+        Ok(plan)
+    }
+}

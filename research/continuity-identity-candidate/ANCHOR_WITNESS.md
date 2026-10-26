@@ -1824,3 +1824,32 @@ image/pending/selection bytes and exact returned decisions are checked separatel
 These tests do not establish full G/R/cancellation composition, the installed
 language/platform matrix, physical power-loss behavior or registry/cleanup
 integration. Existing child-only and legacy parent tests remain separate evidence.
+
+### Target preparation before a transferred account freeze
+
+`AnchorTransferredAccountReplacementPlan` fixes the successor credential, roster,
+policy, journal genesis, original operation ID and exact freeze request before
+the current Witness freezes the account. `transferred_account_replacement_plan`
+checks fresh target admission and the complete classified source account without
+writing its image. The plan binds the immutable namespace and exact current
+history checkpoint. Restore checks independent target inputs; bind verifies the
+signed complete freeze for the original request and preserves every target field.
+The resulting proposal still requires the separate independently authenticated
+`AnchorTransferredAccountReplacementApproval` before any account retirement.
+
+`QPTARP01` wraps the existing canonical target/request descriptor with its
+namespace/history context. The original legacy preparation binding continues to
+reject transferred freezes. An unrelated history, target, request, malformed
+record or unproved freeze cannot substitute for the original plan. This intent
+permits selecting the complete snapshot at the future freeze; it does not approve
+a transient snapshot taken when the target was planned.
+
+Native tests bind this plan to real no-pending and three P states, preserve journal
+rows, and compare the result with the actual current Witness's exact proposal.
+A separate actual-server test observes fresh target activation and prekey
+generation after Committed, and refuses activation after Closed. These are
+prerequisites for managed integration: the existing application registry still
+needs a durable transferred-preparation record and per-account Witness mapping,
+and the owning controller must coordinate that registry with parent/child fences
+and successor admission. No registry migration, complete managed cutover, new
+approved attempt after Closed, physical-device or final-ABI claim follows here.
