@@ -15,6 +15,21 @@ pub struct TransferredAccountRootPreparation {
     pub(crate) selection: Option<WitnessJournalAdoptionPlan>,
 }
 impl TransferredAccountRootPreparation {
+    pub(crate) fn original_checkpoint(
+        &self,
+        parent: [u8; 32],
+        child: [u8; 32],
+    ) -> Result<[u8; 32], DurableError> {
+        let bytes = [
+            parent,
+            child,
+            self.target.binding()?,
+            self.history.checkpoint(),
+            self.logical.binding(),
+        ]
+        .concat();
+        Ok(digest(b"Q-PERIAPT-MANAGED-ROOT-ORIGINAL/v1", &bytes))
+    }
     /// Bind an independently approved target to original local trust. A missing
     /// selection requires that the original journal has no Witness-selection row.
     /// An existing selection must be supplied exactly, including its lineage.
@@ -120,14 +135,26 @@ impl TransferredAccountRootPreparation {
             }
             _ => Err(DurableError::Conflict),
         }?;
-        let mut bytes = Vec::new();
-        bytes.extend_from_slice(&image.id);
-        bytes.extend_from_slice(&image.owner);
-        bytes.extend_from_slice(&image.digest);
-        for retained in [
+        Ok(Self::original_child_checkpoint(
+            &image.id,
+            &image.owner,
+            &image.digest,
             pending.as_ref().map(|p| p.wire()),
             wire.as_ref().map(|w| w.value()),
-        ] {
+        ))
+    }
+    pub(in crate::durable::write_intent) fn original_child_checkpoint(
+        id: &[u8; 32],
+        owner: &[u8; 32],
+        image: &[u8; 32],
+        pending: Option<&[u8]>,
+        selection: Option<&[u8]>,
+    ) -> [u8; 32] {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(id);
+        bytes.extend_from_slice(owner);
+        bytes.extend_from_slice(image);
+        for retained in [pending, selection] {
             bytes.push(u8::from(retained.is_some()));
             if let Some(value) = retained {
                 bytes.extend_from_slice(&digest(
@@ -136,6 +163,6 @@ impl TransferredAccountRootPreparation {
                 ));
             }
         }
-        Ok(digest(b"Q-PERIAPT-MANAGED-ROOT-ORIGINAL-CHILD/v1", &bytes))
+        digest(b"Q-PERIAPT-MANAGED-ROOT-ORIGINAL-CHILD/v1", &bytes)
     }
 }

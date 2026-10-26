@@ -25,6 +25,7 @@ struct Owners {
     paths: EnrollmentPaths,
     intent: EnrollmentIntent,
     pin: AnchorPin,
+    cleanup_history: Option<crate::AnchorHandoffHistory>,
 }
 impl Drop for Owners {
     fn drop(&mut self) {
@@ -124,6 +125,7 @@ impl ManagedAccountRootReplacement {
             paths: enrollment.paths.clone(),
             intent: enrollment.intent.clone(),
             pin,
+            cleanup_history: None,
         };
         Self::check_inputs(&owners)?;
         owners
@@ -159,6 +161,7 @@ impl ManagedAccountRootReplacement {
             paths,
             intent,
             pin,
+            cleanup_history: None,
         };
         Self::check_inputs(&owners)?;
         owners.reconcile().await?;

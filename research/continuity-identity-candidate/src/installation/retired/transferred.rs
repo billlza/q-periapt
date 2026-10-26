@@ -106,6 +106,23 @@ fn save_control(
     maybe_async::must_be_sync
 )]
 impl RetiredInstallationRecovery {
+    pub(crate) fn retained_transferred_control(&mut self) -> Result<Option<Vec<u8>>, DurableError> {
+        let result = (|| {
+            self.proposal()?;
+            let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
+            let saved = read_configuration(&owner.configuration)?;
+            if let Some(control) = owner.control(&saved)? {
+                control.verified(CleanupStage::Acknowledged)?;
+                Ok(Some(saved.retired_control.ok_or(DurableError::Conflict)?))
+            } else {
+                Ok(None)
+            }
+        })();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
     #[cfg(all(test, unix))]
     pub(crate) fn open_transferred_database(
         configuration: Database,

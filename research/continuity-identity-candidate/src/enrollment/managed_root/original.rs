@@ -37,12 +37,34 @@ impl Owners {
             if transition.is_some() {
                 return Err(DurableError::Conflict);
             }
-            self.check_transferred_checkpoint(&enrollment, false)
-                .await?;
             let approval = self.registry.transferred_approval(self.operation.id())?;
             if approval.proposal() != proposal {
                 return Err(DurableError::Conflict);
             }
+            if self.state()? == State::Committed {
+                let decision = self
+                    .registry
+                    .transferred_account_decision(self.operation.id())?;
+                if let Some(context) = enrollment.retained_transferred_cleanup(
+                    plan.bind(approval.clone())?,
+                    decision.as_bytes(),
+                    self.cleanup_history
+                        .clone()
+                        .unwrap_or_else(|| plan.history.clone()),
+                )? {
+                    let retired =
+                        RetiredDeviceEnrollment::from_transferred_enrollment(enrollment, context)
+                            .await?;
+                    retired.check_transferred_managed_checkpoint(
+                        plan,
+                        self.registry
+                            .managed_transferred_checkpoint(self.operation.id())?,
+                    )?;
+                    return Ok(Original::Retired(Box::new(retired)));
+                }
+            }
+            self.check_transferred_checkpoint(&enrollment, false)
+                .await?;
             return Ok(Original::Fenced(
                 AccountRootEnrollmentRecovery::prepare_transferred(
                     enrollment,
@@ -147,6 +169,13 @@ impl Owners {
                 Ok(())
             }
             Original::Retired(retired) => {
+                if let Operation::Transferred(plan) = &self.operation {
+                    retired.check_transferred_managed_checkpoint(
+                        plan,
+                        self.registry
+                            .managed_transferred_checkpoint(self.operation.id())?,
+                    )?;
+                }
                 retired
                     .check_managed_scope(&self.paths, &self.intent, &self.pin, proposal)
                     .await
@@ -232,7 +261,13 @@ impl Owners {
         self.check_parent(proposal, true).await?;
         let original = match self.original.take().ok_or(DurableError::Closed)? {
             Original::Fenced(recovery) => {
-                Original::Retired(Box::new(recovery.into_retired().await?))
+                Original::Retired(Box::new(if let Some(history) = &self.cleanup_history {
+                    recovery
+                        .into_retired_with_accounting_history(history.clone())
+                        .await?
+                } else {
+                    recovery.into_retired().await?
+                }))
             }
             original @ Original::Retired(_) => original,
             Original::Preparing(_) => return Err(DurableError::Suspended),

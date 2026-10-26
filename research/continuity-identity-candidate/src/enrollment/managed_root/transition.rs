@@ -155,6 +155,7 @@ impl ManagedAccountRootReplacement {
             paths,
             intent,
             pin,
+            cleanup_history: None,
         };
         Self::check_inputs(&owners)?;
         owners.check_transition(transition)?;

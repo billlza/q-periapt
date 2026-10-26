@@ -33,6 +33,42 @@ fn check_scope(
     Ok(())
 }
 impl DeviceJournal {
+    pub(crate) fn observe_transferred_retirement_in_database(
+        db: &Database,
+        key: &JournalKey,
+        identity: JournalIdentity,
+        context: &crate::TransferredRetirementContext,
+    ) -> Result<crate::retired_device::transferred::RetirementObservation, DurableError> {
+        let (image, pending, inventory) =
+            snapshot(db, key, identity, context.retired_subject(), Some(context))?;
+        let tx = db.begin_read().map_err(storage)?;
+        let table = image_table(&tx)?;
+        let root = table
+            .get("account-root-fence")
+            .map_err(storage)?
+            .ok_or(DurableError::Conflict)?;
+        let selection = table.get(witness_handoff::ROW).map_err(storage)?;
+        let parent_fence = account_root::validate_transferred_retired_snapshot(
+            key,
+            &image,
+            pending.as_ref(),
+            root.value(),
+            selection.as_ref().map(|r| r.value()),
+            context,
+        )?;
+        let original_child = crate::TransferredAccountRootPreparation::original_child_checkpoint(
+            &image.id,
+            &image.owner,
+            &image.digest,
+            pending.as_ref().map(|p| p.wire()),
+            selection.as_ref().map(|r| r.value()),
+        );
+        Ok(crate::retired_device::transferred::RetirementObservation {
+            inventory,
+            original_child,
+            parent_fence,
+        })
+    }
     /// Read the exact authenticated image and pending record of a permanently
     /// retired journal. The pinned retirement proof must already be verified.
     /// No current policy/signing owner, network request, rewrite, intent apply,

@@ -1625,6 +1625,9 @@ fn read_snapshot(
     }
     if let Some(state) = &retirement {
         state.check_image(&image, wire)?;
+        if state.requires_account_root() && root_replacement.is_none() {
+            return Err(DurableError::Conflict);
+        }
     }
     if let Some(state) = &root_replacement {
         state.check_image(&image, wire)?;

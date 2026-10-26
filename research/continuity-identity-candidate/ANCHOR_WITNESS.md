@@ -1924,10 +1924,11 @@ before and after each barrier for both permanent results. The preparation fault
 case replays the exact original pre-prepare registry after a fixture already proved
 local intent preceded remote freeze; it is not a remote freeze-interruption test.
 
-The original managed parent still needs to carry transferred cleanup through
-signer erasure and cold controller recovery. The restricted installation path
-below preserves logical journal Witness and current signing authority separately;
-the legacy contextless cleanup entry continues to refuse transferred state. A new independently approved attempt after
+The original managed parent carries transferred cleanup through logical journal
+and signer-file erasure, as described below. The restricted path preserves logical
+journal Witness, original root-operation authority and current accounting authority
+separately; the legacy contextless cleanup entry continues to refuse transferred
+state. A new independently approved attempt after
 Closed, complete G/R/cancellation and continuous-history composition,256 actual
 clients, independent/foreign-platform and physical power-loss admission, final ABI
 and PCS remain open. Native process crashes are not physical power-loss evidence.
@@ -1977,8 +1978,9 @@ complete coverage of every measured barrier, rather than a fixed total. They use
 independent inventory/report expectations and real Witness/account transactions.
 Those server tests do not construct the client report or execute external host
 effects. The installation boundary below separately reads the actual original
-client inventory and report. Parent signer cleanup, complete G/P/R/cancellation
-composition, physical power loss and final ABI remain required.
+client inventory and report. The parent boundary below separately verifies signer
+cleanup; complete G/P/R/cancellation composition, physical power loss and final ABI
+remain required.
 
 ### Original installation cleanup after Witness handoff
 
@@ -2019,6 +2021,55 @@ real P phases, absent/prepared/adopted Witness selection, and a later B-to-C
 accounting handoff. They check missing/corrupt or MAC-valid inconsistent control,
 wrong selection, unknown response, wrong receipt purpose, each measured config
 and journal transaction sync failure, and real before/after SIGKILL/new-process
-recovery. This is not the complete managed parent/signer retirement transaction,
-a complete G/R/cancellation matrix, physical power-loss evidence, a final ABI or
-release acceptance.
+recovery. These installation cases alone do not prove the managed parent/signer
+transaction described next, a complete G/R/cancellation matrix, physical power-loss
+behavior, a final ABI or release acceptance.
+
+### Original parent and controller after transferred retirement
+
+`AccountRootEnrollmentRecovery::into_retired` transfers the existing enrollment
+lease into `RetiredDeviceEnrollment`. The transferred entry requires the full
+original plan and exact purpose-37 Committed decision. Closed cannot enter this
+flow. Parent admission validates the original image, selection and account fence
+against the same journal snapshot before durably capturing its original child
+checkpoint. Missing originals never cause a new inventory or replacement signer.
+
+`QPERTR02` retains the context binding and original child checkpoint, then the
+exact authenticated cleanup control including the purpose-38 ACK when preparing
+signer erasure. Its codec is bounded by the legacy maximum plus the context and
+bounded control length. The transaction verifies and preserves the original
+enrollment, root and Witness-selection rows. Legacy `QPERTR01` remains unchanged.
+Capture of a signer plan requires the acknowledged journal terminal; the original
+file identity and encrypted bytes are bound before any file mutation. Header
+write/sync, truncation, terminal sync and directory sync operate on that original
+file. Errors close the owner and may follow a durable change; retry keeps the same
+plan and complete proof. This is logical file erasure, not removal of backups,
+old pages or independently copied secrets.
+
+Cold `ManagedAccountRootReplacement` recovery checks the retained parent before
+attempting to read an erased journal. It reconstructs the original managed
+checkpoint from the unchanged parent image, retained child commitment and original
+independent preparation, and compares it with the registry's existing checkpoint.
+A locally MAC-valid substituted child commitment therefore cannot be selected.
+The exact original registry decision and successor mapping remain required; no
+retired signer is recreated and no host accounting effect is replayed.
+
+`resume_transferred_cleanup_original` accepts independently verified accounting
+history equal to or extending the original history. An A journal retired by B
+can finish its existing inventory/report/ACK under separately approved C after a
+complete handoff. The root operation and its registry checkpoint still bind B;
+C's history selects historical accounting only, never current successor traffic.
+Unknown or obsolete authority cannot be inferred from a received proof or missing
+state. Independent closure/reapproval of an already prepared obsolete-authority
+request remains required before selecting a different request.
+
+Focused native cases cover no pending operation and three real P phases with
+absent/prepared/adopted selection, complete signer and journal cleanup, cold
+managed recovery and actual successor prekey operations with controller-close
+revocation. Fourteen real SIGKILL/new-PID recoveries cover both sides of the two
+parent commits and five signer I/O boundaries. The sync fault matrix covers every
+measured parent transaction barrier before and after; nineteen signing-file I/O
+faults include every header prefix and both sides of all five boundaries. Missing
+rows, wrong ACKs and MAC-valid checkpoint substitutions are rejected. This does
+not close the full G/R/cancellation, continuous-history, capacity, installed
+foreign-platform, physical power-loss, final ABI or multi-epoch PCS requirements.

@@ -21,6 +21,8 @@ use fixture::Transferred;
 mod cleanup;
 #[path = "transferred_tests/client_cleanup.rs"]
 mod client_cleanup;
+#[path = "transferred_tests/parent_cleanup.rs"]
+mod parent_cleanup;
 
 const JOURNAL: redb::TableDefinition<&str, &[u8]> =
     redb::TableDefinition::new("continuity_device_candidate_v21");

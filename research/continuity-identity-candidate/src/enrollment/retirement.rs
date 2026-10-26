@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Retain original enrollment authority through whole-device cleanup and signer erasure.
 use super::*;
+use crate::retired_device::transferred::control::Control;
+use crate::TransferredRetirementContext;
 use crate::{
     crypto::SigningFilePlan, retired_device::JournalErasureState, AnchorRetiredCleanupProposal,
     AnchorRetiredReportAcknowledgement, AnchorRetiredSubject, RetiredInstallationRecovery,
 };
 use redb::ReadableTable;
+mod codec;
+mod signer;
+mod transferred;
 
 /// Logical state of the original acknowledged signer file, not retained pages or backups.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -18,7 +23,17 @@ pub enum SigningFileErasureState {
 #[derive(Clone, Eq, PartialEq)]
 struct SignerPlan {
     file: SigningFilePlan,
-    acknowledgement: Vec<u8>,
+    proof: SignerProof,
+}
+#[derive(Clone, Eq, PartialEq)]
+enum SignerProof {
+    Legacy(Vec<u8>),
+    Transferred(Vec<u8>),
+}
+#[derive(Clone, Eq, PartialEq)]
+struct TransferredMetadata {
+    binding: [u8; 32],
+    original_child: [u8; 32],
 }
 #[derive(Clone, Eq, PartialEq)]
 pub(super) struct State {
@@ -26,77 +41,17 @@ pub(super) struct State {
     enrollment_digest: [u8; 32],
     inventory: AnchorRetiredCleanupProposal,
     signer: Option<Box<SignerPlan>>,
+    context: Option<TransferredMetadata>,
 }
 impl State {
-    pub(super) fn decode(
-        wire: &[u8],
-        key: &JournalKey,
-        binding: [u8; 32],
-    ) -> Result<Self, DurableError> {
-        if !(8 + 32 + 32 + 32 + 313 + 1 + 32..=8192).contains(&wire.len()) {
-            return Err(DurableError::Corrupt);
-        }
-        let (body, tag) = wire.split_at(wire.len() - 32);
-        let mut mac = auth(key)?;
-        mac.update(body);
-        mac.verify_slice(tag)
-            .map_err(|_| DurableError::Authentication)?;
-        let mut d = Decoder::new(body);
-        if d.array::<8>()? != *b"QPERTR01" || d.array::<32>()? != binding {
-            return Err(DurableError::Conflict);
-        }
-        let identity = SigningKeyId::from_trusted_state(d.array()?)?;
-        let enrollment_digest = d.array()?;
-        let inventory = AnchorRetiredCleanupProposal::from_trusted_state(d.take(313)?)?;
-        let signer = match d.array::<1>()? {
-            [0] => None,
-            [1] => {
-                let file = SigningFilePlan::decode(&mut d)?;
-                if file.identity() != identity || file.report().inventory() != &inventory {
-                    return Err(DurableError::Corrupt);
-                }
-                Some(Box::new(SignerPlan {
-                    file,
-                    acknowledgement: d.take(3730)?.to_vec(),
-                }))
-            }
-            _ => return Err(DurableError::Corrupt),
-        };
-        d.finish()?;
-        Ok(Self {
-            identity,
-            enrollment_digest,
-            inventory,
-            signer,
-        })
-    }
-    fn encode(&self, key: &JournalKey, binding: [u8; 32]) -> Result<Vec<u8>, DurableError> {
-        let mut wire = b"QPERTR01".to_vec();
-        wire.extend_from_slice(&binding);
-        wire.extend_from_slice(self.identity.as_bytes());
-        wire.extend_from_slice(&self.enrollment_digest);
-        wire.extend_from_slice(&self.inventory.to_bytes());
-        match &self.signer {
-            None => wire.push(0),
-            Some(p) => {
-                wire.push(1);
-                p.file.encode(&mut wire);
-                wire.extend_from_slice(&p.acknowledgement);
-            }
-        }
-        let mut mac = auth(key)?;
-        mac.update(&wire);
-        wire.extend_from_slice(&mac.finalize().into_bytes());
-        if wire.len() > 8192 {
-            return Err(DurableError::Capacity);
-        }
-        Ok(wire)
+    pub(super) fn requires_account_root(&self) -> bool {
+        self.context.is_some()
     }
     pub(super) fn check_account_retirement(
         &self,
         root: &account_root::State,
     ) -> Result<(), DurableError> {
-        root.check_retirement_inventory(&self.inventory)
+        root.check_retirement_inventory(&self.inventory, self.context.is_some())
     }
     pub(super) fn check_image(&self, image: &Image, wire: &[u8]) -> Result<(), DurableError> {
         let Phase::Accepted { admission, .. } = &image.phase else {
@@ -130,15 +85,28 @@ fn read_retired_snapshot(
     enrollment: &DeviceEnrollment,
     pin: &AnchorPin,
     retired: AnchorRetiredSubject,
-) -> Result<(Image, Option<State>), DurableError> {
+    context: Option<&TransferredRetirementContext>,
+) -> Result<EnrollmentSnapshot, DurableError> {
     let active = enrollment.active.as_ref().ok_or(DurableError::Closed)?;
     let snapshot = read_snapshot(&active.database, &active.key, enrollment.binding)?;
-    if let Some(root) = &snapshot.root_replacement {
+    if let Some(context) = context {
+        transferred::check_snapshot(enrollment, &snapshot, context)?;
+    } else if let Some(root) = &snapshot.root_replacement {
         if root.retirement_subject(pin, retired.subject())? != retired {
             return Err(DurableError::Conflict);
         }
     }
-    Ok((snapshot.image, snapshot.retirement))
+    if snapshot
+        .retirement
+        .as_ref()
+        .and_then(|s| s.context.as_ref())
+        .map(|m| m.binding)
+        != context.map(|c| c.binding())
+        && snapshot.retirement.is_some()
+    {
+        return Err(DurableError::Conflict);
+    }
+    Ok(snapshot)
 }
 fn save(
     enrollment: &DeviceEnrollment,
@@ -154,6 +122,7 @@ fn save(
         next.check_account_retirement(root)?;
     }
     let root_rows = u64::from(snapshot.root_replacement.is_some());
+    let selection_rows = u64::from(snapshot.witness_handoff.is_some());
     let wire = next.encode(&active.key, enrollment.binding)?;
     let expected = old
         .map(|s| s.encode(&active.key, enrollment.binding))
@@ -161,7 +130,20 @@ fn save(
     let tx = transaction(&active.database)?;
     {
         let mut table = tx.open_table(TABLE).map_err(storage)?;
-        if table.len().map_err(storage)? != 1 + u64::from(old.is_some()) + root_rows
+        let root = table
+            .get(account_root::ROW)
+            .map_err(storage)?
+            .map(|r| account_root::State::decode(r.value(), &active.key, enrollment.binding))
+            .transpose()?;
+        let selection = table
+            .get(witness_handoff::ROW)
+            .map_err(storage)?
+            .map(|r| witness_handoff::State::decode(&active.key, enrollment.binding, r.value()))
+            .transpose()?;
+        if root.as_deref() != snapshot.root_replacement.as_deref()
+            || selection != snapshot.witness_handoff
+            || table.len().map_err(storage)?
+                != 1 + u64::from(old.is_some()) + root_rows + selection_rows
             || table
                 .get("retirement")
                 .map_err(storage)?
@@ -198,6 +180,7 @@ struct Owners {
     retired: AnchorRetiredSubject,
     state: State,
     installation: Option<RetiredInstallationRecovery>,
+    context: Option<Box<TransferredRetirementContext>>,
 }
 #[cfg_attr(
     not(all(target_arch = "wasm32", target_os = "unknown")),
@@ -205,7 +188,14 @@ struct Owners {
 )]
 impl Owners {
     fn read(&self) -> Result<(Image, State, VerifiedDevice), DurableError> {
-        let (image, state) = read_retired_snapshot(&self.enrollment, &self.pin, self.retired)?;
+        let snapshot = read_retired_snapshot(
+            &self.enrollment,
+            &self.pin,
+            self.retired,
+            self.context.as_deref(),
+        )?;
+        let image = snapshot.image;
+        let state = snapshot.retirement;
         let state = state.ok_or(DurableError::Conflict)?;
         if state != self.state {
             return Err(DurableError::Conflict);
@@ -213,7 +203,13 @@ impl Owners {
         state.inventory.check_retirement(self.retired)?;
         validate_metadata(&self.enrollment, &image)?;
         let original = self.enrollment.original_device_metadata(&image)?;
-        check_original(&image, &original, self.retired, &self.pin)?;
+        check_original(
+            &image,
+            &original,
+            self.retired,
+            &self.pin,
+            self.context.as_deref(),
+        )?;
         if let Some(plan) = &state.signer {
             self.verify_plan(plan)?;
         }
@@ -228,24 +224,16 @@ impl Owners {
         {
             return Err(DurableError::Conflict);
         }
-        Ok(self.pin.verify_retired_report_acknowledgement(
-            self.retired,
-            plan.file.report(),
-            &plan.acknowledgement,
-        )?)
+        self.verify_plan_receipt(plan, None)
     }
     async fn installation(&mut self) -> Result<&mut RetiredInstallationRecovery, DurableError> {
         self.read()?;
         // Reconcile the same saved request, including after erase_journal closed its
         // restricted child. This does not replay host effects or select another backup.
         self.installation = None;
-        let mut child = RetiredInstallationRecovery::open_with_storage(
-            self.enrollment.storage.clone(),
-            self.enrollment.paths.installation.clone(),
-            self.enrollment.key().await?,
-            self.retired,
-        )
-        .await?;
+        let mut child =
+            transferred::installation(&self.enrollment, self.retired, self.context.as_deref())
+                .await?;
         if child.proposal()? != self.state.inventory {
             return Err(DurableError::Conflict);
         }
@@ -263,6 +251,7 @@ fn check_original(
     original: &VerifiedDevice,
     retired: AnchorRetiredSubject,
     pin: &AnchorPin,
+    context: Option<&TransferredRetirementContext>,
 ) -> Result<(), DurableError> {
     let Phase::Accepted { admission, .. } = &image.phase else {
         return Err(DurableError::Suspended);
@@ -271,7 +260,9 @@ fn check_original(
     if journal != *admission.journal.as_bytes()
         || owner != crate::bootstrap::storage_owner(original)
         || policy != admission.policy
-        || pin.binding() != retired.witness_binding()
+        || context.map_or(pin.binding() != retired.witness_binding(), |c| {
+            c.retired_subject() != retired || c.accounting_pin().binding() != pin.binding()
+        })
     {
         return Err(DurableError::Conflict);
     }
@@ -339,7 +330,12 @@ impl RetiredDeviceEnrollment {
     ) -> Result<(), DurableError> {
         let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
         owners.read()?;
-        if owners.pin.binding() != pin.binding()
+        let original_pin = if let Some(context) = &owners.context {
+            context.plan().witness_pin()?
+        } else {
+            &owners.pin
+        };
+        if original_pin.binding() != pin.binding()
             || owners.enrollment.binding
                 != paths.binding(&owners.enrollment.key().await?, intent)?
         {
@@ -356,9 +352,20 @@ impl RetiredDeviceEnrollment {
         retired: AnchorRetiredSubject,
         database: Database,
     ) -> Result<Self, DurableError> {
+        Self::open_context_in_database(paths, intent, pin, retired, None, database)
+    }
+    #[cfg(all(test, unix))]
+    fn open_context_in_database(
+        paths: EnrollmentPaths,
+        intent: EnrollmentIntent,
+        pin: AnchorPin,
+        retired: AnchorRetiredSubject,
+        context: Option<Box<TransferredRetirementContext>>,
+        database: Database,
+    ) -> Result<Self, DurableError> {
         let key = JournalKey::open(&paths.wrapping)?;
         let binding = paths.binding(&key, &intent)?;
-        Self::from_enrollment(
+        Self::from_enrollment_context(
             DeviceEnrollment {
                 storage: crate::storage::Storage::native()?,
                 active: Some(Active { database, key }),
@@ -369,6 +376,7 @@ impl RetiredDeviceEnrollment {
             },
             pin,
             retired,
+            context,
         )
     }
     pub(super) async fn from_enrollment(
@@ -376,28 +384,68 @@ impl RetiredDeviceEnrollment {
         pin: AnchorPin,
         retired: AnchorRetiredSubject,
     ) -> Result<Self, DurableError> {
-        let (image, saved) = read_retired_snapshot(&enrollment, &pin, retired)?;
-        validate_metadata(&enrollment, &image)?;
-        let original = enrollment.original_device_metadata(&image)?;
-        check_original(&image, &original, retired, &pin)?;
-        let state = match saved {
+        Self::from_enrollment_context(enrollment, pin, retired, None).await
+    }
+    async fn from_enrollment_context(
+        enrollment: DeviceEnrollment,
+        pin: AnchorPin,
+        retired: AnchorRetiredSubject,
+        context: Option<Box<TransferredRetirementContext>>,
+    ) -> Result<Self, DurableError> {
+        let snapshot = read_retired_snapshot(&enrollment, &pin, retired, context.as_deref())?;
+        let image = &snapshot.image;
+        validate_metadata(&enrollment, image)?;
+        let original = enrollment.original_device_metadata(image)?;
+        check_original(image, &original, retired, &pin, context.as_deref())?;
+        let state = match snapshot.retirement {
             Some(state) => {
                 state.inventory.check_retirement(retired)?;
                 state
             }
             None => {
-                let mut child = RetiredInstallationRecovery::open_with_storage(
-                    enrollment.storage.clone(),
-                    enrollment.paths.installation.clone(),
-                    enrollment.key().await?,
-                    retired,
-                )
-                .await?;
+                let observed = if let Some(context) = &context {
+                    let key = enrollment.key().await?;
+                    let db = enrollment
+                        .storage
+                        .open_database(enrollment.paths.installation.files()[1])
+                        .await?;
+                    let observation =
+                        crate::DeviceJournal::observe_transferred_retirement_in_database(
+                            &db,
+                            &key,
+                            JournalIdentity::from_trusted_state(
+                                retired.subject().journal_parts().0,
+                            )?,
+                            context,
+                        )?;
+                    snapshot
+                        .root_replacement
+                        .as_ref()
+                        .ok_or(DurableError::Conflict)?
+                        .check_retirement_observation(&observation)?;
+                    Some(observation)
+                } else {
+                    None
+                };
+                let mut child =
+                    transferred::installation(&enrollment, retired, context.as_deref()).await?;
+                let inventory = child.proposal()?;
+                if observed.as_ref().is_some_and(|o| o.inventory != inventory) {
+                    return Err(DurableError::Conflict);
+                }
                 let state = State {
                     identity: image.identity,
                     enrollment_digest: original_digest(&enrollment)?,
-                    inventory: child.proposal()?,
+                    inventory,
                     signer: None,
+                    context: match (&context, observed) {
+                        (Some(context), Some(o)) => Some(TransferredMetadata {
+                            binding: context.binding(),
+                            original_child: o.original_child,
+                        }),
+                        (None, None) => None,
+                        _ => return Err(DurableError::Conflict),
+                    },
                 };
                 save(&enrollment, None, &state)?;
                 state
@@ -409,6 +457,7 @@ impl RetiredDeviceEnrollment {
             retired,
             state,
             installation: None,
+            context,
         };
         owner.read()?;
         Ok(Self {
@@ -431,128 +480,6 @@ impl RetiredDeviceEnrollment {
             .as_mut()
             .and_then(|o| o.installation.as_mut())
             .ok_or(DurableError::Closed)
-    }
-    /// Retain an exact original signer-file plan after authenticated journal erasure
-    /// and purpose-21 host acknowledgement. This authenticates the original device
-    /// role, public key, file identity and encrypted bytes without returning a signer.
-    /// Exact retries retain the first plan and perform no file mutation.
-    pub async fn prepare_signer_erasure(&mut self, receipt: &[u8]) -> Result<(), DurableError> {
-        let result = self.prepare_signer_erasure_attempt(receipt).await;
-        if result.is_err() {
-            self.close();
-        }
-        result
-    }
-    async fn prepare_signer_erasure_attempt(&mut self, receipt: &[u8]) -> Result<(), DurableError> {
-        let owners = self.active.as_mut().ok_or(DurableError::Closed)?;
-        let (image, state, original) = owners.read()?;
-        if let Some(plan) = &state.signer {
-            owners.pin.verify_retired_report_acknowledgement(
-                owners.retired,
-                plan.file.report(),
-                receipt,
-            )?;
-            return Ok(());
-        }
-        let pin = owners.pin.clone();
-        let child = owners.installation().await?;
-        if child.journal_erasure_status(&pin).await? != JournalErasureState::Erased {
-            return Err(DurableError::Suspended);
-        }
-        let ack = child.verify_host_acknowledgement(&pin, receipt)?;
-        let active = owners
-            .enrollment
-            .active
-            .as_ref()
-            .ok_or(DurableError::Closed)?;
-        let file = SigningFilePlan::capture(
-            &owners.enrollment.storage,
-            &owners.enrollment.paths.signer,
-            &active.key,
-            image.identity,
-            &original,
-            &ack,
-        )
-        .await?;
-        let mut next = state.clone();
-        next.signer = Some(Box::new(SignerPlan {
-            file,
-            acknowledgement: receipt.to_vec(),
-        }));
-        save(&owners.enrollment, Some(&state), &next)?;
-        owners.state = next;
-        Ok(())
-    }
-
-    /// Query the original prepared file. Missing, foreign or corrupt state is an
-    /// error. A full-length partially marked file still retains encrypted seeds.
-    /// This requires the independently stored complete host ACK, never just a tag.
-    pub async fn signer_erasure_status(&mut self) -> Result<SigningFileErasureState, DurableError> {
-        let result = self.signer_erasure_status_attempt().await;
-        if result.is_err() {
-            self.close();
-        }
-        result
-    }
-    async fn signer_erasure_status_attempt(
-        &mut self,
-    ) -> Result<SigningFileErasureState, DurableError> {
-        let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let (_, state, original) = owners.read()?;
-        let plan = state.signer.as_ref().ok_or(DurableError::Suspended)?;
-        let ack = owners.verify_plan(plan)?;
-        let active = owners
-            .enrollment
-            .active
-            .as_ref()
-            .ok_or(DurableError::Closed)?;
-        Ok(
-            if plan
-                .file
-                .erased(
-                    &owners.enrollment.storage,
-                    &owners.enrollment.paths.signer,
-                    &active.key,
-                    &original,
-                    &ack,
-                )
-                .await?
-            {
-                SigningFileErasureState::Erased
-            } else {
-                SigningFileErasureState::Retained
-            },
-        )
-    }
-    /// Logically erase only the exact prepared original signing file. Sync the fixed
-    /// retirement header before truncating its encrypted body, then sync again.
-    /// Always closes this owner; reopen and retry the original plan after I/O failure.
-    /// Wrapping key, historical configuration, old pages/backups and previously copied
-    /// signing owners remain outside this logical erasure claim.
-    pub async fn erase_signer(&mut self) -> Result<(), DurableError> {
-        let result = self.erase_signer_attempt().await;
-        self.close();
-        result
-    }
-    async fn erase_signer_attempt(&mut self) -> Result<(), DurableError> {
-        let owners = self.active.as_ref().ok_or(DurableError::Closed)?;
-        let (_, state, original) = owners.read()?;
-        let plan = state.signer.as_ref().ok_or(DurableError::Suspended)?;
-        let ack = owners.verify_plan(plan)?;
-        let active = owners
-            .enrollment
-            .active
-            .as_ref()
-            .ok_or(DurableError::Closed)?;
-        plan.file
-            .erase(
-                &owners.enrollment.storage,
-                &owners.enrollment.paths.signer,
-                &active.key,
-                &original,
-                &ack,
-            )
-            .await
     }
     /// Close all held enrollment, wrapping and restricted installation owners.
     pub fn close(&mut self) {

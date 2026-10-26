@@ -70,15 +70,7 @@ impl Owners {
             (self.registry.access()?.binding(), self.expected),
             !preparing,
         )?;
-        let bytes = [
-            account_root::original_digest(enrollment)?,
-            child,
-            plan.target.binding()?,
-            plan.history.checkpoint(),
-            plan.logical.binding(),
-        ]
-        .concat();
-        Ok(digest(b"Q-PERIAPT-MANAGED-ROOT-ORIGINAL/v1", &bytes))
+        plan.original_checkpoint(account_root::original_digest(enrollment)?, child)
     }
     pub(super) fn reconcile_transferred_decision(&mut self) -> Result<(), DurableError> {
         if !matches!(self.operation, Operation::Transferred(_)) {
@@ -87,6 +79,15 @@ impl Owners {
         let state = self.state()?;
         if state == State::Preparing {
             return Ok(());
+        }
+        if let Some(Original::Retired(parent)) = self.original.as_ref() {
+            if state != State::Committed {
+                return Err(DurableError::Conflict);
+            }
+            let decision = self
+                .registry
+                .transferred_account_decision(self.operation.id())?;
+            return parent.check_transferred_decision(decision.as_bytes());
         }
         let Some(Original::Fenced(parent)) = self.original.as_mut() else {
             return Err(DurableError::Conflict);
@@ -126,6 +127,7 @@ impl ManagedAccountRootReplacement {
             paths,
             intent,
             pin,
+            cleanup_history: None,
         };
         Self::check_inputs(&owners)?;
         Ok(owners)
@@ -193,6 +195,31 @@ impl ManagedAccountRootReplacement {
             active: Some(Box::new(owners)),
         })
     }
+    /// Reopen the same committed operation for cleanup under independently verified
+    /// later Witness history. Root-operation authority remains the original one;
+    /// this history selects only historical accounting and never successor traffic.
+    /// Existing parent checkpoints are required after journal or signer erasure.
+    pub async fn resume_transferred_cleanup_original(
+        registry: AccountAuthorityStore,
+        expected: AccountAuthorityCheckpoint,
+        plan: TransferredAccountRootPreparation,
+        paths: EnrollmentPaths,
+        intent: EnrollmentIntent,
+        history: crate::AnchorHandoffHistory,
+    ) -> Result<Self, DurableError> {
+        if history.checkpoint() != plan.history.checkpoint() {
+            history.require_extension_of(&plan.history)?;
+        }
+        let mut owners = Self::transferred_owners(registry, expected, plan, paths, intent)?;
+        if owners.state()? != State::Committed {
+            return Err(DurableError::Suspended);
+        }
+        owners.cleanup_history = Some(history);
+        owners.reconcile().await?;
+        Ok(Self {
+            active: Some(Box::new(owners)),
+        })
+    }
     /// Bind the verified whole-account freeze and independently approved complete
     /// replacement, then retain the original parent and child fences. This cannot
     /// approve a network-selected target or authorize either account's traffic.
@@ -238,10 +265,13 @@ impl ManagedAccountRootReplacement {
             .transferred_approval(owners.operation.id())?
             .verify_decision(&plan.history, wire)?;
         let mut owners = self.active.take().ok_or(DurableError::Closed)?;
-        let Some(Original::Fenced(parent)) = owners.original.as_mut() else {
-            return Err(DurableError::Conflict);
-        };
-        parent.retain_account_decision(wire)?;
+        match owners.original.as_mut() {
+            Some(Original::Fenced(parent)) => {
+                parent.retain_account_decision(wire)?;
+            }
+            Some(Original::Retired(parent)) => parent.check_transferred_decision(wire)?,
+            _ => return Err(DurableError::Conflict),
+        }
         #[cfg(all(test, unix))]
         account_root::managed_boundary("decision");
         let state = owners

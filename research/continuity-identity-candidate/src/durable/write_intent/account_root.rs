@@ -165,7 +165,7 @@ pub(super) fn validate_transferred_retired_snapshot(
     wire: &[u8],
     selection: Option<&[u8]>,
     context: &crate::TransferredRetirementContext,
-) -> Result<(), DurableError> {
+) -> Result<[u8; 32], DurableError> {
     let fence = Fence::decode(key, wire)?;
     fence.check(key, image, pending)?;
     let plan = context.plan();
@@ -187,7 +187,7 @@ pub(super) fn validate_transferred_retired_snapshot(
     if fence.selection != retained {
         return Err(DurableError::Conflict);
     }
-    Ok(())
+    fence.preparation_checkpoint(key)
 }
 
 /// Original local fence state. No variant grants permission to operate a successor.

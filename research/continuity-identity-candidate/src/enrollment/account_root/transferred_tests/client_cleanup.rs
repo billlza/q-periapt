@@ -11,11 +11,11 @@ mod process;
 #[path = "client_cleanup/sync.rs"]
 mod sync;
 
-struct Flow {
-    t: Transferred,
-    plan: TransferredAccountRootJournalPlan,
-    decision: AnchorTransferredAccountDecision,
-    context: TransferredRetirementContext,
+pub(super) struct Flow {
+    pub(super) t: Transferred,
+    pub(super) plan: TransferredAccountRootJournalPlan,
+    pub(super) decision: AnchorTransferredAccountDecision,
+    pub(super) context: TransferredRetirementContext,
 }
 impl Flow {
     fn new(stage: Option<u8>, selection: u8) -> Self {
@@ -27,6 +27,13 @@ impl Flow {
             .retain_account_decision(decision.as_bytes())
             .expect("original committed retirement in both stores");
         parent.close();
+        Self::committed(t, plan, decision)
+    }
+    pub(super) fn committed(
+        t: Transferred,
+        plan: TransferredAccountRootJournalPlan,
+        decision: AnchorTransferredAccountDecision,
+    ) -> Self {
         let context = TransferredRetirementContext::new(
             plan.clone(),
             decision.as_bytes(),
@@ -49,7 +56,7 @@ impl Flow {
         )
         .expect("same restricted installation")
     }
-    fn approval(
+    pub(super) fn approval(
         &self,
         inventory: &AnchorRetiredCleanupProposal,
         report: Option<&AnchorRetiredReportProposal>,
@@ -65,7 +72,7 @@ impl Flow {
         )
         .expect("independently approved exact stage")
     }
-    fn retain(
+    pub(super) fn retain(
         &mut self,
         owner: &mut RetiredInstallationRecovery,
         approval: &AnchorTransferredCleanupApproval,
@@ -95,7 +102,7 @@ impl Flow {
             })
             .expect("actual independent Witness commit")
     }
-    fn report(
+    pub(super) fn report(
         &mut self,
         owner: &mut RetiredInstallationRecovery,
     ) -> (
@@ -108,7 +115,7 @@ impl Flow {
         let first = self.retain(owner, &approval);
         self.report_after_inventory(owner, &first)
     }
-    fn report_after_inventory(
+    pub(super) fn report_after_inventory(
         &mut self,
         owner: &mut RetiredInstallationRecovery,
         first: &AnchorTransferredCleanupReceipt,
@@ -142,7 +149,7 @@ impl Flow {
         assert_eq!(verified.proposal(), &expected);
         (report, verified, second)
     }
-    fn account(
+    pub(super) fn account(
         &mut self,
         owner: &mut RetiredInstallationRecovery,
         report: &crate::retired_device::Report,

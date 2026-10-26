@@ -9,6 +9,12 @@ use crate::{
 pub(crate) mod authority;
 pub(crate) mod control;
 
+pub(crate) struct RetirementObservation {
+    pub(crate) inventory: AnchorRetiredCleanupProposal,
+    pub(crate) original_child: [u8; 32],
+    pub(crate) parent_fence: [u8; 32],
+}
+
 /// Original approved root retirement and an independently verified accounting
 /// history. The logical storage Witness, historical retirement signer and current
 /// accounting signer may differ. None of them authorizes ordinary traffic here.
