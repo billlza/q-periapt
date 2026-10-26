@@ -84,7 +84,9 @@ pub use publication::{
     PreparedPrekeyPublication, MAX_PREKEY_PUBLICATIONS,
 };
 pub(crate) use write_intent::account_root::transfer as account_root_transfer;
-pub(crate) use write_intent::account_root::{root_attempts, RootWitnessBinding};
+pub(crate) use write_intent::account_root::{
+    root_attempts, RootAttemptPreparation, RootWitnessBinding,
+};
 pub use write_intent::account_root::{
     AccountRootJournalRecovery, AccountRootJournalState, AccountRootJournalTransition,
     TransferredAccountRootJournalPlan, TransferredAccountRootJournalTransition,

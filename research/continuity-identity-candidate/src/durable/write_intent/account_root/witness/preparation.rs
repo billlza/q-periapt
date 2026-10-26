@@ -2,6 +2,7 @@
 //! Independently retained context before a transferred account is frozen.
 use super::*;
 use crate::{AccountAuthorityCheckpoint, AnchorTransferredAccountReplacementPlan};
+mod next_attempt;
 
 /// Exact pre-freeze target, original logical Witness and independently retained
 /// selection/history. Reconstruct the same value after restart; neither a network
@@ -13,6 +14,7 @@ pub struct TransferredAccountRootPreparation {
     pub(crate) logical: AnchorPin,
     pub(crate) history: AnchorHandoffHistory,
     pub(crate) selection: Option<WitnessJournalAdoptionPlan>,
+    transition: Option<Box<TransferredAccountRootJournalTransition>>,
 }
 impl TransferredAccountRootPreparation {
     pub(crate) fn original_checkpoint(
@@ -20,7 +22,7 @@ impl TransferredAccountRootPreparation {
         parent: [u8; 32],
         child: [u8; 32],
     ) -> Result<[u8; 32], DurableError> {
-        let bytes = [
+        let mut bytes = [
             parent,
             child,
             self.target.binding()?,
@@ -28,6 +30,9 @@ impl TransferredAccountRootPreparation {
             self.logical.binding(),
         ]
         .concat();
+        if let Some(transition) = &self.transition {
+            transition.next_plan().attempts().encode(&mut bytes)?;
+        }
         Ok(digest(b"Q-PERIAPT-MANAGED-ROOT-ORIGINAL/v1", &bytes))
     }
     /// Bind an independently approved target to original local trust. A missing
@@ -49,6 +54,7 @@ impl TransferredAccountRootPreparation {
             logical,
             history,
             selection,
+            transition: None,
         })
     }
     /// The original approved target and freeze request; never a fresh operation.
@@ -63,6 +69,10 @@ impl TransferredAccountRootPreparation {
         &self,
         approval: AnchorTransferredAccountReplacementApproval,
     ) -> Result<TransferredAccountRootJournalPlan, DurableError> {
+        if let Some(transition) = &self.transition {
+            self.check_approval(&approval)?;
+            return Ok(transition.next_plan().clone());
+        }
         TransferredAccountRootJournalPlan::new(
             self.logical.clone(),
             approval,

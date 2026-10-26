@@ -4,6 +4,8 @@ use super::fixture::Work;
 use super::*;
 #[path = "next_attempt/client.rs"]
 mod client;
+#[path = "next_attempt/managed.rs"]
+mod managed;
 #[path = "next_attempt/support.rs"]
 mod support;
 use crate::AccountAuthorityReplacementState as State;

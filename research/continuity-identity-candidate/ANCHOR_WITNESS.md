@@ -1928,8 +1928,8 @@ The original managed parent carries transferred cleanup through logical journal
 and signer-file erasure, as described below. The restricted path preserves logical
 journal Witness, original root-operation authority and current accounting authority
 separately; the legacy contextless cleanup entry continues to refuse transferred
-state. A new independently approved attempt after
-Closed, complete G/R/cancellation and continuous-history composition,256 actual
+state. The next-attempt native controller path is described below. Cleanup after
+those successive attempts, complete continuous-history composition,256 actual
 clients, independent/foreign-platform and physical power-loss admission, final ABI
 and PCS remain open. Native process crashes are not physical power-loss evidence.
 
@@ -1964,10 +1964,35 @@ encoding when this history is empty; older readers reject the new tags. Retain
 all original independent approvals and closures needed to reconstruct the typed
 transition after restart. The cleanup context also binds the complete prefix.
 
-These are the original parent/journal components. The managed registry controller
-still needs to coordinate this new transition with its existing preparation,
-binding, successor activation and cleanup workflow. Installed/foreign-language,
-physical power-loss and final ABI qualification remain separate requirements.
+`TransferredAccountRootPreparation::after_closed` binds the previous retained
+preparation and full approval, separately approved next target, original signed
+freeze and exact Closed proof. A previous next-attempt preparation carries its
+complete prefix into another attempt; the caller cannot replace it with a plan
+that drops earlier closures. The existing managed controller uses this explicit
+context to preflight the old or already-next parent and child before retaining
+its next registry intent. Ordinary preparations still reject an existing root
+fence. The registry checkpoint also binds the exact signed attempt prefix.
+
+Binding the original freeze then commits the parent checkpoint before the child
+transition. The exact full approval, including operator decision and validity,
+must match the retained context both before registry binding and on cold resume.
+A different valid approval for the same proposal cannot poison the managed intent.
+The terminal result remains child, parent, then registry; only Committed permits
+fresh successor admission. Close/drop revokes its delegated operations. Recovery
+uses historical public trust and the original wrapping key, without opening or
+regenerating an unavailable original signer. All three stores remain independently
+committed; an error can follow a commit and requires this same operation's retry.
+
+Native tests exercise24 G/P/R/cancellation and outcome combinations, later-Witness
+admission, two successive closures, conflicting approvals, unavailable original
+signers and actual target cryptography with controller-close revocation. Forty-eight
+SIGKILL/new-process recoveries span registry preparation/binding, both sides of
+parent/child transitions and receipt commits, and final registry acknowledgement.
+Registry I/O tests cover every measured transaction sync barrier at all three
+stages (3/3/2 in the observed run, sixteen pre/post faults); close syncs are counted
+separately. These tests do not establish subsequent cleanup after multiple closed
+attempts, installed/foreign-language availability, physical power-loss safety or
+final ABI qualification.
 
 ### Historical accounting under transferred Witness authority
 

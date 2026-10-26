@@ -7,7 +7,10 @@ use crate::{
 
 mod codec;
 mod witness;
-pub(crate) use witness::{lineage as root_attempts, Binding as RootWitnessBinding};
+pub(crate) use witness::{
+    lineage as root_attempts, AttemptPreparation as RootAttemptPreparation,
+    Binding as RootWitnessBinding,
+};
 pub use witness::{
     TransferredAccountRootJournalPlan, TransferredAccountRootJournalTransition,
     TransferredAccountRootPreparation,

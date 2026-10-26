@@ -55,11 +55,62 @@ fn retained_state(
     Ok((state, original, already_next))
 }
 
+struct PreparedTransition {
+    state: Box<State>,
+    child: crate::durable::RootAttemptPreparation,
+    already_next: bool,
+}
+#[cfg_attr(
+    not(all(target_arch = "wasm32", target_os = "unknown")),
+    maybe_async::must_be_sync
+)]
+impl PreparedTransition {
+    async fn preflight(
+        enrollment: &DeviceEnrollment,
+        transition: &TransferredAccountRootJournalTransition,
+    ) -> Result<Self, DurableError> {
+        let (state, original, already_next) = retained_state(enrollment, transition)?;
+        let child = AccountRootJournalRecovery::prepare_transferred_transition(
+            enrollment.paths.installation.files()[1],
+            enrollment.key().await?,
+            &original,
+            state.journal,
+            transition,
+        )?;
+        let expected = if already_next {
+            child.checkpoint()
+        } else {
+            child.previous_checkpoint()
+        };
+        if state.child != Some(expected) || (!already_next && child.already_next()) {
+            return Err(DurableError::Conflict);
+        }
+        Ok(Self {
+            state,
+            child,
+            already_next,
+        })
+    }
+}
+
 #[cfg_attr(
     not(all(target_arch = "wasm32", target_os = "unknown")),
     maybe_async::must_be_sync
 )]
 impl AccountRootEnrollmentRecovery {
+    // Read-only preflight for the existing managed registry controller. Holding
+    // the enrollment excludes another managed activation; the child lease is
+    // retained throughout validation and no intent is published here.
+    // Do not reserve the next-attempt preflight frame on the original foreign-caller path.
+    #[inline(never)]
+    pub(in crate::enrollment) async fn check_transferred_transition(
+        enrollment: &DeviceEnrollment,
+        transition: &TransferredAccountRootJournalTransition,
+    ) -> Result<(), DurableError> {
+        PreparedTransition::preflight(enrollment, transition).await?;
+        Ok(())
+    }
+
     /// Reconcile the independently approved next target after authentic permanent
     /// non-commit. Retains the original enrollment, journal, pending work, selection
     /// and every exact signed closure. Parent publication precedes child publication.
@@ -77,22 +128,11 @@ impl AccountRootEnrollmentRecovery {
         enrollment: DeviceEnrollment,
         transition: &TransferredAccountRootJournalTransition,
     ) -> Result<Self, DurableError> {
-        let (state, original, already_next) = retained_state(&enrollment, transition)?;
-        let child = AccountRootJournalRecovery::prepare_transferred_transition(
-            enrollment.paths.installation.files()[1],
-            enrollment.key().await?,
-            &original,
-            state.journal,
-            transition,
-        )?;
-        let expected = if already_next {
-            child.checkpoint()
-        } else {
-            child.previous_checkpoint()
-        };
-        if state.child != Some(expected) || (!already_next && child.already_next()) {
-            return Err(DurableError::Conflict);
-        }
+        let PreparedTransition {
+            state,
+            child,
+            already_next,
+        } = PreparedTransition::preflight(&enrollment, transition).await?;
         let plan = transition.next_plan();
         let next = if already_next {
             *state

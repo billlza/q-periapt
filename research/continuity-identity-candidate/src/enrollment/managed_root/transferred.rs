@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Same controller, original storage and exact current-Witness account decision.
 use super::*;
+mod next_attempt;
 use crate::{
     AnchorFrozenAccount, AnchorTransferredAccountReplacementApproval,
     TransferredAccountRootPreparation,
@@ -24,6 +25,7 @@ impl Owners {
         if approval.proposal() != proposal {
             return Err(DurableError::Conflict);
         }
+        plan.check_approval(approval)?;
         if self.state()? == State::Committed {
             let decision = self
                 .registry
@@ -49,6 +51,9 @@ impl Owners {
         }
         self.check_transferred_checkpoint(&enrollment, false)
             .await?;
+        if let Some(transition) = plan.transition() {
+            return self.admit_transferred_next(enrollment, transition).await;
+        }
         Ok(Original::Fenced(
             AccountRootEnrollmentRecovery::prepare_transferred(
                 enrollment,
@@ -90,8 +95,14 @@ impl Owners {
         };
         let active = enrollment.active.as_ref().ok_or(DurableError::Closed)?;
         let snapshot = read_snapshot(&active.database, &active.key, enrollment.binding)?;
-        if (preparing && snapshot.root_replacement.is_some()) || snapshot.retirement.is_some() {
+        if (preparing && snapshot.root_replacement.is_some() && plan.transition().is_none())
+            || snapshot.retirement.is_some()
+        {
             return Err(DurableError::Conflict);
+        }
+        if let Some(transition) = plan.transition() {
+            AccountRootEnrollmentRecovery::check_transferred_transition(enrollment, transition)
+                .await?;
         }
         enrollment.validate_roster_resolution(&snapshot.image)?;
         enrollment.validate_witness_roster(&snapshot.image)?;
@@ -115,7 +126,7 @@ impl Owners {
             &original,
             (admission.journal, admission.policy),
             (self.registry.access()?.binding(), self.expected),
-            !preparing,
+            !preparing || plan.transition().is_some(),
         )?;
         plan.original_checkpoint(account_root::original_digest(enrollment)?, child)
     }
@@ -284,6 +295,10 @@ impl ManagedAccountRootReplacement {
         if approval.proposal() != &proposal {
             return Err(DurableError::Conflict);
         }
+        // A next-attempt context already fixes the entire independent approval,
+        // including its operator decision and validity. Reject a different one
+        // before it can become the registry's immutable bound intent.
+        plan.check_approval(&approval)?;
         let mut owners = self.active.take().ok_or(DurableError::Closed)?;
         owners
             .registry

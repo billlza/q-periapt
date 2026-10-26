@@ -3,6 +3,7 @@
 use super::*;
 pub(crate) mod lineage;
 mod next_attempt;
+pub(crate) use next_attempt::AttemptPreparation;
 pub use next_attempt::TransferredAccountRootJournalTransition;
 mod owner;
 mod preparation;
