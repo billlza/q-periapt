@@ -72,7 +72,7 @@ fn device(root: &Path, intent: &EnrollmentIntent) -> VerifiedDevice {
     parent.close();
     device
 }
-fn policy(root: &Path, name: &str) -> VerifiedSessionPolicy {
+pub(crate) fn policy(root: &Path, name: &str) -> VerifiedSessionPolicy {
     let bytes = read(root, &format!("{name}-checkpoint"));
     let mut d = Decoder::new(&bytes);
     let checkpoint =

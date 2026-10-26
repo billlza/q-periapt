@@ -1,43 +1,46 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Retain the independently approved target before the transferred account freeze.
 use super::*;
+mod target;
+use target::PreparedTarget;
 
-/// Original target and exact future freeze request under a verified successor
-/// Witness. This deliberately approves the snapshot returned for that request,
-/// not a transient read-only snapshot. The complete freeze still needs its own
-/// operator approval, followed by the exact account-root replacement approval.
-/// Persist this plan in the original host authority before submitting the freeze.
-/// It is neither a legacy preparation nor permission to operate either account.
+/// Independently retained target under a verified successor Witness. A future
+/// freeze plan binds its exact original request; an already frozen plan also
+/// binds the original signed snapshot digest, even under a later Witness.
+/// The full account-root replacement still needs its own operator approval.
+/// Persist the target in the original host registry before proceeding. It is
+/// neither a legacy preparation nor permission to operate either account.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnchorTransferredAccountReplacementPlan {
-    plan: AnchorAccountReplacementPlan,
+    target: PreparedTarget,
     namespace: [u8; 32],
     history: [u8; 32],
 }
 impl AnchorTransferredAccountReplacementPlan {
-    pub(crate) const MAX_BYTES: usize = 8 + 64 + AnchorAccountReplacementPlan::MAX_BYTES;
+    pub(crate) const MAX_BYTES: usize = 8 + 64 + PreparedTarget::MAX_BYTES;
 
     pub(crate) fn check(&self, history: &AnchorHandoffHistory) -> Result<(), DurableError> {
-        let witness = self.plan.target().witness_binding();
+        let witness = self.target().witness_binding();
         if self.namespace != history.namespace_binding()
             || self.namespace == witness
             || self.history != history.checkpoint_at(witness)?
         {
             return Err(Error::Scope.into());
         }
-        closure::check_scope(self.plan.target(), history.historical_pin(witness)?)?;
+        self.target.check(history)?;
+        closure::check_scope(self.target(), history.historical_pin(witness)?)?;
         Ok(())
     }
     pub(crate) fn target(&self) -> &AnchorAccountReplacementProposal {
-        self.plan.target()
+        self.target.proposal()
     }
     /// Original operation identity, unchanged when the freeze becomes committed.
     pub fn operation(&self) -> AnchorAccountReplacementId {
-        self.plan.operation()
+        self.target().operation()
     }
     /// Independently retained request; incoming freeze bytes cannot select it.
     pub fn request(&self) -> &AnchorAccountFreezeRequest {
-        self.plan.request()
+        self.target.request()
     }
     /// Match the original target and exact historical context to independent
     /// enrollment and policy inputs. Expiry does not erase a historical plan.
@@ -46,13 +49,12 @@ impl AnchorTransferredAccountReplacementPlan {
         m: &AnchorTransferredAccountReplacementMaterials<'_>,
     ) -> Result<(), DurableError> {
         self.check(m.history)?;
-        self.plan.verify_target(
+        self.target().check_target(
             m.previous_root,
             m.genesis,
             m.device,
             m.policy,
-            m.history
-                .historical_pin(self.plan.target().witness_binding())?,
+            m.history.historical_pin(self.target().witness_binding())?,
         )
     }
     /// Bind only the original signed, complete transferred freeze. The returned
@@ -64,14 +66,14 @@ impl AnchorTransferredAccountReplacementPlan {
         history: &AnchorHandoffHistory,
     ) -> Result<AnchorAccountReplacementProposal, DurableError> {
         self.check(history)?;
-        self.plan.bind_transferred(frozen, history)
+        self.target.bind(frozen, history)
     }
     /// Canonical host-retained public intent; serialization grants no authority.
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
-        let mut out = b"QPTARP01".to_vec();
+        let mut out = self.target.tag().to_vec();
         out.extend_from_slice(&self.namespace);
         out.extend_from_slice(&self.history);
-        out.extend_from_slice(&self.plan.to_bytes()?);
+        self.target.encode(&mut out)?;
         if out.len() > Self::MAX_BYTES {
             return Err(Error::Capacity);
         }
@@ -97,15 +99,13 @@ impl AnchorTransferredAccountReplacementPlan {
             return Err(Error::Capacity.into());
         }
         let mut d = Decoder::new(bytes);
-        if d.array::<8>()? != *b"QPTARP01" {
-            return Err(Error::Encoding.into());
-        }
+        let tag = d.array::<8>()?;
         let namespace = d.array()?;
         let checkpoint = d.array()?;
-        let plan = AnchorAccountReplacementPlan::from_trusted_state(d.take(d.remaining())?)?;
+        let target = PreparedTarget::decode(tag, d.take(d.remaining())?)?;
         d.finish()?;
         let restored = Self {
-            plan,
+            target,
             namespace,
             history: checkpoint,
         };
@@ -169,11 +169,39 @@ impl AnchorStore {
         image.check_new_account_replacement_at(&target, m.history)?;
         target.frozen.clear();
         let plan = AnchorTransferredAccountReplacementPlan {
-            plan: AnchorAccountReplacementPlan::from_target(request, target)?,
+            target: PreparedTarget::Future(Box::new(AnchorAccountReplacementPlan::from_target(
+                request, target,
+            )?)),
             namespace: m.history.namespace_binding(),
             history: m.history.checkpoint(),
         };
         plan.verify_target(m)?;
+        Ok(plan)
+    }
+
+    /// Prepare a separately approved next target against the exact already signed
+    /// whole-account freeze. Closing an earlier attempt never unfreezes the account.
+    /// The compact plan retains that freeze commitment and original request even
+    /// when a later current Witness will decide the new attempt. It is read-only:
+    /// the host must retain the earlier signed non-commit and separately approve
+    /// this target in its original registry before binding and committing it.
+    pub fn frozen_transferred_account_replacement_plan(
+        &mut self,
+        operation: AnchorAccountReplacementId,
+        frozen: &AnchorFrozenAccount,
+        m: &AnchorTransferredAccountReplacementMaterials<'_>,
+        now: u64,
+    ) -> Result<AnchorTransferredAccountReplacementPlan, DurableError> {
+        let proposal = self.transferred_account_replacement_proposal(operation, frozen, m, now)?;
+        let plan = AnchorTransferredAccountReplacementPlan {
+            target: PreparedTarget::frozen(frozen, proposal.clone())?,
+            namespace: m.history.namespace_binding(),
+            history: m.history.checkpoint(),
+        };
+        plan.verify_target(m)?;
+        if plan.bind(frozen, m.history)? != proposal {
+            return Err(DurableError::Conflict);
+        }
         Ok(plan)
     }
 }

@@ -218,6 +218,13 @@ impl Image {
             let selected = current
                 .get_mut(&replacement.application)
                 .ok_or(DurableError::Corrupt)?;
+            if let Some(record) = &replacement.transferred {
+                if let Some(binding) = record.plan.target().preparation_binding() {
+                    selected
+                        .require_frozen_retry(record.plan.request(), binding)
+                        .map_err(|_| DurableError::Corrupt)?;
+                }
+            }
             selected
                 .admit_next(
                     p,

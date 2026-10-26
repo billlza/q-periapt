@@ -241,7 +241,7 @@ pub(crate) fn rejects_terminal_images(store: &AccountAuthorityStore) {
 mod transferred;
 pub(crate) use transferred::{
     changed_managed_checkpoint, rejects_transferred_images, restore_registry_snapshot,
-    snapshot_registry,
+    snapshot_registry, without_closed_transferred_prefix,
 };
 
 pub(super) fn transferred_boundary(image: &Image, after: bool) {

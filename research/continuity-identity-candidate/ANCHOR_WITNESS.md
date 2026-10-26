@@ -2094,3 +2094,30 @@ original cleanup boundary, not independent new-attempt approval after a root
 Closed decision, obsolete-authority request closure/reapproval, all operational
 G/R/cancellation interleavings, or continuous-history/platform/power-loss/ABI/PCS
 qualification.
+
+### Separately approved next attempt after transferred Closed
+
+A purpose-37 Closed decision closes that exact replacement attempt; the original
+account remains frozen. `frozen_transferred_account_replacement_plan` prepares a
+different independently approved target against the same complete signed freeze.
+The target, original root, logical namespace and independently selected Witness
+history remain explicit. A B freeze can select a C target only after a verified
+complete B-to-C handoff. Original pending G/P/R and cancellation identifiers and
+image commitments remain unchanged; only the new replacement attempt gets a new
+operation ID and a separate approval decision and validity interval.
+
+`QPTARP02` retains the original request, exact freeze commitment and bounded
+target proposal. Binding authenticates the complete original signed freeze and
+restores its full subject vector; this compact preparation is not a full approval
+or permission to discard subjects. Existing future-freeze `QPTARP01` remains
+unchanged. The original registry must retain the exact signed Closed prefix before
+preparing a frozen retry. Missing history is refused both at preparation and on
+cold image validation, including a locally MAC-valid removal of the Closed record.
+Unknown old outcomes cannot authorize a new target. Original host checkpoints
+remain required to protect against complete storage rollback.
+
+This server/registry boundary supports actual target commitment, governed SDK
+activation and registry-close revocation. It does not yet advance the original
+managed parent or journal from its previous Closed attempt to the new plan; that
+coordinated transition must preserve both exact attempts and recover partial
+parent/journal commits. It is not a complete client reapproval flow or final ABI.

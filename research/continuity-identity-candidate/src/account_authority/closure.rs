@@ -63,6 +63,20 @@ impl Image {
     }
 }
 impl Current {
+    pub(super) fn require_frozen_retry(
+        &self,
+        request: &AnchorAccountFreezeRequest,
+        binding: [u8; 32],
+    ) -> Result<(), DurableError> {
+        if !self.pending {
+            return Err(DurableError::Suspended);
+        }
+        let scope = self.retry.as_ref().ok_or(DurableError::Suspended)?;
+        if scope.request.as_ref() != Some(request) || scope.binding != Some(binding) {
+            return Err(DurableError::Conflict);
+        }
+        Ok(())
+    }
     pub(super) fn admit_next(
         &self,
         proposal: &Proposal,

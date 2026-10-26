@@ -10,6 +10,20 @@ pub(crate) fn restore_registry_snapshot(path: &Path, bytes: &[u8]) {
     let db = open_private_database(path).expect("same closed test database");
     codec::write(&db, bytes).expect("restore exact owned fixture snapshot");
 }
+pub(crate) fn without_closed_transferred_prefix(store: &AccountAuthorityStore) -> Vec<u8> {
+    let active = store.active.as_ref().expect("owned original registry");
+    let mut image = active.image.clone();
+    assert_eq!(image.replacements.len(), 2);
+    let original = image.replacements.remove(0);
+    assert!(original.decision.closed());
+    assert!(original
+        .transferred
+        .as_ref()
+        .expect("original transfer")
+        .receipt
+        .is_some());
+    codec::encode(&image, &active.key, store.binding).expect("owned MAC-valid missing prefix")
+}
 pub(crate) fn changed_managed_checkpoint(
     store: &AccountAuthorityStore,
     checkpoint: Option<[u8; 32]>,

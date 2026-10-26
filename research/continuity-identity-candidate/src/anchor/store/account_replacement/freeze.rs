@@ -64,6 +64,16 @@ impl AnchorAccountFreezeRequest {
     pub fn account(&self) -> [u8; 32] {
         crate::identity::account_id(&self.root)
     }
+    pub(in crate::anchor::store::account_replacement) fn check_transferred_target(
+        &self,
+        previous: &PublicKey,
+        history: &AnchorHandoffHistory,
+    ) -> Result<(), Error> {
+        if &self.root != previous {
+            return Err(Error::Scope);
+        }
+        self.check_pin(history.historical_pin(self.witness)?)
+    }
     fn check_pin(&self, pin: &AnchorPin) -> Result<(), Error> {
         if self.witness != pin.binding || self.root.shares_component(&pin.key) {
             return Err(Error::Scope);

@@ -6,6 +6,7 @@ pub(super) const MAX_FREEZE_BYTES: usize =
     8 + REQUEST_BYTES + 2 + 209 * MAX_ENTRIES + transferred::codec::PROOF_BYTES;
 
 impl AnchorAccountFreezeRequest {
+    pub(crate) const WIRE_BYTES: usize = REQUEST_BYTES;
     /// Persist before control-plane submission. These bytes are not authorization.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(REQUEST_BYTES);

@@ -46,14 +46,21 @@ impl RegistryRecovery {
         self.open_with(f.policy.family(), f.pin.clone())
     }
     pub(super) fn open_with(&self, family: [u8; 32], pin: AnchorPin) -> AccountAuthorityStore {
+        self.try_open(family, pin)
+            .expect("same original registry identity and pin")
+    }
+    pub(super) fn try_open(
+        &self,
+        family: [u8; 32],
+        pin: AnchorPin,
+    ) -> Result<AccountAuthorityStore, DurableError> {
         AccountAuthorityStore::open(
             &self.path,
-            JournalKey::open(&self.key).expect("original registry key"),
+            JournalKey::open(&self.key)?,
             self.identity,
             family,
             pin,
         )
-        .expect("same original registry identity and pin")
     }
 }
 

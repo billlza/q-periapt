@@ -89,6 +89,11 @@ impl AccountAuthorityStore {
         {
             return Err(DurableError::Conflict);
         }
+        if let Some(binding) = plan.target().preparation_binding() {
+            // An existing signed freeze is a subsequent attempt, never an
+            // initial intent inferred from a missing/rolled-back Closed record.
+            selected.require_frozen_retry(plan.request(), binding)?;
+        }
         selected.admit_next(plan.target(), Some(plan.request()), false)?;
         let logical = selected.witness;
         history.historical_pin(logical)?;

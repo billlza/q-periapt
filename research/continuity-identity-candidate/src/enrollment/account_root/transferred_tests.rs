@@ -23,6 +23,8 @@ mod cleanup;
 mod client_cleanup;
 #[path = "transferred_tests/mixed_cleanup.rs"]
 mod mixed_cleanup;
+#[path = "transferred_tests/next_attempt.rs"]
+mod next_attempt;
 #[path = "transferred_tests/parent_cleanup.rs"]
 mod parent_cleanup;
 
