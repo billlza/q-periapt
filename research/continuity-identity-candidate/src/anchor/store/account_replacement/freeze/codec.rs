@@ -37,6 +37,18 @@ impl AnchorAccountFreezeRequest {
     }
 }
 impl AnchorFrozenAccount {
+    pub(crate) const MAX_RETAINED_BYTES: usize = MAX_FREEZE_BYTES;
+    pub(crate) fn transferred_record(&self) -> Result<Vec<u8>, Error> {
+        self.to_bytes()
+    }
+    pub(crate) fn restore_transferred_record(
+        bytes: &[u8],
+        history: &AnchorHandoffHistory,
+    ) -> Result<Self, DurableError> {
+        let frozen = Self::decode(bytes)?;
+        frozen.require_transfer_proof(history)?;
+        Ok(frozen)
+    }
     pub(in crate::anchor::store) fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         self.check_shape()?;
         let mut out = if self.transfer.is_some() {

@@ -8,8 +8,11 @@ use sha2::Sha256;
 const TAG: &[u8; 8] = b"QPAAST01";
 const PREPARATION_TAG: &[u8; 8] = b"QPAAST02";
 const TERMINAL_TAG: &[u8; 8] = b"QPAAST03";
+const TRANSFER_TAG: &[u8; 8] = b"QPAAST04";
 const MAX_BYTES: usize = 76
-    + MAX_ACCOUNTS * (32 + PUBLIC_KEY_BYTES + 40)
+    + transferred::codec::MAX_HISTORY
+    + MAX_REPLACEMENTS * transferred::codec::MAX_RECORD
+    + MAX_ACCOUNTS * (32 + PUBLIC_KEY_BYTES + 40 + 33)
     + MAX_REPLACEMENTS * (32 + 8 + 1 + 4 + 65_536 + 4 + AnchorAccountReplacementPlan::MAX_BYTES);
 
 fn mac(key: &JournalKey) -> Result<Hmac<Sha256>, DurableError> {
@@ -46,9 +49,12 @@ pub(super) fn encode(
     if image.initial.len() > MAX_ACCOUNTS || image.replacements.len() > MAX_REPLACEMENTS {
         return Err(DurableError::Capacity);
     }
-    let terminal = image.replacements.iter().any(|r| r.decision.extended());
+    let transfer = image.history.is_some();
+    let terminal = transfer || image.replacements.iter().any(|r| r.decision.extended());
     let preparations = terminal || image.replacements.iter().any(|r| r.preparation.is_some());
-    let mut wire = if terminal {
+    let mut wire = if transfer {
+        TRANSFER_TAG
+    } else if terminal {
         TERMINAL_TAG
     } else if preparations {
         PREPARATION_TAG
@@ -57,6 +63,9 @@ pub(super) fn encode(
     }
     .to_vec();
     wire.extend_from_slice(&binding);
+    if let Some(history) = &image.history {
+        transferred::codec::encode_history(history, &mut wire)?;
+    }
     wire.extend_from_slice(
         &u16::try_from(image.initial.len())
             .map_err(|_| DurableError::Capacity)?
@@ -67,6 +76,17 @@ pub(super) fn encode(
         wire.extend_from_slice(&initial.root.encode());
         wire.extend_from_slice(&initial.roster.version().to_be_bytes());
         wire.extend_from_slice(&initial.roster.digest());
+        if transfer {
+            match initial.witness {
+                None => wire.push(0),
+                Some(witness) => {
+                    wire.push(1);
+                    wire.extend_from_slice(&witness);
+                }
+            }
+        } else if initial.witness.is_some() {
+            return Err(DurableError::Corrupt);
+        }
     }
     wire.extend_from_slice(
         &u16::try_from(image.replacements.len())
@@ -104,6 +124,11 @@ pub(super) fn encode(
             );
             wire.extend_from_slice(bytes);
         }
+        if transfer {
+            transferred::codec::encode(record.transferred.as_deref(), &mut wire)?;
+        } else if record.transferred.is_some() {
+            return Err(DurableError::Corrupt);
+        }
     }
     let mut tag = mac(key)?;
     tag.update(b"Q-PERIAPT-CONTINUITY-ACCOUNT-AUTHORITY-IMAGE/v1");
@@ -131,15 +156,21 @@ pub(super) fn decode(
         .map_err(|_| DurableError::Authentication)?;
     let mut d = Decoder::new(body);
     let version = d.array::<8>()?;
-    let (preparations, terminal) = match &version {
-        tag if tag == TAG => (false, false),
-        tag if tag == PREPARATION_TAG => (true, false),
-        tag if tag == TERMINAL_TAG => (true, true),
+    let (preparations, terminal, transfer) = match &version {
+        tag if tag == TAG => (false, false, false),
+        tag if tag == PREPARATION_TAG => (true, false, false),
+        tag if tag == TERMINAL_TAG => (true, true, false),
+        tag if tag == TRANSFER_TAG => (true, true, true),
         _ => return Err(DurableError::Conflict),
     };
     if d.array::<32>()? != binding {
         return Err(DurableError::Conflict);
     }
+    let history = if transfer {
+        Some(transferred::codec::decode_history(&mut d)?)
+    } else {
+        None
+    };
     let count = usize::from(d.u16()?);
     if count > MAX_ACCOUNTS {
         return Err(DurableError::Corrupt);
@@ -154,7 +185,23 @@ pub(super) fn decode(
         previous = Some(application);
         let root = PublicKey::decode(d.take(PUBLIC_KEY_BYTES)?)?;
         let roster = RosterCheckpoint::from_trusted_state(d.u64()?, d.array()?)?;
-        initial.insert(application, Initial { root, roster });
+        let witness = if transfer {
+            match d.array::<1>()? {
+                [0] => None,
+                [1] => Some(d.array()?),
+                _ => return Err(DurableError::Corrupt),
+            }
+        } else {
+            None
+        };
+        initial.insert(
+            application,
+            Initial {
+                root,
+                roster,
+                witness,
+            },
+        );
     }
     let count = usize::from(d.u16()?);
     if count > MAX_REPLACEMENTS {
@@ -194,16 +241,23 @@ pub(super) fn decode(
         } else {
             None
         };
+        let transferred = history
+            .as_ref()
+            .map(|h| transferred::codec::decode(&mut d, h))
+            .transpose()?
+            .flatten();
         replacements.push(Replacement {
             application,
             revision,
             proposal,
             preparation,
             decision,
+            transferred,
         });
     }
     d.finish()?;
-    if (terminal && replacements.iter().all(|r| !r.decision.extended()))
+    if (transfer && replacements.iter().all(|r| r.transferred.is_none()))
+        || (terminal && !transfer && replacements.iter().all(|r| !r.decision.extended()))
         || (preparations && !terminal && replacements.iter().all(|r| r.preparation.is_none()))
     {
         return Err(DurableError::Corrupt);
@@ -211,6 +265,7 @@ pub(super) fn decode(
     Ok(Image {
         initial,
         replacements,
+        history,
     })
 }
 pub(super) fn read(

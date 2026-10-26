@@ -77,6 +77,7 @@ pub struct AnchorHandoffHistory {
     transitions: Vec<Transition>,
 }
 impl AnchorHandoffHistory {
+    pub(crate) const MAX_BYTES: usize = MAX_HISTORY_BYTES;
     pub(in crate::anchor::store) fn checkpoint_at(
         &self,
         binding: [u8; 32],

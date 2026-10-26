@@ -22,6 +22,7 @@ impl Scope {
     }
 }
 impl AnchorTransferredAccountReplacementApproval {
+    pub(crate) const MAX_BYTES: usize = 8 + SCOPE_BYTES + MAX_PROPOSAL_BYTES;
     /// Canonical original independently retained approval; parsing does not grant
     /// account-recovery operator authority to network-selected bytes.
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
@@ -36,7 +37,17 @@ impl AnchorTransferredAccountReplacementApproval {
         bytes: &[u8],
         materials: &AnchorTransferredAccountReplacementMaterials<'_>,
     ) -> Result<Self, DurableError> {
-        if bytes.len() > 8 + SCOPE_BYTES + MAX_PROPOSAL_BYTES {
+        let restored = Self::restore_authenticated_record(bytes, materials.history)?;
+        restored.check_materials(materials)?;
+        Ok(restored)
+    }
+    // The caller must authenticate the complete original registry first. This
+    // validates historical scope, not independently selected fresh target inputs.
+    pub(crate) fn restore_authenticated_record(
+        bytes: &[u8],
+        history: &AnchorHandoffHistory,
+    ) -> Result<Self, DurableError> {
+        if bytes.len() > Self::MAX_BYTES {
             return Err(Error::Capacity.into());
         }
         let mut d = Decoder::new(bytes);
@@ -50,11 +61,8 @@ impl AnchorTransferredAccountReplacementApproval {
             .ok_or(Error::Encoding)?;
         let proposal = AnchorAccountReplacementProposal::from_trusted_state(d.take(length)?)?;
         d.finish()?;
-        let restored =
-            Self::from_trusted_state(proposal, materials, scope.decision, scope.validity)?;
-        if restored.scope != scope {
-            return Err(Error::Scope.into());
-        }
+        let restored = Self { proposal, scope };
+        restored.check(history)?;
         Ok(restored)
     }
 }

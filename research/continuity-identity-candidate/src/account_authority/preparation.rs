@@ -9,9 +9,13 @@ impl Replacement {
         } else if self.decision.committed() {
             AccountAuthorityReplacementState::Committed
         } else if self
-            .preparation
+            .transferred
             .as_ref()
-            .is_some_and(|plan| plan.target() == &self.proposal)
+            .is_some_and(|t| t.approval.is_none())
+            || self
+                .preparation
+                .as_ref()
+                .is_some_and(|plan| plan.target() == &self.proposal)
         {
             AccountAuthorityReplacementState::Preparing
         } else {
@@ -37,7 +41,8 @@ impl AccountAuthorityStore {
             .iter()
             .find(|r| r.proposal.operation() == proposal.operation())
         {
-            if old.application != expected.application
+            if old.transferred.is_some()
+                || old.application != expected.application
                 || old.revision != expected.revision
                 || match &preparation {
                     Some(plan) => old.preparation.as_ref() != Some(plan),
@@ -56,11 +61,16 @@ impl AccountAuthorityStore {
         if selected.checkpoint != expected || proposal.previous_account() != expected.account {
             return Err(DurableError::Conflict);
         }
-        selected.admit_next(&proposal, preparation.as_ref(), false)?;
+        selected.admit_next(&proposal, preparation.as_ref().map(|p| p.request()), false)?;
+        image.require_current_witness(proposal.witness_binding())?;
         let (_, successor, family, _) = proposal.authority_transition();
         if family != self.family
-            || proposal.witness_binding() != self.pin.binding()
-            || successor.shares_component(self.pin.public_key())
+            || proposal.witness_binding() != selected.witness
+            || successor.shares_component(
+                image
+                    .resolve_witness(selected.witness, &self.pin)?
+                    .public_key(),
+            )
             || image.root_seen(proposal.successor_account())
         {
             return Err(DurableError::Conflict);
@@ -74,6 +84,7 @@ impl AccountAuthorityStore {
             proposal,
             preparation,
             decision: Decision::Pending,
+            transferred: None,
         };
         let state = record.state();
         image.replacements.push(record);
@@ -113,6 +124,9 @@ impl AccountAuthorityStore {
             .iter()
             .find(|r| r.proposal.operation() == operation)
             .ok_or(DurableError::Absent)?;
+        if record.transferred.is_some() {
+            return Err(DurableError::Conflict);
+        }
         let plan = record.preparation.as_ref().ok_or(DurableError::Conflict)?;
         Ok((record.application, record.state(), plan))
     }
@@ -136,6 +150,9 @@ impl AccountAuthorityStore {
             .iter_mut()
             .find(|r| r.proposal.operation() == operation)
             .ok_or(DurableError::Absent)?;
+        if record.transferred.is_some() {
+            return Err(DurableError::Conflict);
+        }
         let plan = record.preparation.as_ref().ok_or(DurableError::Conflict)?;
         let bound = plan.bind(frozen)?;
         if record.state() != AccountAuthorityReplacementState::Preparing {

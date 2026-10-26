@@ -24,7 +24,7 @@ fn publish_account(t: &Transferred, account: &Account) {
     )
     .expect("retain exact proposal");
 }
-pub(super) fn publish(t: &Transferred, decision: &[u8]) {
+pub(crate) fn publish(t: &Transferred, decision: &[u8]) {
     publish_account(t, &t.f.original);
     publish_account(t, &t.successor);
     let root =
@@ -42,6 +42,13 @@ pub(super) fn publish(t: &Transferred, decision: &[u8]) {
     )
     .expect("retained operator approval");
     fs::write(root.join("root-decision"), decision).expect("original signed outcome");
+    fs::write(
+        root.join("account-freeze"),
+        t.frozen
+            .transferred_record()
+            .expect("original signed freeze"),
+    )
+    .expect("retained full freeze");
     fs::write(
         root.join("successor-subject"),
         t.successor.genesis.subject().to_bytes(),
@@ -81,7 +88,24 @@ fn policy(root: &Path, name: &str) -> VerifiedSessionPolicy {
     .verify(&read(root, name), crate::tests::sdk_runtime(), 185)
     .expect("original policy signatures, no re-signing")
 }
+pub(crate) struct RegistryInputs {
+    pub(crate) intent: EnrollmentIntent,
+    pub(crate) logical: AnchorPin,
+    pub(crate) approval: AnchorTransferredAccountReplacementApproval,
+    pub(crate) history: AnchorHandoffHistory,
+    pub(crate) selected: WitnessJournalAdoptionPlan,
+    pub(crate) preparation: AnchorTransferredAccountReplacementPlan,
+    pub(crate) frozen: AnchorFrozenAccount,
+}
 pub(super) fn restore(root: &Path) -> (EnrollmentIntent, TransferredAccountRootJournalPlan) {
+    let r = restore_registry(root);
+    (
+        r.intent,
+        TransferredAccountRootJournalPlan::new(r.logical, r.approval, r.history, Some(r.selected))
+            .expect("same root, history and selection expectations"),
+    )
+}
+pub(crate) fn restore_registry(root: &Path) -> RegistryInputs {
     let (intent, current, proposal) = read_inputs(root);
     let original = device(root, &intent);
     let target_root = root
@@ -165,9 +189,27 @@ pub(super) fn restore(root: &Path) -> (EnrollmentIntent, TransferredAccountRootJ
     )
     .expect("original independent root approval");
     assert_eq!(approval.proposal(), &proposal);
-    (
-        intent,
-        TransferredAccountRootJournalPlan::new(logical, approval, history, Some(selected))
-            .expect("same root, history and selection expectations"),
+    let preparation = AnchorTransferredAccountReplacementPlan::restore_trusted_state(
+        &read(root, "root-preparation"),
+        &materials,
     )
+    .expect("independent original target plan");
+    let frozen =
+        AnchorFrozenAccount::restore_transferred_record(&read(root, "account-freeze"), &history)
+            .expect("original signed complete freeze");
+    assert_eq!(
+        preparation
+            .bind(&frozen, &history)
+            .expect("same planned transition"),
+        proposal
+    );
+    RegistryInputs {
+        intent,
+        logical,
+        approval,
+        history,
+        selected,
+        preparation,
+        frozen,
+    }
 }

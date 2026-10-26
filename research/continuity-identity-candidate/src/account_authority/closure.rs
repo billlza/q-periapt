@@ -39,6 +39,9 @@ impl Image {
             .iter_mut()
             .find(|r| r.proposal.operation() == retired.proposal().operation())
             .ok_or(DurableError::Absent)?;
+        if original.transferred.is_some() {
+            return Err(DurableError::Conflict);
+        }
         if original.decision.closed() {
             return Err(Error::Retired.into());
         }
@@ -63,7 +66,7 @@ impl Current {
     pub(super) fn admit_next(
         &self,
         proposal: &Proposal,
-        plan: Option<&AnchorAccountReplacementPlan>,
+        request: Option<&AnchorAccountFreezeRequest>,
         adopted: bool,
     ) -> Result<(), DurableError> {
         if !self.pending {
@@ -75,7 +78,7 @@ impl Current {
         }
         let scope = self.retry.as_ref().ok_or(DurableError::Suspended)?;
         if adopted {
-            if plan.is_some()
+            if request.is_some()
                 || scope
                     .binding
                     .is_some_and(|binding| proposal.preparation_binding() != Some(binding))
@@ -83,11 +86,11 @@ impl Current {
                 return Err(DurableError::Conflict);
             }
         } else {
-            let plan = plan.ok_or(DurableError::Suspended)?;
+            let request = request.ok_or(DurableError::Suspended)?;
             if scope
                 .request
                 .as_ref()
-                .is_some_and(|request| request != plan.request())
+                .is_some_and(|expected| expected != request)
                 || scope.binding.is_some_and(|binding| {
                     proposal
                         .preparation_binding()
@@ -112,6 +115,7 @@ impl Current {
                 .ok_or(DurableError::Capacity)?;
             self.checkpoint.account = p.successor_account();
             self.root = successor.clone();
+            self.witness = p.witness_binding();
             self.roster = roster;
             self.pending = false;
         } else {
@@ -121,7 +125,7 @@ impl Current {
                 // follow-up attempt closes. Unknown freeze results grant no traffic.
                 self.retry = Some(match p.preparation_binding() {
                     Some(binding) => RetryScope {
-                        request: record.preparation.as_ref().map(|p| p.request().clone()),
+                        request: record.preparation_request().cloned(),
                         binding: Some(binding),
                     },
                     None => previous_retry.unwrap_or(RetryScope {
@@ -171,7 +175,7 @@ impl AccountAuthorityStore {
             .iter_mut()
             .find(|r| r.proposal.operation() == closed.proposal().operation())
             .ok_or(DurableError::Absent)?;
-        if r.decision.committed() || &r.proposal != closed.proposal() {
+        if r.transferred.is_some() || r.decision.committed() || &r.proposal != closed.proposal() {
             return Err(DurableError::Conflict);
         }
         if r.preparation
@@ -205,7 +209,10 @@ impl AccountAuthorityStore {
             .iter_mut()
             .find(|r| r.proposal.operation() == closed.plan().operation())
             .ok_or(DurableError::Absent)?;
-        if r.decision.committed() || r.preparation.as_ref() != Some(closed.plan()) {
+        if r.transferred.is_some()
+            || r.decision.committed()
+            || r.preparation.as_ref() != Some(closed.plan())
+        {
             return Err(DurableError::Conflict);
         }
         if r.decision.closed() {
@@ -277,6 +284,7 @@ impl AccountAuthorityStore {
             return Err(DurableError::Conflict);
         }
         selected.admit_next(&approved, None, true)?;
+        image.require_current_witness(approved.witness_binding())?;
         if image.replacements.len() >= MAX_REPLACEMENTS {
             return Err(DurableError::Capacity);
         }
@@ -286,6 +294,7 @@ impl AccountAuthorityStore {
             proposal: approved,
             preparation: None,
             decision: Decision::Adopted,
+            transferred: None,
         });
         image.current(self.family, &self.pin)?;
         Ok((image, true))

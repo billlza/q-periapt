@@ -15,9 +15,9 @@ pub struct AnchorTransferredAccountReplacementPlan {
     history: [u8; 32],
 }
 impl AnchorTransferredAccountReplacementPlan {
-    const MAX_BYTES: usize = 8 + 64 + AnchorAccountReplacementPlan::MAX_BYTES;
+    pub(crate) const MAX_BYTES: usize = 8 + 64 + AnchorAccountReplacementPlan::MAX_BYTES;
 
-    fn check(&self, history: &AnchorHandoffHistory) -> Result<(), DurableError> {
+    pub(crate) fn check(&self, history: &AnchorHandoffHistory) -> Result<(), DurableError> {
         let witness = self.plan.target().witness_binding();
         if self.namespace != history.namespace_binding()
             || self.namespace == witness
@@ -27,6 +27,9 @@ impl AnchorTransferredAccountReplacementPlan {
         }
         closure::check_scope(self.plan.target(), history.historical_pin(witness)?)?;
         Ok(())
+    }
+    pub(crate) fn target(&self) -> &AnchorAccountReplacementProposal {
+        self.plan.target()
     }
     /// Original operation identity, unchanged when the freeze becomes committed.
     pub fn operation(&self) -> AnchorAccountReplacementId {
@@ -81,6 +84,15 @@ impl AnchorTransferredAccountReplacementPlan {
         bytes: &[u8],
         m: &AnchorTransferredAccountReplacementMaterials<'_>,
     ) -> Result<Self, DurableError> {
+        let restored = Self::restore_authenticated_record(bytes, m.history)?;
+        restored.verify_target(m)?;
+        Ok(restored)
+    }
+    // Only for a complete MAC-authenticated host registry, never a network grant.
+    pub(crate) fn restore_authenticated_record(
+        bytes: &[u8],
+        history: &AnchorHandoffHistory,
+    ) -> Result<Self, DurableError> {
         if bytes.len() > Self::MAX_BYTES {
             return Err(Error::Capacity.into());
         }
@@ -89,15 +101,15 @@ impl AnchorTransferredAccountReplacementPlan {
             return Err(Error::Encoding.into());
         }
         let namespace = d.array()?;
-        let history = d.array()?;
+        let checkpoint = d.array()?;
         let plan = AnchorAccountReplacementPlan::from_trusted_state(d.take(d.remaining())?)?;
         d.finish()?;
         let restored = Self {
             plan,
             namespace,
-            history,
+            history: checkpoint,
         };
-        restored.verify_target(m)?;
+        restored.check(history)?;
         Ok(restored)
     }
     /// Commitment to the complete retained target, freeze request and history.

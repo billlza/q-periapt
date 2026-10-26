@@ -10,6 +10,8 @@ mod preparation;
 mod process;
 #[path = "transferred_tests/recovery.rs"]
 mod recovery;
+#[path = "transferred_tests/registry.rs"]
+mod registry;
 #[path = "transferred_tests/target_activation.rs"]
 mod target_activation;
 use fixture::Transferred;

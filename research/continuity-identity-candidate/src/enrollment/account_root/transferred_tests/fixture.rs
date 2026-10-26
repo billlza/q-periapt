@@ -5,6 +5,7 @@ mod policy;
 use policy::prepare_policy;
 pub(super) struct Transferred {
     pub(super) f: Fixture,
+    pub(super) registry: Option<super::registry::OriginalRegistry>,
     pub(super) target: AnchorStore,
     pub(super) history: AnchorHandoffHistory,
     pub(super) successor: Account,
@@ -22,14 +23,21 @@ impl Transferred {
         Self::at(None, 0)
     }
     pub(super) fn at(stage: Option<u8>, selection: u8) -> Self {
-        Self::build(stage, selection, false)
+        Self::build(stage, selection, false, false)
     }
     pub(super) fn with_live_owner() -> Self {
-        Self::build(None, 0, true)
+        Self::build(None, 0, true, false)
     }
-    fn build(stage: Option<u8>, selection: u8, retain_live: bool) -> Self {
+    pub(super) fn with_registry(stage: Option<u8>, selection: u8) -> Self {
+        Self::build(stage, selection, false, true)
+    }
+    fn build(stage: Option<u8>, selection: u8, retain_live: bool, managed: bool) -> Self {
         let f = fixture();
-        let mut active = f.activate();
+        let mut registry = managed.then(|| super::registry::OriginalRegistry::new(&f));
+        let mut active = match &registry {
+            Some(registry) => registry.activate(&f),
+            None => f.activate(),
+        };
         let (service, _, device) = active.parts().expect("original controlled owners");
         service
             .stores()
@@ -47,7 +55,8 @@ impl Transferred {
         active.close();
         let pre_pending =
             fs::read(f.original.paths.installation.files()[1]).expect("original pre-P backup");
-        let renewed = stage.map(|stage| prepare_policy(&f, stage));
+        let renewed =
+            stage.map(|stage| prepare_policy(&f, stage, registry.as_ref().map(|r| r.authority())));
         let live = retain_live.then(|| f.activate());
         let base = f._dir.path().canonicalize().expect("owned directory");
         let mut source = f.witness.lock().expect("original witness");
@@ -191,6 +200,11 @@ impl Transferred {
                 let mut parent =
                     DeviceEnrollment::open(f.original.paths.clone(), f.original.intent.clone())
                         .expect("same parent");
+                if let Some(registry) = &registry {
+                    parent
+                        .select_account_authority(registry.authority())
+                        .expect("original registry selection");
+                }
                 parent
                     .prepare_witness_handoff(f.policy.historical(), plan.clone(), || Ok(180))
                     .expect("parent prepared");
@@ -284,6 +298,9 @@ impl Transferred {
             before.as_bytes(),
             "preparation must not change the Witness or any pending operation"
         );
+        if let Some(registry) = &mut registry {
+            registry.prepare(&preparation, &history);
+        }
         public_inputs.push((
             "root-preparation",
             preparation.to_bytes().expect("original plan"),
@@ -336,6 +353,7 @@ impl Transferred {
         .expect("independent exact root approval");
         Self {
             f,
+            registry,
             target,
             history,
             successor,

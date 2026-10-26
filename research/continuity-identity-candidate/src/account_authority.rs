@@ -18,6 +18,7 @@ use closure::{Decision, RetryScope};
 mod runtime;
 #[cfg(all(test, unix))]
 pub(crate) mod tests;
+mod transferred;
 use runtime::Runtime;
 pub use runtime::{AccountAuthorityAccess, AccountAuthorityLease};
 
@@ -116,6 +117,8 @@ pub enum AccountAuthorityReplacementState {
 struct Initial {
     root: PublicKey,
     roster: RosterCheckpoint,
+    // None is exactly the original registry pin in all three legacy formats.
+    witness: Option<[u8; 32]>,
 }
 #[derive(Clone)]
 struct Replacement {
@@ -124,11 +127,13 @@ struct Replacement {
     proposal: Proposal,
     preparation: Option<AnchorAccountReplacementPlan>,
     decision: Decision,
+    transferred: Option<Box<transferred::Record>>,
 }
 #[derive(Clone, Default)]
 struct Image {
     initial: BTreeMap<ApplicationAccountId, Initial>,
     replacements: Vec<Replacement>,
+    history: Option<crate::AnchorHandoffHistory>,
 }
 #[derive(Clone)]
 struct Current {
@@ -137,6 +142,7 @@ struct Current {
     roster: RosterCheckpoint,
     pending: bool,
     retry: Option<RetryScope>,
+    witness: [u8; 32],
 }
 
 impl Image {
@@ -158,11 +164,20 @@ impl Image {
         if self.initial.len() > MAX_ACCOUNTS || self.replacements.len() > MAX_REPLACEMENTS {
             return Err(DurableError::Capacity);
         }
+        self.check_history(witness)?;
         let mut roots = BTreeSet::new();
         let mut current = BTreeMap::new();
         for (application, initial) in &self.initial {
             let account = crate::identity::account_id(&initial.root);
-            if initial.root.shares_component(witness.public_key()) || !roots.insert(account) {
+            let binding = initial.witness.unwrap_or_else(|| witness.binding());
+            if initial.witness == Some(witness.binding()) {
+                return Err(DurableError::Corrupt);
+            }
+            let initial_pin = self.resolve_witness(binding, witness)?;
+            if initial.root.shares_component(initial_pin.public_key())
+                || initial.root.shares_component(witness.public_key())
+                || !roots.insert(account)
+            {
                 return Err(DurableError::Corrupt);
             }
             current.insert(
@@ -177,6 +192,7 @@ impl Image {
                     roster: initial.roster,
                     pending: false,
                     retry: None,
+                    witness: binding,
                 },
             );
         }
@@ -205,15 +221,17 @@ impl Image {
             selected
                 .admit_next(
                     p,
-                    replacement.preparation.as_ref(),
+                    replacement.preparation_request(),
                     replacement.decision == Decision::Adopted,
                 )
                 .map_err(|_| DurableError::Corrupt)?;
+            let authority = self.record_witness(replacement, selected, witness)?;
             if replacement.revision != selected.checkpoint.revision
                 || previous != &selected.root
                 || proposed_family != family
-                || p.witness_binding() != witness.binding()
-                || successor.shares_component(witness.public_key())
+                || p.witness_binding() != authority.binding()
+                || successor.shares_component(authority.public_key())
+                || previous.shares_component(authority.public_key())
                 || !operations.insert(*p.operation().as_bytes())
             {
                 return Err(DurableError::Corrupt);
@@ -275,7 +293,7 @@ impl AccountAuthorityStore {
             active: Some(Active { db, key, image }),
             binding,
             family,
-            runtime: Arc::new(Runtime::new(binding, family, pin.binding())),
+            runtime: Arc::new(Runtime::new(binding, family)),
             pin,
         })
     }
@@ -293,7 +311,7 @@ impl AccountAuthorityStore {
         let db = open_private_database(path)?;
         let image = codec::read(&db, &key, binding)?;
         let current = image.current(family, &pin)?;
-        let runtime = Arc::new(Runtime::new(binding, family, pin.binding()));
+        let runtime = Arc::new(Runtime::new(binding, family));
         runtime.publish(&current)?;
         Ok(Self {
             active: Some(Active { db, key, image }),
@@ -309,7 +327,9 @@ impl AccountAuthorityStore {
         Ok(AccountAuthorityAccess(Arc::clone(&self.runtime)))
     }
     /// Bind a new application account to an independently verified original device/root.
-    /// Root reuse across another association or a retained transition is refused.
+    /// Fresh associations select the currently retained Witness history; existing
+    /// associations retain their original logical Witness. Activation must still
+    /// check the actual journal, policy and live Witness. Root reuse is refused.
     pub fn associate(
         &mut self,
         application: ApplicationAccountId,
@@ -333,6 +353,14 @@ impl AccountAuthorityStore {
             }
             return self.access()?.current(application);
         }
+        let witness = image
+            .history
+            .as_ref()
+            .map_or(&self.pin, |h| h.current_pin());
+        if device.authority_key.shares_component(witness.public_key()) {
+            return Err(DurableError::Conflict);
+        }
+        let witness = (witness.binding() != self.pin.binding()).then_some(witness.binding());
         if image.initial.len() == MAX_ACCOUNTS {
             return Err(DurableError::Capacity);
         }
@@ -344,6 +372,7 @@ impl AccountAuthorityStore {
             Initial {
                 root: device.authority_key.clone(),
                 roster: device.roster().checkpoint(),
+                witness,
             },
         );
         image.current(self.family, &self.pin)?;
@@ -421,10 +450,15 @@ impl AccountAuthorityStore {
             .iter()
             .find(|r| r.proposal.operation() == operation)
             .ok_or(DurableError::Absent)?;
+        // A closed unbound plan remains a target template, never a snapshot.
         if record
             .preparation
             .as_ref()
             .is_some_and(|p| p.target() == &record.proposal)
+            || record
+                .transferred
+                .as_ref()
+                .is_some_and(|t| t.approval.is_none())
         {
             return Err(DurableError::Suspended);
         }
@@ -440,7 +474,11 @@ impl AccountAuthorityStore {
             self.runtime.invalidate(application)?;
             let active = self.active.as_mut().ok_or(DurableError::Closed)?;
             let wire = codec::encode(&image, &active.key, self.binding)?;
+            #[cfg(all(test, unix))]
+            tests::transferred_boundary(&image, false);
             codec::write(&active.db, &wire)?;
+            #[cfg(all(test, unix))]
+            tests::transferred_boundary(&image, true);
             #[cfg(all(test, unix))]
             tests::after_preparation_commit(&image);
             active.image = image;

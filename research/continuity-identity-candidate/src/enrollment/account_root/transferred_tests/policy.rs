@@ -37,9 +37,18 @@ fn client(f: &Fixture, owner: &mut DeviceEnrollment) -> AnchorClient {
         )
         .expect("original P carrier")
 }
-pub(super) fn prepare_policy(f: &Fixture, stage: u8) -> (VerifiedSessionPolicy, Vec<u8>) {
+pub(super) fn prepare_policy(
+    f: &Fixture,
+    stage: u8,
+    authority: Option<JournalAccountAuthority>,
+) -> (VerifiedSessionPolicy, Vec<u8>) {
     let mut owner = DeviceEnrollment::open(f.original.paths.clone(), f.original.intent.clone())
         .expect("same original parent");
+    if let Some(authority) = authority {
+        owner
+            .select_account_authority(authority)
+            .expect("original managed P selection");
+    }
     let carrier = client(f, &mut owner);
     let request = owner
         .witnessed_policy_renewal_request(

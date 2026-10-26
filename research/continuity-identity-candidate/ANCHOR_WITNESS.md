@@ -1848,8 +1848,43 @@ Native tests bind this plan to real no-pending and three P states, preserve jour
 rows, and compare the result with the actual current Witness's exact proposal.
 A separate actual-server test observes fresh target activation and prekey
 generation after Committed, and refuses activation after Closed. These are
-prerequisites for managed integration: the existing application registry still
-needs a durable transferred-preparation record and per-account Witness mapping,
-and the owning controller must coordinate that registry with parent/child fences
-and successor admission. No registry migration, complete managed cutover, new
-approved attempt after Closed, physical-device or final-ABI claim follows here.
+prerequisites for managed integration. The original registry contract below
+retains the transferred intent and per-account Witness mapping; the owning
+controller still must coordinate it with parent/child fences and successor
+admission. No complete managed cutover, new approved attempt after Closed,
+physical-device or final-ABI claim follows from these preparation tests.
+
+### Original account registry through a transferred root decision
+
+The original `AccountAuthorityStore` now persists transferred preparation before
+account freezing. `QPAAST04` retains one verified Witness history and each exact
+target/request, original logical Witness, signed complete freeze, independent
+full root approval and exact purpose-37 outcome. History can only extend its
+retained prefix; it must contain the registry's independently pinned original
+Witness, which need not be the namespace origin. The original path/key/identity/
+family/pin binding is never replaced. Old `QPAAST01/02/03` remain readable and
+keep their exact layouts when no transferred history is present.
+
+Preparing and Pending fence this application; Committed advances its original
+revision once and selects the successor's logical Witness. Closed remains
+permanent non-commit. Existing unrelated accounts retain their logical Witness
+and live lease on successful updates. Fresh associations use the retained current
+Witness, with actual policy/journal/current-server admission still required.
+Legacy retirement, closure and adoption methods cannot bypass a transferred
+operation's complete approval and original signed receipt. A closed unbound
+legacy preparation is still not a frozen snapshot.
+
+Persistence errors close the registry and all its delegated leases and may follow
+commit. Reopen the same registry with independent original expectations and replay
+the same operation; absence is not permission to invent a target or resume old
+traffic. The registry MAC does not prevent rollback of the whole host or protect
+against compromise of its own authentication key. The shared history and full
+record bounds retain the existing64-account/256-operation limits without silently
+truncating history.
+
+The registry primitive and per-account runtime binding are implemented; the same
+`ManagedAccountRootReplacement` owner still needs transferred-mode coordination
+across registry, parent/child fences, successor activation and cleanup. Direct
+primitive composition in a test is not that integrated product owner. Continuous
+history/cancellation/closed-attempt transitions, independent/foreign-platform and
+physical power-loss admission, final ABI and PCS remain separate requirements.

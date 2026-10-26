@@ -7,21 +7,20 @@ use std::sync::{
 
 struct Entry {
     checkpoint: AccountAuthorityCheckpoint,
+    witness: [u8; 32],
     enabled: AtomicBool,
 }
 pub(super) struct Runtime {
     binding: [u8; 32],
     family: [u8; 32],
-    witness: [u8; 32],
     open: AtomicBool,
     entries: RwLock<BTreeMap<ApplicationAccountId, Arc<Entry>>>,
 }
 impl Runtime {
-    pub(super) fn new(binding: [u8; 32], family: [u8; 32], witness: [u8; 32]) -> Self {
+    pub(super) fn new(binding: [u8; 32], family: [u8; 32]) -> Self {
         Self {
             binding,
             family,
-            witness,
             open: AtomicBool::new(true),
             entries: RwLock::new(BTreeMap::new()),
         }
@@ -47,12 +46,14 @@ impl Runtime {
                 Some(previous)
                     if !selected.pending
                         && previous.checkpoint == selected.checkpoint
+                        && previous.witness == selected.witness
                         && previous.enabled.load(Ordering::Acquire) =>
                 {
                     Arc::clone(previous)
                 }
                 _ => Arc::new(Entry {
                     checkpoint: selected.checkpoint,
+                    witness: selected.witness,
                     enabled: AtomicBool::new(!selected.pending),
                 }),
             };
@@ -68,8 +69,19 @@ impl Runtime {
 #[derive(Clone)]
 pub struct AccountAuthorityAccess(pub(super) Arc<Runtime>);
 impl AccountAuthorityAccess {
-    pub(crate) fn scope(&self) -> ([u8; 32], [u8; 32]) {
-        (self.0.family, self.0.witness)
+    pub(crate) fn family(&self) -> [u8; 32] {
+        self.0.family
+    }
+    pub(crate) fn check_witness(
+        &self,
+        local: AccountAuthorityCheckpoint,
+        witness: [u8; 32],
+    ) -> Result<(), DurableError> {
+        let lease = self.admit(local)?;
+        if lease.entry.witness != witness {
+            return Err(DurableError::Conflict);
+        }
+        lease.check()
     }
     // One read lock establishes a common admission point for local and all peer
     // entries. Mutation takes the write lock before disabling an entry, before I/O.

@@ -44,7 +44,7 @@ impl JournalAccountAuthority {
         account: [u8; 32],
         family: [u8; 32],
     ) -> Result<(), DurableError> {
-        if self.scope.local.account() != account || self.access.scope().0 != family {
+        if self.scope.local.account() != account || self.access.family() != family {
             return Err(DurableError::Conflict);
         }
         self.access.check_accounts(self.scope.local, &[])
@@ -70,13 +70,12 @@ impl JournalAccountAuthority {
         let Protection::Required { witness, .. } = image.protection else {
             return Err(DurableError::AnchorRequired);
         };
-        let (_, pinned_witness) = self.access.scope();
         if self.scope.registry != self.access.binding()
             || self.scope.local.account() != image.local_account
-            || witness != pinned_witness
         {
             return Err(DurableError::Conflict);
         }
+        self.access.check_witness(self.scope.local, witness)?;
         self.access.check_accounts(self.scope.local, &[])
     }
     // Family is authenticated once when adopting/opening this original binding.
@@ -87,7 +86,7 @@ impl JournalAccountAuthority {
         if rosters::current(image, &image.local_account)?
             .continuation_authority()
             .1
-            != self.access.scope().0
+            != self.access.family()
         {
             return Err(DurableError::Conflict);
         }

@@ -236,3 +236,36 @@ pub(crate) fn rejects_terminal_images(store: &AccountAuthorityStore) {
         "reusing a closed-only target requires the explicit adopted decision"
     );
 }
+
+#[path = "tests/transferred.rs"]
+mod transferred;
+pub(crate) use transferred::{
+    rejects_transferred_images, restore_registry_snapshot, snapshot_registry,
+};
+
+pub(super) fn transferred_boundary(image: &Image, after: bool) {
+    let Some(root) = std::env::var_os("QPERIAPT_TRANSFERRED_REGISTRY_DIR") else {
+        return;
+    };
+    let Ok(cut) = std::env::var("QPERIAPT_TRANSFERRED_REGISTRY_CUT") else {
+        return;
+    };
+    let Some(record) = image.replacements.last() else {
+        return;
+    };
+    if record.transferred.is_none() {
+        return;
+    }
+    let phase = match record.state() {
+        AccountAuthorityReplacementState::Preparing => 0,
+        AccountAuthorityReplacementState::Pending => 1,
+        AccountAuthorityReplacementState::Committed | AccountAuthorityReplacementState::Closed => 2,
+    };
+    if cut != format!("{phase}-{}", if after { "after" } else { "before" }) {
+        return;
+    }
+    crate::durable::tests::publish_process_checkpoint(Path::new(&root), cut.as_bytes());
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}

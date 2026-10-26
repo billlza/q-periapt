@@ -5,7 +5,7 @@ use std::{
     process::{Command, Stdio},
 };
 #[path = "process_inputs.rs"]
-mod inputs;
+pub(super) mod inputs;
 const CHILD: &str =
     "enrollment::account_root::tests::transferred::process::transferred_root_parent_process_child";
 
