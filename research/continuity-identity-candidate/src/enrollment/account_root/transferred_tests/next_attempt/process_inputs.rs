@@ -9,7 +9,17 @@ pub(in crate::enrollment::account_root::tests::transferred::next_attempt) fn pub
 ) {
     original::publish(&c.s.t, &c.s.closed);
     c.s.recovery.publish(root);
-    let account = &c.next.account;
+    publish_next(&c.next, root);
+    if let Some(wire) = &c.wire {
+        fs::write(root.join("next-decision"), wire).expect("actual signed next result");
+    }
+}
+
+pub(in crate::enrollment::account_root::tests::transferred::next_attempt) fn publish_next(
+    next: &Next,
+    root: &Path,
+) {
+    let account = &next.account;
     let mut parent =
         DeviceEnrollment::open_original_storage(account.paths.clone(), account.intent.clone())
             .expect("original next target enrollment");
@@ -30,17 +40,11 @@ pub(in crate::enrollment::account_root::tests::transferred::next_attempt) fn pub
         ("next-image", account.genesis.image_digest().to_vec()),
         (
             "next-plan",
-            c.next
-                .plan
-                .to_bytes()
-                .expect("original approved next target"),
+            next.plan.to_bytes().expect("original approved next target"),
         ),
         (
             "next-approval",
-            c.next
-                .approval
-                .to_bytes()
-                .expect("independent full approval"),
+            next.approval.to_bytes().expect("independent full approval"),
         ),
     ] {
         fs::write(root.join(name), bytes).expect("retained independent public input");
@@ -48,9 +52,6 @@ pub(in crate::enrollment::account_root::tests::transferred::next_attempt) fn pub
     let mut checkpoint = admission.checkpoint.version().to_be_bytes().to_vec();
     checkpoint.extend_from_slice(&admission.checkpoint.digest());
     fs::write(root.join("next-checkpoint"), checkpoint).expect("independent target checkpoint");
-    if let Some(wire) = &c.wire {
-        fs::write(root.join("next-decision"), wire).expect("actual signed next result");
-    }
     parent.close();
 }
 
@@ -58,6 +59,18 @@ pub(in crate::enrollment::account_root::tests::transferred::next_attempt) fn res
     root: &Path,
     previous: &PublicKey,
     history: &AnchorHandoffHistory,
+) -> (
+    AnchorTransferredAccountReplacementPlan,
+    AnchorTransferredAccountReplacementApproval,
+) {
+    restore_at(root, previous, history, 186)
+}
+
+pub(in crate::enrollment::account_root::tests::transferred::next_attempt) fn restore_at(
+    root: &Path,
+    previous: &PublicKey,
+    history: &AnchorHandoffHistory,
+    now: u64,
 ) -> (
     AnchorTransferredAccountReplacementPlan,
     AnchorTransferredAccountReplacementApproval,
@@ -78,7 +91,7 @@ pub(in crate::enrollment::account_root::tests::transferred::next_attempt) fn res
         policy.family(),
     )
     .expect("independent root and checkpoint")
-    .verify_device(&read("next-certificate"), &read("next-roster"), 186)
+    .verify_device(&read("next-certificate"), &read("next-roster"), now)
     .expect("original signatures and membership");
     let genesis = AnchorGenesis::from_trusted_state(
         AnchorSubject::from_trusted_state(&read("next-subject")).expect("original subject"),

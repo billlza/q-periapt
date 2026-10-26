@@ -16,6 +16,7 @@ pub(super) struct Flow {
     pub(super) plan: TransferredAccountRootJournalPlan,
     pub(super) decision: AnchorTransferredAccountDecision,
     pub(super) context: TransferredRetirementContext,
+    pub(super) cleanup_time: u64,
 }
 impl Flow {
     fn new(stage: Option<u8>, selection: u8) -> Self {
@@ -46,6 +47,7 @@ impl Flow {
             plan,
             decision,
             context,
+            cleanup_time: 185,
         }
     }
     fn open(&self) -> RetiredInstallationRecovery {
@@ -94,7 +96,7 @@ impl Flow {
             .retain_transferred_cleanup(approval, || {
                 Ok(
                     if self.context.history().checkpoint() == self.plan.history().checkpoint() {
-                        185
+                        self.cleanup_time
                     } else {
                         198
                     },

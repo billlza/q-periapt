@@ -1971,6 +1971,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/managed.rs',
             'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/managed/process.rs',
             'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/managed/successive.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/managed/successive/process.rs',
             'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/managed/sync.rs',
             'research/continuity-identity-candidate/src/enrollment/managed_root/transferred/next_attempt.rs',
             'research/continuity-identity-candidate/src/durable/write_intent/account_root/witness/lineage.rs',

@@ -1928,8 +1928,8 @@ The original managed parent carries transferred cleanup through logical journal
 and signer-file erasure, as described below. The restricted path preserves logical
 journal Witness, original root-operation authority and current accounting authority
 separately; the legacy contextless cleanup entry continues to refuse transferred
-state. The next-attempt native controller path is described below. Cleanup after
-those successive attempts, complete continuous-history composition,256 actual
+state. The next-attempt native controller and subsequent cleanup paths are
+described below. Complete continuous-history composition,256 actual
 clients, independent/foreign-platform and physical power-loss admission, final ABI
 and PCS remain open. Native process crashes are not physical power-loss evidence.
 
@@ -1990,9 +1990,25 @@ SIGKILL/new-process recoveries span registry preparation/binding, both sides of
 parent/child transitions and receipt commits, and final registry acknowledgement.
 Registry I/O tests cover every measured transaction sync barrier at all three
 stages (3/3/2 in the observed run, sixteen pre/post faults); close syncs are counted
-separately. These tests do not establish subsequent cleanup after multiple closed
-attempts, installed/foreign-language availability, physical power-loss safety or
-final ABI qualification.
+separately.
+
+After two Closed attempts and a separately committed third target, native cases
+carry original P, G, R and cancellation state through full inventory/report/host
+acknowledgement, logical journal and signer-file erasure, and cold recovery of the
+same managed controller. Both the root-decision Witness and a subsequently handed
+off accounting Witness are exercised. The complete signed Closed prefix remains
+byte-exact in the registry; a missing prefix or older attempt cannot reopen the
+erased installation. Cleanup keeps the final successor mapping and original
+wrapping key without recreating the journal or signer.
+
+The process matrix kills and restarts at both sides of the parent inventory and
+signer-plan commits, the journal-erasure commit, and all five signer-file erasure
+boundaries. Four actual pending-operation kinds and two accounting histories
+produce 128 SIGKILL/new-PID recoveries. Each child reconstructs both independently
+approved attempts from retained public inputs and checks all three exact registry
+decisions. These process cuts do not establish all synchronous-I/O combinations,
+installed/foreign-language availability, physical power-loss safety or final ABI
+qualification.
 
 ### Historical accounting under transferred Witness authority
 
@@ -2178,7 +2194,8 @@ Unknown old outcomes cannot authorize a new target. Original host checkpoints
 remain required to protect against complete storage rollback.
 
 This server/registry boundary supports actual target commitment, governed SDK
-activation and registry-close revocation. It does not yet advance the original
-managed parent or journal from its previous Closed attempt to the new plan; that
-coordinated transition must preserve both exact attempts and recover partial
-parent/journal commits. It is not a complete client reapproval flow or final ABI.
+activation and registry-close revocation. The managed original-parent/journal
+transition and subsequent historical cleanup are described above; they retain
+every exact Closed attempt and reconcile partial commits under independently
+supplied approvals. Continuous-history, platform and final ABI qualification
+remain separate requirements.
