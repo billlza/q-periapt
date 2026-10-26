@@ -2,6 +2,11 @@
 //! The original enrollment commits authorization before reconciling child backups.
 use super::*;
 use crate::AccountRootJournalTransition;
+
+enum TransitionState {
+    Initial,
+    Retained(Box<State>),
+}
 #[cfg_attr(
     not(all(target_arch = "wasm32", target_os = "unknown")),
     maybe_async::must_be_sync
@@ -153,6 +158,58 @@ impl AccountRootEnrollmentRecovery {
         transition: &AccountRootJournalTransition,
         allow_initial: bool,
     ) -> Result<Self, DurableError> {
+        let state = match Self::read_transition_state(&enrollment, transition, allow_initial)? {
+            TransitionState::Initial => {
+                return Self::prepare_initial_transition(enrollment, pin, transition).await
+            }
+            TransitionState::Retained(state) => state,
+        };
+        Self::resume_transition_state(enrollment, pin, state, transition, allow_initial).await
+    }
+
+    // Conversely, retries of a retained transition must not reserve the initial
+    // preparation frame while reconciling the existing child journal.
+    #[inline(never)]
+    async fn prepare_initial_transition(
+        enrollment: DeviceEnrollment,
+        pin: AnchorPin,
+        transition: &AccountRootJournalTransition,
+    ) -> Result<Self, DurableError> {
+        Self::prepare(enrollment, pin, transition.next_proposal().clone()).await
+    }
+
+    // The retained-transition path has its own validation and state-copy frame.
+    // Initial preparation must not reserve it while recovering the child journal.
+    #[inline(never)]
+    async fn resume_transition_state(
+        enrollment: DeviceEnrollment,
+        pin: AnchorPin,
+        state: Box<State>,
+        transition: &AccountRootJournalTransition,
+        allow_initial: bool,
+    ) -> Result<Self, DurableError> {
+        let mut owners = Owners {
+            enrollment,
+            pin,
+            state: *state,
+            journal: None,
+            transferred: None,
+        };
+        owners.transition(transition, allow_initial).await?;
+        Ok(Self {
+            active: Some(Box::new(owners)),
+        })
+    }
+
+    // Finish decoding and drop the full enrollment/retirement snapshot before
+    // child recovery performs another signature verification. Keeping this frame
+    // separate bounds nested stack use on default foreign caller threads.
+    #[inline(never)]
+    fn read_transition_state(
+        enrollment: &DeviceEnrollment,
+        transition: &AccountRootJournalTransition,
+        allow_initial: bool,
+    ) -> Result<TransitionState, DurableError> {
         let active = enrollment.active.as_ref().ok_or(DurableError::Closed)?;
         let snapshot = read_snapshot(&active.database, &active.key, enrollment.binding)?;
         if snapshot.retirement.is_some() {
@@ -162,30 +219,17 @@ impl AccountRootEnrollmentRecovery {
         // already retained original non-commit and the exact next approved plan.
         // Replaying that initial fence has no predecessor journal history. No
         // storage error is converted to absence or to creation of a new parent.
-        let state = match snapshot.root_replacement {
-            None if allow_initial => {
-                return Self::prepare(enrollment, pin, transition.next_proposal().clone()).await
-            }
+        match snapshot.root_replacement {
+            None if allow_initial => Ok(TransitionState::Initial),
             Some(state)
                 if allow_initial
                     && state.proposal == *transition.next_proposal()
                     && state.history.is_empty() =>
             {
-                return Self::prepare(enrollment, pin, transition.next_proposal().clone()).await
+                Ok(TransitionState::Initial)
             }
-            Some(state) => *state,
-            None => return Err(DurableError::Absent),
-        };
-        let mut owners = Owners {
-            enrollment,
-            pin,
-            state,
-            journal: None,
-            transferred: None,
-        };
-        owners.transition(transition, allow_initial).await?;
-        Ok(Self {
-            active: Some(Box::new(owners)),
-        })
+            Some(state) => Ok(TransitionState::Retained(state)),
+            None => Err(DurableError::Absent),
+        }
     }
 }
