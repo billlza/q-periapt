@@ -170,10 +170,24 @@ fn enrollment_witness_successive_selection_refuses_legacy_root_transaction_witho
         let active = owner
             .activate(&f.c.policy, 156, Some(carrier))
             .expect("valid selected owner");
-        assert!(matches!(
-            active.begin_account_root_replacement(f.pin.clone(), proposal),
-            Err(DurableError::Conflict)
-        ));
+        let error = active
+            .begin_account_root_replacement(f.pin.clone(), proposal.clone())
+            .err();
+        assert!(
+            matches!(&error, Some(DurableError::Conflict)),
+            "legacy root entry must reject the selected Witness before child preflight: {error:?}"
+        );
+        let error = AccountRootEnrollmentRecovery::resume_original(
+            f.c.paths.clone(),
+            f.c.intent.clone(),
+            f.pin.clone(),
+            proposal,
+        )
+        .err();
+        assert!(
+            matches!(&error, Some(DurableError::Conflict)),
+            "cold legacy root recovery must reject the same selected Witness: {error:?}"
+        );
         assert_eq!(
             parent_rows(&f),
             parent,

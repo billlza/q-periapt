@@ -293,7 +293,9 @@ impl AccountRootEnrollmentRecovery {
     ) -> Result<Self, DurableError> {
         let active = enrollment.active.as_ref().ok_or(DurableError::Closed)?;
         let snapshot = read_snapshot(&active.database, &active.key, enrollment.binding)?;
-        if snapshot.retirement.is_some() {
+        // Legacy root approval cannot authorize a retained Witness selection.
+        // Reject this parent conflict before opening the child for preflight.
+        if snapshot.retirement.is_some() || snapshot.witness_handoff.is_some() {
             return Err(DurableError::Conflict);
         }
         let original = validate(&enrollment, &snapshot.image, &pin, &proposal)?;
