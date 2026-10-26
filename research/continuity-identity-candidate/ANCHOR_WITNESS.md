@@ -1970,9 +1970,11 @@ replay, or prove those external effects.
 Six native server/accounting tests cover exact B-to-C recovery, malformed and
 conflicting proofs, stage/time refusals, capacity reservation and authenticated
 record damage. Six real SIGKILL/new-PID recoveries cover both sides of each of the
-three stage commits; eighteen measured sync failures cover before/after every
-transaction barrier. These tests use independent inventory/report expectations
-and real Witness/account transactions. They do not yet construct a complete
+three stage commits; sixteen measured sync failures cover before/after all
+3/2/3 calibrated transaction barriers in the observed runs. The tests require
+complete coverage of every measured barrier, rather than a fixed total. They use
+independent inventory/report expectations and real Witness/account transactions.
+They do not yet construct a complete
 transferred client loss report, perform host accounting effects or erase an
 original journal/signer. Connecting that existing client workflow, real pending
 G/P/R/cancellation composition, physical power loss and final ABI remain required.
