@@ -17,6 +17,9 @@ impl AnchorStore {
         request: &AnchorAccountFreezeRequest,
     ) -> Result<Vec<u8>, DurableError> {
         let frozen = self.account_freeze(request)?;
+        if frozen.transfer.is_some() {
+            return Err(DurableError::Suspended);
+        }
         let result = (|| {
             let bytes = body(&frozen)?;
             let active = self.active.as_ref().ok_or(DurableError::Closed)?;
@@ -47,7 +50,7 @@ impl AnchorPin {
         // Snapshot parsing has its own fixed capacity; no larger signed-body limit.
         let (snapshot, signed) = wire.split_at_checked(size).ok_or(Error::Encoding)?;
         let frozen = AnchorFrozenAccount::decode(snapshot)?;
-        if frozen.request != *request {
+        if frozen.request != *request || frozen.transfer.is_some() {
             return Err(Error::Scope);
         }
         let (observed, signature) = open_envelope(signed)?;

@@ -34,7 +34,8 @@ pub use store::{
     AnchorRetiredCleanup, AnchorRetiredCleanupProposal, AnchorRetiredCleanupState,
     AnchorRetiredReport, AnchorRetiredReportAcknowledgement,
     AnchorRetiredReportAcknowledgementState, AnchorRetiredReportProposal, AnchorRetiredReportState,
-    AnchorRetiredSubject, AnchorStore, AnchorTransferredControl,
+    AnchorRetiredSubject, AnchorStore, AnchorTransferredAccountFreezeApproval,
+    AnchorTransferredAccountFreezeProposal, AnchorTransferredControl,
 };
 mod transport;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]

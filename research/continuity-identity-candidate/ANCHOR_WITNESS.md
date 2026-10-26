@@ -1640,3 +1640,44 @@ recovery contract. Complete G/R/cancellation interruption matrices, full
 client-capacity execution, history compaction, installed/independent consumers,
 physical power loss, platform-wide evidence, final ABI admission and complete
 Witness qualification remain open.
+
+### Independently approved account freeze after Witness transfer
+
+`transferred_account_freeze_proposal` observes the complete account under an
+independently retained current Witness history. This is an unsigned observation,
+not a freeze or recovery authorization. The host independently authenticates its
+account-recovery operator and retains an `AnchorTransferredAccountFreezeApproval`
+with the exact request, complete snapshot, namespace, history checkpoint,
+operator-decision identity and finite admission interval. A device adoption,
+old-account-root signature, or parsed network message cannot replace this approval.
+Unclassified legacy entries still prevent a claim of complete account coverage.
+
+`freeze_transferred_account` compares every account subject and full entry
+commitment, including offline/unadopted devices and unresolved G/P/R. It checks
+trusted time before signing and immediately before committing, rejects clock
+regression, and commits the whole-account fence with its original signed proof in
+one authenticated image transaction. A stale/partial snapshot cannot freeze a
+subset. Unrelated account activity does not invalidate the approved snapshot.
+The account's entries, pending operations, logical IDs, history and namespace are
+preserved. This operation neither enrolls a successor nor retires the account.
+
+The first-generation freeze format `QPAFRZ01` remains unchanged. `QPAFRZ02` adds a
+fixed-size proof containing namespace, historical checkpoint, operator decision,
+admission interval, admitted time and the exact purpose-**36** signed envelope.
+Its `QPTAFS01` signed body binds those fields and the full unsigned snapshot digest.
+The existing 256-subject and 1 MiB whole-image bounds remain unchanged. Stored
+proofs are verified against the independently verified history on reopen and
+subsequent Witness transfer, including the checkpoint where that signer was
+current. They are not re-signed by the next Witness. The original signature bytes
+are retained, including for exact retry after expiry; exact retry consults no
+clock and writes no state. `AnchorHandoffTarget` can read back this receipt using
+storage authentication and public approvals without a Witness private key.
+
+The old freeze-receipt verifier and legacy replacement-plan binder reject this
+new proof type. Supporting account retirement and client/registry recovery after
+Witness adoption requires their explicit composition with this retained proof;
+that integration is still open. Local tests establish the server preparation
+transaction, not the complete root-replacement lifecycle, platform acceptance,
+power-loss durability, or PCS. MAC authentication and a retained signature do not
+prevent an entire valid old store from being rolled back: independent host
+checkpoint retention and Witness storage continuity remain required.

@@ -134,7 +134,7 @@ impl AnchorAccountReplacementPlan {
         frozen: &AnchorFrozenAccount,
     ) -> Result<AnchorAccountReplacementProposal, Error> {
         self.check()?;
-        if frozen.request != self.request {
+        if frozen.request != self.request || frozen.transfer.is_some() {
             return Err(Error::Scope);
         }
         let mut p = self.target.clone();
@@ -156,6 +156,7 @@ impl AnchorAccountReplacementPlan {
         let expected = self.bind(&AnchorFrozenAccount {
             request: self.request.clone(),
             subjects: proposal.frozen.clone(),
+            transfer: None,
         })?;
         if proposal != &expected {
             return Err(Error::Scope);

@@ -103,7 +103,10 @@ pub(super) fn check(
         if !original.account_freezes.contains_key(id)
             && p.subjects().any(|s| inherited(s.subject()))
         {
-            return Err(DurableError::Suspended);
+            // A client adoption authorizes only one subject. Account-wide
+            // recovery instead requires the exact separately approved snapshot
+            // and its durably retained current-authority signature.
+            p.require_transfer_proof(history)?;
         }
     }
     if current

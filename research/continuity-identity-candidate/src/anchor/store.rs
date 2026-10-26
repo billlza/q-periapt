@@ -40,7 +40,8 @@ pub use account_replacement::{
     AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementId,
     AnchorAccountReplacementPlan, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
     AnchorClosedAccountPreparation, AnchorClosedAccountReplacement, AnchorFrozenAccount,
-    AnchorRetiredAccount, AnchorRetiredAccountSubject,
+    AnchorRetiredAccount, AnchorRetiredAccountSubject, AnchorTransferredAccountFreezeApproval,
+    AnchorTransferredAccountFreezeProposal,
 };
 mod replacement;
 pub use replacement::{

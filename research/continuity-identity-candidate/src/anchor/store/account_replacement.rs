@@ -14,7 +14,8 @@ mod receipt;
 pub(super) use codec::{decode_records, encode_records};
 pub use freeze::{
     AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementPlan,
-    AnchorFrozenAccount,
+    AnchorFrozenAccount, AnchorTransferredAccountFreezeApproval,
+    AnchorTransferredAccountFreezeProposal,
 };
 
 const MAX_PROPOSAL_BYTES: usize = 65_536;

@@ -199,6 +199,9 @@ fn immutable(image: &ImportedImage) -> Result<[u8; 32], DurableError> {
     ))
 }
 impl Transferred {
+    pub(in crate::anchor::store) fn history(&self) -> &AnchorHandoffHistory {
+        &self.history
+    }
     fn new(
         db: &Database,
         key: &JournalKey,
@@ -372,6 +375,32 @@ impl Transferred {
 }
 
 impl AnchorHandoffTarget {
+    /// Recover an exact committed whole-account freeze using only the original
+    /// storage key, import approval and independently retained account approval.
+    /// No Witness private key, fresh clock or ordinary service owner is required.
+    pub fn transferred_account_freeze_receipt(
+        &mut self,
+        approval: &AnchorTransferredAccountFreezeApproval,
+    ) -> Result<Vec<u8>, DurableError> {
+        let saved = self.image()?;
+        let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let source = storage::source_state(&owner.db, &owner.wrapping, &owner.approval, &saved)?;
+        let (_, history) = verified_activation(&owner.approval, &saved, &source)?;
+        let content = &saved
+            .activation
+            .as_ref()
+            .ok_or(DurableError::Absent)?
+            .content;
+        let image = image_codec::decode_content(&history, content)?;
+        let frozen = image
+            .account_freezes
+            .get(&approval.proposal().request().account())
+            .ok_or(DurableError::Absent)?;
+        let wire = frozen.to_bytes()?;
+        approval.verify_receipt(&history, &wire)?;
+        Ok(wire)
+    }
+
     /// Complete an already committed source retirement in this original import.
     /// Persist the exact retirement, activation certificate and complete current
     /// content atomically before returning a service owner. Expiry does not erase

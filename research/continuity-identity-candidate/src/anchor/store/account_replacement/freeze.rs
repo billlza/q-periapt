@@ -4,8 +4,12 @@ use super::*;
 mod codec;
 mod plan;
 mod receipt;
+mod transferred;
 pub(in crate::anchor::store) use codec::{decode_records, encode_records};
 pub use plan::AnchorAccountReplacementPlan;
+pub use transferred::{
+    AnchorTransferredAccountFreezeApproval, AnchorTransferredAccountFreezeProposal,
+};
 
 /// Original independently approved freeze operation; public correlation, not authority.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -75,6 +79,7 @@ impl AnchorAccountFreezeRequest {
 pub struct AnchorFrozenAccount {
     request: AnchorAccountFreezeRequest,
     subjects: Vec<AnchorRetiredAccountSubject>,
+    transfer: Option<Box<transferred::Proof>>,
 }
 impl AnchorFrozenAccount {
     /// Original independently retained request, never an implicit substitute.
@@ -139,6 +144,7 @@ impl Image {
         let mut operations = BTreeSet::new();
         for (account, frozen) in &self.account_freezes {
             frozen.check_shape()?;
+            frozen.verify_transfer(pin)?;
             frozen
                 .request
                 .check_pin(pin.resolve(frozen.request.witness)?)?;
@@ -208,6 +214,7 @@ impl AnchorStore {
         let frozen = AnchorFrozenAccount {
             request: request.clone(),
             subjects: image.account_snapshot(request.account(), &pin)?,
+            transfer: None,
         };
         image
             .account_freezes

@@ -7,7 +7,7 @@ fn authorize(f: &mut Prepared) -> crate::AnchorHandoffClientAuthorizationReceipt
         .authorize_handoff_client(&f.request, || Ok(180))
         .expect("exact client authorization")
 }
-fn policy_materials(c: &PolicyCase) -> crate::PolicyRenewalMaterials<'_> {
+pub(super) fn policy_materials(c: &PolicyCase) -> crate::PolicyRenewalMaterials<'_> {
     crate::PolicyRenewalMaterials {
         original: &c.original,
         previous: &c.original,

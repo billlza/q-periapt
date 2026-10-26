@@ -2,7 +2,8 @@
 //! Bounded canonical preparation state; decoding alone grants no authority.
 use super::*;
 pub(super) const REQUEST_BYTES: usize = 8 + 32 + 32 + PUBLIC_KEY_BYTES;
-const MAX_FREEZE_BYTES: usize = 8 + REQUEST_BYTES + 2 + 209 * MAX_ENTRIES;
+pub(super) const MAX_FREEZE_BYTES: usize =
+    8 + REQUEST_BYTES + 2 + 209 * MAX_ENTRIES + transferred::codec::PROOF_BYTES;
 
 impl AnchorAccountFreezeRequest {
     /// Persist before control-plane submission. These bytes are not authorization.
@@ -38,7 +39,12 @@ impl AnchorAccountFreezeRequest {
 impl AnchorFrozenAccount {
     pub(in crate::anchor::store) fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         self.check_shape()?;
-        let mut out = b"QPAFRZ01".to_vec();
+        let mut out = if self.transfer.is_some() {
+            b"QPAFRZ02"
+        } else {
+            b"QPAFRZ01"
+        }
+        .to_vec();
         out.extend_from_slice(&self.request.to_bytes());
         out.extend_from_slice(
             &u16::try_from(self.subjects.len())
@@ -51,6 +57,9 @@ impl AnchorFrozenAccount {
             encode_last(entry.last, &mut out);
             out.extend_from_slice(&entry.state);
         }
+        if let Some(proof) = &self.transfer {
+            proof.encode(&mut out)?;
+        }
         if out.len() > MAX_FREEZE_BYTES {
             return Err(Error::Capacity);
         }
@@ -61,9 +70,11 @@ impl AnchorFrozenAccount {
             return Err(Error::Capacity);
         }
         let mut d = Decoder::new(bytes);
-        if d.array::<8>()? != *b"QPAFRZ01" {
-            return Err(Error::Encoding);
-        }
+        let transfer_format = match d.array::<8>()? {
+            tag if tag == *b"QPAFRZ01" => false,
+            tag if tag == *b"QPAFRZ02" => true,
+            _ => return Err(Error::Encoding),
+        };
         let request = AnchorAccountFreezeRequest::from_bytes(d.take(REQUEST_BYTES)?)?;
         let count = usize::from(d.u16()?);
         if count > MAX_ENTRIES {
@@ -82,8 +93,17 @@ impl AnchorFrozenAccount {
                 state,
             });
         }
+        let transfer = if transfer_format {
+            Some(Box::new(transferred::Proof::decode(&mut d)?))
+        } else {
+            None
+        };
         d.finish()?;
-        let result = Self { request, subjects };
+        let result = Self {
+            request,
+            subjects,
+            transfer,
+        };
         result.check_shape()?;
         Ok(result)
     }

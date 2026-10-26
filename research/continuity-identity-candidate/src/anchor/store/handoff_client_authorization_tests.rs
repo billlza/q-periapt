@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "handoff_account_freeze_tests.rs"]
+mod account_freeze;
 #[path = "handoff_transferred_control_tests.rs"]
 mod control;
 #[path = "handoff_client_authorization_recovery_tests.rs"]

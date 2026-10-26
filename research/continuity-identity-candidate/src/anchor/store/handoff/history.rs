@@ -77,6 +77,24 @@ pub struct AnchorHandoffHistory {
     transitions: Vec<Transition>,
 }
 impl AnchorHandoffHistory {
+    pub(in crate::anchor::store) fn checkpoint_at(
+        &self,
+        binding: [u8; 32],
+    ) -> Result<[u8; 32], DurableError> {
+        let mut checkpoint = HistoryContext::initial(&self.origin).checkpoint;
+        if binding == self.origin.binding {
+            return Ok(checkpoint);
+        }
+        for step in &self.transitions {
+            let mut body = checkpoint.to_vec();
+            step.encode(&mut body)?;
+            checkpoint = digest(b"Q-PERIAPT-CONTINUITY-ANCHOR-HISTORY-STEP/v1", &body);
+            if binding == step.approval.plan.target.binding {
+                return Ok(checkpoint);
+            }
+        }
+        Err(Error::Scope.into())
+    }
     pub(crate) const MAX_TRANSITIONS: usize = MAX_TRANSITIONS;
 
     pub(crate) fn require_extension_of(&self, prior: &Self) -> Result<(), Error> {

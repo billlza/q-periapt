@@ -8,8 +8,13 @@ pub(super) trait ImageAuthority {
     fn namespace(&self) -> [u8; 32];
     fn current(&self) -> &AnchorPin;
     fn resolve(&self, binding: [u8; 32]) -> Result<&AnchorPin, DurableError>;
+    fn history_checkpoint(&self, binding: [u8; 32]) -> Result<[u8; 32], DurableError>;
 }
 impl ImageAuthority for AnchorPin {
+    fn history_checkpoint(&self, binding: [u8; 32]) -> Result<[u8; 32], DurableError> {
+        self.resolve(binding)?;
+        Ok(AnchorHandoffHistory::from_trusted_origin(self.clone()).checkpoint())
+    }
     fn namespace(&self) -> [u8; 32] {
         self.binding
     }
@@ -25,6 +30,9 @@ impl ImageAuthority for AnchorPin {
     }
 }
 impl ImageAuthority for AnchorHandoffHistory {
+    fn history_checkpoint(&self, binding: [u8; 32]) -> Result<[u8; 32], DurableError> {
+        self.checkpoint_at(binding)
+    }
     fn namespace(&self) -> [u8; 32] {
         self.namespace_binding()
     }
