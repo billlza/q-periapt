@@ -131,6 +131,8 @@ pub(super) fn encode_content(
     image.check_account_replacements(pin)?;
     image.check_account_freezes(pin)?;
     image.check_account_closures()?;
+    image.check_account_decisions(pin)?;
+    let account_decision_format = !image.account_decisions.is_empty();
     let credential_policy_format = image
         .entries
         .values()
@@ -144,8 +146,10 @@ pub(super) fn encode_content(
         .entries
         .values()
         .any(Entry::has_roster_credential_composition);
-    let closure_format =
-        roster_credential_format || credential_policy_format || !image.account_closures.is_empty();
+    let closure_format = account_decision_format
+        || roster_credential_format
+        || credential_policy_format
+        || !image.account_closures.is_empty();
     let freeze_format = closure_format || !image.account_freezes.is_empty();
     let account_format = freeze_format || !image.account_replacements.is_empty();
     let acknowledged_report_format = image.retired_reports.values().any(|r| r.acknowledged);
@@ -191,7 +195,9 @@ pub(super) fn encode_content(
             .as_ref()
             .is_some_and(CredentialRenewalRecord::is_policy_cancellation)
     });
-    let mut bytes = if roster_credential_format {
+    let mut bytes = if account_decision_format {
+        b"QPANC021".to_vec()
+    } else if roster_credential_format {
         b"QPANC020".to_vec()
     } else if policy_credential_format {
         b"QPANC019".to_vec()
@@ -280,6 +286,13 @@ pub(super) fn encode_content(
     }
     if closure_format {
         account_replacement::closure::encode_records(&image.account_closures, &mut bytes)?;
+    }
+    if account_decision_format {
+        account_replacement::transferred::encode_records(
+            &image.account_decisions,
+            pin,
+            &mut bytes,
+        )?;
     }
     if bytes.len() + 32 > MAX_IMAGE {
         return Err(DurableError::Capacity);
@@ -503,6 +516,11 @@ pub(super) fn decode_content(
         } else {
             BTreeMap::new()
         };
+        let account_decisions = if version >= ImageVersion::V21 {
+            account_replacement::transferred::decode_records(&mut d, pin)?
+        } else {
+            BTreeMap::new()
+        };
         d.finish()?;
         if version >= ImageVersion::V10
             && version < ImageVersion::V16
@@ -524,6 +542,7 @@ pub(super) fn decode_content(
             account_replacements,
             account_freezes,
             account_closures,
+            account_decisions,
             handoff: None,
         };
         image.check_witness_key(&pin.current().key)?;
@@ -533,6 +552,7 @@ pub(super) fn decode_content(
         image.check_account_replacements(pin)?;
         image.check_account_freezes(pin)?;
         image.check_account_closures()?;
+        image.check_account_decisions(pin)?;
         if version == ImageVersion::V14 && !image.retired_reports.values().any(|r| r.acknowledged) {
             return Err(DurableError::Corrupt);
         }

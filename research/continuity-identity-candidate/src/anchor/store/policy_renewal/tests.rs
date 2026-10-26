@@ -255,6 +255,16 @@ pub(in crate::anchor::store) fn policy(
     until: u64,
     now: u64,
 ) -> VerifiedSessionPolicy {
+    policy_with_wire(issuer, runtime, pin, version, until, now).0
+}
+pub(in crate::anchor::store) fn policy_with_wire(
+    issuer: &PolicySigningKey,
+    runtime: &Arc<q_periapt_sdk::Runtime>,
+    pin: &AnchorPin,
+    version: u64,
+    until: u64,
+    now: u64,
+) -> (VerifiedSessionPolicy, Vec<u8>) {
     let wire = issuer
         .issue_session_policy(
             runtime,
@@ -268,14 +278,15 @@ pub(in crate::anchor::store) fn policy(
             .expect("parameters"),
         )
         .expect("signed policy");
-    PolicyPin::new(
+    let verified = PolicyPin::new(
         issuer.policy_family().expect("family"),
         issuer.public_key().expect("key"),
         wire.checkpoint(),
     )
     .expect("independent pin")
     .verify(wire.as_bytes(), Arc::clone(runtime), now)
-    .expect("live policy")
+    .expect("live policy");
+    (verified, wire.as_bytes().to_vec())
 }
 #[test]
 fn independent_policy_applies_without_any_credential_grant_and_preserves_exact_history() {

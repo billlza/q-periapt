@@ -224,7 +224,7 @@ fn commit(c: &mut PolicyCase, operation: AnchorOperation) {
         .verify_reply(&request, &response)
         .expect("fresh original reply");
 }
-fn pending(
+pub(super) fn pending(
     c: &mut PolicyCase,
     kind: &str,
     applied: bool,

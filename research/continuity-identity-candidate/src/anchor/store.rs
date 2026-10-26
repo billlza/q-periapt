@@ -40,8 +40,9 @@ pub use account_replacement::{
     AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementId,
     AnchorAccountReplacementPlan, AnchorAccountReplacementProposal, AnchorAccountReplacementState,
     AnchorClosedAccountPreparation, AnchorClosedAccountReplacement, AnchorFrozenAccount,
-    AnchorRetiredAccount, AnchorRetiredAccountSubject, AnchorTransferredAccountFreezeApproval,
-    AnchorTransferredAccountFreezeProposal,
+    AnchorRetiredAccount, AnchorRetiredAccountSubject, AnchorTransferredAccountDecision,
+    AnchorTransferredAccountFreezeApproval, AnchorTransferredAccountFreezeProposal,
+    AnchorTransferredAccountReplacementApproval, AnchorTransferredAccountReplacementMaterials,
 };
 mod replacement;
 pub use replacement::{
@@ -99,6 +100,7 @@ struct Image {
     account_replacements: BTreeMap<[u8; 32], AnchorAccountReplacementProposal>,
     account_freezes: BTreeMap<[u8; 32], AnchorFrozenAccount>,
     account_closures: BTreeMap<[u8; 32], account_replacement::closure::ClosureRecord>,
+    account_decisions: BTreeMap<[u8; 32], account_replacement::transferred::Record>,
     // Optional handoff receipts are large. Keep image moves and nested source
     // validation bounded by a pointer rather than the entire absent journal.
     handoff: Option<Box<handoff::Journal>>,
@@ -141,6 +143,7 @@ impl AnchorStore {
             account_replacements: BTreeMap::new(),
             account_freezes: BTreeMap::new(),
             account_closures: BTreeMap::new(),
+            account_decisions: BTreeMap::new(),
             handoff: None,
         };
         let bytes = encode(&wrapping, &pin, &image)?;
@@ -281,32 +284,7 @@ impl AnchorStore {
         now: u64,
         binding: [u8; 32],
     ) -> Result<Validity, DurableError> {
-        let quality = [
-            PrekeyQuality::OneTimeBoth,
-            PrekeyQuality::ReusableBoth,
-            PrekeyQuality::SignedClassicalOneTimePq,
-            PrekeyQuality::OneTimeClassicalLastResortPq,
-        ]
-        .into_iter()
-        .find(|quality| policy.allowed_modes().permits(*quality))
-        .ok_or(Error::PolicyDenied)?;
-        policy.check_mode(quality, now)?;
-        policy.check_device(device, now)?;
-        let active = self.active.as_ref().ok_or(DurableError::Closed)?;
-        if policy
-            .anchor_requirement()
-            .binding()
-            .is_some_and(|required| required != binding)
-        {
-            return Err(Error::Scope.into());
-        }
-        if active.pin.key.shares_component(&device.key)
-            || active.pin.key.shares_component(&device.authority_key)
-        {
-            return Err(Error::Scope.into());
-        }
-        policy.check_external_signer(&active.pin.key)?;
-        enrollment_validity(device, policy)
+        admit_device_at(&self.pin()?, device, policy, now, binding)
     }
     /// Explicit trusted control-plane refresh for the SAME credential and policy.
     /// Restore `subject` from the original trusted configuration; it must already
@@ -545,15 +523,23 @@ impl AnchorStore {
             if advance_revision {
                 image.revision = increment(image.revision)?;
             }
+            #[cfg(all(test, unix))]
+            let commit_revision = image.revision;
+            let checked_commit = || {
+                admit_commit()?;
+                #[cfg(all(test, unix))]
+                tests::before_commit(commit_revision);
+                Ok(())
+            };
             if let Some(transferred) = &active.transferred {
                 if advance_revision {
-                    transferred.persist(&active.db, &active.wrapping, image, admit_commit)?;
+                    transferred.persist(&active.db, &active.wrapping, image, checked_commit)?;
                 } else {
                     transferred.persist_handoff(
                         &active.db,
                         &active.wrapping,
                         image,
-                        admit_commit,
+                        checked_commit,
                     )?;
                 }
             } else {
@@ -574,7 +560,7 @@ impl AnchorStore {
                     drop(current);
                     table.insert("image", bytes.as_slice()).map_err(storage)?;
                 }
-                admit_commit()?;
+                checked_commit()?;
                 tx.commit().map_err(DurableError::CommitUncertain)?;
                 image.digest = image_digest(&bytes);
             }
@@ -587,6 +573,37 @@ impl AnchorStore {
         }
         result
     }
+}
+
+fn admit_device_at(
+    pin: &AnchorPin,
+    device: &VerifiedDevice,
+    policy: &VerifiedSessionPolicy,
+    now: u64,
+    binding: [u8; 32],
+) -> Result<Validity, DurableError> {
+    let quality = [
+        PrekeyQuality::OneTimeBoth,
+        PrekeyQuality::ReusableBoth,
+        PrekeyQuality::SignedClassicalOneTimePq,
+        PrekeyQuality::OneTimeClassicalLastResortPq,
+    ]
+    .into_iter()
+    .find(|quality| policy.allowed_modes().permits(*quality))
+    .ok_or(Error::PolicyDenied)?;
+    policy.check_mode(quality, now)?;
+    policy.check_device(device, now)?;
+    if policy
+        .anchor_requirement()
+        .binding()
+        .is_some_and(|required| required != binding)
+        || pin.key.shares_component(&device.key)
+        || pin.key.shares_component(&device.authority_key)
+    {
+        return Err(Error::Scope.into());
+    }
+    policy.check_external_signer(&pin.key)?;
+    enrollment_validity(device, policy)
 }
 
 fn enrollment_validity(

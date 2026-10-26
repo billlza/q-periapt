@@ -375,6 +375,31 @@ impl Transferred {
 }
 
 impl AnchorHandoffTarget {
+    /// Read the exact account retirement/closure using the original storage key
+    /// and public approvals, without any Witness private signing key.
+    pub fn transferred_account_decision(
+        &mut self,
+        approval: &AnchorTransferredAccountReplacementApproval,
+    ) -> Result<AnchorTransferredAccountDecision, DurableError> {
+        let saved = self.image()?;
+        let owner = self.active.as_ref().ok_or(DurableError::Closed)?;
+        let source = storage::source_state(&owner.db, &owner.wrapping, &owner.approval, &saved)?;
+        let (_, history) = verified_activation(&owner.approval, &saved, &source)?;
+        let image = image_codec::decode_content(
+            &history,
+            &saved
+                .activation
+                .as_ref()
+                .ok_or(DurableError::Absent)?
+                .content,
+        )?;
+        let record = image
+            .account_decisions
+            .get(approval.proposal().operation().as_bytes())
+            .ok_or(DurableError::Absent)?;
+        approval.verify_decision(&history, record.as_bytes())
+    }
+
     /// Recover an exact committed whole-account freeze using only the original
     /// storage key, import approval and independently retained account approval.
     /// No Witness private key, fresh clock or ordinary service owner is required.

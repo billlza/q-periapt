@@ -11,14 +11,55 @@ mod preparation_closure;
 pub use preparation_closure::AnchorClosedAccountPreparation;
 pub(super) mod freeze;
 mod receipt;
+pub(in crate::anchor::store) mod transferred;
 pub(super) use codec::{decode_records, encode_records};
 pub use freeze::{
     AnchorAccountFreezeId, AnchorAccountFreezeRequest, AnchorAccountReplacementPlan,
     AnchorFrozenAccount, AnchorTransferredAccountFreezeApproval,
     AnchorTransferredAccountFreezeProposal,
 };
+pub use transferred::{
+    AnchorTransferredAccountDecision, AnchorTransferredAccountReplacementApproval,
+    AnchorTransferredAccountReplacementMaterials,
+};
 
 const MAX_PROPOSAL_BYTES: usize = 65_536;
+
+struct Target<'a> {
+    genesis: &'a AnchorGenesis,
+    device: &'a VerifiedDevice,
+    policy: &'a VerifiedSessionPolicy,
+    pin: &'a AnchorPin,
+}
+impl Target<'_> {
+    fn proposal(
+        &self,
+        operation: AnchorAccountReplacementId,
+        previous: (&PublicKey, Option<[u8; 32]>),
+        validity: Validity,
+        frozen: Vec<AnchorRetiredAccountSubject>,
+    ) -> Result<AnchorAccountReplacementProposal, DurableError> {
+        let p = AnchorAccountReplacementProposal {
+            witness: self.pin.binding,
+            operation,
+            previous_root: previous.0.clone(),
+            successor_root: self.device.authority_key.clone(),
+            identity: OriginalIdentity::from_verified(self.device),
+            target: self.genesis.subject,
+            genesis: self.genesis.digest,
+            key: replacement::key_commitment(&self.device.key),
+            authority: self.device.authority_binding(),
+            validity,
+            roster: self.device.roster().checkpoint(),
+            policy: self.policy.checkpoint(),
+            policy_validity: self.policy.validity(),
+            frozen,
+            preparation: previous.1,
+        };
+        p.check_target(previous.0, self.genesis, self.device, self.policy, self.pin)?;
+        Ok(p)
+    }
+}
 
 /// Original independently approved account replacement operation, not authority.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -326,13 +367,30 @@ impl Image {
         p: &AnchorAccountReplacementProposal,
         pin: &AnchorPin,
     ) -> Result<(), DurableError> {
+        self.require_adopted_account(p.previous_account())?;
+        if self
+            .account_freezes
+            .get(&p.previous_account())
+            .is_some_and(AnchorFrozenAccount::is_transferred)
+        {
+            return Err(DurableError::Suspended);
+        }
+        self.check_new_account_replacement_at(p, pin)
+    }
+    fn check_new_account_replacement_at(
+        &self,
+        p: &AnchorAccountReplacementProposal,
+        authority: &impl ImageAuthority,
+    ) -> Result<(), DurableError> {
         if self
             .account_replacements
             .contains_key(&p.previous_account())
         {
             return Err(Error::Scope.into());
         }
-        if self.account_closures.contains_key(p.operation.as_bytes()) {
+        if self.account_closures.contains_key(p.operation.as_bytes())
+            || self.account_decisions.contains_key(p.operation.as_bytes())
+        {
             return Err(Error::Retired.into());
         }
         self.check_preparation(p)?;
@@ -348,7 +406,13 @@ impl Image {
                     .is_some_and(|identity| identity.account == p.successor_account())
             })
             || self.entries.contains_key(&p.target.id(&self.namespace))
-            || self.account_snapshot(p.previous_account(), pin)? != p.frozen
+            || self.account_snapshot_at(
+                p.previous_account(),
+                self.account_freezes
+                    .get(&p.previous_account())
+                    .map_or(p.witness, AnchorFrozenAccount::snapshot_witness),
+                authority,
+            )? != p.frozen
         {
             return Err(DurableError::Conflict);
         }
@@ -434,24 +498,18 @@ impl AnchorStore {
         let validity = self.admit_enrollment(genesis.subject, next, policy, now)?;
         let pin = self.pin()?;
         let image = self.image()?;
-        let p = AnchorAccountReplacementProposal {
-            witness: pin.binding,
+        let p = Target {
+            genesis,
+            device: next,
+            policy,
+            pin: &pin,
+        }
+        .proposal(
             operation,
-            previous_root: previous_root.clone(),
-            successor_root: next.authority_key.clone(),
-            identity: OriginalIdentity::from_verified(next),
-            target: genesis.subject,
-            genesis: genesis.digest,
-            key: replacement::key_commitment(&next.key),
-            authority: next.authority_binding(),
+            (previous_root, preparation),
             validity,
-            roster: next.roster().checkpoint(),
-            policy: policy.checkpoint(),
-            policy_validity: policy.validity(),
-            frozen: image.account_snapshot(crate::identity::account_id(previous_root), &pin)?,
-            preparation,
-        };
-        p.check_target(previous_root, genesis, next, policy, &pin)?;
+            image.account_snapshot(crate::identity::account_id(previous_root), &pin)?,
+        )?;
         image.check_new_account_replacement(&p, &pin)?;
         Ok(p)
     }
@@ -475,6 +533,9 @@ impl AnchorStore {
         let pin = self.pin()?;
         p.check_target(previous_root, genesis, next, policy, &pin)?;
         let mut image = self.image()?;
+        if image.account_decisions.contains_key(p.operation.as_bytes()) {
+            return Err(DurableError::Suspended);
+        }
         if let Some(closed) = image.closed_account_operation(p)? {
             return Ok(closed);
         }
@@ -511,6 +572,9 @@ impl AnchorStore {
             return Err(Error::Scope.into());
         }
         let image = self.image()?;
+        if image.account_decisions.contains_key(p.operation.as_bytes()) {
+            return Err(DurableError::Suspended);
+        }
         if let Some(closed) = image.closed_account_operation(p)? {
             return Ok(closed);
         }

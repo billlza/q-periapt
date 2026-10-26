@@ -7,7 +7,7 @@ mod receipt;
 /// It does not unfreeze an account, enroll a successor or prove message delivery.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnchorClosedAccountReplacement {
-    proposal: AnchorAccountReplacementProposal,
+    pub(super) proposal: AnchorAccountReplacementProposal,
 }
 impl AnchorClosedAccountReplacement {
     /// Exact original statement that this witness can never commit.
@@ -91,6 +91,9 @@ impl AnchorStore {
     ) -> Result<AnchorAccountReplacementState, DurableError> {
         check_scope(p, &self.pin()?)?;
         let mut image = self.image()?;
+        if image.account_decisions.contains_key(p.operation.as_bytes()) {
+            return Err(DurableError::Suspended);
+        }
         image.require_adopted_account(p.previous_account())?;
         if let Some(saved) = image
             .account_replacements
@@ -121,8 +124,11 @@ impl AnchorStore {
         p: &AnchorAccountReplacementProposal,
     ) -> Result<AnchorClosedAccountReplacement, DurableError> {
         check_scope(p, &self.pin()?)?;
-        if self.image()?.closed_account_operation(p)? != Some(AnchorAccountReplacementState::Closed)
-        {
+        let image = self.image()?;
+        if image.account_decisions.contains_key(p.operation.as_bytes()) {
+            return Err(DurableError::Suspended);
+        }
+        if image.closed_account_operation(p)? != Some(AnchorAccountReplacementState::Closed) {
             return Err(DurableError::Absent);
         }
         Ok(AnchorClosedAccountReplacement {

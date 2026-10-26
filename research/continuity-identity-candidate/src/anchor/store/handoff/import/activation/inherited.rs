@@ -80,6 +80,11 @@ pub(super) fn check(
         account_replacement::closure::encode_records(&BTreeMap::from([([1; 32], *r)]), &mut bytes)?;
         Ok(bytes)
     })?;
+    retained(
+        &original.account_decisions,
+        &current.account_decisions,
+        |r| Ok(r.as_bytes().to_vec()),
+    )?;
     let inherited = |subject: AnchorSubject| {
         original
             .entries
@@ -96,7 +101,7 @@ pub(super) fn check(
         if !original.account_replacements.contains_key(id)
             && (inherited(p.successor()) || p.predecessors().any(&inherited))
         {
-            return Err(DurableError::Suspended);
+            current.require_account_decision(p, history)?;
         }
     }
     for (id, p) in &current.account_freezes {

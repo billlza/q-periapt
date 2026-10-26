@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
+#[path = "handoff_account_decision_tests.rs"]
+mod account_decision;
 #[path = "handoff_activation_tests.rs"]
 pub(in crate::anchor::store) mod activation;
 #[path = "handoff_adoption_tests.rs"]

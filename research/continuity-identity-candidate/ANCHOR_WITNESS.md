@@ -1674,10 +1674,64 @@ clock and writes no state. `AnchorHandoffTarget` can read back this receipt usin
 storage authentication and public approvals without a Witness private key.
 
 The old freeze-receipt verifier and legacy replacement-plan binder reject this
-new proof type. Supporting account retirement and client/registry recovery after
-Witness adoption requires their explicit composition with this retained proof;
-that integration is still open. Local tests establish the server preparation
+new proof type. The separate server retirement transaction is specified below;
+client/registry recovery after Witness adoption still requires its explicit
+composition with these retained proofs. Local freeze tests establish the preparation
 transaction, not the complete root-replacement lifecycle, platform acceptance,
 power-loss durability, or PCS. MAC authentication and a retained signature do not
 prevent an entire valid old store from being rolled back: independent host
 checkpoint retention and Witness storage continuity remain required.
+
+### Account retirement and permanent closure under a transferred Witness
+
+`transferred_account_replacement_proposal` compares the complete committed freeze
+with an actual successor journal genesis, verified successor credential/roster and
+current-Witness policy. A retained old `QPAFRZ01` freeze is also supported: its
+snapshot is checked under the original Witness binding, never recomputed under
+the new signer. The independently authenticated recovery operator must retain an
+`AnchorTransferredAccountReplacementApproval` binding the exact proposal, both
+account roots, full frozen coverage, namespace, Witness history checkpoint,
+operator decision and finite admission interval. Device adoption is not this
+account-wide authorization. Parsing the approval is not operator authentication.
+
+`replace_transferred_account_root` checks current identity, policy/runtime and
+trusted time both before signing and immediately before commit; time regression
+or expiry rejects the new decision. One image transaction retains the original
+signed decision, retires the old account and enrolls exactly the approved target.
+Old entries and unresolved G/P/R bytes and IDs are unchanged. The account fence
+also rejects later enrollment of otherwise valid devices issued by the old root.
+`close_transferred_account_replacement` permanently closes the approved attempt
+without unfreezing the old account or enrolling a target, including after target
+expiry. A closed attempt cannot commit; a committed attempt cannot close. A
+separately approved attempt may succeed after a losing attempt was closed.
+
+`QPANC021` adds a bounded map of purpose-**37** signed `QPTARD01` decisions. Each
+fixed-size record binds the operation, previous account, full freeze digest,
+complete proposal digest, namespace, history, operator decision, interval and
+result. The committed variant records its initial checked admission time; commit
+performs the independent second time check. The closed variant has a distinct
+tag and canonical zero time because closure grants no new current admission.
+The existing 1 MiB image and 256-record/subject bounds remain; capacity failure is
+explicit. A stored transferred retirement requires its corresponding signed
+proof. Missing, substituted or damaged proof is refused even if the image MAC is
+otherwise valid. Legacy purpose-22 receipt/status APIs cannot interpret this map.
+
+Exact retries return original proof bytes without consulting time, re-signing,
+rewriting state or resetting an advanced successor. The same retained result can
+be observed through later verified Witness history, including without a Witness
+private key. The result is historical: neither it nor the returned retirement or
+closure observation is a fresh operating reply. Fresh decisions require their
+approved Witness to remain current. Closing an unrecorded older-Witness attempt
+after another transfer needs a separately approved current closure transaction;
+that integration remains open. Missing state never permits old-root fallback.
+
+Local tests cover six server G/P/R component states, two old-account devices,
+unseen old-root enrollment rejection, a successor compare-and-set that survives
+retry, exact cold observation through A-to-B-to-C history, eight synchronous I/O
+failure cuts, and four real SIGKILL/new-PID recoveries before/after commit or
+closure. Process recovery retains the original signed credential, roster, policy,
+genesis and approval; it does not regenerate identities. These tests do not
+establish client journal/enrollment/registry composition, all crash or power-loss
+cuts, final platform/installed/independent qualification, final ABI admission or
+PCS. Independent host checkpoint retention remains necessary against rollback
+of valid prior state; a stored signature cannot establish that it is the latest.

@@ -82,6 +82,9 @@ pub struct AnchorFrozenAccount {
     transfer: Option<Box<transferred::Proof>>,
 }
 impl AnchorFrozenAccount {
+    pub(in crate::anchor::store) fn is_transferred(&self) -> bool {
+        self.transfer.is_some()
+    }
     /// Original independently retained request, never an implicit substitute.
     pub fn request(&self) -> &AnchorAccountFreezeRequest {
         &self.request

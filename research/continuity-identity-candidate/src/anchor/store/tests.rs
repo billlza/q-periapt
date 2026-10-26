@@ -580,16 +580,30 @@ fn witness_image_integrity_bounds_and_independent_identity_are_enforced() {
     assert!(!c.server.join("missing").exists());
 }
 
+pub(super) fn before_commit(revision: u64) {
+    process_commit_boundary(
+        revision,
+        "QPERIAPT_ANCHOR_BEFORE_COMMIT_REVISION",
+        b"before-commit",
+    );
+}
 pub(super) fn after_commit(image: &Image) {
-    let Ok(revision) = std::env::var("QPERIAPT_ANCHOR_CRASH_REVISION") else {
+    process_commit_boundary(
+        image.revision,
+        "QPERIAPT_ANCHOR_CRASH_REVISION",
+        b"committed",
+    );
+}
+fn process_commit_boundary(actual: u64, variable: &str, marker: &[u8]) {
+    let Ok(revision) = std::env::var(variable) else {
         return;
     };
-    if revision != image.revision.to_string() {
+    if revision != actual.to_string() {
         return;
     }
     let path = std::env::var_os("QPERIAPT_ANCHOR_SERVER_DIR").expect("owned server directory");
     let path = Path::new(&path);
-    fs::write(path.join("ready.tmp"), b"committed").expect("marker");
+    fs::write(path.join("ready.tmp"), marker).expect("marker");
     fs::rename(path.join("ready.tmp"), path.join("ready")).expect("publish marker");
     loop {
         std::thread::park();
