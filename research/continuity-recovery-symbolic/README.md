@@ -20,6 +20,14 @@ earlier local Ready root and parent at the predecessor epoch. The two witnesses
 and multi-epoch message secrecy remain unproved. This research is separate from
 the three checked CI profiles.
 
+A separate [initial-traffic checkpoint](../sdk-alpha1/evidence/20261027-recovery-initial-traffic/README.md)
+extends the natural-number/private-position model to permit application traffic
+before the first rekey. Ten auxiliary properties and a 414-step execution witness
+pass a joint independent replay. The old zero-counter helper is not reused:
+it applies only to the preceding model, which excluded initial traffic. All
+original queries remain visible, and the multi-epoch secrecy and SDK-refinement
+obligations remain open. Earlier checkpoints retain their original model scope.
+
 The [counter-invariant checkpoint](../sdk-alpha1/evidence/20261016-recovery-counter-invariants/README.md)
 adds seven deterministic observations of produced send-state counters. Checked
 erasure preserves the original execution model and all four complete queries.
