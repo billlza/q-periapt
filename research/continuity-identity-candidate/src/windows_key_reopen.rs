@@ -17,7 +17,13 @@ use std::{
 // Paths are process-local data, never interpolated into PowerShell source.
 const SET_DIRECTORY_ACL: &str = r#"
 $ErrorActionPreference = 'Stop'
+function Write-AclPhase([string] $phase) {
+    [Console]::Out.WriteLine($phase)
+    [Console]::Out.Flush()
+}
+Write-AclPhase 'QPC_ACL_PHASE script-enter'
 $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+Write-AclPhase 'QPC_ACL_PHASE identity-ready'
 $acl = New-Object System.Security.AccessControl.DirectorySecurity
 $acl.SetOwner($sid)
 $acl.SetAccessRuleProtection($true, $false)
@@ -30,7 +36,9 @@ if ($env:QPC_KEY_TEST_BROAD_ACL -eq '1') {
     $world = New-Object System.Security.Principal.SecurityIdentifier('S-1-1-0')
     $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($world, 'Read', $allow)))
 }
+Write-AclPhase 'QPC_ACL_PHASE descriptor-ready'
 [System.IO.Directory]::SetAccessControl($env:QPC_KEY_TEST_DIRECTORY, $acl)
+Write-AclPhase 'QPC_ACL_PHASE acl-set'
 "#;
 
 struct ChildGuard(Option<Child>);
@@ -48,8 +56,9 @@ impl Drop for ChildGuard {
 fn set_directory_acl(path: &Path, broad: bool) {
     let system = std::path::PathBuf::from(std::env::var_os("SystemRoot").expect("Windows root"));
     let executable = system.join("System32/WindowsPowerShell/v1.0/powershell.exe");
-    // Keep failure output even if startup stalls. Waiting on an unread pipe
-    // could itself block a verbose child; temporary files avoid that backpressure.
+    // Flushed markers distinguish script entry, identity lookup and ACL work
+    // without exposing the path or SID. Keep partial output when startup stalls.
+    // Temporary files avoid backpressure from an unread child pipe.
     let mut stdout = tempfile::tempfile().expect("owned ACL stdout");
     let mut stderr = tempfile::tempfile().expect("owned ACL stderr");
     let started = Instant::now();
@@ -126,8 +135,19 @@ fn set_directory_acl(path: &Path, broad: bool) {
         String::from_utf8_lossy(&stdout),
         String::from_utf8_lossy(&stderr)
     );
+    let phases = std::str::from_utf8(&stdout)
+        .expect("ACL helper phase encoding")
+        .lines()
+        .collect::<Vec<_>>();
     assert!(
-        stdout.is_empty() && stderr.is_empty(),
+        phases
+            == [
+                "QPC_ACL_PHASE script-enter",
+                "QPC_ACL_PHASE identity-ready",
+                "QPC_ACL_PHASE descriptor-ready",
+                "QPC_ACL_PHASE acl-set",
+            ]
+            && stderr.is_empty(),
         "unexpected ACL helper output"
     );
 }
