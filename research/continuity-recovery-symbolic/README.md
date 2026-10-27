@@ -37,6 +37,14 @@ one reaches a depth frontier, and a different goal order reaches the existing
 self-peer contradiction before an expensive state expansion; they do not close
 the main origin or multi-epoch secrecy obligations.
 
+The [peer-source diagnostic](../sdk-alpha1/evidence/20261027-recovery-peer-order/README.md)
+preserves two controlled ordering comparisons on that identical model. They
+resolve the self-peer branch and then bind A/B roles, but both still time out.
+A separately marked diagnostic exports a 40-step incomplete origin proof;
+all ordinary rankings, stopping inputs and unchanged model/query identities
+are read back. Its first frontier remains in application-message source analysis
+and recursive phase history. It establishes no new security theorem.
+
 The [counter-invariant checkpoint](../sdk-alpha1/evidence/20261016-recovery-counter-invariants/README.md)
 adds seven deterministic observations of produced send-state counters. Checked
 erasure preserves the original execution model and all four complete queries.

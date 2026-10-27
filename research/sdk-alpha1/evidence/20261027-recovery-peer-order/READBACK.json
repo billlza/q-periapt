@@ -1,0 +1,14 @@
+{
+  "archive_sha256": "d87317cdfabb7dd6e6dcd24d5584c9c62e80eb4cb3f9a2716e35db5f71783897",
+  "manifest_sha256": "8b978c6026460de9edee466f3ea249319eea5b95242241c1f80e52075ae2da8b",
+  "members_checked": 135,
+  "all_member_hashes_verified": true,
+  "experiment_readback_sha256": "f6adc99b113b9b8d48d84e4f251e7943e6d312e2b3cd9c71393b0ddd862f4f3c",
+  "ordinary_searches": 2,
+  "ordinary_timeouts": 2,
+  "diagnostic_origin_status": "analysis incomplete (40 steps)",
+  "ordinary_callbacks": 43,
+  "marked_diagnostic_callbacks": 21,
+  "main_origin_proof_complete": false,
+  "release_claim_eligible": false
+}
