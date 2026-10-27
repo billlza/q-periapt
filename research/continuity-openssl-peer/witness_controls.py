@@ -160,4 +160,9 @@ def check_release_head(args, private, output, refuses):
                     finally:
                         bridge.close()
         finally:
-            native.close()
+            try:
+                native.close()
+            finally:
+                # This control owns a separate provider from the main scenario.
+                # Retain its public command records even when cleanup fails.
+                (out / 'NATIVE.json').write_text(json.dumps(native.commands, indent=2)+'\n')
