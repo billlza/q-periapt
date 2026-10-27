@@ -28,6 +28,15 @@ it applies only to the preceding model, which excluded initial traffic. All
 original queries remain visible, and the multi-epoch secrecy and SDK-refinement
 obligations remain open. Earlier checkpoints retain their original model scope.
 
+The [tagged-parent checkpoint](../sdk-alpha1/evidence/20261027-recovery-parent-origin/README.md)
+independently verifies the parent transcript's tag and epoch shape in 12 steps
+without reused premises. The complete operational prefix and all 26 baseline
+queries remain unchanged. Its generation-origin searches remain incomplete:
+one reaches a depth frontier, and a different goal order reaches the existing
+900-second deadline. The retained oracle inputs identify an unresolved
+self-peer contradiction before an expensive state expansion; they do not close
+the main origin or multi-epoch secrecy obligations.
+
 The [counter-invariant checkpoint](../sdk-alpha1/evidence/20261016-recovery-counter-invariants/README.md)
 adds seven deterministic observations of produced send-state counters. Checked
 erasure preserves the original execution model and all four complete queries.

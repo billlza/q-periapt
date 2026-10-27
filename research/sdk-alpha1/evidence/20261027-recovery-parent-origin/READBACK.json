@@ -1,0 +1,15 @@
+{
+  "archive_sha256": "7ef5f6f2800ce32bc602a00ce788527078eeb4259056992e7e7867d4bebbbbe2",
+  "archive_bytes": 242301,
+  "members_verified": 67,
+  "expanded_bytes": 4119094,
+  "all_member_hashes_match": true,
+  "main_generation_origin_proved": false,
+  "multi_epoch_message_secrecy_proved": false,
+  "release_claim_eligible": false,
+  "all_four_operational_prefixes_match_baseline": true,
+  "all26_original_formulas_and_quantifiers_preserved": true,
+  "invalid_zero_counter_not_reused": true,
+  "helper_replay_uses_no_search_or_oracle": true,
+  "all11_diagnostic_auxiliary_dependencies_verified": true
+}
