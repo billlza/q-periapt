@@ -52,8 +52,17 @@ application-message source case. The role-only control leaves both children
 open. An automatic role-priority search still times out because that chain is
 not offered to the oracle. All queries, lemma attributes and operational rules
 remain unchanged; eleven auxiliary proofs and the initial-traffic witness
-recheck. The overall origin proof remains incomplete, and continuation from
-the checked partial certificate is prepared but not yet run.
+recheck. The overall origin proof remains incomplete; at that checkpoint,
+continuation from the checked partial certificate was prepared but not yet run.
+
+The [wrapping-source checkpoint](../sdk-alpha1/evidence/20261027-recovery-wrapping-sources/README.md)
+continues that partial proof while retaining the total depth cutoff of 16.
+Resolving existing wrapping-key sources before recursive state history closes
+both Cut cases and an additional Offer case. An independent replay checks the
+four closed source subtrees, eleven auxiliary proofs and initial-traffic
+witness. The 197-step origin proof remains incomplete, with depth-cut,
+callback-budget and unvisited nodes retained. Its remaining scope projections
+and state dependencies need analysis before further search.
 
 The [counter-invariant checkpoint](../sdk-alpha1/evidence/20261016-recovery-counter-invariants/README.md)
 adds seven deterministic observations of produced send-state counters. Checked
