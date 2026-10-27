@@ -1,0 +1,12 @@
+{
+  "verified": true,
+  "archive_sha256": "f4729365750847d72dfe1385f1e84cf4a59129c22047920316ef9cf76a4410e5",
+  "members": 98,
+  "expanded_bytes": 5669584,
+  "manifest_sha256": "a6cb3a8e9c54377973bbe8f901377a5c624fc86c8d71703191a15a5deff01d88",
+  "experiment_receipt_sha256": "0ee4f101005e0b0652dbf23e8a4a15d37506a78ab036d6cc68b2606d1a440f8c",
+  "application_source_subcase_checked": true,
+  "whole_origin_complete": false,
+  "continuation_search_executed": false,
+  "release_claim_eligible": false
+}

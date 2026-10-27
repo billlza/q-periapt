@@ -45,6 +45,16 @@ all ordinary rankings, stopping inputs and unchanged model/query identities
 are read back. Its first frontier remains in application-message source analysis
 and recursive phase history. It establishes no new security theorem.
 
+The [application-source continuation](../sdk-alpha1/evidence/20261027-recovery-application-source/README.md)
+checks one closed subtree of that origin conjecture: finite A/B role
+classification followed by an existing deduction-chain constraint closes the
+application-message source case. The role-only control leaves both children
+open. An automatic role-priority search still times out because that chain is
+not offered to the oracle. All queries, lemma attributes and operational rules
+remain unchanged; eleven auxiliary proofs and the initial-traffic witness
+recheck. The overall origin proof remains incomplete, and continuation from
+the checked partial certificate is prepared but not yet run.
+
 The [counter-invariant checkpoint](../sdk-alpha1/evidence/20261016-recovery-counter-invariants/README.md)
 adds seven deterministic observations of produced send-state counters. Checked
 erasure preserves the original execution model and all four complete queries.
