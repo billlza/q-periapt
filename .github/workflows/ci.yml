@@ -2439,7 +2439,10 @@ jobs:
   # Actual-signature Continuity candidate, isolated from the SDK publication graph.
   continuity-identity-candidate:
     runs-on: ${{ matrix.os }}
-    # Linux Debug enrollment and the remaining suite have complementary filters.
+    # Linux Debug account-root enrollment, other enrollment and the remaining
+    # suite have complementary filters. The 561-case enrollment partition still
+    # made progress when its 90-minute Linux job budget expired; split its 153
+    # account-root cases without dropping tests or increasing the time bound.
     # Each complete 32-device scenario retains its own budget. The full Debug
     # suite grew to 1392 library cases and exhausted both Linux job budgets while
     # still making progress. Keep every case and the original 90-minute bound.
@@ -2490,10 +2493,16 @@ jobs:
             partition: roster-capacity
           - os: ubuntu-24.04
             toolchain: 1.98.1
-            partition: enrollment
+            partition: enrollment-account-root
           - os: ubuntu-24.04
             toolchain: 1.90.0
-            partition: enrollment
+            partition: enrollment-account-root
+          - os: ubuntu-24.04
+            toolchain: 1.98.1
+            partition: enrollment-other
+          - os: ubuntu-24.04
+            toolchain: 1.90.0
+            partition: enrollment-other
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         env:
@@ -2556,10 +2565,11 @@ jobs:
           # Explicit failure exit lets Bash print timing before preserving the test status.
           { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- "${candidate_skips[@]}" --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug.log"
       - name: Exercise the complete Debug enrollment partition
-        if: matrix.partition == 'enrollment'
+        if: matrix.partition == 'enrollment-account-root' || matrix.partition == 'enrollment-other'
         shell: bash
         env:
           CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
+          CANDIDATE_PARTITION: ${{ matrix.partition }}
         run: |
           candidate_log=target/continuity-native-checks
           mkdir -p "$candidate_log"
@@ -2570,11 +2580,25 @@ jobs:
           test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
           test "$(grep -c -F "$ROSTER_CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1
           test "$(grep -c -F 'enrollment::' "$candidate_log/debug-catalog.txt")" -gt 2
-          # The filtered target selection does not execute this crate's doctests.
-          # Run the enrollment type-isolation doctests explicitly as well.
-          { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked 'enrollment::' -- --skip "$CAPACITY_TEST" --skip "$ROSTER_CAPACITY_TEST" --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-enrollment.log"
-          { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --doc 'enrollment::' -- --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-enrollment-doc.log"
-          grep '^test result: ok\. 2 passed; 0 failed; 0 ignored;' "$candidate_log/debug-enrollment-doc.log"
+          candidate_skips=(--skip "$CAPACITY_TEST" --skip "$ROSTER_CAPACITY_TEST")
+          case "$CANDIDATE_PARTITION" in
+            enrollment-account-root) candidate_filter='enrollment::account_root::' ;;
+            enrollment-other)
+              candidate_filter='enrollment::'
+              candidate_skips+=(--skip 'enrollment::account_root::')
+              ;;
+            *) printf 'Unknown enrollment partition: %s\n' "$CANDIDATE_PARTITION" >&2; exit 1 ;;
+          esac
+          # Record the actual selection across library and non-library targets.
+          cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked "$candidate_filter" -- --list "${candidate_skips[@]}" > "$candidate_log/debug-enrollment-selected-catalog.txt"
+          test "$(grep -c ': test$' "$candidate_log/debug-enrollment-selected-catalog.txt")" -gt 0
+          { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked "$candidate_filter" -- "${candidate_skips[@]}" --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-$CANDIDATE_PARTITION.log"
+          # Positional target filters omit doctests. Run both enrollment
+          # type-isolation doctests explicitly, once across the two partitions.
+          if [ "$CANDIDATE_PARTITION" = enrollment-other ]; then
+            { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --doc 'enrollment::' -- --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-enrollment-doc.log"
+            grep '^test result: ok\. 2 passed; 0 failed; 0 ignored;' "$candidate_log/debug-enrollment-doc.log"
+          fi
       - name: Exercise the complete Release candidate
         if: matrix.partition == 'release'
         shell: bash

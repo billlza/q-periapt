@@ -18,7 +18,8 @@ def native(text):
     expected.update(('ubuntu-24.04', toolchain, 'release') for toolchain in ('1.98.1', '1.90.0'))
     expected.add(('macos-15', '1.98.1', 'release'))
     expected.update(('ubuntu-24.04', toolchain, part)
-                    for toolchain in ('1.98.1', '1.90.0') for part in ('roster-capacity', 'enrollment'))
+                    for toolchain in ('1.98.1', '1.90.0')
+                    for part in ('roster-capacity', 'enrollment-account-root', 'enrollment-other'))
     if len(rows) != len(expected) or set(rows) != expected:
         raise ValueError('complete Debug partitions and separate Release budgets are required')
     if ('timeout-minutes: 90' not in block or 'fail-fast: false' not in block
@@ -49,18 +50,26 @@ def native(text):
             or 'test result: ok\\. 1 passed; 0 failed; 0 ignored;' not in roster):
         raise ValueError('complete original-owner roster capacity must execute separately on Linux')
     enrollment_command = ('cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" '
-                          '--all-features --locked \'enrollment::\' -- --skip "$CAPACITY_TEST" '
-                          '--skip "$ROSTER_CAPACITY_TEST" --nocapture')
-    if ("if: matrix.partition == 'enrollment'" not in enrollment
+                          '--all-features --locked "$candidate_filter" -- "${candidate_skips[@]}" --nocapture')
+    if ("if: matrix.partition == 'enrollment-account-root' || matrix.partition == 'enrollment-other'" not in enrollment
             or enrollment.count(enrollment_command) != 1
             or guard not in enrollment
             or 'test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1' not in enrollment
             or 'source-commit.txt' not in enrollment or 'rustc.txt' not in enrollment
+            or 'CANDIDATE_PARTITION: ${{ matrix.partition }}' not in enrollment
             or 'test "$(grep -c -F \'enrollment::\' "$candidate_log/debug-catalog.txt")" -gt 2' not in enrollment):
         raise ValueError('enrollment must complement the Linux suite including non-library tests')
+    selected_command = ('cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" '
+                        '--all-features --locked "$candidate_filter" -- --list "${candidate_skips[@]}" '
+                        '> "$candidate_log/debug-enrollment-selected-catalog.txt"')
+    if (selected_command not in enrollment
+            or 'test "$(grep -c \': test$\' "$candidate_log/debug-enrollment-selected-catalog.txt")" -gt 0' not in enrollment
+            or 'tee "$candidate_log/debug-$CANDIDATE_PARTITION.log"' not in enrollment):
+        raise ValueError('each actual enrollment selection must be recorded and nonempty')
     enrollment_doc_command = ('cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" '
                               '--all-features --locked --doc \'enrollment::\' -- --nocapture')
     if (enrollment.count(enrollment_doc_command) != 1
+            or 'if [ "$CANDIDATE_PARTITION" = enrollment-other ]; then' not in enrollment
             or 'tee "$candidate_log/debug-enrollment-doc.log"' not in enrollment
             or 'grep \'^test result: ok\\. 2 passed; 0 failed; 0 ignored;\' "$candidate_log/debug-enrollment-doc.log"' not in enrollment):
         raise ValueError('both enrollment type-isolation doctests must actually execute')
@@ -206,7 +215,11 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
         suite = self.native.split('      - name: Check and exercise candidate with the selected compiler\n', 1)[1].split('\n      - ', 1)[0]
         selection = 'candidate_skips=' + suite.split('candidate_skips=', 1)[1].split('          # Explicit failure', 1)[0]
         catalogue = {'enrollment::fanout_capacity', 'enrollment::roster_capacity',
-                     'module::ordinary', 'enrollment::ordinary', 'other::enrollment::nested'}
+                     'module::ordinary', 'enrollment::ordinary', 'other::enrollment::nested',
+                     'enrollment::account_root::ordinary',
+                     'integration::enrollment::account_root::ordinary'}
+        enrollment = self.native.split('      - name: Exercise the complete Debug enrollment partition\n', 1)[1].split('\n      - ', 1)[0]
+        enrollment_selection = 'candidate_skips=' + enrollment.split('candidate_skips=', 1)[1].split('          # Record', 1)[0]
         for os_name in ('Linux', 'macOS'):
             result = subprocess.run(['/bin/bash', '-euo', 'pipefail', '-c', selection + '\nprintf "%s\\n" "${candidate_skips[@]}"'],
                 env={**os.environ, 'RUNNER_OS': os_name, 'CAPACITY_TEST': 'enrollment::fanout_capacity', 'ROSTER_CAPACITY_TEST': 'enrollment::roster_capacity'},
@@ -220,11 +233,90 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
             executed = [{n for n in catalogue if not any(skip in n for skip in expected)},
                         {'enrollment::fanout_capacity'}]
             if os_name == 'Linux':
-                executed.extend([{'enrollment::roster_capacity'},
-                    {n for n in catalogue if 'enrollment::' in n
-                     and not any(skip in n for skip in expected[:2])}])
+                executed.append({'enrollment::roster_capacity'})
+                for partition in ('enrollment-account-root', 'enrollment-other'):
+                    selected = subprocess.run(
+                        ['/bin/bash', '-euo', 'pipefail', '-c', enrollment_selection
+                         + '\nprintf "%s\\n" "$candidate_filter" "${candidate_skips[@]}"'],
+                        env={**os.environ, 'CANDIDATE_PARTITION': partition,
+                             'CAPACITY_TEST': 'enrollment::fanout_capacity',
+                             'ROSTER_CAPACITY_TEST': 'enrollment::roster_capacity'},
+                        capture_output=True, text=True, timeout=10, check=False)
+                    self.assertEqual(selected.returncode, 0, selected.stderr)
+                    chosen = selected.stdout.splitlines()
+                    self.assertEqual(chosen[1::2], ['--skip'] * len(chosen[2::2]))
+                    executed.append({n for n in catalogue if chosen[0] in n
+                                     and not any(skip in n for skip in chosen[2::2])})
             self.assertEqual(set.union(*executed), catalogue)
             self.assertEqual(sum(map(len, executed)), len(catalogue))
+
+    def test_actual_enrollment_partition_commands_cover_all_targets_and_refuse_failure(self):
+        block = self.native.split('      - name: Exercise the complete Debug enrollment partition\n', 1)[1].split('\n      - ', 1)[0]
+        selection = 'candidate_skips=' + block.split('candidate_skips=', 1)[1].split('          # Record', 1)[0]
+        commands = [line.strip() for line in block.splitlines()
+                    if 'debug-enrollment-selected-catalog.txt' in line
+                    or 'tee "$candidate_log/debug-$CANDIDATE_PARTITION.log"' in line]
+        self.assertEqual(len(commands), 3)
+        script = selection + '\n' + '\n'.join(commands)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            (root / 'src').mkdir()
+            (root / 'tests').mkdir()
+            (root / 'Cargo.toml').write_text(
+                '[package]\nname="enrollment-partition-selection"\nversion="0.0.0"\nedition="2021"\n'
+                '[lib]\ncrate-type=["rlib","cdylib"]\n[workspace]\n')
+            (root / 'Cargo.lock').write_text(
+                'version = 4\n[[package]]\nname = "enrollment-partition-selection"\nversion = "0.0.0"\n')
+            (root / 'src/lib.rs').write_text('''
+#[cfg(test)] mod enrollment {
+    mod account_root {
+        #[test] fn parent() { assert!(std::env::var_os("FAIL_ROOT").is_none()); }
+    }
+    #[test] fn other() {}
+    #[test] fn capacity() { panic!("separate capacity partition"); }
+    #[test] fn roster_capacity() { panic!("separate roster capacity partition"); }
+}
+#[test] fn outside() { panic!("separate ordinary suite"); }
+''')
+            (root / 'tests/bridge.rs').write_text('''
+mod enrollment {
+    mod account_root { #[test] fn external_parent() {} }
+    #[test] fn external_other() {}
+}
+#[test] fn outside() { panic!("separate ordinary suite"); }
+''')
+            environment = {key: value for key, value in os.environ.items()
+                           if not key.startswith(('CARGO_', 'RUST')) or key == 'RUSTUP_HOME'}
+            environment.update(CARGO_HOME=str(root / 'cargo-home'),
+                               CARGO_TARGET_DIR=str(root / 'build'), CARGO_NET_OFFLINE='true',
+                               CARGO_TERM_COLOR='never', CANDIDATE_TOOLCHAIN='1.98.1',
+                               candidate_manifest=str(root / 'Cargo.toml'), candidate_log=str(root),
+                               CAPACITY_TEST='enrollment::capacity',
+                               ROSTER_CAPACITY_TEST='enrollment::roster_capacity')
+            for partition, expected in (
+                ('enrollment-account-root', {'enrollment::account_root::parent',
+                                            'enrollment::account_root::external_parent'}),
+                ('enrollment-other', {'enrollment::other', 'enrollment::external_other'}),
+            ):
+                environment['CANDIDATE_PARTITION'] = partition
+                result = subprocess.run(['/bin/bash', '-euo', 'pipefail', '-c', script],
+                    env=environment, capture_output=True, text=True, timeout=60, check=False)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(set(re.findall(r'(?m)^test (\S+) \.\.\. ok$', result.stdout)), expected)
+                self.assertEqual(set(re.findall(r'(?m)^(\S+): test$',
+                    (root / 'debug-enrollment-selected-catalog.txt').read_text())), expected)
+            environment['CANDIDATE_PARTITION'] = 'enrollment-account-root'
+            for label, command, additional, code in (
+                ('test-failure', script, {'FAIL_ROOT': '1'}, 101),
+                ('empty-selection', script.replace("candidate_filter='enrollment::account_root::'",
+                                                  "candidate_filter='absent::'"), {}, 1),
+                ('unknown-partition', script, {'CANDIDATE_PARTITION': 'absent'}, 1),
+            ):
+                with self.subTest(label=label):
+                    result = subprocess.run(['/bin/bash', '-euo', 'pipefail', '-c', command],
+                        env={**environment, **additional}, capture_output=True,
+                        text=True, timeout=60, check=False)
+                    self.assertEqual(result.returncode, code, result.stdout + result.stderr)
 
     def test_actual_enrollment_doc_command_rejects_missing_or_broken_doctests(self):
         # Exercise Cargo itself: a positional filter on this rlib/cdylib target
@@ -300,9 +392,10 @@ pub struct OutsideSelection;
 
     def test_missing_capacity_or_silent_skipping_refuses(self):
         for before, after in (("partition: capacity", "partition: omitted"),
-                              ("partition: enrollment", "partition: omitted"),
+                              ("partition: enrollment-account-root", "partition: omitted"),
+                              ("partition: enrollment-other", "partition: omitted"),
                               ("candidate_skips+=(--skip 'enrollment::')", "candidate_skips+=(--skip 'missing::')"),
-                              ("--locked 'enrollment::' --", "--locked --lib 'enrollment::' --"),
+                              ('--locked "$candidate_filter" --', '--locked --lib "$candidate_filter" --'),
                               ("partition: roster-capacity", "partition: omitted"),
                               ('-- --exact --nocapture', '-- --nocapture'),
                               ('grep -c -F "$CAPACITY_TEST"', 'grep -c -F -x "$CAPACITY_TEST: test"'),
@@ -357,6 +450,7 @@ pub struct OutsideSelection;
                             ['/bin/bash', '-euo', 'pipefail', '-c', 'candidate_skips=(--skip "$CAPACITY_TEST"); ' + line],
                             cwd=directory, env={**os.environ, 'PATH': str(binaries) + ':/usr/bin:/bin',
                                 'CANDIDATE_TOOLCHAIN': '1.98.1', 'candidate_manifest': 'unused',
+                                'CANDIDATE_PARTITION': 'enrollment-account-root', 'candidate_filter': 'enrollment::account_root::',
                                 'CAPACITY_TEST': 'unused', 'ROSTER_CAPACITY_TEST': 'unused-roster', 'candidate_log': str(output),
                                 'PROBE_EXIT': str(code), 'TIMEFORMAT': timing.group(1)},
                             capture_output=True, text=True, timeout=10, check=False)
