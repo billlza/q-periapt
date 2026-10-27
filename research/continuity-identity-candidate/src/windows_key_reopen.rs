@@ -25,13 +25,18 @@ Write-AclPhase 'QPC_ACL_PHASE script-enter'
 $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
 Write-AclPhase 'QPC_ACL_PHASE identity-ready'
 $acl = New-Object System.Security.AccessControl.DirectorySecurity
+Write-AclPhase 'QPC_ACL_PHASE descriptor-allocated'
 $acl.SetOwner($sid)
+Write-AclPhase 'QPC_ACL_PHASE owner-set'
 $acl.SetAccessRuleProtection($true, $false)
+Write-AclPhase 'QPC_ACL_PHASE inheritance-protected'
 $inherit = [System.Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
 $allow = [System.Security.AccessControl.AccessControlType]::Allow
 $none = [System.Security.AccessControl.PropagationFlags]::None
 $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', $inherit, $none, $allow)
+Write-AclPhase 'QPC_ACL_PHASE rule-allocated'
 $acl.AddAccessRule($rule)
+Write-AclPhase 'QPC_ACL_PHASE rule-added'
 if ($env:QPC_KEY_TEST_BROAD_ACL -eq '1') {
     $world = New-Object System.Security.Principal.SecurityIdentifier('S-1-1-0')
     $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($world, 'Read', $allow)))
@@ -56,7 +61,7 @@ impl Drop for ChildGuard {
 fn set_directory_acl(path: &Path, broad: bool) {
     let system = std::path::PathBuf::from(std::env::var_os("SystemRoot").expect("Windows root"));
     let executable = system.join("System32/WindowsPowerShell/v1.0/powershell.exe");
-    // Flushed markers distinguish script entry, identity lookup and ACL work
+    // Flushed markers distinguish identity lookup and each descriptor operation
     // without exposing the path or SID. Keep partial output when startup stalls.
     // Temporary files avoid backpressure from an unread child pipe.
     let mut stdout = tempfile::tempfile().expect("owned ACL stdout");
@@ -144,6 +149,11 @@ fn set_directory_acl(path: &Path, broad: bool) {
             == [
                 "QPC_ACL_PHASE script-enter",
                 "QPC_ACL_PHASE identity-ready",
+                "QPC_ACL_PHASE descriptor-allocated",
+                "QPC_ACL_PHASE owner-set",
+                "QPC_ACL_PHASE inheritance-protected",
+                "QPC_ACL_PHASE rule-allocated",
+                "QPC_ACL_PHASE rule-added",
                 "QPC_ACL_PHASE descriptor-ready",
                 "QPC_ACL_PHASE acl-set",
             ]
