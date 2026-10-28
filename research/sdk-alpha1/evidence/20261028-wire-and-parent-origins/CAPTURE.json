@@ -1,0 +1,1173 @@
+{
+  "schema": 1,
+  "scope": "Full-tree generation-secret source proof progress with actual wire producers; main recovery secrecy remains open",
+  "source_base_commit": "ce01fca6390261b1879780d04f75a1071003fb1b",
+  "parent_capture": "../20261028-storage-revision-payload/CAPTURE.zip",
+  "parent_sha256": "00e01eefdd10f2d96bd98d136513a136834c8be61f1dc5505342952e1395395b",
+  "entry": "experiments/p0-origin-restored-replay-712/restored-origin-proof.spthy",
+  "entry_sha256": "121d2751b4fc076aa5b84138d7c20afc0b7867cab98c34dad37c0e2315a1948e",
+  "operational_prefix_sha256": "3cb837646fa2097468d1fad0a10433f50d5c31b6be5553f20085170c3eef0266",
+  "unchanged_queries": 29,
+  "query_definitions_sha256": "88dee7ec275af1bd7d031844a8ca4240eed50b846174eb87970b928d96612ee1",
+  "closed_sources": [
+    "Application_Message",
+    "Cut_case_1",
+    "Cut_case_2",
+    "Final_Commit_8",
+    "Offer_Commit_3_case_1",
+    "Offer_Commit_3_case_2",
+    "Receipt_Commit_0",
+    "Reveal_Entropy",
+    "Reveal_Identity",
+    "Snapshot_Signer_File_case_1",
+    "Snapshot_Signer_File_case_2",
+    "Snapshot_Signer_File_case_3",
+    "Snapshot_case_1",
+    "Snapshot_case_2",
+    "Snapshot_case_3",
+    "Snapshot_case_4"
+  ],
+  "newly_closed_sources": [
+    "Final_Commit_8",
+    "Receipt_Commit_0"
+  ],
+  "remaining_sources": [
+    "Response_Commit_6",
+    "Snapshot_case_5"
+  ],
+  "open_leaf_counts": {
+    "Response_Commit_6": 1,
+    "Snapshot_case_5": 36
+  },
+  "main": {
+    "mode": "all-traces",
+    "status": "analysis incomplete",
+    "steps": 256
+  },
+  "auxiliary_all_trace_verified": {
+    "application_counter_has_public_constructor": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 17
+    },
+    "first_responder_ready_event_is_unique": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 285
+    },
+    "generation_and_encapsulation_secrets_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "generation_and_session_identifiers_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "generation_and_signing_secrets_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "phase_position_event_is_unique": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 29
+    },
+    "produced_counter_has_public_constructor": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 35
+    },
+    "produced_send_root_is_initial_or_hashed": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 55
+    },
+    "produced_state_role_and_epoch_have_public_constructors": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 191
+    },
+    "ready_epoch_and_parent_have_public_constructors": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 12
+    },
+    "ready_parent_has_tagged_epoch_origin": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 12
+    },
+    "ready_root_is_initial_or_hashed": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 11
+    },
+    "reservations_inherit_locally_confirmed_root": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 14
+    },
+    "signed_wire_scope_has_session_and_parent_origin": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 47
+    }
+  },
+  "initial_traffic_witness_steps": 414,
+  "full_snapshot_restoration": {
+    "parent_sha256": "e3bfa4c8781701f4ea4a768b7f633c94dc97bafc8a8e8ec8e7b45e05b997be3e",
+    "input_sha256": "1bdd347da0dee3c50d8b93a6f83ef18982a81297eabd1e45438f2fe14135c520",
+    "response_frame": "0015.txt",
+    "response_frame_sha256": "048569830626dded833ef7a5ac78d5a04da0938f8ded0dc3be908d6a267ff2dc",
+    "response_phase_producer_method": "PositionedPhaseState( phase_owner.1, ~sid, r, %n.1, 'Response4',                      <p.1, h(material), old.2, offer, kempk(x), coins>,                      %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.3",
+    "all29_queries_and_operational_prefix_unchanged": true,
+    "all18_sources_retained": true,
+    "full_snapshot_subtree_restored_byte_identical": true,
+    "snapshot_subtree_sha256": "13377f40ed8376ff40457e09549fdfa541f4a576a864215b117389b0a866ba5d",
+    "snapshot_open_leaves_restored": 36,
+    "independent_no_search_replay": true,
+    "release_claim_eligible": false
+  },
+  "experiments": {
+    "p0-origin-open-fields-712": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 285.66798545799975,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 175
+      },
+      "input_sha256": "b0bea9b7e94e2f9da23f4cd9cd2ba58ec95f5fc0e3d109532c7cc9b71d0729f8",
+      "output_sha256": "14127510814ceeed3a06b0fc5ba04b43fbde11828bc6174673d2301e869c3b3f",
+      "search_requested": true,
+      "callbacks": 29,
+      "selected_chain_steps": 0
+    },
+    "p0-origin-field-producers-712": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 287.39998020799976,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 223
+      },
+      "input_sha256": "555ce6d9b3f5e5c31124c65e51668a6e73e54b9817370b55a667c7ee046994f7",
+      "output_sha256": "f330bf0345a334cddc965c6783bc16e3f88639d9ec2e040cc19b539557f265f6",
+      "search_requested": false,
+      "callbacks": 0,
+      "selected_chain_steps": 0
+    },
+    "p0-origin-wire-producers-712": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 284.60429183299857,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 108
+      },
+      "input_sha256": "2169d4ccd50bc31cc40e9dbcc4a691489027a275351f976e3a8d47caffeb977a",
+      "output_sha256": "64d7767cef817e6beae2a97627e9981064e69a9112c313aa598a17a32f210f15",
+      "search_requested": true,
+      "callbacks": 4,
+      "selected_chain_steps": 0
+    },
+    "p0-origin-wire-shape-chains-712": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 289.89499400000204,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 145
+      },
+      "input_sha256": "c1b077013b9b5af46c38db9b320296b165c1c56237a430f8849edcd7d46753eb",
+      "output_sha256": "3faa1bde6a65368364f60d52a8aafe8c2b2483199bc55f631192fbab218d92be",
+      "search_requested": true,
+      "callbacks": 26,
+      "selected_chain_steps": 22
+    },
+    "p0-origin-wire-role-chains-712": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 307.01988933300163,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 164
+      },
+      "input_sha256": "5c0cb1df17bc051d059850fecae4db9d19771454b063476f36a93676f68c0394",
+      "output_sha256": "e3bfa4c8781701f4ea4a768b7f633c94dc97bafc8a8e8ec8e7b45e05b997be3e",
+      "search_requested": true,
+      "callbacks": 17,
+      "selected_chain_steps": 15
+    },
+    "p0-origin-restored-replay-712": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 316.2055075829994,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 256
+      },
+      "input_sha256": "1bdd347da0dee3c50d8b93a6f83ef18982a81297eabd1e45438f2fe14135c520",
+      "output_sha256": "121d2751b4fc076aa5b84138d7c20afc0b7867cab98c34dad37c0e2315a1948e",
+      "search_requested": false,
+      "callbacks": 0,
+      "selected_chain_steps": 0
+    }
+  },
+  "resources": {
+    "seconds_per_run": 900,
+    "derivation_seconds": 60,
+    "heap_gib": 12,
+    "threads": 1,
+    "oracle_callback_limit": 32,
+    "total_search_depth": 16,
+    "prefix_and_bound": {
+      "open-fields": [
+        5,
+        11
+      ],
+      "wire-producers": [
+        3,
+        13
+      ],
+      "wire-shape-chains": [
+        4,
+        12
+      ],
+      "wire-role-chains": [
+        9,
+        7
+      ]
+    }
+  },
+  "boundaries": [
+    "All18sourcecases and29queries remain. Focused diagnostics kept the snapshot obligation explicitly open; its complete223step-parent subtree was restored before final independent replay.",
+    "The directed oracle ranked only a unique actual chain to #known. All selected indices and exact inputs are archived and audited.",
+    "Initial merge preparation stopped on4expected versus12actual leaves. Eight unvisited siblings after stop-on-trace=SORRY were retained; only exact oracle-stop annotations were matched to frames.",
+    "Historical non-reuse initial_epoch_counter_is_zero remains the documented obsolete conjecture. Parent timeouts and partials remain retained.",
+    "No complete multi-epoch secrecy, implementation correspondence, device, performance, ABI, interoperability or release claim."
+  ],
+  "full_goal_achieved": false,
+  "release_claim_eligible": false,
+  "files": {
+    "experiments/p0-origin-field-producers-712/PREPARATION.json": {
+      "bytes": 10918,
+      "sha256": "86aeab837e07ce8e0db651a8a4313e4acb105889a7ad41a7bb309d0a2cd4475a"
+    },
+    "experiments/p0-origin-field-producers-712/field-producers-STARTED.json": {
+      "bytes": 1608,
+      "sha256": "243d50b89e00729c8417e2ba91d6fe2ca048f018c96478b88b19a1767b54646f"
+    },
+    "experiments/p0-origin-field-producers-712/field-producers-TERMINAL.json": {
+      "bytes": 5974,
+      "sha256": "0a8e7b862ee553be8e5f153bbc9d072691cf3a2c03028081101f5a232e22953e"
+    },
+    "experiments/p0-origin-field-producers-712/field-producers-proof.spthy": {
+      "bytes": 370887,
+      "sha256": "f330bf0345a334cddc965c6783bc16e3f88639d9ec2e040cc19b539557f265f6"
+    },
+    "experiments/p0-origin-field-producers-712/field-producers.stderr": {
+      "bytes": 1595,
+      "sha256": "8ab65ca02b41cc587f73ada7f4eeffb607c526ad89736c215d19c5ed9f1ab1ba"
+    },
+    "experiments/p0-origin-field-producers-712/field-producers.stdout": {
+      "bytes": 3061,
+      "sha256": "7cc3816b857fc7e4723d3d583fd58a1bc7738d8db75084f5a9c1fac529619fa5"
+    },
+    "experiments/p0-origin-field-producers-712/model.spthy": {
+      "bytes": 367401,
+      "sha256": "555ce6d9b3f5e5c31124c65e51668a6e73e54b9817370b55a667c7ee046994f7"
+    },
+    "experiments/p0-origin-field-producers-712/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-open-fields-712/PREPARATION.json": {
+      "bytes": 437,
+      "sha256": "0fe618eba0779f6e9394f55d98b1f2cb32fa8d0258e46db4234dd08cbf69f91c"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0000.json": {
+      "bytes": 361,
+      "sha256": "00ea1cc68bee8b10b111046414e78d3cf1c2a028d7ca82571a67c1e3680df0be"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0000.txt": {
+      "bytes": 1793,
+      "sha256": "8ed02abbc330d89a9a9ba21ceddbb2c18f64c0117c5de372cd0c88dd63859322"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0001.json": {
+      "bytes": 361,
+      "sha256": "d9f427b616409ca096aa3693f1fa136cc559c4ddee2ea44081c607137f8a2359"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0001.txt": {
+      "bytes": 1850,
+      "sha256": "718c994441d4b075d68df38fc1c1308a480f7b2ed08222080cffd78e41efa607"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0002.json": {
+      "bytes": 353,
+      "sha256": "fdb9724891e02ea65e0d1150b398a1ff7b72dad849b88481a2b599e282a0804b"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0002.txt": {
+      "bytes": 1819,
+      "sha256": "effd2272cc06cd39bb353191507813f6a20e664ecd151405cffc88af064a2a01"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0003.json": {
+      "bytes": 361,
+      "sha256": "74ef499da4182f51d6a3a3545609036773577f9b13be5eb8277338ddc72ed57c"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0003.txt": {
+      "bytes": 1782,
+      "sha256": "c1ed80b28ab9d38422eecf28b60af51e1a17521346085ff47a8e7223db3747f1"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0004.json": {
+      "bytes": 361,
+      "sha256": "a6a9d68f1728244bdbfb2397c2b61c645b5e66f95da5bf2976c18088141e45d5"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0004.txt": {
+      "bytes": 1839,
+      "sha256": "99795d9f10eeb7df1c402d75c4daceeab0815c4ff3a534924f56778bae697ca4"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0005.json": {
+      "bytes": 353,
+      "sha256": "9d4d8fe7577ee554988e4beeb4b301e1ba0916cff92fb6b10629239f9728c686"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0005.txt": {
+      "bytes": 1808,
+      "sha256": "4019a778f2b450fe8bd7b4923f9d942e9e08729b01d5a4fb39cf0cc01441bd86"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0006.json": {
+      "bytes": 345,
+      "sha256": "7e02bb53dc82f0d4918312bb8660db9585579d8485fb1f7e026c85e87d336742"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0006.txt": {
+      "bytes": 1620,
+      "sha256": "39ed017e7936d72eb7b53cf4e9aec16253b08451d1b8ac0a97764b364282ba4c"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0007.json": {
+      "bytes": 369,
+      "sha256": "54fe5595fdc1b66075043d542293e0d8be4c6187335484edcfbdff6d214b4f99"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0007.txt": {
+      "bytes": 2464,
+      "sha256": "60062c9b231beb774041f7128ff1c39ed7961f65b4d5efda0ec08e188f70568e"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0008.json": {
+      "bytes": 377,
+      "sha256": "36b0b1fca1963e253a6b78ba664d643d63a014c1f096672cf5be3910890c7602"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0008.txt": {
+      "bytes": 2496,
+      "sha256": "7aed82c81df2e4c01f093dad21ade03c47367f3d4428c0f58193ee5ea8d7932d"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0009.json": {
+      "bytes": 409,
+      "sha256": "ba1303b34fa1de7dbf425dcad6944f3d4e04473a6bf8db60e7350a179402c1cf"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0009.txt": {
+      "bytes": 2613,
+      "sha256": "f3f262f9d99104a29a4c902080e5c7b429681d337f71943ee98ada49ccdba3d6"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0010.json": {
+      "bytes": 417,
+      "sha256": "0e440647c3bb1e39154122fbe133d4d99e91dfc0d421e4485ea3793cc6d779c1"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0010.txt": {
+      "bytes": 2645,
+      "sha256": "b63f9f74d13e0d1e7cade7196cdec22f7e37bddaf6f74a8fad32256b6bee1b59"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0011.json": {
+      "bytes": 300,
+      "sha256": "c8bd3cfbd2f81c007915018952022d328f99ce39e7d5e3c603e5e530d431731f"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0011.txt": {
+      "bytes": 921,
+      "sha256": "cf3a10fb3a1d00acf0a3c87ad70079ab86920dc3af464105a8f801b61ba128c7"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0012.json": {
+      "bytes": 307,
+      "sha256": "13d70dcbfa237c5ecfccbee1c27aaa3059a270da6aa1aa4f395ebf498bcffd5b"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0012.txt": {
+      "bytes": 952,
+      "sha256": "3774342be3eb06468ee5d6c34d1ee7fa4179d15657f4f272863ae8afa3c186ed"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0013.json": {
+      "bytes": 322,
+      "sha256": "ce1c1a3cf24006453280fcb071caae42d03772f1b602cdb110c70f5b3c0ac155"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0013.txt": {
+      "bytes": 2473,
+      "sha256": "19a7515eae144820a58c391b814eead7174fb87ecb3dd9fec550ed25feda73e0"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0014.json": {
+      "bytes": 329,
+      "sha256": "705de0bac2b742466a7ca9b414f19657f5275e29e03b03d0fe0b6850b08dd03c"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0014.txt": {
+      "bytes": 2504,
+      "sha256": "20655043ebc3a84d13af21b681c9c673ce086581dff1eaf4109bf5708c6edd29"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0015.json": {
+      "bytes": 300,
+      "sha256": "28f862c8c947fe5e1d543caf5acc8b0c7d123f5cd08c8f4c1dca90d64c4bf327"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0015.txt": {
+      "bytes": 923,
+      "sha256": "eecf2fefe2d0a6f7615a84f4db094a2007a7101e7db39d8b5032893180af0aa1"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0016.json": {
+      "bytes": 307,
+      "sha256": "9a0325e50c5095caba66eb1a94f23661de21187167dc4df6b9dd693925691c54"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0016.txt": {
+      "bytes": 954,
+      "sha256": "c30af89ee571c7a74436d5e1587a3ec818d2ced971ac1924ddeb7dbf4b76e1e9"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0017.json": {
+      "bytes": 369,
+      "sha256": "d59b27a9ea06c7c65339409b9c6553f5f466639c0b6a7c53489bf22e23d3ad5a"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0017.txt": {
+      "bytes": 2061,
+      "sha256": "dfe57946765a7f4a687856ed30d117b63b9893f755c3c082498d0c97794f82a3"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0018.json": {
+      "bytes": 369,
+      "sha256": "c3b896b799dc2b4f5d435ffbc8ad2d480d70f8cfd3e21f749de80862a39c03e6"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0018.txt": {
+      "bytes": 2061,
+      "sha256": "dfe57946765a7f4a687856ed30d117b63b9893f755c3c082498d0c97794f82a3"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0019.json": {
+      "bytes": 377,
+      "sha256": "358fa70803f2cb3ec286358f44c48a52637fcb1a87d27556c508df07479b90b9"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0019.txt": {
+      "bytes": 2538,
+      "sha256": "d22d881680997e938cb29bb383dd7def690d23399ede7632cdd206010a350b83"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0020.json": {
+      "bytes": 377,
+      "sha256": "f87db8cbd3c97c8ea98677eae0fa6d10366d18d11cda161f3f94001e4df31a49"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0020.txt": {
+      "bytes": 2538,
+      "sha256": "d22d881680997e938cb29bb383dd7def690d23399ede7632cdd206010a350b83"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0021.json": {
+      "bytes": 401,
+      "sha256": "7d67e1060099354e7e5728c725a486ffe8e126a997acbdcf4a9d8202cd3446a7"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0021.txt": {
+      "bytes": 2331,
+      "sha256": "9ce43cbbf9bd9287a9c355ae46bd1dc101985cc7ef92749c88e1fa7ffeba8899"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0022.json": {
+      "bytes": 409,
+      "sha256": "7260f20c1d252d175c0f6452fbbed4d513ec427a54681b7ba04f53e8395df2eb"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0022.txt": {
+      "bytes": 2363,
+      "sha256": "cda3d2d5db3f14794bcfcfc091e908b13fd24cf39e4cd0a706476709706439d1"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0023.json": {
+      "bytes": 353,
+      "sha256": "fce938872a1960bae88c023aa0f0349edf0425fd1960d7377782ace559970e2d"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0023.txt": {
+      "bytes": 2470,
+      "sha256": "b6b61c7745a9a870708486489fc0c0d5a60dda5551e7cb61456f70d16a832457"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0024.json": {
+      "bytes": 361,
+      "sha256": "9344b86daf6f4afec6e3f2ccfd4e0dffc9599264bad9f649b3fa313dbe31c88c"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0024.txt": {
+      "bytes": 2502,
+      "sha256": "458a15401bdc2680a4a96c19e20ce87d03ab84f7e34daf4704b73849d9bd268c"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0025.json": {
+      "bytes": 308,
+      "sha256": "706d4f6f765d3902db17c8846c7fb4526e0d188f8ac29cce151c6d0d8d1a0cc5"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0025.txt": {
+      "bytes": 1225,
+      "sha256": "922d3a2fc9aba1752c3fee3f44dc1e519ce70e0dea26b4a5e3bacf85c9f26cb7"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0026.json": {
+      "bytes": 315,
+      "sha256": "4b2e0aa757b15c55238eb8a0ff30e7d9ff99a572b4d7a052537085c200c451ca"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0026.txt": {
+      "bytes": 1256,
+      "sha256": "68bee4e53ce14e0a4adf99cd20e20286565c1a5da951f9d0942a9e7a16f0397f"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0027.json": {
+      "bytes": 337,
+      "sha256": "152403142b2257feb5e61055a0b87568d26e5833677da246d6f98eff08f6e42c"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0027.txt": {
+      "bytes": 1500,
+      "sha256": "973e17670af2c00ab87a56f29126a0e4c5889359b5d7e7b02154ba2bb1a38ae7"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0028.json": {
+      "bytes": 345,
+      "sha256": "28b6aa8873c5635e105c5de22cd48de2e5a6b04cbb0f912316b39a6ec61006c3"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle-frames/0028.txt": {
+      "bytes": 1532,
+      "sha256": "33e3e85a2a2e71a9a75dc86cfb3238c8b279de79a208d6f6ec29192241d6f059"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle.diagnostic-stop": {
+      "bytes": 27,
+      "sha256": "dd68d7b5191957984a0e516ce6e16769b5a45b1e975bd161bde0f6102561e087"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle.lock": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle.py": {
+      "bytes": 2318,
+      "sha256": "a2c40cb451ad0e8f52f650ef4ceed6f0a2a6f654dd7b583f5fd8b7bf2c860101"
+    },
+    "experiments/p0-origin-open-fields-712/initial-send-oracle.sh": {
+      "bytes": 315,
+      "sha256": "acf20d5f1b2d3ec7a8207746a3a4c8e9c467a0518478ce5a0117e26202e0f626"
+    },
+    "experiments/p0-origin-open-fields-712/model.spthy": {
+      "bytes": 364272,
+      "sha256": "b0bea9b7e94e2f9da23f4cd9cd2ba58ec95f5fc0e3d109532c7cc9b71d0729f8"
+    },
+    "experiments/p0-origin-open-fields-712/open-fields-STARTED.json": {
+      "bytes": 1864,
+      "sha256": "bc29c5ef7b59f754c9d11a8be98d8f4c24a69293f7103f45d6cd2bb4bc13874f"
+    },
+    "experiments/p0-origin-open-fields-712/open-fields-TERMINAL.json": {
+      "bytes": 6230,
+      "sha256": "e3760d5b645ae01527e97cb21c8e10a851250ac544e9ee75c485c4f53c851fce"
+    },
+    "experiments/p0-origin-open-fields-712/open-fields-proof.spthy": {
+      "bytes": 365441,
+      "sha256": "14127510814ceeed3a06b0fc5ba04b43fbde11828bc6174673d2301e869c3b3f"
+    },
+    "experiments/p0-origin-open-fields-712/open-fields.stderr": {
+      "bytes": 60879,
+      "sha256": "494c324cd879b2cbfb8d1a7c713050e5a35d02c074fdad22a4de70961f4b00be"
+    },
+    "experiments/p0-origin-open-fields-712/open-fields.stdout": {
+      "bytes": 3049,
+      "sha256": "4214c4d3b1d94fe3339fd8fa20dafd7a8ead08adb2ed90d3994b7b011a2e6b6a"
+    },
+    "experiments/p0-origin-open-fields-712/run.py": {
+      "bytes": 5793,
+      "sha256": "56dde48ed0c463079026e629dc35111a5cb1765e826c4de4c80fa85e07c518dd"
+    },
+    "experiments/p0-origin-restored-replay-712/PREPARATION.json": {
+      "bytes": 912,
+      "sha256": "eb19d6d2d84035999da9a6a3d684e41f00b1cca626a70085786a888c1c129ba5"
+    },
+    "experiments/p0-origin-restored-replay-712/model.spthy": {
+      "bytes": 401082,
+      "sha256": "1bdd347da0dee3c50d8b93a6f83ef18982a81297eabd1e45438f2fe14135c520"
+    },
+    "experiments/p0-origin-restored-replay-712/restored-origin-STARTED.json": {
+      "bytes": 1608,
+      "sha256": "55903a470e115053b077ea15039f1e0d644656033783a74701ad30709c787996"
+    },
+    "experiments/p0-origin-restored-replay-712/restored-origin-TERMINAL.json": {
+      "bytes": 5973,
+      "sha256": "c0b708345bfdb6225f94fe240254e009a8de57283a8ee208e946a0b921684709"
+    },
+    "experiments/p0-origin-restored-replay-712/restored-origin-proof.spthy": {
+      "bytes": 401013,
+      "sha256": "121d2751b4fc076aa5b84138d7c20afc0b7867cab98c34dad37c0e2315a1948e"
+    },
+    "experiments/p0-origin-restored-replay-712/restored-origin.stderr": {
+      "bytes": 1595,
+      "sha256": "7e3cd9054ccedee547bd994e608b524a5157344ee2a0b0664c0c056dec109217"
+    },
+    "experiments/p0-origin-restored-replay-712/restored-origin.stdout": {
+      "bytes": 3061,
+      "sha256": "914036ff67b18793a04a98b3b493ceea22395925d5d66aaf84853a54f14a7c10"
+    },
+    "experiments/p0-origin-restored-replay-712/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-wire-producers-712/PREPARATION.json": {
+      "bytes": 2270,
+      "sha256": "19a5d435ff6cc2c110545d50fccc5f41317991bfa07a406bc0789ae2a2750fbe"
+    },
+    "experiments/p0-origin-wire-producers-712/initial-send-oracle-frames/0000.json": {
+      "bytes": 442,
+      "sha256": "205206006787c0010a493e26e92743fa2e78b60f89808c47c9078011dd6925de"
+    },
+    "experiments/p0-origin-wire-producers-712/initial-send-oracle-frames/0000.txt": {
+      "bytes": 14184,
+      "sha256": "befccb42b5460271f72c6672af8b56a255d2f0cef38657885d166bbc358d0fbf"
+    },
+    "experiments/p0-origin-wire-producers-712/initial-send-oracle-frames/0001.json": {
+      "bytes": 434,
+      "sha256": "ed67a5f86e742a6edc204842113fd4de601eea0f66671c796a3164d6140adca0"
+    },
+    "experiments/p0-origin-wire-producers-712/initial-send-oracle-frames/0001.txt": {
+      "bytes": 11005,
+      "sha256": "0274e79af6b6027bbf3597f4395049970861694406547d2670ae0ba07fc41302"
+    },
+    "experiments/p0-origin-wire-producers-712/initial-send-oracle-frames/0002.json": {
+      "bytes": 329,
+      "sha256": "7f20bfc576972b50a7aad3a8775cb6980cd07a1512cebc3812c1368c7e2f34ae"
+    },
+    "experiments/p0-origin-wire-producers-712/initial-send-oracle-frames/0002.txt": {
+      "bytes": 4098,
+      "sha256": "c6a94c7fa7d90c29035b27c4f4934834d9e60622783fbd2859743c51cca8fbcd"
+    },
+    "experiments/p0-origin-wire-producers-712/initial-send-oracle-frames/0003.json": {
+      "bytes": 293,
+      "sha256": "4fc5790d34c5f2c2e133946347f59f2731081a96d5c3f741794940e4b28be8b3"
+    },
+    "experiments/p0-origin-wire-producers-712/initial-send-oracle-frames/0003.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-wire-producers-712/initial-send-oracle.diagnostic-stop": {
+      "bytes": 27,
+      "sha256": "dd68d7b5191957984a0e516ce6e16769b5a45b1e975bd161bde0f6102561e087"
+    },
+    "experiments/p0-origin-wire-producers-712/initial-send-oracle.lock": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "experiments/p0-origin-wire-producers-712/initial-send-oracle.py": {
+      "bytes": 2318,
+      "sha256": "a2c40cb451ad0e8f52f650ef4ceed6f0a2a6f654dd7b583f5fd8b7bf2c860101"
+    },
+    "experiments/p0-origin-wire-producers-712/initial-send-oracle.sh": {
+      "bytes": 318,
+      "sha256": "3cb3795e9d9d6c4bb118e99f8e68b3e73c15b7b77037e05861017e203c44a0e5"
+    },
+    "experiments/p0-origin-wire-producers-712/model.spthy": {
+      "bytes": 357236,
+      "sha256": "2169d4ccd50bc31cc40e9dbcc4a691489027a275351f976e3a8d47caffeb977a"
+    },
+    "experiments/p0-origin-wire-producers-712/run.py": {
+      "bytes": 5793,
+      "sha256": "0dd1b2783d92b1b585fef2359c23abb9bdbe0f70747b79dcc4723c7819f4c41a"
+    },
+    "experiments/p0-origin-wire-producers-712/wire-producers-STARTED.json": {
+      "bytes": 1876,
+      "sha256": "d58f8fe728b5bd87fa4e74109b1b623f9ce686458c0209890869b0331965cfa0"
+    },
+    "experiments/p0-origin-wire-producers-712/wire-producers-TERMINAL.json": {
+      "bytes": 6242,
+      "sha256": "0ae37200f20a90066d8dcf16e6358363f36c80a3e3f40b9b3d7e7b59cf296d1b"
+    },
+    "experiments/p0-origin-wire-producers-712/wire-producers-proof.spthy": {
+      "bytes": 357646,
+      "sha256": "64d7767cef817e6beae2a97627e9981064e69a9112c313aa598a17a32f210f15"
+    },
+    "experiments/p0-origin-wire-producers-712/wire-producers.stderr": {
+      "bytes": 32144,
+      "sha256": "a561608cec16f7e58fff6480ec84135fb946583c415c8df5ff4c1805945150ff"
+    },
+    "experiments/p0-origin-wire-producers-712/wire-producers.stdout": {
+      "bytes": 3058,
+      "sha256": "2bd48a9df27222745d83836d7392e4df15949122710657de6b69a267ec46ba33"
+    },
+    "experiments/p0-origin-wire-role-chains-712/PREPARATION.json": {
+      "bytes": 1397,
+      "sha256": "56fb02abf0383b315466b794e6aecef052dd6960d8cf9164c6730624d755fbdb"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0000.json": {
+      "bytes": 438,
+      "sha256": "eb64fb516039e128b2f50c28d8e147d305ff8cf4cdf66b2f2fa972b73f0103de"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0000.txt": {
+      "bytes": 2897,
+      "sha256": "71e581565b8c7912ca499c61e1ecd9c543ec77cae0bf06423f69ab652d4977da"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0001.json": {
+      "bytes": 438,
+      "sha256": "39eb1e2bc5c44aa740637aeb80ecb2bd4a88bc9ed5d61abf048a7dc9c3a51f72"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0001.txt": {
+      "bytes": 2896,
+      "sha256": "b343b1cc021a735d5c47b5d9cb7865883439560d53381d3ba23c07afcb273482"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0002.json": {
+      "bytes": 438,
+      "sha256": "49043b90986186c928b240664ea20e3d2920ab4c74e02e9a52c6a6dacff1761a"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0002.txt": {
+      "bytes": 2897,
+      "sha256": "71e581565b8c7912ca499c61e1ecd9c543ec77cae0bf06423f69ab652d4977da"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0003.json": {
+      "bytes": 438,
+      "sha256": "e8e4343d91a5237c650bb898deb81b2b31b58e5051398e0909ac722e98735df8"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0003.txt": {
+      "bytes": 2897,
+      "sha256": "71fb1af25f434aa9c3b6213a30167b182d0d0ff594c4ad77a12c5f3c8fb984c0"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0004.json": {
+      "bytes": 438,
+      "sha256": "6df63a1b332ba21dd98403ef40932d05c83ed12ef3f5d9c8a5a80a1892298a51"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0004.txt": {
+      "bytes": 2896,
+      "sha256": "b07a4c3eb1b72f6d7bdab8659fcc2d9221baae3fa7a33a122f6b1a5c19ccd095"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0005.json": {
+      "bytes": 430,
+      "sha256": "e5a6d7284bdf41110489bbb437a76ca38b2b43fed39015e9621b95eb21bc8947"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0005.txt": {
+      "bytes": 2575,
+      "sha256": "a2482438205b3ba0d66670aae7ca3e70a3a100b286bfe74f8e22c85a8c8a8d17"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0006.json": {
+      "bytes": 430,
+      "sha256": "ffc70e78fae32242d779e6b00475ac7de411fd43ce2e979b44aac1e0b481f738"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0006.txt": {
+      "bytes": 2574,
+      "sha256": "92a42fcffa8400fce2d4a2132ed60f06171d989590a761e7148bbf637d358e56"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0007.json": {
+      "bytes": 430,
+      "sha256": "d868cf1d7c90ae8000a82f6fd9f060b68bc19391042870a7959a077bc0b04d36"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0007.txt": {
+      "bytes": 2575,
+      "sha256": "a2482438205b3ba0d66670aae7ca3e70a3a100b286bfe74f8e22c85a8c8a8d17"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0008.json": {
+      "bytes": 430,
+      "sha256": "856b5dc460d2908746d702f2ed366706ea96c67448f7ed7b5d733b832381ac41"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0008.txt": {
+      "bytes": 2575,
+      "sha256": "f0ca3ae142b236da258548b297249306e74dc6f1d3c21ecbd76b3d057c4d9b4f"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0009.json": {
+      "bytes": 430,
+      "sha256": "4a235bfdd2ff0103129134e6a7b9e439cc7410f14a04975f9a6fe0c2a63cc02f"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0009.txt": {
+      "bytes": 2575,
+      "sha256": "f36833801d7e622dc26ef77710f2b0c57013c1cb3713aea8a995bb4c914c06fb"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0010.json": {
+      "bytes": 430,
+      "sha256": "505781148449ad5d2d9718b5914873ed6962fac85e696ab60c8f0a57337467ef"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0010.txt": {
+      "bytes": 2574,
+      "sha256": "79295e4df33c441f71712a480fb2db8c3303959933606ced4b677f4a7e0f28d6"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0011.json": {
+      "bytes": 327,
+      "sha256": "14e728176d44fbf14d1163a359a05fdf3a3552fa84a4d63ea9718e0dc9f7e321"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0011.txt": {
+      "bytes": 1305,
+      "sha256": "2195e72b7c8dfe1a6d40e5cc5307d284cab71a506ab7a453829146726355238e"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0012.json": {
+      "bytes": 327,
+      "sha256": "bfeb6406d5fa9ae4e732ba10ac30c42d0ee33e435cdaae1328f10648161e486d"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0012.txt": {
+      "bytes": 1304,
+      "sha256": "ed596839541081f02c0ac72d7362f3d0cf907bc41e97e25d9892165dad154c33"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0013.json": {
+      "bytes": 327,
+      "sha256": "f88268d50c327fb7ea077bd5c481c9c243d65c17cfb96b431b1fc2ecba6ea101"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0013.txt": {
+      "bytes": 1305,
+      "sha256": "2195e72b7c8dfe1a6d40e5cc5307d284cab71a506ab7a453829146726355238e"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0014.json": {
+      "bytes": 327,
+      "sha256": "2e0168754350487ed45dc864dc17dadd7dcad53805b88915222c0e9e8a9eb574"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0014.txt": {
+      "bytes": 1305,
+      "sha256": "2195e72b7c8dfe1a6d40e5cc5307d284cab71a506ab7a453829146726355238e"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0015.json": {
+      "bytes": 304,
+      "sha256": "3fce80aa60fb425f4bb868774c8944f946d5dda8e8c81d31d376cf08df12b47c"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0015.txt": {
+      "bytes": 1299,
+      "sha256": "048569830626dded833ef7a5ac78d5a04da0938f8ded0dc3be908d6a267ff2dc"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0016.json": {
+      "bytes": 282,
+      "sha256": "278c47a8df8bac9afc17bebfad657479c35a67dba1fe4630c3cc311db6d2484e"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle-frames/0016.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle.diagnostic-stop": {
+      "bytes": 16,
+      "sha256": "7e4e866e3cafc2c8866c0d01c75a295ccb9fc876df2d953c9bde0a28b32987c7"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle.lock": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle.py": {
+      "bytes": 2614,
+      "sha256": "8dea6efb3d86dbf0d5e949814b56419781d581d2d2d666db968c1925f2ee98cb"
+    },
+    "experiments/p0-origin-wire-role-chains-712/initial-send-oracle.sh": {
+      "bytes": 320,
+      "sha256": "f7ae2e3fec8f568ef64597d5ead68788ccd29f20c70205691ac1fee8e9b4fb7a"
+    },
+    "experiments/p0-origin-wire-role-chains-712/model.spthy": {
+      "bytes": 390635,
+      "sha256": "5c0cb1df17bc051d059850fecae4db9d19771454b063476f36a93676f68c0394"
+    },
+    "experiments/p0-origin-wire-role-chains-712/run.py": {
+      "bytes": 5792,
+      "sha256": "2c27642d776ce83620894c619aae60135d1bff56d5726dee5895a3c8e2b0ac01"
+    },
+    "experiments/p0-origin-wire-role-chains-712/wire-role-chains-STARTED.json": {
+      "bytes": 1883,
+      "sha256": "47c0d64af0c5bc27c44709fbd9ea2b2f2d3f514e33829aa2f3c1115d8a2be17f"
+    },
+    "experiments/p0-origin-wire-role-chains-712/wire-role-chains-TERMINAL.json": {
+      "bytes": 6249,
+      "sha256": "214464a0c628622b826afb1904d1a7a86cd9bdd30052ef2ea47b9c44fec8ff2f"
+    },
+    "experiments/p0-origin-wire-role-chains-712/wire-role-chains-proof.spthy": {
+      "bytes": 392648,
+      "sha256": "e3bfa4c8781701f4ea4a768b7f633c94dc97bafc8a8e8ec8e7b45e05b997be3e"
+    },
+    "experiments/p0-origin-wire-role-chains-712/wire-role-chains.stderr": {
+      "bytes": 40883,
+      "sha256": "0fdb7c56542fe04ecdc69b249d5f409f641b585a1de8421b0d5c7abdd5808860"
+    },
+    "experiments/p0-origin-wire-role-chains-712/wire-role-chains.stdout": {
+      "bytes": 3064,
+      "sha256": "6ddf8fcfdf4276895991dad32b172fc0866a9b72e53af363bcd9e4ae7659062c"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/PREPARATION.json": {
+      "bytes": 24013,
+      "sha256": "cb768d78bf19e166d0fadb8796d5822dd0912c5d307de7c12624531d25fb103f"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0000.json": {
+      "bytes": 438,
+      "sha256": "4bc53c002973cc5edd022b34183fcd4674ce244ca8bf458bda41dca97a211165"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0000.txt": {
+      "bytes": 2896,
+      "sha256": "0a480edfb876c10c288bcfc971fd4f3b2ab858a3a2bd06f4353104837341253e"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0001.json": {
+      "bytes": 438,
+      "sha256": "e3603871daa7c8d8d230187b676bdf2125a2f72b1773f0c7ecd3da2b8001c891"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0001.txt": {
+      "bytes": 2896,
+      "sha256": "b07a4c3eb1b72f6d7bdab8659fcc2d9221baae3fa7a33a122f6b1a5c19ccd095"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0002.json": {
+      "bytes": 438,
+      "sha256": "574de0684a9ea021c242ff10d1d3e94298fbf78d8ec2f73564340d7bd8d9f99a"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0002.txt": {
+      "bytes": 2896,
+      "sha256": "6e030086d66bd2e2baedd42336ccd616be6f7ffb5032f04e70f4858aaa2bc5ab"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0003.json": {
+      "bytes": 438,
+      "sha256": "2d76aeab1d0344b6efab7565bd0b1eb4ea22bd022ee13211f7f7ff3d785bab87"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0003.txt": {
+      "bytes": 2896,
+      "sha256": "b343b1cc021a735d5c47b5d9cb7865883439560d53381d3ba23c07afcb273482"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0004.json": {
+      "bytes": 438,
+      "sha256": "24d4e556a18b2b86640735d0b878c0044cdce178ef72a1113e5743c0b41b340d"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0004.txt": {
+      "bytes": 2897,
+      "sha256": "71e581565b8c7912ca499c61e1ecd9c543ec77cae0bf06423f69ab652d4977da"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0005.json": {
+      "bytes": 414,
+      "sha256": "2e893fb7b10fcfa7690a723f03800ecaa14f47b5a1b1bf26ef87873957af541c"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0005.txt": {
+      "bytes": 2865,
+      "sha256": "2aa80ae63ab1b3759f8a59955d7f76e976724593016491dd91c2a3158f37c760"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0006.json": {
+      "bytes": 438,
+      "sha256": "61f1923abd4671759c0a0172a27cd99f0d23db64c211bee295b57cdb97349f08"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0006.txt": {
+      "bytes": 2897,
+      "sha256": "71e581565b8c7912ca499c61e1ecd9c543ec77cae0bf06423f69ab652d4977da"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0007.json": {
+      "bytes": 438,
+      "sha256": "a15bba8db3a26dab46ce8507f863d763bf6498b1749a3e45d2a8cf780fdf19db"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0007.txt": {
+      "bytes": 2896,
+      "sha256": "b343b1cc021a735d5c47b5d9cb7865883439560d53381d3ba23c07afcb273482"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0008.json": {
+      "bytes": 438,
+      "sha256": "e2ba5d557f15794a96fa3c2a1c8b9caa410055b283bb6d1df9a3372c0a487f90"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0008.txt": {
+      "bytes": 2896,
+      "sha256": "b07a4c3eb1b72f6d7bdab8659fcc2d9221baae3fa7a33a122f6b1a5c19ccd095"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0009.json": {
+      "bytes": 430,
+      "sha256": "540ab0355487a8e37625831c093a543925df236f40e9bf36a3f839c7fa07b0d0"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0009.txt": {
+      "bytes": 2574,
+      "sha256": "0afcffe1271d088152dbb6716bf3f415f3407095af235a4cd8d0a8801b390ea6"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0010.json": {
+      "bytes": 430,
+      "sha256": "505781148449ad5d2d9718b5914873ed6962fac85e696ab60c8f0a57337467ef"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0010.txt": {
+      "bytes": 2574,
+      "sha256": "79295e4df33c441f71712a480fb2db8c3303959933606ced4b677f4a7e0f28d6"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0011.json": {
+      "bytes": 430,
+      "sha256": "a707c8c8a5a506e05664a1f6896b6aec17423b699c3c1069f8edffc39216075b"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0011.txt": {
+      "bytes": 2574,
+      "sha256": "bccb1538b036270517c3fc2c39687daabb5cc0229ef7628427e4f6493b18f9d4"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0012.json": {
+      "bytes": 430,
+      "sha256": "1dd9427e2638fac79649b3699ea4df36d5a080c01bfac90f9ca517cc2128f103"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0012.txt": {
+      "bytes": 2574,
+      "sha256": "92a42fcffa8400fce2d4a2132ed60f06171d989590a761e7148bbf637d358e56"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0013.json": {
+      "bytes": 430,
+      "sha256": "f5deebe2e32fc1bae40f93d08d6879196d60fb283dde3754eeda2eff22536cc8"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0013.txt": {
+      "bytes": 2575,
+      "sha256": "a2482438205b3ba0d66670aae7ca3e70a3a100b286bfe74f8e22c85a8c8a8d17"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0014.json": {
+      "bytes": 406,
+      "sha256": "1327499bd3c3dcad42b70316d72538b0e7da61612b32c0865d7ff62897c98502"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0014.txt": {
+      "bytes": 2543,
+      "sha256": "9082f237330e24fd763d3c4347e3a3e4dfa16bb70cceb9001a1a65612752a4da"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0015.json": {
+      "bytes": 430,
+      "sha256": "02d334de291f0b1cab657fd962f355abde748f8d79362a14059fae1eaea6575a"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0015.txt": {
+      "bytes": 2575,
+      "sha256": "a2482438205b3ba0d66670aae7ca3e70a3a100b286bfe74f8e22c85a8c8a8d17"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0016.json": {
+      "bytes": 430,
+      "sha256": "0ce16dc7a4f5a0ce21057f1774eeb24ca0557fd17bb1f80b7725a6e0ebcacdf8"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0016.txt": {
+      "bytes": 2574,
+      "sha256": "92a42fcffa8400fce2d4a2132ed60f06171d989590a761e7148bbf637d358e56"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0017.json": {
+      "bytes": 430,
+      "sha256": "677ef5ebbffea4e41f1e558787fa9ac081f2c336218a90afb512451eedb1fa5c"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0017.txt": {
+      "bytes": 2574,
+      "sha256": "79295e4df33c441f71712a480fb2db8c3303959933606ced4b677f4a7e0f28d6"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0018.json": {
+      "bytes": 327,
+      "sha256": "9be4194339e419d117c2a71fa423c8258433a47b69a586e045c154d993ae704b"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0018.txt": {
+      "bytes": 1304,
+      "sha256": "e793edd886b8907def23cf9057dd22c3761855cf732d67bac951e89bbd30dd4a"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0019.json": {
+      "bytes": 327,
+      "sha256": "447f135e0d56f59b59427bd639bd48d12f5ca57c3666f31b1095501fb221182c"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0019.txt": {
+      "bytes": 1304,
+      "sha256": "632a46df76f77581c8cfe0d6378c300a2070a3b4317d0be21eab1b66e6e36cea"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0020.json": {
+      "bytes": 327,
+      "sha256": "4adeaece620c5ee3cb524ddbd27b7580808e41d30b50f83db75879718b821135"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0020.txt": {
+      "bytes": 1304,
+      "sha256": "ed596839541081f02c0ac72d7362f3d0cf907bc41e97e25d9892165dad154c33"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0021.json": {
+      "bytes": 327,
+      "sha256": "3909350f446dd4453303e35eefab08582789a616bc3692aeb1c0fe42cb12dc4c"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0021.txt": {
+      "bytes": 1305,
+      "sha256": "2195e72b7c8dfe1a6d40e5cc5307d284cab71a506ab7a453829146726355238e"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0022.json": {
+      "bytes": 304,
+      "sha256": "795a5f8cd399f8233bcc7bbe1c2c4dbd626ebea00d530d7b58f2ba6cbca61eaa"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0022.txt": {
+      "bytes": 1274,
+      "sha256": "a15c1ada2121adfa83d26ef2450fad3a09bdaa4b70ba9e3a7fcae2dd8b1d4f64"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0023.json": {
+      "bytes": 327,
+      "sha256": "5ebb0f74ed7f32528fdc69a859cb2d677ab69c5a6a20fa1105adaacadb38a8e6"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0023.txt": {
+      "bytes": 1305,
+      "sha256": "2195e72b7c8dfe1a6d40e5cc5307d284cab71a506ab7a453829146726355238e"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0024.json": {
+      "bytes": 327,
+      "sha256": "f96c3f24aab0147cf72bd5eb37fac645e11ed5bf6d7876aaaf666623a361a05f"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0024.txt": {
+      "bytes": 1304,
+      "sha256": "ed596839541081f02c0ac72d7362f3d0cf907bc41e97e25d9892165dad154c33"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0025.json": {
+      "bytes": 282,
+      "sha256": "b8b135d95fb9990cd8c0e331992057eefe02586aadba6c3f0863d1417cea639a"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle-frames/0025.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle.diagnostic-stop": {
+      "bytes": 16,
+      "sha256": "7e4e866e3cafc2c8866c0d01c75a295ccb9fc876df2d953c9bde0a28b32987c7"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle.lock": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle.py": {
+      "bytes": 2614,
+      "sha256": "8dea6efb3d86dbf0d5e949814b56419781d581d2d2d666db968c1925f2ee98cb"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/initial-send-oracle.sh": {
+      "bytes": 321,
+      "sha256": "f73accc82459a34653bc09f6dddea645103820d0d4f22dcbd51542d5e312ccb9"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/model.spthy": {
+      "bytes": 380130,
+      "sha256": "c1b077013b9b5af46c38db9b320296b165c1c56237a430f8849edcd7d46753eb"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/run.py": {
+      "bytes": 5793,
+      "sha256": "2d872abd85d862531822dc7f99d75909969705fc8ce95233e213277b145534aa"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/wire-shape-chains-STARTED.json": {
+      "bytes": 1888,
+      "sha256": "830be43508b62aef970e502595aa25882e87683da76f6dcf11e5228f088c4434"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/wire-shape-chains-TERMINAL.json": {
+      "bytes": 6254,
+      "sha256": "16759b03e39389fcdf058fef2a5253cf69c1ee9032bfae129240e770c2b1b977"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/wire-shape-chains-proof.spthy": {
+      "bytes": 390668,
+      "sha256": "3faa1bde6a65368364f60d52a8aafe8c2b2483199bc55f631192fbab218d92be"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/wire-shape-chains.stderr": {
+      "bytes": 63791,
+      "sha256": "60ad5458e4dcb7a7e3190856cfabfd0eee194a9e704f15a02071f87bfce3a989"
+    },
+    "experiments/p0-origin-wire-shape-chains-712/wire-shape-chains.stdout": {
+      "bytes": 3067,
+      "sha256": "657776a8093f4414eb64d9ffb09ad21aed7d3fe7f8b8cf43f341cd41466f9d83"
+    },
+    "parent/entry.spthy": {
+      "bytes": 364272,
+      "sha256": "b0bea9b7e94e2f9da23f4cd9cd2ba58ec95f5fc0e3d109532c7cc9b71d0729f8"
+    },
+    "preparation/PREPARATION_FAILURE.json": {
+      "bytes": 880,
+      "sha256": "202a6b0e1dea04c5afe6a86d5125a7a4b33bdf27b1f3b685f1241f4df0400fd1"
+    },
+    "preparation/prepare-final-origin-restore-712.py": {
+      "bytes": 3644,
+      "sha256": "2e0cabf361226d08979781b5c7d17abe50f76799a85e886d851147fe2dc359e6"
+    },
+    "preparation/prepare-origin-field-producers-712.py": {
+      "bytes": 3410,
+      "sha256": "a665a4bf9aa370aebd07b55592a2a409ff9214f818cd30df7d485df888b39a36"
+    },
+    "preparation/prepare-origin-open-fields-712.py": {
+      "bytes": 2420,
+      "sha256": "71322174f214d5a7235e40f1f32e8e50caaa400e3e46d49be4e3f0df8cc4eb0e"
+    },
+    "preparation/prepare-restored-origin-replay-712.py": {
+      "bytes": 4279,
+      "sha256": "7d8a58b993063242b7f2bfdc325f5e2068aa6e5c747f48cc5c331a64847bc158"
+    },
+    "preparation/prepare-wire-producers-focus-712.py": {
+      "bytes": 3850,
+      "sha256": "6757f87cf392b48a26cc179dbbf61f05ea86acf9f98803d60722247f313e79bb"
+    },
+    "preparation/prepare-wire-role-chains-712.py": {
+      "bytes": 3797,
+      "sha256": "d21ced2738b5d470993d4a956fb4704f1915b65b39a85cf0d0ac2366cd25e735"
+    },
+    "preparation/prepare-wire-shape-chains-712.py": {
+      "bytes": 4808,
+      "sha256": "3d4ac8b77d96045514e4ec6ae08e46bc6d4847e81e3710eb5426f03e7ca7bd26"
+    },
+    "tools/P0_PINNED_PROVER_IDENTITY.json": {
+      "bytes": 974,
+      "sha256": "f6e18705fdaf213d556237ca67fcab123e1b6f3ee4eca05aa69c5e70e7329459"
+    }
+  }
+}
