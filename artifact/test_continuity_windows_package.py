@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 import continuity_package_archive as archive
 from evidence_io import EvidenceIOError
@@ -120,10 +121,30 @@ class WindowsProfileAdmission(unittest.TestCase):
                 with self.subTest(invoke=invoke), self.assertRaises(ValueError):
                     invoke()
                 self.assertFalse(output.exists())
+            absent = root / 'absent'
+            self.assertFalse(absent.exists())
             with self.assertRaises(EvidenceIOError) as missing:
-                review_split(debug, root / 'absent', output, self.head)
-            self.assertIsInstance(missing.exception.__cause__, FileNotFoundError)
+                review_split(debug, absent, output, self.head)
+            # NtOpenFile reports a direct EvidenceIOError on Windows; POSIX
+            # chains an OSError. Both must identify the unavailable manifest.
+            self.assertIn(str((absent / 'RESULT.json').resolve()), str(missing.exception))
             self.assertFalse(output.exists())
+
+    def test_snapshot_failure_propagates_unchanged_without_publishing_a_review(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / 'review.json'
+            for cause in (None, FileNotFoundError('fixture missing input')):
+                error = EvidenceIOError('fixture snapshot failure')
+                error.__cause__ = cause
+                with self.subTest(chained=cause is not None), mock.patch(
+                        'continuity_windows_network_review.sdk.snapshot', side_effect=error) as read:
+                    with self.assertRaises(EvidenceIOError) as refused:
+                        review_split(root / 'debug', root / 'release', output, self.head)
+                    self.assertIs(refused.exception, error)
+                    self.assertIs(refused.exception.__cause__, cause)
+                    read.assert_called_once_with((root / 'debug' / 'RESULT.json').resolve())
+                    self.assertFalse(output.exists())
 
     def test_matching_malformed_digest_does_not_authorize_a_pair(self):
         with tempfile.TemporaryDirectory() as temporary:
