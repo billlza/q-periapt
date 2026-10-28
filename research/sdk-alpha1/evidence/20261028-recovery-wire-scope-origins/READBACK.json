@@ -1,0 +1,15 @@
+{
+  "archive_sha256": "b6a5b72504b4116ac1cdbcf9ae83ce10ea86855cba73e6487342e49c64e5ddf4",
+  "all_members_checked": 108,
+  "expanded_bytes": 4717541,
+  "manifest_sha256": "5e00563366cb469375dca035636c36095775ef45b77d4cac2dc335de0ba83db9",
+  "experiment_receipt_sha256": "0c90c1ba6349f85314d8e429e25059568cd212b5d202e8606091d672f8f0eb7f",
+  "independent_certificate_sha256": "6050a834043bf8ec765712973042be2432847ea751960a2afac9ea312a81cef2",
+  "new_obligations": {
+    "reservations_inherit_locally_confirmed_root": 14,
+    "generation_and_session_identifiers_are_distinct": 1,
+    "signed_wire_scope_has_session_and_parent_origin": 47
+  },
+  "main_origin_complete": false,
+  "release_claim_eligible": false
+}

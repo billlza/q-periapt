@@ -64,6 +64,16 @@ witness. The 197-step origin proof remains incomplete, with depth-cut,
 callback-budget and unvisited nodes retained. Its remaining scope projections
 and state dependencies need analysis before further search.
 
+The [reservation and wire-origin checkpoint](../sdk-alpha1/evidence/20261028-recovery-wire-scope-origins/README.md)
+closes the existing reservation-inheritance obligation in the initial-traffic
+model and adds proved session/key separation and signed-envelope scope origins.
+Independent replay checks these 14-, 1- and 47-step proofs, all earlier helpers
+and the initial-traffic witness. The unguarded first formula and two incomplete
+search-order controls remain visible. All original queries and operational rules
+are retained. The new helpers have not yet been applied to the unchanged,
+incomplete generation-origin proof; multi-epoch secrecy and SDK correspondence
+remain open.
+
 The [counter-invariant checkpoint](../sdk-alpha1/evidence/20261016-recovery-counter-invariants/README.md)
 adds seven deterministic observations of produced send-state counters. Checked
 erasure preserves the original execution model and all four complete queries.
