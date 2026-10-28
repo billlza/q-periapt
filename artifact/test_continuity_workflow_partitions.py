@@ -19,7 +19,9 @@ def native(text):
     expected.add(('macos-15', '1.98.1', 'release'))
     expected.update(('ubuntu-24.04', toolchain, part)
                     for toolchain in ('1.98.1', '1.90.0')
-                    for part in ('roster-capacity', 'enrollment-account-root', 'enrollment-other'))
+                    for part in ('roster-capacity', 'enrollment-account-root',
+                                 'enrollment-root-transferred', 'enrollment-root-next-attempt',
+                                 'enrollment-other'))
     if len(rows) != len(expected) or set(rows) != expected:
         raise ValueError('complete Debug partitions and separate Release budgets are required')
     if ('timeout-minutes: 90' not in block or 'fail-fast: false' not in block
@@ -51,7 +53,7 @@ def native(text):
         raise ValueError('complete original-owner roster capacity must execute separately on Linux')
     enrollment_command = ('cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" '
                           '--all-features --locked "$candidate_filter" -- "${candidate_skips[@]}" --nocapture')
-    if ("if: matrix.partition == 'enrollment-account-root' || matrix.partition == 'enrollment-other'" not in enrollment
+    if ("if: startsWith(matrix.partition, 'enrollment-')" not in enrollment
             or enrollment.count(enrollment_command) != 1
             or guard not in enrollment
             or 'test "$(grep -c -F "$CAPACITY_TEST" "$candidate_log/debug-catalog.txt")" = 1' not in enrollment
@@ -217,6 +219,10 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
         catalogue = {'enrollment::fanout_capacity', 'enrollment::roster_capacity',
                      'module::ordinary', 'enrollment::ordinary', 'other::enrollment::nested',
                      'enrollment::account_root::ordinary',
+                     'enrollment::account_root::tests::transferred::ordinary',
+                     'enrollment::account_root::tests::transferred::next_attempt::ordinary',
+                     'integration::enrollment::account_root::tests::transferred::ordinary',
+                     'integration::enrollment::account_root::tests::transferred::next_attempt::ordinary',
                      'integration::enrollment::account_root::ordinary'}
         enrollment = self.native.split('      - name: Exercise the complete Debug enrollment partition\n', 1)[1].split('\n      - ', 1)[0]
         enrollment_selection = 'candidate_skips=' + enrollment.split('candidate_skips=', 1)[1].split('          # Record', 1)[0]
@@ -234,7 +240,8 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
                         {'enrollment::fanout_capacity'}]
             if os_name == 'Linux':
                 executed.append({'enrollment::roster_capacity'})
-                for partition in ('enrollment-account-root', 'enrollment-other'):
+                for partition in ('enrollment-account-root', 'enrollment-root-transferred',
+                                  'enrollment-root-next-attempt', 'enrollment-other'):
                     selected = subprocess.run(
                         ['/bin/bash', '-euo', 'pipefail', '-c', enrollment_selection
                          + '\nprintf "%s\\n" "$candidate_filter" "${candidate_skips[@]}"'],
@@ -271,6 +278,12 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
 #[cfg(test)] mod enrollment {
     mod account_root {
         #[test] fn parent() { assert!(std::env::var_os("FAIL_ROOT").is_none()); }
+        mod tests { mod transferred {
+            #[test] fn parent() { assert!(std::env::var_os("FAIL_TRANSFERRED").is_none()); }
+            mod next_attempt {
+                #[test] fn continuation() { assert!(std::env::var_os("FAIL_NEXT").is_none()); }
+            }
+        }}
     }
     #[test] fn other() {}
     #[test] fn capacity() { panic!("separate capacity partition"); }
@@ -280,7 +293,13 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
 ''')
             (root / 'tests/bridge.rs').write_text('''
 mod enrollment {
-    mod account_root { #[test] fn external_parent() {} }
+    mod account_root {
+        #[test] fn external_parent() {}
+        mod tests { mod transferred {
+            #[test] fn external_parent() {}
+            mod next_attempt { #[test] fn external_continuation() {} }
+        }}
+    }
     #[test] fn external_other() {}
 }
 #[test] fn outside() { panic!("separate ordinary suite"); }
@@ -296,6 +315,12 @@ mod enrollment {
             for partition, expected in (
                 ('enrollment-account-root', {'enrollment::account_root::parent',
                                             'enrollment::account_root::external_parent'}),
+                ('enrollment-root-transferred', {
+                    'enrollment::account_root::tests::transferred::parent',
+                    'enrollment::account_root::tests::transferred::external_parent'}),
+                ('enrollment-root-next-attempt', {
+                    'enrollment::account_root::tests::transferred::next_attempt::continuation',
+                    'enrollment::account_root::tests::transferred::next_attempt::external_continuation'}),
                 ('enrollment-other', {'enrollment::other', 'enrollment::external_other'}),
             ):
                 environment['CANDIDATE_PARTITION'] = partition
@@ -308,6 +333,10 @@ mod enrollment {
             environment['CANDIDATE_PARTITION'] = 'enrollment-account-root'
             for label, command, additional, code in (
                 ('test-failure', script, {'FAIL_ROOT': '1'}, 101),
+                ('transferred-failure', script,
+                 {'FAIL_TRANSFERRED': '1', 'CANDIDATE_PARTITION': 'enrollment-root-transferred'}, 101),
+                ('next-attempt-failure', script,
+                 {'FAIL_NEXT': '1', 'CANDIDATE_PARTITION': 'enrollment-root-next-attempt'}, 101),
                 ('empty-selection', script.replace("candidate_filter='enrollment::account_root::'",
                                                   "candidate_filter='absent::'"), {}, 1),
                 ('unknown-partition', script, {'CANDIDATE_PARTITION': 'absent'}, 1),
@@ -393,6 +422,8 @@ pub struct OutsideSelection;
     def test_missing_capacity_or_silent_skipping_refuses(self):
         for before, after in (("partition: capacity", "partition: omitted"),
                               ("partition: enrollment-account-root", "partition: omitted"),
+                              ("partition: enrollment-root-transferred", "partition: omitted"),
+                              ("partition: enrollment-root-next-attempt", "partition: omitted"),
                               ("partition: enrollment-other", "partition: omitted"),
                               ("candidate_skips+=(--skip 'enrollment::')", "candidate_skips+=(--skip 'missing::')"),
                               ('--locked "$candidate_filter" --', '--locked --lib "$candidate_filter" --'),

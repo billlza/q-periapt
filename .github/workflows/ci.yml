@@ -2499,6 +2499,18 @@ jobs:
             partition: enrollment-account-root
           - os: ubuntu-24.04
             toolchain: 1.98.1
+            partition: enrollment-root-transferred
+          - os: ubuntu-24.04
+            toolchain: 1.90.0
+            partition: enrollment-root-transferred
+          - os: ubuntu-24.04
+            toolchain: 1.98.1
+            partition: enrollment-root-next-attempt
+          - os: ubuntu-24.04
+            toolchain: 1.90.0
+            partition: enrollment-root-next-attempt
+          - os: ubuntu-24.04
+            toolchain: 1.98.1
             partition: enrollment-other
           - os: ubuntu-24.04
             toolchain: 1.90.0
@@ -2565,7 +2577,7 @@ jobs:
           # Explicit failure exit lets Bash print timing before preserving the test status.
           { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked -- "${candidate_skips[@]}" --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug.log"
       - name: Exercise the complete Debug enrollment partition
-        if: matrix.partition == 'enrollment-account-root' || matrix.partition == 'enrollment-other'
+        if: startsWith(matrix.partition, 'enrollment-')
         shell: bash
         env:
           CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}
@@ -2582,7 +2594,17 @@ jobs:
           test "$(grep -c -F 'enrollment::' "$candidate_log/debug-catalog.txt")" -gt 2
           candidate_skips=(--skip "$CAPACITY_TEST" --skip "$ROSTER_CAPACITY_TEST")
           case "$CANDIDATE_PARTITION" in
-            enrollment-account-root) candidate_filter='enrollment::account_root::' ;;
+            enrollment-account-root)
+              candidate_filter='enrollment::account_root::'
+              candidate_skips+=(--skip 'enrollment::account_root::tests::transferred::')
+              ;;
+            enrollment-root-transferred)
+              candidate_filter='enrollment::account_root::tests::transferred::'
+              candidate_skips+=(--skip 'enrollment::account_root::tests::transferred::next_attempt::')
+              ;;
+            enrollment-root-next-attempt)
+              candidate_filter='enrollment::account_root::tests::transferred::next_attempt::'
+              ;;
             enrollment-other)
               candidate_filter='enrollment::'
               candidate_skips+=(--skip 'enrollment::account_root::')
@@ -2594,7 +2616,7 @@ jobs:
           test "$(grep -c ': test$' "$candidate_log/debug-enrollment-selected-catalog.txt")" -gt 0
           { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked "$candidate_filter" -- "${candidate_skips[@]}" --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-$CANDIDATE_PARTITION.log"
           # Positional target filters omit doctests. Run both enrollment
-          # type-isolation doctests explicitly, once across the two partitions.
+          # type-isolation doctests explicitly, once across all partitions.
           if [ "$CANDIDATE_PARTITION" = enrollment-other ]; then
             { time cargo +"$CANDIDATE_TOOLCHAIN" test --manifest-path "$candidate_manifest" --all-features --locked --doc 'enrollment::' -- --nocapture || exit "$?"; } 2>&1 | tee "$candidate_log/debug-enrollment-doc.log"
             grep '^test result: ok\. 2 passed; 0 failed; 0 ignored;' "$candidate_log/debug-enrollment-doc.log"
