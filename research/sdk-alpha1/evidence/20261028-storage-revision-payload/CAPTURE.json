@@ -1,0 +1,738 @@
+{
+  "schema": 1,
+  "scope": "Generation-secret source proof progress; not full multi-epoch recovery security",
+  "source_base_commit": "e2b26a32c425b31fc8543fd35b18263fa3da1699",
+  "parent_capture": "../20261028-storage-field-origins/CAPTURE.zip",
+  "parent_sha256": "db9cf05b5e61fb1ba2f3ba4409012a611d45f2f9e4425ef61c24edce778659f3",
+  "entry": "experiments/p0-origin-payload-wire-chain-replay-711/payload-wire-chain-proof.spthy",
+  "entry_sha256": "b0bea9b7e94e2f9da23f4cd9cd2ba58ec95f5fc0e3d109532c7cc9b71d0729f8",
+  "operational_prefix_sha256": "3cb837646fa2097468d1fad0a10433f50d5c31b6be5553f20085170c3eef0266",
+  "unchanged_queries": 29,
+  "query_definitions_sha256": "88dee7ec275af1bd7d031844a8ca4240eed50b846174eb87970b928d96612ee1",
+  "closed_sources": [
+    "Application_Message",
+    "Cut_case_1",
+    "Cut_case_2",
+    "Offer_Commit_3_case_1",
+    "Offer_Commit_3_case_2",
+    "Reveal_Entropy",
+    "Reveal_Identity",
+    "Snapshot_Signer_File_case_1",
+    "Snapshot_Signer_File_case_2",
+    "Snapshot_Signer_File_case_3",
+    "Snapshot_case_1",
+    "Snapshot_case_2",
+    "Snapshot_case_3",
+    "Snapshot_case_4"
+  ],
+  "remaining_sources": [
+    "Final_Commit_8",
+    "Receipt_Commit_0",
+    "Response_Commit_6",
+    "Snapshot_case_5"
+  ],
+  "newly_closed_sources": [
+    "Offer_Commit_3_case_1",
+    "Snapshot_case_4"
+  ],
+  "main": {
+    "mode": "all-traces",
+    "status": "analysis incomplete",
+    "steps": 175
+  },
+  "open_leaf_count": 32,
+  "auxiliary_all_trace_lemmas_verified": {
+    "application_counter_has_public_constructor": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 17
+    },
+    "first_responder_ready_event_is_unique": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 285
+    },
+    "generation_and_encapsulation_secrets_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "generation_and_session_identifiers_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "generation_and_signing_secrets_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "phase_position_event_is_unique": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 29
+    },
+    "produced_counter_has_public_constructor": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 35
+    },
+    "produced_send_root_is_initial_or_hashed": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 55
+    },
+    "produced_state_role_and_epoch_have_public_constructors": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 191
+    },
+    "ready_epoch_and_parent_have_public_constructors": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 12
+    },
+    "ready_parent_has_tagged_epoch_origin": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 12
+    },
+    "ready_root_is_initial_or_hashed": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 11
+    },
+    "reservations_inherit_locally_confirmed_root": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 14
+    },
+    "signed_wire_scope_has_session_and_parent_origin": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 47
+    }
+  },
+  "initial_traffic_witness_steps": 414,
+  "experiments": {
+    "p0-origin-storage-frontiers-711": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 299.472257292,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 115
+      },
+      "input_sha256": "7d0adcb1166e16a6d1b298b330f446beb817cab70f4d8364cea8c07843823ff9",
+      "output_sha256": "27a3a582142ab81389430b4e053d9941dfa5ae74e816cd5df9dc1b7521dacb21",
+      "search_requested": true,
+      "captured_frontiers": 26
+    },
+    "p0-origin-storage-chain-replay-711": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 290.0095729999957,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 137
+      },
+      "input_sha256": "38ac4f93758d0d88c457d7ee5a56f696fe807d9a0bedac4fa76ce8f475a0a618",
+      "output_sha256": "cfd7ae5324c87a65ad1163f1e9db97f2cacd7d544b5f35b5ed0d23a3b4c4ce71",
+      "search_requested": false,
+      "captured_frontiers": 0
+    },
+    "p0-origin-payload-wire-frontiers-711": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 284.4658924999967,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 143
+      },
+      "input_sha256": "de3646ac44c59dc18fa56ded9a26b4b0ec47d1cf41245ac08da9a846514184a2",
+      "output_sha256": "5369025328d0ac8c82f20fc5a48ec97e69da9b0263e77f84a4d47fef4cd1dc41",
+      "search_requested": true,
+      "captured_frontiers": 17
+    },
+    "p0-origin-payload-wire-chain-replay-711": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 285.43433870899753,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 175
+      },
+      "input_sha256": "49adcfd4ab749c49a69dee0dbf079a720f7d5b7b559599d14fd1fccfa1f6a67b",
+      "output_sha256": "b0bea9b7e94e2f9da23f4cd9cd2ba58ec95f5fc0e3d109532c7cc9b71d0729f8",
+      "search_requested": false,
+      "captured_frontiers": 0
+    }
+  },
+  "resources": {
+    "seconds_per_run": 900,
+    "derivation_seconds": 60,
+    "heap_gib": 12,
+    "threads": 1,
+    "capture_callback_limit": 32,
+    "total_search_depth": 16,
+    "first_capture_prefix_and_bound": [
+      3,
+      13
+    ],
+    "second_capture_prefix_and_bound": [
+      4,
+      12
+    ]
+  },
+  "boundaries": [
+    "The original 18 sources, 29 formulas/modes/attributes and operational prefix are retained.",
+    "Exact callback methods were checked by no-search replay; open leaves remain explicit.",
+    "The non-reuse initial_epoch_counter_is_zero query remains a documented obsolete conjecture.",
+    "Parent timeout/control evidence, P0 main secrecy, reachability and implementation correspondence remain separate.",
+    "No device, performance, ABI, installed interoperability or release admission follows from this proof."
+  ],
+  "full_goal_achieved": false,
+  "release_claim_eligible": false,
+  "files": {
+    "experiments/p0-origin-payload-wire-chain-replay-711/PREPARATION.json": {
+      "bytes": 3503,
+      "sha256": "cfac5981210c0a8b4afbc53e44a8c0bf0f1e7fbd476e8181ef32f8a3ad62d8e9"
+    },
+    "experiments/p0-origin-payload-wire-chain-replay-711/model.spthy": {
+      "bytes": 362900,
+      "sha256": "49adcfd4ab749c49a69dee0dbf079a720f7d5b7b559599d14fd1fccfa1f6a67b"
+    },
+    "experiments/p0-origin-payload-wire-chain-replay-711/payload-wire-chain-STARTED.json": {
+      "bytes": 1631,
+      "sha256": "ea9be823957114ec5457079cd4d089188c89d2afac19bb421bba3d2cd75b8731"
+    },
+    "experiments/p0-origin-payload-wire-chain-replay-711/payload-wire-chain-TERMINAL.json": {
+      "bytes": 5997,
+      "sha256": "ab113c45065b2a1b28d2acbf4c99489a8dd3adab6fac6b9faa6a53ef880e17c5"
+    },
+    "experiments/p0-origin-payload-wire-chain-replay-711/payload-wire-chain-proof.spthy": {
+      "bytes": 364272,
+      "sha256": "b0bea9b7e94e2f9da23f4cd9cd2ba58ec95f5fc0e3d109532c7cc9b71d0729f8"
+    },
+    "experiments/p0-origin-payload-wire-chain-replay-711/payload-wire-chain.stderr": {
+      "bytes": 1595,
+      "sha256": "ab12077dde012e6fb83eba231b6bf1a32bf029b973d447ed6f0cc8e8429c7d46"
+    },
+    "experiments/p0-origin-payload-wire-chain-replay-711/payload-wire-chain.stdout": {
+      "bytes": 3084,
+      "sha256": "f02872609273f169ea29bd2d7688a06b0f5b9e57dbc26cca53e0a1251fbc357a"
+    },
+    "experiments/p0-origin-payload-wire-chain-replay-711/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/PREPARATION.json": {
+      "bytes": 5141,
+      "sha256": "fee9f84c7207c09fda4b6795155c34c2cc88034346a3ccf83888b1bb5695f983"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0000.json": {
+      "bytes": 361,
+      "sha256": "93c41585563e42850f526e1451c80a360e2cfd1b081dadbfa45955a29046a8c5"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0000.txt": {
+      "bytes": 1793,
+      "sha256": "92335f8561864479b8b5a10b658d67033453e7c31664f1f3a640c5ebcaec1133"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0001.json": {
+      "bytes": 361,
+      "sha256": "39090c9d2f7a92063df1a1fbd566bfd4e0c758b6d40610db90b47e45aa90d1a8"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0001.txt": {
+      "bytes": 1850,
+      "sha256": "929195efcb26b12bcae75540a93e357a518656f6da3fb4e6de22a56e6deba7db"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0002.json": {
+      "bytes": 315,
+      "sha256": "d6e70ae24bcb6fb77ae13e02a33764c96fc2e5778a194c2ab58f9ddc0a8c226e"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0002.txt": {
+      "bytes": 1228,
+      "sha256": "bfa1017f2af9756c0cb5840e0df240ca9f3b78ead8a9ce64ead8e836c2bfa9b5"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0003.json": {
+      "bytes": 361,
+      "sha256": "0fe1aeeb83b3c4bb602fb01a1770556c04d7b8d62d4fcd3969ce468f291725ce"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0003.txt": {
+      "bytes": 1782,
+      "sha256": "0f7fb743dcde40e8d9f67e39647a3ca1289b5dd1c18285d59d0334e7aaef925e"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0004.json": {
+      "bytes": 361,
+      "sha256": "d90af58e57c311c41eccf72558194fe70aceaa3d463bfa48cf50bdccf4d3ee71"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0004.txt": {
+      "bytes": 1839,
+      "sha256": "1334b27db9aa9b486e32626f2f0aeec82077a94ac82c68038692d98cb05e3aa1"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0005.json": {
+      "bytes": 345,
+      "sha256": "95d6ea7da2c595b82a137a500377d7cadb803a24ea796f7c64f4f0e1c9c3c061"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0005.txt": {
+      "bytes": 1620,
+      "sha256": "de5c244570ba640dd28316315fae709e781b2668bae53738fc5a807f8044a9dd"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0006.json": {
+      "bytes": 377,
+      "sha256": "5587e34e095f27a219314169a9e76d3ef049366e5b207318b405fd8fd5f470c4"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0006.txt": {
+      "bytes": 2495,
+      "sha256": "1e3b9e05772b642dec1c7eb509dc9b29dbea67aabdfee772d14e52dcd6e8655b"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0007.json": {
+      "bytes": 417,
+      "sha256": "ff1c4a4f8d10dcb03c9e9a27abc2cd1411c85086b316377204fc8419610140bb"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0007.txt": {
+      "bytes": 2645,
+      "sha256": "5e38eb89d723a50181f5e38aa5bb25e61eb04b145209a21309fb29f27ce4a2e2"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0008.json": {
+      "bytes": 307,
+      "sha256": "01ed1793fc0adf9a40bb1dc3706014aa18fd26a8b46ee7e673ad37a71f2a49e1"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0008.txt": {
+      "bytes": 951,
+      "sha256": "e8692db4358da15262b0f91ce642be87f423e60b306b57a68999ba73a197544f"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0009.json": {
+      "bytes": 329,
+      "sha256": "e490f9e92807abc793b14e509a0eb98b6e363dc8cfe3cf0232dc58006664aa47"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0009.txt": {
+      "bytes": 2504,
+      "sha256": "00654607dd883e26b5fdf2c955cf876db39d1c60ff765867737743c74003ae0f"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0010.json": {
+      "bytes": 307,
+      "sha256": "e633f996f07d294922a97966ed654c569441588b8baa6c59fa9c9fe7f1ba9014"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0010.txt": {
+      "bytes": 953,
+      "sha256": "df2f077eab37aa64724cb0a0483d1c136d4c8c5408ad1e8f288065d695bf1a17"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0011.json": {
+      "bytes": 369,
+      "sha256": "697c940b6a50e3c5cfdeb9d52c9926d432a53e09b32d75d4ea816ca071073241"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0011.txt": {
+      "bytes": 2061,
+      "sha256": "da7c8e472c90e494a700ec4103802953db4938749711129e4b58bf903ec07d1d"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0012.json": {
+      "bytes": 377,
+      "sha256": "a4f79a4e37fd88be5d77795d22a4733a2f713b5f925e8970d1446195d6162c96"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0012.txt": {
+      "bytes": 2537,
+      "sha256": "7d89cd2a9959f4a140f5f10325c5238529246153ac027c21d49ad7ab479e8ebc"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0013.json": {
+      "bytes": 409,
+      "sha256": "63f43ef4848e18e166e3c4d91d846d7a21bfbe516936177a09d024ccc808db12"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0013.txt": {
+      "bytes": 2363,
+      "sha256": "244ad385a9f63d6370b7a1d9d11517f52d0f31c81e668eef4ed6fb59de886469"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0014.json": {
+      "bytes": 361,
+      "sha256": "58863f1946320aee00e5032eee27e939d3ab5e5be66ed762dfde78ad7e03f7c5"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0014.txt": {
+      "bytes": 2501,
+      "sha256": "891afff7fe19fb0921ef1fcd555717d5e3fb3533c8fb7988a5cfbc52ea8e708b"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0015.json": {
+      "bytes": 315,
+      "sha256": "e5106cd75f476336dbf12b825fda8f6f747b40ca6cb56e8253b5d68ae544ee80"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0015.txt": {
+      "bytes": 1256,
+      "sha256": "9950d3af823bf06c7fb8cf88cc8ac2dc17c26fa7c34c5c0371c403273eff0139"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0016.json": {
+      "bytes": 345,
+      "sha256": "40f9946768fcd2fae0b054e9db210b1283a98deb4989223850f39adb53248886"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle-frames/0016.txt": {
+      "bytes": 1532,
+      "sha256": "4698b2e078d55bef416c9ccd12feed49c717c7c80177251fda25230d6b4596d8"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle.diagnostic-stop": {
+      "bytes": 27,
+      "sha256": "dd68d7b5191957984a0e516ce6e16769b5a45b1e975bd161bde0f6102561e087"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle.lock": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle.py": {
+      "bytes": 2318,
+      "sha256": "a2c40cb451ad0e8f52f650ef4ceed6f0a2a6f654dd7b583f5fd8b7bf2c860101"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/initial-send-oracle.sh": {
+      "bytes": 326,
+      "sha256": "59cac8f2cb17002fdada166dafd2a1ec7669a8357fb84cfa50be1bb08fb8beda"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/model.spthy": {
+      "bytes": 360718,
+      "sha256": "de3646ac44c59dc18fa56ded9a26b4b0ec47d1cf41245ac08da9a846514184a2"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/payload-wire-frontiers-STARTED.json": {
+      "bytes": 1908,
+      "sha256": "9de10a5db09d747eb00536e7e67a638aca657e8bb1e9fc892de60abeba5aecb3"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/payload-wire-frontiers-TERMINAL.json": {
+      "bytes": 6273,
+      "sha256": "de033e679044161d0919f7e80a8d0111ecb89c727bb135109191ba5b47bbfbec"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/payload-wire-frontiers-proof.spthy": {
+      "bytes": 363013,
+      "sha256": "5369025328d0ac8c82f20fc5a48ec97e69da9b0263e77f84a4d47fef4cd1dc41"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/payload-wire-frontiers.stderr": {
+      "bytes": 35528,
+      "sha256": "f89c737081ef86f393584e137888b18a32f75b39e4c37eb6041676bc85bafc87"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/payload-wire-frontiers.stdout": {
+      "bytes": 3082,
+      "sha256": "b9f30c666415ff9a7b802e888430aa2a0d2fb18415f1a14d77d6e6238f4c35ac"
+    },
+    "experiments/p0-origin-payload-wire-frontiers-711/run.py": {
+      "bytes": 5793,
+      "sha256": "2d872abd85d862531822dc7f99d75909969705fc8ce95233e213277b145534aa"
+    },
+    "experiments/p0-origin-storage-chain-replay-711/PREPARATION.json": {
+      "bytes": 4314,
+      "sha256": "407b27e3517ec1d88e5cdbfe4d03400047e6a2adf30020958d0f9c8e0e866a54"
+    },
+    "experiments/p0-origin-storage-chain-replay-711/READBACK.json": {
+      "bytes": 2833,
+      "sha256": "423707180baa680fd54122cf1bd11619def1cbe09db95b511e879664a5d74902"
+    },
+    "experiments/p0-origin-storage-chain-replay-711/model.spthy": {
+      "bytes": 355918,
+      "sha256": "38ac4f93758d0d88c457d7ee5a56f696fe807d9a0bedac4fa76ce8f475a0a618"
+    },
+    "experiments/p0-origin-storage-chain-replay-711/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-storage-chain-replay-711/storage-chain-STARTED.json": {
+      "bytes": 1616,
+      "sha256": "7209b7696495c7fd27641aba151c7e2a606192c08b9eb39d4faa1ab26c26a804"
+    },
+    "experiments/p0-origin-storage-chain-replay-711/storage-chain-TERMINAL.json": {
+      "bytes": 5981,
+      "sha256": "5bd4b4b1b830866828de1c156070a776330d4cb16567c5804adb6a73e583b98b"
+    },
+    "experiments/p0-origin-storage-chain-replay-711/storage-chain-proof.spthy": {
+      "bytes": 356952,
+      "sha256": "cfd7ae5324c87a65ad1163f1e9db97f2cacd7d544b5f35b5ed0d23a3b4c4ce71"
+    },
+    "experiments/p0-origin-storage-chain-replay-711/storage-chain.stderr": {
+      "bytes": 1595,
+      "sha256": "4db8300d12e4fe7ca35852db7738c8811a0cec44a1efb01fa1f4b4a66c4cf0d1"
+    },
+    "experiments/p0-origin-storage-chain-replay-711/storage-chain.stdout": {
+      "bytes": 3069,
+      "sha256": "61aed2ee47e7440cf5ecbea66b1d00c6475697d2051d3574d3babbf76a66c0f7"
+    },
+    "experiments/p0-origin-storage-frontiers-711/PREPARATION.json": {
+      "bytes": 874,
+      "sha256": "a2f50534058b982097cc4b23e68f15f579046f60b0acd7cb2a86daa144f6af4b"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0000.json": {
+      "bytes": 361,
+      "sha256": "1d15edfd1e570f37eeb5a0561c1f5a63e3611bacc4bcddb14f8ced536a9c2627"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0000.txt": {
+      "bytes": 2387,
+      "sha256": "3c2977d90f5839ea29bba8adc10bab712715d0fba3dd9aeb4dd1f3cdc905ccf7"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0001.json": {
+      "bytes": 315,
+      "sha256": "0a2386e91821abfde2fb1bb49d96060b1d3a4ea8f23b26f5653b6278b4c482f4"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0001.txt": {
+      "bytes": 2396,
+      "sha256": "b6b71116c1961bdc0cd0fb7168db9118afb56f205330d850848cff91894a85b3"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0002.json": {
+      "bytes": 361,
+      "sha256": "ccb881dde4cef633d464f4e8f0dda9448185420d64b1fb55b3dc6da044dd4f3f"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0002.txt": {
+      "bytes": 2399,
+      "sha256": "b5bb2fdba0424e0f435755a4c17c54dd479e4c944df36724b653a9e876441109"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0003.json": {
+      "bytes": 345,
+      "sha256": "f25545d57700723a227f607e3ab05959cb9460eea96533feba44731604341c38"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0003.txt": {
+      "bytes": 2384,
+      "sha256": "0a7c773b0b65fb8857bcf548d574bc59c11900f241c08af651f2048bc70f4e58"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0004.json": {
+      "bytes": 377,
+      "sha256": "94c76ac9808a71490fd8f75ea8029578c8d4534f2e6880443e4f8c97d02590f2"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0004.txt": {
+      "bytes": 2495,
+      "sha256": "75b0b0db6fdbd1ade3c220a71b85f9ce5a113a1ec8044e60b68c96a10a028c81"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0005.json": {
+      "bytes": 417,
+      "sha256": "cab8e09b88cfa03329c8f4395b2f1d8ad79b969f78f2c0eab1da16336ab14735"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0005.txt": {
+      "bytes": 2644,
+      "sha256": "f281c1eeb8371084fa998fdb473afa17cb197deeea436564b9c03295e968cc6b"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0006.json": {
+      "bytes": 307,
+      "sha256": "809dbadc60dba7c5fdf73bd55f295ab8162178f2176050453bce09289961de2b"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0006.txt": {
+      "bytes": 951,
+      "sha256": "0357796e5c03580b51f8b8c24bd63379a6f287a156ef0747aa5756dcf314f8b1"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0007.json": {
+      "bytes": 329,
+      "sha256": "3f1184ae5addc87dfd1aec195d47c7b340aed1bbee872139d35d23f20a2d2238"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0007.txt": {
+      "bytes": 2503,
+      "sha256": "76bfee11a047424dfb090315d9d023bc01b8aded5e6d5d1fab6c59a87c07d28d"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0008.json": {
+      "bytes": 307,
+      "sha256": "7de63062bdcbd3160320f9760f92f9399d03dd08ec6d0261b218a53110b2e028"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0008.txt": {
+      "bytes": 953,
+      "sha256": "7cf228160b2a7e94bc74cf2d4e0953c605322361797c0383800b0d695b1f42a3"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0009.json": {
+      "bytes": 369,
+      "sha256": "f289f680043b911fe1215203d3fba6156a7ab80148c715c523a8339d72b4866d"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0009.txt": {
+      "bytes": 2060,
+      "sha256": "44613c89a41436c872b2ac17006e08770447317bd299935fdd95a6ac995f43a7"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0010.json": {
+      "bytes": 377,
+      "sha256": "896d2c02ea1c6f9cbb9cd831c265781c88c495e8e57cd257bcb6090b18f070ff"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0010.txt": {
+      "bytes": 2537,
+      "sha256": "f3701a12af87c5c4dd61dfcc4e751611690e47262eb517ebb3013a9bdd3294e6"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0011.json": {
+      "bytes": 409,
+      "sha256": "a53e23882f76166dd17b80d06b1791d17609a5d2f54cf3fbbbce71cc6118174e"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0011.txt": {
+      "bytes": 2362,
+      "sha256": "43f1d3bda31bbb6f0e624bf2b81de9d6e3316df5ed672a88e6dddbe9eeb1f7ba"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0012.json": {
+      "bytes": 361,
+      "sha256": "d82a95c9e05042851065b9dd710cf2b098821711c627f2b983ee4d25bb32100a"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0012.txt": {
+      "bytes": 2501,
+      "sha256": "02bd8e2dd41250ccef8e1956266f85df7058d42c18092b3733979e9e800826eb"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0013.json": {
+      "bytes": 315,
+      "sha256": "0eff778716d990929c12677bd43bb6e6ed52d27cbc77baaf742704f12ff822c5"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0013.txt": {
+      "bytes": 1255,
+      "sha256": "4d714b0c045d57c94e01d94d6fe2ce98d1f6afa9435c13ab976007c42160d997"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0014.json": {
+      "bytes": 345,
+      "sha256": "4e286cc08e4b0e4b698bbae1b4207fdd90b5cc9694bf41698bcc0a7584fd37eb"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0014.txt": {
+      "bytes": 1531,
+      "sha256": "c36db636eef5b786155e464a2ef63fcc4262f80e2840c8e262ec4e61d9516b82"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0015.json": {
+      "bytes": 377,
+      "sha256": "f74612af7fa36b18fc454c2216777df9c64e934ae6affad10ef226a8cab497e2"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0015.txt": {
+      "bytes": 2495,
+      "sha256": "75b0b0db6fdbd1ade3c220a71b85f9ce5a113a1ec8044e60b68c96a10a028c81"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0016.json": {
+      "bytes": 417,
+      "sha256": "62d78a6d6b8508a4b3d6eec5c79213fdff8d92b319883337ea94a649d01e59b4"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0016.txt": {
+      "bytes": 2644,
+      "sha256": "f281c1eeb8371084fa998fdb473afa17cb197deeea436564b9c03295e968cc6b"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0017.json": {
+      "bytes": 307,
+      "sha256": "2941005b9d5c8846abed80c961de89c831b37de8716cf1123a6f6793b4161d8f"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0017.txt": {
+      "bytes": 951,
+      "sha256": "0357796e5c03580b51f8b8c24bd63379a6f287a156ef0747aa5756dcf314f8b1"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0018.json": {
+      "bytes": 329,
+      "sha256": "537206e010f848ceeab065cf11209c9b9c2f8cf8221fbfc47d1da4caf8c60acd"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0018.txt": {
+      "bytes": 2503,
+      "sha256": "76bfee11a047424dfb090315d9d023bc01b8aded5e6d5d1fab6c59a87c07d28d"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0019.json": {
+      "bytes": 307,
+      "sha256": "1bbca8593a0bb7536a4c2395e2e50ff069c6f31492b5101ddc634cddc84a708c"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0019.txt": {
+      "bytes": 953,
+      "sha256": "7cf228160b2a7e94bc74cf2d4e0953c605322361797c0383800b0d695b1f42a3"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0020.json": {
+      "bytes": 369,
+      "sha256": "9e9319dfee96b5d3563a8b9e68075dcc6b5bdfb9f5cf3dd987977792083506f6"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0020.txt": {
+      "bytes": 2060,
+      "sha256": "44613c89a41436c872b2ac17006e08770447317bd299935fdd95a6ac995f43a7"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0021.json": {
+      "bytes": 377,
+      "sha256": "9d706f51e2a6f0598022e3edece8439815b4595030b6dc93f69dce23ca22aac1"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0021.txt": {
+      "bytes": 2537,
+      "sha256": "f3701a12af87c5c4dd61dfcc4e751611690e47262eb517ebb3013a9bdd3294e6"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0022.json": {
+      "bytes": 409,
+      "sha256": "22f879f49c01d24160d66b2a0c32cfb25eb6e83ca66ab0b7df4ac09912d7d628"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0022.txt": {
+      "bytes": 2362,
+      "sha256": "43f1d3bda31bbb6f0e624bf2b81de9d6e3316df5ed672a88e6dddbe9eeb1f7ba"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0023.json": {
+      "bytes": 361,
+      "sha256": "1c92d55d9e31e70ae0dfcb20556e7c616ad26e4ca89d9473fe88000782aabffb"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0023.txt": {
+      "bytes": 2501,
+      "sha256": "02bd8e2dd41250ccef8e1956266f85df7058d42c18092b3733979e9e800826eb"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0024.json": {
+      "bytes": 315,
+      "sha256": "351a76ba21104d893b03ce3095809f4037af9c4cb2e42a5faba090b153796de9"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0024.txt": {
+      "bytes": 1255,
+      "sha256": "4d714b0c045d57c94e01d94d6fe2ce98d1f6afa9435c13ab976007c42160d997"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0025.json": {
+      "bytes": 345,
+      "sha256": "ba04e441f467686294e9a1aa8bdef5c498147036f0a5c19ae1479d3325ed4f96"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle-frames/0025.txt": {
+      "bytes": 1531,
+      "sha256": "c36db636eef5b786155e464a2ef63fcc4262f80e2840c8e262ec4e61d9516b82"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle.diagnostic-stop": {
+      "bytes": 27,
+      "sha256": "dd68d7b5191957984a0e516ce6e16769b5a45b1e975bd161bde0f6102561e087"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle.lock": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle.py": {
+      "bytes": 2318,
+      "sha256": "a2c40cb451ad0e8f52f650ef4ceed6f0a2a6f654dd7b583f5fd8b7bf2c860101"
+    },
+    "experiments/p0-origin-storage-frontiers-711/initial-send-oracle.sh": {
+      "bytes": 321,
+      "sha256": "58ab9bad00df57862a83104b25352f61500ad9aecb1d307925cbc43698dd698a"
+    },
+    "experiments/p0-origin-storage-frontiers-711/model.spthy": {
+      "bytes": 355258,
+      "sha256": "7d0adcb1166e16a6d1b298b330f446beb817cab70f4d8364cea8c07843823ff9"
+    },
+    "experiments/p0-origin-storage-frontiers-711/run.py": {
+      "bytes": 5793,
+      "sha256": "0dd1b2783d92b1b585fef2359c23abb9bdbe0f70747b79dcc4723c7819f4c41a"
+    },
+    "experiments/p0-origin-storage-frontiers-711/storage-frontiers-STARTED.json": {
+      "bytes": 1888,
+      "sha256": "8235d99b7c4d49294186d5e4947d630d2eca7900eb57d6d8341cfae55b414556"
+    },
+    "experiments/p0-origin-storage-frontiers-711/storage-frontiers-TERMINAL.json": {
+      "bytes": 6249,
+      "sha256": "643ced0c2a553af3972d39ee8d177d76da4c979f62d009ff5f431ac9d8bd946b"
+    },
+    "experiments/p0-origin-storage-frontiers-711/storage-frontiers-proof.spthy": {
+      "bytes": 356220,
+      "sha256": "27a3a582142ab81389430b4e053d9941dfa5ae74e816cd5df9dc1b7521dacb21"
+    },
+    "experiments/p0-origin-storage-frontiers-711/storage-frontiers.stderr": {
+      "bytes": 57839,
+      "sha256": "56a6a958363b3c5336f3219eff8a5a937082e8bd356f8bc48520a3fd08de95ee"
+    },
+    "experiments/p0-origin-storage-frontiers-711/storage-frontiers.stdout": {
+      "bytes": 3067,
+      "sha256": "08c3661ac23b3a0b43a117c761fca1d0dcd34b32ae67f0a7a09dbd1a8a1a7603"
+    },
+    "parent/entry.spthy": {
+      "bytes": 353908,
+      "sha256": "6abc57adbf5518606053af6cfc81f12e59e98d9f9ec868cd1e1a2f3d82f42340"
+    },
+    "preparation/prepare-payload-wire-chain-replay-711.py": {
+      "bytes": 2965,
+      "sha256": "5728fc8247dae35b3e330fec9d41e684b23e87dd301b6c2d65cd4f3fc4193f71"
+    },
+    "preparation/prepare-payload-wire-frontiers-711.py": {
+      "bytes": 3424,
+      "sha256": "a6c63f01c944dd27f62fda458c317866a1c7930c3f3d6c00d7068ada5057bc6b"
+    },
+    "preparation/prepare-storage-chain-replay-711.py": {
+      "bytes": 3480,
+      "sha256": "f1cf7b67d93ff5827a5bbc7342a5fae3f29d39d942d11b076eedc927ac2de79b"
+    },
+    "preparation/prepare-storage-frontiers-711.py": {
+      "bytes": 3297,
+      "sha256": "60696fa68ffb76c2cefc1a658a2db6fd1dcd4846997c94631394cb2f666e5bbe"
+    },
+    "tools/P0_PINNED_PROVER_IDENTITY.json": {
+      "bytes": 974,
+      "sha256": "f6e18705fdaf213d556237ca67fcab123e1b6f3ee4eca05aa69c5e70e7329459"
+    }
+  }
+}
