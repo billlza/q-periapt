@@ -23,11 +23,17 @@ from continuity_windows_configuration import qualify as qualify_configuration
 LIB = 'q_periapt_continuity_c_consumer'
 
 
+def selected_profiles(profile):
+    require(profile in (None, 'debug', 'release'), 'unknown Windows profile')
+    return ('debug', 'release') if profile is None else (profile,)
+
+
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def consume(args):
+    profiles = selected_profiles(args.profile)
     require(os.name == 'nt', 'native Windows is required')
     output = args.output.resolve()
     output.mkdir()
@@ -188,9 +194,9 @@ def consume(args):
         return client_source, effect_test
     # Check the independent C platform boundary before the expensive Rust build.
     # The actual effect processes still execute under the native Rust reader below.
-    caller_checks = {profile: caller_controls(profile) for profile in ('debug', 'release')}
+    caller_checks = {profile: caller_controls(profile) for profile in profiles}
     run(['cargo', 'clippy', '--locked', '--lib', '--tests', '--', '-D', 'warnings'], 'clippy')
-    for profile in ('debug', 'release'):
+    for profile in profiles:
         flags = ['--release'] if profile == 'release' else []
         paths = run(['cargo', 'test', '--locked', '--test', 'configuration_paths', *flags,
                      '--', '--nocapture'], profile + '-configuration-paths')
@@ -311,11 +317,13 @@ def consume(args):
 
     for name, sha in receipt['files'].items():
         require(digest(consumer / name) == (hashlib.sha256(lock).hexdigest() if name == 'Cargo.lock' else sha), 'consumed source changed: ' + name)
+    require(set(result['profiles']) == set(profiles), 'requested Windows profile did not complete')
     (output / 'RESULT.json').write_text(json.dumps(result, indent=2) + '\n')
-    print('WINDOWS_INSTALLED_C_FIRST_USE_PASS profiles=2 trust_modes=2 cases_per_profile=14')
-    print('WINDOWS_INSTALLED_C_OWNER_SUITE_EXECUTED profiles=2 entries_per_profile=10 public_workloads_per_profile=7 independent_host_readback=pending')
-    print('WINDOWS_INSTALLED_FIRST_REGISTRATION_EXECUTED profiles=2 carrier_trust_cases_per_profile=6 independent_host_readback=pending')
-    print('WINDOWS_INSTALLED_RUST_LIFECYCLE_EXECUTED profiles=2 public_readback_verification=pending')
+    count = len(profiles)
+    print(f'WINDOWS_INSTALLED_C_FIRST_USE_PASS profiles={count} trust_modes=2 cases_per_profile=14')
+    print(f'WINDOWS_INSTALLED_C_OWNER_SUITE_EXECUTED profiles={count} entries_per_profile=10 public_workloads_per_profile=7 independent_host_readback=pending')
+    print(f'WINDOWS_INSTALLED_FIRST_REGISTRATION_EXECUTED profiles={count} carrier_trust_cases_per_profile=6 independent_host_readback=pending')
+    print(f'WINDOWS_INSTALLED_RUST_LIFECYCLE_EXECUTED profiles={count} public_readback_verification=pending')
 
 
 if __name__ == '__main__':
@@ -323,4 +331,6 @@ if __name__ == '__main__':
     parser.add_argument('--input', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--private-root', type=Path, required=True)
+    parser.add_argument('--profile', choices=('debug', 'release'),
+                        help='execute one complete profile; omission executes both')
     consume(parser.parse_args())

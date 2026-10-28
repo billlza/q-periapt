@@ -73,10 +73,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-2022, windows-2025]
+        profile: [debug, release]
     runs-on: ${{ matrix.os }}
-    # Both profiles now include six real-expiry registration routes (~370 s
-    # each profile), in addition to owner/root and original Rust lifecycle work.
-    # Individual command and protocol deadlines remain unchanged.
+    # Each job executes one complete profile, including the six real-expiry
+    # registration routes. Public readback requires both profiles from the same
+    # producer input. Individual command and protocol deadlines stay unchanged.
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -148,12 +149,12 @@ jobs:
           test "$(command -v link.exe)" = "$msvc_bin/link.exe"
           QPERIAPT_PYTHON="$(cygpath -u "$WINDOWS_PYTHON")"
           export QPERIAPT_PYTHON
-          sh artifact/python-run.sh artifact/continuity_windows_consume.py --input target/windows-installed-input/INPUT.json --output target/windows-installed-results --private-root "$RUNNER_TEMP/installed-c-private"
+          sh artifact/python-run.sh artifact/continuity_windows_consume.py --input target/windows-installed-input/INPUT.json --output target/windows-installed-results --private-root "$RUNNER_TEMP/installed-c-private" --profile "${{ matrix.profile }}"
       - name: Preserve public results and exact C library inputs
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: windows-installed-c-${{ matrix.os }}
+          name: windows-installed-c-${{ matrix.os }}-${{ matrix.profile }}
           path: target/windows-installed-results/
           if-no-files-found: error
 
@@ -178,14 +179,18 @@ jobs:
           update-environment: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: windows-installed-c-${{ matrix.os }}
-          path: target/windows-public-readback
+          name: windows-installed-c-${{ matrix.os }}-debug
+          path: target/windows-public-readback/debug
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: windows-installed-c-${{ matrix.os }}-release
+          path: target/windows-public-readback/release
       - name: Verify original Rust and C public lifecycle contracts
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
           EXPECTED_HEAD: ${{ github.sha }}
         run: |
-          sh artifact/python-run.sh artifact/continuity_windows_network_review.py --input target/windows-public-readback --output target/windows-public-readback/NETWORK_REVIEW.json --head "$EXPECTED_HEAD"
+          sh artifact/python-run.sh artifact/continuity_windows_network_review.py --profile-inputs target/windows-public-readback/debug target/windows-public-readback/release --output target/windows-public-readback/NETWORK_REVIEW.json --head "$EXPECTED_HEAD"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: windows-lifecycle-readback-${{ matrix.os }}
