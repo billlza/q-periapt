@@ -11,6 +11,8 @@ from continuity_c_consumer import EXPORTS
 import continuity_package as candidate
 import continuity_package_archive as bundle
 from continuity_windows_bundle import components
+from continuity_fetch import fetch_locked
+from rust_publish_contract import RustPublishContractError
 import rust_sdk_profile as sdk
 
 
@@ -38,8 +40,15 @@ def prepare(args) -> None:
     environment.update(CARGO_HOME=str(outside / 'cargo-home'), CARGO_TARGET_DIR=str(outside / 'build'),
                        CARGO_INCREMENTAL='0', CARGO_NET_OFFLINE='true', CARGO_TERM_COLOR='never',
                        RUSTFLAGS='-D warnings', RUSTDOCFLAGS='-D warnings')
-    def run(argv, label, cwd=sdk.ROOT, *, env=None):
+    def execute(argv, label, cwd=sdk.ROOT, *, env=None):
         return sdk.command(argv, output / label, cwd, environment=environment if env is None else env)
+    def run(argv, label, cwd=sdk.ROOT, *, env=None):
+        if label == 'fetch':
+            return fetch_locked(argv, output, cwd, environment if env is None else env,
+                                execute=execute, read=lambda path: sdk.snapshot(path).data,
+                                write_json=sdk.write_json,
+                                command_errors=(ValueError, RustPublishContractError))
+        return execute(argv, label, cwd, env=env)
     compiler = run(['rustc', '-vV'], 'rustc')
     sdk.require(compiler.decode().splitlines()[0] == 'rustc 1.98.1 (48a229cea 2026-09-01)', 'producer compiler differs')
     revision = run(['git', 'rev-parse', 'HEAD'], 'source-head').decode().strip()
