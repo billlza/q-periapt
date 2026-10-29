@@ -1,0 +1,13 @@
+{
+  "archive_sha256": "d40c0e0035c97a84700d9076f9b3af8b13b25b99434c38d69286b8c892497255",
+  "manifest_sha256": "9e7ac024f4a4519e7cee6bf3bba0e00632b24e2eefa87eefe67560fca2292a52",
+  "file_members": 116,
+  "all_members_byte_compared": true,
+  "final_steps": 382,
+  "response_source_branch_closed": true,
+  "remaining_snapshot_leaves": 40,
+  "invalid_steps": 0,
+  "origin_lemma_complete": false,
+  "main_multi_epoch_secrecy_complete": false,
+  "release_claim_eligible": false
+}
