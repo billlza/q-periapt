@@ -945,6 +945,29 @@ jobs:
             --output target/continuity-browser \
             --node "$(command -v node)" \
             --cli "$RUNNER_TEMP/qperiapt-playwright/node_modules/@playwright/cli/playwright-cli.js"
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: browser_python
+        with:
+          python-version: "3.14.7"
+      - name: Install the pinned browser test issuer provider privately
+        env:
+          BROWSER_PYTHON: ${{ steps.browser_python.outputs.python-path }}
+        run: |
+          "$BROWSER_PYTHON" -I -m pip --isolated install --disable-pip-version-check \
+            --index-url https://pypi.org/simple --only-binary=:all: --no-deps --require-hashes \
+            --target "$RUNNER_TEMP/browser-native-provider" \
+            -r research/continuity-openssl-peer/requirements.txt
+      - name: Exercise installed browser communication and complete native process restart
+        env:
+          QPERIAPT_PYTHON: ${{ steps.browser_python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh artifact/continuity_browser_session.py \
+            --receipt target/sdk-wasm-package/INSTALLED_CONSUMER.json \
+            --output target/browser-native-session \
+            --native-target target/browser-native-build \
+            --provider-root "$RUNNER_TEMP/browser-native-provider" \
+            --node "$(command -v node)" \
+            --cli "$RUNNER_TEMP/qperiapt-playwright/node_modules/@playwright/cli/playwright-cli.js"
       - name: Select the exact minimum Node runtime
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -979,6 +1002,9 @@ jobs:
             target/continuity-browser/public/
             target/continuity-browser/web/inputs/root.bin
             target/continuity-browser/web/inputs/description.bin
+            target/browser-native-session/public/
+            target/browser-native-session/web/initial.json
+            target/browser-native-session/web/grant.json
 
   # Bounded robustness fuzzing, using the actual detached crate and seeded inputs.
   # A crash, timeout, sanitizer error or missing execution statistics fails the job.
