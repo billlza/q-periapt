@@ -2,6 +2,7 @@
 from pathlib import Path
 
 from rust_sdk_profile import require, snapshot
+from evidence_io import parse_strict_json_bytes
 
 LABELS = ('native-key', 'native-begin', 'native-request', 'browser-open', 'browser-create',
           'native-accept', 'native-prepare', 'native-publication-id', 'native-publish', 'native-inbox',
@@ -71,6 +72,21 @@ def verify_forward(report: dict, public: Path) -> None:
             captured = snapshot(public / 'logs' / (row['label'] + '.' + stream))
             require(captured.sha256 == row[stream + '_sha256'] and (stream != 'stderr' or not captured.data),
                     'command stream differs')
+            if stream == 'stdout' and row['label'] in ('browser-activate', 'browser-resume'):
+                # Parse the same hash-checked bytes, not a second file read or an
+                # unbound summary. Equal forged before/after IDs are not evidence.
+                phase = row['label'][len('browser-'):]
+                text = captured.data.decode('utf-8')
+                require(text.count('### Result\n') == 1 and '### Error' not in text,
+                        'browser phase result missing or failed')
+                value = parse_strict_json_bytes(
+                    text.split('### Result\n', 1)[1].split('\n### ', 1)[0].encode(),
+                    label='retained browser phase ' + phase)
+                require(type(value) is dict and value.get('status') == 'INSTALLED_SESSION_PHASE'
+                        and value.get('phase') == phase and type(value.get('result')) is dict,
+                        'retained browser phase identity differs')
+                require(value['result'] == (before if phase == 'activate' else after),
+                        'browser summary differs from retained phase result')
     for label, expected in MESSAGES.items():
         require(snapshot(public / ('effect-' + label + '.bin')).data == expected,
                 'native application effect differs')

@@ -130,24 +130,32 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
           const details = __DETAILS__;
           const diagnostics=[], requests=[], httpErrors=[];
           const phaseStarted=Date.now(), responseStatus=new WeakMap(), requestDiagnostics=[];
-          page.on('pageerror', error=>diagnostics.push({type:'pageerror',message:String(error)}));
-          page.on('console', message=>{if(['error','warning'].includes(message.type()))diagnostics.push({type:message.type(),message:message.text(),location:message.location()});});
-          page.on('requestfailed', request=>{
+          const onPageError=error=>diagnostics.push({type:'pageerror',message:String(error)});
+          const onConsole=message=>{if(['error','warning'].includes(message.type()))diagnostics.push({type:message.type(),message:message.text(),location:message.location()});};
+          const onRequestFailed=request=>{
             requests.push({url:request.url(),failure:request.failure()});
             // These are isolated fixture frames, also retained by the relay.
             // Bind cancellation diagnostics to the exact request, not just its URL.
             requestDiagnostics.push({url:request.url(),failure:request.failure(),timing:request.timing(),
               body_hex:request.postDataBuffer()?.toString('hex')??null,
               response_status:responseStatus.get(request)??null,observed_ms:Date.now()});
-          });
-          page.on('response', response=>{
+          };
+          const onResponse=response=>{
             responseStatus.set(response.request(),response.status());
             if(response.status()>=400)httpErrors.push({url:response.url(),status:response.status()});
-          });
-          await page.waitForFunction(()=>globalThis.fixtureReady===true,undefined,{timeout:15000});
-          const result=await page.evaluate(({phase,details})=>globalThis.runPhase(phase,details),{phase,details});
-          return {status:'INSTALLED_SESSION_PHASE',phase,result,diagnostics,requests,http_errors:httpErrors,
-            request_diagnostics:requestDiagnostics,phase_started_ms:phaseStarted,browser:await page.evaluate(()=>navigator.userAgent)};
+          };
+          const listeners=[['pageerror',onPageError],['console',onConsole],
+            ['requestfailed',onRequestFailed],['response',onResponse]];
+          try {
+            for(const [event,listener] of listeners)page.on(event,listener);
+            await page.waitForFunction(()=>globalThis.fixtureReady===true,undefined,{timeout:15000});
+            const result=await page.evaluate(({phase,details})=>globalThis.runPhase(phase,details),{phase,details});
+            return {status:'INSTALLED_SESSION_PHASE',phase,result,diagnostics,requests,http_errors:httpErrors,
+              request_diagnostics:requestDiagnostics,phase_started_ms:phaseStarted,browser:await page.evaluate(()=>navigator.userAgent)};
+          } finally {
+            // The CLI reuses this Page across phases. Preserve unrelated listeners.
+            for(const [event,listener] of listeners)page.off(event,listener);
+          }
         }'''.replace('__PHASE__',json.dumps(name)).replace('__DETAILS__',json.dumps(details))
         path=output/(name+'.js');save(path,code.encode())
         text=browser(['run-code','--filename',str(path)],'browser-'+name,recorder=recorder).decode()

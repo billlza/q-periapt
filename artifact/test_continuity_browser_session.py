@@ -83,6 +83,54 @@ class InstalledBrowserNativeSession(unittest.TestCase):
         with self.assertRaises(ValueError):
             verify(self.report, self.public)
 
+    def test_coordinated_identity_substitution_cannot_replace_captured_identity(self):
+        for key in ('journal', 'session'):
+            changed = copy.deepcopy(self.report)
+            changed['before_restart'][key][0] ^= 1
+            changed['after_restart'][key][0] ^= 1
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                verify(changed, self.public)
+
+    def test_report_message_ids_must_match_captured_browser_results(self):
+        for phase, key in (('before_restart', 'first'), ('before_restart', 'lost'),
+                           ('after_restart', 'last')):
+            changed = copy.deepcopy(self.report)
+            changed[phase][key][0] ^= 1
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                verify(changed, self.public)
+
+    def test_report_lease_observations_cannot_be_rewritten(self):
+        changed = copy.deepcopy(self.report)
+        changed['after_restart']['leases'][-1]['elapsed_ms'] += 1
+        with self.assertRaises(ValueError):
+            verify(changed, self.public)
+
+    def test_hash_bound_browser_output_must_be_one_successful_matching_phase(self):
+        path = self.public / 'logs/browser-activate.stdout'
+        original = path.read_bytes()
+        text = original.decode()
+        value = json.loads(text.split('### Result\n', 1)[1].split('\n### ', 1)[0])
+        wrong_phase = copy.deepcopy(value)
+        wrong_phase['phase'] = 'resume'
+        wrong_status = copy.deepcopy(value)
+        wrong_status['status'] = 'FAILED'
+        changed_result = copy.deepcopy(value)
+        changed_result['result']['journal'][0] ^= 1
+        bodies = [b'no result\n', original + b'\n### Result\n{}',
+                  original + b'\n### Error\noperation failed']
+        bodies += [('### Result\n' + json.dumps(item)).encode()
+                   for item in (wrong_phase, wrong_status, changed_result)]
+        try:
+            for body in bodies:
+                path.write_bytes(body)
+                changed = copy.deepcopy(self.report)
+                row = next(row for row in changed['commands'] if row['label'] == 'browser-activate')
+                row['stdout_sha256'] = hashlib.sha256(body).hexdigest()
+                with self.subTest(body=body[:80]), self.assertRaises(ValueError):
+                    verify(changed, self.public)
+        finally:
+            path.write_bytes(original)
+
     def test_ci_executes_the_installed_session_workload(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         job = workflow.split('  bindings-wasm:\n', 1)[1].split('\n  fuzz:', 1)[0]
