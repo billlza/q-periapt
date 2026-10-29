@@ -125,9 +125,18 @@ class WindowsProfileAdmission(unittest.TestCase):
             self.assertFalse(absent.exists())
             with self.assertRaises(EvidenceIOError) as missing:
                 review_split(debug, absent, output, self.head)
-            # NtOpenFile reports a direct EvidenceIOError on Windows; POSIX
-            # chains an OSError. Both must identify the unavailable manifest.
-            self.assertIn(str((absent / 'RESULT.json').resolve()), str(missing.exception))
+            # The Windows component walk stops at the first absent directory;
+            # POSIX may report the whole requested path. Both identify this
+            # missing parent, and neither may publish a partial review.
+            self.assertIn(str(absent.resolve()), str(missing.exception))
+            self.assertFalse(output.exists())
+            absent.mkdir()
+            self.assertFalse((absent / 'RESULT.json').exists())
+            with self.assertRaises(EvidenceIOError) as missing_file:
+                review_split(debug, absent, output, self.head)
+            # With the parent present, the failing component is the manifest
+            # itself on both platforms. Check this separate boundary exactly.
+            self.assertIn(str((absent / 'RESULT.json').resolve()), str(missing_file.exception))
             self.assertFalse(output.exists())
 
     def test_snapshot_failure_propagates_unchanged_without_publishing_a_review(self):
