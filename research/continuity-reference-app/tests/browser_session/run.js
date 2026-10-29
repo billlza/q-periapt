@@ -13,7 +13,12 @@ async function launch() {
 function invoke(args) {
   return new Promise((resolve,reject)=>{
     const timer=setTimeout(()=>reject(Error('Worker operation deadline')),90000);
-    worker.onmessage=({data})=>{clearTimeout(timer);data.error?reject(Error(JSON.stringify(data.error))):resolve(data.result);};
+    worker.onmessage=({data})=>{
+      clearTimeout(timer);
+      if(data.error) {reject(Error(JSON.stringify(data.error)));return;}
+      if(data.cut) {args.cut?resolve(data.cut):reject(Error('unexpected Worker cut'));return;}
+      args.cut?reject(Error('Worker returned before requested cut')):resolve(data.result);
+    };
     worker.postMessage(args);
   });
 }
@@ -29,7 +34,7 @@ async function terminate() {
     await new Promise(resolve=>setTimeout(resolve,20));
   }
 }
-globalThis.runPhase=async phase=>{
+globalThis.runPhase=async (phase, details)=>{
   if(phase==='create') {await launch();return {...await invoke({op:'create',scope}),scope};}
   if(phase==='activate') {
     original=await invoke({op:'activate',request:random(32)});
@@ -39,6 +44,13 @@ globalThis.runPhase=async phase=>{
   if(phase==='resume') {
     await launch();const result=await invoke({op:'resume',scope,original});
     const leases=await terminate();return {...result,leases};
+  }
+  if(phase==='receive-first' || phase==='receive-retry') await launch();
+  if(['receive-first','receive-cut','receive-retry','receive-last'].includes(phase)) {
+    const result=await invoke({op:'receive',scope,original,...details,
+      cut:phase==='receive-cut',finish:phase==='receive-last'});
+    if(phase==='receive-cut' || phase==='receive-last') return {...result,leases:await terminate()};
+    return result;
   }
   throw Error('unknown phase');
 };

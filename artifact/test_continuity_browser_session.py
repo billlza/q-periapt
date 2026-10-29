@@ -7,7 +7,7 @@ import tempfile
 import unittest
 import zipfile
 
-from continuity_browser_session_records import verify
+from continuity_browser_session_records import verify_forward as verify
 
 ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE = ROOT / 'research/sdk-alpha1/evidence/20261029-installed-browser-native-session'

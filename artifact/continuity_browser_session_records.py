@@ -17,8 +17,8 @@ def identity(value):
     return type(value) is list and len(value) == 32 and all(type(x) is int and 0 <= x <= 255 for x in value)
 
 
-def verify(report: dict, public: Path) -> None:
-    require(type(report.get('schema_version')) is int and report['schema_version'] == 1
+def verify_forward(report: dict, public: Path) -> None:
+    require(type(report.get('schema_version')) is int and report['schema_version'] in (1, 2)
             and report.get('completed') is True and report.get('release_claim_eligible') is False,
             'browser/native scope or completion differs')
     require(report.get('relay_failures') == [] and not report.get('cleanup_failures'), 'fixture failed')
@@ -77,3 +77,11 @@ def verify(report: dict, public: Path) -> None:
     request = snapshot(public / 'browser-enrollment.request').data
     require(len(request) == 5506 and request[4:12] == b'QPENRQ01',
             'actual browser enrollment request missing')
+
+
+def verify(report: dict, public: Path) -> None:
+    from continuity_browser_reverse_records import verify as verify_reverse
+    require(type(report.get('schema_version')) is int and report['schema_version']==2,
+            'bidirectional qualification requires its current transcript schema')
+    verify_forward(report, public)
+    verify_reverse(report['reverse_application'], public, report['before_restart']['session'])

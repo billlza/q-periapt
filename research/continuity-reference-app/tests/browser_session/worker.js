@@ -1,4 +1,5 @@
 import initialize, * as sdk from '/pkg/index.js';
+import {openEffects} from '/effects.js';
 await initialize();
 const bytes = value => Uint8Array.from(value);
 const b64 = value => Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')), c => c.charCodeAt(0));
@@ -15,6 +16,21 @@ const invitation = initial.invitation;
 const intent = keep(new sdk.QPeriaptContinuityEnrollment(b64(invitation.root), bytes(invitation.device),
   BigInt(invitation.generation), bytes(invitation.family), BigInt(invitation.valid_from), BigInt(invitation.valid_until)));
 let device, peer, trust, session, grant, stage = 'initialized';
+let effects;
+async function reopenOriginal(scope, original) {
+  device = await sdk.QPeriaptContinuityDevice.open(scope.name, bytes(scope.id), intent);
+  await loadPeer();
+  const journal = await device.activate_local(policy, now());
+  required(JSON.stringify([...journal]) === JSON.stringify(original.journal), 'reopen replaced journal');
+  session = keep(await device.reopen_session(bytes(grant.bundle), policy, trust, sdk.QPeriaptContinuityRole.Initiator,
+    bytes(original.session), now()));
+  return journal;
+}
+async function closeOwner() {
+  effects?.close(); effects = undefined;
+  await device.close(); device.free(); device = undefined;
+  for (const item of own.reverse()) item.free();
+}
 async function loadPeer() {
   stage = 'fetch-grant';
   grant = await (await fetch('/grant.json')).json();
@@ -72,12 +88,7 @@ async function action(data) {
     return {journal:[...journal], session:[...session.id()], first, lost, failure};
   }
   if (data.op === 'resume') {
-    device = await sdk.QPeriaptContinuityDevice.open(data.scope.name, bytes(data.scope.id), intent);
-    await loadPeer();
-    const journal = await device.activate_local(policy, now());
-    required(JSON.stringify([...journal]) === JSON.stringify(data.original.journal), 'reopen replaced journal');
-    session = keep(await device.reopen_session(bytes(grant.bundle), policy, trust, sdk.QPeriaptContinuityRole.Initiator,
-      bytes(data.original.session), now()));
+    const journal = await reopenOriginal(data.scope, data.original);
     const before = await device.session_message_status(session, bytes(data.original.lost));
     required(before === sdk.QPeriaptContinuityMessageStatus.Committed, 'lost ACK inferred completion');
     required(await message(data.original.lost, 'original browser delivery with lost ACK') === sdk.QPeriaptContinuityConsumption.Confirmed,
@@ -94,8 +105,34 @@ async function action(data) {
       confirmed_epoch:progress.confirmed_epoch().toString(), sending_epoch:progress.sending_epoch().toString(),
       receiving_epoch:progress.receiving_epoch().toString()};
     progress.free();
-    await device.close(); device.free(); device = undefined;
-    for (const item of own.reverse()) item.free();
+    await closeOwner();
+    return result;
+  }
+  if (data.op === 'receive') {
+    if (!device) await reopenOriginal(data.scope, data.original);
+    effects ??= await openEffects(data.scope.name);
+    stage = 'receive-original-frame';
+    const incoming = await fetch('/incoming'); required(incoming.ok, 'incoming HTTP request failed');
+    const wire = new Uint8Array(await incoming.arrayBuffer());
+    let callback;
+    const consume = async (receivedSession, messageId, plaintext) => {
+      required(JSON.stringify([...receivedSession]) === JSON.stringify(data.original.session)
+        && JSON.stringify([...messageId]) === JSON.stringify(data.message), 'application identity differs');
+      callback = await effects.commit(receivedSession, messageId, plaintext);
+      if (data.cut) {
+        postMessage({cut: {stage: 'host-effect-committed-before-consumer-return', effect: callback,
+          effects: await effects.snapshot(), session: [...session.id()]}});
+        await new Promise(() => {}); // Parent terminates this actual Worker at the observed cut.
+      }
+    };
+    stage = 'serve-session-message';
+    const reply = await device.serve_session_message(session, wire, consume, 10000, now);
+    required(callback !== undefined, 'application consumer was not invoked');
+    stage = 'send-actual-reply';
+    const sent = await fetch('/incoming/response', {method: 'POST', body: reply});
+    required(sent.ok, 'actual reply delivery failed');
+    const result = {session: [...session.id()], effect: callback, effects: await effects.snapshot()};
+    if (data.finish) await closeOwner();
     return result;
   }
   throw Error('unknown operation');

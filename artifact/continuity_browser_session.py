@@ -23,6 +23,7 @@ FIXTURES = ROOT / 'research/continuity-reference-app/tests/browser_session'
 from bounded_process import capture_output
 from continuity_browser_creation import installed_binding
 from continuity_browser_session_records import verify
+from continuity_browser_reverse import qualify as qualify_reverse
 from c_package_manifest import rust_workspace_source_digest
 from evidence_io import load_json_object_snapshot, parse_strict_json_bytes
 import rust_sdk_profile as sdk
@@ -36,10 +37,11 @@ def source_identity():
     paths=[]
     for directory in ('research/continuity-reference-app/src', 'research/continuity-openssl-peer/qperiapt_continuity_reference'):
         paths.extend(path for path in (ROOT/directory).rglob('*') if path.is_file() and path.suffix in ('.rs','.py'))
-    paths.extend(FIXTURES/name for name in ('worker.js','run.js'))
+    paths.extend(FIXTURES/name for name in ('worker.js','run.js','effects.js'))
     paths.extend(ROOT/'research/continuity-reference-app'/name for name in ('Cargo.toml','Cargo.lock',
         'tests/native_exchange_fixture.py','tests/native_network_driver.py'))
-    paths.extend(ROOT/'artifact'/name for name in ('continuity_browser_session.py','continuity_browser_session_records.py',
+    paths.extend(ROOT/'artifact'/name for name in ('continuity_browser_session.py','continuity_browser_session_records.py','continuity_browser_reverse.py',
+        'continuity_browser_reverse_records.py',
         'continuity_browser_creation.py','wasm_sdk_package.py','rust_sdk_profile.py','bounded_process.py','evidence_io.py'))
     return {'rust_workspace_sha256':rust_workspace_source_digest(ROOT),
         'files':{str(path.relative_to(ROOT)):sdk.snapshot(path).sha256 for path in sorted(paths)}}
@@ -66,13 +68,13 @@ def qualify(output, receipt, node, cli, provider_root, native_target):
     private=Path(tempfile.mkdtemp(prefix='qpc-browser-session-')).resolve(strict=True)
     installed,binding=installed_binding(receipt)
     shutil.copytree(installed/'web',web/'pkg')
-    for name in ('worker.js','run.js'):
+    for name in ('worker.js','run.js','effects.js'):
         shutil.copyfile(FIXTURES/name,web/name)
     save(web/'index.html',b'<!doctype html><meta charset="utf-8"><link rel="icon" href="data:"><script type="module" src="/run.js"></script><title>Installed browser native session</title>')
     env=dict(os.environ,CARGO_TARGET_DIR=str(native_target),RUSTFLAGS='-D warnings')
     sdk.command(['cargo','+1.98.1','build','--locked','--manifest-path','research/continuity-reference-app/Cargo.toml',
-                 '--bin','q-periapt-native-device','--bin','q-periapt-native-session'],logs/'native-build',ROOT,environment=env)
-    binaries={name:native_target/'debug'/name for name in ('q-periapt-native-device','q-periapt-native-session')}
+                 '--bin','q-periapt-native-device','--bin','q-periapt-native-session','--bin','q-periapt-native-outgoing'],logs/'native-build',ROOT,environment=env)
+    binaries={name:native_target/'debug'/name for name in ('q-periapt-native-device','q-periapt-native-session','q-periapt-native-outgoing')}
     binary_hashes={name:sdk.snapshot(path,maximum=256*1024**2).sha256 for name,path in binaries.items()}
     commands=[]; services=[]; frames=[]; failures=[]; frame_lock=threading.Lock()
     session='qpc-session-'+uuid.uuid4().hex
@@ -81,7 +83,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target):
     sdk.require(metadata.get('name')=='@playwright/cli' and metadata.get('version')=='0.1.22','browser CLI version differs')
     tool_identity=lambda:{'node':sdk.snapshot(node,maximum=256*1024**2).sha256,'cli':sdk.snapshot(cli).sha256}
     tools=tool_identity()
-    report={'schema_version':1,'completed':False,'release_claim_eligible':False,'source':source,'tools':tools,
+    report={'schema_version':2,'completed':False,'release_claim_eligible':False,'source':source,'tools':tools,
       'installed_sdk':binding,'native_binary_sha256':binary_hashes,'provider':provider.__version__,
       'provider_files':provider_files,'provider_openssl':backend.openssl_version_text(),
       'scope':'Installed browser public owner against repository-built native reference service; actual HTTP/TCP and OS time; fresh isolated test authority, local policy, not Passkey authorization, independent session implementation, TLS, physical device or power loss.'}
@@ -93,27 +95,31 @@ def qualify(output, receipt, node, cli, provider_root, native_target):
         sdk.require(result.returncode==0 and not result.stderr,'native command failed '+label)
         return parse_strict_json_bytes(result.stdout,label='native command '+label) if json_output else result.stdout
 
-    def browser(argv,label):
+    def browser(argv,label,*,recorder=None):
         with contextlib.chdir(output):
-            result=capture_output([str(node),str(cli),'--session',session,*argv],timeout_seconds=200,maximum_stdout_bytes=4*1024**2,maximum_stderr_bytes=1024**2)
+            result=capture_output([str(node),str(cli),'--session',session,*argv],timeout_seconds=200,
+              maximum_stdout_bytes=4*1024**2,maximum_stderr_bytes=1024**2,
+              environment={key:value for key,value in os.environ.items() if key not in ('NODE_OPTIONS','NODE_PATH')})
         save(logs/(label+'.stdout'),result.stdout);save(logs/(label+'.stderr'),result.stderr)
-        commands.append({'label':label,'exit':result.returncode,'stdout_sha256':digest(result.stdout),'stderr_sha256':digest(result.stderr)})
+        (commands if recorder is None else recorder).append({'label':label,'exit':result.returncode,'expected_exit':0,
+          'stdout_sha256':digest(result.stdout),'stderr_sha256':digest(result.stderr)})
         sdk.require(result.returncode==0 and not result.stderr,'browser command failed '+label)
         return result.stdout
 
-    def phase(name):
+    def phase(name,details=None,*,recorder=None):
         code='''async page => {
           const phase = __PHASE__;
+          const details = __DETAILS__;
           const diagnostics=[], requests=[];
           page.on('pageerror', error=>diagnostics.push({type:'pageerror',message:String(error)}));
           page.on('console', message=>{if(['error','warning'].includes(message.type()))diagnostics.push({type:message.type(),message:message.text(),location:message.location()});});
           page.on('requestfailed', request=>requests.push({url:request.url(),failure:request.failure()}));
           await page.waitForFunction(()=>globalThis.fixtureReady===true,undefined,{timeout:15000});
-          const result=await page.evaluate(p=>globalThis.runPhase(p),phase);
+          const result=await page.evaluate(({phase,details})=>globalThis.runPhase(phase,details),{phase,details});
           return {status:'INSTALLED_SESSION_PHASE',phase,result,diagnostics,requests,browser:await page.evaluate(()=>navigator.userAgent)};
-        }'''.replace('__PHASE__',json.dumps(name))
+        }'''.replace('__PHASE__',json.dumps(name)).replace('__DETAILS__',json.dumps(details))
         path=output/(name+'.js');save(path,code.encode())
-        text=browser(['run-code','--filename',str(path)],'browser-'+name).decode()
+        text=browser(['run-code','--filename',str(path)],'browser-'+name,recorder=recorder).decode()
         sdk.require(text.count('### Result\n')==1 and '### Error' not in text,'browser phase failed '+name)
         value=parse_strict_json_bytes(text.split('### Result\n',1)[1].split('\n### ',1)[0].encode(),label='browser session phase '+name)
         sdk.require(value['status']=='INSTALLED_SESSION_PHASE' and value['phase']==name,'phase result differs')
@@ -134,13 +140,27 @@ def qualify(output, receipt, node, cli, provider_root, native_target):
             self.send_header('Cross-Origin-Opener-Policy','same-origin')
             self.send_header('Cross-Origin-Embedder-Policy','require-corp')
             self.send_header('Cache-Control','no-store');super().end_headers()
+        def do_GET(self):
+            if self.path!='/incoming':return super().do_GET()
+            try:
+                sdk.require(self.server.incoming is not None,'incoming native sender not ready')
+                request=self.server.incoming.read()
+                self.send_response(200);self.send_header('Content-Type','application/octet-stream')
+                self.send_header('Content-Length',str(len(request)));self.end_headers();self.wfile.write(request)
+            except BaseException as error:
+                failures.append({'type':type(error).__name__,'message':str(error)})
+                self.send_error(500)
         def do_POST(self):
             length=self.headers.get('Content-Length','')
-            if (self.path not in ('/exchange','/exchange/drop-once') or not length.isdecimal()
+            if (self.path not in ('/exchange','/exchange/drop-once','/incoming/response') or not length.isdecimal()
                 or not 10<=int(length)<=65536 or self.headers.get('Origin')!=origin):
                 self.send_error(400);return
             try:
                 request=self.rfile.read(int(length));sdk.require(len(request)==int(length),'truncated HTTP frame')
+                if self.path=='/incoming/response':
+                    sdk.require(self.server.incoming is not None,'incoming native sender not ready')
+                    self.server.incoming.reply(request)
+                    self.send_response(204);self.send_header('Content-Length','0');self.end_headers();return
                 with frame_lock:
                     number=len(frames)+1
                     sdk.require(self.server.upstream is not None,'native service not ready')
@@ -161,7 +181,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target):
                 failures.append({'type':type(error).__name__,'message':str(error)})
                 self.send_error(500)
 
-    server=ThreadingHTTPServer(('127.0.0.1',0),Handler);server.daemon_threads=False;server.upstream=None
+    server=ThreadingHTTPServer(('127.0.0.1',0),Handler);server.daemon_threads=False;server.upstream=None;server.incoming=None
     origin=f'http://127.0.0.1:{server.server_port}'
     thread=threading.Thread(target=server.serve_forever,name='installed-browser-native-fixture');thread.start()
     opened=False;primary_error=None
@@ -217,6 +237,8 @@ def qualify(output, receipt, node, cli, provider_root, native_target):
         server.upstream=second.address
         resumed=phase('resume');report['after_restart']=resumed
         report['native_second']=second.stop()
+        report['reverse_application']=qualify_reverse(binaries['q-periapt-native-outgoing'],inputs,private,public,
+                                                      original['session'],server,phase)
         for label,message,expected_text in [('first',original['first'],b'installed browser epoch zero'),
           ('lost',original['lost'],b'original browser delivery with lost ACK'),
           ('last',resumed['last'],b'installed browser after full peer restart')]:
