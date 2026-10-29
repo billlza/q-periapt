@@ -100,7 +100,8 @@ def verify(value,binaries,application,*,credential_expiry=False):
                     and type(row['exit']) is int and row['exit']==code,'HTTP cohort process outcome')
             if 'stats' in row:
                 n={'peer-before-service':3,'peer-after-service':4,'peer-receiver':3}.get(label,row['stats']['completed_responses'])
-                require(type(n) is int and 1<=n<=1024,'HTTP cohort process work bound');stats(row['stats'],n,n)
+                require(type(n) is int and 1<=n<=1024,'HTTP cohort process work bound')
+                stats(row['stats'],n,n,native=key!='receivers',queued=key=='witness_services')
     stats(value['recovery_relay'],1,1)
     rows=value['recovery_wire'];require(type(rows) is list and len(rows)==1 and rows[0]['label']=='replacement-wire-1'
             and rows[0]['kind']==3 and rows[0]['outcome']=='response','HTTP cohort original wire record')

@@ -7,9 +7,10 @@ from continuity_host_roster import LABELS, FAILED, HTTP, verify
 
 def fixture():
     def identity(n): return base64.urlsafe_b64encode(bytes([n])*32).rstrip(b'=').decode()
-    def stats(n): return dict(accepted=n,completed_responses=n,evicted_incomplete=0,
-        rejected_busy=0,read_errors=0,operation_errors=0,last_operation_error=None)
-    def process(label,pid,n): return dict(label=label,pid=pid,exit=0,stats=stats(n))
+    def stats(n,*,native=False): return dict(accepted=n,completed_responses=n,evicted_incomplete=0,
+        rejected_busy=0,read_errors=0,operation_errors=0,last_operation_error=None,
+        **(dict(queued_requests=0,expired_queued=0) if native else {}))
+    def process(label,pid,n,*,native=False): return dict(label=label,pid=pid,exit=0,stats=stats(n,native=native))
     transitions=[]
     for i in (1,2):
         binding=[i]*32
@@ -30,8 +31,8 @@ def fixture():
             same_identity=True,request_sha256="a"*64,signing_key_sha256="b"*64),
         independent_policy_transition=peer_policy_fixture(identity),
         independent_credential_transition=peer_credential_fixture(identity),
-        services=[process('survivor-first',1,3),process('survivor-after-add',2,2),process('survivor-after-replacement',3,4)],
-        witness_services=[dict(label='witness-first',pid=4,exit=-9),process('witness-reopened',5,5)],
+        services=[process('survivor-first',1,3,native=True),process('survivor-after-add',2,2,native=True),process('survivor-after-replacement',3,4,native=True)],
+        witness_services=[dict(label='witness-first',pid=4,exit=-9),process('witness-reopened',5,5,native=True)],
         account_services=[dict(label='account-first',pid=6,exit=-9),process('account-reopened',7,1)],
         independent_service=process('peer-receiver',8,1))
 

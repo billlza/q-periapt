@@ -8,14 +8,15 @@ from continuity_host_cli import verify,LABELS,REFUSALS,FRAMES,CONTROL_PHASES,CON
 class CliReceiptTests(unittest.TestCase):
     def setUp(self):
         self.application=Path('/installed');self.binaries={'/native':'a'*64}
-        def stats(n):return dict(accepted=n,completed_responses=n,evicted_incomplete=0,
-            rejected_busy=0,read_errors=0,operation_errors=0,last_operation_error=None)
+        def stats(n,*,native=False):return dict(accepted=n,completed_responses=n,evicted_incomplete=0,
+            rejected_busy=0,read_errors=0,operation_errors=0,last_operation_error=None,
+            **(dict(queued_requests=0,expired_queued=0) if native else {}))
         self.value=dict(schema_version=1,kind='qperiapt.independent_session_cli',completed=True,
             native_sha256=self.binaries.copy(),provider='48.0.1',clock='actual OS time',
             implementation='/installed/qperiapt_continuity_reference/session_cli.py',confirmed_epoch=7,
             commands=[dict(label=n,exit=1 if n in REFUSALS else 0) for n in LABELS],refusals=list(REFUSALS),
             frames=[dict(label=n,kind=k,request_sha256='b'*64,response_sha256='c'*64) for n,k in FRAMES],
-            relay=stats(7),native_service=dict(label='cli-native-service',pid=10,exit=0,stats=stats(8)),
+            relay=stats(7),native_service=dict(label='cli-native-service',pid=10,exit=0,stats=stats(8,native=True)),
             inbound=dict(confirmed_epoch=2,effects=3,original_effect_unchanged_on_retry=True,
                 relay=stats(4),frames=[dict(label='cli-inbound-wire-'+str(i),kind=k,request_sha256='b'*64,response_sha256='c'*64)
                     for i,k in enumerate((3,4,4,3),1)],
@@ -26,13 +27,13 @@ class CliReceiptTests(unittest.TestCase):
             frames=[dict(label=label,kind=3,request_sha256='b'*64,response_sha256='c'*64)
                     for label in ('cli-opposing-native-wire','cli-opposing-python-wire')],
             relays=[stats(1),stats(1)],
-            native_service=dict(label='cli-opposing-native-service',pid=13,exit=0,stats=stats(7)),
+            native_service=dict(label='cli-opposing-native-service',pid=13,exit=0,stats=stats(7,native=True)),
             independent_service=dict(label='cli-opposing-independent-service',pid=14,exit=0,stats=stats(1)))
         self.value['opposing_rekey']=dict(target=3,simultaneous=True,effects=2,
             phase_refusals=copy.deepcopy(list(CONTROL_PHASES)),
             frames=[dict(label=n,kind=k,request_sha256='b'*64,response_sha256='c'*64) for n,k in CONTROL_FRAMES],
             relays=[stats(2),stats(3)],
-            native_service=dict(label='cli-rekey-native-service',pid=15,exit=0,stats=stats(17)),
+            native_service=dict(label='cli-rekey-native-service',pid=15,exit=0,stats=stats(17,native=True)),
             independent_service=dict(label='cli-rekey-independent-service',pid=16,exit=0,stats=stats(5)))
         verify(self.value,self.binaries,self.application)
 

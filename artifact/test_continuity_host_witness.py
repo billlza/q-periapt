@@ -7,19 +7,20 @@ from continuity_independent_python import PACKAGE
 
 
 def fixture():
-    def stats(n):
+    def stats(n,*,native=False):
         return dict(accepted=n,completed_responses=n,evicted_incomplete=0,
-                    rejected_busy=0,read_errors=0,operation_errors=0,last_operation_error=None)
-    def service(label,pid,n):return dict(label=label,pid=pid,exit=0,stats=stats(n))
+                    rejected_busy=0,read_errors=0,operation_errors=0,last_operation_error=None,
+                    **(dict(queued_requests=0,expired_queued=0) if native else {}))
+    def service(label,pid,n,*,native=False):return dict(label=label,pid=pid,exit=0,stats=stats(n,native=native))
     return dict(schema_version=1,kind='qperiapt.required_witness_session_cli',completed=True,
         confirmed_epoch=2,effects=3,native_sha256={},provider='48.0.1',
         implementation=str(Path('/installed')/PACKAGE/'session_cli.py'),clock='actual OS time',
         commands=[dict(label=label,exit=1 if label in FAILED else 0) for label in LABELS],
         refusals=list(REFUSALS),witness_keys_unchanged=True,
         genesis=dict(preparation='RequiresWitnessEnrollment',subject=[1]*96,head=[2]*32),
-        native_service=service('witness-native-service',1,7),
+        native_service=service('witness-native-service',1,7,native=True),
         independent_service=service('witness-independent-service',2,3),
-        witness_services=[dict(label='witness-first',pid=3,exit=-9),service('witness-reopened',4,512)])
+        witness_services=[dict(label='witness-first',pid=3,exit=-9),service('witness-reopened',4,512,native=True)])
 
 
 class WitnessEvidence(unittest.TestCase):
@@ -30,6 +31,17 @@ class WitnessEvidence(unittest.TestCase):
         for n in (0,1025,True):
             value=fixture();value['witness_services'][1]['stats']['completed_responses']=n
             with self.assertRaises(ValueError):self.accepted(value)
+
+    def test_queued_witness_work_remains_bounded_and_has_no_expiry(self):
+        value=fixture();value['witness_services'][1]['stats']['queued_requests']=7
+        self.accepted(value)
+        for key,bad in [('queued_requests',513),('queued_requests',True),
+                        ('queued_requests',-1),('expired_queued',1),('expired_queued',False)]:
+            value=fixture();value['witness_services'][1]['stats'][key]=bad
+            with self.subTest(key=key,bad=bad),self.assertRaises(ValueError):self.accepted(value)
+        for key in ('queued_requests','expired_queued'):
+            value=fixture();value['witness_services'][1]['stats'].pop(key)
+            with self.subTest(missing=key),self.assertRaises(ValueError):self.accepted(value)
 
     def test_omitted_refusal_or_claimed_success_is_rejected(self):
         value=fixture();value['commands'].pop()

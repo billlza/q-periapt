@@ -2,7 +2,7 @@
 import base64
 import sys
 from continuity_independent_python import PACKAGE, require
-from continuity_host_network import count, STATS
+from continuity_host_network import count, stats_shape
 from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 from continuity_host_replacement_evidence import retain
 
@@ -50,8 +50,8 @@ def identity(value):
     return raw
 
 
-def stats(value, accepted, completed, errors=0):
-    require(type(value) is dict and set(value) == STATS, 'replacement service statistics')
+def stats(value, accepted, completed, errors=0, *, native=False, queued=False):
+    stats_shape(value,native=native,queued=queued)
     for key, n in [('accepted', accepted), ('completed_responses', completed), ('operation_errors', errors),
                    ('evicted_incomplete', 0), ('read_errors', 0), ('rejected_busy', 0)]:
         count(value[key], n, 'replacement ' + key)
@@ -90,12 +90,12 @@ def verify(value, binaries, application):
             count(row['exit'], code, 'replacement process exit')
             require(type(row['pid']) is int and row['pid'] > 0 and row['pid'] not in pids, 'replacement process identity')
             pids.add(row['pid'])
-    stats(value['services'][0]['stats'], 7, 5, 2)
-    stats(value['services'][2]['stats'], 1, 1)
+    stats(value['services'][0]['stats'], 7, 5, 2, native=True)
+    stats(value['services'][2]['stats'], 1, 1, native=True)
     stats(value['independent_service']['stats'], 1, 1)
     n = value['witness_services'][1]['stats']['completed_responses']
     require(type(n) is int and 1 <= n <= 1024, 'replacement witness workload bound')
-    stats(value['witness_services'][1]['stats'], n+1, n, 1)
+    stats(value['witness_services'][1]['stats'], n+1, n, 1, native=True, queued=True)
     stats(value.get('relay'), 3, 2, 1)
     frames = value.get('frames')
     require(type(frames) is list and len(frames) == 3, 'replacement bootstrap frame inventory')

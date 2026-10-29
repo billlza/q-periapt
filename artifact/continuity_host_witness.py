@@ -42,7 +42,8 @@ def verify(value,binaries,application,*,account_credential=False):
     for key,label,n in [('native_service','witness-native-service',7),('independent_service','witness-independent-service',3)]:
         row=value.get(key)
         require(type(row) is dict and set(row)=={'label','pid','exit','stats'} and row['label']==label,'witness session service')
-        count(row['exit'],0,'witness session service exit');stats(row['stats'],n,n);services.append(row)
+        count(row['exit'],0,'witness session service exit')
+        stats(row['stats'],n,n,native=key=='native_service');services.append(row)
     witnesses=value.get('witness_services')
     require(type(witnesses) is list and len(witnesses)==2,'witness service lifecycle')
     for row,label,exit_code in zip(witnesses,('witness-first','witness-reopened'),(-9,0)):
@@ -51,7 +52,7 @@ def verify(value,binaries,application,*,account_credential=False):
         if exit_code==0:
             n=row['stats'].get('completed_responses')
             require(type(n) is int and 1<=n<=1024,'witness bounded response workload')
-            stats(row['stats'],n,n)
+            stats(row['stats'],n,n,native=True,queued=True)
         services.append(row)
     require(all(type(s['pid']) is int and s['pid']>0 for s in services)
             and len({s['pid'] for s in services})==4,'separate original witness/session processes')

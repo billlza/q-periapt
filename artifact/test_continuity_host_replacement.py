@@ -8,11 +8,13 @@ from continuity_host_replacement_evidence import verify_http_recovery
 
 
 def fixture():
-    def stats(n, errors=0):
+    def stats(n, errors=0, *, native=False):
         return dict(accepted=n+errors, completed_responses=n, evicted_incomplete=0,
                     rejected_busy=0, read_errors=0, operation_errors=errors,
-                    last_operation_error='other error' if errors else None)
-    def service(label, pid, n, errors=0): return dict(label=label, pid=pid, exit=0, stats=stats(n, errors))
+                    last_operation_error='other error' if errors else None,
+                    **(dict(queued_requests=0,expired_queued=0) if native else {}))
+    def service(label, pid, n, errors=0, *, native=False):
+        return dict(label=label, pid=pid, exit=0, stats=stats(n, errors, native=native))
     def identity(n): return base64.urlsafe_b64encode(bytes([n])*32).rstrip(b'=').decode()
     return dict(schema_version=1, kind='qperiapt.authenticated_device_replacement', completed=True,
         release_claim_eligible=False, cleanup_errors=[], effects=5, confirmed_epoch=1,
@@ -23,9 +25,9 @@ def fixture():
         native_journal=identity(3), old_session=identity(4), new_session=identity(5),
         commands=[dict(label=k, exit=1 if k in FAILED else 0) for k in LABELS],
         account_requests=[dict(label=k,id=i,action=action(k)) for i,k in enumerate(HTTP,1)],
-        refusals=list(REFUSALS), services=[service('old-native-service',1,5,2),
-            dict(label='new-native-service',pid=2,exit=-9), service('new-native-service-reopened',3,1)],
-        witness_services=[dict(label='witness-first',pid=4,exit=-9),service('witness-reopened',5,124,1)],
+        refusals=list(REFUSALS), services=[service('old-native-service',1,5,2,native=True),
+            dict(label='new-native-service',pid=2,exit=-9), service('new-native-service-reopened',3,1,native=True)],
+        witness_services=[dict(label='witness-first',pid=4,exit=-9),service('witness-reopened',5,124,1,native=True)],
         account_services=[dict(label=label,pid=i,exit=code) for i,(label,code) in enumerate([
             ('account-first',-9),('account-after-invitation-loss',-9),('account-after-issuance-loss',0)],6)],
         independent_service=service('new-independent-service',9,1), relay=stats(2,1),

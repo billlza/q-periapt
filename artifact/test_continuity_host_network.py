@@ -12,9 +12,10 @@ from evidence_io import read_regular_snapshot
 class NetworkReceiptTests(unittest.TestCase):
     def setUp(self):
         self.application=Path('/installed');self.binaries={'/native/session':'a'*64}
-        def stats(accepted,completed,evicted=0,errors=0):
+        def stats(accepted,completed,evicted=0,errors=0,*,native=False):
             return dict(accepted=accepted,completed_responses=completed,evicted_incomplete=evicted,
-                        read_errors=errors,rejected_busy=0,operation_errors=0,last_operation_error=None)
+                        read_errors=errors,rejected_busy=0,operation_errors=0,last_operation_error=None,
+                        **(dict(queued_requests=0,expired_queued=0) if native else {}))
         self.files={}
         def rows(expected):
             rows=[]
@@ -30,8 +31,8 @@ class NetworkReceiptTests(unittest.TestCase):
             native_sha256=self.binaries.copy(),provider='48.0.1',clock='actual OS time',
             implementation='/installed/qperiapt_continuity_reference/network.py',effects=3,effect_commit_calls=3,confirmed_epoch=2,
             commands=[dict(label=label,exit=1 if label in ('wrong-inbox-journal','network-native-lost') else 0) for label in LABELS],
-            refusals=list(REFUSALS),services=[dict(label='network-service-first',pid=11,exit=0,stats=stats(3,3)),
-                                            dict(label='network-service-reopened',pid=12,exit=0,stats=stats(14,6,7,1))],
+            refusals=list(REFUSALS),services=[dict(label='network-service-first',pid=11,exit=0,stats=stats(3,3,native=True)),
+                                            dict(label='network-service-reopened',pid=12,exit=0,stats=stats(14,6,7,1,native=True))],
             independent_service=stats(6,6),independent_exchanges=rows(EXCHANGES),native_exchanges=rows(NATIVE_EXCHANGES))
         verify(self.valid,self.binaries,self.application)
         self.files['RESULT.json']=json.dumps(self.valid).encode()
@@ -62,6 +63,15 @@ class NetworkReceiptTests(unittest.TestCase):
         self.reject(lambda r:r['services'][1]['stats'].update(evicted_incomplete=0))
         self.reject(lambda r:r['services'][1]['stats'].update(operation_errors=1))
         self.reject(lambda r:r['independent_service'].update(completed_responses=5))
+
+    def test_native_and_independent_statistics_are_not_interchangeable(self):
+        for key in ('queued_requests','expired_queued'):
+            self.reject(lambda r:r['services'][0]['stats'].pop(key))
+            self.reject(lambda r:r['independent_service'].update({key:0}))
+            for invalid in (True,-1,1,'0',None):
+                with self.subTest(key=key,value=invalid):
+                    self.reject(lambda r:r['services'][0]['stats'].update({key:invalid}))
+        self.reject(lambda r:r['services'][0]['stats'].update(unrecognized=0))
 
     def test_missing_retry_changed_bytes_and_duplicate_effects_are_refused(self):
         self.reject(lambda r:r['native_exchanges'].pop())

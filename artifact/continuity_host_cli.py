@@ -53,7 +53,7 @@ def verify(value,binaries,application,*,account_credential=False):
     require(type(service) is dict and set(service)=={'label','pid','exit','stats'}
             and service['label']=='cli-native-service' and type(service['pid']) is int and service['pid']>0,
             'CLI native service identity')
-    count(service['exit'],0,'CLI native exit');stats(service['stats'],8,8)
+    count(service['exit'],0,'CLI native exit');stats(service['stats'],8,8,native=True)
     inbound=value.get('inbound')
     require(type(inbound) is dict and set(inbound)=={'receivers','relay','frames','confirmed_epoch','effects','original_effect_unchanged_on_retry'},'inbound CLI receipt')
     count(inbound['confirmed_epoch'],2,'inbound CLI epoch');count(inbound['effects'],3,'inbound CLI effects')
@@ -77,7 +77,7 @@ def verify(value,binaries,application,*,account_credential=False):
         row=opposing[key]
         require(type(row) is dict and set(row)=={'label','pid','exit','stats'} and row['label']==label
                 and type(row['pid']) is int and row['pid']>0,'opposing service identity')
-        count(row['exit'],0,'opposing service exit');stats(row['stats'],n,n)
+        count(row['exit'],0,'opposing service exit');stats(row['stats'],n,n,native=key=='native_service')
     control=value.get('opposing_rekey')
     require(type(control) is dict and set(control)=={'target','simultaneous','frames','relays','native_service','independent_service','phase_refusals','effects'},'opposing rekey inventory')
     require(control['simultaneous'] is True and control['phase_refusals']==list(CONTROL_PHASES),'opposing rekey boundaries')
@@ -90,7 +90,7 @@ def verify(value,binaries,application,*,account_credential=False):
         row=control[key]
         require(type(row) is dict and set(row)=={'label','pid','exit','stats'} and row['label']==label
                 and type(row['pid']) is int and row['pid']>0,'control service identity')
-        count(row['exit'],0,'control service exit');stats(row['stats'],n,n)
+        count(row['exit'],0,'control service exit');stats(row['stats'],n,n,native=key=='native_service')
 
 
 def retain(value,private,public,snapshot):

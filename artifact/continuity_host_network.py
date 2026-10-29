@@ -13,16 +13,27 @@ EXCHANGES = (('tcp-bootstrap-1',1),('tcp-bootstrap-2',2),('tcp-first-1',3),('tcp
 NATIVE_EXCHANGES = tuple(('tcp-native-'+str(i),kind) for i,kind in enumerate((3,3,3,4,4,3),1))
 STATS = {'accepted','evicted_incomplete','rejected_busy','read_errors','completed_responses',
          'operation_errors','last_operation_error'}
+NATIVE_STATS = STATS | {'queued_requests','expired_queued'}
 
 
 def count(value,expected,label):
     require(type(value) is int and value==expected,label)
 
 
-def stats(value,accepted,completed,*,idle=False):
-    require(type(value) is dict and set(value)==STATS,'network service stats schema')
-    require(all(type(value[k]) is int and value[k]>=0 for k in STATS-{'last_operation_error'}),
+def stats_shape(value,*,native=False,queued=False):
+    fields=NATIVE_STATS if native else STATS
+    require(type(value) is dict and set(value)==fields,'network service stats schema')
+    require(all(type(value[k]) is int and value[k]>=0 for k in fields-{'last_operation_error'}),
             'network service count type')
+    if native:
+        count(value['expired_queued'],0,'unexpected expired network request')
+        if queued:
+            require(value['queued_requests']<=value['accepted'],'network queued request count')
+        else:count(value['queued_requests'],0,'unexpected queued network request')
+
+
+def stats(value,accepted,completed,*,idle=False,native=False,queued=False):
+    stats_shape(value,native=native,queued=queued)
     count(value['accepted'],accepted,'network accepted requests')
     count(value['completed_responses'],completed,'network completed responses')
     require(value['operation_errors']==0 and value['last_operation_error'] is None
@@ -67,7 +78,7 @@ def verify(observed,binaries,application):
         require(type(row) is dict and set(row)=={'label','pid','exit','stats'} and row['label']==label
                 and type(row['pid']) is int and row['pid']>0 and row['pid'] not in pids,'service process identity')
         pids.add(row['pid']);count(row['exit'],0,'service exit')
-        stats(row['stats'],14 if index else 3,6 if index else 3,idle=bool(index))
+        stats(row['stats'],14 if index else 3,6 if index else 3,idle=bool(index),native=True)
     stats(observed.get('independent_service'),6,6)
     exchanges(observed.get('independent_exchanges'),EXCHANGES)
     native=observed.get('native_exchanges');exchanges(native,NATIVE_EXCHANGES)

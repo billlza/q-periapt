@@ -80,7 +80,7 @@ def verify(value, binaries, application):
         for row,(label,code) in zip(rows,expected):
             require(row['label']==label and type(row['pid']) is int and row['pid']>0 and row['pid'] not in pids,'own roster process identity')
             count(row['exit'],code,'own roster process exit'); pids.add(row['pid'])
-    for row,n in zip(value['services'],(3,2,4)): stats(row['stats'],n,n)
+    for row,n in zip(value['services'],(3,2,4)): stats(row['stats'],n,n,native=True)
     stats(value['independent_service']['stats'],1,1)
 
 
