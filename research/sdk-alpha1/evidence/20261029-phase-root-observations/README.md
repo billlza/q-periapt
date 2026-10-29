@@ -55,3 +55,26 @@ implementation remain incomplete.
 `READBACK.json` records byte comparison and separate verification statuses. The
 analysis distinguishes invalid proof copies from valid partial frontiers and
 retains all preparation and guide failures.
+
+The subsequent repair is retained separately in `REPAIR_CAPTURE.zip`. Eighteen
+no-search callbacks captured the current goals, including all seven changed
+contexts. Each had exactly one current `Response5` premise. Replacing the stale
+matching expression with that actual premise and restoring the six complete
+unselected Stored subtrees yields a full 353-step replay with **zero invalid
+proof steps**. The six restored subtrees are byte-identical in its final output.
+
+The repaired proof is still partial: one response-source leaf and forty Snapshot
+leaves remain. Sixteen of eighteen source branches are closed. This is not a
+claim that moving from the older 42 tokens to 41 leaves improves the security
+result; some older proof tails were exposed while repairing incompatible
+methods. The current tree is now a valid basis for further work. All eighteen
+auxiliary all-trace properties and the 414-step initial-traffic witness replay,
+while the generation-origin and multi-epoch secrecy claims remain incomplete.
+
+The capture and full repair took 316.734 and 329.072 seconds, with unchanged
+resource limits. The full repair used no search or oracle. Its model SHA-256 is
+`b8c7948025c223d87ef2dd5200f9eaa587fde56f4e46603f222a5fe971c3dde0`.
+The 175855-byte repair archive has 64 files and SHA-256
+`38a2722af54ede21162938a7809ae3d3218de9958f68fa71beea0e260da8d147`.
+`REPAIR_CAPTURE.json` binds the exact goals, replacements and restored siblings;
+`REPAIR_READBACK.json` records full byte comparison.

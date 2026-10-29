@@ -53,6 +53,10 @@ Any added observation event must erase back to the original operational rules,
 introduce no trace restriction or weaker attacker, and have independently checked
 properties before reuse.
 
+The later [phase-root record](../20261029-phase-root-observations/README.md)
+contains the actual context capture and repair. Its complete replay has no
+invalid proof steps, but the generation-origin theorem remains incomplete.
+
 `CAPTURE.zip` retains the three complete inputs and outputs, terminal records,
 streams, bounded driver, preparation scripts, tool identity, original 382-step
 parent and initial preparation refusal. `CAPTURE.json` records all 32 file
