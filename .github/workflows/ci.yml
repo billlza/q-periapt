@@ -968,6 +968,18 @@ jobs:
             --provider-root "$RUNNER_TEMP/browser-native-provider" \
             --node "$(command -v node)" \
             --cli "$RUNNER_TEMP/qperiapt-playwright/node_modules/@playwright/cli/playwright-cli.js"
+      - name: Exercise installed browser required Witness and full service recovery
+        env:
+          QPERIAPT_PYTHON: ${{ steps.browser_python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh artifact/continuity_browser_session.py \
+            --receipt target/sdk-wasm-package/INSTALLED_CONSUMER.json \
+            --output target/browser-required-witness \
+            --native-target target/browser-native-build \
+            --native-profile release --required-witness \
+            --provider-root "$RUNNER_TEMP/browser-native-provider" \
+            --node "$(command -v node)" \
+            --cli "$RUNNER_TEMP/qperiapt-playwright/node_modules/@playwright/cli/playwright-cli.js"
       - name: Select the exact minimum Node runtime
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -1005,6 +1017,9 @@ jobs:
             target/browser-native-session/public/
             target/browser-native-session/web/initial.json
             target/browser-native-session/web/grant.json
+            target/browser-required-witness/public/
+            target/browser-required-witness/web/initial.json
+            target/browser-required-witness/web/grant.json
 
   # Bounded robustness fuzzing, using the actual detached crate and seeded inputs.
   # A crash, timeout, sanitizer error or missing execution statistics fails the job.

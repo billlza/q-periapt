@@ -1,7 +1,7 @@
 const required = (value, message) => { if (!value) throw Error(message); };
 const random = size => [...crypto.getRandomValues(new Uint8Array(size))];
 const scope = {name:'installed-session-' + random(12).map(x=>x.toString(16).padStart(2,'0')).join(''),id:random(32)};
-let worker, original;
+let worker, original, prepared;
 async function launch() {
   worker = new Worker('/worker.js', {type:'module'});
   await new Promise((resolve,reject)=>{
@@ -36,8 +36,17 @@ async function terminate() {
 }
 globalThis.runPhase=async (phase, details)=>{
   if(phase==='create') {await launch();return {...await invoke({op:'create',scope}),scope};}
+  if(phase==='witness-prepare') {
+    prepared=await invoke({op:'witness-prepare',scope});return prepared;
+  }
+  if(['witness-missing','witness-unenrolled','witness-offline'].includes(phase)) {
+    if(phase!=='witness-missing') await launch();
+    const result=await invoke({op:'witness-refusal',kind:phase.slice('witness-'.length),scope,prepared});
+    return {...result,leases:await terminate()};
+  }
   if(phase==='activate') {
-    original=await invoke({op:'activate',request:random(32)});
+    if(prepared) await launch();
+    original=await invoke({op:'activate',scope,prepared,request:random(32)});
     const leases=await terminate();
     return {...original,leases};
   }

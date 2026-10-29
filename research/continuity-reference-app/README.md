@@ -300,6 +300,14 @@ current operation ends.
 
 The framed TCP carrier authenticates every request and response through the
 existing pinned witness protocol; it does not conceal public metadata.
+
+The Witness service executes one storage operation at a time. Up to eight
+complete requests may wait, with at most two queued requests per source IP;
+each retains its original acceptance-to-response deadline. Overflow closes the
+connection without a receipt, so clients must reconcile the original operation.
+Queued expiry never invokes a storage owner. Shutdown drops queued input and
+joins the executing owner. Other reference services retain their default
+zero-length queue unless explicitly configured.
 Incomplete connections and operation deadlines use the bounded reference
 network service. Lost replies require reconciliation against the original state.
 This command surface covers first use and data-plane state progression.

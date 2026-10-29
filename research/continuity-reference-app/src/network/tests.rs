@@ -53,6 +53,7 @@ async fn incomplete_connections_do_not_hold_all_read_slots() -> Result<()> {
     let limits = Limits {
         pending: 2,
         per_ip: 2,
+        queued: 0,
         read_timeout: Duration::from_secs(5),
         operation_timeout: Duration::from_secs(5),
     };

@@ -18,7 +18,7 @@ def identity(value):
 
 
 def verify_forward(report: dict, public: Path) -> None:
-    require(type(report.get('schema_version')) is int and report['schema_version'] in (1, 2)
+    require(type(report.get('schema_version')) is int and report['schema_version'] in (1, 2, 3)
             and report.get('completed') is True and report.get('release_claim_eligible') is False,
             'browser/native scope or completion differs')
     require(report.get('relay_failures') == [] and not report.get('cleanup_failures'), 'fixture failed')
@@ -81,7 +81,15 @@ def verify_forward(report: dict, public: Path) -> None:
 
 def verify(report: dict, public: Path) -> None:
     from continuity_browser_reverse_records import verify as verify_reverse
-    require(type(report.get('schema_version')) is int and report['schema_version']==2,
+    require(type(report.get('schema_version')) is int and report['schema_version'] in (2, 3),
             'bidirectional qualification requires its current transcript schema')
     verify_forward(report, public)
     verify_reverse(report['reverse_application'], public, report['before_restart']['session'])
+    if report['schema_version'] == 3:
+        from continuity_browser_witness_records import verify as verify_witness
+        require(report.get('policy_profile') == 'required-witness', 'required witness profile missing')
+        require(report.get('native_build_profile') in ('debug','release'), 'native witness build profile missing')
+        verify_witness(report['required_witness'], public, report['before_restart'])
+    else:
+        require('required_witness' not in report and report.get('policy_profile') != 'required-witness',
+                'witness evidence requires its dedicated transcript schema')

@@ -8,4 +8,6 @@ mod server;
 pub use server::{serve, Limits, Stats};
 
 #[cfg(test)]
+mod queue_tests;
+#[cfg(test)]
 mod tests;

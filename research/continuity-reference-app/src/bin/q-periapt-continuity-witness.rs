@@ -130,7 +130,8 @@ fn serve(path: PathBuf, identity: [u8; 32], address: SocketAddr) -> Result<()> {
         print(&serde_json::json!({"service":"Listening","carrier":"ContinuityAnchor/TCP","address":listener.local_addr()?.to_string()}))?;
         io::stdout().flush()?;
         let stop = sdk::Cancellation::default();
-        let service = network::serve(listener, Limits::default(), stop.clone(), move |frame,run| {
+        let limits=Limits { queued:8, ..Limits::default() };
+        let service = network::serve(listener, limits, stop.clone(), move |frame,run| {
             let result:Result<_> = (|| {
                 run.check()?;
                 let mut owner = Witness::open(&path, identity)?;
