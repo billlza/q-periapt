@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-import init, { BrowserEnrollmentProbe } from '../pkg/q_periapt_continuity_identity_candidate.js';
+import { initialize, EnrollmentFixture } from '../pkg/enrollment-fixture.js';
 import { lease } from '../pkg/storage-io.js';
-await init();
+await initialize();
 const hex = bytes => [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
 const sha = async bytes => hex(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)));
 const required = (condition, text) => { if (!condition) throw Error(text); };
@@ -129,7 +129,7 @@ self.onmessage = async ({ data }) => {
     if (operation === 'inspect') { result = { value: await inspect(name, id, data.mutation) }; return; }
     restore = instrument(boundary);
     const inputDescription = description.slice(); if (data.wrongIntent) inputDescription[0] ^= 1;
-    owner = await BrowserEnrollmentProbe[operation](name, id, root, inputDescription);
+    owner = await EnrollmentFixture[operation](name, id, root, inputDescription);
     if (data.noRequest) { result = { value: { opened: true } }; return; }
     const wire = await owner.request(BigInt(Math.floor(Date.now() / 1000)));
     required(wire.length === 5506, 'request length');

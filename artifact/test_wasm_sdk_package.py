@@ -2,6 +2,7 @@
 from pathlib import Path
 import copy
 import json
+import re
 import tempfile
 import unittest
 
@@ -10,6 +11,21 @@ import wasm_sdk_package as wasm
 
 
 class WasmSDKPackageTests(unittest.TestCase):
+    def test_browser_runtime_types_and_strict_default_surface_agree(self):
+        def names(path):
+            groups = re.findall(r'export\s*\{([^}]+)\}', path.read_text(), re.S)
+            return sorted(set(re.findall(r'QPeriapt\w+', '\n'.join(groups))) | {'default'})
+        public = names(wasm.CRATE / 'package/web/index.js')
+        declared = names(wasm.CRATE / 'package/web/index.d.ts')
+        suite = (wasm.CRATE / 'tests/browser-suite.mjs').read_text()
+        block = suite.split("check(Object.keys(sdk).sort().join(',') === [", 1)[1].split("].join(',')", 1)[0]
+        expected = re.findall(r'"([A-Za-z0-9_]+)"', block)
+        self.assertEqual(expected, sorted(set(expected)))
+        self.assertEqual(public, declared)
+        self.assertEqual(public, expected)
+        self.assertIn('QPeriaptContinuityPolicyRequest', declared)
+        self.assertNotIn('QPeriaptExpert', public)
+
     def test_npm12_packlist_requires_exact_package_and_unique_payload(self):
         expected = {"index.cjs": {"bytes": 3}, "README.md": {"bytes": 4}}
         value = {wasm.NAME: {"id": f"{wasm.NAME}@{wasm.VERSION}", "name": wasm.NAME,
@@ -154,8 +170,11 @@ class WasmSDKPackageTests(unittest.TestCase):
         build = job.index("Build and install product WASM package outside the checkout")
         minimum = job.index('node-version: "24.0.0"')
         consume = job.index("Consume the same WASM archive on Node 24.0.0")
+        enrollment = job.index("Exercise installed SDK browser enrollment creation and original recovery")
         self.assertLess(build, minimum)
         self.assertLess(minimum, consume)
+        self.assertLess(build, enrollment)
+        self.assertIn('artifact/continuity_browser_creation.py \\\n            --receipt target/sdk-wasm-package/INSTALLED_CONSUMER.json', job)
         for token in ("--archive-sha256", "--manifest-sha256", "--node", "--npm-cli",
                       "--expected-node-version v24.0.0", "target/sdk-wasm-node24-minimum/*.json"):
             self.assertIn(token, job)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-import init, { BrowserEnrollmentProbe } from '../pkg/q_periapt_continuity_identity_candidate.js';
-await init();
+import { initialize, EnrollmentFixture } from '../pkg/enrollment-fixture.js';
+await initialize();
 const required = (condition, text) => { if (!condition) throw Error(text); };
 const hex = bytes => [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
 const identity = () => hex(crypto.getRandomValues(new Uint8Array(32)));
@@ -37,7 +37,7 @@ async function releaseReceipt(name) {
 }
 async function test(mode) {
   const name = 'late-' + mode + '-' + identity().slice(0, 10), id = identity(), now = () => BigInt(Math.floor(Date.now() / 1000));
-  let owner = await BrowserEnrollmentProbe.create(name, id, root, description);
+  let owner = await EnrollmentFixture.create(name, id, root, description);
   const original = await sha(await owner.request(now())); await owner.close(); owner.free(); owner = undefined;
   let release, entered = false;
   const gate = new Promise(resolve => { release = resolve; });
@@ -63,17 +63,17 @@ async function test(mode) {
   }
   let row;
   try {
-    const started = performance.now(), attempt = await observed(BrowserEnrollmentProbe.open(name, id, root, description));
+    const started = performance.now(), attempt = await observed(EnrollmentFixture.open(name, id, root, description));
     const elapsed = performance.now() - started;
     const code = mode === 'handle' ? 'CommitUnknown' : 'OpenUnknown';
     required(entered && !attempt.ok && attempt.code === code && attempt.causes.includes('ClosePending'), 'missing timeout/cleanup distinction: ' + JSON.stringify(attempt));
     required(elapsed >= 19000 && elapsed < 35000, 'deadline bounds not observed');
-    const concurrent = await observed(BrowserEnrollmentProbe.resume(name, id, root, description));
+    const concurrent = await observed(EnrollmentFixture.resume(name, id, root, description));
     required(!concurrent.ok && concurrent.error.includes('Busy'), 'resource lease released early');
     row = { mode, elapsed_ms: elapsed, code, error: attempt.error, causes: attempt.causes, concurrent: concurrent.error };
   } finally { restore(); release(); }
   row.release_observations = await releaseReceipt(name);
-  owner = await BrowserEnrollmentProbe.resume(name, id, root, description);
+  owner = await EnrollmentFixture.resume(name, id, root, description);
   try { const digest = await sha(await owner.request(now())); required(digest === original, 'original request changed'); row.request_sha256 = digest; }
   finally { await owner.close(); owner.free(); }
   return row;
@@ -89,11 +89,11 @@ try {
   const file = await directory.getFileHandle('preserve.txt', { create: true });
   const handle = await file.createSyncAccessHandle();
   try { handle.write(new Uint8Array([2, 7, 1, 8])); handle.flush(); } finally { handle.close(); }
-  const create = await observed(BrowserEnrollmentProbe.create(name, id, root, description));
+  const create = await observed(EnrollmentFixture.create(name, id, root, description));
   required(!create.ok && create.error.includes('Exists'), 'pre-existing directory was adopted');
   const saved = new Uint8Array(await (await file.getFile()).arrayBuffer());
   required(hex(saved) === '02070108', 'foreign directory was modified');
-  const resume = await observed(BrowserEnrollmentProbe.resume(name, id, root, description));
+  const resume = await observed(EnrollmentFixture.resume(name, id, root, description));
   required(!resume.ok && resume.error.includes('Absent'), 'failed create published a root');
   rows.push({ mode: 'foreign-directory', create: create.error, resume: resume.error, preserved_sha256: await sha(saved) });
   postMessage({ completed: true, cases: rows, browser: navigator.userAgent,

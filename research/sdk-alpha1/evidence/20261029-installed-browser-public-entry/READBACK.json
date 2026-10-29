@@ -1,0 +1,16 @@
+{
+  "archive_bytes": 2592177,
+  "archive_sha256": "06343d9c58f0891f0ab8ef52630080afd58d2f07e2764183d5741c536ab9c5e3",
+  "members": 249,
+  "expanded_bytes": 4493037,
+  "manifest_sha256": "61350b266cfb98591c3d33addbe54bb838287a773ff77ed8c8a865ac2cf20c2e",
+  "all_members_byte_equal": true,
+  "terminal_zero_exit_command_records": 49,
+  "paired_command_streams": 98,
+  "real_core_cases": 10,
+  "real_enrollment_cases": 17,
+  "native_request_grant_pairs": 19,
+  "strict_replay_passed": true,
+  "private_authority_archived": false,
+  "release_claim_eligible": false
+}

@@ -17,6 +17,10 @@ class BrowserStorageTests(unittest.TestCase):
                    for name in ('storage-acceptance.js', 'storage-quota-acceptance.js')}
         cls.core = browser.result(cls.raw['storage-acceptance.js'], 'BROWSER_POLICY_STORAGE_PASS')
         cls.quota = browser.result(cls.raw['storage-quota-acceptance.js'], 'BROWSER_POLICY_QUOTA_PASS')
+        installed = sdk.ROOT / 'research/sdk-alpha1/evidence/20261029-installed-browser-public-entry/CAPTURE.zip'
+        with zipfile.ZipFile(installed) as archive:
+            cls.installed = browser.result(archive.read('core-storage/browser-acceptance.js.stdout'),
+                                          'WASM_INSTALLED_BROWSER_PASS')
 
     def check_rejected(self, value, marker):
         with self.assertRaises(ValueError):
@@ -27,6 +31,45 @@ class BrowserStorageTests(unittest.TestCase):
         self.assertIs(receipt['completed'], True)
         self.assertEqual(receipt['storage-acceptance.js'], self.core)
         self.assertEqual(receipt['storage-quota-acceptance.js'], self.quota)
+
+    def test_installed_realms_assertions_and_exact_loads_are_required(self):
+        self.assertEqual(len(self.installed['cases']), 10)
+        self.assertEqual(sum(row['assertions'] for row in self.installed['cases']), 563)
+        for mutation in ('missing-realm', 'assertions', 'response', 'worker', 'origin', 'envelope'):
+            value = copy.deepcopy(self.installed)
+            if mutation == 'missing-realm':
+                value['cases'].pop()
+            elif mutation == 'assertions':
+                value['cases'][0]['assertions'] = 1
+            elif mutation == 'response':
+                value['cases'][3]['responses'][0]['status'] = 200
+            elif mutation == 'worker':
+                value['cases'][5]['workers'] = []
+            elif mutation == 'origin':
+                value['cases'][0]['requests'][0] = value['cases'][0]['requests'][0].replace('127.0.0.1', 'example.test')
+            else:
+                value['diagnostics'] = ['unexpected top-level failure']
+            with self.subTest(mutation=mutation):
+                self.check_rejected(value, 'WASM_INSTALLED_BROWSER_PASS')
+
+    def test_failed_load_console_event_is_optional_but_other_errors_are_rejected(self):
+        # The real capture has one window404 and no Worker console event. Both
+        # still require the actual404response and failed-initialization checks.
+        self.assertEqual(self.installed['cases'][8]['diagnostics'], [])
+        for mutation in ('extra-console', 'wrong-console', 'duplicate-console', 'page-error', 'case-error'):
+            value = copy.deepcopy(self.installed)
+            if mutation == 'extra-console':
+                value['cases'][0]['diagnostics'] = value['cases'][3]['diagnostics']
+            elif mutation == 'wrong-console':
+                value['cases'][3]['diagnostics'][0]['text'] = 'uncaught callback error'
+            elif mutation == 'duplicate-console':
+                value['cases'][3]['diagnostics'] *= 2
+            elif mutation == 'page-error':
+                value['cases'][8]['pageErrors'] = ['Worker failed']
+            else:
+                value['cases'][8]['errors'] = ['initialization unexpectedly succeeded']
+            with self.subTest(mutation=mutation):
+                self.check_rejected(value, 'WASM_INSTALLED_BROWSER_PASS')
 
     def test_worker_cut_and_release_observation_required(self):
         for mutation in ('missing-cut', 'held-lease'):

@@ -931,16 +931,17 @@ jobs:
         run: |
           google-chrome --version
           npm install --prefix "$RUNNER_TEMP/qperiapt-playwright" --ignore-scripts --no-fund @playwright/cli@0.1.22
-      - name: Exercise installed browser persistence and real quota failures
+      - name: Exercise installed browser API, persistence and real quota failures
         run: |
           sh artifact/python-run.sh artifact/wasm_browser_storage.py \
             --receipt target/sdk-wasm-package/INSTALLED_CONSUMER.json \
             --output target/sdk-wasm-browser \
             --node "$(command -v node)" \
             --cli "$RUNNER_TEMP/qperiapt-playwright/node_modules/@playwright/cli/playwright-cli.js"
-      - name: Exercise shared browser enrollment creation and original recovery
+      - name: Exercise installed SDK browser enrollment creation and original recovery
         run: |
           sh artifact/python-run.sh artifact/continuity_browser_creation.py \
+            --receipt target/sdk-wasm-package/INSTALLED_CONSUMER.json \
             --output target/continuity-browser \
             --node "$(command -v node)" \
             --cli "$RUNNER_TEMP/qperiapt-playwright/node_modules/@playwright/cli/playwright-cli.js"

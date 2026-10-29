@@ -8,6 +8,7 @@ import re
 import subprocess
 import time
 import uuid
+from urllib.parse import urlsplit
 
 from bounded_process import capture_output
 from evidence_io import parse_strict_json_bytes
@@ -15,13 +16,53 @@ import rust_sdk_profile as sdk
 import wasm_sdk_package as package
 
 
+def installed_browser_result(value: dict) -> dict:
+    sdk.require(set(value) == {'status', 'browser', 'cases'}, 'installed browser envelope differs')
+    expected = {'roundtrip': 236, 'no-entropy': 15, 'throwing-entropy': 15,
+                'init-fail': 6, 'no-wasm': 6}
+    rows = value.get('cases', [])
+    sdk.require([(row.get('realm'), row.get('mode')) for row in rows]
+                == [(realm, mode) for realm in ('window', 'worker') for mode in expected],
+                'installed browser realm or failure scenario omitted')
+    origins = set()
+    for row in rows:
+        mode, realm = row['mode'], row['realm']
+        assertions = expected[mode] + (7 if mode == 'roundtrip' and realm == 'window' else 0)
+        sdk.require(row.get('status') == 'pass' and type(row.get('assertions')) is int
+                    and row['assertions'] == assertions and row.get('errors') == []
+                    and row.get('pageErrors') == [], 'installed browser assertions or diagnostics differ')
+        diagnostics = row.get('diagnostics')
+        sdk.require(diagnostics == [] or (mode == 'init-fail'
+                    and isinstance(diagnostics, list) and len(diagnostics) == 1
+                    and diagnostics[0].get('type') == 'error' and '404' in diagnostics[0].get('text', '')),
+                    'installed browser console diagnostics differ')
+        requests = row.get('requests', [])
+        sdk.require(len(requests) == 1 and isinstance(requests[0], str), 'installed WASM load count differs')
+        address = urlsplit(requests[0])
+        path = ('/broken' if mode == 'init-fail' else '') + '/node_modules/q-periapt-sdk-wasm/web/q_periapt_sdk_wasm_bg.wasm'
+        sdk.require(address.scheme == 'http' and address.hostname == '127.0.0.1'
+                    and address.port is not None and address.username is None and address.password is None
+                    and address.path == path and not address.query and not address.fragment,
+                    'installed WASM load did not use the controlled package entry')
+        origin = address.scheme + '://' + address.netloc
+        origins.add(origin)
+        sdk.require(row.get('responses') == [{'url': requests[0], 'status': 404 if mode == 'init-fail' else 200}],
+                    'installed WASM response differs')
+        sdk.require(row.get('workers') == ([origin + '/browser-worker.mjs?mode=' + mode] if realm == 'worker' else []),
+                    'installed browser Worker identity differs')
+    sdk.require(len(origins) == 1, 'installed browser cases used different consumers')
+    return value
+
+
 def result(data: bytes, marker: str) -> dict:
     text = data.decode()
     sdk.require(text.count('### Result\n') == 1 and '### Error' not in text, 'browser result missing or failed')
     value = parse_strict_json_bytes(text.split('### Result\n', 1)[1].split('\n### ', 1)[0].encode(), label='browser storage')
     sdk.require(isinstance(value, dict) and value.get('status') == marker
-                and isinstance(value.get('browser'), str) and value['browser']
-                and value.get('diagnostics') == [], 'browser storage result differs')
+                and isinstance(value.get('browser'), str) and value['browser'], 'browser storage result differs')
+    if marker == 'WASM_INSTALLED_BROWSER_PASS':
+        return installed_browser_result(value)
+    sdk.require(value.get('diagnostics') == [], 'browser storage diagnostics differ')
     if marker == 'BROWSER_POLICY_STORAGE_PASS':
         rows = value.get('cases', [])
         cuts = [r for r in rows if r.get('command') == 'Worker-termination']
@@ -113,8 +154,9 @@ def qualify(receipt: Path, output: Path, node: Path, cli: Path) -> dict:
                 time.sleep(0.05)
             startup = parse_strict_json_bytes(sdk.snapshot(output / 'server.stdout').data, label='browser server')
             sdk.require(startup['pid'] == server.pid and startup['url'].startswith('http://127.0.0.1:'), 'fixture server identity differs')
-            command(['open', startup['url'].replace('/browser.html', '/storage-browser.html'), '--browser', 'chrome'], 'open')
-            for name, marker in [('storage-quota-acceptance.js', 'BROWSER_POLICY_QUOTA_PASS'),
+            command(['open', startup['url'], '--browser', 'chrome'], 'open')
+            for name, marker in [('browser-acceptance.js', 'WASM_INSTALLED_BROWSER_PASS'),
+                                 ('storage-quota-acceptance.js', 'BROWSER_POLICY_QUOTA_PASS'),
                                  ('storage-acceptance.js', 'BROWSER_POLICY_STORAGE_PASS'),
                                  ('storage-deadline-acceptance.js', 'BROWSER_POLICY_DEADLINE_PASS')]:
                 report[name] = result(command(['run-code', '--filename', str(consumer / name)], name), marker)

@@ -7,6 +7,7 @@ import unittest
 import zipfile
 
 import continuity_browser_records as records
+import continuity_browser_creation as creation
 import rust_sdk_profile as sdk
 
 
@@ -89,6 +90,30 @@ class BrowserEnrollmentRecordsTests(unittest.TestCase):
                     'results': {'creation': self.creation, 'late': self.late}}
         with self.assertRaises(ValueError):
             records.cli_result(('### Result\n' + json.dumps(envelope)).encode())
+
+    def test_installed_binding_rejects_repository_local_consumer(self):
+        with tempfile.TemporaryDirectory(dir=sdk.ROOT / 'target') as directory:
+            root = Path(directory).resolve()
+            installed = root / 'node_modules' / creation.package.NAME
+            installed.mkdir(parents=True)
+            receipt = root / 'receipt.json'
+            receipt.write_text(json.dumps({'installed': str(installed)}))
+            with self.assertRaisesRegex(ValueError, 'not an external installation'):
+                creation.installed_binding(receipt)
+
+    def test_installed_binding_rejects_uncompleted_or_unbound_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            installed = root / 'node_modules' / creation.package.NAME
+            installed.mkdir(parents=True)
+            receipt = root / 'receipt.json'
+            original = {'installed': str(installed), 'source_bound': True,
+                        'sources_unchanged': True, 'installed_node_tests': 'passed'}
+            for key, value in [('source_bound', False), ('sources_unchanged', False),
+                               ('installed_node_tests', 'not-run')]:
+                receipt.write_text(json.dumps({**original, key: value}))
+                with self.subTest(key=key), self.assertRaisesRegex(ValueError, 'receipt is incomplete'):
+                    creation.installed_binding(receipt)
 
 
 if __name__ == '__main__':

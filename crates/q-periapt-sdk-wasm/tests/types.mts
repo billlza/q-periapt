@@ -1,9 +1,12 @@
 import { QPeriaptRuntime, QPeriaptKeyPurpose } from 'q-periapt-sdk-wasm';
 import { QPeriaptExpert } from 'q-periapt-sdk-wasm/expert';
-import initialize, { QPeriaptRuntime as WebRuntime } from 'q-periapt-sdk-wasm/web';
+import initialize, { QPeriaptRuntime as WebRuntime,
+  QPeriaptContinuityPolicyRequest } from 'q-periapt-sdk-wasm/web';
 import { QPeriaptExpert as WebExpert } from 'q-periapt-sdk-wasm/web/expert';
 import { QPeriaptPolicyStore } from 'q-periapt-sdk-wasm/web/storage';
 const data = new Uint8Array();
+const policyOperation: Uint8Array = QPeriaptContinuityPolicyRequest.new_operation_id();
+void policyOperation;
 const runtime: QPeriaptRuntime = new QPeriaptRuntime(data, data, data, data, 32, 4);
 const key = runtime.generate_key();
 const secret = key.decapsulate(data, data);

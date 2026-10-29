@@ -1,4 +1,4 @@
-"""Build and exercise the experimental shared browser enrollment engine."""
+"""Exercise original browser enrollment through an installed SDK or retained research entry."""
 from pathlib import Path
 import argparse
 import contextlib
@@ -14,6 +14,7 @@ from continuity_browser_http import serving
 from continuity_browser_records import cli_result, request_files
 from evidence_io import parse_strict_json_bytes
 import rust_sdk_profile as sdk
+import wasm_sdk_package as package
 
 ROOT = Path(__file__).resolve().parents[1]
 CANDIDATE = ROOT / 'research/continuity-identity-candidate'
@@ -28,19 +29,47 @@ def source_identity() -> dict:
     paths.extend(ROOT / 'artifact' / name for name in (
         'continuity_browser_creation.py', 'continuity_browser_http.py',
         'continuity_browser_records.py', 'bounded_process.py', 'evidence_io.py',
-        'rust_sdk_profile.py', 'c_package_manifest.py'))
+        'rust_sdk_profile.py', 'c_package_manifest.py', 'wasm_sdk_package.py',
+        'third_party_licenses.py', 'deterministic_archive.py'))
     return {'rust_workspace_sha256': rust_workspace_source_digest(ROOT),
             'files': {str(path.relative_to(ROOT)): sdk.snapshot(path).sha256 for path in sorted(paths)}}
 
 
-def stage_web(web: Path, private: Path) -> dict:
+def installed_binding(receipt: Path) -> tuple[Path, dict]:
+    captured = sdk.snapshot(receipt)
+    record = parse_strict_json_bytes(captured.data, label='installed enrollment SDK receipt')
+    installed = Path(record['installed'])
+    sdk.require(installed.is_absolute() and installed.name == package.NAME
+                and installed.parent.name == 'node_modules'
+                and not installed.resolve(strict=True).is_relative_to(ROOT),
+                'enrollment SDK consumer is not an external installation')
+    sdk.require(record['source_bound'] is True and record['sources_unchanged'] is True
+                and record['installed_node_tests'] == 'passed', 'SDK installation receipt is incomplete')
+    manifest = package.verify(installed, record['manifest_sha256'])
+    package.validate_consumer_source(manifest)
+    sdk.require(sdk.snapshot(Path(record['archive'])).sha256 == record['sha256'], 'installed SDK archive changed')
+    web_files = {name.removeprefix('web/'): value['sha256']
+                 for name, value in manifest['files'].items() if name.startswith('web/')}
+    sdk.require({'index.js', 'q_periapt_sdk_wasm.js', 'q_periapt_sdk_wasm_bg.wasm'} <= web_files.keys(),
+                'installed SDK browser entry is incomplete')
+    return installed, {'receipt_sha256': captured.sha256, 'archive_sha256': record['sha256'],
+                       'manifest_sha256': record['manifest_sha256'], 'web_files': web_files}
+
+
+def stage_web(web: Path, private: Path, installed: Path | None = None) -> dict:
     for name in ('root.bin', 'description.bin'):
         sdk.copy(private / name, web / 'inputs' / name)
-    for name in ('storage-root.js', 'storage-database.js', 'storage-catalogue.js', 'storage-opening.js'):
-        sdk.copy(CANDIDATE / 'src/storage/browser' / name, web / 'pkg' / name)
-    sdk.copy(ROOT / 'crates/q-periapt-sdk-wasm/package/web/storage-io.js', web / 'pkg/storage-io.js')
-    sdk.copy(CANDIDATE / 'src/browser/bounded-fetch.js', web / 'pkg/bounded-fetch.js')
-    sdk.copy(CANDIDATE / 'src/browser/application.js', web / 'pkg/application.js')
+    if installed is None:
+        for name in ('storage-root.js', 'storage-database.js', 'storage-catalogue.js', 'storage-opening.js'):
+            sdk.copy(CANDIDATE / 'src/storage/browser' / name, web / 'pkg' / name)
+        sdk.copy(ROOT / 'crates/q-periapt-sdk-wasm/package/web/storage-io.js', web / 'pkg/storage-io.js')
+        sdk.copy(CANDIDATE / 'src/browser/bounded-fetch.js', web / 'pkg/bounded-fetch.js')
+        sdk.copy(CANDIDATE / 'src/browser/application.js', web / 'pkg/application.js')
+    else:
+        for name in package.entries(installed / 'web'):
+            sdk.copy(installed / 'web' / name, web / 'pkg' / name)
+    adapter = 'source-api.js' if installed is None else 'installed-api.js'
+    sdk.copy(FIXTURES / adapter, web / 'pkg/enrollment-fixture.js')
     for name in ('index.html', 'worker.js', 'run.js'):
         sdk.copy(FIXTURES / name, web / 'creation' / name)
     sdk.copy(FIXTURES / 'late.html', web / 'late/index.html')
@@ -76,7 +105,7 @@ def native_verify(binary: Path, private: Path, captures: Path, value: dict, logs
     return rows
 
 
-def qualify(output: Path, node: Path, cli: Path) -> dict:
+def qualify(output: Path, node: Path, cli: Path, receipt: Path | None = None) -> dict:
     sdk.require(not output.exists(), 'browser output must be fresh')
     output.mkdir(parents=True)
     public = output / 'public'; public.mkdir()
@@ -92,19 +121,24 @@ def qualify(output: Path, node: Path, cli: Path) -> dict:
     env = {key: value for key, value in os.environ.items() if key not in ('NODE_OPTIONS', 'NODE_PATH')}
     env['CARGO_TARGET_DIR'] = str(output / 'build')
     env['RUSTFLAGS'] = (env.get('RUSTFLAGS', '') + ' -D warnings').strip()
-    report = {'completed': False, 'release_claim_eligible': False,
-              'scope': 'experimental shared source engine; not installed product qualification',
+    scope = ('experimental shared source engine; not installed product qualification' if receipt is None else
+             'installed SDK public browser enrollment creation and original recovery; shared engine')
+    report = {'completed': False, 'release_claim_eligible': False, 'scope': scope,
               'source': source, 'tools': tools}
     try:
+        installed = None
+        if receipt is not None:
+            installed, report['installed_sdk'] = installed_binding(receipt)
         for label, argv, pattern in (
             ('node-version', [str(node), '--version'], rb'v(?:2[4-9]|[3-9][0-9])\.[0-9]+\.[0-9]+\n'),
             ('rustc-version', ['rustc', '--version'], rb'rustc 1\.98\.1 .+\n'),
             ('wasm-pack-version', ['wasm-pack', '--version'], rb'wasm-pack 0\.15\.0\n')):
             data = sdk.command(argv, logs / label, ROOT, environment=env)
             sdk.require(re.fullmatch(pattern, data) is not None, label + ' differs')
-        sdk.command(['wasm-pack', 'build', str(CANDIDATE), '--mode', 'no-install', '--target', 'web',
-                     '--release', '--out-dir', str(web / 'pkg'), '--', '--locked'],
-                    logs / 'wasm-build', ROOT, environment=env)
+        if installed is None:
+            sdk.command(['wasm-pack', 'build', str(CANDIDATE), '--mode', 'no-install', '--target', 'web',
+                         '--release', '--out-dir', str(web / 'pkg'), '--', '--locked'],
+                        logs / 'wasm-build', ROOT, environment=env)
         sdk.command(['cargo', 'build', '--manifest-path', str(CANDIDATE / 'Cargo.toml'),
                      '--example', 'browser_owned_enrollment', '--locked'], logs / 'native-build', ROOT, environment=env)
         binary = output / 'build/debug/examples/browser_owned_enrollment'
@@ -112,7 +146,11 @@ def qualify(output: Path, node: Path, cli: Path) -> dict:
         # This fresh private authority is outside every upload and served directory.
         private = Path(tempfile.mkdtemp(prefix='qpc-browser-authority-')).resolve(strict=True)
         sdk.command([str(binary), 'prepare', str(private)], logs / 'native-prepare', ROOT, environment=env)
-        report['served_files'] = stage_web(web, private)
+        report['served_files'] = stage_web(web, private, installed)
+        if installed is not None:
+            sdk.require(all(report['served_files']['pkg/' + name] == digest
+                            for name, digest in report['installed_sdk']['web_files'].items()),
+                        'served SDK bytes differ from the installed package')
         session = 'qpc-enrollment-' + uuid.uuid4().hex
 
         def browser(args: list[str], label: str) -> bytes:
@@ -145,6 +183,10 @@ def qualify(output: Path, node: Path, cli: Path) -> dict:
             else:
                 browser(['close'], 'browser-close')
         sdk.require(web_identity(web) == report['served_files'], 'served browser inputs changed')
+        if receipt is not None:
+            final_installed, final_binding = installed_binding(receipt)
+            sdk.require(final_installed == installed and final_binding == report['installed_sdk'],
+                        'installed SDK inputs changed during browser execution')
         sdk.require(source_identity() == source and tool_identity() == tools, 'producer inputs changed')
         sdk.require(sdk.snapshot(binary, maximum=256 * 1024 * 1024).sha256 == report['native_binary_sha256'],
                     'native verifier changed')
@@ -161,6 +203,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('output', 'node', 'cli'):
         parser.add_argument('--' + name, type=Path, required=True)
+    parser.add_argument('--receipt', type=Path, help='Exact external SDK installation receipt; omit only for research-source experiments')
     args = parser.parse_args()
-    result = qualify(args.output.resolve(), args.node, args.cli)
+    result = qualify(args.output.resolve(), args.node, args.cli, args.receipt.resolve() if args.receipt else None)
     print(json.dumps({'completed': result['completed'], 'output': str(args.output)}, indent=2))
