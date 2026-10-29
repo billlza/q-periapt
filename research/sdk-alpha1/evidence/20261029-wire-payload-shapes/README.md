@@ -7,12 +7,15 @@ take three and four proof steps respectively. Each proof hides all thirteen
 previous reusable lemmas; neither new property is reusable during this first
 check. The response statement leaves its peer argument unconstrained.
 
-These properties do **not** close the generation-secret origin theorem. A full
-replay using the same proposition and the complete retained proof tree leaves
-all 42 Snapshot plaintext branches open. Its 389 steps, compared with the retained
-382, do not establish further source or Stored-branch closure. The earlier fresh
-search has 46 partial steps and is retained separately; its size is not comparable
-to the complete tree.
+The generation-secret origin theorem remains incomplete. **The original
+comparison in this record was incorrect:** the copied tree has seven invalid
+proof steps after the new invariants change its contexts. Counting only its 42
+explicit `by sorry` tokens omitted those invalid steps and their retained
+descendants. Its 389 recorded steps are not a valid frontier comparison with the
+382-step baseline and do not establish that the invariants are ineffective.
+[CORRECTION.json](CORRECTION.json) identifies the exact raw model and invalid
+locations. The archive, original manifest and terminal outputs are retained.
+The earlier 46-step fresh search remains a separate partial experiment.
 
 The operational prefix has SHA-256
 `3cb837646fa2097468d1fad0a10433f50d5c31b6be5553f20085170c3eef0266`.
@@ -28,7 +31,7 @@ No protocol rule, equation, restriction, leak action or trace event was added.
 | --- | ---: | ---: | ---: | --- |
 | Independent packet shapes | 304.596 s | 0 | 0 | Both verified |
 | Fresh origin search with proven shapes | 310.262 s | 0 | 1 | Incomplete, 46 steps |
-| Complete retained origin replay | 325.165 s | 0 | 1 | Incomplete, 389 steps and 42 open leaves |
+| Copied origin replay | 325.165 s | 0 | 1 | Incomplete, 389 recorded steps and 7 invalid proof steps |
 
 Every run uses pinned Tamarin 1.12.0 and Maude 3.5.1, one prover thread, a 12 GiB
 GHC heap limit, a 900-second wall-clock limit, a 60-second derivation check and
@@ -37,18 +40,18 @@ proof without an oracle or automatic search. None timed out. An incomplete
 required proposition produces driver exit 1 even when Tamarin itself exits 0.
 
 Sixteen auxiliary all-trace properties and the 414-step initial-traffic witness
-verify in the final replay. Seventeen of eighteen knowledge-source branches and
-three Stored producers remain closed, as before. Generation-origin, multi-epoch
+verify in the final replay. The original 382-step baseline has seventeen closed
+knowledge-source branches and three closed Stored producers; the combined copy
+needs its seven invalid contexts repaired before comparing closure. Generation-origin, multi-epoch
 secrecy, the longer recovery witnesses and correspondence to the implementation
 remain open. The historical non-reusable `initial_epoch_counter_is_zero`
 conjecture remains incomplete and is never treated as an assumption.
 
-The negative result directs the next investigation toward retained root and
-payload components in phase producers. Existing phase markers do not expose
-their full payload. If an additional observation event is needed to state a useful
-invariant, its erasure must reproduce the original operational rules exactly;
-it must introduce no trace restriction or weaker attacker. That is a proposed
-next experiment, not a verified property in this capture.
+The immediate next step is to repair or recapture the changed proof contexts.
+Further root or payload invariants must be motivated by those actual goals.
+Any added observation event must erase back to the original operational rules,
+introduce no trace restriction or weaker attacker, and have independently checked
+properties before reuse.
 
 `CAPTURE.zip` retains the three complete inputs and outputs, terminal records,
 streams, bounded driver, preparation scripts, tool identity, original 382-step

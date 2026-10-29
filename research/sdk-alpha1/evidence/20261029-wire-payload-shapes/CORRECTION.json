@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "corrects": "CAPTURE.json analysis and the original README comparison",
+  "original_archive_sha256": "7e6b8fac1d56b34f0b5660e844d504338dd6e2e712442d471e03d494a7be009b",
+  "original_manifest_sha256": "d3c8d2a013527819aeaf4bd74865524998b483abf3d043912fa45ee69a5accfc",
+  "raw_model_sha256": "aca52fa3e776660cb4b85679e9f466fb8117991da9d7e5758b9b409f130ca858",
+  "lemma": "epoch_generation_secret_derivation_origin_with_wire_shapes",
+  "invalid_proof_steps": 7,
+  "explicit_by_sorry_tokens": 42,
+  "frontier_count_comparable": false,
+  "invalid_step_line_numbers": [
+    10520,
+    11275,
+    11301,
+    11344,
+    11379,
+    11414,
+    11443
+  ],
+  "correction": "The copied proof contains seven stale solve methods. Counting only by-sorry leaves omitted invalid steps and their retained descendants. The original baseline has42 genuine incomplete leaves; the combined copied tree is not a valid comparable frontier. It does not establish that the independently proved packet-shape invariants are ineffective.",
+  "auxiliary_shape_proofs_still_verified": true,
+  "full_origin_and_multi_epoch_secrecy_still_incomplete": true,
+  "original_archive_manifest_and_terminal_outputs_retained": true,
+  "next": "Repair or explicitly recapture the seven changed proof contexts before comparing source/Stored closure."
+}
