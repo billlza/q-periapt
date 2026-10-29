@@ -1,0 +1,82 @@
+name: Continuity proof environment
+
+# Environment preparation is not a successful security proof. This bounded job
+# supplies the same pinned public tools and committed research inputs for replay.
+on:
+  workflow_dispatch:
+  push:
+    branches: [lza/windows-private-store]
+    paths: [.github/workflows/continuity-proof-environment.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: continuity-proof-environment-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: '3.14.7'
+          check-latest: false
+          update-environment: false
+      - name: Prepare pinned toolchain and committed inputs
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/continuity-proof-environment"
+          mkdir -m 700 "$out"
+          mkdir "$out/bin" "$out/maude"
+          maude=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset maude-3.5.1)
+          "$QPERIAPT_PYTHON" -m zipfile -e "$maude" "$out/maude"
+          chmod 0755 "$out/maude/maude"
+          tamarin=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset tamarin-1.12.0)
+          tar -xzf "$tamarin" -C "$out/bin" tamarin-prover
+          chmod 0755 "$out/bin/tamarin-prover"
+          export PATH="$out/bin:$out/maude:$PATH"
+          sh artifact/python-run.sh artifact/formal_toolchain_contract.py verify-installed --tool tamarin > "$out/tool-identity.txt"
+          git rev-parse HEAD > "$out/source-commit.txt"
+          git archive --format=tar HEAD \
+            research/continuity-recovery-symbolic \
+            research/sdk-alpha1/evidence/20261029-stored-offer-response-frontiers \
+            research/sdk-alpha1/evidence/20261029-phase-root-observations \
+            research/sdk-alpha1/evidence/20261029-response-origin-derivation \
+            artifact/bounded_process.py artifact/evidence_io.py \
+            artifact/formal_toolchain_contract.py artifact/continuity_recovery_proof.py \
+            artifact/continuity_recovery_profiles.py artifact/continuity_recovery_composition.py \
+            > "$out/source-inputs.tar"
+          "$QPERIAPT_PYTHON" - "$out" <<'PY'
+          import hashlib, json, pathlib, sys
+          root = pathlib.Path(sys.argv[1])
+          files = {}
+          for path in sorted(root.rglob('*')):
+              if path.is_symlink():
+                  raise ValueError('unexpected symlink in proof environment')
+              if path.is_file():
+                  data = path.read_bytes()
+                  files[path.relative_to(root).as_posix()] = {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
+          with (root / 'ENVIRONMENT.json').open('x') as stream:
+              json.dump({'schema_version': 1, 'scope': 'pinned tools and committed inputs only',
+                         'security_proof_verified': False, 'files': files}, stream, sort_keys=True, indent=2)
+              stream.write('\n')
+          PY
+          rm -- "$maude" "$tamarin"
+          rmdir -- "${maude%/*}" "${tamarin%/*}"
+      - name: Retain exact tools and source inputs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: continuity-proof-environment
+          path: ${{ runner.temp }}/continuity-proof-environment
+          if-no-files-found: error
+          retention-days: 7
