@@ -18,11 +18,12 @@ class InstalledBrowserNativeSession(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
-        manifest = json.loads((EVIDENCE / 'CAPTURE.json').read_text())
-        archive = EVIDENCE / 'CAPTURE.zip'
+        manifest = json.loads((EVIDENCE / 'STRICT_CAPTURE.json').read_text())
+        archive = EVIDENCE / 'STRICT_CAPTURE.zip'
         self.assertEqual(hashlib.sha256(archive.read_bytes()).hexdigest(), manifest['archive_sha256'])
         with zipfile.ZipFile(archive) as capture:
-            self.assertEqual(len(capture.infolist()), 99)
+            self.assertEqual(len(capture.infolist()), len(manifest['members']))
+            self.assertEqual(set(capture.namelist()), set(manifest['members']))
             for item in capture.infolist():
                 path = PurePosixPath(item.filename)
                 self.assertFalse(path.is_absolute() or '..' in path.parts)

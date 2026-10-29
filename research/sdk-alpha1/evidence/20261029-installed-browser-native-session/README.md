@@ -77,3 +77,17 @@ replacement, upgrades, physical power loss, mobile execution, deployed TLS, PCS,
 formal ABI admission or release readiness. The existing multi-epoch proof and
 full 0.2.0 goal remain open. The CI step is prepared locally and has not yet run
 on the new source; the active 785 wave predates this qualifier.
+
+## Strict input follow-up
+
+The first complete tool run on `99c950d6` had 3226 passes and one failure:
+the existing strict-JSON gate rejected five `json.loads` calls in the new
+qualifier. The gate was kept unchanged. Each input boundary now uses the shared
+strict parser or strict snapshot loader. All 34 evidence I/O tests passed, and
+the real browser/native workload was repeated successfully in 18.247 seconds.
+
+`STRICT_CAPTURE.zip`, its manifest and readback retain that corrected execution,
+the exact corrected producer files and the initial full-tooling failure. The
+original capsule remains intact. Mutation tests use the corrected transcript.
+The full tool suite must be checked again on the final commit; this follow-up
+does not erase the first failure or turn either capture into release approval.

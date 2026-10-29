@@ -24,6 +24,7 @@ from bounded_process import capture_output
 from continuity_browser_creation import installed_binding
 from continuity_browser_session_records import verify
 from c_package_manifest import rust_workspace_source_digest
+from evidence_io import load_json_object_snapshot, parse_strict_json_bytes
 import rust_sdk_profile as sdk
 
 
@@ -76,7 +77,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target):
     commands=[]; services=[]; frames=[]; failures=[]; frame_lock=threading.Lock()
     session='qpc-session-'+uuid.uuid4().hex
     node=node.resolve(strict=True);cli=cli.resolve(strict=True)
-    metadata=json.loads(sdk.snapshot(cli.parent/'package.json').data)
+    metadata=load_json_object_snapshot(cli.parent/'package.json',label='browser CLI metadata').value
     sdk.require(metadata.get('name')=='@playwright/cli' and metadata.get('version')=='0.1.22','browser CLI version differs')
     tool_identity=lambda:{'node':sdk.snapshot(node,maximum=256*1024**2).sha256,'cli':sdk.snapshot(cli).sha256}
     tools=tool_identity()
@@ -90,7 +91,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target):
         save(logs/(label+'.stdout'),result.stdout);save(logs/(label+'.stderr'),result.stderr)
         commands.append({'label':label,'exit':result.returncode,'stdout_sha256':digest(result.stdout),'stderr_sha256':digest(result.stderr)})
         sdk.require(result.returncode==0 and not result.stderr,'native command failed '+label)
-        return json.loads(result.stdout) if json_output else result.stdout
+        return parse_strict_json_bytes(result.stdout,label='native command '+label) if json_output else result.stdout
 
     def browser(argv,label):
         with contextlib.chdir(output):
@@ -114,7 +115,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target):
         path=output/(name+'.js');save(path,code.encode())
         text=browser(['run-code','--filename',str(path)],'browser-'+name).decode()
         sdk.require(text.count('### Result\n')==1 and '### Error' not in text,'browser phase failed '+name)
-        value=json.loads(text.split('### Result\n',1)[1].split('\n### ',1)[0])
+        value=parse_strict_json_bytes(text.split('### Result\n',1)[1].split('\n### ',1)[0].encode(),label='browser session phase '+name)
         sdk.require(value['status']=='INSTALLED_SESSION_PHASE' and value['phase']==name,'phase result differs')
         save(public/(name+'.json'),value)
         if name!='activate':
@@ -174,8 +175,9 @@ def qualify(output, receipt, node, cli, provider_root, native_target):
         run([binaries['q-periapt-native-device'],'request',*common,private/'native-request.bin'],'native-request')
         native_certificate=issuer.certificate(native_offer,(private/'native-request.bin').read_bytes())
         invitation,offer=issuer.invitation('browser')
-        save(web/'initial.json',{'invitation':invitation,'pins':json.loads((private/'policy-pins.json').read_bytes()),
-                                'materials':json.loads((private/'policy-materials.json').read_bytes())})
+        save(web/'initial.json',{'invitation':invitation,
+          'pins':load_json_object_snapshot(private/'policy-pins.json',label='browser test policy pins').value,
+          'materials':load_json_object_snapshot(private/'policy-materials.json',label='browser test policy materials').value})
         browser(['open',origin+'/index.html','--browser','chrome'],'browser-open');opened=True
         created=phase('create');sdk.require(created['secure'] and created['realm'],'not a real secure Worker')
         request=bytes(created['request']);sdk.require(len(request)==5506,'browser enrollment request width')
