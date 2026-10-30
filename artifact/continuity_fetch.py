@@ -15,6 +15,7 @@ from typing import Callable, Mapping, Sequence
 
 # A deliberately small retry budget, separate from Cargo's own retry loop.
 MAX_ATTEMPTS = 2
+_CURL_FAILURE = re.compile(r"^\[(?:6|7|18|28|52|55|56)\] [^\r\n]+$")
 _TRANSIENT = re.compile(
     r"^warning: spurious network error \([0-9]+ (?:tries|try) remaining\): "
     r"\[(?:6|7|18|28|52|55|56)\] [^\r\n]+$"
@@ -31,7 +32,7 @@ _DOWNLOAD_ERROR = re.compile(r"^error: failed to (?:download|get) .+$")
 
 
 def retryable_network_failure(stdout: bytes, stderr: bytes) -> bool:
-    """Classify only a warning-bearing Cargo fetch transport failure.
+    """Classify only an explicit Cargo fetch transport failure.
 
     Unknown diagnostics fail closed. HTTP authentication and TLS certificate
     verification failures must never be turned into a network retry policy.
@@ -43,10 +44,18 @@ def retryable_network_failure(stdout: bytes, stderr: bytes) -> bool:
             return False
         lines = [line.strip() for line in text.splitlines()]
         warnings = [line for line in lines if 'warning:' in line.casefold()]
+        # With CARGO_NET_RETRY=0, Cargo can report only the final download
+        # error and a curl cause, without a spurious-network warning. OpenSSL's
+        # nested `error:...` is part of the curl diagnostic, not a Cargo error.
+        curl = [line for line in lines if _CURL_FAILURE.fullmatch(line)]
         errors = [line for line in lines if 'error:' in line.casefold()
-                  and not line.startswith('warning:')]
-        return (bool(warnings) and all(_TRANSIENT.fullmatch(line) for line in warnings)
-                and all(_DOWNLOAD_ERROR.fullmatch(line) for line in errors))
+                  and not _TRANSIENT.fullmatch(line) and not _CURL_FAILURE.fullmatch(line)]
+        if not all(_TRANSIENT.fullmatch(line) for line in warnings):
+            return False
+        if not all(_DOWNLOAD_ERROR.fullmatch(line) for line in errors):
+            return False
+        return bool(warnings) or (bool(errors) and bool(curl)
+                                  and 'Caused by:' in lines)
     except UnicodeDecodeError:
         return False
 

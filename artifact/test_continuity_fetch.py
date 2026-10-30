@@ -80,6 +80,25 @@ class LockedFetch(unittest.TestCase):
         self.assertEqual((self.output / 'fetch-network-01.stderr').read_bytes(), NETWORK)
         self.assertTrue(rows[-1]['offline'])
 
+    def test_final_curl_error_without_warning_is_retried(self):
+        diagnostic = (b'error: failed to download from `https://static.crates.io/crates/test/0.0.0/download`\n'
+                      b'\nCaused by:\n  [56] Failure when receiving data from the peer '
+                      b'(OpenSSL SSL_read: error:0A000126:SSL routines::unexpected eof while reading)\n')
+        self.effects = [(101, b'', diagnostic), (0, b'', b''), (0, b'', b'')]
+        self.run_fetch()
+        self.assertEqual(len(self.calls), 3)
+        self.assertFalse(self.receipt()['attempts'][0]['accepted'])
+        self.assertTrue(self.receipt()['attempts'][0]['retryable_transport'])
+        self.assertTrue(self.receipt()['accepted'])
+
+    def test_curl_line_alone_or_unknown_error_cannot_authorize_retry(self):
+        curl = b'[56] Failure when receiving data from the peer\n'
+        self.assertFalse(retryable_network_failure(b'', curl))
+        self.assertFalse(retryable_network_failure(b'', b'error: build failed\nCaused by:\n' + curl))
+        self.assertFalse(retryable_network_failure(b'', b'error: failed to download package\n' + curl))
+        self.assertFalse(retryable_network_failure(b'',
+            b'error: failed to download package\nCaused by:\n[60] SSL peer certificate verification failed\n'))
+
     def test_two_rejected_network_attempts_preserve_failure(self):
         self.effects = [(101, b'', NETWORK), (101, b'', NETWORK)]
         with self.assertRaisesRegex(CommandFailure, 'fetch-network-02'):
