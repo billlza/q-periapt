@@ -1,12 +1,15 @@
-name: Continuity proof environment
+name: Continuity multi-epoch research
 
-# Environment preparation is not a successful security proof. This bounded job
-# supplies the same pinned public tools and committed research inputs for replay.
+# This runs an unchanged research frontier, not release admission. An incomplete
+# selected theorem fails; environment preparation alone is not a proof.
 on:
   workflow_dispatch:
   push:
     branches: [lza/windows-private-store]
-    paths: [.github/workflows/continuity-proof-environment.yml]
+    paths:
+      - .github/workflows/continuity-proof-environment.yml
+      - artifact/continuity_multi_epoch_search.py
+      - artifact/test_continuity_multi_epoch_search.py
 
 permissions:
   contents: read
@@ -16,9 +19,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  prepare:
+  research:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
@@ -55,6 +58,7 @@ jobs:
             artifact/bounded_process.py artifact/evidence_io.py \
             artifact/formal_toolchain_contract.py artifact/continuity_recovery_proof.py \
             artifact/continuity_recovery_profiles.py artifact/continuity_recovery_composition.py \
+            artifact/continuity_multi_epoch_search.py artifact/test_continuity_multi_epoch_search.py \
             > "$out/source-inputs.tar"
           "$QPERIAPT_PYTHON" - "$out" <<'PY'
           import hashlib, json, pathlib, sys
@@ -73,10 +77,30 @@ jobs:
           PY
           rm -- "$maude" "$tamarin"
           rmdir -- "${maude%/*}" "${tamarin%/*}"
-      - name: Retain exact tools and source inputs
+      - name: Check model and proof-result rejection controls
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/continuity-proof-environment"
+          sh artifact/python-run.sh artifact/test_continuity_multi_epoch_search.py \
+            > "$out/checker.stdout" 2> "$out/checker.stderr"
+      - name: Replay and continue the exact multi-epoch origin frontier
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/continuity-proof-environment"
+          export PATH="$out/bin:$out/maude:$PATH"
+          sh artifact/python-run.sh artifact/continuity_multi_epoch_search.py \
+            --output "$out/results"
+      - name: Retain exact tools, attempts and proof results
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: continuity-proof-environment
+          name: continuity-multi-epoch-research
           path: ${{ runner.temp }}/continuity-proof-environment
           if-no-files-found: error
           retention-days: 7
