@@ -12,7 +12,7 @@ MESSAGES = {'first':b'native to installed browser epoch one',
             'last':b'native to recovered browser after original retry'}
 
 
-def verify(report: dict, public: Path, session: list) -> None:
+def verify(report: dict, public: Path, session: list, *, witness_context=None) -> None:
     require(type(report.get('schema_version')) is int and report['schema_version']==1 and report.get('completed') is True
             and report.get('release_claim_eligible') is False and report.get('session')==session,
             'reverse scope or original session differs')
@@ -80,8 +80,13 @@ def verify(report: dict, public: Path, session: list) -> None:
             text=stdout.decode();require(text.count('### Result\n')==1 and '### Error' not in text,'browser failed')
             value=parse_strict_json_bytes(text.split('### Result\n',1)[1].split('\n### ',1)[0].encode(),label=label)
             name=label.removeprefix('browser-receive-')
+            remaining = value['requests']
+            if witness_context is not None:
+                from continuity_browser_session_records import transport_requests
+                remaining = transport_requests(value, public, *witness_context)
+                require(not value['http_errors'], 'unexpected browser HTTP failure')
             require(value['phase']=='receive-'+name and value['status']=='INSTALLED_SESSION_PHASE'
-                    and value['result']==steps[name] and not value['diagnostics'] and not value['requests'],
+                    and value['result']==steps[name] and not value['diagnostics'] and not remaining,
                     'browser receipt does not match actual phase')
         else:
             value=parse_strict_json_bytes(stdout,label=label)

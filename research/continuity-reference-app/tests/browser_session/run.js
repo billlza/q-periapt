@@ -2,6 +2,8 @@ const required = (value, message) => { if (!value) throw Error(message); };
 const random = size => [...crypto.getRandomValues(new Uint8Array(size))];
 const scope = {name:'installed-session-' + random(12).map(x=>x.toString(16).padStart(2,'0')).join(''),id:random(32)};
 let worker, original, prepared;
+let transportReceipts = [];
+globalThis.readTransportReceipts = () => transportReceipts;
 async function launch() {
   worker = new Worker('/worker.js', {type:'module'});
   await new Promise((resolve,reject)=>{
@@ -16,6 +18,10 @@ function invoke(args) {
     worker.onmessage=({data})=>{
       clearTimeout(timer);
       if(data.error) {reject(Error(JSON.stringify(data.error)));return;}
+      if(!Array.isArray(data.transport_receipts) || data.transport_receipts.length>1024) {
+        reject(Error('Worker transport observation missing or oversized'));return;
+      }
+      transportReceipts.push(...data.transport_receipts);
       if(data.cut) {args.cut?resolve(data.cut):reject(Error('unexpected Worker cut'));return;}
       args.cut?reject(Error('Worker returned before requested cut')):resolve(data.result);
     };
@@ -35,6 +41,7 @@ async function terminate() {
   }
 }
 globalThis.runPhase=async (phase, details)=>{
+  transportReceipts = [];
   if(phase==='create') {await launch();return {...await invoke({op:'create',scope}),scope};}
   if(phase==='witness-prepare') {
     prepared=await invoke({op:'witness-prepare',scope});return prepared;

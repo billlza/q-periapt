@@ -20,9 +20,10 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / 'research/continuity-reference-app/tests/browser_session'
+FIXTURE_FILES = ('worker.js', 'run.js', 'effects.js', 'transport-receipts.js')
 from bounded_process import capture_output
 from continuity_browser_creation import installed_binding
-from continuity_browser_session_records import verify
+from continuity_browser_session_records import verify, transport_requests
 from continuity_browser_reverse import qualify as qualify_reverse
 from continuity_browser_witness import WitnessQualification
 from c_package_manifest import rust_workspace_source_digest
@@ -38,7 +39,7 @@ def source_identity():
     paths=[]
     for directory in ('research/continuity-reference-app/src', 'research/continuity-openssl-peer/qperiapt_continuity_reference'):
         paths.extend(path for path in (ROOT/directory).rglob('*') if path.is_file() and path.suffix in ('.rs','.py'))
-    paths.extend(FIXTURES/name for name in ('worker.js','run.js','effects.js'))
+    paths.extend(FIXTURES/name for name in FIXTURE_FILES)
     paths.extend(ROOT/'research/continuity-reference-app'/name for name in ('Cargo.toml','Cargo.lock',
         'tests/native_exchange_fixture.py','tests/native_network_driver.py',
         'tests/witness_cli_exchange.py','tests/independent_inbound_cli.py'))
@@ -73,7 +74,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
     private=Path(tempfile.mkdtemp(prefix='qpc-browser-session-')).resolve(strict=True)
     installed,binding=installed_binding(receipt)
     shutil.copytree(installed/'web',web/'pkg')
-    for name in ('worker.js','run.js','effects.js'):
+    for name in FIXTURE_FILES:
         shutil.copyfile(FIXTURES/name,web/name)
     save(web/'index.html',b'<!doctype html><meta charset="utf-8"><link rel="icon" href="data:"><script type="module" src="/run.js"></script><title>Installed browser native session</title>')
     env=dict(os.environ,CARGO_TARGET_DIR=str(native_target),RUSTFLAGS='-D warnings')
@@ -91,7 +92,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
     sdk.require(metadata.get('name')=='@playwright/cli' and metadata.get('version')=='0.1.22','browser CLI version differs')
     tool_identity=lambda:{'node':sdk.snapshot(node,maximum=256*1024**2).sha256,'cli':sdk.snapshot(cli).sha256}
     tools=tool_identity()
-    report={'schema_version':3 if required_witness else 2,'completed':False,'release_claim_eligible':False,'source':source,'tools':tools,
+    report={'schema_version':4 if required_witness else 2,'completed':False,'release_claim_eligible':False,'source':source,'tools':tools,
       'installed_sdk':binding,'native_binary_sha256':binary_hashes,'provider':provider.__version__,
       'native_build_profile':native_profile,
       'provider_files':provider_files,'provider_openssl':backend.openssl_version_text(),
@@ -150,8 +151,9 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
             for(const [event,listener] of listeners)page.on(event,listener);
             await page.waitForFunction(()=>globalThis.fixtureReady===true,undefined,{timeout:15000});
             const result=await page.evaluate(({phase,details})=>globalThis.runPhase(phase,details),{phase,details});
+            const state=await page.evaluate(()=>({browser:navigator.userAgent,transport_receipts:globalThis.readTransportReceipts()}));
             return {status:'INSTALLED_SESSION_PHASE',phase,result,diagnostics,requests,http_errors:httpErrors,
-              request_diagnostics:requestDiagnostics,phase_started_ms:phaseStarted,browser:await page.evaluate(()=>navigator.userAgent)};
+              request_diagnostics:requestDiagnostics,phase_started_ms:phaseStarted,...state};
           } finally {
             // The CLI reuses this Page across phases. Preserve unrelated listeners.
             for(const [event,listener] of listeners)page.off(event,listener);
@@ -163,6 +165,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
         value=parse_strict_json_bytes(text.split('### Result\n',1)[1].split('\n### ',1)[0].encode(),label='browser session phase '+name)
         sdk.require(value['status']=='INSTALLED_SESSION_PHASE' and value['phase']==name,'phase result differs')
         save(public/(name+'.json'),value)
+        remaining = transport_requests(value, public, origin, witness.report['frames'] if witness else [])
         if name in ('witness-unenrolled','witness-offline'):
             status='502' if name=='witness-unenrolled' else '503'
             sdk.require(value['http_errors']==[{'url':origin+'/witness','status':int(status)}]
@@ -175,9 +178,10 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
               and all(row['type']=='error' and row['location']['url']==origin+'/witness'
                       and status in row['message'] for row in value['diagnostics']), 'witness refusal diagnostics differ '+name)
         elif name!='activate':
-            sdk.require(not value['diagnostics'] and not value['requests'] and not value['http_errors'],'unexpected browser diagnostics '+name)
+            sdk.require(not value['diagnostics'] and not remaining and not value['http_errors'],'unexpected browser diagnostics '+name)
         else:
-            sdk.require(not value['http_errors'] and len(value['requests'])==1 and value['requests'][0]['url']==origin+'/exchange/drop-once','expected lost response not observed')
+            sdk.require(not value['http_errors'] and remaining == [{'url': origin+'/exchange/drop-once',
+              'failure': {'errorText':'net::ERR_EMPTY_RESPONSE'}}], 'expected lost response not observed')
             sdk.require(all(row['type']=='error' and row['location']['url']==origin+'/exchange/drop-once'
                             and 'ERR_EMPTY_RESPONSE' in row['message'] for row in value['diagnostics']), 'unrelated browser errors')
         return value['result']
@@ -241,6 +245,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
 
     server=ThreadingHTTPServer(('127.0.0.1',0),Handler);server.daemon_threads=False;server.upstream=None;server.incoming=None;server.witness=None
     origin=f'http://127.0.0.1:{server.server_port}'
+    report['browser_origin'] = origin
     thread=threading.Thread(target=server.serve_forever,name='installed-browser-native-fixture');thread.start()
     opened=False;primary_error=None;witness=None
     try:

@@ -1,5 +1,6 @@
 import initialize, * as sdk from '/pkg/index.js';
 import {openEffects} from '/effects.js';
+import {takeTransportReceipts} from '/transport-receipts.js';
 await initialize();
 const bytes = value => Uint8Array.from(value);
 const b64 = value => Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')), c => c.charCodeAt(0));
@@ -180,7 +181,8 @@ async function action(data) {
       callback = await effects.commit(receivedSession, messageId, plaintext);
       if (data.cut) {
         postMessage({cut: {stage: 'host-effect-committed-before-consumer-return', effect: callback,
-          effects: await effects.snapshot(), session: [...session.id()]}});
+          effects: await effects.snapshot(), session: [...session.id()]},
+          transport_receipts: await takeTransportReceipts()});
         await new Promise(() => {}); // Parent terminates this actual Worker at the observed cut.
       }
     };
@@ -197,7 +199,10 @@ async function action(data) {
   throw Error('unknown operation');
 }
 self.onmessage = async ({data}) => {
-  try { postMessage({result:await action(data)}); }
+  try {
+    const result = await action(data);
+    postMessage({result, transport_receipts: await takeTransportReceipts()});
+  }
   catch (error) {
     const causes=[];let cause=error;
     for(let i=0;i<8 && cause;i++,cause=cause.cause) causes.push({message:String(cause),code:cause.code});

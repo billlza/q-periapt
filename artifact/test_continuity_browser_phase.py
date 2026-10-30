@@ -28,7 +28,7 @@ class Page extends EventEmitter {
   async evaluate(_fn, input) {
     if (input === undefined) {
       if (mode === 'agent') throw this.failure;
-      return 'test browser';
+      return {browser:'test browser',transport_receipts:[]};
     }
     if (mode === 'operation') throw this.failure;
     this.emit('pageerror', new Error('retained page diagnostic'));
@@ -52,6 +52,8 @@ class Page extends EventEmitter {
       const result = await execute(page);
       assert.equal(result.status, 'INSTALLED_SESSION_PHASE');
       assert.equal(result.phase, 'resume');
+      assert.equal(result.browser, 'test browser');
+      assert.deepEqual(result.transport_receipts, []);
       assert.equal(result.diagnostics.length, 2);
       assert.equal(result.requests.length, 1);
       assert.equal(result.http_errors.length, 1);
