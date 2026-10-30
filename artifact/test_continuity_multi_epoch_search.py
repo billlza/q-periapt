@@ -218,9 +218,13 @@ class FailedExecutionEvidence(unittest.TestCase):
                 def execute(_argv, **options):
                     return real_capture([sys.executable, '-c', program], **options)
 
+                # The nonzero-exit case tests disposition, not startup speed.
+                # Keep a distinct finite budget so a busy runner cannot turn it
+                # into the timeout case (which intentionally has no returncode).
+                budget = 5 if exit_code is not None else 1
                 with (mock.patch('formal_toolchain_contract.verify_installed'),
                       mock.patch.object(search, 'load_frontier', return_value=('model', MODEL, search.theory(MODEL))),
-                      mock.patch.object(search, 'TIMEOUT', 1),
+                      mock.patch.object(search, 'TIMEOUT', budget),
                       mock.patch('bounded_process.capture_output', side_effect=execute),
                       self.assertRaises((search.SearchContractError, bounded_process.BoundedProcessError))):
                     search.run(output)
