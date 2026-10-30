@@ -54,6 +54,18 @@ class InstalledBrowserWitness(unittest.TestCase):
 
     def test_activating_installation_cannot_recreate_genesis(self):
         self.report['before_restart']['activation_resume']['phase'] = 2
+        # Keep the raw phase and its hash-bound summary coherent, so this
+        # mutation reaches the durable-selection check it is meant to test.
+        path = self.public / 'logs/browser-activate.stdout'
+        text = path.read_text()
+        prefix, result = text.split('### Result\n', 1)
+        body, separator, suffix = result.partition('\n### ')
+        value = json.loads(body)
+        value['result']['activation_resume']['phase'] = 2
+        data = (prefix + '### Result\n' + json.dumps(value) + separator + suffix).encode()
+        path.write_bytes(data)
+        row = next(row for row in self.report['commands'] if row['label'] == 'browser-activate')
+        row['stdout_sha256'] = hashlib.sha256(data).hexdigest()
         self.rejects('durable selection')
 
     def test_wrong_genesis_cannot_be_relabelled_enrolled(self):

@@ -113,6 +113,48 @@ class LockedFetch(unittest.TestCase):
             self.run_fetch()
         self.assertEqual(len(self.calls), 1)
 
+    def test_network_warning_does_not_hide_unclassified_diagnostics(self):
+        for extra in (b"thread 'main' panicked at cargo/src/ops/resolve.rs:42:9:\n"
+                      b'internal invariant failed\n',
+                      b'fatal: internal cache state invariant failed\n',
+                      b'unrecognized failure detail\n',
+                      b'Caused by:\n[56] Failure when receiving data from the peer\n'):
+            for diagnostic in (NETWORK + extra, extra + NETWORK):
+                with self.subTest(diagnostic=diagnostic):
+                    self.assertFalse(retryable_network_failure(b'', diagnostic))
+
+    def test_panic_after_network_warning_stops_before_another_fetch(self):
+        diagnostic = NETWORK + b"thread 'main' panicked at cargo/src/ops/resolve.rs:42:9:\n"
+        self.effects = [(101, b'', diagnostic), (0, b'', b''), (0, b'', b'')]
+        with self.assertRaisesRegex(CommandFailure, 'fetch-network-01'):
+            self.run_fetch()
+        self.assertEqual(len(self.calls), 1)
+        self.assertFalse(self.receipt()['accepted'])
+        self.assertFalse(self.receipt()['attempts'][0]['retryable_transport'])
+        self.assertIsNone(self.receipt()['offline_label'])
+        self.assertEqual((self.output / 'fetch-network-01.stderr').read_bytes(), diagnostic)
+
+    def test_pinned_cargo_progress_can_accompany_transport_failure(self):
+        progress = (b'    Updating crates.io index\n Downloading crates ...\n'
+                    b'  Downloaded sha3 v0.12.0\n  Downloaded test-crate v1.2.3-rc.1+build.2\n')
+        final = (b'error: failed to download from `https://static.crates.io/crates/test/0.0.0/download`\n'
+                 b'\nCaused by:\n  [56] Failure when receiving data from the peer\n')
+        for diagnostic in (progress + NETWORK, NETWORK + progress, progress + final,
+                           progress + NETWORK + final):
+            with self.subTest(diagnostic=diagnostic):
+                self.assertTrue(retryable_network_failure(b'', diagnostic))
+        self.assertFalse(retryable_network_failure(b'', progress))
+
+    def test_warning_cannot_hide_incomplete_or_misordered_final_cause(self):
+        error = b'error: failed to download package\n'
+        cause = b'Caused by:\n'
+        curl = b'[56] Failure when receiving data from the peer\n'
+        for tail in (error, error + curl, cause + error + curl, error + cause,
+                     error + cause + curl + b'unknown detail\n',
+                     error + cause + curl + error + cause + curl):
+            with self.subTest(tail=tail):
+                self.assertFalse(retryable_network_failure(b'', NETWORK + tail))
+
     def test_checksum_and_authentication_failures_are_not_retried(self):
         for extra in (b'checksum mismatch', b'certificate verify failed', b'HTTP 403',
                       b'failed to parse manifest', b'permission denied', b'no space left'):
@@ -177,6 +219,26 @@ class LockedFetch(unittest.TestCase):
             self.run_fetch()
         self.assertEqual(len(self.calls), 1)
         self.assertFalse(self.receipt()['accepted'])
+
+    def test_malformed_command_receipt_stops_before_offline_admission(self):
+        for number, data in enumerate((b'{"returncode":0,"returncode":0}',
+                                       b'{"returncode":NaN}', b'{"returncode":1e999}',
+                                       b'{"returncode":\xff}', b'[]', b'null')):
+            with self.subTest(data=data):
+                self.output = self.root / f'malformed-{number}'
+                self.output.mkdir()
+                self.calls.clear()
+                def record(path, value):
+                    if path.name == 'fetch-network-01.json':
+                        path.write_bytes(data)
+                    else:
+                        LockedFetch.write_json(path, value)
+                self.write_json = record
+                with self.assertRaises(ValueError):
+                    self.run_fetch()
+                self.assertEqual(len(self.calls), 1)
+                self.assertFalse(self.receipt()['accepted'])
+                self.assertIsNone(self.receipt()['offline_label'])
 
     def test_non_fetch_and_unlocked_invocations_refuse(self):
         for replacement in ('build', 'test'):

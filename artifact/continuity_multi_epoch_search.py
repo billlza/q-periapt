@@ -11,12 +11,13 @@ import argparse
 from dataclasses import dataclass
 import hashlib
 import io
-import json
 from pathlib import Path, PurePosixPath
 import re
 import stat
 import time
 import zipfile
+
+from evidence_io import EvidenceIOError, parse_strict_json_bytes
 
 ROOT = Path(__file__).resolve().parents[1]
 CAPTURE = Path('research/sdk-alpha1/evidence/20261029-response-origin-derivation')
@@ -50,15 +51,10 @@ def sha(data):
 
 
 def strict_json(data):
-    def pairs(items):
-        out = {}
-        for key, value in items:
-            require(key not in out, 'duplicate JSON key')
-            out[key] = value
-        return out
-    def constant(value):
-        raise SearchContractError('non-finite JSON constant ' + value)
-    return json.loads(data, object_pairs_hook=pairs, parse_constant=constant)
+    try:
+        return parse_strict_json_bytes(data, label='multi-epoch proof metadata')
+    except EvidenceIOError as error:
+        raise SearchContractError(str(error)) from error
 
 
 def uncomment(text):

@@ -146,8 +146,9 @@ class ResultContract(unittest.TestCase):
                 self.parse(changed)
 
     def test_strict_json_rejects_duplicate_and_nonfinite(self):
-        for data in (b'{"a":1,"a":2}', b'{"a":NaN}', b'{"a":Infinity}'):
-            with self.subTest(data=data), self.assertRaises(ValueError):
+        for data in (b'{"a":1,"a":2}', b'{"a":NaN}', b'{"a":Infinity}',
+                     b'{"a":1e999}', b'{"a":-1e999}', b'{"a":\xff}', b'{'):
+            with self.subTest(data=data), self.assertRaises(search.SearchContractError):
                 search.strict_json(data)
 
 

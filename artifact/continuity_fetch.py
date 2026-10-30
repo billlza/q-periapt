@@ -8,10 +8,11 @@ checksum, authentication and unknown failures are not retried here.
 from __future__ import annotations
 
 import hashlib
-import json
 import re
 from pathlib import Path
 from typing import Callable, Mapping, Sequence
+
+from evidence_io import parse_strict_json_bytes
 
 # A deliberately small retry budget, separate from Cargo's own retry loop.
 MAX_ATTEMPTS = 2
@@ -29,6 +30,11 @@ _FATAL = re.compile(
     re.IGNORECASE,
 )
 _DOWNLOAD_ERROR = re.compile(r"^error: failed to (?:download|get) .+$")
+_PROGRESS = re.compile(
+    r"^(?:Updating crates\.io index|Downloading crates \.\.\.|"
+    r"Downloaded [A-Za-z0-9_-]+ v[0-9]+\.[0-9]+\.[0-9]+"
+    r"(?:-[A-Za-z0-9.-]+)?(?:\+[A-Za-z0-9.-]+)?)$"
+)
 
 
 def retryable_network_failure(stdout: bytes, stderr: bytes) -> bool:
@@ -42,20 +48,25 @@ def retryable_network_failure(stdout: bytes, stderr: bytes) -> bool:
         text = stderr.decode('utf-8', errors='strict')
         if stdout.strip() or _FATAL.search(text) or '\x1b' in text or '\x00' in text:
             return False
-        lines = [line.strip() for line in text.splitlines()]
-        warnings = [line for line in lines if 'warning:' in line.casefold()]
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        saw_transport_warning = False
         # With CARGO_NET_RETRY=0, Cargo can report only the final download
         # error and a curl cause, without a spurious-network warning. OpenSSL's
         # nested `error:...` is part of the curl diagnostic, not a Cargo error.
-        curl = [line for line in lines if _CURL_FAILURE.fullmatch(line)]
-        errors = [line for line in lines if 'error:' in line.casefold()
-                  and not _TRANSIENT.fullmatch(line) and not _CURL_FAILURE.fullmatch(line)]
-        if not all(_TRANSIENT.fullmatch(line) for line in warnings):
+        # Account for every nonempty line, including diagnostics without an
+        # `error:` prefix. A network warning cannot hide a panic or an unknown
+        # failure. Only the pinned producer's crates.io progress is allowed.
+        for index, line in enumerate(lines):
+            if _TRANSIENT.fullmatch(line):
+                saw_transport_warning = True
+                continue
+            if _PROGRESS.fullmatch(line):
+                continue
+            if _DOWNLOAD_ERROR.fullmatch(line):
+                return (len(lines) == index + 3 and lines[index + 1] == 'Caused by:'
+                        and _CURL_FAILURE.fullmatch(lines[index + 2]) is not None)
             return False
-        if not all(_DOWNLOAD_ERROR.fullmatch(line) for line in errors):
-            return False
-        return bool(warnings) or (bool(errors) and bool(curl)
-                                  and 'Caused by:' in lines)
+        return saw_transport_warning
     except UnicodeDecodeError:
         return False
 
@@ -106,18 +117,9 @@ def fetch_locked(
 
     def retained(label, command):
         # Exactly the receipt written by sdk.command; no stale/partial files.
-        def unique(pairs):
-            value = {}
-            for key, item in pairs:
-                if key in value:
-                    raise ValueError('duplicate dependency receipt key')
-                value[key] = item
-            return value
-        def nonfinite(value):
-            raise ValueError('non-finite dependency receipt value: ' + value)
-        metadata = json.loads(read(output / (label + '.json')),
-                              object_pairs_hook=unique, parse_constant=nonfinite)
-        if (set(metadata) != {'argv', 'cwd', 'returncode'}
+        metadata = parse_strict_json_bytes(read(output / (label + '.json')),
+                                           label='dependency command receipt')
+        if (type(metadata) is not dict or set(metadata) != {'argv', 'cwd', 'returncode'}
                 or metadata['argv'] != command or metadata['cwd'] != str(cwd)
                 or type(metadata['returncode']) is not int):
             raise ValueError('dependency command receipt differs')

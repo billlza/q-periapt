@@ -864,6 +864,31 @@ def workflow_path_filter_lines(source: str) -> set[int]:
     return result
 
 
+def workflow_archive_argument_lines(source: str) -> set[int]:
+    """Recognize literal source members of a complete, data-only git archive."""
+    lines = source.splitlines()
+    result: set[int] = set()
+    member = r'(?:artifact/[A-Za-z0-9_.-]+\.py|research/[A-Za-z0-9_./-]+)'
+    for index, line in enumerate(lines):
+        if line.strip() != 'git archive --format=tar HEAD \\':
+            continue
+        indentation = len(line) - len(line.lstrip(' '))
+        arguments: set[int] = set()
+        for number in range(index + 1, len(lines)):
+            current = lines[number]
+            if len(current) - len(current.lstrip(' ')) <= indentation:
+                break
+            if re.fullmatch(member + r'(?: +' + member + r')* \\', current.strip()):
+                arguments.add(number + 1)
+                continue
+            if arguments and re.fullmatch(
+                r'> "\$[A-Za-z_][A-Za-z0-9_]*/[A-Za-z0-9_.-]+\.tar"', current.strip()
+            ):
+                result.update(arguments)
+            break
+    return result
+
+
 def extract_named_workflow_step(job: str, step_name: str) -> str:
     step_match = re.search(
         rf"(?ms)^      - name: {re.escape(step_name)}\n"
@@ -6342,6 +6367,7 @@ with _temporary_release_test_directories(parents):
         for workflow in workflows:
             source = workflow.read_text(encoding="utf-8")
             path_filters = workflow_path_filter_lines(source)
+            archive_arguments = workflow_archive_argument_lines(source)
             for number, line in enumerate(
                 source.splitlines(), start=1
             ):
@@ -6351,7 +6377,8 @@ with _temporary_release_test_directories(parents):
                     direct_python.search(line),
                     f"{workflow.relative_to(ROOT)}:{number} invokes Python directly",
                 )
-                if repository_script.search(line) and number not in path_filters:
+                if (repository_script.search(line) and number not in path_filters
+                        and number not in archive_arguments):
                     self.assertIn(
                         "sh artifact/python-run.sh",
                         line,
@@ -6393,6 +6420,36 @@ jobs:
                 path.write_text(source.replace("jobs:\n", "env:\n  SCRIPT: artifact/control.py\njobs:\n"), encoding="utf-8")
                 with self.assertRaisesRegex(AssertionError, "bypasses the one-shot runner"):
                     self.test_ci_repository_python_calls_use_one_shot_runner()
+
+    def test_python_runner_guard_distinguishes_archive_members_and_execution(self) -> None:
+        source = ('jobs:\n  check:\n    steps:\n'
+                  '      - run: sh artifact/python-run.sh artifact/control.py\n'
+                  '      - run: sh artifact/python-run.sh artifact/other.py\n'
+                  '      - run: |\n'
+                  '          git archive --format=tar HEAD \\\n'
+                  '            research/model artifact/control.py \\\n'
+                  '            artifact/other.py \\\n'
+                  '            > "$out/source-inputs.tar"\n')
+        self.assertEqual(workflow_archive_argument_lines(source), {8, 9})
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            workflows = root / '.github/workflows'
+            workflows.mkdir(parents=True)
+            path = workflows / 'control.yml'
+            with mock.patch(__name__ + '.ROOT', root):
+                path.write_text(source)
+                self.test_ci_repository_python_calls_use_one_shot_runner()
+                for before, after in (
+                    ('research/model artifact/control.py', 'sh artifact/control.py'),
+                    ('research/model artifact/control.py', 'research/model; artifact/control.py'),
+                    ('HEAD \\\n', 'HEAD\n'),
+                    ('artifact/control.py \\\n', 'artifact/control.py\n'),
+                    ('> "$out/source-inputs.tar"', '> "$(artifact/control.py )/inputs.tar"'),
+                ):
+                    with self.subTest(after=after):
+                        path.write_text(source.replace(before, after))
+                        with self.assertRaisesRegex(AssertionError, 'bypasses the one-shot runner'):
+                            self.test_ci_repository_python_calls_use_one_shot_runner()
 
 
 class CameraReadyEvidenceGateTests(unittest.TestCase):
