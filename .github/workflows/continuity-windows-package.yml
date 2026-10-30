@@ -15,6 +15,8 @@ on:
       - research/continuity-identity-candidate/**
       - artifact/installed_rust_graph.py
       - artifact/continuity_package.py
+      - artifact/continuity_fetch.py
+      - artifact/test_continuity_fetch.py
       - artifact/continuity_package_archive.py
       - bindings/c/ContinuityPackageConsumer/**
 
@@ -44,7 +46,10 @@ jobs:
       - name: Check public C export and substitution refusals
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
-        run: sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_windows_*.py'
+        run: |
+          set -euo pipefail
+          sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_windows_*.py'
+          sh artifact/python-run.sh artifact/test_continuity_fetch.py
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: rust-sdk-package
