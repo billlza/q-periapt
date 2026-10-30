@@ -6,11 +6,15 @@ use std::{
     net::{Shutdown, TcpListener, TcpStream},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Mutex,
+        Mutex, OnceLock,
     },
     thread,
     time::{Duration, Instant},
 };
+#[path = "witness_tls_outcome.rs"]
+mod outcome;
+use outcome::{finish_reply, joined, RelayObservation};
+
 const MAX_WIRE: usize = 256 * 1024;
 
 fn window(deadline: Instant) -> io::Result<Duration> {
@@ -85,6 +89,7 @@ pub(crate) fn receive_reply(
     deadline: Instant,
     clock: &mut (impl FnMut() -> io::Result<u64> + Send),
 ) -> Result<(Vec<u8>, p::anchor_tls::AnchorTlsRecord)> {
+    let started = Instant::now();
     // A local TCP pair lets the unchanged native TLS server own its real socket.
     // The intermediary sees encrypted wire only; it has no TLS traffic secrets.
     let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -98,10 +103,11 @@ pub(crate) fn receive_reply(
     let output = backend.try_clone()?;
     let responding = AtomicBool::new(false);
     let done = AtomicBool::new(false);
+    let admitted = OnceLock::new();
     thread::scope(
         |scope| -> Result<(Vec<u8>, p::anchor_tls::AnchorTlsRecord)> {
             let serving = scope.spawn(|| {
-                server.serve_recorded(
+                let result = server.serve_recorded(
                     socket,
                     store,
                     deadline,
@@ -110,11 +116,18 @@ pub(crate) fn receive_reply(
                         if responding.swap(true, Ordering::AcqRel) {
                             return Err(io::Error::other("TLS clock was called twice"));
                         }
+                        admitted.set(started.elapsed()).map_err(|_| {
+                            io::Error::other("TLS native admission was observed twice")
+                        })?;
                         clock()
                     },
-                )
+                );
+                (result.map_err(Into::into), started.elapsed())
             });
-            let sending = scope.spawn(|| send_request(input, output, &done, deadline));
+            let sending = scope.spawn(|| {
+                let result = send_request(input, output, &done, deadline);
+                (result, started.elapsed())
+            });
             let received = (|| -> Result<Vec<u8>> {
                 let mut reply = Vec::new();
                 let mut buffer = [0; 8192];
@@ -140,27 +153,26 @@ pub(crate) fn receive_reply(
                 }
                 Ok(reply)
             })();
-            let served = serving.join().map_err(|_| "TLS native server panicked");
+            let reply_elapsed = started.elapsed();
+            let (served, native_elapsed) = joined(serving.join(), "TLS native server panicked");
             done.store(true, Ordering::Release);
-            let stopped = front.shutdown(Shutdown::Read).map_err(|error| {
-                io::Error::new(
-                    error.kind(),
-                    format!("TLS relay stop request reader: {error}"),
-                )
-            });
-            let sent = sending.join().map_err(|_| "TLS request relay panicked");
+            let stopped = front.shutdown(Shutdown::Read);
+            let (sent, request_elapsed) = joined(sending.join(), "TLS request relay panicked");
             // Join both bounded workers before evaluating their results. No private
             // before/after image is printed, including on an unexpected failure.
-            let served = served?;
-            let sent = sent?;
-            stopped?;
-            sent?;
-            let record = served?;
-            let reply = received?;
-            if reply.is_empty() {
-                return Err("TLS native reply was not retained".into());
-            }
-            Ok((reply, record))
+            finish_reply(
+                served,
+                sent,
+                received,
+                stopped,
+                RelayObservation {
+                    elapsed: started.elapsed(),
+                    native_elapsed,
+                    request_elapsed,
+                    reply_elapsed,
+                    admitted: admitted.get().copied(),
+                },
+            )
         },
     )
 }
