@@ -8,6 +8,12 @@ results remain valid in their own models. Whole-journal image/restore
 correspondence, multi-epoch recovery, computational security, SDK correspondence
 and external review remain open.
 
+The current [snapshot-origin checkpoint](../sdk-alpha1/evidence/20261030-snapshot-origin-derivation/README.md)
+retains the complete 35-query model, 19 verified auxiliary results and the
+initial-traffic witness. Its 431-step origin partial has 24 remaining snapshot
+leaves. The bounded research workflow now resumes this exact, independently
+replayed certificate; full origin and multi-epoch secrecy remain incomplete.
+
 An experimental [multi-epoch projection](multi-epoch.spthy) now preserves stable
 session/context, inherited roots, completed transcript parents, alternating
 proposers and asymmetric local confirmation across unbounded rounds. Its

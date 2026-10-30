@@ -922,11 +922,20 @@ def capture_output(
     maximum_stderr_bytes: int,
     stdin_fd: int | None = None,
     environment: Mapping[str, str] | None = None,
+    stdout_sink: Callable[[bytes], None] | None = None,
+    stderr_sink: Callable[[bytes], None] | None = None,
     timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD,
 ) -> BoundedResult:
-    """Capture both streams; long analyses explicitly opt into a finite budget."""
+    """Capture both streams; optional sinks retain bounded failure diagnostics.
+
+    Each sink runs in its stream's reader thread after the byte-limit check.
+    Sink failures use the same process cleanup and error path as read failures.
+    """
 
     timeout = _validated_timeout(timeout_seconds, policy=timeout_policy)
+    sinks = {"stdout": stdout_sink, "stderr": stderr_sink}
+    if any(sink is not None and not callable(sink) for sink in sinks.values()):
+        raise BoundedProcessError("arguments", "output sinks must be callable")
     limits = {
         "stdout": _validated_maximum(maximum_stdout_bytes),
         "stderr": _validated_maximum(maximum_stderr_bytes),
@@ -963,6 +972,12 @@ def capture_output(
                         )
                         break
                     totals[name] = next_total
+                # Each stream has one reader. Enforce its limit before calling
+                # the sink, without blocking the other reader's state lock.
+                sink = sinks[name]
+                if sink is not None:
+                    sink(chunk)
+                with state_lock:
                     chunks[name].append(chunk)
         except (KeyboardInterrupt, SystemExit) as exc:
             with state_lock:

@@ -253,6 +253,67 @@ class BoundedProcessTests(unittest.TestCase):
         self.assertEqual(len(observed_pids), 1)
         self.assert_process_group_gone(observed_pids[0])
 
+    def test_dual_sinks_keep_nonzero_and_timeout_diagnostics(self) -> None:
+        for timeout in (False, True):
+            with self.subTest(timeout=timeout):
+                stdout, stderr = [], []
+                argv = self.python(
+                    "import os,time; os.write(1,b'out'); os.write(2,b'err'); "
+                    + ("time.sleep(5)" if timeout else "raise SystemExit(7)")
+                )
+                options = dict(timeout_seconds=1, maximum_stdout_bytes=128,
+                               maximum_stderr_bytes=128, stdout_sink=stdout.append,
+                               stderr_sink=stderr.append)
+                if timeout:
+                    with self.assertRaises(bounded_process.BoundedProcessError) as error:
+                        bounded_process.capture_output(argv, **options)
+                    self.assertEqual(error.exception.kind, "timeout")
+                    self.assertFalse(error.exception.cleanup_ambiguous)
+                else:
+                    result = bounded_process.capture_output(argv, **options)
+                    self.assertEqual((result.returncode, result.stdout, result.stderr),
+                                     (7, b"out", b"err"))
+                self.assertEqual(b"".join(stdout), b"out")
+                self.assertEqual(b"".join(stderr), b"err")
+
+    def test_dual_sink_io_failure_reaps_child(self) -> None:
+        observed_pids = []
+        failure = OSError("cannot retain diagnostic")
+
+        def reject(chunk):
+            observed_pids.append(int(chunk.strip()))
+            raise failure
+
+        with self.assertRaises(bounded_process.BoundedProcessError) as error:
+            bounded_process.capture_output(
+                self.python("import os,time; print(os.getpid(), flush=True); time.sleep(5)"),
+                timeout_seconds=10, maximum_stdout_bytes=128, maximum_stderr_bytes=128,
+                stdout_sink=reject)
+        self.assertEqual(error.exception.kind, "io")
+        self.assertIs(error.exception.__cause__, failure)
+        self.assertEqual(len(observed_pids), 1)
+        self.assert_process_group_gone(observed_pids[0])
+
+    def test_dual_sinks_do_not_bypass_output_or_argument_limits(self) -> None:
+        for name in ("stdout", "stderr"):
+            with self.subTest(stream=name):
+                chunks = []
+                with self.assertRaises(bounded_process.BoundedProcessError) as error:
+                    bounded_process.capture_output(
+                        self.python(f"import sys; sys.{name}.buffer.write(b'x' * 33)"),
+                        timeout_seconds=5, maximum_stdout_bytes=32, maximum_stderr_bytes=32,
+                        **{name + "_sink": chunks.append})
+                self.assertEqual(error.exception.kind, "output_limit")
+                self.assertLessEqual(sum(map(len, chunks)), 32)
+                with (mock.patch.object(bounded_process, "_start_process") as start,
+                      self.assertRaises(bounded_process.BoundedProcessError) as invalid):
+                    bounded_process.capture_output(
+                        self.python("raise SystemExit(0)"), timeout_seconds=5,
+                        maximum_stdout_bytes=32, maximum_stderr_bytes=32,
+                        **{name + "_sink": "not-callable"})
+                self.assertEqual(invalid.exception.kind, "arguments")
+                start.assert_not_called()
+
     def test_capture_output_bounds_and_separates_both_streams(self) -> None:
         result = bounded_process.capture_output(
             self.python(

@@ -20,11 +20,11 @@ import zipfile
 from evidence_io import EvidenceIOError, parse_strict_json_bytes
 
 ROOT = Path(__file__).resolve().parents[1]
-CAPTURE = Path('research/sdk-alpha1/evidence/20261029-response-origin-derivation')
-ARCHIVE_SHA256 = 'd40c0e0035c97a84700d9076f9b3af8b13b25b99434c38d69286b8c892497255'
-ARCHIVE_BYTES = 461012
-MODEL_SHA256 = 'f7910208a18aaf438e82eb2a2e37812f49322534252a47eae6a54c80b3d56e0b'
-QUERY_COUNT = 34
+CAPTURE = Path('research/sdk-alpha1/evidence/20261030-snapshot-origin-derivation')
+ARCHIVE_SHA256 = '22d8253e76516d2862e89a156660260925c833609d8fe1f60728d3cc7ab9224e'
+ARCHIVE_BYTES = 800666
+MODEL_SHA256 = 'd21fa9256a72a5b7ad7ddc159762a10d14451bb0492b727f7d0a50428351bc72'
+QUERY_COUNT = 35
 ORIGIN = 'epoch_generation_secret_derivation_origin_with_phase_roots'
 ORIGINAL_ORIGIN = 'epoch_generation_secret_derivation_origin'
 GOALS = (ORIGIN,)
@@ -215,7 +215,7 @@ def load_frontier(root, read):
 
 
 def run(output):
-    from bounded_process import capture_output
+    from bounded_process import BoundedProcessError, capture_output
     from evidence_io import read_regular_snapshot
     from formal_toolchain_contract import verify_installed
     from continuity_recovery_proof import prover_environment, write_json
@@ -256,17 +256,29 @@ def run(output):
                 command += ['--prove=' + selected, '--heuristic=i', '--bound=' + str(DEPTH)]
             command += ['+RTS', '-N1', '-M12G', '-c100', '-s', '-RTS']
             row = {'label': label, 'argv': command, 'input_sha256': sha(data), 'search': selected is not None,
-                   'selected': selected, 'accepted_execution': False}
+                   'selected': selected, 'accepted_execution': False, 'streams_complete': False}
             report['executions'].append(row)
             write_json(prefix.with_suffix('.started.json'), row)
             started = time.monotonic()
+            primary = None
             try:
-                result = capture_output(command, timeout_seconds=TIMEOUT, maximum_stdout_bytes=16 * 1024 * 1024,
-                                        maximum_stderr_bytes=16 * 1024 * 1024, environment=prover_environment())
-                prefix.with_suffix('.stdout').write_bytes(result.stdout)
-                prefix.with_suffix('.stderr').write_bytes(result.stderr)
+                with (prefix.with_suffix('.stdout').open('xb', buffering=0) as stdout,
+                      prefix.with_suffix('.stderr').open('xb', buffering=0) as stderr):
+                    def retain(stream, chunk):
+                        if stream.write(chunk) != len(chunk):
+                            raise OSError('short proof diagnostic write')
+
+                    result = capture_output(
+                        command, timeout_seconds=TIMEOUT,
+                        maximum_stdout_bytes=16 * 1024 * 1024,
+                        maximum_stderr_bytes=16 * 1024 * 1024, environment=prover_environment(),
+                        stdout_sink=lambda chunk: retain(stdout, chunk),
+                        stderr_sink=lambda chunk: retain(stderr, chunk))
+                require(read(prefix.with_suffix('.stdout'), 16 * 1024 * 1024) == result.stdout
+                        and read(prefix.with_suffix('.stderr'), 16 * 1024 * 1024) == result.stderr,
+                        'retained prover streams differ')
                 row.update(returncode=result.returncode, elapsed_seconds=time.monotonic() - started,
-                           stdout_sha256=sha(result.stdout), stderr_sha256=sha(result.stderr))
+                           streams_complete=True)
                 require(result.returncode == 0, 'prover process failed: ' + label)
                 require(not re.search(rb'warning|invalid proof|wellformedness check failed', result.stderr, re.I),
                         'prover emitted warning or invalid-proof diagnostics')
@@ -277,11 +289,26 @@ def run(output):
                 row.update(output_sha256=sha(produced), results=results, accepted_execution=True)
                 return produced, results
             except BaseException as error:
+                primary = error
                 row.update(elapsed_seconds=time.monotonic() - started,
                            failure={'type': type(error).__name__, 'message': str(error)})
+                if isinstance(error, BoundedProcessError):
+                    row['failure'].update(kind=error.kind, cleanup_ambiguous=error.cleanup_ambiguous)
                 raise
             finally:
-                write_json(prefix.with_suffix('.terminal.json'), row)
+                try:
+                    for stream in ('stdout', 'stderr'):
+                        path = prefix.with_suffix('.' + stream)
+                        if path.exists():
+                            retained = read(path, 16 * 1024 * 1024)
+                            row[stream + '_sha256'] = sha(retained)
+                            row[stream + '_bytes'] = len(retained)
+                    write_json(prefix.with_suffix('.terminal.json'), row)
+                except BaseException as evidence_error:
+                    if primary is not None:
+                        raise BaseExceptionGroup('prover and evidence retention failed',
+                                                 [primary, evidence_error]) from None
+                    raise
 
         current, results = execute(source_data, 'baseline-replay')
         report['baseline_replayed'] = True

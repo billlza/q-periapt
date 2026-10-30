@@ -10,6 +10,7 @@ on:
       - .github/workflows/continuity-proof-environment.yml
       - artifact/continuity_multi_epoch_search.py
       - artifact/test_continuity_multi_epoch_search.py
+      - research/sdk-alpha1/evidence/20261030-snapshot-origin-derivation/**
 
 permissions:
   contents: read
@@ -55,6 +56,7 @@ jobs:
             research/sdk-alpha1/evidence/20261029-stored-offer-response-frontiers \
             research/sdk-alpha1/evidence/20261029-phase-root-observations \
             research/sdk-alpha1/evidence/20261029-response-origin-derivation \
+            research/sdk-alpha1/evidence/20261030-snapshot-origin-derivation \
             artifact/bounded_process.py artifact/evidence_io.py \
             artifact/formal_toolchain_contract.py artifact/continuity_recovery_proof.py \
             artifact/continuity_recovery_profiles.py artifact/continuity_recovery_composition.py \

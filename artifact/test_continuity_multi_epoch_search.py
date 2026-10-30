@@ -1,6 +1,11 @@
 """Reject altered theories and incomplete or conditional research results."""
 from pathlib import Path
+import json
+import sys
+import tempfile
 import unittest
+from unittest import mock
+import zipfile
 
 import continuity_multi_epoch_search as search
 
@@ -150,6 +155,97 @@ class ResultContract(unittest.TestCase):
                      b'{"a":1e999}', b'{"a":-1e999}', b'{"a":\xff}', b'{'):
             with self.subTest(data=data), self.assertRaises(search.SearchContractError):
                 search.strict_json(data)
+
+
+class CommittedFrontier(unittest.TestCase):
+    def test_current_capture_preserves_queries_and_has_full_replay_inventory(self):
+        def read(path, maximum):
+            data = path.read_bytes()
+            self.assertLessEqual(len(data), maximum)
+            return data
+
+        member, data, contract = search.load_frontier(search.ROOT, read)
+        self.assertEqual(member, 'proof/current.spthy')
+        self.assertEqual(search.sha(data), search.MODEL_SHA256)
+        with zipfile.ZipFile(search.ROOT / search.CAPTURE / 'CAPTURE.zip') as archive:
+            previous = search.theory(archive.read('lineage/previous-34-query.spthy'))
+            self.assertEqual(previous.prefix, contract.prefix)
+            for name, query in previous.by_name.items():
+                self.assertEqual(query, contract.by_name[name])
+            self.assertEqual(set(contract.by_name) - set(previous.by_name),
+                             {'signed_final_payload_has_public_constructors'})
+            prefix = 'runs/p0-snapshot-closure-732/closure-replay'
+            terminal = search.strict_json(archive.read(prefix + '-TERMINAL.json'))
+            self.assertEqual(terminal['returncode'], 0)
+            self.assertFalse(terminal['timed_out'])
+            self.assertFalse(terminal['accepted'])
+            self.assertEqual(terminal['output_sha256'], search.MODEL_SHA256)
+            source = next(arg for arg in terminal['argv']
+                          if arg.endswith('.spthy') and not arg.startswith('--'))
+            output = next(arg.removeprefix('--output=') for arg in terminal['argv']
+                          if arg.startswith('--output='))
+            results = search.inventory(archive.read(prefix + '.stdout'),
+                                       Path(source), Path(output), contract)
+            self.assertEqual(results, terminal['results'])
+            self.assertEqual(results[search.ORIGIN]['status'], 'analysis incomplete')
+            self.assertEqual(results['multi_epoch_fresh_reservations_recover_symbolic_message_secrecy']['status'],
+                             'analysis incomplete')
+            self.assertEqual(results['signed_final_payload_has_public_constructors']['status'], 'verified')
+
+    def test_changed_capture_bytes_are_refused(self):
+        def changed(path, maximum):
+            raw = path.read_bytes()
+            self.assertLessEqual(len(raw), maximum)
+            if path.name == 'CAPTURE.zip':
+                raw = bytes([raw[0] ^ 1]) + raw[1:]
+            return raw
+
+        with self.assertRaisesRegex(search.SearchContractError, 'retained capture changed'):
+            search.load_frontier(search.ROOT, changed)
+
+
+class FailedExecutionEvidence(unittest.TestCase):
+    def test_nonzero_and_timeout_keep_real_streams_without_acceptance(self):
+        import bounded_process
+        real_capture = bounded_process.capture_output
+        for exit_code in (7, None):
+            with self.subTest(exit_code=exit_code), tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary).resolve() / 'research'
+                program = ("import os,time; os.write(1,b'partial proof output\\n'); "
+                           "os.write(2,b'partial prover diagnostic\\n'); " +
+                           ("time.sleep(5)" if exit_code is None else "raise SystemExit(7)"))
+
+                def execute(_argv, **options):
+                    return real_capture([sys.executable, '-c', program], **options)
+
+                with (mock.patch('formal_toolchain_contract.verify_installed'),
+                      mock.patch.object(search, 'load_frontier', return_value=('model', MODEL, search.theory(MODEL))),
+                      mock.patch.object(search, 'TIMEOUT', 1),
+                      mock.patch('bounded_process.capture_output', side_effect=execute),
+                      self.assertRaises((search.SearchContractError, bounded_process.BoundedProcessError))):
+                    search.run(output)
+                terminal = json.loads((output / '01-baseline-replay.terminal.json').read_text())
+                self.assertFalse(terminal['accepted_execution'])
+                self.assertIn('failure', terminal)
+                self.assertNotIn('results', terminal)
+                if exit_code is None:
+                    self.assertNotIn('returncode', terminal)
+                    self.assertFalse(terminal['streams_complete'])
+                    self.assertEqual(terminal['failure']['kind'], 'timeout')
+                    self.assertFalse(terminal['failure']['cleanup_ambiguous'])
+                else:
+                    self.assertEqual(terminal['returncode'], exit_code)
+                    self.assertTrue(terminal['streams_complete'])
+                for suffix, expected in [('stdout', b'partial proof output\n'),
+                                         ('stderr', b'partial prover diagnostic\n')]:
+                    raw = (output / ('01-baseline-replay.' + suffix)).read_bytes()
+                    self.assertEqual(raw, expected)
+                    self.assertEqual(terminal[suffix + '_sha256'], search.sha(raw))
+                    self.assertEqual(terminal[suffix + '_bytes'], len(raw))
+                report = json.loads((output / 'RESULT.json').read_text())
+                self.assertFalse(report['selected_theorem_verified'])
+                self.assertFalse(report['release_claim_eligible'])
+                self.assertIn('failure', report)
 
 
 if __name__ == '__main__':
