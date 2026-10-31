@@ -20,14 +20,15 @@ import zipfile
 from evidence_io import EvidenceIOError, parse_strict_json_bytes
 
 ROOT = Path(__file__).resolve().parents[1]
-CAPTURE = Path('research/sdk-alpha1/evidence/20261030-snapshot-origin-derivation')
-ARCHIVE_SHA256 = '22d8253e76516d2862e89a156660260925c833609d8fe1f60728d3cc7ab9224e'
-ARCHIVE_BYTES = 800666
-MODEL_SHA256 = 'd21fa9256a72a5b7ad7ddc159762a10d14451bb0492b727f7d0a50428351bc72'
-QUERY_COUNT = 35
+CAPTURE = Path('research/sdk-alpha1/evidence/20261031-multi-epoch-secrecy')
+ARCHIVE_SHA256 = '082aa9ab02e8eae4eb52296e329eeb22bb8ae2cf4a25114df5dc7177019528db'
+ARCHIVE_BYTES = 407969
+MODEL_SHA256 = 'dde5d06a071b1560da0d4c28c3f1fd81a3c39708f9fd8564ee391ddc362bcf7f'
+QUERY_COUNT = 40
 ORIGIN = 'epoch_generation_secret_derivation_origin_with_phase_roots'
 ORIGINAL_ORIGIN = 'epoch_generation_secret_derivation_origin'
-GOALS = (ORIGIN,)
+MAIN = 'multi_epoch_fresh_reservations_recover_symbolic_message_secrecy'
+GOALS = (ORIGIN, MAIN)
 MAX_BYTES = 4 * 1024 * 1024
 TIMEOUT = 900
 HEAP_GIB = 12
@@ -254,7 +255,10 @@ def run(output):
                 require(selected in contract.by_name, 'unknown selected theorem')
                 require([n for n in contract.by_name if n.startswith(selected)] == [selected], 'ambiguous selected theorem')
                 command += ['--prove=' + selected, '--heuristic=i', '--bound=' + str(DEPTH)]
-            command += ['+RTS', '-N1', '-M12G', '-c100', '-s', '-RTS']
+            # Use the documented default compaction threshold. The retained
+            # same-input control exhausts 12 GiB with -c100 and replays with
+            # -c30; neither the heap nor the execution deadline is increased.
+            command += ['+RTS', '-N1', '-M12G', '-c30', '-s', '-RTS']
             row = {'label': label, 'argv': command, 'input_sha256': sha(data), 'search': selected is not None,
                    'selected': selected, 'accepted_execution': False, 'streams_complete': False}
             report['executions'].append(row)
@@ -283,6 +287,7 @@ def run(output):
                 require(not re.search(rb'warning|invalid proof|wellformedness check failed', result.stderr, re.I),
                         'prover emitted warning or invalid-proof diagnostics')
                 produced = read(certificate)
+                require(b'invalid proof step' not in produced, 'certificate contains rejected proof steps')
                 require(read(source) == data, 'prover input changed')
                 require(theory(produced) == contract, 'operational rules or query contract changed')
                 results = inventory(result.stdout, source, certificate, contract)
@@ -312,17 +317,17 @@ def run(output):
 
         current, results = execute(source_data, 'baseline-replay')
         report['baseline_replayed'] = True
-        goal = ORIGIN
+        goal = MAIN
         if results[goal]['status'] != 'verified':
-            candidate, candidate_results = execute(current, 'origin-search', goal)
+            candidate, candidate_results = execute(current, 'main-search', goal)
             # A zero exit code is not a proof. Independently replay the entire
             # resulting tree and preserve every query and reusable dependency.
-            current, results = execute(candidate, 'origin-replay')
+            current, results = execute(candidate, 'main-replay')
             require(candidate_results == results, 'search/replay theorem results differ')
         complete = results[goal]['status'] == 'verified'
         report.update(selected_theorem=goal, selected_theorem_verified=complete,
                       final_results=results, final_certificate_sha256=sha(current),
-                      main_multi_epoch_secrecy_verified=False)
+                      main_multi_epoch_secrecy_verified=complete)
         return complete
     except BaseException as error:
         report['failure'] = {'type': type(error).__name__, 'message': str(error)}

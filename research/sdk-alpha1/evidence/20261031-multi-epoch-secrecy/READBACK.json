@@ -1,0 +1,10 @@
+{
+  "all_members_read_back": true,
+  "member_count": 39,
+  "archive_sha256": "082aa9ab02e8eae4eb52296e329eeb22bb8ae2cf4a25114df5dc7177019528db",
+  "archive_bytes": 407969,
+  "provenance_archive_sha256": "75719742d875f5d3de402a2ee8e3547b5294bc82265327d89712b2ea9997d259",
+  "main_theorem_verified": true,
+  "full_dependency_joint_replay_accepted": true,
+  "release_claim_eligible": false
+}

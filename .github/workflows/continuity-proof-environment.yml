@@ -11,6 +11,8 @@ on:
       - artifact/continuity_multi_epoch_search.py
       - artifact/test_continuity_multi_epoch_search.py
       - research/sdk-alpha1/evidence/20261030-snapshot-origin-derivation/**
+      - research/sdk-alpha1/evidence/20261030-generation-secret-origin/**
+      - research/sdk-alpha1/evidence/20261031-multi-epoch-secrecy/**
 
 permissions:
   contents: read
@@ -57,6 +59,8 @@ jobs:
             research/sdk-alpha1/evidence/20261029-phase-root-observations \
             research/sdk-alpha1/evidence/20261029-response-origin-derivation \
             research/sdk-alpha1/evidence/20261030-snapshot-origin-derivation \
+            research/sdk-alpha1/evidence/20261030-generation-secret-origin \
+            research/sdk-alpha1/evidence/20261031-multi-epoch-secrecy \
             artifact/bounded_process.py artifact/evidence_io.py \
             artifact/formal_toolchain_contract.py artifact/continuity_recovery_proof.py \
             artifact/continuity_recovery_profiles.py artifact/continuity_recovery_composition.py \
@@ -88,7 +92,7 @@ jobs:
           out="$RUNNER_TEMP/continuity-proof-environment"
           sh artifact/python-run.sh artifact/test_continuity_multi_epoch_search.py \
             > "$out/checker.stdout" 2> "$out/checker.stderr"
-      - name: Replay and continue the exact multi-epoch origin frontier
+      - name: Replay the multi-epoch main theorem and all reusable dependencies
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
         shell: bash

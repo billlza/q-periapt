@@ -104,6 +104,17 @@ a successful witness query does not make the same reservation fresh. New entropy
 must be reserved only for a genuinely new, admissible transition, never as a retry
 of an uncertain old operation.
 
+Acquisition of the actual journal must include an uncommitted target retained
+in its `pending` write intent, not only the current `image` row. The
+[pending-image disclosure checkpoint](../../research/sdk-alpha1/evidence/20261031-pending-image-disclosure/README.md)
+captures each first KEM reservation after the intent is durable but before
+image apply or KEM computation: both captures reconstruct six later real messages
+after exact recovery. Successful API return or Witness acknowledgement is not
+the first point when those private bytes become available. This supplies two
+concrete acquisition boundaries, not a complete whole-journal model refinement.
+A device-global image revision and a symbolic per-session `Saved` version must
+also remain distinct; resealing an unchanged reservation is not fresh entropy.
+
 The passive component experiments serialize KEM private keys directly. The actual
 candidate now also exercises both first-reservation cuts with process loss,
 sealed-operation replay and twelve real future message decryptions. This supplies

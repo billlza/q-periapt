@@ -1,0 +1,75 @@
+{
+  "archive_bytes": 112939,
+  "archive_sha256": "9df4eefd5d08098018cba24565b89671c7292bd250dcf8e4c82fc3600e25dd92",
+  "baseline_source_commit": "4ae5f77ad6e81dce956be24511d7f5e429924bde",
+  "initial_traffic_witness_steps": 414,
+  "kind": "continuity_multi_epoch_generation_secret_origin",
+  "main_multi_epoch_secrecy_complete": false,
+  "members": {
+    "attempts/copying-gc/RESULT.json": {
+      "bytes": 1581,
+      "sha256": "87c284065d5fba40ed3268f2fb96de914ee25f51980dfc3680b0632d72b6739f"
+    },
+    "attempts/copying-gc/STARTED.json": {
+      "bytes": 1205,
+      "sha256": "5b2b528d723330f21d236ab1af8931ce6ffd6b2f0ee5b400081c62d57d9ac09c"
+    },
+    "attempts/copying-gc/stderr": {
+      "bytes": 1639,
+      "sha256": "febc89d0947b4e0112b015f818f4528276f8976b336654543760ce7ac61762e7"
+    },
+    "attempts/copying-gc/stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "attempts/gc-control.json": {
+      "bytes": 1029,
+      "sha256": "a2f54784d23dab1ac97926813bb0a482026052fd75bff6b8d64d2fc2b2d9f61e"
+    },
+    "attempts/retained-failures.json": {
+      "bytes": 3191,
+      "sha256": "b35a3d0ccbd01b99d417dc7a14d436e9df9bd6343314aee2879ffb4995a28964"
+    },
+    "lineage/CONTRACT.json": {
+      "bytes": 2267,
+      "sha256": "ed8f67151e327cc26aef60665ef49b75babf883f5a3541256576344038b80ea8"
+    },
+    "lineage/previous-35-query.spthy": {
+      "bytes": 595582,
+      "sha256": "d21fa9256a72a5b7ad7ddc159762a10d14451bb0492b727f7d0a50428351bc72"
+    },
+    "proof/current.spthy": {
+      "bytes": 638076,
+      "sha256": "b2c6e233a3b2bb4ca75f8f438f84caca497523a32e6c86f05e467b5710425953"
+    },
+    "runs/RESULT.json": {
+      "bytes": 6679,
+      "sha256": "db9f56b5258b852fb73ecdb45911bfafd04b37e4833c023d3f4813cdbcc54c4c"
+    },
+    "runs/STARTED.json": {
+      "bytes": 1204,
+      "sha256": "9d75f2cbddeab51d0781efb38e3609d8430e2489c9e25eaf0390c8ab4dbc762f"
+    },
+    "runs/replayed.spthy": {
+      "bytes": 638076,
+      "sha256": "b2c6e233a3b2bb4ca75f8f438f84caca497523a32e6c86f05e467b5710425953"
+    },
+    "runs/stderr": {
+      "bytes": 1481,
+      "sha256": "05588537b64208572547e9ef8f3d1472086ea6882fee1ee6fc05ecbfc2e3ef59"
+    },
+    "runs/stdout": {
+      "bytes": 3414,
+      "sha256": "7cb76604aacc12c13cc27bc6e5e7d45c0b444d8d9b0748386559328f302f7244"
+    }
+  },
+  "model_sha256": "b2c6e233a3b2bb4ca75f8f438f84caca497523a32e6c86f05e467b5710425953",
+  "origin_steps": 591,
+  "query_count": 36,
+  "release_claim_eligible": false,
+  "reusable_premises": 19,
+  "schema_version": 1,
+  "selected_theorem": "epoch_generation_secret_derivation_origin_with_phase_roots",
+  "selected_theorem_verified": true,
+  "verified_all_trace": 21
+}

@@ -168,29 +168,99 @@ class CommittedFrontier(unittest.TestCase):
         self.assertEqual(member, 'proof/current.spthy')
         self.assertEqual(search.sha(data), search.MODEL_SHA256)
         with zipfile.ZipFile(search.ROOT / search.CAPTURE / 'CAPTURE.zip') as archive:
-            previous = search.theory(archive.read('lineage/previous-34-query.spthy'))
-            self.assertEqual(previous.prefix, contract.prefix)
-            for name, query in previous.by_name.items():
-                self.assertEqual(query, contract.by_name[name])
-            self.assertEqual(set(contract.by_name) - set(previous.by_name),
-                             {'signed_final_payload_has_public_constructors'})
-            prefix = 'runs/p0-snapshot-closure-732/closure-replay'
-            terminal = search.strict_json(archive.read(prefix + '-TERMINAL.json'))
+            original = search.theory(archive.read('lineage/original-35-query.spthy'))
+            baseline = search.theory(archive.read('lineage/previous-main517.spthy'))
+            self.assertEqual(len(original.queries), 35)
+            self.assertEqual(len(baseline.queries), 38)
+            self.assertEqual(len(contract.queries), 40)
+            for prior in (original, baseline):
+                self.assertEqual(prior.prefix, contract.prefix)
+                for query in prior.queries:
+                    current = contract.by_name[query.name]
+                    self.assertEqual((query.mode, query.formula), (current.mode, current.formula))
+            self.assertEqual([q.name for q in baseline.queries],
+                             [q.name for q in contract.queries if q.name in baseline.by_name])
+            self.assertEqual(set(contract.by_name) - set(baseline.by_name), {
+                'no_strictly_ordered_duplicate_local_phase',
+                'local_phase_event_is_unique_per_role_epoch_and_phase',
+            })
+            terminal = search.strict_json(archive.read('runs/RESULT.json'))
             self.assertEqual(terminal['returncode'], 0)
-            self.assertFalse(terminal['timed_out'])
-            self.assertFalse(terminal['accepted'])
+            self.assertNotIn('failure', terminal)
+            self.assertTrue(terminal['complete_replay_accepted'])
+            self.assertTrue(terminal['selected_theorem_verified'])
+            self.assertTrue(terminal['main_secrecy_verified'])
+            self.assertFalse(terminal['release_claim_eligible'])
             self.assertEqual(terminal['output_sha256'], search.MODEL_SHA256)
             source = next(arg for arg in terminal['argv']
                           if arg.endswith('.spthy') and not arg.startswith('--'))
             output = next(arg.removeprefix('--output=') for arg in terminal['argv']
                           if arg.startswith('--output='))
-            results = search.inventory(archive.read(prefix + '.stdout'),
+            results = search.inventory(archive.read('runs/stdout'), Path(source), Path(output), contract)
+            self.assertEqual(results, terminal['results'])
+            self.assertEqual(results[search.MAIN], {'mode': 'all-traces', 'status': 'verified', 'steps': 508})
+            self.assertEqual(results[search.ORIGIN]['status'], 'verified')
+            reusable = [q.name for q in contract.queries if q.reusable]
+            self.assertEqual(len(reusable), 24)
+            self.assertTrue(all(results[name]['status'] == 'verified' for name in reusable))
+            self.assertEqual(sum(row['mode'] == 'exists-trace' and row['status'] == 'analysis incomplete'
+                                 for row in results.values()), 11)
+            self.assertEqual(results['initial_epoch_traffic_advances_counter_is_executable']['steps'], 414)
+            for stage in ('local-phase-unique-joint-replay-01', 'local-phase-factored-joint-replay-01'):
+                failed = search.strict_json(archive.read('attempts/' + stage + '/RESULT.json'))
+                self.assertEqual(failed['failure']['kind'], 'timeout')
+                self.assertFalse(failed['complete_replay_accepted'])
+                self.assertEqual(failed['maximum_seconds'], terminal['maximum_seconds'])
+            rejected = search.strict_json(archive.read('attempts/ordered-phase-projection-diagnostic-01/RESULT.json'))
+            self.assertIn('failure', rejected)
+            self.assertIn(b'invalid proof step', archive.read('attempts/ordered-phase-projection-diagnostic-01/output.spthy'))
+
+    def test_previous_generation_origin_checkpoint_and_failure_remain_intact(self):
+        directory = search.ROOT / 'research/sdk-alpha1/evidence/20261030-generation-secret-origin'
+        raw = (directory / 'CAPTURE.zip').read_bytes()
+        self.assertEqual(search.sha(raw), '9df4eefd5d08098018cba24565b89671c7292bd250dcf8e4c82fc3600e25dd92')
+        self.assertEqual(len(raw), 112939)
+        model_sha = 'b2c6e233a3b2bb4ca75f8f438f84caca497523a32e6c86f05e467b5710425953'
+        with zipfile.ZipFile(directory / 'CAPTURE.zip') as archive:
+            data = archive.read('proof/current.spthy')
+            self.assertEqual(search.sha(data), model_sha)
+            contract = search.theory(data)
+            previous = search.theory(archive.read('lineage/previous-35-query.spthy'))
+            self.assertEqual(previous.prefix, contract.prefix)
+            added = 'reserved_parent_has_hash_constructor'
+            self.assertEqual(tuple(q for q in contract.queries if q.name != added), previous.queries)
+            self.assertEqual(set(contract.by_name) - set(previous.by_name),
+                             {added})
+            terminal = search.strict_json(archive.read('runs/RESULT.json'))
+            self.assertEqual(terminal['returncode'], 0)
+            self.assertNotIn('failure', terminal)
+            self.assertTrue(terminal['complete_replay_accepted'])
+            self.assertTrue(terminal['selected_theorem_verified'])
+            self.assertFalse(terminal['main_multi_epoch_secrecy_verified'])
+            self.assertFalse(terminal['release_claim_eligible'])
+            self.assertEqual(terminal['output_sha256'], model_sha)
+            source = next(arg for arg in terminal['argv']
+                          if arg.endswith('.spthy') and not arg.startswith('--'))
+            output = next(arg.removeprefix('--output=') for arg in terminal['argv']
+                          if arg.startswith('--output='))
+            results = search.inventory(archive.read('runs/stdout'),
                                        Path(source), Path(output), contract)
             self.assertEqual(results, terminal['results'])
-            self.assertEqual(results[search.ORIGIN]['status'], 'analysis incomplete')
+            self.assertEqual(results[search.ORIGIN]['status'], 'verified')
+            self.assertEqual(results[search.ORIGIN]['steps'], 591)
             self.assertEqual(results['multi_epoch_fresh_reservations_recover_symbolic_message_secrecy']['status'],
                              'analysis incomplete')
-            self.assertEqual(results['signed_final_payload_has_public_constructors']['status'], 'verified')
+            self.assertEqual(results[added]['status'], 'verified')
+            self.assertEqual(sum(q.reusable for q in contract.queries), 19)
+            failed = search.strict_json(archive.read('attempts/copying-gc/RESULT.json'))
+            self.assertEqual(failed['input_sha256'], terminal['input_sha256'])
+            self.assertEqual(failed['returncode'], 251)
+            self.assertFalse(failed['complete_replay_accepted'])
+            self.assertIn(b'Heap exhausted', archive.read('attempts/copying-gc/stderr'))
+            self.assertEqual([arg.replace('-c100', '-c30') for arg in failed['argv']],
+                             terminal['argv'])
+            for field in ('maximum_seconds', 'heap_gib', 'workers'):
+                self.assertEqual(failed[field], terminal[field])
 
     def test_changed_capture_bytes_are_refused(self):
         def changed(path, maximum):

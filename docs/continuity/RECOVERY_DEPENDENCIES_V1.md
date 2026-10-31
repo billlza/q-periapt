@@ -207,3 +207,27 @@ and wrapping-key reuse in the same owner across roles. The SDK's whole-image
 capture must account for every retained record in that image; the per-record
 projection is not yet a proved refinement of that format. Arbitrary old-root
 ancestry, multiple epochs and computational/SDK correspondence remain open.
+
+## Multi-epoch symbolic successor
+
+The [multi-epoch main-secrecy checkpoint](../../research/sdk-alpha1/evidence/20261031-multi-epoch-secrecy/README.md)
+now verifies the original main formula in 508 steps together with all 24 reusable
+dependencies in one independent replay. Unlike the earlier single-exchange
+projections above, this model includes inherited roots, alternating proposers,
+asymmetric local confirmation, initial traffic and unbounded epochs. The original
+operational model and query formulas are retained; added invariants and changes
+to dependency visibility/order are recorded explicitly.
+
+The exact condition is that both target-epoch reservations occur after Cut,
+neither actual target identity key nor that epoch's reserved entropy is disclosed,
+and no acquired target-session record was saved after Cut. The model then excludes
+adversarial derivation of the target application plaintext. It does not infer
+these conditions from a completed rekey or an authenticated progress counter.
+
+All 40 queries are retained. Eleven multi-round execution witnesses and two
+unused historical all-trace queries remain incomplete; the initial-traffic
+witness is verified separately in the same inventory. Main theorem closure must
+not be reported as all queries passing or as completed multi-round non-vacuity
+evidence. The symbolic primitives still do not supply the construction-specific
+HKDF/hybrid argument, whole-journal correspondence, final implementation/platform
+qualification or external security review required for release.

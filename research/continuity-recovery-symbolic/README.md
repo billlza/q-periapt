@@ -5,14 +5,34 @@ keys and explicit per-record ciphertext disclosure.** Its 20-property group
 verifies together, and a separate witness exercises the same identity/storage
 owner across roles. Earlier independent-identity and per-session wrapping-key
 results remain valid in their own models. Whole-journal image/restore
-correspondence, multi-epoch recovery, computational security, SDK correspondence
-and external review remain open.
+correspondence, computational security, SDK correspondence and external review
+remain open. The multi-epoch symbolic main theorem now has a complete dependency
+replay under the conditions stated below; multi-round execution witnesses remain
+incomplete.
 
-The current [snapshot-origin checkpoint](../sdk-alpha1/evidence/20261030-snapshot-origin-derivation/README.md)
-retains the complete 35-query model, 19 verified auxiliary results and the
-initial-traffic witness. Its 431-step origin partial has 24 remaining snapshot
-leaves. The bounded research workflow now resumes this exact, independently
-replayed certificate; full origin and multi-epoch secrecy remain incomplete.
+The [multi-epoch main-secrecy checkpoint](../sdk-alpha1/evidence/20261031-multi-epoch-secrecy/README.md)
+independently verifies the original 508-step main message-secrecy proof together
+with all 24 reusable premises, in 779.048 seconds under the unchanged tool and
+resource bounds. All original formulas and the operational model are retained;
+added lemmas, dependency ordering and hidden-premise attributes are recorded
+explicitly. The 40-query inventory retains eleven incomplete multi-round
+execution witnesses and two unused historical all-trace queries. This symbolic
+result is neither a computational theorem nor product release admission.
+The bounded research workflow now selects MAIN and rejects conditional success
+if any reusable dependency is unproved.
+
+The current [generation-secret origin checkpoint](../sdk-alpha1/evidence/20261030-generation-secret-origin/README.md)
+independently replays the 591-step origin proof together with every reusable
+dependency. The original 35 queries, their attributes and the operational model
+remain unchanged; one additional parent-constructor invariant brings the total
+to 36 queries. The joint result contains 21 verified all-trace properties,
+including all 19 reusable premises, and the initial-traffic witness. This
+earlier certificate remains retained alongside the new main-theorem checkpoint.
+The same-input heap-exhaustion control is retained; restoring the default GC
+compaction threshold completes replay without raising the time or heap limits.
+At that checkpoint, main multi-epoch message secrecy and the two-round execution
+witnesses were incomplete. The preceding [snapshot-origin checkpoint](../sdk-alpha1/evidence/20261030-snapshot-origin-derivation/README.md)
+retains its original partial proof and failures.
 
 An experimental [multi-epoch projection](multi-epoch.spthy) now preserves stable
 session/context, inherited roots, completed transcript parents, alternating
