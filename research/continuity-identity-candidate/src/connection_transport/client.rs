@@ -202,7 +202,10 @@ impl ConnectionEndpoint {
                 &codec::pair(&initial, final_wire.final_message())?,
             )
         })?;
-        if payload(&ready, READY)? != expected {
+        let (remote_id, proof) = codec::split(payload(&ready, READY)?)?;
+        if remote_id != expected
+            || crate::durable::acknowledgement_epoch(proof).map_err(|_| Error::Protocol)? != 0
+        {
             return Err(Error::Protocol);
         }
         check(
@@ -219,6 +222,18 @@ impl ConnectionEndpoint {
         if session != expected {
             return Err(Error::Binding);
         }
+        archives
+            .require(journal, context, session)
+            .map_err(Error::Archive)?;
+        // The signed reply authenticates its body and KEM contribution. Matching
+        // the exact signed-wire root additionally requires the peer's epoch-zero
+        // proof; a TLS response containing only its public session ID is not one.
+        journal.accept_message_acknowledgement(
+            context,
+            session,
+            proof,
+            clock().map_err(Error::Clock)?,
+        )?;
         check(
             context,
             invocation.run.cancel,

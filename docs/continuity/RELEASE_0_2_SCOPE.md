@@ -7,6 +7,17 @@ later release is superseded. The SDK ownership, ContextBound, native-backend,
 standard-TLS, binding, installation, device and performance requirements remain.
 ABI major remains **2**.
 
+The 2026-10-31 directory decision additionally requires an **accountable prekey
+lease protocol and directory reference implementation in 0.2.0**. This includes
+authenticated service identity/authorization, exact-operation retry, attributable
+conflicting issuance, checkpoint association, expiry and cancellation, durable
+recovery, bounded retention/resources and linkability analysis. Independent
+SDK/service integration evidence is required. The existing signed manifests,
+checkpoint matching, local publication artifacts and one-time inventory consumption
+are implemented prerequisites; they are not a completed remote lease service.
+Earlier component entries that leave the directory to the integrator describe
+their historical implementation boundary, not an exclusion from this release.
+
 The 2026-10-04 platform decision limits macOS support to **Apple Silicon
 (arm64)** for both the SDK and Continuity in 0.2.0. Intel macOS adaptation is
 out of scope. Linux/Windows x86_64 and the existing iOS simulator architecture
@@ -16,7 +27,15 @@ original source and version; they do not define the new candidate's matrix.
 This is a requirements and implementation-boundary record. It does not promote
 the existing public-commitment model into a working cryptographic protocol.
 
-## Current implementation boundary
+## Component implementation history
+
+The entries below record the boundary of each component checkpoint when it was
+introduced. Later installed-language, authority-lifecycle and device results are
+recorded in [PRODUCT_ADMISSION.md](PRODUCT_ADMISSION.md); the current entry points
+and specification status are in the [specification index](README.md). Read a
+checkpoint's remaining-work statements within that historical scope. The
+[required completion evidence](#required-completion-evidence) below continues to
+govern formal release acceptance.
 
 - `q-periapt-sdk` owns verified policy runtimes and coupled KEM keys, with explicit
   purpose derivation, policy transitions and bounded lifetimes. Its optional
@@ -245,6 +264,7 @@ preserve the actual signed policy and owner semantics.
 | Capability | Implementation obligation | Evidence required before completion |
 | --- | --- | --- |
 | Protocol and identity | Separate Continuity identifier, wire version, closed cryptographic profile, authenticated account/device identity and canonical context | Complete protocol/wire/state specifications, strict parsing and independent vectors; authentication, replay, cross-device and downgrade analysis |
+| Accountable prekey directory | Authenticated lease issuance and conflict evidence; original-operation retry, cancellation/expiry, checkpoint binding and durable reference service with bounded retention | Independent SDK/service interoperability, valid and conflicting receipts, authorization/freshness failures, crash/unknown-result recovery, exhaustion and linkability review |
 | Persistent pairwise sessions | Owned secret state, one-use message keys, bounded skipped keys, atomic state/inbox/outbox transitions and exact-operation reconciliation | Real encrypted storage, crash injection at each durability/release boundary, restart/duplicate/race/cancellation tests and no plaintext release before commit |
 | Fresh-PQ rekeying | Fresh post-quantum material introduced and confirmed according to the selected protocol, with a non-negotiable policy floor | Wire/state traces for both roles; update collisions, lost acknowledgements, old-epoch traffic, revoked peers, expiry, overflow and unknown outcomes |
 | Disconnect and rollback recovery | Exact committed outbox replay, retained deduplication, suspended uncertain operations and an explicit trusted rollback-anchor contract | Real multi-process restart and restored-snapshot tests; an old snapshot cannot silently reset message-key or nonce state within the claimed anchor profile |

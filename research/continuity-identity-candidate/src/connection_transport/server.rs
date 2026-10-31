@@ -72,7 +72,19 @@ impl ConnectionEndpoint {
                     if session != activated {
                         return Err(Error::Binding);
                     }
-                    (frame(READY, &session)?, Some(Served::Established(session)))
+                    archives
+                        .require(journal, context, session)
+                        .map_err(Error::Archive)?;
+                    let proof = journal.message_acknowledgement_for_epoch(
+                        context,
+                        session,
+                        0,
+                        clock().map_err(Error::Clock)?,
+                    )?;
+                    (
+                        frame(READY, &codec::pair(&session, &proof)?)?,
+                        Some(Served::Established(session)),
+                    )
                 }
                 MESSAGE => {
                     let (ad, wire) = codec::split(body)?;

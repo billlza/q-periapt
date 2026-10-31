@@ -24,10 +24,22 @@ certificate or caller-supplied digest cannot establish that root. Every device h
 its own identity credential, device generation, prekeys and pairwise session state;
 devices never share a ratchet root or a restored copy of a live session.
 
-The account-authorized device credential binds the account ID, device ID,
-generation, identity verification keys, validity, capabilities and policy
-authority/family/floor. A signed roster binds the exact active device generations,
-roster version and validity. An accepted roster cannot be replaced by a lower
+The implemented `QPCERT01` account-authorized device credential binds the account
+ID, device ID, generation, identity verification keys, validity and policy family.
+That family commits to the exact hybrid policy-authority public key checked by
+`PolicyPin`; it is not a network-selected issuer name. The credential has no
+capability bitmap, policy-version field or independent minimum-policy-version
+field. The separately pinned `QPSESP03` policy binds the fixed bootstrap suite,
+SDK policy binding, allowed prekey modes, witness requirement and application-send
+budget. Bootstrap context binds its exact version, body digest and SDK binding;
+operational admission also checks current lifetime and authority. These locations
+are specified in the [wire contract](WIRE_V1.md#session-policy-and-bootstrap).
+This describes the implemented checks, not a new credential capability schema.
+Any credential-specific capability or policy-floor field requires an explicit
+format and admission decision before it can be claimed.
+
+A signed roster binds the exact active device generations, roster version and
+validity. An accepted roster cannot be replaced by a lower
 version or a different digest at the same version. A newer roster is authenticated
 before it can authorize enrollment, fanout or revocation. The exact credential and
 roster encodings and required ML-DSA-65 AND P-256 signature composition are
@@ -37,9 +49,13 @@ analysis remain open.
 The isolated [identity candidate](../../research/continuity-identity-candidate)
 exercises a concrete ML-DSA-65 AND P-256 composition and canonical credential,
 roster and Merkle-manifest encodings. It binds account/device/generation, policy
-family and exact roster expectations. Capability/floor semantics, root migration,
-directory consistency and durable admission remain open; the candidate format is
-not the frozen product contract.
+family and exact roster expectations. Authenticated account-root replacement and
+durable admission have implementations, described in the
+[authority replacement](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md)
+and [state/operation](STATE_MACHINE_V1.md) contracts. Their product adoption,
+complete security analysis and final qualification remain separate obligations.
+Directory freshness/consistency distribution and the remaining product decisions
+below are still open; the candidate format is not the frozen product contract.
 
 The directory is an adversarial transport. Its view needs authenticated freshness
 and consistency against the selected independently retained account checkpoint.
@@ -62,8 +78,9 @@ Permissions are derived from verified evidence and committed state:
 | --- | --- |
 | Authenticated responder prekeys; initiator bootstrap pending | Persist and dispatch the exact initial envelope; no mutually confirmed application privilege |
 | Responder verifies the initiator's fresh proof and initial envelope | Atomically consume the selected one-time prekeys with the exact committed response outbox/private bootstrap result; emit fresh responder confirmation bound to this bootstrap |
-| Initiator verifies fresh responder proof and key confirmation | Persist its exact final confirmation and the authenticated peer state; dispatch the final confirmation before messages that require it |
+| Initiator verifies the signed responder body and its KEM confirmation | Persist its exact Final and provisional transcript-bound root; dispatch Final. This alone does not prove that the responder retained the same full signed-wire transcript/root |
 | Responder verifies the final initiator key confirmation | Commit mutually confirmed responder bootstrap state; message activation follows its separate durable transition and cleanup-archive prerequisite in the native connection path |
+| Initiator verifies an epoch-zero acknowledgement for the exact session, direction and root | The connection API may return established after local activation and current-authority checks; a public session ID or TLS response alone cannot supply this evidence |
 
 The implemented initial flight carries bootstrap material, not a 0-RTT application
 payload. Its private bootstrap result is not an application inbox. Application
@@ -74,8 +91,15 @@ The exact transcript graph, KDF outputs, signature inputs and confirmation MACs
 must be specified together so no key derivation contains its own output. Local
 dispatch, remote cryptographic confirmation and application consumption are
 different records. A sent message or elapsed timer cannot advance authentication.
-The final initiator transition's precise application permissions must be fixed by
-the agreement analysis; the table does not assume common knowledge of delivery.
+Both mandatory signature components authenticate the same body. If the classical
+signing component is disclosed, a different valid low-S P-256 signature can be
+combined with the unchanged ML-DSA signature. Reply body/MAC verification still
+passes, while hashes of the complete signed wire and the derived provisional root
+change. The original responder rejects the resulting Final. Native `QPCNET02`
+and portable `QPCXCH01` therefore verify a root-bound epoch-zero acknowledgement
+before returning established. This does not claim common knowledge of delivery,
+full computational/PQ authentication, or that a failed call rolled back local
+activation. Retry retains the original request and transcript.
 
 No application plaintext is delivered before its relevant transaction commits.
 The initial envelope can be sent while the responder is offline, but a privileged
@@ -98,7 +122,12 @@ to that operation's retained result. Different authenticated bytes naming an alr
 consumed one-time key fail without creating another session. Invalid envelopes
 cannot consume the key. A malicious directory can double-lease a key; receiver
 at-most-once acceptance and attributable conflicting lease evidence are separate
-properties. The latter needs an authenticated lease format and privacy analysis.
+properties. The 2026-10-31 product decision includes an accountable lease protocol
+and directory reference implementation in **0.2.0**. That work must define the
+service identity and authority, original-operation retry, conflicting issuance
+evidence, checkpoint association, expiry/cancellation, persistence/recovery,
+linkability and bounded retention. Current manifest checks and local consumption
+do not implement this separate service contract or its qualification.
 
 Exhaustion can select a last-resort mode only when the closed signed session policy
 expressly permits it. The chosen quality is bound into bootstrap. Expiry, quota,
@@ -207,9 +236,11 @@ generation and authenticates its enrollment and prior-generation retirement.
 1. Product adoption of the implemented hybrid signature/credential and witness
    formats, authenticated enrollment/root replacement, the trusted-time source and
    independently fresh/consistent directory checkpoint distribution.
-2. Product manifest/leaf/mode and retention selection, plus the still separate
-   lease-accountability/linkability and directory-service contract. The candidate's
-   exact grammar and local one-time consumption are already implemented.
+2. Product manifest/leaf/mode and retention selection, and completion of the
+   accountable lease protocol and directory reference implementation selected for
+   0.2.0 on 2026-10-31, including linkability and independent SDK/service validation.
+   The candidate's existing exact grammar and local one-time consumption do not
+   substitute for this required delivery.
 3. Agreement and key-compromise impersonation analysis for the implemented
    non-circular bootstrap graph and stage-specific confirmation privileges.
 4. Measured ratchet/profile selection, product padding or explicit no-padding

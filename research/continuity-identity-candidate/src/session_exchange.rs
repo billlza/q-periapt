@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Owned, replayable session operations over an untrusted request/reply carrier.
 //!
-//! QPCXCH01 is distinct from the TLS-bound QPCNET01 carrier. Its establishment
+//! QPCXCH01 is distinct from the TLS-bound QPCNET02 carrier. Its establishment
 //! result requires an authenticated epoch-zero acknowledgement, not a public
 //! session ID. The proof attests original peer key possession, not fresh liveness
 //! or remote business effects. The existing bootstrap, journal and message

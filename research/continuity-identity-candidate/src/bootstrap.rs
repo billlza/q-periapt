@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Bounded, volatile three-flight candidate. These objects do not authorize
 //! dispatch, consume prekeys, or establish durable session installation.
+#[cfg(test)]
+mod classical_alias_tests;
 use crate::{
     bootstrap_suite_digest,
     codec::{nonzero, Decoder},

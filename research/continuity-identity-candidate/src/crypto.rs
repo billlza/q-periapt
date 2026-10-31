@@ -12,6 +12,8 @@ use sha3::{Digest, Sha3_256};
 use std::fmt;
 use zeroize::Zeroize;
 
+#[cfg(test)]
+pub(crate) mod classical_compromise_tests;
 mod persistence;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 mod sdk_policy;

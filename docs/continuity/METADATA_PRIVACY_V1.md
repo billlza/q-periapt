@@ -16,7 +16,7 @@ correlation ID becomes an authority capability merely because it is stable.
 | --- | --- | --- |
 | Holder of a public bootstrap bundle | Signed role-ordered device credentials/rosters, responder manifest, selected prekey proofs and mode | The bundle is not encrypted and does not conceal accounts, device generations, policy bindings, validity, active roster membership or prekey identities from its holder |
 | Authenticated remote endpoint | Bootstrap/control wires, context/session/profile commitments, identities, roles, prekey choices, epoch/sequence counters, authenticated payload after receive | TLS authentication does not reduce the peer's protocol visibility; the intended peer receives the application plaintext |
-| Ordinary observer of the SDK TLS carrier | Addresses, connection timing/duration, record lengths and traffic pattern | QPCNET01/QPCCTL01 bodies travel inside the standard TLS connection; no traffic padding, anonymity network or cover-traffic mechanism is implemented |
+| Ordinary observer of the SDK TLS carrier | Addresses, connection timing/duration, record lengths and traffic pattern | QPCNET02/QPCCTL01 bodies travel inside the standard TLS connection; no traffic padding, anonymity network or cover-traffic mechanism is implemented |
 | Witness and observer of the native witness TCP path | Witness binding, journal/owner/policy subject, full heads, command IDs, challenges, signatures, result classes and timing | The current witness carrier authenticates signed messages but does not encrypt them; deployment must not claim TLS confidentiality for this separate path |
 | Ordinary observer of the opt-in native `anchor-tls` path | Endpoint addresses, handshake/record sizes and timing; witness request/reply bodies are TLS ciphertext | [Installed C/Swift/Kotlin qualification](../SDK_0_2_RELEASE_READINESS.md#latest-qualification-checkpoints) covers finite same-host scenarios using the native engine. Deployed-service qualification remains open; classical TLS identity authentication must not be described as PQ identity authentication |
 | Reader of the protected witness database | Enrolled subjects, public device verification keys, enrollment authority/validity, genesis/current head and last command | Witness state is authenticated, not encrypted by that format; private filesystem admission is its local access boundary |
@@ -42,7 +42,7 @@ the logical session and original context rather than creating an unlinkable peer
 Message IDs contain epoch and sequence plus a session/role-bound commitment.
 Frames expose session, role, epoch, index, message ID and plaintext length to a
 holder of the frame. The raw QPCMSG03 frame carries no separate AD field or public
-AD digest: the receiver supplies AD as an authenticated input. The QPCNET01 carrier
+AD digest: the receiver supplies AD as an authenticated input. The QPCNET02 carrier
 places the literal AD beside that frame inside TLS, so its authenticated endpoint
 can read it. AD must not be treated as message-encrypted private content. Rekey
 controls expose their target/predecessor and signed close counts.

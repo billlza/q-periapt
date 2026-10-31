@@ -18,6 +18,8 @@ use std::{
 
 mod client;
 mod codec;
+#[cfg(all(test, unix))]
+mod confirmation_tests;
 mod server;
 use codec::{frame, payload, ACK, BOOTSTRAP, INITIAL, MESSAGE, READY, REPLY};
 
@@ -55,7 +57,8 @@ pub struct Submission<'a> {
     /// At most the journal's 1-KiB associated-data bound.
     pub associated_data: &'a [u8],
 }
-/// Locally activated bootstrap after the peer reported its matching activation.
+/// Locally activated bootstrap after verifying the peer's epoch-zero key proof.
+/// A failed or lost proof may follow local/remote commit; reconcile the same ID.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Established {
     /// Exact transcript-bound session; this is not a secrecy-recovery claim.
@@ -114,7 +117,7 @@ impl ConnectionEndpoint {
         limits: Limits,
         client: bool,
     ) -> Result<Self, Error> {
-        let mut binding = b"Q-PERIAPT-CONTINUITY-CONNECTION-TLS/v1/".to_vec();
+        let mut binding = b"Q-PERIAPT-CONTINUITY-CONNECTION-TLS/v2/".to_vec();
         binding.extend_from_slice(&context.digest());
         let runtime = Arc::clone(&context.current_policy().map_err(Error::Authority)?.runtime);
         let endpoint = if client {

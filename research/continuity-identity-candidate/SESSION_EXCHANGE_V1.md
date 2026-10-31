@@ -27,7 +27,8 @@ and reconcile the original initiation/message ID; an error never proves rollback
 ## Framing and establishment
 
 Each frame is `QPCXCH01 || kind:u8 || body`, with a total maximum of 32,768 bytes.
-The distinct tag prevents reinterpretation as the TLS-bound `QPCNET01` carrier.
+The distinct tag prevents reinterpretation as the TLS-bound `QPCNET02` carrier
+or its legacy `QPCNET01` version.
 A pair is `first_length:u16be || first || second`, bounded by the enclosing frame.
 
 | Kind | Body |

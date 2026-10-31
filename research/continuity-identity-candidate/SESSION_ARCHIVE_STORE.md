@@ -1,7 +1,8 @@
 # Durable native session archive index
 
 Status: unpublished native candidate. `SessionArchiveStore` persists QPCSCA01
-cleanup archives for the actual QPCNET01 reference connection. The `Actor` now
+cleanup archives for the QPCNET02 reference connection (and its prior QPCNET01
+candidate). The carrier upgrade retains this index format. The `Actor` now
 requires a mutable index owner in addition to its journal, verified context and
 signer. This is a local service prerequisite; it does not add a wire attestation
 of the remote host's filesystem or publish a language binding.

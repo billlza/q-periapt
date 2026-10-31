@@ -33,9 +33,11 @@ The complete reference path is exercised by
    transactions. The server consumes selected one-time keys with its reply outbox,
    confirms the final flight and activates durable traffic state. Both endpoints
    first commit and read back their exact cleanup archive; the client does this
-   before sending the final flight. The client verifies the matching activation
-   response before its own activation. Cancellation, deadline or archive failure
-   at that boundary cannot report an established connection.
+   before sending the final flight. The client checks the returned session and
+   epoch, activates its local state, then verifies the peer's epoch-zero ACK MAC
+   before returning established. A failure can follow local activation and must
+   reconcile the same original request; it is not a rollback. Cancellation,
+   deadline, archive or proof failure cannot report an established connection.
 3. Use `ControlEndpoint` with that exact session for three alternating network
    rekeys. This is the existing independently identified control carrier; it
    shares the same bounded socket engine, not a second TLS implementation.
@@ -140,21 +142,21 @@ It cannot infer that the external effect did not occur.
 
 The SDK connection context is:
 
-`"Q-PERIAPT-CONTINUITY-CONNECTION-TLS/v1/" || bootstrap_context_digest[32]`.
+`"Q-PERIAPT-CONTINUITY-CONNECTION-TLS/v2/" || bootstrap_context_digest[32]`.
 
 It differs from the session-bound control carrier. Both use the existing SDK
 framing, request IDs, one outstanding request and exact certificate pins. Native
 socket, TLS progress, cancellation, timeout and retry classification code is shared
 with `control-tls`; the QPCCTL01 control grammar remains unchanged.
 
-Every new carrier frame is `QPCNET01[8] || kind:u8 || body`, with a nonempty body
+Every new carrier frame is `QPCNET02[8] || kind:u8 || body`, with a nonempty body
 and at most 32,768 bytes overall. Integers are big-endian. The SDK retains its
 separate 65,536-byte outer frame bound.
 
 | Kind | Body | Result |
 | --- | --- | --- |
 | 1 Initial | original initial flight, at most 8,192 bytes | 129 plus original signed reply |
-| 2 Final | initial_length:u16, initial, original final flight | 130 plus exact session[32] |
+| 2 Final | initial_length:u16, initial, original final flight | 130 plus session_length:u16=32, exact session[32], epoch-zero authenticated consumption ACK |
 | 3 Application | AD_length:u16, AD, original encrypted message frame | 131 plus original epoch consumption ACK |
 
 The journal's existing strict decoders authenticate and enforce exact flight,
@@ -163,6 +165,24 @@ size, split lengths and reply identities are checked separately. Empty, malforme
 unknown-kind, wrong-epoch and mismatched-session replies cannot become success.
 There is no alternate JSON, plaintext, classic-only or public-commitment fallback.
 Application direction is independent of TLS or bootstrap role.
+
+QPCNET02 supersedes the candidate QPCNET01 carrier. Its READY proof uses the
+existing session/direction-bound `QPCMACK1` mechanism, as does portable QPCXCH01.
+The old public session ID alone did not authenticate possession of the exact
+signed-transcript root. In particular, disclosure of the TLS peer key and only
+the device signature's classical component permits an alternative valid P-256
+signature on an unchanged ML-DSA-signed Reply body. Its MACR passes but its signed
+wire hash/root differs; the original responder rejects Final. The new ACK check
+prevents that carrier from reporting a matching established connection.
+
+Upgrade both peers and retain their original journals, pending initiation IDs,
+flights and cleanup archives. The versioned SDK context and carrier magic reject
+old peers explicitly; there is no downgrade or plaintext fallback. Inner bootstrap,
+KDF, journal, message and control formats are unchanged. Replay still requires
+current authority and retained epoch-zero confirmation material. This change does
+not turn historical QPCNET01 package/device receipts into QPCNET02 qualification.
+The component-compromise regression is not a quantum key-extraction experiment
+or a full computational/PQ proof.
 
 ## Bounded invocation and lifecycle
 

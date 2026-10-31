@@ -5,7 +5,7 @@ use std::{io, net::SocketAddr, time::Duration};
 
 /// Explicit opaque TCP carrier for QPCXCH01. Inner cryptography authenticates the
 /// peer/session and encrypts application data; TCP does not hide public metadata.
-/// This is not QPCNET01/TLS and is never selected as a TLS fallback.
+/// This is not QPCNET02/TLS and is never selected as a TLS fallback.
 pub struct TcpTransport {
     address: SocketAddr,
 }

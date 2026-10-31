@@ -293,9 +293,9 @@ one outstanding request. The SDK payload cap is 65536 bytes; its outer body cap
 is 65545, not 65536. TLS client/server direction is independent of bootstrap roles.
 No alternate JSON, plaintext or classic-only carrier is negotiated.
 
-QPCNET01 uses SDK application context
-`"Q-PERIAPT-CONTINUITY-CONNECTION-TLS/v1/" || context[32]`. Its payload is
-`QPCNET01[8] || kind:u8 || nonempty_body`, at most 32768 bytes total.
+QPCNET02 uses SDK application context
+`"Q-PERIAPT-CONTINUITY-CONNECTION-TLS/v2/" || context[32]`. Its payload is
+`QPCNET02[8] || kind:u8 || nonempty_body`, at most 32768 bytes total.
 
 | Kind | Body |
 | --- | --- |
@@ -303,8 +303,26 @@ QPCNET01 uses SDK application context
 | 2 | initial_length:u16, original initial, original final |
 | 3 | app_ad_length:u16, application AD, original encrypted message |
 | 129 | Original signed reply |
-| 130 | Exact activated session[32] |
+| 130 | session_length:u16 (exactly 32), activated session[32], authenticated epoch-zero consumption ACK |
 | 131 | Original epoch-specific consumption ACK |
+
+Kind 130 uses the existing `QPCMACK1` grammar and key, including its session,
+initiator direction, consumed-prefix and MAC checks. The client requires epoch
+zero and verifies the proof before returning established; the prefix may reflect
+already consumed messages during an exact bootstrap retry. This is a key-possession
+proof, not a new device signature or evidence of remote application delivery.
+Local activation may commit before proof verification fails. That result requires
+reconciliation of the same initiation ID, not re-enrollment or a new transcript.
+
+QPCNET01 used the `/v1/` binding and a public session ID alone for kind 130. It
+cannot establish the strengthened confirmation contract. Both endpoints must
+upgrade to QPCNET02; no version negotiation, reinterpretation or fallback is
+implemented. A version mismatch fails at SDK context confirmation or carrier
+decoding. Upgrade preserves original journal IDs, pending flights, message state
+and archives: there is no inner bootstrap/KDF, storage or QPCCTL01 format change.
+An exact pending bootstrap can resume only while its original authority and
+epoch-zero confirmation material remain valid; ordinary closed/retired-state
+failures remain explicit.
 
 QPCCTL01 uses SDK application context
 `"Q-PERIAPT-CONTINUITY-CONTROL-TLS/v1/" || context[32] || session[32]`.

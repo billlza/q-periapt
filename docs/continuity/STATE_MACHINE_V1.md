@@ -114,6 +114,14 @@ final commit does not prove that the responder has received it. The carrier send
 the final before its dependent application frames; responder activation requires
 its own final-confirmation transition.
 
+Native QPCNET02 and portable QPCXCH01 return established only after the initiator
+verifies the matching epoch-zero acknowledgement. Local `Messages` activation
+can precede this verification, so a stored phase or recovered session ID is not
+evidence that a prior connection call obtained peer confirmation. A malformed,
+missing or invalid proof fails explicitly; retry keeps the original initiation
+ID, signed flights and journal. The carrier upgrade changes neither the durable
+phase grammar nor the meaning of original-operation reconciliation.
+
 Permanent cancellation applies to pre-activation work and preserves any one-time
 claims, including burned inventory. It cannot recall already dispatched bytes or
 cancel an established message session. That requires the closure flow below.

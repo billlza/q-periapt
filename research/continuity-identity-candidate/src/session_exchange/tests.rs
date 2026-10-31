@@ -469,11 +469,10 @@ fn cancelled_admission_dispatches_nothing_and_closes_owner() {
 #[test]
 fn carrier_versions_and_unbounded_frames_are_rejected() {
     let mut frame = frame(INITIAL, b"x").expect("frame");
-    frame
-        .get_mut(..8)
-        .expect("magic")
-        .copy_from_slice(b"QPCNET01");
-    assert!(codec::open(&frame).is_err());
+    for tag in [b"QPCNET01", b"QPCNET02"] {
+        frame.get_mut(..8).expect("magic").copy_from_slice(tag);
+        assert!(codec::open(&frame).is_err());
+    }
     assert!(codec::open(&vec![0; crate::contract::MAX_CONNECTION_FRAME_BYTES + 1]).is_err());
     assert!(codec::split(&[0, 10, 1]).is_err());
 }

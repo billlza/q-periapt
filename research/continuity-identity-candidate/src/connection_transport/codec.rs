@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use super::*;
-const MAGIC: &[u8; 8] = b"QPCNET01";
+const MAGIC: &[u8; 8] = b"QPCNET02";
 use crate::contract::MAX_CONNECTION_FRAME_BYTES as MAX_FRAME;
 pub(super) const INITIAL: u8 = 1;
 pub(super) const BOOTSTRAP: u8 = 2;
