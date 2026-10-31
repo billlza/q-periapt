@@ -1,7 +1,8 @@
-"""A multi-package closure retains per-component and whole-archive bounds."""
+"""A Windows closure retains archive bounds and required facade source modules."""
 import hashlib
 import io
 from pathlib import Path
+import re
 import stat
 import tempfile
 import unittest
@@ -10,6 +11,7 @@ import zipfile
 
 import continuity_package_archive as archive
 import continuity_windows_bundle as windows
+from continuity_windows_prepare import FACADE_PREFIX, consumer_inputs
 
 
 def cohort():
@@ -37,6 +39,28 @@ def hashes(files):
 
 
 class WindowsBundleTests(unittest.TestCase):
+    def test_packaged_relay_and_diagnostics_retain_their_source_modules(self):
+        root = Path(__file__).resolve().parent.parent
+        candidates = [FACADE_PREFIX + name for name in (
+            'tests/first_configuration.rs', 'tests/common/witness_tls_relay.rs',
+            'tests/common/witness_tls_outcome.rs', 'tests/witness_tls_diagnostics.rs',
+            'tests/account_cleanup.rs')]
+        files = {name.removeprefix(FACADE_PREFIX): (root / name).read_bytes()
+                 for name in consumer_inputs(candidates)}
+        payload = archive.archive(files)
+        with tempfile.TemporaryDirectory() as directory:
+            installed = Path(directory) / 'consumer'
+            archive.unpack(payload, hashes(files), installed)
+            for name in ('tests/common/witness_tls_relay.rs', 'tests/witness_tls_diagnostics.rs'):
+                source = installed / name
+                self.assertTrue(source.is_file(), f'packaged test source missing: {name}')
+                for module in re.findall(r'#\[path = "([^"]+)"\]', source.read_text()):
+                    dependency = source.parent / module
+                    self.assertTrue(dependency.is_file(), f'packaged module missing: {name} -> {module}')
+                    original = root / FACADE_PREFIX / dependency.relative_to(installed)
+                    self.assertEqual(dependency.read_bytes(), original.read_bytes())
+            self.assertFalse((installed / 'tests/account_cleanup.rs').exists())
+
     def test_cohort_above_single_package_bound_preserves_every_member(self):
         _, limits, files = cohort()
         # Reproduce the 1040-file aggregate boundary without dropping any source.

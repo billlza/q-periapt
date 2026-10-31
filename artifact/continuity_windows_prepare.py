@@ -16,6 +16,23 @@ from rust_publish_contract import RustPublishContractError
 import rust_sdk_profile as sdk
 
 
+FACADE_PREFIX = 'bindings/c/ContinuityPackageConsumer/'
+
+
+def consumer_inputs(tracked: list[str]) -> list[str]:
+    """Select the installed Windows facade and its independent Rust test inputs."""
+    configuration_inputs = {'tests/common/' + name + '.rs' for name in (
+        'recovery_inputs', 'credential_request', 'first_account', 'first_connection',
+        'first_credential', 'first_expiry', 'first_policy', 'first_policy_credential',
+        'peer_bundle', 'policy_request', 'receiver_policy', 'receiver_process',
+        'witness', 'witness_tls', 'witness_tls_faults', 'witness_tls_relay', 'witness_tls_outcome')}
+    return [p for p in tracked if p[len(FACADE_PREFIX):].startswith('src/') or
+            p[len(FACADE_PREFIX):] in ('Cargo.toml', 'tests/c_owner.rs', 'tests/root.rs',
+                                     'tests/first_configuration.rs', 'tests/witness_tls_diagnostics.rs') or
+            p[len(FACADE_PREFIX):] in configuration_inputs or p[len(FACADE_PREFIX):].startswith('tests/root/') or
+            '/' not in p[len(FACADE_PREFIX):] and p.endswith(('.c', '.h'))]
+
+
 def public_inventory() -> dict:
     from continuity_enrollment import FILES, REOPEN_FILES, REGISTRATION_FILES, ROLES
     from continuity_device_replacement import FILES as replacement, ROLES as replaced_roles
@@ -68,17 +85,9 @@ def prepare(args) -> None:
     versions[candidate.NAME] = candidate.VERSION
     archives[candidate.NAME] = {k: archive[k] for k in ('sha256', 'bytes')}
     files.update({f'packages/{candidate.NAME}-{candidate.VERSION}/{p}': v for p, v in members.items()})
-    prefix = 'bindings/c/ContinuityPackageConsumer/'
+    prefix = FACADE_PREFIX
     tracked = run(['git', 'ls-files', prefix], 'facade-inputs').decode().splitlines()
-    configuration_inputs = {'tests/common/' + name + '.rs' for name in (
-        'recovery_inputs', 'credential_request', 'first_account', 'first_connection',
-        'first_credential', 'first_expiry', 'first_policy', 'first_policy_credential',
-        'peer_bundle', 'policy_request', 'receiver_policy', 'receiver_process',
-        'witness', 'witness_tls', 'witness_tls_faults', 'witness_tls_relay')}
-    selected = [p for p in tracked if p[len(prefix):].startswith('src/') or
-                p[len(prefix):] in ('Cargo.toml', 'tests/c_owner.rs', 'tests/root.rs', 'tests/first_configuration.rs') or
-                p[len(prefix):] in configuration_inputs or p[len(prefix):].startswith('tests/root/') or
-                '/' not in p[len(prefix):] and p.endswith(('.c', '.h'))]
+    selected = consumer_inputs(tracked)
     source_hashes = {}
     for relative in selected:
         snap = sdk.snapshot(sdk.ROOT / relative)

@@ -19,6 +19,7 @@ from continuity_connection_public import capture
 from continuity_windows_c_public import CASES, capture_case
 from continuity_windows_root import qualify as qualify_roots
 from continuity_windows_configuration import qualify as qualify_configuration
+from continuity_c_consumer import verify_relay_diagnostics
 
 LIB = 'q_periapt_continuity_c_consumer'
 
@@ -202,6 +203,9 @@ def consume(args):
                      '--', '--nocapture'], profile + '-configuration-paths')
         require('test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;' in paths,
                 'public configuration path controls did not execute')
+        diagnostics = run(['cargo', 'test', '--locked', '--test', 'witness_tls_diagnostics',
+                           *flags, '--', '--nocapture'], profile + '-relay-diagnostics')
+        verify_relay_diagnostics(diagnostics.encode())
         run(['cargo', 'build', '--locked', '--lib', *flags], profile + '-build')
         files = {'qpc_owner.h': (consumer / 'qpc_owner.h').read_bytes()}
         for suffix in ('.dll', '.dll.lib'):

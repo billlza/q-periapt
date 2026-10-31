@@ -66,8 +66,9 @@ criterion = "0.8"
 # disabling deprecation checks or dropping the assertion. It is dev-only.
 ml-kem = { version = "=0.2.3", features = ["deterministic", "zeroize"] }
 # Independent X25519 (orion, pure-Rust, separate lineage from x25519-dalek) for the
-# X25519 + full-hybrid differential tests.
-orion = "0.18.0"
+# X25519 + full-hybrid differential tests. Pin the test oracle to the patch that
+# resolves RUSTSEC-2026-0426 and RUSTSEC-2026-0428; keep it dev-only.
+orion = "=0.18.1"
 # Independent ML-DSA (RustCrypto) for the signature-layer differential; FIPS 204
 # deterministic keygen/sign give byte-exact comparison + cross-verification.
 ml-dsa = "=0.1.1"
