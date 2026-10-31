@@ -178,7 +178,14 @@ pub(crate) fn check(
     remaining(deadline)?;
     context
         .check_session_identity(clock().map_err(Error::Clock)?)
-        .map_err(Error::Authority)
+        .map_err(Error::Authority)?;
+    // Host callbacks and authority checks are cooperative work. A cancellation
+    // or deadline reached while they run must be observed before further I/O.
+    if cancel.is_cancelled() {
+        return Err(Error::Cancelled);
+    }
+    remaining(deadline)?;
+    Ok(())
 }
 pub(crate) fn retryable(error: &Error) -> bool {
     let io = match error {

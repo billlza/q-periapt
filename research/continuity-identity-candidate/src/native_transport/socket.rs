@@ -3,6 +3,9 @@ use super::*;
 use q_periapt_rustls::connection::{Connection, Phase, MAX_TLS_IO_BYTES};
 use std::io::{Read, Write};
 
+#[cfg(test)]
+mod tests;
+
 pub(crate) struct Request {
     id: u64,
     wire: Vec<u8>,
