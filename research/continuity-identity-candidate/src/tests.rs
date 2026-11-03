@@ -1679,3 +1679,279 @@ fn complete_publication_rechecks_member_expiry_and_closed_policy_or_runtime() {
         Error::Runtime(q_periapt_sdk::Error::Closed),
     );
 }
+
+
+fn directory_lease_selection(
+    f: &Fixture,
+    policy: &VerifiedSessionPolicy,
+    expected: ManifestContext,
+    classical: u8,
+    pq: u8,
+) -> (VerifiedDevice, AuthenticatedPrekeySelection) {
+    let verified = device(f);
+    let entries: Vec<_> = [
+        (LeafKind::SignedClassical, vec![11; 32]),
+        (LeafKind::OneTimeClassical, vec![classical; 32]),
+        (LeafKind::LastResortPq, vec![13; ML_KEM_768_PK_LEN]),
+        (LeafKind::OneTimePq, vec![pq; ML_KEM_768_PK_LEN]),
+    ]
+    .into_iter()
+    .map(|(kind, public)| PrekeyLeaf::new(kind, &public, interval()).expect("public member"))
+    .collect();
+    let issued = f.signer.issue_manifest(&verified, expected, &entries).expect("signed manifest");
+    let proofs = publication_proofs(&issued);
+    let (manifest, _) = verified
+        .verify_prekey_publication(issued.as_bytes(), &proofs, policy, expected, 150)
+        .expect("complete current publication");
+    let signed = proof_for_kind(&issued, &manifest, LeafKind::SignedClassical);
+    let last = proof_for_kind(&issued, &manifest, LeafKind::LastResortPq);
+    let one_c = proof_for_kind(&issued, &manifest, LeafKind::OneTimeClassical);
+    let one_p = proof_for_kind(&issued, &manifest, LeafKind::OneTimePq);
+    let selected = manifest
+        .select_prekeys(&signed, &last, ClassicalChoice::OneTime(&one_c), PqChoice::OneTime(&one_p), 150)
+        .expect("authenticated one-time pair");
+    (verified, selected)
+}
+fn directory_lease_owner() -> (DirectorySigningKey, DirectoryPin) {
+    let key = DirectorySigningKey::deterministic([91; 32], [92; 32]).expect("directory owner");
+    let pin = DirectoryPin::new([93; 32], key.public_key().expect("directory public"))
+        .expect("independently retained service");
+    (key, pin)
+}
+fn directory_request(operation: u8, requester: u8, from: u64, until: u64) -> DirectoryLeaseRequest {
+    DirectoryLeaseRequest::new(
+        [operation; 32],
+        [requester; 32],
+        [9; 32],
+        Validity::new(from, until).expect("lease interval"),
+    )
+    .expect("independently retained request")
+}
+
+#[test]
+fn directory_lease_binds_current_scope_and_preserves_historical_receipt_after_expiry() {
+    let (f, policy, context) = publication_admission_fixture();
+    let (device, selected) = directory_lease_selection(&f, &policy, context, 12, 14);
+    let (mut owner, pin) = directory_lease_owner();
+    let request = directory_request(94, 95, 145, 160);
+    let issued = owner.issue_lease(&pin, request, &selected, &device, &policy, 150).expect("lease");
+    assert_eq!(issued.as_bytes().len(), DIRECTORY_LEASE_BYTES);
+    let verified = pin
+        .verify_lease(issued.as_bytes(), request, &selected, &device, &policy, 150)
+        .expect("current exact lease");
+    assert_eq!(verified.request(), request);
+    assert_eq!(verified.service_binding(), pin.binding());
+    assert_eq!(verified.manifest_digest(), selected.manifest_digest());
+    assert_eq!(verified.classical_fingerprint(), selected.classical().key_fingerprint());
+    assert_eq!(verified.post_quantum_fingerprint(), selected.post_quantum().key_fingerprint());
+    assert!(verified.matches_request(request, &selected));
+    fail(
+        pin.verify_lease(issued.as_bytes(), request, &selected, &device, &policy, 160),
+        Error::Validity,
+    );
+    fail(
+        owner.issue_lease(&pin, request, &selected, &device, &policy, 160),
+        Error::Validity,
+    );
+    owner.close();
+    fail(
+        owner.issue_lease(&pin, request, &selected, &device, &policy, 150),
+        Error::Closed,
+    );
+    policy.close();
+    fail(
+        pin.verify_lease(issued.as_bytes(), request, &selected, &device, &policy, 150),
+        Error::Closed,
+    );
+    let history = pin.verify_historical_lease(issued.as_bytes()).expect("signed history remains");
+    assert_eq!(history.as_bytes(), issued.as_bytes());
+    assert_eq!(history.statement_digest(), verified.statement_digest());
+    assert!(history.matches_request(request, &selected));
+}
+
+#[test]
+fn directory_lease_refuses_wrong_pins_requests_intervals_and_shared_identity_keys() {
+    let (f, policy, context) = publication_admission_fixture();
+    let (device, selected) = directory_lease_selection(&f, &policy, context, 12, 14);
+    let (owner, pin) = directory_lease_owner();
+    let request = directory_request(94, 95, 145, 160);
+    let issued = owner.issue_lease(&pin, request, &selected, &device, &policy, 150).expect("lease");
+    for changed in [
+        directory_request(96, 95, 145, 160),
+        directory_request(94, 96, 145, 160),
+        directory_request(94, 95, 145, 161),
+        DirectoryLeaseRequest::new([94; 32], [95; 32], [98; 32], request.validity())
+            .expect("other checkpoint"),
+    ] {
+        fail(
+            pin.verify_lease(issued.as_bytes(), changed, &selected, &device, &policy, 150),
+            Error::Scope,
+        );
+        assert!(!pin.verify_historical_lease(issued.as_bytes()).expect("history").matches_request(changed, &selected));
+    }
+    let relabeled = DirectoryPin::new([99; 32], owner.public_key().expect("key"))
+        .expect("different independently pinned identity");
+    fail(relabeled.verify_historical_lease(issued.as_bytes()), Error::Scope);
+    let other = DirectorySigningKey::deterministic([96; 32], [97; 32]).expect("other service");
+    let wrong = DirectoryPin::new(pin.identity(), other.public_key().expect("public"))
+        .expect("different independently pinned key");
+    fail(wrong.verify_historical_lease(issued.as_bytes()), Error::Authentication);
+    fail(owner.issue_lease(&wrong, request, &selected, &device, &policy, 150), Error::Scope);
+    fail(
+        owner.issue_lease(&pin, directory_request(94, 95, 90, 160), &selected, &device, &policy, 150),
+        Error::Validity,
+    );
+    for (pq, classic) in [([3; 32], [4; 32]), ([1; 32], [2; 32]), ([82; 32], [92; 32])] {
+        let reused = DirectorySigningKey::deterministic(pq, classic).expect("role-reuse fixture");
+        let pin = DirectoryPin::new([93; 32], reused.public_key().expect("public")).expect("pin");
+        fail(reused.issue_lease(&pin, request, &selected, &device, &policy, 150), Error::Scope);
+    }
+    let (_issuer, denied_wire, denied_pin, runtime) =
+        session_policy_fixture(&[PrekeyQuality::ReusableBoth]);
+    let denied = denied_pin
+        .verify(denied_wire.as_bytes(), runtime, 150)
+        .expect("current policy denying one-time mode");
+    fail(
+        owner.issue_lease(&pin, request, &selected, &device, &denied, 150),
+        Error::PolicyDenied,
+    );
+    fail(
+        pin.verify_lease(issued.as_bytes(), request, &selected, &device, &denied, 150),
+        Error::PolicyDenied,
+    );
+    let (other_device, changed_selection) =
+        directory_lease_selection(&f, &policy, context, 17, 16);
+    fail(
+        pin.verify_lease(
+            issued.as_bytes(), request, &changed_selection, &other_device, &policy, 150,
+        ),
+        Error::Scope,
+    );
+    let issued_manifest = f.signer.issue_manifest(&device, context, &leaves()).expect("manifest");
+    let manifest = device.verify_manifest(issued_manifest.as_bytes(), 150).expect("manifest");
+    let reusable = manifest.select_prekeys(
+        &proof_for_kind(&issued_manifest, &manifest, LeafKind::SignedClassical),
+        &proof_for_kind(&issued_manifest, &manifest, LeafKind::LastResortPq),
+        ClassicalChoice::SignedOnly,
+        PqChoice::LastResort,
+        150,
+    ).expect("authentic but reusable metadata");
+    fail(owner.issue_lease(&pin, request, &reusable, &device, &policy, 150), Error::Scope);
+}
+
+#[test]
+fn directory_lease_signatures_purpose_and_recomputed_fingerprints_are_mandatory() {
+    let (f, policy, context) = publication_admission_fixture();
+    let (device, selected) = directory_lease_selection(&f, &policy, context, 12, 14);
+    let (owner, pin) = directory_lease_owner();
+    let request = directory_request(94, 95, 145, 160);
+    let issued = owner.issue_lease(&pin, request, &selected, &device, &policy, 150).expect("lease");
+    let (body, signature) = open_envelope(issued.as_bytes()).expect("envelope");
+    for index in [0, ML_DSA_65_SIG_LEN + 63] {
+        let mut changed = signature.to_vec();
+        *changed.get_mut(index).expect("signature component") ^= 1;
+        let wire = envelope(body, &changed).expect("envelope");
+        fail(pin.verify_historical_lease(&wire), Error::Authentication);
+    }
+    let wrong_purpose = envelope(body, &owner.sign(Purpose::Manifest, body).expect("wrong domain"))
+        .expect("envelope");
+    fail(pin.verify_historical_lease(&wrong_purpose), Error::Authentication);
+    // A real service signature cannot give an arbitrary fingerprint label to a key.
+    for offset in [body.len() - 1, body.len() - 64 - ML_KEM_768_PK_LEN - 32] {
+        let mut changed = body.to_vec();
+        *changed.get_mut(offset).expect("public key or fingerprint") ^= 1;
+        let forged = envelope(
+            &changed,
+            &owner.sign(Purpose::DirectoryLease, &changed).expect("actual dishonest service signature"),
+        ).expect("envelope");
+        fail(pin.verify_historical_lease(&forged), Error::Scope);
+    }
+    let mut trailing = issued.as_bytes().to_vec();
+    trailing.push(0);
+    fail(pin.verify_historical_lease(&trailing), Error::Encoding);
+    fail(
+        pin.verify_historical_lease(issued.as_bytes().get(..DIRECTORY_LEASE_BYTES - 1).expect("prefix")),
+        Error::Encoding,
+    );
+}
+
+#[test]
+fn directory_conflict_ignores_signature_randomness_and_proves_cross_epoch_reuse() {
+    let (f, policy, context) = publication_admission_fixture();
+    let (device, selected) = directory_lease_selection(&f, &policy, context, 12, 14);
+    let (owner, pin) = directory_lease_owner();
+    let request = directory_request(94, 95, 145, 160);
+    let first = owner.issue_lease(&pin, request, &selected, &device, &policy, 150).expect("first");
+    let resigned = owner.issue_lease(&pin, request, &selected, &device, &policy, 150).expect("same body");
+    assert_eq!(
+        pin.verify_historical_lease(first.as_bytes()).expect("history").statement_digest(),
+        pin.verify_historical_lease(resigned.as_bytes()).expect("history").statement_digest(),
+    );
+    fail(DirectoryLeaseConflict::verify(&pin, first.as_bytes(), first.as_bytes()), Error::Scope);
+    fail(DirectoryLeaseConflict::verify(&pin, first.as_bytes(), resigned.as_bytes()), Error::Scope);
+    let next_context = ManifestContext::new(
+        2, context.policy_digest(), context.suite_digest(), context.directory_checkpoint(), interval(),
+    ).expect("next signed epoch");
+    let (next_device, next) = directory_lease_selection(&f, &policy, next_context, 12, 14);
+    assert_ne!(selected.digest(), next.digest());
+    assert_ne!(selected.manifest_digest(), next.manifest_digest());
+    // The earlier interval has expired. The same physical keys still cannot be reassigned.
+    let second = owner.issue_lease(
+        &pin, directory_request(96, 97, 165, 180), &next, &next_device, &policy, 170,
+    ).expect("signed conflicting assignment");
+    let proof = DirectoryLeaseConflict::verify(&pin, first.as_bytes(), second.as_bytes())
+        .expect("independently verified conflict");
+    assert!(proof.classical_conflict());
+    assert!(proof.post_quantum_conflict());
+    let wire = proof.to_bytes();
+    assert_eq!(wire.len(), DIRECTORY_LEASE_CONFLICT_BYTES);
+    assert_eq!(
+        wire,
+        DirectoryLeaseConflict::verify(&pin, second.as_bytes(), first.as_bytes())
+            .expect("reverse input order").to_bytes(),
+    );
+    let mut reversed = b"QPDLCF01".to_vec();
+    reversed.extend_from_slice(proof.second().as_bytes());
+    reversed.extend_from_slice(proof.first().as_bytes());
+    assert_ne!(reversed, wire);
+    fail(
+        DirectoryLeaseConflict::from_bytes(&pin, &reversed),
+        Error::Encoding,
+    );
+    policy.close();
+    assert_eq!(
+        DirectoryLeaseConflict::from_bytes(&pin, &wire).expect("historical portable evidence").to_bytes(),
+        wire,
+    );
+    let mut corrupted = wire.clone();
+    *corrupted.last_mut().expect("second signature") ^= 1;
+    fail(DirectoryLeaseConflict::from_bytes(&pin, &corrupted), Error::Authentication);
+    corrupted.push(0);
+    fail(DirectoryLeaseConflict::from_bytes(&pin, &corrupted), Error::Encoding);
+}
+
+#[test]
+fn directory_conflict_requires_a_shared_key_not_merely_a_shared_operation() {
+    let (f, policy, context) = publication_admission_fixture();
+    let (device, selected) = directory_lease_selection(&f, &policy, context, 12, 14);
+    let (owner, pin) = directory_lease_owner();
+    let request = directory_request(94, 95, 145, 160);
+    let first = owner.issue_lease(&pin, request, &selected, &device, &policy, 150).expect("first");
+    for (classical, pq, shared_classical, shared_pq) in [
+        (12, 16, true, false),
+        (17, 14, false, true),
+        (17, 16, false, false),
+    ] {
+        let (other_device, other) = directory_lease_selection(&f, &policy, context, classical, pq);
+        let second = owner.issue_lease(&pin, request, &other, &other_device, &policy, 150)
+            .expect("same operation but different allocation");
+        let conflict = DirectoryLeaseConflict::verify(&pin, first.as_bytes(), second.as_bytes());
+        if shared_classical || shared_pq {
+            let conflict = conflict.expect("one key is enough");
+            assert_eq!(conflict.classical_conflict(), shared_classical);
+            assert_eq!(conflict.post_quantum_conflict(), shared_pq);
+        } else {
+            fail(conflict, Error::Scope);
+        }
+    }
+}

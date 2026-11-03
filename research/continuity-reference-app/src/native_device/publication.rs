@@ -85,6 +85,19 @@ impl PublicationTrust {
         policy: &sdk::VerifiedSessionPolicy,
         now: u64,
     ) -> Result<sdk::AuthenticatedPrekeySelection> {
+        self.verify_for_directory(publication, plan, policy, now)
+            .map(|(_, selection)| selection)
+    }
+
+    /// Return the exact verified device together with its selection. A directory
+    /// signer must still authorize the requester and commit the one-time claims.
+    pub fn verify_for_directory(
+        &self,
+        publication: &Publication,
+        plan: &PublicationPlan,
+        policy: &sdk::VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<(sdk::VerifiedDevice, sdk::AuthenticatedPrekeySelection)> {
         if self.schema != "qperiapt-native-publication-trust/1"
             || self.current.suspended
             || self.current.revision == 0
@@ -117,14 +130,15 @@ impl PublicationTrust {
         if device.device_id() != self.device || device.generation() != self.generation {
             return Err("Publication device differs from independent expectation".into());
         }
-        Ok(plan.verify_artifact(
+        let selection = plan.verify_artifact(
             &publication.artifact,
             &self.journal,
             sdk::PrekeyPublicationId::from_trusted_state(self.publication)?,
             &device,
             policy,
             now,
-        )?)
+        )?;
+        Ok((device, selection))
     }
 }
 fn publication_profile(

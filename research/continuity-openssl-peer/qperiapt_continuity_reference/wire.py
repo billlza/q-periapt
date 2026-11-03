@@ -120,7 +120,7 @@ class SigningKey:
                                                serialization.PublicFormat.CompressedPoint))
 
     def sign(self, purpose: int, body: bytes) -> bytes:
-        require(1 <= purpose <= 26 and len(body) <= 16384, "unsupported signed envelope")
+        require((1 <= purpose <= 26 or purpose == 39) and len(body) <= 16384, "unsupported signed envelope")
         length = len(body).to_bytes(4, "big")
         bound = IDENTITY + bytes([purpose]) + length + body
         pq = self._pq.sign(bound, IDENTITY)

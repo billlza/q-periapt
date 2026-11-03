@@ -123,11 +123,11 @@ consumed one-time key fail without creating another session. Invalid envelopes
 cannot consume the key. A malicious directory can double-lease a key; receiver
 at-most-once acceptance and attributable conflicting lease evidence are separate
 properties. The 2026-10-31 product decision includes an accountable lease protocol
-and directory reference implementation in **0.2.0**. That work must define the
-service identity and authority, original-operation retry, conflicting issuance
-evidence, checkpoint association, expiry/cancellation, persistence/recovery,
-linkability and bounded retention. Current manifest checks and local consumption
-do not implement this separate service contract or its qualification.
+and directory reference implementation in **0.2.0**. The [candidate directory contract](../../research/continuity-reference-app/DIRECTORY_LEASES.md)
+now defines pinned hybrid service signatures, immutable operation retry, durable
+one-time reservations, cancellation, expiry and portable conflict evidence.
+The reference ledger and local operator commands implement this contract.
+Independent qualification and final product admission are tracked separately.
 
 The native reference command [`verify-publication`](../../research/continuity-reference-app/NATIVE_DEVICE.md)
 now imports a complete `QPPUBA01` advertisement for an explicitly selected

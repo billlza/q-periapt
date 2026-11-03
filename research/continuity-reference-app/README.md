@@ -1,5 +1,7 @@
 # Continuity reference account application
 
+The [accountable prekey directory](DIRECTORY_LEASES.md) issues and verifies signed one-time assignments with an original private ledger and portable conflict evidence.
+
 This is an **optional host-application example**, not a prerequisite for using
 Q-Periapt. SDK users do not need to run it, create an account here, or contact a
 Q-Periapt account service. An embedding application retains its own authentication

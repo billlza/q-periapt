@@ -77,6 +77,7 @@ pub(crate) enum Purpose {
     AnchorTransferredAccountFreeze = 36,
     AnchorTransferredAccountDecision = 37,
     AnchorTransferredCleanup = 38,
+    DirectoryLease = 39,
 }
 
 /// Public verification keys for the fixed two-signature candidate profile.
@@ -396,6 +397,9 @@ pub struct PolicySigningKey(Option<Material>);
 /// Owned witness signer, separate from account/device/protocol-policy roles.
 pub struct AnchorSigningKey(Option<Material>);
 
+/// Owned directory-service signer, separate from identity, policy and witness roles.
+pub struct DirectorySigningKey(Option<Material>);
+
 macro_rules! owner {
     ($name:ident, $role:expr, $test_fixture:meta) => {
         impl $name {
@@ -489,6 +493,8 @@ pub(crate) fn prepare_browser_device(
 owner!(PolicySigningKey, 3, test);
 // Deterministic witness fixtures currently belong to Unix persistent-store tests.
 owner!(AnchorSigningKey, 4, all(test, unix));
+// Role 5 is the SDK-policy owner; all existing protected-file tags are unchanged.
+owner!(DirectorySigningKey, 6, test);
 
 impl DeviceSigningKey {
     /// Require this live controlled signer to match an independently verified

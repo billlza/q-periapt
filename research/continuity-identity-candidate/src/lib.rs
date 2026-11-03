@@ -45,6 +45,7 @@ pub use account_authority::{
 pub mod browser;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub mod browser_enrollment_probe;
+mod directory_lease;
 mod durable;
 mod enrollment;
 mod identity;
@@ -161,8 +162,13 @@ pub use bootstrap_bundle::{
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use crypto::SdkPolicySigningKey;
 pub use crypto::{
-    AnchorSigningKey, DeviceSigningKey, PolicySigningKey, PublicKey, RootSigningKey, SigningKeyId,
+    AnchorSigningKey, DeviceSigningKey, DirectorySigningKey, PolicySigningKey, PublicKey,
+    RootSigningKey, SigningKeyId,
     PUBLIC_KEY_BYTES,
+};
+pub use directory_lease::{
+    DirectoryLeaseConflict, DirectoryLeaseRequest, DirectoryPin, IssuedDirectoryLease,
+    VerifiedDirectoryLease, DIRECTORY_LEASE_BYTES, DIRECTORY_LEASE_CONFLICT_BYTES,
 };
 pub use durable::WitnessPendingRecovery;
 pub use durable::{

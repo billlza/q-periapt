@@ -169,6 +169,26 @@ def qualify(args: argparse.Namespace) -> dict:
                 and one_time["provider"]["cryptography"] == "48.0.1"
                 and one_time["public_case_sha256"] == snapshot(output / "one-time-publication/PUBLIC_CASE.json").sha256,
                 "installed one-time publication implementation or scope differs")
+        run([*interpreter, str(application / "directory_lease_checks.py"),
+             "--provider-root", str(provider), "--native", str(args.native),
+             "--publication-case", str(output / "one-time-publication/PUBLIC_CASE.bin"),
+             "--output", str(output / "directory-lease")], "directory-lease")
+        lease = parse_strict_json_bytes(snapshot(output / "directory-lease/RESULT.json").data,
+                                        label="installed independent directory lease")
+        lease_sources = ("directory_lease_checks.py", PACKAGE + "/directory_lease.py", PACKAGE + "/wire.py")
+        require(lease["schema"] == "qperiapt-independent-directory-lease-checks/1"
+                and lease["source_sha256"] == {name: snapshot(SOURCE / name).sha256 for name in lease_sources}
+                and lease["native_sha256"] == native.sha256
+                and lease["publication_case_sha256"] == snapshot(output / "one-time-publication/PUBLIC_CASE.bin").sha256
+                and type(lease["rust_signed_receipts_verified"]) is int and lease["rust_signed_receipts_verified"] == 3
+                and lease["rust_canonical_conflict_matched"] is True
+                and type(lease["receipt_bytes"]) is int and lease["receipt_bytes"] == 5173
+                and type(lease["conflict_bytes"]) is int and lease["conflict_bytes"] == 10354
+                and lease["historical_only"] is True
+                and lease["durable_allocation_or_session_qualified"] is False
+                and lease["private_keys_exported"] is False and lease["release_claim_eligible"] is False
+                and lease["provider"]["cryptography"] == "48.0.1",
+                "installed directory lease implementation or scope differs")
         run([*interpreter, str(application / "registration_checks.py"), "--provider-root", str(provider),
              "--native", str(args.native), "--output", str(output / "registration")], "registration")
         observed = parse_strict_json_bytes(snapshot(output / "registration/RESULT.json").data, label="installed registration")

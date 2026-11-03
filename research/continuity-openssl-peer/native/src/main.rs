@@ -67,7 +67,20 @@ fn main() -> Result<()> {
         if args.next().is_some() {
             return Err("unexpected publication verification argument".into());
         }
-        let selected = fixture::verify_one_time_publication(Path::new(&input))?;
+        let selected = fixture::verify_one_time_publication(Path::new(&input), None)?;
+        io::stdout().lock().write_all(&selected)?;
+        return Ok(());
+    }
+    if path.to_str() == Some("--directory-lease-fixture") {
+        let input = args.next().ok_or("expected public publication fixture")?;
+        let output = args.next().ok_or("expected new public lease output directory")?;
+        if args.next().is_some() {
+            return Err("unexpected directory lease fixture argument".into());
+        }
+        let selected = fixture::verify_one_time_publication(
+            Path::new(&input),
+            Some(Path::new(&output)),
+        )?;
         io::stdout().lock().write_all(&selected)?;
         return Ok(());
     }

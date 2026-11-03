@@ -627,3 +627,44 @@ independent interoperability workflow invokes this source check on both native
 architectures; the installed-wheel runner repeats it outside the checkout and
 verifies its module and counterpart hashes. Only public fixtures and results are
 retained. These checks qualify publication selection, not one-time session traffic.
+
+## Independent historical directory lease evidence
+
+`directory_lease.DirectoryPin` takes a separately provisioned service identity
+and exact ML-DSA-65/P-256 verification key. Its
+`verify_historical_lease` verifies purpose-39 signatures over the complete
+`QPDLSE01` statement, exact 5,173-byte envelope, typed scope and SDK fields,
+finite half-open interval, suite, full public keys and algorithm-tagged
+fingerprints. Historical verification deliberately takes no current time,
+device handle or live policy: expired authorization does not erase a signed
+service assertion. It grants no current use and proves neither requester
+authentication nor durable allocation or receiver consumption.
+
+`DirectoryLeaseConflict.verify(pin, first, second)` verifies both receipts under
+one independent service pin. The immutable allocation bodies must differ, and
+at least one algorithm must have the same fingerprint and the same complete
+one-time public-key bytes. Exact replay and randomized signatures of the same
+body are not conflicts. Different epochs, manifests or disjoint validity
+windows do not make an assigned key reusable. Fingerprints cover exact public
+bytes; this reader does not claim primitive-key validation or mathematical
+equivalence detection.
+
+The pair verifier orders receipts by statement digest and then full signed
+bytes. The archival `QPDLCF01` decoder requires that exact canonical order and
+the exact 10,354-byte container; reversed, duplicate, trailing or malformed
+containers are refused.
+
+The source and installed-wheel workflows run `directory_lease_checks.py` after
+the explicit one-time publication check. The existing Rust counterpart imports
+that same Python-signed publication, verifies its independently retained inputs
+and produces three public Rust-signed leases: two deliberately conflicting
+assignments and a randomized re-signing of the first body. The independent
+OpenSSL reader checks those signatures, compares the statement digest and
+canonical conflict bytes, and exercises its own real-signature positive and
+negative controls. The deliberately equivocating fixture is not a production
+allocator. Additional controls cover single-algorithm reuse, different keys and
+services, signature-purpose separation, corrupted signatures, typed fields,
+key fingerprints and historical intervals. Only public fixtures and results
+are exported; private signing owners remain in their processes. These checks
+qualify historical receipt and conflict interoperability, not a directory
+service lifecycle or one-time session traffic.

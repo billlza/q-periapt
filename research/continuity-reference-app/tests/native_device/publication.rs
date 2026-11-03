@@ -269,6 +269,9 @@ fn cli_publication(mode: super::BootstrapMode, plan_schema: &str, quality: &str)
         serde_json::from_slice(&fs::read(c.path.join("policy-materials.json"))?)?;
     materials["policy"] = serde_json::json!("AA");
     refuse(3, materials)?;
+    if quality == "one_time_both" {
+        super::directory_leases::exercise(&c.path, c.start, &plan, &trust)?;
+    }
     assert_eq!(snapshot(&c.path.join("device"))?, before);
     assert_eq!(fs::read(c.path.join("wrap.key"))?, wrapping);
     assert!(

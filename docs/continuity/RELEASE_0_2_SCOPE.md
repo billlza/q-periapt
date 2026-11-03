@@ -12,9 +12,11 @@ lease protocol and directory reference implementation in 0.2.0**. This includes
 authenticated service identity/authorization, exact-operation retry, attributable
 conflicting issuance, checkpoint association, expiry and cancellation, durable
 recovery, bounded retention/resources and linkability analysis. Independent
-SDK/service integration evidence is required. The existing signed manifests,
-checkpoint matching, local publication artifacts and one-time inventory consumption
-are implemented prerequisites; they are not a completed remote lease service.
+SDK/service integration evidence is required. The [reference directory](../../research/continuity-reference-app/DIRECTORY_LEASES.md)
+now implements signed assignments, persistent occupancy, cancellation and portable
+conflict proofs. Qualification of the candidate is distinct from freezing the
+public protocol and admitting it to the product. The existing one-time inventory
+still enforces consumption at the responder.
 Earlier component entries that leave the directory to the integrator describe
 their historical implementation boundary, not an exclusion from this release.
 
