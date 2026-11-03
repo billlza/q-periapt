@@ -24,7 +24,7 @@ pub use mailbox::Mailbox;
 pub use peer::{DeviceExpectation, ExchangeOperation, ExchangeRequest, PeerTrust};
 pub use policy::PolicyRecoveryInputs;
 pub use policy_witness::PolicyTransitionInputs;
-pub use publication::{clock, Publication, PublicationPlan};
+pub use publication::{clock, Publication, PublicationPlan, PublicationTrust};
 pub use renewal::RetainedCredentialRequest;
 pub use roster_refresh::RosterRefreshInputs;
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;

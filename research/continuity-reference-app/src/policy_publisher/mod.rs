@@ -47,12 +47,14 @@ impl Anchor {
 pub enum BootstrapMode {
     Disabled,
     ReusableBoth,
+    OneTimeBoth,
 }
 impl BootstrapMode {
     fn allowed(self) -> Result<sdk::AllowedPrekeyModes, Error> {
         sdk::AllowedPrekeyModes::new(match self {
             Self::Disabled => &[],
             Self::ReusableBoth => &[sdk::PrekeyQuality::ReusableBoth],
+            Self::OneTimeBoth => &[sdk::PrekeyQuality::OneTimeBoth],
         })
         .map_err(|_| Error::Internal)
     }

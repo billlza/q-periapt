@@ -396,7 +396,7 @@ impl VerifiedSessionPolicy {
         }
         Ok(())
     }
-    fn check_current(&self, trusted_time: u64) -> Result<(), Error> {
+    pub(crate) fn check_current(&self, trusted_time: u64) -> Result<(), Error> {
         self.check_lifetime(trusted_time)?;
         if !self.runtime.is_enabled()? {
             return Err(Error::PolicyDenied);

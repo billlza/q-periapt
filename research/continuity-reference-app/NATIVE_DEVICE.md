@@ -298,3 +298,47 @@ Success reports `{"peer_roster": <checkpoint>}`. On an error, the owner is close
 and the durable commit may be unknown. Keep the exact target and original device
 files, reopen and retry it; an exact successful retry reports the installed target.
 A lower checkpoint fails. Never reset the journal to recover this operation.
+
+
+## Verify an independently received publication
+
+The host may select the existing reusable plan or
+`qperiapt-native-one-time-publication-plan/1`.
+The latter has the same directory and validity fields and exactly the ordered
+roles [1, 2, 3, 4]: signed classical, one-time classical, last-resort PQ, one-time
+PQ. Its signed protocol policy must explicitly permit `one_time_both`.
+The publisher accepts that bootstrap mode and retains it in the original
+policy request/history. A disabled SDK policy cannot authorize either nonempty
+bootstrap mode. The output schema is
+`qperiapt-native-one-time-publication/1`; the previous [1, 3] plan and
+`qperiapt-native-publication/1` output remain supported.
+
+Directory admission is a separate read-only command:
+
+```sh
+q-periapt-native-device verify-publication \
+  "$independent_trust" "$policy_pins" "$policy_materials" "$retained_plan" \
+  "$received_publication"
+```
+
+The separately provisioned trust document has schema
+`qperiapt-native-publication-trust/1` and these fields:
+
+- `current`: the independently authenticated host's current `RootInfo`, including its signed roster;
+- `device` (16-byte array) and `generation`: the expected device;
+- `journal` and `publication` (32-byte arrays): the independently retained original identities.
+
+Do not construct these expectations, policy pins or the retained plan by copying
+fields from the received publication. A suspended host root is refused. The
+command verifies the current policy and SDK binding, current credential and roster,
+exact original journal/publication/plan, complete signed manifest and Merkle tree,
+artifact commitments and permitted prekey quality. It requires the publication's
+roster/checkpoint to equal the selected current snapshot; an old advertisement
+cannot supply its own current membership.
+
+All five inputs use the existing bounded private-file reader. The command opens
+no device, enrollment, key, journal or publication registry and writes no files.
+Success prints `{"verified":true,"quality":"one_time_both"}` or the corresponding
+`reusable_both` result to stdout. It grants no lease or consumption receipt.
+The existing peer bootstrap interface still selects reusable-both; this command
+does not add an independent enrollment consumer or a one-time session exchange.

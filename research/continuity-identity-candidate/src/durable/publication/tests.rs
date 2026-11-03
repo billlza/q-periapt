@@ -922,3 +922,62 @@ fn publication_short_lived_member_expiring_at_final_release_is_withheld() {
         PrekeyPublicationStatus::Prepared { .. }
     ));
 }
+
+#[test]
+fn directory_import_binds_original_plan_operation_and_each_member() {
+    let mut f = inventory(crate::PrekeyQuality::OneTimeBoth);
+    let journal = f.store.image().expect("original image").id;
+    let id = f.store.next_prekey_publication_id().expect("next");
+    let plan = plan();
+    let prepared = prepare(&mut f, id, &plan);
+    let (policy, device, _) = f.peer.responder.inventory_inputs().expect("owner");
+    let wire = prepared.as_bytes();
+    let verify = |wire: &[u8]| plan.verify_artifact(wire, &journal, id, device, policy, 150);
+    let selected = verify(wire).expect("live original public artifact");
+    assert_eq!(selected.quality(), crate::PrekeyQuality::OneTimeBoth);
+    assert_eq!(
+        selected.digest(),
+        verify(wire).expect("exact read-only replay").digest()
+    );
+    let first_id = 108 + crate::manifest::MANIFEST_WIRE_BYTES + 2;
+    let first_proof = first_id + plan.keys().len() * 32;
+    // Original ID, full intent, artifact commitment, signed manifest,
+    // plan-order inventory ID and canonical proof index are all checked.
+    for offset in [8, 40, 72, 108, first_id, first_proof + 2, wire.len() - 1] {
+        let mut altered = wire.to_vec();
+        *altered.get_mut(offset).expect("selected artifact byte") ^= 1;
+        assert!(verify(&altered).is_err(), "modified byte {offset}");
+    }
+    let mut trailing = wire.to_vec();
+    trailing.push(0);
+    assert!(verify(&trailing).is_err());
+    let truncated = wire.get(..first_proof).expect("proof section");
+    assert!(verify(truncated).is_err());
+    let mut other_journal = journal;
+    *other_journal.first_mut().expect("journal bytes") ^= 1;
+    assert!(plan
+        .verify_artifact(wire, &other_journal, id, device, policy, 150)
+        .is_err());
+    let other_plan =
+        PrekeyPublicationPlan::new([100; 32], interval(), plan.keys()).expect("different directory");
+    assert!(other_plan
+        .verify_artifact(wire, &journal, id, device, policy, 150)
+        .is_err());
+    policy.close();
+    assert!(matches!(verify(wire), Err(Error::Closed)));
+}
+
+#[test]
+fn a_reused_inventory_request_cannot_alias_a_generated_member() {
+    let id = PrekeyPublicationId::at(&[3; 32], 1).expect("operation");
+    let original = plan();
+    let ids = original.requests(id).expect("distinct generated members");
+    let mut keys = original.keys().to_vec();
+    *keys.get_mut(1).expect("second key") = PrekeyPublicationKey::reuse(
+        *ids.first().expect("first generated ID"),
+        LeafKind::OneTimeClassical,
+        interval(),
+    );
+    let alias = PrekeyPublicationPlan::new([99; 32], interval(), &keys).expect("plan shape");
+    assert!(matches!(alias.requests(id), Err(Error::Scope)));
+}

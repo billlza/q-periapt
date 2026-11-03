@@ -426,3 +426,84 @@ fn policy_publisher_child() -> Result<(), Box<dyn std::error::Error>> {
     }
     Err("Child failed to stop at requested cut".into())
 }
+
+
+#[test]
+fn one_time_policy_keeps_exact_mode_and_original_history() -> Result<(), Box<dyn std::error::Error>> {
+    let directory = directory()?;
+    let path = directory.path().join("one-time.redb");
+    let mut publisher = Publisher::provision(&path, [80; 32], input()?)?;
+    let authority = publisher.prepare()?;
+    let requested = Request {
+        bootstrap_mode: BootstrapMode::OneTimeBoth,
+        ..request()
+    };
+    let issued = publisher.issue([81; 32], requested.clone(), 150)?;
+    let (pins, materials) = publisher.export([81; 32])?;
+    let (verified, _) = pins.verify(&materials, authority.family, 150)?;
+    verified.check_mode(sdk::PrekeyQuality::OneTimeBoth, 150)?;
+    assert!(verified
+        .check_mode(sdk::PrekeyQuality::ReusableBoth, 150)
+        .is_err());
+    assert_eq!(publisher.issue([81; 32], requested.clone(), 250)?, issued);
+    assert!(publisher.issue([81; 32], request(), 150).is_err());
+    drop(publisher);
+    let mut publisher = Publisher::open(&path, [80; 32])?;
+    assert_eq!(publisher.result([81; 32])?, issued);
+    assert_eq!(publisher.issue([81; 32], requested, 250)?, issued);
+    assert!(pins.verify(&materials, authority.family, 250).is_err());
+    assert!(
+        pins.verify_historical(&materials, authority.family)?
+            .0
+            .allowed_modes()
+            == sdk::AllowedPrekeyModes::new(&[sdk::PrekeyQuality::OneTimeBoth])?
+    );
+    Ok(())
+}
+
+#[test]
+fn disabled_sdk_refuses_both_nonempty_bootstrap_modes_before_intent(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let directory = directory()?;
+    let mut authority = crate::sdk_authority::AuthorityStore::provision(
+        &directory.path().join("disabled-sdk.redb"),
+        [82; 32],
+    )?;
+    authority.prepare()?;
+    let document = b"schema_version=1\npolicy_version=1\nmin_nist_level=3\ndefault_profile=\"ContextBound\"\nallowed_kems=[\"ML-KEM-768\"]\nallowed_sigs=[\"ML-DSA-65\"]\ndeprecated=[]\n".to_vec();
+    let disabled = authority.issue([83; 32], document)?.input;
+    assert!(!disabled.verify()?.is_enabled()?);
+    for (index, mode) in [BootstrapMode::ReusableBoth, BootstrapMode::OneTimeBoth]
+        .into_iter()
+        .enumerate()
+    {
+        let mut publisher = Publisher::provision(
+            &directory.path().join(format!("disabled-protocol-{index}.redb")),
+            [84; 32],
+            disabled.clone(),
+        )?;
+        publisher.prepare()?;
+        assert!(publisher
+            .issue(
+                [85; 32],
+                Request {
+                    bootstrap_mode: mode,
+                    ..request()
+                },
+                150
+            )
+            .is_err());
+        assert_eq!(publisher.config()?.version, 0);
+        assert!(publisher.record([85; 32])?.is_none());
+        let issued = publisher.issue(
+            [86; 32],
+            Request {
+                bootstrap_mode: BootstrapMode::Disabled,
+                ..request()
+            },
+            150,
+        )?;
+        assert_eq!(issued.version, 1);
+    }
+    Ok(())
+}
