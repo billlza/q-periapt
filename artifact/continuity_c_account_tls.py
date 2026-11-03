@@ -15,6 +15,11 @@ PHASES = {"bootstrap": True, "missing": False, "wrong-pin": False, "wrong-name":
           "wrong-subject": False, "freeze": True, "acknowledge": True, "retirement": True,
           "retired": True, "retired-missing": False, "retired-unavailable": False}
 
+# QPCNET02 READY adds eight read-only Queries across the two original sessions.
+# C=129 is reproduced on the same-host installed C Debug fixture. Swift/Kotlin
+# retain their existing wrapper offsets; these expectations are not run receipts.
+BOOTSTRAP_ADMISSIONS = {"C": 129, "Swift": 135, "Kotlin": 134}
+
 
 def scope(language: str) -> str:
     sdk.require(language in ("C", "Swift", "Kotlin"), "unqualified TLS account language")
@@ -35,6 +40,20 @@ def phases(data: bytes, *, expected_phases: dict[str, bool] = PHASES) -> dict:
         result[label] = dict(first_admission=before, after_last_admission=after, plaintext_exchanges=0)
         previous = after
     return result
+
+
+def phase_workload(data: bytes, language: str) -> dict:
+    scope(language)
+    observed = phases(data)
+    counts = dict.fromkeys(PHASES, 0)
+    counts.update(bootstrap=BOOTSTRAP_ADMISSIONS[language],
+                  freeze=10, acknowledge=12, retirement=10, retired=1)
+    actual = {label: row["after_last_admission"] - row["first_admission"]
+              for label, row in observed.items()}
+    sdk.require(actual == counts,
+                "TLS account admitted exchange workload differs: expected=" + repr(counts)
+                + " observed=" + repr(actual))
+    return observed
 
 
 def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
@@ -60,13 +79,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     public.update(accounting["public_readbacks"])
     sdk.require(report["batch"] == accounting["batch"] and report["report"] == accounting["report"],
                 "TLS cleanup changed original account or loss-report identity")
-    observed = phases(read("account-tls-phases", 1024))
-    counts = dict.fromkeys(PHASES, 0)
-    counts.update(bootstrap={"C": 121, "Swift": 127, "Kotlin": 126}[language],
-                  freeze=10, acknowledge=12, retirement=10, retired=1)
-    sdk.require({label: row["after_last_admission"] - row["first_admission"]
-                 for label, row in observed.items()} == counts,
-                "TLS account admitted exchange workload differs")
+    observed = phase_workload(read("account-tls-phases", 1024), language)
     sdk.require(type(report["witness_exchanges"]) is int
                 and report["witness_exchanges"] == observed["retired-unavailable"]["after_last_admission"],
                 "TLS account exchange census differs")

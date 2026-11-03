@@ -51,9 +51,11 @@ def phase_workload(data: bytes, language: str) -> dict:
     observed = tls.phases(data, expected_phases=PHASES)
     # Each of the six member-operation phases reopens both retained peers;
     # current identity preparation adds four authenticated Query exchanges.
-    counts = dict(zip(PHASES, ({"C": 121, "Swift": 127, "Kotlin": 126}[language], 5, 21, 52, 4, 37, 14, 39, 14), strict=True))
-    sdk.require({name: row["after_last_admission"] - row["first_admission"] for name, row in observed.items()} == counts,
-                "account delivery phase workload differs")
+    counts = dict(zip(PHASES, (tls.BOOTSTRAP_ADMISSIONS[language], 5, 21, 52, 4, 37, 14, 39, 14), strict=True))
+    actual = {name: row["after_last_admission"] - row["first_admission"] for name, row in observed.items()}
+    sdk.require(actual == counts,
+                "account delivery phase workload differs: expected=" + repr(counts)
+                + " observed=" + repr(actual))
     return observed
 
 
@@ -82,7 +84,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", sam
         and report["account_layout"] == ("own" if same_account else "peer")
         and report["language"] == language and report["completed"] is True and report["release_claim_eligible"] is False
         and report["carrier"] == "q-periapt-anchor/1" and type(report["witness_admissions"]) is int
-        and report["witness_admissions"] == {"C": 307, "Swift": 313, "Kotlin": 312}[language],
+        and report["witness_admissions"] == tls.BOOTSTRAP_ADMISSIONS[language] + 186,
         "account delivery scope or census differs")
     sdk.require(type(report["batch"]) is str, "account delivery batch type differs")
     batch = identifier(report["batch"].encode())

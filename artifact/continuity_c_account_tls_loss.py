@@ -54,16 +54,20 @@ def exchanges(data: bytes, stage_bytes: bytes) -> dict:
 def require_workload(observed: dict, language: str) -> None:
     scope(language)
     offset = {"C": 0, "Swift": 6, "Kotlin": 5}[language]
+    # The C QPCNET02 fixture has eight additional bootstrap Queries, with the
+    # original foreign-wrapper offsets retained as expectations, not executions.
     # Reservation reopens two retained peer sessions. Each preparation authenticates
     # one image and checks its release fence: four Query exchanges before Advance.
     # Those checks change no native mutation or post-commit loss counts.
     stages = {phase: dict(first_exchange=first + offset, after_last_exchange=after + offset,
                           lost_exchange=lost + offset)
               for phase, (first, after, lost) in zip(PHASES,
-                  ((121, 135, 134), (140, 144, 143), (153, 160, 159), (168, 172, 171)), strict=True)}
-    sdk.require(observed == dict(exchanges=182 + offset, native_advances=36, stages=stages,
-                                lost_indices=[134 + offset, 143 + offset, 159 + offset, 171 + offset]),
-                "TLS loss admitted exchange workload differs")
+                  ((129, 143, 142), (148, 152, 151), (161, 168, 167), (176, 180, 179)), strict=True)}
+    expected = dict(exchanges=190 + offset, native_advances=36, stages=stages,
+                    lost_indices=[142 + offset, 151 + offset, 167 + offset, 179 + offset])
+    sdk.require(observed == expected,
+                "TLS loss admitted exchange workload differs: expected=" + repr(expected)
+                + " observed=" + repr(observed)[:1024])
 
 
 def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", same_account: bool = False) -> dict:

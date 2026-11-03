@@ -213,9 +213,19 @@ jobs:
             exit 1
           fi
           cargo test --locked --manifest-path "$manifest" \
-            > target/reference-account-ci/tests.stdout 2> target/reference-account-ci/tests.stderr
+            > target/reference-account-ci/tests.stdout 2> target/reference-account-ci/tests.stderr || {
+              result=$?
+              grep -E '^(test .* \.\.\. FAILED|test result: FAILED|failures:)' target/reference-account-ci/tests.stdout | tail -n 32 >&2 || :
+              grep -E '^error|^ *--> ' target/reference-account-ci/tests.stderr | head -n 80 >&2 || :
+              exit "$result"
+            }
           cargo clippy --locked --all-targets --manifest-path "$manifest" -- -D warnings \
-            > target/reference-account-ci/clippy.stdout 2> target/reference-account-ci/clippy.stderr
+            > target/reference-account-ci/clippy.stdout 2> target/reference-account-ci/clippy.stderr || {
+              result=$?
+              grep -E '^(test .* \.\.\. FAILED|test result: FAILED|failures:)' target/reference-account-ci/clippy.stdout | tail -n 32 >&2 || :
+              grep -E '^error|^ *--> ' target/reference-account-ci/clippy.stderr | head -n 80 >&2 || :
+              exit "$result"
+            }
       - name: Build account and native release executables
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/reference-account-build
