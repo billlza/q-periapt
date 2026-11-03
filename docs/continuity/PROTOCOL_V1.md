@@ -129,6 +129,17 @@ evidence, checkpoint association, expiry/cancellation, persistence/recovery,
 linkability and bounded retention. Current manifest checks and local consumption
 do not implement this separate service contract or its qualification.
 
+The native reference command [`verify-publication`](../../research/continuity-reference-app/NATIVE_DEVICE.md)
+now imports a complete `QPPUBA01` advertisement for an explicitly selected
+reusable-both or one-time-both plan. Its independent inputs fix the device,
+current roster and policy, directory checkpoint, validity, plan, journal and
+operation. The checks cover the signed manifest, every canonical Merkle member,
+key-role separation and the original ordered inventory requests. A successful
+read returns public selection metadata; it does not mutate the account, reserve
+a prekey, or record a lease. The outer journal/operation correlations can be
+recomputed by anyone and are not a service's signature over issuance. A directory
+must not use a publication ID as a cross-manifest one-time-key uniqueness fence.
+
 Exhaustion can select a last-resort mode only when the closed signed session policy
 expressly permits it. The chosen quality is bound into bootstrap. Expiry, quota,
 replay and tombstone retention limits must be fixed together; deleting a tombstone

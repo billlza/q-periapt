@@ -519,3 +519,116 @@ fn shared_devices(
         Some(root),
     ))
 }
+
+// Read-only test-controller import. Every trust input is supplied separately
+// from the publication; this is not a directory or SDK network command.
+pub(super) fn verify_one_time_publication(path: &Path) -> Result<Vec<u8>> {
+    use q_periapt_continuity_identity_candidate::{
+        PolicyCheckpoint, PrekeyPublicationId, PrekeyPublicationKey, PrekeyPublicationPlan,
+        RosterCheckpoint,
+    };
+    use std::io::{Cursor, Read};
+
+    fn array<const N: usize>(input: &mut Cursor<&[u8]>) -> Result<[u8; N]> {
+        let mut value = [0; N];
+        input.read_exact(&mut value)?;
+        Ok(value)
+    }
+    fn field(input: &mut Cursor<&[u8]>) -> Result<Vec<u8>> {
+        let length = usize::try_from(u32::from_be_bytes(array(input)?))?;
+        if length > 65536 {
+            return Err("publication fixture field capacity".into());
+        }
+        let mut value = vec![0; length];
+        input.read_exact(&mut value)?;
+        Ok(value)
+    }
+    fn fixed<const N: usize>(input: &mut Cursor<&[u8]>) -> Result<[u8; N]> {
+        field(input)?
+            .try_into()
+            .map_err(|_| "publication fixture fixed field".into())
+    }
+
+    let mut raw = Vec::new();
+    fs::File::open(path)?
+        .take(128 * 1024 + 1)
+        .read_to_end(&mut raw)?;
+    if raw.len() > 128 * 1024 {
+        return Err("publication fixture capacity".into());
+    }
+    let mut input = Cursor::new(raw.as_slice());
+    if array::<8>(&mut input)? != *b"QPOPTF01" {
+        return Err("publication fixture schema".into());
+    }
+    let now = u64::from_be_bytes(fixed(&mut input)?);
+    let interval = fixed::<16>(&mut input)?;
+    let mut interval = Cursor::new(interval.as_slice());
+    let validity = Validity::new(
+        u64::from_be_bytes(array(&mut interval)?),
+        u64::from_be_bytes(array(&mut interval)?),
+    )?;
+    let directory = fixed(&mut input)?;
+    let journal = fixed(&mut input)?;
+    let id = PrekeyPublicationId::from_trusted_state(fixed(&mut input)?)?;
+    let family = fixed(&mut input)?;
+    let policy_head = fixed::<40>(&mut input)?;
+    let mut policy_head = Cursor::new(policy_head.as_slice());
+    let policy_checkpoint = PolicyCheckpoint::from_trusted_state(
+        u64::from_be_bytes(array(&mut policy_head)?),
+        array(&mut policy_head)?,
+    )?;
+    let device_head = fixed::<96>(&mut input)?;
+    let mut device_head = Cursor::new(device_head.as_slice());
+    let account = array(&mut device_head)?;
+    let roster_checkpoint = RosterCheckpoint::from_trusted_state(
+        u64::from_be_bytes(array(&mut device_head)?),
+        array(&mut device_head)?,
+    )?;
+    let expected_device = array::<16>(&mut device_head)?;
+    let expected_generation = u64::from_be_bytes(array(&mut device_head)?);
+    let sdk_state = fixed::<36>(&mut input)?;
+    let document = field(&mut input)?;
+    let signature = field(&mut input)?;
+    let sdk_root = field(&mut input)?;
+    let policy_root = PublicKey::decode(&field(&mut input)?)?;
+    let policy_wire = field(&mut input)?;
+    let account_root = PublicKey::decode(&field(&mut input)?)?;
+    let certificate = field(&mut input)?;
+    let roster = field(&mut input)?;
+    let publication = field(&mut input)?;
+    if usize::try_from(input.position())? != raw.len() {
+        return Err("publication fixture trailing bytes".into());
+    }
+    let runtime = Arc::new(Runtime::from_signed_policy(
+        &document,
+        &signature,
+        &sdk_root,
+        None,
+        Limits::default(),
+    )?);
+    if runtime.trusted_state().encode() != sdk_state {
+        return Err("publication fixture SDK pin".into());
+    }
+    let policy =
+        PolicyPin::new(family, policy_root, policy_checkpoint)?.verify(&policy_wire, runtime, now)?;
+    let device = AccountPin::new(account, account_root, roster_checkpoint, family)?
+        .verify_device(&certificate, &roster, now)?;
+    if device.device_id() != expected_device || device.generation() != expected_generation {
+        return Err("publication fixture device pin".into());
+    }
+    let keys = [
+        LeafKind::SignedClassical,
+        LeafKind::OneTimeClassical,
+        LeafKind::LastResortPq,
+        LeafKind::OneTimePq,
+    ]
+    .map(|kind| PrekeyPublicationKey::generate(kind, validity));
+    let plan = PrekeyPublicationPlan::new(directory, validity, &keys)?;
+    let selection = plan.verify_artifact(&publication, &journal, id, &device, &policy, now)?;
+    if selection.quality() != PrekeyQuality::OneTimeBoth {
+        return Err("publication fixture selection quality".into());
+    }
+    let mut result = selection.as_bytes().to_vec();
+    result.extend_from_slice(&selection.digest());
+    Ok(result)
+}

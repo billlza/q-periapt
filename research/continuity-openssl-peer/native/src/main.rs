@@ -62,6 +62,15 @@ fn send(output: &mut impl Write, status: u8, bytes: &[u8]) -> Result<()> {
 fn main() -> Result<()> {
     let mut args = std::env::args_os().skip(1);
     let path = args.next().ok_or("expected new public output directory")?;
+    if path.to_str() == Some("--verify-one-time-publication") {
+        let input = args.next().ok_or("expected public publication fixture")?;
+        if args.next().is_some() {
+            return Err("unexpected publication verification argument".into());
+        }
+        let selected = fixture::verify_one_time_publication(Path::new(&input))?;
+        io::stdout().lock().write_all(&selected)?;
+        return Ok(());
+    }
     let mut budget = 1024;
     let mut required = false;
     let mut peer_lifecycle = false;

@@ -27,6 +27,30 @@ on:
       - bindings/c/ContinuityPackageConsumer/**
       - bindings/rust/SDKPackageConsumer/**
       - bindings/*-vectors.json
+  pull_request:
+    branches: [lza/windows-private-store]
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain*
+      - .cargo/**
+      - .gitattributes
+      - .gitignore
+      - crates/**
+      - ctstats/Cargo.toml
+      - models/*/Cargo.toml
+      - services/*/Cargo.toml
+      - fuzz/Cargo.toml
+      - fuzz/Cargo.lock
+      - README.md
+      - LICENSE*
+      - LICENSES/**
+      - .github/workflows/continuity-windows-package.yml
+      - artifact/**
+      - research/continuity-identity-candidate/**
+      - bindings/c/ContinuityPackageConsumer/**
+      - bindings/rust/SDKPackageConsumer/**
+      - bindings/*-vectors.json
 
 permissions:
   contents: read

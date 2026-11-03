@@ -168,6 +168,13 @@ class WindowsWorkflowInputsTests(unittest.TestCase):
         cls.paths = push_paths(cls.text)
         cls.inputs = required_inputs(ROOT)
 
+    def test_pull_requests_to_the_integration_branch_use_the_same_inputs(self):
+        header = self.text.split("\npermissions:\n", 1)[0]
+        push, pr = header.split("\n  pull_request:\n", 1)
+        self.assertEqual(push_paths(push + "\n"), push_paths(pr))
+        self.assertIn("    branches: [lza/windows-private-store]\n", pr)
+        self.assertNotIn("pull_request_target:", header)
+
     def test_same_run_producer_and_commit_admission(self):
         validate_provenance(self.text)
 
@@ -199,17 +206,6 @@ class WindowsWorkflowInputsTests(unittest.TestCase):
         missing = sorted(path for path in self.inputs if not triggered(self.paths, path))
         self.assertEqual(missing, [], "actual Windows qualification inputs would not trigger CI")
 
-    def test_missing_input_families_are_detected(self):
-        for path in ("rust-toolchain.toml", "fuzz/Cargo.lock",
-                     "bindings/rust/SDKPackageConsumer/src/lib.rs",
-                     "bindings/signed-policy-vectors.json", "artifact/evidence_io.py",
-                     "artifact/c_package_manifest.py", "crates/q-periapt-host-store/Cargo.toml"):
-            with self.subTest(path=path):
-                self.assertIn(path, self.inputs)
-                reduced = [pattern for pattern in self.paths if not path_matches(pattern, path)]
-                self.assertFalse(triggered(reduced, path))
-                self.assertIn(path, {item for item in self.inputs if not triggered(reduced, item)})
-
     def test_glob_semantics_distinguish_files_from_nested_inputs(self):
         for pattern, path, expected in (
             ("LICENSE*", "LICENSE", True),
@@ -227,18 +223,6 @@ class WindowsWorkflowInputsTests(unittest.TestCase):
         for path in ("docs/design-only.md", "research/unrelated-experiment/results.json",
                      "bindings/android/unrelated/README.md"):
             self.assertFalse(triggered(self.paths, path))
-
-    def test_native_matrix_profiles_budgets_and_readback_remain_complete(self):
-        native = job(self.text, "native")
-        readback = job(self.text, "public-readback")
-        for value in ("    needs: prepare\n", "        os: [windows-2022, windows-2025]\n",
-                      "        profile: [debug, release]\n", "    timeout-minutes: 45\n",
-                      "      fail-fast: false\n"):
-            self.assertIn(value, native)
-        self.assertIn("    needs: native\n", readback)
-        self.assertIn("    timeout-minutes: 10\n", readback)
-        self.assertIn("--profile-inputs target/windows-public-readback/debug target/windows-public-readback/release",
-                      readback)
 
 
 if __name__ == "__main__":

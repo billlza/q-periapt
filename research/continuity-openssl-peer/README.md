@@ -587,3 +587,37 @@ It preserves the first signatures on retries, refuses another pending operation,
 and keeps historical completion separate from current permission. This record
 model is also used by the local coordinator; the record tests themselves do not
 establish durable or session behavior.
+
+## Explicit one-time publication selection
+
+`one_time_publication.OneTimePublication.decode` accepts only the separate
+`qperiapt-native-one-time-publication/1` advertisement: exactly four roles
+(signed classical, one-time classical, last-resort PQ and one-time PQ), with
+the producer's fixed plan order and canonical Merkle proof order kept distinct.
+Its `verify_selection` requires independently supplied policy pins, policy
+materials, responder device pin, directory checkpoint, current time and explicit
+`required_quality=1`. It verifies current signatures, scope, all four leaves,
+policy permission, generated-plan intent and inventory identities, and exact-public-key
+separation before deriving the existing
+492-byte OneTimeBoth selection and its digest.
+
+This is a public read-only result. It does not issue or validate a directory lease,
+consume a key, create a bootstrap Context or enter an EnrollmentClient. The
+existing Publication, BootstrapBundle and retained QPREGIN1 input admission remain
+reusable-both; their closed schemas have not been widened. Policy verification
+defaults also retain reusable-both selection unless a caller explicitly supplies
+another quality. Witness-required policy still needs its independently pinned
+witness; selection verification performs no witness or storage operation.
+
+The standalone `one_time_publication_checks.py` uses the pinned OpenSSL provider
+to generate real account/device/policy signatures and fresh ML-KEM/X25519 public
+keys. Controls include signed public-key aliases, signed noncanonical Merkle order,
+policy prohibition, explicit-mode downgrade, scope/expiry and malformed inputs.
+The fixture follows the producer's exact SDK/policy/scope/plan intent and generated
+inventory identities. The real Rust counterpart reads that same bounded public
+fixture through `--verify-one-time-publication`, calls the public plan verifier,
+and must return the identical 492-byte selection and 32-byte digest. The existing
+independent interoperability workflow invokes this source check on both native
+architectures; the installed-wheel runner repeats it outside the checkout and
+verifies its module and counterpart hashes. Only public fixtures and results are
+retained. These checks qualify publication selection, not one-time session traffic.

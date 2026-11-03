@@ -145,6 +145,17 @@ jobs:
           cp target/independent-peer-ci/installed/importer-build.stderr target/independent-peer-ci/importer-build.stderr
           cp target/independent-peer-ci/installed/importer-clippy.stdout target/independent-peer-ci/importer-clippy.stdout
           cp target/independent-peer-ci/installed/importer-clippy.stderr target/independent-peer-ci/importer-clippy.stderr
+      - name: Verify explicit signed one-time publication selection
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/one_time_publication_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/one-time-publication \
+            > target/independent-peer-ci/one-time-publication.stdout 2> target/independent-peer-ci/one-time-publication.stderr
+          git diff --exit-code
       - name: Build and lint the public bootstrap importer
         if: github.event_name != 'workflow_dispatch' || inputs.sdk_run_id == ''
         run: |
