@@ -958,8 +958,8 @@ fn directory_import_binds_original_plan_operation_and_each_member() {
     assert!(plan
         .verify_artifact(wire, &other_journal, id, device, policy, 150)
         .is_err());
-    let other_plan =
-        PrekeyPublicationPlan::new([100; 32], interval(), plan.keys()).expect("different directory");
+    let other_plan = PrekeyPublicationPlan::new([100; 32], interval(), plan.keys())
+        .expect("different directory");
     assert!(other_plan
         .verify_artifact(wire, &journal, id, device, policy, 150)
         .is_err());

@@ -1396,12 +1396,10 @@ fn historical_policy_requires_both_signatures_exact_independent_pin_and_canonica
     assert!(pin.verify_historical(&trailing).is_err());
 }
 
-
 // A remote importer uses the same real signed device/policy fixtures as callers;
 // none of its expected context comes from the received manifest.
 fn publication_admission_fixture() -> (Fixture, VerifiedSessionPolicy, ManifestContext) {
-    let (_issuer, issued, pin, runtime) =
-        session_policy_fixture(&[PrekeyQuality::OneTimeBoth]);
+    let (_issuer, issued, pin, runtime) = session_policy_fixture(&[PrekeyQuality::OneTimeBoth]);
     let policy = pin
         .verify(issued.as_bytes(), Arc::clone(&runtime), 150)
         .expect("current independent policy");
@@ -1555,10 +1553,22 @@ fn complete_publication_requires_independent_context_current_identity_and_both_s
         .expect("manifest");
     let proofs = publication_proofs(&issued);
     for (epoch, sdk, suite, directory, validity) in [
-        (2, expected.policy_digest(), expected.suite_digest(), [9; 32], interval()),
+        (
+            2,
+            expected.policy_digest(),
+            expected.suite_digest(),
+            [9; 32],
+            interval(),
+        ),
         (1, [71; 32], expected.suite_digest(), [9; 32], interval()),
         (1, expected.policy_digest(), [72; 32], [9; 32], interval()),
-        (1, expected.policy_digest(), expected.suite_digest(), [73; 32], interval()),
+        (
+            1,
+            expected.policy_digest(),
+            expected.suite_digest(),
+            [73; 32],
+            interval(),
+        ),
         (
             1,
             expected.policy_digest(),
@@ -1586,7 +1596,9 @@ fn complete_publication_requires_independent_context_current_identity_and_both_s
         .issue_roster(
             2,
             interval(),
-            &[f.root.roster_entry(&other_certificate).expect("other member")],
+            &[f.root
+                .roster_entry(&other_certificate)
+                .expect("other member")],
         )
         .expect("other roster");
     let other_pin = AccountPin::new(

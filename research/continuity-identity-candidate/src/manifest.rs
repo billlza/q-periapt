@@ -380,7 +380,6 @@ pub struct VerifiedManifest {
     authority: [u8; 32],
 }
 impl VerifiedDevice {
-
     /// Authenticate a complete remote publication against independently retained
     /// device, policy and manifest expectations. The expected context must not be
     /// copied from the incoming manifest: it pins the epoch, SDK policy, suite,
@@ -476,7 +475,6 @@ impl VerifiedDevice {
     }
 }
 impl VerifiedManifest {
-
     fn verify_publication_members(
         &self,
         proofs: &[LeafProof],

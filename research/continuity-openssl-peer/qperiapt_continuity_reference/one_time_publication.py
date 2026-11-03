@@ -32,6 +32,25 @@ def _proof(wire, expected_index):
 
 
 @dataclass(frozen=True)
+class OneTimePublicationExpectation:
+    """Caller's retained publication/plan pins, never learned from an advertisement."""
+    journal: bytes
+    publication: bytes
+    validity: Interval
+
+    def __post_init__(self):
+        require(type(self.journal) is bytes and len(self.journal) == 32 and any(self.journal),
+                'independent publication journal')
+        require(type(self.publication) is bytes and len(self.publication) == 32 and any(self.publication),
+                'independent publication operation')
+        generation(int.from_bytes(self.publication[:8], 'big'))
+        require(type(self.validity) is Interval
+                and type(self.validity.start) is int and type(self.validity.end) is int
+                and 0 <= self.validity.start < self.validity.end < (1 << 64) - 1,
+                'independent publication plan interval')
+
+
+@dataclass(frozen=True)
 class VerifiedOneTimeSelection:
     """Public verification result, not a bootstrap Context or storage capability."""
     record: bytes
@@ -95,12 +114,17 @@ class OneTimePublication:
                    manifest, intent, requests, tuple(proofs))
 
     def verify_selection(self, policy_pins, policy_materials, responder_pin, directory, now, *,
-                         required_quality, witness_pin=None):
-        """Verify OneTimeBoth with independently supplied authority and time.
+                         expectation, required_quality, witness_pin=None):
+        """Verify OneTimeBoth with independent authority, original plan pins and time.
 
         No implicit mode fallback, directory lease, consumption, Context, retained
         Inputs or EnrollmentClient admission is produced by this operation.
         """
+        require(type(expectation) is OneTimePublicationExpectation,
+                'independent publication expectation required')
+        require(self.journal == expectation.journal, 'one-time publication journal differs')
+        require(self.identity == expectation.publication, 'one-time publication operation differs')
+        expectation.validity.check(now)
         require(type(required_quality) is int and required_quality == 1,
                 'explicit OneTimeBoth selection required')
         require(type(directory) is bytes and len(directory) == 32 and any(directory),
@@ -128,21 +152,22 @@ class OneTimePublication:
                 and r.integer(8) == responder_pin.roster_version
                 and r.take(32) == responder_pin.roster_digest, 'one-time manifest device scope')
         epoch = generation(r.integer(8))
-        require(epoch.to_bytes(8, 'big') == self.identity[:8], 'one-time publication manifest ordinal')
+        require(epoch.to_bytes(8, 'big') == expectation.publication[:8], 'one-time publication manifest ordinal')
         require(r.take(32) == policy.sdk.policy_digest and r.take(32) == SUITE
                 and r.take(32) == directory, 'one-time manifest policy/directory scope')
         validity = Interval.read(r); r.finish(); validity.check(now)
+        require(validity == expectation.validity, 'one-time publication original plan interval')
         require(policy.validity.contains(validity) and device.validity.contains(validity)
                 and device.roster_validity.contains(validity),
                 'one-time manifest authority interval')
-        plan_time = validity.start.to_bytes(8, 'big') + validity.end.to_bytes(8, 'big')
+        plan_time = expectation.validity.start.to_bytes(8, 'big') + expectation.validity.end.to_bytes(8, 'big')
         plan = directory + plan_time + (4).to_bytes(2, 'big') + b''.join(
             bytes([kind]) + plan_time + bytes(33) for kind in ROLES)
         intent = ldh(b'Q-PERIAPT-CONTINUITY-PREKEY-PUBLICATION-INTENT/v1',
                      policy.sdk.wire() + policy.history.checkpoint() + scope + plan)
         require(self.intent == intent, 'one-time publication original plan intent')
         requests = tuple(ldh(b'Q-PERIAPT-CONTINUITY-PUBLICATION-PREKEY/v1',
-                             self.identity + index.to_bytes(2, 'big')) for index in range(4))
+                             expectation.publication + index.to_bytes(2, 'big')) for index in range(4))
         require(self.requests == requests, 'one-time generated inventory identity')
         require(len(self.proofs) == 4, 'one-time publication proof count')
         ordered, members = [], {}
@@ -150,7 +175,7 @@ class OneTimePublication:
             kind, public, leaf_time, leaf, siblings = _proof(proof, index)
             require(kind not in members, 'one-time publication duplicate role')
             leaf_time.check(now)
-            require(leaf_time == validity, 'one-time generated plan leaf interval')
+            require(leaf_time == expectation.validity, 'one-time generated plan leaf interval')
             identity = digest(b'PREKEY-LEAF', scope + leaf)
             node = identity
             for height, sibling in enumerate(siblings):

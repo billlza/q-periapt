@@ -58,7 +58,8 @@ impl PrekeyPublicationPlan {
         if intent != intent_hash {
             return Err(Error::Scope);
         }
-        let length = usize::try_from(u32::from_be_bytes(d.array()?)).map_err(|_| Error::Capacity)?;
+        let length =
+            usize::try_from(u32::from_be_bytes(d.array()?)).map_err(|_| Error::Capacity)?;
         if length != crate::manifest::MANIFEST_WIRE_BYTES {
             return Err(Error::Encoding);
         }

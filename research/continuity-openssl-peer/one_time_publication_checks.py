@@ -27,9 +27,10 @@ def main():
         SUITE, PolicyPins, PolicyMaterials, authenticate_policy)
     from qperiapt_continuity_reference.identity import DevicePin
     from qperiapt_continuity_reference.kem import SdkBinding
-    from qperiapt_continuity_reference.one_time_publication import OneTimePublication
+    from qperiapt_continuity_reference.one_time_publication import (
+        OneTimePublication, OneTimePublicationExpectation)
     from qperiapt_continuity_reference.publication import Publication
-    from qperiapt_continuity_reference.wire import SigningKey, digest, ldh, lp, require
+    from qperiapt_continuity_reference.wire import Interval, SigningKey, digest, ldh, lp, require
 
     def b64(value):
         return base64.urlsafe_b64encode(value).rstrip(b'=').decode()
@@ -54,6 +55,10 @@ def main():
     family = digest(b'POLICY-AUTHORITY', policy_owner.public().raw)
     account_id = digest(b'ACCOUNT', account.public().raw)
     device_id, directory, journal = b'R' * 16, b'D' * 32, b'J' * 32
+    # Retain the caller's operation and plan before producing or parsing public bytes.
+    publication_id = u64(1) + ldh(
+        b'Q-PERIAPT-CONTINUITY-PREKEY-PUBLICATION-ID/v1', journal + u64(1))[:24]
+    expectation = OneTimePublicationExpectation(journal, publication_id, Interval(110, 190))
     certificate_body = (b'QPCERT01' + account_id + device_id + u64(1) + u64(100) + u64(200)
                         + family + device.public().raw)
     certificate = account.sign(1, certificate_body)
@@ -121,7 +126,8 @@ def main():
     pins, materials = policy(1)
     value, proofs, requests, artifact, ids, keys = fixture()
     original = OneTimePublication.decode(wire(value))
-    result = original.verify_selection(pins, materials, responder, directory, 150, required_quality=1)
+    result = original.verify_selection(pins, materials, responder, directory, 150,
+                                       expectation=expectation, required_quality=1)
     expected = b''.join(lp(field) for field in (
         b'Q-PERIAPT-CONTINUITY-PREKEY-SELECTION/v1', b'\0\1', SUITE, account_id, device_id, u64(1),
         credential, u64(1), directory, digest(b'MANIFEST', original.manifest[4:294]),
@@ -142,10 +148,10 @@ def main():
             raise AssertionError('accepted negative control: ' + name)
 
     def verify(raw=value, *, selected_pins=pins, selected_materials=materials, selected_responder=responder,
-               selected_directory=directory, now=150, quality=1):
+               selected_directory=directory, selected_expectation=expectation, now=150, quality=1):
         return OneTimePublication.decode(wire(raw)).verify_selection(
             selected_pins, selected_materials, selected_responder, selected_directory, now,
-            required_quality=quality)
+            expectation=selected_expectation, required_quality=quality)
 
     refused('old-schema-rejects-one-time', lambda: Publication.decode(wire(value)))
     reused, _, _, _, _, _ = fixture(roles=(1, 3))
@@ -165,6 +171,15 @@ def main():
     short_value, _, _, _, _, _ = fixture(policy_pin=short_pins)
     refused('signed-policy-does-not-contain-manifest', lambda: verify(
         short_value, selected_pins=short_pins, selected_materials=short_materials))
+    refused('missing-independent-expectation', lambda: verify(selected_expectation=None))
+    refused('wrong-journal-expectation', lambda: verify(
+        selected_expectation=dataclasses.replace(expectation, journal=b'K' * 32)))
+    other_operation = u64(2) + ldh(
+        b'Q-PERIAPT-CONTINUITY-PREKEY-PUBLICATION-ID/v1', journal + u64(2))[:24]
+    refused('wrong-operation-expectation', lambda: verify(
+        selected_expectation=dataclasses.replace(expectation, publication=other_operation)))
+    refused('wrong-plan-interval-expectation', lambda: verify(
+        selected_expectation=dataclasses.replace(expectation, validity=Interval(111, 189))))
     refused('independent-directory-mismatch', lambda: verify(selected_directory=b'E' * 32))
     refused('independent-roster-mismatch', lambda: verify(
         selected_responder=dataclasses.replace(responder, roster_digest=b'Z' * 32)))
@@ -198,7 +213,7 @@ def main():
         refused(name + '-signature', lambda raw=raw, name=name: verify(dict(value, **{name: b64(raw)})))
     bad_manifest = bytearray(original.manifest); bad_manifest[-1] ^= 1
     refused('manifest-signature', lambda: dataclasses.replace(original, manifest=bytes(bad_manifest)).verify_selection(
-        pins, materials, responder, directory, 150, required_quality=1))
+        pins, materials, responder, directory, 150, expectation=expectation, required_quality=1))
     refused('sdk-signature', lambda: verify(selected_materials=dataclasses.replace(materials, sdk_signature=bytes(3309))))
     refused('policy-signature', lambda: verify(selected_materials=dataclasses.replace(materials, policy=materials.policy[:-1] + bytes([materials.policy[-1] ^ 1]))))
 
@@ -206,6 +221,9 @@ def main():
     output.mkdir()
     public_case = {'schema': 'qperiapt-one-time-publication-fixture/1', 'now': 150,
                    'publication': value, 'directory': list(directory),
+                   'expected_journal': list(expectation.journal),
+                   'expected_publication': list(expectation.publication),
+                   'expected_validity': [expectation.validity.start, expectation.validity.end],
                    'sdk_root': b64(pins.sdk_root), 'sdk_state': b64(pins.sdk_state),
                    'policy_root': b64(pins.policy_root.raw), 'policy_version': pins.policy_version,
                    'policy_digest': list(pins.policy_digest), 'sdk_document': b64(materials.sdk_document),
@@ -214,7 +232,8 @@ def main():
                    'device': list(device_id), 'generation': 1,
                    'selection': b64(result.record), 'selection_digest': list(result.digest)}
     (output / 'PUBLIC_CASE.json').write_text(json.dumps(public_case, sort_keys=True, indent=2) + '\n')
-    fields = (u64(150), u64(110) + u64(190), directory, journal, original.identity, family,
+    fields = (u64(150), u64(expectation.validity.start) + u64(expectation.validity.end),
+              directory, expectation.journal, expectation.publication, family,
               u64(pins.policy_version) + pins.policy_digest,
               account_id + u64(1) + roster_digest + device_id + u64(1), pins.sdk_state,
               document, signature, sdk_root, pins.policy_root.raw, materials.policy,

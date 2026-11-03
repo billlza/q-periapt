@@ -595,8 +595,12 @@ establish durable or session behavior.
 (signed classical, one-time classical, last-resort PQ and one-time PQ), with
 the producer's fixed plan order and canonical Merkle proof order kept distinct.
 Its `verify_selection` requires independently supplied policy pins, policy
-materials, responder device pin, directory checkpoint, current time and explicit
-`required_quality=1`. It verifies current signatures, scope, all four leaves,
+materials, responder device pin, directory checkpoint, current time, a required
+immutable `OneTimePublicationExpectation(journal, publication, validity)` and explicit
+`required_quality=1`. The expectation must come from the caller's retained original
+operation and plan; no missing value defaults to the received advertisement.
+Exact journal, operation ID and plan interval are checked before returning a result.
+It verifies current signatures, scope, all four leaves,
 policy permission, generated-plan intent and inventory identities, and exact-public-key
 separation before deriving the existing
 492-byte OneTimeBoth selection and its digest.
@@ -612,10 +616,12 @@ witness; selection verification performs no witness or storage operation.
 The standalone `one_time_publication_checks.py` uses the pinned OpenSSL provider
 to generate real account/device/policy signatures and fresh ML-KEM/X25519 public
 keys. Controls include signed public-key aliases, signed noncanonical Merkle order,
-policy prohibition, explicit-mode downgrade, scope/expiry and malformed inputs.
+policy prohibition, explicit-mode downgrade, wrong journal/operation/plan expectations,
+scope/expiry and malformed inputs.
 The fixture follows the producer's exact SDK/policy/scope/plan intent and generated
-inventory identities. The real Rust counterpart reads that same bounded public
-fixture through `--verify-one-time-publication`, calls the public plan verifier,
+inventory identities. Its independently retained expectations are created before
+public fixture production or decoding and supply both verifier calls. The real Rust
+counterpart reads that same bounded public fixture through `--verify-one-time-publication`, calls the public plan verifier,
 and must return the identical 492-byte selection and 32-byte digest. The existing
 independent interoperability workflow invokes this source check on both native
 architectures; the installed-wheel runner repeats it outside the checkout and
