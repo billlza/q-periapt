@@ -10,6 +10,8 @@ import subprocess
 import tomllib
 import unittest
 
+from continuity_windows_workflow_paths import event_paths, path_matches, triggered
+
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ".github/workflows/continuity-windows-package.yml"
 
@@ -69,40 +71,6 @@ def validate_provenance(text):
     )
     if any(value not in prepare for value in required):
         raise ValueError("SDK admission must bind the same workflow commit and report")
-
-
-def push_paths(text):
-    header = text.split("\npermissions:\n", 1)[0]
-    match = re.search(r"(?m)^    paths:\n((?:      - [^\n]+\n)+)", header)
-    if match is None or "    paths-ignore:" in header:
-        raise ValueError("expected the explicit push input boundary")
-    return [line.removeprefix("      - ") for line in match[1].splitlines()]
-
-
-def path_matches(pattern, path):
-    # The maintained workflow uses only literal paths, * and **. Unlike
-    # fnmatch, GitHub's single * must not cross a directory separator.
-    if any(character in pattern for character in "!+?[]{}"):
-        raise ValueError("unsupported workflow path pattern")
-    expression, index = "", 0
-    while index < len(pattern):
-        if pattern[index:index + 3] == "**/":
-            expression += "(?:.*/)?"
-            index += 3
-        elif pattern[index:index + 2] == "**":
-            expression += ".*"
-            index += 2
-        elif pattern[index] == "*":
-            expression += "[^/]*"
-            index += 1
-        else:
-            expression += re.escape(pattern[index])
-            index += 1
-    return re.fullmatch(expression, path) is not None
-
-
-def triggered(patterns, path):
-    return any(path_matches(pattern, path) for pattern in patterns)
 
 
 def literal(path, name):
@@ -165,13 +133,14 @@ class WindowsWorkflowInputsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.text = (ROOT / WORKFLOW).read_text(encoding="utf-8")
-        cls.paths = push_paths(cls.text)
+        cls.paths = event_paths(cls.text)["push"]
         cls.inputs = required_inputs(ROOT)
 
     def test_pull_requests_to_the_integration_branch_use_the_same_inputs(self):
         header = self.text.split("\npermissions:\n", 1)[0]
-        push, pr = header.split("\n  pull_request:\n", 1)
-        self.assertEqual(push_paths(push + "\n"), push_paths(pr))
+        _, pr = header.split("\n  pull_request:\n", 1)
+        triggers = event_paths(self.text)
+        self.assertEqual(triggers["push"], triggers["pull_request"])
         self.assertIn("    branches: [lza/windows-private-store]\n", pr)
         self.assertNotIn("pull_request_target:", header)
 

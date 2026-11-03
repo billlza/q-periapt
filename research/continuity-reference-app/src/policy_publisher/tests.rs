@@ -427,9 +427,9 @@ fn policy_publisher_child() -> Result<(), Box<dyn std::error::Error>> {
     Err("Child failed to stop at requested cut".into())
 }
 
-
 #[test]
-fn one_time_policy_keeps_exact_mode_and_original_history() -> Result<(), Box<dyn std::error::Error>> {
+fn one_time_policy_keeps_exact_mode_and_original_history() -> Result<(), Box<dyn std::error::Error>>
+{
     let directory = directory()?;
     let path = directory.path().join("one-time.redb");
     let mut publisher = Publisher::provision(&path, [80; 32], input()?)?;
@@ -478,7 +478,9 @@ fn disabled_sdk_refuses_both_nonempty_bootstrap_modes_before_intent(
         .enumerate()
     {
         let mut publisher = Publisher::provision(
-            &directory.path().join(format!("disabled-protocol-{index}.redb")),
+            &directory
+                .path()
+                .join(format!("disabled-protocol-{index}.redb")),
             [84; 32],
             disabled.clone(),
         )?;

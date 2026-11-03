@@ -609,10 +609,16 @@ pub(super) fn verify_one_time_publication(path: &Path) -> Result<Vec<u8>> {
     if runtime.trusted_state().encode() != sdk_state {
         return Err("publication fixture SDK pin".into());
     }
-    let policy =
-        PolicyPin::new(family, policy_root, policy_checkpoint)?.verify(&policy_wire, runtime, now)?;
-    let device = AccountPin::new(account, account_root, roster_checkpoint, family)?
-        .verify_device(&certificate, &roster, now)?;
+    let policy = PolicyPin::new(family, policy_root, policy_checkpoint)?.verify(
+        &policy_wire,
+        runtime,
+        now,
+    )?;
+    let device = AccountPin::new(account, account_root, roster_checkpoint, family)?.verify_device(
+        &certificate,
+        &roster,
+        now,
+    )?;
     if device.device_id() != expected_device || device.generation() != expected_generation {
         return Err("publication fixture device pin".into());
     }

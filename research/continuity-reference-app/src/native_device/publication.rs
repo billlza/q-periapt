@@ -22,10 +22,9 @@ impl PublicationPlan {
     /// rechecks live policy and time again at every publication release boundary.
     pub fn verify(&self, now: u64) -> Result<sdk::PrekeyPublicationPlan> {
         let kinds: &[sdk::LeafKind] = match self.schema.as_str() {
-            "qperiapt-native-publication-plan/1" => &[
-                sdk::LeafKind::SignedClassical,
-                sdk::LeafKind::LastResortPq,
-            ],
+            "qperiapt-native-publication-plan/1" => {
+                &[sdk::LeafKind::SignedClassical, sdk::LeafKind::LastResortPq]
+            }
             "qperiapt-native-one-time-publication-plan/1" => &[
                 sdk::LeafKind::SignedClassical,
                 sdk::LeafKind::OneTimeClassical,
@@ -133,7 +132,10 @@ fn publication_profile(
 ) -> Result<(&'static str, sdk::PrekeyQuality)> {
     let kinds: Vec<_> = plan.keys().iter().map(|key| key.kind() as u8).collect();
     match kinds.as_slice() {
-        [1, 3] => Ok(("qperiapt-native-publication/1", sdk::PrekeyQuality::ReusableBoth)),
+        [1, 3] => Ok((
+            "qperiapt-native-publication/1",
+            sdk::PrekeyQuality::ReusableBoth,
+        )),
         [1, 2, 3, 4] => Ok((
             "qperiapt-native-one-time-publication/1",
             sdk::PrekeyQuality::OneTimeBoth,
