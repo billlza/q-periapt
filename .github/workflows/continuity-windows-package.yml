@@ -3,29 +3,69 @@ name: Installed Windows Continuity lifecycle
 on:
   push:
     branches: [lza/windows-private-store]
+    # SDK packaging reads the workspace, public fixtures and fuzz audit inputs.
+    # Artifact helpers form one maintained boundary, including transitive readers.
     paths:
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain*
+      - .cargo/**
+      - .gitattributes
+      - .gitignore
+      - crates/**
+      - ctstats/Cargo.toml
+      - models/*/Cargo.toml
+      - services/*/Cargo.toml
+      - fuzz/Cargo.toml
+      - fuzz/Cargo.lock
+      - README.md
+      - LICENSE*
+      - LICENSES/**
       - .github/workflows/continuity-windows-package.yml
-      - artifact/continuity_windows_*.py
-      - artifact/test_continuity_windows_*.py
-      - artifact/bounded_process.py
-      - artifact/continuity_c_*.py
-      - artifact/test_continuity_c_consumer.py
-      - artifact/test_continuity_c_root*.py
-      - artifact/continuity_connection_public.py
+      - artifact/**
       - research/continuity-identity-candidate/**
-      - artifact/installed_rust_graph.py
-      - artifact/continuity_package.py
-      - artifact/continuity_fetch.py
-      - artifact/test_continuity_fetch.py
-      - artifact/continuity_package_archive.py
       - bindings/c/ContinuityPackageConsumer/**
+      - bindings/rust/SDKPackageConsumer/**
+      - bindings/*-vectors.json
 
 permissions:
   contents: read
   actions: read
 
 jobs:
+  sdk-package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: clippy
+      - name: Install the scoped audit tool
+        run: cargo +1.98.1 install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/sdk-package-tools"
+      - name: Produce and verify SDK archives from this checkout
+        run: |
+          PATH="$RUNNER_TEMP/sdk-package-tools/bin:$PATH"
+          export PATH
+          sh artifact/rust-publish-contract.sh --profile sdk-020 --output target/sdk-rust-package
+      - name: Preserve SDK archives and producer evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: windows-sdk-package
+          path: |
+            target/sdk-rust-package/crates/*.crate
+            target/sdk-rust-package/*.json
+            target/sdk-rust-package/*.stdout
+            target/sdk-rust-package/*.stderr
+            target/sdk-rust-package/consumer-Cargo.lock
+          if-no-files-found: error
+
   prepare:
+    needs: sdk-package
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -41,8 +81,8 @@ jobs:
           python-version: "3.14.7"
           check-latest: false
           update-environment: false
-      # Reuse the completed SDK producer, not the still-running full lifecycle job.
-      # Every consumed archive hash and source member must match this checkout.
+      # The completed same-run producer owns the exact SDK source identity.
+      # Archive hashes and source members still have to match this checkout.
       - name: Check public C export and substitution refusals
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
@@ -52,17 +92,16 @@ jobs:
           sh artifact/python-run.sh artifact/test_continuity_fetch.py
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: rust-sdk-package
-          run-id: 39078307221
-          github-token: ${{ github.token }}
+          name: windows-sdk-package
           path: target/windows-sdk-input
       - name: Package candidate against admitted SDK archives
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_SDK_COMMIT: ${{ github.sha }}
         run: |
           sh artifact/python-run.sh artifact/continuity_windows_prepare.py \
-            --report target/windows-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json \
-            --sdk-commit a2b819728032d44c350859fdd3ed4a4fee9e6341 \
+            --report target/windows-sdk-input/RUST_SDK_PACKAGE.json \
+            --sdk-commit "$EXPECTED_SDK_COMMIT" \
             --output target/windows-installed-input
       - name: Preserve archive closure and producer results
         if: always()
