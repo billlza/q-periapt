@@ -37,8 +37,22 @@ pub(crate) const SIGNATURE_BYTES: usize = ML_DSA_65_SIG_LEN + CLASSIC_SIGNATURE_
 pub(crate) use crate::contract::MAX_SIGNED_BODY_BYTES;
 use crate::contract::SIGNATURE_CONTEXT;
 
-#[derive(Clone, Copy)]
-pub(crate) enum Purpose {
+// Keep the byte used by signing/verification and the exported contract
+// inventory in one declaration. Adding a purpose must extend both together.
+macro_rules! signature_purposes {
+    ($($name:ident = $value:literal,)+) => {
+        #[derive(Clone, Copy)]
+        #[repr(u8)]
+        pub(crate) enum Purpose {
+            $($name = $value,)+
+        }
+        pub(crate) const SIGNATURE_PURPOSES: &[(&str, u8)] = &[
+            $((stringify!($name), Purpose::$name as u8),)+
+        ];
+    };
+}
+
+signature_purposes! {
     Credential = 1,
     Roster = 2,
     Manifest = 3,

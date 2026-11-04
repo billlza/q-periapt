@@ -126,8 +126,12 @@ properties. The 2026-10-31 product decision includes an accountable lease protoc
 and directory reference implementation in **0.2.0**. The [candidate directory contract](../../research/continuity-reference-app/DIRECTORY_LEASES.md)
 now defines pinned hybrid service signatures, immutable operation retry, durable
 one-time reservations, cancellation, expiry and portable conflict evidence.
-The reference ledger and local operator commands implement this contract.
-Independent qualification and final product admission are tracked separately.
+The reference ledger and local operator commands implement this contract. The
+[real CLI cross-check](../../research/sdk-alpha1/evidence/20261104-directory-cli-crosscheck/README.md)
+qualifies source and installed-wheel verification of the same service-produced
+bytes, including lost output, exact retry, cancellation history and canonical
+conflicts. Its CLI producer remains source-built; deployed authorization/freshness
+delivery, final package qualification and product admission remain separate.
 
 The native reference command [`verify-publication`](../../research/continuity-reference-app/NATIVE_DEVICE.md)
 now imports a complete `QPPUBA01` advertisement for an explicitly selected
@@ -191,9 +195,12 @@ now implements that governor through actual journal admission. Its v6
 adds signed requests and exact-target steps for an idle proposer. The optional
 [native TLS carrier](../../research/continuity-identity-candidate/CONTROL_TLS.md)
 delivers them with explicit per-invocation retry and deadline bounds, cancellation
-and exact committed replay. Cross-host and multi-session scheduling, installed
-language integration and the chosen product budget remain implementation and
-qualification requirements.
+and exact committed replay. The [installed language integration](PRODUCT_ADMISSION.md)
+has implemented owners and scoped lifecycle qualifications. Current-source platform
+and cross-host qualification remain separate. Product-level multi-session
+scheduling and measured budget selection are still explicit open items; the
+existing adapters are not new implementation work merely because the protocol
+is still a candidate.
 Network loss remains an explicit liveness assumption in the recovery condition.
 The [recovery-condition ledger](RECOVERY_CONDITIONS_V1.md) distinguishes pending
 entropy reservations, identity/RNG compromise, active intervention and rollback;
@@ -247,16 +254,18 @@ generation and authenticates its enrollment and prior-generation retirement.
 1. Product adoption of the implemented hybrid signature/credential and witness
    formats, authenticated enrollment/root replacement, the trusted-time source and
    independently fresh/consistent directory checkpoint distribution.
-2. Product manifest/leaf/mode and retention selection, and completion of the
-   accountable lease protocol and directory reference implementation selected for
-   0.2.0 on 2026-10-31, including linkability and independent SDK/service validation.
-   The candidate's existing exact grammar and local one-time consumption do not
-   substitute for this required delivery.
+2. Product adoption of the implemented manifest/leaf/mode, retention and
+   accountable-directory contracts selected for 0.2.0 on 2026-10-31. Preserve the
+   actual service/SDK/independent receipt evidence above while completing the
+   deployed authorization/freshness, linkability and final-package boundary.
 3. Agreement and key-compromise impersonation analysis for the implemented
    non-circular bootstrap graph and stage-specific confirmation privileges.
 4. Measured ratchet/profile selection, product padding or explicit no-padding
    policy, resource/cadence limits and construction-specific recovery analysis.
-   Current v6 full-hybrid rekey progress is not itself that analysis.
+   Current v6 full-hybrid rekey progress is not itself that analysis. The
+   [joint multi-epoch symbolic result](RECOVERY_DEPENDENCIES_V1.md#multi-epoch-symbolic-successor)
+   and [conditional computational argument](COMPUTATIONAL_RECOVERY_V1.md) retain
+   their separate assumptions and remaining obligations.
 5. Product admission of the implemented ownership/intent/witness/revocation and
    single-sender fanout contracts, with complete authority/key/device renewal,
    backup/upgrade semantics and independent deployment verification.

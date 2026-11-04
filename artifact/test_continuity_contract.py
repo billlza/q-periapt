@@ -20,6 +20,47 @@ class ContinuityWireContractTests(unittest.TestCase):
             with self.subTest(limit=name), self.assertRaisesRegex(ValueError, "compiled contract differs"):
                 contract.compare(self.expected, changed)
 
+    def test_each_signature_purpose_change_or_omission_is_rejected(self):
+        for name in self.expected["signature_purposes"]:
+            for change in ("number", "remove", "rename"):
+                changed = copy.deepcopy(self.expected)
+                purposes = changed["signature_purposes"]
+                if change == "number":
+                    purposes[name] += 128
+                elif change == "remove":
+                    del purposes[name]
+                else:
+                    purposes[name + "Changed"] = purposes.pop(name)
+                with self.subTest(purpose=name, change=change), self.assertRaisesRegex(
+                    ValueError, "compiled contract differs"
+                ):
+                    contract.compare(self.expected, changed)
+        changed = copy.deepcopy(self.expected)
+        changed["signature_purposes"]["UnreviewedPurpose"] = 255
+        with self.assertRaisesRegex(ValueError, "compiled contract differs"):
+            contract.compare(self.expected, changed)
+
+    def test_invalid_or_repeated_signature_purpose_bytes_are_rejected(self):
+        for value in (True, 1.0, 0, -1, 256, "1"):
+            changed = copy.deepcopy(self.expected)
+            changed["signature_purposes"]["Credential"] = value
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "purpose name or byte"):
+                contract.compare(changed, copy.deepcopy(changed))
+        for purposes in ({}, [], {"bad name": 1}, {"First": 1, "Second": 1}):
+            changed = copy.deepcopy(self.expected)
+            changed["signature_purposes"] = purposes
+            with self.subTest(purposes=purposes), self.assertRaisesRegex(ValueError, "purpose"):
+                contract.compare(changed, copy.deepcopy(changed))
+
+    def test_old_descriptor_does_not_qualify_the_complete_purpose_contract(self):
+        changed = copy.deepcopy(self.expected)
+        changed["schema_version"] = 1
+        with self.assertRaisesRegex(ValueError, "contract schema differs"):
+            contract.compare(changed, copy.deepcopy(changed))
+        del changed["signature_purposes"]
+        with self.assertRaisesRegex(ValueError, "contract fields differ"):
+            contract.compare(changed, copy.deepcopy(changed))
+
     def test_boolean_float_empty_and_unknown_limits_are_not_integers(self):
         for value in (True, 1.0, 0, -1, 2**32, "16384"):
             changed = copy.deepcopy(self.expected)

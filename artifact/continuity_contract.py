@@ -6,14 +6,15 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 
 from bounded_process import capture_output
 from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 
 ROOT = Path(__file__).resolve().parent.parent
 BUDGETS = ROOT / "docs/continuity/BUDGETS_V1.json"
-FIELDS = {"schema_version", "frozen_product_contract", "signature_context", "rekey_profile",
-          "rekey_profile_sha3_256", "message_domain", "maximums"}
+FIELDS = {"schema_version", "frozen_product_contract", "signature_context", "signature_purposes",
+          "rekey_profile", "rekey_profile_sha3_256", "message_domain", "maximums"}
 LIMITS = {
     "signed_body_bytes", "bootstrap_bundle_bytes", "bootstrap_field_bytes", "plaintext_bytes",
     "associated_data_bytes", "skipped_keys_per_direction_epoch", "outstanding_messages_per_direction_epoch",
@@ -30,7 +31,7 @@ def require(value: bool, message: str) -> None:
 
 def validate(value: object) -> dict:
     require(type(value) is dict and set(value) == FIELDS, "contract fields differ")
-    require(type(value["schema_version"]) is int and value["schema_version"] == 1,
+    require(type(value["schema_version"]) is int and value["schema_version"] == 2,
             "contract schema differs")
     require(value["frozen_product_contract"] is False, "candidate cannot claim a product freeze")
     for name in ("signature_context", "rekey_profile", "rekey_profile_sha3_256", "message_domain"):
@@ -41,6 +42,13 @@ def validate(value: object) -> dict:
     require(type(bounds) is dict and set(bounds) == LIMITS, "contract limit fields differ")
     require(all(type(n) is int and 0 < n <= 2**32-1 for n in bounds.values()),
             "contract limit is not a positive bounded integer")
+    purposes = value["signature_purposes"]
+    require(type(purposes) is dict and 0 < len(purposes) <= 255,
+            "signature purpose inventory is empty or oversized")
+    require(all(type(name) is str and re.fullmatch(r"[A-Z][A-Za-z0-9]{0,63}", name)
+                and type(number) is int and 0 < number <= 255
+                for name, number in purposes.items()), "signature purpose name or byte is invalid")
+    require(len(set(purposes.values())) == len(purposes), "signature purpose bytes are repeated")
     domain = b"Q-PERIAPT-CONTINUITY-REKEY-CANDIDATE/v1/offer-profile"
     body = value["rekey_profile"].encode("ascii")
     digest = hashlib.sha3_256(len(domain).to_bytes(8, "big") + domain

@@ -7,11 +7,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect::<String>();
+    let purposes = c::SIGNATURE_PURPOSES
+        .iter()
+        .map(|(name, value)| format!("\"{name}\":{value}"))
+        .collect::<Vec<_>>()
+        .join(",");
     println!(
         concat!(
-            "{{\"schema_version\":1,\"frozen_product_contract\":false,",
+            "{{\"schema_version\":2,\"frozen_product_contract\":false,",
             "\"signature_context\":\"{}\",\"rekey_profile\":\"{}\",",
             "\"rekey_profile_sha3_256\":\"{}\",\"message_domain\":\"{}\",",
+            "\"signature_purposes\":{{{}}},",
             "\"maximums\":{{\"signed_body_bytes\":{},\"bootstrap_bundle_bytes\":{},",
             "\"bootstrap_field_bytes\":{},\"plaintext_bytes\":{},\"associated_data_bytes\":{},",
             "\"skipped_keys_per_direction_epoch\":{},\"outstanding_messages_per_direction_epoch\":{},",
@@ -24,6 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::str::from_utf8(c::REKEY_PROFILE)?,
         profile,
         std::str::from_utf8(c::MESSAGE_DOMAIN)?,
+        purposes,
         c::MAX_SIGNED_BODY_BYTES,
         c::MAX_BOOTSTRAP_BUNDLE_BYTES,
         c::MAX_BOOTSTRAP_FIELD_BYTES,
