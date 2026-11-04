@@ -1,11 +1,12 @@
 # External security review preparation
 
 Planning snapshot: 2026-11-04. This prepares the independent review required by
-[the 0.2.0 release scope](RELEASE_0_2_SCOPE.md). The user confirmed on this date
-that a review team is already designated or commissioned. Its name, agreed scope
-and material requirements have not yet been supplied here. This task has not
-contacted that team or initiated an engagement; no new engagement, fee or release
-transaction is authorized by this document. The runtime qualification
+[the 0.2.0 release scope](RELEASE_0_2_SCOPE.md). The user identified **魏庄坤教授**
+as the designated reviewer on this date. No narrower agreed scope or special
+material requirements were supplied, so the proposed scope below follows the
+existing release commitments. A source-bound review report, findings and fix
+rechecks have not yet been supplied in this task. This task has not contacted the
+reviewer or transmitted the materials. The runtime qualification
 source reference is `4effa8b2b25e7403ab912b65894a7d1e73695542`, including
 publication maintenance implementation `f560d803c43a24fff222daa5e5e5bd623bfdf874`; it is not the frozen
 review candidate. Re-pin the source, contracts and package identities together
@@ -27,24 +28,20 @@ counterexample. Review must still establish the actual prefix distribution,
 implementation correspondence and HMAC instantiation before using it for the
 declared protocol claim.
 
-## Published reference engagements
+## Handoff to 魏庄坤教授
 
-These sources were collected before confirmation of the existing review team.
-They remain reference material for scoping, not a selection or commissioning of
-another reviewer. Their relevance is inferred from published work and does not
-establish the expertise or commitment of the user's actual assigned team.
+The handoff should identify one exact review revision and provide a short reading
+order: declared security/recovery claims; the symbolic and computational proof
+boundaries; wire/state/storage contracts and their implementation correspondence;
+then package, process-interruption, platform and resource evidence. The materials
+must expose unresolved premises and unsuccessful observations alongside passed
+checks. The current preparation is not a record that the designated reviewer
+has accepted these claims or completed their assessment.
 
-| Published source | Relevant primary evidence | Scoping matters illustrated |
-| --- | --- | --- |
-| Trail of Bits | Its [cryptography service](https://trailofbits.com/services/cryptography) lists post-quantum protocols, Rust implementations, threat-model work and automated protocol verification. This makes a combined construction/implementation engagement worth investigating. | Named expertise in multi-epoch recovery, hybrid/HKDF composition and leakage from retained entropy/signing reservations; coverage of the Rust journal and Witness lifecycle in the same scope. |
-| NCC Group | The [Entropy/Rust report](https://www.nccgroup.com/media/bq2gfxb3/_ncc_group_entropycryptography_e008526_report_2023-08-25_v10.pdf) covers Rust cryptographic libraries, specification comparison, signature/serialization findings and timing analysis. The [WhatsApp Contacts report](https://www.nccgroup.com/media/3ckm2llr/ncc_group_metaplatforms_2024-10-11_v11.pdf) covers identity-linked storage, new-device recovery and a key directory, with separate design and implementation phases. | PQ multi-epoch analysis and non-HSM local persistence/unknown-commit recovery. The Contacts report explicitly excludes PQ implementation review (page 46); it is not evidence of that qualification. |
-| Least Authority | Its [MDK report of 20 March 2026](https://leastauthority.com/wp-content/uploads/2026/03/Least-Authority-White-Noise-MDK-Final-Audit-Report.pdf) identifies Rust messaging-SDK issues involving identity binding, authorization, stale state, commit races, persistence and retrying the same event ID. | PQ construction-analysis staffing; explicit redb/IndexedDB, crash-boundary and Witness-transfer coverage. That report excludes flexible storage and decentralized communication from its stated scope. Its same-ID retry suggestion was closed through clarified documentation rather than implemented retry (pages 60–61); Q-Periapt's required exact-recovery contract cannot be closed that way. |
-
-Do not infer fees, schedule, acceptance, certification or complete capability
-from these sources. A proposal must identify the assigned specialists, methods,
-scope exclusions, report terms and fix-verification allowance. No new external
-account, repository access, credentials or paid resources should be provisioned
-as part of this preparation.
+Record the reviewer's actual assessed scope, methods, assumptions, exclusions,
+source revision, findings and subsequent fix rechecks. Retain each finding's
+reproduction or reasoning and its disposition. A designation alone does not
+close the external-review gate or authorize a release transaction.
 
 ## Proposed technical scope
 
@@ -98,7 +95,7 @@ product acceptance work even when a reviewer considers their security aspects.
    Keep the computational argument and implementation-correspondence gaps
    visible rather than presenting the symbolic replay as their completion.
 
-The handoff to the existing review team should require a source-bound report with
+The handoff to 魏庄坤教授 should require a source-bound report with
 scope, methods, assumptions, findings, reproducible evidence, impact and fixes;
 explicitly record inconclusive areas and remaining risk. Findings affecting a
 declared security promise must be fixed and rechecked before release. Agree on
