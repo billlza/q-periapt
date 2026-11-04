@@ -109,7 +109,7 @@ protocol candidate and lifecycle model do not supply missing definitions:
 Until then, code in the model directory remains test-only and no product crate or
 binding may depend on it.
 
-[External review preparation](EXTERNAL_REVIEW_BRIEF.md) records the proposed
-security scope, primary-source reviewer candidates, required materials and open
-evidence boundaries. It is a planning document, not a completed independent
-review or release authorization.
+[External review preparation](EXTERNAL_REVIEW_BRIEF.md) records the handoff to the
+designated reviewer, 魏庄坤教授, the proposed security scope, required materials
+and open evidence boundaries. It is a planning document, not a completed
+independent review or release authorization.
