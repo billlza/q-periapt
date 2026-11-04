@@ -1,6 +1,8 @@
 """Installed graph rejection controls; synthetic metadata is not runtime evidence."""
 import copy
+import os
 from pathlib import Path
+import subprocess
 import tempfile
 import tomllib
 import unittest
@@ -24,6 +26,46 @@ def metadata(root):
 
 
 class IndependentPackageTests(unittest.TestCase):
+    def test_selected_clippy_does_not_execute_cache_or_path_proxies(self):
+        # Synthetic process-routing control; actual compiler/runtime evidence is
+        # produced by the installed counterpart, never by these tiny programs.
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            toolchain, cache = root / "selected", root / "cache"
+            for directory in (toolchain / "bin", cache / "bin"):
+                directory.mkdir(parents=True)
+            for name in ("cargo-clippy", "clippy-driver"):
+                path = toolchain / "bin" / name
+                path.write_text("#!/bin/sh\nset -eu\nprintf '%s\\n' '"
+                                + installed.CLIPPY_VERSION + "'\n")
+                path.chmod(0o700)
+                proxy = cache / "bin" / name
+                proxy.write_text("#!/bin/sh\nset -eu\nprintf invoked > \"$PROXY_MARKER\"\nexit 91\n")
+                proxy.chmod(0o700)
+            environment = {"PATH": str(cache / "bin") + os.pathsep + "/usr/bin:/bin",
+                           "CARGO_HOME": str(cache), "PROXY_MARKER": str(root / "proxy-invoked")}
+            calls = []
+            def run(argv, label):
+                calls.append((argv, label))
+                result = subprocess.run(argv, env=environment, stdin=subprocess.DEVNULL,
+                                        capture_output=True, timeout=5, check=True)
+                self.assertEqual(result.stderr, b"")
+                return result.stdout
+            command, versions = installed.qualified_clippy(toolchain, run)
+            self.assertEqual(command, [str(toolchain / "bin/cargo-clippy"), "clippy"])
+            self.assertEqual(versions, {"frontend": installed.CLIPPY_VERSION, "driver": installed.CLIPPY_VERSION})
+            self.assertEqual([argv for argv, _ in calls], [command + ["--version"],
+                              [str(toolchain / "bin/clippy-driver"), "--version"]])
+            self.assertFalse((root / "proxy-invoked").exists())
+
+    def test_each_clippy_version_must_match_the_selected_compiler(self):
+        correct = (installed.CLIPPY_VERSION + "\n").encode()
+        for changed in (b"clippy 0.1.99 (58cf8f9c35 2026-10-13)\n", b"", correct + correct):
+            for label in ("clippy-version", "clippy-driver-version"):
+                with self.subTest(version=changed, label=label), self.assertRaisesRegex(ValueError, "Clippy compiler differs"):
+                    installed.qualified_clippy(Path("/selected"),
+                        lambda argv, current: changed if current == label else correct)
+
     def test_partial_or_malformed_ci_selection_cannot_fall_back_to_source_build(self):
         self.assertFalse(installed.validate_sdk_selection("", ""))
         self.assertTrue(installed.validate_sdk_selection("39129232908", "a" * 64))
