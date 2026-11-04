@@ -6445,3 +6445,43 @@ covering Python source/installed wheel with source-built Rust counterparts.
 Neither PR head changed. No push, rerun or new wave was initiated; the next wave
 still waits for the effective wave to become terminal, with the local READY
 correction and the already classified bounded reruns tracked separately.
+
+The [staging-maintenance protocol experiment](../research/sdk-alpha1/evidence/20261104-staging-maintenance-protocol/README.md)
+advances the existing maintenance design without changing product code. A real
+installed `publish_private_directory` execution demonstrates that a hypothetical
+cleaner holding the old directory descriptor can delete a child after that same
+directory has become formal. The SDK has no such cleaner today; this is a
+counterexample to a proposed cleanup strategy, not a newly observed product
+data-loss defect. Source comparison confirms all 22 installed host-store Rust
+files match `c64a0248`, and all 1,037 copied installed package files remain unchanged.
+
+A separate control-directory record and continuous `LockedFileBackend` lease
+complete twelve basic experimental cases, including eleven recorded real owner
+SIGKILLs, four file/directory publication states, six malformed/substitution
+controls and a pre-metadata interruption. A separate active-lease replacement
+case confirms that a new unlocked file at the old lease name does not authorize
+cleanup while the original lease/owner still exists. These are Apple Silicon
+protocol experiments with a closed one-file tree, not general recursive cleanup
+or product/platform admission.
+
+The extended aggregate **fails** at a valid zero-byte payload after the metadata
+barrier: the existing operational opener returns `PrivateFileError` and leaves
+the original bound payload intact. That rejection is correct for normal storage.
+The next implementation requires an internal disposable-payload admission under
+the original record/lease, without relaxing existing operational opens. The
+failed aggregate is retained and is not replaced by the separate successful
+control. Per-attempt product integration, bounded recursive preflight, control
+record retirement/unknown-result semantics, pre-metadata residue bounds and
+platform adapters remain open.
+
+Two preparation compiler failures and the original selected-toolchain LLVM loader
+warning are retained. Explicit error typing and a child-process-only search for
+the same existing toolchain library resolve them; the subsequent experimental
+revisions pass Release build and strict Clippy with warnings denied. The
+193-member capture is reread, including a review which explicitly keeps
+`extended_aggregate_passed` and `product_maintenance_implemented` false. Capture
+SHA-256: `d931c617c7ba7af47d786dcca88f1c5a27969e304f0e08f29db3a5d19d661a7a`.
+
+At 15:27:43 UTC the current-head CI census is 275 successful, 47 queued, one
+running, seven failed and two skipped jobs. The failures and PR heads are
+unchanged. No push, rerun or new CI wave was initiated.

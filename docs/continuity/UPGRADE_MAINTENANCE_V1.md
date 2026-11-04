@@ -109,6 +109,16 @@ a filename prefix or a prior error receipt is insufficient. The concrete orphan
 maintenance procedure remains an admission gap already recorded in
 [product admission](PRODUCT_ADMISSION.md), not a new unbounded cleanup project.
 
+The [isolated maintenance protocol experiment](../../research/sdk-alpha1/evidence/20261104-staging-maintenance-protocol/README.md)
+reproduces why a pinned staging-directory descriptor alone is insufficient:
+after publication it still refers to the formal directory. A separate continuous
+control lease protects the tested file/directory cases, but the extended aggregate
+fails when the existing operational opener refuses a valid empty unpublished
+payload. That normal-store refusal remains correct. A future internal cleanup
+admission must retain the original record/lease, ownership, ACL, link and inode
+checks while handling that disposable state. The experiment has not been added
+to product publication paths and does not authorize cleanup of old residues.
+
 The existing security policy supports the latest verified ABI 2 publication set
 while its receipt selects it as current. This document does not invent an LTS
 duration or extend preview support. Each future supported update must publish its
