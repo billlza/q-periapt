@@ -125,6 +125,25 @@ class ProgramPlanTests(unittest.TestCase):
             plan.reopened('approved', self.root / 'after')
         self.assertEqual(plan.index, 0)
 
+    def test_unknown_outcome_cuts_cannot_be_omitted_or_moved(self):
+        self.load()
+        for mode in ('peer-before', 'peer-after'):
+            with self.subTest(mode=mode):
+                with self.assertRaisesRegex(ValueError, 'exact restart census'):
+                    NativeProgramPlan(self.path, self.initial, mode)
+                value = copy.deepcopy(self.value)
+                value['restarts'].insert(4, {'case': 'unknown-send', 'program': 'before'})
+                self.path.write_text(json.dumps(value))
+                plan = NativeProgramPlan(self.path, self.initial, mode)
+                current = self.initial
+                for step in value['restarts']:
+                    selected, _ = plan.select(step['case'], current)
+                    plan.reopened(step['case'], selected); current = selected
+                self.assertEqual(plan.finish()['scenario'], mode)
+                with self.assertRaisesRegex(ValueError, 'exact restart census'):
+                    NativeProgramPlan(self.path, self.initial, 'peer')
+                self.load()
+
     def test_duplicate_json_fields_and_wrong_fixture_mode_are_refused(self):
         self.path.write_text('{"schema_version":1,"schema_version":1}')
         with self.assertRaisesRegex(ValueError, 'duplicate JSON key'):
@@ -133,7 +152,7 @@ class ProgramPlanTests(unittest.TestCase):
                    str(SOURCE / 'enrollment_session_checks.py'), '--implementation-root', str(self.root),
                    '--provider-root', str(self.root), '--native', str(self.initial),
                    '--output', str(self.root / 'output'), '--native-restart-program-plan', str(self.path),
-                   '--root-successor-process-restart', 'peer-before']
+                   '--root-successor-process-restart', 'peer-root-continuation']
         result = subprocess.run(command, capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 2)
         self.assertIn(b'requires --root-successor-process-restart peer', result.stderr)

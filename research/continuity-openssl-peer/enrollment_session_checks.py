@@ -329,7 +329,7 @@ def main():
     root_mode.add_argument('--root-successor-cancellation',nargs='?',const='all',choices=('all','owner','registry'))
     root_mode.add_argument('--root-successor-process-restart', choices=('peer','peer-credential','peer-before','peer-after','peer-root-continuation'))
     parser.add_argument('--native-restart-program-plan', type=Path,
-                        help='source-bound two-program plan; requires --root-successor-process-restart peer')
+                        help='source-bound two-program plan; requires --root-successor-process-restart peer, peer-before or peer-after')
     root_mode.add_argument('--root-successor-later-cuts', nargs='?', const='all', choices=('all','bind','retire'))
     root_mode.add_argument('--root-winner-adoption',choices=('bound-fresh','bound-reuse','unbound-fresh','unbound-reuse',
                                                           'cross-application','bound-reuse-continue','bound-reuse-restart'))
@@ -347,8 +347,8 @@ def main():
                                                              'partial', 'partial-bound', 'partial-intent',
                                                              'tamper-head', 'tamper-binding', 'tamper-intent'))
     args = parser.parse_args(); args.implementation_root = args.implementation_root.resolve(strict=True)
-    if args.native_restart_program_plan is not None and args.root_successor_process_restart != 'peer':
-        parser.error('--native-restart-program-plan requires --root-successor-process-restart peer')
+    if args.native_restart_program_plan is not None and args.root_successor_process_restart not in ('peer', 'peer-before', 'peer-after'):
+        parser.error('--native-restart-program-plan requires --root-successor-process-restart peer, peer-before or peer-after')
     if args.root_successor_process_restart is not None:args.root_successor=args.root_successor_process_restart
     if args.root_retirement is not None: args.root_child_inspection=args.root_retirement
     if args.root_successor is not None:
@@ -386,7 +386,8 @@ def main():
     args.native_program_plan = None
     if args.native_restart_program_plan is not None:
         from native_program_plan import NativeProgramPlan
-        args.native_program_plan = NativeProgramPlan(args.native_restart_program_plan, args.native)
+        args.native_program_plan = NativeProgramPlan(args.native_restart_program_plan, args.native,
+                                                     args.root_successor_process_restart)
     sources={str(path):hashlib.sha256(path.read_bytes()).hexdigest()
              for path in (args.implementation_root/'qperiapt_continuity_reference').glob('*.py')}
     sources.update({str(path):hashlib.sha256(path.read_bytes()).hexdigest() for path in helper_root.glob('*.py')})

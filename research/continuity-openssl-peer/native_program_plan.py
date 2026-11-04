@@ -12,6 +12,7 @@ from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 
 CUTS = ('approved', 'reply', 'final', 'active', 'receive', 'outbox', 'ack',
         'rekey-response', 'rekey-receipt', 'new-epoch')
+MODES = ('peer', 'peer-before', 'peer-after')
 
 
 def require(condition, message):
@@ -31,7 +32,10 @@ def snapshot(path, maximum=16 * 1024**2):
 
 
 class NativeProgramPlan:
-    def __init__(self, path, initial):
+    def __init__(self, path, initial, mode='peer'):
+        require(mode in MODES, 'unsupported successor scenario')
+        self.mode = mode
+        cuts = CUTS if mode == 'peer' else CUTS[:4] + ('unknown-send',) + CUTS[4:]
         self.path = canonical(str(path))
         captured = snapshot(self.path, 64 * 1024)
         self.sha256 = captured.sha256
@@ -64,8 +68,8 @@ class NativeProgramPlan:
                     for key in ('executable', 'sha256', 'source_commit')), 'programs must be distinct builds')
         require(canonical(str(initial)) == Path(self.programs['before']['executable']), 'initial executable differs')
         self.steps = value['restarts']
-        require(type(self.steps) is list and len(self.steps) == len(CUTS), 'exact restart census required')
-        for label, step in zip(CUTS, self.steps, strict=True):
+        require(type(self.steps) is list and len(self.steps) == len(cuts), 'exact restart census required')
+        for label, step in zip(cuts, self.steps, strict=True):
             require(type(step) is dict and set(step) == {'case', 'program'} and step['case'] == label
                     and type(step['program']) is str and step['program'] in self.programs,
                     'restart order or target differs')
@@ -104,7 +108,7 @@ class NativeProgramPlan:
     def finish(self):
         self.check_inputs()
         require(self.index == len(self.steps), 'missing restart')
-        return {'completed': True, 'plan_sha256': self.sha256, 'programs': self.programs,
+        return {'completed': True, 'scenario': self.mode, 'plan_sha256': self.sha256, 'programs': self.programs,
                 'restarts': self.steps, 'final_program': self.current,
                 'scope': 'Program replacement over original current-format state; no backup restoration, '
                          'legacy schema migration, power-loss or general rollback support claim.'}
