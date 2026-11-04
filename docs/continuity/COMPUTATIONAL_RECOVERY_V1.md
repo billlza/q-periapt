@@ -1,7 +1,7 @@
 # Computational recovery: root extraction and transcript composition
 
 Status: a source-derived conditional argument, checked on 2026-11-04 against
-`21e00e9c3cfd193b9f51491888347f583620dfe0`. This isolates a necessary part of
+`ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20`. This isolates a necessary part of
 the existing computational-security obligation. It neither changes the protocol
 nor closes that obligation. The [joint multi-epoch symbolic result](RECOVERY_DEPENDENCIES_V1.md#multi-epoch-symbolic-successor)
 remains valid within its stated ideal-primitive model; its 13 incomplete queries
@@ -176,6 +176,95 @@ The remaining prefix bridge has three explicit interfaces to justify:
 This narrows the prefix obligation to a concrete KEM/interface bridge plus an
 identified RO/QROM hash theorem. It supplies neither a counterexample to the
 actual combiner nor a completed Continuity computational secrecy proof.
+
+### Concrete SHA3 input separation and reservation views
+
+The fixed SDK runtime selects `MlKem768`, `X25519` and
+`StreamingSha3_256Xof` in
+[`Runtime`'s KEM construction](../../crates/q-periapt-sdk/src/lib.rs).
+For a rekey response, `kem_context(offer)` is exactly 32 bytes. The effective
+policy-bound ContextBound input therefore has the following byte lengths, in
+the actual absorb order. Each outer field additionally has an 8-byte big-endian
+length prefix.
+
+| Field | Payload bytes |
+| --- | ---: |
+| `Q-PERIAPT-HYBRID-KEM/v1` | 23 |
+| `ML-KEM-768+X25519` | 17 |
+| Policy version | 4 |
+| PQ secret, classical secret | 32 each |
+| PQ ciphertext, PQ public key | 1088, 1184 |
+| Classical ciphertext, classical public key | 32 each |
+| Nested policy context | `(8 + 27) + (8 + 32) + (8 + 32) = 115` |
+
+Thus the complete rekey input is **2639 bytes**, with the PQ secret at zero-based
+byte offsets `[76, 108)`. More generally the same fixed suite's policy-bound
+input is `2607 + application_context_length` bytes. This is arithmetic from
+[`combine_validated` and `policy_bound_context_len`](../../crates/q-periapt-core/src/lib.rs),
+not a claim based on sampling hash outputs.
+
+In the selected native ML-KEM implementation,
+[`mlk_hash_h`](../../crates/q-periapt-mlkem-native-sys/vendor/mlkem-native/src/symmetric.h)
+is SHA3-256. Its three algorithm call sites in
+[`kem.c`](../../crates/q-periapt-mlkem-native-sys/vendor/mlkem-native/src/kem.c)
+hash the encoded public key during key checking, key generation and encapsulation.
+For ML-KEM-768 each input has 1184 bytes; the same source's other parameter sets
+use 800 or 1568 bytes. None can equal a policy-bound input of this fixed hybrid
+suite. `mlk_hash_g` and `mlk_hash_j` instead call SHA3-512 and SHAKE256;
+this observation does not prove independent security of the underlying Keccak
+instantiations.
+
+The rekey `hash` helper and the vault's `image_hash` use
+[`crypto::digest_start`](../../research/continuity-identity-candidate/src/crypto.rs):
+`LP(domain) || length_be64 || payload`. Their domains are longer than the
+combiner's 23-byte first field, so their initial length prefixes already differ.
+This establishes disjoint input points for these concrete honest SHA3-256
+calls, even when a digest payload depends on the selected exchange.
+
+For an ideal random function on complete byte strings, restrictions to these
+disjoint sets are independent random tables: every complete assignment is the
+product of its assignments on the sets and their complement. A public query
+still addresses that **one** function, including a superposition across sets.
+Any simulation using separate tables must route the query coherently by its
+input bytes and retain consistency; the distinction does not remove queries
+from the accounting or justify an oracle-independent starting state after
+uncounted prefix queries. The SDK also hashes authenticated policy bytes directly
+with SHA3-256. Those public inputs and other primitive calls remain in the full
+simulation. These checks resolve the input-overlap question for the calls above,
+not the complete shared-oracle/KEM reduction.
+
+The durable view has two encryption layers whose contents must also be modeled:
+
+| Observed value | Actual dependency |
+| --- | --- |
+| Sealed-operation header | `QPSOP001`, kind, 68-byte policy binding, operation ID, input binding and a fresh 24-byte nonce. The binding is constructed before drawing the reserved entropy. |
+| Sealed-operation payload | XChaCha20-Poly1305 encryption of 96 key-generation bytes or 64 encapsulation bytes, authenticated against that header, plus its 16-byte tag. |
+| Durable image and pending target | The encoded record payload, including any reservation, is encrypted again under the journal key. The pending write intent retains the exact sealed target before image apply. |
+| Witness head | Fence, revision and `image_hash(sealed_image)`, rather than a hash of the plaintext reservation. |
+
+The [SDK replay owner](../../crates/q-periapt-sdk/src/expert/replay.rs),
+[offer and response reservation paths](../../research/continuity-identity-candidate/src/durable/messages/rekey.rs),
+[response path](../../research/continuity-identity-candidate/src/durable/messages/rekey/response.rs),
+[image sealing](../../research/continuity-identity-candidate/src/durable.rs),
+[write intent](../../research/continuity-identity-candidate/src/durable/write_intent.rs)
+and [Witness head construction](../../research/continuity-identity-candidate/src/durable/anchoring.rs)
+give this dependency chain. The offer operation ID uses the journal/session/control
+prefix; the response operation ID additionally binds the authenticated offer.
+Neither is constructed by hashing the newly reserved plaintext coins. This removes
+one possible direct public commitment to unknown challenge coins, but does not
+establish a simulator for the encrypted records or their public head hashes.
+
+In particular, `rekey_recovery_key` derives the SDK wrapping key from the same
+journal key used for the outer image. A disclosed journal key plus later access
+to the target token or image is still a disclosure of its coins. Encryption
+cannot justify replacing those coins while retaining a decryptable old record.
+The reduction must preserve the original allowed acquisition interfaces,
+including pending targets, and simulate their complete views or charge the
+applicable existing disclosure event. Public heads, ciphertext-only access and
+decryptable private-state acquisition are distinct cases; silently removing the
+last case from the threat model is not a proof step. The earlier
+[executed disclosure traces](RECOVERY_CONDITIONS_V1.md#durable-freshness-is-reservation-freshness)
+continue to apply.
 
 ## Public-salt extraction has a specific sufficient assumption
 
