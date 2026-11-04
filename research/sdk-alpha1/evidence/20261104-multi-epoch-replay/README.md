@@ -38,3 +38,11 @@ started and terminal receipts, exact checker sources, tool hashes and identity
 probe history. All 30 members were read back byte-for-byte. `MEMBERS.json` pins
 the members and `VERIFICATION.json` records the archive digest and remaining
 queries. `release_claim_eligible` remains false.
+
+The later [two-round witness search](../20261104-two-round-witness-search/README.md)
+keeps the operational model and all query formulas/modes but enables two already
+checked phase-uniqueness invariants for the original execution witness. Its
+isolated exploration copy retains all reusable proofs and projects other
+nonreusable proof bodies. It exhausts the unchanged 12-GiB heap before its
+900-second deadline and produces no certificate. The failed inputs and streams
+are retained; this does not change the successful main replay or close a witness.
