@@ -366,13 +366,161 @@
   "prior_transport_failure": "policy-maintenance job 126463649767 remains failed; original ECONNRESET log is in ../20261104-ci-audit/refresh-0902/",
   "wave_uploaded": false,
   "release_claim_eligible": false,
+  "intermediate_observations": [
+    {
+      "observed_at_utc": "2026-11-04 10:19 UTC",
+      "totals": {
+        "success": 258,
+        "queued": 63,
+        "failure": 7,
+        "in_progress": 2,
+        "skipped": 2
+      },
+      "rows": [
+        {
+          "id": 41791519877,
+          "total": 70,
+          "fetched": 70,
+          "counts": {
+            "success": 57,
+            "queued": 12,
+            "failure": 1
+          }
+        },
+        {
+          "id": 41791520084,
+          "total": 10,
+          "fetched": 10,
+          "counts": {
+            "success": 5,
+            "queued": 5
+          }
+        },
+        {
+          "id": 41791519992,
+          "total": 2,
+          "fetched": 2,
+          "counts": {
+            "success": 2
+          }
+        },
+        {
+          "id": 41791519911,
+          "total": 8,
+          "fetched": 8,
+          "counts": {
+            "success": 8
+          }
+        },
+        {
+          "id": 41791511694,
+          "total": 10,
+          "fetched": 10,
+          "counts": {
+            "success": 9,
+            "queued": 1
+          }
+        },
+        {
+          "id": 41791511701,
+          "total": 70,
+          "fetched": 70,
+          "counts": {
+            "success": 58,
+            "queued": 11,
+            "failure": 1
+          }
+        },
+        {
+          "id": 41791861104,
+          "total": 69,
+          "fetched": 69,
+          "counts": {
+            "success": 53,
+            "queued": 12,
+            "in_progress": 1,
+            "failure": 2,
+            "skipped": 1
+          }
+        },
+        {
+          "id": 41791861473,
+          "total": 10,
+          "fetched": 10,
+          "counts": {
+            "queued": 5,
+            "success": 5
+          }
+        },
+        {
+          "id": 41791861355,
+          "total": 2,
+          "fetched": 2,
+          "counts": {
+            "success": 2
+          }
+        },
+        {
+          "id": 41791861381,
+          "total": 2,
+          "fetched": 2,
+          "counts": {
+            "success": 2
+          }
+        },
+        {
+          "id": 41791854684,
+          "total": 69,
+          "fetched": 69,
+          "counts": {
+            "success": 52,
+            "queued": 12,
+            "in_progress": 1,
+            "failure": 3,
+            "skipped": 1
+          }
+        },
+        {
+          "id": 41791854739,
+          "total": 10,
+          "fetched": 10,
+          "counts": {
+            "queued": 5,
+            "success": 5
+          }
+        },
+        {
+          "id": 41791763191,
+          "total": 4,
+          "fetched": 4,
+          "counts": {
+            "success": 2,
+            "queued": 2
+          }
+        }
+      ],
+      "pr_heads": [
+        {
+          "number": 117,
+          "head": "475cd23923e45819b01b6041c91c44540ec056ec",
+          "base": "ed257e10c75af6798838ee6a95e0ccc6930cf388"
+        },
+        {
+          "number": 118,
+          "head": "6084f3bfb09333f6b66291b38809ed512296a27b",
+          "base": "475cd23923e45819b01b6041c91c44540ec056ec"
+        }
+      ],
+      "latest_independent_head": "adaaeb4981f0c342c95a3d1ddcad6d7e1f82b3c6"
+    }
+  ],
   "latest_observation": {
-    "observed_at_utc": "2026-11-04 10:19 UTC",
+    "observed_start_utc": "2026-11-04 10:37:14 UTC",
+    "observed_end_utc": "2026-11-04 10:37:19 UTC",
     "totals": {
-      "success": 258,
+      "success": 260,
       "queued": 63,
       "failure": 7,
-      "in_progress": 2,
       "skipped": 2
     },
     "rows": [
@@ -435,9 +583,8 @@
         "total": 69,
         "fetched": 69,
         "counts": {
-          "success": 53,
+          "success": 54,
           "queued": 12,
-          "in_progress": 1,
           "failure": 2,
           "skipped": 1
         }
@@ -472,9 +619,8 @@
         "total": 69,
         "fetched": 69,
         "counts": {
-          "success": 52,
+          "success": 53,
           "queued": 12,
-          "in_progress": 1,
           "failure": 3,
           "skipped": 1
         }
@@ -497,19 +643,6 @@
           "queued": 2
         }
       }
-    ],
-    "pr_heads": [
-      {
-        "number": 117,
-        "head": "475cd23923e45819b01b6041c91c44540ec056ec",
-        "base": "ed257e10c75af6798838ee6a95e0ccc6930cf388"
-      },
-      {
-        "number": 118,
-        "head": "6084f3bfb09333f6b66291b38809ed512296a27b",
-        "base": "475cd23923e45819b01b6041c91c44540ec056ec"
-      }
-    ],
-    "latest_independent_head": "adaaeb4981f0c342c95a3d1ddcad6d7e1f82b3c6"
+    ]
   }
 }

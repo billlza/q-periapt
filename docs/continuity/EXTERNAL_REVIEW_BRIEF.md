@@ -14,6 +14,11 @@ traffic-independent PQ progress, exact recovery of original operations,
 revocation, device replacement and continued authority maintenance. The host's
 account login and authorization remain separate from device-key possession.
 
+The [computational recovery note](COMPUTATIONAL_RECOVERY_V1.md) supplies a
+concrete root-extraction route and conditional hybrid argument for review. It
+does not close the combiner premise, shared-root key-schedule composition or PQ
+proof obligations and must not be presented as the completed protocol proof.
+
 ## Candidate reviewers
 
 These are candidates for a scope discussion, based on primary sources checked

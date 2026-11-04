@@ -6319,3 +6319,13 @@ wave ends. The 10:19 UTC snapshot retains 258 successes, 63 queued, two running,
 seven failed and two skipped jobs across the twelve current-head runs. No rerun
 or new wave has been submitted. Formal external-review preparation is recorded
 in the [review brief](continuity/EXTERNAL_REVIEW_BRIEF.md); no engagement has begun.
+The 10:37 UTC refresh records both remaining capacity jobs succeeding: 260 pass,
+63 remain queued, seven fail and two are skipped. The wave is still open.
+
+The [computational recovery note](continuity/COMPUTATIONAL_RECOVERY_V1.md) maps
+the actual root/confirmation/traffic calls and gives a conditional root-replacement
+argument. Its 32-byte salt restriction fits the published HMAC swap-PRF theorem's
+input condition. This supplies a specific route for the extraction step, while
+combiner secrecy, shared-root composition, quantum-adversary reductions and the
+full message-secrecy argument remain required. The symbolic main result, protocol
+bytes and existing threat-model exclusions are unchanged.

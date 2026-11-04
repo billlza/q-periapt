@@ -13,6 +13,12 @@ remaining running jobs execute the Debug capacity scenario. The separate
 independent run remains at two successes and two queued jobs on `adaaeb49`.
 Both PR heads are unchanged. This refresh preserves the earlier snapshot.
 
+At 10:37:14–10:37:19 UTC, both remaining capacity jobs had completed successfully:
+`126446853903` and `126446832265`. The twelve-run totals are now 260 successes,
+63 queued, seven failures and two skipped jobs, with none running. The separate
+independent run still has two successes and two queued jobs. Queued work keeps
+the current effective wave open; no next wave or bounded retry has been started.
+
 Four installed Rust/C jobs now demonstrate the P0 acceptance omission in CI:
 
 | Run / job | Actual checkout from the job log | Failure |
@@ -68,5 +74,6 @@ recovery boundaries. `CAPTURE.zip` retains the original thirteen complete job
 inventories, five complete failure logs, both original Android diagnostic ZIPs
 and snapshot index. Its `refresh-1019` directory adds thirteen refreshed job
 inventories, the fourth installed-failure log and an index with current PR heads.
-All 36 members were read back byte-for-byte; `SHA256.json` pins them. The signed
-temporary download URLs are not retained.
+The `refresh-1038` directory retains the thirteen inventories and exact observation
+interval of the 10:37 refresh. All 50 members were read back byte-for-byte;
+`SHA256.json` pins them. The signed temporary download URLs are not retained.

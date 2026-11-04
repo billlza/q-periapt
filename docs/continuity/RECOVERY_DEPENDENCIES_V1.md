@@ -144,6 +144,14 @@ whose context contains transcript-dependent values. A generic claim that one
 unknown input makes every subsequent key secure is therefore not substituted
 for the missing construction-specific argument.
 
+The [construction-specific computational note](COMPUTATIONAL_RECOVERY_V1.md)
+now expands the actual root, confirmation and traffic calls. It gives a
+conditional three-step root replacement, maps the fixed 32-byte salt inputs to
+a published HMAC swap-PRF result, and explains why downstream confirmation and
+signature bytes must be recomputed consistently in proof hybrids. The combiner
+premise, joint use of a root in both HMAC slots, PQ reductions and the full
+message-secrecy argument remain open; no implementation or threat model changed.
+
 
 A [symbolic research projection](../../research/continuity-recovery-symbolic/README.md)
 now checks the original positive recovery formula through a
