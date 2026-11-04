@@ -6294,5 +6294,28 @@ the real ledger retains one operation through retry/refusal and reaches two only
 after a fresh key pair succeeds. The original device-state byte-invariance check,
 56 independent artifact regressions, 13 workflow regressions, strict Clippy and
 format checks pass. This closes the selected local service/SDK/independent
-receipt increment. The CLI is source-built; a complete installed lifecycle,
-installed Rust counterpart and the newly wired hosted path remain unqualified.
+receipt increment. The CLI is source-built. The installed cohort below adds the
+separate Rust/Python boundary; the newly wired hosted path remains unqualified.
+
+The [installed Rust/Python lifecycle checkpoint](../research/sdk-alpha1/evidence/20261104-installed-independent-lifecycle/README.md)
+passes the complete existing installed registered-owner runner at `6ce866b3` on
+Apple Silicon. The native counterpart consumes actual SDK/candidate crate
+archives outside the checkout, and the independent implementation comes from an
+isolated wheel installation. All 25 top-level commands pass and the build/runtime
+binary hashes agree, including the P2 public directory receipt readback. This
+also retains and fixes a real Cargo-extension routing failure that selected a
+different Clippy compiler through the registry cache. Nine focused and 58
+independent checker tests, both consumer builds and strict Clippy pass. Per-case
+scope limits remain unchanged; this is same-host installed qualification, not
+cross-host, all-platform or final release qualification.
+
+The [current CI failure record](../research/sdk-alpha1/evidence/20261104-ci-runtime-failures/README.md)
+now observes the old READY census rejection in all four installed Rust/C push/PR
+jobs. The parent correction is prepared locally at `232ace17` and merged into
+the directory branch. Two Android 16-KiB failures retain guest-framework/transport
+diagnostics; an earlier artifact-download failure remains separate. Only those
+classified infrastructure failures have a one-job retry plan, after the current
+wave ends. The 10:19 UTC snapshot retains 258 successes, 63 queued, two running,
+seven failed and two skipped jobs across the twelve current-head runs. No rerun
+or new wave has been submitted. Formal external-review preparation is recorded
+in the [review brief](continuity/EXTERNAL_REVIEW_BRIEF.md); no engagement has begun.
