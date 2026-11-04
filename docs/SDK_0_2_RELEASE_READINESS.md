@@ -6357,3 +6357,29 @@ are identified with a hidden uniform 256-bit PQ contribution. Establishing that
 contribution through the actual authenticated prefix, permitted leakage and
 shared hash/oracle interfaces still requires the explicit bridge described there.
 The existing EasyCrypt binding proof is not substituted for secret pseudorandomness.
+
+The [complete C owner ABI checkpoint](../research/sdk-alpha1/evidence/20261104-continuity-c-abi-contract/README.md)
+at `43c60a80` binds all 158 existing exports, 70 C records, 341 fields, one callback
+and 112 declared constants to an explicit unfrozen snapshot. Separate C and Rust
+compilers agree on complete layouts and field/function/callback types using the
+actual installed shared library and archive dependency graph. Exhaustive Rust
+patterns reject fields added into padding. Both Debug and Release pass the ABI
+comparison, strict Clippy and a separate complete 59-test owner regression.
+The 126 related Python/package/source-gate tests and formatting pass. The exact
+Rust source inventory is 1,165; no fresh CodeQL database scan is claimed.
+
+The initial gate's same-size type, padding and transcript-reader counterexamples
+were reproduced and repaired. Three failed/incomplete aggregate attempts remain
+retained separately from the final successful qualification. Windows packaging
+now carries the snapshot into its native consumer, but Windows/Linux/device
+runtime qualification of the new gate remains pending. This changes acceptance
+coverage without changing the existing production C implementations, protocol
+identifiers, storage formats or product ABI major. Formal ABI 2 admission still
+requires the remaining product contracts and platform evidence.
+
+At 12:21:39 UTC, the twelve current-head CI runs contain 262 successes, 61 queued,
+seven failures and two skipped jobs. The separate older independent run has two
+successes, one running and one queued job. The #117 push reference-account workflow
+is now 10/10 successful; the two new Apple Silicon completions and a connector
+log-fetch timeout are retained in the checkpoint. Neither PR head changed, and
+no new wave, rerun or push was requested while the current wave remains open.
