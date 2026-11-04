@@ -109,8 +109,11 @@ Completed cleanup controls remain retained to replay the original result. There
 is no automatic garbage collection of those controls or recursive sweep of a
 parent. Hosts must bound failed first-use attempts and account for retained
 metadata. Old `.private-publication-*`/directory residues, the experimental
-`QPSTG001` format, incomplete control creation, relocated/copied controls and
-missing or replaced leases are refused. They require a separately authorized
+`QPSTG001` format, incomplete control creation, controls moved to a different
+parent or copied to new filesystem identities, and missing or replaced leases
+are refused. An original parent inode surviving a namespace rename remains the
+same filesystem scope; this does not change operational stores' own path contracts.
+Refused residues require a separately authorized
 host disposition procedure; they are not adopted or silently upgraded.
 
 Logical removal and successful file/directory sync are not physical erasure,
