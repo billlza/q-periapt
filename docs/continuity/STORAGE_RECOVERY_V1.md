@@ -240,11 +240,15 @@ it does not broaden the physical-erasure or recovery guarantees above. The
 [encoding qualification](../../research/sdk-alpha1/evidence/20261017-secret-encoding/README.md)
 records format compatibility, original-owner capacity recovery and resource scope.
 
-There is no automatic candidate schema migration. An unsupported old table/tag,
+There is no automatic device-journal schema migration. An unsupported old table/tag,
 changed policy family/device generation, missing file or bad MAC never triggers
 empty-state initialization. Product upgrade/rollback support needs a separately
 specified, crash-safe migration and compatibility policy; refusing unsupported
-tables and envelopes is not a complete long-term maintenance strategy.
+tables and envelopes is not a complete long-term maintenance strategy. Witness
+images have their own existing authenticated compatibility and explicit identity
+admission paths. The [upgrade and maintenance contract](UPGRADE_MAINTENANCE_V1.md)
+separates these from program replacement and physical database migration, and
+records the remaining product-admission decisions.
 
 ## Source correspondence and qualification limits
 

@@ -716,6 +716,9 @@ Protocol/domain and durable-format freeze, explicit candidate-state disposition,
 package/version/export tables, installer failure behavior and maintenance policy
 must move together. Renaming a candidate package or retaining a successful pairwise
 test report cannot supply the missing product contracts above.
+The [upgrade and maintenance contract](UPGRADE_MAINTENANCE_V1.md) now records the
+current reader/writer matrix, original-state replacement procedure, existing
+Witness compatibility and remaining format/maintenance admission requirements.
 
 
 Native first-key publication now stages complete wrapping/signing images and uses

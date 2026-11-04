@@ -6403,3 +6403,45 @@ energy qualification or a full multi-session/maintenance resource result.
 At 13:11:21 UTC the current-head CI census is 263 successful, 60 queued, seven
 failed and two skipped jobs; the separate older independent run has two successful
 and two running jobs. No new wave or remote mutation was initiated.
+
+The [installed program-replacement checkpoint](../research/sdk-alpha1/evidence/20261104-installed-program-upgrade/README.md)
+now exercises the actual installed native builds `6ce866b3` and `21e00e9c`
+against freshly installed independent Python wheels. The ordinary successor path
+and unknown Witness outcomes before dispatch / after committed reply loss retain
+original state through 32 SIGKILL/re-exec cuts and 29 program switches (15 forward,
+14 backward). A separate single-program baseline completes ten cuts. Controllers
+are bound to `b22f627a` and `f1740265`; both runtime binaries and their installed
+build records are retained. No protocol, storage format or production code is
+changed. The two candidate archives differ only in contract-report and
+signature-purpose metadata sources, so this is a finite same-format replacement
+edge, not a legacy-format migration or general rollback promise.
+
+All 1,347 native command records and 898 Witness attempts are reread, including
+the actual PID chain, 58 original input hashes per cut, exact bootstrap/message/
+rekey results and original pending mutation identity/target. Witness transport
+retries correctly use a new challenge while retaining the immutable operation.
+The independent-tooling suite passes 67 tests, and 24 altered evidence controls
+are refused. The first observation-driver preparation failed the unchanged
+private-cache probe before lifecycle execution; its failure remains, followed by
+two complete fresh preparations. The 5,061-member capture is reread and all four
+scenario readers run directly over its contents; SHA-256 is
+`b05519651e9f54c18ae75aece12d21382e7983f0277176669b0cc979d9b633a8`.
+
+The [upgrade/maintenance admission contract](continuity/UPGRADE_MAINTENANCE_V1.md)
+separates program replacement, recognized Witness image compatibility, explicit
+original-identity admission and the policy store's narrow physical-engine tool.
+It records the same-store recovery procedure and existing maintenance limits.
+Final package/format/ABI freeze, explicit preview-state disposition, actual
+promised migration edges and orphan maintenance remain open. This checkpoint is
+Apple Silicon with synthetic fixture clocks and a co-located test Witness; it is
+not remote-Witness, other-platform, power-loss or full release qualification.
+
+At 14:24:09 UTC the twelve current-head runs contain 266 successes, 53 queued,
+four running, seven failures and two skipped jobs. The same seven failures remain
+the four old READY census checks, two classified Android 16 KiB jobs and the
+policy-maintenance artifact-transport failure. The older independent run
+`41791763191` at `adaaeb49` is now 4/4 successful on Linux x86_64 and Apple Silicon,
+covering Python source/installed wheel with source-built Rust counterparts.
+Neither PR head changed. No push, rerun or new wave was initiated; the next wave
+still waits for the effective wave to become terminal, with the local READY
+correction and the already classified bounded reruns tracked separately.
