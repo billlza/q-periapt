@@ -162,6 +162,17 @@ pending handshake/message/rekey behavior. They do not qualify all historical
 candidate images, arbitrary downgrades, a published 0.1.x-to-0.2.0 Continuity
 migration, foreign installers, other platforms or physical power loss.
 
+The [maintenance-cohort replacement checkpoint](../../research/sdk-alpha1/evidence/20261104-maintenance-program-upgrade/README.md)
+adds the next same-format edge: installed candidate `21e00e9c` with SDK `6084f3bf`
+to candidate `4effa8b2` with SDK `f560d803`. A fresh independent wheel completes
+ordinary and both unknown-Witness-outcome scenarios: 32 real process cuts,
+29 version switches, original operations and bidirectional epoch-one traffic.
+Independent readback verifies every raw command and rejects 18 altered controls.
+Its final outer inventory-check failure remains recorded separately; the corrected
+readback admits the exact wheel/controller union without rerunning the scenarios.
+This extends the finite replacement evidence to the new shared maintenance
+implementation, not to arbitrary preview-state migrations or a frozen release.
+
 Before formal admission, bind this compatibility table to the final package and
 contract versions, explicitly dispose of preview-state support, qualify each
 promised actual migration edge and its installer failure behavior, and close the

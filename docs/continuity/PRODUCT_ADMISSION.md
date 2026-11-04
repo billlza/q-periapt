@@ -762,3 +762,12 @@ The earlier 600-second diagnostic observations remain timed out; their focused
 88-case result was not an aggregate pass. Windows runtime, other supported
 platform consumers, legacy-residue disposition and final
 product admission remain separate.
+
+The [maintenance-cohort program replacement](../../research/sdk-alpha1/evidence/20261104-maintenance-program-upgrade/README.md)
+additionally verifies original-state reopening across the previous installed SDK
+and the new maintenance cohort, with 32 real process cuts, 29 program switches
+and both sides of an unknown Witness mutation. The complete raw-message reader
+and 18 negative controls pass. The retained outer inventory-check failure and
+its subsequent exact wheel/controller readback are distinguished from the
+successful runtime commands. This is a finite same-format replacement edge;
+it does not admit arbitrary downgrades or close final product/platform admission.
