@@ -231,3 +231,10 @@ not be reported as all queries passing or as completed multi-round non-vacuity
 evidence. The symbolic primitives still do not supply the construction-specific
 HKDF/hybrid argument, whole-journal correspondence, final implementation/platform
 qualification or external security review required for release.
+
+The [2026-11-04 independent replay](../../research/sdk-alpha1/evidence/20261104-multi-epoch-replay/README.md)
+rechecked this same certificate with the fixed tools and unchanged 900-second
+limit. MAIN and all reusable dependencies passed in 816.903 seconds; the output
+certificate was byte-identical to the retained input. All 40 queries remained,
+including the same 13 incomplete queries. This refreshes the symbolic evidence
+without changing the separate open obligations above.
