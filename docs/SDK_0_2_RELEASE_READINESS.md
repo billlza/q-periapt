@@ -6273,3 +6273,14 @@ Single-profile results explicitly remain incomplete package qualifications; the
 separate coverage job requires all six same-source receipts. Current-source hosted
 completion is still required. Existing physical functional cohorts remain valid
 within their recorded scope.
+
+The [OpenSSL READY census correction](../research/sdk-alpha1/evidence/20261104-openssl-witness-census/README.md)
+aligns the remaining server report and ordered TLS trace checks with the four
+read-only queries added by authenticated READY. Exact 146-exchange server and
+native TLS runs pass in Debug and Release using the current `6084f3bf` SDK archive
+cohort and a freshly packaged candidate; the independent client's two single
+exchanges remain unchanged. Both real server records reject the old validator
+and pass the repaired one. All 24 focused checker regressions pass, including
+old/missing/extra counts and altered negotiation attributes. Original diagnostic
+failures remain retained. This closes the selected local installed regression;
+the full hosted CI wave and overall release qualification remain separate.
