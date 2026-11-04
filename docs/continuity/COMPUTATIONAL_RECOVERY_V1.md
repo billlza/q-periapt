@@ -1,7 +1,7 @@
 # Computational recovery: root extraction and transcript composition
 
 Status: a source-derived conditional argument, checked on 2026-11-04 against
-`6ed7bb579efb9f169e2ae81c2dd1b05d3d45667e`. This isolates a necessary part of
+`21e00e9c3cfd193b9f51491888347f583620dfe0`. This isolates a necessary part of
 the existing computational-security obligation. It neither changes the protocol
 nor closes that obligation. The [joint multi-epoch symbolic result](RECOVERY_DEPENDENCIES_V1.md#multi-epoch-symbolic-successor)
 remains valid within its stated ideal-primitive model; its 13 incomplete queries
@@ -99,6 +99,83 @@ confirmation tags, signatures, final/receipt messages, transcript digests and
 traffic. Existing signature bytes cannot simply be retained after changing the
 body they authenticate. This is a restriction on the proof game, not a proposed
 runtime change: actual retries must continue returning the exact original bytes.
+
+### Bridging the actual ContextBound contribution
+
+The repository's existing [EasyCrypt binding result](../../formal/easycrypt/BindingViaCR.ec)
+does not establish the prefix replacement. `bind_le_cr` and `malbind_kct_le_cr`
+turn an output collision with different encoded fields into a hash collision.
+Their games contain no challenge secret or real-versus-uniform secret test;
+component decapsulation is abstract. The [paper's stated scope](../../paper/q-periapt.tex)
+likewise distinguishes binding from secrecy. Those proved binding results remain
+useful, but cannot be used as the missing `epsilon_K` bound.
+
+[Giacon, Heuer and Poettering, sections 3.3 and 4.2](https://pure.royalholloway.ac.uk/ws/portalfiles/portal/29298086/kemcom.pdf)
+give the relevant combiner structure: replace a secure component's challenge
+secret by a uniform value, then apply a split-key PRF to the components and
+ciphertext vector. Their Figure 5 permits the other component keys to be chosen
+by the adversary per fresh public input. Theorem 1 supplies the KEM reduction;
+Lemma 6 supplies a hash-based RO instance. Its correctness and challenge-query
+conditions still have to be matched to the actual protocol interface. In
+particular, the honest recipient internally processes the target ciphertext;
+it is not simply the external decapsulation oracle forbidden to process a KEM
+challenge. That internal use needs a consistent simulated response.
+
+There is also a concrete route for the hashing step with quantum hash queries.
+[Don, Fehr and Huang, section 4.2, Theorem 2](https://arxiv.org/pdf/2206.08132)
+analyze `F(k,x) = H(h(k,x))` with a uniform hidden `k`, quantum queries to random
+oracle `H`, and classical queries to `F`. The theorem requires an upper bound
+`epsilon` on each encoded point's probability for fixed `x`, and distinct encoded
+points for fresh `F` queries for every possible `k`. It supplies a bound in terms
+of `epsilon` and the two query counts. This is an ideal-hash construction result,
+not a claim that a concrete SHA3 implementation has been proven quantum secure.
+
+After the still-required ML-KEM challenge replacement, instantiate these encoding
+conditions as follows. Let `k` be the uniform 32-byte PQ secret and let `x` contain
+the classic secret and every other **effective encoded field** of the actual
+policy-bound ContextBound call. `h` is exactly the LP transcript absorbed by the
+streaming backend, including the fixed domain and nested policy context. For
+fixed `x`, the complete `k` occurs at a fixed 32-byte field with its length prefix.
+Thus `h(k,x)` is injective in `k`, giving point probability at most `2^-256`.
+For different effective field tuples `x`, LP injectivity gives different encoded
+bytes for every `k`. This argument uses the actual tuple, not two semantic objects
+that happen to serialize identically.
+
+Exact repeated tuples must be served from the same proof-game cache. Only a
+previously unseen effective tuple is passed as a fresh `F` query; replaying one
+operation cannot sample a second random result. This matches the implementation's
+sealed-operation replay and immutable response outbox. A known or adversarially
+selected classic secret is part of `x`, rather than an assumption that X25519
+remains confidential. These checks discharge the elementary encoding conditions
+for this conditional hash step. They do not establish that the real `ss_pq` was
+uniform given the permitted protocol view in the first place.
+
+The remaining prefix bridge has three explicit interfaces to justify:
+
+1. `verify_offer` precedes the responder's reservation, and the proposer checks
+   that the restored private owner matches the public offer before decapsulation.
+   Reduce accepted target flights to the corresponding honest KeyGen/Encaps
+   under the actual identity-signature and authorization assumptions. The
+   corresponding source checks are in
+   [`rekey`](../../research/continuity-identity-candidate/src/durable/messages/rekey.rs),
+   [`response`](../../research/continuity-identity-candidate/src/durable/messages/rekey/response.rs)
+   and [`completion`](../../research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs).
+2. Simulate other reservations, allowed earlier/later entropy disclosure and
+   public queries while embedding the target ML-KEM challenge. Account for the
+   component's correctness-failure term and fixed versus adaptive target
+   selection. The current SDK takes separate seed/scalar and encapsulation-randomness
+   segments, but secrecy/independence still requires the stated recovered random
+   source; API call ordering is not an entropy proof. Preserve all original
+   post-Cut acquisition restrictions and allowed other-epoch leakage.
+3. Specify how the combiner's SHA3 oracle relates to component and other protocol
+   SHA3 calls. A separate independent oracle cannot be invented for two actual
+   uses merely by renaming them in a proof. The effective-domain encoding and any
+   shared-query simulation must be included, with the later confirmation and
+   traffic consistently recomputed as above.
+
+This narrows the prefix obligation to a concrete KEM/interface bridge plus an
+identified RO/QROM hash theorem. It supplies neither a counterexample to the
+actual combiner nor a completed Continuity computational secrecy proof.
 
 ## Public-salt extraction has a specific sufficient assumption
 

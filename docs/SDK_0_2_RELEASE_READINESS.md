@@ -6338,3 +6338,22 @@ Those historical references require location reconciliation before relying on
 them as current evidence. Their absence here does not establish absence from
 every other checkout/archive, and does not invalidate the separately retained
 new installed, directory or READY records.
+
+The [signature-purpose contract checkpoint](../research/sdk-alpha1/evidence/20261104-signature-purpose-contract/README.md)
+closes the missing compiled coverage for signature purposes 23–39 and completes
+the wire document's inventory. A single declaration generates the actual internal
+enum and read-only descriptor; all original numbers, domains and bounds remain
+unchanged. The old real installed descriptor is rejected by the expanded schema
+2 check, while the new installed descriptor matches all 39 purposes at `21e00e9c`.
+Seven reader tests, 17 source crypto/persistence tests, strict Clippy, formatting
+and 35/44 independent publication/directory checks pass. The failed attempt to
+run dependency-private tests as workspace members remains separately failed;
+the later source test run does not make that aggregate pass. This is a selected
+contract/interop checkpoint, not a full lifecycle rerun or formal ABI admission.
+
+The computational note now also maps the actual ContextBound LP transcript to
+a published quantum-oracle hash construction. The elementary encoding conditions
+are identified with a hidden uniform 256-bit PQ contribution. Establishing that
+contribution through the actual authenticated prefix, permitted leakage and
+shared hash/oracle interfaces still requires the explicit bridge described there.
+The existing EasyCrypt binding proof is not substituted for secret pseudorandomness.
