@@ -74,5 +74,12 @@
     "formal product ABI 2 admission",
     "final release candidate"
   ],
-  "release_claim_eligible": false
+  "release_claim_eligible": false,
+  "documentation_readback": {
+    "archive_member": "documentation/DOCUMENTATION_READBACK.json",
+    "new_document_local_links_resolve": true,
+    "full_readiness_link_check_passed": false,
+    "legacy_missing_count": 50,
+    "all_already_missing_in_starting_tree": true
+  }
 }

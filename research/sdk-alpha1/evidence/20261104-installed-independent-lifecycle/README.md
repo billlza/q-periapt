@@ -81,7 +81,7 @@ sh artifact/python-run.sh artifact/continuity_independent_python_run.py \
   --output target/independent-installed-lifecycle-01
 ```
 
-`CAPTURE.zip` retains 223 files: the original failed and successful build command
+`CAPTURE.zip` retains 224 files: the original failed and successful build command
 records, complete installed runtime report and top-level command outputs,
 individual scenario reports, exact public directory inputs, public one-time and
 lease vectors, SDK report, compiler probes and regression outputs. It also
@@ -89,6 +89,14 @@ retains the separate #117 parent-line READY checker regression. Private owner
 stores, wrapping keys and signer files are excluded. `SHA256.json` pins every
 member; every archived byte was read back. `CHECKS.json` records the joined
 identities and checks against 26 builder and 239 runtime source inputs.
+
+The documentation readback resolves every local link in the new cohort/review/
+computational notes. Its additional full-readiness scan fails on 50 historical
+targets already absent from the starting `6084f3bf` tree. The exact references
+and baseline checks are retained in `documentation/DOCUMENTATION_READBACK.json`;
+the full ledger link check is not reported as passing. This observation does not
+establish whether those historical records survive in other checkouts or archives.
+It does not affect the new cohort's retained input and output bytes.
 
 This closes the selected local installed-interoperability cohort. Cross-host
 execution, other platforms, hosted execution of these commits, final candidate

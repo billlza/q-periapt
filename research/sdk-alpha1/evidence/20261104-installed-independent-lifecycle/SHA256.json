@@ -1,6 +1,6 @@
 {
-  "archive_sha256": "0d17634ec6b14380e860466974df9af091345834153b47e83af3e196b5270bb9",
-  "archive_bytes": 722740,
+  "archive_sha256": "9605dee8e54605678d6841f0325c82937a416fbe24be185bcd8802cdfac2c3d2",
+  "archive_bytes": 724519,
   "all_members_read_back": true,
   "members": {
     "build-failed/INSTALLED_COUNTERPART.json": "6fe60840782a2252427290ea51009eda897bfc00ed71cd78a273ec1eb4e68945",
@@ -106,6 +106,7 @@
     "directory-lease/openssl-second": "99a7618a42b45548c36c69abc40002e2fd7828e0a7fb28b744855ca93fff2c3b",
     "directory-lease/openssl-service-id": "c4ed6cc9444165adc1760e90422af0c023ae0b01e1c5f52a6a17c3d719190469",
     "directory-lease/openssl-service-key": "d3447721a80ac491b71f51b3c696ee3d811b0ec7b28057891a7a6e2d678dbb53",
+    "documentation/DOCUMENTATION_READBACK.json": "c08d6aa8d0b070e2984bd9d3cf6e28f65d3e8ab61e63e8fc8e1c9fb5825434a6",
     "drivers/independent-installed-current-02.driver.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "drivers/independent-installed-current-02.driver.stdout": "7d8494d3e90a98b6b8a47bb7ed0d7a4b85c6e36a73d5acfbab7248fa1fc4616f",
     "drivers/independent-installed-current.driver.stderr": "52e11f46419424de2dabf09daff648d5e6fdc4b1945ca07755c557255f4d7786",
@@ -227,5 +228,5 @@
     "runtime/witness_policy_checks.stdout": "b14040700ee6fae01286c9c3306e06a760f876558dbc6264694ad95aba7966fa",
     "runtime/witness_policy_checks/RESULT.json": "4427bd20977ff2cd5b39e79fc26c0e9637039bb5469523d404cbefa3be88800b"
   },
-  "checks_sha256": "e8fd06c75d275546baebde6e82a3bab6d24e28715cc3e5a432165dd53d780a76"
+  "checks_sha256": "b26fc10ac356addbc8b197f52eab955e3f3c064f5e28b84fa7e6de2482181c10"
 }

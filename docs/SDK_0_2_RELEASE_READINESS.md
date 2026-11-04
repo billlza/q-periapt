@@ -6329,3 +6329,12 @@ input condition. This supplies a specific route for the extraction step, while
 combiner secrecy, shared-root composition, quantum-adversary reductions and the
 full message-secrecy argument remain required. The symbolic main result, protocol
 bytes and existing threat-model exclusions are unchanged.
+
+The new notes' local links resolve. A full-ledger link scan also identifies 50
+historical target files absent from both this checkout and the starting
+`6084f3bf` tree; the exact inventory is retained with the
+[installed cohort readback](../research/sdk-alpha1/evidence/20261104-installed-independent-lifecycle/README.md).
+Those historical references require location reconciliation before relying on
+them as current evidence. Their absence here does not establish absence from
+every other checkout/archive, and does not invalidate the separately retained
+new installed, directory or READY records.
