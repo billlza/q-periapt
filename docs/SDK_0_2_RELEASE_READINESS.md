@@ -6383,3 +6383,23 @@ successes, one running and one queued job. The #117 push reference-account workf
 is now 10/10 successful; the two new Apple Silicon completions and a connector
 log-fetch timeout are retained in the checkpoint. Neither PR head changed, and
 no new wave, rerun or push was requested while the current wave remains open.
+
+The [current installed resource baseline](../research/sdk-alpha1/evidence/20261104-installed-resource-baseline/README.md)
+at `539845d5` runs the existing aggregate-capacity/refusal/original-recovery workload
+from installed SDK/candidate archives. Four fresh Apple M4 Max/macOS 26.7.2
+processes complete 500 actual TLS business effects; the unchanged historical
+capacity reader and extended resource reader reject 548 altered-result controls.
+Strict observer build and Clippy pass. The peak whole-process RSS observations are
+154.67–159.81 MiB; all profiles retain the exact 124-message aggregate boundary,
+two original reopens and same-ID reclamation. This supplies current installation
+evidence for one declared capacity path without changing product code or limits.
+
+Inherited allocator controls were observed mid-collection and earlier runs lack
+individual allocator-environment receipts. The schedule's timing, uncontrolled
+host conditions, source/hardware differences from old captures, all failed
+preparatory attempts and raw measurements remain explicit. This is not a formal
+resource budget, isolated SDK memory, controlled tail/throughput result, mobile
+energy qualification or a full multi-session/maintenance resource result.
+At 13:11:21 UTC the current-head CI census is 263 successful, 60 queued, seven
+failed and two skipped jobs; the separate older independent run has two successful
+and two running jobs. No new wave or remote mutation was initiated.

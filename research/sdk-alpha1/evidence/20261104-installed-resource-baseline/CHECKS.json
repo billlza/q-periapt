@@ -1,0 +1,37 @@
+{
+  "all_archive_members_reread": true,
+  "all_four_business_and_resource_censuses_revalidated_from_archive": true,
+  "allocator_environment": "inherited MallocNanoZone=0 observed during the collection; earlier runs lack separate per-process environment receipts",
+  "build02_report_name_collided_with_compile_receipt_on_case_insensitive_filesystem": true,
+  "build03_completed": true,
+  "business_effects_checked": 500,
+  "candidate_archive_sha256": "1326dbd2ba1c93f950a5f582e11af1514a017f0275d643812b7072da90ba54a9",
+  "candidate_source_commit": "21e00e9c3cfd193b9f51491888347f583620dfe0",
+  "capture_members": 673,
+  "capture_sha256": "60fb59b6d6b55a7f964cdbdc6ac3e28b5f185033fffce6c0be8b17c5aa19832e",
+  "capture_uncompressed_bytes": 15083553,
+  "completed_runtime_cohorts": 4,
+  "cross_host_qualified": false,
+  "device_energy_qualified": false,
+  "failed_build_attempts_retained": [
+    "build-01",
+    "build-02"
+  ],
+  "formal_resource_budget_qualified": false,
+  "hardware": "Apple M4 Max, 16 logical CPUs, 48 GiB RAM",
+  "installed_resolution": {
+    "external_packages": 174,
+    "lockfile_sha256": "b11ddc6aa20608b6f54c001e8f6138eb788b719789fee7d42cd2edf8a6f13ba8",
+    "product_crates": 10
+  },
+  "macos_version": "26.7.2",
+  "negative_controls_rejected": 548,
+  "observer_binary_sha256": "73271b3a8fca2bcad2119b1dd248a61cecfcfd9c6cc457b1d211b0ffac1972c2",
+  "original_capacity_reader_reused_without_weakened_assertions": true,
+  "product_code_changed": false,
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "sdk_report_sha256": "d9cd990bf3dc6a731ec09b659fdc38f3f3cbc17b2f035b09e5e61094cbc11885",
+  "source_commit": "539845d573ac0af5fe104aabed2f96a86f9eac8b",
+  "strict_build_and_clippy": true
+}
