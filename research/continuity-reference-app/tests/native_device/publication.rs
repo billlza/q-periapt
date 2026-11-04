@@ -270,7 +270,13 @@ fn cli_publication(mode: super::BootstrapMode, plan_schema: &str, quality: &str)
     materials["policy"] = serde_json::json!("AA");
     refuse(3, materials)?;
     if quality == "one_time_both" {
-        super::directory_leases::exercise(&c.path, c.start, &plan, &trust)?;
+        super::directory_leases::exercise(
+            &c.path,
+            c.start,
+            &plan,
+            &trust,
+            serde_json::from_value(accepted["signing_id"].clone())?,
+        )?;
     }
     assert_eq!(snapshot(&c.path.join("device"))?, before);
     assert_eq!(fs::read(c.path.join("wrap.key"))?, wrapping);

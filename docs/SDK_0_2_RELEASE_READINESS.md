@@ -6284,3 +6284,15 @@ and pass the repaired one. All 24 focused checker regressions pass, including
 old/missing/extra counts and altered negotiation attributes. Original diagnostic
 failures remain retained. This closes the selected local installed regression;
 the full hosted CI wave and overall release qualification remain separate.
+
+The [actual directory CLI cross-check](../research/sdk-alpha1/evidence/20261104-directory-cli-crosscheck/README.md)
+adds Debug/Release service-produced receipts to the independent source and
+installed-wheel paths. Both readers verify each profile's same 15 public inputs,
+including exact output-loss recovery, cancellation history and identical canonical
+conflict bytes. Single-algorithm reservations remain occupied after cancellation;
+the real ledger retains one operation through retry/refusal and reaches two only
+after a fresh key pair succeeds. The original device-state byte-invariance check,
+56 independent artifact regressions, 13 workflow regressions, strict Clippy and
+format checks pass. This closes the selected local service/SDK/independent
+receipt increment. The CLI is source-built; a complete installed lifecycle,
+installed Rust counterpart and the newly wired hosted path remain unqualified.

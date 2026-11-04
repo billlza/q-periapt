@@ -19,6 +19,7 @@ from bounded_process import capture_output
 from continuity_independent_python import PACKAGE, inspect_wheel, require, verify_installation, verify_extension_session, verify_roster_profiles, verify_roster_capacity, verify_roster_revocation
 from continuity_independent_python import verify_local_policy_profiles, verify_local_policy_boundary
 from continuity_independent_python import verify_witness_policy_profiles, verify_witness_policy_boundary
+from continuity_independent_python import DIRECTORY_CLI_PUBLIC_FILES, verify_directory_cli_result
 from continuity_independent_composition import verify_composition, verify_capacity
 from evidence_io import fresh_output_directory, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import git_commit, run_git_bytes
@@ -113,7 +114,7 @@ def qualify(args: argparse.Namespace) -> dict:
     cache.mkdir(mode=0o700)
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(("PYTHON", "PIP_", "DYLD_", "LD_"))}
-    result = {"schema_version": 9, "kind": "qperiapt.independent_python_installation",
+    result = {"schema_version": 10, "kind": "qperiapt.independent_python_installation",
               "completed": False, "release_claim_eligible": False, "source_commit": commit,
               "source_inputs": before, "wheel_sha256": wheel.sha256, "native_sha256": native.sha256}
 
@@ -189,6 +190,29 @@ def qualify(args: argparse.Namespace) -> dict:
                 and lease["private_keys_exported"] is False and lease["release_claim_eligible"] is False
                 and lease["provider"]["cryptography"] == "48.0.1",
                 "installed directory lease implementation or scope differs")
+        # The source-built CLI already committed these original public receipts.
+        # This isolated wheel consumer receives no ledger, signer, wrapping key or policy.
+        cli_public = args.directory_cli_public.resolve(strict=True)
+        require({path.name for path in cli_public.iterdir()} == DIRECTORY_CLI_PUBLIC_FILES,
+                "directory CLI input must contain only the closed public set")
+        copied_public = outside / "directory-cli-public"
+        copied_public.mkdir(mode=0o700)
+        cli_hashes = {}
+        for path in sorted(cli_public.iterdir()):
+            data = snapshot(path, maximum=256 * 1024)
+            copy(path, copied_public / path.name, maximum=256 * 1024)
+            cli_hashes[path.name] = data.sha256
+        run([*interpreter, str(application / "directory_cli_checks.py"),
+             "--provider-root", str(provider), "--input", str(copied_public),
+             "--output", str(output / "directory-cli")], "directory-cli")
+        directory_cli = parse_strict_json_bytes(snapshot(output / "directory-cli/RESULT.json").data,
+                                                label="installed actual directory CLI receipts")
+        verify_directory_cli_result(directory_cli,
+            {name: snapshot(SOURCE / name).sha256 for name in
+             ("directory_cli_checks.py", PACKAGE + "/directory_lease.py", PACKAGE + "/wire.py")},
+            cli_hashes, str(application / PACKAGE / "directory_lease.py"))
+        require({path.name: snapshot(path, maximum=256 * 1024).sha256 for path in cli_public.iterdir()} == cli_hashes,
+                "directory CLI public inputs changed")
         run([*interpreter, str(application / "registration_checks.py"), "--provider-root", str(provider),
              "--native", str(args.native), "--output", str(output / "registration")], "registration")
         observed = parse_strict_json_bytes(snapshot(output / "registration/RESULT.json").data, label="installed registration")
@@ -395,6 +419,7 @@ def qualify(args: argparse.Namespace) -> dict:
                       client_session=client_session, extension_session=extension_session,
                       intermediate_peer=intermediate, common_account=account_results, local_policy=policy_results,
                       witness_policy=witness_policy_results, policy_composition=composition,
+                      directory_cli=directory_cli,
                       policy_composition_capacity=composition_capacity,
                       provider=observed["provider"])
     except BaseException as error:
@@ -407,7 +432,7 @@ def qualify(args: argparse.Namespace) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("wheel", "provider-root", "native", "output"):
+    for name in ("wheel", "provider-root", "native", "directory-cli-public", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
     args = parser.parse_args()
     args.wheel = args.wheel.resolve(strict=True)

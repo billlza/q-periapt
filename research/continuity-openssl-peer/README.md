@@ -137,10 +137,30 @@ available for diagnosis; a missing or failed installation is never treated as
 a successful source-tree run.
 The installation runner also requires local and witnessed policy renewal,
 full-store expiry/recovery, and sequential policy/credential/roster composition
-ending with removal of the real traffic peer. Schema9 checks all four 3/32-device
+ending with removal of the real traffic peer. Schema10 retains all four 3/32-device
 composition profiles using installed protocol modules and the selected native
 counterpart; source-only results cannot satisfy them. See
 [POLICY_RENEWAL.md](POLICY_RENEWAL.md) for the retained-history boundary.
+It also requires `--directory-cli-public`, a closed set of public artifacts from
+the actual reference directory CLI test. The test commits an allocation before
+losing its output, recovers the exact original wire, rejects a changed request,
+checks each algorithm's reservation before and after cancellation, and issues a
+fresh pair. A separate test ledger with the same test signer deliberately issues
+a conflicting allocation. `directory_cli_checks.py` verifies the same original
+receipt and canonical conflict bytes using the independent Python/OpenSSL
+implementation, including bad-signature, service-pin and public-key controls.
+
+The fixture export is enabled only with an absolute, new
+`QPERIAPT_DIRECTORY_PUBLIC_OUTPUT` directory. The export uses a file whitelist;
+neither the database, signing/wrapping keys nor current policy is exported or
+read by the historical verifier. Signed publication variants used to isolate
+the two reservation checks are test constructions, admitted by the actual CLI;
+they do not claim the honest publication owner reused inventory. Historical
+verification authenticates signed statements, not current authorization,
+cancellation state or consumption. Cancellation/occupancy results come from the
+separately checked CLI execution trace. The workflow's directory CLI is built
+from source; installing the Python wheel does not qualify an installed Rust
+counterpart or a complete directory-backed session lifecycle.
 The archived migration scenario additionally copies the declared old-writer
 capture and its manifest, bound to the selected commit. It loads that writer in
 a separate namespace, then uses the installed current package to continue the
