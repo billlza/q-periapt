@@ -56,7 +56,11 @@ fn verify_isolated_history(
     publish_private_bytes(&directory.join("bad-signature.bin"), &corrupted)?;
     run(
         &directory,
-        &["check-historical-receipt", "@pin.json", "@bad-signature.bin"],
+        &[
+            "check-historical-receipt",
+            "@pin.json",
+            "@bad-signature.bin",
+        ],
         false,
     )?;
     let mut wrong_service = pin.clone();
@@ -64,7 +68,11 @@ fn verify_isolated_history(
     write(&directory.join("wrong-service.json"), &wrong_service)?;
     run(
         &directory,
-        &["check-historical-receipt", "@wrong-service.json", "@receipt.bin"],
+        &[
+            "check-historical-receipt",
+            "@wrong-service.json",
+            "@receipt.bin",
+        ],
         false,
     )?;
     let other = sdk::DirectorySigningKey::generate()?;
@@ -73,7 +81,11 @@ fn verify_isolated_history(
     write(&directory.join("wrong-key.json"), &wrong_key)?;
     run(
         &directory,
-        &["check-historical-receipt", "@wrong-key.json", "@receipt.bin"],
+        &[
+            "check-historical-receipt",
+            "@wrong-key.json",
+            "@receipt.bin",
+        ],
         false,
     )?;
     Ok(())
@@ -200,13 +212,19 @@ pub(super) fn exercise(root: &Path, start: u64, plan: &Value, trust: &Value) -> 
     lookup("@first.bin")?;
     let original_history: Value = serde_json::from_slice(&run(
         root,
-        &["check-historical-receipt", "@directory-pin.json", "@first.bin"],
+        &[
+            "check-historical-receipt",
+            "@directory-pin.json",
+            "@first.bin",
+        ],
         true,
     )?)?;
     assert_eq!(original_history["request"], first);
     assert_eq!(original_history["historical"], true);
     assert_eq!(
-        original_history["original_statement"].as_array().map(Vec::len),
+        original_history["original_statement"]
+            .as_array()
+            .map(Vec::len),
         Some(32)
     );
     issue(
