@@ -83,11 +83,14 @@ fn windows_directory_process_cuts_preserve_publication_state() -> Result<()> {
                 .filter(|p| {
                     p.file_name()
                         .to_string_lossy()
-                        .starts_with(".private-tree-")
+                        .starts_with(".private-attempt-v2-")
                 })
                 .collect();
             assert_eq!(staged.len(), 1);
-            complete(&staged.first().ok_or("missing staging")?.path())?;
+            let control = staged.first().ok_or("missing staging")?.path();
+            assert!(control.join("record").is_file());
+            assert!(control.join("lease").is_file());
+            complete(&control.join("payload"))?;
         }
         eprintln!(
             "WINDOWS_DIRECTORY_PROCESS cut={cut:?} published={published} no_returned_value=true"

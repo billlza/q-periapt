@@ -7,7 +7,9 @@ use std::{io, path::Path};
 /// The destination must be absent. Existing directories, files and symlinks are
 /// never replaced. The initializer receives an exclusive private staging path;
 /// it must finish and sync every child before returning and must not retain
-/// concurrent writers. The helper syncs that directory and its pinned parent.
+/// concurrent writers. A separate attempt lease is held before the initializer
+/// runs, through publication, both rename-parent syncs and control retirement.
+/// The helper also syncs the payload directory before publication.
 /// It does not verify application configuration or make child writes durable.
 /// On Windows, child file handles must be closed before the directory rename.
 /// The helper never closes caller-owned handles: a retained live database causes
@@ -15,10 +17,12 @@ use std::{io, path::Path};
 /// state preparation and subsequent authenticated admission at the caller when
 /// that caller's contract permits it; this helper never reopens an owner.
 ///
-/// Errors and unwinds preserve staging. An error after rename may have published
+/// Errors and unwinds preserve the payload. An error after rename may have published
 /// the complete directory. Reconcile its exact original inputs; never delete or
 /// recreate a destination after an uncertain result. Unpublished staging is not
-/// recovery authority and is not automatically selected or removed. Explicit
+/// recovery authority and is not automatically selected or removed. A valid v2
+/// attempt can be explicitly reclaimed after its publisher releases the lease;
+/// a partially retired or incomplete control is refused. Explicit
 /// first-use retries must be bounded by the caller. Same-UID hostile code and
 /// physical power-loss durability remain outside this helper's guarantees.
 pub fn publish_private_directory<T, E>(
@@ -61,7 +65,7 @@ where
     target_os = "linux",
     target_os = "android"
 ))]
-use super::{open_private_parent, publication_ops as ops, OwnedPrivateDirectory};
+use super::{maintenance::ManagedAttempt, publication_ops as ops};
 #[cfg(any(
     windows,
     target_os = "macos",
@@ -69,7 +73,7 @@ use super::{open_private_parent, publication_ops as ops, OwnedPrivateDirectory};
     target_os = "linux",
     target_os = "android"
 ))]
-use std::{ffi::OsStr, path::PathBuf};
+use std::path::PathBuf;
 
 #[cfg(any(
     windows,
@@ -97,25 +101,8 @@ enum Step {
     target_os = "linux",
     target_os = "android"
 ))]
-fn admission() -> io::Error {
-    io::Error::new(
-        io::ErrorKind::PermissionDenied,
-        "private directory publication admission failed",
-    )
-}
-
-#[cfg(any(
-    windows,
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "linux",
-    target_os = "android"
-))]
 struct Staging {
-    parent: OwnedPrivateDirectory,
-    directory: OwnedPrivateDirectory,
-    name: std::ffi::OsString,
-    destination: std::ffi::OsString,
+    attempt: ManagedAttempt,
     path: PathBuf,
 }
 
@@ -128,30 +115,13 @@ struct Staging {
 ))]
 impl Staging {
     fn new(path: &Path) -> Result<Self, PrivatePublicationError> {
-        let (parent, destination) = open_private_parent(path).map_err(|_| admission())?;
-        ops::require_absent(&parent, destination)?;
-        let mut token = [0u8; 16];
-        getrandom::fill(&mut token).map_err(io::Error::other)?;
-        let token: String = token.iter().map(|byte| format!("{byte:02x}")).collect();
-        let name = std::ffi::OsString::from(format!(".private-tree-{token}"));
-        let staged_error = |error: io::Error| PrivatePublicationError::staged(error, name.clone());
-        let directory = ops::create_directory(&parent, &name).map_err(staged_error)?;
-        let staged_path = path.parent().ok_or_else(admission)?.join(&name);
-        Ok(Self {
-            parent,
-            directory,
-            name,
-            destination: destination.into(),
-            path: staged_path,
-        })
-    }
-
-    fn same(&self, name: &OsStr) -> io::Result<()> {
-        ops::same_directory(&self.parent, name, &self.directory)
+        let attempt = ManagedAttempt::directory(path)?;
+        let path = attempt.path().to_owned();
+        Ok(Self { attempt, path })
     }
 
     fn error(&self, error: io::Error) -> PrivatePublicationError {
-        PrivatePublicationError::staged(error, self.name.clone())
+        PrivatePublicationError::staged(error, self.attempt.correlation_name().to_owned())
     }
 }
 
@@ -173,29 +143,24 @@ where
     let staging = Staging::new(path).map_err(E::from)?;
     hook(Step::Created, &staging).map_err(|e| E::from(staging.error(e)))?;
     staging
-        .same(&staging.name)
+        .attempt
+        .validate_unpublished()
         .map_err(|e| E::from(staging.error(e)))?;
     let value = initialize(&staging.path)?;
     let publish = (|| -> io::Result<()> {
         hook(Step::Initialized, &staging)?;
-        staging.same(&staging.name)?;
+        staging.attempt.validate_unpublished()?;
         hook(Step::BeforeStagingSync, &staging)?;
-        ops::sync_directory(&staging.directory)?;
+        ops::sync_directory(staging.attempt.data_directory()?)?;
         hook(Step::StagingSynced, &staging)?;
         hook(Step::BeforeRename, &staging)?;
-        staging.same(&staging.name)?;
-        ops::rename_directory(
-            &staging.parent,
-            &staging.name,
-            &staging.destination,
-            &staging.directory,
-        )?;
+        staging.attempt.rename()?;
         hook(Step::Published, &staging)?;
-        staging.same(&staging.destination)?;
+        staging.attempt.same_target()?;
         hook(Step::BeforeParentSync, &staging)?;
-        ops::sync_directory(&staging.parent)?;
+        staging.attempt.sync_publication()?;
         hook(Step::ParentSynced, &staging)?;
-        staging.same(&staging.destination)
+        staging.attempt.finish()
     })();
     publish.map_err(|e| E::from(staging.error(e)))?;
     Ok(value)

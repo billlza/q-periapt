@@ -35,11 +35,27 @@ qperiapt policy-store-upgrade /private/path/policy.redb \
 |---|---|---|
 | `slh-dsa` | off | Forwards to `q-periapt-backends/slh-dsa`, adding the `SLH-DSA-SHA2-128s/192s/256s` rows to `qperiapt cbom` |
 | `policy-store-migration` | off | Adds the offline macOS/Linux policy-store maintenance command and its pinned legacy-format reader; not an in-process SDK API |
+| `publication-maintenance` | off | Adds explicit reclamation of one inactive v2 private publication attempt through the shared host-store adapter, with caller-supplied whole-payload work limits |
 
 ## Offline host policy-store upgrade
 
 Build the maintenance executable from the selected release source with
 `cargo build --locked -p q-periapt-cli --features policy-store-migration`.
+The precompiled maintenance package selects both `policy-store-migration` and
+`publication-maintenance`. For the latter, use the exact original control directory:
+
+```sh
+qperiapt publication-reclaim /absolute/private/.private-attempt-v2-ORIGINAL_NONCE \
+  --max-entries 1024 --max-depth 32 --max-bytes 268435456
+```
+
+The actual 32-character lowercase hex nonce replaces `ORIGINAL_NONCE`. Read the
+[publication maintenance contract](../../docs/PRIVATE_PUBLICATION_MAINTENANCE.md)
+before selecting an attempt. `reclaimed` repeats the original durable totals;
+`no-payload` is only an absence observation and does not authorize reprovisioning.
+A live owner, wrong scope, legacy/incomplete record or insufficient budget refuses
+cleanup. I/O failure may follow partial removal: retain the same control records
+and reconcile that original operation.
 Stop users of the target store first. Its parent must have mode `0700` and the
 existing file must have mode `0600`, be owned by the user, have no extended ACL
 and have exactly one link. The command uses the same private path and exclusive

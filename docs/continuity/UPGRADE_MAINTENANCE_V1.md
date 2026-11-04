@@ -30,6 +30,7 @@ qualification.
 | Witness image | `continuity_anchor_candidate_v1`; recognized tags `QPANC001`–`QPANC004` and `QPANC006`–`QPANC022`; no `QPANC005` | Opening authenticates without rewriting the logical image. A later authorized transaction selects the representation required by its retained features. This is not a promise that every older reader accepts it. |
 | Witness handoff plan | `QPAHPL01` and `QPAHPL02` retain their original signed bytes | A legacy 01 plan only establishes the first transition from its original namespace; it cannot stand in for a bound later handoff. |
 | SDK signed-policy store | Separate [policy maintenance tool](../POLICY_MAINTENANCE.md) for the original five-field `QPeriapt-Host-Policy-v1` redb-format-2 store | Its explicit engine transition does not migrate a Continuity journal, installation, enrollment image or Witness database. Its existing platform and interruption limits still apply. |
+| Unpublished publication control | `.private-attempt-v2-*`, `QPSTG002`, independent `QPSTGL02` lease; cleanup intent `QPSTGC02` and receipt `QPSTGD02` | Explicit maintenance accepts only the bound original scope and identities. Legacy prefix-only residues, experimental v1 records, incomplete controls and relocated copies are refused. Operational storage formats are unchanged. |
 
 The Witness compatibility above is implemented, not merely proposed. In
 particular, authenticated 001 state supplies its original owner as the initial
@@ -102,22 +103,26 @@ remain documented in [budgets](BUDGETS_V1.json) and
 Unpublished first-use staging files are not recovery inputs or authority to delete
 anything. A failed first-use retry requires its retained original explicit intent;
 it does not permit repeated unbounded provisioning. Formal destination names,
-previously active state and unknown-commit records must remain intact. The current
-implementation does not sweep staging orphans. An automated sweeper would need a
-verified ownership/publication boundary and exclusion of active writers; matching
-a filename prefix or a prior error receipt is insufficient. The concrete orphan
-maintenance procedure remains an admission gap already recorded in
-[product admission](PRODUCT_ADMISSION.md), not a new unbounded cleanup project.
+previously active state and unknown-commit records must remain intact. Publication
+now retains a separate control lease before exposing the original payload, through
+rename and both parent syncs. The explicit Rust API and `qperiapt publication-reclaim`
+command implement the [v2 maintenance contract](../PRIVATE_PUBLICATION_MAINTENANCE.md).
+They admit the whole remaining payload and all file leases before deleting it,
+retain the original cleanup intent/result through interruption, and never follow
+the formal destination. There is no automatic sweep. Matching a prefix or a prior
+error is insufficient authority. Legacy/incomplete control disposition and the new
+installed/platform qualification remain separate admission obligations.
 
 The [isolated maintenance protocol experiment](../../research/sdk-alpha1/evidence/20261104-staging-maintenance-protocol/README.md)
 reproduces why a pinned staging-directory descriptor alone is insufficient:
 after publication it still refers to the formal directory. A separate continuous
-control lease protects the tested file/directory cases, but the extended aggregate
-fails when the existing operational opener refuses a valid empty unpublished
-payload. That normal-store refusal remains correct. A future internal cleanup
-admission must retain the original record/lease, ownership, ACL, link and inode
-checks while handling that disposable state. The experiment has not been added
-to product publication paths and does not authorize cleanup of old residues.
+control lease protects the tested file/directory cases, but that experiment's
+extended aggregate failed when the existing operational opener refused a valid
+empty unpublished payload. The failure remains retained. The subsequent v2
+implementation uses a separate internal disposable-file admission with the original
+record/lease, ownership, ACL, link and inode checks. The normal-store opener still
+refuses empty files. This implementation does not retroactively qualify the failed
+experiment or authorize cleanup of old residues.
 
 The existing security policy supports the latest verified ABI 2 publication set
 while its receipt selects it as current. This document does not invent an LTS
@@ -147,6 +152,6 @@ migration, foreign installers, other platforms or physical power loss.
 Before formal admission, bind this compatibility table to the final package and
 contract versions, explicitly dispose of preview-state support, qualify each
 promised actual migration edge and its installer failure behavior, and close the
-existing orphan-maintenance procedure. Preserve recognized Witness compatibility
+installed/platform maintenance path and legacy-residue disposition. Preserve recognized Witness compatibility
 and the existing policy-maintenance tool's narrow scope. Do not mark the ABI,
 storage contract or release frozen on the strength of this checkpoint alone.

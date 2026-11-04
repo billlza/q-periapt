@@ -6,10 +6,11 @@ an exclusive lifetime file lock, and closes retained runtime aliases on failure
 or disposal. Its private filesystem implementation is shared with the existing
 policy agent. The private boundary supports macOS, Linux, Android and iOS; platform execution is recorded separately. Database genesis is committed in a private staging inode and published through
 file sync, NOREPLACE rename and pinned-parent sync before owner release. One
-Database and exclusive lock remain alive throughout. Failed attempts never delete
-formal or staging files. Previously published state must be reopened with original
+Database and exclusive lock remain alive throughout, alongside a separate continuous
+attempt lease. Publication never deletes a formal target or unpublished payload;
+successful publication retires only its own control fields. Previously published state must be reopened with original
 expectations; loss of active storage is not first use. Bounded explicit initial
-retry and exclusive staging maintenance remain host responsibilities.
+retry remains a host responsibility. Explicit versioned maintenance is described below.
 
 The store privately retains the SDK's `PolicyOwner`. A runtime returned by
 `runtime()` or `replace_policy()` cannot prepare an in-memory policy update;
@@ -26,9 +27,13 @@ remain release gates.
 `filesystem::publish_private_bytes` publishes complete immutable key images on
 macOS/Linux/Android/iOS: private staging write, file sync, NOREPLACE rename, published-inode
 validation, parent sync. Existing destinations are never replaced or deleted on
-failure. Errors retain the original operation and attempted staging name. Failed attempts
+failure. Errors retain the original operation and attempted control name. Failed attempts
 and process crashes can leave unpublished private staging orphans; automatic selection,
-sweeping and physical erasure are not provided. Database provisioning now reuses the same internal publication capability. This
+sweeping and physical erasure are not provided. `filesystem::reclaim_private_publication`
+can explicitly reclaim one inactive, bound v2 payload under a whole-tree budget,
+with original-intent recovery and a retained exact result. Legacy/incomplete
+controls are refused. See the [maintenance contract](../../docs/PRIVATE_PUBLICATION_MAINTENANCE.md).
+Database provisioning reuses the same internal publication capability. This
 does not migrate old partial formal files.
 
 A Windows candidate implements file-level admission and publication on local

@@ -24,18 +24,21 @@ before returning the signing owner. Existing destinations, including old partial
 files, are never replaced. Unsupported rename operations fail without a fallback.
 Before success, neither a public enrollment key nor a signing owner is released.
 
-On returned errors, no file is deleted. Checking inode identity and then unlinking
-a name is not an atomic conditional deletion. The original error retains the
-attempted staging name as diagnostic data, not deletion authority.
+Publication errors never delete the payload or formal destination. After
+publication the helper retires only its own control fields under the original
+separate lease; a failure can leave partially retired control metadata. The
+original error retains the control name as diagnostic data, not deletion authority.
 The destination is never removed, even when directory sync or result delivery
 fails: another opener may already have reconciled it and used the identity.
-A crash before rename can leave a private `.private-publication-*` orphan. These
+A crash before rename can leave a private `.private-attempt-v2-*/payload`. These
 files are not recovery authority and are never selected or automatically swept.
 Only an explicit original first-use intent with an absent destination may retry
 with fresh unpublished material. A previously active missing key is data loss.
-Database genesis now shares the staged publication capability. Orphan cleanup,
-physical erasure and old partial-state recovery remain separate lifecycle work;
-applications must bound explicit first-use retries.
+Database genesis shares the staged publication capability. Explicit
+[v2 maintenance](../../docs/PRIVATE_PUBLICATION_MAINTENANCE.md) uses the separate
+continuous control lease and original metadata to reclaim inactive payloads;
+legacy/incomplete controls are refused. Physical erasure and old partial-state
+recovery are not provided; applications must bound explicit first-use retries.
 
 `open` requires an existing exact-size private file, the independently expected
 ID, the same role and the protected wrapping key. It authenticates the full image,

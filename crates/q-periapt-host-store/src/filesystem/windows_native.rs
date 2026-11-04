@@ -2,12 +2,12 @@
 #![allow(unsafe_code)]
 
 use std::{
-    ffi::OsStr,
+    ffi::{OsStr, OsString},
     fs::{File, OpenOptions},
     io,
-    mem::{size_of, size_of_val},
+    mem::{offset_of, size_of, size_of_val},
     os::windows::{
-        ffi::OsStrExt,
+        ffi::{OsStrExt, OsStringExt},
         fs::OpenOptionsExt,
         io::{AsRawHandle, FromRawHandle},
     },
@@ -17,17 +17,20 @@ use windows_sys::{
     Wdk::{
         Foundation::OBJECT_ATTRIBUTES,
         Storage::FileSystem::{
-            FileFsDeviceInformation, FileRenameInformation, NtCreateFile,
+            FileDispositionInformationEx, FileFsDeviceInformation, FileNamesInformation,
+            FileRenameInformation, NtCreateFile, NtQueryDirectoryFile,
             NtQueryVolumeInformationFile, NtSetInformationFile, FILE_CREATE, FILE_DIRECTORY_FILE,
-            FILE_NON_DIRECTORY_FILE, FILE_OPEN, FILE_OPEN_REPARSE_POINT, FILE_RENAME_INFORMATION,
-            FILE_RENAME_INFORMATION_0, FILE_SYNCHRONOUS_IO_NONALERT,
+            FILE_DISPOSITION_DELETE, FILE_DISPOSITION_INFORMATION_EX,
+            FILE_DISPOSITION_POSIX_SEMANTICS, FILE_NAMES_INFORMATION, FILE_NON_DIRECTORY_FILE,
+            FILE_OPEN, FILE_OPEN_REPARSE_POINT, FILE_RENAME_INFORMATION, FILE_RENAME_INFORMATION_0,
+            FILE_SYNCHRONOUS_IO_NONALERT,
         },
         System::SystemServices::{FILE_FS_DEVICE_INFORMATION, FILE_REMOTE_DEVICE},
     },
     Win32::{
         Foundation::{
-            RtlNtStatusToDosError, GENERIC_READ, GENERIC_WRITE, OBJ_CASE_INSENSITIVE,
-            UNICODE_STRING,
+            RtlNtStatusToDosError, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE,
+            OBJ_CASE_INSENSITIVE, STATUS_NO_MORE_FILES, UNICODE_STRING,
         },
         Security::SECURITY_DESCRIPTOR,
         Storage::FileSystem::*,
@@ -103,6 +106,7 @@ pub(super) enum OpenKind {
     Metadata,
     Configuration,
     DirectoryRename,
+    FileRemoval,
     State,
 }
 
@@ -199,6 +203,10 @@ pub(super) fn open(parent: &File, name: &OsStr, kind: OpenKind) -> io::Result<Fi
         OpenKind::DirectoryRename => (
             DELETE | FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE,
             FILE_DIRECTORY_FILE,
+        ),
+        OpenKind::FileRemoval => (
+            DELETE | FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE,
+            FILE_NON_DIRECTORY_FILE,
         ),
         OpenKind::State => (
             GENERIC_READ | GENERIC_WRITE | SYNCHRONIZE,
@@ -330,16 +338,21 @@ pub(super) fn same_file(first: &File, second: &File) -> io::Result<()> {
 }
 
 pub(super) fn same_directory(first: &File, second: &File) -> io::Result<()> {
-    let a = information(first)?;
-    let b = information(second)?;
-    if a.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY == 0
-        || b.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY == 0
-        || (a.dwVolumeSerialNumber, a.nFileIndexHigh, a.nFileIndexLow)
-            != (b.dwVolumeSerialNumber, b.nFileIndexHigh, b.nFileIndexLow)
-    {
+    if directory_identity(first)? != directory_identity(second)? {
         return Err(denied());
     }
     Ok(())
+}
+
+pub(super) fn directory_identity(file: &File) -> io::Result<(u32, u64)> {
+    let info = information(file)?;
+    if info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY == 0 {
+        return Err(denied());
+    }
+    Ok((
+        info.dwVolumeSerialNumber,
+        (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow),
+    ))
 }
 
 pub(super) fn rename_file(
@@ -350,20 +363,168 @@ pub(super) fn rename_file(
     rename_synchronous_handle(file.file(), parent, destination)
 }
 
+pub(super) fn rename_plain_file_to(
+    source_parent: &File,
+    name: &OsStr,
+    destination_parent: &File,
+    destination: &OsStr,
+    original: &File,
+) -> io::Result<()> {
+    // FileRemoval requests DELETE access without setting a delete disposition.
+    // Bind this late, synchronous handle to the original retained control field.
+    let named = open(source_parent, name, OpenKind::FileRemoval)?;
+    check_local_ntfs(&named)?;
+    crate::windows_acl::validate(&named)?;
+    same_file(original, &named)?;
+    rename_synchronous_handle(&named, destination_parent, destination)
+}
+
 pub(super) fn rename_directory(
     directory: &super::windows::OwnedPrivateDirectory,
-    parent: &File,
+    source_parent: &File,
     name: &OsStr,
+    destination_parent: &File,
     destination: &OsStr,
 ) -> io::Result<()> {
     // Keep the original read/write directory pin throughout preparation. An
     // early DELETE handle can conflict with the kernel's child-rename target
     // open. Acquire deletion access only now, and bind it to that original pin.
     // All these handles are synchronous; no borrowed rename buffer can escape.
-    let named = open(parent, name, OpenKind::DirectoryRename)?;
+    let named = open(source_parent, name, OpenKind::DirectoryRename)?;
     crate::windows_acl::validate(&named)?;
     same_directory(&directory.descriptor, &named)?;
-    rename_synchronous_handle(&named, parent, destination)
+    rename_synchronous_handle(&named, destination_parent, destination)
+}
+
+pub(super) fn remove_file(parent: &File, name: &OsStr, original: &File) -> io::Result<()> {
+    let named = open(parent, name, OpenKind::FileRemoval)?;
+    check_local_ntfs(&named)?;
+    crate::windows_acl::validate(&named)?;
+    same_file(original, &named)?;
+    remove_synchronous_handle(named)
+}
+
+pub(super) fn remove_directory(parent: &File, name: &OsStr, original: &File) -> io::Result<()> {
+    let named = open(parent, name, OpenKind::DirectoryRename)?;
+    check_local_ntfs(&named)?;
+    crate::windows_acl::validate(&named)?;
+    same_directory(original, &named)?;
+    remove_synchronous_handle(named)
+}
+
+fn remove_synchronous_handle(file: File) -> io::Result<()> {
+    let mut disposition = FILE_DISPOSITION_INFORMATION_EX {
+        Flags: FILE_DISPOSITION_DELETE | FILE_DISPOSITION_POSIX_SEMANTICS,
+    };
+    let mut completion = IO_STATUS_BLOCK::default();
+    // SAFETY: this owned handle was opened synchronously with DELETE access. The
+    // fixed-size input and completion buffers remain live through the native call.
+    status(unsafe {
+        NtSetInformationFile(
+            file.as_raw_handle(),
+            &mut completion,
+            (&mut disposition as *mut FILE_DISPOSITION_INFORMATION_EX).cast(),
+            size_of::<FILE_DISPOSITION_INFORMATION_EX>() as u32,
+            FileDispositionInformationEx,
+        )
+    })?;
+    // SAFETY: successful synchronous completion initialized this union member.
+    status(unsafe { completion.Anonymous.Status })?;
+    // POSIX disposition removes the name when this deletion handle closes, even
+    // while the caller's original pin remains live. There is no legacy fallback,
+    // readonly-attribute override, or closure of the caller's independent lease.
+    drop(file);
+    Ok(())
+}
+
+/// Return at most `limit` non-dot names. This is not a namespace snapshot; the
+/// caller must retain its own lease and revalidate each opened entry's identity.
+pub(super) fn directory_entries(parent: &File, limit: usize) -> io::Result<Vec<OsString>> {
+    if limit == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "private directory enumeration requires a positive limit",
+        ));
+    }
+    // A duplicate handle would share the enumeration cursor. Reopen this pinned
+    // object for a private cursor, without resolving an absolute path or following
+    // a reparse point. No OVERLAPPED flag means all native query buffers stay live.
+    // SAFETY: the original directory handle is live; no borrowed buffers are used.
+    let handle = unsafe {
+        ReOpenFile(
+            parent.as_raw_handle(),
+            FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+        )
+    };
+    if handle == INVALID_HANDLE_VALUE {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: ReOpenFile returned a new owned handle, closed exactly once by File.
+    let directory = unsafe { File::from_raw_handle(handle) };
+    check_local_ntfs(&directory)?;
+    crate::windows_acl::validate(&directory)?;
+    same_directory(parent, &directory)?;
+    let mut entries = Vec::new();
+    let mut restart = true;
+    while entries.len() < limit {
+        // LONG alignment and room for a complete maximum-length NTFS leaf.
+        let mut buffer = [0u32; 256];
+        let mut completion = IO_STATUS_BLOCK::default();
+        // SAFETY: synchronous handle, no event/APC, aligned bounded output buffer,
+        // and live completion storage. Request exactly one complete directory entry.
+        let result = unsafe {
+            NtQueryDirectoryFile(
+                directory.as_raw_handle(),
+                ptr::null_mut(),
+                None,
+                ptr::null(),
+                &mut completion,
+                buffer.as_mut_ptr().cast(),
+                size_of_val(&buffer) as u32,
+                FileNamesInformation,
+                true,
+                ptr::null(),
+                restart,
+            )
+        };
+        if result == STATUS_NO_MORE_FILES {
+            break;
+        }
+        status(result)?;
+        // SAFETY: successful synchronous completion initialized this union member.
+        status(unsafe { completion.Anonymous.Status })?;
+        restart = false;
+        let start = offset_of!(FILE_NAMES_INFORMATION, FileName);
+        let used = completion.Information;
+        let name_bytes = buffer[2] as usize;
+        if used < start
+            || used > size_of_val(&buffer)
+            || buffer[0] != 0
+            || name_bytes == 0
+            || name_bytes > 255 * size_of::<u16>()
+            || !name_bytes.is_multiple_of(size_of::<u16>())
+            || start + name_bytes > used
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "private directory enumeration returned an incomplete entry",
+            ));
+        }
+        // SAFETY: the validated native byte length lies inside initialized buffer;
+        // its LONG-aligned base plus FileName offset is aligned for u16.
+        let name = unsafe {
+            std::slice::from_raw_parts(
+                buffer.as_ptr().cast::<u8>().add(start).cast::<u16>(),
+                name_bytes / size_of::<u16>(),
+            )
+        };
+        if name != [46] && name != [46, 46] {
+            entries.push(OsString::from_wide(name));
+        }
+    }
+    Ok(entries)
 }
 
 fn rename_synchronous_handle(file: &File, parent: &File, destination: &OsStr) -> io::Result<()> {

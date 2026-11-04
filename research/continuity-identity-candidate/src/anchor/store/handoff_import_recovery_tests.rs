@@ -179,16 +179,21 @@ fn import_publication_and_cancellation_process_loss_never_releases_uncommitted_r
         if stage == "import-unpublished" {
             assert!(!f.db_path().exists());
             assert!(AnchorHandoffTarget::open(&f.db_path(), f.key(), f.approval.clone()).is_err());
-            assert!(
-                fs::read_dir(&f.directory)
-                    .expect("owned directory")
-                    .any(|e| e
-                        .expect("entry")
-                        .file_name()
+            let attempts: Vec<_> = fs::read_dir(&f.directory)
+                .expect("owned directory")
+                .map(|e| e.expect("entry").path())
+                .filter(|path| {
+                    path.file_name()
+                        .expect("leaf")
                         .to_string_lossy()
-                        .starts_with(".private-publication-")),
-                "unpublished orphan retained, never selected for recovery"
-            );
+                        .starts_with(".private-attempt-v2-")
+                })
+                .collect();
+            assert_eq!(attempts.len(), 1, "unpublished original attempt retained");
+            let control = attempts.first().expect("original control");
+            for leaf in ["record", "lease", "payload"] {
+                assert!(control.join(leaf).is_file());
+            }
             // This fixture has never published. One explicit first-use retry is
             // authorized here; no reset/deletion or automatic retry is performed.
             let mut target = f.provision();

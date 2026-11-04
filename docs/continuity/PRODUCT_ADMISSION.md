@@ -740,3 +740,13 @@ inferred from names. Post-publication live-policy closure is checked before an
 anchored journal owner escapes. This does not close orphan maintenance, legacy
 migration, actual archive/foreign/platform consumers, full recovery analysis or
 release admission.
+
+The shared host now has a versioned, continuously leased publication attempt and
+an explicit bounded reclamation API plus `qperiapt publication-reclaim`. The
+[v2 maintenance contract](../PRIVATE_PUBLICATION_MAINTENANCE.md) records its exact
+auxiliary format, original-result recovery, refusal of legacy/incomplete controls
+and retention policy. It addresses the live-publication/cleanup race and empty
+unpublished payload boundary without relaxing ordinary store admission. This new
+shared SDK/CLI source requires its own archive and installed consumer evidence;
+earlier cohorts do not qualify it. Windows runtime, supported platform consumers,
+legacy-residue disposition and final product admission remain separate.

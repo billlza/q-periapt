@@ -24,6 +24,7 @@ from rust_sdk_msrv import tool_identity, validate_report
 
 ROOT = Path(__file__).resolve().parent.parent
 NAME = "q-periapt-cli"
+FEATURES = ["policy-store-migration", "publication-maintenance"]
 TARGETS = {
     ("Darwin", "arm64"): "aarch64-apple-darwin",
     ("Linux", "x86_64"): "x86_64-unknown-linux-gnu",
@@ -32,6 +33,7 @@ TARGETS = {
 RESOLVED_NAMES = frozenset((*sdk.COHORT[:8], NAME))
 PAYLOAD_SOURCES = {
     "README.md": "docs/POLICY_MAINTENANCE.md",
+    "PRIVATE_PUBLICATION_MAINTENANCE.md": "docs/PRIVATE_PUBLICATION_MAINTENANCE.md",
     "LICENSE": "LICENSE",
     "LICENSES/Apache-2.0.txt": "LICENSES/Apache-2.0.txt",
     "LICENSES/MIT.txt": "LICENSES/MIT.txt",
@@ -68,7 +70,7 @@ def validate_resolution(metadata: dict, consumer: Path, lock: bytes, original: b
                     == consumer / "packages" / f"{name}-{sdk.VERSION}" / "Cargo.toml",
                     "maintenance dependency came from outside its recorded archive")
     selected = [n for n in metadata["resolve"]["nodes"] if n["id"] == local[NAME]["id"]]
-    sdk.require(len(selected) == 1 and "policy-store-migration" in selected[0]["features"]
+    sdk.require(len(selected) == 1 and set(FEATURES) <= set(selected[0]["features"])
                 and "sdk-cbom" not in selected[0]["features"], "maintenance features differ")
     resolved, expected = sdk.external_lock(lock), sdk.external_lock(original)
     sdk.require(all(expected.get(k) == v for k, v in resolved.items()),
@@ -188,11 +190,11 @@ def qualify(args: argparse.Namespace) -> dict:
     # tuple before building with --locked; an unpublished optional rustls archive
     # is needed for resolution but is not activated by the maintenance feature.
     metadata = parse_strict_json_bytes(run("metadata", [cargo, "metadata", "--offline", "--format-version", "1",
-        "--filter-platform", target, "--features", "policy-store-migration"]), label="maintenance metadata")
+        "--filter-platform", target, "--features", ",".join(FEATURES)]), label="maintenance metadata")
     resolution = validate_resolution(metadata, consumer, sdk.snapshot(consumer / "Cargo.lock").data,
                                     sdk.snapshot(ROOT / "Cargo.lock").data)
     run("build", [cargo, "build", "--release", "--locked", "--offline", "--target", target,
-                  "-p", NAME, "--features", "policy-store-migration"])
+                  "-p", NAME, "--features", ",".join(FEATURES)])
     package_name = f"q-periapt-policy-maintenance-{sdk.VERSION}-{target}"
     package = output / package_name
     package.mkdir(mode=0o755)
@@ -221,7 +223,7 @@ def qualify(args: argparse.Namespace) -> dict:
         "rust_report_sha256": report_bytes.sha256, "source_inputs": before,
         "source_date_epoch": epoch, "compiler": compiler, "tools": tools,
         "release_profile": profile, "rustflags": environment["RUSTFLAGS"],
-        "features": ["policy-store-migration"], "resolution": resolution,
+        "features": FEATURES, "resolution": resolution,
         "runtime": runtime, "files": payload(package)}
     sdk.write_json(package / "MANIFEST.json", manifest)
     (package / "MANIFEST.json").chmod(0o644)
@@ -239,6 +241,13 @@ def qualify(args: argparse.Namespace) -> dict:
     verify_payload(installed_root, target, pinned_manifest)
     run("installed", ["sh", "artifact/python-run.sh", "artifact/policy_store_migration_installed.py",
                       "--binary", str(installed_root / "bin/qperiapt"), "--output", str(output / "installed")], ROOT)
+    installed_environment = dict(environment, QPERIAPT_PUBLICATION_MAINTENANCE_BINARY=str(installed_root / "bin/qperiapt"))
+    sdk.command([cargo, "test", "--release", "--locked", "--offline", "--target", target,
+                 "-p", NAME, "--features", ",".join(FEATURES), "--test", "publication_maintenance", "--", "--nocapture"],
+                output / "installed-publication-maintenance", consumer, environment=installed_environment)
+    maintenance_log = sdk.snapshot(output / "installed-publication-maintenance.stderr").data
+    sdk.require(maintenance_log.splitlines().count(b"PUBLICATION_MAINTENANCE_CLI_COMPLETE") == 1,
+                "installed publication maintenance body did not complete")
     verify_payload(installed_root, target, pinned_manifest)
     sdk.verify_consumed_sources(consumer, args.report.parent, report["crates"], names=(*sdk.CONSUMER_CRATES, NAME))
     sdk.require(before == source_inputs() and sdk.inspect_package_source(ROOT, allow_dirty=False) == (commit, False)

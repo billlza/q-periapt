@@ -21,8 +21,10 @@ fn stages(root: &Path) -> Vec<std::path::PathBuf> {
             p.file_name()
                 .expect("leaf")
                 .to_string_lossy()
-                .starts_with(".private-publication-")
+                .starts_with(".private-attempt-v2-")
         })
+        .map(|control| control.join("payload"))
+        .filter(|payload| payload.exists())
         .collect()
 }
 #[derive(Debug)]

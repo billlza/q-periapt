@@ -38,8 +38,9 @@ authoritative state under the acquired lease. These checks do not isolate mutual
 hostile code running as the same user.
 
 Initial databases and immutable keys now keep incomplete/unpublished bytes beneath
-private staging names. Database initialization durably commits its schema before
-file sync, NOREPLACE publication, inode verification and pinned-parent sync. The
+private v2 control directories, under their separate continuous attempt lease.
+Database initialization durably commits its schema before
+file sync, NOREPLACE publication, inode verification and both rename-parent syncs. The
 same Database and exclusive lock survive every step; auxiliary plain file probes
 never manage locks. Existing destination names are never replaced or removed.
 
@@ -51,6 +52,13 @@ Existing partial formal databases remain refused at application-schema admission
 although redb opening can update its own allocator/recovery metadata. No
 `open_or_create` recovery path exists. Existing transaction failures still require
 exact old-or-new commit reconciliation.
+
+Explicit [v2 publication maintenance](../PRIVATE_PUBLICATION_MAINTENANCE.md) may
+reclaim a bound inactive attempt after whole-payload admission; it never selects a
+staging image for operational recovery. Its original cleanup intent and result
+survive partial removal. Publication retires its own control metadata on success;
+a retirement error can leave a valid formal target with partial control metadata.
+Incomplete/legacy controls are refused, not automatically swept.
 
 ## Aggregate image and local write intent
 
