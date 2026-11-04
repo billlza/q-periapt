@@ -4,8 +4,8 @@
 use crate::{
     codec::{generation, nonzero, Decoder},
     crypto::{digest, envelope, open_envelope, Purpose, SIGNATURE_BYTES},
-    AuthenticatedPrekeySelection, DirectorySigningKey, Error, LeafKind, PrekeyLeaf,
-    PrekeyQuality, PublicKey, Validity, VerifiedDevice, VerifiedSessionPolicy,
+    AuthenticatedPrekeySelection, DirectorySigningKey, Error, LeafKind, PrekeyLeaf, PrekeyQuality,
+    PublicKey, Validity, VerifiedDevice, VerifiedSessionPolicy,
 };
 use q_periapt_backends::ML_KEM_768_PK_LEN;
 
@@ -256,7 +256,8 @@ impl Statement {
         q_periapt_policy::TrustedPolicyState::decode(sdk.get(32..).ok_or(Error::Encoding)?)
             .map_err(|_| Error::Encoding)?;
         if suite != crate::bootstrap_suite_digest()
-            || fingerprint(LeafKind::OneTimeClassical, &classical, validity)? != classical_fingerprint
+            || fingerprint(LeafKind::OneTimeClassical, &classical, validity)?
+                != classical_fingerprint
             || fingerprint(LeafKind::OneTimePq, &pq, validity)? != pq_fingerprint
         {
             return Err(Error::Scope);
@@ -309,7 +310,9 @@ fn current_statement(
         || context.policy_digest() != policy.runtime.trusted_state().digest()
         || context.suite_digest() != crate::bootstrap_suite_digest()
         || pin.key.shares_component(&device.key)
-        || pin.key.shares_component(device.roster().continuation_authority().0)
+        || pin
+            .key
+            .shares_component(device.roster().continuation_authority().0)
     {
         return Err(Error::Scope);
     }

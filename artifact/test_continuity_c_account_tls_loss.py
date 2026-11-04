@@ -60,6 +60,11 @@ class TlsLossTests(unittest.TestCase):
             for stage in old["stages"].values():
                 for key in stage:
                     stage[key] -= 8
+            loss.require_workload(old, language, bootstrap_wire="QPCNET01")
+            with self.assertRaisesRegex(ValueError, "workload differs"):
+                loss.require_workload(row, language, bootstrap_wire="QPCNET01")
+            with self.assertRaisesRegex(ValueError, "unknown bootstrap wire census"):
+                loss.require_workload(old, language, bootstrap_wire="QPCNET00")
             lost = dict(row, lost_indices=row["lost_indices"][:-1])
             for bad in (dict(row, exchanges=row['exchanges'] - 1), dict(row, native_advances=35),
                         dict(row, native_advances=44), old, lost, shifted):

@@ -15,7 +15,7 @@ use std::{ffi::OsString, path::PathBuf};
 mod operator_io;
 use operator_io::{identifier, print, read, Result};
 
-const USAGE: &str = "Usage: q-periapt-prekey-directory <prepare-key|show-key|init|inspect|issue|lookup|cancel|check-receipt|prove-conflict|check-conflict> ... (see DIRECTORY_LEASES.md)";
+const USAGE: &str = "Usage: q-periapt-prekey-directory <prepare-key|show-key|init|inspect|issue|lookup|cancel|check-receipt|check-historical-receipt|prove-conflict|check-conflict> ... (see DIRECTORY_LEASES.md)";
 
 fn json<T: DeserializeOwned>(path: &OsString, maximum: usize) -> Result<T> {
     Ok(serde_json::from_slice(&read(path.as_ref(), maximum)?)?)
@@ -31,10 +31,15 @@ struct Pin {
 impl Pin {
     fn verified(&self) -> Result<sdk::DirectoryPin> {
         let key = URL_SAFE_NO_PAD.decode(&self.public_key)?;
-        if self.schema != "qperiapt-directory-pin/1" || URL_SAFE_NO_PAD.encode(&key) != self.public_key {
+        if self.schema != "qperiapt-directory-pin/1"
+            || URL_SAFE_NO_PAD.encode(&key) != self.public_key
+        {
             return Err("Invalid directory pin".into());
         }
-        Ok(sdk::DirectoryPin::new(self.service, sdk::PublicKey::decode(&key)?)?)
+        Ok(sdk::DirectoryPin::new(
+            self.service,
+            sdk::PublicKey::decode(&key)?,
+        )?)
     }
 }
 
@@ -75,12 +80,20 @@ impl Admission {
         &self,
         publication: &Publication,
         now: u64,
-    ) -> Result<(sdk::VerifiedDevice, sdk::AuthenticatedPrekeySelection, sdk::VerifiedSessionPolicy)> {
+    ) -> Result<(
+        sdk::VerifiedDevice,
+        sdk::AuthenticatedPrekeySelection,
+        sdk::VerifiedSessionPolicy,
+    )> {
         if self.schema != "qperiapt-directory-admission/1" {
             return Err("Unknown directory admission schema".into());
         }
-        let (policy, _) = self.policy_pins.verify(&self.policy_materials, self.trust.family(), now)?;
-        let (device, selection) = self.trust.verify_for_directory(publication, &self.plan, &policy, now)?;
+        let (policy, _) =
+            self.policy_pins
+                .verify(&self.policy_materials, self.trust.family(), now)?;
+        let (device, selection) =
+            self.trust
+                .verify_for_directory(publication, &self.plan, &policy, now)?;
         if selection.quality() != sdk::PrekeyQuality::OneTimeBoth {
             return Err("A directory lease requires both one-time roles".into());
         }
@@ -100,7 +113,9 @@ struct Request {
 impl Request {
     fn checked(&self) -> Result<sdk::DirectoryLeaseRequest> {
         Ok(sdk::DirectoryLeaseRequest::new(
-            self.operation, self.requester, self.checkpoint,
+            self.operation,
+            self.requester,
+            self.checkpoint,
             sdk::Validity::new(self.valid_from, self.valid_until)?,
         )?)
     }
@@ -124,13 +139,20 @@ struct Approval {
     window: sdk::Validity,
 }
 impl Grant {
-    fn bind(&self, action: Action, pin: &sdk::DirectoryPin, selection: [u8; 32]) -> Result<Approval> {
+    fn bind(
+        &self,
+        action: Action,
+        pin: &sdk::DirectoryPin,
+        selection: [u8; 32],
+    ) -> Result<Approval> {
         let label = match action {
             Action::Issue => "issue",
             Action::Cancel => "cancel",
         };
-        if self.schema != "qperiapt-directory-approval/1" || self.action != label
-            || self.service_binding != pin.binding() || self.selection_digest != selection
+        if self.schema != "qperiapt-directory-approval/1"
+            || self.action != label
+            || self.service_binding != pin.binding()
+            || self.selection_digest != selection
         {
             return Err("Approval scope differs from the independently selected operation".into());
         }
@@ -142,9 +164,16 @@ impl Grant {
     }
 }
 impl DirectoryAuthorization for Approval {
-    fn authorize(&self, action: Action, request: &sdk::DirectoryLeaseRequest, now: u64) -> std::result::Result<(), LedgerError> {
-        if self.action != action || self.request != *request
-            || now < self.window.from() || now >= self.window.until()
+    fn authorize(
+        &self,
+        action: Action,
+        request: &sdk::DirectoryLeaseRequest,
+        now: u64,
+    ) -> std::result::Result<(), LedgerError> {
+        if self.action != action
+            || self.request != *request
+            || now < self.window.from()
+            || now >= self.window.until()
         {
             return Err(LedgerError::Unauthorized);
         }
@@ -168,21 +197,51 @@ fn main() -> Result<()> {
             } else {
                 sdk::DirectorySigningKey::open(signer.as_ref(), &wrap, id)?
             };
-            print(&serde_json::json!({"schema":"qperiapt-directory-pin/1","service":service,
-                "public_key":URL_SAFE_NO_PAD.encode(key.public_key()?.encode())}))
+            print(
+                &serde_json::json!({"schema":"qperiapt-directory-pin/1","service":service,
+                "public_key":URL_SAFE_NO_PAD.encode(key.public_key()?.encode())}),
+            )
         }
         (Some("init"), [pin, db, capacity]) => {
             let pin = json::<Pin>(pin, 16384)?.verified()?;
-            let limit = capacity.to_str().ok_or("Invalid capacity")?.parse::<u64>()?;
+            let limit = capacity
+                .to_str()
+                .ok_or("Invalid capacity")?
+                .parse::<u64>()?;
             drop(DirectoryLedger::provision(db.as_ref(), &pin, limit)?);
             print(&serde_json::json!({"initialized":true,"service_binding":pin.binding()}))
+        }
+        (Some("check-historical-receipt"), [pin, receipt]) => {
+            // Historical verification needs only the independent pin and original wire.
+            // No service owner, current policy, clock or cancellation status is consulted.
+            let pin = json::<Pin>(pin, 16384)?.verified()?;
+            let verified = pin.verify_historical_lease(&read(receipt.as_ref(), 8192)?)?;
+            let request = verified.request();
+            print(&serde_json::json!({
+                "historical": true,
+                "original_statement": verified.statement_digest(),
+                "service_binding": verified.service_binding(),
+                "request": {
+                    "operation": request.operation(),
+                    "requester": request.requester(),
+                    "checkpoint": request.checkpoint(),
+                    "valid_from": request.validity().from(),
+                    "valid_until": request.validity().until(),
+                },
+                "manifest_digest": verified.manifest_digest(),
+                "selection_digest": verified.selection_digest(),
+                "classical_fingerprint": verified.classical_fingerprint(),
+                "post_quantum_fingerprint": verified.post_quantum_fingerprint(),
+            }))
         }
         (Some("inspect"), [pin, admission, publication]) => {
             let pin = json::<Pin>(pin, 16384)?.verified()?;
             let (_, selected, _) = json::<Admission>(admission, 512 * 1024)?
                 .verify(&json(publication, 4 * 1024 * 1024)?, clock()?)?;
-            print(&serde_json::json!({"service_binding":pin.binding(),"selection_digest":selected.digest(),
-                "checkpoint":selected.manifest_context().directory_checkpoint()}))
+            print(
+                &serde_json::json!({"service_binding":pin.binding(),"selection_digest":selected.digest(),
+                "checkpoint":selected.manifest_context().directory_checkpoint()}),
+            )
         }
         (Some("issue"), [service, grant, request, admission, publication, output]) => {
             let service: Service = json(service, 32768)?;
@@ -190,12 +249,24 @@ fn main() -> Result<()> {
             let request = json::<Request>(request, 8192)?.checked()?;
             let (device, selection, policy) = json::<Admission>(admission, 512 * 1024)?
                 .verify(&json(publication, 4 * 1024 * 1024)?, clock()?)?;
-            let approval = json::<Grant>(grant, 16384)?.bind(Action::Issue, &pin, selection.digest())?;
+            let approval =
+                json::<Grant>(grant, 16384)?.bind(Action::Issue, &pin, selection.digest())?;
             let wrap = sdk::JournalKey::open(&service.wrapping)?;
-            let key = sdk::DirectorySigningKey::open(&service.signer, &wrap,
-                sdk::SigningKeyId::from_trusted_state(service.signing_id)?)?;
+            let key = sdk::DirectorySigningKey::open(
+                &service.signer,
+                &wrap,
+                sdk::SigningKeyId::from_trusted_state(service.signing_id)?,
+            )?;
             let mut ledger = DirectoryLedger::open(&service.database, &pin)?;
-            let record = ledger.issue(&key, request, &selection, &device, &policy, &approval, trusted_clock)?;
+            let record = ledger.issue(
+                &key,
+                request,
+                &selection,
+                &device,
+                &policy,
+                &approval,
+                trusted_clock,
+            )?;
             // Publishing the output may fail after commit: retry the original op.
             publish_private_bytes(output.as_ref(), record.wire())?;
             print(&serde_json::json!({"receipt_exported":true,"service_binding":pin.binding()}))
@@ -203,7 +274,9 @@ fn main() -> Result<()> {
         (Some("lookup"), [pin, db, operation, output]) => {
             let pin = json::<Pin>(pin, 16384)?.verified()?;
             let mut ledger = DirectoryLedger::open(db.as_ref(), &pin)?;
-            let record = ledger.lookup(identifier(operation)?)?.ok_or("Unknown original operation")?;
+            let record = ledger
+                .lookup(identifier(operation)?)?
+                .ok_or("Unknown original operation")?;
             publish_private_bytes(output.as_ref(), record.wire())?;
             print(&serde_json::json!({"historical":true,"cancelled":record.cancelled()}))
         }
@@ -211,9 +284,15 @@ fn main() -> Result<()> {
             let pin = json::<Pin>(pin, 16384)?.verified()?;
             let mut ledger = DirectoryLedger::open(db.as_ref(), &pin)?;
             let operation = identifier(operation)?;
-            let prior = ledger.lookup(operation)?.ok_or("Unknown original operation")?;
+            let prior = ledger
+                .lookup(operation)?
+                .ok_or("Unknown original operation")?;
             let receipt = pin.verify_historical_lease(prior.wire())?;
-            let approval = json::<Grant>(grant, 16384)?.bind(Action::Cancel, &pin, receipt.selection_digest())?;
+            let approval = json::<Grant>(grant, 16384)?.bind(
+                Action::Cancel,
+                &pin,
+                receipt.selection_digest(),
+            )?;
             let record = ledger.cancel(operation, &approval, trusted_clock)?;
             print(&serde_json::json!({"cancelled":record.cancelled()}))
         }
@@ -222,12 +301,25 @@ fn main() -> Result<()> {
             let now = clock()?;
             let (device, selection, policy) = json::<Admission>(admission, 512 * 1024)?
                 .verify(&json(publication, 4 * 1024 * 1024)?, now)?;
-            let verified = pin.verify_lease(&read(receipt.as_ref(), 8192)?, json::<Request>(request,8192)?.checked()?, &selection, &device, &policy, now)?;
-            print(&serde_json::json!({"signature_and_scope":true,"statement":verified.statement_digest()}))
+            let verified = pin.verify_lease(
+                &read(receipt.as_ref(), 8192)?,
+                json::<Request>(request, 8192)?.checked()?,
+                &selection,
+                &device,
+                &policy,
+                now,
+            )?;
+            print(
+                &serde_json::json!({"signature_and_scope":true,"statement":verified.statement_digest()}),
+            )
         }
         (Some("prove-conflict"), [pin, first, second, output]) => {
             let pin = json::<Pin>(pin, 16384)?.verified()?;
-            let proof = sdk::DirectoryLeaseConflict::verify(&pin, &read(first.as_ref(), 8192)?, &read(second.as_ref(), 8192)?)?;
+            let proof = sdk::DirectoryLeaseConflict::verify(
+                &pin,
+                &read(first.as_ref(), 8192)?,
+                &read(second.as_ref(), 8192)?,
+            )?;
             let directory = PathBuf::from(output);
             operator_io::export_directory(&directory)?;
             publish_private_bytes(&directory.join("conflict.bin"), &proof.to_bytes())?;

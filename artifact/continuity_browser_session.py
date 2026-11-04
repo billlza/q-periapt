@@ -128,9 +128,11 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
     def phase(name,details=None,*,recorder=None):
         code='''async page => {
           const phase = __PHASE__;
+          const origin = __ORIGIN__;
           const details = __DETAILS__;
           const diagnostics=[], requests=[], httpErrors=[];
           const phaseStarted=Date.now(), responseStatus=new WeakMap(), requestDiagnostics=[];
+          let lostResponseObserved=false, lostResponseNotify=null, lostResponseTimer;
           const onPageError=error=>diagnostics.push({type:'pageerror',message:String(error)});
           const onConsole=message=>{if(['error','warning'].includes(message.type()))diagnostics.push({type:message.type(),message:message.text(),location:message.location()});};
           const onRequestFailed=request=>{
@@ -140,6 +142,10 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
             requestDiagnostics.push({url:request.url(),failure:request.failure(),timing:request.timing(),
               body_hex:request.postDataBuffer()?.toString('hex')??null,
               response_status:responseStatus.get(request)??null,observed_ms:Date.now()});
+            if(phase==='activate' && request.url()===origin+'/exchange/drop-once') {
+              lostResponseObserved=true;
+              if(lostResponseNotify)lostResponseNotify();
+            }
           };
           const onResponse=response=>{
             responseStatus.set(response.request(),response.status());
@@ -151,17 +157,34 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
             for(const [event,listener] of listeners)page.on(event,listener);
             await page.waitForFunction(()=>globalThis.fixtureReady===true,undefined,{timeout:15000});
             const result=await page.evaluate(({phase,details})=>globalThis.runPhase(phase,details),{phase,details});
+            // Worker completion can precede delivery of the DevTools failure event.
+            // Keep the exact expected observer event mandatory, with a bounded wait.
+            if(phase==='activate' && !lostResponseObserved) {
+              await new Promise((resolve,reject)=>{
+                lostResponseNotify=()=>{clearTimeout(lostResponseTimer);resolve();};
+                lostResponseTimer=setTimeout(()=>reject(Error('lost response observer deadline '+JSON.stringify({
+                  request_count:requests.length,http_error_count:httpErrors.length,
+                  requests:requests.slice(0,8).map(row=>({url:row.url.slice(0,256),
+                    reason:String(row.failure?.errorText??'').slice(0,256)}))}))),5000);
+              });
+            }
             const state=await page.evaluate(()=>({browser:navigator.userAgent,transport_receipts:globalThis.readTransportReceipts()}));
             return {status:'INSTALLED_SESSION_PHASE',phase,result,diagnostics,requests,http_errors:httpErrors,
               request_diagnostics:requestDiagnostics,phase_started_ms:phaseStarted,...state};
           } finally {
+            clearTimeout(lostResponseTimer);
+            lostResponseNotify=null;
             // The CLI reuses this Page across phases. Preserve unrelated listeners.
             for(const [event,listener] of listeners)page.off(event,listener);
           }
-        }'''.replace('__PHASE__',json.dumps(name)).replace('__DETAILS__',json.dumps(details))
+        }'''.replace('__PHASE__',json.dumps(name)).replace('__DETAILS__',json.dumps(details)).replace('__ORIGIN__',json.dumps(origin))
         path=output/(name+'.js');save(path,code.encode())
         text=browser(['run-code','--filename',str(path)],'browser-'+name,recorder=recorder).decode()
-        sdk.require(text.count('### Result\n')==1 and '### Error' not in text,'browser phase failed '+name)
+        observer_marker='lost response observer deadline '
+        observer_failure=(text.split(observer_marker,1)[1].splitlines()[0][:2048]
+                          if observer_marker in text else '')
+        sdk.require(text.count('### Result\n')==1 and '### Error' not in text,
+                    'browser phase failed '+name+(' observer='+observer_failure if observer_failure else ''))
         value=parse_strict_json_bytes(text.split('### Result\n',1)[1].split('\n### ',1)[0].encode(),label='browser session phase '+name)
         sdk.require(value['status']=='INSTALLED_SESSION_PHASE' and value['phase']==name,'phase result differs')
         save(public/(name+'.json'),value)
@@ -181,7 +204,11 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
             sdk.require(not value['diagnostics'] and not remaining and not value['http_errors'],'unexpected browser diagnostics '+name)
         else:
             sdk.require(not value['http_errors'] and remaining == [{'url': origin+'/exchange/drop-once',
-              'failure': {'errorText':'net::ERR_EMPTY_RESPONSE'}}], 'expected lost response not observed')
+              'failure': {'errorText':'net::ERR_EMPTY_RESPONSE'}}], 'expected lost response not observed '+json.dumps({
+                'request_count':len(remaining),'http_error_count':len(value['http_errors']),
+                'requests':[{'url':str(row.get('url',''))[:256],
+                  'reason':str(row.get('failure',{}).get('errorText',''))[:256]} for row in remaining[:8]],
+                'http_errors':value['http_errors'][:8]},sort_keys=True))
             sdk.require(all(row['type']=='error' and row['location']['url']==origin+'/exchange/drop-once'
                             and 'ERR_EMPTY_RESPONSE' in row['message'] for row in value['diagnostics']), 'unrelated browser errors')
         return value['result']

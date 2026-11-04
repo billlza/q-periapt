@@ -470,7 +470,9 @@ fn disabled_sdk_refuses_both_nonempty_bootstrap_modes_before_intent(
         [82; 32],
     )?;
     authority.prepare()?;
-    let document = b"schema_version=1\npolicy_version=1\nmin_nist_level=3\ndefault_profile=\"ContextBound\"\nallowed_kems=[\"ML-KEM-768\"]\nallowed_sigs=[\"ML-DSA-65\"]\ndeprecated=[]\n".to_vec();
+    // A valid hybrid policy can disable this SDK by requiring its unsupported KEM.
+    // Removing X25519 instead is an unsatisfiable policy and fails before issuance.
+    let document = b"schema_version=1\npolicy_version=1\nmin_nist_level=3\ndefault_profile=\"ContextBound\"\nallowed_kems=[\"ML-KEM-1024\",\"X25519\"]\nallowed_sigs=[\"ML-DSA-65\"]\ndeprecated=[]\n".to_vec();
     let disabled = authority.issue([83; 32], document)?.input;
     assert!(!disabled.verify()?.is_enabled()?);
     for (index, mode) in [BootstrapMode::ReusableBoth, BootstrapMode::OneTimeBoth]

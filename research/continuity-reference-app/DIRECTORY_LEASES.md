@@ -45,6 +45,7 @@ issue SERVICE.json APPROVAL.json REQUEST.json ADMISSION.json PUBLICATION.json NE
 lookup PIN.json DATABASE OPERATION NEW_RECEIPT
 cancel PIN.json DATABASE OPERATION CANCELLATION_APPROVAL.json
 check-receipt PIN.json REQUEST.json ADMISSION.json PUBLICATION.json RECEIPT
+check-historical-receipt PIN.json RECEIPT
 ```
 
 The request consists of `operation`, `requester`, `checkpoint`, `valid_from`
@@ -75,6 +76,21 @@ A storage error or unwound callback fences the owner: reopen the original ledger
 offline `check-receipt` authenticates the statement and its current inputs; it
 does not query a live directory for cancellation or prove actual key consumption.
 The responder still performs its own original journal transaction.
+
+`check-historical-receipt` verifies one original signed receipt using only the
+independently retained pin and the receipt bytes. It does not open the ledger,
+signer or wrapping key, load current policy, or read a current clock. Its JSON
+output marks `historical: true` and reports the `original_statement` digest,
+signed request, service/manifest/selection bindings and both key fingerprints.
+An expired receipt, or the unchanged receipt retained after local cancellation,
+can still be authenticated this way. The output establishes the original signed
+statement; it does not establish current validity, absence of cancellation,
+delivery, or key consumption. Wrong pins and altered signatures are rejected.
+
+This separate command also supports reconciliation when the original private
+service is unavailable: an independently retained public pin and receipt suffice.
+Protect and authenticate the pin independently of the receipt, using the same
+owner-only input-file rules as the other operator commands.
 
 ## Public evidence and privacy
 

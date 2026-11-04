@@ -163,8 +163,7 @@ pub use bootstrap_bundle::{
 pub use crypto::SdkPolicySigningKey;
 pub use crypto::{
     AnchorSigningKey, DeviceSigningKey, DirectorySigningKey, PolicySigningKey, PublicKey,
-    RootSigningKey, SigningKeyId,
-    PUBLIC_KEY_BYTES,
+    RootSigningKey, SigningKeyId, PUBLIC_KEY_BYTES,
 };
 pub use directory_lease::{
     DirectoryLeaseConflict, DirectoryLeaseRequest, DirectoryPin, IssuedDirectoryLease,

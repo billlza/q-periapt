@@ -162,7 +162,11 @@ impl DirectoryLedger {
     /// Historical reconciliation. No live-policy or expiry check can hide a committed receipt.
     /// Access to this private owner must itself be restricted by the host.
     pub fn lookup(&mut self, operation: [u8; 32]) -> Result<Option<LeaseRecord>, Error> {
-        self.action(|owner| owner.read(operation).map(|record| record.map(SavedRecord::public)))
+        self.action(|owner| {
+            owner
+                .read(operation)
+                .map(|record| record.map(SavedRecord::public))
+        })
     }
 
     /// Allocate both physical one-time keys atomically with the original signed receipt.
@@ -222,14 +226,8 @@ impl DirectoryLedger {
             }
             let signing_time = clock()?;
             authorization.authorize(Action::Issue, &request, signing_time)?;
-            let issued = key.issue_lease(
-                &owner.pin,
-                request,
-                selection,
-                device,
-                policy,
-                signing_time,
-            )?;
+            let issued =
+                key.issue_lease(&owner.pin, request, selection, device, policy, signing_time)?;
             let record = SavedRecord {
                 schema: 1,
                 wire: issued.as_bytes().to_vec(),
@@ -442,6 +440,31 @@ mod tests {
 
     type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
+    struct PrivateDirectory {
+        _temporary: tempfile::TempDir,
+        path: std::path::PathBuf,
+    }
+    impl PrivateDirectory {
+        fn path(&self) -> &Path {
+            &self.path
+        }
+    }
+    fn private_directory() -> TestResult<PrivateDirectory> {
+        let temporary = tempfile::tempdir()?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(temporary.path(), std::fs::Permissions::from_mode(0o700))?;
+        }
+        // macOS temporary paths may include a symlink; production storage
+        // requires a canonical absolute parent as well as private permissions.
+        let path = temporary.path().canonicalize()?;
+        Ok(PrivateDirectory {
+            _temporary: temporary,
+            path,
+        })
+    }
+
     struct Permit;
     impl DirectoryAuthorization for Permit {
         fn authorize(
@@ -553,17 +576,9 @@ mod tests {
             // and mathematical key validation belong to the later SDK use boundary.
             let leaves = [
                 sdk::PrekeyLeaf::new(sdk::LeafKind::SignedClassical, &[71; 32], validity)?,
-                sdk::PrekeyLeaf::new(
-                    sdk::LeafKind::OneTimeClassical,
-                    &[classical; 32],
-                    validity,
-                )?,
+                sdk::PrekeyLeaf::new(sdk::LeafKind::OneTimeClassical, &[classical; 32], validity)?,
                 sdk::PrekeyLeaf::new(sdk::LeafKind::LastResortPq, &[72; 1184], validity)?,
-                sdk::PrekeyLeaf::new(
-                    sdk::LeafKind::OneTimePq,
-                    &[post_quantum; 1184],
-                    validity,
-                )?,
+                sdk::PrekeyLeaf::new(sdk::LeafKind::OneTimePq, &[post_quantum; 1184], validity)?,
             ];
             let issued = self.signer.issue_manifest(&self.device, context, &leaves)?;
             let manifest = self.device.verify_manifest(issued.as_bytes(), 150)?;
@@ -619,7 +634,7 @@ mod tests {
     #[test]
     fn original_wire_survives_reopen_expiry_capacity_and_changed_signer() -> TestResult {
         let fixture = Fixture::new()?;
-        let directory = tempfile::tempdir()?;
+        let directory = private_directory()?;
         let path = directory.path().join("directory.redb");
         let selection = fixture.selection(1, 11, 12)?;
         let request = fixture.request(1, 2)?;
@@ -657,7 +672,7 @@ mod tests {
     #[test]
     fn operation_conflicts_and_each_cross_epoch_physical_key_are_rejected() -> TestResult {
         let fixture = Fixture::new()?;
-        let directory = tempfile::tempdir()?;
+        let directory = private_directory()?;
         let path = directory.path().join("directory.redb");
         let selection = fixture.selection(1, 11, 12)?;
         let request = fixture.request(1, 2)?;
@@ -705,7 +720,7 @@ mod tests {
     #[test]
     fn cancellation_requires_current_authority_and_never_releases_keys() -> TestResult {
         let fixture = Fixture::new()?;
-        let directory = tempfile::tempdir()?;
+        let directory = private_directory()?;
         let path = directory.path().join("directory.redb");
         let selection = fixture.selection(1, 11, 12)?;
         let request = fixture.request(1, 2)?;
@@ -767,7 +782,7 @@ mod tests {
     fn post_commit_expiry_or_authorization_loss_preserves_receipt_and_occupancy() -> TestResult {
         let fixture = Fixture::new()?;
         for (final_time, authorization) in [(180, Until(300)), (151, Until(151)), (0, Until(300))] {
-            let directory = tempfile::tempdir()?;
+            let directory = private_directory()?;
             let path = directory.path().join("directory.redb");
             let selection = fixture.selection(1, 11, 12)?;
             let request = fixture.request(1, 2)?;
@@ -809,7 +824,7 @@ mod tests {
     #[test]
     fn storage_error_requires_new_owner_and_original_committed_database() -> TestResult {
         let fixture = Fixture::new()?;
-        let directory = tempfile::tempdir()?;
+        let directory = private_directory()?;
         let path = directory.path().join("directory.redb");
         let selection = fixture.selection(1, 11, 12)?;
         let request = fixture.request(1, 2)?;
@@ -817,9 +832,8 @@ mod tests {
         // A reported storage failure can follow a durable effect. No continued
         // operation on this owner may convert that uncertainty into another lease.
         fixture.issue(&mut ledger, request, &selection)?;
-        let result: Result<(), Error> = ledger.action(|_owner| {
-            Err(Error::Storage("injected after committed effect".into()))
-        });
+        let result: Result<(), Error> =
+            ledger.action(|_owner| Err(Error::Storage("injected after committed effect".into())));
         assert!(matches!(result, Err(Error::Storage(_))));
         assert!(matches!(
             ledger.lookup(request.operation()),
@@ -848,7 +862,7 @@ mod tests {
     #[test]
     fn aborted_transaction_never_publishes_partial_indexes_or_receipt() -> TestResult {
         let fixture = Fixture::new()?;
-        let directory = tempfile::tempdir()?;
+        let directory = private_directory()?;
         let selection = fixture.selection(1, 11, 12)?;
         let request = fixture.request(1, 2)?;
         let issued = fixture.key.issue_lease(
@@ -903,7 +917,7 @@ mod tests {
     #[test]
     fn signing_rechecks_current_authority_after_reading_and_reserving_inputs() -> TestResult {
         let fixture = Fixture::new()?;
-        let directory = tempfile::tempdir()?;
+        let directory = private_directory()?;
         let path = directory.path().join("directory.redb");
         let selection = fixture.selection(1, 11, 12)?;
         let request = fixture.request(1, 2)?;
@@ -959,7 +973,7 @@ mod tests {
 
         let fixture = Fixture::new()?;
         for panic_in_authorization in [false, true] {
-            let directory = tempfile::tempdir()?;
+            let directory = private_directory()?;
             let path = directory.path().join("directory.redb");
             let selection = fixture.selection(1, 11, 12)?;
             let request = fixture.request(1, 2)?;

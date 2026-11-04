@@ -651,7 +651,8 @@ pub(super) fn verify_one_time_publication(
             DirectoryLeaseRequest::new([0xa2; 32], [0xb2; 32], directory, validity)?;
         let first = signer.issue_lease(&pin, first_request, &selection, &device, &policy, now)?;
         let second = signer.issue_lease(&pin, second_request, &selection, &device, &policy, now)?;
-        let resigned = signer.issue_lease(&pin, first_request, &selection, &device, &policy, now)?;
+        let resigned =
+            signer.issue_lease(&pin, first_request, &selection, &device, &policy, now)?;
         let conflict = DirectoryLeaseConflict::verify(&pin, first.as_bytes(), second.as_bytes())?;
         fs::create_dir(output)?;
         save(output, "service-id", &pin.identity())?;
@@ -662,7 +663,11 @@ pub(super) fn verify_one_time_publication(
         save(output, "resigned-first", resigned.as_bytes())?;
         save(output, "conflict", &conflict.to_bytes())?;
         let verified = pin.verify_historical_lease(first.as_bytes())?;
-        save(output, "statement-digest-first", &verified.statement_digest())?;
+        save(
+            output,
+            "statement-digest-first",
+            &verified.statement_digest(),
+        )?;
     }
     let mut result = selection.as_bytes().to_vec();
     result.extend_from_slice(&selection.digest());

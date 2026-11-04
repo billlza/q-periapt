@@ -42,11 +42,19 @@ def phases(data: bytes, *, expected_phases: dict[str, bool] = PHASES) -> dict:
     return result
 
 
-def phase_workload(data: bytes, language: str) -> dict:
+def bootstrap_admissions(language: str, *, bootstrap_wire: str = "QPCNET02") -> int:
     scope(language)
+    # Only the caller may select a historical census. Never infer it from
+    # received evidence or retry a current verification using the old count.
+    sdk.require(bootstrap_wire in ("QPCNET01", "QPCNET02"), "unknown bootstrap wire census")
+    return BOOTSTRAP_ADMISSIONS[language] - (8 if bootstrap_wire == "QPCNET01" else 0)
+
+
+def phase_workload(data: bytes, language: str, *, bootstrap_wire: str = "QPCNET02") -> dict:
+    bootstrap = bootstrap_admissions(language, bootstrap_wire=bootstrap_wire)
     observed = phases(data)
     counts = dict.fromkeys(PHASES, 0)
-    counts.update(bootstrap=BOOTSTRAP_ADMISSIONS[language],
+    counts.update(bootstrap=bootstrap,
                   freeze=10, acknowledge=12, retirement=10, retired=1)
     actual = {label: row["after_last_admission"] - row["first_admission"]
               for label, row in observed.items()}
@@ -56,7 +64,8 @@ def phase_workload(data: bytes, language: str) -> dict:
     return observed
 
 
-def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C",
+                     bootstrap_wire: str = "QPCNET02") -> dict:
     selected_scope = scope(language)
     text = stdout.decode()
     sdk.require(re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE) == [TEST]
@@ -79,7 +88,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     public.update(accounting["public_readbacks"])
     sdk.require(report["batch"] == accounting["batch"] and report["report"] == accounting["report"],
                 "TLS cleanup changed original account or loss-report identity")
-    observed = phase_workload(read("account-tls-phases", 1024), language)
+    observed = phase_workload(read("account-tls-phases", 1024), language, bootstrap_wire=bootstrap_wire)
     sdk.require(type(report["witness_exchanges"]) is int
                 and report["witness_exchanges"] == observed["retired-unavailable"]["after_last_admission"],
                 "TLS account exchange census differs")
