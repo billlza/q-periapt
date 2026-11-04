@@ -29,6 +29,7 @@ class Counterpart:
     def __init__(self, executable: Path, output: Path, *, send_budget: int | None = None, required_witness=False, peer_lifecycle=False, local_lifecycle=False, short_roster=False, registration=False, registration_extension=False, intermediate_peer=False, account_members=None, enrolled_peer=False, policy_lifecycle=False, policy_composition=False, restartable_successor=False):
         self.executable = executable
         self.restartable_successor = restartable_successor
+        self.program_plan = None
         self.restarts = []
         self.cases = output / "cases"
         self.cases.mkdir()
