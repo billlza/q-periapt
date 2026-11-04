@@ -28,6 +28,14 @@ counterexample. Review must still establish the actual prefix distribution,
 implementation correspondence and HMAC instantiation before using it for the
 declared protocol claim.
 
+The [shared-root HMAC reduction](SHARED_ROOT_HMAC_V1.md) additionally connects
+that joint-use question to the actual short-key HMAC encoding in a single ideal
+compression-oracle model. Its restricted reductions have an independent internal
+applicability review and pinned dependency encoding checks. This is material for
+the designated external review, not its substitute: the actual prefix, leakage
+interfaces, concrete-primitive assumptions and full protocol composition remain
+to be established.
+
 ## Handoff to 魏庄坤教授
 
 The handoff should identify one exact review revision and provide a short reading

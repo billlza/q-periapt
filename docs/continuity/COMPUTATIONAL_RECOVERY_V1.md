@@ -450,6 +450,19 @@ conditional ideal-game calculation, not the HMAC instantiation, accepted-prefix
 premise or full protocol composition. It does not select a new product
 assumption or change the obligations below.
 
+The subsequent [shared-root HMAC reduction](SHARED_ROOT_HMAC_V1.md) works one
+level closer to the implementation: one ideal SHA-256 compression oracle and
+the actual 32-byte HMAC encodings, including the consumed-key-pad length offset.
+It handles both classical root-row and root-column calls in each hybrid, with
+public quantum compression queries, and retains public-salt state-pair aliases.
+Its DFH/HI theorem applications and exceptional shared-pair coupling were checked
+independently; the actual pinned HMAC/HKDF/SHA-256 dependencies also passed finite
+encoding comparisons. This closes the stated conditional primitive calculation.
+It does not establish that the real prefix supplies its required joint product
+initialization, that concrete SHA-256 is an ideal compression function, or that
+the whole protocol exposes only those interfaces. In particular, it does not
+silently select a new product assumption or discharge the obligations below.
+
 To connect the argument to the existing main claim, retain these obligations:
 
 - Establish fresh target contributions under the actual identity and reservation
