@@ -111,3 +111,32 @@ that failed assertion is retained, and the final capture checks the exact set an
 each original member's bytes. No runtime verifier or test was changed.
 The effective wave remains open. No cancellation, rerun, push or new wave was
 performed; unchanged old code is not rerun as a remedy for this count omission.
+
+## Three additional host prerequisite failures
+
+At 23:21:10 UTC, the same twelve runs contain 287 successful, 30 queued, two
+running, 11 failed and two skipped jobs. Both PR heads remain at the task's
+original `475cd239` / `6084f3bf` commits. Three further completed logs stop at
+the old `report["witness_exchanges"] == 142` check inside `qualify_c`:
+
+| Job | Label | Actual checkout |
+| --- | --- | --- |
+| [126489776791](https://github.com/billlza/q-periapt/actions/runs/41791861104/job/126489776791) | Kotlin Debug | `59bde0fd1a268de4d0e183c33bf3fc5e09c9be97` |
+| [126463649748](https://github.com/billlza/q-periapt/actions/runs/41791854684/job/126463649748) | Android Release | `6084f3bfb09333f6b66291b38809ed512296a27b` |
+| [126463649756](https://github.com/billlza/q-periapt/actions/runs/41791854684/job/126463649756) | Android Debug | `6084f3bfb09333f6b66291b38809ed512296a27b` |
+
+The exact terminal error in all three is `OpenSSL server exchange census
+differs`. This brings the observed instances of the existing P0 validator defect
+to eight. The labels do not turn these macOS C/OpenSSL prerequisite failures
+into Kotlin, Android JNI, emulator or physical-device results. The rejected
+report and trace are not present in the complete job logs, so no hosted count
+or native test-result assertion is added by this capture.
+
+`late-host-prerequisites/CAPTURE.zip` preserves all three complete logs, their
+job metadata and the twelve-run inventory. The ten members were read back
+byte-for-byte; the 128,303-byte ZIP has SHA-256
+`ae8d3b3ddae3909e06c5e83121333ec2eb279210e7d6e1b836aa1e641e7e915a`.
+Artifact IDs and upload digests are retained as reported in the logs; those
+three artifacts were not downloaded for this classification. The correction's
+separate local execution evidence remains linked above. The wave is still open,
+and no push, rerun, cancellation or new workflow was performed.
