@@ -140,3 +140,13 @@ Artifact IDs and upload digests are retained as reported in the logs; those
 three artifacts were not downloaded for this classification. The correction's
 separate local execution evidence remains linked above. The wave is still open,
 and no push, rerun, cancellation or new workflow was performed.
+
+At 23:38:11 UTC, push-side [Kotlin Debug job 126463649730](https://github.com/billlza/q-periapt/actions/runs/41791854684/job/126463649730)
+had also failed at that same C/OpenSSL check on checkout `6084f3bf`. Its complete
+traceback is the ninth observed instance of the P0 omission. The twelve-run
+inventory now contains 287 successful, 30 queued, one running, 12 failed and two
+skipped jobs; the wave remains open. This adds no Kotlin runtime or hosted-count
+claim. `late-kotlin-debug/CAPTURE.zip` retains the complete log, job and wave
+inventories and classification. All six members were reread; its 97,461 bytes
+have SHA-256 `2b7bb005229fc6135a223fc957840db4f47f40205170d880ce0d0733a4830312`.
+No remote workflow or branch was changed.
