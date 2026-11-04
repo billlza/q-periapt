@@ -306,13 +306,52 @@ while publishing the nonce would not satisfy these premises.
 
 This supplies a conditional random-oracle replacement for **one** public head.
 It uses the nonce field's injectivity, not confidentiality of encryption under a
-leaked key. Applying it to the whole accepted prefix still requires an inventory
-of every published image-derived value, consistency across revisions and retries,
-and the mapping of aggregate/pending acquisitions to the unchanged disclosure
-conditions. For example, a [pending-recovery proposal](../../research/continuity-identity-candidate/src/durable/write_intent/pending_recovery.rs)
+leaked key. A [pending-recovery proposal](../../research/continuity-identity-candidate/src/durable/write_intent/pending_recovery.rs)
 also commits to the original write intent; that additional digest cannot simply
-be left out of the game.
-The source's fresh `getrandom` call is not itself a proof of uniform independent
+be left out of the game. The ordinary, unbound intent admits the following
+two-call extension.
+
+`PendingWrite::new_bound(..., None)` encodes `QPWINT01`, the original journal and
+owner, expected revision/digest, target revision/digest, a four-byte target
+length, the complete sealed target, then its HMAC. Its fixed header has 156
+bytes, so the same target-image nonce occurs at intent offsets `[236, 260)`.
+The published intent commitment uses `crypto::digest` with
+`Q-PERIAPT-CONTINUITY-PENDING-WRITE-INTENT/v1`. That domain has 44 bytes, while
+the image-digest domain has 45 bytes.
+
+Define a single private function keyed by `N` with two permitted query types.
+The first returns the image head above. The second returns the intent digest,
+constructing the exact same sealed image and taking the first returned head as
+the explicit target-digest field. The intent map includes its HMAC under the
+derived journal write-intent key; both that KDF and the HMAC use SHA-256, not the
+modeled SHA3-256 oracle. Each map is injective in `N` because its input retains
+the nonce verbatim. Their distinct first length prefixes make the two hash
+inputs different for **every** nonce and every admissible choice of the other
+fields. With at most one fresh query of each type, Theorem 2's two conditions
+therefore hold with `epsilon = 2^-192` and `q_O = 2`. The resulting bound is
+
+```text
+min(1, 4 sqrt(8 q_H 2^-192) + 4 sqrt(4 q_H^2 2^-192)).
+```
+
+In this ideal experiment the two replies are fresh independent uniform values;
+the second query and later proposal/metadata/signature construction still use
+the first reply consistently. Every honest reread of either original digest
+uses its cached reply. Both the image and intent remain private; their public
+digests do not confer permission to expose their preimages. The metadata
+projection for a message record reports identities, epoch progress, counters,
+ciphertext digests and retained input lengths; it does not serialize that
+record's rekey root or KEM reservation. See
+[`historical_session`](../../research/continuity-identity-candidate/src/durable/messages/retired.rs)
+and the [public encoder](../../research/continuity-identity-candidate/src/durable/retired_report.rs).
+
+This extension covers these two digest interfaces for one ordinary intent.
+It does not establish an inventory of all output paths or a multi-image
+composition, and it does not cover bound credential/policy/roster intents by
+analogy. Applying it to the whole accepted prefix still requires consistency
+across revisions and retries and the mapping of aggregate/pending acquisitions
+to the unchanged disclosure conditions. The source's fresh `getrandom` call is
+not itself a proof of uniform independent
 entropy. This hop neither admits later ciphertext acquisition nor closes the
 ML-KEM challenge simulation, the concrete SHA3 instantiation or the multi-epoch
 computational claim.
