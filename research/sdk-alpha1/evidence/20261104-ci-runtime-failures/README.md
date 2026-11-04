@@ -77,3 +77,37 @@ inventories, the fourth installed-failure log and an index with current PR heads
 The `refresh-1038` directory retains the thirteen inventories and exact observation
 interval of the 10:37 refresh. All 50 members were read back byte-for-byte;
 `SHA256.json` pins them. The signed temporary download URLs are not retained.
+
+## Later Android-labelled host prerequisite failure
+
+The 22:33:57 UTC refresh contains 287 successful, 31 queued, four running,
+eight failed and two skipped jobs across the same twelve runs. The newly finished
+[Android Release job 126489776722](https://github.com/billlza/q-periapt/actions/runs/41791861104/job/126489776722)
+is a **fifth observed P0 count-check failure**. Its metadata head is `6084f3bf`;
+the actual package receipt and checkout use PR merge
+`59bde0fd1a268de4d0e183c33bf3fc5e09c9be97`.
+
+The full traceback stops inside `qualify_c` at the old OpenSSL server expectation
+`report["witness_exchanges"] == 142`. The retained native Release command finished
+in 3.01 seconds with one test passed, zero failures and empty stderr; the subsequent
+collector rejected its report. `C_CONSUMER.json` and `CONTINUITY_PACKAGE.json`
+both remain incomplete. The Android JNI qualifier had not been entered, and no
+Android consumer receipt exists in the artifact. This is a macOS C/OpenSSL
+prerequisite failure, not an Android emulator or physical-device failure.
+
+Artifact `13367958301` contains 17,722 members, 47,614,735 bytes, SHA-256
+`75ff00efb06f1c20bbfd4bc0156c28ff5cf8af9b6747fa618e9d18a55061261d`.
+The complete downloaded artifact remains local. As in the earlier failed jobs,
+the old collector did not export the rejected private server report or negotiation
+trace. Therefore this job does not independently establish the hosted numerical
+count; the exact 146 observation remains the separately identified local evidence.
+
+`late-android-release/CAPTURE.zip` preserves the complete job log, job and wave
+inventories, both incomplete receipts and the exact native command records.
+Its 12 members were reread byte-for-byte; its SHA-256 is
+`599f7f6978ffd8ac0403da83dafab446bb694858d70719d3513228ca244d16e5`.
+An initial read-only preparation wrongly required ZIP member enumeration order;
+that failed assertion is retained, and the final capture checks the exact set and
+each original member's bytes. No runtime verifier or test was changed.
+The effective wave remains open. No cancellation, rerun, push or new wave was
+performed; unchanged old code is not rerun as a remedy for this count omission.
