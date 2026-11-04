@@ -747,6 +747,12 @@ an explicit bounded reclamation API plus `qperiapt publication-reclaim`. The
 auxiliary format, original-result recovery, refusal of legacy/incomplete controls
 and retention policy. It addresses the live-publication/cleanup race and empty
 unpublished payload boundary without relaxing ordinary store admission. This new
-shared SDK/CLI source requires its own archive and installed consumer evidence;
-earlier cohorts do not qualify it. Windows runtime, supported platform consumers,
-legacy-residue disposition and final product admission remain separate.
+shared SDK/CLI source has its own
+[native maintenance checkpoint](../../research/sdk-alpha1/evidence/20261104-managed-publication-maintenance/README.md):
+12 fresh archives, four outside-checkout public API consumer tests and the actual
+extracted Apple-Silicon maintenance command, with original cleanup bytes and
+results retained. Earlier cohorts do not qualify it. The complete candidate
+Debug/Release aggregates still exceed their fixed 600-second observations; focused
+88-case success is not an aggregate pass. Windows runtime, new Continuity installed
+peers, supported platform consumers, legacy-residue disposition and final product
+admission remain separate.
