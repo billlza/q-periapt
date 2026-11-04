@@ -3,6 +3,7 @@ from pathlib import Path
 import re
 
 import continuity_c_account_cleanup as cleanup
+from continuity_c_account_tls import bootstrap_admissions
 from continuity_c_account_witness import TLS_LOSS_TEST as TEST, OWN_TLS_LOSS_TEST, PHASES, account_identities
 import rust_sdk_profile as sdk
 from evidence_io import parse_strict_json_bytes
@@ -51,26 +52,28 @@ def exchanges(data: bytes, stage_bytes: bytes) -> dict:
                 stages=stages, lost_indices=sorted(selected))
 
 
-def require_workload(observed: dict, language: str) -> None:
+def require_workload(observed: dict, language: str, *, bootstrap_wire: str = "QPCNET02") -> None:
     scope(language)
-    offset = {"C": 0, "Swift": 6, "Kotlin": 5}[language]
-    # The C QPCNET02 fixture has eight additional bootstrap Queries, with the
-    # original foreign-wrapper offsets retained as expectations, not executions.
+    offset = bootstrap_admissions(language, bootstrap_wire=bootstrap_wire) - 121
+    # QPCNET02 adds eight bootstrap Queries to the original QPCNET01 census.
+    # Historical archive readers select QPCNET01 explicitly; live runs use the
+    # current default and never fall back based on the observed exchange count.
     # Reservation reopens two retained peer sessions. Each preparation authenticates
     # one image and checks its release fence: four Query exchanges before Advance.
     # Those checks change no native mutation or post-commit loss counts.
     stages = {phase: dict(first_exchange=first + offset, after_last_exchange=after + offset,
                           lost_exchange=lost + offset)
               for phase, (first, after, lost) in zip(PHASES,
-                  ((129, 143, 142), (148, 152, 151), (161, 168, 167), (176, 180, 179)), strict=True)}
-    expected = dict(exchanges=190 + offset, native_advances=36, stages=stages,
-                    lost_indices=[142 + offset, 151 + offset, 167 + offset, 179 + offset])
+                  ((121, 135, 134), (140, 144, 143), (153, 160, 159), (168, 172, 171)), strict=True)}
+    expected = dict(exchanges=182 + offset, native_advances=36, stages=stages,
+                    lost_indices=[134 + offset, 143 + offset, 159 + offset, 171 + offset])
     sdk.require(observed == expected,
                 "TLS loss admitted exchange workload differs: expected=" + repr(expected)
                 + " observed=" + repr(observed)[:1024])
 
 
-def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", same_account: bool = False) -> dict:
+def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", same_account: bool = False,
+                     bootstrap_wire: str = "QPCNET02") -> dict:
     selected_scope = scope(language, same_account=same_account)
     selected_test = OWN_TLS_LOSS_TEST if same_account else TEST
     text = stdout.decode()
@@ -94,7 +97,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", sam
     sdk.require(report["batch"] == accounting["batch"] and report["report"] == accounting["report"],
                 "TLS loss changed original operation or loss report")
     observed = exchanges(read("account-tls-loss-exchanges", 128 * 1024), read("account-tls-loss-stages", 512))
-    require_workload(observed, language)
+    require_workload(observed, language, bootstrap_wire=bootstrap_wire)
     sdk.require(type(report["witness_exchanges"]) is int and report["witness_exchanges"] == observed["exchanges"],
                 "TLS loss exchange census differs")
     certificates = [read("account-tls-server-cert", 8192)] + [read(f"account-tls-client-cert-{i}", 8192) for i in range(3)]
@@ -127,5 +130,7 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C", sam
     return result
 
 
-def verify_own_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
-    return verify_execution(stdout, directory, language=language, same_account=True)
+def verify_own_execution(stdout: bytes, directory: Path, *, language: str = "C",
+                         bootstrap_wire: str = "QPCNET02") -> dict:
+    return verify_execution(stdout, directory, language=language, same_account=True,
+                            bootstrap_wire=bootstrap_wire)

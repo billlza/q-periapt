@@ -1,6 +1,7 @@
 """Reject altered retained recovery evidence; these are not new protocol runs."""
 from pathlib import Path
 import json
+import io
 import shutil
 import tempfile
 import unittest
@@ -19,7 +20,10 @@ class AndroidRecoveryTests(unittest.TestCase):
         cls.addClassCleanup(temporary.cleanup)
         cls.root = Path(temporary.name)
         archive = sdk.ROOT / 'research/sdk-alpha1/evidence/20261012-android-recovery/HOST_CAPTURE.zip'
-        with zipfile.ZipFile(archive) as bundle:
+        capture = sdk.snapshot(archive, maximum=8 * 1024 * 1024)
+        sdk.require(capture.sha256 == "b8dfebef7e6a1ae1515bdaf7da3e054ad565a18cbfe710a52d0be5e0ad7f1c30",
+                    "historical recovery archive differs")
+        with zipfile.ZipFile(io.BytesIO(capture.data)) as bundle:
             for name in bundle.namelist():
                 if name.startswith('execution/'):
                     path = cls.root / name
@@ -50,8 +54,12 @@ class AndroidRecoveryTests(unittest.TestCase):
                 self.assertEqual(value['committed_members'], records.dispatches(self.path('result-calls', profile),
                     expected_java=18, expected_c=0))
                 for i, (_, verify) in enumerate(recovery.WITNESS_CASES):
+                    # This hash-pinned October archive predates authenticated
+                    # READY. Preserve its measured bytes and original census;
+                    # current qualify() calls retain the QPCNET02 default.
+                    census = {} if i == 0 else {'bootstrap_wire': 'QPCNET01'}
                     checked = verify(self.path(f'witness-{i}.stdout', profile).read_bytes(),
-                                     self.path(f'oracle-{i}', profile), language='C')
+                                     self.path(f'oracle-{i}', profile), language='C', **census)
                     self.assertEqual(value['native_oracles'][i],
                                      {k: v for k, v in checked.items() if k not in ('scope', 'language')})
 

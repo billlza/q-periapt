@@ -53,6 +53,13 @@ class AccountTlsTests(unittest.TestCase):
             counts.update(bootstrap=bootstrap, freeze=10, acknowledge=12, retirement=10, retired=1)
             observed = tls.phase_workload(encoded(counts), language)
             self.assertEqual(observed["retired-unavailable"]["after_last_admission"], bootstrap + 33)
+            historical = encoded(dict(counts, bootstrap=bootstrap - 8))
+            old = tls.phase_workload(historical, language, bootstrap_wire="QPCNET01")
+            self.assertEqual(old["retired-unavailable"]["after_last_admission"], bootstrap + 25)
+            with self.assertRaisesRegex(ValueError, "workload differs"):
+                tls.phase_workload(encoded(counts), language, bootstrap_wire="QPCNET01")
+            with self.assertRaisesRegex(ValueError, "unknown bootstrap wire census"):
+                tls.phase_workload(historical, language, bootstrap_wire="QPCNET00")
             moved = dict(counts, freeze=9, acknowledge=13)
             for changed in (dict(counts, bootstrap=bootstrap - 8),
                             dict(counts, bootstrap=bootstrap - 1), moved):
