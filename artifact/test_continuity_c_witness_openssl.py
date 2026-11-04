@@ -28,10 +28,10 @@ def fixture(root, kind):
                 path.unlink()
             else:
                 path.rename(path.with_name(name.replace("owner-kind", "kind").replace("cleanup-cancel", "cancel")))
-        report = receipt(session=old["session"], message=old["message"], witness_exchanges=142)
+        report = receipt(session=old["session"], message=old["message"], witness_exchanges=146)
         (root / "openssl-witness-server.stderr").write_text("".join(
             f"OPENSSL_WITNESS_OK role=server tls=1.3 group=X25519MLKEM768 alpn=q-periapt-anchor/1 exchange={i}\n"
-            for i in range(1, 143)))
+            for i in range(1, 147)))
     elif kind == "rejections":
         report = receipt(cases=list(interop.REJECTIONS), store_calls=0)
         for case, reason in interop.REJECTIONS.items():
@@ -60,6 +60,65 @@ def fixture(root, kind):
 
 
 class OpenSslWitnessEvidenceTests(unittest.TestCase):
+    def test_server_requires_exact_ready_census_in_report_and_trace(self):
+        for count in (142, 145, 147, 146.0, "146", True):
+            with self.subTest(report=count), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                stdout, report = fixture(root, "server")
+                interop.verify_execution("server", stdout, root)
+                (root / interop.REPORTS["server"]).write_text(json.dumps(dict(report, witness_exchanges=count)))
+                with self.assertRaisesRegex(ValueError, "server exchange census differs"):
+                    interop.export_public("server", stdout, root, root / "export")
+                self.assertFalse((root / "export").exists())
+        for count in (142, 145, 147):
+            for change_report in (False, True):
+                with self.subTest(trace=count, change_report=change_report), tempfile.TemporaryDirectory() as folder:
+                    root = Path(folder)
+                    stdout, report = fixture(root, "server")
+                    (root / "openssl-witness-server.stderr").write_text("".join(
+                        f"OPENSSL_WITNESS_OK role=server tls=1.3 group=X25519MLKEM768 alpn=q-periapt-anchor/1 exchange={i}\n"
+                        for i in range(1, count + 1)))
+                    if change_report:
+                        (root / interop.REPORTS["server"]).write_text(json.dumps(dict(report, witness_exchanges=count)))
+                    with self.assertRaises(ValueError):
+                        interop.export_public("server", stdout, root, root / "export")
+                    self.assertFalse((root / "export").exists())
+
+    def test_server_rejects_wrong_negotiation_properties_and_sequence(self):
+        changes = (("role=server", "role=client"), ("tls=1.3", "tls=1.2"),
+                   ("group=X25519MLKEM768", "group=X25519"),
+                   ("alpn=q-periapt-anchor/1", "alpn=q-periapt-anchor/2"),
+                   ("exchange=146\n", "exchange=145\n"))
+        for before, after in changes:
+            with self.subTest(property=before), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                stdout, _ = fixture(root, "server")
+                path = root / "openssl-witness-server.stderr"
+                original = path.read_text()
+                self.assertIn(before, original)
+                path.write_text(original.replace(before, after, 1))
+                with self.assertRaisesRegex(ValueError, "TLS negotiation receipt differs"):
+                    interop.export_public("server", stdout, root, root / "export")
+                self.assertFalse((root / "export").exists())
+
+    def test_client_keeps_two_independent_single_exchange_connections(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            stdout, report = fixture(root, "client")
+            interop.verify_execution("client", stdout, root)
+            for count in (1, 3, 146):
+                (root / interop.REPORTS["client"]).write_text(json.dumps(dict(report, exchanges=count)))
+                with self.subTest(report=count), self.assertRaisesRegex(ValueError, "client exchange outcomes differ"):
+                    interop.verify_execution("client", stdout, root)
+            (root / interop.REPORTS["client"]).write_text(json.dumps(report))
+            for label in ("query", "advance"):
+                path = root / "initiator" / f"openssl-{label}.stderr"
+                original = path.read_bytes()
+                path.write_bytes(original + original.replace(b"exchange=1", b"exchange=2"))
+                with self.subTest(connection=label), self.assertRaisesRegex(ValueError, "TLS negotiation receipt differs"):
+                    interop.verify_execution("client", stdout, root)
+                path.write_bytes(original)
+
     def test_identity_checks_both_cli_version_forms_without_accepting_mismatch(self):
         version = "OpenSSL 3.6.4 25 Aug 2026"
         text = f"OPENSSL_HEADER {version}\nOPENSSL_RUNTIME {version}\n"
