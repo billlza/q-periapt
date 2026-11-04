@@ -476,3 +476,100 @@ pub unsafe extern "C" fn qpc_configuration_v1_select_continued_policy(
     };
     unsafe { boundary(error, false, action) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_configuration_header_v1", Header, {
+        struct_size: u32,
+        version: u32,
+    });
+    abi_record!("qpc_configuration_blob_v1", Blob, {
+        data: *const u8,
+        length: usize,
+    });
+    abi_record!("qpc_configuration_sdk_trust_v1", SdkTrustInput, {
+        mode: u32,
+        scope: [u8; 32],
+        initial_root: Blob,
+        recovery_root: Blob,
+    });
+    abi_record!("qpc_configuration_protocol_v1", ProtocolInput, {
+        family: [u8; 32],
+        root: Blob,
+        version: u64,
+        digest: [u8; 32],
+        policy: Blob,
+    });
+    abi_record!("qpc_configuration_create_v1", CreateInput, {
+        header: Header,
+        sdk: SdkTrustInput,
+        sdk_policy: Blob,
+        sdk_signature: Blob,
+        recovery_enrollment: Blob,
+        protocol: ProtocolInput,
+        tls_certificate: Blob,
+        tls_key: Blob,
+    });
+    abi_record!("qpc_configuration_open_v1", OpenInput, {
+        header: Header,
+        sdk: SdkTrustInput,
+        protocol: ProtocolInput,
+    });
+    abi_record!("qpc_configuration_witness_v1", WitnessInput, {
+        header: Header,
+        carrier: u32,
+        options: witness::Options,
+        identity: [u8; 32],
+        public_key: Blob,
+        tls_peer: Blob,
+        tls_certificate: Blob,
+        tls_key: Blob,
+        tls_name: Blob,
+    });
+    abi_function!(
+        qpc_configuration_v1_begin_enrollment,
+        (
+            u64,
+            *const enrollment::Intent,
+            u32,
+            *const WitnessInput,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_configuration_v1_prepare_create,
+        (
+            *const u8,
+            usize,
+            *const CreateInput,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_configuration_v1_prepare_open,
+        (
+            *const u8,
+            usize,
+            *const OpenInput,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_configuration_v1_prepare_reconcile,
+        (
+            *const u8,
+            usize,
+            *const CreateInput,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_configuration_v1_select_continued_policy,
+        (u64, u64, *mut ErrorRecord)
+    );
+}
+// END C ABI CHECKS

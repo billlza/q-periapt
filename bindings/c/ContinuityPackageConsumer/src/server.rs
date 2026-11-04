@@ -180,3 +180,33 @@ pub unsafe extern "C" fn qpc_owner_v1_serve_rekey(
     // SAFETY: forwarded per-call diagnostic obligation.
     unsafe { boundary(error, false, action) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_served_v1", ServedRecord, {
+        kind: u32,
+        session: [u8; 32],
+        message: [u8; 32],
+        duplicate: u32,
+    });
+    abi_function!(
+        qpc_owner_v1_listen,
+        (u64, *const u8, usize, *mut u16, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_owner_v1_serve,
+        (
+            u64,
+            Option<Commit>,
+            *mut c_void,
+            *mut ServedRecord,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_owner_v1_serve_rekey,
+        (u64, *const u8, *mut u64, *mut ErrorRecord)
+    );
+}
+// END C ABI CHECKS

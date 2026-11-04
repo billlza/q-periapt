@@ -70,3 +70,28 @@ pub unsafe extern "C" fn qpc_enrollment_v1_resolve_roster_refresh(
     // SAFETY: forwarded invocation-local diagnostic contract.
     unsafe { boundary(error, false, action) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_roster_refresh_resolution_v1", RosterResolution, {
+        outcome: u32,
+        reserved: u32,
+        journal: [u8; 32],
+        previous: Checkpoint,
+        target: Checkpoint,
+        observed: Checkpoint,
+        observed_at: u64,
+    });
+    abi_function!(
+        qpc_enrollment_v1_resolve_roster_refresh,
+        (
+            u64,
+            *const Checkpoint,
+            *const Checkpoint,
+            *mut RosterResolution,
+            *mut ErrorRecord,
+        )
+    );
+}
+// END C ABI CHECKS

@@ -166,3 +166,64 @@ pub unsafe extern "C" fn qpc_root_v1_resume_adoption(
     };
     unsafe { boundary(error, false, action) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_root_alternative_v1", Alternative, {
+        struct_size: u32,
+        original: *const u8,
+        original_length: usize,
+        approved: *const u8,
+        approved_length: usize,
+        noncommit: *const u8,
+        noncommit_length: usize,
+        receipt: *const u8,
+        receipt_length: usize,
+    });
+    abi_function!(
+        qpc_root_v1_adopt,
+        (
+            u64,
+            *const Alternative,
+            *mut account_authority::Checkpoint,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_root_v1_resume_adoption,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const enrollment::Intent,
+            *const Scope,
+            *const Alternative,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_root_v1_resume_transition,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const enrollment::Intent,
+            *const Scope,
+            *const Alternative,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_root_v1_transition,
+        (
+            u64,
+            *const Alternative,
+            *mut u8,
+            usize,
+            *mut usize,
+            *mut ErrorRecord,
+        )
+    );
+}
+// END C ABI CHECKS

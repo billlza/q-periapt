@@ -39,6 +39,22 @@ def hashes(files):
 
 
 class WindowsBundleTests(unittest.TestCase):
+    def test_installed_facade_contains_the_complete_abi_snapshot_and_native_type_test(self):
+        import continuity_c_abi as abi
+        root = Path(__file__).resolve().parent.parent
+        candidates = [FACADE_PREFIX + name for name in (
+            'qpc_owner.h', abi.CONTRACT, 'src/abi_contract.rs', 'abi/unreviewed.json')]
+        files = {name.removeprefix(FACADE_PREFIX): (root / name).read_bytes()
+                 for name in consumer_inputs(candidates)}
+        self.assertEqual(set(files), {'qpc_owner.h', abi.CONTRACT, 'src/abi_contract.rs'})
+        with tempfile.TemporaryDirectory() as directory:
+            installed = Path(directory) / 'consumer'
+            archive.unpack(archive.archive(files), hashes(files), installed)
+            contract = abi.load(installed)
+            self.assertEqual(len(contract['functions']), 158)
+            self.assertEqual(len(contract['records']), 70)
+            self.assertEqual((installed / 'src/abi_contract.rs').read_bytes(), files['src/abi_contract.rs'])
+
     def test_packaged_relay_and_diagnostics_retain_their_source_modules(self):
         root = Path(__file__).resolve().parent.parent
         candidates = [FACADE_PREFIX + name for name in (

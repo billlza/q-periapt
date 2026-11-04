@@ -701,6 +701,138 @@ pub unsafe extern "C" fn qpc_recovery_v1_restore_index(
     }
 }
 
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_closure_header_v1", Header, {
+        peer_generation: u64,
+        confirmed_epoch: u64,
+        sending_epoch: u64,
+        receiving_epoch: u64,
+        pending_epoch: u64,
+        has_pending_epoch: u32,
+        role: u32,
+        reserved_count: u32,
+        epoch_count: u32,
+        session: [u8; 32],
+        context: [u8; 32],
+        report: [u8; 32],
+        peer_account: [u8; 32],
+        peer_device: [u8; 16],
+    });
+    abi_record!("qpc_closure_epoch_v1", Epoch, {
+        epoch: u64,
+        acknowledged_before: u64,
+        sent: u64,
+        consumed_before: u64,
+        received: u64,
+        peer_sent: u64,
+        has_peer_sent: u32,
+        resolution: u32,
+        unconfirmed_count: u32,
+        delivery_count: u32,
+        skipped_count: u32,
+        reserved_zero: u32,
+        resolution_report: [u8; 32],
+    });
+    abi_record!("qpc_closure_reserved_v1", Reserved, {
+        plaintext_bytes: u64,
+        associated_data_bytes: u64,
+        message: [u8; 32],
+    });
+    abi_record!("qpc_closure_unconfirmed_v1", Unconfirmed, {
+        message: [u8; 32],
+        ciphertext_digest: [u8; 32],
+    });
+    abi_record!("qpc_closure_delivery_v1", Delivery, {
+        index: u64,
+        plaintext_bytes: u64,
+        message: [u8; 32],
+    });
+    abi_record!("qpc_closure_status_v1", Status, {
+        phase: u32,
+        report: [u8; 32],
+    });
+    abi_record!("qpc_account_cleanup_status_v1", Status, {
+        phase: u32,
+        report: [u8; 32],
+    });
+    abi_function!(
+        qpc_recovery_v1_acknowledge,
+        (u64, *const u8, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_archive,
+        (u64, *mut [u8; 362], *mut ErrorRecord)
+    );
+    abi_function!(qpc_recovery_v1_begin, (u64, *mut Header, *mut ErrorRecord));
+    abi_function!(
+        qpc_recovery_v1_delivery,
+        (u64, u32, u32, *mut Delivery, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_epoch,
+        (u64, u32, *mut Epoch, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_open,
+        (*const u8, usize, *mut u64, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_open_witness,
+        (
+            *const u8,
+            usize,
+            *const witness::Options,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_recovery_v1_open_witness_tls,
+        (
+            *const u8,
+            usize,
+            *const witness::Options,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_recovery_v1_reserved,
+        (u64, u32, *mut Reserved, *mut ErrorRecord)
+    );
+    abi_function!(qpc_recovery_v1_restore_index, (u64, *mut ErrorRecord));
+    abi_function!(
+        qpc_recovery_v1_retire,
+        (u64, *const u8, *mut u8, *mut ErrorRecord)
+    );
+    abi_function!(qpc_recovery_v1_select, (u64, *const u8, *mut ErrorRecord));
+    abi_function!(
+        qpc_recovery_v1_select_archive,
+        (u64, *const u8, usize, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_session_at,
+        (u64, u32, *mut [u8; 32], *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_session_count,
+        (u64, *mut u32, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_skipped,
+        (u64, u32, u32, *mut u64, *mut ErrorRecord)
+    );
+    abi_function!(qpc_recovery_v1_status, (u64, *mut Status, *mut ErrorRecord));
+    abi_function!(
+        qpc_recovery_v1_unconfirmed,
+        (u64, u32, u32, *mut Unconfirmed, *mut ErrorRecord)
+    );
+    account::verify_c_abi();
+}
+// END C ABI CHECKS
+
 #[cfg(test)]
 mod invocation_tests {
     use super::*;

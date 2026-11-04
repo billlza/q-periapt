@@ -307,7 +307,10 @@ the legacy installation constructor. Same-credential roster refresh and original
 session restoration preserve the original request, signer and journal. Required
 witness activation checks current signed authority; local Active alone cannot
 release an owner after denial or an unavailable reply. The C interface now has
-152 unpublished exports, separate from product ABI 2. SDK policy/store, TLS setup,
+158 unpublished exports, separate from product ABI 2. The complete
+[C declaration and layout snapshot](../../bindings/c/ContinuityPackageConsumer/abi/README.md)
+checks the 70 C records, callback and exact function surface; it does not freeze
+the protocol or grant product admission. SDK policy/store, TLS setup,
 authority transport and final provisioning remain independently supplied inputs;
 see [the C integration path](../../bindings/c/ContinuityPackageConsumer/README.md#registering-an-original-device).
 

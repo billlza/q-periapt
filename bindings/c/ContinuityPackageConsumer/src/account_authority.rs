@@ -514,3 +514,96 @@ pub unsafe extern "C" fn qpc_authority_v1_select_enrollment(
     // SAFETY: forwarded invocation-local diagnostic contract.
     unsafe { boundary(error, false, action) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_authority_options_v1", Options, {
+        struct_size: u32,
+        identity: [u8; 32],
+        family: [u8; 32],
+        witness: [u8; 32],
+        public_key: *const u8,
+        public_key_length: usize,
+    });
+    abi_record!("qpc_authority_checkpoint_v1", Checkpoint, {
+        application: [u8; 32],
+        revision: u64,
+        account: [u8; 32],
+    });
+    abi_record!("qpc_authority_association_v1", Association, {
+        struct_size: u32,
+        application: [u8; 32],
+        pin: *const enrollment::Pin,
+        certificate: *const u8,
+        certificate_length: usize,
+        roster: *const u8,
+        roster_length: usize,
+    });
+    abi_record!("qpc_authority_enrollment_options_v1", EnrollmentOptions, {
+        struct_size: u32,
+        create: u32,
+        registry: u64,
+        checkpoint: Checkpoint,
+        intent: *const enrollment::Intent,
+        options: *const opening::Options,
+    });
+    abi_record!("qpc_authority_open_options_v1", OpenOptions, {
+        struct_size: u32,
+        reopen: u32,
+        registry: u64,
+        checkpoint: Checkpoint,
+        options: *const opening::Options,
+        session: *const u8,
+    });
+    abi_record!("qpc_authority_enrollment_selection_v1", EnrollmentSelection, {
+        struct_size: u32,
+        registry: u64,
+        checkpoint: Checkpoint,
+    });
+    abi_function!(
+        qpc_authority_v1_associate,
+        (u64, *const Association, *mut Checkpoint, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_authority_v1_checkpoint,
+        (u64, *const u8, *mut Checkpoint, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_authority_v1_prepare_create,
+        (*const u8, usize, *const Options, *mut u64, *mut ErrorRecord,)
+    );
+    abi_function!(
+        qpc_authority_v1_prepare_enrollment,
+        (
+            *const u8,
+            usize,
+            *const EnrollmentOptions,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_authority_v1_prepare_open,
+        (*const u8, usize, *const Options, *mut u64, *mut ErrorRecord,)
+    );
+    abi_function!(
+        qpc_authority_v1_prepare_owner,
+        (
+            *const u8,
+            usize,
+            *const OpenOptions,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_authority_v1_provision_wrapping_key,
+        (*const u8, usize, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_authority_v1_select_enrollment,
+        (u64, *const EnrollmentSelection, *mut ErrorRecord)
+    );
+}
+// END C ABI CHECKS

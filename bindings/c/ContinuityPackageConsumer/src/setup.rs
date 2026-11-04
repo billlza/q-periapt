@@ -216,3 +216,25 @@ pub unsafe extern "C" fn qpc_setup_v1_activate(handle: u64, error: *mut ErrorRec
     // SAFETY: forwarded invocation-local diagnostic contract.
     unsafe { boundary(error, false, action) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_setup_status_v1", Status, {
+        phase: u32,
+        journal: [u8; 32],
+    });
+    abi_record!("qpc_setup_preparation_v1", Preparation, {
+        protection: u32,
+        journal: [u8; 32],
+        subject: [u8; 96],
+        image_digest: [u8; 32],
+    });
+    abi_function!(qpc_setup_v1_activate, (u64, *mut ErrorRecord));
+    abi_function!(
+        qpc_setup_v1_prepare_storage,
+        (u64, *mut Preparation, *mut ErrorRecord)
+    );
+    abi_function!(qpc_setup_v1_status, (u64, *mut Status, *mut ErrorRecord));
+}
+// END C ABI CHECKS
