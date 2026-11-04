@@ -266,6 +266,57 @@ last case from the threat model is not a proof step. The earlier
 [executed disclosure traces](RECOVERY_CONDITIONS_V1.md#durable-freshness-is-reservation-freshness)
 continue to apply.
 
+### A conditional hop for one hidden-image head
+
+There is a more specific route for a head-only view, even when the journal key
+is known. It does **not** apply when the observer obtains the corresponding
+image, nonce or a decryptable pending target. Let `x` contain the journal key,
+bounded plaintext and admissible fixed public image-header fields. Let `N` be a fresh independent
+uniform 192-bit outer-image nonce, used only inside the following private map:
+
+```text
+g(N, x) = LP(image_digest_domain) || length_be64 || sealed_image(N, x)
+head(N, x) = H(g(N, x))
+```
+
+The actual sealed image contains `N` verbatim at outer-header offsets `[80, 104)`.
+Consequently `g(N, x)` is injective in `N` for each fixed `x`, independently of
+whether the observer knows the encryption key or plaintext. Its point probability
+is at most `2^-192`. The function `g` uses deterministic image encoding and
+XChaCha20-Poly1305 with the supplied nonce; it does not call `H` internally.
+
+In [Don, Fehr and Huang, Theorem 2](https://arxiv.org/pdf/2206.08132),
+set the hidden key to `N`, `epsilon = 2^-192` and the classical function-query
+count to one. The freshness condition is then vacuous. For an algorithm making
+at most `q_H` quantum queries to the global ideal SHA3-256 oracle, the difference
+between its output probabilities with this private head call and with an
+independent uniform 256-bit reply is bounded by
+
+```text
+min(1, 4 sqrt(2 q_H 2^-192) + 4 sqrt(2 q_H^2 2^-192)).
+```
+
+The algorithm may choose `x` adaptively from its preceding oracle interaction.
+All prefix and later queries, including honest queries outside this one private
+call, count toward `q_H`; uncounted oracle-dependent auxiliary state is not
+allowed. Exact reads and retries of this one head reuse the first reply. This
+experiment does not additionally expose the nonce or preimage: the theorem's
+private function interface does not provide them. Merely hiding the plaintext
+while publishing the nonce would not satisfy these premises.
+
+This supplies a conditional random-oracle replacement for **one** public head.
+It uses the nonce field's injectivity, not confidentiality of encryption under a
+leaked key. Applying it to the whole accepted prefix still requires an inventory
+of every published image-derived value, consistency across revisions and retries,
+and the mapping of aggregate/pending acquisitions to the unchanged disclosure
+conditions. For example, a [pending-recovery proposal](../../research/continuity-identity-candidate/src/durable/write_intent/pending_recovery.rs)
+also commits to the original write intent; that additional digest cannot simply
+be left out of the game.
+The source's fresh `getrandom` call is not itself a proof of uniform independent
+entropy. This hop neither admits later ciphertext acquisition nor closes the
+ML-KEM challenge simulation, the concrete SHA3 instantiation or the multi-epoch
+computational claim.
+
 ## Public-salt extraction has a specific sufficient assumption
 
 After the first replacement the necessary extraction direction is
