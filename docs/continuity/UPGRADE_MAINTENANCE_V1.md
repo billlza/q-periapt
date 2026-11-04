@@ -138,9 +138,14 @@ The [v2 native maintenance checkpoint](../../research/sdk-alpha1/evidence/202611
 binds the new shared implementation to fresh SDK archives and an extracted
 Apple-Silicon `qperiapt` executable. Its public original record, intent, receipt and
 byte-identical retry results are retained. It covers explicit inactive-attempt
-reclamation and formal-target refusal. Full candidate aggregates, actual Windows
-execution and the new Continuity installed-peer cohort remain unqualified; this
-checkpoint does not replace the program-replacement evidence below.
+reclamation and formal-target refusal. The subsequent
+[installed Continuity checkpoint](../../research/sdk-alpha1/evidence/20261104-continuity-installed-maintenance/README.md)
+qualifies the same new SDK cohort through archive-derived Rust Debug/Release
+consumers and all 25 commands of the freshly installed independent wheel path.
+Its separate unfiltered native Release run and complete complementary Debug
+partitions also pass, without changing the existing budgets. Actual Windows
+execution and other promised platform/foreign consumers remain pending. These
+checkpoints do not replace the program-replacement evidence below.
 
 The [installed program-replacement checkpoint](../../research/sdk-alpha1/evidence/20261104-installed-program-upgrade/README.md)
 uses independently packaged native builds from `6ce866b3` and `21e00e9c`, a freshly

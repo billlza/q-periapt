@@ -1,10 +1,13 @@
 # External security review preparation
 
 Planning snapshot: 2026-11-04. This prepares the independent review required by
-[the 0.2.0 release scope](RELEASE_0_2_SCOPE.md). No reviewer has been selected or
-contacted, no price or availability has been confirmed, and no engagement or
-release transaction is authorized by this document. The current local source
-reference is `6ce866b31088b3215bcc24bcfef84b4075ff5907`; it is not the frozen
+[the 0.2.0 release scope](RELEASE_0_2_SCOPE.md). The user confirmed on this date
+that a review team is already designated or commissioned. Its name, agreed scope
+and material requirements have not yet been supplied here. This task has not
+contacted that team or initiated an engagement; no new engagement, fee or release
+transaction is authorized by this document. The runtime qualification
+source reference is `4effa8b2b25e7403ab912b65894a7d1e73695542`, including
+publication maintenance implementation `f560d803c43a24fff222daa5e5e5bd623bfdf874`; it is not the frozen
 review candidate. Re-pin the source, contracts and package identities together
 before formal review begins.
 
@@ -18,14 +21,20 @@ The [computational recovery note](COMPUTATIONAL_RECOVERY_V1.md) supplies a
 concrete root-extraction route and conditional hybrid argument for review. It
 does not close the combiner premise, shared-root key-schedule composition or PQ
 proof obligations and must not be presented as the completed protocol proof.
+The [single-root ideal-oracle lemma](SHARED_ROOT_ORACLE_V1.md) supplies a checked
+conditional coupling and preserves an initial-state/query-accounting
+counterexample. Review must still establish the actual prefix distribution,
+implementation correspondence and HMAC instantiation before using it for the
+declared protocol claim.
 
-## Candidate reviewers
+## Published reference engagements
 
-These are candidates for a scope discussion, based on primary sources checked
-on the snapshot date. Fit is an inference from their published work, not a
-verified commitment by a particular review team.
+These sources were collected before confirmation of the existing review team.
+They remain reference material for scoping, not a selection or commissioning of
+another reviewer. Their relevance is inferred from published work and does not
+establish the expertise or commitment of the user's actual assigned team.
 
-| Candidate | Relevant primary evidence | Matters to confirm in writing |
+| Published source | Relevant primary evidence | Scoping matters illustrated |
 | --- | --- | --- |
 | Trail of Bits | Its [cryptography service](https://trailofbits.com/services/cryptography) lists post-quantum protocols, Rust implementations, threat-model work and automated protocol verification. This makes a combined construction/implementation engagement worth investigating. | Named expertise in multi-epoch recovery, hybrid/HKDF composition and leakage from retained entropy/signing reservations; coverage of the Rust journal and Witness lifecycle in the same scope. |
 | NCC Group | The [Entropy/Rust report](https://www.nccgroup.com/media/bq2gfxb3/_ncc_group_entropycryptography_e008526_report_2023-08-25_v10.pdf) covers Rust cryptographic libraries, specification comparison, signature/serialization findings and timing analysis. The [WhatsApp Contacts report](https://www.nccgroup.com/media/3ckm2llr/ncc_group_metaplatforms_2024-10-11_v11.pdf) covers identity-linked storage, new-device recovery and a key directory, with separate design and implementation phases. | PQ multi-epoch analysis and non-HSM local persistence/unknown-commit recovery. The Contacts report explicitly excludes PQ implementation review (page 46); it is not evidence of that qualification. |
@@ -45,6 +54,7 @@ as part of this preparation.
 | Do the symbolic claims support the declared construction? | [Joint replay](../../research/sdk-alpha1/evidence/20261104-multi-epoch-replay/README.md), pinned models, tools and complete query inventory. MAIN and 24 reusable dependencies passed; 13 other queries remain incomplete. | Separate symbolic validity, multi-round execution witnesses, computational composition and implementation correspondence. Preserve unsuccessful branches and the original query contracts. |
 | Are bytes bound to the right identity, purpose and operation? | [Wire contract](WIRE_V1.md), [compiled descriptor](../../research/continuity-identity-candidate/src/contract.rs), [signed envelopes](../../research/continuity-identity-candidate/src/crypto.rs), [owner/authority boundaries](PRODUCT_ADMISSION.md). | Identify an accepted wrong encoding, purpose, identity, policy, service, request or operation; or explain the checked construction and its assumptions. Include implicit rejection and old KAT compatibility. |
 | Are state changes durable, atomic and recoverable? | [Storage contract](STORAGE_RECOVERY_V1.md), [state machine](STATE_MACHINE_V1.md), [write intents](../../research/continuity-identity-candidate/src/durable/write_intent.rs), [protected storage](../../crates/q-periapt-host-store/src/filesystem.rs). | Trace commit/release ordering, cancellation, concurrent updates and unknown outcomes. Preserve original IDs/results and independently committed application effects. Distinguish injected faults, process termination and physical power-loss claims. |
+| Can unpublished state be reclaimed without reaching a formal installation? | [Versioned maintenance contract](../PRIVATE_PUBLICATION_MAINTENANCE.md), [continuous attempt lease](../../crates/q-periapt-host-store/src/filesystem/maintenance/attempt.rs), [whole-payload admission](../../crates/q-periapt-host-store/src/filesystem/maintenance/tree.rs), and [installed command evidence](../../research/sdk-alpha1/evidence/20261104-managed-publication-maintenance/README.md). | Check original parent/control/lease/payload identity, exclusive ownership through publication, complete preflight before removal, partial-cleanup recovery and exact result replay. A checksum is not authorization; `NoPayload` does not authorize reprovisioning. Legacy/incomplete controls and actual Windows/NTFS qualification remain separate. |
 | Are current authorization and retained history kept distinct? | [Roster admission](../../research/continuity-identity-candidate/src/durable/rosters.rs), [Witness admission](../../research/continuity-identity-candidate/src/durable/anchoring.rs), [directory ledger](../../research/continuity-reference-app/src/directory_ledger.rs), [CLI](../../research/continuity-reference-app/src/bin/q-periapt-prekey-directory.rs). | Check authorization before and after relevant I/O and release. Historical signature validity must not imply current permission, lack of cancellation, consumption or delivery. |
 | Does Witness handoff preserve every required stage and original operation? | Existing [handoff implementation](../../research/continuity-identity-candidate/src/anchor/store/handoff.rs), [source](../../research/continuity-identity-candidate/src/anchor/store/handoff_source.rs), [import](../../research/continuity-identity-candidate/src/anchor/store/handoff/import.rs), [retirement](../../research/continuity-identity-candidate/src/anchor/store/handoff/retirement.rs), [activation](../../research/continuity-identity-candidate/src/anchor/store/handoff/import/activation.rs) and [history](../../research/continuity-identity-candidate/src/anchor/store/handoff/history.rs). | Treat source freeze, target import, source retirement, target activation, client persistent choice and current communication authorization separately. Review repeated transfers, root replacement and relevant cancellation/expiry/revocation/unknown-result interleavings. |
 | Does the supported API preserve ownership and failure semantics? | [Product admission boundary](PRODUCT_ADMISSION.md), the [candidate C owner](../../bindings/c/ContinuityPackageConsumer/src/lib.rs), [base ABI 2 header](../../crates/q-periapt-ffi/include/q_periapt.h), and the supported language/platform consumers. | Identify concrete owner, thread, cancellation, callback, lifetime or error-mapping violations. Base SDK ABI 2 and an unpublished candidate interface are different admission states. Shared-core evidence may be reused with explicit binding-specific coverage. |
@@ -68,6 +78,16 @@ product acceptance work even when a reviewer considers their security aspects.
    proof replay and relevant fault/process/device evidence. Export public test
    artifacts only; exclude live accounts, device storage, private keys and logs
    containing private test pages.
+   The maintenance checkpoint supplies fresh SDK archive and executable identities,
+   raw original bookkeeping and exact command results. Its failed 600-second
+   candidate observations remain retained; they are not complete regression passes
+   and are distinct from the repository's existing 90-minute Release-profile job.
+   The subsequent [installed-cohort capture](../../research/sdk-alpha1/evidence/20261104-continuity-installed-maintenance/README.md)
+   supplies fresh archive-derived Rust and independent-wheel execution, a separate
+   complete local Debug/Release regression, and an exact public-file allowlist. Its
+   binary exports are unchanged; path-normalized metadata retains original hashes.
+   The remaining platform matrix and final hosted CI must still be reconciled
+   before the review candidate is frozen.
 4. Refresh the CI and installed-platform matrix against that candidate. The
    [current CI failure record](../../research/sdk-alpha1/evidence/20261104-ci-runtime-failures/README.md)
    remains incomplete and preserves count-check, guest/transport and artifact-transfer failures. Historical passes
@@ -78,7 +98,7 @@ product acceptance work even when a reviewer considers their security aspects.
    Keep the computational argument and implementation-correspondence gaps
    visible rather than presenting the symbolic replay as their completion.
 
-The request to a selected reviewer should require a source-bound report with
+The handoff to the existing review team should require a source-bound report with
 scope, methods, assumptions, findings, reproducible evidence, impact and fixes;
 explicitly record inconclusive areas and remaining risk. Findings affecting a
 declared security promise must be fixed and rechecked before release. Agree on

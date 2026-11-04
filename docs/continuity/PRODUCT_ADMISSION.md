@@ -751,8 +751,14 @@ shared SDK/CLI source has its own
 [native maintenance checkpoint](../../research/sdk-alpha1/evidence/20261104-managed-publication-maintenance/README.md):
 12 fresh archives, four outside-checkout public API consumer tests and the actual
 extracted Apple-Silicon maintenance command, with original cleanup bytes and
-results retained. Earlier cohorts do not qualify it. The complete candidate
-Debug/Release aggregates still exceed their fixed 600-second observations; focused
-88-case success is not an aggregate pass. Windows runtime, new Continuity installed
-peers, supported platform consumers, legacy-residue disposition and final product
-admission remain separate.
+results retained. Earlier cohorts do not qualify it. The subsequent
+[installed-cohort checkpoint](../../research/sdk-alpha1/evidence/20261104-continuity-installed-maintenance/README.md)
+passes the archive-derived Rust consumers in both profiles and all 25 commands
+of a freshly installed independent wheel using the new native counterpart.
+It also records 1,488 candidate tests and 31 sealed-SDK tests per native profile:
+unfiltered Release and the complete existing Debug partition union. The original
+90-minute job budgets and captured source inputs remain unchanged.
+The earlier 600-second diagnostic observations remain timed out; their focused
+88-case result was not an aggregate pass. Windows runtime, other supported
+platform consumers, legacy-residue disposition and final
+product admission remain separate.

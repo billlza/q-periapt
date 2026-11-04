@@ -262,6 +262,15 @@ Their indifferentiability results assume an ideal underlying primitive. They
 are not a concrete SHA-256 theorem or a quantum-oracle argument for Continuity.
 This route has not been selected as a replacement security assumption.
 
+A subsequent [single-root ideal-oracle lemma](SHARED_ROOT_ORACLE_V1.md) gives a
+finite coupling for the shared row/column interface, including repeated calls
+and the zero-session-id alias. Its real-game statement counts all preparatory
+oracle queries; a retained counterexample explains why root independence alone
+does not justify holding an oracle-correlated prefix fixed. This closes that
+conditional ideal-game calculation, not the HMAC instantiation, accepted-prefix
+premise or full protocol composition. It does not select a new product
+assumption or change the obligations below.
+
 To connect the argument to the existing main claim, retain these obligations:
 
 - Establish fresh target contributions under the actual identity and reservation
