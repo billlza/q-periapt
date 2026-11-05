@@ -104,6 +104,14 @@ a successful witness query does not make the same reservation fresh. New entropy
 must be reserved only for a genuinely new, admissible transition, never as a retry
 of an uncertain old operation.
 
+The [finite delayed-receipt witness](../../research/sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace/README.md)
+now checks this boundary on the unchanged multi-epoch model. Both parties
+confirm the target epoch after Cut, and the responder encapsulates after Cut,
+yet a pre-Cut phase-3 generation snapshot yields the actual symbolic payload.
+At that binding the sole false MAIN premise is post-Cut generation. The exact
+original query and seven legal countertraces are checked by two semantic
+implementations; this is not a new Tamarin certificate or SDK runtime test.
+
 Acquisition of the actual journal must include an uncommitted target retained
 in its `pending` write intent, not only the current `image` row. The
 [pending-image disclosure checkpoint](../../research/sdk-alpha1/evidence/20261031-pending-image-disclosure/README.md)

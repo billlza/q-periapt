@@ -255,3 +255,13 @@ The skeleton can be expanded with the omitted fresh-generation and intruder
 steps while preserving its witness ordering. This supplies concrete non-vacuity
 evidence for that target; it is not a Tamarin certificate and does not change
 any of the thirteen incomplete query results or the other obligations above.
+
+The [finite delayed-receipt construction](../../research/sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace/README.md)
+then satisfies the original asymmetric-disclosure query. A pre-Cut B phase-3
+snapshot, delayed first receipt and post-Cut A encapsulation lead to a derived
+target-epoch payload. Both semantic calculations check the complete formula;
+seven legal countertraces reject. Its point audit identifies post-Cut generation
+as the sole false MAIN antecedent. The corresponding six-message SDK experiment
+also appears in the current source-bound complete Release record, without a
+new SDK run here. This supports the declared reservation-freshness boundary,
+not a counterexample to MAIN or a change to the 27/13 Tamarin inventory.

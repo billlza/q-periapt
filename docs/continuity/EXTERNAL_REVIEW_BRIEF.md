@@ -57,6 +57,13 @@ Review it alongside the failed Tamarin searches: it is a finite construction,
 not a Tamarin certificate or a substitute for the outstanding computational and
 implementation correspondence work. The original query inventory is unchanged.
 
+The later [finite delayed-receipt record](../../research/sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace/README.md)
+checks the original asymmetric-disclosure query with two semantic calculations
+and seven legal countertraces. It identifies exactly why post-Cut confirmation
+and one fresh encapsulation cannot replace the post-Cut-generation condition.
+Its matching SDK schedule reuses the recorded full Release test; neither a
+new Tamarin certificate nor complete implementation correspondence is claimed.
+
 ## Handoff to 魏庄坤教授
 
 The handoff should identify one exact review revision and provide a short reading

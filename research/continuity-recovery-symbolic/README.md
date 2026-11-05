@@ -29,6 +29,15 @@ positive/negative controls. It supports this specific finite witness without
 changing the Tamarin certificate or its 27 verified / 13 incomplete inventory.
 It is not a new Tamarin proof-search result or a computational-security claim.
 
+The [finite delayed-receipt witness](../sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace/README.md)
+adds the original asymmetric-disclosure query: generation precedes Cut, while
+the peer's first confirmation and next encapsulation follow it. The captured
+phase-3 record and public wires derive the target payload. Two semantic
+implementations check the full formula and seven legal countertraces. Only
+the post-Cut-generation premise of MAIN fails at this binding. This preserves
+MAIN, its independently replayed dependencies and the 27/13 Tamarin inventory;
+it is not a new Tamarin certificate or a whole-journal correspondence proof.
+
 The current [generation-secret origin checkpoint](../sdk-alpha1/evidence/20261030-generation-secret-origin/README.md)
 independently replays the 591-step origin proof together with every reusable
 dependency. The original 35 queries, their attributes and the operational model
