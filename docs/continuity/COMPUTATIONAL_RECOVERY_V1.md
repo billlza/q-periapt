@@ -163,6 +163,11 @@ The remaining prefix bridge has three explicit interfaces to justify:
    [`rekey`](../../research/continuity-identity-candidate/src/durable/messages/rekey.rs),
    [`response`](../../research/continuity-identity-candidate/src/durable/messages/rekey/response.rs)
    and [`completion`](../../research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs).
+   The [conditional body-origin reduction](AUTHENTICATED_BODY_LEMMA_V1.md)
+   isolates the hybrid wrapper's implication under a chosen-rnd signature
+   interface. It does not supply that primitive premise or original-wire,
+   authorization and matched-flight authentication; existing classical-alias
+   regressions demonstrate why these boundaries must remain distinct.
 2. Simulate other reservations, allowed earlier/later entropy disclosure and
    public queries while embedding the target ML-KEM challenge. Account for the
    component's correctness-failure term and fixed versus adaptive target

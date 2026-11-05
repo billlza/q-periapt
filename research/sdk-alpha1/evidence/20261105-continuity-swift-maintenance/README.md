@@ -23,6 +23,9 @@ only three arm64 Rust targets: it does **not** satisfy the retained x86_64 iOS
 simulator packaging requirement in [the release scope](../../../../docs/continuity/RELEASE_0_2_SCOPE.md).
 That reproducible packaging gap requires its own corrected-package validation;
 macOS remains Apple Silicon only.
+The later [four-target package capture](../20261105-continuity-ios-simulator-matrix/README.md)
+now supplies that separate corrected-package validation. It does not change
+this cohort's original three-target archive or its recorded scope.
 
 Both Swift profiles execute the existing owner, enrollment, publication,
 communication, recovery, account/root lifecycle, cancellation, cleanup and

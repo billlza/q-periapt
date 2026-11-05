@@ -43,6 +43,13 @@ why an extra raw-PRK disclosure would invalidate that game. Its encoding checks
 are separate from its mathematical argument; the actual accepted-prefix and
 whole-protocol obligations remain open for review.
 
+The [conditional body-origin reduction](AUTHENTICATED_BODY_LEMMA_V1.md) isolates
+one authentication implication of the actual hybrid verifier and injective
+purpose/body encoding. It preserves the chosen-rnd primitive and surrounding
+simulation premises, with historical source-bound alias-test evidence. It does
+not establish original-wire authenticity or close accepted-flight, authorization,
+shared-oracle, whole-state or multi-epoch proof obligations.
+
 The [finite two-round execution record](../../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
 also gives a source-derived exposed-ancestor witness on the unchanged symbolic
 model, with a separate internal semantic calculation and negative controls.
@@ -116,6 +123,10 @@ product acceptance work even when a reviewer considers their security aspects.
    regression over that same foundation. Its three arm64 Apple targets leave
    the retained x86_64 iOS simulator packaging requirement open; its iOS
    consumer builds do not count as device/simulator execution.
+   The subsequent [four-target Apple checkpoint](../../research/sdk-alpha1/evidence/20261105-continuity-ios-simulator-matrix/README.md)
+   closes the local simulator packaging gap with actual arm64/x86_64 native
+   builds, exact fat-slice readback and both simulator consumer link maps.
+   Its source identity is separate; iOS runtime and final hosted CI remain open.
 4. Refresh the CI and installed-platform matrix against that candidate. The
    [current CI failure record](../../research/sdk-alpha1/evidence/20261104-ci-runtime-failures/README.md)
    remains incomplete and preserves count-check, guest/transport and artifact-transfer failures. Historical passes

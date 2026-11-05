@@ -781,6 +781,15 @@ simulator packaging requirement open; iOS builds do not establish iOS execution.
 The completed runtime receipts remain tied to their original source and package.
 The remaining platform matrix, final CI and product admission are not closed.
 
+The subsequent [four-target Apple package checkpoint](../../research/sdk-alpha1/evidence/20261105-continuity-ios-simulator-matrix/README.md)
+closes that local packaging omission. It builds all four native targets, binds
+both simulator payloads byte-for-byte into one fat slice, runs the extracted
+macOS arm64 owner probe and verifies separate device, arm64-simulator and
+x86_64-simulator consumer builds and link maps. Only Apple packaging helpers,
+their README and the CI target inventory changed; the original full Swift
+lifecycle cohort keeps its own identity. iOS runtime, hosted CI and final
+product admission remain separate.
+
 The [maintenance-cohort program replacement](../../research/sdk-alpha1/evidence/20261104-maintenance-program-upgrade/README.md)
 additionally verifies original-state reopening across the previous installed SDK
 and the new maintenance cohort, with 32 real process cuts, 29 program switches

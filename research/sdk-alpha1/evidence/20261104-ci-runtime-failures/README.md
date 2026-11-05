@@ -202,3 +202,19 @@ All six members were reread: 32,614 bytes, SHA-256
 The effective wave remains open; no push, rerun, cancellation or new workflow
 was performed. The separate [local Swift maintenance result](../20261105-continuity-swift-maintenance/README.md)
 qualifies only its named source and execution boundaries.
+
+At 2026-11-05 02:44:09 UTC, push-side [Kotlin Release job 126463649783](https://github.com/billlza/q-periapt/actions/runs/41791854684/job/126463649783)
+has failed at the same old `== 142` C/OpenSSL prerequisite on actual checkout
+`6084f3bf`. This is the thirteenth observed P0 checker failure. The full log
+does not disclose the hosted server count or establish Kotlin consumer
+execution. Upload metadata records artifact 13383322821, 47,602,089 bytes,
+digest `ab1b25e1c81271b0f50abf34cc4a35a531a528b85c1c510b5fdc6f255382b473`;
+that artifact was not downloaded for this classification.
+
+The snapshot refreshes the four open CI runs and retains terminal rows from
+the preceding twelve-run inventory: 288 successes, 23 queued, three running,
+16 failures and two skips. PR metadata is explicitly retained from the 02:29
+snapshot. `late-kotlin-release/CAPTURE.zip` preserves the complete decoded log,
+job/step metadata, snapshot and classification: six reread members, 31,720 bytes,
+SHA-256 `8f7ac603d136f43263d599897380ac1cd2b72c86cdc1f8908223162812f694b5`.
+The wave remains open and no push, rerun, cancellation or new workflow occurred.
