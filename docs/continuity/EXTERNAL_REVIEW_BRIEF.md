@@ -111,6 +111,11 @@ product acceptance work even when a reviewer considers their security aspects.
    adds both full installed profiles, independent OpenSSL carrier execution and
    public archive readback on the same maintenance cohort. It does not substitute
    for the remaining bindings, platform matrix or final source-bound CI.
+   The [Apple/Swift maintenance checkpoint](../../research/sdk-alpha1/evidence/20261105-continuity-swift-maintenance/README.md)
+   adds full Swift Debug/Release execution and the Rust 1.90 minimum-root
+   regression over that same foundation. Its three arm64 Apple targets leave
+   the retained x86_64 iOS simulator packaging requirement open; its iOS
+   consumer builds do not count as device/simulator execution.
 4. Refresh the CI and installed-platform matrix against that candidate. The
    [current CI failure record](../../research/sdk-alpha1/evidence/20261104-ci-runtime-failures/README.md)
    remains incomplete and preserves count-check, guest/transport and artifact-transfer failures. Historical passes

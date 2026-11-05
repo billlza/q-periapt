@@ -184,3 +184,21 @@ reread: 28,614 bytes, SHA-256
 `92bf77064b36a80889fb3d5bfec001048b5a644c0bcca0d96b88517b590b17ae`.
 The wave remains open. This capture performs no push, rerun, cancellation or
 new workflow; it adds no Swift runtime acceptance claim for that hosted job.
+
+At 2026-11-05 02:29:53 UTC, push-side [Swift Debug job 126463649821](https://github.com/billlza/q-periapt/actions/runs/41791854684/job/126463649821)
+has also failed at the old `== 142` C/OpenSSL prerequisite on actual checkout
+`6084f3bfb09333f6b66291b38809ed512296a27b`. This is the twelfth observed P0
+checker failure. The full log identifies the failed check but does not disclose
+the hosted server count, and it does not establish Swift consumer execution.
+Upload metadata records artifact 13382448786, 47,530,052 bytes, digest
+`0c167b833ca03c5983533a86ae4033cc4621236e67c01e7967eaa4063580cc10`;
+that artifact was not downloaded for this classification.
+
+All twelve run inventories were refreshed: 288 successes, 25 queued, two
+running, 15 failures and two skips. `late-swift-push-debug/CAPTURE.zip` preserves
+the complete decoded log, job/step metadata, snapshot and classification.
+All six members were reread: 32,614 bytes, SHA-256
+`ce63941ae42b324ac814857325dd098a58c7b3d5ee5d7a05cc0c8b8f3b24a007`.
+The effective wave remains open; no push, rerun, cancellation or new workflow
+was performed. The separate [local Swift maintenance result](../20261105-continuity-swift-maintenance/README.md)
+qualifies only its named source and execution boundaries.

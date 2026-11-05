@@ -772,6 +772,15 @@ each profile. The full run remains inside its original 150-minute parent budget.
 This closes that local Rust/C cohort; the foreign/platform and final release
 boundaries above remain separate.
 
+The [installed Apple/Swift maintenance checkpoint](../../research/sdk-alpha1/evidence/20261105-continuity-swift-maintenance/README.md)
+then passes the full existing Swift Debug/Release qualifiers and Rust 1.90
+minimum-root regression over the unchanged C foundation. The extracted Apple
+package runs its macOS arm64 owner probe and builds arm64 iOS device/simulator
+consumers. Its three-arm64-target inventory leaves the retained x86_64 iOS
+simulator packaging requirement open; iOS builds do not establish iOS execution.
+The completed runtime receipts remain tied to their original source and package.
+The remaining platform matrix, final CI and product admission are not closed.
+
 The [maintenance-cohort program replacement](../../research/sdk-alpha1/evidence/20261104-maintenance-program-upgrade/README.md)
 additionally verifies original-state reopening across the previous installed SDK
 and the new maintenance cohort, with 32 real process cuts, 29 program switches
