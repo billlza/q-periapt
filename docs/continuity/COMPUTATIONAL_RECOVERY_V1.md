@@ -390,6 +390,14 @@ separation argument also handles the two distinct 44-byte domains. This is a
 larger single-record experiment; the accepted-prefix simulator and multi-record
 acquisition/composition obligations remain open.
 
+The [multi-record extension](MULTI_RECORD_COMMITMENTS_V1.md) now gives a bounded
+hybrid sum for an explicitly confined private-record interface. It counts fresh
+sealing invocations and original intent headers, preserves exact-copy caches and
+the full SHA3 query prefix, and reads Snapshot as the retained model's encrypted
+record acquisition event. Its source map also identifies cleanup report MACs as
+a separate plaintext-dependent channel; the complete native refinement and that
+MAC simulation are not supplied by the digest bound.
+
 ## Public-salt extraction has a specific sufficient assumption
 
 After the first replacement the necessary extraction direction is

@@ -189,3 +189,9 @@ must still preserve challenge-ciphertext retries without forbidden challenge
 decapsulation, signature/body provenance, ContextBound inputs, half-confirmed
 `FinalReady` application sends, subsequent roots and traffic. No complete
 computational recovery or release qualification follows from this note.
+
+The subsequent [multi-record extension](MULTI_RECORD_COMMITMENTS_V1.md) supplies
+the bounded hybrid sum under a stated per-nonce confinement interface and checks
+the original Snapshot event semantics. It does not turn this single-record
+source inventory into an unrestricted output proof; in particular, cleanup MACs
+over private state remain distinct from the six raw-record digest domains.

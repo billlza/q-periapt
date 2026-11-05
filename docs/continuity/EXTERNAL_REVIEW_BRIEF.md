@@ -76,6 +76,13 @@ The full native private-record simulation and adaptive-target lift remain open;
 the adapter's mathematical game is not evidence that raw unknown coins can be
 serialized or that the actual storage interface may reject an allowed disclosure.
 
+The [multi-record commitment note](MULTI_RECORD_COMMITMENTS_V1.md) extends the
+conditional nonce-hash calculation across bounded original-record invocations
+and preserves exact-copy identity. It verifies that the retained Snapshot rule
+outputs encrypted records before any decryption condition, while leaving the
+actual acquisition mapping explicit. It also records private-state cleanup MACs
+and failed-before-freeze branches that cannot be covered by the digest lemma.
+
 The [conditional body-origin reduction](AUTHENTICATED_BODY_LEMMA_V1.md) isolates
 one authentication implication of the actual hybrid verifier and injective
 purpose/body encoding. It preserves the chosen-rnd primitive and surrounding
