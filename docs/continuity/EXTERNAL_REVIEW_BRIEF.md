@@ -39,6 +39,12 @@ omit publication public bytes, so that independent replay remains unavailable.
 The upload-pattern repair is already in the later local branch and still needs
 the next permitted source-bound hosted evidence.
 
+The same source's [six-partition coverage join](../../research/sdk-alpha1/evidence/20261105-hosted-profile-coverage/README.md)
+now passes independently against all six original report bytes and the pinned
+1,393 source inputs. This establishes the historical Swift/Kotlin/host-JNI
+Debug/Release receipt union. It does not repair missing public exports, establish
+device execution, or transfer acceptance to the later local candidate.
+
 The deliverable sought is a construction and implementation assessment of the
 declared secure-session contract: authorized establishment and communication,
 traffic-independent PQ progress, exact recovery of original operations,
