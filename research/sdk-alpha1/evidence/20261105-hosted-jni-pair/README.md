@@ -48,6 +48,13 @@ driver, traceback, command receipt and partial readback remain in the capture;
 the original validation functions and assertions were not changed. Release
 uses the same mapping with explicit profile and input-directory arguments.
 
+Both public replays and identity audits were subsequently repeated through the
+repository's isolated Python dispatcher. Each asserted isolated mode, disabled
+site startup and bytecode writes, and a fresh private cache prefix. The temporary
+prefixes were removed normally. Public results and identity reports were
+unchanged. `HARDENED.zip` retains these four command receipts/streams, final
+public results and the pinned dispatcher sources. No native workload was rerun.
+
 The original OpenSSL client/server/rejection readers also reproduce their
 results for both profiles. The server trace and negotiation records retain
 exactly **146 witness exchanges**; the client retains its own two-exchange
@@ -103,6 +110,7 @@ then reread and checked against `FILES.json`.
 | `INPUTS.zip` | 6,514,675 | 115 | `11381e923f865af1fcec5075a43cd60a48626c4d60b0ac6d6cb47b1ab4b72024` |
 | `DEBUG.zip` | 72,554,868 | 24 | `8528be4e195d5e7c6e8f6e8bbbe880a076e2c1a98e777c370334b0eafe8dbe52` |
 | `RELEASE.zip` | 72,540,080 | 18 | `13d92a28cf8db4a624598fc9ef1a63bd5f4a78b3fefe1f318e06ddfb5685301c` |
+| `HARDENED.zip` | 128,235 | 21 | `4f99b7ce6c096503655251d5edb2fb9eb0530ba8ff2fdc130b2371efd588b927` |
 
 `INPUTS.zip` includes the original SDK producer, pinned readers and capture/replay
 drivers. The profile capsules retain original artifacts, job logs/API identities,

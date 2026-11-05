@@ -1,0 +1,89 @@
+{
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "report_sha256": "1e40fc2ae0c7c113509ae2a5c5a858cbd73a8a6fd7f63e66203316c4c61e228d",
+  "source_inputs": {
+    "files": {
+      "README.md": "c1f45bd28ff472c1055d616c4c1c683197c811dea95bd5129f86e843fc57108c",
+      "artifact/bounded_process.py": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+      "artifact/c_package_manifest.py": "30274edd771c6c3200685f5595ca972478d0c5d099821018cf383fb4e833aa97",
+      "artifact/crates_io_registry_metadata.py": "f4a16e59e4218c4339a38abcb0542a9616e1735bf8d743b5c24e54c5216aa777",
+      "artifact/evidence_io.py": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+      "artifact/git_provenance.py": "8bb64d7f43d1ffa00a39b31a174e8667d4d2cfb1f8c42a019a32627f6a065f3f",
+      "artifact/installed_rust_graph.py": "0150573580c4acab5b0e542b28e31278a8eeeeff65594bef322001801ee6b42c",
+      "artifact/rust-publish-contract.sh": "1bbf6e141abb5fd5892d281066994f81a98158367a3918148752a09a234ed6fd",
+      "artifact/rust_publish_contract.py": "674a16c33700794a2434dd22d4e14129ceb7340670a29d0ebf161215b92f5491",
+      "artifact/rust_sdk_profile.py": "3aac9df3243c30cece301717164bb2a210b62b61a953f0796b6fce24dc712af5",
+      "bindings/rust/SDKPackageConsumer/Cargo.toml": "d48d8b1e24a610ba72ac28c9f4af70aa1757c8163b877645b0d3ca784d008719",
+      "bindings/rust/SDKPackageConsumer/fixtures/README.md": "13dfffdfbea6b474b56f9552f955d34b7109b8792e5f10a92a0bf9e8e8bb47cd",
+      "bindings/rust/SDKPackageConsumer/fixtures/client.der": "7996323125beb371e63f45dc38798d339c2fbc3bb2b0d51f57d1e77de90f0e3c",
+      "bindings/rust/SDKPackageConsumer/fixtures/client.key.der": "5319d21790dda809339d5f5f2fc377df97016af8d3c33acd717712907f612afe",
+      "bindings/rust/SDKPackageConsumer/fixtures/server.der": "699c14c660013e3edb92913bbe50916f1d1f121fe8934c694e6ac145cd99f7b3",
+      "bindings/rust/SDKPackageConsumer/fixtures/server.key.der": "086f61cd8f9d9999e684b99422b4ff13bc18623408622e22e54af7a3a4c5691f",
+      "bindings/rust/SDKPackageConsumer/src/lib.rs": "a82a100086738223dadca880c166190e0ec8d45874438ff037825b125e05eb20",
+      "bindings/sdk-policy-revocation-vectors.json": "ffa88a68b549ccd72fa2b10d7b6015435f43187239c80f552ea4fee475a61add",
+      "bindings/sdk-policy-update-vectors.json": "9c1d14716b51d0d687f1877a8c65bb119494ef2c0e8606e89337ba0c57b0aa47",
+      "bindings/signed-policy-vectors.json": "83110fa4c73679e7b4b8d117cffe4f8388408500de2a354fb3d7982a129382f5"
+    },
+    "rust_workspace_sha256": "c064df108a07da40099f9c2fe8115577d54f421fea918a0fefb1810d76a42c4d"
+  },
+  "archive_count": 12,
+  "archive_bytes": 5765394,
+  "external_consumer_trees_rechecked": 9,
+  "external_consumer_tests": 4,
+  "successful_command_receipts": {
+    "list-q-periapt-kem.json": "abdbfd65bfdf2f7f658f3ab0e130098d9f16a280304ef948d21fdaf21d29dd19",
+    "consumer-metadata.json": "9b023c8e9f7ce6d2d0a6e7411a658b229f0d6273c19d295d7b180d01ac7cfb87",
+    "list-q-periapt-sdk.json": "fd1bed3305bf8ba1fa9c34236679d77523ecc4019643a8c21e9cbfa0f51b4c20",
+    "list-q-periapt-mlkem-native-sys.json": "92878ba2e458c26498691bc3ceb3ec29090b692cbc0820bdfe4838df8b48b64c",
+    "audit-version.json": "1aafd07ca9da300dba78b0843250abaeea07d053605226a88386b287eeb7e667",
+    "workspace-audit.json": "283cd3ac9bf61bb3560b676ee44540f796aee5beefb7e15c81ce1ed4f26d31fc",
+    "fetch-fuzz.json": "121a4637d459f0f40dbd9551edf7cdc78b509f8580a5123f8ce7395c93d43db2",
+    "consumer-test.json": "481d8058fb8190eddfc09db1425b90295eb4de86ce764a1c4f48842b7ac3601e",
+    "consumer-audit.json": "5ded4bd3cd8b23f9c54636dcced07a8aa5135011e6b28f218fba25d51c62dec3",
+    "vendor.json": "fd03d81a0f8f2e9ed354b3c6154486e3f25bfdc897ef95672b887fe067e058ad",
+    "list-q-periapt-ffi.json": "ca1a0ae03e4bda0b8464400feff9b2e539dec1b9307d1f6ae86c7e64a81eaf6f",
+    "metadata.json": "4712bc69db3cab3ac04e1fdaa13dd90db744f9392a0c0550a293897cf2fef0f3",
+    "list-q-periapt-cli.json": "55505f5e315f214ae717550973c7519bcee639676e4d3af1c8f48ffe034e7f2d",
+    "list-q-periapt-wasm.json": "3fef0aaf265275a3d471f018672497acd743e482fb4e9d91ca5cebf1939e2707",
+    "fuzz-audit.json": "06a75c4d0a528f1a3448e88455e39b4d070a5fa2c0c19ac38f28a4ba3fbd1ed4",
+    "rustc-version.json": "c7740234b69eb80a60b5d0fc40c4174cca29a3936f325a0d95b8e934f127fa67",
+    "list-q-periapt-rustls.json": "bf428fcc9b2c9230af17e6848c87812fc8500589e67dd47eb4414cf07eae2b4b",
+    "fetch.json": "2854b788efe0be1e3cba732765ee76a23b865b0efdd5aa41b50017edde258fb4",
+    "package.json": "7c47c0b48ac338028b03d92cab43ed2d2fa5e3272815fb548c1bf5ec1c058e59",
+    "list-q-periapt-host-store.json": "1220aef0bdded0c6a73daf3d564824bdaa27abe73d8245789886aad0934153db",
+    "list-q-periapt-policy.json": "da219a3777716d50fe83d3ea18196b37161b5f3b72fe2e7e0431af5427d54560",
+    "consumer-clippy.json": "5cd7ac99eccf47a18410756e472e1c9949b65d2b05f8d4ea16d050bf759ff403",
+    "list-q-periapt-core.json": "29cb12be058bba091be0a237b8523d27479f65f50eaa2394e726ca9386c782d2",
+    "list-q-periapt-sig.json": "d092192652ca29377dc126ccc3b53c1f42eb1b4318a4745152304f9e8380567a",
+    "list-q-periapt-backends.json": "e6d1789eb432900f48c77baba06d748209d4d0b8ce75c908d14ff6e0fcff5ab8",
+    "cargo-version.json": "ffb4a71676bf8ec1872eefd22b2c4b090954903bf0c745820bbf53db33c3ad4b"
+  },
+  "audit_database": "26fd2d43f7280a1fb925a3743ec463017afe7119",
+  "dependency_audits": {
+    "fuzz": {
+      "advisory_db_commit": "26fd2d43f7280a1fb925a3743ec463017afe7119",
+      "lockfile_sha256": "49ff860b50a09c304bc8a70b4f077bc46d69b0176fd7f53deee218fb3f7fddfa",
+      "packages": 51,
+      "vulnerabilities": 0,
+      "warnings": 0
+    },
+    "workspace": {
+      "advisory_db_commit": "26fd2d43f7280a1fb925a3743ec463017afe7119",
+      "lockfile_sha256": "b3f7403faca9c95c0f77d5abb6ce732bb9b89c1a4c72ad6ba6e58f533e0af3d9",
+      "packages": 290,
+      "vulnerabilities": 0,
+      "warnings": 0
+    }
+  },
+  "consumer_audit": {
+    "advisory_db_commit": "26fd2d43f7280a1fb925a3743ec463017afe7119",
+    "lockfile_sha256": "d2c086cf66d30e5efb54a1880d1355651d99512b2b7cd0c3f3cf078608a8be64",
+    "packages": 112,
+    "vulnerabilities": 0,
+    "warnings": 0
+  },
+  "native_execution_completed": true,
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "scope": "Actual current-source local SDK archive production, independent byte readback, and external archive-derived Rust consumer. This does not qualify Continuity product ABI, foreign platforms, public registry installation or release."
+}

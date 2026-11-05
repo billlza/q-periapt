@@ -14,6 +14,11 @@
       "bytes": 72540080,
       "sha256": "13d92a28cf8db4a624598fc9ef1a63bd5f4a78b3fefe1f318e06ddfb5685301c",
       "members": 18
+    },
+    "HARDENED.zip": {
+      "bytes": 128235,
+      "sha256": "4f99b7ce6c096503655251d5edb2fb9eb0530ba8ff2fdc130b2371efd588b927",
+      "members": 21
     }
   },
   "original_artifacts": [

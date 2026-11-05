@@ -14,7 +14,10 @@ The subsequent locally validated roster-verification implementation is
 `1bdb29a20d1d9c68496648f3be91efad710e4b0c`; it changes candidate C/JNI and WASM
 package inputs and must remain distinct from the earlier package cohorts.
 None is the frozen review candidate. The later Windows test correction changes
-the SDK input root and still needs a matching package producer and qualification.
+the SDK input root. A [matching local SDK producer](../../research/sdk-alpha1/evidence/20261105-current-sdk-producer/README.md)
+now passes at source `5678d101`, with twelve archives, four external Rust consumer
+tests, strict Clippy and three dependency audits. Current candidate packages and
+affected platform qualification still need their own matching evidence.
 Re-pin the source, contracts and package identities together before formal
 review begins.
 
