@@ -71,3 +71,8 @@ The full downloaded container remains under
 `target/continuity-historical-queue-closeout/artifact-13401893480.zip`; it is not
 duplicated inside this capsule. `FILES.json` and `SOURCE_AUDIT.json` bind the
 retained content and scope. No final platform or release acceptance is claimed.
+
+The [next-wave readback](../20261105-ci-corrected-source-wave/README.md) records
+the final historical Android/coverage results, the verified empty queue and the
+subsequent normal atomic branch update. This capsule's earlier one-job-running
+snapshot remains unchanged.
