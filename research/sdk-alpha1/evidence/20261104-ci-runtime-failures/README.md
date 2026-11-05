@@ -250,3 +250,33 @@ underlying name-resolution failure. The latest inventory has 289 successes,
 20 queued, three running, 18 failures and two skips; both PR heads are unchanged.
 The current wave remains open, with no push, rerun or cancellation. Corrected
 hosted execution and successful evidence upload remain required.
+
+At 2026-11-05 04:10:47 UTC, push-side [Swift Release job 126463650237](https://github.com/billlza/q-periapt/actions/runs/41791854684/job/126463650237)
+has failed at the old exact `== 142` C/OpenSSL prerequisite on actual checkout
+`6084f3bfb09333f6b66291b38809ed512296a27b`. This is the fifteenth observed P0
+checker failure. Its log does not disclose the hosted server count or establish
+Swift consumer execution. Uploaded artifact metadata records 13386044520,
+47,608,936 bytes, digest
+`0f65a0d46dbc28a3c75e5a1626e52e384c28174699f377c582eda4da283f8765`;
+the artifact was not downloaded locally.
+
+The dependent [installed coverage job 127038195710](https://github.com/billlza/q-periapt/actions/runs/41791854684/job/127038195710)
+on the same checkout successfully downloaded all six partition artifacts, then
+rejected the first report at the completion/claim predicate in
+`continuity_profiles.py:64`. The pinned source's iteration order identifies
+that first report as Swift Debug. The log gives the compound error, not the
+individual failed fields; no downloaded report bytes were retrieved locally.
+This is a dependent coverage-gate failure, separately counted from another
+runtime P0 occurrence. No coverage report was written and its upload was
+skipped. The strict join remains necessary and has not been weakened.
+
+The snapshot refreshes the four open runs and both unchanged PR heads while
+retaining eight terminal run inventories: 290 successes, 17 queued, four
+running, 20 failures and two skips. The dependent join has added a job, so the
+inventory now contains 333 rather than assuming a fixed prior total.
+`late-swift-release-coverage/CAPTURE.zip` preserves both complete decoded logs,
+the job/step metadata, the snapshot, pinned join source and classification.
+All eight members were reread: 127,421 bytes, SHA-256
+`9a000008cff734cb5bdd93418415d1313aae626ca23b2c85a7375ea3b4218d2e`.
+The effective wave remains open; no push, rerun, cancellation or new workflow
+was performed.
