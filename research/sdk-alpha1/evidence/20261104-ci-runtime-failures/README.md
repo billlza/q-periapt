@@ -165,3 +165,22 @@ Separately, the corrected maintenance cohort has now passed the
 including exact 146-server/2-client OpenSSL readback in both profiles. This is
 new local evidence for its explicitly pinned source, not a reinterpretation of
 any failed hosted job. No queued job was cancelled or counted as passed.
+
+At 2026-11-05 01:44:27 UTC, PR-side [Swift Debug job 126489776864](https://github.com/billlza/q-periapt/actions/runs/41791861104/job/126489776864)
+has completed with the same old `== 142` C/OpenSSL prerequisite error on merge
+checkout `59bde0fd`. This is the eleventh observed P0 checker failure. The
+traceback stops inside `qualify_c`, before the Swift consumer runs; the complete
+log still does not disclose the hosted server count. Its upload metadata records
+artifact 13379233502, 47,532,656 bytes, digest
+`d84f915e5747d8f78963b7911f12f67375ca1948aa12780a8d18620df670ee5d`.
+That artifact was not downloaded for this classification.
+
+The latest snapshot contains 288 successes, 25 queued, three running, 14 failures
+and two skips. It refreshes all four open CI runs and both unchanged PR heads;
+the eight completed runs' terminal job rows are explicitly retained from the
+preceding inventory. `late-swift-debug/CAPTURE.zip` preserves the full decoded
+job log, step metadata, snapshot and classification. All six members were
+reread: 28,614 bytes, SHA-256
+`92bf77064b36a80889fb3d5bfec001048b5a644c0bcca0d96b88517b590b17ae`.
+The wave remains open. This capture performs no push, rerun, cancellation or
+new workflow; it adds no Swift runtime acceptance claim for that hosted job.
