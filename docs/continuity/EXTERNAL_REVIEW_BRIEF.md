@@ -10,6 +10,9 @@ reviewer or transmitted the materials. Runtime evidence below records separate
 source identities, including foundation `4effa8b2b25e7403ab912b65894a7d1e73695542`,
 publication maintenance implementation `f560d803c43a24fff222daa5e5e5bd623bfdf874`,
 and the later JNI component at `ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20`.
+The subsequent locally validated roster-verification implementation is
+`1bdb29a20d1d9c68496648f3be91efad710e4b0c`; it changes candidate C/JNI and WASM
+package inputs and must remain distinct from the earlier package cohorts.
 None is the frozen review candidate. The later Windows test correction changes
 the SDK input root and still needs a matching package producer and qualification.
 Re-pin the source, contracts and package identities together before formal
@@ -220,6 +223,16 @@ product acceptance work even when a reviewer considers their security aspects.
    into a completed aggregate. Its direct owner cleanup control is distinct from
    the failed nested-supervisor layout; host JNI execution is distinct from ART,
    device/emulator execution and qualification of the newer SDK source root.
+   The [roster-verification checkpoint](../../research/sdk-alpha1/evidence/20261105-renewal-roster-verification/README.md)
+   reuses two independently authenticated immutable roster objects within one
+   renewal verification while retaining exact input/pin, time, membership and
+   all other signature checks. Actual counting removes 7,425 repeated roster
+   verifications from the observed 32-member command. The committed source has
+   a complete 1,461-case local Release regression, focused Debug/Release and
+   Rust 1.90 checks, both local Debug capacity runs and an uninstrumented
+   four-profile/two-worker composition. Review the reuse boundaries and possible
+   first-error ordering for multiply invalid inputs; the original hosted
+   timeouts are retained and are not claimed resolved by these local results.
 4. Refresh the CI and installed-platform matrix against that candidate. The
    [current CI failure record](../../research/sdk-alpha1/evidence/20261104-ci-runtime-failures/README.md)
    remains incomplete and preserves count-check, guest/transport and artifact-transfer failures. Historical passes
@@ -235,6 +248,12 @@ product acceptance work even when a reviewer considers their security aspects.
    have separate local validation; their affected hosted checks remain pending.
    Keep original failed jobs and local repair evidence alongside the eventual
    final candidate results.
+   The [completed macOS installed-wheel readback](../../research/sdk-alpha1/evidence/20261105-independent-installed-macos/README.md)
+   confirms the earlier `ff072bd6` installed lane used exactly the same Rust
+   counterpart binary, 225 source inputs and provider as the failed source
+   lane. Its four composition traces were reread. This is installed Python with
+   a source-built Rust counterpart, separate from truly installed Rust and the
+   later local candidate changes.
 5. Finish the product/ABI, capacity/maintenance and resource contracts before
    the formal engagement. The current numeric contract explicitly remains
    unfrozen; the unpublished candidate has not thereby become product ABI 2.
