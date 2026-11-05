@@ -2,10 +2,10 @@
 use super::*;
 use crate::filesystem::{
     open_private_database, provision_private_database, publish_private_bytes,
-    test_directory::directory, PrivateDatabaseError,
+    test_directory::directory, OwnedPrivateDirectory, PrivateDatabaseError,
 };
 use redb::ReadableDatabase;
-use std::{fs, sync::mpsc, time::Duration};
+use std::{ffi::OsStr, fs, sync::mpsc, time::Duration};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 const TABLE: redb::TableDefinition<u64, u64> = redb::TableDefinition::new("prepared");
@@ -250,7 +250,7 @@ fn windows_directory_delete_access_is_deferred_until_rename() -> Result<()> {
         // publisher has no retry, handle-closing fallback or cleanup branch.
         publish_private_bytes(&path.join("second"), b"same original input")?;
     }
-    ops::rename_directory(&parent, name, OsStr::new("published"), &original)?;
+    ops::rename_directory_to(&parent, name, &parent, OsStr::new("published"), &original)?;
     ops::same_directory(&parent, OsStr::new("published"), &original)?;
     assert_eq!(
         fs::read(temporary.path().join("published/second"))?,

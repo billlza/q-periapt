@@ -88,3 +88,10 @@ and alert/source-lock readback. All 63 members were reread: **290,870 bytes**,
 SHA-256 `c1fb37c36a5cb8e843b6952014a40f24ffa4032f64241e149972c6594d1141a4`.
 `FILES.json` binds individual members and `READBACK.json` records scope. Formal
 proof, final ABI/platform qualification, external review and release remain open.
+
+The [first Windows failure and SDK readback](../20261105-windows-maintenance-test-imports/README.md)
+subsequently identify a Windows-test compilation omission and record its local
+red/green repair. The repair changes the SDK workspace source digest, so the
+next fixed-source producer must be rebuilt before the focused Android pin can
+be updated. The downloaded `ff072bd6` producer remains valid only for its recorded
+source. This earlier initial-wave snapshot is unchanged.
