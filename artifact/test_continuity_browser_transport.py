@@ -104,6 +104,32 @@ class TransportEvidence(unittest.TestCase):
 
 
 class ObserverContract(unittest.TestCase):
+    def test_request_and_response_observation_bounds_preserve_original_result(self):
+        source = (ROOT / 'research/continuity-reference-app/tests/browser_session/transport-receipts.js').read_text()
+        source = source.replace("import {HttpExchange} from '/pkg/bounded-fetch.js';", 'const HttpExchange = globalThis.TestExchange;')
+        script = r'''
+const assert = require('node:assert/strict');
+const source = JSON.parse(require('node:fs').readFileSync(0,'utf8'));
+(async () => {
+  let index=0;
+  for (const [profile,requestBytes,responseBytes] of [[1,3803,3659],[1,3674,3788],[2,32769,100],[2,100,32769]]) {
+    class Exchange {static start(){return new Exchange();} reply(){return this.promise;}}
+    globalThis.TestExchange=Exchange;
+    const {takeTransportReceipts}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64')+'#'+index++);
+    const request=new Uint8Array(requestBytes),response=new Uint8Array(responseBytes);
+    const exchange=Exchange.start('http://127.0.0.1:1/exchange',request,10000,()=>false,profile);
+    exchange.promise=Promise.resolve(response);
+    assert.strictEqual(exchange.reply(),exchange.promise);
+    assert.strictEqual(await exchange.promise,response);
+    await assert.rejects(takeTransportReceipts(),/transport observation failed/);
+  }
+})().catch(error=>{console.error(error);process.exitCode=1;});
+'''
+        result = subprocess.run(['node', '--unhandled-rejections=strict', '-e', script],
+                                input=json.dumps(source), text=True, capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stderr, '')
+
     def test_original_promise_and_rejection_survive_observation_and_observer_errors_fail(self):
         source = (ROOT / 'research/continuity-reference-app/tests/browser_session/transport-receipts.js').read_text()
         source = source.replace("import {HttpExchange} from '/pkg/bounded-fetch.js';", 'const HttpExchange = globalThis.TestExchange;')
@@ -129,12 +155,22 @@ globalThis.TestExchange = Exchange;
   bad.promise=Promise.reject(failure);assert.strictEqual(bad.reply(),bad.promise);
   await assert.rejects(bad.promise,e=>e===failure);
   rows=await takeTransportReceipts();assert.equal(rows[0].result,'rejected');assert.equal(rows[0].error_code,'Cancelled');
+  const peer=Exchange.start('http://127.0.0.1:1/exchange',new Uint8Array(32768),10000,()=>false,2);
+  const peerResponse=new Uint8Array(32768);peer.promise=Promise.resolve(peerResponse);
+  assert.strictEqual(peer.reply(),peer.promise);assert.strictEqual(await peer.promise,peerResponse);
+  rows=await takeTransportReceipts();assert.equal(rows.length,1);assert.equal(rows[0].response_bytes,32768);
+  assert.equal(rows[0].response_sha256,createHash('sha256').update(peerResponse).digest('hex'));
+  const lost=Exchange.start('http://127.0.0.1:1/exchange/drop-once',request,10000,()=>false,2);
+  const network=Object.assign(new Error('original network loss'),{code:'Network'});
+  lost.promise=Promise.reject(network);assert.strictEqual(lost.reply(),lost.promise);
+  await assert.rejects(lost.promise,e=>e===network);
+  rows=await takeTransportReceipts();assert.equal(rows[0].result,'rejected');assert.equal(rows[0].error_code,'Network');
   const originalCrypto=globalThis.crypto;
   Object.defineProperty(globalThis,'crypto',{value:{subtle:{digest:()=>Promise.reject(new Error('hash failed'))}},configurable:true});
   const observed=Exchange.start('http://127.0.0.1:1/witness',request,10000,()=>false,1);
   observed.promise=Promise.resolve(response);assert.strictEqual(observed.reply(),observed.promise);
   assert.strictEqual(await observed.promise,response);
-  await assert.rejects(takeTransportReceipts(),/witness observation failed/);
+  await assert.rejects(takeTransportReceipts(),/transport observation failed/);
   Object.defineProperty(globalThis,'crypto',{value:originalCrypto,configurable:true});
 })().catch(error=>{console.error(error);process.exitCode=1;});
 '''
