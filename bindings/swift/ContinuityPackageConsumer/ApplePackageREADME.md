@@ -6,8 +6,9 @@ Swift interface and native XCFramework. Consumers need no Rust toolchain, C
 header search paths or library search paths.
 
 This unpublished candidate supports macOS arm64, iOS arm64 and iOS simulator
-arm64, with macOS 13 / iOS 16 source deployment floors and Swift 6. It does not
-include Intel Apple slices. The `qpc-owner/1` interface remains distinct from the
+arm64 and x86_64, with macOS 13 / iOS 16 source deployment floors and Swift 6.
+The simulator architectures share one XCFramework slice; macOS supports Apple
+Silicon only. The `qpc-owner/1` interface remains distinct from the
 product SDK ABI 2; packaging does not freeze that candidate protocol or ABI.
 
 Create an app-owned private directory, use its absolute canonical path, and
