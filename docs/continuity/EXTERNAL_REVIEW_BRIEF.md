@@ -175,6 +175,11 @@ product acceptance work even when a reviewer considers their security aspects.
    closes the local simulator packaging gap with actual arm64/x86_64 native
    builds, exact fat-slice readback and both simulator consumer link maps.
    Its source identity is separate; iOS runtime and final hosted CI remain open.
+   The [Kotlin/JVM maintenance checkpoint](../../research/sdk-alpha1/evidence/20261105-continuity-kotlin-maintenance/README.md)
+   adds both full installed profiles and Serial/G1 lifecycle and GC paths on
+   macOS arm64. The source comparison, 79-case owner-test inventory, exact public
+   artifacts and 30 expected rejection receipts are retained separately from
+   Android device/runtime and final-source qualification.
 4. Refresh the CI and installed-platform matrix against that candidate. The
    [current CI failure record](../../research/sdk-alpha1/evidence/20261104-ci-runtime-failures/README.md)
    remains incomplete and preserves count-check, guest/transport and artifact-transfer failures. Historical passes

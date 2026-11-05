@@ -790,6 +790,15 @@ their README and the CI target inventory changed; the original full Swift
 lifecycle cohort keeps its own identity. iOS runtime, hosted CI and final
 product admission remain separate.
 
+The [installed Kotlin/JVM maintenance checkpoint](../../research/sdk-alpha1/evidence/20261105-continuity-kotlin-maintenance/README.md)
+passes both full existing profiles over that unchanged native foundation, with
+Serial and G1 lifecycle/GC paths, strict owner-test and public-artifact readback,
+and all expected loader/access rejections. Its 229 top-level receipts include
+six reused native-build receipts; the 223 new commands contain 30 intentional
+negative-control exits. Source differences from the current local tip are
+explicitly recorded. This closes the named macOS arm64 Kotlin cohort, without
+claiming Android, another JVM, hosted CI or final-candidate qualification.
+
 The [maintenance-cohort program replacement](../../research/sdk-alpha1/evidence/20261104-maintenance-program-upgrade/README.md)
 additionally verifies original-state reopening across the previous installed SDK
 and the new maintenance cohort, with 32 real process cuts, 29 program switches
