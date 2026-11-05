@@ -53,3 +53,29 @@ trees; retained private-path identifiers were not followed. The first sealer's
 incorrect assumption that native path identifiers end with a newline is
 retained with its failed outcome; the corrected reader accepts the actual
 single-path formats without traversing those paths.
+
+## Separate local CPU observation
+
+A fresh execution with the same binary, source inputs and provider completed in
+272.074 seconds. Its target exchange completed in 11.278 seconds, with the
+30-second exchange limit unchanged. During that exchange, the system `sample`
+tool observed the owned native process for five seconds at a two-millisecond
+interval. The sampler and native process both exited; their identities, exact
+command, outputs and original result are retained separately in `SAMPLING.zip`.
+
+Of 1,941 main-thread samples, 615 had P-256 field multiplication at the top and
+541 had its `sub_inner` operation at the top (1,156 combined, about 59.6%).
+The captured paths include roster refresh preparation, pending-image decoding,
+historical credential verification and account-roster signature authentication.
+This identifies actual local computation to investigate. It does not show that
+the hosted timeout had the same cause, establish that any verification is
+redundant, or justify increasing a deadline. Sampling perturbs execution; these
+are sample counts from a five-second interval, not exact elapsed-time shares or
+a product resource budget. The whole concurrent CI qualification remains open.
+
+`SAMPLING.zip` contains 2,110 members (10,973,750 bytes), SHA-256
+`ab264639522fdcb09a8afe30acb2b07d535370bc286672255b8f0e48a5ec4f29`.
+`SAMPLING.json` and `SAMPLING_READBACK.json` bind all public observations and the
+driver to the unchanged first capture's binary/source identities. CRC and full
+byte readback passed. No product or test-harness implementation was changed for
+this observation.

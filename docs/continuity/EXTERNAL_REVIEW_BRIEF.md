@@ -6,11 +6,14 @@ as the designated reviewer on this date. No narrower agreed scope or special
 material requirements were supplied, so the proposed scope below follows the
 existing release commitments. A source-bound review report, findings and fix
 rechecks have not yet been supplied in this task. This task has not contacted the
-reviewer or transmitted the materials. The runtime qualification
-source reference is `4effa8b2b25e7403ab912b65894a7d1e73695542`, including
-publication maintenance implementation `f560d803c43a24fff222daa5e5e5bd623bfdf874`; it is not the frozen
-review candidate. Re-pin the source, contracts and package identities together
-before formal review begins.
+reviewer or transmitted the materials. Runtime evidence below records separate
+source identities, including foundation `4effa8b2b25e7403ab912b65894a7d1e73695542`,
+publication maintenance implementation `f560d803c43a24fff222daa5e5e5bd623bfdf874`,
+and the later JNI component at `ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20`.
+None is the frozen review candidate. The later Windows test correction changes
+the SDK input root and still needs a matching package producer and qualification.
+Re-pin the source, contracts and package identities together before formal
+review begins.
 
 The deliverable sought is a construction and implementation assessment of the
 declared secure-session contract: authorized establishment and communication,
@@ -209,10 +212,29 @@ product acceptance work even when a reviewer considers their security aspects.
    macOS arm64. The source comparison, 79-case owner-test inventory, exact public
    artifacts and 30 expected rejection receipts are retained separately from
    Android device/runtime and final-source qualification.
+   The [JNI Release cycle follow-up](../../research/sdk-alpha1/evidence/20261105-android-release-cycle-followup/README.md)
+   completes the previously unfinished six-route installed component on the
+   exact `ff072bd6` runtime, with 434 foreign processes and full public archive
+   readback. It does not turn the retained
+   [18,000-second parent timeout](../../research/sdk-alpha1/evidence/20261105-android-parent-timeout/README.md)
+   into a completed aggregate. Its direct owner cleanup control is distinct from
+   the failed nested-supervisor layout; host JNI execution is distinct from ART,
+   device/emulator execution and qualification of the newer SDK source root.
 4. Refresh the CI and installed-platform matrix against that candidate. The
    [current CI failure record](../../research/sdk-alpha1/evidence/20261104-ci-runtime-failures/README.md)
    remains incomplete and preserves count-check, guest/transport and artifact-transfer failures. Historical passes
    and the focused source/wheel readback do not qualify the final installation.
+   The 2026-11-05 wave adds separately retained
+   [guest ART crash observations](../../research/sdk-alpha1/evidence/20261105-android-guest-art-crashes/README.md)
+   and an [independent macOS composition deadline](../../research/sdk-alpha1/evidence/20261105-independent-macos-deadline/README.md).
+   Both Android cleanup failures remain failed. An exact-binary isolated
+   32-member diagnostic completed, but does not explain or replace the original
+   concurrent composition failure. The
+   [browser response-observation repair](../../research/sdk-alpha1/evidence/20261105-browser-peer-receipts/README.md)
+   and [HTTP early-refusal repair](../../research/sdk-alpha1/evidence/20261105-http-early-refusal/README.md)
+   have separate local validation; their affected hosted checks remain pending.
+   Keep original failed jobs and local repair evidence alongside the eventual
+   final candidate results.
 5. Finish the product/ABI, capacity/maintenance and resource contracts before
    the formal engagement. The current numeric contract explicitly remains
    unfrozen; the unpublished candidate has not thereby become product ABI 2.
