@@ -52,6 +52,14 @@ ownership observations remain bounded. Missing publication exports and three
 unexported runtime JARs remain explicit; the latter retain original execution
 receipts rather than a new local runtime replay.
 
+The [installed operation observer](../../research/sdk-alpha1/evidence/20261105-installed-operation-observer/README.md)
+now separates ordinary sends, traffic-independent rekey and original-operation
+reopening at source `5678d101`. Its local/Witness functional cohorts and public
+archive reread pass, with per-operation Witness counts and exact business effects.
+Other qualification processes overlapped both cohorts, so their raw timings are
+not an accepted performance budget. Whole-process CPU/memory and the remaining
+fanout, maintenance and mobile-energy work retain their stated boundaries.
+
 The deliverable sought is a construction and implementation assessment of the
 declared secure-session contract: authorized establishment and communication,
 traffic-independent PQ progress, exact recovery of original operations,
