@@ -638,6 +638,16 @@ fn historical_grant_still_requires_original_independent_pin_and_all_signed_field
     let c = Case::new();
     let issued = c.issued();
     let bytes = issued.as_bytes();
+    let roster = c
+        .pin
+        .verify_historical_roster(c.new_roster.as_bytes())
+        .expect("retained roster");
+    assert_eq!(
+        VerifiedCredentialRenewal::from_journal(bytes, &roster)
+            .expect("retained grant")
+            .as_bytes(),
+        bytes
+    );
     let mut decoder = Decoder::new(bytes);
     assert_eq!(decoder.array::<8>().expect("tag"), *CONTAINER);
     let mut offset = 10;
@@ -654,6 +664,7 @@ fn historical_grant_still_requires_original_independent_pin_and_all_signed_field
             c.authorization.policy_digest
         )
         .is_err());
+        assert!(VerifiedCredentialRenewal::from_journal(&changed, &roster).is_err());
     }
     for changed in [
         bytes
@@ -668,6 +679,7 @@ fn historical_grant_still_requires_original_independent_pin_and_all_signed_field
             c.authorization.policy_digest
         )
         .is_err());
+        assert!(VerifiedCredentialRenewal::from_journal(&changed, &roster).is_err());
     }
     assert!(HistoricalCredentialRenewal::verify(bytes, &c.pin, [11; 32]).is_err());
     let stale = AccountPin::new(
@@ -691,4 +703,95 @@ fn historical_grant_still_requires_original_independent_pin_and_all_signed_field
     assert!(
         HistoricalCredentialRenewal::verify(bytes, &wrong, c.authorization.policy_digest).is_err()
     );
+}
+
+#[test]
+fn reused_rosters_require_the_exact_signed_material_bytes() {
+    let c = Case::new();
+    let rosters = RenewalRosters::authenticate(&c.materials(), &c.authorization, &c.pin)
+        .expect("authenticate original pair");
+    check_materials_with_rosters(&c.materials(), &c.authorization, &c.pin, 220, &rosters)
+        .expect("original input pair");
+    for previous in [true, false] {
+        let mut wire = if previous {
+            c.old_roster.as_bytes()
+        } else {
+            c.new_roster.as_bytes()
+        }
+        .to_vec();
+        *wire.last_mut().expect("signature byte") ^= 1;
+        let mut materials = c.materials();
+        if previous {
+            materials.previous_roster = &wire;
+        } else {
+            materials.successor_roster = &wire;
+        }
+        assert!(matches!(
+            check_materials_with_rosters(&materials, &c.authorization, &c.pin, 220, &rosters),
+            Err(Error::Scope)
+        ));
+    }
+}
+
+#[test]
+fn reused_rosters_do_not_cache_pin_time_membership_or_credential_authority() {
+    let c = Case::new();
+    let rosters = RenewalRosters::authenticate(&c.materials(), &c.authorization, &c.pin)
+        .expect("authenticate pair");
+    for now in [169, 290, 300] {
+        assert!(check_materials_with_rosters(
+            &c.materials(),
+            &c.authorization,
+            &c.pin,
+            now,
+            &rosters
+        )
+        .is_err());
+    }
+    let wrong_family = AccountPin::new(
+        c.pin.account,
+        c.pin.root.clone(),
+        c.pin.checkpoint,
+        [99; 32],
+    )
+    .expect("different independently configured family");
+    let wrong_checkpoint = AccountPin::new(
+        c.pin.account,
+        c.pin.root.clone(),
+        c.old_roster.checkpoint(),
+        c.pin.family,
+    )
+    .expect("different independently configured checkpoint");
+    let other = Case::new();
+    for pin in [&wrong_family, &wrong_checkpoint, &other.pin] {
+        assert!(pin
+            .verify_device_with_roster(&c.successor, &rosters.successor, 220)
+            .is_err());
+        assert!(pin
+            .snapshot_start_with_roster(&c.successor, &rosters.successor)
+            .is_err());
+    }
+    let mut corrupt = c.successor.clone();
+    *corrupt.last_mut().expect("credential signature") ^= 1;
+    assert!(c
+        .pin
+        .verify_device_with_roster(&corrupt, &rosters.successor, 220)
+        .is_err());
+    let revoked = c
+        .root
+        .issue_roster(4, Validity::new(210, 290).expect("interval"), &[])
+        .expect("signed revocation");
+    let current = AccountPin::new(
+        c.pin.account,
+        c.pin.root.clone(),
+        revoked.checkpoint(),
+        c.pin.family,
+    )
+    .expect("current revocation pin");
+    let empty = current
+        .verify_historical_roster(revoked.as_bytes())
+        .expect("revoked snapshot");
+    assert!(current
+        .verify_device_with_roster(&c.successor, &empty, 220)
+        .is_err());
 }
