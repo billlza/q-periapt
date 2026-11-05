@@ -123,6 +123,16 @@ concrete acquisition boundaries, not a complete whole-journal model refinement.
 A device-global image revision and a symbolic per-session `Saved` version must
 also remain distinct; resealing an unchanged reservation is not fresh entropy.
 
+The [shared-journal copy experiment](../../research/sdk-alpha1/evidence/20261105-aggregate-reservation-copy/README.md)
+now exercises two real sessions in each journal. An unrelated session send
+changes the aggregate revision, image digest and sampled outer nonce while the
+target's phase-three record remains byte-for-byte unchanged. A later capture
+still reconstructs six target epoch-two messages after reopen; a wrong wrapping
+key fails. Debug and Release pass this finite case. A fresh outer nonce can
+support the conditional hidden-head argument without refreshing the retained
+KEM reservation. This is correspondence evidence, not a counterexample to the
+main statement's explicit reservation and post-Cut snapshot conditions.
+
 The passive component experiments serialize KEM private keys directly. The actual
 candidate now also exercises both first-reservation cuts with process loss,
 sealed-operation replay and twelve real future message decryptions. This supplies

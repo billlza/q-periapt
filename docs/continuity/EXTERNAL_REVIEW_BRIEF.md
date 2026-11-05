@@ -51,6 +51,14 @@ target-free cancellations and keeps downstream hashes in the query budget.
 It is a single-record result; it does not close cross-record acquisition,
 the KEM challenge simulator or the multi-epoch proof.
 
+The [shared-journal copy regression](../../research/sdk-alpha1/evidence/20261105-aggregate-reservation-copy/README.md)
+adds a concrete cross-image correspondence check: a sibling session changes the
+aggregate nonce/digest while preserving the target's original reservation bytes;
+a later capture still decrypts six target messages. Debug and Release include
+wrong-key rejection and exact retry after reopen. Review should keep a global
+image write, original reservation sampling and per-session `Saved` provenance
+distinct; the full refinement and accepted-prefix simulation remain open.
+
 The [conditional body-origin reduction](AUTHENTICATED_BODY_LEMMA_V1.md) isolates
 one authentication implication of the actual hybrid verifier and injective
 purpose/body encoding. It preserves the chosen-rnd primitive and surrounding

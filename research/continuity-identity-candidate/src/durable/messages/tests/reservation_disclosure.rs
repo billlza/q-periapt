@@ -11,6 +11,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod aggregate_copy;
+
 #[derive(Clone, Copy, Debug)]
 enum Cut {
     KeyReserved,

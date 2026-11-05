@@ -50,6 +50,50 @@ captured reservation entropy. For encapsulation, the response signature may
 still be unpublished, but the predictor can already compute the response core;
 it can use the later honest signature bytes when deriving transcript-bound traffic.
 
+## Aggregate image lineage
+
+[`seal_next_image`](../../research/continuity-identity-candidate/src/durable.rs)
+advances a device-global revision and reseals the complete image after the caller
+has updated its selected record. The image encoder samples its outer nonce after
+encoding the plaintext. An unchanged message record therefore keeps its original
+root, reservation and operation even when another session causes a new image.
+The [executed two-session trace](../../research/sdk-alpha1/evidence/20261105-aggregate-reservation-copy/README.md)
+checks that distinction through actual APIs, exact stored record equality,
+reopen/retry and six subsequent target-message decryptions in each build profile.
+
+The corresponding private-state mapping must preserve the origin of each
+session's retained material, including copies carried by later aggregate images:
+
+- A target generation or encapsulation reservation originates at the actual
+  SDK reservation call. Both calls precede `store_message_state`; API return,
+  a later global revision and a newly sampled image nonce are not that event.
+- The original sealed target first becomes durable in the pending write before
+  image application. Ordinary `apply` installs the exact retained target bytes;
+  it does not rerun the KEM reservation or reseal that target.
+- A sibling-only write preserves the target record's existing origin. It must
+  not manufacture a new target `KeyReserved`/`EncapReserved` event. An unchanged
+  pre-Cut session projection may retain its pre-Cut origin despite a later
+  aggregate write; excluding it solely by the global write time would strengthen
+  the declared acquisition restriction.
+- Conversely, if an acquired aggregate carries target-session state that was
+  saved after Cut, changing the last writer to another session does not make
+  that acquisition admissible under MAIN's post-Cut `Saved`/`Snapshot` exclusion.
+  The same accounting must include pending targets and retained copies.
+
+These are source-derived obligations for a content/provenance relation between
+device-global images and per-session symbolic states. The new test establishes
+one unchanged-copy case, not the complete relation across every phase, archive,
+failure and platform wrapper. The symbolic model performs reservation and save
+in one rule; the implementation has separate sampling and durable-write steps.
+A complete refinement must map those intervals explicitly rather than assign
+freshness to the later commit or ignore a durable pending target.
+
+The [hidden-record commitment argument](HIDDEN_RECORD_COMMITMENTS_V1.md) has a
+different role: it can hide the public commitments of one private image/original
+write using its fresh outer nonce. It neither replaces old KEM coins nor permits
+acquisition of that nonce/preimage. Cross-image commitment simulation must retain
+the same operation lineage and the unchanged disclosure conditions above.
+
 ## Stored phases and root ownership
 
 Here `n` means that endpoint's local `confirmed_epoch`, and `e = n + 1`.
