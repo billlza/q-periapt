@@ -99,6 +99,12 @@ keystream while the shipping API refuses replacement. A failed outer marker
 reader is retained separately. This supports the send-origin invariant and
 query normalization, not distinct message keys or the full AEAD security game.
 
+The [ideal HKDF-Expand table identity](HKDF_EXPAND_TABLE_V1.md) separately gives
+an exact prefix-consistent output representation after private-row
+idealization, with three explicit counterexamples to broader formulations.
+It preserves same-PRK aliases and prior hybrid costs. This manual lemma and
+its dependency/source readback do not close multi-root or leakage composition.
+
 The [finite two-round execution record](../../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
 also gives a source-derived exposed-ancestor witness on the unchanged symbolic
 model, with a separate internal semantic calculation and negative controls.

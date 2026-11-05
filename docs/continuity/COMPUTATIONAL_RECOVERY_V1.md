@@ -505,6 +505,13 @@ ordinary-query costs. Pinned-library encoding checks support the source mapping;
 they do not prove the required independent-contribution or disclosure premises.
 The actual accepted-prefix bridge and the full continuation below remain open.
 
+The [ideal Expand-table identity](HKDF_EXPAND_TABLE_V1.md) removes one internal
+representation dependency after a PRK row has been validly idealized. Full-info
+and block-counter indexing gives independent blocks with exact retry/length
+prefix consistency, without an additional error term. The proof relies on the
+Expand-only private-row interface; raw-row access, equal-PRK aliases and the
+child key's joint initialization cannot be omitted from the surrounding argument.
+
 To connect the argument to the existing main claim, retain these obligations:
 
 - Establish fresh target contributions under the actual identity and reservation
