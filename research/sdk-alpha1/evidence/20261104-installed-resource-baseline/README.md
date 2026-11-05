@@ -80,6 +80,11 @@ network budget without separating those phases. The reader verifies every
 duration sum, the capacity observation's exact prefix and the 7,341-byte
 bidirectional frame accounting.
 
+The subsequent [phase-accounting reread](../20261105-resource-phase-accounting/README.md)
+separates the retained capacity prefix from recovery/delivery, checks the
+operation-tag census and reconciles both intervals with the original totals.
+It adds no runtime measurement or ordinary-send budget claim.
+
 Per-cohort observed nearest-rank p50/p95 **local durable commit** times are
 70.08/91.21 ms and 68.94/90.66 ms for the local cases, and 99.80/122.72 ms and
 103.55/126.80 ms for Witness. Each contains 125 ordered commits while the journal
