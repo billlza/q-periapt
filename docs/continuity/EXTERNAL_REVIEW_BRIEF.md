@@ -67,6 +67,15 @@ the component challenge-ciphertext cache from the complete combiner-input cache.
 The probe uses public serialization fixtures; it is neither an ML-KEM run nor
 the missing fixed-target reduction.
 
+The subsequent [original-operation KEM adapter](KEM_CHALLENGE_ADAPTER_V1.md)
+states a fixed-pair reduction for a defined virtual private-record game. It
+keeps correctness failure, pre-release challenge-ciphertext calls, exact retries
+and ineligible disclosure events explicit. Its source association uses the
+persist-before-sign boundary and the contract's authoritative-history premise.
+The full native private-record simulation and adaptive-target lift remain open;
+the adapter's mathematical game is not evidence that raw unknown coins can be
+serialized or that the actual storage interface may reject an allowed disclosure.
+
 The [conditional body-origin reduction](AUTHENTICATED_BODY_LEMMA_V1.md) isolates
 one authentication implication of the actual hybrid verifier and injective
 purpose/body encoding. It preserves the chosen-rnd primitive and surrounding

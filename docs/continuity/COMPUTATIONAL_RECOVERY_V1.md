@@ -97,6 +97,15 @@ The preceding KEM simulation and shared-oracle setup remain obligations; the
 lemma does not assume that a real component secret is already independent of
 its ciphertext or oracle prefix.
 
+The [original-operation KEM adapter](KEM_CHALLENGE_ADAPTER_V1.md) specifies
+the preceding fixed-pair component game and a reduction with one challenge-pair
+correctness term. It handles exact challenge-ciphertext repeats, including
+before public encapsulation release, without forbidden decapsulation queries.
+Its private-record interface is an explicit intermediate abstraction. The
+native-to-abstraction refinement, source association across all allowed histories
+and adaptive target accounting remain unestablished; this does not close the
+displayed accepted-prefix premise.
+
 The complete transcript is an unsuitable fixed auxiliary value for the same
 claim. It contains a tag derived from `R`. Given a candidate root, an observer
 can compute its responder-confirmation key and test the public tag. The real
