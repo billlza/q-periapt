@@ -50,6 +50,14 @@ simulation premises, with historical source-bound alias-test evidence. It does
 not establish original-wire authenticity or close accepted-flight, authorization,
 shared-oracle, whole-state or multi-epoch proof obligations.
 
+The [native rekey alias regressions](../../research/sdk-alpha1/evidence/20261105-rekey-classical-alias/README.md)
+now exercise both offer and response classical-signature substitutions with
+unchanged bodies/PQ signatures. Debug and Release pass the actual distinct
+wire-binding rejection points, original-wire traffic controls and exact retries
+after reopen. The first positive-fixture sequencing failure is retained. Only
+test code changes; these two cases do not close the general accepted-prefix
+reduction or alter any protocol acceptance condition.
+
 The [finite two-round execution record](../../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
 also gives a source-derived exposed-ancestor witness on the unchanged symbolic
 model, with a separate internal semantic calculation and negative controls.

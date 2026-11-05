@@ -131,3 +131,26 @@ endpoints and confirmation stages. Honest key-generation/encapsulation origin
 and a simulation of permitted reservation/state disclosure remain obligations
 of the full accepted-prefix bridge. The conditional body-origin implication
 cannot replace them.
+
+## Actual rekey alias boundaries
+
+The subsequent [native rekey alias regression](../../research/sdk-alpha1/evidence/20261105-rekey-classical-alias/README.md)
+executes two cases in both Debug and Release. Its substituter receives only
+the classical private key, public verification key and existing wire. The body
+and ML-DSA bytes remain identical, and both signature components verify.
+Original-wire controls complete rekey and carry actual new-epoch traffic.
+
+An offer alias is accepted by the responder. Its response then fails the
+proposer's prefix check, which contains the hash of the proposer's exact saved
+offer, before restoring its KEM owner or decapsulating. The responder retains
+the accepted alias and refuses a conflicting original offer. A response alias,
+by contrast, passes the proposer's KEM/root confirmation because the response
+body is unchanged. The generated final fails the responder's full response-wire
+binding. Both cases preserve the rejecting endpoint's stored image, and
+reopening preserves exact original-result retries. The protocol is not modified
+to turn these legitimate conflict boundaries into successful recovery.
+
+These are two executed wire-binding cases. They do not establish a general
+accepted-flight reduction: body origin still needs its primitive premise, while
+wire-hash collision resistance, identity/role/context matching, all allowed
+state disclosures and consistent challenge simulation remain to be justified.
