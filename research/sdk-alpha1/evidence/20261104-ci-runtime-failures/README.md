@@ -288,3 +288,13 @@ the Release row's skipped independent public verification is explicitly excluded
 The updated inventory has 292 successes, 16 queued, three running, 20 failures
 and two skips. No new failure appeared and the earlier failures remain recorded.
 The wave remains open, with no push, rerun or cancellation.
+
+The [05:18 current-wave readback](../20261105-ci-native-swift-readback/README.md)
+preserves three further native successes, including the actually executed
+PR #117 push Debug independent public validators. It also captures the sixteenth
+P0 checker failure in PR #118 merge Swift Release and the second dependent
+coverage rejection. Counts are 295 successes, eleven queued, four running,
+22 failures and two skips across 334 jobs. Both PR #118 main-CI runs are terminal
+failures; PR #117's main runs keep the effective wave open. Exact-head workflow
+discovery finds only the same twelve attempt-one runs. All results retain their
+actual source and execution boundaries; no remote mutation occurred.
