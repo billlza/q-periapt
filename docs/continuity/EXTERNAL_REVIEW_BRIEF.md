@@ -21,8 +21,13 @@ candidate](../../research/sdk-alpha1/evidence/20261105-current-rust-installed/RE
 also passes the original Debug and Release gates, with all three consumer tests
 per profile and an independent reread of both public traces, the candidate tree
 and nine SDK trees. Its same-host signed-TCP Witness and injected-clock scenarios
-retain their stated limits. Current foreign packages and affected platform
-qualification still need their own matching evidence.
+retain their stated limits. The [current WASM archive and Chromium
+gates](../../research/sdk-alpha1/evidence/20261105-current-wasm-browser/README.md)
+also pass on macOS arm64, including the same archive on Node 26.10.0 and minimum
+24.0.0, actual storage failures, enrollment and native/Witness recovery. Public
+transcripts and eight actual native reference binaries are retained. These are
+shared-engine, same-host HTTP/TCP observations; current foreign packages and
+remaining platform qualification still need their own matching evidence.
 Re-pin the source, contracts and package identities together before formal
 review begins.
 

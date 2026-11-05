@@ -53,9 +53,12 @@ The before/after source inventories and a fresh source readback agree. All
 twelve archives were reread with exact lengths, hashes and member inventories.
 
 The new producer is distinct from the earlier `75bbe6…` hosted JNI SDK inputs.
-Candidate C/JNI/WASM packages and affected runtime evidence still need to be
-bound to their applicable current inputs. The existing six-partition hosted
-wave, final source qualification, formal review and publication remain open.
+The subsequent [installed Rust candidate](../20261105-current-rust-installed/README.md)
+and [WASM/browser gates](../20261105-current-wasm-browser/README.md) now have
+matching current-source evidence, with their own package and runtime scopes.
+Current C/JNI and remaining affected platform evidence still need to be bound
+to their applicable inputs. The existing six-partition hosted wave, final source
+qualification, formal review and publication remain open.
 
 ## Retained evidence
 
