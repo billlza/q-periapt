@@ -364,6 +364,15 @@ entropy. This hop neither admits later ciphertext acquisition nor closes the
 ML-KEM challenge simulation, the concrete SHA3 instantiation or the multi-epoch
 computational claim.
 
+The follow-up [original-record commitment inventory](HIDDEN_RECORD_COMMITMENTS_V1.md)
+identifies four additional raw-intent digest domains in retirement, Witness
+selection and account-root recovery. It derives a conditional six-interface
+hop for one private original write, with explicit offsets for all eight write
+tags and separate handling of target-free cancellation records. Its full-domain
+separation argument also handles the two distinct 44-byte domains. This is a
+larger single-record experiment; the accepted-prefix simulator and multi-record
+acquisition/composition obligations remain open.
+
 ## Public-salt extraction has a specific sufficient assumption
 
 After the first replacement the necessary extraction direction is

@@ -43,6 +43,14 @@ why an extra raw-PRK disclosure would invalidate that game. Its encoding checks
 are separate from its mathematical argument; the actual accepted-prefix and
 whole-protocol obligations remain open for review.
 
+The [hidden-record commitment inventory](HIDDEN_RECORD_COMMITMENTS_V1.md)
+follows the original image and pending-write bytes into ordinary recovery,
+retirement, Witness selection and account-root checkpoints. Its conditional
+six-interface nonce argument includes the bound write layouts, distinguishes
+target-free cancellations and keeps downstream hashes in the query budget.
+It is a single-record result; it does not close cross-record acquisition,
+the KEM challenge simulator or the multi-epoch proof.
+
 The [conditional body-origin reduction](AUTHENTICATED_BODY_LEMMA_V1.md) isolates
 one authentication implication of the actual hybrid verifier and injective
 purpose/body encoding. It preserves the chosen-rnd primitive and surrounding
