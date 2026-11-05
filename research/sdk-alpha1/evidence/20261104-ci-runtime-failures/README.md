@@ -150,3 +150,18 @@ claim. `late-kotlin-debug/CAPTURE.zip` retains the complete log, job and wave
 inventories and classification. All six members were reread; its 97,461 bytes
 have SHA-256 `2b7bb005229fc6135a223fc957840db4f47f40205170d880ce0d0733a4830312`.
 No remote workflow or branch was changed.
+
+At 2026-11-05 00:14:35 UTC, PR-side [Android Debug job 126489776821](https://github.com/billlza/q-periapt/actions/runs/41791861104/job/126489776821)
+has the same old-count failure on merge checkout `59bde0fd`. The complete log
+therefore records the tenth observed P0 checker failure, without disclosing the
+hosted count or establishing Android JNI execution. The twelve-run snapshot has
+287 successes, 30 queued, 13 failures and two skips, with no job currently running.
+Queued work still keeps this effective wave open. `late-android-debug/CAPTURE.zip`
+retains the complete log, metadata and snapshot: six verified members, 96,266 bytes,
+SHA-256 `d9b871eb02e536fa49e283b8faa062570fa3a055f592c38116329748fdfad276`.
+
+Separately, the corrected maintenance cohort has now passed the
+[complete local installed Rust/C Debug+Release gate](../20261104-continuity-c-maintenance/README.md),
+including exact 146-server/2-client OpenSSL readback in both profiles. This is
+new local evidence for its explicitly pinned source, not a reinterpretation of
+any failed hosted job. No queued job was cancelled or counted as passed.
