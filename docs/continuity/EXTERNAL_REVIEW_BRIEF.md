@@ -36,6 +36,13 @@ the designated external review, not its substitute: the actual prefix, leakage
 interfaces, concrete-primitive assumptions and full protocol composition remain
 to be established.
 
+The [finite two-round execution record](../../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
+also gives a source-derived exposed-ancestor witness on the unchanged symbolic
+model, with a separate internal semantic calculation and negative controls.
+Review it alongside the failed Tamarin searches: it is a finite construction,
+not a Tamarin certificate or a substitute for the outstanding computational and
+implementation correspondence work. The original query inventory is unchanged.
+
 ## Handoff to 魏庄坤教授
 
 The handoff should identify one exact review revision and provide a short reading

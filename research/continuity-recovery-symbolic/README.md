@@ -21,6 +21,14 @@ result is neither a computational theorem nor product release admission.
 The bounded research workflow now selects MAIN and rejects conditional success
 if any reusable dependency is unproved.
 
+The [finite two-round construction](../sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
+checks a concrete execution of the unchanged model against the complete original
+exposed-ancestor witness formula. Its 40-step skeleton has a separate internal
+source/semantics review, an independently implemented calculation and retained
+positive/negative controls. It supports this specific finite witness without
+changing the Tamarin certificate or its 27 verified / 13 incomplete inventory.
+It is not a new Tamarin proof-search result or a computational-security claim.
+
 The current [generation-secret origin checkpoint](../sdk-alpha1/evidence/20261030-generation-secret-origin/README.md)
 independently replays the 591-step origin proof together with every reusable
 dependency. The original 35 queries, their attributes and the operational model

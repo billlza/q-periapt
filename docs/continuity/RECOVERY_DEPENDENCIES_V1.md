@@ -246,3 +246,12 @@ limit. MAIN and all reusable dependencies passed in 816.903 seconds; the output
 certificate was byte-identical to the retained input. All 40 queries remained,
 including the same 13 incomplete queries. This refreshes the symbolic evidence
 without changing the separate open obligations above.
+
+The subsequent [finite ground-trace record](../../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
+constructs one two-round exposed-ancestor execution using these exact operational
+rules and checks the complete original existential formula. A separate internal
+source-derived calculation rechecks all rule instances and global quantifiers.
+The skeleton can be expanded with the omitted fresh-generation and intruder
+steps while preserving its witness ordering. This supplies concrete non-vacuity
+evidence for that target; it is not a Tamarin certificate and does not change
+any of the thirteen incomplete query results or the other obligations above.
