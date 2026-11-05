@@ -74,19 +74,39 @@ impl Client {
         if let Some(origin) = origin {
             request.push_str(&format!("Origin: {origin}\r\n"));
         }
+        if !body.is_empty() {
+            request.push_str("Expect: 100-continue\r\n");
+        }
         request.push_str("\r\n");
-        request.push_str(&body);
         let path = path.to_owned();
         let bytes = tokio::task::spawn_blocking(move || -> std::io::Result<Vec<u8>> {
             let mut stream =
                 std::net::TcpStream::connect_timeout(&address, Duration::from_secs(10))?;
             stream.set_read_timeout(Some(Duration::from_secs(10)))?;
             stream.set_write_timeout(Some(Duration::from_secs(10)))?;
-            stream.write_all(request.as_bytes()).map_err(|e| {
+            let write_error = |e: std::io::Error| {
                 std::io::Error::new(e.kind(), format!("HTTP test write {path}: {e}"))
-            })?;
-            read_response(&mut stream, disconnect_before_body)
-                .map_err(|e| std::io::Error::new(e.kind(), format!("HTTP test read {path}: {e}")))
+            };
+            let read_error = |e: std::io::Error| {
+                std::io::Error::new(e.kind(), format!("HTTP test read {path}: {e}"))
+            };
+            stream.write_all(request.as_bytes()).map_err(write_error)?;
+            // A final response can reject a declared body before reading it.
+            // Wait for Continue instead of racing that refusal with a large upload.
+            let mut response =
+                read_response(&mut stream, disconnect_before_body).map_err(read_error)?;
+            if !body.is_empty() && response_code(&response)? == 100 {
+                stream.write_all(body.as_bytes()).map_err(write_error)?;
+                response =
+                    read_response(&mut stream, disconnect_before_body).map_err(read_error)?;
+            }
+            if response_code(&response)? < 200 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "HTTP test final response absent",
+                ));
+            }
+            Ok(response)
         })
         .await??;
         if bytes.len() > 1024 * 1024 {
@@ -97,14 +117,7 @@ impl Client {
             .position(|b| b == b"\r\n\r\n")
             .ok_or("HTTP header absent")?;
         let header = std::str::from_utf8(&bytes[..end])?;
-        let code = header
-            .lines()
-            .next()
-            .ok_or("HTTP status absent")?
-            .split_whitespace()
-            .nth(1)
-            .ok_or("HTTP status code absent")?
-            .parse()?;
+        let code = response_code(&bytes)?;
         let mut content_type = None;
         for line in header.lines().skip(1) {
             let (name, value) = line.split_once(':').ok_or("HTTP header syntax")?;
@@ -203,6 +216,26 @@ impl Client {
     }
 }
 
+fn response_code(bytes: &[u8]) -> std::io::Result<u16> {
+    use std::io::{Error, ErrorKind};
+    let invalid = |message| Error::new(ErrorKind::InvalidData, message);
+    let end = bytes
+        .windows(2)
+        .position(|part| part == b"\r\n")
+        .ok_or_else(|| invalid("HTTP test status absent"))?;
+    let line =
+        std::str::from_utf8(&bytes[..end]).map_err(|_| invalid("HTTP test status encoding"))?;
+    let mut parts = line.split_whitespace();
+    if parts.next() != Some("HTTP/1.1") {
+        return Err(invalid("HTTP test version"));
+    }
+    parts
+        .next()
+        .ok_or_else(|| invalid("HTTP test status absent"))?
+        .parse::<u16>()
+        .map_err(|_| invalid("HTTP test status"))
+}
+
 // These JSON/file routes send fixed-length responses. Read their complete HTTP
 // frame, not transport EOF: early Origin/body rejection can close unread request
 // data with a reset after a complete error response. Incomplete frames still fail.
@@ -219,21 +252,9 @@ fn read_response(stream: &mut impl Read, headers_only: bool) -> std::io::Result<
         bytes.push(byte[0]);
     }
     let header = std::str::from_utf8(&bytes).map_err(|_| invalid("HTTP test header encoding"))?;
-    let mut lines = header.split("\r\n");
-    let status = lines
-        .next()
-        .ok_or_else(|| invalid("HTTP test status absent"))?;
-    let mut parts = status.split_whitespace();
-    if parts.next() != Some("HTTP/1.1") {
-        return Err(invalid("HTTP test version"));
-    }
-    let code = parts
-        .next()
-        .ok_or_else(|| invalid("HTTP test status absent"))?
-        .parse::<u16>()
-        .map_err(|_| invalid("HTTP test status"))?;
+    let code = response_code(&bytes)?;
     let mut length = None;
-    for line in lines.filter(|line| !line.is_empty()) {
+    for line in header.split("\r\n").skip(1).filter(|line| !line.is_empty()) {
         let (name, value) = line
             .split_once(':')
             .ok_or_else(|| invalid("HTTP test header syntax"))?;
@@ -253,6 +274,9 @@ fn read_response(stream: &mut impl Read, headers_only: bool) -> std::io::Result<
         }
     }
     let length = match (code, length) {
+        (100, None) => 0,
+        (100, Some(_)) => return Err(invalid("HTTP Continue cannot carry content length")),
+        (101..=199, _) => return Err(invalid("HTTP test informational response unsupported")),
         (204 | 304, None | Some(0)) => 0,
         (204 | 304, Some(_)) => return Err(invalid("HTTP test body forbidden")),
         (_, Some(length)) => length,
@@ -304,6 +328,9 @@ fn http_test_reader_requires_complete_bounded_frames_without_requiring_transport
         "HTTP/1.1 200 OK\r\nContent-Length: 1048577\r\n\r\n",
         "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n",
         "HTTP/1.1 204 No Content\r\nContent-Length: 1\r\n\r\nx",
+        "HTTP/1.1 100 Continue\r\nContent-Length: 0\r\n\r\n",
+        "HTTP/1.1 100 Continue\r\nContent-Length: 1\r\n\r\nx",
+        "HTTP/1.1 103 Early Hints\r\n\r\n",
     ] {
         assert!(read_response(&mut std::io::Cursor::new(invalid.as_bytes()), false).is_err());
     }
@@ -312,5 +339,124 @@ fn http_test_reader_requires_complete_bounded_frames_without_requiring_transport
         read_response(&mut std::io::Cursor::new(empty), false)?,
         empty
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn http_test_client_observes_complete_early_refusal_without_uploading_body() -> Result {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let endpoint = Endpoint {
+        address: listener.local_addr()?,
+        origin: "http://localhost".into(),
+    };
+    let server = tokio::spawn(async move {
+        tokio::time::timeout(Duration::from_secs(10), async move {
+            let (mut socket, _) = listener.accept().await?;
+            test_request_header(&mut socket).await?;
+            socket.write_all(b"HTTP/1.1 413 Content Too Large\r\nContent-Length: 9\r\nCache-Control: no-store\r\nConnection: close\r\n\r\ntoo large").await?;
+            socket.shutdown().await?;
+            let mut byte = [0];
+            socket.read(&mut byte).await
+        })
+        .await
+        .map_err(std::io::Error::other)?
+    });
+    let reply = Client::default()
+        .request(
+            &endpoint,
+            "/oversized",
+            Some("x".repeat(2 * 1024 * 1024)),
+            None,
+        )
+        .await;
+    let uploaded_after_refusal = server.await??;
+    let reply = reply?.checked(413)?;
+    assert_eq!(reply.body, b"too large");
+    assert_eq!(
+        uploaded_after_refusal, 0,
+        "final refusal did not stop upload"
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+async fn test_request_header(socket: &mut tokio::net::TcpStream) -> std::io::Result<Vec<u8>> {
+    use tokio::io::AsyncReadExt;
+    let mut header = Vec::new();
+    while !header.ends_with(b"\r\n\r\n") {
+        if header.len() >= 8192 {
+            return Err(std::io::Error::other("request header bound"));
+        }
+        header.push(socket.read_u8().await?);
+    }
+    Ok(header)
+}
+
+#[tokio::test]
+async fn http_test_client_sends_exact_body_after_continue_and_reads_final_response() -> Result {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let endpoint = Endpoint {
+        address: listener.local_addr()?,
+        origin: "http://localhost".into(),
+    };
+    let body = b"{\"original\":true}";
+    let server = tokio::spawn(async move {
+        tokio::time::timeout(Duration::from_secs(10), async move {
+            let (mut socket, _) = listener.accept().await?;
+            let header = test_request_header(&mut socket).await?;
+            assert!(header
+                .windows(b"Expect: 100-continue\r\n".len())
+                .any(|part| part == b"Expect: 100-continue\r\n"));
+            socket.write_all(b"HTTP/1.1 100 Continue\r\n\r\n").await?;
+            let mut received = vec![0; body.len()];
+            socket.read_exact(&mut received).await?;
+            assert_eq!(received, body);
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nCache-Control: no-store\r\n\r\nok",
+                )
+                .await?;
+            std::io::Result::Ok(())
+        })
+        .await
+        .map_err(std::io::Error::other)?
+    });
+    let reply = Client::default()
+        .request(
+            &endpoint,
+            "/accepted",
+            Some(std::str::from_utf8(body)?.into()),
+            None,
+        )
+        .await;
+    server.await??;
+    assert_eq!(reply?.checked(200)?.body, b"ok");
+    Ok(())
+}
+
+#[tokio::test]
+async fn http_test_client_rejects_truncated_or_missing_final_response() -> Result {
+    use tokio::io::AsyncWriteExt;
+    for response in [
+        &b"HTTP/1.1 413 Content Too Large\r\nContent-Length: 4\r\nCache-Control: no-store\r\n\r\nbad"[..],
+        &b"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 100 Continue\r\n\r\n"[..],
+        &b"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 3\r\nCache-Control: no-store\r\n\r\nok"[..],
+    ] {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let endpoint = Endpoint { address: listener.local_addr()?, origin: "http://localhost".into() };
+        let server = tokio::spawn(async move {
+            tokio::time::timeout(Duration::from_secs(10), async move {
+                let (mut socket, _) = listener.accept().await?;
+                test_request_header(&mut socket).await?;
+                socket.write_all(response).await?;
+                socket.shutdown().await
+            }).await.map_err(std::io::Error::other)?
+        });
+        let reply = Client::default().request(&endpoint, "/incomplete", Some("{}".into()), None).await;
+        server.await??;
+        assert!(reply.is_err(), "incomplete response became a completed result");
+    }
     Ok(())
 }
