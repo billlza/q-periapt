@@ -30,11 +30,11 @@ impl Publisher {
             }
             let signer = owner.open_signer(&config)?;
             let runtime = config.sdk.verify()?;
-            if request.bootstrap_mode == BootstrapMode::ReusableBoth
+            if request.bootstrap_mode != BootstrapMode::Disabled
                 && !runtime.is_enabled().map_err(fail)?
             {
                 return Err(Error::Invalid(
-                    "Disabled SDK policy cannot authorize reusable bootstrap",
+                    "Disabled SDK policy cannot authorize bootstrap",
                 ));
             }
             let mut record = match existing {

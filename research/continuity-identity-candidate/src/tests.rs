@@ -1069,11 +1069,11 @@ fn protocol_authority_components_cannot_be_reused_as_active_device_identity() {
 
 #[test]
 fn malicious_signer_cannot_relabel_a_reusable_public_key_as_one_time_in_selection() {
-    let f = fixture();
+    let (f, policy, expected) = publication_admission_fixture();
     let device = device(&f);
     let issued = f
         .signer
-        .issue_manifest(&device, context(1), &leaves())
+        .issue_manifest(&device, expected, &leaves())
         .expect("manifest");
     let (body, _) = open_envelope(issued.as_bytes()).expect("body");
     let scope = body.get(8..256).expect("scope");
@@ -1133,6 +1133,14 @@ fn malicious_signer_cannot_relabel_a_reusable_public_key_as_one_time_in_selectio
             PqChoice::LastResort,
             150,
         ),
+        Error::Scope,
+    );
+    let complete: Vec<_> = proofs
+        .iter()
+        .map(|(_, proof)| LeafProof::decode(&proof.encode().expect("wire")).expect("proof"))
+        .collect();
+    fail(
+        device.verify_prekey_publication(&wire, &complete, &policy, expected, 150),
         Error::Scope,
     );
 }
@@ -1386,4 +1394,288 @@ fn historical_policy_requires_both_signatures_exact_independent_pin_and_canonica
     let mut trailing = issued.as_bytes().to_vec();
     trailing.push(0);
     assert!(pin.verify_historical(&trailing).is_err());
+}
+
+// A remote importer uses the same real signed device/policy fixtures as callers;
+// none of its expected context comes from the received manifest.
+fn publication_admission_fixture() -> (Fixture, VerifiedSessionPolicy, ManifestContext) {
+    let (_issuer, issued, pin, runtime) = session_policy_fixture(&[PrekeyQuality::OneTimeBoth]);
+    let policy = pin
+        .verify(issued.as_bytes(), Arc::clone(&runtime), 150)
+        .expect("current independent policy");
+    let mut f = fixture();
+    let description =
+        DeviceDescription::new([5; 16], 1, policy.family(), interval()).expect("description");
+    f.certificate = f
+        .root
+        .issue_device(description, f.signer.public_key().expect("public"))
+        .expect("credential");
+    f.roster = f
+        .root
+        .issue_roster(
+            1,
+            interval(),
+            &[f.root.roster_entry(&f.certificate).expect("membership")],
+        )
+        .expect("roster");
+    f.pin = AccountPin::new(
+        f.root.account_id().expect("account"),
+        f.root.public_key().expect("root"),
+        f.roster.checkpoint(),
+        policy.family(),
+    )
+    .expect("independent account pin");
+    let expected = ManifestContext::new(
+        1,
+        runtime.trusted_state().digest(),
+        bootstrap_suite_digest(),
+        [9; 32],
+        interval(),
+    )
+    .expect("independent publication expectation");
+    (f, policy, expected)
+}
+
+fn publication_proofs(issued: &IssuedManifest) -> Vec<LeafProof> {
+    (0..issued.leaf_count())
+        .map(|index| {
+            let wire = issued.proof(index).expect("proof").encode().expect("wire");
+            LeafProof::decode(&wire).expect("public proof parser")
+        })
+        .collect()
+}
+
+#[test]
+fn complete_publication_admission_normalizes_members_and_preserves_original_proofs() {
+    let (f, policy, expected) = publication_admission_fixture();
+    let device = device(&f);
+    let issued = f
+        .signer
+        .issue_manifest(&device, expected, &leaves())
+        .expect("manifest");
+    let mut proofs = publication_proofs(&issued);
+    proofs.reverse();
+    let original: Vec<_> = proofs
+        .iter()
+        .map(|proof| proof.encode().expect("original proof"))
+        .collect();
+    for _ in 0..2 {
+        let (manifest, members) = device
+            .verify_prekey_publication(issued.as_bytes(), &proofs, &policy, expected, 150)
+            .expect("complete signed publication");
+        assert_eq!(manifest.context(), expected);
+        assert_eq!(members.len(), issued.leaf_count());
+        for (index, member) in members.iter().enumerate() {
+            let canonical = issued.proof(index).expect("canonical proof");
+            let authenticated = manifest.verify_leaf(&canonical, 150).expect("member");
+            assert_eq!(member.id(), authenticated.id());
+            assert_eq!(member.key_fingerprint(), authenticated.key_fingerprint());
+            assert_eq!(member.manifest_digest(), manifest.digest());
+            assert_eq!(member.authority_binding(), device.authority_binding());
+        }
+    }
+    let after: Vec<_> = proofs
+        .iter()
+        .map(|proof| proof.encode().expect("retained original proof"))
+        .collect();
+    assert_eq!(after, original);
+}
+
+#[test]
+fn complete_publication_refuses_missing_repeated_foreign_and_corrupt_members() {
+    let (f, policy, expected) = publication_admission_fixture();
+    let device = device(&f);
+    let issued = f
+        .signer
+        .issue_manifest(&device, expected, &leaves())
+        .expect("manifest");
+    let mut proofs = publication_proofs(&issued);
+    proofs.pop().expect("last member");
+    fail(
+        device.verify_prekey_publication(issued.as_bytes(), &proofs, &policy, expected, 150),
+        Error::Scope,
+    );
+    let mut proofs = publication_proofs(&issued);
+    *proofs.get_mut(1).expect("second member") = issued.proof(0).expect("duplicate index");
+    fail(
+        device.verify_prekey_publication(issued.as_bytes(), &proofs, &policy, expected, 150),
+        Error::Scope,
+    );
+    let other = f
+        .signer
+        .issue_manifest(
+            &device,
+            ManifestContext::new(
+                2,
+                expected.policy_digest(),
+                expected.suite_digest(),
+                expected.directory_checkpoint(),
+                expected.validity(),
+            )
+            .expect("other epoch"),
+            &leaves(),
+        )
+        .expect("other signed manifest");
+    let mut proofs = publication_proofs(&issued);
+    *proofs.get_mut(0).expect("first member") = other.proof(0).expect("foreign member");
+    fail(
+        device.verify_prekey_publication(issued.as_bytes(), &proofs, &policy, expected, 150),
+        Error::Authentication,
+    );
+    let mut proofs = publication_proofs(&issued);
+    let mut wire = proofs.first().expect("first").encode().expect("proof");
+    *wire.last_mut().expect("Merkle sibling") ^= 1;
+    *proofs.get_mut(0).expect("first member") = LeafProof::decode(&wire).expect("bounded proof");
+    fail(
+        device.verify_prekey_publication(issued.as_bytes(), &proofs, &policy, expected, 150),
+        Error::Authentication,
+    );
+    fail(
+        device.verify_prekey_publication(issued.as_bytes(), &[], &policy, expected, 150),
+        Error::Capacity,
+    );
+    let oversized: Vec<_> = (0..=MAX_PREKEYS)
+        .map(|_| issued.proof(0).expect("same bounded proof"))
+        .collect();
+    fail(
+        device.verify_prekey_publication(issued.as_bytes(), &oversized, &policy, expected, 150),
+        Error::Capacity,
+    );
+}
+
+#[test]
+fn complete_publication_requires_independent_context_current_identity_and_both_signatures() {
+    let (f, policy, expected) = publication_admission_fixture();
+    let device = device(&f);
+    let issued = f
+        .signer
+        .issue_manifest(&device, expected, &leaves())
+        .expect("manifest");
+    let proofs = publication_proofs(&issued);
+    for (epoch, sdk, suite, directory, validity) in [
+        (
+            2,
+            expected.policy_digest(),
+            expected.suite_digest(),
+            [9; 32],
+            interval(),
+        ),
+        (1, [71; 32], expected.suite_digest(), [9; 32], interval()),
+        (1, expected.policy_digest(), [72; 32], [9; 32], interval()),
+        (
+            1,
+            expected.policy_digest(),
+            expected.suite_digest(),
+            [73; 32],
+            interval(),
+        ),
+        (
+            1,
+            expected.policy_digest(),
+            expected.suite_digest(),
+            [9; 32],
+            Validity::new(101, 199).expect("different interval"),
+        ),
+    ] {
+        let different =
+            ManifestContext::new(epoch, sdk, suite, directory, validity).expect("expectation");
+        fail(
+            device.verify_prekey_publication(issued.as_bytes(), &proofs, &policy, different, 150),
+            Error::Scope,
+        );
+    }
+    let other_certificate = f
+        .root
+        .issue_device(
+            DeviceDescription::new([55; 16], 1, policy.family(), interval()).expect("other device"),
+            f.signer.public_key().expect("same signing owner"),
+        )
+        .expect("other signed identity");
+    let other_roster = f
+        .root
+        .issue_roster(
+            2,
+            interval(),
+            &[f.root
+                .roster_entry(&other_certificate)
+                .expect("other member")],
+        )
+        .expect("other roster");
+    let other_pin = AccountPin::new(
+        f.root.account_id().expect("account"),
+        f.root.public_key().expect("root"),
+        other_roster.checkpoint(),
+        policy.family(),
+    )
+    .expect("other exact roster");
+    let other_device = other_pin
+        .verify_device(&other_certificate, other_roster.as_bytes(), 150)
+        .expect("other currently verified device");
+    fail(
+        other_device.verify_prekey_publication(issued.as_bytes(), &proofs, &policy, expected, 150),
+        Error::Scope,
+    );
+    let (body, _) = open_envelope(issued.as_bytes()).expect("signed manifest body");
+    for offset in [4 + body.len(), issued.as_bytes().len() - 1] {
+        let mut corrupted = issued.as_bytes().to_vec();
+        *corrupted.get_mut(offset).expect("signature component") ^= 1;
+        fail(
+            device.verify_prekey_publication(&corrupted, &proofs, &policy, expected, 150),
+            Error::Authentication,
+        );
+    }
+    let mut trailing = issued.as_bytes().to_vec();
+    trailing.push(0);
+    fail(
+        device.verify_prekey_publication(&trailing, &proofs, &policy, expected, 150),
+        Error::Encoding,
+    );
+}
+
+#[test]
+fn complete_publication_rechecks_member_expiry_and_closed_policy_or_runtime() {
+    let (f, policy, expected) = publication_admission_fixture();
+    let device = device(&f);
+    let mut entries = leaves();
+    let original = entries.first().expect("first public key");
+    let short = PrekeyLeaf::new(
+        original.kind(),
+        original.public_key(),
+        Validity::new(100, 160).expect("short member interval"),
+    )
+    .expect("short member");
+    *entries.get_mut(0).expect("first public key") = short;
+    let issued = f
+        .signer
+        .issue_manifest(&device, expected, &entries)
+        .expect("manifest");
+    let proofs = publication_proofs(&issued);
+    device
+        .verify_prekey_publication(issued.as_bytes(), &proofs, &policy, expected, 159)
+        .expect("all signed intervals live");
+    fail(
+        device.verify_prekey_publication(issued.as_bytes(), &proofs, &policy, expected, 160),
+        Error::Validity,
+    );
+    fail(
+        device.verify_prekey_publication(issued.as_bytes(), &proofs, &policy, expected, 200),
+        Error::Validity,
+    );
+    policy.close();
+    fail(
+        device.verify_prekey_publication(issued.as_bytes(), &proofs, &policy, expected, 150),
+        Error::Closed,
+    );
+    let (f, policy, expected) = publication_admission_fixture();
+    let device = self::device(&f);
+    let issued = f
+        .signer
+        .issue_manifest(&device, expected, &leaves())
+        .expect("manifest");
+    let proofs = publication_proofs(&issued);
+    policy.runtime.close();
+    fail(
+        device.verify_prekey_publication(issued.as_bytes(), &proofs, &policy, expected, 150),
+        Error::Runtime(q_periapt_sdk::Error::Closed),
+    );
 }

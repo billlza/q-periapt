@@ -14,6 +14,22 @@ const assert = require('node:assert/strict');
 const {EventEmitter} = require('node:events');
 const {script, mode} = JSON.parse(require('node:fs').readFileSync(0, 'utf8'));
 const execute = eval('(' + script + ')');
+const activation = mode.startsWith('activate-');
+const realSetTimeout = globalThis.setTimeout, realClearTimeout = globalThis.clearTimeout;
+let observerTimers = 0;
+const pendingObserverTimers = new Set();
+// Keep the real Promise/event ordering while compressing only the five-second deadline.
+globalThis.setTimeout = (callback, milliseconds, ...args) => {
+  if (milliseconds !== 5000) return realSetTimeout(callback, milliseconds, ...args);
+  observerTimers++;
+  const timer = realSetTimeout(callback, 25, ...args);
+  pendingObserverTimers.add(timer);
+  return timer;
+};
+globalThis.clearTimeout = timer => {
+  pendingObserverTimers.delete(timer);
+  return realClearTimeout(timer);
+};
 const events = ['pageerror', 'console', 'requestfailed', 'response'];
 class Page extends EventEmitter {
   constructor() {
@@ -31,6 +47,16 @@ class Page extends EventEmitter {
       return {browser:'test browser',transport_receipts:[]};
     }
     if (mode === 'operation') throw this.failure;
+    if (activation) {
+      const request = {url: () => 'http://127.0.0.1:12345/'
+          + (mode === 'activate-unrelated' ? 'other' : 'exchange/drop-once'),
+        failure: () => ({errorText: mode === 'activate-wrong-error' ? 'net::ERR_ABORTED' : 'net::ERR_EMPTY_RESPONSE'}),
+        timing: () => ({startTime: 1}), postDataBuffer: () => Buffer.from([4, 5, 6])};
+      if (mode === 'activate-delayed' || mode === 'activate-late') {
+        setTimeout(() => this.emit('requestfailed', request), mode === 'activate-late' ? 60 : 5);
+      } else if (mode !== 'activate-missing') this.emit('requestfailed', request);
+      return {phase: input.phase};
+    }
     this.emit('pageerror', new Error('retained page diagnostic'));
     this.emit('console', {type: () => 'warning', text: () => 'retained warning',
       location: () => ({url: 'http://fixture.test/'})});
@@ -48,6 +74,25 @@ class Page extends EventEmitter {
   for (let n = 0; n < (mode === 'repeat' ? 40 : 1); n++) {
     if (['readiness', 'operation', 'agent'].includes(mode)) {
       await assert.rejects(execute(page), error => error === page.failure);
+    } else if (['activate-missing', 'activate-unrelated', 'activate-late'].includes(mode)) {
+      await assert.rejects(execute(page), error => {
+        assert.match(error.message, /lost response observer deadline/);
+        assert.match(error.message, /request_count/);
+        if (mode === 'activate-unrelated') assert.match(error.message, /\/other/);
+        return true;
+      });
+      if (mode === 'activate-late') await new Promise(resolve => realSetTimeout(resolve, 75));
+      assert.equal(observerTimers, 1);
+    } else if (activation) {
+      const result = await execute(page);
+      assert.equal(result.phase, 'activate');
+      assert.equal(result.requests.length, 1);
+      assert.equal(result.requests[0].url, 'http://127.0.0.1:12345/exchange/drop-once');
+      assert.deepEqual(result.requests[0].failure, {errorText: mode === 'activate-wrong-error'
+        ? 'net::ERR_ABORTED' : 'net::ERR_EMPTY_RESPONSE'});
+      assert.equal(result.request_diagnostics[0].body_hex, '040506');
+      assert.equal(result.request_diagnostics[0].response_status, null);
+      assert.equal(observerTimers, mode === 'activate-delayed' ? 1 : 0);
     } else {
       const result = await execute(page);
       assert.equal(result.status, 'INSTALLED_SESSION_PHASE');
@@ -64,6 +109,7 @@ class Page extends EventEmitter {
       page.emit('pageerror', new Error('later phase diagnostic'));
       assert.equal(JSON.stringify(result), retained, 'completed diagnostics changed');
     }
+    assert.equal(pendingObserverTimers.size, 0, 'phase retained its observer deadline');
     for (const name of events) {
       assert.deepEqual(page.listeners(name), [page.baseline.get(name)],
         'phase leaked listeners or removed an unrelated listener: ' + name);
@@ -80,7 +126,9 @@ class BrowserPhaseLifecycle(unittest.TestCase):
                    if isinstance(node, ast.Constant) and isinstance(node.value, str)
                    and node.value.startswith('async page => {')]
         self.assertEqual(len(scripts), 1, 'expected the actual single phase script')
-        script = scripts[0].replace('__PHASE__', json.dumps('resume')).replace('__DETAILS__', 'null')
+        phase = 'activate' if mode.startswith('activate-') else 'resume'
+        script = (scripts[0].replace('__PHASE__', json.dumps(phase)).replace('__DETAILS__', 'null')
+                  .replace('__ORIGIN__', json.dumps('http://127.0.0.1:12345')))
         result = subprocess.run(['node', '--unhandled-rejections=strict', '-e', HARNESS],
                                 input=json.dumps({'script': script, 'mode': mode}),
                                 text=True, capture_output=True, timeout=15, check=False)
@@ -101,6 +149,24 @@ class BrowserPhaseLifecycle(unittest.TestCase):
 
     def test_repeated_phases_do_not_retain_completed_diagnostics(self):
         self.run_phase('repeat')
+
+    def test_activation_event_before_worker_completion_does_not_wait(self):
+        self.run_phase('activate-early')
+
+    def test_activation_event_after_worker_completion_is_retained(self):
+        self.run_phase('activate-delayed')
+
+    def test_missing_activation_event_fails_and_releases_deadline_and_listeners(self):
+        self.run_phase('activate-missing')
+
+    def test_unrelated_event_cannot_release_the_activation_wait(self):
+        self.run_phase('activate-unrelated')
+
+    def test_event_after_deadline_cannot_turn_failure_into_success(self):
+        self.run_phase('activate-late')
+
+    def test_wrong_transport_reason_remains_visible_to_strict_validation(self):
+        self.run_phase('activate-wrong-error')
 
 
 if __name__ == '__main__':

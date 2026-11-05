@@ -40,6 +40,35 @@ class AccountTlsTests(unittest.TestCase):
             with self.subTest(data=data), self.assertRaises(ValueError):
                 tls.phases(data)
 
+    def test_ready_confirmation_keeps_exact_phase_and_language_counts(self):
+        # Synthetic checker inputs, not additional C/Swift/Kotlin executions.
+        def encoded(counts):
+            rows, before = [], 0
+            for name, count in counts.items():
+                rows.append(f"{name} {before} {before + count} 0\n")
+                before += count
+            return "".join(rows).encode()
+        for language, bootstrap in (("C", 129), ("Swift", 135), ("Kotlin", 134)):
+            counts = dict.fromkeys(tls.PHASES, 0)
+            counts.update(bootstrap=bootstrap, freeze=10, acknowledge=12, retirement=10, retired=1)
+            observed = tls.phase_workload(encoded(counts), language)
+            self.assertEqual(observed["retired-unavailable"]["after_last_admission"], bootstrap + 33)
+            historical = encoded(dict(counts, bootstrap=bootstrap - 8))
+            old = tls.phase_workload(historical, language, bootstrap_wire="QPCNET01")
+            self.assertEqual(old["retired-unavailable"]["after_last_admission"], bootstrap + 25)
+            with self.assertRaisesRegex(ValueError, "workload differs"):
+                tls.phase_workload(encoded(counts), language, bootstrap_wire="QPCNET01")
+            with self.assertRaisesRegex(ValueError, "unknown bootstrap wire census"):
+                tls.phase_workload(historical, language, bootstrap_wire="QPCNET00")
+            moved = dict(counts, freeze=9, acknowledge=13)
+            for changed in (dict(counts, bootstrap=bootstrap - 8),
+                            dict(counts, bootstrap=bootstrap - 1), moved):
+                with self.subTest(language=language, changed=changed), self.assertRaisesRegex(
+                        ValueError, "workload differs: expected=.* observed="):
+                    tls.phase_workload(encoded(changed), language)
+            with self.assertRaisesRegex(ValueError, "workload differs"):
+                tls.phase_workload(encoded(counts), "Swift" if language == "C" else "C")
+
     def test_account_helper_requires_both_carriers(self):
         from continuity_package import TESTS
         names = sorted({witness.TEST, tls.TEST, witness.TLS_LOSS_TEST, witness.DELIVERY_TEST, witness.OWN_DELIVERY_TEST, witness.OWN_TLS_LOSS_TEST} | {"fixture::" + name for name in TESTS})

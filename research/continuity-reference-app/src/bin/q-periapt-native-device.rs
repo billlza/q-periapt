@@ -6,7 +6,7 @@ use q_periapt_continuity_reference_app::{
         CredentialExtensionRequest, Invitation, IssuedCredentialExtension, IssuedEnrollment,
         RootInfo,
     },
-    native_device::{clock, NativeDevice, PublicationPlan},
+    native_device::{clock, NativeDevice, Publication, PublicationPlan, PublicationTrust},
     policy_publisher::{PolicyMaterials, PolicyPins},
 };
 use q_periapt_host_store::filesystem::publish_private_bytes;
@@ -26,6 +26,7 @@ mod roster;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 const USAGE: &str = concat!(
     "Usage: q-periapt-native-device provision-key <absolute-key-file>\n",
+    "Or: verify-publication <independent-trust-json> <policy-pins-json> <policy-materials-json> <retained-plan-json> <publication-json>\n",
     "Or: <begin|status|request|accept|extend|prepare|activate|refresh-roster|admit-peer-roster|publication-next|publish|renewal-request> ",
     "<absolute-device-dir> <absolute-key-file> <original-invitation-json> [arguments]\n",
     "request: <new-request-output>\n",
@@ -81,6 +82,25 @@ fn json<T: DeserializeOwned>(path: &OsString, maximum: usize) -> Result<T> {
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();
     let command = args.get(1).and_then(|v| v.to_str()).ok_or(USAGE)?;
+    if command == "verify-publication" {
+        if args.len() != 7 {
+            return Err(USAGE.into());
+        }
+        let trust: PublicationTrust = json(&args[2], 160 * 1024)?;
+        let pins: PolicyPins = json(&args[3], 16384)?;
+        let materials: PolicyMaterials = json(&args[4], 128 * 1024)?;
+        let plan: PublicationPlan = json(&args[5], 16384)?;
+        let publication: Publication = json(&args[6], 4 * 1024 * 1024)?;
+        let now = clock()?;
+        let (policy, _) = pins.verify(&materials, trust.family(), now)?;
+        let selection = trust.verify(&publication, &plan, &policy, now)?;
+        let quality = match selection.quality() {
+            q_periapt_continuity_identity_candidate::PrekeyQuality::ReusableBoth => "reusable_both",
+            q_periapt_continuity_identity_candidate::PrekeyQuality::OneTimeBoth => "one_time_both",
+            _ => return Err("Unexpected verified publication profile".into()),
+        };
+        return print(&serde_json::json!({"verified":true,"quality":quality}));
+    }
     if command == "policy-witness-stage" {
         return native_policy_cli::run(&args);
     }

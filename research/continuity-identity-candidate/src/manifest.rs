@@ -380,6 +380,53 @@ pub struct VerifiedManifest {
     authority: [u8; 32],
 }
 impl VerifiedDevice {
+    /// Authenticate a complete remote publication against independently retained
+    /// device, policy and manifest expectations. The expected context must not be
+    /// copied from the incoming manifest: it pins the epoch, SDK policy, suite,
+    /// directory checkpoint and interval selected by the caller.
+    ///
+    /// Every canonical leaf index must occur exactly once. All membership paths,
+    /// intervals and exact-public-key uniqueness are checked, using the same
+    /// canonical manifest construction as local publication. Returned members are
+    /// ordered by canonical index regardless of the supplied proof order.
+    ///
+    /// This is a verified public snapshot, not a service authorization, directory
+    /// freshness proof, lease or consumption receipt. It does not select a prekey
+    /// mode or validate primitive public keys. A later directory/session operation
+    /// must recheck its current durable authority and explicit mode permission.
+    pub fn verify_prekey_publication(
+        &self,
+        wire: &[u8],
+        proofs: &[LeafProof],
+        policy: &crate::VerifiedSessionPolicy,
+        expected: ManifestContext,
+        trusted_time: u64,
+    ) -> Result<(VerifiedManifest, Vec<AuthenticatedLeaf>), Error> {
+        if wire.len() != MANIFEST_WIRE_BYTES {
+            return Err(Error::Encoding);
+        }
+        if proofs.is_empty() || proofs.len() > MAX_PREKEYS {
+            return Err(Error::Capacity);
+        }
+        policy.check_current(trusted_time)?;
+        policy.check_device(self, trusted_time)?;
+        if expected.policy_digest() != policy.runtime.trusted_state().digest()
+            || expected.suite_digest() != crate::bootstrap_suite_digest()
+            || !policy.validity().contains(expected.validity())
+        {
+            return Err(Error::Scope);
+        }
+        let manifest = self.verify_manifest(wire, trusted_time)?;
+        if manifest.context() != expected {
+            return Err(Error::Scope);
+        }
+        let members = manifest.verify_publication_members(proofs, trusted_time)?;
+        // Policy/runtime closure can race public verification; do not release
+        // a newly admitted snapshot after observing that revocation.
+        policy.check_current(trusted_time)?;
+        policy.check_device(self, trusted_time)?;
+        Ok((manifest, members))
+    }
     /// Verify signatures and all fixed device/roster fields at the supplied trusted time.
     pub fn verify_manifest(
         &self,
@@ -428,6 +475,34 @@ impl VerifiedDevice {
     }
 }
 impl VerifiedManifest {
+    fn verify_publication_members(
+        &self,
+        proofs: &[LeafProof],
+        trusted_time: u64,
+    ) -> Result<Vec<AuthenticatedLeaf>, Error> {
+        if proofs.len() != self.count {
+            return Err(Error::Scope);
+        }
+        let mut indices = BTreeSet::new();
+        let mut leaves = Vec::with_capacity(self.count);
+        let mut members = Vec::with_capacity(self.count);
+        for proof in proofs {
+            let member = self.verify_leaf(proof, trusted_time)?;
+            if !indices.insert(proof.index) {
+                return Err(Error::Scope);
+            }
+            leaves.push(proof.leaf.clone());
+            members.push((proof.index, member));
+        }
+        // Reuse the issuer/retained-publication canonicalization and duplicate
+        // fingerprint rejection; independently signed noncanonical trees fail.
+        let parts = manifest_parts(&self.scope, self.context, &leaves)?;
+        if digest(b"Q-PERIAPT-CONTINUITY-MANIFEST-CANDIDATE/v1", &parts.body) != self.digest {
+            return Err(Error::Authentication);
+        }
+        members.sort_by_key(|(index, _)| *index);
+        Ok(members.into_iter().map(|(_, member)| member).collect())
+    }
     pub(crate) fn selection_identity(&self) -> Result<crate::selection::SelectionIdentity, Error> {
         const IDENTITY_BYTES: usize = 32 + 16 + 8 + 32;
         let identity = self.scope.get(..IDENTITY_BYTES).ok_or(Error::Encoding)?;

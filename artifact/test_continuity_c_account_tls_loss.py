@@ -45,16 +45,29 @@ class TlsLossTests(unittest.TestCase):
     def test_language_specific_workload_cannot_omit_or_reassign_exchanges(self):
         for language, offset in (("C", 0), ("Swift", 6), ("Kotlin", 5)):
             # Synthetic census only, not a claim of TLS execution.
-            row = dict(exchanges=182 + offset, native_advances=36,
-                       lost_indices=[134 + offset, 143 + offset, 159 + offset, 171 + offset],
+            row = dict(exchanges=190 + offset, native_advances=36,
+                       lost_indices=[142 + offset, 151 + offset, 167 + offset, 179 + offset],
                        stages={phase: dict(first_exchange=a + offset, after_last_exchange=b + offset,
                                            lost_exchange=c + offset)
                                for phase, (a, b, c) in zip(loss.PHASES,
-                                   ((121, 135, 134), (140, 144, 143), (153, 160, 159), (168, 172, 171)), strict=True)})
+                                   ((129, 143, 142), (148, 152, 151), (161, 168, 167), (176, 180, 179)), strict=True)})
             loss.require_workload(row, language)
             shifted = copy.deepcopy(row)
             shifted['stages']['reservation']['first_exchange'] += 1
-            for bad in (dict(row, exchanges=row['exchanges'] - 1), dict(row, native_advances=35), dict(row, exchanges=178 + offset), shifted):
+            old = copy.deepcopy(row)
+            old["exchanges"] -= 8
+            old["lost_indices"] = [index - 8 for index in old["lost_indices"]]
+            for stage in old["stages"].values():
+                for key in stage:
+                    stage[key] -= 8
+            loss.require_workload(old, language, bootstrap_wire="QPCNET01")
+            with self.assertRaisesRegex(ValueError, "workload differs"):
+                loss.require_workload(row, language, bootstrap_wire="QPCNET01")
+            with self.assertRaisesRegex(ValueError, "unknown bootstrap wire census"):
+                loss.require_workload(old, language, bootstrap_wire="QPCNET00")
+            lost = dict(row, lost_indices=row["lost_indices"][:-1])
+            for bad in (dict(row, exchanges=row['exchanges'] - 1), dict(row, native_advances=35),
+                        dict(row, native_advances=44), old, lost, shifted):
                 with self.subTest(language=language, row=bad), self.assertRaisesRegex(ValueError, 'workload differs'):
                     loss.require_workload(bad, language)
             with self.assertRaisesRegex(ValueError, 'workload differs'):
@@ -75,7 +88,7 @@ class TlsLossTests(unittest.TestCase):
     def test_own_cleanup_requires_its_selected_target_and_account_layout(self):
         stdout=(f'test {loss.OWN_TLS_LOSS_TEST} ... ok\n'+'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out;\n').encode()
         peer=dict(schema_version=2,language='C',account_layout='peer',completed=True,batch='11'*32,report='22'*32,
-                  carrier='q-periapt-anchor/1',lost_advances=4,witness_exchanges=182,release_claim_eligible=False)
+                  carrier='q-periapt-anchor/1',lost_advances=4,witness_exchanges=190,release_claim_eligible=False)
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder); (root/'account-tls-loss-result.json').write_text(json.dumps(peer))
             with self.assertRaisesRegex(ValueError,'scope differs'):

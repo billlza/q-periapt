@@ -58,6 +58,43 @@ fn decode_plan(d: &mut Decoder<'_>) -> Result<PrekeyPublicationPlan, Error> {
     PrekeyPublicationPlan::new(directory, validity, &keys)
 }
 
+pub(super) fn publication_context(
+    plan: &PrekeyPublicationPlan,
+    policy: &VerifiedSessionPolicy,
+    ordinal: u64,
+) -> Result<ManifestContext, Error> {
+    ManifestContext::new(
+        ordinal,
+        policy.runtime.trusted_state().digest(),
+        crate::bootstrap_suite_digest(),
+        plan.directory,
+        plan.validity,
+    )
+}
+
+pub(super) fn policy_checkpoint(policy: &VerifiedSessionPolicy) -> [u8; 40] {
+    let mut checkpoint = [0; 40];
+    let (version, digest) = checkpoint.split_at_mut(8);
+    version.copy_from_slice(&policy.checkpoint().version().to_be_bytes());
+    digest.copy_from_slice(&policy.checkpoint().digest());
+    checkpoint
+}
+
+// Shared by the local journal encoder and the public advertisement verifier.
+// Never take policy, device scope or plan order from the incoming artifact.
+pub(super) fn intent_bytes(
+    sdk: &[u8; 68],
+    checkpoint: &[u8; 40],
+    scope: &[u8],
+    plan: &PrekeyPublicationPlan,
+) -> Result<Vec<u8>, Error> {
+    let mut bytes = sdk.to_vec();
+    bytes.extend_from_slice(checkpoint);
+    bytes.extend_from_slice(scope);
+    bytes.extend_from_slice(&plan_bytes(plan)?);
+    Ok(bytes)
+}
+
 pub(super) struct Entry {
     pub(super) sdk: [u8; 68],
     checkpoint: [u8; 40],
@@ -69,32 +106,10 @@ pub(super) struct Entry {
 impl Entry {
     pub(super) fn new(request: &PrekeyPublicationRequest<'_>, ordinal: u64) -> Result<Self, Error> {
         let sdk = request.policy.sdk_binding();
-        let context = ManifestContext::new(
-            ordinal,
-            request.policy.runtime.trusted_state().digest(),
-            crate::bootstrap_suite_digest(),
-            request.plan.directory,
-            request.plan.validity,
-        )?;
-        let mut checkpoint = [0; 40];
-        checkpoint
-            .get_mut(..8)
-            .ok_or(Error::Encoding)?
-            .copy_from_slice(&request.policy.checkpoint().version().to_be_bytes());
-        checkpoint
-            .get_mut(8..)
-            .ok_or(Error::Encoding)?
-            .copy_from_slice(&request.policy.checkpoint().digest());
-        let requests = request.plan.requests(request.id)?;
-        if requests
-            .iter()
-            .map(|id| *id.as_bytes())
-            .collect::<BTreeSet<_>>()
-            .len()
-            != requests.len()
-        {
-            return Err(Error::Scope);
-        }
+        let context = publication_context(request.plan, request.policy, ordinal)?;
+        let checkpoint = policy_checkpoint(request.policy);
+        // Generated and explicitly reused requests must form one distinct set.
+        let _ = request.plan.requests(request.id)?;
         Ok(Self {
             sdk,
             checkpoint,
@@ -126,11 +141,7 @@ impl Entry {
         ManifestContext::new(epoch, policy, suite, directory, validity)
     }
     fn intent_bytes(&self) -> Result<Vec<u8>, Error> {
-        let mut bytes = self.sdk.to_vec();
-        bytes.extend_from_slice(&self.checkpoint);
-        bytes.extend_from_slice(&self.scope);
-        bytes.extend_from_slice(&plan_bytes(&self.plan)?);
-        Ok(bytes)
+        intent_bytes(&self.sdk, &self.checkpoint, &self.scope, &self.plan)
     }
     pub(super) fn intent(&self) -> Result<[u8; 32], Error> {
         Ok(digest(

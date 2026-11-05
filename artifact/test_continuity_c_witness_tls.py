@@ -12,7 +12,7 @@ def fixture(root: Path) -> tuple[bytes, dict]:
     """Synthetic format fixture, never evidence of a real TLS or signed-state run."""
     session, message = "11" * 32, "22" * 32
     report = {"schema_version": 2, "language": "C", "completed": True, "carrier": "q-periapt-anchor/1",
-              "session": session, "message": message, "witness_exchanges": 142,
+              "session": session, "message": message, "witness_exchanges": 146,
               "rejected_connections": 2, "sdk_revoked_cleanup": True, "release_claim_eligible": False}
     for role in ("initiator", "responder"):
         (root / role).mkdir()
@@ -90,6 +90,31 @@ class TlsWitnessEvidenceTests(unittest.TestCase):
                 with self.subTest(field=key), self.assertRaises(ValueError):
                     tls.export_public(stdout, root, root / "export")
                 self.assertFalse((root / "export").exists())
+
+    def test_ready_queries_and_original_phase_readbacks_are_both_required(self):
+        for language in ("C", "Swift", "Kotlin"):
+            with self.subTest(language=language), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                stdout, report = fixture(root)
+                report["language"] = language
+                target = root / "c-witness-tls-public-result.json"
+                target.write_text(json.dumps(report))
+                self.assertEqual(tls.verify_execution(stdout, root, language=language)["witness_exchanges"], 146)
+                # The old QPCNET01 count, a missing READY query and an extra
+                # exchange must not satisfy the current exact workload.
+                for count in (142, 145, 147):
+                    changed = dict(report, witness_exchanges=count)
+                    target.write_text(json.dumps(changed))
+                    with self.subTest(count=count), self.assertRaisesRegex(
+                            ValueError, r"census differs: expected=.*146.*observed=.*" + str(count)):
+                        tls.verify_execution(stdout, root, language=language)
+                target.write_text(json.dumps(report))
+                # A correct aggregate cannot excuse a result moved to the wrong
+                # original phase: bootstrap and message IDs are not interchangeable.
+                (root / "initiator/witness-tls-bootstrap-client.stdout").write_text(report["message"] + "\n")
+                (root / "responder/witness-tls-next.stdout").write_text(report["session"] + "\n")
+                with self.assertRaisesRegex(ValueError, "command outcome differs"):
+                    tls.verify_execution(stdout, root, language=language)
 
     def test_receiver_accounting_and_command_readbacks_are_required(self):
         for name, value in (("initiator/application-" + "22" * 32, b"lost receiver bytes"),

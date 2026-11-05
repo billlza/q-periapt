@@ -8,6 +8,7 @@ use crate::{
 };
 
 mod codec;
+mod import;
 use codec::{Entry, Registry};
 #[cfg(all(test, unix))]
 mod tests;
@@ -168,7 +169,8 @@ impl PrekeyPublicationPlan {
         &self.keys
     }
     fn requests(&self, id: PrekeyPublicationId) -> Result<Vec<PrekeyId>, Error> {
-        self.keys
+        let requests: Vec<_> = self
+            .keys
             .iter()
             .enumerate()
             .map(|(index, key)| {
@@ -186,7 +188,17 @@ impl PrekeyPublicationPlan {
                     &bytes,
                 ))
             })
-            .collect()
+            .collect::<Result<_, Error>>()?;
+        if requests
+            .iter()
+            .map(|id| *id.as_bytes())
+            .collect::<BTreeSet<_>>()
+            .len()
+            != requests.len()
+        {
+            return Err(Error::Scope);
+        }
+        Ok(requests)
     }
 }
 

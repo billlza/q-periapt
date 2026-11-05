@@ -128,6 +128,19 @@ impl Case {
         policy_seconds: u64,
         witness: Option<&sdk::AnchorPin>,
     ) -> Result<Self> {
+        Self::open_with_bootstrap_mode(
+            seconds,
+            policy_seconds,
+            witness,
+            BootstrapMode::ReusableBoth,
+        )
+    }
+    fn open_with_bootstrap_mode(
+        seconds: u64,
+        policy_seconds: u64,
+        witness: Option<&sdk::AnchorPin>,
+        bootstrap_mode: BootstrapMode,
+    ) -> Result<Self> {
         let path = tempfile::tempdir()?.keep().canonicalize()?;
         fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
         eprintln!(
@@ -210,7 +223,7 @@ impl Case {
         publisher.issue(
             [65; 32],
             Request {
-                bootstrap_mode: BootstrapMode::ReusableBoth,
+                bootstrap_mode,
                 valid_from: start,
                 valid_until: start + policy_seconds,
                 send_budget: 8,

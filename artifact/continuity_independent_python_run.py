@@ -152,6 +152,23 @@ def qualify(args: argparse.Namespace) -> dict:
         probe = [*interpreter, str(outside / "probe.py"), str(application), str(provider), str(ROOT),
                  str(output / "EXPECTED_MODULES.json"), str(output / "PROVENANCE.json")]
         run(probe, "probe")
+        run([*interpreter, str(application / "one_time_publication_checks.py"),
+             "--provider-root", str(provider), "--native", str(args.native),
+             "--output", str(output / "one-time-publication")],
+            "one-time-publication")
+        one_time = parse_strict_json_bytes(snapshot(output / "one-time-publication/RESULT.json").data,
+                                           label="installed one-time publication selection")
+        one_time_sources = ("one_time_publication_checks.py",
+                            PACKAGE + "/one_time_publication.py", PACKAGE + "/authority.py")
+        require(one_time["schema"] == "qperiapt-one-time-publication-checks/1"
+                and one_time["source_sha256"] == {name: snapshot(SOURCE / name).sha256 for name in one_time_sources}
+                and one_time["one_time_session_or_directory_lease_qualified"] is False
+                and one_time["private_keys_exported"] is False
+                and one_time["native_sha256"] == native.sha256
+                and one_time["native_publication_selection_matched"] is True
+                and one_time["provider"]["cryptography"] == "48.0.1"
+                and one_time["public_case_sha256"] == snapshot(output / "one-time-publication/PUBLIC_CASE.json").sha256,
+                "installed one-time publication implementation or scope differs")
         run([*interpreter, str(application / "registration_checks.py"), "--provider-root", str(provider),
              "--native", str(args.native), "--output", str(output / "registration")], "registration")
         observed = parse_strict_json_bytes(snapshot(output / "registration/RESULT.json").data, label="installed registration")

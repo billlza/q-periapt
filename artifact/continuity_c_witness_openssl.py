@@ -8,7 +8,7 @@ import re
 
 import rust_sdk_profile as sdk
 from continuity_c_witness import commit, export_selected
-from continuity_c_witness_tls import verify_owner_readbacks
+from continuity_c_witness_tls import WITNESS_EXCHANGES as SERVER_WITNESS_EXCHANGES, verify_owner_readbacks
 from evidence_io import parse_strict_json_bytes
 
 SCOPE = "installed C owners and OpenSSL TLS reference peer in both directions; shared native witness engine; same host"
@@ -61,8 +61,12 @@ def verify_execution(kind: str, stdout: bytes, directory: Path) -> dict:
                 "OpenSSL qualification scope differs")
     logs = {}
     if kind == "server":
-        sdk.require(type(report["witness_exchanges"]) is int and report["witness_exchanges"] == 142,
-                    "OpenSSL server exchange census differs")
+        # This carries the same single-session QPCNET02 workload as native TLS:
+        # READY generation and verification add four read-only witness Queries.
+        sdk.require(type(report["witness_exchanges"]) is int
+                    and report["witness_exchanges"] == SERVER_WITNESS_EXCHANGES,
+                    "OpenSSL server exchange census differs: expected=" + str(SERVER_WITNESS_EXCHANGES)
+                    + " observed=" + repr(report["witness_exchanges"])[:128])
         for name in ("session", "message"):
             sdk.require(type(report[name]) is str and re.fullmatch(r"[0-9a-f]{64}", report[name])
                         and report[name] != "0" * 64, "OpenSSL C identity differs")
@@ -78,7 +82,7 @@ def verify_execution(kind: str, stdout: bytes, directory: Path) -> dict:
         servers = {"responder/openssl-bootstrap-server": f"served:1:0:0:0\n{session}\n{'0' * 64}\n",
                    "initiator/openssl-message-server": f"served:2:0:1:1\n{session}\n{message}\n"}
         logs = verify_owner_readbacks(read, directory, session, message, expected, servers)
-        negotiated(read("openssl-witness-server.stderr", 65536), "server", 142)
+        negotiated(read("openssl-witness-server.stderr", 65536), "server", SERVER_WITNESS_EXCHANGES)
     elif kind == "client":
         sdk.require(type(report["exchanges"]) is int and report["exchanges"] == 2
                     and report["outcomes"] == [1, 2] and all(type(n) is int for n in report["outcomes"]),

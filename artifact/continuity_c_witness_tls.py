@@ -8,6 +8,11 @@ from evidence_io import parse_strict_json_bytes
 
 TEST = "tls::c_tls_witness_connects_and_revoked_cleanup_keeps_original_authority"
 SCOPE = "installed C operational/recovery owners over native mutual TLS witness; same host"
+# QPCNET02 authenticates READY with one epoch-zero acknowledgement. Its producer
+# and verifier each perform two read-only witness Queries: one original session
+# adds four to the QPCNET01 workload of 142. This is a derived exact expectation,
+# not a measurement of a run; all original command and effect checks remain below.
+WITNESS_EXCHANGES = 146
 
 
 def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> dict:
@@ -30,10 +35,19 @@ def verify_execution(stdout: bytes, directory: Path, *, language: str = "C") -> 
     sdk.require(type(report["schema_version"]) is int and report["schema_version"] == 2 and report["language"] == language
                 and report["completed"] is True and report["sdk_revoked_cleanup"] is True
                 and report["carrier"] == "q-periapt-anchor/1" and report["release_claim_eligible"] is False,
-                "C TLS witness result scope differs")
-    sdk.require(type(report["witness_exchanges"]) is int and report["witness_exchanges"] == 142
+                "C TLS witness result scope differs: expected="
+                + repr(dict(schema_version=2, language=language, completed=True,
+                            sdk_revoked_cleanup=True, carrier="q-periapt-anchor/1",
+                            release_claim_eligible=False))
+                + " observed=" + repr({name: report[name] for name in
+                    ("schema_version", "language", "completed", "sdk_revoked_cleanup",
+                     "carrier", "release_claim_eligible")})[:512])
+    sdk.require(type(report["witness_exchanges"]) is int and report["witness_exchanges"] == WITNESS_EXCHANGES
                 and type(report["rejected_connections"]) is int and report["rejected_connections"] == 2,
-                "C TLS witness exchange census differs")
+                "C TLS witness exchange census differs: expected="
+                + repr(dict(witness_exchanges=WITNESS_EXCHANGES, rejected_connections=2))
+                + " observed=" + repr({name: report[name] for name in
+                    ("witness_exchanges", "rejected_connections")})[:512])
     for name in ("session", "message"):
         sdk.require(type(report[name]) is str and re.fullmatch(r"[0-9a-f]{64}", report[name])
                     and report[name] != "0" * 64, "C TLS witness identity differs")

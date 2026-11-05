@@ -145,6 +145,18 @@ jobs:
           cp target/independent-peer-ci/installed/importer-build.stderr target/independent-peer-ci/importer-build.stderr
           cp target/independent-peer-ci/installed/importer-clippy.stdout target/independent-peer-ci/importer-clippy.stdout
           cp target/independent-peer-ci/installed/importer-clippy.stderr target/independent-peer-ci/importer-clippy.stderr
+      - name: Verify explicit signed one-time publication selection
+        id: one_time_publication
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/one_time_publication_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/one-time-publication \
+            > target/independent-peer-ci/one-time-publication.stdout 2> target/independent-peer-ci/one-time-publication.stderr
+          git diff --exit-code
       - name: Build and lint the public bootstrap importer
         if: github.event_name != 'workflow_dispatch' || inputs.sdk_run_id == ''
         run: |
@@ -528,6 +540,7 @@ jobs:
             > target/independent-peer-ci/registration.stdout 2> target/independent-peer-ci/registration.stderr
           git diff --exit-code
       - name: Verify registration from the installed Python wheel
+        id: installed_python
         if: matrix.phase == 'installed'
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
@@ -540,6 +553,40 @@ jobs:
             --output target/independent-peer-ci/python-installed \
             > target/independent-peer-ci/python-installed.stdout 2> target/independent-peer-ci/python-installed.stderr
           git diff --exit-code
+      - name: Report bounded publication verification failures
+        if: failure() && (steps.one_time_publication.outcome == 'failure' || steps.installed_python.outcome == 'failure')
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          PUBLICATION_SOURCE_FAILED: ${{ steps.one_time_publication.outcome == 'failure' }}
+          PUBLICATION_INSTALLED_FAILED: ${{ steps.installed_python.outcome == 'failure' }}
+        run: |
+          sh artifact/python-run.sh -c '
+          import json, os
+          from pathlib import Path
+          root = Path("target/independent-peer-ci")
+          paths = []
+          if os.environ["PUBLICATION_SOURCE_FAILED"] == "true":
+              paths += [root / "one-time-publication.stderr", root / "one-time-publication/native.stderr"]
+          if os.environ["PUBLICATION_INSTALLED_FAILED"] == "true":
+              base = root / "python-installed"
+              marker = base / "one-time-publication.json"
+              if marker.is_file() and not marker.is_symlink():
+                  with marker.open("rb") as stream:
+                      data = stream.read(8193)
+                  try:
+                      status = json.loads(data) if len(data) <= 8192 else {}
+                  except (ValueError, UnicodeError):
+                      status = {}
+                  if type(status) is dict and type(status.get("exit")) is int and status["exit"] != 0:
+                      paths += [base / "one-time-publication.stderr", base / "one-time-publication/native.stderr"]
+          for path in paths:
+              if path.is_file() and not path.is_symlink():
+                  with path.open("rb") as stream:
+                      data = stream.read(8193)
+                  print(str(path) + " (first 8192 bytes): " + ascii(data[:8192].decode("utf-8", errors="replace")))
+                  if len(data) > 8192:
+                      print("[diagnostic truncated; full stderr remains in the artifact]")
+          '
       - name: Preserve the executable, public transcripts and failed phases
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

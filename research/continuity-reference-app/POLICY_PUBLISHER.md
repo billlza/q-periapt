@@ -220,3 +220,14 @@ and independent pin/material mismatch. Contradictory anchor fields are rejected
 before signing or allocating a version. Installed-wheel qualification is separate
 from a source import. These checks do not establish user/device authorization,
 power-loss recovery, secure erasure, post-compromise secrecy or release readiness.
+
+
+### One-time publication policy
+
+`bootstrap_mode: "one_time_both"` authorizes the exact one-time-both
+prekey quality for native public advertisement and its read-only verifier.
+It does not also authorize reusable-both. Both nonempty modes require an enabled
+SDK runtime before a new policy intent is recorded; the explicit `disabled`
+mode remains available. Original issued policies remain historical, byte-exact
+results after expiry, and changing an existing operation's mode is refused.
+See [native publication verification](NATIVE_DEVICE.md#verify-an-independently-received-publication).

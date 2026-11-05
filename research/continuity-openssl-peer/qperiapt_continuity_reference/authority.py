@@ -200,7 +200,7 @@ class PolicySnapshot:
                 "current policy snapshot metadata differs")
 
 
-def authenticate_historical_policy(pins: PolicyPins, wire: bytes, *, witness_pin=None) -> HistoricalPolicy:
+def authenticate_historical_policy(pins: PolicyPins, wire: bytes, *, witness_pin=None, required_quality=2) -> HistoricalPolicy:
     """Verify immutable signed metadata and retained pins, with no current grant."""
     require(len(pins.sdk_root) == 1952 and len(pins.sdk_state) == 36, "historical SDK binding pins")
     sdk = SdkBinding(int.from_bytes(pins.sdk_state[:4], "big"), pins.sdk_state[4:],
@@ -215,7 +215,10 @@ def authenticate_historical_policy(pins: PolicyPins, wire: bytes, *, witness_pin
     validity = Interval.read(reader)
     require(reader.take(32) == SUITE and reader.take(68) == sdk.wire(), "policy SDK/suite binding")
     modes = reader.integer(1)
-    require(modes & ~15 == 0 and modes & 2 != 0, "reusable quality not permitted")
+    require(type(required_quality) is int and required_quality in (1, 2, 3, 4),
+            "explicit policy prekey quality")
+    require(modes & ~15 == 0 and modes & (1 << (required_quality - 1)) != 0,
+            "reusable quality not permitted" if required_quality == 2 else "selected prekey quality not permitted")
     anchor_mode, anchor_binding = reader.integer(1), reader.take(32)
     if witness_pin is None:
         require(anchor_mode == 0 and anchor_binding == bytes(32),
@@ -231,9 +234,10 @@ def authenticate_historical_policy(pins: PolicyPins, wire: bytes, *, witness_pin
                             modes, anchor_binding if anchor_mode else None, pins.policy_root, wire)
 
 
-def authenticate_policy(pins: PolicyPins, materials: PolicyMaterials, now: int, *, witness_pin=None) -> PolicySnapshot:
+def authenticate_policy(pins: PolicyPins, materials: PolicyMaterials, now: int, *, witness_pin=None, required_quality=2) -> PolicySnapshot:
     sdk = verify_sdk(pins, materials)
-    history = authenticate_historical_policy(pins, materials.policy, witness_pin=witness_pin)
+    history = authenticate_historical_policy(pins, materials.policy, witness_pin=witness_pin,
+                                             required_quality=required_quality)
     require(history.sdk == sdk, "current policy SDK binding")
     history.validity.check(now)
     return PolicySnapshot(sdk, history.family, history.version, history.digest,
