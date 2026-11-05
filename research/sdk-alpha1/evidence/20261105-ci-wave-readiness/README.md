@@ -80,3 +80,9 @@ annotation, dry-run observation and next-wave preparation. All 20 members
 were reread: 415,998 bytes, SHA-256
 `b990bd2e1a66645f390b69185b5b69d8fe45c249aed924418fdcbc9a708c87be`.
 No push, rerun, cancellation, release or final qualification is claimed.
+
+The [subsequent historical account-TLS readback](../20261105-ci-historical-account-tls/README.md)
+records the older push Android and PR Swift terminal failures, the downloaded
+Android-labelled native receipt, and the remaining PR Android job. These use
+the older account admission checker, not the current-head exact-142 predicate;
+the original snapshots and capsule above remain unchanged.
