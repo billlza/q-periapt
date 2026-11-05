@@ -298,3 +298,11 @@ coverage rejection. Counts are 295 successes, eleven queued, four running,
 failures; PR #117's main runs keep the effective wave open. Exact-head workflow
 discovery finds only the same twelve attempt-one runs. All results retain their
 actual source and execution boundaries; no remote mutation occurred.
+
+The [06:21 readback](../20261105-ci-debug-capacity-readback/README.md) records
+the seventeenth P0 prerequisite failure, in PR #117 merge Swift Debug, and the
+successful PR #117 push capacity job. Actual name-set comparison completes the
+old push source's Debug candidate/SDK inventory against its Release inventory;
+the duplicated shell summary is counted once. Counts are 296 successes, eight
+queued, five running, 23 failures and two skips. The effective wave remains open,
+and the corrected local source is still not represented as hosted qualification.
