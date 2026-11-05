@@ -36,6 +36,13 @@ the designated external review, not its substitute: the actual prefix, leakage
 interfaces, concrete-primitive assumptions and full protocol composition remain
 to be established.
 
+The [root-extraction corollary](ROOT_EXTRACTION_QROM_V1.md) connects this
+conditional primitive calculation to the source's two-call Extract/Expand
+shape. It preserves the complete prefix-query accounting and explicitly shows
+why an extra raw-PRK disclosure would invalidate that game. Its encoding checks
+are separate from its mathematical argument; the actual accepted-prefix and
+whole-protocol obligations remain open for review.
+
 The [finite two-round execution record](../../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
 also gives a source-derived exposed-ancestor witness on the unchanged symbolic
 model, with a separate internal semantic calculation and negative controls.

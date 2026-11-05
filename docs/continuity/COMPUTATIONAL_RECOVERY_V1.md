@@ -85,6 +85,9 @@ for the actual ContextBound combiner and allowed attack interface, including
 classical-secret disclosure in the PQ branch. A KEM theorem or SHA3 collision
 resistance alone does not establish it. An accepted-prefix simulation must also
 cover the honest decapsulation endpoint and any allowed oracle interactions.
+For the compression-QROM route below, this requires a complete interactive
+simulation with all oracle-dependent preparation counted, not only the displayed
+marginal relationship with a fixed classical transcript.
 
 The complete transcript is an unsuitable fixed auxiliary value for the same
 claim. It contains a tag derived from `R`. Given a candidate root, an observer
@@ -462,6 +465,14 @@ It does not establish that the real prefix supplies its required joint product
 initialization, that concrete SHA-256 is an ideal compression function, or that
 the whole protocol exposes only those interfaces. In particular, it does not
 silently select a new product assumption or discharge the obligations below.
+
+The [root-extraction corollary](ROOT_EXTRACTION_QROM_V1.md) applies that primitive
+calculation twice to this source's actual Extract and 98-byte Expand input.
+It gives an explicit same-oracle conditional root-replacement bound, including
+single-entry resampling with a quantum prefix state and the two simulations'
+ordinary-query costs. Pinned-library encoding checks support the source mapping;
+they do not prove the required independent-contribution or disclosure premises.
+The actual accepted-prefix bridge and the full continuation below remain open.
 
 To connect the argument to the existing main claim, retain these obligations:
 
