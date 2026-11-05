@@ -1,0 +1,17 @@
+{
+  "CAPTURE.zip": {
+    "bytes": 2372072,
+    "members": 54,
+    "sha256": "a0a72b30b28e7b6102e4899b3f4cabc5bca1ccffd672c124d9416aa3bec4a682"
+  },
+  "DEBUG.zip": {
+    "bytes": 34720179,
+    "members": 15520,
+    "sha256": "9216e36dcd1428f0a3d688e74347b8868053a69e282999def4728ea3ac059d6c"
+  },
+  "RELEASE.zip": {
+    "bytes": 32646598,
+    "members": 13656,
+    "sha256": "b56a68d8006f4311c879d8ef980f2e89c7b4731b04427dba1fa2b392cdf6710f"
+  }
+}
