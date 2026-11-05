@@ -306,3 +306,12 @@ old push source's Debug candidate/SDK inventory against its Release inventory;
 the duplicated shell summary is counted once. Counts are 296 successes, eight
 queued, five running, 23 failures and two skips. The effective wave remains open,
 and the corrected local source is still not represented as hosted qualification.
+
+The [06:56 readback](../20261105-ci-foreign-policy-readback/README.md) adds four
+old-source C/OpenSSL prerequisite failures (three Android adapter jobs and one
+Kotlin job), taking observed P0 checker failures to 21. None establishes foreign
+consumer execution or an Android guest/device fault. The same capture records
+successful extracted Apple-Silicon policy-maintenance execution on the PR #117
+push source; minimum-macOS execution remains unqualified. Counts are 297
+successes, 27 failures, five running, three queued and two skips. The effective
+wave remains open; no push, rerun, cancellation or new workflow was performed.
