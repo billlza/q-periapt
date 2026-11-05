@@ -315,3 +315,11 @@ successful extracted Apple-Silicon policy-maintenance execution on the PR #117
 push source; minimum-macOS execution remains unqualified. Counts are 297
 successes, 27 failures, five running, three queued and two skips. The effective
 wave remains open; no push, rerun, cancellation or new workflow was performed.
+
+The [07:47 readback](../20261105-ci-foreign-policy-merge-readback/README.md)
+adds the twenty-second P0 checker failure, in PR #117 push Android Release, and
+successful policy-maintenance execution on its actual PR merge. It preserves
+the distinction between a package archive and its upload container, and keeps
+minimum-macOS execution unqualified. Counts are 298 successes, 28 failures,
+five running, one queued and two skips. Fresh 07:25 PR metadata confirms the
+same heads. The original wave remains open and no remote mutation occurred.
