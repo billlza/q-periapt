@@ -218,3 +218,20 @@ snapshot. `late-kotlin-release/CAPTURE.zip` preserves the complete decoded log,
 job/step metadata, snapshot and classification: six reread members, 31,720 bytes,
 SHA-256 `8f7ac603d136f43263d599897380ac1cd2b72c86cdc1f8908223162812f694b5`.
 The wave remains open and no push, rerun, cancellation or new workflow occurred.
+
+At 2026-11-05 02:56:46 UTC, PR-side [Kotlin Release job 126489776946](https://github.com/billlza/q-periapt/actions/runs/41791861104/job/126489776946)
+has the same old-count prerequisite failure on merge checkout
+`59bde0fd1a268de4d0e183c33bf3fc5e09c9be97`. This is the fourteenth observed
+P0 checker failure. The hosted server count and Kotlin consumer execution
+remain unestablished by the log. Its reported artifact is 13384157583,
+47,598,649 bytes, digest
+`0483c88fc5b8c3eed11e7371772ef594234a53f376a094b1fab09558ddd30d31`;
+it was not downloaded for this classification.
+
+The four open run inventories and both PR heads were refreshed; eight terminal
+run inventories retain their earlier final rows. Both PRs remain open drafts at
+`475cd239` and `6084f3bf`. Across all twelve runs there are 288 successes,
+22 queued, three running, 17 failures and two skips. The six members in
+`late-kotlin-pr-release/CAPTURE.zip` were reread byte-for-byte: 28,859 bytes,
+SHA-256 `bcbae88c4f69d2a769bbc7f6efd8f9b1981e2b87761d6d41c8242aa5a063009f`.
+The original effective wave remains open; no remote mutation was performed.
