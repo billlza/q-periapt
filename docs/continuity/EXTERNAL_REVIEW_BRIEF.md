@@ -229,6 +229,15 @@ product acceptance work even when a reviewer considers their security aspects.
    into a completed aggregate. Its direct owner cleanup control is distinct from
    the failed nested-supervisor layout; host JNI execution is distinct from ART,
    device/emulator execution and qualification of the newer SDK source root.
+   The later [hosted JNI pair](../../research/sdk-alpha1/evidence/20261105-hosted-jni-pair/README.md)
+   supplies completed Debug/Release partitions at the separate `232ace17`
+   foundation, with 20 public result groups checked for each. Per profile,
+   67 JNI-specific tests execute in 36 commands and three shared Rust fixture
+   entries execute in the installed Rust consumer. Source, SDK producer,
+   dependency graphs and the retained JAR match; native binary fingerprints
+   remain receipt-only because those binaries were not uploaded. The six-way
+   foreign-consumer join, ART/AAR, later source qualification and the original
+   failed local aggregate remain distinct.
    The [roster-verification checkpoint](../../research/sdk-alpha1/evidence/20261105-renewal-roster-verification/README.md)
    reuses two independently authenticated immutable roster objects within one
    renewal verification while retaining exact input/pin, time, membership and
