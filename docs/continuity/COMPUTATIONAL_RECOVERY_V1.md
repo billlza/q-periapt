@@ -521,6 +521,12 @@ To connect the argument to the existing main claim, retain these obligations:
   [RFC 8439 section 4](https://www.rfc-editor.org/rfc/rfc8439.html#section-4)
   explains the consequence of key/nonce reuse. A new plaintext cannot reuse an
   old reserved key, and retained traffic cannot be treated as erased.
+  The [original-send input note](AEAD_SEND_ORIGIN_V1.md) now isolates the
+  source-level reservation/retry invariant and a deterministic-call cache
+  normalization. Eight existing Debug/Release executions cover individual sync
+  faults, aggregate sync/process cuts and an explicitly unsafe private reset.
+  This addresses same-origin input reuse; it does not establish distinct keys,
+  hidden-challenge input simulation, receiver security or the full AEAD reduction.
 - State and justify the quantum-adversary assumptions/reductions used for the
   PQ claim. A classical game argument is not silently promoted to QROM security.
 

@@ -91,6 +91,14 @@ after reopen. The first positive-fixture sequencing failure is retained. Only
 test code changes; these two cases do not close the general accepted-prefix
 reduction or alter any protocol acceptance condition.
 
+The [original-send input note](AEAD_SEND_ORIGIN_V1.md) traces immutable plaintext
+and AD through reservation, private encryption, exact commit/retry and terminal
+closure. Its source-bound Debug/Release regressions include actual precommit
+process cuts and a deliberately unsafe private-state reset that reuses the
+keystream while the shipping API refuses replacement. A failed outer marker
+reader is retained separately. This supports the send-origin invariant and
+query normalization, not distinct message keys or the full AEAD security game.
+
 The [finite two-round execution record](../../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
 also gives a source-derived exposed-ancestor witness on the unchanged symbolic
 model, with a separate internal semantic calculation and negative controls.
