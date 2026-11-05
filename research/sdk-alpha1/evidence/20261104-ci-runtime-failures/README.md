@@ -333,3 +333,14 @@ timestamp span is not runtime evidence. A separate push Kotlin Debug failure is
 the twenty-third observed old exact-142 prerequisite failure. Counts are 298
 successes, 29 failures, four running, one cancelled and two skipped. This task
 performed no cancellation or rerun; the original wave remains open.
+
+The [09:05 terminal/readiness capture](../20261105-ci-wave-readiness/README.md)
+closes the twelve current-head run inventories at 336 terminal jobs: 298
+successes, 35 failures, one cancellation and two skips. All 27 observed P0
+checker failures and all four failed coverage joins remain scoped to their old
+sources. The cancellation's later check annotation establishes a 24-hour wait
+for a runner, not consumer runtime. Repository-wide discovery also finds older
+same-branch runs; three of their jobs are still running, so current-head
+terminality does not clear the next-wave queue gate. A normal atomic dry-run
+for parent correction `232ace17` and qualified child source `ff072bd6` passes;
+no push or rerun has occurred.

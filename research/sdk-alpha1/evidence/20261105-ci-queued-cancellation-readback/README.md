@@ -33,3 +33,9 @@ complete snapshot, changed jobs, both original connector error responses and
 classifier. All 8 members were reread: 118,605 bytes,
 SHA-256 `729a9e168b9375c19f9c1a059c79c7168d8b93d7714028a823acddb6e82ed87c`.
 No remote mutation or release claim was made.
+
+The later [wave-readiness capture](../20261105-ci-wave-readiness/README.md)
+retains the original check annotation obtained through a read-only CLI fallback.
+It explicitly identifies a 24-hour limit while awaiting a runner, resolving the
+cause left unconfirmed above without changing this original snapshot or its
+missing-log/unsupported-endpoint evidence. No consumer execution is established.

@@ -43,3 +43,11 @@ hosted producer before uploading the focused-workflow correction. The source/SDK
 producer can be staged first by normal ancestry; the current open CI wave must
 finish before either next wave. No pin, remote workflow or branch was changed,
 and no automatic latest-artifact fallback was introduced.
+
+The later [wave-readiness checkpoint](../20261105-ci-wave-readiness/README.md)
+prepares the earlier clean qualification source `ff072bd6` as the first hosted
+producer, together with its parent P0 correction `232ace17` in one normal atomic
+update. Both targets pass a dry-run and preserve existing commit identities.
+The current-head jobs are terminal, but older same-branch jobs remain running;
+the source wave has not yet been uploaded. The explicit hosted-producer/report
+validation and later focused-workflow pin update remain in the order above.
