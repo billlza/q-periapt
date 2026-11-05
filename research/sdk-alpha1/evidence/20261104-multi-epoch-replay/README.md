@@ -46,3 +46,9 @@ isolated exploration copy retains all reusable proofs and projects other
 nonreusable proof bodies. It exhausts the unchanged 12-GiB heap before its
 900-second deadline and produces no certificate. The failed inputs and streams
 are retained; this does not change the successful main replay or close a witness.
+
+A further [diagnostic projection](../20261104-two-round-diagnostic/README.md)
+preserves every original query attribute while projecting the other 39 proof
+bodies for target search only. It also exhausts the unchanged heap, without a
+proof output. The original complete certificate remains intact; no witness or
+full replay is claimed from that diagnostic.
