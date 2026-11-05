@@ -2736,13 +2736,6 @@ jobs:
         run: |
           cargo +1.98.1 fmt --manifest-path research/continuity-identity-candidate/Cargo.toml --package q-periapt-continuity-identity-candidate -- --check 2>&1 | tee target/continuity-native-checks/format.log
           cargo +1.98.1 doc --manifest-path research/continuity-identity-candidate/Cargo.toml --all-features --locked --no-deps 2>&1 | tee target/continuity-native-checks/doc.log
-      - name: Preserve native compiler and test results including failures
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: continuity-native-checks-${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.partition }}
-          path: target/continuity-native-checks/
-          if-no-files-found: error
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         if: matrix.os == 'macos-15' && matrix.partition == 'suite'
         id: candidate_python
@@ -2785,6 +2778,13 @@ jobs:
             target/continuity-wire-contract
           if-no-files-found: error
           retention-days: 14
+      - name: Preserve native compiler and test results including failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: continuity-native-checks-${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.partition }}
+          path: target/continuity-native-checks/
+          if-no-files-found: error
 
   # Cross-target feature fence for the shipping WASM face and dependency-free core.
   feature-fence:

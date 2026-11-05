@@ -235,3 +235,18 @@ run inventories retain their earlier final rows. Both PRs remain open drafts at
 `late-kotlin-pr-release/CAPTURE.zip` were reread byte-for-byte: 28,859 bytes,
 SHA-256 `bcbae88c4f69d2a769bbc7f6efd8f9b1981e2b87761d6d41c8242aa5a063009f`.
 The original effective wave remains open; no remote mutation was performed.
+
+At 2026-11-05 03:50:42 UTC, a distinct [native Debug suite failure](../20261105-native-artifact-order/README.md)
+appears in PR #117 job `126445763003`. Native tests and SDK/format/documentation
+checks passed on merge `9aa535b4`; the early native-results artifact upload then
+returned `ENOTFOUND`. The following independent public verification was skipped,
+and the final public-artifact upload found no files. The job remains failed,
+and that independent verification is not counted as executed.
+
+The local step-order correction keeps all command and upload failure contracts,
+passes red/green ordering checks and all 15 workflow regressions, and preserves
+the complete failed log and job metadata. It does not repair or explain the
+underlying name-resolution failure. The latest inventory has 289 successes,
+20 queued, three running, 18 failures and two skips; both PR heads are unchanged.
+The current wave remains open, with no push, rerun or cancellation. Corrected
+hosted execution and successful evidence upload remain required.

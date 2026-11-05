@@ -90,6 +90,17 @@ def native(text):
         raise ValueError('native artifacts collide')
     if "if: always() && matrix.os == 'macos-15' && matrix.partition == 'suite'" not in block:
         raise ValueError('public vector artifacts collide')
+    steps = [step for step in re.split(r'(?m)(?=^      - )', block)
+             if step.startswith('      - ')]
+    public = [i for i, step in enumerate(steps)
+              if step.startswith('      - name: Verify public bytes and both signatures independently\n')]
+    uploads = [i for i, step in enumerate(steps) if 'uses: actions/upload-artifact@' in step]
+    if len(public) != 1 or len(uploads) != 2 or min(uploads) < public[0]:
+        raise ValueError('artifact transport must not preempt independent public verification')
+    retained = [step for step in steps if step.startswith('      - name: Preserve native compiler and test results including failures\n')]
+    if (len(retained) != 1 or '\n        if: always()\n' not in retained[0]
+            or '\n          if-no-files-found: error\n' not in retained[0]):
+        raise ValueError('native evidence must retain failures and reject absent results')
 
 
 def independent(text):
@@ -120,6 +131,23 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
     def test_current_workloads_are_complete_and_bounded(self):
         native(self.native)
         independent(self.independent)
+
+    def test_native_artifact_transport_cannot_preempt_independent_verification(self):
+        native(self.native)
+        marker = '      - name: Preserve native compiler and test results including failures\n'
+        upload = marker + self.native.split(marker, 1)[1].split('\n\n  # Cross-target', 1)[0]
+        self.assertIn('path: target/continuity-native-checks/', upload)
+        removed = self.native.replace(upload, '', 1)
+        setup = '      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1\n        if: matrix.os == \'macos-15\' && matrix.partition == \'suite\''
+        changed = removed.replace(setup, upload + '\n' + setup, 1)
+        self.assertNotEqual(changed, self.native)
+        with self.assertRaisesRegex(ValueError, 'preempt'):
+            native(changed)
+        for before, after in [('if: always()', 'if: success()'),
+                              ('if-no-files-found: error', 'if-no-files-found: warn')]:
+            changed = self.native.replace(upload, upload.replace(before, after), 1)
+            with self.subTest(change=after), self.assertRaisesRegex(ValueError, 'retain failures'):
+                native(changed)
 
     def test_installed_jni_public_directories_survive_artifact_selection(self):
         block = self.native.split('  continuity-installed-swift:\n', 1)[1].split('\n  continuity-installed-coverage:', 1)[0]
