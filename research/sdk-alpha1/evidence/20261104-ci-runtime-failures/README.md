@@ -280,3 +280,11 @@ All eight members were reread: 127,421 bytes, SHA-256
 `9a000008cff734cb5bdd93418415d1313aae626ca23b2c85a7375ea3b4218d2e`.
 The effective wave remains open; no push, rerun, cancellation or new workflow
 was performed.
+
+The [04:29 current-wave readback](../20261105-ci-native-reference-readback/README.md)
+adds successful native Release and reference-replay jobs at their original
+PR #117 merge/branch identities. Full logs and test/replay counts are retained;
+the Release row's skipped independent public verification is explicitly excluded.
+The updated inventory has 292 successes, 16 queued, three running, 20 failures
+and two skips. No new failure appeared and the earlier failures remain recorded.
+The wave remains open, with no push, rerun or cancellation.
