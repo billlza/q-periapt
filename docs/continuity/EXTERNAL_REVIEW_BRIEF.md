@@ -16,8 +16,13 @@ package inputs and must remain distinct from the earlier package cohorts.
 None is the frozen review candidate. The later Windows test correction changes
 the SDK input root. A [matching local SDK producer](../../research/sdk-alpha1/evidence/20261105-current-sdk-producer/README.md)
 now passes at source `5678d101`, with twelve archives, four external Rust consumer
-tests, strict Clippy and three dependency audits. Current candidate packages and
-affected platform qualification still need their own matching evidence.
+tests, strict Clippy and three dependency audits. The [current installed Rust
+candidate](../../research/sdk-alpha1/evidence/20261105-current-rust-installed/README.md)
+also passes the original Debug and Release gates, with all three consumer tests
+per profile and an independent reread of both public traces, the candidate tree
+and nine SDK trees. Its same-host signed-TCP Witness and injected-clock scenarios
+retain their stated limits. Current foreign packages and affected platform
+qualification still need their own matching evidence.
 Re-pin the source, contracts and package identities together before formal
 review begins.
 
