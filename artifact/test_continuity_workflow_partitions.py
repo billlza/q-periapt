@@ -144,6 +144,42 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
             self.assertEqual(required - selected, set(), "JNI public evidence omitted from uploaded archive")
             self.assertNotIn(private, selected)
 
+    def test_installed_publication_bytes_survive_artifact_selection(self):
+        android = (ROOT / '.github/workflows/continuity-android-installed.yml').read_text()
+        for text, job, following, prefix, languages in (
+            (self.native, 'continuity-installed-rust', 'continuity-installed-swift',
+             'target/continuity-installed-rust', {'c': ('',)}),
+            (self.native, 'continuity-installed-swift', 'continuity-installed-coverage',
+             'target/continuity-installed-swift', {'c': ('',), 'swift': ('',), 'kotlin': ('-serial', '-g1')}),
+            (android, 'android', None, 'target/continuity-installed-swift', {'c': ('',)}),
+        ):
+            with self.subTest(job=job), tempfile.TemporaryDirectory() as temp:
+                block = text.split('  ' + job + ':\n', 1)[1]
+                if following is not None:
+                    block = block.split('\n  ' + following + ':', 1)[0]
+                upload = block.split('      - name: Retain ', 1)[1]
+                match = re.search(r'          path: \|\n((?:            [^\n]+\n)+)', upload)
+                self.assertIsNotNone(match)
+                patterns = [line.strip() for line in match[1].splitlines()]
+                root = Path(temp)
+                required = set()
+                for language, collectors in languages.items():
+                    for profile in ('debug', 'release'):
+                        for collector in collectors:
+                            for leaf in ('publication-artifact', 'publication-retry', 'publication-plan', 'publication-id'):
+                                path = root / prefix / (language + '-publication-public') / (profile + collector) / 'enrolled' / leaf
+                                path.parent.mkdir(parents=True, exist_ok=True)
+                                path.write_bytes(b'original public publication bytes')
+                                required.add(path)
+                private = {root / prefix / 'private' / 'wrapping-key',
+                           root / prefix / 'c-publication-runtime' / 'debug' / 'journal'}
+                for path in private:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(b'private state must not be selected')
+                selected = {path for pattern in patterns for path in root.glob(pattern) if path.is_file()}
+                self.assertEqual(required - selected, set(), 'publication raw bytes omitted from uploaded archive')
+                self.assertEqual(private & selected, set(), 'publication upload includes private runtime state')
+
     def test_catalog_guards_execute_without_optional_runner_tools(self):
         # Hosted Linux runners do not promise ripgrep. Execute both actual
         # workflow guards with only the standard system tools on PATH.

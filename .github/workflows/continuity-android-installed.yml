@@ -124,6 +124,7 @@ jobs:
             target/continuity-installed-swift/debug-enrollment-reopen-public/**
             target/continuity-installed-swift/release-enrollment-reopen-public/**
             target/continuity-installed-swift/c-enrollment-public/**
+            target/continuity-installed-swift/c-publication-public/**
             target/continuity-installed-swift/configuration-public/**
             target/continuity-installed-swift/managed-configuration-public/**
             target/continuity-installed-swift/managed-credential-configuration-public/**
