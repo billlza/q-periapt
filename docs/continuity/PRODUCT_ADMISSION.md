@@ -763,6 +763,15 @@ The earlier 600-second diagnostic observations remain timed out; their focused
 platform consumers, legacy-residue disposition and final
 product admission remain separate.
 
+The subsequent [complete installed Rust/C checkpoint](../../research/sdk-alpha1/evidence/20261104-continuity-c-maintenance/README.md)
+passes both existing profiles on Apple Silicon with the same maintenance SDK
+archives and unchanged runtime inputs. It includes all original lifecycle/fault
+scenarios, strict Clippy, final source/binary checks and the independent OpenSSL
+carrier: exact server count 146, client count 2 and four pre-store rejections in
+each profile. The full run remains inside its original 150-minute parent budget.
+This closes that local Rust/C cohort; the foreign/platform and final release
+boundaries above remain separate.
+
 The [maintenance-cohort program replacement](../../research/sdk-alpha1/evidence/20261104-maintenance-program-upgrade/README.md)
 additionally verifies original-state reopening across the previous installed SDK
 and the new maintenance cohort, with 32 real process cuts, 29 program switches

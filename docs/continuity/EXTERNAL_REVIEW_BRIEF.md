@@ -93,6 +93,10 @@ product acceptance work even when a reviewer considers their security aspects.
    binary exports are unchanged; path-normalized metadata retains original hashes.
    The remaining platform matrix and final hosted CI must still be reconciled
    before the review candidate is frozen.
+   The later [complete Rust/C checkpoint](../../research/sdk-alpha1/evidence/20261104-continuity-c-maintenance/README.md)
+   adds both full installed profiles, independent OpenSSL carrier execution and
+   public archive readback on the same maintenance cohort. It does not substitute
+   for the remaining bindings, platform matrix or final source-bound CI.
 4. Refresh the CI and installed-platform matrix against that candidate. The
    [current CI failure record](../../research/sdk-alpha1/evidence/20261104-ci-runtime-failures/README.md)
    remains incomplete and preserves count-check, guest/transport and artifact-transfer failures. Historical passes
