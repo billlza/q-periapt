@@ -183,6 +183,12 @@ must be accounted for when replacing unknown KEM coins. An irreversible closure
 may make a selected future message impossible, but an attempted closure can
 fail before that point; it cannot be treated as an automatic early zero result.
 
+The subsequent [cleanup-report argument](CLEANUP_REPORT_MAC_V1.md) supplies a
+conditional one-transcript HMAC replacement, including the zero-ID error branch
+and exact original-report cache. It records focused native regression results;
+the full private-state, acquisition and changed-transcript interfaces remain
+explicit prerequisites.
+
 These are concrete parts of the existing accepted-prefix obligation, not a
 new product vulnerability or a claim that the declared recovery property is
 false. The nonce-hash composition, acquisition projection, cleanup-MAC view,

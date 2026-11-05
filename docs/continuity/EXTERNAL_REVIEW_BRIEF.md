@@ -112,6 +112,14 @@ idealization, with three explicit counterexamples to broader formulations.
 It preserves same-PRK aliases and prior hybrid costs. This manual lemma and
 its dependency/source readback do not close multi-root or leakage composition.
 
+The [cleanup-report MAC note](CLEANUP_REPORT_MAC_V1.md) gives a conditional
+one-transcript replacement for the report output omitted from the raw-record
+digest inventory. It preserves the zero-ID failure and original-report cache,
+and explains why the hop must precede the unknown-coin KEM embedding. Six
+Debug/Release executions cover private-state tamper rejection, rekey closure
+fences and fanout process cuts. Native acquisition and changed-transcript
+simulation remain open; this is not a completed computational proof.
+
 The [finite two-round execution record](../../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
 also gives a source-derived exposed-ancestor witness on the unchanged symbolic
 model, with a separate internal semantic calculation and negative controls.

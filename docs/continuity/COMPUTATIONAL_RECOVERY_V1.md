@@ -398,6 +398,13 @@ record acquisition event. Its source map also identifies cleanup report MACs as
 a separate plaintext-dependent channel; the complete native refinement and that
 MAC simulation are not supplied by the digest bound.
 
+The [cleanup-report corollary](CLEANUP_REPORT_MAC_V1.md) isolates one immutable
+HMAC transcript with a fresh hidden report key. Its ideal tag preserves exact
+retries and the source's zero-ID error without resampling. This hop must precede
+embedding unknown KEM coins, and still requires the actual private-state and
+validation interface mapping. Six native executions support the specific report
+and closure paths; they do not complete the computational prefix bridge.
+
 ## Public-salt extraction has a specific sufficient assumption
 
 After the first replacement the necessary extraction direction is
