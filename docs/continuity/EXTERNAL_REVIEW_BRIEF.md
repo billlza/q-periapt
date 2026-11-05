@@ -45,6 +45,13 @@ now passes independently against all six original report bytes and the pinned
 Debug/Release receipt union. It does not repair missing public exports, establish
 device execution, or transfer acceptance to the later local candidate.
 
+The [historical Kotlin pair](../../research/sdk-alpha1/evidence/20261105-hosted-kotlin-pair/README.md)
+also has actual Maven/native package checks, exact 79-test reports in each of two
+lanes, 21 selected public reader groups and 26 C2 logs per build profile. Serial/G1
+ownership observations remain bounded. Missing publication exports and three
+unexported runtime JARs remain explicit; the latter retain original execution
+receipts rather than a new local runtime replay.
+
 The deliverable sought is a construction and implementation assessment of the
 declared secure-session contract: authorized establishment and communication,
 traffic-independent PQ progress, exact recovery of original operations,

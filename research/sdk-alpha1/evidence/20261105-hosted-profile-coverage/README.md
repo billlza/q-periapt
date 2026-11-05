@@ -41,7 +41,9 @@ This checker joins producer receipts. It does not rerun native workloads or
 read each public protocol transcript. In particular, its success cannot repair
 the [Swift publication export omission](../20261105-hosted-swift-pair/README.md).
 The Kotlin public scenarios have not been independently replayed by this
-observation. macOS host JNI remains distinct from an AAR installation, Android
+observation; a [separate subsequent Kotlin reread](../20261105-hosted-kotlin-pair/README.md)
+checks the actual packages and 21 selected public groups per profile. macOS host
+JNI remains distinct from an AAR installation, Android
 ART, emulator or physical-device execution. Shared-engine receipts do not become
 independent protocol-engine evidence. The main run still has its two previously
 recorded failures; a passed coverage job does not make the run successful.
