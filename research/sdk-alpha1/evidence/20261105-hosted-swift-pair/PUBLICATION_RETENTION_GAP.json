@@ -1,0 +1,853 @@
+{
+  "observed_utc": "2026-11-05T22:23:56.748004+00:00",
+  "original_commit": "232ace17915407596d66f3a5fd7c7765251a38cc",
+  "current_commit": "75d2dd224362ea6ffa5ad9254506927bdda90b1f",
+  "observations": {
+    "debug": {
+      "expected": 85,
+      "missing_anywhere_by_digest": {
+        "enrolled/enrollment-accept.stdout": "e0efff445f6d09ecfa4d107bfcea017fba8d6011a2ef1f15fd606013be2664cb",
+        "enrolled/enrollment-activate-current.stdout": "3ee920b2b91bfa78a3f7ebecbe2641ceea5a73a01b651b444c43e19f828051a0",
+        "enrolled/enrollment-active.stdout": "a89b7efcee86002818610659f87ef7f32ce2f3fbd1f0e127b02ce392a1f47b47",
+        "enrolled/enrollment-after-missing-registration.stdout": "a89b7efcee86002818610659f87ef7f32ce2f3fbd1f0e127b02ce392a1f47b47",
+        "enrolled/enrollment-after-reject.stdout": "d629c81d3ecf6ed0f555147b1373bc6b1a3b62ebebc1afd291c64a7dec8ea17f",
+        "enrolled/enrollment-connect.stdout": "02206562285610b5f745b858632c6ec45ad3003f66bdf04f88ecc225874bcdff",
+        "enrolled/enrollment-create.stdout": "11f02c2ba829ecb338b3332453cc9bb655c04c38cb18b42d047eb183b7c56962",
+        "enrolled/enrollment-final-status.stdout": "a89b7efcee86002818610659f87ef7f32ce2f3fbd1f0e127b02ce392a1f47b47",
+        "enrolled/enrollment-held.stdout": "3ee920b2b91bfa78a3f7ebecbe2641ceea5a73a01b651b444c43e19f828051a0",
+        "enrolled/enrollment-intent": "279588e880e3598966460bd1f77ab018d6988e68a186f6acb2ee33827c0bcc6e",
+        "enrolled/enrollment-lease-observation": "a9dc2990b13c091c8bdd44eadadc269869e34e416894eb42c0e3a3a74cf36bee",
+        "enrolled/enrollment-next.stdout": "e22758b9314da3f8e9cf42f0b350a70a941f77a1397b982abad1f15a80d99dee",
+        "enrolled/enrollment-publication-absent.stdout": "6a525c424c974129e7077a94b66dfbbee76ffea7fd84972cab9c9fedecb9713e",
+        "enrolled/enrollment-publication-cancel.stdout": "4dbe5da215309fe6d75b49abcb6cdbb296fb3623e2fbc5d9588a8f99b142522f",
+        "enrolled/enrollment-publication-next-2.stdout": "03974edda1aa2a53a0da5853743779530f1079640197a60e4a80468613c11f52",
+        "enrolled/enrollment-publication-next-retained.stdout": "03974edda1aa2a53a0da5853743779530f1079640197a60e4a80468613c11f52",
+        "enrolled/enrollment-publication-next.stdout": "71eb66359c2000333d6d234d4650c7d31b63661b7f9d788f10980d1ff7bbc17b",
+        "enrolled/enrollment-publication-prepare.stdout": "7f0881fac7aa74dab38dba9defbf5a0af7e48b1c7fc7825d5adf10977d2732f9",
+        "enrolled/enrollment-publication-retire.stdout": "52b9fc1b32e8415478c34915f101026a0effd852bccfdd4eb3e96ecc0d6ab9c9",
+        "enrolled/enrollment-publication-retry.stdout": "7f0881fac7aa74dab38dba9defbf5a0af7e48b1c7fc7825d5adf10977d2732f9",
+        "enrolled/enrollment-refresh.stdout": "41e52231e282506ad2e4bd92be4b2d863750204392d549d809c3f24c54b274b5",
+        "enrolled/enrollment-reopened-request": "65cafe47eb17f7b1716e10edc42b9c28d1adf53b9f00e89b0542af9d1d24ce29",
+        "enrolled/enrollment-request": "65cafe47eb17f7b1716e10edc42b9c28d1adf53b9f00e89b0542af9d1d24ce29",
+        "enrolled/enrollment-request-retry.stdout": "d629c81d3ecf6ed0f555147b1373bc6b1a3b62ebebc1afd291c64a7dec8ea17f",
+        "enrolled/enrollment-request.stdout": "d629c81d3ecf6ed0f555147b1373bc6b1a3b62ebebc1afd291c64a7dec8ea17f",
+        "enrolled/enrollment-root": "46eda481254ac6907422784a26159d536b86620fd7863707ce9432c2645ae97c",
+        "enrolled/enrollment-storage.stdout": "e0efff445f6d09ecfa4d107bfcea017fba8d6011a2ef1f15fd606013be2664cb",
+        "enrolled/family": "1f46bf4f4512ede597e885f90f17a9f7215c94f7e89556242a5c12883ecca3dd",
+        "enrolled/grant-certificate": "f6bb89a3708f5b657a65385f1cf5cf4f4379c6179564e3b4e121f6429e5bb205",
+        "enrolled/grant-roster": "6cdee2b82e43b6f4ffbff658a4cb9170aeeca77928e0c72bbbf2844b51dbc7b5",
+        "enrolled/publication-artifact": "10ba5afef8de8411bde04dc429df296534813ab7372db8f5867dc4da9ee63f8d",
+        "enrolled/publication-id": "e12c017c63b08103a204f06c89874dc69881bdbb9064c47b2af3a72dd177b781",
+        "enrolled/publication-plan": "161d37e7eae96b6c6392435eedb341fc59f8938dddc653222e44ea7ab28941f8",
+        "enrolled/publication-retry": "10ba5afef8de8411bde04dc429df296534813ab7372db8f5867dc4da9ee63f8d",
+        "enrolled/renewal-digest": "1d6d9ab29f0565eb7e9d1174c5bd6eebd8b2f7522f50cec6b03cf2a0a1296525",
+        "enrolled/renewal-roster": "b813bacf2bfb6ea8f36dc935862190d90bcf2fe9c76485658da48af0fa8568be",
+        "enrolled/trusted-account": "6bfa4b5159b972cdec2d2d8d5a093a15dfe7af9c4c2ce3e51d538675fdacdbd1",
+        "enrolled/trusted-roster-digest": "0465311b033a86de9b9867e8e6cc6f6156eefd25ae1c7a14f0c9fd83fc6796a2",
+        "responder/application-00000000000000000000000000000000b51e75582fcc276c655bf314a3277ffc": "eb44dbec517a38c42b286c727a9de7ec5b59173eee19733394e08b02d578f254",
+        "responder/session": "1d7cadc42ca6c8c5d392e7e005472f5582b347dffac107a2fcc1d60f80afee51"
+      },
+      "matching_hash_locations": {
+        "enrolled/enrollment-accept.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-activate-current.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-active.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-after-missing-registration.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-after-reject.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-cancel.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-cancel.stdout": {
+          "sha256": "7f2f1ee3bac0164d5026445c9edf78d179c156745b1bf310adf17fb7e4d26ada",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/debug/enrolled/enrollment-cancel.stdout",
+            "artifact/peer-configuration-public/c/debug/default/registration/enrolled/enrollment-cancel.stdout"
+          ]
+        },
+        "enrolled/enrollment-connect.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-create.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-creation-refused.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-creation-refused.stdout": {
+          "sha256": "60f56e8517f553b8ada8c4f404e5758b922a6016ea0ac8693ec3dc508fd0c97d",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/debug/enrolled/enrollment-creation-refused.stdout",
+            "artifact/peer-configuration-public/c/debug/default/registration/enrolled/enrollment-creation-refused.stdout"
+          ]
+        },
+        "enrolled/enrollment-final-status.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-genesis-digest": {
+          "sha256": "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/debug/enrolled/enrollment-genesis-digest",
+            "artifact/peer-configuration-public/c/debug/default/registration/enrolled/enrollment-genesis-digest"
+          ]
+        },
+        "enrolled/enrollment-genesis-subject": {
+          "sha256": "2ea9ab9198d1638007400cd2c3bef1cc745b864b76011a0e1bc52180ac6452d4",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/debug/enrolled/enrollment-genesis-subject",
+            "artifact/peer-configuration-public/c/debug/default/registration/enrolled/enrollment-genesis-subject"
+          ]
+        },
+        "enrolled/enrollment-held": {
+          "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+          "matching_member_count": 26,
+          "examples": [
+            "artifact/c-enrollment-public/debug/enrolled/enrollment-held",
+            "artifact/c-enrollment-public/debug/enrolled/release-enrollment"
+          ]
+        },
+        "enrolled/enrollment-held.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-key-conflict.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-key-conflict.stdout": {
+          "sha256": "1fea590483416b0c549b2c1f07c34b9072ea8c4db044946f2ddf1dc2175eb5d6",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/debug/enrolled/enrollment-key-conflict.stdout",
+            "artifact/peer-configuration-public/c/debug/default/registration/enrolled/enrollment-key-conflict.stdout"
+          ]
+        },
+        "enrolled/enrollment-key.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-key.stdout": {
+          "sha256": "f6501b3c9dda4594e7a1b1b615b584ab27ba8ac1a60fab8aedd1508912e7b363",
+          "matching_member_count": 48,
+          "examples": [
+            "artifact/c-enrollment-public/debug/enrolled/enrollment-key.stdout",
+            "artifact/c-enrollment-witness-public/debug/mutual-tls/enrolled-witness/witness-enrollment-key.stdout"
+          ]
+        },
+        "enrolled/enrollment-missing-registration.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-missing-registration.stdout": {
+          "sha256": "ab493d5462c80fb5ef38be14b36889e9657836b19c752ef653eb792bb1fb5d38",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/debug/enrolled/enrollment-missing-registration.stdout",
+            "artifact/peer-configuration-public/c/debug/default/registration/enrolled/enrollment-missing-registration.stdout"
+          ]
+        },
+        "enrolled/enrollment-next.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-absent.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-cancel.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-next-2.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-next-retained.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-next.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-prepare.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-retire.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-retry.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-refresh.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-reject.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-reject.stdout": {
+          "sha256": "61b341375c5b0ed1e14d514d979ccdc2beff3639f482c557c7afbc7668468b08",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/debug/enrolled/enrollment-reject.stdout",
+            "artifact/peer-configuration-public/c/debug/default/registration/enrolled/enrollment-reject.stdout"
+          ]
+        },
+        "enrolled/enrollment-request-retry.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-request.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-retry.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-retry.stdout": {
+          "sha256": "6996692eb1c89d9bcf83ac52ecd63d76df3902b6bb6bc3978a353431fbfef8c8",
+          "matching_member_count": 31,
+          "examples": [
+            "artifact/c-device-public/debug/initiator/c-device-replay.stdout",
+            "artifact/c-enrollment-public/debug/enrolled/enrollment-retry.stdout"
+          ]
+        },
+        "enrolled/enrollment-storage.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-uncertain.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10553,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-uncertain.stdout": {
+          "sha256": "30528e1cff5cb6944977e13624e0514d19de922e50a02122b875536dd03ad576",
+          "matching_member_count": 29,
+          "examples": [
+            "artifact/c-device-public/debug/initiator/c-device-unknown.stdout",
+            "artifact/c-enrollment-public/debug/enrolled/enrollment-uncertain.stdout"
+          ]
+        },
+        "enrolled/release-enrollment": {
+          "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+          "matching_member_count": 26,
+          "examples": [
+            "artifact/c-enrollment-public/debug/enrolled/enrollment-held",
+            "artifact/c-enrollment-public/debug/enrolled/release-enrollment"
+          ]
+        },
+        "enrolled/renewal-version": {
+          "sha256": "cd04a4754498e06db5a13c5f371f1f04ff6d2470f24aa9bd886540e5dce77f70",
+          "matching_member_count": 94,
+          "examples": [
+            "artifact/c-enrollment-public/debug/enrolled/renewal-version",
+            "artifact/c-enrollment-witness-public/debug/mutual-tls/enrolled-witness/renewal-version"
+          ]
+        },
+        "enrolled/swift-enrollment-transfer": {
+          "sha256": "9790f3fd5a0183cd29b9b4432a43e409ec9c9429d935de28afb22c7718c2e888",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/peer-configuration-public/swift/debug/default/registration/enrolled/swift-enrollment-transfer",
+            "artifact/swift-enrollment-public/debug/local/enrolled/swift-enrollment-transfer"
+          ]
+        },
+        "enrolled/trusted-roster-version": {
+          "sha256": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50",
+          "matching_member_count": 282,
+          "examples": [
+            "artifact/c-account-cleanup/debug/public/selected/peer-0/responder-generation",
+            "artifact/c-account-cleanup/debug/public/selected/peer-1/responder-generation"
+          ]
+        }
+      },
+      "original_execution_report_completed": true,
+      "independent_publication_replay_available": false,
+      "nested_package_members_scanned": 2047
+    },
+    "release": {
+      "expected": 85,
+      "missing_anywhere_by_digest": {
+        "enrolled/enrollment-accept.stdout": "f992480b1a693b350f3f9d050676a92a81f29641333b9135fe627ae8655e3418",
+        "enrolled/enrollment-activate-current.stdout": "28dcf65bc62b0b3caa1d8e201fca987215d4d37973a4aece907050d7d896d9c2",
+        "enrolled/enrollment-active.stdout": "0c6724585370f407757da33220db10c2ac53b135ef7871546238b0ddd32a9a5e",
+        "enrolled/enrollment-after-missing-registration.stdout": "0c6724585370f407757da33220db10c2ac53b135ef7871546238b0ddd32a9a5e",
+        "enrolled/enrollment-after-reject.stdout": "da3abc43e578127523cd943c8eef1079a870a559cee2bfbf8b8b3e3f1e4845f9",
+        "enrolled/enrollment-connect.stdout": "c43cb711d8600b8c356ab609eecb76f688b5bd8a9715b9e0903d85d2a15bc2ee",
+        "enrolled/enrollment-create.stdout": "f6b7ee8f0495085d9fe40dff5eb7d75bcb334473f30c0741668cf4610e4e7071",
+        "enrolled/enrollment-final-status.stdout": "0c6724585370f407757da33220db10c2ac53b135ef7871546238b0ddd32a9a5e",
+        "enrolled/enrollment-held.stdout": "28dcf65bc62b0b3caa1d8e201fca987215d4d37973a4aece907050d7d896d9c2",
+        "enrolled/enrollment-intent": "4036a7991fbce87b2d5ca479525aae542fe5730b8197a527dc81bc910ea15206",
+        "enrolled/enrollment-lease-observation": "f366f05e241bc9bad21040a3211bddee1de1ec47dab21adc6204885952bd3dd6",
+        "enrolled/enrollment-next.stdout": "c65537252a227f4c2ba8998799970163dfef090e040279fdb112fcb7b7476902",
+        "enrolled/enrollment-publication-absent.stdout": "6a525c424c974129e7077a94b66dfbbee76ffea7fd84972cab9c9fedecb9713e",
+        "enrolled/enrollment-publication-cancel.stdout": "4dbe5da215309fe6d75b49abcb6cdbb296fb3623e2fbc5d9588a8f99b142522f",
+        "enrolled/enrollment-publication-next-2.stdout": "620aaeed247c2c1d1dc9246e765d017725c1b05a9f77631dbf2735e1b82bfbc4",
+        "enrolled/enrollment-publication-next-retained.stdout": "620aaeed247c2c1d1dc9246e765d017725c1b05a9f77631dbf2735e1b82bfbc4",
+        "enrolled/enrollment-publication-next.stdout": "dc7450ed0e41b3183c8ba073fd2bd23d48f2c35f0f132749f101de10bc561e08",
+        "enrolled/enrollment-publication-prepare.stdout": "f2d2855a2973e4f64b55d0aabf6e11621f15598ad2535fa67656363f6e4383f8",
+        "enrolled/enrollment-publication-retire.stdout": "52b9fc1b32e8415478c34915f101026a0effd852bccfdd4eb3e96ecc0d6ab9c9",
+        "enrolled/enrollment-publication-retry.stdout": "f2d2855a2973e4f64b55d0aabf6e11621f15598ad2535fa67656363f6e4383f8",
+        "enrolled/enrollment-refresh.stdout": "867e120439189c1226714893f530f3c082f3bbd0260f86574b0226a9a88991ac",
+        "enrolled/enrollment-reopened-request": "53127f45b0a946994957c1b2e87460d8ec2116a0734c35dbdf1b7a3a7041ce75",
+        "enrolled/enrollment-request": "53127f45b0a946994957c1b2e87460d8ec2116a0734c35dbdf1b7a3a7041ce75",
+        "enrolled/enrollment-request-retry.stdout": "da3abc43e578127523cd943c8eef1079a870a559cee2bfbf8b8b3e3f1e4845f9",
+        "enrolled/enrollment-request.stdout": "da3abc43e578127523cd943c8eef1079a870a559cee2bfbf8b8b3e3f1e4845f9",
+        "enrolled/enrollment-root": "a15b11aab505feff23baca8136d10b2186b797cc9494ddf5e9f8a9576904dfd6",
+        "enrolled/enrollment-storage.stdout": "f992480b1a693b350f3f9d050676a92a81f29641333b9135fe627ae8655e3418",
+        "enrolled/family": "23afaea6828ed51d9fefcd830d2311a15ef7d0f88af3d44362833faf389bfcb5",
+        "enrolled/grant-certificate": "a7fc14d1c66e3420a74348e08cea7b55666a19c1392b3e37860250ab9d67ba5c",
+        "enrolled/grant-roster": "387de60e104fe5d06e4a3ccf68a39d2718ce8f9808b5d64edbf57c8ad961e435",
+        "enrolled/publication-artifact": "02464861129a8571bddd69a518a06c81af7f4785a5355f9f71f88c95096600e0",
+        "enrolled/publication-id": "ed692fc66ed2c4955f3a11233958dbc76f0fd4ee6114f41ec845807446f357b9",
+        "enrolled/publication-plan": "456be8d1beaedad2357ab1977b11984eb32f00f6703c3345160cdd209e38945f",
+        "enrolled/publication-retry": "02464861129a8571bddd69a518a06c81af7f4785a5355f9f71f88c95096600e0",
+        "enrolled/renewal-digest": "d8c9009c1d876f7bc1c46ed0c56650d12b9e9c009e2b6cfaaf4fdebc48aad891",
+        "enrolled/renewal-roster": "d1009ce68b225bb8f290f0aa0021a3f8a7bd9de88fb9b086298d9812d51a5f63",
+        "enrolled/trusted-account": "f140d0d65cc4fee86d1ed1d9f1c87b898dbec35695c39e285ac934558d20b521",
+        "enrolled/trusted-roster-digest": "fb54251a32a4dfbe5e274b62c9eb72e5cacb67a80251cad33fb1f927dcbf9490",
+        "responder/application-000000000000000000000000000000000776391eedd194b712258b7e25b26879": "c9483e4065398a89b19cff0e07a2228e13ea5f5d224bfef1e59f25d62deddcac",
+        "responder/session": "c1d595ad56b5fedfb7925b3a7efbc9a4507f3f01c2accd7b000aeb5039190102"
+      },
+      "matching_hash_locations": {
+        "enrolled/enrollment-accept.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-activate-current.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-active.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-after-missing-registration.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-after-reject.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-cancel.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-cancel.stdout": {
+          "sha256": "7f2f1ee3bac0164d5026445c9edf78d179c156745b1bf310adf17fb7e4d26ada",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/release/enrolled/enrollment-cancel.stdout",
+            "artifact/peer-configuration-public/c/release/default/registration/enrolled/enrollment-cancel.stdout"
+          ]
+        },
+        "enrolled/enrollment-connect.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-create.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-creation-refused.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-creation-refused.stdout": {
+          "sha256": "60f56e8517f553b8ada8c4f404e5758b922a6016ea0ac8693ec3dc508fd0c97d",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/release/enrolled/enrollment-creation-refused.stdout",
+            "artifact/peer-configuration-public/c/release/default/registration/enrolled/enrollment-creation-refused.stdout"
+          ]
+        },
+        "enrolled/enrollment-final-status.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-genesis-digest": {
+          "sha256": "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/release/enrolled/enrollment-genesis-digest",
+            "artifact/peer-configuration-public/c/release/default/registration/enrolled/enrollment-genesis-digest"
+          ]
+        },
+        "enrolled/enrollment-genesis-subject": {
+          "sha256": "2ea9ab9198d1638007400cd2c3bef1cc745b864b76011a0e1bc52180ac6452d4",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/release/enrolled/enrollment-genesis-subject",
+            "artifact/peer-configuration-public/c/release/default/registration/enrolled/enrollment-genesis-subject"
+          ]
+        },
+        "enrolled/enrollment-held": {
+          "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+          "matching_member_count": 26,
+          "examples": [
+            "artifact/c-enrollment-public/release/enrolled/enrollment-held",
+            "artifact/c-enrollment-public/release/enrolled/release-enrollment"
+          ]
+        },
+        "enrolled/enrollment-held.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-key-conflict.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-key-conflict.stdout": {
+          "sha256": "1fea590483416b0c549b2c1f07c34b9072ea8c4db044946f2ddf1dc2175eb5d6",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/release/enrolled/enrollment-key-conflict.stdout",
+            "artifact/peer-configuration-public/c/release/default/registration/enrolled/enrollment-key-conflict.stdout"
+          ]
+        },
+        "enrolled/enrollment-key.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-key.stdout": {
+          "sha256": "f6501b3c9dda4594e7a1b1b615b584ab27ba8ac1a60fab8aedd1508912e7b363",
+          "matching_member_count": 48,
+          "examples": [
+            "artifact/c-enrollment-public/release/enrolled/enrollment-key.stdout",
+            "artifact/c-enrollment-witness-public/release/mutual-tls/enrolled-witness/witness-enrollment-key.stdout"
+          ]
+        },
+        "enrolled/enrollment-missing-registration.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-missing-registration.stdout": {
+          "sha256": "ab493d5462c80fb5ef38be14b36889e9657836b19c752ef653eb792bb1fb5d38",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/release/enrolled/enrollment-missing-registration.stdout",
+            "artifact/peer-configuration-public/c/release/default/registration/enrolled/enrollment-missing-registration.stdout"
+          ]
+        },
+        "enrolled/enrollment-next.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-absent.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-cancel.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-next-2.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-next-retained.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-next.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-prepare.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-retire.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-publication-retry.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-refresh.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-reject.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-reject.stdout": {
+          "sha256": "61b341375c5b0ed1e14d514d979ccdc2beff3639f482c557c7afbc7668468b08",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/c-enrollment-public/release/enrolled/enrollment-reject.stdout",
+            "artifact/peer-configuration-public/c/release/default/registration/enrolled/enrollment-reject.stdout"
+          ]
+        },
+        "enrolled/enrollment-request-retry.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-request.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-retry.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-retry.stdout": {
+          "sha256": "6996692eb1c89d9bcf83ac52ecd63d76df3902b6bb6bc3978a353431fbfef8c8",
+          "matching_member_count": 31,
+          "examples": [
+            "artifact/c-device-public/release/initiator/c-device-replay.stdout",
+            "artifact/c-enrollment-public/release/enrolled/enrollment-retry.stdout"
+          ]
+        },
+        "enrolled/enrollment-storage.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-uncertain.stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "matching_member_count": 10683,
+          "examples": [
+            "artifact/apple-package/arch-aarch64-apple-darwin.stderr",
+            "artifact/apple-package/arch-aarch64-apple-ios-sim.stderr"
+          ]
+        },
+        "enrolled/enrollment-uncertain.stdout": {
+          "sha256": "30528e1cff5cb6944977e13624e0514d19de922e50a02122b875536dd03ad576",
+          "matching_member_count": 29,
+          "examples": [
+            "artifact/c-device-public/release/initiator/c-device-unknown.stdout",
+            "artifact/c-enrollment-public/release/enrolled/enrollment-uncertain.stdout"
+          ]
+        },
+        "enrolled/release-enrollment": {
+          "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+          "matching_member_count": 26,
+          "examples": [
+            "artifact/c-enrollment-public/release/enrolled/enrollment-held",
+            "artifact/c-enrollment-public/release/enrolled/release-enrollment"
+          ]
+        },
+        "enrolled/renewal-version": {
+          "sha256": "cd04a4754498e06db5a13c5f371f1f04ff6d2470f24aa9bd886540e5dce77f70",
+          "matching_member_count": 94,
+          "examples": [
+            "artifact/c-enrollment-public/release/enrolled/renewal-version",
+            "artifact/c-enrollment-witness-public/release/mutual-tls/enrolled-witness/renewal-version"
+          ]
+        },
+        "enrolled/swift-enrollment-transfer": {
+          "sha256": "9790f3fd5a0183cd29b9b4432a43e409ec9c9429d935de28afb22c7718c2e888",
+          "matching_member_count": 4,
+          "examples": [
+            "artifact/peer-configuration-public/swift/release/default/registration/enrolled/swift-enrollment-transfer",
+            "artifact/swift-enrollment-public/release/local/enrolled/swift-enrollment-transfer"
+          ]
+        },
+        "enrolled/trusted-roster-version": {
+          "sha256": "cd2662154e6d76b2b2b92e70c0cac3ccf534f9b74eb5b89819ec509083d00a50",
+          "matching_member_count": 282,
+          "examples": [
+            "artifact/c-account-cleanup/release/public/selected/peer-0/responder-generation",
+            "artifact/c-account-cleanup/release/public/selected/peer-1/responder-generation"
+          ]
+        }
+      },
+      "original_execution_report_completed": true,
+      "independent_publication_replay_available": false,
+      "nested_package_members_scanned": 2047
+    }
+  },
+  "workflow_patterns": {
+    "c-publication-public": {
+      "original_present": false,
+      "current_present": true
+    },
+    "swift-publication-public": {
+      "original_present": false,
+      "current_present": true
+    },
+    "kotlin-publication-public": {
+      "original_present": false,
+      "current_present": true
+    }
+  },
+  "original_workflow_sha256": "c3b730598bca0fdefe63d9c551038c76f58f57e243763031315ef9d87b2979e6",
+  "current_workflow_sha256": "b5ab0d9cb7ebfb27d3296a479c61e5de330b961174db4bf6a2db5b7572086a0d",
+  "classification": "Historical artifact retention omission, not an observed publication runtime failure. Existing current workflow adds the missing upload patterns to the actual six-partition foreign matrix; new source-bound hosted artifacts remain pending under wave discipline.",
+  "requirement": "P1 result/input retention and section 8 traceable installed publication lifecycle evidence. Existing evidence gap, not a new security promise or change in support scope.",
+  "closure": "Retain complete source-bound public publication outputs from an applicable successful candidate run and replay the unchanged reader. Old reported hashes are not substitutes for missing bytes.",
+  "redundant_index_compaction": {
+    "original_bytes": 54427086,
+    "original_sha256": "c3f10961f5054dfcf281b4193e2f88ed9e5985e09b240c23a3d2c982049c57f9",
+    "scope": "Repeated full lists of identical-hash locations replaced by counts and two examples after exact comparison with retained EXTRACTED_FILES.json. All original source inventories and artifact bytes remain available; missing-byte conclusions unchanged."
+  },
+  "search_scope": "Whole exported artifact members plus members of the ordinary Swift, minimum Swift, Apple binary and candidate crate archives; not an assertion about arbitrary substring reconstruction.",
+  "existing_upload_pattern_fix_commit": "d2c951f035d2cc62cf8583a995ea9b1d17ed2dfc"
+}

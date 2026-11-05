@@ -31,6 +31,14 @@ remaining platform qualification still need their own matching evidence.
 Re-pin the source, contracts and package identities together before formal
 review begins.
 
+The [historical hosted Swift pair](../../research/sdk-alpha1/evidence/20261105-hosted-swift-pair/README.md)
+now has matching package/native-library verification and selected public rereads
+at `232ace`, including the Rust 1.90 root lane. Its three arm64 Apple slices have
+build evidence; iOS/device execution is not inferred. Both original artifacts
+omit publication public bytes, so that independent replay remains unavailable.
+The upload-pattern repair is already in the later local branch and still needs
+the next permitted source-bound hosted evidence.
+
 The deliverable sought is a construction and implementation assessment of the
 declared secure-session contract: authorized establishment and communication,
 traffic-independent PQ progress, exact recovery of original operations,
