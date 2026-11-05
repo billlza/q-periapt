@@ -59,6 +59,14 @@ wrong-key rejection and exact retry after reopen. Review should keep a global
 image write, original reservation sampling and per-session `Saved` provenance
 distinct; the full refinement and accepted-prefix simulation remain open.
 
+The [ContextBound secret hop](CONTEXTBOUND_SECRET_HOP_V1.md) separately derives
+the ideal-SHA3 replacement after a valid component-secret hybrid. A Release
+probe executes the actual Rust core encoder and independently checks its 2,639
+input bytes, nested policy context and PQ-secret offset. It also distinguishes
+the component challenge-ciphertext cache from the complete combiner-input cache.
+The probe uses public serialization fixtures; it is neither an ML-KEM run nor
+the missing fixed-target reduction.
+
 The [conditional body-origin reduction](AUTHENTICATED_BODY_LEMMA_V1.md) isolates
 one authentication implication of the actual hybrid verifier and injective
 purpose/body encoding. It preserves the chosen-rnd primitive and surrounding

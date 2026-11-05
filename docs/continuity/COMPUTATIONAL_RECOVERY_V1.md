@@ -89,6 +89,14 @@ For the compression-QROM route below, this requires a complete interactive
 simulation with all oracle-dependent preparation counted, not only the displayed
 marginal relationship with a fixed classical transcript.
 
+The [ContextBound conditional hop](CONTEXTBOUND_SECRET_HOP_V1.md) now resolves
+the encoding/ideal-SHA3 step **after** the component KEM secret has validly been
+replaced by an independent uniform value. It uses the actual 2,639-byte rekey
+combiner input and retains all policy/context fields in the distinct-input cache.
+The preceding KEM simulation and shared-oracle setup remain obligations; the
+lemma does not assume that a real component secret is already independent of
+its ciphertext or oracle prefix.
+
 The complete transcript is an unsuitable fixed auxiliary value for the same
 claim. It contains a tag derived from `R`. Given a candidate root, an observer
 can compute its responder-confirmation key and test the public tag. The real
