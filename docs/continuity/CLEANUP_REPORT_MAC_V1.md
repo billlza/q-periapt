@@ -39,6 +39,64 @@ the retry path does not draw a replacement. A failure before durable commit
 does not by itself establish permanent closure. Unknown commit outcomes must
 follow the existing original-write recovery path.
 
+## Report-key storage and acquisition scope
+
+The source follow-up at `4cda512f0e2a8d5e986f49a28261bd37a74cb0bb`
+distinguishes three report families. The [provenance record](../../research/sdk-alpha1/evidence/20261105-cleanup-record-provenance/README.md)
+pins the encoders and transitions and references nine outcomes in the already
+completed full Release run. This is a source/readback audit, not a new execution
+or a proof of the complete acquisition interface.
+
+| Family | Pending key and authenticated input | Acknowledged current state | Returned report body |
+| --- | --- | --- | --- |
+| Independent session closure | Final 64-byte report/key tail of the complete `State` record; the MAC zeroes only that tail | `Retired::closed` replaces the complete private payload with the keyless terminal grammar | Session/epoch progress, counts and loss metadata |
+| Fanout abandonment | Final 64-byte report/key tail of the separate `Batch` record; its MAC reads each member session's complete payload | All member payloads become terminal records and the batch key half is zeroed in the same persisted image | Per-member progress and loss metadata |
+| Closed-epoch resolution | `Traffic::resolution_key`, before the serialized traffic keys and maps; its MAC covers counters, retained input/ciphertext/plaintext digests and skipped indices, excluding its own key | The selected old epoch's report key, traffic/ACK keys and maps are removed or zeroed; other epochs and the session control state remain | Includes original unconsumed plaintext for the authorized application |
+
+The third row is implemented in
+[`resolution.rs`](../../research/continuity-identity-candidate/src/durable/messages/resolution.rs)
+and [`traffic.rs`](../../research/continuity-identity-candidate/src/durable/messages/traffic.rs).
+Its transcript contains no rekey-control encoding directly. This does not make
+the transcript public: retained plaintext and input digests remain private.
+Only an old epoch whose sending and receiving cutovers have completed can enter
+resolution. Old-epoch operations are fenced, while current-epoch traffic may
+continue. The authorized plaintext-returning report must not be replaced by a
+metadata-only interface or silently added to an adversary's public view. The
+[existing privacy contract](METADATA_PRIVACY_V1.md#reports-and-private-correlations)
+already makes this distinction. The one-report corollary below can apply to its
+tag only after its own interface premises have been established; the earlier
+six focused executions concern the other two families.
+
+For closure, [`State::encode`](../../research/continuity-identity-candidate/src/durable/messages.rs)
+places all retained traffic entries and the control encoding before the report
+tail. For fanout, [`Batch::record`](../../research/continuity-identity-candidate/src/durable/messages/fanout/codec.rs)
+stores the report key in a different logical record from those member payloads.
+Thus an intact pending aggregate image contains both the key and the member
+state, but a batch-record fragment need not contain a member's private payload.
+Acquiring that fragment is not, by itself, a demonstrated acquisition of a
+selected-session post-Cut `Saved` state. The unchanged Snapshot predicate may
+stop an experiment only after the actual content/origin mapping has been made.
+This observation neither supplies an attack nor permits excluding report-key
+fragments by adding a new recovery condition.
+
+There is also a dependency between report families: a pending resolution key
+is serialized inside its session's traffic entry. A later closure or fanout MAC
+over that complete session payload therefore includes the earlier resolution
+key and tag. The encoders establish this inclusion; the cited executions do
+not exercise every such combination. Independent fresh key draws alone do not
+justify treating every native report row as an isolated one-key oracle. A
+multi-report proof must handle these private-key dependencies, all intermediate
+commitments and permitted acquisitions. For example, idealizing later reports
+before earlier ones is a possible proof ordering, but still requires a faithful
+transcript/validation simulator and is not asserted as a completed reduction.
+
+Acknowledgement changes the current logical state only. Original pending-write
+targets, old aggregate images, caller-owned plaintext reports, historical pages
+and backups retain their own provenance and erasure boundary. No property in
+this table removes such copies or automatically makes their later acquisition
+eligible. Conversely, a metadata-only terminal report with no retained secret
+cannot be classified as a secret acquisition merely because it has a report ID.
+
 ## Conditional one-report replacement
 
 Use the exact compression-QROM experiment and HMAC encodings from the

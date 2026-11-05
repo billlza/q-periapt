@@ -404,6 +404,12 @@ retries and the source's zero-ID error without resampling. This hop must precede
 embedding unknown KEM coins, and still requires the actual private-state and
 validation interface mapping. Six native executions support the specific report
 and closure paths; they do not complete the computational prefix bridge.
+The subsequent source audit distinguishes all three report families, including
+the authorized plaintext return of closed-epoch resolution, the separate fanout
+batch-key record and resolution keys nested inside later report transcripts.
+Those storage/dependency facts constrain the still-open acquisition and joint
+MAC simulation; they do not add a Snapshot exclusion or establish a protocol
+counterexample.
 
 ## Public-salt extraction has a specific sufficient assumption
 

@@ -125,6 +125,12 @@ and explains why the hop must precede the unknown-coin KEM embedding. Six
 Debug/Release executions cover private-state tamper rejection, rekey closure
 fences and fanout process cuts. Native acquisition and changed-transcript
 simulation remain open; this is not a completed computational proof.
+The [report-key provenance follow-up](../../research/sdk-alpha1/evidence/20261105-cleanup-record-provenance/README.md)
+maps all three report families and reuses nine outcomes from the completed full
+Release run. Review the separate fanout key record, the plaintext-returning
+closed-epoch report and the earlier resolution keys included in later report
+transcripts. These facts prevent assuming a generic Snapshot stop or independent
+MAC rows without the corresponding source and acquisition argument.
 
 The [finite two-round execution record](../../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
 also gives a source-derived exposed-ancestor witness on the unchanged symbolic
@@ -254,6 +260,12 @@ product acceptance work even when a reviewer considers their security aspects.
    lane. Its four composition traces were reread. This is installed Python with
    a source-built Rust counterpart, separate from truly installed Rust and the
    later local candidate changes.
+   The [Windows installed-lifecycle readback](../../research/sdk-alpha1/evidence/20261105-windows-installed-lifecycle/README.md)
+   retains the completed Windows 2022/2025 Debug/Release archive consumers and
+   reproduces both original public readers. It verifies the ten-crate installed
+   graph, actual DLLs and input identities at PR merge source `93aa0582`.
+   Fifty-two checked inputs differ from the later local source, so this is
+   historical platform evidence, not final-source qualification.
 5. Finish the product/ABI, capacity/maintenance and resource contracts before
    the formal engagement. The current numeric contract explicitly remains
    unfrozen; the unpublished candidate has not thereby become product ABI 2.
