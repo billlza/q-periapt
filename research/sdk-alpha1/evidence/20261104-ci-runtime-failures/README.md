@@ -323,3 +323,13 @@ the distinction between a package archive and its upload container, and keeps
 minimum-macOS execution unqualified. Counts are 298 successes, 28 failures,
 five running, one queued and two skips. Fresh 07:25 PR metadata confirms the
 same heads. The original wave remains open and no remote mutation occurred.
+
+The [07:53 readback](../20261105-ci-queued-cancellation-readback/README.md)
+records a terminal cancellation of the previously queued PR #117 merge Kotlin
+Release job: no steps or assigned runner are recorded, and no execution is
+established. The log blob is missing and the connector cannot read the linked
+check-run endpoint; the cause/actor remain unconfirmed. The 86,401-second API
+timestamp span is not runtime evidence. A separate push Kotlin Debug failure is
+the twenty-third observed old exact-142 prerequisite failure. Counts are 298
+successes, 29 failures, four running, one cancelled and two skipped. This task
+performed no cancellation or rerun; the original wave remains open.
