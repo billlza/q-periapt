@@ -182,6 +182,13 @@ closing a responder after it emitted its response imply that the live initiator
 cannot reach `FinalReady` and send. No requirement that both endpoints confirm
 is added to MAIN.
 
+The [cleanup/rekey causality check](CLEANUP_REKEY_CAUSALITY_V1.md) now executes
+actual target-epoch sends after response-ready and final-ready peer closure.
+It also distinguishes a retained ordinary freezing intent from an attempted
+close. Its conditional stopping rule concerns a matched KEM reservation still
+present in that frozen current control payload; it does not eliminate the
+failure/acquisition cases or later root/AEAD-state MAC obligations above.
+
 ## Executed correspondence checks
 
 Three existing tests each passed under Debug and Release, using Rust 1.98.1,

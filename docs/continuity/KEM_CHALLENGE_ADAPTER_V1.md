@@ -235,3 +235,10 @@ and does not condition on successful execution. Its efficient origin classifier,
 native-to-virtual comparison and random-component continuation bounds remain
 premises; the probability calculation does not establish native adaptive-target
 security by itself.
+
+The [cleanup/rekey phase argument](CLEANUP_REKEY_CAUSALITY_V1.md) supplies a
+conditional stopping case for an original freezing intent which still contains
+the selected KEM token. Actual native sends after later-phase peer closure
+rule out applying that case to cleanup in general. Its ordinary-journal,
+origin and persistence premises must be established at the observation point;
+it is not a replacement for the full native private-record refinement.
