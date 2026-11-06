@@ -114,6 +114,17 @@ and twenty memory groups. This is a host/workload-specific baseline; it does not
 freeze budgets, establish production tails or supply the remaining throughput,
 maintenance, capacity and mobile measurements.
 
+The [complete-interval throughput baseline](../../research/sdk-alpha1/evidence/20261106-installed-throughput/README.md)
+subsequently measures sixteen predeclared repeats at the same installed source,
+including surrounding queries and independent PQ updates in the denominator.
+The captured-source replay verifies all twenty cohorts including four separate
+pilots, 750 business files and 500 new altered-evidence controls, and reproduces
+twelve phase groups. Local/Witness single-session rates are 5.816/3.312
+confirmed deliveries per second; two-recipient fanout rates are 5.368/2.932,
+with retirement included. These are observed serial rates on the recorded Mac.
+Declared-load budget acceptance, maintenance/capacity and mobile measurements
+remain open; no saturation or release claim follows from these observations.
+
 The deliverable sought is a construction and implementation assessment of the
 declared secure-session contract: authorized establishment and communication,
 traffic-independent PQ progress, exact recovery of original operations,
