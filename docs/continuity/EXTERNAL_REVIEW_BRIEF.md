@@ -274,6 +274,14 @@ intent premises. Eight Debug/Release executions include original-write joint
 renewal and 32 sync-fault schedules. Raw fragments, pre-retention failures and
 later root/AEAD MAC obligations remain open; the full proof is not claimed.
 
+The [pending-offer recovery checkpoint](../../research/sdk-alpha1/evidence/20261106-pending-offer-recovery/README.md)
+preserves the prior no-offer schedules and adds committed-offer schedules through
+both Witness outcomes, staged joint authorization and exact cleanup completion.
+The MAC note separately derives a conditional prefix bound for the first zero-tag
+error, allowing later key disclosure without claiming full-transcript hiding.
+That bound is a manual argument with explicit randomness/oracle premises; native
+tests neither sample its negligible event nor close the full private-state bridge.
+
 The [finite two-round execution record](../../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
 also gives a source-derived exposed-ancestor witness on the unchanged symbolic
 model, with a separate internal semantic calculation and negative controls.

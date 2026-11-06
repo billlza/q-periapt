@@ -103,6 +103,16 @@ receipt nor permission to ignore the retained intent. The executed recovery
 tests observe this pre-/post-Witness distinction, preserve the original proposal
 and report through joint renewal, and complete the same report acknowledgement.
 
+The [pending-offer follow-up](../../research/sdk-alpha1/evidence/20261106-pending-offer-recovery/README.md)
+also starts from a committed original rekey offer. It preserves the existing
+no-offer cases and checks both original Witness outcomes in each variant.
+Source/target metadata retain the same observed progress: all active/confirmed
+epochs remain zero and the offered epoch remains one when present. Only the
+target initially names the closure. After independent joint renewal and exact
+pending-write recovery, the complete acknowledged report keeps that same ID and
+progress. These are source-bound Debug/Release executions; they do not inspect
+raw reservation coins or establish every acquisition/continuation path.
+
 ## Conditional stopping rule for the selected KEM pair
 
 Suppose a cleanup target is genuinely retained or installed in that ordinary

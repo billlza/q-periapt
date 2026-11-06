@@ -158,6 +158,71 @@ bounded hybrid with the same public oracle, all other honest computations and
 their possible key aliases; this one-report statement does not declare the
 actual keys or all report answers jointly independent.
 
+## A prefix bound for the zero-tag failure
+
+The first nonzero-ID check needs a separate argument if a later reduction cannot
+compute a hidden transcript. Merely observing that no report was returned does
+not remove that check. A narrower consequence of the preceding corollary bounds
+this particular failure without requiring that the report key remain hidden
+afterward.
+
+Fix a finite budget of `N` fresh report-key invocations, indexed before execution.
+These are proof resources, not a new SDK lifetime limit. Exact retries of a
+retained report keep its invocation; a fresh attempt after definite absence gets
+a new one. For invocation `i`, suppose its successful 32-byte key draw is uniform
+and independent of the compression oracle and preceding state, and that no raw
+key, midstate or other fresh-key-dependent channel is available through its
+**first MAC evaluation and nonzero check**. Its complete input excludes its own
+fresh key, as the closure and fanout encodings above require. Entropy failures
+and invocations never reached retain their real behavior and produce no such MAC.
+
+Let `BadZero_i` mean that this first computed tag exists and is zero. Run a
+prefix distinguisher which reproduces the entire preparation up to this
+invocation, makes at most one classical report query, outputs that zero test,
+and stops immediately. No later acquisition needs to be simulated in this
+distinguisher. All earlier oracle work, including other keys' reports and
+disclosures, belongs in its `q_i` query budget. The comparison is between whole
+prefix experiments; it is **not** a pointwise assertion conditioned on a fixed
+oracle-dependent history. This comparison precedes the unknown-coin KEM hop,
+while the reduction can construct the real chosen transcript. It does not supply
+a missing native serialization algorithm after that hop.
+
+With transcript bound `L_i`, put `ell_i = 1 + ceil((L_i+9)/64)` and use the
+same length domain and error functions as above. The one-query instance gives
+
+```text
+epsilon_i = min(1, DFH(2, q_i + ell_i) + E_NMAC(1, q_i, ell_i))
+Pr[BadZero_i] <= 2^-256 + epsilon_i
+Pr[any BadZero_i] <= min(1, N * 2^-256 + sum_i epsilon_i).
+```
+
+To see the first inequality, compare the prefix's output bit with the ideal
+one-query interface. An absent invocation outputs zero. Otherwise its first
+table answer is independent uniform, even when the transcript was chosen using
+the prior public-oracle interaction. Its chance of zero is therefore at most
+`2^-256`; the prefix distinguishing error adds `epsilon_i`. Union bound in the
+real experiment gives the second inequality. No independence between the
+different `BadZero_i` events is assumed, and there is no division by a success
+or eligibility probability. This is a restricted-prefix application of
+[DFH Theorem 2](https://arxiv.org/pdf/2206.08132) and
+[Hosoyamada–Iwata Proposition 6](https://eprint.iacr.org/2021/774.pdf), through the
+preceding corollary; neither paper states this native cleanup result.
+
+Later key/record disclosure cannot retroactively change this already-evaluated
+event. It can still destroy full-transcript MAC hiding, as the recomputation
+example below shows. Thus this prefix bound does not justify replacing all later
+tags, manufacturing a nonzero tag, ignoring acquired fragments, or stopping on
+every cleanup error. It may be charged in a later proof only once the other
+branches and required simulation have been established. No numerical security
+level is inferred from the cited asymptotic constants. The runtime keeps its
+actual zero-ID error, without resampling; finite tests do not observe or prove
+the probability of this event.
+
+The [source and recovery checkpoint](../../research/sdk-alpha1/evidence/20261106-pending-offer-recovery/README.md)
+retains this manual argument with the unchanged report-construction sources.
+Its native tests cover actual pending-write recovery with an original offer;
+they are separate evidence and do not validate the probability bound.
+
 ## Where this can enter the KEM adapter
 
 The ordering matters. While the simulator still knows the real reservation
