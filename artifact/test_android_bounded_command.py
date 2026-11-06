@@ -119,6 +119,113 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             maximum_stderr_bytes=65536, environment=environment,
         )
 
+
+    def _failure_summary(self, leaf: str, data: bytes) -> tuple[str, dict[str, object]]:
+        path = self.proof / leaf
+        path.write_bytes(data)
+        path.chmod(0o600)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(commands.main([
+                "report-failure-diagnostic", "--run-id", self.run_id, "--leaf", leaf,
+            ]), 0)
+        self.assertEqual(path.read_bytes(), data)
+        encoded = output.getvalue()
+        self.assertLessEqual(len(encoded.encode("ascii")), commands.FAILURE_DIAGNOSTIC_OUTPUT_LIMIT)
+        self.assertEqual(encoded.count("\n"), 1)
+        self.assertTrue(encoded.startswith("ANDROID_FAILURE_DIAGNOSTIC "))
+        return encoded, json.loads(encoded.split(" ", 1)[1])
+
+    def test_failure_summary_keeps_public_reason_and_redacts_guest_payload(self) -> None:
+        self.create_capability(device_kind="emulator", expected_serial="emulator-5584")
+        secret = "private-payload\x1b[31m\n::error::not-a-workflow-command"
+        record = {
+            "operation": "installed-apk-path", "stage": "before-copy",
+            "failure": "unavailable", "returncode": 1, "output_bytes": 12,
+            "output_sha256": "b" * 64, "output": secret,
+        }
+        unknown = b"error: Android bounded command: private-key-contents"
+        data = (
+            json.dumps(record).encode() + b"\n" + unknown + b"\n"
+            b"error: Android bounded command: owned adb server validation deadline expired\n"
+        )
+        encoded, summary = self._failure_summary("adb-package-postinstall-attempt-13.err", data)
+        self.assertNotIn("private-payload", encoded)
+        self.assertNotIn("private-key-contents", encoded)
+        self.assertNotIn("::error::", encoded)
+        self.assertEqual(summary["redacted_lines"], 1)
+        self.assertTrue(summary["entries"][0]["fields_redacted"])
+        self.assertEqual(summary["entries"][1], {
+            "redacted": True, "bytes": len(unknown),
+            "sha256": hashlib.sha256(unknown).hexdigest(),
+        })
+        self.assertEqual(summary["entries"][-1]["error"],
+                         "owned adb server validation deadline expired")
+        self.assertEqual(summary["input_sha256"], hashlib.sha256(data).hexdigest())
+        self.assertFalse(summary["truncated"])
+
+    def test_failure_summary_keeps_bounded_complete_journal_tail(self) -> None:
+        self.create_capability(device_kind="emulator", expected_serial="emulator-5584")
+        rows = [
+            f"phase=cleanup invocation=1 attempt={i} state=retryable reason=query-timeout consecutive=0"
+            for i in range(1, 66)
+        ]
+        rows.append("phase=cleanup invocation=1 attempt=66 state=retryable reason=private-secret")
+        data = ("\n".join(rows) + "\n").encode()
+        encoded, summary = self._failure_summary("adb-package-state-observation.log", data)
+        self.assertEqual(len(summary["entries"]), 16)
+        self.assertEqual(summary["entries"][0]["attempt"], "51")
+        self.assertEqual(summary["entries"][-2]["attempt"], "65")
+        self.assertTrue(summary["entries"][-1]["redacted"])
+        self.assertNotIn("private-secret", encoded)
+        self.assertEqual(summary["omitted_entries"], 50)
+        self.assertTrue(summary["truncated"])
+
+    def test_failure_summary_refuses_other_leaves_and_link_aliases(self) -> None:
+        self.create_capability(device_kind="emulator", expected_serial="emulator-5584")
+        leaf = "adb-package-postinstall-attempt-1.err"
+        target = self.proof / "private-source"
+        target.write_bytes(b"private fixture")
+        target.chmod(0o600)
+        for forbidden in ("../private-source", "adbkey", "adb-install.log",
+                          "adb-package-postinstall-attempt-0.err"):
+            with self.subTest(leaf=forbidden), contextlib.redirect_stdout(io.StringIO()) as output:
+                with self.assertRaises(commands.AndroidCommandError):
+                    commands.report_failure_diagnostic(self.run_id, forbidden)
+                self.assertEqual(output.getvalue(), "")
+        selected = self.proof / leaf
+        for kind in ("symlink", "hardlink"):
+            with self.subTest(kind=kind):
+                if kind == "symlink":
+                    selected.symlink_to(target)
+                else:
+                    os.link(target, selected)
+                try:
+                    with contextlib.redirect_stdout(io.StringIO()) as output:
+                        with self.assertRaises((commands.EvidenceIOError, state.AndroidRuntimeStateError)):
+                            commands.report_failure_diagnostic(self.run_id, leaf)
+                        self.assertEqual(output.getvalue(), "")
+                    self.assertEqual(target.read_bytes(), b"private fixture")
+                finally:
+                    selected.unlink()
+
+    def test_failure_summary_suppresses_physical_and_rejects_oversize_input(self) -> None:
+        leaf = "adb-package-postinstall-attempt-1.err"
+        selected = self.proof / leaf
+        selected.write_bytes(b"private physical device response")
+        selected.chmod(0o600)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            commands.report_failure_diagnostic(self.run_id, leaf)
+        self.assertEqual(output.getvalue(), "")
+        self.create_capability(device_kind="emulator", expected_serial="emulator-5584")
+        selected.write_bytes(b"x" * (commands.FAILURE_DIAGNOSTIC_INPUT_LIMIT + 1))
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            with self.assertRaises(commands.EvidenceIOError):
+                commands.report_failure_diagnostic(self.run_id, leaf)
+        self.assertEqual(output.getvalue(), "")
+        self.assertEqual(selected.stat().st_size, commands.FAILURE_DIAGNOSTIC_INPUT_LIMIT + 1)
+
+
     def test_shared_adb_profile_policy_rejects_non_text_and_unknown_values(
         self,
     ) -> None:

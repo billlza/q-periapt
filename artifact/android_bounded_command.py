@@ -53,6 +53,7 @@ from evidence_io import (
     consume_regular_snapshot_at,
     load_json_object_snapshot,
     load_json_object_snapshot_at,
+    parse_strict_json_bytes,
     read_regular_snapshot,
 )
 from process_identity import (
@@ -4557,6 +4558,178 @@ def invoke_operation(
     _fail(f"unsupported Android command mode: {spec.mode}")
 
 
+
+FAILURE_DIAGNOSTIC_INPUT_LIMIT = 256 * 1024
+FAILURE_DIAGNOSTIC_OUTPUT_LIMIT = 8192
+FAILURE_DIAGNOSTIC_LINE_LIMIT = 16
+_FAILURE_OBSERVATION_LEAF = re.compile(
+    r"adb-package-(?:postinstall|cleanup-[1-9][0-9]{0,5})-attempt-[1-9][0-9]{0,5}\.err"
+)
+_FAILURE_JOURNAL_LEAF = "adb-package-state-observation.log"
+_FAILURE_PUBLIC_REASONS = frozenset({
+    "owned adb server validation deadline expired",
+    "owned adb server validation deadline is not finite",
+    "owned adb server exited before client operation",
+    "owned adb server socket disappeared before client operation",
+    "owned adb server listener disappeared before client operation",
+    "owned adb server listener inspection failed",
+    "owned adb server listener output is not UTF-8",
+    "owned adb server receipt lacks executable identity",
+    "owned adb server initial executable identity changed",
+    "owned adb server execed an unexpected executable",
+    "owned adb server snapshot identity changed",
+    "private adb socket directory identity or mode changed",
+    "cannot reconcile adb sealing before the exact adb exec",
+    "cannot reconcile adb sealing without the exact live listener",
+    "bound adb listener changed before socket-directory sealing",
+    "installed Android package path is ambiguous",
+    "installed Android base APK path is unsafe",
+    "installed Android base APK path is non-canonical",
+    "installed Android smoke APK copy is not one private regular file",
+    "installed Android APK observation produced no result",
+    "Android device table is not ASCII",
+    "Android device table header is malformed",
+    "Android private device table is ambiguous",
+    "Android private device table contains an unexpected serial",
+    "Android private device state is malformed",
+})
+_FAILURE_FIELD_PATTERNS = {
+    "phase": r"preinstall|postinstall|cleanup",
+    "invocation": r"[1-9][0-9]{0,5}",
+    "attempt": r"[1-9][0-9]{0,5}",
+    "consecutive": r"[0-9]{1,6}",
+    "exit": r"[0-9]{1,3}",
+    "state": r"absent|present|exact|retryable|structural-error",
+    "path_sha256": r"[0-9a-f]{64}",
+    "reason": (
+        r"query-nonzero|query-timeout|device-unavailable|package-unavailable|"
+        r"transport-absent|pull-failed|path-changed|bytes-mismatch|deadline-exhausted|"
+        r"transport-inconclusive|registration-failed|post-state-unavailable"
+    ),
+    "uninstall": r"still-present-after-request|unknown-or-failed|request-returned-zero",
+    "transport-recovery": r"recovered|race-device|retryable|structural-error",
+    "recovery-observation": (
+        r"deadline-exhausted|capture-emulator-recovery-state|capture-emulator-recovery-logcat"
+    ),
+}
+
+
+def _failure_diagnostic_entry(line: bytes, *, journal: bool) -> dict[str, object] | None:
+    """Select public, code-owned reasons; never print arbitrary guest output."""
+    if journal:
+        try:
+            fields: dict[str, str] = {}
+            for token in line.decode("ascii").split(" "):
+                key, value = token.split("=", 1)
+                if key in fields or key not in _FAILURE_FIELD_PATTERNS:
+                    return None
+                if re.fullmatch(_FAILURE_FIELD_PATTERNS[key], value) is None:
+                    return None
+                fields[key] = value
+            if not {"phase", "invocation", "attempt"} <= fields.keys():
+                return None
+            return fields
+        except (UnicodeError, ValueError):
+            return None
+    prefix = b"error: Android bounded command: "
+    if line.startswith(prefix):
+        reason = line[len(prefix):].decode("ascii", errors="replace")
+        if reason in _FAILURE_PUBLIC_REASONS or re.fullmatch(
+            r"command timed out after [1-9][0-9]{0,3} seconds", reason
+        ):
+            return {"error": reason}
+        return None
+    try:
+        record = parse_strict_json_bytes(line, label="Android failure diagnostic")
+    except EvidenceIOError:
+        return None
+    if not isinstance(record, dict):
+        return None
+    allowed_text = {
+        "operation": {"installed-apk-path", "package-state", "installed-apk-copy"},
+        "stage": {"before-copy", "after-copy", "observation"},
+        "failure": {"timeout", "unavailable", "malformed", "bytes-mismatch"},
+    }
+    selected: dict[str, object] = {}
+    for key, value in record.items():
+        if key in allowed_text and type(value) is str and value in allowed_text[key]:
+            selected[key] = value
+        elif key in {"returncode", "remote_returncode"} and type(value) is int:
+            if -(2 ** 31) <= value < 2 ** 31:
+                selected[key] = value
+        elif key in {"output_bytes", "observed_bytes", "expected_bytes"} and type(value) is int:
+            if 0 <= value <= runtime_state.MAX_APK_BYTES:
+                selected[key] = value
+        elif key in {"output_sha256", "observed_sha256", "expected_sha256"}:
+            if type(value) is str and re.fullmatch(r"[0-9a-f]{64}", value):
+                selected[key] = value
+    if not {"operation", "failure"} <= selected.keys():
+        return None
+    if set(selected) != set(record):
+        selected["fields_redacted"] = True
+    return selected
+
+
+def report_failure_diagnostic(run_id: str, leaf: str) -> None:
+    """Emit at most 8 KiB from fixed emulator diagnostic leaves, without adb."""
+    _require(
+        leaf == _FAILURE_JOURNAL_LEAF or _FAILURE_OBSERVATION_LEAF.fullmatch(leaf) is not None,
+        "unsupported Android failure diagnostic leaf",
+    )
+    layout = runtime_state.AndroidRunLayout.from_run_id(run_id)
+    capability = runtime_state.load_capability(run_id)
+    if capability.device_kind != "emulator":
+        return
+    chunks: list[bytes] = []
+    descriptor = runtime_state.open_private_directory(layout.proof, "Android failure proof")
+    primary: BaseException | None = None
+    try:
+        snapshot = consume_regular_snapshot_at(
+            descriptor, leaf, display_path=layout.proof / leaf,
+            maximum=FAILURE_DIAGNOSTIC_INPUT_LIMIT,
+            label="Android failure diagnostic",
+            consume=chunks.append,
+            validate_metadata=runtime_state.private_file_metadata,
+        )
+    except BaseException as error:
+        primary = error
+        raise
+    finally:
+        runtime_state.close_descriptor(
+            descriptor, label="Android failure proof", primary=primary
+        )
+    lines = b"".join(chunks).splitlines()
+    entries = []
+    redacted = 0
+    for line in lines:
+        entry = _failure_diagnostic_entry(line, journal=leaf == _FAILURE_JOURNAL_LEAF)
+        if entry is None:
+            redacted += 1
+            entry = {
+                "redacted": True, "bytes": len(line),
+                "sha256": hashlib.sha256(line).hexdigest(),
+            }
+        entries.append(entry)
+    omitted = max(0, len(entries) - FAILURE_DIAGNOSTIC_LINE_LIMIT)
+    entries = entries[-FAILURE_DIAGNOSTIC_LINE_LIMIT:]
+    report = {
+        "schema": 1, "run_id": run_id, "leaf": leaf,
+        "input_bytes": snapshot.size, "input_sha256": snapshot.sha256,
+        "redacted_lines": redacted, "omitted_entries": omitted,
+        "truncated": omitted > 0, "entries": entries,
+    }
+    while True:
+        encoded = "ANDROID_FAILURE_DIAGNOSTIC " + json.dumps(
+            report, ensure_ascii=True, sort_keys=True, separators=(",", ":")
+        ) + "\n"
+        if len(encoded.encode("ascii")) <= FAILURE_DIAGNOSTIC_OUTPUT_LIMIT:
+            break
+        entries.pop(0)
+        report["omitted_entries"] += 1
+        report["truncated"] = True
+    sys.stdout.write(encoded)
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
@@ -4626,6 +4799,9 @@ def _build_parser() -> argparse.ArgumentParser:
     for command in (emulator, runtime_avd):
         command.add_argument("--runtime-profile", choices=tuple(runtime_state.RUNTIME_PROFILES),
                              default=runtime_state.DEFAULT_RUNTIME_PROFILE)
+    failure_diagnostic = sub.add_parser("report-failure-diagnostic")
+    failure_diagnostic.add_argument("--run-id", required=True)
+    failure_diagnostic.add_argument("--leaf", required=True)
     sub.add_parser("avd-home-path")
     isolation = sub.add_parser("record-adb-isolation-checkpoint")
     isolation.add_argument("--run-id", required=True)
@@ -4669,6 +4845,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str]) -> int:
     args = _build_parser().parse_args(argv)
+    if args.action == "report-failure-diagnostic":
+        report_failure_diagnostic(args.run_id, args.leaf)
+        return 0
     if args.action == "create-capability":
         create_capability_with_deferred_signals(
             adb_profile=args.adb_profile,
