@@ -40,6 +40,13 @@ the existing account-root remapping policy. This is not an APK/ART/device result
 or Continuity ABI 2 admission. The existing accepted phone remains sufficient
 for the task's applicable device validation.
 
+The [current C/OpenSSL pair](../../research/sdk-alpha1/evidence/20261106-current-c-openssl/README.md)
+independently replays both completed C components at the same source: server 146,
+client 2, native-TLS 146 and four pre-store refusal cases per profile. Actual
+installed trees and binaries are bound, and the public capsule replays without
+private state. Its 28 altered-evidence controls supplement the original P0
+regression. The surrounding JNI runs and final hosted candidate remain separate.
+
 The [historical hosted Swift pair](../../research/sdk-alpha1/evidence/20261105-hosted-swift-pair/README.md)
 now has matching package/native-library verification and selected public rereads
 at `232ace`, including the Rust 1.90 root lane. Its three arm64 Apple slices have
