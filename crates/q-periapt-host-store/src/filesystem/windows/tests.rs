@@ -111,7 +111,10 @@ fn managed_attempt_primitives(root: &Path) -> Result<(), Box<dyn std::error::Err
     assert_eq!(isolated, expected);
     let bounded = primitive("enumerate-one-entry", ops::directory_entries(&control, 1))?;
     assert_eq!(bounded.len(), 1);
-    for stage in ["enumerate-after-bounded-cursor", "enumerate-new-cursor-again"] {
+    for stage in [
+        "enumerate-after-bounded-cursor",
+        "enumerate-new-cursor-again",
+    ] {
         let mut entries = primitive(stage, ops::directory_entries(&control, 8))?;
         entries.sort();
         assert_eq!(entries, expected, "{stage}");
@@ -122,7 +125,11 @@ fn managed_attempt_primitives(root: &Path) -> Result<(), Box<dyn std::error::Err
     )?;
     primitive(
         "same-payload-directory",
-        ops::same_directory(&control, OsStr::new("payload-directory"), &payload_directory),
+        ops::same_directory(
+            &control,
+            OsStr::new("payload-directory"),
+            &payload_directory,
+        ),
     )?;
     // Only this test owns these child handles. Close them before directory rename
     // while retaining the original directory pin, as Windows publication requires.
