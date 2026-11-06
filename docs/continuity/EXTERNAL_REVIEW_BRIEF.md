@@ -104,6 +104,16 @@ are pre-provisioned, and concurrent host-JNI work prevents a performance-budget
 claim. Larger declared fanout capacity and the remaining resource contract stay
 open.
 
+The [subsequent repeated resource baseline](../../research/sdk-alpha1/evidence/20261106-resource-repeats/README.md)
+retains sixteen predeclared cohorts after host-JNI completion: 1,560 spans and
+600 durable business files, with no other qualification process in the recorded
+censuses. All samples remain, including higher-load intervals and the recorder
+failure before a verified continuation of the original order. Captured-source
+replay independently checks all sixteen cohorts and recomputes ninety operation
+and twenty memory groups. This is a host/workload-specific baseline; it does not
+freeze budgets, establish production tails or supply the remaining throughput,
+maintenance, capacity and mobile measurements.
+
 The deliverable sought is a construction and implementation assessment of the
 declared secure-session contract: authorized establishment and communication,
 traffic-independent PQ progress, exact recovery of original operations,
