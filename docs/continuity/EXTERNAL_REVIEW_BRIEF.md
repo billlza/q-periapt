@@ -40,6 +40,13 @@ the existing account-root remapping policy. This is not an APK/ART/device result
 or Continuity ABI 2 admission. The existing accepted phone remains sufficient
 for the task's applicable device validation.
 
+The same AAR's [minified AGP consumer](../../research/sdk-alpha1/evidence/20261106-current-android-apk/README.md)
+subsequently passes strict compilation, R8 and release packaging. Actual APK
+inspection preserves all 23 JNI methods and three callbacks, the original native
+library bytes and 16 KiB ZIP alignment. Both failed diagnostic preparations are
+retained. This unsigned build contains no runtime input bundle and has not run
+under ART or on the phone; it does not complete those separate acceptance steps.
+
 The [current C/OpenSSL pair](../../research/sdk-alpha1/evidence/20261106-current-c-openssl/README.md)
 independently replays both completed C components at the same source: server 146,
 client 2, native-TLS 146 and four pre-store refusal cases per profile. Actual

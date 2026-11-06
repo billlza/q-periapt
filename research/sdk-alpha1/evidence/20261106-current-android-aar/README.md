@@ -103,3 +103,7 @@ package. The candidate still uses `qpc-owner/1` and version `0.0.0`. Actual APK
 consumption, applicable shrinker/runtime boundaries and the accepted phone's
 necessary final-change validation remain open, alongside the full release
 requirements. No second phone, API 36 requirement or device action is introduced.
+
+The subsequent [minified APK checkpoint](../20261106-current-android-apk/README.md)
+consumes these exact AAR bytes and closes the build/DEX/native-retention/ZIP-alignment
+step. Its unsigned APK still has no ART or physical-device execution result.
