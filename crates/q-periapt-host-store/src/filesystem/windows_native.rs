@@ -51,9 +51,8 @@ fn status(result: i32) -> io::Result<()> {
         Ok(())
     } else {
         // SAFETY: this routine translates a scalar NT status and borrows no memory.
-        let error = io::Error::from_raw_os_error(
-            unsafe { RtlNtStatusToDosError(result) } as i32,
-        );
+        let code = unsafe { RtlNtStatusToDosError(result) } as i32;
+        let error = io::Error::from_raw_os_error(code);
         #[cfg(test)]
         eprintln!(
             "private Windows native failure at {}: ntstatus={result:#010x}, error={error:?}",
@@ -616,7 +615,8 @@ pub(super) fn directory_entries_preserve_cursor_for_test(
         || completion.Information < start + usize::from(bytes)
         || completion.Information > size_of_val(&buffer)
     {
-        return Err(io::Error::other("original directory filter was not honored"));
+        let error = io::Error::other("original directory filter was not honored");
+        return Err(error);
     }
     // SAFETY: the complete bounded name lies within the initialized aligned buffer.
     let actual = unsafe {
@@ -626,7 +626,8 @@ pub(super) fn directory_entries_preserve_cursor_for_test(
         )
     };
     if actual != filter.as_slice() {
-        return Err(io::Error::other("original directory filter was not honored"));
+        let error = io::Error::other("original directory filter was not honored");
+        return Err(error);
     }
 
     // Windows captures FileName on the first query for a file object. Duplicating
@@ -636,9 +637,8 @@ pub(super) fn directory_entries_preserve_cursor_for_test(
     let result = query(&mut completion, &mut buffer, ptr::null(), false);
     if result != STATUS_NO_MORE_FILES {
         status(result)?;
-        return Err(io::Error::other(
-            "independent scan changed original directory cursor",
-        ));
+        let error = io::Error::other("independent scan changed original directory cursor");
+        return Err(error);
     }
     Ok(entries)
 }
