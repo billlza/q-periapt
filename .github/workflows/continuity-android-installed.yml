@@ -83,11 +83,13 @@ jobs:
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
           SDK_REPORT_SHA256: ${{ steps.sdk.outputs.sdk_report_sha256 }}
+          SDK_RUN_ID: ${{ steps.sdk.outputs.sdk_run_id }}
           CONTINUITY_BUILD_PROFILE: ${{ matrix.profile }}
         run: |
           sh artifact/python-run.sh artifact/continuity_package.py \
             --report target/continuity-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json \
             --report-sha256 "$SDK_REPORT_SHA256" \
+            --sdk-run-id "$SDK_RUN_ID" \
             --toolchain-root "$(rustc +1.98.1 --print sysroot)" \
             --build-profile "$CONTINUITY_BUILD_PROFILE" \
             --with-c-consumer --with-android-jni-consumer --android-java-home "$JAVA_HOME" \

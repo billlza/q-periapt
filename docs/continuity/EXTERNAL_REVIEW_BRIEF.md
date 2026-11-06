@@ -296,6 +296,25 @@ and one fresh encapsulation cannot replace the post-Cut-generation condition.
 Its matching SDK schedule reuses the recorded full Release test; neither a
 new Tamarin certificate nor complete implementation correspondence is claimed.
 
+## Current hosted Windows cohort (2026-11-06)
+
+The later Windows correction now has hosted native and installed evidence at
+branch source `453eef21f83c55cc7376e0334c0f550b45cbe2a8`. Its PR checkout
+`73c0f1c3724fdfe1840fa2af4a35052a9c1a4b3e` shares Git tree
+`b2567159818b7ecd9af38435c635dfb2e9ea02a4`. The
+[push native job](https://github.com/billlza/q-periapt/actions/runs/42278645393/job/128101917611)
+and [PR native job](https://github.com/billlza/q-periapt/actions/runs/42278671314/job/128101798720)
+each pass all 44 host-store tests. The
+[installed workflow](https://github.com/billlza/q-periapt/actions/runs/42278671214)
+passes all eight jobs, including all four Windows 2022/2025 Debug/Release Rust/C
+lifecycle partitions and both independent public readbacks.
+
+These results close the Windows runtime gap for this input tree. The older
+`93aa0582` installed receipt remains historical and is not relabelled as the
+current source. The other platform jobs, complete final CI, formal contract
+admission and source-bound external review remain separate obligations. This
+cohort must be included when selecting the exact review revision.
+
 ## Handoff to 魏庄坤教授
 
 The handoff should identify one exact review revision and provide a short reading
@@ -319,7 +338,7 @@ close the external-review gate or authorize a release transaction.
 | Do the symbolic claims support the declared construction? | [Joint replay](../../research/sdk-alpha1/evidence/20261104-multi-epoch-replay/README.md), pinned models, tools and complete query inventory. MAIN and 24 reusable dependencies passed; 13 other queries remain incomplete. | Separate symbolic validity, multi-round execution witnesses, computational composition and implementation correspondence. Preserve unsuccessful branches and the original query contracts. |
 | Are bytes bound to the right identity, purpose and operation? | [Wire contract](WIRE_V1.md), [compiled descriptor](../../research/continuity-identity-candidate/src/contract.rs), [signed envelopes](../../research/continuity-identity-candidate/src/crypto.rs), [owner/authority boundaries](PRODUCT_ADMISSION.md). | Identify an accepted wrong encoding, purpose, identity, policy, service, request or operation; or explain the checked construction and its assumptions. Include implicit rejection and old KAT compatibility. |
 | Are state changes durable, atomic and recoverable? | [Storage contract](STORAGE_RECOVERY_V1.md), [state machine](STATE_MACHINE_V1.md), [write intents](../../research/continuity-identity-candidate/src/durable/write_intent.rs), [protected storage](../../crates/q-periapt-host-store/src/filesystem.rs). | Trace commit/release ordering, cancellation, concurrent updates and unknown outcomes. Preserve original IDs/results and independently committed application effects. Distinguish injected faults, process termination and physical power-loss claims. |
-| Can unpublished state be reclaimed without reaching a formal installation? | [Versioned maintenance contract](../PRIVATE_PUBLICATION_MAINTENANCE.md), [continuous attempt lease](../../crates/q-periapt-host-store/src/filesystem/maintenance/attempt.rs), [whole-payload admission](../../crates/q-periapt-host-store/src/filesystem/maintenance/tree.rs), and [installed command evidence](../../research/sdk-alpha1/evidence/20261104-managed-publication-maintenance/README.md). | Check original parent/control/lease/payload identity, exclusive ownership through publication, complete preflight before removal, partial-cleanup recovery and exact result replay. A checksum is not authorization; `NoPayload` does not authorize reprovisioning. Legacy/incomplete controls and actual Windows/NTFS qualification remain separate. |
+| Can unpublished state be reclaimed without reaching a formal installation? | [Versioned maintenance contract](../PRIVATE_PUBLICATION_MAINTENANCE.md), [continuous attempt lease](../../crates/q-periapt-host-store/src/filesystem/maintenance/attempt.rs), [whole-payload admission](../../crates/q-periapt-host-store/src/filesystem/maintenance/tree.rs), and [installed command evidence](../../research/sdk-alpha1/evidence/20261104-managed-publication-maintenance/README.md). | Check original parent/control/lease/payload identity, exclusive ownership through publication, complete preflight before removal, partial-cleanup recovery and exact result replay. A checksum is not authorization; `NoPayload` does not authorize reprovisioning. Legacy/incomplete controls remain separate. Assess Windows/NTFS against the [current hosted cohort](#current-hosted-windows-cohort-2026-11-06). |
 | Are current authorization and retained history kept distinct? | [Roster admission](../../research/continuity-identity-candidate/src/durable/rosters.rs), [Witness admission](../../research/continuity-identity-candidate/src/durable/anchoring.rs), [directory ledger](../../research/continuity-reference-app/src/directory_ledger.rs), [CLI](../../research/continuity-reference-app/src/bin/q-periapt-prekey-directory.rs). | Check authorization before and after relevant I/O and release. Historical signature validity must not imply current permission, lack of cancellation, consumption or delivery. |
 | Does Witness handoff preserve every required stage and original operation? | Existing [handoff implementation](../../research/continuity-identity-candidate/src/anchor/store/handoff.rs), [source](../../research/continuity-identity-candidate/src/anchor/store/handoff_source.rs), [import](../../research/continuity-identity-candidate/src/anchor/store/handoff/import.rs), [retirement](../../research/continuity-identity-candidate/src/anchor/store/handoff/retirement.rs), [activation](../../research/continuity-identity-candidate/src/anchor/store/handoff/import/activation.rs) and [history](../../research/continuity-identity-candidate/src/anchor/store/handoff/history.rs). | Treat source freeze, target import, source retirement, target activation, client persistent choice and current communication authorization separately. Review repeated transfers, root replacement and relevant cancellation/expiry/revocation/unknown-result interleavings. |
 | Does the supported API preserve ownership and failure semantics? | [Product admission boundary](PRODUCT_ADMISSION.md), the [candidate C owner](../../bindings/c/ContinuityPackageConsumer/src/lib.rs), [base ABI 2 header](../../crates/q-periapt-ffi/include/q_periapt.h), and the supported language/platform consumers. | Identify concrete owner, thread, cancellation, callback, lifetime or error-mapping violations. Base SDK ABI 2 and an unpublished candidate interface are different admission states. Shared-core evidence may be reused with explicit binding-specific coverage. |

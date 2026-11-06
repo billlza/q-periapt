@@ -15,6 +15,31 @@ emulator is not required, and their absence does not make those results
 insufficient or untrustworthy. Subsequent software changes use the same phone for
 relevant regression checks; those checks do not reopen a hardware-count gate.
 
+## Hosted Windows qualification (2026-11-06)
+
+The Windows runtime gap recorded by earlier checkpoints is closed for source
+`453eef21f83c55cc7376e0334c0f550b45cbe2a8`. The PR checkout
+`73c0f1c3724fdfe1840fa2af4a35052a9c1a4b3e` has the same Git tree,
+`b2567159818b7ecd9af38435c635dfb2e9ea02a4`; the two commit identities remain
+distinct in the execution receipts.
+
+Both original main-workflow Windows jobs pass all 44 native host-store tests:
+[push](https://github.com/billlza/q-periapt/actions/runs/42278645393/job/128101917611)
+and [PR](https://github.com/billlza/q-periapt/actions/runs/42278671314/job/128101798720).
+The process-cut publication test, substituted-payload refusal and handle-based
+directory tests all pass with their original safety assertions.
+
+The [installed Windows workflow](https://github.com/billlza/q-periapt/actions/runs/42278671214)
+also passes all eight jobs: SDK production, preparation, four installed native
+Rust/C lifecycle partitions (Windows 2022/2025, Debug/Release), and both independent
+public-readback jobs. These hosted results qualify this Windows cohort. Earlier
+failed jobs and historical package cohorts retain their own outcomes and inputs.
+
+This update does not mark the surrounding main CI wave complete. Protocol,
+product ABI and resource-contract admission and the external security review
+still follow the existing release scope; the source and package identities must
+be reconciled again for the final candidate.
+
 ## What the installed consumers currently establish
 
 The unpublished [Android JNI adapter](../../bindings/android/ContinuityPackageConsumer/README.md)
@@ -759,9 +784,10 @@ It also records 1,488 candidate tests and 31 sealed-SDK tests per native profile
 unfiltered Release and the complete existing Debug partition union. The original
 90-minute job budgets and captured source inputs remain unchanged.
 The earlier 600-second diagnostic observations remain timed out; their focused
-88-case result was not an aggregate pass. Windows runtime, other supported
-platform consumers, legacy-residue disposition and final
-product admission remain separate.
+88-case result was not an aggregate pass. At that checkpoint, Windows runtime,
+other supported platform consumers, legacy-residue disposition and final product
+admission remained separate. The later [hosted Windows qualification](#hosted-windows-qualification-2026-11-06)
+closes that cohort's Windows runtime gap.
 
 The subsequent [complete installed Rust/C checkpoint](../../research/sdk-alpha1/evidence/20261104-continuity-c-maintenance/README.md)
 passes both existing profiles on Apple Silicon with the same maintenance SDK
