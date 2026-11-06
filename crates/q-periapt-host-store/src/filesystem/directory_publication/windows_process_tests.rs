@@ -21,10 +21,12 @@ fn windows_directory_process_child() -> Result<()> {
         return Ok(());
     };
     let parent = PathBuf::from(root);
+    let signal_root = std::env::var_os("QPC_DIRECTORY_CUT_SIGNAL_ROOT");
+    let signal_root = PathBuf::from(signal_root.ok_or("missing cut signal root")?);
     let wanted = std::env::var("QPC_DIRECTORY_CUT_STAGE")?;
     publish_with(&parent.join("installation"), prepare, |stage, _| {
         if format!("{stage:?}") == wanted {
-            publish_private_bytes(&parent.join("ready"), wanted.as_bytes())
+            publish_private_bytes(&signal_root.join("ready"), wanted.as_bytes())
                 .map_err(io::Error::other)?;
             let deadline = Instant::now() + Duration::from_secs(30);
             while Instant::now() < deadline {
@@ -37,7 +39,7 @@ fn windows_directory_process_child() -> Result<()> {
         }
         Ok(())
     })?;
-    publish_private_bytes(&parent.join("returned"), b"unexpected return")?;
+    publish_private_bytes(&signal_root.join("returned"), b"unexpected return")?;
     Err("cut child returned without termination".into())
 }
 
@@ -51,14 +53,18 @@ fn windows_directory_process_cuts_preserve_publication_state() -> Result<()> {
     ] {
         let temporary = directory()?;
         let root = temporary.path();
+        // Keep signal publication crash remnants outside the directory under test.
+        let signal_temporary = directory()?;
+        let signal_root = signal_temporary.path();
         let log = fs::File::create_new(root.join("child.log"))?;
         let label = format!("{cut:?}");
         let mut child = ChildGuard(Command::new(std::env::current_exe()?)
             .args(["--exact", "filesystem::directory_publication::windows_tests::process::windows_directory_process_child", "--nocapture"])
             .env("QPC_DIRECTORY_CUT_ROOT", root).env("QPC_DIRECTORY_CUT_STAGE", &label)
+            .env("QPC_DIRECTORY_CUT_SIGNAL_ROOT", signal_root)
             .stdout(Stdio::from(log.try_clone()?)).stderr(Stdio::from(log)).spawn()?);
         let deadline = Instant::now() + Duration::from_secs(15);
-        while !root.join("ready").exists() {
+        while !signal_root.join("ready").exists() {
             if child.0.try_wait()?.is_some() || Instant::now() >= deadline {
                 return Err(format!(
                     "child failed before {label}: {}",
@@ -68,8 +74,8 @@ fn windows_directory_process_cuts_preserve_publication_state() -> Result<()> {
             }
             std::thread::sleep(Duration::from_millis(10));
         }
-        assert_eq!(fs::read(root.join("ready"))?, label.as_bytes());
-        assert!(!root.join("returned").exists());
+        assert_eq!(fs::read(signal_root.join("ready"))?, label.as_bytes());
+        assert!(!signal_root.join("returned").exists());
         child.0.kill()?;
         assert!(!child.0.wait()?.success());
         let target = root.join("installation");
@@ -86,7 +92,7 @@ fn windows_directory_process_cuts_preserve_publication_state() -> Result<()> {
                         .starts_with(".private-attempt-v2-")
                 })
                 .collect();
-            assert_eq!(staged.len(), 1);
+            assert_eq!(staged.len(), 1, "cut={cut:?}; staged={staged:?}");
             let control = staged.first().ok_or("missing staging")?.path();
             assert!(control.join("record").is_file());
             assert!(control.join("lease").is_file());

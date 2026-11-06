@@ -484,6 +484,10 @@ fn substituted_payload_is_refused_before_interacting_with_its_owner() {
         reclaim_private_publication(&path, Default::default()),
         Err(Error::Invalid)
     ));
+    assert!(!path.join(INTENT).exists());
+    // Keep the owner live through rejection; Windows prevents independent
+    // handle reads until this test releases its own whole-file lease.
+    drop(owner);
     assert_eq!(
         fs::read(path.join(PAYLOAD)).expect("replacement retained"),
         b"different owner"
@@ -492,7 +496,6 @@ fn substituted_payload_is_refused_before_interacting_with_its_owner() {
         fs::read(temp.path().join("original")).expect("original retained"),
         VALUE
     );
-    drop(owner);
 
     eprintln!(
         "MANAGED_CASE_COMPLETE:substituted_payload_is_refused_before_interacting_with_its_owner"
