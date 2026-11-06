@@ -227,3 +227,11 @@ support parts of that work, but do not establish it as a whole. The ML-DSA
 surrounding simulation is also still required when excluding fresh bodies.
 No assumption that both peers have confirmed, no new corruption exclusion and
 no product-contract change is introduced to make the native prefix qualify.
+
+The [adaptive target accounting](ADAPTIVE_TARGET_ACCOUNTING_V1.md) now gives
+conditional event and centered-score bounds over fixed original-invocation
+budgets. It keeps the selector and eligibility inside each override experiment
+and does not condition on successful execution. Its efficient origin classifier,
+native-to-virtual comparison and random-component continuation bounds remain
+premises; the probability calculation does not establish native adaptive-target
+security by itself.

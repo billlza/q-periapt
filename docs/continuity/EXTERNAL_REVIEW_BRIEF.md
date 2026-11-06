@@ -178,6 +178,15 @@ The full native private-record simulation and adaptive-target lift remain open;
 the adapter's mathematical game is not evidence that raw unknown coins can be
 serialized or that the actual storage interface may reject an allowed disclosure.
 
+The [adaptive-target accounting note](ADAPTIVE_TARGET_ACCOUNTING_V1.md) supplies
+conditional winning-event and centered-score bounds over fixed original
+reservation budgets. It preserves the selector and eligibility in each override
+world, retains unattributed-origin error, and requires efficiently evaluable
+events. Two exact arithmetic examples distinguish the valid calculation from
+conditioning away failures or normalizing different guessed worlds. This is a
+manual probability reduction; native origin/refinement and the random-component
+message/traffic bounds remain open.
+
 The [multi-record commitment note](MULTI_RECORD_COMMITMENTS_V1.md) extends the
 conditional nonce-hash calculation across bounded original-record invocations
 and preserves exact-copy identity. It verifies that the retained Snapshot rule
