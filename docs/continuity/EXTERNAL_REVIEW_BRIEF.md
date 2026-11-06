@@ -54,6 +54,13 @@ installed trees and binaries are bound, and the public capsule replays without
 private state. Its 28 altered-evidence controls supplement the original P0
 regression. The surrounding JNI runs and final hosted candidate remain separate.
 
+The [current Release host-JNI partition](../../research/sdk-alpha1/evidence/20261106-current-jni-release/README.md)
+has now completed at `5678d101`. Its exact 67-test JNI census, actual seven native
+binaries, JAR and installed graphs are independently checked. Twenty public
+outcome groups replay both from the capsule and from its captured reader source
+alone. This closes the Release partition's local evidence; Debug, the complete
+profile join, Android runtime/device execution and final hosted CI stay separate.
+
 The [historical hosted Swift pair](../../research/sdk-alpha1/evidence/20261105-hosted-swift-pair/README.md)
 now has matching package/native-library verification and selected public rereads
 at `232ace`, including the Rust 1.90 root lane. Its three arm64 Apple slices have
