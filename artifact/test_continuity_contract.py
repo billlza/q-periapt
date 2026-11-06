@@ -1,6 +1,16 @@
 """Contract comparison must not turn incomplete or altered descriptors into a pass."""
+import contextlib
 import copy
+import io
+import json
+from pathlib import Path
+import signal
+import tempfile
 import unittest
+from unittest.mock import patch
+
+import bounded_process
+from bounded_process import BoundedResult
 
 import continuity_contract as contract
 from evidence_io import parse_strict_json_bytes
@@ -104,6 +114,112 @@ class ContinuityWireContractTests(unittest.TestCase):
         changed["rekey_profile_sha3_256"] = "f" * 64
         with self.assertRaisesRegex(ValueError, "profile commitment"):
             contract.compare(changed, changed)
+
+    def test_main_preserves_contract_rejection_when_report_creation_also_fails(self):
+        changed = copy.deepcopy(self.expected)
+        changed["maximums"]["plaintext_bytes"] += 1
+        stdout = json.dumps(changed).encode("utf-8")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            consumer = root / "consumer"
+            consumer.write_bytes(b"contract consumer fixture")
+            output = root / "output"
+            retained = output / "CONTRACT.json"
+            marker = b"existing evidence must not be overwritten"
+
+            def consume(*args, **kwargs):
+                retained.write_bytes(marker)
+                return BoundedResult(returncode=0, stdout=stdout, stderr=b"")
+
+            logged = io.StringIO()
+            with patch("sys.argv", ["continuity_contract", "--consumer", str(consumer),
+                                    "--output", str(output)]), \
+                    patch.object(contract, "capture_output", side_effect=consume) as capture, \
+                    contextlib.redirect_stdout(logged), \
+                    self.assertRaisesRegex(ValueError, "compiled contract differs") as raised:
+                contract.main()
+            capture.assert_called_once_with(
+                [str(consumer)], timeout_seconds=30,
+                maximum_stdout_bytes=65536, maximum_stderr_bytes=65536)
+            self.assertIn("could not retain Continuity contract evidence",
+                          raised.exception.__notes__[0])
+            self.assertIn("CONTRACT.json", raised.exception.__notes__[0])
+            self.assertEqual(retained.read_bytes(), marker)
+            self.assertEqual((output / "consumer.stdout").read_bytes(), stdout)
+            self.assertEqual((output / "consumer.stderr").read_bytes(), b"")
+            self.assertEqual(logged.getvalue(), "")
+
+    def test_main_rejects_report_creation_failure_after_valid_contract(self):
+        stdout = json.dumps(self.expected).encode("utf-8")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            consumer = root / "consumer"
+            consumer.write_bytes(b"contract consumer fixture")
+            output = root / "output"
+            retained = output / "CONTRACT.json"
+            marker = b"existing evidence must not be overwritten"
+
+            def consume(*args, **kwargs):
+                retained.write_bytes(marker)
+                return BoundedResult(returncode=0, stdout=stdout, stderr=b"")
+
+            logged = io.StringIO()
+            with patch("sys.argv", ["continuity_contract", "--consumer", str(consumer),
+                                    "--output", str(output)]), \
+                    patch.object(contract, "capture_output", side_effect=consume) as capture, \
+                    contextlib.redirect_stdout(logged), \
+                    self.assertRaises(FileExistsError):
+                contract.main()
+            capture.assert_called_once_with(
+                [str(consumer)], timeout_seconds=30,
+                maximum_stdout_bytes=65536, maximum_stderr_bytes=65536)
+            self.assertEqual(retained.read_bytes(), marker)
+            self.assertEqual((output / "consumer.stdout").read_bytes(), stdout)
+            self.assertEqual((output / "consumer.stderr").read_bytes(), b"")
+            self.assertEqual(logged.getvalue(), "")
+
+    def test_main_preserves_cancellation_and_attempts_incomplete_evidence(self):
+        for failure_type in (KeyboardInterrupt, bounded_process._TerminationSignal):
+            for report_collision in (False, True):
+                with self.subTest(failure=failure_type.__name__, report_collision=report_collision):
+                    failure = (KeyboardInterrupt("contract verification interrupted")
+                               if failure_type is KeyboardInterrupt
+                               else bounded_process._TerminationSignal(signal.SIGTERM))
+                    with tempfile.TemporaryDirectory() as temporary:
+                        root = Path(temporary).resolve()
+                        consumer = root / "consumer"
+                        consumer.write_bytes(b"contract consumer fixture")
+                        output = root / "output"
+                        retained = output / "CONTRACT.json"
+                        marker = b"existing evidence must not be overwritten"
+
+                        def interrupt(*args, **kwargs):
+                            if report_collision:
+                                retained.write_bytes(marker)
+                            raise failure
+
+                        logged = io.StringIO()
+                        with patch("sys.argv", ["continuity_contract", "--consumer", str(consumer),
+                                                "--output", str(output)]), \
+                                patch.object(contract, "capture_output", side_effect=interrupt), \
+                                contextlib.redirect_stdout(logged), \
+                                self.assertRaises(failure_type) as raised:
+                            contract.main()
+                        self.assertIs(raised.exception, failure)
+                        if isinstance(failure, SystemExit):
+                            self.assertEqual(raised.exception.code, 128 + signal.SIGTERM)
+                        if report_collision:
+                            self.assertEqual(retained.read_bytes(), marker)
+                            self.assertIn("could not retain Continuity contract evidence",
+                                          raised.exception.__notes__[0])
+                        else:
+                            report = parse_strict_json_bytes(retained.read_bytes(), label="contract report")
+                            self.assertFalse(report["completed"])
+                            self.assertFalse(report["release_claim_eligible"])
+                            self.assertEqual(report["failure"], str(failure))
+                            self.assertNotIn("contract", report)
+                        self.assertEqual({entry.name for entry in output.iterdir()}, {"CONTRACT.json"})
+                        self.assertEqual(logged.getvalue(), "")
 
 
 if __name__ == "__main__":

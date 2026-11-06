@@ -95,10 +95,17 @@ def main() -> None:
                 and snapshot(args.consumer, 256 * 1024**2).sha256 == executable.sha256,
                 "contract inputs changed during verification")
         report.update(completed=True, contract=actual)
-    except Exception as error:
-        report["failure"] = str(error)
+    except BaseException as error:
+        # Cancellation still retains an incomplete report before propagating unchanged.
+        report.update(completed=False, failure=str(error))
+        try:
+            with (output / "CONTRACT.json").open("x") as stream:
+                json.dump(report, stream, indent=2, sort_keys=True)
+                stream.write("\n")
+        except OSError as evidence_error:
+            error.add_note(f"could not retain Continuity contract evidence: {evidence_error}")
         raise
-    finally:
+    else:
         with (output / "CONTRACT.json").open("x") as stream:
             json.dump(report, stream, indent=2, sort_keys=True)
             stream.write("\n")
