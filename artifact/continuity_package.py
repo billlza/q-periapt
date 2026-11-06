@@ -336,6 +336,45 @@ def retire_completed_build(outside: Path, directory: Path) -> dict:
             "scope": "completed build outputs only; inode allocation is not reclaimed bytes; filesystem space is not per-user quota headroom"}
 
 
+def admit_sdk_report(path: Path, expected_digest: str, current_workspace: str,
+                     source_commit: str, output: Path, *, sdk_run_id: str | None = None) -> tuple:
+    """Retain the package admission decision without relaxing the SDK gate."""
+    admission = {"schema_version": 1, "kind": "qperiapt.continuity_sdk_admission",
+                 "admitted": False, "release_claim_eligible": False,
+                 "source_commit": source_commit, "selected_sdk_run_id": sdk_run_id,
+                 "expected_report_sha256": expected_digest, "actual_report_sha256": None,
+                 "expected_workspace_sha256": current_workspace,
+                 "actual_report_workspace_sha256": None}
+    try:
+        pinned = sdk.snapshot(path)
+        admission["actual_report_sha256"] = pinned.sha256
+        # Diagnostic only: a parsed field is not trusted until validate_report
+        # accepts these same snapshot bytes and their independently pinned hash.
+        try:
+            decoded = parse_strict_json_bytes(pinned.data, label="Rust cohort report")
+        except ValueError:
+            decoded = None
+        source = decoded.get("source_inputs") if type(decoded) is dict else None
+        workspace = source.get("rust_workspace_sha256") if type(source) is dict else None
+        if type(workspace) is str and re.fullmatch(r"[a-f0-9]{64}", workspace):
+            admission["actual_report_workspace_sha256"] = workspace
+        cohort = validate_report(pinned.data, expected_digest, pinned.sha256, current_workspace)
+    except Exception as error:
+        admission["failure"] = str(error)[:2048]
+        try:
+            print(json.dumps(admission, sort_keys=True), flush=True)
+        except (OSError, ValueError) as log_error:
+            error.add_note(f"could not log SDK admission evidence: {log_error}")
+        try:
+            sdk.write_json(output / "SDK_ADMISSION.json", admission)
+        except OSError as evidence_error:
+            error.add_note(f"could not retain SDK admission evidence: {evidence_error}")
+        raise
+    admission["admitted"] = True
+    sdk.write_json(output / "SDK_ADMISSION.json", admission)
+    return pinned, cohort
+
+
 def qualify(args: argparse.Namespace) -> dict:
     profiles = profiles_contract.validate_profiles(
         profiles_contract.PROFILES if args.build_profile is None else (args.build_profile,))
@@ -367,13 +406,14 @@ def qualify(args: argparse.Namespace) -> dict:
     commit, dirty = sdk.inspect_package_source(ROOT, allow_dirty=False)
     sdk.require(not dirty, "candidate package qualification requires clean source")
     before = source_inputs()
-    pinned = sdk.snapshot(args.report)
-    cohort = validate_report(pinned.data, args.report_sha256, pinned.sha256, before["rust_workspace_sha256"])
     output = fresh_output_directory(args.output, within=ROOT / "target", label="Continuity package evidence")
+    output.mkdir(parents=True, mode=0o700)
+    pinned, cohort = admit_sdk_report(
+        args.report, args.report_sha256, before["rust_workspace_sha256"], commit, output,
+        sdk_run_id=getattr(args, "sdk_run_id", None))
     sdk.require(shutil.disk_usage(ROOT).free >= 4 * 1024**3, "package qualification needs 4 GiB free")
     toolchain = args.toolchain_root.resolve(strict=True)
     tools = compiler_identity(toolchain)
-    output.mkdir(parents=True, mode=0o700)
     outside = Path(tempfile.mkdtemp(prefix="qperiapt-continuity-package-")).resolve()
     sdk.require(not outside.is_relative_to(ROOT), "installed consumer must be outside checkout")
     producer_build, rust_build, native_build = build_directories(outside)
@@ -552,6 +592,7 @@ def main() -> None:
     for name in ("output", "report", "toolchain-root"):
         parser.add_argument("--" + name, required=True, type=Path)
     parser.add_argument("--report-sha256", required=True)
+    parser.add_argument("--sdk-run-id", help="selected SDK producer run, recorded only as admission provenance")
     parser.add_argument("--build-profile", choices=profiles_contract.PROFILES,
                         help="execute one explicit foreign-consumer partition; it cannot qualify a complete package")
     parser.add_argument("--with-c-consumer", action="store_true",

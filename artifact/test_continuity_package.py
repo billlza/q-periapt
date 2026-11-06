@@ -1,6 +1,8 @@
 """Reject source substitution and success-shaped incomplete package execution."""
+import argparse
 import copy
 import contextlib
+import io
 import json
 import os
 from pathlib import Path
@@ -100,6 +102,130 @@ def evidence(root):
 
 STDOUT = ("\n".join(f"test {name} ... ok" for name in sorted(package.TESTS)) +
           "\ntest result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n").encode()
+
+
+class SdkAdmissionTests(unittest.TestCase):
+    @staticmethod
+    def cohort(root):
+        report = {"schema_version": 1, "sources_unchanged": True, "version": sdk.VERSION,
+                  "profile": sdk.PROFILE, "native_abi_major": 2,
+                  "crates": dict.fromkeys(sdk.COHORT, {}),
+                  "source_inputs": {"rust_workspace_sha256": "a" * 64}}
+        path = root / "RUST_SDK_PACKAGE.json"
+        path.write_text(json.dumps(report), encoding="utf-8")
+        return path, sdk.snapshot(path), report
+
+    def test_matching_pinned_cohort_retains_admission_without_claiming_execution(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            path, original, report = self.cohort(root)
+            output = root / "evidence"
+            output.mkdir()
+            pinned, cohort = package.admit_sdk_report(
+                path, original.sha256, "a" * 64, "c" * 40, output, sdk_run_id="123")
+            self.assertEqual(pinned.data, original.data)
+            self.assertEqual(cohort, report)
+            retained = json.loads((output / "SDK_ADMISSION.json").read_text())
+            self.assertTrue(retained["admitted"])
+            self.assertFalse(retained["release_claim_eligible"])
+            self.assertEqual(retained["source_commit"], "c" * 40)
+            self.assertEqual(retained["selected_sdk_run_id"], "123")
+            self.assertEqual(retained["expected_report_sha256"], original.sha256)
+            self.assertEqual(retained["actual_report_sha256"], original.sha256)
+            self.assertEqual(retained["expected_workspace_sha256"], "a" * 64)
+            self.assertEqual(retained["actual_report_workspace_sha256"], "a" * 64)
+            self.assertNotIn("failure", retained)
+            self.assertEqual({entry.name for entry in output.iterdir()}, {"SDK_ADMISSION.json"})
+
+    def test_stale_source_wrong_pin_and_duplicate_json_keep_the_strict_rejection(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            path, original, _ = self.cohort(root)
+            duplicate = original.data.replace(b"{", b'{"sources_unchanged":false,', 1)
+            cases = (
+                ("stale", original.data, None, "b" * 64, "current workspace inputs", "a" * 64),
+                ("wrong-pin", original.data, "f" * 64, "a" * 64, "report digest differs", "a" * 64),
+                ("duplicate", duplicate, None, "a" * 64, "duplicate JSON key", None),
+            )
+            for label, data, expected, current, message, declared in cases:
+                with self.subTest(label=label):
+                    path.write_bytes(data)
+                    actual = sdk.snapshot(path).sha256
+                    expected = actual if expected is None else expected
+                    output = root / label
+                    output.mkdir()
+                    logged = io.StringIO()
+                    with contextlib.redirect_stdout(logged), self.assertRaisesRegex(ValueError, message):
+                        package.admit_sdk_report(
+                            path, expected, current, "c" * 40, output, sdk_run_id="123")
+                    retained = json.loads((output / "SDK_ADMISSION.json").read_text())
+                    self.assertFalse(retained["admitted"])
+                    self.assertFalse(retained["release_claim_eligible"])
+                    self.assertEqual(retained["expected_report_sha256"], expected)
+                    self.assertEqual(retained["actual_report_sha256"], actual)
+                    self.assertEqual(retained["expected_workspace_sha256"], current)
+                    self.assertEqual(retained["actual_report_workspace_sha256"], declared)
+                    self.assertIn(message, retained["failure"])
+                    self.assertEqual(json.loads(logged.getvalue()), retained)
+                    self.assertEqual({entry.name for entry in output.iterdir()}, {"SDK_ADMISSION.json"})
+
+    def test_package_rejection_keeps_evidence_before_toolchain_or_consumer_start(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            path, original, _ = self.cohort(root)
+            args = argparse.Namespace(
+                build_profile=None, with_c_consumer=False, with_apple_package=False,
+                with_swift_consumer=False, swift_minimum_toolchain_root=None,
+                with_kotlin_consumer=False, kotlin_java_home=None, kotlin_gradle_home=None,
+                with_android_jni_consumer=False, android_java_home=None, witness_openssl_prefix=None,
+                report=path, report_sha256=original.sha256, sdk_run_id="123",
+                output=root / "target/evidence", toolchain_root=root / "missing-toolchain")
+            with patch.object(package, "ROOT", root), \
+                    patch.object(package, "source_inputs", return_value={"rust_workspace_sha256": "b" * 64}), \
+                    patch.object(sdk, "inspect_package_source", return_value=("c" * 40, False)), \
+                    patch.object(sdk, "validate_no_registry_credentials"), \
+                    patch.object(package, "compiler_identity") as compiler, \
+                    patch.object(package.tempfile, "mkdtemp") as outside, \
+                    contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(ValueError, "current workspace inputs"):
+                    package.qualify(args)
+                compiler.assert_not_called()
+                outside.assert_not_called()
+            retained = json.loads((args.output / "SDK_ADMISSION.json").read_text())
+            self.assertFalse(retained["admitted"])
+            self.assertEqual(retained["selected_sdk_run_id"], "123")
+            self.assertEqual({entry.name for entry in args.output.iterdir()}, {"SDK_ADMISSION.json"})
+
+    def test_evidence_write_error_preserves_original_admission_failure_in_log(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            path, original, _ = self.cohort(root)
+            logged = io.StringIO()
+            with patch.object(sdk, "write_json", side_effect=OSError("evidence disk unavailable")), \
+                    contextlib.redirect_stdout(logged), \
+                    self.assertRaisesRegex(ValueError, "current workspace inputs") as raised:
+                package.admit_sdk_report(path, original.sha256, "b" * 64, "c" * 40, root)
+            self.assertIn("could not retain SDK admission evidence", raised.exception.__notes__[0])
+            self.assertFalse(json.loads(logged.getvalue())["admitted"])
+
+
+    def test_stdout_failure_preserves_original_rejection_and_still_retains_report(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            path, original, _ = self.cohort(root)
+            for index, failure in enumerate((BrokenPipeError("stdout pipe closed"),
+                                             ValueError("I/O operation on closed file"))):
+                with self.subTest(failure=type(failure).__name__):
+                    output = root / str(index)
+                    output.mkdir()
+                    with patch("builtins.print", side_effect=failure), \
+                            self.assertRaisesRegex(ValueError, "current workspace inputs") as raised:
+                        package.admit_sdk_report(
+                            path, original.sha256, "b" * 64, "c" * 40, output)
+                    self.assertIn("could not log SDK admission evidence", raised.exception.__notes__[0])
+                    retained = json.loads((output / "SDK_ADMISSION.json").read_text())
+                    self.assertFalse(retained["admitted"])
+                    self.assertIn("current workspace inputs", retained["failure"])
 
 
 class ContinuityPackageTests(unittest.TestCase):

@@ -29,8 +29,8 @@ use windows_sys::{
     },
     Win32::{
         Foundation::{
-            RtlNtStatusToDosError, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE,
-            OBJ_CASE_INSENSITIVE, STATUS_NO_MORE_FILES, UNICODE_STRING,
+            RtlNtStatusToDosError, GENERIC_READ, GENERIC_WRITE, OBJ_CASE_INSENSITIVE,
+            STATUS_NO_MORE_FILES, UNICODE_STRING,
         },
         Security::SECURITY_DESCRIPTOR,
         Storage::FileSystem::*,
@@ -45,15 +45,33 @@ pub(super) fn denied() -> io::Error {
     )
 }
 
+#[cfg_attr(test, track_caller)]
 fn status(result: i32) -> io::Result<()> {
     if result == 0 {
         Ok(())
     } else {
         // SAFETY: this routine translates a scalar NT status and borrows no memory.
-        Err(io::Error::from_raw_os_error(
+        let error = io::Error::from_raw_os_error(
             unsafe { RtlNtStatusToDosError(result) } as i32,
-        ))
+        );
+        #[cfg(test)]
+        eprintln!(
+            "private Windows native failure at {}: ntstatus={result:#010x}, error={error:?}",
+            std::panic::Location::caller(),
+        );
+        Err(error)
     }
+}
+
+#[cfg_attr(test, track_caller)]
+fn last_error() -> io::Error {
+    let error = io::Error::last_os_error();
+    #[cfg(test)]
+    eprintln!(
+        "private Windows native failure at {}: error={error:?}",
+        std::panic::Location::caller(),
+    );
+    error
 }
 
 pub(super) fn leaf(name: &OsStr) -> io::Result<Vec<u16>> {
@@ -175,7 +193,7 @@ pub(super) fn check_local_ntfs(file: &File) -> io::Result<()> {
         )
     };
     if ok == 0 {
-        return Err(io::Error::last_os_error());
+        return Err(last_error());
     }
     let end = filesystem.iter().position(|c| *c == 0).ok_or_else(denied)?;
     if filesystem.get(..end) != Some(&[78u16, 84, 70, 83][..]) || flags & FILE_PERSISTENT_ACLS == 0
@@ -294,7 +312,7 @@ pub(super) fn information(file: &File) -> io::Result<BY_HANDLE_FILE_INFORMATION>
     let mut result = BY_HANDLE_FILE_INFORMATION::default();
     // SAFETY: result is a correctly sized output structure for this live handle.
     if unsafe { GetFileInformationByHandle(file.as_raw_handle(), &mut result) } == 0 {
-        return Err(io::Error::last_os_error());
+        return Err(last_error());
     }
     if result.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
         return Err(denied());
@@ -446,23 +464,49 @@ pub(super) fn directory_entries(parent: &File, limit: usize) -> io::Result<Vec<O
             "private directory enumeration requires a positive limit",
         ));
     }
-    // A duplicate handle would share the enumeration cursor. Reopen this pinned
-    // object for a private cursor, without resolving an absolute path or following
-    // a reparse point. No OVERLAPPED flag means all native query buffers stay live.
-    // SAFETY: the original directory handle is live; no borrowed buffers are used.
-    let handle = unsafe {
-        ReOpenFile(
-            parent.as_raw_handle(),
-            FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE,
-            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
-        )
+    // A duplicate handle would share the enumeration cursor. ReOpenFile rejects
+    // directories, including with BACKUP_SEMANTICS. Reopen this pinned object by
+    // its empty relative NT name, with explicit directory and synchronous options.
+    // This internal empty name is not a caller-supplied leaf or a pathname fallback.
+    let mut name = UNICODE_STRING {
+        Length: 0,
+        MaximumLength: 0,
+        Buffer: ptr::null_mut(),
     };
-    if handle == INVALID_HANDLE_VALUE {
-        return Err(io::Error::last_os_error());
+    let attributes = OBJECT_ATTRIBUTES {
+        Length: size_of::<OBJECT_ATTRIBUTES>() as u32,
+        RootDirectory: parent.as_raw_handle(),
+        ObjectName: &mut name,
+        Attributes: OBJ_CASE_INSENSITIVE,
+        SecurityDescriptor: ptr::null(),
+        SecurityQualityOfService: ptr::null_mut(),
+    };
+    let mut handle = ptr::null_mut();
+    let mut completion = IO_STATUS_BLOCK::default();
+    // SAFETY: the pinned directory and all input/output structures remain live
+    // through this synchronous open of the same object. No child name is resolved.
+    status(unsafe {
+        NtCreateFile(
+            &mut handle,
+            FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE,
+            &attributes,
+            &mut completion,
+            ptr::null(),
+            0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            FILE_OPEN,
+            FILE_DIRECTORY_FILE | FILE_OPEN_REPARSE_POINT | FILE_SYNCHRONOUS_IO_NONALERT,
+            ptr::null(),
+            0,
+        )
+    })?;
+    if handle.is_null() {
+        return Err(denied());
     }
-    // SAFETY: ReOpenFile returned a new owned handle, closed exactly once by File.
+    // SAFETY: successful NtCreateFile returned one new owned synchronous handle.
     let directory = unsafe { File::from_raw_handle(handle) };
+    // SAFETY: successful synchronous completion initialized this union member.
+    status(unsafe { completion.Anonymous.Status })?;
     check_local_ntfs(&directory)?;
     crate::windows_acl::validate(&directory)?;
     same_directory(parent, &directory)?;
@@ -523,6 +567,78 @@ pub(super) fn directory_entries(parent: &File, limit: usize) -> io::Result<Vec<O
         if name != [46] && name != [46, 46] {
             entries.push(OsString::from_wide(name));
         }
+    }
+    Ok(entries)
+}
+
+#[cfg(test)]
+pub(super) fn directory_entries_preserve_cursor_for_test(
+    parent: &File,
+    limit: usize,
+) -> io::Result<Vec<OsString>> {
+    let mut filter = leaf(OsStr::new("lease"))?;
+    let bytes = u16::try_from(filter.len() * size_of::<u16>()).map_err(|_| denied())?;
+    let name = UNICODE_STRING {
+        Length: bytes,
+        MaximumLength: bytes,
+        Buffer: filter.as_mut_ptr(),
+    };
+    let query = |completion: &mut IO_STATUS_BLOCK,
+                 buffer: &mut [u32; 256],
+                 name: *const UNICODE_STRING,
+                 restart: bool| {
+        // SAFETY: this test retains the synchronous directory pin and all borrowed
+        // query buffers. A supplied filter remains live through the native call.
+        unsafe {
+            NtQueryDirectoryFile(
+                parent.as_raw_handle(),
+                ptr::null_mut(),
+                None,
+                ptr::null(),
+                completion,
+                buffer.as_mut_ptr().cast(),
+                size_of_val(buffer) as u32,
+                FileNamesInformation,
+                true,
+                name,
+                restart,
+            )
+        }
+    };
+    let mut buffer = [0u32; 256];
+    let mut completion = IO_STATUS_BLOCK::default();
+    status(query(&mut completion, &mut buffer, &name, true))?;
+    // SAFETY: successful synchronous completion initialized this union member.
+    status(unsafe { completion.Anonymous.Status })?;
+    let start = offset_of!(FILE_NAMES_INFORMATION, FileName);
+    if buffer[0] != 0
+        || buffer[2] != u32::from(bytes)
+        || completion.Information < start + usize::from(bytes)
+        || completion.Information > size_of_val(&buffer)
+    {
+        return Err(io::Error::other("original directory filter was not honored"));
+    }
+    // SAFETY: the complete bounded name lies within the initialized aligned buffer.
+    let actual = unsafe {
+        std::slice::from_raw_parts(
+            buffer.as_ptr().cast::<u8>().add(start).cast::<u16>(),
+            filter.len(),
+        )
+    };
+    if actual != filter.as_slice() {
+        return Err(io::Error::other("original directory filter was not honored"));
+    }
+
+    // Windows captures FileName on the first query for a file object. Duplicating
+    // this pin would retain the lease-only filter even with RestartScan=true.
+    let entries = directory_entries(parent, limit)?;
+    completion = IO_STATUS_BLOCK::default();
+    let result = query(&mut completion, &mut buffer, ptr::null(), false);
+    if result != STATUS_NO_MORE_FILES {
+        status(result)?;
+        return Err(io::Error::other(
+            "independent scan changed original directory cursor",
+        ));
     }
     Ok(entries)
 }

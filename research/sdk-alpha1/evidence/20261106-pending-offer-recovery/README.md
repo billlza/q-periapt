@@ -18,8 +18,15 @@ other tests; this is not a full native test-suite run. The runner recorded its
 
 The first run, `validation-01` inside `VALIDATION.zip`, tested an intermediate version containing only
 the pending-offer cases in the staged test. The final version restores both
-no-offer cases. Its intermediate source is retained alongside the run. The two
-runs are not 12 distinct tests and should not be conflated. Test binaries are
+no-offer cases. Its intermediate source is retained alongside the run as
+[archived text](intermediate-witness_pending_write_recovery_tests.rs.txt). The original
+`intermediate-witness_pending_write_recovery_tests.rs` filename is now
+`intermediate-witness_pending_write_recovery_tests.rs.txt`; the Git blob
+`0cd83563828fce7f363ab894b02644e5688fbde3` is unchanged. This suffix marks a
+historical test snapshot rather than an active Rust source. Original paths and
+hashes inside `VALIDATION.zip` and the validation receipts are preserved; the
+archive is not relabelled as an execution of the current source. The two runs
+are not 12 distinct tests and should not be conflated. Test binaries are
 not included in this checkpoint: `BINARY_PRESERVATION.json` records the local
 copies of the first-run binaries; `validation-02/RESULT.json` inside `VALIDATION.zip` records the
 final binary hashes. Paths in the raw receipts refer to the original machine.

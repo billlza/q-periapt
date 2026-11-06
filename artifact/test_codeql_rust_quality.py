@@ -1740,6 +1740,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_process_tests.rs",
             "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_retirement_tests.rs",
             "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_tests.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/classical_alias.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/reservation_disclosure/aggregate_copy.rs",
         ):
             with self.subTest(source=sdk_source):
                 self.assertIn(sdk_source, tracked)
@@ -1970,6 +1972,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_process_tests.rs",
             "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_retirement_tests.rs",
             "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_tests.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/classical_alias.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/reservation_disclosure/aggregate_copy.rs",
         )
         for missing in required:
             self.assertIn(missing, tracked)
