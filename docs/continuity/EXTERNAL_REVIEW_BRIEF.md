@@ -31,6 +31,15 @@ remaining platform qualification still need their own matching evidence.
 Re-pin the source, contracts and package identities together before formal
 review begins.
 
+The [current Android arm64 AAR](../../research/sdk-alpha1/evidence/20261106-current-android-aar/README.md)
+now has an actual installed-archive build and separate static readback at
+`5678d101`: 229 members, 131 Java classes, exact JNI declarations and native
+exports, release scans and 16 KiB ELF alignment. An initial diagnostic build's
+embedded registry path was rejected and retained; the corrected build applies
+the existing account-root remapping policy. This is not an APK/ART/device result
+or Continuity ABI 2 admission. The existing accepted phone remains sufficient
+for the task's applicable device validation.
+
 The [historical hosted Swift pair](../../research/sdk-alpha1/evidence/20261105-hosted-swift-pair/README.md)
 now has matching package/native-library verification and selected public rereads
 at `232ace`, including the Rust 1.90 root lane. Its three arm64 Apple slices have
