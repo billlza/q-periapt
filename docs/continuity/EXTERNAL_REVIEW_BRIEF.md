@@ -90,6 +90,16 @@ Other qualification processes overlapped both cohorts, so their raw timings are
 not an accepted performance budget. Whole-process CPU/memory and the remaining
 fanout, maintenance and mobile-energy work retain their stated boundaries.
 
+The [installed two-recipient fanout observer](../../research/sdk-alpha1/evidence/20261106-installed-fanout-observer/README.md)
+now passes four local/Witness and own/peer-account functional cohorts at the same
+source. Each records 13 aggregates, 26 durable business effects and 89 operation
+spans, including independent PQ updates and exact original-operation recovery.
+Both Witness cohorts reconcile 1,203 exchanges; a captured-source-only readback
+checks all 104 public business files and the altered-input controls. The owners
+are pre-provisioned, and concurrent host-JNI work prevents a performance-budget
+claim. Larger declared fanout capacity and the remaining resource contract stay
+open.
+
 The deliverable sought is a construction and implementation assessment of the
 declared secure-session contract: authorized establishment and communication,
 traffic-independent PQ progress, exact recovery of original operations,

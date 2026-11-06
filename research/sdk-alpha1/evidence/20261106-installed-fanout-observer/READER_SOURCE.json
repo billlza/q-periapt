@@ -1,0 +1,21 @@
+{
+  "git_matched_files": {
+    "artifact/evidence_io.py": {
+      "bytes": 44308,
+      "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d"
+    },
+    "artifact/python-env.sh": {
+      "bytes": 3181,
+      "sha256": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49"
+    },
+    "artifact/python-run.sh": {
+      "bytes": 228,
+      "sha256": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255"
+    },
+    "artifact/python_bootstrap.py": {
+      "bytes": 3068,
+      "sha256": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe"
+    }
+  },
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8"
+}
