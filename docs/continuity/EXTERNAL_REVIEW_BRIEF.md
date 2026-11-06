@@ -58,8 +58,12 @@ The [current Release host-JNI partition](../../research/sdk-alpha1/evidence/2026
 has now completed at `5678d101`. Its exact 67-test JNI census, actual seven native
 binaries, JAR and installed graphs are independently checked. Twenty public
 outcome groups replay both from the capsule and from its captured reader source
-alone. This closes the Release partition's local evidence; Debug, the complete
-profile join, Android runtime/device execution and final hosted CI stay separate.
+alone. The [matching Debug partition](../../research/sdk-alpha1/evidence/20261106-current-jni-debug/README.md)
+also completes, with the same 67-test census and twenty public groups independently
+reproduced from its own capsule and captured reader source. Their source inputs,
+adapter sources, SDK/candidate archives and JAR match byte for byte. Both local
+host-JNI profiles are now complete at this source; the full foreign-profile join,
+Android runtime/device execution and final hosted CI stay separate.
 
 The [historical hosted Swift pair](../../research/sdk-alpha1/evidence/20261105-hosted-swift-pair/README.md)
 now has matching package/native-library verification and selected public rereads
