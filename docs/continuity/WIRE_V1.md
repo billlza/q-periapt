@@ -74,11 +74,12 @@ Purpose numbers are signature inputs, not a free-form signing API. No applicatio
 message acquires a dual signature merely by belonging to a signed session.
 The complete name/byte inventory is generated from the same declaration as the
 internal signing enum and exposed as read-only `contract::SIGNATURE_PURPOSES`.
-The compiled contract descriptor's schema 2 compares that inventory with
-`BUDGETS_V1.json`, alongside the existing domains and numeric bounds. The former
-schema 1 descriptor did not cover signature purposes and cannot qualify this
-expanded check. No signature-purpose number, signed byte or protocol identifier
-changes with this descriptor revision.
+The compiled contract descriptor's schema 3 compares that inventory with
+`BUDGETS_V1.json`, alongside the domains and numeric bounds, including the
+separate 16-record retained fanout quota. Schema 1 omitted signature purposes;
+schema 2 omitted that fanout quota. Neither qualifies the current complete
+descriptor check. No signature-purpose number, signed byte, protocol identifier
+or runtime capacity changes with this descriptor revision.
 
 Purposes 23–25 follow the [account-root transaction contract](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md),
 purpose 26 the [original pending-write contract](../../research/continuity-identity-candidate/PENDING_WRITE_RECOVERY.md),

@@ -61,6 +61,21 @@ class ContinuityWireContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "contract fields differ"):
             contract.compare(changed, copy.deepcopy(changed))
 
+    def test_previous_descriptor_without_fanout_quota_is_not_current_contract(self):
+        previous = copy.deepcopy(self.expected)
+        previous["schema_version"] = 2
+        previous["maximums"] = {
+            name: value for name, value in previous["maximums"].items()
+            if name != "retained_fanout_records"
+        }
+        with self.assertRaisesRegex(ValueError, "contract schema differs"):
+            contract.compare(previous, copy.deepcopy(previous))
+
+        incomplete = copy.deepcopy(self.expected)
+        del incomplete["maximums"]["retained_fanout_records"]
+        with self.assertRaisesRegex(ValueError, "contract limit fields differ"):
+            contract.compare(incomplete, copy.deepcopy(incomplete))
+
     def test_boolean_float_empty_and_unknown_limits_are_not_integers(self):
         for value in (True, 1.0, 0, -1, 2**32, "16384"):
             changed = copy.deepcopy(self.expected)

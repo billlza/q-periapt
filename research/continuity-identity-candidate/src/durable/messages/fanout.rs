@@ -8,6 +8,7 @@ pub(super) use codec::Member;
 use codec::{batch_key, Batch, BatchState};
 mod abandonment;
 mod archive;
+use crate::contract::MAX_RETAINED_FANOUT_RECORDS as MAX_FANOUTS;
 pub(super) use abandonment::{
     epoch_accounting, progress as abandoned_progress, require_live_source, validate_message_record,
 };
@@ -16,7 +17,6 @@ pub use abandonment::{
     ReservedAbandonment,
 };
 pub use archive::FanoutAbandonmentJournal;
-const MAX_FANOUTS: usize = 16;
 
 /// Journal-bound monotonic correlation ID. It contains no plaintext commitment.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]

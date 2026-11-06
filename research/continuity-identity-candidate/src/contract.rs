@@ -44,6 +44,9 @@ pub const MAX_CONTROL_BYTES: usize = 8192;
 pub const MAX_CONNECTION_FRAME_BYTES: usize = 32_768;
 /// Largest session/operation record count, excluding prekeys and account rosters.
 pub const MAX_SESSION_OPERATION_RECORDS: usize = 128;
+/// Largest retained fanout record count, also charged to the operation quota.
+/// Only explicit terminal retirement releases a slot; admission never evicts one.
+pub const MAX_RETAINED_FANOUT_RECORDS: usize = 16;
 /// Largest prekey record count, including retained retired/consumed identities.
 pub const MAX_PREKEY_RECORDS: usize = 1024;
 /// Largest number of separately counted installed account rosters.

@@ -94,8 +94,25 @@ cannot silently accept that record. Outer/inner tag mismatches are refused.
 Owner/context/source,
 one-time claims, authority references, payloads and their phase relationships are
 validated as a whole. Separate record quotas and the 2 MiB plaintext cap all apply.
-Terminal records/tombstones continue to count; removing them to reclaim capacity
+Terminal records/tombstones continue to count unless their explicit authenticated
+retirement contract permits removal; arbitrary deletion to reclaim capacity
 would change replay and one-time semantics.
+
+At most 16 retained fanout records may coexist in one journal. They also count
+toward the 128 session/operation records and the 2 MiB aggregate image limit;
+these limits apply together, rather than promising every maximum simultaneously.
+An acknowledged aggregate still occupies its fanout slot until explicit
+`retire_fanout`. Retirement refuses a reserved or abandoning batch, committed
+member ciphertext and pending resolution; it first checks the complete original
+member bindings. A successful retirement removes that aggregate's metadata and
+preserves the monotonic fanout ordinal, so its ID remains retired after reopen
+and cannot be reused. Capacity refusal does not evict an earlier aggregate or
+allocate the rejected next ID. See the actual
+[admission and retirement paths](../../research/continuity-identity-candidate/src/durable/messages/fanout.rs).
+
+The [numeric descriptor](BUDGETS_V1.json) uses schema 3 to include this existing
+fanout quota. This changes descriptive metadata only; the 16-record runtime
+limit, protocol identifiers, signed bytes and storage formats are unchanged.
 
 The explicit [account-authority adoption](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md)
 transaction moves an originally witnessed image to its registry-bound variant.

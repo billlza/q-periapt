@@ -19,6 +19,7 @@ LIMITS = {
     "signed_body_bytes", "bootstrap_bundle_bytes", "bootstrap_field_bytes", "plaintext_bytes",
     "associated_data_bytes", "skipped_keys_per_direction_epoch", "outstanding_messages_per_direction_epoch",
     "retained_traffic_epochs", "control_body_bytes", "connection_frame_bytes", "session_operation_records",
+    "retained_fanout_records",
     "prekey_records", "account_roster_records", "device_history_per_account", "journal_image_bytes",
     "network_exchanges", "run_timeout_seconds", "connect_timeout_seconds", "roster_devices", "manifest_prekeys",
 }
@@ -31,7 +32,7 @@ def require(value: bool, message: str) -> None:
 
 def validate(value: object) -> dict:
     require(type(value) is dict and set(value) == FIELDS, "contract fields differ")
-    require(type(value["schema_version"]) is int and value["schema_version"] == 2,
+    require(type(value["schema_version"]) is int and value["schema_version"] == 3,
             "contract schema differs")
     require(value["frozen_product_contract"] is False, "candidate cannot claim a product freeze")
     for name in ("signature_context", "rekey_profile", "rekey_profile_sha3_256", "message_domain"):

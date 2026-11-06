@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "frozen_product_contract": false,
   "signature_context": "Q-PERIAPT-CONTINUITY-IDENTITY-CANDIDATE/v1",
   "rekey_profile": "ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v6;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1;control-request/v1",
@@ -58,6 +58,7 @@
     "control_body_bytes": 8192,
     "connection_frame_bytes": 32768,
     "session_operation_records": 128,
+    "retained_fanout_records": 16,
     "prekey_records": 1024,
     "account_roster_records": 64,
     "device_history_per_account": 256,
