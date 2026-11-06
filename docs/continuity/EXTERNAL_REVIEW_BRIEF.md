@@ -125,6 +125,23 @@ with retirement included. These are observed serial rates on the recorded Mac.
 Declared-load budget acceptance, maintenance/capacity and mobile measurements
 remain open; no saturation or release claim follows from these observations.
 
+The [retained-fanout contract correction](../../research/sdk-alpha1/evidence/20261106-fanout-capacity-contract/README.md)
+adds the already-enforced 16-record quota to descriptor schema 3 without changing
+the runtime limit. Source-bound Debug/Release tests verify full capacity,
+refusal without reserving the next ID, exact ciphertext replay, acknowledgement
+without freeing capacity, and explicit retirement/reopening which frees one slot.
+The 128-operation and aggregate-image limits still apply together. This is a
+contract-metadata correction and native regression, not a resource-budget freeze.
+
+The [subsequent installed Rust candidate](../../research/sdk-alpha1/evidence/20261106-current-rust-contract/README.md)
+passes both original profiles at `4c595a2a`, using a freshly packaged Continuity
+crate and the unchanged, byte-verified SDK archives. Each profile executes all
+three complete public consumer tests; strict Clippy passes. A separate installed
+example executes the exact schema-3 descriptor. Captured-source replay reproduces
+both lifecycle outcome groups from 558 public files without private runtime
+access. This supplies the new native package identity; it does not relabel the
+ongoing foreign `5678d101` runs or freeze the overall product contract.
+
 The deliverable sought is a construction and implementation assessment of the
 declared secure-session contract: authorized establishment and communication,
 traffic-independent PQ progress, exact recovery of original operations,
@@ -247,6 +264,15 @@ Release run. Review the separate fanout key record, the plaintext-returning
 closed-epoch report and the earlier resolution keys included in later report
 transcripts. These facts prevent assuming a generic Snapshot stop or independent
 MAC rows without the corresponding source and acquisition argument.
+
+The [cleanup/rekey causality follow-up](../../research/sdk-alpha1/evidence/20261106-cleanup-causality/README.md)
+executes actual target-epoch sends after response-ready and final-ready peer
+closure. This rules out using closure alone to exclude a target send. Its narrower
+stopping argument requires the selected original KEM token to remain in the
+frozen current control payload, with authenticated origin and ordinary retained
+intent premises. Eight Debug/Release executions include original-write joint
+renewal and 32 sync-fault schedules. Raw fragments, pre-retention failures and
+later root/AEAD MAC obligations remain open; the full proof is not claimed.
 
 The [finite two-round execution record](../../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
 also gives a source-derived exposed-ancestor witness on the unchanged symbolic
