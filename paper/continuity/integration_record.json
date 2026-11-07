@@ -1,15 +1,15 @@
 {
   "schema": "qperiapt-joc-integration/5",
-  "completed_at_utc": "2026-11-07T22:16:31.121880+00:00",
+  "completed_at_utc": "2026-11-07T23:25:22.532011+00:00",
   "title": "Exposure and Recovery with Persistent Randomness Reservations",
   "target_venue": "Journal of Cryptology",
   "source_checkpoint": "228c944fc476e3e57d6c08063cacb19bca5b360e",
   "inspected_development_checkpoint": "1c68aa666db22d36ee136be1ec712545a9e74f03",
-  "previous_pdf_sha256": "8f77e3adbc26f3d7cfdc772c72f83b4442cac6e15faee8466613cf06cd0f9b4b",
+  "previous_pdf_sha256": "7b976133ed0f2206d990a74241d03d1d678ff071f0b52df7e2ddeb9aca27fc18",
   "pdf_path": "continuity.pdf",
-  "pdf_pages": 62,
-  "pdf_sha256": "7b976133ed0f2206d990a74241d03d1d678ff071f0b52df7e2ddeb9aca27fc18",
-  "abstract_words": 235,
+  "pdf_pages": 64,
+  "pdf_sha256": "e39b26160ed1903c7480e062343478c535bb2d25f6ee35bf6740176f10b5ab49",
+  "abstract_words": 241,
   "keywords": 7,
   "bibliography_entries": 17,
   "author_metadata": "author-metadata.json",
@@ -23,7 +23,10 @@
     "bibliography_style_sha256": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
     "style_derivation": "sn-basic.bst; renamed derived file; all authors retained; alphabetical sorting unchanged",
     "single_tex_entry": "joc-submission.tex",
-    "single_tex_sha256": "90dc3087af89667d6b67f5003756402f7106fabd001c4b34d79abe29b2d0cb35"
+    "single_tex_sha256": "ff86556ee982e54e32211769e5f9a58469652db28d63cda2fce3a974c166296f",
+    "layout": "single-column",
+    "layout_decision": "format/layout_decision.md",
+    "layout_decision_sha256": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e"
   },
   "retained_candidate_local_result": {
     "origin_anchored_stop": "Lemma 5.6",
@@ -43,11 +46,11 @@
     "function_map_entries": 20,
     "native_execution_this_round": false,
     "profile": "fresh marked traffic material, first send, private honest application, active network and declared record/projection interfaces",
-    "evidence_status": "retained preceding revision; not a new 24-file audit this round"
+    "evidence_status": "Retained source audit and profile; no additional native source comparison in this update."
   },
   "finite_model_evidence": {
     "directory": "artifacts/guarded-provenance",
-    "kind": "retained finite model rerun this integration",
+    "kind": "Retained finite model rerun for the current manuscript integration",
     "acquisition_key_direct_source_assignments": 5360,
     "six_event_histories": 360,
     "history_prefix_checks": 2160,
@@ -56,8 +59,8 @@
     "optimization_guard": "retained previously executed optimized-mode rejection evidence; not rerun in this increment",
     "python_minimum": "3.10",
     "new_native_execution": false,
-    "current_results": "artifacts/integration-checks/round5/finite-results.json",
-    "current_expected_results": "artifacts/integration-checks/round5/finite-review-results.json",
+    "current_results": "artifacts/integration-checks/multiple-root-entry/finite-results.json",
+    "current_expected_results": "artifacts/integration-checks/multiple-root-entry/finite-review-results.json",
     "mutation_witnesses": 5,
     "invalid_inputs_rejected": 6
   },
@@ -71,60 +74,53 @@
     "baseline_rerun_this_integration": false,
     "provenance": "Existing appendix links and historical source/tool receipts retained."
   },
-  "this_round_execution": {
-    "latex_build": true,
-    "clean_exported_source_build": true,
-    "finite_record_model": true,
-    "independent_new_proof_review": true,
-    "native_protocol_rerun": false,
-    "tamarin_rerun": false,
-    "baseline_rerun": false,
-    "contextbound_finite_checks": true,
-    "contextbound_pinned_source_audit": true
-  },
   "build_review": {
-    "schema": "qperiapt-joc-visual-build-review/3",
-    "completed_at_utc": "2026-11-07T22:16:31.121880+00:00",
-    "pdf_pages": 62,
-    "pdf_sha256": "7b976133ed0f2206d990a74241d03d1d678ff071f0b52df7e2ddeb9aca27fc18",
+    "schema": "qperiapt-joc-visual-build-review/1",
+    "completed_at_utc": "2026-11-07T23:22:39.205088+00:00",
+    "pdf_pages": 64,
+    "pdf_sha256": "e39b26160ed1903c7480e062343478c535bb2d25f6ee35bf6740176f10b5ab49",
     "build_exit_code": 0,
     "undefined_references_or_citations": 0,
     "overfull_boxes": 0,
-    "underfull_box_notices": 70,
+    "underfull_box_notices": 72,
     "all_fonts_embedded": true,
-    "review": "The final 62-page PDF was inspected in rendered contact sheets for pages 1-3 and 38-62. The new hidden-component lemma (page 39) and combined bound (page 42) were additionally inspected at reading scale. Unchanged pages 4-37 retain the preceding review. No clipping or formula overlap was observed. A clean exported-source compile produced identical extracted text.",
+    "review": "All 64 pages were inspected in four rendered contact sheets. Title/abstract and the connected contribution narrative (pages 1 and 3), plus the new root-entry theorem, budgets and message corollary (pages 43 and 44), were additionally inspected at reading scale. No clipped text, overlapping formulas or missing glyphs was observed. The clean exported-source build produced identical extracted text.",
     "source_export": {
       "status": "passed",
+      "completed_at_utc": "2026-11-07T23:21:34.164930+00:00",
       "files_in_source_zip": 9,
       "clean_compile_exit_code": 0,
       "extracted_pdf_text_equal": true,
-      "text_sha256": "fcf9c0a1841ddbc045934835a789009742abbec612e43fe36f9ce6e8dea84245",
-      "source_zip_sha256": "ea1ad1bef9688fa01f418b6f9a7b4c636c7d52453110402036d69ed863097c76",
+      "text_sha256": "da74269fdf6a4a7d259cdfbf00071d6b51d5558102d6c7714e767dbde2aaaf67",
+      "source_zip_sha256": "1c0bcb966de90d8215821039508944a26e4617be7727138c91565c1e47721685",
+      "reading_pdf_sha256": "e39b26160ed1903c7480e062343478c535bb2d25f6ee35bf6740176f10b5ab49",
+      "all_fonts_embedded": true,
       "failures": []
     },
-    "initial_export_guard": "An initial make source rejected a partial build-output file that differed from the intact reading copy. Independently compiling the complete source in an isolated temporary directory reproduced the full reading-copy text; the verified complete outputs were installed and the build/export checks passed."
+    "build_method": "Flattened source compiled in an isolated temporary directory; complete outputs copied atomically into the checked build and reading paths."
   },
   "source_hashes": {
     "acquisition-nonadditivity.tex": "50cd83948e5e03329eacfbc380af9f7a99b63abab3cc6e3e75f0edf7f3dcd297",
-    "artifact-map.tex": "409d35b1dd8803496cf06592d81e89af6e0bcd14beb164b39bcf9ff12f17715c",
+    "artifact-map.tex": "c7d034e2c70b75d78abc42190e3f3ecf16a9d1024a137285e4361f1632016ac2",
     "author-metadata.json": "a4654fb096735dd2277cf4251ad37866fe00b3a8333a5e6731155308ad495ec8",
     "candidate-local-accounting.tex": "4a38c6bb00c70f2611c2395aec754c0af6b8231a8e3f94e027cf1a17b657865d",
     "common-virtual-accounting.tex": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
-    "computational-roadmap.tex": "b73e2ca7531d1653637dab00f49ad5981edaab9ff7c2abe896ded7ddce821f36",
+    "computational-roadmap.tex": "a341639293db0b659f281492c0a663754278be2447d17adc8dfbdc6dae044e03",
     "construction.tex": "0bc19554764a4029df2375722a20397dd5b45bb71d133ecbf5f49b017099a9f9",
-    "contextbound-connection.tex": "97758cda00a7159839b80f6bcc66e78ca4a0d8702ec5d12a687fa64f67ade0a1",
+    "contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
     "declarations.tex": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
-    "discussion.tex": "d2d343000995aff72f4b478add058cac1b3cd1c7baa3b2b7bcd55fdc2257dde1",
+    "discussion.tex": "058ff6bcd955475cb2c75327e7b677980f4fd38211e8fcfabc79214450a002bb",
     "established-results.tex": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
     "evaluation.tex": "d20825588dc573dc2e52a6340452acc8b3e34f2326208cfd27476eda4a33a8fe",
     "figures/confirmation-cut.pdf": "86b00127566be898a4d072b69f9c5a0b92884578a55a9864af5b8d14596d72a1",
     "guarded-provenance.tex": "f7b36ef86bdd4733af0b882c9f192e52ad40ef041ae22046e63e1584e2c897ca",
-    "introduction.tex": "e17772bb631a83a9eaaa193045073eb3eca5eefd0c705bbd5b23a27d00735cef",
+    "introduction.tex": "85251596494e2d364a2b920bfae242189985ed27f841ff48b47cb0e7719c00fc",
     "joc-basic.bst": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
-    "joc-submission.tex": "90dc3087af89667d6b67f5003756402f7106fabd001c4b34d79abe29b2d0cb35",
-    "joint-continuation.tex": "865b128155662d8916ef648a7852a9973e9d24f22287d29c9ec59ca191fee989",
-    "joint-primitive-bounds.tex": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d",
-    "main.tex": "17019866670f09c9570b63385ac1207bfe8bd5764c5a7dc57f0f80982ec5039d",
+    "joc-submission.tex": "ff86556ee982e54e32211769e5f9a58469652db28d63cda2fce3a974c166296f",
+    "joint-continuation.tex": "d6c980912918b309c33f4c9f8116d6835dd521be639d5c866b198496a9dd3bcb",
+    "joint-primitive-bounds.tex": "728694d237734b071496d355c13c359825aef219d918ed54810f97d2457e9dbd",
+    "main.tex": "034f7b8ea467dd89b1b8248bcaac18af4fc2e73f3f96d17044c3957078118e18",
+    "multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
     "native-correspondence.tex": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
     "opaque-rendering.tex": "178f6ab0c486b053d9f8447ca09bce60ab5d5cb35bbc7a0ac881d2fb138f64fe",
     "primitive-inputs.tex": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
@@ -173,7 +169,29 @@
     "artifacts/integration-checks/round5/finite-results.json": "d08af992b012f8d41498f2d1c5eefe597cb868d05d776ba96b405f4214445dfc",
     "artifacts/integration-checks/round5/finite-review-results.json": "ecd1c8ed471c188bd8e21a8308e23cc36e9e3d8ffa14996d0a7669e5529e4be5",
     "artifacts/integration-checks/round5/source-export.json": "041e60fe553168f9ae9979b5972db77be36cb3f513a617c53c213af11c6d5b59",
-    "artifacts/build-review/round5_build_review.md": "914c1af93d290dd8279df75ed51c040f792957b6831ac0d81aa6c7c72fa503a3"
+    "artifacts/build-review/round5_build_review.md": "914c1af93d290dd8279df75ed51c040f792957b6831ac0d81aa6c7c72fa503a3",
+    "artifacts/multiple-root-entry/independent_review.json": "27389a5863155c36ec862b1781e5937a8388a030a7b5f0814a01e7216b60a696",
+    "artifacts/multiple-root-entry/multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+    "artifacts/multiple-root-entry/independent_derivation.md": "e39516ea24ea3fdf964e0294b8cd3772a5c7eba0b7d55f250841c9cb9056b29a",
+    "artifacts/multiple-root-entry/FREEZE.json": "ab4a1e44d902daec1e6d1dcc4345fa9e71afb5f3463634e26ac0c9568f77ab2a",
+    "artifacts/multiple-root-entry/README.md": "a21dc183a78dc73175ab76ed489e09d0282827b39bcba9b451066e9462c7b0d5",
+    "artifacts/multiple-root-entry/independent_review.md": "3b9321188ee100e3bfd8c51bf8102984817c924e5fa73b95ab49fc5b150057f4",
+    "artifacts/multiple-root-entry/multiple_root_entry_proof.md": "6fd92f5673f48e39658a8968d9ed1b4b9c7f45c6e6c6d66b3b5b88d415ab704e",
+    "artifacts/editorial-review/final_editorial.diff": "1ea1888eb54c49e89d93ad08c20ccb33d52790afac698fa3e90529ee47b257b2",
+    "artifacts/editorial-review/editorial_semantic_review.md": "e29c5a7c4416f79cbde3ee9e52d99b23b4c3c4ba727339d55429f0e24324bcb1",
+    "artifacts/editorial-review/editorial_semantic_review.json": "c127df21e5855bfaa7579a6f8cbe64e3e7724072c201cf35dfcd03fea0b95b86",
+    "artifacts/editorial-review/README.md": "49ede9a2691991afebc061625d196c7f23aad7a5286a3d2caae7c868264150ff",
+    "artifacts/integration-checks/multiple-root-entry/build-check.json": "4bc8f54de341af24e6f65e010a10ef66fb5c759ffe8a1dce511dbd863fcae2e9",
+    "artifacts/integration-checks/multiple-root-entry/finite-results.json": "d08af992b012f8d41498f2d1c5eefe597cb868d05d776ba96b405f4214445dfc",
+    "artifacts/integration-checks/multiple-root-entry/finite-review-results.json": "ecd1c8ed471c188bd8e21a8308e23cc36e9e3d8ffa14996d0a7669e5529e4be5",
+    "artifacts/integration-checks/multiple-root-entry/contextbound-check.json": "76511a7b62e0d93f43b144f6eb6eb809d1fad68ae3e48b972966d14fc7dcf76a",
+    "artifacts/integration-checks/multiple-root-entry/source-export.json": "c22d9748715d7a94f6ad26dcdd86fc520fc12d226fb771b85a352517558d838a",
+    "artifacts/integration-checks/multiple-root-entry/python-version.txt": "112ee4ae24d61100b5a0246da4c30bdf37c18ef6ebef4e8c636bce001184605b",
+    "artifacts/integration-checks/multiple-root-entry/visual-build-review.json": "eb42dcf38c2c3213ac064b6b18317c15f4b23c461e3b9ae7bacadefebc2da508",
+    "artifacts/build-review/multiple_root_entry_build_review.md": "27fa41f3d4bbc23ca258b7e592fa24ce29afcb1e5dc42e44c05ef3f5999a492c",
+    "format/layout_decision.md": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e",
+    "notes/WORKFLOW.md": "4561e8ba45bee1e5b3d6e5f59646a3553ae6fb69803c40713b2b78dab5c92371",
+    "notes/RESEARCH_HANDOFF.md": "d0dccf61a2bd8f17bf3b4cd11286721e8193896018e8db4c2dc1a25bffc7652a"
   },
   "paper_workflow": {
     "path": "../../.github/workflows/joc-manuscript.yml",
@@ -182,7 +200,13 @@
     "base": "main",
     "draft_pr": 119,
     "url": "https://github.com/billlza/q-periapt/pull/119",
-    "snapshot": "Local round-5 validation before updating the continuous draft PR. Manuscript workflow run 42415807123 passed on preceding head 1cd40686209d68de509d63eab0b77465b8701b54. Read subsequent remote results on the actual new head; no new-head CI result is asserted by this precommit receipt."
+    "snapshot": "Precommit integration receipt for the continuous manuscript PR. Remote CI is checked against the subsequently published actual head and recorded in the PR and delivery receipt.",
+    "verified_previous_head": "1dd47a20e0605842a5d4217bff04413179d9381f",
+    "previous_head_manuscript_workflow": {
+      "run_id": 42422774537,
+      "conclusion": "success",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42422774537"
+    }
   },
   "submission_metadata": "Confirmed Ziang Li and corresponding email; no additional author included; no journal submission performed.",
   "retained_joint_continuation_result": {
@@ -198,9 +222,43 @@
     "review_checks": 22,
     "review_status": "PASS",
     "proof_version": "0.4",
-    "score_connection": "The random-component score b_j and uniform-combined-contribution continuation score b_j^cont are distinct. An actual complete ContextBound output-bit comparison of size epsilon_CB,j gives |b_j-b_j^cont| <= 2 epsilon_CB,j, retaining the same controller, interfaces, available score code, recomputed events and shared-oracle work."
+    "score_connection": "The random-component score b_j and uniform-combined-contribution continuation score b_j^cont are distinct. An actual complete ContextBound output-bit comparison of size epsilon_CB,j gives |b_j-b_j^cont| <= 2 epsilon_CB,j, retaining the same controller, interfaces, available score code, recomputed events and shared-oracle work.",
+    "semantic_correspondence": "artifacts/editorial-review/editorial_semantic_review.json"
   },
-  "new_results": {
+  "contextbound_source_audit": {
+    "directory": "artifacts/contextbound-connection",
+    "source_files_compared": 14,
+    "static_assertions": 12,
+    "status": "passed",
+    "identical_to_pinned_revisions_and_worktree": true,
+    "source_receipt": "artifacts/integration-checks/round5/contextbound-source-audit.json",
+    "native_execution": false,
+    "execution": "Retained pinned source audit; not newly executed for the multiple-root and prose update."
+  },
+  "contextbound_finite_checks": {
+    "check_count": 36,
+    "status": "passed",
+    "receipt": "artifacts/integration-checks/multiple-root-entry/contextbound-check.json",
+    "independently_rerun": true,
+    "scope": "actual framing/KATs plus finite routing, cache and reservation-handle models with negative controls",
+    "native_execution": false,
+    "execution": "Replayed unchanged retained checker for this integration; the original independent checker receipt remains frozen."
+  },
+  "completed_connection": "original accepted ContextBound operation -> operational selected-component challenge -> complete-tuple hidden-input comparison -> uniform recovered contribution -> root initialization -> proved joint first-message continuation, in the declared next-rekey profile",
+  "next_research_extension": "Choose one concrete broader native workload and establish its online descriptor/available-data/shared-handle correspondence to the proved finite multiple-root controller.",
+  "current_update_execution": {
+    "latex_build": true,
+    "clean_exported_source_build": true,
+    "finite_record_model": true,
+    "contextbound_finite_checks": true,
+    "independent_multiple_root_proof_review": true,
+    "independent_editorial_semantic_review": true,
+    "native_protocol_rerun": false,
+    "native_source_audit": false,
+    "tamarin_rerun": false,
+    "baseline_rerun": false
+  },
+  "retained_contextbound_connection_result": {
     "complete_tuple_hidden_component": "Lemma 5.12",
     "next_rekey_root_use": "Lemma 5.13",
     "contextbound_next_rekey": "Theorem 5.14",
@@ -208,7 +266,7 @@
     "proof_note": "artifacts/contextbound-connection/contextbound_connection.md",
     "proof_note_sha256": "e9165579272d819c82ec197cf526e2556262c5d15242a3d81caa2cf2ee9227df",
     "integrated_tex": "contextbound-connection.tex",
-    "integrated_tex_sha256": "97758cda00a7159839b80f6bcc66e78ca4a0d8702ec5d12a687fa64f67ade0a1",
+    "integrated_tex_sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
     "independent_review": "artifacts/contextbound-connection/independent_review.json",
     "review_kind": "independent mathematical argument and pinned-source cross-check; not a formal proof",
     "review_checks": 24,
@@ -218,25 +276,39 @@
     "profile": "next rekey of one established authoritative session, with original immutable matching binding and the retained fresh marked first-message interface",
     "component_game": "explicit two-stage one-challenge ML-KEM-768 real-versus-uniform game; actual native X25519 retained",
     "original_game_costs": "eta_attr^nat, eta_proj^nat, rho_j, a_j^+ + a_j^- + 2 delta_j retained",
-    "oracle_interfaces": "whole SHA3-256 H and independent SHA-256 compression h; full preparation, native work, continuation and terminal-test budgets"
+    "oracle_interfaces": "whole SHA3-256 H and independent SHA-256 compression h; full preparation, native work, continuation and terminal-test budgets",
+    "semantic_correspondence": "artifacts/editorial-review/editorial_semantic_review.json"
   },
-  "contextbound_source_audit": {
-    "directory": "artifacts/contextbound-connection",
-    "source_files_compared": 14,
-    "static_assertions": 12,
-    "status": "passed",
-    "identical_to_pinned_revisions_and_worktree": true,
-    "source_receipt": "artifacts/integration-checks/round5/contextbound-source-audit.json",
-    "native_execution": false
+  "new_results": {
+    "finite_multiple_root_entry": "Theorem 5.15",
+    "first_message_after_marked_root": "Corollary 5.16",
+    "section": "5.7",
+    "integrated_tex": "multiple-root-entry.tex",
+    "integrated_tex_sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+    "proof_note": "artifacts/multiple-root-entry/multiple_root_entry_proof.md",
+    "proof_note_sha256": "6fd92f5673f48e39658a8968d9ed1b4b9c7f45c6e6c6d66b3b5b88d415ab704e",
+    "independent_review": "artifacts/multiple-root-entry/independent_review.json",
+    "review_checks": 25,
+    "review_status": "PASS",
+    "review_kind": "Independent mathematical argument and adversarial interface review",
+    "entry_bit_gap": "min(1, epsilon_Hjoint(C,0,q_S,32) + sum_i epsilon_Hrow(N_i,q_i,98))",
+    "query_budgets": {
+      "q_S": "B + 2D + 5 sum_i N_i",
+      "q_i": "B + 2D + 5 sum_(k>i) N_k"
+    },
+    "message_score": "min(1, 2 Delta_mr + 2 Delta_sched + 2 epsilon_AEAD)",
+    "target": "Fresh exact descriptor (Gamma(r),I) marked before its first evaluation, including a new entry in a previously used class; every alias retrieves one retained schedule handle.",
+    "native_application": "A concrete candidate supplies correspondence of its stopped execution to the available-data controller. The existing next-rekey source theorem retains its established conclusion."
   },
-  "contextbound_finite_checks": {
-    "check_count": 36,
-    "status": "passed",
-    "receipt": "artifacts/integration-checks/round5/contextbound-check.json",
-    "independently_rerun": true,
-    "scope": "actual framing/KATs plus finite routing, cache and reservation-handle models with negative controls",
-    "native_execution": false
-  },
-  "completed_connection": "original accepted ContextBound operation -> operational selected-component challenge -> complete-tuple hidden-input comparison -> uniform recovered contribution -> root initialization -> proved joint first-message continuation, in the declared next-rekey profile",
-  "next_research_extension": "finite multiple-root entry comparison with an explicit available-data controller and fresh target pair, then broader source profiles/target selection; not needed to validate the completed next-rekey result"
+  "editorial_revision": {
+    "base_commit": "1dd47a20e0605842a5d4217bff04413179d9381f",
+    "diff": "artifacts/editorial-review/final_editorial.diff",
+    "semantic_review": "artifacts/editorial-review/editorial_semantic_review.json",
+    "stable_manuscript_title": true,
+    "stable_deliverable_names": [
+      "Q-Periapt_JoC_Manuscript.pdf",
+      "Q-Periapt_JoC_Research.zip"
+    ],
+    "presentation": "Connected contribution paragraphs and positive experiment descriptions; existing formal statements and precise mathematical interfaces retained."
+  }
 }

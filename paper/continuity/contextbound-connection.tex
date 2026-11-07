@@ -5,14 +5,13 @@
 We now discharge the ContextBound comparison left explicit in
 Section~\ref{sec:joint-continuation} for one concrete native profile.
 The protected component is ML-KEM-768 with a real-versus-uniform 32-byte
-shared-secret challenge. The other component is evaluated by the actual
-X25519 algorithm. Its raw DH output is not assumed to satisfy that same
-uniform-key experiment. Write $H$ for the whole SHA3-256 random oracle and
+shared-secret challenge. X25519 supplies its native output and rejection
+behavior. Write $H$ for the whole SHA3-256 random oracle and
 $h$ for the independent SHA-256 compression oracle of
 Section~\ref{sec:joint-continuation}. Both remain available throughout every
 comparison. All oracle-dependent preparation, including construction of an
-established starting state, is executed and counted; an oracle-correlated
-history is not supplied as free auxiliary input.
+established starting state, is executed and counted as part of the complete
+reduction.
 
 \paragraph{Complete effective tuples.}
 For a byte string $x$, let
@@ -39,9 +38,9 @@ with $O$ the entire retained signed offer and the policy digest that of the
 verified admitted policy. In the pinned suite the complete encoded input
 has 2639 bytes, and the 32-byte $s_M$ field occupies offsets 76--107.
 The reservation's trust-root binding, original-slot identifiers, operation
-identifiers and journal identities are separate metadata; they are not
-extra fields of this hash input. In particular, the raw offer is present
-through $C_{\rm app}$, not additionally appended to the outer tuple.
+identifiers and journal identities are kept in the provenance ledger.
+The hash input consists of the ten fields above; the retained signed offer
+contributes through $C_{\rm app}$.
 
 \begin{lemma}[Complete-tuple hidden-component comparison]
 \label{lem:cb-hidden-component}
@@ -76,8 +75,8 @@ hidden-input theorem stated in Appendix~\ref{app:primitive-inputs}
 private queries. The independent $h$ interface is part of the unchanged
 auxiliary computation. Ordinary $H$ queries, including an accidentally
 matching known computation, retain their actual oracle responses and are
-counted in $Q_H$. The argument does not condition on avoiding a collision
-or on the final acceptance event.
+counted in $Q_H$. The comparison covers the unconditional experiment,
+including collisions and executions that end without acceptance.
 \end{proof}
 
 The cache key in this lemma cannot be replaced by an origin identifier.
@@ -113,20 +112,20 @@ independent uniform 32-byte key. Thereafter its decapsulation oracle
 rejects that challenge ciphertext. Before challenge creation, selected-key
 decapsulation follows this ordinary prechallenge interface; a query that
 happens to equal the later sampled $c_M^*$ retains its original answer
-and is not deleted or retroactively replaced by $U$. Other original
-owners use their locally known keys, even when public-key bytes happen
-to coincide. No equivalence with an interface that supplies its challenge
-up front is assumed without a separate game conversion.
+throughout the execution. Other original owners use their locally known
+keys, even when public-key bytes happen to coincide. The component costs
+below refer to this two-stage game.
 
 The immutable admitted binding must show that $a$ consumes the original
 offer from $g$. An immutable contrary binding makes attribution to $j$
 permanently impossible and gives a free stop $U_j$ under
-Section~\ref{sec:candidate-local-accounting}; byte equality alone does not
-transfer provenance. Missing or unaccepted operations otherwise retain the
+Section~\ref{sec:candidate-local-accounting}. Provenance follows that
+original binding. Missing or unaccepted operations otherwise retain the
 native execution. Reveal and projection cases use the established free
 stops, charged stops and local record correspondence. Thus the existing
-component costs $a_j^+,a_j^-,\delta_j$ retain exactly their meanings;
-this adapter does not set correctness or permitted-projection costs to zero.
+component costs $a_j^+,a_j^-,\delta_j$ retain exactly their meanings.
+Correctness and permitted-projection costs remain at their established
+comparisons.
 More explicitly, the derived distinguisher $D_j^\sigma$ runs the entire
 adapter and outputs $\mathbf1[\Psi_j=\sigma]$ for
 $\sigma\in\{-1,+1\}$. Its operational advantage is
@@ -143,9 +142,8 @@ In the resulting random-component game,
 $\widetilde{\mathsf V}^{[j]}$, $K_{\rm ch}=U$ is independent uniform.
 The reduction for Lemma~\ref{lem:cb-hidden-component} can materialize all
 actual native KEM tapes locally, execute their algorithms, and replace
-only the designated protected component returns by $U$. This is a new
-implementation of that adjacent pair of experiments, not reuse of the
-previous reduction's unavailable challenge tapes. Ordinary SHA3 work
+only the designated protected component returns by $U$. These locally
+generated tapes implement the adjacent pair of experiments. Ordinary SHA3 work
 inside those algorithms is included in $Q_H$; opaque records and the same
 stopping code retain their declared interfaces.
 
@@ -157,9 +155,9 @@ wrapping keys may be known. The supported native call surface includes
 failed reservations and writes, process loss and exact resumption,
 adversarial public packets, old-epoch traffic, asynchronous final/receipt
 processing, the marked first-message interface of
-Corollary~\ref{cor:joint-first-message}, and subsequent epochs. Private
-selected owners are not additionally exported to arbitrary low-level SDK
-callers, and read-only copies are not activated as competing histories.
+Corollary~\ref{cor:joint-first-message}, and subsequent epochs. Selected
+private owners are used exclusively through this call surface; read-only
+copies remain passive.
 These are an initial state and call surface; the original eligibility
 predicate is unchanged.
 

@@ -41,32 +41,31 @@
 % The alternative address is retained in author-metadata.json.
 \author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
-\abstract{Persistent implementations can reserve randomness before a cryptographic
+\abstract{Persistent implementations may reserve randomness before a cryptographic
 operation executes. Recovery after compromise therefore depends on the
-generation and acquisition history of that randomness across restart. We
-formalize this history through immutable reservation origins and a record
-interface for acquisition, copying, rewrapping, and later key disclosure.
-Alias normalization preserves each retained representation's original
-operation. For fixed public key derivations, a guarded-path theorem exactly
-characterizes record exposure and its conjunctive acquisition dependencies. We
-construct a simulator for private images and intents without selected
-reservation coins, and compose immutable authentication reports in reverse
-causal order when their transcripts contain earlier report keys.
-Candidate-local accounting connects these interfaces through an origin-based stopping
-certificate valid before the final compromise cut is selected. A full-tuple
-quantum hash comparison links a uniform component secret to the recovered
-contribution. Starting from a uniform recovered contribution, a joint theorem in the compression quantum
-random-oracle model separates a selected first-message key while retaining
-confirmation-dependent traffic derivation, real control and acknowledgement
-verification, and successor-root and next-seed disclosure. We instantiate the
-origin-based recovery condition in a hybrid post-quantum messaging protocol
-and establish multi-epoch symbolic message secrecy with inherited roots and
-asynchronous confirmation. Native executions separate post-restart computation
-from fresh entropy and show how aggregate rewriting preserves an earlier
-reservation. Finite-model checks and executable reference corpora validate the
-exposure semantics. These results identify the original sources, persistent
-observations, and joint cryptographic continuations required by a recovery
-argument.}
+original sampling and acquisition history of that randomness across restart.
+We formalize this dependence through immutable reservation origins and an
+interface for acquiring, copying, rewrapping, and opening retained records.
+Alias normalization preserves the original operation. For fixed public key
+derivations, an exact guarded-path characterization captures exposure through
+captured ciphertexts and disclosed keys. We construct simulations of private
+images and intents without selected reservation coins, and compose immutable
+authentication reports in reverse causal order when their transcripts contain
+earlier private report keys. Candidate-local accounting connects these
+interfaces before the final compromise cut is selected. A full-tuple quantum
+hash comparison links a uniform component secret to the recovered contribution.
+A reduction in the compression quantum random-oracle model then follows root
+extraction, confirmation, traffic derivation, and the selected first-message
+key, retaining real control and acknowledgement verification and successor-state
+disclosure. Its native connection covers the next rekey of an established
+session and a fresh marked message allocation. The initialization extends to
+finite families of available root descriptors, preserving aliases and
+supporting a fresh target in a previously used class. We instantiate the provenance
+condition in a hybrid post-quantum messaging protocol and establish multi-epoch
+symbolic message secrecy with inherited roots and asynchronous confirmation.
+Native executions reconstruct traffic from pre-restart reservations and
+demonstrate the effect of aggregate rewriting and delayed receipts. Finite-model
+checks and executable corpora validate the exposure semantics.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 
@@ -131,70 +130,51 @@ boundaries. Its journal can also aggregate several sessions, making the
 distinction between a new image and an existing source directly observable.
 
 \paragraph{Contributions.}
-The paper establishes three connected results.
-\begin{enumerate}
-  \item \textbf{A provenance-preserving model of durable exposure.}
-  We define the original-reservation and record-acquisition interface and prove
-  alias normalization with equality of public views and original-record
-  ledgers (Lemma~\ref{lem:alias-normalization}). The result preserves actual
-  rendering operations and counts distinct plaintext openings by original
-  record, while retaining the separate costs of fresh seals and public
-  cryptographic calls. For fixed public key derivations, an exact guarded-path
-  characterization equates readability with iterative decryption
-  (Theorem~\ref{thm:guarded-normalization}). Its conjunctive guards represent
-  the joint effect of captured ciphertexts and disclosed keys; alternative
-  copies supply additional routes to the same source.
+The paper connects the exposure of original randomness, computational
+message confidentiality, and multi-epoch recovery.
 
-  \item \textbf{Constructive composition for persistent observations and
-  key derivation.}
-  We construct a table-based image/intent simulator that operates without the
-  selected reservation's bytes after the stated private-commitment replacement
-  (Theorem~\ref{thm:opaque-rendering}). The algorithm preserves original
-  invocation identities, complete intent prefixes, exact replay, and reached
-  durable state, with an explicit nonce-collision loss for byte equality.
-  A reverse-order hybrid theorem composes immutable authenticated reports
-  whose transcripts may contain earlier private report keys
-  (Theorem~\ref{thm:report-reverse-composition}). Its reduction uses the causal
-  order to execute later dependent reports without the selected unknown key.
-  Allowed key disclosures remain in the real experiment and contribute their
-  actual scored residual (Corollary~\ref{cor:report-exposure-residual}). These
-  interface results connect to the native application through candidate-local
-  accounting (Proposition~\ref{prop:native-local-accounting}). Its score
-  decomposition charges the selected candidate's actual disclosure residual
-  once in the original game, while retaining each candidate's own comparison
-  world. An origin-based stopping certificate remains valid before the final
-  cut and challenge are selected (Lemma~\ref{lem:adaptive-origin-stop}).
-  Starting from a uniform recovered contribution, a joint key-schedule
-  theorem separates the selected first-message key in the compression
-  quantum random-oracle model (Theorem~\ref{thm:joint-message-leaf} and
-  Corollary~\ref{cor:joint-first-message}). The reduction retains traffic
-  information chosen from confirmation outputs, real confirmation and ACK
-  verification, and disclosed successor roots and next chain seeds.
-  Using exact private-row normalization, the composition makes the next
-  hidden-input reduction possible without leaving an unmodeled parent-row use of its secret
-  (Lemma~\ref{lem:joint-expand-blocks}). At the preceding component boundary,
-  the complete ContextBound encoding supports a hidden-input comparison
-  with consistent answers across tuple aliases. An original-operation adapter
-  embeds the ML-KEM challenge while retaining the native retry history.
-  For the next rekey of an established session, a source induction fixes
-  the root-use descriptor and connects that comparison to the message bound
-  (Section~\ref{sec:contextbound-connection}).
+We give a provenance-preserving model of reservations and record acquisition.
+Alias normalization relates copied and resealed representations to the same
+original operation, preserving public views and the ledger of original
+records (Lemma~\ref{lem:alias-normalization}). For fixed public key
+derivations, a guarded-path characterization exactly matches iterative
+decryption (Theorem~\ref{thm:guarded-normalization}). Its conjunctive guards
+express how captured ciphertexts and disclosed keys jointly reveal a source;
+alternative copies provide further routes to that source. This gives
+recovery experiments a stable exposure condition across physical changes
+to storage.
 
-  \item \textbf{A multi-epoch recovery condition with separating executions.}
-  We prove symbolic message secrecy when both target reservations follow the
-  compromise cut, the actual target authentication keys and target entropy
-  remain undisclosed, and no acquired target-session version was saved after
-  the cut (Theorem~\ref{thm:symbolic}). The model admits inherited roots,
-  shared key identities, alternating proposers, asynchronous confirmation,
-  and unbounded epochs. The theorem and its reusable dependencies were
-  checked together in Tamarin. Native process-kill executions at both
-  reservation boundaries reconstruct traffic after honest completion and
-  restart. A delayed-receipt execution exposes epoch-two traffic when the
-  peers' confirmed counters are zero and one; a sibling-session write retains
-  the target's original reservation through a new aggregate image. These
-  executions identify the concrete distinctions captured by the recovery
-  condition.
-\end{enumerate}
+These exposure semantics support a constructive computational connection
+through the persistent observations and key derivations of one recovery experiment. The private-image and intent
+simulator represents the selected operation without its reservation coins,
+and reverse-causal composition handles immutable reports whose transcripts
+contain earlier private report keys. Candidate-local accounting connects
+these simulations to the native score and certifies permanent stopping from
+original provenance before the final cut is selected
+(Proposition~\ref{prop:native-local-accounting}). At the cryptographic entry,
+the complete ContextBound tuple supports a quantum hidden-input comparison,
+and an original-operation adapter embeds the ML-KEM challenge while preserving
+retries. The shared-compression-oracle analysis then follows root
+initialization, confirmation, traffic derivation, and the selected
+first-message key. It retains real verification and the stated successor-state
+disclosures (Theorem~\ref{thm:joint-message-leaf}). The native connection is
+established for the next rekey of an existing session and a fresh marked
+message allocation (Section~\ref{sec:contextbound-connection}). The finite
+multiple-root entry theorem extends the initialization to available salts and
+complete information strings, preserving exact aliases and a fresh target in
+a previously used class (Section~\ref{sec:multiple-root-entry}).
+
+The same provenance condition supports symbolic message secrecy when the target's original reservations
+follow the compromise cut and the stated authentication, entropy and
+record-acquisition conditions hold (Theorem~\ref{thm:symbolic}). The Tamarin
+model includes inherited roots, shared key identities, alternating proposers,
+asynchronous confirmation, and unbounded epochs. Native process-kill
+executions reconstruct traffic from reservations captured before restart;
+a delayed-receipt execution exposes epoch-two traffic while the peers'
+confirmed counters remain zero and one. A sibling-session write also carries
+an earlier target reservation into a new aggregate image. Together these
+executions show why the recovery condition follows original sources and
+acquisition histories across both persistence and asynchronous progress.
 
 \paragraph{Supporting validation.}
 An executable finite-model supplement checks the guarded characterization and
@@ -208,19 +188,18 @@ the originating contribution, direction, epoch, and message index, together
 with each construction's authentication and storage interface.
 
 \paragraph{Security model and organization.}
-Crash recovery in this paper resumes retained, bound operations; authentication,
-acquisition, and disclosure are specified by the model in
-Section~\ref{sec:security-model}. The universal recovery result is symbolic.
-The quantitative results cover record and report simulation, native score
-accounting, and a joint first-message continuation for the stated finite
-interfaces. Their cryptographic and disclosure terms remain explicit in
-the common message experiment. Section~\ref{sec:construction} describes the construction;
-Sections~\ref{sec:security-model} and~\ref{sec:computation} develop the
-record model and computational connections. Section~\ref{sec:established}
-gives the mechanized recovery theorem and separating executions, and
+Crash recovery resumes retained, bound operations under the authentication,
+acquisition and disclosure interface of Section~\ref{sec:security-model}.
+The symbolic theorem covers unbounded epochs. The computational results
+connect the stated finite record, report and first-message interfaces within
+the common message experiment, retaining their explicit cryptographic and
+disclosure terms. Section~\ref{sec:construction} describes the construction;
+Sections~\ref{sec:security-model} and~\ref{sec:computation} develop the record
+model and computational connection. Section~\ref{sec:established} presents
+the mechanized recovery theorem and separating executions, and
 Section~\ref{sec:evaluation} validates the exposure semantics.
-Section~\ref{sec:discussion} develops the consequences of these connections
-and the matched protocol comparison.
+Section~\ref{sec:discussion} develops their consequences and the matched
+protocol comparison.
 % END SECTION SOURCE: introduction.tex
 % BEGIN SECTION SOURCE: related-work.tex
 \section{Related work}
@@ -2239,10 +2218,10 @@ bound. Equivalently one may fix an independent application challenge bit,
 apply this bound, and average over that bit.
 \end{proof}
 
-The conclusion concerns independence \emph{at key installation} with the
-continuation regenerated consistently. It does not assert independence
-of the key and a subsequently computed ciphertext, nor pseudorandomness
-of every intermediate root relative to a fixed complete future view.
+The comparison installs an independent key and regenerates the complete
+continuation from it. Subsequent ciphertexts retain their dependence on that
+key, and the intermediate roots keep the joint distributions specified by
+the corresponding hybrids.
 
 \paragraph{Application confidentiality.}
 Use a one-key, one-encryption left-or-right AEAD experiment with nonce
@@ -2363,14 +2342,13 @@ including known old roots and allowed later disclosure.
 We now discharge the ContextBound comparison left explicit in
 Section~\ref{sec:joint-continuation} for one concrete native profile.
 The protected component is ML-KEM-768 with a real-versus-uniform 32-byte
-shared-secret challenge. The other component is evaluated by the actual
-X25519 algorithm. Its raw DH output is not assumed to satisfy that same
-uniform-key experiment. Write $H$ for the whole SHA3-256 random oracle and
+shared-secret challenge. X25519 supplies its native output and rejection
+behavior. Write $H$ for the whole SHA3-256 random oracle and
 $h$ for the independent SHA-256 compression oracle of
 Section~\ref{sec:joint-continuation}. Both remain available throughout every
 comparison. All oracle-dependent preparation, including construction of an
-established starting state, is executed and counted; an oracle-correlated
-history is not supplied as free auxiliary input.
+established starting state, is executed and counted as part of the complete
+reduction.
 
 \paragraph{Complete effective tuples.}
 For a byte string $x$, let
@@ -2397,9 +2375,9 @@ with $O$ the entire retained signed offer and the policy digest that of the
 verified admitted policy. In the pinned suite the complete encoded input
 has 2639 bytes, and the 32-byte $s_M$ field occupies offsets 76--107.
 The reservation's trust-root binding, original-slot identifiers, operation
-identifiers and journal identities are separate metadata; they are not
-extra fields of this hash input. In particular, the raw offer is present
-through $C_{\rm app}$, not additionally appended to the outer tuple.
+identifiers and journal identities are kept in the provenance ledger.
+The hash input consists of the ten fields above; the retained signed offer
+contributes through $C_{\rm app}$.
 
 \begin{lemma}[Complete-tuple hidden-component comparison]
 \label{lem:cb-hidden-component}
@@ -2434,8 +2412,8 @@ hidden-input theorem stated in Appendix~\ref{app:primitive-inputs}
 private queries. The independent $h$ interface is part of the unchanged
 auxiliary computation. Ordinary $H$ queries, including an accidentally
 matching known computation, retain their actual oracle responses and are
-counted in $Q_H$. The argument does not condition on avoiding a collision
-or on the final acceptance event.
+counted in $Q_H$. The comparison covers the unconditional experiment,
+including collisions and executions that end without acceptance.
 \end{proof}
 
 The cache key in this lemma cannot be replaced by an origin identifier.
@@ -2471,20 +2449,20 @@ independent uniform 32-byte key. Thereafter its decapsulation oracle
 rejects that challenge ciphertext. Before challenge creation, selected-key
 decapsulation follows this ordinary prechallenge interface; a query that
 happens to equal the later sampled $c_M^*$ retains its original answer
-and is not deleted or retroactively replaced by $U$. Other original
-owners use their locally known keys, even when public-key bytes happen
-to coincide. No equivalence with an interface that supplies its challenge
-up front is assumed without a separate game conversion.
+throughout the execution. Other original owners use their locally known
+keys, even when public-key bytes happen to coincide. The component costs
+below refer to this two-stage game.
 
 The immutable admitted binding must show that $a$ consumes the original
 offer from $g$. An immutable contrary binding makes attribution to $j$
 permanently impossible and gives a free stop $U_j$ under
-Section~\ref{sec:candidate-local-accounting}; byte equality alone does not
-transfer provenance. Missing or unaccepted operations otherwise retain the
+Section~\ref{sec:candidate-local-accounting}. Provenance follows that
+original binding. Missing or unaccepted operations otherwise retain the
 native execution. Reveal and projection cases use the established free
 stops, charged stops and local record correspondence. Thus the existing
-component costs $a_j^+,a_j^-,\delta_j$ retain exactly their meanings;
-this adapter does not set correctness or permitted-projection costs to zero.
+component costs $a_j^+,a_j^-,\delta_j$ retain exactly their meanings.
+Correctness and permitted-projection costs remain at their established
+comparisons.
 More explicitly, the derived distinguisher $D_j^\sigma$ runs the entire
 adapter and outputs $\mathbf1[\Psi_j=\sigma]$ for
 $\sigma\in\{-1,+1\}$. Its operational advantage is
@@ -2501,9 +2479,8 @@ In the resulting random-component game,
 $\widetilde{\mathsf V}^{[j]}$, $K_{\rm ch}=U$ is independent uniform.
 The reduction for Lemma~\ref{lem:cb-hidden-component} can materialize all
 actual native KEM tapes locally, execute their algorithms, and replace
-only the designated protected component returns by $U$. This is a new
-implementation of that adjacent pair of experiments, not reuse of the
-previous reduction's unavailable challenge tapes. Ordinary SHA3 work
+only the designated protected component returns by $U$. These locally
+generated tapes implement the adjacent pair of experiments. Ordinary SHA3 work
 inside those algorithms is included in $Q_H$; opaque records and the same
 stopping code retain their declared interfaces.
 
@@ -2515,9 +2492,9 @@ wrapping keys may be known. The supported native call surface includes
 failed reservations and writes, process loss and exact resumption,
 adversarial public packets, old-epoch traffic, asynchronous final/receipt
 processing, the marked first-message interface of
-Corollary~\ref{cor:joint-first-message}, and subsequent epochs. Private
-selected owners are not additionally exported to arbitrary low-level SDK
-callers, and read-only copies are not activated as competing histories.
+Corollary~\ref{cor:joint-first-message}, and subsequent epochs. Selected
+private owners are used exclusively through this call surface; read-only
+copies remain passive.
 These are an initial state and call surface; the original eligibility
 predicate is unchanged.
 
@@ -2658,6 +2635,161 @@ next-rekey instance. Its source requirement is expressed through the root-use
 descriptor, so extensions can retain the same tuple-level comparison while
 establishing their corresponding root-entry interface.
 % END SECTION SOURCE: contextbound-connection.tex
+
+% BEGIN SECTION SOURCE: multiple-root-entry.tex
+% Finite multiple-root entry. Uses the existing joint-primitive bounds.
+\subsection{Several root entries from one recovered contribution}
+\label{sec:multiple-root-entry}
+
+One recovered contribution can feed several available old roots and complete
+root-information strings. The comparison below retains these uses jointly.
+Let $S$ be uniform on 256 bits, initially independent of the public compression
+oracle $h$ and auxiliary state, and retain $F$ and $\Gamma$ from
+Section~\ref{sec:joint-continuation}. Each root request supplies a 32-byte
+salt $r$ and a complete native 97-byte information string $I$. Its real value is
+\[
+ P_r=F(r,S),\qquad R_{r,I}=F(P_r,I\Vert\mathtt{01}).
+\]
+The parent contribution is used through these Extract calls; each resulting
+PRK is used through its root-Expand interface. The controller retains the
+original source ledger and any established local stops.
+
+\paragraph{Descriptors and available data.}
+The root-use descriptor is
+$e(r,I)=(\Gamma(r),I)$, with exact byte equality. Equal descriptors retrieve
+the same root entry across callers and resumptions. Indeed,
+\eqref{eq:appendix-column-compression} shows that equal $\Gamma$ values give
+equal Extract values for every $S$, and equal complete information strings
+then give equal Expand values. Assign each newly encountered $\Gamma$ class
+its next lifetime index $i$, preserving this index after a restart.
+Numerical output coincidences between distinct classes keep their ordinary
+shared-oracle distribution.
+
+The controller computes salts, information strings and its selection from
+its available state: executed preparation, independent coins, public-oracle
+responses, unmarked roots, and the declared outputs of the marked schedule.
+At most one fresh descriptor is marked before its first root evaluation.
+Its root is installed in one retained schedule handle; every descriptor alias
+retrieves that handle. All its uses belong to the same interface of
+Section~\ref{sec:joint-continuation}, including its session salt, confirmation
+and successor calls, complete traffic-information table and budgets. Other
+root entries may be disclosed and used in later available computations,
+including as salts. The retained handle supplies exactly that schedule's
+operations. This is a rule about available computation; a locally known salt
+can numerically coincide with a protected value.
+
+Fix finite bounds $D,C,N_1,\ldots,N_C$ before execution: at most $D$ distinct
+salt strings, at most $C\le D$ classes, and at most $N_i$ distinct complete
+information strings in the $i$th class. These bounds hold in every comparison
+experiment. All oracle-dependent preparation is executed and counted. Exact
+repeats are cached. Write $q_S$ for the complete ordinary compression-query
+budget in the column reduction, and $q_i$ for that in the $i$th row reduction.
+These budgets include the whole controller, all other real primitives,
+continuation and terminal test. An additional independent whole-hash oracle
+may remain available throughout.
+
+\begin{theorem}[Finite multiple-root entry]
+\label{thm:multiple-root-entry}
+Replace the real root interface by a private table
+$\mathcal W(\Gamma(r),I)$ of independent uniform 32-byte entries, preserving
+all descriptor aliases and the controller above. Every efficient available
+output-bit test changes by at most
+\begin{equation}
+ \Delta_{\rm mr}=\min\!\left\{1,
+ \varepsilon_{\rm Hjoint}(C,0,q_S,32)
+ +\sum_{i=1}^{C}\varepsilon_{\rm Hrow}(N_i,q_i,98)\right\}.
+ \label{eq:multiple-root-error}
+\end{equation}
+In the table experiment, an online marked fresh descriptor supplies the
+independent uniform root required by
+Theorem~\ref{thm:joint-message-leaf}, together with the complete interactive
+controller. The marked descriptor may belong to a previously used class.
+\end{theorem}
+\begin{proof}
+Compute $\Gamma(r)$ from available salt bytes and retain its class index.
+Use one column call for the first salt in each new class; reuse its reply for
+later equal classes. The descriptor identity makes this an exact rendering
+of the real Extract interface. Lemma~\ref{lem:appendix-joint-hmac} replaces
+these calls by $P_i=V(\Gamma(r))$ at the first cost in
+\eqref{eq:multiple-root-error}. The remaining root computation consists of
+HMAC rows under the independent private keys $P_i$.
+
+Replace these rows in first-class-allocation order. At step $i$, presample
+the hidden uniform row-challenge key and assign it to the $i$th new class
+when that class is first encountered. Before that event the key has no use.
+Classes already replaced use their private tables; later classes have locally
+sampled independent keys and are evaluated with the same $h$. The controller
+accesses the selected PRK through its row alone. Thus the real row branch
+matches the preceding hybrid and the ideal row branch matches the next one.
+Lemma~\ref{lem:appendix-hmac-instances} bounds this step by
+$\varepsilon_{\rm Hrow}(N_i,q_i,98)$. If the class is never allocated, the
+hybrids agree. Summing over the fixed class budget establishes the bound.
+
+Distinct classes remain distinct reduction slots even when their sampled
+PRK bytes coincide. In a real row branch, local evaluation under another
+class's key uses the same $h$ and automatically preserves any resulting
+coincidence; these ordinary queries are included in $q_i$. Thus the argument
+uses the full independent-key distribution.
+
+For each ideal row, $I\mapsto I\Vert\mathtt{01}$ is injective. Its root
+interface is therefore exactly the table $\mathcal W(\Gamma(r),I)$.
+At a fresh descriptor, its value is independent of all previously used table
+entries and the oracle. Presample the designated uniform root, withhold it
+during the executed prefix, and assign it when the controller marks that
+fresh descriptor. All other entries retain their independent sampling and
+all aliases retrieve the retained handle. The selection uses the available
+prefix, so this deferred assignment has exactly the table distribution.
+It embeds the whole controller in the existing root experiment. The row
+hybrids already covered every class, so target selection adds no class guess.
+\end{proof}
+
+\paragraph{Explicit query accounting.}
+Let $B$ bound all ordinary compression work outside this entry service,
+including its entire downstream schedule and test. Cache the two public
+$\Gamma$ computations per distinct salt. With
+$N=\sum_{k=1}^{C}N_k$, valid conservative choices are
+\begin{equation}
+ q_S=B+2D+5N,\qquad
+ q_i=B+2D+5\sum_{k=i+1}^{C}N_k.
+ \label{eq:multiple-root-budgets}
+\end{equation}
+A 98-byte HMAC evaluation uses five compression calls, including its two key
+pads. In the column comparison every root row is real; at row step $i$, the
+later rows are real and the earlier rows are tables. External class scheduling
+accounts for $2D$, including new salts that share an existing class. The
+column primitive's own public pad work remains included in its established
+bound. $B$ is a uniform bound over these complete derived experiments.
+
+\begin{corollary}[First message after a marked root entry]
+\label{cor:multiple-root-message}
+For the available controller above and its marked schedule, use the
+first-message interface and available qualification predicate of Corollary~\ref{cor:joint-first-message}. If $Z$
+is its qualified signed message score, with zero on runs having no marked
+challenge, then
+\begin{equation}
+ |\mathbb E Z|\le
+ \min\{1,\,2\Delta_{\rm mr}+2\Delta_{\rm sched}
+                      +2\varepsilon_{\rm AEAD}\}.
+ \label{eq:multiple-root-message}
+\end{equation}
+The schedule and AEAD reductions include the complete entry controller and
+its shared-oracle work. If the contribution itself comes from the protected
+ContextBound table of Lemma~\ref{lem:cb-hidden-component}, its additional
+signed-score cost is $2\Phi_{256}(d,Q_H)$. For a candidate whose stopped execution realizes this entry controller,
+it replaces the single-entry $2\Delta_{\rm init}$ term by
+$2\Delta_{\rm mr}$ in the corresponding continuation bound; the original accounting terms keep their
+established definitions.
+\end{corollary}
+\begin{proof}
+Fix each application challenge bit for the entry comparison and average
+afterwards, as in the retained continuation. The randomized output test
+with success probability $(Z+1)/2$ converts
+Theorem~\ref{thm:multiple-root-entry}'s bit gap into a score gap of at most
+$2\Delta_{\rm mr}$. Its ideal marked root initializes the entire controller
+of Corollary~\ref{cor:joint-first-message}, which supplies the remaining two
+terms. Apply the same conversion to the ContextBound comparison when present.
+\end{proof}
+% END SECTION SOURCE: multiple-root-entry.tex
 % END SECTION SOURCE: computational-roadmap.tex
 % BEGIN SECTION SOURCE: established-results.tex
 \section{Mechanized recovery and separating executions}
@@ -2964,36 +3096,44 @@ this conjunction and the original event history matter at the persistence
 and asynchronous-confirmation boundaries.
 
 \paragraph{Joint root and message instantiation.}
-For the stated finite interface, Theorem~\ref{thm:joint-message-leaf} supplies
-a joint continuation through the actual confirmation, traffic and
-first-message schedule. Its private
-Expand-table normalization permits the traffic information to depend on
-root-derived confirmation tags, while producing the independent hidden
-input needed by the next reduction. The continuation retains actual
-confirmation and ACK verification, successor-root disclosure, and disclosure
-of the next chain seed. Exact retries share the encryption result from its
-first private computation.
+Theorem~\ref{thm:joint-message-leaf} follows the stated finite interface through
+confirmation, traffic derivation and the selected first message. Private
+Expand-table normalization allows traffic information to depend on
+root-derived confirmation tags and supplies the independent hidden input for
+the next reduction. Real confirmation and ACK verification, successor-root
+disclosure, and disclosure of the next chain seed remain in that continuation.
+Exact retries reuse the encryption result from its first private computation.
 
-The recovered-contribution entry uses the concrete root derivation
-of Equation~\eqref{eq:root},
+The connection begins with the root derivation of Equation~\eqref{eq:root},
 \[
  p_e=\operatorname{HMAC}_{R_{e-1}}(S_e).
 \]
-If $R_{e-1}$ is disclosed, the remaining secret is in HMAC's message input,
-as captured by extractor and swap-PRF formulations~\cite{hmacswap2023,rfc5869}.
+When $R_{e-1}$ is disclosed, the secret contribution occupies HMAC's message
+input, the position studied by extractor and swap-PRF
+formulations~\cite{hmacswap2023,rfc5869}.
 Appendix~\ref{app:joint-root-entry} gives the shared-oracle Extract/Expand
-reduction for a uniform combined contribution. Composing it with the joint
-schedule and the specified one-use AEAD game bounds this profile's
+reduction for a uniform combined contribution. Together with the joint
+schedule and the specified one-use AEAD game, it bounds the profile's
 ideal-contribution score. Section~\ref{sec:contextbound-connection} supplies
-the preceding complete-tuple comparison and the accepted-operation adapter.
-The original reservation, component challenge-ciphertext class, effective
-hash tuple and root-use descriptor have distinct identities. Preserving each
-identity gives an executable comparison through failed writes and exact
-resumption. The next-rekey source profile fixes the root-use descriptor;
-the message continuation retains its fresh-allocation target rule. The native
-correspondence term $\rho_j$ and the selected candidate's actual projection
-residual $\eta_{\rm proj}^{\rm nat}$ retain their places in
-Proposition~\ref{prop:native-local-accounting}.
+the preceding complete-tuple comparison and original-operation adapter.
+
+The executable comparison tracks four identities across failed writes and
+exact resumption: the original reservation, the component's challenge-ciphertext
+class, the effective hash tuple, and the root-use descriptor. The next-rekey
+source profile fixes that descriptor, and the message continuation selects a
+fresh allocation. Proposition~\ref{prop:native-local-accounting} carries the
+native correspondence term $\rho_j$ and the selected candidate's actual
+projection residual $\eta_{\rm proj}^{\rm nat}$ into the resulting score.
+
+Section~\ref{sec:multiple-root-entry} generalizes the entry step to a finite
+family of available salts and complete root-information strings. Lifetime
+pad-state classes preserve exact HMAC aliases; successive row comparisons
+produce an independent table of root entries. A fresh entry in a previously
+used class can initialize the marked schedule, while other roots remain
+available for later computation. The target's aliases share one schedule
+handle, and the complete budgets include public class scheduling and every
+other real root computation. A concrete source workload can use this result
+by realizing the declared available-data controller.
 
 \paragraph{Matched protocol evaluation.}
 The reference corpus fixes reproducible communication opportunities for a
@@ -3012,8 +3152,8 @@ Persistent recovery is governed by original secret sources and their
 acquisition histories. The paper gives an exact record-exposure semantics,
 constructive simulations for private records and dependent immutable reports,
 a complete-tuple component connection to the joint first-message continuation,
-and a mechanized
-multi-epoch recovery theorem with concrete separating executions.
+a finite multiple-root entry comparison, and a mechanized multi-epoch recovery
+theorem with concrete separating executions.
 These results preserve the meaning of
 fresh randomness across durable retries, copies and asynchronous progress.
 % END SECTION SOURCE: discussion.tex
@@ -3124,9 +3264,10 @@ The complete manuscript extends the previously retained source at commit
 \begin{center}
 \small\texttt{1c68aa666db22d36ee136be1ec712545a9e74f03}
 \end{center}
-under \path{paper/continuity}. The new material in this supplement is distributed
-locally with the present manuscript. Its filenames below are relative to this
-distribution; no remote publication location is assigned to them.
+under \path{paper/continuity}. The manuscript and its directly used evidence
+are maintained in the repository's
+\href{https://github.com/billlza/q-periapt/pull/119}{continuous manuscript PR}.
+The filenames below are relative to \path{paper/continuity} in that distribution.
 
 The explicit normalization theorem and its proof are in
 \path{guarded-provenance.tex}; the conjunctive-exposure proposition and proof
@@ -3206,8 +3347,8 @@ ordinary-query work of every derived reduction.
 \subsection{Candidate-local computational connection}
 
 Section~\ref{sec:candidate-local-accounting} incorporates the frozen proof
-fragment paired with \path{artifacts/candidate-local/candidate_local_composition.md}
-(version 0.2). The independent derivation and its artifact identities are
+fragment paired with \path{artifacts/candidate-local/candidate_local_composition.md}.
+The independent derivation and its artifact identities are
 recorded in \path{artifacts/candidate-local/independent_review.md} and
 \path{artifacts/candidate-local/independent_review.json}. They check the
 all-continuations stopping certificate, the exact native-score identity,
@@ -3250,7 +3391,7 @@ binding and implementation assurance. Those materials document the reused
 cryptographic substrate; the original reservation, acquisition and persistent
 simulation results are developed in the present paper.
 
-The new connection artifact, \path{artifacts/contextbound-connection/},
+The connection artifact, \path{artifacts/contextbound-connection/},
 contains the complete proof, independent review and source induction for the
 next rekey of one established session. Its source map fixes fourteen files
 at \sourcecommit{} and the inspected development checkpoint. The
@@ -3266,12 +3407,31 @@ authenticated establishment, complete-transcript binding, and a control-only
 recovery phase before application traffic.\footnote{Unpublished project
 manuscript, source
 \href{https://github.com/billlza/Skybridge-Compass/blob/d49d2a9ed4e1fb00905adeb06c02989562e375af/Docs/TDSC-2026-01-0318_IEEE_Paper_SkyBridge_Compass_patched.tex}{revision \texttt{d49d2a9}}.}
-The connection is the separation of operation admission and release from
-the secrecy of the inputs used by that operation. Here we track original
-randomness through persistence and acquisition, and construct the associated
-record and report simulations. The artifact's \path{notes/skybridge-scope.md}
+This earlier work supplies the operation-admission and traffic-release
+perspective. The present paper follows the secrecy of the admitted operation's
+original randomness through persistence and acquisition, and develops the
+associated record and report simulations. The artifact's \path{notes/skybridge-scope.md}
 records the exact source versions and the allocation of material between
 these research questions.
+
+
+\subsection{Finite multiple-root entry}
+
+Section~\ref{sec:multiple-root-entry} gives the finite controller, joint
+root-entry comparison and first-message corollary. The complete argument,
+including the class-allocation reduction, query budgets and a constructive
+controller, is in
+\path{artifacts/multiple-root-entry/multiple_root_entry_proof.md}.
+The same directory contains the frozen TeX module, independent derivation,
+25-point mathematical review and exact file identities. The controller
+permits available unmarked roots to become later salts; the marked root and
+all its aliases use the retained schedule handle. The review checks this
+interface and its composition with the preceding primitive bounds.
+
+The prose correspondence record in \path{artifacts/editorial-review/}
+links the current presentation to the retained mathematical inputs. Historical
+proof snapshots keep their exact identities; the semantic review checks the
+current definitions, hypotheses, interfaces and budgets against them.
 % END SECTION SOURCE: artifact-map.tex
 % BEGIN SECTION SOURCE: primitive-inputs.tex
 \section{Primitive inputs to the record and report bounds}
@@ -3579,8 +3739,8 @@ First apply the single hidden-message column argument to salt $r$.
 Its ideal value is $V(\Gamma(r))$. Even when $r$ depends on the public
 oracle prefix, this first table value is fresh independent uniform:
 conditional on each oracle and prepared state, its index is fixed and
-has not been visited. Equivalently presample a fresh PRK and withhold it.
-This does not condition on a secret-dependent public transcript.
+has not been visited. Presampling a fresh PRK and withholding it until
+this call gives exactly this joint distribution.
 
 Embed a hidden row key at that PRK and answer the one 98-byte Expand
 message. Its ideal reply is a fresh uniform root. It can again be
@@ -3588,8 +3748,8 @@ presampled and withheld until creation, independent of the common
 oracle and all earlier state. All later confirmations, signatures,
 traffic and successor operations are recomputed from this root.
 The proof therefore supplies the initialization for
-Theorem~\ref{thm:joint-message-leaf} to an entire interactive
-continuation, not to a marginal root distribution.
+Theorem~\ref{thm:joint-message-leaf} to the entire interactive
+continuation.
 
 If $B$ bounds all ordinary compression work other than this derivation
 and the displayed public salt-state computations, conservative budgets
@@ -3606,8 +3766,8 @@ Since $\ell(98)=3$, the resulting bit error is
  \label{eq:appendix-root-initialization}
 \end{equation}
 All terms count the complete continuation in their respective reductions.
-The published asymptotic constants are not converted into a numerical
-security level.
+The bound retains the published asymptotic constants and their stated
+parameter regimes.
 
 The downstream length budgets are equally explicit: confirmation
 information lengths $62,58,60$ give row messages $63,59,61$; the

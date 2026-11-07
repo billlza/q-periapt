@@ -58,70 +58,51 @@ boundaries. Its journal can also aggregate several sessions, making the
 distinction between a new image and an existing source directly observable.
 
 \paragraph{Contributions.}
-The paper establishes three connected results.
-\begin{enumerate}
-  \item \textbf{A provenance-preserving model of durable exposure.}
-  We define the original-reservation and record-acquisition interface and prove
-  alias normalization with equality of public views and original-record
-  ledgers (Lemma~\ref{lem:alias-normalization}). The result preserves actual
-  rendering operations and counts distinct plaintext openings by original
-  record, while retaining the separate costs of fresh seals and public
-  cryptographic calls. For fixed public key derivations, an exact guarded-path
-  characterization equates readability with iterative decryption
-  (Theorem~\ref{thm:guarded-normalization}). Its conjunctive guards represent
-  the joint effect of captured ciphertexts and disclosed keys; alternative
-  copies supply additional routes to the same source.
+The paper connects the exposure of original randomness, computational
+message confidentiality, and multi-epoch recovery.
 
-  \item \textbf{Constructive composition for persistent observations and
-  key derivation.}
-  We construct a table-based image/intent simulator that operates without the
-  selected reservation's bytes after the stated private-commitment replacement
-  (Theorem~\ref{thm:opaque-rendering}). The algorithm preserves original
-  invocation identities, complete intent prefixes, exact replay, and reached
-  durable state, with an explicit nonce-collision loss for byte equality.
-  A reverse-order hybrid theorem composes immutable authenticated reports
-  whose transcripts may contain earlier private report keys
-  (Theorem~\ref{thm:report-reverse-composition}). Its reduction uses the causal
-  order to execute later dependent reports without the selected unknown key.
-  Allowed key disclosures remain in the real experiment and contribute their
-  actual scored residual (Corollary~\ref{cor:report-exposure-residual}). These
-  interface results connect to the native application through candidate-local
-  accounting (Proposition~\ref{prop:native-local-accounting}). Its score
-  decomposition charges the selected candidate's actual disclosure residual
-  once in the original game, while retaining each candidate's own comparison
-  world. An origin-based stopping certificate remains valid before the final
-  cut and challenge are selected (Lemma~\ref{lem:adaptive-origin-stop}).
-  Starting from a uniform recovered contribution, a joint key-schedule
-  theorem separates the selected first-message key in the compression
-  quantum random-oracle model (Theorem~\ref{thm:joint-message-leaf} and
-  Corollary~\ref{cor:joint-first-message}). The reduction retains traffic
-  information chosen from confirmation outputs, real confirmation and ACK
-  verification, and disclosed successor roots and next chain seeds.
-  Using exact private-row normalization, the composition makes the next
-  hidden-input reduction possible without leaving an unmodeled parent-row use of its secret
-  (Lemma~\ref{lem:joint-expand-blocks}). At the preceding component boundary,
-  the complete ContextBound encoding supports a hidden-input comparison
-  with consistent answers across tuple aliases. An original-operation adapter
-  embeds the ML-KEM challenge while retaining the native retry history.
-  For the next rekey of an established session, a source induction fixes
-  the root-use descriptor and connects that comparison to the message bound
-  (Section~\ref{sec:contextbound-connection}).
+We give a provenance-preserving model of reservations and record acquisition.
+Alias normalization relates copied and resealed representations to the same
+original operation, preserving public views and the ledger of original
+records (Lemma~\ref{lem:alias-normalization}). For fixed public key
+derivations, a guarded-path characterization exactly matches iterative
+decryption (Theorem~\ref{thm:guarded-normalization}). Its conjunctive guards
+express how captured ciphertexts and disclosed keys jointly reveal a source;
+alternative copies provide further routes to that source. This gives
+recovery experiments a stable exposure condition across physical changes
+to storage.
 
-  \item \textbf{A multi-epoch recovery condition with separating executions.}
-  We prove symbolic message secrecy when both target reservations follow the
-  compromise cut, the actual target authentication keys and target entropy
-  remain undisclosed, and no acquired target-session version was saved after
-  the cut (Theorem~\ref{thm:symbolic}). The model admits inherited roots,
-  shared key identities, alternating proposers, asynchronous confirmation,
-  and unbounded epochs. The theorem and its reusable dependencies were
-  checked together in Tamarin. Native process-kill executions at both
-  reservation boundaries reconstruct traffic after honest completion and
-  restart. A delayed-receipt execution exposes epoch-two traffic when the
-  peers' confirmed counters are zero and one; a sibling-session write retains
-  the target's original reservation through a new aggregate image. These
-  executions identify the concrete distinctions captured by the recovery
-  condition.
-\end{enumerate}
+These exposure semantics support a constructive computational connection
+through the persistent observations and key derivations of one recovery experiment. The private-image and intent
+simulator represents the selected operation without its reservation coins,
+and reverse-causal composition handles immutable reports whose transcripts
+contain earlier private report keys. Candidate-local accounting connects
+these simulations to the native score and certifies permanent stopping from
+original provenance before the final cut is selected
+(Proposition~\ref{prop:native-local-accounting}). At the cryptographic entry,
+the complete ContextBound tuple supports a quantum hidden-input comparison,
+and an original-operation adapter embeds the ML-KEM challenge while preserving
+retries. The shared-compression-oracle analysis then follows root
+initialization, confirmation, traffic derivation, and the selected
+first-message key. It retains real verification and the stated successor-state
+disclosures (Theorem~\ref{thm:joint-message-leaf}). The native connection is
+established for the next rekey of an existing session and a fresh marked
+message allocation (Section~\ref{sec:contextbound-connection}). The finite
+multiple-root entry theorem extends the initialization to available salts and
+complete information strings, preserving exact aliases and a fresh target in
+a previously used class (Section~\ref{sec:multiple-root-entry}).
+
+The same provenance condition supports symbolic message secrecy when the target's original reservations
+follow the compromise cut and the stated authentication, entropy and
+record-acquisition conditions hold (Theorem~\ref{thm:symbolic}). The Tamarin
+model includes inherited roots, shared key identities, alternating proposers,
+asynchronous confirmation, and unbounded epochs. Native process-kill
+executions reconstruct traffic from reservations captured before restart;
+a delayed-receipt execution exposes epoch-two traffic while the peers'
+confirmed counters remain zero and one. A sibling-session write also carries
+an earlier target reservation into a new aggregate image. Together these
+executions show why the recovery condition follows original sources and
+acquisition histories across both persistence and asynchronous progress.
 
 \paragraph{Supporting validation.}
 An executable finite-model supplement checks the guarded characterization and
@@ -135,16 +116,15 @@ the originating contribution, direction, epoch, and message index, together
 with each construction's authentication and storage interface.
 
 \paragraph{Security model and organization.}
-Crash recovery in this paper resumes retained, bound operations; authentication,
-acquisition, and disclosure are specified by the model in
-Section~\ref{sec:security-model}. The universal recovery result is symbolic.
-The quantitative results cover record and report simulation, native score
-accounting, and a joint first-message continuation for the stated finite
-interfaces. Their cryptographic and disclosure terms remain explicit in
-the common message experiment. Section~\ref{sec:construction} describes the construction;
-Sections~\ref{sec:security-model} and~\ref{sec:computation} develop the
-record model and computational connections. Section~\ref{sec:established}
-gives the mechanized recovery theorem and separating executions, and
+Crash recovery resumes retained, bound operations under the authentication,
+acquisition and disclosure interface of Section~\ref{sec:security-model}.
+The symbolic theorem covers unbounded epochs. The computational results
+connect the stated finite record, report and first-message interfaces within
+the common message experiment, retaining their explicit cryptographic and
+disclosure terms. Section~\ref{sec:construction} describes the construction;
+Sections~\ref{sec:security-model} and~\ref{sec:computation} develop the record
+model and computational connection. Section~\ref{sec:established} presents
+the mechanized recovery theorem and separating executions, and
 Section~\ref{sec:evaluation} validates the exposure semantics.
-Section~\ref{sec:discussion} develops the consequences of these connections
-and the matched protocol comparison.
+Section~\ref{sec:discussion} develops their consequences and the matched
+protocol comparison.

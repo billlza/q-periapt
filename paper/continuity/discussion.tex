@@ -13,36 +13,44 @@ this conjunction and the original event history matter at the persistence
 and asynchronous-confirmation boundaries.
 
 \paragraph{Joint root and message instantiation.}
-For the stated finite interface, Theorem~\ref{thm:joint-message-leaf} supplies
-a joint continuation through the actual confirmation, traffic and
-first-message schedule. Its private
-Expand-table normalization permits the traffic information to depend on
-root-derived confirmation tags, while producing the independent hidden
-input needed by the next reduction. The continuation retains actual
-confirmation and ACK verification, successor-root disclosure, and disclosure
-of the next chain seed. Exact retries share the encryption result from its
-first private computation.
+Theorem~\ref{thm:joint-message-leaf} follows the stated finite interface through
+confirmation, traffic derivation and the selected first message. Private
+Expand-table normalization allows traffic information to depend on
+root-derived confirmation tags and supplies the independent hidden input for
+the next reduction. Real confirmation and ACK verification, successor-root
+disclosure, and disclosure of the next chain seed remain in that continuation.
+Exact retries reuse the encryption result from its first private computation.
 
-The recovered-contribution entry uses the concrete root derivation
-of Equation~\eqref{eq:root},
+The connection begins with the root derivation of Equation~\eqref{eq:root},
 \[
  p_e=\operatorname{HMAC}_{R_{e-1}}(S_e).
 \]
-If $R_{e-1}$ is disclosed, the remaining secret is in HMAC's message input,
-as captured by extractor and swap-PRF formulations~\cite{hmacswap2023,rfc5869}.
+When $R_{e-1}$ is disclosed, the secret contribution occupies HMAC's message
+input, the position studied by extractor and swap-PRF
+formulations~\cite{hmacswap2023,rfc5869}.
 Appendix~\ref{app:joint-root-entry} gives the shared-oracle Extract/Expand
-reduction for a uniform combined contribution. Composing it with the joint
-schedule and the specified one-use AEAD game bounds this profile's
+reduction for a uniform combined contribution. Together with the joint
+schedule and the specified one-use AEAD game, it bounds the profile's
 ideal-contribution score. Section~\ref{sec:contextbound-connection} supplies
-the preceding complete-tuple comparison and the accepted-operation adapter.
-The original reservation, component challenge-ciphertext class, effective
-hash tuple and root-use descriptor have distinct identities. Preserving each
-identity gives an executable comparison through failed writes and exact
-resumption. The next-rekey source profile fixes the root-use descriptor;
-the message continuation retains its fresh-allocation target rule. The native
-correspondence term $\rho_j$ and the selected candidate's actual projection
-residual $\eta_{\rm proj}^{\rm nat}$ retain their places in
-Proposition~\ref{prop:native-local-accounting}.
+the preceding complete-tuple comparison and original-operation adapter.
+
+The executable comparison tracks four identities across failed writes and
+exact resumption: the original reservation, the component's challenge-ciphertext
+class, the effective hash tuple, and the root-use descriptor. The next-rekey
+source profile fixes that descriptor, and the message continuation selects a
+fresh allocation. Proposition~\ref{prop:native-local-accounting} carries the
+native correspondence term $\rho_j$ and the selected candidate's actual
+projection residual $\eta_{\rm proj}^{\rm nat}$ into the resulting score.
+
+Section~\ref{sec:multiple-root-entry} generalizes the entry step to a finite
+family of available salts and complete root-information strings. Lifetime
+pad-state classes preserve exact HMAC aliases; successive row comparisons
+produce an independent table of root entries. A fresh entry in a previously
+used class can initialize the marked schedule, while other roots remain
+available for later computation. The target's aliases share one schedule
+handle, and the complete budgets include public class scheduling and every
+other real root computation. A concrete source workload can use this result
+by realizing the declared available-data controller.
 
 \paragraph{Matched protocol evaluation.}
 The reference corpus fixes reproducible communication opportunities for a
@@ -61,7 +69,7 @@ Persistent recovery is governed by original secret sources and their
 acquisition histories. The paper gives an exact record-exposure semantics,
 constructive simulations for private records and dependent immutable reports,
 a complete-tuple component connection to the joint first-message continuation,
-and a mechanized
-multi-epoch recovery theorem with concrete separating executions.
+a finite multiple-root entry comparison, and a mechanized multi-epoch recovery
+theorem with concrete separating executions.
 These results preserve the meaning of
 fresh randomness across durable retries, copies and asynchronous progress.

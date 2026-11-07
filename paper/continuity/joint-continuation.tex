@@ -239,10 +239,10 @@ bound. Equivalently one may fix an independent application challenge bit,
 apply this bound, and average over that bit.
 \end{proof}
 
-The conclusion concerns independence \emph{at key installation} with the
-continuation regenerated consistently. It does not assert independence
-of the key and a subsequently computed ciphertext, nor pseudorandomness
-of every intermediate root relative to a fixed complete future view.
+The comparison installs an independent key and regenerates the complete
+continuation from it. Subsequent ciphertexts retain their dependence on that
+key, and the intermediate roots keep the joint distributions specified by
+the corresponding hybrids.
 
 \paragraph{Application confidentiality.}
 Use a one-key, one-encryption left-or-right AEAD experiment with nonce

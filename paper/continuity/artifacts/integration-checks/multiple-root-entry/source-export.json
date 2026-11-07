@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "completed_at_utc": "2026-11-07T23:21:34.164930+00:00",
+  "files_in_source_zip": 9,
+  "clean_compile_exit_code": 0,
+  "extracted_pdf_text_equal": true,
+  "text_sha256": "da74269fdf6a4a7d259cdfbf00071d6b51d5558102d6c7714e767dbde2aaaf67",
+  "source_zip_sha256": "1c0bcb966de90d8215821039508944a26e4617be7727138c91565c1e47721685",
+  "reading_pdf_sha256": "e39b26160ed1903c7480e062343478c535bb2d25f6ee35bf6740176f10b5ab49",
+  "all_fonts_embedded": true,
+  "failures": []
+}

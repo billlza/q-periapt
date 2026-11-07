@@ -84,9 +84,10 @@ The complete manuscript extends the previously retained source at commit
 \begin{center}
 \small\texttt{1c68aa666db22d36ee136be1ec712545a9e74f03}
 \end{center}
-under \path{paper/continuity}. The new material in this supplement is distributed
-locally with the present manuscript. Its filenames below are relative to this
-distribution; no remote publication location is assigned to them.
+under \path{paper/continuity}. The manuscript and its directly used evidence
+are maintained in the repository's
+\href{https://github.com/billlza/q-periapt/pull/119}{continuous manuscript PR}.
+The filenames below are relative to \path{paper/continuity} in that distribution.
 
 The explicit normalization theorem and its proof are in
 \path{guarded-provenance.tex}; the conjunctive-exposure proposition and proof
@@ -166,8 +167,8 @@ ordinary-query work of every derived reduction.
 \subsection{Candidate-local computational connection}
 
 Section~\ref{sec:candidate-local-accounting} incorporates the frozen proof
-fragment paired with \path{artifacts/candidate-local/candidate_local_composition.md}
-(version 0.2). The independent derivation and its artifact identities are
+fragment paired with \path{artifacts/candidate-local/candidate_local_composition.md}.
+The independent derivation and its artifact identities are
 recorded in \path{artifacts/candidate-local/independent_review.md} and
 \path{artifacts/candidate-local/independent_review.json}. They check the
 all-continuations stopping certificate, the exact native-score identity,
@@ -210,7 +211,7 @@ binding and implementation assurance. Those materials document the reused
 cryptographic substrate; the original reservation, acquisition and persistent
 simulation results are developed in the present paper.
 
-The new connection artifact, \path{artifacts/contextbound-connection/},
+The connection artifact, \path{artifacts/contextbound-connection/},
 contains the complete proof, independent review and source induction for the
 next rekey of one established session. Its source map fixes fourteen files
 at \sourcecommit{} and the inspected development checkpoint. The
@@ -226,9 +227,28 @@ authenticated establishment, complete-transcript binding, and a control-only
 recovery phase before application traffic.\footnote{Unpublished project
 manuscript, source
 \href{https://github.com/billlza/Skybridge-Compass/blob/d49d2a9ed4e1fb00905adeb06c02989562e375af/Docs/TDSC-2026-01-0318_IEEE_Paper_SkyBridge_Compass_patched.tex}{revision \texttt{d49d2a9}}.}
-The connection is the separation of operation admission and release from
-the secrecy of the inputs used by that operation. Here we track original
-randomness through persistence and acquisition, and construct the associated
-record and report simulations. The artifact's \path{notes/skybridge-scope.md}
+This earlier work supplies the operation-admission and traffic-release
+perspective. The present paper follows the secrecy of the admitted operation's
+original randomness through persistence and acquisition, and develops the
+associated record and report simulations. The artifact's \path{notes/skybridge-scope.md}
 records the exact source versions and the allocation of material between
 these research questions.
+
+
+\subsection{Finite multiple-root entry}
+
+Section~\ref{sec:multiple-root-entry} gives the finite controller, joint
+root-entry comparison and first-message corollary. The complete argument,
+including the class-allocation reduction, query budgets and a constructive
+controller, is in
+\path{artifacts/multiple-root-entry/multiple_root_entry_proof.md}.
+The same directory contains the frozen TeX module, independent derivation,
+25-point mathematical review and exact file identities. The controller
+permits available unmarked roots to become later salts; the marked root and
+all its aliases use the retained schedule handle. The review checks this
+interface and its composition with the preceding primitive bounds.
+
+The prose correspondence record in \path{artifacts/editorial-review/}
+links the current presentation to the retained mathematical inputs. Historical
+proof snapshots keep their exact identities; the semantic review checks the
+current definitions, hypotheses, interfaces and budgets against them.

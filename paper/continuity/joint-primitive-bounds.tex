@@ -208,8 +208,8 @@ First apply the single hidden-message column argument to salt $r$.
 Its ideal value is $V(\Gamma(r))$. Even when $r$ depends on the public
 oracle prefix, this first table value is fresh independent uniform:
 conditional on each oracle and prepared state, its index is fixed and
-has not been visited. Equivalently presample a fresh PRK and withhold it.
-This does not condition on a secret-dependent public transcript.
+has not been visited. Presampling a fresh PRK and withholding it until
+this call gives exactly this joint distribution.
 
 Embed a hidden row key at that PRK and answer the one 98-byte Expand
 message. Its ideal reply is a fresh uniform root. It can again be
@@ -217,8 +217,8 @@ presampled and withheld until creation, independent of the common
 oracle and all earlier state. All later confirmations, signatures,
 traffic and successor operations are recomputed from this root.
 The proof therefore supplies the initialization for
-Theorem~\ref{thm:joint-message-leaf} to an entire interactive
-continuation, not to a marginal root distribution.
+Theorem~\ref{thm:joint-message-leaf} to the entire interactive
+continuation.
 
 If $B$ bounds all ordinary compression work other than this derivation
 and the displayed public salt-state computations, conservative budgets
@@ -235,8 +235,8 @@ Since $\ell(98)=3$, the resulting bit error is
  \label{eq:appendix-root-initialization}
 \end{equation}
 All terms count the complete continuation in their respective reductions.
-The published asymptotic constants are not converted into a numerical
-security level.
+The bound retains the published asymptotic constants and their stated
+parameter regimes.
 
 The downstream length budgets are equally explicit: confirmation
 information lengths $62,58,60$ give row messages $63,59,61$; the
