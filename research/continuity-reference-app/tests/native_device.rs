@@ -18,6 +18,8 @@ use std::{
 mod account_recovery;
 #[path = "native_device/admission.rs"]
 mod admission;
+#[path = "native_device/directory_leases.rs"]
+mod directory_leases;
 #[path = "native_device/policy.rs"]
 mod policy;
 #[path = "native_device/policy_witness.rs"]

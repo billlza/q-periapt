@@ -460,6 +460,99 @@ pub unsafe extern "C" fn qpc_retired_v1_erase_signer(handle: u64, error: *mut Er
     }
 }
 
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_retired_authority_v1", Options, {
+        witness: [u8; 32],
+        public_key: *const u8,
+        public_key_length: usize,
+        replacement: *const u8,
+        replacement_length: usize,
+        subject: [u8; 96],
+        receipt: *const u8,
+        receipt_length: usize,
+    });
+    abi_record!("qpc_retired_inventory_v1", Inventory, {
+        bytes: [u8; 313],
+    });
+    abi_record!("qpc_retired_proposal_v1", Proposal, {
+        present: u32,
+        bytes: [u8; 353],
+        reserved_zero: [u8; 3],
+    });
+    abi_record!("qpc_retired_report_info_v1", ReportInfo, {
+        length: usize,
+        views: u32,
+        reserved_zero: u32,
+        report: [u8; 32],
+    });
+    abi_function!(
+        qpc_retired_v1_acknowledgement_proposal,
+        (u64, *mut Proposal, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_retired_v1_copy_report,
+        (u64, *mut u8, usize, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_retired_v1_erase_journal,
+        (u64, *const u8, usize, *mut ErrorRecord)
+    );
+    abi_function!(qpc_retired_v1_erase_signer, (u64, *mut ErrorRecord));
+    abi_function!(
+        qpc_retired_v1_inventory,
+        (u64, *mut Inventory, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_retired_v1_journal_state,
+        (u64, *mut u32, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_retired_v1_load_report,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const u8,
+            usize,
+            *mut ReportInfo,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_retired_v1_prepare_acknowledgement,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const u8,
+            usize,
+            *const u8,
+            usize,
+            *mut Proposal,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_retired_v1_prepare_report,
+        (u64, *const u8, usize, *mut Proposal, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_retired_v1_prepare_signer_erasure,
+        (u64, *const u8, usize, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_retired_v1_report_proposal,
+        (u64, *mut Proposal, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_retired_v1_signer_state,
+        (u64, *mut u32, *mut ErrorRecord)
+    );
+}
+// END C ABI CHECKS
+
 #[cfg(test)]
 mod tests {
     use super::*;

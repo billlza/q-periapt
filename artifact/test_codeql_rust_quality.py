@@ -1650,6 +1650,10 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/crypto/classical_compromise_tests.rs",
             "research/continuity-identity-candidate/src/native_transport/socket/tests.rs",
             "research/continuity-identity-candidate/src/durable/publication/import.rs",
+            "research/continuity-identity-candidate/src/directory_lease.rs",
+            "research/continuity-reference-app/src/directory_ledger.rs",
+            "research/continuity-reference-app/src/bin/q-periapt-prekey-directory.rs",
+            "research/continuity-reference-app/tests/native_device/directory_leases.rs",
             "research/continuity-identity-candidate/src/durable/publication/tests.rs",
             "research/continuity-identity-candidate/src/durable/messages/retired.rs",
             "research/continuity-identity-candidate/src/anchor/store/retired_report.rs",
@@ -1736,6 +1740,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_process_tests.rs",
             "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_retirement_tests.rs",
             "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_tests.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/classical_alias.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/reservation_disclosure/aggregate_copy.rs",
         ):
             with self.subTest(source=sdk_source):
                 self.assertIn(sdk_source, tracked)
@@ -1876,6 +1882,10 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/crypto/classical_compromise_tests.rs",
             "research/continuity-identity-candidate/src/native_transport/socket/tests.rs",
             "research/continuity-identity-candidate/src/durable/publication/import.rs",
+            "research/continuity-identity-candidate/src/directory_lease.rs",
+            "research/continuity-reference-app/src/directory_ledger.rs",
+            "research/continuity-reference-app/src/bin/q-periapt-prekey-directory.rs",
+            "research/continuity-reference-app/tests/native_device/directory_leases.rs",
             "research/continuity-identity-candidate/src/durable/publication/tests.rs",
             "research/continuity-identity-candidate/src/durable/messages/retired.rs",
             "research/continuity-identity-candidate/src/anchor/store/retired_report.rs",
@@ -1962,6 +1972,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_process_tests.rs",
             "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_retirement_tests.rs",
             "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_tests.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/classical_alias.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/reservation_disclosure/aggregate_copy.rs",
         )
         for missing in required:
             self.assertIn(missing, tracked)

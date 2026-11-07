@@ -1104,15 +1104,13 @@ fn account_fanout_capacity_and_id_scope_preserve_earlier_committed_work() {
         n.sender.next_fanout_id().expect("same unreserved slot"),
         first
     );
-    let mut original = None;
-    for _ in 0..16 {
+    let mut original = Vec::new();
+    for _ in 0..crate::contract::MAX_RETAINED_FANOUT_RECORDS {
         let id = n.sender.next_fanout_id().expect("next batch");
         let sent = n
             .send(id, b"bounded retained aggregate")
             .expect("admitted batch");
-        if id == first {
-            original = Some(wires(&sent));
-        }
+        original.push((id, wires(&sent)));
     }
     let next = n.sender.next_fanout_id().expect("full-capacity next ID");
     let before = n.sender.image().expect("image").revision;
@@ -1131,8 +1129,65 @@ fn account_fanout_capacity_and_id_scope_preserve_earlier_committed_work() {
         .sender
         .resume_account_message(first, &selected, 150)
         .expect("order-independent exact membership");
-    assert_eq!(wires(&replay), original.expect("first batch"));
+    assert_eq!(wires(&replay), original.first().expect("first batch").1);
     n.check_delivery(&replay, b"bounded retained aggregate");
+    let before_retirement = n.sender.image().expect("image").revision;
+    assert!(matches!(
+        n.sender.retire_fanout(first, &targets(&n.f, &n.sessions)),
+        Err(DurableError::Suspended)
+    ));
+    assert_eq!(
+        n.sender
+            .image()
+            .expect("unconsumed batch retained")
+            .revision,
+        before_retirement
+    );
+    for (index, member) in replay.iter().enumerate() {
+        let context = n.f.contexts.get(index).expect("original context");
+        let receiver = n.receivers.get_mut(index).expect("original receiver");
+        receiver
+            .consume_message(context, member.session, member.message, 150)
+            .expect("durable consumption");
+        let ack = receiver
+            .message_acknowledgement(context, member.session, 150)
+            .expect("original consumption acknowledgement");
+        n.sender
+            .accept_message_acknowledgement(context, member.session, &ack, 150)
+            .expect("retain authenticated consumption");
+    }
+    assert!(matches!(
+        n.send(next, b"acknowledgement alone cannot free a slot"),
+        Err(DurableError::Capacity)
+    ));
+    n.sender
+        .retire_fanout(first, &targets(&n.f, &n.sessions))
+        .expect("explicit terminal retirement at capacity");
+    n.reopen();
+    assert_eq!(
+        n.sender.fanout_status(first).expect("retired after reopen"),
+        FanoutStatus::Retired
+    );
+    assert!(matches!(
+        n.send(first, b"bounded retained aggregate"),
+        Err(DurableError::Protocol(Error::Retired))
+    ));
+    assert_eq!(n.sender.next_fanout_id().expect("same next ID"), next);
+    n.send(next, b"admitted after explicit retirement")
+        .expect("exactly one reclaimed slot");
+    let selected = targets(&n.f, &n.sessions);
+    for (id, expected) in original.iter().skip(1) {
+        let retained = n
+            .sender
+            .resume_account_message(*id, &selected, 150)
+            .expect("other original batch retained");
+        assert_eq!(&wires(&retained), expected);
+    }
+    let full_again = n.sender.next_fanout_id().expect("next unreserved ID");
+    assert!(matches!(
+        n.send(full_again, b"retirement reclaimed only one slot"),
+        Err(DurableError::Capacity)
+    ));
     let mut other = Network::new(64, false);
     let revision = other.sender.image().expect("other image").revision;
     assert!(matches!(

@@ -1,10 +1,16 @@
-# Offline policy-store maintenance tool
+# Offline native maintenance tool
 
 The `q-periapt-policy-maintenance-0.2.0-TARGET.tar.gz` candidate contains a
 precompiled `bin/qperiapt`. It requires no Rust installation. Select macOS arm64,
 Linux x86_64, or Linux arm64 to match the machine containing the store. Intel Mac
 and Windows maintenance are unsupported. Candidate artifacts are not a signed
 or notarized public release.
+
+The candidate package also includes `publication-reclaim` for one bound inactive
+v2 publication attempt. Its [separate maintenance contract](PRIVATE_PUBLICATION_MAINTENANCE.md)
+specifies the exact control directory, work budgets, refusal conditions and
+original-result recovery. This command does not migrate a database and never
+follows a formal destination. The procedure below is only for `policy-store-upgrade`.
 
 Obtain the archive and its SHA-256 from the same trusted distribution channel.
 Verify that digest before extraction. Run the tool as the account that owns the

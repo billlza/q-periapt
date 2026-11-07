@@ -487,12 +487,15 @@ fn installation_busy_child() {
                 p.file_name()
                     .expect("leaf")
                     .to_string_lossy()
-                    .starts_with(".private-publication-")
+                    .starts_with(".private-attempt-v2-")
             })
             .collect();
         assert_eq!(staged.len(), 1);
+        let control = staged.first().expect("staging control");
+        assert!(control.join("record").is_file());
+        assert!(control.join("lease").is_file());
         assert!(matches!(
-            open_private_database(staged.first().expect("staging")),
+            open_private_database(&control.join("payload")),
             Err(PrivateDatabaseError::Busy)
         ));
         return;

@@ -6,7 +6,12 @@ use std::ops::Bound;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+mod maintenance;
 mod publication;
+pub use maintenance::{
+    reclaim_private_publication, PublicationCleanupLimits, PublicationCleanupOutcome,
+    PublicationMaintenanceError,
+};
 #[cfg(any(
     target_os = "macos",
     target_os = "ios",
@@ -302,10 +307,12 @@ pub fn open_private_database(path: &Path) -> Result<redb::Database, PrivateDatab
 /// Initialize a private staging database, then publish its complete initial state.
 /// The initializer must durably commit its application schema without releasing
 /// handles, identities or external effects. Its errors preserve the original error
-/// and leave the staging inode unpublished. No error deletes any file.
+/// and leave the payload unpublished. Publication never deletes the data payload
+/// or formal target; after publication it retires only its own control fields.
 ///
 /// The original Database and exclusive lock are retained across file sync,
-/// NOREPLACE rename, published-inode verification and pinned-parent sync. Only
+/// NOREPLACE rename, published-inode verification and both rename-parent syncs.
+/// A separate attempt lease also survives control retirement. Only
 /// then is this same Database returned. Published unknown results must be reopened
 /// with original expectations; a missing formerly active store is never first use.
 /// Pre-publication retries require the original explicit first-use intent and

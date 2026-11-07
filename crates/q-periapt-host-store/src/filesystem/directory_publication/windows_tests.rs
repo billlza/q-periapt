@@ -2,10 +2,10 @@
 use super::*;
 use crate::filesystem::{
     open_private_database, provision_private_database, publish_private_bytes,
-    test_directory::directory, PrivateDatabaseError,
+    test_directory::directory, OwnedPrivateDirectory, PrivateDatabaseError,
 };
 use redb::ReadableDatabase;
-use std::{fs, sync::mpsc, time::Duration};
+use std::{ffi::OsStr, fs, sync::mpsc, time::Duration};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 const TABLE: redb::TableDefinition<u64, u64> = redb::TableDefinition::new("prepared");
@@ -96,7 +96,10 @@ fn windows_directory_boundaries_preserve_error_and_prepared_tree() -> Result<()>
         })
         .expect_err("injected boundary cannot return success");
         assert_eq!(error.operation().to_string(), "directory boundary sentinel");
-        let staged = parent.join(error.staging_name().ok_or("missing staging identity")?);
+        let control = parent.join(error.staging_name().ok_or("missing staging identity")?);
+        let staged = control.join("payload");
+        assert!(control.join("record").is_file());
+        assert!(control.join("lease").is_file());
         let published = matches!(
             cut,
             Step::Published | Step::BeforeParentSync | Step::ParentSynced
@@ -105,8 +108,8 @@ fn windows_directory_boundaries_preserve_error_and_prepared_tree() -> Result<()>
         assert_eq!(staged.exists(), !published);
         assert_eq!(
             fs::read_dir(parent)?.count(),
-            1,
-            "failure cannot clean up names"
+            1 + usize::from(published),
+            "failure must retain its control record and any published destination"
         );
         if cut == Step::Created {
             assert_eq!(fs::read_dir(staged)?.count(), 0);
@@ -247,7 +250,7 @@ fn windows_directory_delete_access_is_deferred_until_rename() -> Result<()> {
         // publisher has no retry, handle-closing fallback or cleanup branch.
         publish_private_bytes(&path.join("second"), b"same original input")?;
     }
-    ops::rename_directory(&parent, name, OsStr::new("published"), &original)?;
+    ops::rename_directory_to(&parent, name, &parent, OsStr::new("published"), &original)?;
     ops::same_directory(&parent, OsStr::new("published"), &original)?;
     assert_eq!(
         fs::read(temporary.path().join("published/second"))?,

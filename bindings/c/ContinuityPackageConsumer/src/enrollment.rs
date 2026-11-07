@@ -1107,3 +1107,187 @@ pub unsafe extern "C" fn qpc_device_v1_admit_peer_roster(
     // SAFETY: invocation-local diagnostic region follows the public header contract.
     unsafe { boundary(error, false, action) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_enrollment_intent_v1", Intent, {
+        root: *const u8,
+        root_length: usize,
+        device: [u8; 16],
+        generation: u64,
+        family: [u8; 32],
+        valid_from: u64,
+        valid_until: u64,
+    });
+    abi_record!("qpc_roster_checkpoint_v1", Checkpoint, {
+        version: u64,
+        digest: [u8; 32],
+    });
+    abi_record!("qpc_credential_renewal_status_v1", RenewalStatus, {
+        phase: u32,
+        operation: [u8; 32],
+        statement: [u8; 32],
+        checkpoint: Checkpoint,
+        observed_at: u64,
+    });
+    abi_record!("qpc_account_pin_v1", Pin, {
+        account: [u8; 32],
+        root: *const u8,
+        root_length: usize,
+        family: [u8; 32],
+        checkpoint: Checkpoint,
+    });
+    abi_record!("qpc_enrollment_status_v1", Status, {
+        phase: u32,
+        signing_id: [u8; 32],
+        journal: [u8; 32],
+        previous: Checkpoint,
+        next: Checkpoint,
+    });
+    abi_record!("qpc_enrollment_request_v1", RequestBytes, {
+        length: u32,
+        bytes: [u8; 8192],
+    });
+    abi_record!("qpc_credential_renewal_proposal_v1", RenewalProposal, {
+        bytes: [u8; 296],
+    });
+    abi_record!("qpc_credential_renewal_cancellation_v1", RenewalCancellation, {
+        bytes: [u8; 248],
+    });
+    abi_function!(
+        qpc_device_v1_admit_peer_credential_renewal,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const Pin,
+            *const u8,
+            *mut Checkpoint,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_device_v1_admit_peer_roster,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const Pin,
+            *mut Checkpoint,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_accept,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const u8,
+            usize,
+            *const Pin,
+            *mut [u8; 32],
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(qpc_enrollment_v1_activate, (u64, *mut ErrorRecord));
+    abi_function!(
+        qpc_enrollment_v1_close_witnessed_credential_renewal,
+        (
+            u64,
+            *const u8,
+            *const u8,
+            *mut RenewalStatus,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_commit_witnessed_credential_renewal,
+        (
+            u64,
+            *const u8,
+            *const u8,
+            *mut RenewalStatus,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_credential_renewal_status,
+        (u64, *mut RenewalStatus, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_prepare_storage,
+        (u64, *mut setup::Preparation, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_prepare_witnessed_credential_cancellation,
+        (u64, *mut RenewalCancellation, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_prepare_witnessed_credential_renewal,
+        (u64, *mut RenewalProposal, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_provision_wrapping_key,
+        (*const u8, usize, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_reconcile_expired_credential_renewal,
+        (
+            u64,
+            *const u8,
+            *const u8,
+            *mut RenewalStatus,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_reconcile_witnessed_credential_renewal,
+        (
+            u64,
+            *const u8,
+            *const u8,
+            *mut RenewalStatus,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_refresh_roster,
+        (
+            u64,
+            *const Checkpoint,
+            *const u8,
+            usize,
+            *const Pin,
+            *mut Status,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_request,
+        (u64, *mut RequestBytes, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_stage_credential_renewal,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const Pin,
+            *const u8,
+            *mut RenewalStatus,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_status,
+        (u64, *mut Status, *mut ErrorRecord)
+    );
+    credential_request::verify_c_abi();
+    pending_recovery::verify_c_abi();
+    policy::verify_c_abi();
+    roster_refresh::verify_c_abi();
+    roster_resolution::verify_c_abi();
+}
+// END C ABI CHECKS

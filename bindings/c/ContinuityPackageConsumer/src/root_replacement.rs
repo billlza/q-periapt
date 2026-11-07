@@ -353,3 +353,62 @@ unsafe fn copy_proposal(wire: &[u8], buffer: *mut u8, written: *mut usize) -> Re
     }
     Ok(())
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_root_scope_v1", Scope, {
+        struct_size: u32,
+        checkpoint: account_authority::Checkpoint,
+        witness: [u8; 32],
+        public_key: *const u8,
+        public_key_length: usize,
+    });
+    abi_function!(qpc_root_v1_activate_successor, (u64, u64, *mut ErrorRecord));
+    abi_function!(
+        qpc_root_v1_begin,
+        (u64, u64, *const Scope, *const u8, usize, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_root_v1_bind_freeze,
+        (
+            u64,
+            *const u8,
+            usize,
+            *mut u8,
+            usize,
+            *mut usize,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_root_v1_resume,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const enrollment::Intent,
+            *const Scope,
+            *const u8,
+            usize,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_root_v1_retain_noncommit,
+        (u64, *const u8, usize, *mut u32, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_root_v1_retain_retirement,
+        (
+            u64,
+            *const u8,
+            usize,
+            *mut account_authority::Checkpoint,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(qpc_root_v1_state, (u64, *mut u32, *mut ErrorRecord));
+    alternative::verify_c_abi();
+}
+// END C ABI CHECKS

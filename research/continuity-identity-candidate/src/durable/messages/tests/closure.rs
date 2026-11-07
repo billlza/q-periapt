@@ -554,6 +554,11 @@ fn independent_session_closure_fences_pending_rekey_flights_before_and_after_cut
                     ),
                     Err(DurableError::Suspended)
                 ));
+                let next =
+                    p.jr.next_message_id(&p.f.responder, p.session, 150)
+                        .expect("live responder still uses its prior sending epoch");
+                assert_eq!(next.epoch().expect("message epoch"), 0);
+                eprintln!("CLOSURE_REKEY_RELEASE stage=0 closed_role=1 live_next_message_epoch=0");
             }
             1 => {
                 assert!(matches!(
@@ -573,6 +578,32 @@ fn independent_session_closure_fences_pending_rekey_flights_before_and_after_cut
                     p.jr.finish_rekey(&p.f.responder, p.session, &final_wire, &p.f.signer_r, 150),
                     Err(DurableError::Suspended)
                 ));
+                let message =
+                    p.ji.next_message_id(&p.f.initiator, p.session, 150)
+                        .expect("half-confirmed initiator can reserve its sending epoch");
+                assert_eq!(message.epoch().expect("message epoch"), 1);
+                let wire =
+                    p.ji.send_message(
+                        &p.f.initiator,
+                        p.session,
+                        message,
+                        b"sent after responder closure",
+                        b"closure-boundary",
+                        150,
+                    )
+                    .expect("actual epoch-one ciphertext after peer closure");
+                assert!(!wire.is_empty());
+                assert!(matches!(
+                    p.jr.receive_message(
+                        &p.f.responder,
+                        p.session,
+                        &wire,
+                        b"closure-boundary",
+                        150
+                    ),
+                    Err(DurableError::Suspended)
+                ));
+                eprintln!("CLOSURE_REKEY_RELEASE stage=1 closed_role=2 live_send_epoch=1 wire_bytes={} peer_receive=Suspended", wire.len());
             }
             _ => {
                 assert_eq!(report.progress.sending_epoch, 1);
@@ -599,6 +630,32 @@ fn independent_session_closure_fences_pending_rekey_flights_before_and_after_cut
                     p.ji.accept_rekey_receipt(&p.f.initiator, p.session, &receipt, 150),
                     Err(DurableError::Suspended)
                 ));
+                let message =
+                    p.jr.next_message_id(&p.f.responder, p.session, 150)
+                        .expect("live responder completed its sending cutover");
+                assert_eq!(message.epoch().expect("message epoch"), 1);
+                let wire =
+                    p.jr.send_message(
+                        &p.f.responder,
+                        p.session,
+                        message,
+                        b"sent after proposer closure",
+                        b"closure-boundary",
+                        150,
+                    )
+                    .expect("actual epoch-one ciphertext from the live responder");
+                assert!(!wire.is_empty());
+                assert!(matches!(
+                    p.ji.receive_message(
+                        &p.f.initiator,
+                        p.session,
+                        &wire,
+                        b"closure-boundary",
+                        150
+                    ),
+                    Err(DurableError::Suspended)
+                ));
+                eprintln!("CLOSURE_REKEY_RELEASE stage=2 closed_role=1 live_send_epoch=1 wire_bytes={} peer_receive=Suspended", wire.len());
             }
         }
         let (journal, context, path) = if stage == 1 {

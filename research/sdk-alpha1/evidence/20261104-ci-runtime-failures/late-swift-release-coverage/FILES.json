@@ -1,0 +1,30 @@
+{
+  "CLASSIFICATION.json": {
+    "bytes": 2335,
+    "sha256": "505888e6273ca671d4ff3d20165bc815e233a5eccb0d806d8fb01001a809203b"
+  },
+  "capture/CI_STATUS.json": {
+    "bytes": 1821800,
+    "sha256": "5041c78dbe37164bec2144b318e5e5189606be24d6878d0018138a930a8557f9"
+  },
+  "capture/JOBS.json": {
+    "bytes": 8101,
+    "sha256": "c84a411b6845e31fe1f67f2e5a3982efb6f9530f0c9ec834269101ee81bcd38c"
+  },
+  "capture/continuity_profiles-6084f3bf.py": {
+    "bytes": 8352,
+    "sha256": "2e3571ff63cbf6c4b69c8c328275448aee54d0132b2c2a0300a2455c6992eccf"
+  },
+  "capture/job-126463650237.log": {
+    "bytes": 77022,
+    "sha256": "39b988159cd9911e5eab675bf505f38b82d3e1560c53c352c2598fcedb08b227"
+  },
+  "capture/job-127038195710.log": {
+    "bytes": 29898,
+    "sha256": "99658d2c08d3439cc8e6edcbd82b8d5fb74215e80007e244355bf3231fdf7c47"
+  },
+  "capture/seal.py": {
+    "bytes": 4636,
+    "sha256": "ae3b4fe6eab5aed1bc0015be595be61edda7358f842628fd146c5a2fa85fd28b"
+  }
+}

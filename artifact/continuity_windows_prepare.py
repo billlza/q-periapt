@@ -8,6 +8,7 @@ import tempfile
 
 from evidence_io import parse_strict_json_bytes
 from continuity_c_consumer import EXPORTS
+from continuity_c_abi import CONTRACT as ABI_CONTRACT
 import continuity_package as candidate
 import continuity_package_archive as bundle
 from continuity_windows_bundle import components
@@ -27,7 +28,7 @@ def consumer_inputs(tracked: list[str]) -> list[str]:
         'peer_bundle', 'policy_request', 'receiver_policy', 'receiver_process',
         'witness', 'witness_tls', 'witness_tls_faults', 'witness_tls_relay', 'witness_tls_outcome')}
     return [p for p in tracked if p[len(FACADE_PREFIX):].startswith('src/') or
-            p[len(FACADE_PREFIX):] in ('Cargo.toml', 'tests/c_owner.rs', 'tests/root.rs',
+            p[len(FACADE_PREFIX):] in ('Cargo.toml', ABI_CONTRACT, 'tests/c_owner.rs', 'tests/root.rs',
                                      'tests/first_configuration.rs', 'tests/witness_tls_diagnostics.rs') or
             p[len(FACADE_PREFIX):] in configuration_inputs or p[len(FACADE_PREFIX):].startswith('tests/root/') or
             '/' not in p[len(FACADE_PREFIX):] and p.endswith(('.c', '.h'))]

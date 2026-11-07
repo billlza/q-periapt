@@ -1,0 +1,32 @@
+{
+  "classpath/0-core-lambda-stubs.jar": {
+    "kind": "file",
+    "path": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-android-tools-20261105/apk-tools/sdk/build-tools/36.0.0/core-lambda-stubs.jar",
+    "sha256": "2feb8df434cae3218ed9ffe9bae01ddec101d1dc5e12824c4209f61e283e0d3d"
+  },
+  "classpath/1-android.jar": {
+    "kind": "file",
+    "path": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-android-tools-20261105/apk-tools/sdk/platforms/android-36/android.jar",
+    "sha256": "d9eb9da824d9e247a352f570f01e1169e725b2954bca9e283a71786c59b59f9a"
+  },
+  "classpath/2-continuity-api.jar": {
+    "kind": "file",
+    "path": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-current-android-apk-5678/gradle-home/caches/9.7.1/transforms/f27d79d9ba58a8ccb9afa629063cd3c2/transformed/continuity-api.jar",
+    "sha256": "3fba69670d4e2dc0d5a1f0dab9e4d450b74b680ce27d441a022f45404d0287b9"
+  },
+  "classpath/3-kotlin-stdlib-2.2.10.jar": {
+    "kind": "file",
+    "path": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-current-android-apk-5678/gradle-home/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.2.10/30de6faa127a4a012db8e71bf1b9c0a99b1402b2/kotlin-stdlib-2.2.10.jar",
+    "sha256": "9c67cc79efd6b9215b49d2a4308f5f3433537376c7c88e89bdd6729bd096e61a"
+  },
+  "classpath/4-annotations-13.0.jar": {
+    "kind": "file",
+    "path": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-current-android-apk-5678/gradle-home/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar",
+    "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+  },
+  "classpath/6-R.jar": {
+    "kind": "file",
+    "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-current-android-agp-xffn6y4m/app/build/intermediates/compile_r_class_jar/release/generateReleaseRFile/R.jar",
+    "sha256": "0c588f363d5129b7db0c409064dbb52d1457a409af438035d9f093799385ee1a"
+  }
+}

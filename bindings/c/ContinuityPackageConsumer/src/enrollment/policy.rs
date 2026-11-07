@@ -651,3 +651,96 @@ pub unsafe extern "C" fn qpc_enrollment_v1_activate_policy_continuation(
     // SAFETY: forwarded invocation-local diagnostic contract.
     unsafe { boundary(error, false, action) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_policy_document_v1", Document, {
+        root: *const u8,
+        root_length: usize,
+        family: [u8; 32],
+        version: u64,
+        digest: [u8; 32],
+        wire: *const u8,
+        wire_length: usize,
+    });
+    abi_record!("qpc_policy_renewal_proposal_v1", ProposalBytes, {
+        length: u32,
+        bytes: [u8; 329],
+    });
+    abi_record!("qpc_policy_renewal_cancellation_v1", CancellationBytes, {
+        length: u32,
+        bytes: [u8; 281],
+    });
+    abi_function!(
+        qpc_enrollment_v1_activate_policy_continuation,
+        (u64, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_commit_witnessed_policy_continuation,
+        (
+            u64,
+            *const u8,
+            *const u8,
+            *mut RenewalStatus,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_prepare_witnessed_policy_cancellation,
+        (u64, *mut CancellationBytes, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_prepare_witnessed_policy_continuation,
+        (u64, *mut ProposalBytes, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_reconcile_policy_continuation,
+        (u64, *mut RenewalStatus, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_recover_historical_policy_continuation,
+        (
+            u64,
+            *const u8,
+            *const u8,
+            *const Document,
+            *mut RenewalStatus,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_select_continued_policy,
+        (u64, *const u8, usize, *const Document, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_stage_continued_credential_renewal,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const Pin,
+            *const u8,
+            *mut RenewalStatus,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_stage_policy_continuation,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const Pin,
+            *const u8,
+            *const u8,
+            usize,
+            *const Document,
+            *const u8,
+            *mut RenewalStatus,
+            *mut ErrorRecord,
+        )
+    );
+    renewal::verify_c_abi();
+}
+// END C ABI CHECKS

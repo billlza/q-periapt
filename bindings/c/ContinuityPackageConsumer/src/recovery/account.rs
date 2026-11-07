@@ -439,3 +439,87 @@ pub unsafe extern "C" fn qpc_recovery_v1_account_reconciliation(
         })
     }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_account_cleanup_header_v1", AccountHeader, {
+        batch: [u8; 32],
+        report: [u8; 32],
+        member_count: u32,
+        reserved_zero: u32,
+    });
+    abi_record!("qpc_account_cleanup_member_v1", Member, {
+        generation: u64,
+        confirmed_epoch: u64,
+        sending_epoch: u64,
+        receiving_epoch: u64,
+        pending_epoch: u64,
+        has_pending_epoch: u32,
+        role: u32,
+        epoch_count: u32,
+        reserved_zero: u32,
+        device: [u8; 16],
+        context: [u8; 32],
+        session: [u8; 32],
+    });
+    abi_record!("qpc_account_reconciled_member_v1", ReconciledMember, {
+        device: [u8; 16],
+        session: [u8; 32],
+        message: [u8; 32],
+        state: u32,
+        reserved_zero: u32,
+    });
+    abi_record!("qpc_account_reconciliation_v1", Reconciliation, {
+        batch: [u8; 32],
+        member_count: u32,
+        reserved_zero: u32,
+        members: [ReconciledMember; 32],
+    });
+    abi_function!(
+        qpc_recovery_v1_account_acknowledge,
+        (u64, *const u8, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_account_begin,
+        (u64, *mut AccountHeader, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_account_delivery,
+        (u64, u32, u32, u32, *mut Delivery, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_account_epoch,
+        (u64, u32, u32, *mut Epoch, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_account_member,
+        (u64, u32, *mut Member, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_account_reconciliation,
+        (u64, *mut Reconciliation, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_account_reserved,
+        (u64, u32, *mut Reserved, *mut ErrorRecord)
+    );
+    abi_function!(qpc_recovery_v1_account_retire, (u64, *mut ErrorRecord));
+    abi_function!(
+        qpc_recovery_v1_account_skipped,
+        (u64, u32, u32, u32, *mut u64, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_account_status,
+        (u64, *mut Status, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_account_unconfirmed,
+        (u64, u32, u32, u32, *mut Unconfirmed, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_recovery_v1_select_account,
+        (u64, *const u8, *mut ErrorRecord)
+    );
+}
+// END C ABI CHECKS

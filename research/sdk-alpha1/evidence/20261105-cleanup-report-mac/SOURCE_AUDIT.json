@@ -1,0 +1,245 @@
+{
+  "captured_utc": "2026-11-05T09:40:02.144068+00:00",
+  "changed_transcript_simulation_complete": false,
+  "closure_excluded_tail_bytes": 64,
+  "closure_order": [
+    {
+      "offset": 782,
+      "token": "getrandom::fill(key.as_mut_bytes())"
+    },
+    {
+      "offset": 873,
+      "token": "SessionClosureId::from_trusted_state("
+    },
+    {
+      "offset": 927,
+      "token": "report_mac(&image, record, &key)?"
+    },
+    {
+      "offset": 1084,
+      "token": "state.closure = Some(Pending { report, key })"
+    },
+    {
+      "offset": 1465,
+      "token": "record.phase = DurableStatus::MessagesClosing"
+    },
+    {
+      "offset": 1562,
+      "token": "self.persist(&mut image).await?"
+    },
+    {
+      "offset": 1747,
+      "token": "self.check_release(&image).await?"
+    },
+    {
+      "offset": 1790,
+      "token": "Ok(report)"
+    }
+  ],
+  "completed": true,
+  "conditional_one_report_bound": "min(1, DFH(2,q+ell*T)+E_NMAC(T,q,ell)), unchanged-transcript interface only",
+  "fanout_order": [
+    {
+      "offset": 297,
+      "token": "getrandom::fill(key.as_mut_bytes())"
+    },
+    {
+      "offset": 392,
+      "token": "FanoutAbandonmentId::from_trusted_state("
+    },
+    {
+      "offset": 453,
+      "token": "report_mac(&image, &batch, &key)?"
+    },
+    {
+      "offset": 1017,
+      "token": "record.phase = DurableStatus::MessagesAbandoning"
+    },
+    {
+      "offset": 1101,
+      "token": "batch.state = BatchState::Abandoning { report, key }"
+    },
+    {
+      "offset": 1301,
+      "token": "self.persist(&mut image).await?"
+    },
+    {
+      "offset": 1662,
+      "token": "let report = report(&image, &batch)?"
+    },
+    {
+      "offset": 1708,
+      "token": "self.check_release(&image).await?"
+    },
+    {
+      "offset": 1751,
+      "token": "Ok(report)"
+    }
+  ],
+  "fresh_key_calls_per_first_attempt": 1,
+  "full_native_suite_rerun": false,
+  "multi_epoch_computational_theorem_complete": false,
+  "owned_child_terminations_per_profile": 5,
+  "owned_child_terminations_total": 10,
+  "parent_elapsed_seconds": 33.37688649992924,
+  "physical_power_loss_claimed": false,
+  "private_record_refinement_complete": false,
+  "release_claim_eligible": false,
+  "report_key_bytes": 32,
+  "report_key_is_part_of_own_mac_transcript": false,
+  "retry_of_durable_report_draws_new_key": false,
+  "source_commit": "c32362567e748787a64ab767769e811f62cb87d5",
+  "source_inputs": {
+    "Cargo.lock": {
+      "bytes": 68613,
+      "sha256": "b3f7403faca9c95c0f77d5abb6ce732bb9b89c1a4c72ad6ba6e58f533e0af3d9"
+    },
+    "Cargo.toml": {
+      "bytes": 2030,
+      "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+    },
+    "research/continuity-identity-candidate/Cargo.toml": {
+      "bytes": 3248,
+      "sha256": "b43a5363f62592929074f24abad5f1083ebed96f55b344737fc0883d99ef121f"
+    },
+    "research/continuity-identity-candidate/src/codec.rs": {
+      "bytes": 1486,
+      "sha256": "ef9a5061f6fd924acf0cc32e17a692bf05cac61fd045ee1d94078e51977f20fa"
+    },
+    "research/continuity-identity-candidate/src/contract.rs": {
+      "bytes": 3957,
+      "sha256": "1fc3bb9131d9074b904208968430b45cb44799891ba102dc2c7b63545ee49431"
+    },
+    "research/continuity-identity-candidate/src/durable.rs": {
+      "bytes": 54134,
+      "sha256": "664bc3bfad790cc4639168b54bea30fdcdb80520310454cddd80ac66a5b37c42"
+    },
+    "research/continuity-identity-candidate/src/durable/messages.rs": {
+      "bytes": 42215,
+      "sha256": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/closure.rs": {
+      "bytes": 15478,
+      "sha256": "438b1e211925a869a27d377e07e3969032f4f182c736344b31beaf2f53f4b648"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/fanout.rs": {
+      "bytes": 29001,
+      "sha256": "37167f99d486e209f022fb2d142cb6662d0f6905a4dadaaf64743abde746b71a"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/fanout/abandonment.rs": {
+      "bytes": 17359,
+      "sha256": "630b1dac17ae9fabf3f50f46452f4d62ec813dc70d356202f128362cd8856a66"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/fanout/codec.rs": {
+      "bytes": 18349,
+      "sha256": "f485d7ab6b201a295ca16a3be658899729af40de9470cb28ebd85019552cb575"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/resolution.rs": {
+      "bytes": 15359,
+      "sha256": "6ee1743cfcfc6019ad25252209bddbff21ac7831b3153f4220347c1371d5c2f4"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/tests.rs": {
+      "bytes": 123398,
+      "sha256": "3f1ef2cf7cdbb65262c3f7406aa8238d41a327b2789b2a96c95d3e8f4466ada5"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/tests/closure.rs": {
+      "bytes": 24734,
+      "sha256": "33de3bd420cb44724154cd44bdba80154830304ae5c16acf201c1cf82a3a3990"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/tests/fanout.rs": {
+      "bytes": 40770,
+      "sha256": "c6be8aa5283b24d6f796aa06a68950bbe680b94e4dd82abb7f8cfec876c49066"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/tests/fanout/abandonment.rs": {
+      "bytes": 22483,
+      "sha256": "e3e292b441b16653392c5e131410243cbf94cd0d291a0535b2760899a8289e58"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/tests/fanout/process.rs": {
+      "bytes": 13467,
+      "sha256": "f237f28e0287961cda3fae16ea7396b5e118c39d109560214ef93692de588b5b"
+    },
+    "research/continuity-identity-candidate/src/identity.rs": {
+      "bytes": 24628,
+      "sha256": "fc6e18b5d8d59b382498188b1b2c040256f719eab44f3fe1cd06b033af1a371c"
+    }
+  },
+  "source_scope": "Literal source/order checks and manual interface proof, not a control-flow or computational proof checker.",
+  "test_binaries": {
+    "debug": {
+      "bytes": 50775960,
+      "path": "target/continuity-aggregate-reservation-copy/build/debug/deps/q_periapt_continuity_identity_candidate-8048dac8d42f6022",
+      "sha256": "59d298b5bb2e646ac60bc57028cccd94bc451d507cf93b5d042f1bd6b0fede6f"
+    },
+    "release": {
+      "bytes": 24753648,
+      "path": "target/continuity-aggregate-reservation-copy/build/release/deps/q_periapt_continuity_identity_candidate-d3eb26eb6c704353",
+      "sha256": "16e9fa95a0e90562cf22111a82723a0a470749c93862874e55518387bfbdeb25"
+    }
+  },
+  "test_binary_sources_changed": false,
+  "tests": [
+    {
+      "case": "session-report",
+      "markers": [],
+      "profile": "debug",
+      "stderr_sha256": "d9d2e893c008e658e5961b5ad3cce3a9da951393bd521ff4eb516a980f67ebb3",
+      "stdout_sha256": "ea66eea0020ab6b84b55a8d22e3af705e1927117b8e90cf59ca3c3b4cdb1c50f",
+      "summary": "ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1458 filtered out; finished in 1.82s",
+      "test": "durable::messages::tests::closure::independent_session_closure_accounts_all_epochs_and_a_real_reserved_input"
+    },
+    {
+      "case": "rekey-fences",
+      "markers": [],
+      "profile": "debug",
+      "stderr_sha256": "53cce640b3f8eac5d8d012c0db2c664b31239ec44f88204c9a4ca53ba82ffc15",
+      "stdout_sha256": "68d6fff46b26379a8b6cb6efc26d687552930f68d1e115864d6a27a16f20ddb0",
+      "summary": "ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1458 filtered out; finished in 3.12s",
+      "test": "durable::messages::tests::closure::independent_session_closure_fences_pending_rekey_flights_before_and_after_cutover"
+    },
+    {
+      "case": "fanout-report",
+      "markers": [
+        "fanout-abandoning",
+        "fanout-abandoned"
+      ],
+      "profile": "debug",
+      "stderr_sha256": "fdba576c8a27ba75fa2859733b512066207aedafa3fac04a8e56175107c6cfeb",
+      "stdout_sha256": "121e6bf6edb70ccdeb115fa8dc11ed66cf763b1f062ab7daa3ceca31daa70a74",
+      "summary": "ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1458 filtered out; finished in 5.32s",
+      "test": "durable::messages::tests::fanout::abandonment::account_fanout_abandonment_process_cuts_freeze_and_close_all_sessions"
+    },
+    {
+      "case": "session-report",
+      "markers": [],
+      "profile": "release",
+      "stderr_sha256": "0edcaee36f4c8c40bb9e2451ffdc883c010b12a095e38263e3f498deefd514df",
+      "stdout_sha256": "f879a03d03c882b9be3f1d40aab8defa1acac847d15ec5bd85e08ba2d06ef1cf",
+      "summary": "ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1458 filtered out; finished in 1.44s",
+      "test": "durable::messages::tests::closure::independent_session_closure_accounts_all_epochs_and_a_real_reserved_input"
+    },
+    {
+      "case": "rekey-fences",
+      "markers": [],
+      "profile": "release",
+      "stderr_sha256": "44ce7532fba7545c6d5bdadb33ffcdcebca24b9f6f9bbf140afac37d12c3320d",
+      "stdout_sha256": "47a5496ede333bc4e7f69ec83c96a3776feae539e9b4e10f83abc2e1f69be8ad",
+      "summary": "ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1458 filtered out; finished in 2.66s",
+      "test": "durable::messages::tests::closure::independent_session_closure_fences_pending_rekey_flights_before_and_after_cutover"
+    },
+    {
+      "case": "fanout-report",
+      "markers": [
+        "fanout-abandoning",
+        "fanout-abandoned"
+      ],
+      "profile": "release",
+      "stderr_sha256": "3c69770d6ab3b5b85b90081eb90b235ee32419482dcc9f08fab9a8d456a08511",
+      "stdout_sha256": "0665f8aa9380c1fff735d5412e4b8805c1bb4cd7a8b4b7f378e69f5c43689ff8",
+      "summary": "ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1458 filtered out; finished in 4.57s",
+      "test": "durable::messages::tests::fanout::abandonment::account_fanout_abandonment_process_cuts_freeze_and_close_all_sessions"
+    }
+  ],
+  "zero_report_branch_executed_in_tests": false,
+  "zero_report_is_resampled": false,
+  "zero_report_source_error": "Error::Encoding"
+}

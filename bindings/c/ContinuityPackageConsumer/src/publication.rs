@@ -269,6 +269,67 @@ pub unsafe extern "C" fn qpc_device_v1_abandon_publication(
     unsafe { boundary(error, false, action) }
 }
 
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_publication_key_v1", Key, {
+        kind: u32,
+        reuse: u32,
+        valid_from: u64,
+        valid_until: u64,
+        request: [u8; 32],
+    });
+    abi_record!("qpc_publication_plan_v1", Plan, {
+        struct_size: u32,
+        reserved_zero: u32,
+        directory: [u8; 32],
+        valid_from: u64,
+        valid_until: u64,
+        keys: *const Key,
+        count: usize,
+    });
+    abi_record!("qpc_publication_status_v1", Status, {
+        state: u32,
+        reserved_zero: u32,
+        intent: [u8; 32],
+        manifest: [u8; 32],
+        artifact: [u8; 32],
+    });
+    abi_function!(
+        qpc_device_v1_abandon_publication,
+        (u64, *const u8, *const u8, *mut Status, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_device_v1_next_publication,
+        (u64, *mut u8, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_device_v1_prepare_publication,
+        (
+            u64,
+            *const u8,
+            *const Plan,
+            *mut u8,
+            usize,
+            *mut usize,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_device_v1_publication_size_bound,
+        (*const Plan, *mut usize, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_device_v1_publication_status,
+        (u64, *const u8, *mut Status, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_device_v1_retire_publication,
+        (u64, *const u8, *const u8, *mut Status, *mut ErrorRecord)
+    );
+}
+// END C ABI CHECKS
+
 #[cfg(test)]
 mod tests {
     use super::*;

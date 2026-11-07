@@ -20,16 +20,23 @@ def identity(value):
     return type(value) is list and len(value) == 32 and all(type(x) is int and 0 <= x <= 255 for x in value)
 
 
-def transport_requests(value, public, origin, witness_frames):
-    """Explain only fulfilled, exact signed Witness replies; retain raw events."""
+def transport_requests(value, public, origin, witness_frames, exchange_frames=None):
+    """Explain exact completed replies with client evidence; retain raw events."""
     endpoint = urlsplit(origin)
     require(endpoint.scheme == 'http' and endpoint.hostname == '127.0.0.1' and endpoint.port
             and not endpoint.username and not endpoint.password and not endpoint.path
             and not endpoint.query and not endpoint.fragment, 'browser fixture origin differs')
     receipts = value.get('transport_receipts')
     require(type(receipts) is list and len(receipts) <= 1024, 'client transport receipts absent or oversized')
+    peers = {}
+    if exchange_frames is not None:
+        from continuity_browser_exchange_records import peer_receipts
+        peers = peer_receipts(value, public, origin, exchange_frames, KINDS)
     admitted, seen = {}, set()
     for row in receipts:
+        if (exchange_frames is not None and type(row) is dict
+                and row.get('url') in (origin + '/exchange', origin + '/exchange/drop-once')):
+            continue  # The complete phase inventory and both wire images were checked above.
         require(type(row) is dict and row.get('url') == origin + '/witness'
                 and row.get('result') in ('fulfilled', 'rejected')
                 and type(row.get('request_bytes')) is int and row['request_bytes'] == 3674,
@@ -65,22 +72,26 @@ def transport_requests(value, public, origin, witness_frames):
     unexplained, matched = [], set()
     for request, detail in zip(requests, details):
         require(request == {'url': detail['url'], 'failure': detail['failure']}, 'request diagnostics identity differs')
-        if (request['url'] != origin + '/witness' or request['failure'] != {'errorText': 'net::ERR_ABORTED'}
+        peer = exchange_frames is not None and request['url'] == origin + '/exchange'
+        if ((request['url'] != origin + '/witness' and not peer) or request['failure'] != {'errorText': 'net::ERR_ABORTED'}
                 or detail.get('response_status') != 200):
             unexplained.append(request)
             continue
         encoded = detail.get('body_hex')
-        require(type(encoded) is str and len(encoded) == 7348, 'failed observer request bytes absent or oversized')
+        require(type(encoded) is str and (20 <= len(encoded) <= 65536 if peer else len(encoded) == 7348),
+                'failed observer request bytes absent or oversized')
         raw = bytes.fromhex(encoded)
         digest = hashlib.sha256(raw).hexdigest()
-        require(digest in admitted and digest not in matched and len(raw) == 3674,
+        completed = peers if peer else admitted
+        key = (request['url'], digest)
+        require(digest in completed and key not in matched and len(raw) == completed[digest]['request_bytes'],
                 'failed observer event lacks a unique fulfilled client reply')
-        matched.add(digest)
+        matched.add(key)
     return unexplained
 
 
 def verify_forward(report: dict, public: Path) -> None:
-    require(type(report.get('schema_version')) is int and report['schema_version'] in (1, 2, 3, 4)
+    require(type(report.get('schema_version')) is int and report['schema_version'] in (1, 2, 3, 4, 5, 6)
             and report.get('completed') is True and report.get('release_claim_eligible') is False,
             'browser/native scope or completion differs')
     require(report.get('relay_failures') == [] and not report.get('cleanup_failures'), 'fixture failed')
@@ -148,9 +159,15 @@ def verify_forward(report: dict, public: Path) -> None:
                         'retained browser phase identity differs')
                 require(value['result'] == (before if phase == 'activate' else after),
                         'browser summary differs from retained phase result')
-                if report['schema_version'] == 4:
+                if report['schema_version'] not in (5, 6):
+                    require(all(type(row) is dict and type(row.get('url')) is str
+                                and row['url'].endswith('/witness') for row in value.get('transport_receipts', [])),
+                            'peer receipt evidence requires its own transcript schema')
+                if report['schema_version'] in (4, 5, 6):
                     origin = report['browser_origin']
-                    remaining = transport_requests(value, public, origin, report['required_witness']['frames'])
+                    witness_frames = report['required_witness']['frames'] if report['schema_version'] in (4, 6) else []
+                    context = [report['frames']] if report['schema_version'] in (5, 6) else []
+                    remaining = transport_requests(value, public, origin, witness_frames, *context)
                     require(not value['http_errors'], 'unexpected browser HTTP failure')
                     if phase == 'activate':
                         require(remaining == [{'url': origin + '/exchange/drop-once',
@@ -170,13 +187,17 @@ def verify_forward(report: dict, public: Path) -> None:
 
 def verify(report: dict, public: Path) -> None:
     from continuity_browser_reverse_records import verify as verify_reverse
-    require(type(report.get('schema_version')) is int and report['schema_version'] in (2, 3, 4),
+    require(type(report.get('schema_version')) is int and report['schema_version'] in (2, 3, 4, 5, 6),
             'bidirectional qualification requires its current transcript schema')
     verify_forward(report, public)
-    witness_context = ((report['browser_origin'], report['required_witness']['frames'])
-                       if report['schema_version'] == 4 else None)
-    verify_reverse(report['reverse_application'], public, report['before_restart']['session'], witness_context=witness_context)
-    if report['schema_version'] in (3, 4):
+    transport_context = None
+    if report['schema_version'] in (4, 5, 6):
+        witness_frames = report['required_witness']['frames'] if report['schema_version'] in (4, 6) else []
+        transport_context = (report['browser_origin'], witness_frames)
+        if report['schema_version'] in (5, 6):
+            transport_context += (report['frames'],)
+    verify_reverse(report['reverse_application'], public, report['before_restart']['session'], transport_context=transport_context)
+    if report['schema_version'] in (3, 4, 6):
         from continuity_browser_witness_records import verify as verify_witness
         require(report.get('policy_profile') == 'required-witness', 'required witness profile missing')
         require(report.get('native_build_profile') in ('debug','release'), 'native witness build profile missing')

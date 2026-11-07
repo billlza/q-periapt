@@ -341,6 +341,7 @@ def verify_relay_diagnostics(stdout: bytes) -> None:
 
 def verify_admission(stdout: bytes) -> None:
     tests = {
+        "abi_contract::declared_c_types_match_native_owners",
         "enrollment::pending_recovery::tests::pending_request_layout_and_failed_output_are_stable",
         "enrollment::pending_recovery::tests::pending_bounds_are_checked_before_reading_or_owner_admission",
         "enrollment::pending_recovery::tests::pending_copy_failure_publishes_neither_output",
@@ -405,7 +406,7 @@ def verify_admission(stdout: bytes) -> None:
     text = stdout.decode()
     passed = re.findall(r"^test ([a-z_:]+) \.\.\. ok$", text, re.MULTILINE)
     sdk.require(len(passed) == len(tests) and set(passed) == tests and re.search(
-        r"^test result: ok\. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
+        r"^test result: ok\. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;", text, re.MULTILINE),
         "C admission, deadline and drain contract did not execute completely")
 
 
@@ -452,6 +453,8 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         sdk.require(not path.is_symlink(), "C consumer fixture contains a symlink")
         if path.is_file():
             sdk.copy(path, consumer / path.relative_to(FIXTURE))
+    from continuity_c_abi import load as load_abi_contract
+    load_abi_contract(consumer)
     template_hashes = {p.relative_to(consumer).as_posix(): sdk.snapshot(p).sha256
                        for p in consumer.rglob("*") if p.is_file()}
     sdk.extract_recorded_crates(consumer, sdk_output, records)
@@ -570,6 +573,10 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
                           "-j", "2", *extra], "admission-build-" + profile)
         unit_test = built_artifact(unit_build, consumer, build, library=False, unit=True)
         unit_identity = sdk.snapshot(unit_test, maximum=MAX_BINARY)
+        from continuity_c_abi import qualify as qualify_abi
+        result.setdefault("abi_contract", {})[profile] = qualify_abi(
+            consumer, installed, cc, platform_flags, profile, unit_test, run,
+            darwin=darwin, runtime=runtime, filename=filename)
         authority_fixture = outside / ("c-" + profile + "-authority-fixture")
         authority_fixture.mkdir(mode=0o700)
         checked = run([str(unit_test)], "admission-" + profile,

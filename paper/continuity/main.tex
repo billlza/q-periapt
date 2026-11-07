@@ -1,0 +1,75 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=28mm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs,array,tabularx,longtable}
+\usepackage{graphicx,tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage[hyphens]{url}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalize,noabbrev]{cleveref}
+\input{glyphtounicode}
+\pdfgentounicode=1
+\hypersetup{pdftitle={Post-Compromise Security with Persistent Randomness Reservations}}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\setlist{topsep=4pt,itemsep=3pt,parsep=0pt}
+\setlength{\emergencystretch}{1.5em}
+\newcommand{\artifact}[1]{\texttt{\small\detokenize{#1}}}
+\newcommand{\qperiapt}{Q-Periapt Continuity}
+\newcommand{\sourcecommit}{\texttt{228c944f}}
+\title{Post-Compromise Security with\protect\\ Persistent Randomness Reservations}
+\author{}
+\date{Research manuscript --- 7 November 2026}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+A persistent messaging protocol can reserve randomness so that interrupted
+cryptographic operations can resume with their original inputs. This separates
+the creation of secret material from the execution, publication, and confirmation
+of the operation that uses it. We study the resulting exposure semantics in a
+hybrid post-quantum messaging construction. Our record model assigns immutable
+origins to reserved entropy and follows those origins through pending writes,
+aggregate images, acquisition, and later wrapping-key disclosure. A
+record-interface normalization lemma relates alias-aware storage to an
+original-record experiment while preserving acquisition and readability.
+For the protocol's multi-epoch symbolic model, a jointly
+checked secrecy theorem establishes recovery under fresh target reservations,
+unexposed target authentication and entropy, and a precise record-acquisition
+condition. Native executions demonstrate the necessity of provenance-sensitive
+reasoning: a captured reservation reconstructs later traffic, a reservation
+captured during asynchronous confirmation exposes a successor beyond the smaller
+confirmation counter, and a
+sibling-session write preserves the original secret source. We organize these
+results with executable SPQR and whole-KEM reference corpora, and formulate the
+common computational experiment needed to connect concrete protected records
+to joint root, confirmation, traffic, and acknowledgement security. The analysis
+makes the origin and acquisition history of retained secret material explicit
+in the recovery statement.
+\end{abstract}
+
+\input{introduction}
+\input{related-work}
+\input{construction}
+\input{security-model}
+\input{established-results}
+\input{evaluation}
+\input{computational-roadmap}
+
+\bibliographystyle{alpha}
+\bibliography{references}
+\clearpage
+\appendix
+\input{artifact-map}
+\end{document}

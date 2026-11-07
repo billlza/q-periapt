@@ -5,6 +5,14 @@ use crate::enrollment::tests::policy_continuation::{joint, policy, scope};
 use crate::{BootstrapContext, CredentialRenewalId, InitiationId};
 
 pub(super) fn session(f: Fixture) -> (Fixture, [u8; 32]) {
+    session_with_offer(f, false)
+}
+
+pub(super) fn session_with_pending_offer(f: Fixture) -> (Fixture, [u8; 32]) {
+    session_with_offer(f, true)
+}
+
+fn session_with_offer(f: Fixture, pending_offer: bool) -> (Fixture, [u8; 32]) {
     use super::policy_transaction::sessions::{bundle, endpoint, requirements};
     let peer = fixture_on_witness(
         Arc::clone(&f._witness_dir),
@@ -59,6 +67,18 @@ pub(super) fn session(f: Fixture) -> (Fixture, [u8; 32]) {
     sender
         .send_message(&ci, session, message, b"unconfirmed original", b"", 150)
         .expect("real pending delivery");
+    if pending_offer {
+        let offer = sender
+            .prepare_rekey_offer(&ci, session, signer, 150)
+            .expect("original committed offer before cleanup");
+        assert!(!offer.is_empty());
+        assert_eq!(
+            sender
+                .rekey_offer_status(&ci, session)
+                .expect("original offer status"),
+            crate::RekeyOfferStatus::Committed
+        );
+    }
     a.owner.close();
     b.owner.close();
     (a.f, session)

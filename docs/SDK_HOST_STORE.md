@@ -41,14 +41,18 @@ schema/root/exact state and re-verifies the signed policy. Missing, empty, corru
 foreign or unsupported storage does not become first installation.
 
 A failed creation is not proof that no state was installed. Before publication,
-failure can retain a private `.private-publication-*` staging inode while the formal
+failure can retain a private `.private-attempt-v2-*/payload` while the formal
 path remains absent. Only the original explicit first-use intent, before any active
 use, can authorize a bounded retry; neither an arbitrary open error nor loss of a
 previously active store authorizes it. After publication, an error retains the
 formal database and its original state. Reconcile it with the same independently
-retained root and configured signed policy. No failure deletes staging or formal
-names, and no recovery scans or selects staging files. Exclusive orphan maintenance
-and physical erasure are separate host responsibilities.
+retained root and configured signed policy. Publication never deletes the payload
+or formal target; after publication it retires only its own control fields and may
+fail partway through that retirement. No recovery scans or selects staging files.
+The separate original attempt lease enables explicit bounded
+[v2 publication maintenance](PRIVATE_PUBLICATION_MAINTENANCE.md), including empty
+unpublished files, without weakening the operational-store opener. Incomplete and
+legacy residues are refused; physical erasure is not provided.
 
 Existing partial formal databases remain refused without schema initialization or
 replacement. An admitted redb open can still update its own allocator/recovery

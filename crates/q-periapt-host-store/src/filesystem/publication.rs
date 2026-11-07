@@ -22,12 +22,13 @@ impl PrivatePublicationError {
             staging_name: Some(name),
         }
     }
-    /// Original admission, write, sync, or non-replacing rename error.
+    /// Original admission, write, sync, non-replacing rename or control-retirement error.
     pub fn operation(&self) -> &io::Error {
         &self.operation
     }
-    /// Name reserved by this attempt, if creation reached a private staging inode.
-    /// It may no longer exist after rename. This is diagnostic correlation data,
+    /// Versioned control-directory name selected when attempt creation began.
+    /// Creation may have failed, or successful retirement may have removed it.
+    /// This is diagnostic correlation data,
     /// never proof of current inode ownership or permission to delete by name.
     pub fn staging_name(&self) -> Option<&std::ffi::OsStr> {
         self.staging_name.as_deref()
@@ -58,19 +59,20 @@ impl From<io::Error> for PrivatePublicationError {
 
 /// Publish an immutable image beneath one authenticated, pinned private parent.
 ///
-/// Writes a fresh exclusive owner-only staging file, syncs its complete contents,
-/// renames with NOREPLACE, authenticates the published inode, then syncs the
-/// parent. No owner or public identity may be released before this returns.
+/// Holds a separate control lease before exposing a fresh owner-only payload,
+/// syncs its complete contents, renames with NOREPLACE, authenticates the published
+/// inode and syncs both rename parents. It then retires its own control fields.
+/// No owner or public identity may be released before this returns.
 /// Existing destinations, including partial files and symlinks, are never changed.
 /// There is no fallback when the filesystem lacks non-replacing rename support.
 ///
-/// Neither returned errors nor process crashes remove staging or destination
-/// names. A check-then-unlink cannot atomically authenticate the inode being
-/// removed. Failures can therefore leave private `.private-publication-*` orphans;
-/// the error retains the original I/O failure and the attempted staging name.
-/// Orphans are never selected for recovery, swept or treated as authority.
-/// Callers must bound first-use retries; an exclusive maintenance/erasure protocol
-/// is a separate host responsibility, not implemented by this helper.
+/// Publication errors never delete the payload or formal destination. They can
+/// leave an unpublished payload in `.private-attempt-v2-*/payload`, or a complete
+/// published target and partially retired control directory. The error preserves
+/// the original failure and control-name correlation. A valid abandoned v2
+/// attempt can be explicitly reclaimed with `reclaim_private_publication`; old
+/// prefix-only residues and incomplete controls are refused. No automatic sweep
+/// or recovery from a staging payload occurs. Callers must bound first-use retries.
 ///
 /// An explicitly authorized first provisioning retry may generate fresh unpublished
 /// material only while the destination is absent. After publication, recover the
@@ -115,8 +117,8 @@ pub fn publish_private_bytes(path: &Path, bytes: &[u8]) -> Result<(), PrivatePub
     target_os = "windows"
 ))]
 use super::{
-    open_locked_database, open_private_parent, publication_ops as ops, DatabaseOpenMode,
-    OwnedPrivateDirectory, PrivateDatabaseError,
+    maintenance::ManagedAttempt, open_locked_database, DatabaseOpenMode, OwnedPrivateDirectory,
+    PrivateDatabaseError,
 };
 #[cfg(any(
     target_os = "macos",
@@ -160,23 +162,8 @@ fn admission() -> io::Error {
     )
 }
 
-#[cfg(any(
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "linux",
-    target_os = "android",
-    target_os = "windows"
-))]
-fn same_leaf(
-    parent: &OwnedPrivateDirectory,
-    leaf: &OsStr,
-    original: &ops::Descriptor,
-) -> io::Result<()> {
-    ops::same_file(parent, leaf, original)
-}
-
-/// Internal publication capability. The descriptor is a plain probe only: never
-/// wrap a duplicate in a second lock-managing backend or explicitly unlock it.
+/// Internal publication capability. The data descriptor is a plain probe;
+/// the independent control lease spans preparation, publication and retirement.
 #[cfg(any(
     target_os = "macos",
     target_os = "ios",
@@ -185,10 +172,8 @@ fn same_leaf(
     target_os = "windows"
 ))]
 pub(super) struct StagedFile {
-    parent: OwnedPrivateDirectory,
-    destination: std::ffi::OsString,
+    attempt: ManagedAttempt,
     name: std::ffi::OsString,
-    descriptor: ops::Descriptor,
 }
 #[cfg(any(
     target_os = "macos",
@@ -199,28 +184,17 @@ pub(super) struct StagedFile {
 ))]
 impl StagedFile {
     pub(super) fn new(path: &Path) -> Result<Self, PrivatePublicationError> {
-        let (parent, destination) = open_private_parent(path).map_err(|_| admission())?;
-        // Avoid staging for an already-existing name; NOREPLACE still decides races.
-        ops::require_absent(&parent, destination)?;
-        let mut token = [0u8; 16];
-        getrandom::fill(&mut token).map_err(io::Error::other)?;
-        let token: String = token.iter().map(|b| format!("{b:02x}")).collect();
-        let name = std::ffi::OsString::from(format!(".private-publication-{token}"));
-        let descriptor = ops::create_file(&parent, &name)?;
-        let staged = Self {
-            parent,
-            destination: destination.to_owned(),
-            name,
-            descriptor,
-        };
-        same_leaf(&staged.parent, &staged.name, &staged.descriptor).map_err(|e| staged.error(e))?;
-        Ok(staged)
+        let attempt = ManagedAttempt::file(path)?;
+        let name = Path::new(attempt.correlation_name())
+            .join("payload")
+            .into_os_string();
+        Ok(Self { attempt, name })
     }
     fn error(&self, operation: io::Error) -> PrivatePublicationError {
-        PrivatePublicationError::staged(operation, self.name.clone())
+        PrivatePublicationError::staged(operation, self.attempt.correlation_name().to_owned())
     }
     pub(super) fn file(&self) -> Result<File, PrivatePublicationError> {
-        ops::clone_file(&self.descriptor).map_err(|e| self.error(e))
+        self.attempt.data_file().map_err(|e| self.error(e))
     }
     pub(super) fn publish(&self) -> Result<(), PrivatePublicationError> {
         let file = self.file()?;
@@ -232,25 +206,48 @@ impl StagedFile {
         hook: &mut impl FnMut(Step, &OwnedPrivateDirectory, &OsStr, &File) -> io::Result<()>,
     ) -> Result<(), PrivatePublicationError> {
         let operation = (|| -> io::Result<()> {
-            same_leaf(&self.parent, &self.name, &self.descriptor)?;
-            hook(Step::BeforeFileSync, &self.parent, &self.name, file)?;
-            file.sync_all()?;
-            hook(Step::FileSynced, &self.parent, &self.name, file)?;
-            hook(Step::BeforeRename, &self.parent, &self.name, file)?;
-            same_leaf(&self.parent, &self.name, &self.descriptor)?;
-            ops::rename_file(
-                &self.parent,
+            self.attempt.validate_unpublished()?;
+            hook(
+                Step::BeforeFileSync,
+                self.attempt.target_parent(),
                 &self.name,
-                &self.destination,
-                &self.descriptor,
+                file,
             )?;
-            hook(Step::Published, &self.parent, &self.name, file)?;
-            same_leaf(&self.parent, &self.destination, &self.descriptor)?;
-            hook(Step::BeforeDirectorySync, &self.parent, &self.name, file)?;
-            ops::sync_directory(&self.parent)?;
-            hook(Step::DirectorySynced, &self.parent, &self.name, file)?;
-            same_leaf(&self.parent, &self.destination, &self.descriptor)?;
-            Ok(())
+            file.sync_all()?;
+            hook(
+                Step::FileSynced,
+                self.attempt.target_parent(),
+                &self.name,
+                file,
+            )?;
+            hook(
+                Step::BeforeRename,
+                self.attempt.target_parent(),
+                &self.name,
+                file,
+            )?;
+            self.attempt.rename()?;
+            hook(
+                Step::Published,
+                self.attempt.target_parent(),
+                &self.name,
+                file,
+            )?;
+            self.attempt.same_target()?;
+            hook(
+                Step::BeforeDirectorySync,
+                self.attempt.target_parent(),
+                &self.name,
+                file,
+            )?;
+            self.attempt.sync_publication()?;
+            hook(
+                Step::DirectorySynced,
+                self.attempt.target_parent(),
+                &self.name,
+                file,
+            )?;
+            self.attempt.finish()
         })();
         operation.map_err(|e| self.error(e))
     }
@@ -271,9 +268,19 @@ fn publish_with(
     let staged = StagedFile::new(path)?;
     let mut file = staged.file()?;
     let write = (|| -> io::Result<()> {
-        hook(Step::Created, &staged.parent, &staged.name, &file)?;
+        hook(
+            Step::Created,
+            staged.attempt.target_parent(),
+            &staged.name,
+            &file,
+        )?;
         file.write_all(bytes)?;
-        hook(Step::Written, &staged.parent, &staged.name, &file)?;
+        hook(
+            Step::Written,
+            staged.attempt.target_parent(),
+            &staged.name,
+            &file,
+        )?;
         if file.metadata()?.len() != bytes.len() as u64 {
             return Err(admission());
         }

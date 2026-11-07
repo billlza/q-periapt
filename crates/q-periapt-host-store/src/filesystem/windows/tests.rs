@@ -16,11 +16,181 @@ use windows_sys::Win32::Storage::FileSystem::{
     FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, WRITE_DAC,
 };
 
+// Exercise the native steps without relying on publication to build the fixture.
+// Keep each original error intact and report only static stages, never path or data.
+fn primitive<T, E: std::error::Error + 'static>(
+    stage: &'static str,
+    result: Result<T, E>,
+) -> Result<T, Box<dyn std::error::Error>> {
+    result.map_err(|error| {
+        eprintln!("private Windows primitive {stage} failed: {error:?}");
+        Box::<dyn std::error::Error>::from(error)
+    })
+}
+
+fn managed_attempt_primitives(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    use crate::filesystem::{publication_ops as ops, LockedFileBackend};
+    use std::io::{Seek, SeekFrom};
+
+    let parent = primitive("open-parent", OwnedPrivateDirectory::open(root))?;
+    let name = OsStr::new("primitive-control");
+    let control = primitive(
+        "create-control-directory",
+        ops::create_directory(&parent, name),
+    )?;
+    let lease = primitive(
+        "create-lease",
+        ops::create_file(&control, OsStr::new("lease")),
+    )?;
+    let mut lease_probe = primitive("clone-lease", ops::clone_file(&lease))?;
+    let lock_file = primitive("clone-lease-for-lock", lease_probe.try_clone())?;
+    let lease_owner = primitive("lock-lease", LockedFileBackend::new(lock_file))?;
+    primitive("write-locked-lease", lease_probe.write_all(b"lease probe"))?;
+    primitive("sync-locked-lease", lease_probe.sync_all())?;
+
+    let payload = primitive(
+        "create-payload",
+        ops::create_file(&control, OsStr::new("payload")),
+    )?;
+    primitive("parent-identity", ops::directory_identity(&parent))?;
+    primitive("control-identity", ops::directory_identity(&control))?;
+    primitive("locked-lease-identity", ops::file_identity(&lease_probe))?;
+    let payload_probe = primitive("clone-payload", ops::clone_file(&payload))?;
+    primitive("payload-identity", ops::file_identity(&payload_probe))?;
+    assert!(native::directory_entries(&payload_probe, 8).is_err());
+    let payload_directory = primitive(
+        "create-payload-directory",
+        ops::create_directory(&control, OsStr::new("payload-directory")),
+    )?;
+    primitive(
+        "payload-directory-identity",
+        ops::directory_identity(&payload_directory),
+    )?;
+
+    let record = primitive(
+        "create-record",
+        ops::create_file(&control, OsStr::new("record")),
+    )?;
+    let mut record_probe = primitive("clone-record", ops::clone_file(&record))?;
+    primitive("write-record", record_probe.write_all(b"record probe"))?;
+    primitive("sync-record", record_probe.sync_all())?;
+    primitive("sync-control-directory", ops::sync_directory(&control))?;
+    primitive("sync-parent-directory", ops::sync_directory(&parent))?;
+    primitive(
+        "same-control-directory",
+        ops::same_directory(&parent, name, &control),
+    )?;
+    primitive(
+        "same-locked-lease",
+        ops::same_plain_file(&control, OsStr::new("lease"), &lease_probe),
+    )?;
+    primitive(
+        "same-record",
+        ops::same_plain_file(&control, OsStr::new("record"), &record_probe),
+    )?;
+
+    let mut reader = primitive("clone-locked-lease-for-read", lease_probe.try_clone())?;
+    primitive("seek-locked-lease", reader.seek(SeekFrom::Start(0)))?;
+    let mut bytes = Vec::new();
+    primitive("read-locked-lease", reader.read_to_end(&mut bytes))?;
+    assert_eq!(bytes, b"lease probe");
+    primitive("seek-record", record_probe.seek(SeekFrom::Start(0)))?;
+    bytes.clear();
+    primitive("read-record", record_probe.read_to_end(&mut bytes))?;
+    assert_eq!(bytes, b"record probe");
+
+    let mut expected = ["lease", "payload", "payload-directory", "record"]
+        .map(std::ffi::OsString::from)
+        .to_vec();
+    expected.sort();
+    let mut isolated = primitive(
+        "isolated-directory-cursor",
+        native::directory_entries_preserve_cursor_for_test(&control.descriptor, 8),
+    )?;
+    isolated.sort();
+    assert_eq!(isolated, expected);
+    let bounded = primitive("enumerate-one-entry", ops::directory_entries(&control, 1))?;
+    assert_eq!(bounded.len(), 1);
+    for stage in [
+        "enumerate-after-bounded-cursor",
+        "enumerate-new-cursor-again",
+    ] {
+        let mut entries = primitive(stage, ops::directory_entries(&control, 8))?;
+        entries.sort();
+        assert_eq!(entries, expected, "{stage}");
+    }
+    primitive(
+        "same-payload",
+        ops::same_file(&control, OsStr::new("payload"), &payload),
+    )?;
+    primitive(
+        "same-payload-directory",
+        ops::same_directory(
+            &control,
+            OsStr::new("payload-directory"),
+            &payload_directory,
+        ),
+    )?;
+    // Only this test owns these child handles. Close them before directory rename
+    // while retaining the original directory pin, as Windows publication requires.
+    drop(reader);
+    drop(record_probe);
+    drop(record);
+    drop(lease_owner);
+    drop(lease_probe);
+    drop(lease);
+    drop(payload_probe);
+    drop(payload);
+    drop(payload_directory);
+    let moved = OsStr::new("primitive-moved");
+    primitive(
+        "rename-pinned-control",
+        ops::rename_directory_to(&parent, name, &parent, moved, &control),
+    )?;
+    let replacement = primitive(
+        "replace-original-control-name",
+        ops::create_directory(&parent, name),
+    )?;
+    drop(primitive(
+        "create-replacement-marker",
+        ops::create_file(&replacement, OsStr::new("replacement-only")),
+    )?);
+    primitive(
+        "original-pin-after-replacement",
+        ops::same_directory(&parent, moved, &control),
+    )?;
+    let mut retained = primitive(
+        "enumerate-retained-directory",
+        ops::directory_entries(&control, 8),
+    )?;
+    retained.sort();
+    assert_eq!(retained, expected);
+    let replacement_entries = primitive(
+        "enumerate-replacement-directory",
+        ops::directory_entries(&replacement, 8),
+    )?;
+    assert_eq!(
+        replacement_entries,
+        vec![std::ffi::OsString::from("replacement-only")]
+    );
+    let retained_identity = primitive(
+        "retained-directory-identity",
+        ops::directory_identity(&control),
+    )?;
+    let replacement_identity = primitive(
+        "replacement-directory-identity",
+        ops::directory_identity(&replacement),
+    )?;
+    assert_ne!(retained_identity, replacement_identity);
+    Ok(())
+}
+
 #[test]
 fn explicit_private_creation_and_no_replace_preserve_bytes(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let temporary = directory()?;
     let root = temporary.path();
+    managed_attempt_primitives(root)?;
     let state = root.join("state.bin");
     assert!(open_private_file(&state, false).is_err());
     let mut file = open_private_file(&state, true)?;

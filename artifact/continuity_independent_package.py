@@ -27,6 +27,22 @@ NAME = "q-periapt-independent-peer-counterpart"
 IMPORTER = "import_bootstrap_bundle"
 PRODUCTS = tuple(name for name in sdk.CONSUMER_CRATES if name != "q-periapt-rustls")
 VERSIONS = dict.fromkeys(PRODUCTS, sdk.VERSION) | {package.NAME: package.VERSION}
+CLIPPY_VERSION = "clippy 0.1.98 (48a229ceae 2026-09-01)"
+
+
+def qualified_clippy(toolchain: Path, run) -> tuple[list[str], dict[str, str]]:
+    # Cargo searches CARGO_HOME/bin for extensions before PATH. An explicitly
+    # admitted registry cache may contain rustup proxies for a different default
+    # compiler. Execute the same measured frontend/driver as the selected rustc.
+    command = [str(toolchain / "bin/cargo-clippy"), "clippy"]
+    versions = {
+        "frontend": run([*command, "--version"], "clippy-version").decode().strip(),
+        "driver": run([str(toolchain / "bin/clippy-driver"), "--version"],
+                      "clippy-driver-version").decode().strip(),
+    }
+    sdk.require(all(value == CLIPPY_VERSION for value in versions.values()),
+                "installed counterpart Clippy compiler differs: " + repr(versions))
+    return command, versions
 
 
 def validate_sdk_selection(run_id: str, report_digest: str) -> bool:
@@ -138,6 +154,7 @@ def build(args: argparse.Namespace) -> dict:
                    if not k.startswith(("CARGO_", "RUST", "DYLD_", "LD_", "QPERIAPT_", "QPC_"))}
     environment.update(CARGO_HOME=str(home), CARGO_NET_OFFLINE="true", CARGO_TERM_COLOR="never",
                        CARGO_INCREMENTAL="0", CARGO_TARGET_DIR=str(outside / "producer-build"),
+                       CARGO=str(toolchain / "bin/cargo"),
                        RUSTC=str(toolchain / "bin/rustc"), RUSTDOC=str(toolchain / "bin/rustdoc"),
                        RUSTFLAGS="-D warnings", RUSTDOCFLAGS="-D warnings",
                        PATH=str(toolchain / "bin") + os.pathsep + environment.get("PATH", os.defpath))
@@ -157,6 +174,7 @@ def build(args: argparse.Namespace) -> dict:
         sdk.require(rustc.splitlines()[0] == "rustc 1.98.1 (48a229cea 2026-09-01)"
                     and "host: " + target[host] in rustc.splitlines(), "counterpart compiler differs")
         result["rustc"] = rustc
+        clippy, result["clippy"] = qualified_clippy(toolchain, run)
         metadata = parse_strict_json_bytes(run([*cargo, "metadata", "--locked", "--offline", "--no-deps",
                                                "--format-version", "1"], "workspace-metadata"), label="SDK metadata")
         packages = sdk.classify(metadata)
@@ -185,11 +203,11 @@ def build(args: argparse.Namespace) -> dict:
         result["resolution"] = verify_graph(metadata, consumer, sdk.snapshot(consumer / "Cargo.lock").data, original)
         sdk.copy(consumer / "Cargo.lock", output / "consumer-Cargo.lock")
         run([*cargo, "build", "--release", "--locked", "--offline", "-j", "2"], "consumer-build", consumer)
-        run([*cargo, "clippy", "--release", "--locked", "--offline", "--all-targets", "-j", "2", "--", "-D", "warnings"],
+        run([*clippy, "--release", "--locked", "--offline", "--all-targets", "-j", "2", "--", "-D", "warnings"],
             "consumer-clippy", consumer)
         example = ["--release", "--locked", "--offline", "-p", package.NAME, "--example", IMPORTER, "-j", "2"]
         run([*cargo, "build", *example], "importer-build", consumer)
-        run([*cargo, "clippy", *example, "--", "-D", "warnings"], "importer-clippy", consumer)
+        run([*clippy, *example, "--", "-D", "warnings"], "importer-clippy", consumer)
         binary = outside / "consumer-build/release" / NAME
         sdk.copy(binary, output / "counterpart"); (output / "counterpart").chmod(0o700)
         result["native_sha256"] = sdk.snapshot(binary).sha256

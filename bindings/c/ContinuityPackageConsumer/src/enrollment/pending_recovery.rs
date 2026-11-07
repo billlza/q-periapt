@@ -171,6 +171,39 @@ pub unsafe extern "C" fn qpc_enrollment_v1_confirm_pending_write_recovery(
     unsafe { boundary(error, false, action) }
 }
 
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_pending_write_request_info_v1", RequestInfo, {
+        metadata_length: u32,
+        signed_request_length: u32,
+        proposal: [u8; 393],
+        reserved_zero: [u8; 3],
+        binding: [u8; 32],
+    });
+    abi_function!(
+        qpc_enrollment_v1_confirm_pending_write_recovery,
+        (u64, *const u8, usize, *const u8, usize, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_copy_pending_write_request,
+        (
+            u64,
+            *const u8,
+            *mut u8,
+            usize,
+            *mut u8,
+            usize,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_pending_write_request,
+        (u64, *mut RequestInfo, *mut ErrorRecord)
+    );
+}
+// END C ABI CHECKS
+
 #[cfg(test)]
 mod tests {
     use super::*;

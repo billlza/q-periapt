@@ -45,6 +45,9 @@ def restart(bridge, now, label, *, later=False):
         require(old.poll() is None, 'native endpoint ended before requested process cut')
         row = {'case':label, 'root_revision':3 if later else 2, 'old_pid':old.pid, 'signal':'SIGKILL', 'preserved_files':before,
                'completed':False}
+        executable = native.executable
+        if native.program_plan is not None:
+            executable, row['program_replacement'] = native.program_plan.select(label, native.executable)
         native.restarts.append(row)
         result = native.cases.parent/'PROCESS_RESTARTS.json'
         result.write_text(json.dumps(native.restarts,indent=2)+'\n')
@@ -56,7 +59,7 @@ def restart(bridge, now, label, *, later=False):
         require(preserved(public,later=later)==before, 'process cut replaced original native keys or public inputs')
         stderr_path = native.cases.parent/('restart-'+str(len(native.restarts))+'.stderr')
         native.stderr = stderr_path.open('xb')
-        native.process = subprocess.Popen([str(native.executable),str(public),'--resume-successor',str(now)],
+        native.process = subprocess.Popen([str(executable),str(public),'--resume-successor',str(now)],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=native.stderr,
             bufsize=0, start_new_session=True)
         require(native.process.stdin is not None and native.process.stdout is not None, 'missing restart pipes')
@@ -69,6 +72,9 @@ def restart(bridge, now, label, *, later=False):
         require(native.read(4,deadline)==b'\0\0\0\6' and native.read(6,deadline)==b'\1ready',
                 'native restart did not open original fixture')
         require(preserved(public,later=later)==before, 'native reopen replaced original keys or inputs')
+        if native.program_plan is not None:
+            native.program_plan.reopened(label, executable)
+            native.executable = executable
         row['completed']=True
         result.write_text(json.dumps(native.restarts,indent=2)+'\n')
 

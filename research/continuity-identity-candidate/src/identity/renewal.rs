@@ -181,6 +181,60 @@ fn check_materials(
     pin: &AccountPin,
     now: u64,
 ) -> Result<(Statement, VerifiedDevice, VerifiedDevice), Error> {
+    let rosters = RenewalRosters::authenticate(materials, authorization, pin)?;
+    check_materials_with_rosters(materials, authorization, pin, now, &rosters)
+}
+
+// These two snapshots live only for this verification. They never cache current
+// permission or outlive an input/pin comparison at a later operation boundary.
+struct RenewalRosters {
+    previous: VerifiedRoster,
+    successor: VerifiedRoster,
+}
+impl RenewalRosters {
+    fn authenticate(
+        materials: &CredentialRenewalMaterials<'_>,
+        authorization: &CredentialRenewalAuthorization,
+        pin: &AccountPin,
+    ) -> Result<Self, Error> {
+        check_material_shapes(materials, authorization, pin)?;
+        let previous_pin = AccountPin::new(
+            pin.account,
+            pin.root.clone(),
+            authorization.previous,
+            pin.family,
+        )?;
+        Ok(Self {
+            previous: previous_pin.verify_historical_roster(materials.previous_roster)?,
+            successor: pin.verify_historical_roster(materials.successor_roster)?,
+        })
+    }
+    fn snapshot_start(
+        &self,
+        materials: &CredentialRenewalMaterials<'_>,
+        authorization: &CredentialRenewalAuthorization,
+        pin: &AccountPin,
+    ) -> Result<u64, Error> {
+        let previous_pin = AccountPin::new(
+            pin.account,
+            pin.root.clone(),
+            authorization.previous,
+            pin.family,
+        )?;
+        Ok(pin
+            .snapshot_start_with_roster(materials.successor_credential, &self.successor)?
+            .max(
+                previous_pin
+                    .snapshot_start_with_roster(materials.previous_credential, &self.previous)?,
+            ))
+    }
+}
+
+fn check_material_shapes(
+    materials: &CredentialRenewalMaterials<'_>,
+    authorization: &CredentialRenewalAuthorization,
+    pin: &AccountPin,
+) -> Result<(), Error> {
     nonzero(&authorization.policy_digest)?;
     if materials
         .fields()
@@ -192,6 +246,22 @@ fn check_materials(
     if pin.checkpoint.version() <= authorization.previous.version() {
         return Err(Error::Checkpoint);
     }
+    Ok(())
+}
+
+fn check_materials_with_rosters(
+    materials: &CredentialRenewalMaterials<'_>,
+    authorization: &CredentialRenewalAuthorization,
+    pin: &AccountPin,
+    now: u64,
+    rosters: &RenewalRosters,
+) -> Result<(Statement, VerifiedDevice, VerifiedDevice), Error> {
+    check_material_shapes(materials, authorization, pin)?;
+    if rosters.previous.wire != materials.previous_roster
+        || rosters.successor.wire != materials.successor_roster
+    {
+        return Err(Error::Scope);
+    }
     let (origin, original_digest) = credential(&pin.root, materials.original_credential)?;
     let previous_pin = AccountPin::new(
         pin.account,
@@ -201,21 +271,18 @@ fn check_materials(
     )?;
     // This instant only validates historical signatures, membership and overlap.
     // It cannot authorize current traffic or revive a revoked predecessor.
-    let historical =
-        previous_pin.snapshot_start(materials.previous_credential, materials.previous_roster)?;
+    let historical = previous_pin
+        .snapshot_start_with_roster(materials.previous_credential, &rosters.previous)?;
     if historical > now {
         return Err(Error::Validity);
     }
-    let previous = previous_pin.verify_device(
+    let previous = previous_pin.verify_device_with_roster(
         materials.previous_credential,
-        materials.previous_roster,
+        &rosters.previous,
         historical,
     )?;
-    let successor = pin.verify_device(
-        materials.successor_credential,
-        materials.successor_roster,
-        now,
-    )?;
+    let successor =
+        pin.verify_device_with_roster(materials.successor_credential, &rosters.successor, now)?;
     let od = &origin.description;
     let pd = &previous.description;
     let sd = &successor.description;
@@ -452,17 +519,15 @@ impl VerifiedCredentialRenewal {
         let (body, _) = open_envelope(signed)?;
         let statement = Statement::decode(body)?;
         let _original = field(&mut d)?;
-        let previous = field(&mut d)?;
-        let successor = field(&mut d)?;
-        let previous_roster = field(&mut d)?;
-        let successor_roster = field(&mut d)?;
+        let _previous = field(&mut d)?;
+        let _successor = field(&mut d)?;
+        let _previous_roster = field(&mut d)?;
+        let _successor_roster = field(&mut d)?;
         d.finish()?;
         let pin = roster.historical_pin(statement.successor_roster)?;
-        let previous_pin = roster.historical_pin(statement.previous_roster)?;
-        let at = pin
-            .snapshot_start(successor, successor_roster)?
-            .max(previous_pin.snapshot_start(previous, previous_roster)?);
-        Self::verify(wire, &pin, statement.policy, at)
+        Ok(Self {
+            historical: HistoricalCredentialRenewal::verify(wire, &pin, statement.policy)?,
+        })
     }
     /// Verify bounded untrusted bytes against the independently current account
     /// pin, exact intended policy, and trusted time. Do not derive either input
@@ -532,23 +597,24 @@ impl HistoricalCredentialRenewal {
     /// result into current authority. Untrusted container fields never select the pin.
     pub fn verify(wire: &[u8], pin: &AccountPin, policy: [u8; 32]) -> Result<Self, Error> {
         let (statement, materials) = authenticated_materials(wire, pin, policy)?;
-        let previous_pin = AccountPin::new(
-            pin.account,
-            pin.root.clone(),
-            statement.previous_roster,
-            pin.family,
-        )?;
-        let at = pin
-            .snapshot_start(materials.successor_credential, materials.successor_roster)?
-            .max(
-                previous_pin
-                    .snapshot_start(materials.previous_credential, materials.previous_roster)?,
-            );
-        Self::check(wire, pin, statement, materials, at)
+        let authorization = CredentialRenewalAuthorization {
+            operation: statement.operation,
+            previous: statement.previous_roster,
+            policy_digest: statement.policy,
+        };
+        let rosters = RenewalRosters::authenticate(&materials, &authorization, pin)?;
+        let at = rosters.snapshot_start(&materials, &authorization, pin)?;
+        Self::check(wire, pin, statement, materials, at, &rosters)
     }
     fn verify_at(wire: &[u8], pin: &AccountPin, policy: [u8; 32], now: u64) -> Result<Self, Error> {
         let (statement, materials) = authenticated_materials(wire, pin, policy)?;
-        Self::check(wire, pin, statement, materials, now)
+        let authorization = CredentialRenewalAuthorization {
+            operation: statement.operation,
+            previous: statement.previous_roster,
+            policy_digest: statement.policy,
+        };
+        let rosters = RenewalRosters::authenticate(&materials, &authorization, pin)?;
+        Self::check(wire, pin, statement, materials, now, &rosters)
     }
     fn check(
         wire: &[u8],
@@ -556,13 +622,15 @@ impl HistoricalCredentialRenewal {
         statement: Statement,
         materials: CredentialRenewalMaterials<'_>,
         at: u64,
+        rosters: &RenewalRosters,
     ) -> Result<Self, Error> {
         let authorization = CredentialRenewalAuthorization {
             operation: statement.operation,
             previous: statement.previous_roster,
             policy_digest: statement.policy,
         };
-        let (expected, previous, successor) = check_materials(&materials, &authorization, pin, at)?;
+        let (expected, previous, successor) =
+            check_materials_with_rosters(&materials, &authorization, pin, at, rosters)?;
         if statement != expected {
             return Err(Error::Scope);
         }

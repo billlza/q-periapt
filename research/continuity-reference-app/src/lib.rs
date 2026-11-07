@@ -3,6 +3,7 @@
 pub mod account_authority;
 pub mod auth;
 pub mod credential_grant;
+pub mod directory_ledger;
 pub mod enrollment;
 pub mod error;
 pub mod native_device;

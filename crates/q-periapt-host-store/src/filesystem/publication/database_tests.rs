@@ -38,8 +38,10 @@ fn stage(root: &Path) -> std::path::PathBuf {
             p.file_name()
                 .expect("leaf")
                 .to_string_lossy()
-                .starts_with(".private-publication-")
+                .starts_with(".private-attempt-v2-")
         })
+        .map(|control| control.join("payload"))
+        .filter(|payload| payload.exists())
         .collect();
     assert_eq!(stages.len(), 1);
     stages.first().expect("one staging inode").clone()

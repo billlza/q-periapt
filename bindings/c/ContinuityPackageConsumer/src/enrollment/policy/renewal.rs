@@ -506,3 +506,94 @@ pub unsafe extern "C" fn qpc_enrollment_v1_activate_policy_renewal(
     // SAFETY: forwarded invocation-local diagnostic contract.
     unsafe { boundary(error, false, action) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_policy_checkpoint_v1", PolicyCheckpoint, {
+        version: u64,
+        digest: [u8; 32],
+    });
+    abi_record!("qpc_policy_renewal_scope_v1", Scope, {
+        operation: [u8; 32],
+        journal: [u8; 32],
+        original_owner: [u8; 32],
+        original_credential: [u8; 32],
+        current_credential: [u8; 32],
+        current_roster: Checkpoint,
+        original_policy: PolicyCheckpoint,
+        previous_policy: PolicyCheckpoint,
+        previous_authorization: [u8; 32],
+        has_previous_authorization: u32,
+        reserved: u32,
+    });
+    abi_record!("qpc_public_record_v1", PublicRecord, {
+        length: u32,
+        bytes: [u8; 8192],
+    });
+    abi_record!("qpc_policy_renewal_request_v1", PolicyRequest, {
+        scope: Scope,
+        account: [u8; 32],
+        original_roster_checkpoint: Checkpoint,
+        original_credential: PublicRecord,
+        original_roster: PublicRecord,
+        current_credential: PublicRecord,
+        current_roster: PublicRecord,
+    });
+    abi_record!("qpc_policy_renewal_status_v1", PolicyStatus, {
+        phase: u32,
+        reason: u32,
+        operation: [u8; 32],
+        statement: [u8; 32],
+        target: PolicyCheckpoint,
+        observed_roster: Checkpoint,
+        observed_at: u64,
+    });
+    abi_function!(
+        qpc_enrollment_v1_activate_policy_renewal,
+        (u64, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_pending_policy_renewal_approval,
+        (u64, *const u8, *mut PublicRecord, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_policy_renewal_request,
+        (u64, *const u8, *mut PolicyRequest, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_policy_renewal_status,
+        (u64, *mut PolicyStatus, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_reconcile_policy_renewal,
+        (u64, *mut PolicyStatus, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_resolve_policy_renewal,
+        (
+            u64,
+            *const u8,
+            *const u8,
+            *const Document,
+            *mut PolicyStatus,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_stage_policy_renewal,
+        (
+            u64,
+            *const PolicyRequest,
+            *const Pin,
+            *const Pin,
+            *const u8,
+            usize,
+            *const Document,
+            *mut PolicyStatus,
+            *mut ErrorRecord,
+        )
+    );
+    witness::verify_c_abi();
+}
+// END C ABI CHECKS

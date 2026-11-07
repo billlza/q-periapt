@@ -90,6 +90,17 @@ def native(text):
         raise ValueError('native artifacts collide')
     if "if: always() && matrix.os == 'macos-15' && matrix.partition == 'suite'" not in block:
         raise ValueError('public vector artifacts collide')
+    steps = [step for step in re.split(r'(?m)(?=^      - )', block)
+             if step.startswith('      - ')]
+    public = [i for i, step in enumerate(steps)
+              if step.startswith('      - name: Verify public bytes and both signatures independently\n')]
+    uploads = [i for i, step in enumerate(steps) if 'uses: actions/upload-artifact@' in step]
+    if len(public) != 1 or len(uploads) != 2 or min(uploads) < public[0]:
+        raise ValueError('artifact transport must not preempt independent public verification')
+    retained = [step for step in steps if step.startswith('      - name: Preserve native compiler and test results including failures\n')]
+    if (len(retained) != 1 or '\n        if: always()\n' not in retained[0]
+            or '\n          if-no-files-found: error\n' not in retained[0]):
+        raise ValueError('native evidence must retain failures and reject absent results')
 
 
 def independent(text):
@@ -121,6 +132,23 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
         native(self.native)
         independent(self.independent)
 
+    def test_native_artifact_transport_cannot_preempt_independent_verification(self):
+        native(self.native)
+        marker = '      - name: Preserve native compiler and test results including failures\n'
+        upload = marker + self.native.split(marker, 1)[1].split('\n\n  # Cross-target', 1)[0]
+        self.assertIn('path: target/continuity-native-checks/', upload)
+        removed = self.native.replace(upload, '', 1)
+        setup = '      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1\n        if: matrix.os == \'macos-15\' && matrix.partition == \'suite\''
+        changed = removed.replace(setup, upload + '\n' + setup, 1)
+        self.assertNotEqual(changed, self.native)
+        with self.assertRaisesRegex(ValueError, 'preempt'):
+            native(changed)
+        for before, after in [('if: always()', 'if: success()'),
+                              ('if-no-files-found: error', 'if-no-files-found: warn')]:
+            changed = self.native.replace(upload, upload.replace(before, after), 1)
+            with self.subTest(change=after), self.assertRaisesRegex(ValueError, 'retain failures'):
+                native(changed)
+
     def test_installed_jni_public_directories_survive_artifact_selection(self):
         block = self.native.split('  continuity-installed-swift:\n', 1)[1].split('\n  continuity-installed-coverage:', 1)[0]
         retained = block.split('      - name: Retain native packages and selected public execution evidence\n', 1)[1]
@@ -143,6 +171,42 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
             selected = {path for pattern in patterns for path in root.glob(pattern) if path.is_file()}
             self.assertEqual(required - selected, set(), "JNI public evidence omitted from uploaded archive")
             self.assertNotIn(private, selected)
+
+    def test_installed_publication_bytes_survive_artifact_selection(self):
+        android = (ROOT / '.github/workflows/continuity-android-installed.yml').read_text()
+        for text, job, following, prefix, languages in (
+            (self.native, 'continuity-installed-rust', 'continuity-installed-swift',
+             'target/continuity-installed-rust', {'c': ('',)}),
+            (self.native, 'continuity-installed-swift', 'continuity-installed-coverage',
+             'target/continuity-installed-swift', {'c': ('',), 'swift': ('',), 'kotlin': ('-serial', '-g1')}),
+            (android, 'android', None, 'target/continuity-installed-swift', {'c': ('',)}),
+        ):
+            with self.subTest(job=job), tempfile.TemporaryDirectory() as temp:
+                block = text.split('  ' + job + ':\n', 1)[1]
+                if following is not None:
+                    block = block.split('\n  ' + following + ':', 1)[0]
+                upload = block.split('      - name: Retain ', 1)[1]
+                match = re.search(r'          path: \|\n((?:            [^\n]+\n)+)', upload)
+                self.assertIsNotNone(match)
+                patterns = [line.strip() for line in match[1].splitlines()]
+                root = Path(temp)
+                required = set()
+                for language, collectors in languages.items():
+                    for profile in ('debug', 'release'):
+                        for collector in collectors:
+                            for leaf in ('publication-artifact', 'publication-retry', 'publication-plan', 'publication-id'):
+                                path = root / prefix / (language + '-publication-public') / (profile + collector) / 'enrolled' / leaf
+                                path.parent.mkdir(parents=True, exist_ok=True)
+                                path.write_bytes(b'original public publication bytes')
+                                required.add(path)
+                private = {root / prefix / 'private' / 'wrapping-key',
+                           root / prefix / 'c-publication-runtime' / 'debug' / 'journal'}
+                for path in private:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(b'private state must not be selected')
+                selected = {path for pattern in patterns for path in root.glob(pattern) if path.is_file()}
+                self.assertEqual(required - selected, set(), 'publication raw bytes omitted from uploaded archive')
+                self.assertEqual(private & selected, set(), 'publication upload includes private runtime state')
 
     def test_catalog_guards_execute_without_optional_runner_tools(self):
         # Hosted Linux runners do not promise ripgrep. Execute both actual

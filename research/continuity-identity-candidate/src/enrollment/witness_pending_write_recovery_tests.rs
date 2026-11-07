@@ -29,14 +29,20 @@ pub(in crate::enrollment::tests::witness_renewal) fn retain(
     assert_eq!(readback, bytes);
     readback
 }
-fn state(view: &PendingWriteRecoveryView, id: [u8; 32]) -> &crate::retired_device::SessionState {
+fn session_metadata(
+    view: &PendingWriteRecoveryView,
+    id: [u8; 32],
+) -> &crate::retired_device::Session {
     view.records
         .iter()
         .find_map(|r| match &r.metadata {
-            crate::retired_device::RecordMetadata::Session(s) if s.session == id => Some(&s.state),
+            crate::retired_device::RecordMetadata::Session(s) if s.session == id => Some(s),
             _ => None,
         })
         .expect("complete original session metadata")
+}
+fn state(view: &PendingWriteRecoveryView, id: [u8; 32]) -> &crate::retired_device::SessionState {
+    &session_metadata(view, id).state
 }
 fn adopt(
     f: &Fixture,
@@ -101,8 +107,13 @@ pub(in crate::enrollment::tests::witness_renewal) fn confirm(
 
 #[test]
 fn public_pending_write_recovery_preserves_staged_joint_authorization() {
-    for applied in [false, true] {
-        let (f, id) = session(fixture_with_policy_expiry(Some(160)));
+    for (pending_offer, applied) in [(false, false), (false, true), (true, false), (true, true)] {
+        let fixture = fixture_with_policy_expiry(Some(160));
+        let (f, id) = if pending_offer {
+            session_with_pending_offer(fixture)
+        } else {
+            session(fixture)
+        };
         let g = grant(&f, &f.original, 2, 190);
         let p = policy(&f.c, 2, 220, 150);
         let t = joint(&f.c, &g, &scope(&f.c, &g, f.id), &f.c.policy, &p);
@@ -138,6 +149,29 @@ fn public_pending_write_recovery_preserves_staged_joint_authorization() {
             .expect("complete controller inspection");
         assert_eq!(inspected.source(), pending.source());
         assert_eq!(inspected.target(), pending.target());
+        let original_progress = &session_metadata(pending.source(), id).progress;
+        assert_eq!(original_progress.confirmed_epoch, 0);
+        assert_eq!(original_progress.sending_epoch, 0);
+        assert_eq!(original_progress.receiving_epoch, 0);
+        assert_eq!(original_progress.pending_epoch, pending_offer.then_some(1));
+        assert_eq!(
+            &session_metadata(pending.target(), id).progress,
+            original_progress
+        );
+        assert!(matches!(
+            state(pending.source(), id),
+            crate::retired_device::SessionState::Live {
+                previous_closure: None,
+                ..
+            }
+        ));
+        assert!(matches!(
+            state(pending.target(), id),
+            crate::retired_device::SessionState::Live {
+                previous_closure: Some(_),
+                ..
+            }
+        ));
         owner.close();
         assert_eq!(disk(&f), before);
         let directory = f.c.paths.wrapping.parent().expect("private host directory");
@@ -237,6 +271,7 @@ fn public_pending_write_recovery_preserves_staged_joint_authorization() {
         }
         .expect("target metadata");
         assert_eq!(report.report, closure);
+        assert_eq!(&report.progress, original_progress);
         assert_eq!(
             report.epochs,
             epochs
@@ -263,7 +298,7 @@ fn public_pending_write_recovery_preserves_staged_joint_authorization() {
             SessionClosureStatus::Closed(report.report)
         );
         cleanup.close();
-        eprintln!("PUBLIC_PENDING_STAGED originally_applied={applied} closed_p0=true query_loss_before_after=true exact_query_retry=true staged_gt_preserved=true complete_report_ack=true");
+        eprintln!("PUBLIC_PENDING_STAGED originally_applied={applied} closed_p0=true query_loss_before_after=true exact_query_retry=true staged_gt_preserved=true complete_report_ack=true pending_rekey_offer={pending_offer} pending_epoch={:?}", original_progress.pending_epoch);
     }
 }
 

@@ -12,6 +12,20 @@ from continuity_apple_consumer import verify_linkage
 
 
 class ApplePackageTests(unittest.TestCase):
+    def test_release_matrix_keeps_both_simulators_without_intel_macos(self):
+        self.assertEqual(set(apple.TARGETS), {"aarch64-apple-darwin", "aarch64-apple-ios",
+                                            "aarch64-apple-ios-sim", "x86_64-apple-ios"})
+        self.assertEqual(apple.SLICES, {"macos": ("aarch64-apple-darwin",),
+                                      "ios": ("aarch64-apple-ios",),
+                                      "simulator": ("aarch64-apple-ios-sim", "x86_64-apple-ios")})
+
+    def test_native_architecture_census_rejects_missing_extra_and_duplicate(self):
+        apple.verify_architectures(b"x86_64 arm64\n", ("arm64", "x86_64"))
+        apple.verify_architectures(b"x86_64\n", ("x86_64",))
+        for observed in (b"arm64", b"arm64 arm64", b"arm64 x86_64 x86_64", b"arm64 armv7"):
+            with self.subTest(observed=observed), self.assertRaisesRegex(ValueError, "architecture"):
+                apple.verify_architectures(observed, ("arm64", "x86_64"))
+
     def test_exact_exports_refuse_missing_extra_and_duplicate(self):
         rows = [("00000000 T _" + name + "\n").encode() for name in sorted(c.EXPORTS)]
         apple.verify_exports(b"".join(rows))
@@ -40,19 +54,23 @@ class ApplePackageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "ambiguous"):
             apple.built_static(encoded(row) * 2, consumer, build, target)
         with self.assertRaisesRegex(ValueError, "unsupported"):
-            apple.built_static(encoded(row), consumer, build, "x86_64-apple-ios")
+            apple.built_static(encoded(row), consumer, build, "x86_64-apple-darwin")
+        simulator = build / "x86_64-apple-ios/release" / apple.LIBRARY
+        self.assertEqual(apple.built_static(encoded(dict(row, filenames=[str(simulator)])),
+                                           consumer, build, "x86_64-apple-ios"), simulator)
 
     def fixture(self, root):
         rows, binaries = [], {}
-        for index, (target, (platform, variant)) in enumerate(apple.TARGETS.items()):
+        for index, (slice_name, targets) in enumerate(apple.SLICES.items()):
+            platform, variant = apple.TARGETS[targets[0]]
             name = "slice-" + str(index); folder = root / name
-            data = target.encode(); apple.write(folder / apple.LIBRARY, data)
+            data = slice_name.encode(); apple.write(folder / apple.LIBRARY, data)
             apple.write(folder / "Headers/qpc_owner.h", b"public header")
             apple.write(folder / "Headers/module.modulemap", apple.MODULE)
             row = dict(LibraryIdentifier=name, LibraryPath=apple.LIBRARY, HeadersPath="Headers",
-                       SupportedArchitectures=["arm64"], SupportedPlatform=platform)
+                       SupportedArchitectures=[apple.ARCHITECTURES[target] for target in targets], SupportedPlatform=platform)
             if variant: row["SupportedPlatformVariant"] = variant
-            rows.append(row); binaries[target] = {"sha256": hashlib.sha256(data).hexdigest()}
+            rows.append(row); binaries[slice_name] = {"sha256": hashlib.sha256(data).hexdigest()}
         (root / "Info.plist").write_bytes(plistlib.dumps({"AvailableLibraries": rows}))
         return rows, binaries
 
@@ -62,6 +80,8 @@ class ApplePackageTests(unittest.TestCase):
             apple.verify_xcframework(root, binaries, b"public header")
             alterations = [rows[:-1], rows + [rows[0]], [rows[0], rows[0], rows[2]],
                            [dict(rows[0], SupportedArchitectures=["arm64", "x86_64"]), *rows[1:]],
+                           [*rows[:2], dict(rows[2], SupportedArchitectures=["arm64"])],
+                           [*rows[:2], dict(rows[2], SupportedArchitectures=["arm64", "arm64"])],
                            [dict(rows[0], LibraryIdentifier="../other"), *rows[1:]],
                            [dict(rows[0], SupportedPlatform="tvos"), *rows[1:]]]
             for altered in alterations:
@@ -117,19 +137,23 @@ class ApplePackageTests(unittest.TestCase):
             library = original / apple.LIBRARY; library.write_bytes(b"native")
             executable = original / "consumer"; executable.write_bytes(b"executable")
             link_map = root / "LinkMap.txt"
-            def record(lib, exe):
-                link_map.write_text(f"# Path: {exe}\n# Arch: arm64\n# Object files:\n[  0] linker synthesized\n[  1] {lib}(owner.o)\n# Sections:\n")
+            def record(lib, exe, architecture="arm64"):
+                link_map.write_text(f"# Path: {exe}\n# Arch: {architecture}\n# Object files:\n[  0] linker synthesized\n[  1] {lib}(owner.o)\n# Sections:\n")
             record(alias / apple.LIBRARY, alias / "consumer")
-            self.assertEqual(verify_linkage(link_map, library, executable)["linked_archive_objects"], 1)
+            self.assertEqual(verify_linkage(link_map, library, executable, "arm64")["linked_archive_objects"], 1)
+            with self.assertRaisesRegex(ValueError, "architecture"):
+                verify_linkage(link_map, library, executable, "x86_64")
+            record(alias / apple.LIBRARY, alias / "consumer", "x86_64")
+            self.assertEqual(verify_linkage(link_map, library, executable, "x86_64")["linked_archive_objects"], 1)
             other = root / "other"; other.mkdir()
             (other / apple.LIBRARY).write_bytes(b"native")
             (other / "consumer").write_bytes(b"executable")
             record(other / apple.LIBRARY, executable)
             with self.assertRaisesRegex(ValueError, "another native archive"):
-                verify_linkage(link_map, library, executable)
+                verify_linkage(link_map, library, executable, "arm64")
             record(library, other / "consumer")
             with self.assertRaisesRegex(ValueError, "another executable"):
-                verify_linkage(link_map, library, executable)
+                verify_linkage(link_map, library, executable, "arm64")
 
     def test_source_tree_does_not_follow_symlinks(self):
         with tempfile.TemporaryDirectory() as tmp:

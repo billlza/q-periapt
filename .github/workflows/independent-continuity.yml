@@ -5,12 +5,14 @@ on:
     paths:
       - .github/workflows/independent-continuity.yml
       - research/continuity-openssl-peer/**
+      - research/continuity-reference-app/**
       - research/continuity-identity-candidate/src/**
       - research/continuity-identity-candidate/Cargo.lock
       - crates/q-periapt-core/**
       - crates/q-periapt-backends/**
       - crates/q-periapt-sdk/**
       - crates/q-periapt-policy/**
+      - crates/q-periapt-host-store/**
       - artifact/continuity_independent*.py
       - artifact/test_continuity_independent*.py
   workflow_dispatch:
@@ -156,6 +158,52 @@ jobs:
             --native target/independent-peer-ci/counterpart \
             --output target/independent-peer-ci/one-time-publication \
             > target/independent-peer-ci/one-time-publication.stdout 2> target/independent-peer-ci/one-time-publication.stderr
+          git diff --exit-code
+      - name: Verify independent historical directory leases and conflicts
+        id: directory_lease
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/directory_lease_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --publication-case target/independent-peer-ci/one-time-publication/PUBLIC_CASE.bin \
+            --output target/independent-peer-ci/directory-lease \
+            > target/independent-peer-ci/directory-lease.stdout 2> target/independent-peer-ci/directory-lease.stderr
+          git diff --exit-code
+      - name: Prepare native OpenSSL for the directory CLI on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+      - name: Produce public receipts through the real directory CLI
+        id: directory_cli_producer
+        env:
+          QPERIAPT_DIRECTORY_PUBLIC_OUTPUT: ${{ github.workspace }}/target/independent-peer-ci/directory-cli-public
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-directory-cli"
+          if [ "$RUNNER_OS" = macOS ]; then
+            OPENSSL_DIR="$(brew --prefix openssl@3)"
+            export OPENSSL_DIR
+          fi
+          cargo test --release --locked --manifest-path research/continuity-reference-app/Cargo.toml \
+            --test native_device publication::actual_cli_verifies_one_time_publication_without_opening_state \
+            -- --exact --nocapture \
+            > target/independent-peer-ci/directory-cli-producer.stdout 2> target/independent-peer-ci/directory-cli-producer.stderr
+          cp "$CARGO_TARGET_DIR/release/q-periapt-prekey-directory" target/independent-peer-ci/directory-cli
+          sh artifact/python-run.sh -c 'import hashlib, json; from pathlib import Path; p=Path("target/independent-peer-ci"); print(json.dumps({"source_commit":(p/"source-head.txt").read_text().strip(),"cli_sha256":hashlib.sha256((p/"directory-cli").read_bytes()).hexdigest(),"build":"source-release","installed_rust_counterpart":False}))' > target/independent-peer-ci/directory-cli-provenance.json
+          git diff --exit-code
+      - name: Cross-check actual directory CLI receipts independently
+        id: directory_cli_source
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/directory_cli_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --input target/independent-peer-ci/directory-cli-public \
+            --output target/independent-peer-ci/directory-cli-source \
+            > target/independent-peer-ci/directory-cli-source.stdout 2> target/independent-peer-ci/directory-cli-source.stderr
           git diff --exit-code
       - name: Build and lint the public bootstrap importer
         if: github.event_name != 'workflow_dispatch' || inputs.sdk_run_id == ''
@@ -550,14 +598,18 @@ jobs:
             --wheel target/independent-peer-ci/python-wheel/qperiapt_continuity_reference-0.0.0-py3-none-any.whl \
             --provider-root "$RUNNER_TEMP/independent-peer-provider" \
             --native target/independent-peer-ci/counterpart \
+            --directory-cli-public target/independent-peer-ci/directory-cli-public \
             --output target/independent-peer-ci/python-installed \
             > target/independent-peer-ci/python-installed.stdout 2> target/independent-peer-ci/python-installed.stderr
           git diff --exit-code
-      - name: Report bounded publication verification failures
-        if: failure() && (steps.one_time_publication.outcome == 'failure' || steps.installed_python.outcome == 'failure')
+      - name: Report bounded publication and lease verification failures
+        if: failure() && (steps.one_time_publication.outcome == 'failure' || steps.directory_lease.outcome == 'failure' || steps.directory_cli_producer.outcome == 'failure' || steps.directory_cli_source.outcome == 'failure' || steps.installed_python.outcome == 'failure')
         env:
           QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
           PUBLICATION_SOURCE_FAILED: ${{ steps.one_time_publication.outcome == 'failure' }}
+          LEASE_SOURCE_FAILED: ${{ steps.directory_lease.outcome == 'failure' }}
+          CLI_PRODUCER_FAILED: ${{ steps.directory_cli_producer.outcome == 'failure' }}
+          CLI_SOURCE_FAILED: ${{ steps.directory_cli_source.outcome == 'failure' }}
           PUBLICATION_INSTALLED_FAILED: ${{ steps.installed_python.outcome == 'failure' }}
         run: |
           sh artifact/python-run.sh -c '
@@ -565,20 +617,22 @@ jobs:
           from pathlib import Path
           root = Path("target/independent-peer-ci")
           paths = []
-          if os.environ["PUBLICATION_SOURCE_FAILED"] == "true":
-              paths += [root / "one-time-publication.stderr", root / "one-time-publication/native.stderr"]
+          for label, flag in (("one-time-publication", "PUBLICATION_SOURCE_FAILED"), ("directory-lease", "LEASE_SOURCE_FAILED"), ("directory-cli-producer", "CLI_PRODUCER_FAILED"), ("directory-cli-source", "CLI_SOURCE_FAILED")):
+              if os.environ[flag] == "true":
+                  paths += [root / (label + ".stderr"), root / label / "native.stderr"]
           if os.environ["PUBLICATION_INSTALLED_FAILED"] == "true":
               base = root / "python-installed"
-              marker = base / "one-time-publication.json"
-              if marker.is_file() and not marker.is_symlink():
-                  with marker.open("rb") as stream:
-                      data = stream.read(8193)
-                  try:
-                      status = json.loads(data) if len(data) <= 8192 else {}
-                  except (ValueError, UnicodeError):
-                      status = {}
-                  if type(status) is dict and type(status.get("exit")) is int and status["exit"] != 0:
-                      paths += [base / "one-time-publication.stderr", base / "one-time-publication/native.stderr"]
+              for label in ("one-time-publication", "directory-lease", "directory-cli"):
+                  marker = base / (label + ".json")
+                  if marker.is_file() and not marker.is_symlink():
+                      with marker.open("rb") as stream:
+                          data = stream.read(8193)
+                      try:
+                          status = json.loads(data) if len(data) <= 8192 else {}
+                      except (ValueError, UnicodeError):
+                          status = {}
+                      if type(status) is dict and type(status.get("exit")) is int and status["exit"] != 0:
+                          paths += [base / (label + ".stderr"), base / label / "native.stderr"]
           for path in paths:
               if path.is_file() and not path.is_symlink():
                   with path.open("rb") as stream:

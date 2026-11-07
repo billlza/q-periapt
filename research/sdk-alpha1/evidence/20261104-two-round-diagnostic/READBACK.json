@@ -1,0 +1,21 @@
+{
+  "automatic_retry_performed": false,
+  "completed": false,
+  "configured_heap_bytes": 12884901888,
+  "elapsed_seconds": 628.0838091250043,
+  "evidence_readback_completed": true,
+  "failure": "Tamarin heap exhaustion, exit 251, no proof output.",
+  "fixed_tools_unchanged": true,
+  "independent_replay_completed": false,
+  "interpretation": "Removing supporting proof-body replay did not close this target within the same resource bounds. No claim of an unreachable trace or a protocol counterexample.",
+  "memory_scope": "GHC RTS figures, not whole-process peak RSS.",
+  "operational_and_query_contracts_unchanged": true,
+  "original_certificate_unchanged": true,
+  "query_count": 40,
+  "release_claim_eligible": false,
+  "resource_limits_raised": false,
+  "rts_maximum_residency_bytes": 11181761240,
+  "rts_total_memory_mib": 12480,
+  "selected_theorem_verified": false,
+  "supporting_proof_bodies_projected_for_diagnosis": 39
+}

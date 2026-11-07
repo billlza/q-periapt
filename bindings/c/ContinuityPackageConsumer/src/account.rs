@@ -271,3 +271,44 @@ pub unsafe extern "C" fn qpc_device_v1_send_account_member(
     };
     unsafe { boundary(error, false, action) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_account_target_v1", Target, {
+        peer: u64,
+        session: [u8; 32],
+    });
+    abi_record!("qpc_account_delivered_v1", Delivered, {
+        device: [u8; 16],
+        session: [u8; 32],
+        message: [u8; 32],
+        outcome: u32,
+        exchanges: u32,
+    });
+    abi_function!(
+        qpc_device_v1_account_status,
+        (u64, *const u8, *mut u8, *mut u8, *mut ErrorRecord)
+    );
+    abi_function!(qpc_device_v1_next_account, (u64, *mut u8, *mut ErrorRecord));
+    abi_function!(
+        qpc_device_v1_send_account_member,
+        (
+            u64,
+            *const Target,
+            usize,
+            usize,
+            *const u8,
+            *const u8,
+            *const u8,
+            usize,
+            *const u8,
+            usize,
+            *const u8,
+            usize,
+            *mut Delivered,
+            *mut ErrorRecord,
+        )
+    );
+}
+// END C ABI CHECKS

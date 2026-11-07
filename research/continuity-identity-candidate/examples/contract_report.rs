@@ -7,16 +7,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect::<String>();
+    let purposes = c::SIGNATURE_PURPOSES
+        .iter()
+        .map(|(name, value)| format!("\"{name}\":{value}"))
+        .collect::<Vec<_>>()
+        .join(",");
     println!(
         concat!(
-            "{{\"schema_version\":1,\"frozen_product_contract\":false,",
+            "{{\"schema_version\":3,\"frozen_product_contract\":false,",
             "\"signature_context\":\"{}\",\"rekey_profile\":\"{}\",",
             "\"rekey_profile_sha3_256\":\"{}\",\"message_domain\":\"{}\",",
+            "\"signature_purposes\":{{{}}},",
             "\"maximums\":{{\"signed_body_bytes\":{},\"bootstrap_bundle_bytes\":{},",
             "\"bootstrap_field_bytes\":{},\"plaintext_bytes\":{},\"associated_data_bytes\":{},",
             "\"skipped_keys_per_direction_epoch\":{},\"outstanding_messages_per_direction_epoch\":{},",
             "\"retained_traffic_epochs\":{},\"control_body_bytes\":{},\"connection_frame_bytes\":{},",
-            "\"session_operation_records\":{},\"prekey_records\":{},\"account_roster_records\":{},\"device_history_per_account\":{},\"journal_image_bytes\":{},\"network_exchanges\":{},",
+            "\"session_operation_records\":{},\"retained_fanout_records\":{},\"prekey_records\":{},\"account_roster_records\":{},\"device_history_per_account\":{},\"journal_image_bytes\":{},\"network_exchanges\":{},",
             "\"run_timeout_seconds\":{},\"connect_timeout_seconds\":{},",
             "\"roster_devices\":{},\"manifest_prekeys\":{}}}}}"
         ),
@@ -24,6 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::str::from_utf8(c::REKEY_PROFILE)?,
         profile,
         std::str::from_utf8(c::MESSAGE_DOMAIN)?,
+        purposes,
         c::MAX_SIGNED_BODY_BYTES,
         c::MAX_BOOTSTRAP_BUNDLE_BYTES,
         c::MAX_BOOTSTRAP_FIELD_BYTES,
@@ -35,6 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         c::MAX_CONTROL_BYTES,
         c::MAX_CONNECTION_FRAME_BYTES,
         c::MAX_SESSION_OPERATION_RECORDS,
+        c::MAX_RETAINED_FANOUT_RECORDS,
         c::MAX_PREKEY_RECORDS,
         c::MAX_ACCOUNT_ROSTER_RECORDS,
         c::MAX_DEVICE_HISTORY_PER_ACCOUNT,

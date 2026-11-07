@@ -137,10 +137,30 @@ available for diagnosis; a missing or failed installation is never treated as
 a successful source-tree run.
 The installation runner also requires local and witnessed policy renewal,
 full-store expiry/recovery, and sequential policy/credential/roster composition
-ending with removal of the real traffic peer. Schema9 checks all four 3/32-device
+ending with removal of the real traffic peer. Schema10 retains all four 3/32-device
 composition profiles using installed protocol modules and the selected native
 counterpart; source-only results cannot satisfy them. See
 [POLICY_RENEWAL.md](POLICY_RENEWAL.md) for the retained-history boundary.
+It also requires `--directory-cli-public`, a closed set of public artifacts from
+the actual reference directory CLI test. The test commits an allocation before
+losing its output, recovers the exact original wire, rejects a changed request,
+checks each algorithm's reservation before and after cancellation, and issues a
+fresh pair. A separate test ledger with the same test signer deliberately issues
+a conflicting allocation. `directory_cli_checks.py` verifies the same original
+receipt and canonical conflict bytes using the independent Python/OpenSSL
+implementation, including bad-signature, service-pin and public-key controls.
+
+The fixture export is enabled only with an absolute, new
+`QPERIAPT_DIRECTORY_PUBLIC_OUTPUT` directory. The export uses a file whitelist;
+neither the database, signing/wrapping keys nor current policy is exported or
+read by the historical verifier. Signed publication variants used to isolate
+the two reservation checks are test constructions, admitted by the actual CLI;
+they do not claim the honest publication owner reused inventory. Historical
+verification authenticates signed statements, not current authorization,
+cancellation state or consumption. Cancellation/occupancy results come from the
+separately checked CLI execution trace. The workflow's directory CLI is built
+from source; installing the Python wheel does not qualify an installed Rust
+counterpart or a complete directory-backed session lifecycle.
 The archived migration scenario additionally copies the declared old-writer
 capture and its manifest, bound to the selected commit. It loads that writer in
 a separate namespace, then uses the installed current package to continue the
@@ -627,3 +647,44 @@ independent interoperability workflow invokes this source check on both native
 architectures; the installed-wheel runner repeats it outside the checkout and
 verifies its module and counterpart hashes. Only public fixtures and results are
 retained. These checks qualify publication selection, not one-time session traffic.
+
+## Independent historical directory lease evidence
+
+`directory_lease.DirectoryPin` takes a separately provisioned service identity
+and exact ML-DSA-65/P-256 verification key. Its
+`verify_historical_lease` verifies purpose-39 signatures over the complete
+`QPDLSE01` statement, exact 5,173-byte envelope, typed scope and SDK fields,
+finite half-open interval, suite, full public keys and algorithm-tagged
+fingerprints. Historical verification deliberately takes no current time,
+device handle or live policy: expired authorization does not erase a signed
+service assertion. It grants no current use and proves neither requester
+authentication nor durable allocation or receiver consumption.
+
+`DirectoryLeaseConflict.verify(pin, first, second)` verifies both receipts under
+one independent service pin. The immutable allocation bodies must differ, and
+at least one algorithm must have the same fingerprint and the same complete
+one-time public-key bytes. Exact replay and randomized signatures of the same
+body are not conflicts. Different epochs, manifests or disjoint validity
+windows do not make an assigned key reusable. Fingerprints cover exact public
+bytes; this reader does not claim primitive-key validation or mathematical
+equivalence detection.
+
+The pair verifier orders receipts by statement digest and then full signed
+bytes. The archival `QPDLCF01` decoder requires that exact canonical order and
+the exact 10,354-byte container; reversed, duplicate, trailing or malformed
+containers are refused.
+
+The source and installed-wheel workflows run `directory_lease_checks.py` after
+the explicit one-time publication check. The existing Rust counterpart imports
+that same Python-signed publication, verifies its independently retained inputs
+and produces three public Rust-signed leases: two deliberately conflicting
+assignments and a randomized re-signing of the first body. The independent
+OpenSSL reader checks those signatures, compares the statement digest and
+canonical conflict bytes, and exercises its own real-signature positive and
+negative controls. The deliberately equivocating fixture is not a production
+allocator. Additional controls cover single-algorithm reuse, different keys and
+services, signature-purpose separation, corrupted signatures, typed fields,
+key fingerprints and historical intervals. Only public fixtures and results
+are exported; private signing owners remain in their processes. These checks
+qualify historical receipt and conflict interoperability, not a directory
+service lifecycle or one-time session traffic.

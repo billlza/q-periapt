@@ -373,3 +373,55 @@ pub unsafe extern "C" fn qpc_enrollment_v1_close_witnessed_policy_renewal(
     // SAFETY: forwarded complete proposal/output contract.
     unsafe { run(handle, proposal, observed, error, Action::Close) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_independent_policy_proposal_v1", Proposal, {
+        bytes: [u8; 296],
+    });
+    abi_record!("qpc_independent_policy_preparation_v1", Preparation, {
+        present: u32,
+        reserved: u32,
+        proposal: Proposal,
+    });
+    abi_record!("qpc_independent_policy_progress_v1", Progress, {
+        phase: u32,
+        retired: u32,
+        proposal: Proposal,
+        target: PolicyCheckpoint,
+    });
+    abi_function!(
+        qpc_enrollment_v1_abandon_unprepared_policy_renewal,
+        (u64, *const u8, *const u8, *mut Progress, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_close_witnessed_policy_renewal,
+        (u64, *const Proposal, *mut u32, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_commit_witnessed_policy_renewal,
+        (u64, *const Proposal, *mut u32, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_prepare_witnessed_policy_renewal,
+        (u64, *const Document, *mut Proposal, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_reconcile_witnessed_policy_renewal,
+        (u64, *const Proposal, *mut u32, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_recover_witnessed_policy_renewal_preparation,
+        (u64, *mut Preparation, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_witnessed_policy_renewal_progress,
+        (u64, *mut Progress, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_witnessed_policy_renewal_request,
+        (u64, *const u8, *mut PolicyRequest, *mut ErrorRecord)
+    );
+}
+// END C ABI CHECKS

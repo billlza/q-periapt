@@ -565,6 +565,92 @@ pub unsafe extern "C" fn qpc_owner_v1_finish_open(handle: u64, error: *mut Error
     unsafe { boundary(error, false, action) }
 }
 
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_open_options_v1", Options, {
+        kind: u32,
+        quality: u32,
+        carrier: u32,
+        witness: *const witness::Options,
+    });
+    abi_function!(
+        qpc_enrollment_v1_prepare_create,
+        (
+            *const u8,
+            usize,
+            *const enrollment::Intent,
+            *const Options,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_prepare_resume,
+        (
+            *const u8,
+            usize,
+            *const enrollment::Intent,
+            *const Options,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(qpc_owner_v1_finish_open, (u64, *mut ErrorRecord));
+    abi_function!(
+        qpc_owner_v1_prepare_open,
+        (*const u8, usize, *const Options, *mut u64, *mut ErrorRecord,)
+    );
+    abi_function!(
+        qpc_owner_v1_prepare_reopen,
+        (
+            *const u8,
+            usize,
+            *const Options,
+            *const u8,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_peer_v1_prepare,
+        (u64, *const u8, usize, u32, u32, *mut u64, *mut ErrorRecord,)
+    );
+    abi_function!(
+        qpc_peer_v1_prepare_reopen,
+        (
+            u64,
+            *const u8,
+            usize,
+            u32,
+            u32,
+            *const u8,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_retired_v1_prepare_open,
+        (
+            *const u8,
+            usize,
+            *const enrollment::Intent,
+            *const retirement::Options,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_setup_v1_prepare_create,
+        (*const u8, usize, *const Options, *mut u64, *mut ErrorRecord,)
+    );
+    abi_function!(
+        qpc_setup_v1_prepare_resume,
+        (*const u8, usize, *const Options, *mut u64, *mut ErrorRecord,)
+    );
+}
+// END C ABI CHECKS
+
 #[cfg(test)]
 mod tests {
     use super::*;

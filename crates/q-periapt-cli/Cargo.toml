@@ -55,6 +55,8 @@ twox-hash = { version = "=2.1.4", default-features = false, features = ["std", "
 
 [features]
 default = []
+# Explicit reclamation of a bound, unpublished private publication attempt.
+publication-maintenance = ["dep:q-periapt-host-store"]
 # Explicit maintenance executable, not an in-process SDK migration interface.
 policy-store-migration = ["dep:q-periapt-host-store", "dep:q-periapt-sdk", "dep:redb", "dep:redb-legacy", "dep:twox-hash"]
 # Explicit native SDK catalogue, including the configured standard TLS provider.

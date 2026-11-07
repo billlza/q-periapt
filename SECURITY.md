@@ -5,7 +5,7 @@
 The `0.2.0` owned-key SDK in this development tree is a release candidate
 under qualification. ABI major 2 compatibility does not make
 an SDK wrapper compatible with the released nine-export library: the new
-SDK wrappers require the matching 43-export SDK profile and package version.
+SDK wrappers require the matching 51-export SDK profile and package version.
 
 Use the [integration guide](docs/SDK_GETTING_STARTED.md) for package selection
 and the [readiness ledger](docs/SDK_0_2_RELEASE_READINESS.md) for the source-bound

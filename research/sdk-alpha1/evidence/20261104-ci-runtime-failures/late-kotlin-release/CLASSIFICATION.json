@@ -1,0 +1,32 @@
+{
+  "actual_checkout": "6084f3bfb09333f6b66291b38809ed512296a27b",
+  "artifact_downloaded_in_this_capture": false,
+  "artifact_metadata_from_log": {
+    "bytes": 47602089,
+    "id": 13383322821,
+    "sha256": "ab1b25e1c81271b0f50abf34cc4a35a531a528b85c1c510b5fdc6f255382b473"
+  },
+  "captured_at": "2026-11-05 02:44:09 UTC",
+  "classification": "Thirteenth observed P0 old-count validator failure in the macOS C/OpenSSL prerequisite.",
+  "effective_wave_open": true,
+  "emulator_failure": false,
+  "hosted_observed_count": null,
+  "job_id": 126463649783,
+  "job_name": "continuity-installed-kotlin-release",
+  "job_url": "https://github.com/billlza/q-periapt/actions/runs/41791854684/job/126463649783",
+  "kotlin_consumer_execution_claimed": false,
+  "native_test_result_claimed": false,
+  "new_wave_started": false,
+  "old_exact_expectation": 142,
+  "push_performed": false,
+  "rerun_performed": false,
+  "run_id": 41791854684,
+  "wave_counts": {
+    "failure": 16,
+    "in_progress": 3,
+    "queued": 23,
+    "skipped": 2,
+    "success": 288
+  },
+  "workflow_cancelled": false
+}

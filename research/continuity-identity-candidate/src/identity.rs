@@ -306,6 +306,32 @@ impl AccountPin {
             .from
             .max(roster.validity.from))
     }
+    pub(crate) fn snapshot_start_with_roster(
+        &self,
+        certificate: &[u8],
+        roster: &VerifiedRoster,
+    ) -> Result<u64, Error> {
+        self.check_roster_pin(roster)?;
+        let (body, _) = open_envelope(certificate)?;
+        let credential = Credential::decode(body)?;
+        Ok(credential
+            .description
+            .validity
+            .from
+            .max(roster.validity.from))
+    }
+    fn check_roster_pin(&self, roster: &VerifiedRoster) -> Result<(), Error> {
+        if roster.account != self.account
+            || roster.root != self.root
+            || roster.family != self.family
+        {
+            return Err(Error::Scope);
+        }
+        if roster.checkpoint != self.checkpoint {
+            return Err(Error::Checkpoint);
+        }
+        Ok(())
+    }
     /// Provision one expected account, root, roster checkpoint and policy family.
     pub fn new(
         expected_account: [u8; 32],
@@ -352,6 +378,30 @@ impl AccountPin {
         roster: &[u8],
         trusted_time: u64,
     ) -> Result<VerifiedDevice, Error> {
+        self.verify_device_using(certificate, trusted_time, || {
+            self.verify_roster(roster, trusted_time)
+        })
+    }
+    // Reuse only an already authenticated immutable roster under this exact pin.
+    // Credential verification, time and membership still run for every device.
+    pub(crate) fn verify_device_with_roster(
+        &self,
+        certificate: &[u8],
+        roster: &VerifiedRoster,
+        trusted_time: u64,
+    ) -> Result<VerifiedDevice, Error> {
+        self.verify_device_using(certificate, trusted_time, || {
+            self.check_roster_pin(roster)?;
+            roster.check_time(trusted_time)?;
+            Ok(roster.clone())
+        })
+    }
+    fn verify_device_using(
+        &self,
+        certificate: &[u8],
+        trusted_time: u64,
+        roster: impl FnOnce() -> Result<VerifiedRoster, Error>,
+    ) -> Result<VerifiedDevice, Error> {
         let (body, signature) = open_envelope(certificate)?;
         self.root.verify(Purpose::Credential, body, signature)?;
         let credential = Credential::decode(body)?;
@@ -363,7 +413,7 @@ impl AccountPin {
         }
         credential.description.validity.check(trusted_time)?;
         let certificate = certificate_digest(body);
-        let verified_roster = self.verify_roster(roster, trusted_time)?;
+        let verified_roster = roster()?;
         let device = VerifiedDevice {
             authority_key: self.root.clone(),
             account: self.account,
