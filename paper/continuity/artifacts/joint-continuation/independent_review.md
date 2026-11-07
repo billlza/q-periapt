@@ -1,10 +1,10 @@
 # Independent review of the joint native continuation
 
-Final review: 2026-11-07T21:05:28.711978+00:00. The complete MD v0.3, the core TeX and the primitive appendix have been read and independently checked against the retained source/proof inputs. All three hashes match the theory author's explicit freeze. This is a hand mathematical and interface review, not a machine-checked proof.
+Final targeted update: 2026-11-07T21:19:57.815387+00:00. This v0.4 record retains all 21 completed v0.3 checks and adds only check 22 for the ContextBound score bridge. The two updated mathematical sources and unchanged primitive appendix match the theory author's explicit freeze. The complete earlier hand review and its exact identities are preserved in independent_review_v0.3.md/json.
 
 ## Result of the completed pass
 
-**Result: PASS for the frozen v0.3 typed continuation and its declared primitive assumptions. No unresolved mathematical defect was found in the reviewed scope.**
+**Result: 22/22 PASS for the frozen v0.4 continuation under its declared primitive assumptions: 21 retained checks and one targeted ContextBound accounting check. No unresolved finding remains within these checks.**
 
 The five-hop continuation is coherent for its declared typed interface. The shared-root independent-table ideal, separate PRK-row replacements, exact Expand normalization, selected-seed Extract replacement, and selected-chain row replacement are in the required order. In particular, the proof earns the hidden seed's fresh-input premise by first eliminating the parent row's internal messages containing that seed. It does not assert independence after fixing a later ciphertext.
 
@@ -33,10 +33,39 @@ The concrete source pass supplies actual persistent-state recipes, exact-call id
 - **Freshness statement:** The final lemma asserts independence from h, prior available state, previously allocated blocks and other new target blocks at installation. It does not assert independence after fixing a future ciphertext or an adaptively selected future table entry.
 - **Clear journal prefix:** A focused source check confirms ordinary Send persistence calls new_bound(...,None): its clear QPWINT01 prefix contains journal IDs/revisions and ciphertext commitments, not the private send-intent digest. This fact is included in the final source profile and N15 map; the existing renderer still pays for its ciphertext commitments.
 
+## Check 22: separate the component and combined-contribution scores
+
+The original native-accounting quantity remains
+\(b_j=\mathbb E_{\widetilde{\mathsf V}^{[j]}}\Psi_j\), where the random-component game may still execute the real ContextBound combiner. The updated continuation instead defines
+\(b_j^{\rm cont}=\mathbb E_{\mathsf W_{\rm cont}^{[j]}}\Psi_j\), with the separately uniform combined contribution required by root initialization. Its proved bound is
+\[
+|b_j^{\rm cont}|\le 2\Delta_{{\rm init},j}+2\Delta_{{\rm sched},j}+2\varepsilon_{{\rm AEAD},j}.
+\]
+
+The MD Section 8 and core TeX ending agree: if the actual complete ContextBound comparison has output-bit probability gap at most \(\varepsilon_{{\rm CB},j}\), then the available randomized terminal bit with success probability \((\Psi_j+1)/2\), for \(\Psi_j\in[-1,1]\), gives
+\[
+|b_j-b_j^{\rm cont}|\le 2\varepsilon_{{\rm CB},j},\qquad
+|b_j|\le 2\varepsilon_{{\rm CB},j}+|b_j^{\rm cont}|.
+\]
+The bridge explicitly preserves the controller, query interfaces, score/event code and counted shared-oracle work, with events recomputed in their own game and actual tuple/disclosure conditions satisfied. It does not infer a uniform combined secret merely from a random component. The external factor \(1/2\) in native message advantage is unchanged; substituting this score bound therefore contributes \(\varepsilon_{{\rm CB},j}\) to that final advantage, without another factor of two.
+
+This resolves the overloaded symbol and makes the actual combiner error explicit. It adds neither an eligibility condition nor a new claim that the ContextBound adapter's premises hold automatically. The three continuation terms and all earlier interfaces remain in place. Status: **PASS**.
+
 ## Final frozen identities
 
-- `joint_continuation.md`: SHA-256 `73898618516188281e5ac6c50ad9bf827c1a000c0ecc66259ba8c703b1e02aef`.
-- `joint-continuation.tex`: SHA-256 `f055eb16508e6e410631ee041298209df239bfcf4159363945fa3f7b4c11a225`.
+- `joint_continuation.md`: SHA-256 `8f69ae7dc88d378ea31c0a29c4578daf81047a47907dc2b3d4fa28761e2a7a15`.
+- `joint-continuation.tex`: SHA-256 `865b128155662d8916ef648a7852a9973e9d24f22287d29c9ec59ca191fee989`.
 - `joint-primitive-bounds.tex`: SHA-256 `8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d`.
 
-`independent_review.json` records the checks, exact source identities and final result. All agreed revisions have been verified in the frozen MD and both TeX modules. Native correspondence, component/combiner, authentication and actual projection residuals remain in their original accounting positions; this proof supplies the specified continuation bound. The review neither changes eligibility nor claims every adaptive application interface. No new experiments, CI, code changes or remote mutations were performed. The bounded review is complete.
+`independent_review.json` records the checks, exact source identities and final result. The v0.4 MD and core TeX contain the same corrected conditional bridge; the primitive appendix is byte-identical to the reviewed v0.3 file. The earlier 21 checks are retained with their original identity below. Native correspondence, component/combiner, authentication and actual projection residuals remain in their original accounting positions; this proof supplies the specified continuation bound. The review neither changes eligibility nor claims every adaptive application interface. No new experiments, CI, code changes or remote mutations were performed. The bounded review is complete.
+
+
+## Superseded review identity
+
+The prior 21-check PASS record was issued at 2026-11-07T21:05:28.711978+00:00. It is retained unchanged as `independent_review_v0.3.md` and `independent_review_v0.3.json`. Its reviewed proof identities were:
+
+- `joint_continuation.md`: `73898618516188281e5ac6c50ad9bf827c1a000c0ecc66259ba8c703b1e02aef`.
+- `joint-continuation.tex`: `f055eb16508e6e410631ee041298209df239bfcf4159363945fa3f7b4c11a225`.
+- `joint-primitive-bounds.tex`: `8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d`.
+
+Only the requested notation/bit-to-score bridge was added in this update; no source audit, CI or test scope was expanded.

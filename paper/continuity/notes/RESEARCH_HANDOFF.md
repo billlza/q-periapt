@@ -16,7 +16,7 @@ The prior origin-normalization, guarded record-exposure, private-image simulatio
 
 The target material and direction are marked before that new material produces any blocks. Repeated complete information strings keep the same material identity. The network interface uses plaintext-free Resume; the honest application owns plaintext-bearing Send and delivery. The source profile records the same-ID guess-Send counterexample for an enlarged public caller interface. Existing eligibility and original-game projection accounting are preserved.
 
-The full frozen proof and its 21-point cross-check are in [the joint-continuation artifact](../artifacts/joint-continuation/README.md). The [live profile](../artifacts/live-profile/source_profile.md) and source map bind actual constructors and observations to the declared experiment. Twenty-four inspected files are byte-identical at source pin `228c944fc476e3e57d6c08063cacb19bca5b360e` and development checkpoint `1c68aa666db22d36ee136be1ec712545a9e74f03`.
+The full frozen proof and its 22-point cross-check are in [the joint-continuation artifact](../artifacts/joint-continuation/README.md). The [live profile](../artifacts/live-profile/source_profile.md) and source map bind actual constructors and observations to the declared experiment. Twenty-four inspected files are byte-identical at source pin `228c944fc476e3e57d6c08063cacb19bca5b360e` and development checkpoint `1c68aa666db22d36ee136be1ec712545a9e74f03`.
 
 ## Next research connection
 
@@ -26,6 +26,8 @@ Connect the **actual accepted ContextBound operation** to the theorem's **unifor
 2. Embed the selected component challenge while preserving the same public operation and every exact retry. Cache the challenge by the original bound invocation, including the full retained offer and admitted policy/context.
 3. Apply the ContextBound hidden-input hash comparison on its complete encoded tuple, with the preceding public/record view and all oracle work retained. Its uniform reply is the entry used by the new joint continuation.
 4. Substitute those actual errors into the existing candidate-local accounting, retaining the native correspondence and the selected candidate's real projection residual at their established locations.
+
+The notation distinguishes the random-component score `b_j` from the uniform-combined-contribution score `b_j^cont`. A valid complete ContextBound comparison with output-bit gap `epsilon_CB,j` costs `2 epsilon_CB,j` in the bounded score. The new schedule bound applies to `b_j^cont`; the explicit connecting inequality remains visible in the main text.
 
 The first target is the marked first-message live profile already constructed in this revision. This gives a concrete intermediate proof to write and review. Broader retrospective target selection and additional application operations can then be treated as separately defined extensions.
 

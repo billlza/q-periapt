@@ -1,6 +1,6 @@
 # Round 4 research record: joint continuation
 
-Date: 2026-11-07. Mathematical source version: frozen v0.3.
+Date: 2026-11-07. Mathematical source version: frozen v0.4 (the primitive appendix is retained byte-for-byte from v0.3).
 
 ## Completed result
 
@@ -21,6 +21,18 @@ For at most \(M\) distinct traffic information strings and \(t_+\) successor con
 
 The primitive row is explicitly the multiple-adaptive-message experiment, distinct from the earlier report theorem's one-immutable-transcript row. For the specified one-message AEAD interface, the centered, eligibility-gated score is bounded by \(2\Delta_{\rm sched}+2\varepsilon_{\rm AEAD}\). The separate actual Extract/Expand initialization adds \(2\Delta_{\rm init}\) when its input is an independently uniform recovered contribution.
 
+The score at that last entry is named \(b_j^{\rm cont}\), distinct from the native accounting term \(b_j=\mathbb E_{\widetilde{\mathsf V}^{[j]}}\Psi_j\) in the random-component game. Its proved bound is
+\[
+|b_j^{\rm cont}|
+\le2\Delta_{{\rm init},j}+2\Delta_{{\rm sched},j}
++2\varepsilon_{{\rm AEAD},j}.
+\]
+If the actual complete comparison from the random-component game to the uniform-combined-contribution continuation has bit gap \(\varepsilon_{{\rm CB},j}\), with the same controller, query interfaces, counted shared-oracle work and recomputed score/event code, then
+\[
+|b_j|\le2\varepsilon_{{\rm CB},j}+|b_j^{\rm cont}|.
+\]
+This v0.4 notation correction makes the ContextBound step explicit; it does not assign zero error to a combiner that is still real.
+
 The new proof is the composition. It uses earlier shared-root, root-initialization and exact HKDF-table lemmas as inputs. Its consequential step is to normalize the parent Expand row before hiding a traffic seed: otherwise that seed still appears in the parent's next internal HMAC input, so the next primitive's independent-input premise would be incomplete.
 
 ## Scope decisions resolved this round
@@ -31,6 +43,7 @@ The new proof is the composition. It uses earlier shared-root, root-initializati
 - **Application API:** the network adversary gets Resume, status, ciphertext and real authentication/ACK outcomes. Its private application retains plaintext-bearing Send and delivery. A same-ID plaintext-guess Send would reveal the challenge through retained-result versus Conflict; that concrete enlarged-interface attack is included in the proof note.
 - **Unknown payload storage:** challenge payload and its retained send-intent digest have opaque handles. The Send path's outer journal prefix contains no clear send-intent digest; the focused evidence is retained separately.
 - **Score computation:** HMAC comparisons can fix or locally sample the application bit and then average. The AEAD reduction's gate \(A\) is computed without the challenger's hidden bit. This preserves the exact factor 2 without granting a key/nonce read to the terminal test.
+- **Combiner boundary:** \(b_j\) retains its random-component-game definition. The new symbol \(b_j^{\rm cont}\) denotes the uniform-combined-contribution continuation. Their connection is an actual complete bit-gap comparison with score cost \(2\varepsilon_{{\rm CB},j}\), not an identification of the two games.
 
 ## Manuscript integration
 
@@ -67,14 +80,14 @@ These formulations affirm the completed result without presenting it as an uncon
 
 The proof was supplied for independent mathematical/source review by the evidence agent. The existing native proof record has 24 source files bound to both the current checkout and the manuscript's original pin; those are source identities, not coverage statistics.
 
-A standalone typesetting probe compiled the core and primitive appendix together in two pdflatex runs: 8 pages, no undefined-reference, overfull/underfull or LaTeX-warning entries on the second pass. This is a build check, not a proof validator. No new native benchmarks or exhaustive protocol tests were run.
+For v0.3, a standalone typesetting probe compiled the core and primitive appendix together in two pdflatex runs: 8 pages, no undefined-reference, overfull/underfull or LaTeX-warning entries on the second pass. Version v0.4 makes the score-name/ContextBound connection explicit and receives a focused independent review; the parent owns integrated typesetting. These are separate build and proof checks. No new native benchmarks or exhaustive protocol tests were run.
 
 Frozen SHA-256 identities:
 
 | Source | SHA-256 |
 | --- | --- |
-| joint_continuation.md | 73898618516188281e5ac6c50ad9bf827c1a000c0ecc66259ba8c703b1e02aef |
-| joint-continuation.tex | f055eb16508e6e410631ee041298209df239bfcf4159363945fa3f7b4c11a225 |
+| joint_continuation.md | 8f69ae7dc88d378ea31c0a29c4578daf81047a47907dc2b3d4fa28761e2a7a15 |
+| joint-continuation.tex | 865b128155662d8916ef648a7852a9973e9d24f22287d29c9ec59ca191fee989 |
 | joint-primitive-bounds.tex | 8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d |
 
 Only this theory directory was edited. The parent agent owns manuscript integration, source-profile artifacts, repository changes and publication decisions.

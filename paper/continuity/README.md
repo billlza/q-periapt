@@ -1,10 +1,10 @@
 # Exposure and Recovery with Persistent Randomness Reservations
 
-JoC working manuscript, revised 7 November 2026: **56 pages**, a **221-word abstract**, seven keywords and 17 references.
+JoC working manuscript, revised 7 November 2026: **57 pages**, a **221-word abstract**, seven keywords and 17 references.
 
 **Author:** Ziang Li (李子昂), Department of Engineering, Durham University. **Correspondence:** 2403871950@qq.com. The alternative contact, bhmq03@durham.ac.uk, is retained in `author-metadata.json`.
 
-PDF SHA-256: `ec4c6f3125d0a8e12a987e62478b4fd2b040983295d351213316025493ca0556`.
+PDF SHA-256: `8f77e3adbc26f3d7cfdc772c72f83b4442cac6e15faee8466613cf06cd0f9b4b`.
 
 ## Read, edit and build
 
@@ -39,7 +39,7 @@ The paper develops original-reservation and acquisition semantics, exact guarded
 
 This revision adds **Lemma 5.9, Theorem 5.10 and Corollary 5.11**, plus the shared-compression-oracle derivations in **Appendix C**. The joint continuation carries a uniform recovered root, or the separately justified uniform-contribution entry, through confirmation, traffic and the first selected message. It handles adaptive complete traffic information, shared-salt aliases, actual confirmation/ACK verification, and successor-root/next-seed disclosure. The exact target-allocation and application interfaces appear with the statements.
 
-The [frozen proof and 21-point cross-check](artifacts/joint-continuation/README.md) and [live source profile](artifacts/live-profile/source_profile.md) provide the intermediate research record. The preceding candidate-local theorem remains Proposition 5.8; its frozen proof and 12-point review are in `artifacts/candidate-local/`. The common-virtual accounting variant is now Appendix D.
+The [frozen proof and 22-point cross-check](artifacts/joint-continuation/README.md) and [live source profile](artifacts/live-profile/source_profile.md) provide the intermediate research record. The preceding candidate-local theorem remains Proposition 5.8; its frozen proof and 12-point review are in `artifacts/candidate-local/`. The common-virtual accounting variant is now Appendix D.
 
 [The research checkpoint](notes/RESEARCH_HANDOFF.md) identifies the next connection: accepted original ContextBound operation, selected component challenge, complete-context hash comparison, then the established uniform-contribution continuation. [The SkyBridge scope note](notes/skybridge-scope.md) records which earlier mechanisms motivate this paper and which retain their independent research question.
 

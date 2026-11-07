@@ -1,21 +1,21 @@
 {
   "schema": "qperiapt-joc-visual-build-review/2",
-  "completed_at_utc": "2026-11-07T21:09:05.053792+00:00",
-  "pdf_pages": 56,
-  "pdf_sha256": "ec4c6f3125d0a8e12a987e62478b4fd2b040983295d351213316025493ca0556",
+  "completed_at_utc": "2026-11-07T21:24:42.525574+00:00",
+  "pdf_pages": 57,
+  "pdf_sha256": "8f77e3adbc26f3d7cfdc772c72f83b4442cac6e15faee8466613cf06cd0f9b4b",
   "build_exit_code": 0,
   "undefined_references_or_citations": 0,
   "overfull_boxes": 0,
-  "underfull_box_notices": 64,
+  "underfull_box_notices": 65,
   "all_fonts_embedded": true,
-  "review": "All 56 pages inspected in four contact sheets; title page and new schedule/primitive statements and formulas additionally inspected at reading scale. No clipping or formula overlap observed.",
+  "review": "The complete preceding 56-page version was inspected in contact sheets and selected pages at reading scale. In v0.4, unchanged pages 1-36 retain that review; updated pages 37-57 were inspected in contact sheets, with the new score connection on page 38 and final proof continuation on page 57 additionally inspected at reading scale. No clipping or formula overlap observed.",
   "source_export": {
     "status": "passed",
     "files_in_source_zip": 9,
     "clean_compile_exit_code": 0,
     "extracted_pdf_text_equal": true,
-    "text_sha256": "44faa8d7b1e447738c1663626d1a134eee6268c8b2f2fe70ce7c052c1d8f5dfc",
-    "source_zip_sha256": "37aa2fabda9bb4fff106498608cad540838e6db28cf9f584b1aa5833d95470f6",
+    "text_sha256": "c61ef1d1e00da645cb254df2cb4def1253cef1c290f020ece519aca01bd8421e",
+    "source_zip_sha256": "bb6b5582cb0ea71bc24922fb9c4e6139789497fcf48d90d466e1ffc7b385b695",
     "failures": []
   }
 }

@@ -1,4 +1,4 @@
-% Joint continuation increment, v0.3, 2026-11-07.
+% Joint continuation increment, v0.4, 2026-11-07.
 % Standalone module: requires amsmath, amssymb, amsthm and the usual theorem
 % environments. It does not redefine the report-row error parameter.
 % Complete proof record: joint_continuation.md, same directory.
@@ -324,15 +324,33 @@ root initialization required here. It regenerates confirmations,
 signatures, traffic and future epochs; it does not replace a root inside
 a fixed public transcript.
 
-Consequently the specified ideal-contribution continuation satisfies
+Let $\mathsf W_{\rm cont}^{[j]}$ denote this uniform-combined-contribution
+continuation, with the same candidate-local score code $\Psi_j$, and put
+$b_j^{\rm cont}=\mathbb E_{\mathsf W_{\rm cont}^{[j]}}\Psi_j$.
+Consequently,
 \[
- |b_j|\le
+ |b_j^{\rm cont}|\le
  2\Delta_{{\rm init},j}
  +2\Delta_{{\rm sched},j}
  +2\varepsilon_{{\rm AEAD},j}.
 \]
-A preceding component replacement and ContextBound hash hop retain their
-own actual errors. Native correspondence $\rho_j$, authentication and
-original-game projection residuals remain in the candidate-local
-accounting theorem. The result supplies a concrete continuation bound
-for this profile, including known old roots and allowed later disclosure.
+The native accounting term
+$b_j=\mathbb E_{\widetilde{\mathsf V}^{[j]}}\Psi_j$ belongs instead to
+the random-component game, which may still use the real ContextBound
+combiner. If its actual complete comparison to
+$\mathsf W_{\rm cont}^{[j]}$ has bit gap at most
+$\varepsilon_{{\rm CB},j}$, then
+\[
+ |b_j-b_j^{\rm cont}|\le2\varepsilon_{{\rm CB},j},
+ \qquad
+ |b_j|\le2\varepsilon_{{\rm CB},j}+|b_j^{\rm cont}|.
+\]
+This comparison retains the controller, query interfaces and score/event
+code, counts all shared-oracle preparation and continuation, and recomputes
+events within each game's execution. Its actual tuple and disclosure
+conditions must hold. The randomized test with success probability
+$(\Psi_j+1)/2$ gives the first inequality; the second is the triangle
+inequality. Native correspondence $\rho_j$, component and authentication
+terms, and original-game projection residuals remain in their established
+locations. This supplies the continuation bound for the specified profile,
+including known old roots and allowed later disclosure.

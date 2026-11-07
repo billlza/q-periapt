@@ -1,14 +1,14 @@
 {
   "schema": "qperiapt-joc-integration/4",
-  "completed_at_utc": "2026-11-07T21:09:05.054045+00:00",
+  "completed_at_utc": "2026-11-07T21:24:42.525574+00:00",
   "title": "Exposure and Recovery with Persistent Randomness Reservations",
   "target_venue": "Journal of Cryptology",
   "source_checkpoint": "228c944fc476e3e57d6c08063cacb19bca5b360e",
   "inspected_development_checkpoint": "1c68aa666db22d36ee136be1ec712545a9e74f03",
-  "previous_pdf_sha256": "65874e4a0f86ad6148e6527bdcb39a485741ab903b77dca7dadb41e7e1122fc0",
+  "previous_pdf_sha256": "ec4c6f3125d0a8e12a987e62478b4fd2b040983295d351213316025493ca0556",
   "pdf_path": "continuity.pdf",
-  "pdf_pages": 56,
-  "pdf_sha256": "ec4c6f3125d0a8e12a987e62478b4fd2b040983295d351213316025493ca0556",
+  "pdf_pages": 57,
+  "pdf_sha256": "8f77e3adbc26f3d7cfdc772c72f83b4442cac6e15faee8466613cf06cd0f9b4b",
   "abstract_words": 221,
   "keywords": 7,
   "bibliography_entries": 17,
@@ -23,7 +23,7 @@
     "bibliography_style_sha256": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
     "style_derivation": "sn-basic.bst; renamed derived file; all authors retained; alphabetical sorting unchanged",
     "single_tex_entry": "joc-submission.tex",
-    "single_tex_sha256": "5065ca378f3fc92549796af6d592f124139397bca1d3ffcc6d0aac7b12420fe1"
+    "single_tex_sha256": "778f7d8c536540acb0989fa75be12c7826df43e514f4480a687d2701d982d518"
   },
   "new_results": {
     "adaptive_expand": "Lemma 5.9",
@@ -32,11 +32,13 @@
     "primitive_derivations": "Appendix C",
     "entry": "uniform recovered root; separate actual Extract/Expand from a uniform combined contribution",
     "proof_note": "artifacts/joint-continuation/joint_continuation.md",
-    "proof_note_sha256": "73898618516188281e5ac6c50ad9bf827c1a000c0ecc66259ba8c703b1e02aef",
+    "proof_note_sha256": "8f69ae7dc88d378ea31c0a29c4578daf81047a47907dc2b3d4fa28761e2a7a15",
     "independent_review": "artifacts/joint-continuation/independent_review.json",
     "review_kind": "mathematical/source cross-check under declared assumptions",
-    "review_checks": 21,
-    "review_status": "PASS"
+    "review_checks": 22,
+    "review_status": "PASS",
+    "proof_version": "0.4",
+    "score_connection": "The random-component score b_j and uniform-combined-contribution continuation score b_j^cont are distinct. An actual complete ContextBound output-bit comparison of size epsilon_CB,j gives |b_j-b_j^cont| <= 2 epsilon_CB,j, retaining the same controller, interfaces, available score code, recomputed events and shared-oracle work."
   },
   "retained_candidate_local_result": {
     "origin_anchored_stop": "Lemma 5.6",
@@ -92,22 +94,22 @@
   },
   "build_review": {
     "schema": "qperiapt-joc-visual-build-review/2",
-    "completed_at_utc": "2026-11-07T21:09:05.053792+00:00",
-    "pdf_pages": 56,
-    "pdf_sha256": "ec4c6f3125d0a8e12a987e62478b4fd2b040983295d351213316025493ca0556",
+    "completed_at_utc": "2026-11-07T21:24:42.525574+00:00",
+    "pdf_pages": 57,
+    "pdf_sha256": "8f77e3adbc26f3d7cfdc772c72f83b4442cac6e15faee8466613cf06cd0f9b4b",
     "build_exit_code": 0,
     "undefined_references_or_citations": 0,
     "overfull_boxes": 0,
-    "underfull_box_notices": 64,
+    "underfull_box_notices": 65,
     "all_fonts_embedded": true,
-    "review": "All 56 pages inspected in four contact sheets; title page and new schedule/primitive statements and formulas additionally inspected at reading scale. No clipping or formula overlap observed.",
+    "review": "The complete preceding 56-page version was inspected in contact sheets and selected pages at reading scale. In v0.4, unchanged pages 1-36 retain that review; updated pages 37-57 were inspected in contact sheets, with the new score connection on page 38 and final proof continuation on page 57 additionally inspected at reading scale. No clipping or formula overlap observed.",
     "source_export": {
       "status": "passed",
       "files_in_source_zip": 9,
       "clean_compile_exit_code": 0,
       "extracted_pdf_text_equal": true,
-      "text_sha256": "44faa8d7b1e447738c1663626d1a134eee6268c8b2f2fe70ce7c052c1d8f5dfc",
-      "source_zip_sha256": "37aa2fabda9bb4fff106498608cad540838e6db28cf9f584b1aa5833d95470f6",
+      "text_sha256": "c61ef1d1e00da645cb254df2cb4def1253cef1c290f020ece519aca01bd8421e",
+      "source_zip_sha256": "bb6b5582cb0ea71bc24922fb9c4e6139789497fcf48d90d466e1ffc7b385b695",
       "failures": []
     }
   },
@@ -127,8 +129,8 @@
     "guarded-provenance.tex": "f7b36ef86bdd4733af0b882c9f192e52ad40ef041ae22046e63e1584e2c897ca",
     "introduction.tex": "4a864ece80c272d353f3efe4183c6cc929c681efb43f45f0b953138e053f3586",
     "joc-basic.bst": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
-    "joc-submission.tex": "5065ca378f3fc92549796af6d592f124139397bca1d3ffcc6d0aac7b12420fe1",
-    "joint-continuation.tex": "f055eb16508e6e410631ee041298209df239bfcf4159363945fa3f7b4c11a225",
+    "joc-submission.tex": "778f7d8c536540acb0989fa75be12c7826df43e514f4480a687d2701d982d518",
+    "joint-continuation.tex": "865b128155662d8916ef648a7852a9973e9d24f22287d29c9ec59ca191fee989",
     "joint-primitive-bounds.tex": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d",
     "main.tex": "a5943cf25c0fcee03a441a05de2ef097b79835231efb6f2d30087cd9a5835941",
     "native-correspondence.tex": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
@@ -142,13 +144,13 @@
     "sn-jnl.cls": "36d0c3273a59d48dc6a9c7b080dfa1ec50dc10229d8751568d1f2e490ffa5ecc"
   },
   "reviewed_supporting_hashes": {
-    "artifacts/joint-continuation/README.md": "399fa2154c69171476a81d1c69f24ecbed2343b59606fab37a2296cf57032cea",
-    "artifacts/joint-continuation/independent_review.json": "d7d7d43b2491140d1ea1936c0617b9870f6f7aa56f04e408c2d2c9e25b06eda8",
-    "artifacts/joint-continuation/independent_review.md": "15ab990a1133ac61f04b46b27968746ce206d5b323cbd20ca29b4b60b1cc7737",
-    "artifacts/joint-continuation/joint-continuation.tex": "f055eb16508e6e410631ee041298209df239bfcf4159363945fa3f7b4c11a225",
+    "artifacts/joint-continuation/README.md": "a88f38b6e87203b2806ed975ce98462b523cb23ea10ff0fad3d69159b22d500f",
+    "artifacts/joint-continuation/independent_review.json": "9e8fd6a6bb56dde321650aeb63801a82372e2359c17ee2d5ab247ba47d4a8334",
+    "artifacts/joint-continuation/independent_review.md": "702ea915c1aeefe47ee679125627784d0e1e29911044335f15b7fd8dc8df199c",
+    "artifacts/joint-continuation/joint-continuation.tex": "865b128155662d8916ef648a7852a9973e9d24f22287d29c9ec59ca191fee989",
     "artifacts/joint-continuation/joint-primitive-bounds.tex": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d",
-    "artifacts/joint-continuation/joint_continuation.md": "73898618516188281e5ac6c50ad9bf827c1a000c0ecc66259ba8c703b1e02aef",
-    "artifacts/joint-continuation/research_record.md": "119985e5962794b85efa5493587ef70a751e8cdb8a59dcf5391132aedd8f58c5",
+    "artifacts/joint-continuation/joint_continuation.md": "8f69ae7dc88d378ea31c0a29c4578daf81047a47907dc2b3d4fa28761e2a7a15",
+    "artifacts/joint-continuation/research_record.md": "1fc7391f22212b805792bcfee1abbb9fccc33c2253ad2f1bb56c98ce065161e0",
     "artifacts/joint-continuation/source_profile_review.md": "2363a4794afb3347b9bf7f918efd4c5fd361441a509c0e868b610a99a93adec7",
     "artifacts/live-profile/PROFILE_FREEZE.json": "d20c92f71136d5a32c83da04e71fc573d9b7844be3705d51e7b5afa8938febfa",
     "artifacts/live-profile/native_kdf_encodings.json": "780fc1341648700dcb15a4c7e168251eb40fe46b53953a0e9648bdc60141fd11",
@@ -156,14 +158,16 @@
     "artifacts/live-profile/source_map.json": "e03457ad40ab0c1185ef7cff55e38df430c1299127367c95842031309d686ed1",
     "artifacts/live-profile/source_profile.md": "5fcd49c29be2a02f38041982da9773a6373aeefa677fecc82f780b192b3a1cba",
     "artifacts/build-review/build_review.md": "86cf43f39a7a58a061ba1dc36ced1a07fd57bc6587b08dba3c9aef12b8f953ab",
-    "artifacts/build-review/final_claim_review.md": "a570f84397c018b6b669b8587f18829faca9370a0d54ca854c2d6e702aa26a43"
+    "artifacts/build-review/final_claim_review.md": "a570f84397c018b6b669b8587f18829faca9370a0d54ca854c2d6e702aa26a43",
+    "artifacts/joint-continuation/independent_review_v0.3.md": "15ab990a1133ac61f04b46b27968746ce206d5b323cbd20ca29b4b60b1cc7737",
+    "artifacts/joint-continuation/independent_review_v0.3.json": "d7d7d43b2491140d1ea1936c0617b9870f6f7aa56f04e408c2d2c9e25b06eda8"
   },
   "paper_workflow": {
     "path": "../../.github/workflows/joc-manuscript.yml",
     "sha256": "927c30b54981a86ffc2ffae373883585b7644208f983414cc3a9ec58f0a0be13",
     "branch": "paper/joc-persistent-recovery",
     "base": "main",
-    "snapshot": "local verification before remote draft-PR creation; current remote checks are reported on the actual PR head"
+    "snapshot": "Local v0.4 verification before updating draft PR #119; the preceding published commit 255560856263f196e462205b7e3e4f73c54367c7 passed manuscript workflow run 42414762155. Remote checks for this revision must be read on its actual new head."
   },
   "next_connection": "accepted original ContextBound operation -> selected component challenge -> complete-context hash hop -> uniform recovered contribution -> proved joint first-message continuation",
   "submission_metadata": "Confirmed Ziang Li and corresponding email; no additional author included; no journal submission performed."

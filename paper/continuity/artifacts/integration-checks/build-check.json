@@ -15,8 +15,8 @@
     "guarded-provenance.tex": "f7b36ef86bdd4733af0b882c9f192e52ad40ef041ae22046e63e1584e2c897ca",
     "introduction.tex": "4a864ece80c272d353f3efe4183c6cc929c681efb43f45f0b953138e053f3586",
     "joc-basic.bst": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
-    "joc-submission.tex": "5065ca378f3fc92549796af6d592f124139397bca1d3ffcc6d0aac7b12420fe1",
-    "joint-continuation.tex": "f055eb16508e6e410631ee041298209df239bfcf4159363945fa3f7b4c11a225",
+    "joc-submission.tex": "778f7d8c536540acb0989fa75be12c7826df43e514f4480a687d2701d982d518",
+    "joint-continuation.tex": "865b128155662d8916ef648a7852a9973e9d24f22287d29c9ec59ca191fee989",
     "joint-primitive-bounds.tex": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d",
     "main.tex": "a5943cf25c0fcee03a441a05de2ef097b79835231efb6f2d30087cd9a5835941",
     "native-correspondence.tex": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
@@ -30,12 +30,12 @@
     "sn-jnl.cls": "36d0c3273a59d48dc6a9c7b080dfa1ec50dc10229d8751568d1f2e490ffa5ecc"
   },
   "status": "passed",
-  "pdf_sha256": "ec4c6f3125d0a8e12a987e62478b4fd2b040983295d351213316025493ca0556",
-  "pages": 56,
+  "pdf_sha256": "8f77e3adbc26f3d7cfdc772c72f83b4442cac6e15faee8466613cf06cd0f9b4b",
+  "pages": 57,
   "abstract_words": 221,
   "keywords": 7,
-  "generated_source_sha256": "5065ca378f3fc92549796af6d592f124139397bca1d3ffcc6d0aac7b12420fe1",
-  "underfull_notices": 64,
+  "generated_source_sha256": "778f7d8c536540acb0989fa75be12c7826df43e514f4480a687d2701d982d518",
+  "underfull_notices": 65,
   "failures": [],
   "scope": "Build, source identity and document metadata; not a mathematical or experimental security proof."
 }

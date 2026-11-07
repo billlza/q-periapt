@@ -1,6 +1,6 @@
 # Joint key-schedule continuation
 
-This directory freezes version 0.3 of the new composition result. The two TeX files here are identical to the modules included in the manuscript. The full argument is in `joint_continuation.md`; `independent_review.md` and its JSON record bind the reviewed mathematical and source-profile inputs.
+This directory freezes version 0.4 of the new composition result. The two TeX files here are identical to the modules included in the manuscript. The full argument is in `joint_continuation.md`; `independent_review.md` and its JSON record bind the reviewed mathematical and source-profile inputs.
 
 The manuscript result appears as Lemma 5.9, Theorem 5.10 and Corollary 5.11, with shared-oracle primitive proofs in Appendix C. It begins at an independently uniform recovered root, or at the separately stated uniform-contribution Extract/Expand entry. It supports a marked fresh traffic allocation among finitely many complete information strings, actual confirmation and ACK computation, and the stated successor-root and next-seed disclosures.
 

@@ -1,6 +1,6 @@
 # A joint continuation for a recovered epoch and its first message
 
-Frozen version: v0.3, 2026-11-07. Complete proof with bounded traffic allocations; the independent review binds these frozen source files separately.
+Frozen version: v0.4, 2026-11-07. Complete proof with bounded traffic allocations and explicit ContextBound score accounting; the independent review binds these frozen source files separately.
 
 ## 1. Result and exact scope
 
@@ -263,13 +263,19 @@ A component-KEM replacement and the ContextBound hidden-input hash hop may prece
 
 ## 8. Candidate-local composition
 
-For candidate \(j\), let its post-correspondence and post-component/combiner continuation match the stated source/application interface. Keep the common native score and original eligibility. The remaining ideal-contribution score then satisfies
+For candidate \(j\), let \(\mathsf W_{\rm cont}^{[j]}\) be the continuation with the independently uniform **combined contribution** required by Section 7, matching the stated source/application interface. Keep the same candidate-local score code \(\Psi_j\) and original eligibility, and define \(b_j^{\rm cont}=\mathbb E_{\mathsf W_{\rm cont}^{[j]}}\Psi_j\). The proved continuation bound is
 \[
-|b_j|\le2\Delta_{{\rm init},j}
+|b_j^{\rm cont}|\le2\Delta_{{\rm init},j}
        +2\Delta_{{\rm sched},j}
        +2\epsilon_{{\rm AEAD},j}.                      \tag{12}
 \]
-This replaces that specified profile's continuation residual by a proved conditional bound. The actual \(\rho_j\), authentication terms, component errors and original-game projection residual remain in their established locations. If the ideal component game still uses the real ContextBound combiner, its actual score error precedes (12).
+The native accounting term is instead \(b_j=\mathbb E_{\widetilde{\mathsf V}^{[j]}}\Psi_j\), where \(\widetilde{\mathsf V}^{[j]}\) is the **random-component** game and may still evaluate the real ContextBound combiner. Suppose the actual complete comparison from that game to \(\mathsf W_{\rm cont}^{[j]}\) has output-bit gap at most \(\epsilon_{{\rm CB},j}\) for the admitted terminal tests. This comparison uses the same controller, query interfaces and score/event code, counts the entire shared-oracle preparation and continuation, and recomputes all events in each game's own execution. It must meet the actual combiner tuple and disclosure conditions; a random component alone is not identified with a uniform combined contribution. Then
+\[
+|b_j-b_j^{\rm cont}|\le2\epsilon_{{\rm CB},j},
+\qquad
+|b_j|\le2\epsilon_{{\rm CB},j}+|b_j^{\rm cont}|.        \tag{12a}
+\]
+Indeed, the available randomized test with success probability \((\Psi_j+1)/2\) gives the first inequality, and the triangle inequality gives the second. Thus (12) bounds the uniform-combined-contribution continuation, while (12a) places the actual ContextBound comparison exactly before it. The actual \(\rho_j\), authentication terms, component errors and original-game projection residual remain in their established locations.
 
 Pre-cut captures and old wrapping-key disclosure are compatible with the profile. Intact matching post-reservation records have the existing permanent-failure certificate before their raw return. Optional successor-root and next-seed projections can be computed here instead. These are different mechanisms: a projection is not renamed a Snapshot, and required storage comparisons do not become free.
 
