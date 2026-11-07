@@ -1,13 +1,13 @@
 # Manuscript development workflow
 
-The continuous research branch is `paper/joc-persistent-recovery`; its pull request targets `main`. Changes on this branch concern the manuscript, directly used research artifacts, and the manuscript build. Native source observations retain their immutable source revisions.
+The continuous research branch is `paper/joc-persistent-recovery`; [draft PR #119](https://github.com/billlza/q-periapt/pull/119) targets `main`. Continue manuscript updates on this same branch and PR. Changes on this branch concern the manuscript, directly used research artifacts, and the manuscript build. Native source observations retain their immutable source revisions.
 
 ## Edit and review
 
 1. Edit `main.tex` and the section modules; use `author-metadata.json` for the confirmed author identity. The displayed corresponding address is `2403871950@qq.com`; `bhmq03@durham.ac.uk` is the alternative contact.
 2. State a research question, construction and exact experiment before adding a result. Preserve the actual source of each theorem and observation.
 3. Save a complete proof note and a separate review record when adding a mathematical result. Keep unresolved calculations in dated checkpoints rather than in the contribution list.
-4. Run `make -B check` and `make source`. Inspect the rendered pages changed by the revision. The checker records build/source consistency, not mathematical validity.
+4. Run `make -B check`, `python3 artifacts/contextbound-connection/check_contextbound_adapter.py --output build/contextbound-check.json`, and `make source`. Inspect the rendered pages changed by the revision. The build checker records source/document consistency; the ContextBound checker records encoding and finite interface witnesses. Mathematical results retain their proof and review records.
 5. Commit the modular and flattened sources, current PDF, supporting notes and current integration record to the same branch. The PR's manuscript workflow compiles the submitted head and uploads the PDF, single-file source and execution receipts.
 
 The default branch's existing repository CI retains its own triggers and results. A completed manuscript build is evidence about this document. Each protocol, formal-model and benchmark result keeps its own version and recorded execution.

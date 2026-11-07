@@ -53,8 +53,9 @@ construct a simulator for private images and intents without selected
 reservation coins, and compose immutable authentication reports in reverse
 causal order when their transcripts contain earlier report keys.
 Candidate-local accounting connects these interfaces through an origin-based stopping
-certificate valid before the final compromise cut is selected. Starting from a
-uniform recovered contribution, a joint theorem in the compression quantum
+certificate valid before the final compromise cut is selected. A full-tuple
+quantum hash comparison links a uniform component secret to the recovered
+contribution. Starting from a uniform recovered contribution, a joint theorem in the compression quantum
 random-oracle model separates a selected first-message key while retaining
 confirmation-dependent traffic derivation, real control and acknowledgement
 verification, and successor-root and next-seed disclosure. We instantiate the
@@ -171,7 +172,13 @@ The paper establishes three connected results.
   verification, and disclosed successor roots and next chain seeds.
   Using exact private-row normalization, the composition makes the next
   hidden-input reduction possible without leaving an unmodeled parent-row use of its secret
-  (Lemma~\ref{lem:joint-expand-blocks}).
+  (Lemma~\ref{lem:joint-expand-blocks}). At the preceding component boundary,
+  the complete ContextBound encoding supports a hidden-input comparison
+  with consistent answers across tuple aliases. An original-operation adapter
+  embeds the ML-KEM challenge while retaining the native retry history.
+  For the next rekey of an established session, a source induction fixes
+  the root-use descriptor and connects that comparison to the message bound
+  (Section~\ref{sec:contextbound-connection}).
 
   \item \textbf{A multi-epoch recovery condition with separating executions.}
   We prove symbolic message secrecy when both target reservations follow the
@@ -212,8 +219,8 @@ Sections~\ref{sec:security-model} and~\ref{sec:computation} develop the
 record model and computational connections. Section~\ref{sec:established}
 gives the mechanized recovery theorem and separating executions, and
 Section~\ref{sec:evaluation} validates the exposure semantics.
-Section~\ref{sec:discussion} connects the recovered-contribution entry to
-the accepted-operation adapter and the matched protocol comparison.
+Section~\ref{sec:discussion} develops the consequences of these connections
+and the matched protocol comparison.
 % END SECTION SOURCE: introduction.tex
 % BEGIN SECTION SOURCE: related-work.tex
 \section{Related work}
@@ -2348,6 +2355,309 @@ terms, and original-game projection residuals remain in their established
 locations. This supplies the continuation bound for the specified profile,
 including known old roots and allowed later disclosure.
 % END SECTION SOURCE: joint-continuation.tex
+% BEGIN SECTION SOURCE: contextbound-connection.tex
+% New module; existing joint-continuation and primitive appendices are unchanged.
+\subsection{From an accepted ContextBound operation to the message continuation}
+\label{sec:contextbound-connection}
+
+We now discharge the ContextBound comparison left explicit in
+Section~\ref{sec:joint-continuation} for one concrete native profile.
+The protected component is ML-KEM-768 with a real-versus-uniform 32-byte
+shared-secret challenge. The other component is evaluated by the actual
+X25519 algorithm. Its raw DH output is not assumed to satisfy that same
+uniform-key experiment. Write $H$ for the whole SHA3-256 random oracle and
+$h$ for the independent SHA-256 compression oracle of
+Section~\ref{sec:joint-continuation}. Both remain available throughout every
+comparison. All oracle-dependent preparation, including construction of an
+established starting state, is executed and counted; an oracle-correlated
+history is not supplied as free auxiliary input.
+
+\paragraph{Complete effective tuples.}
+For a byte string $x$, let
+$\operatorname{LP}(x)=\operatorname{BE64}(|x|)\Vert x$.
+The admitted native ContextBound computation is $S=H(\operatorname{enc}(T))$,
+where $\operatorname{enc}$ concatenates the LP encodings of the ten fields
+\[
+ T=(D_{\rm CB},\mathit{suite},\operatorname{BE32}(v),
+ s_M,s_X,c_M,p_M,c_X,p_X,C_{\rm policy}).
+\]
+Here
+\[
+\begin{aligned}
+ C_{\rm policy}
+ &=\operatorname{LP}(D_{\rm policy})
+   \Vert\operatorname{LP}(\mathit{policyDigest})
+   \Vert\operatorname{LP}(C_{\rm app}),\\
+ C_{\rm app}
+ &=H\bigl(\operatorname{LP}(D\Vert\texttt{response-kem})
+                \Vert\operatorname{LP}(O)\bigr),
+\end{aligned}
+\]
+with $O$ the entire retained signed offer and the policy digest that of the
+verified admitted policy. In the pinned suite the complete encoded input
+has 2639 bytes, and the 32-byte $s_M$ field occupies offsets 76--107.
+The reservation's trust-root binding, original-slot identifiers, operation
+identifiers and journal identities are separate metadata; they are not
+extra fields of this hash input. In particular, the raw offer is present
+through $C_{\rm app}$, not additionally appended to the outer tuple.
+
+\begin{lemma}[Complete-tuple hidden-component comparison]
+\label{lem:cb-hidden-component}
+Let $U$ be uniform on $\{0,1\}^{256}$, independent of the initially sampled
+oracles and initial auxiliary state. In a protected family replace one
+32-byte component field by $U$, and let $m$ contain all nine other actual
+fields, including the other component secret and the complete policy
+context. The private interface returns
+$H(f(U,m))$, where $f$ is the actual ten-field encoding. Exact repeats are
+cached by $m$. Assume that the rest of the experiment accesses $U$ only
+through this interface or opaque handles and respects its stated stops.
+For at most $d$ distinct private inputs and $Q_H$ ordinary queries to $H$,
+replacing the private interface by a random function $\mathcal T(m)$
+changes every efficient output-bit probability by at most
+\begin{equation}
+ \varepsilon_{\rm CB}=\Phi_{256}(d,Q_H).
+ \label{eq:cb-hidden-cost}
+\end{equation}
+The inputs $m$ may be adaptive. $Q_H$ counts the complete derived
+experiment, including preparation, all ordinary KEM/hash work, continuation
+and terminal test. The same independent oracle $h$ is retained.
+\end{lemma}
+\begin{proof}
+Length-prefix parsing recovers all ten actual fields. For fixed $m$ and any
+complete string $w$, at most one $u\in\{0,1\}^{256}$ satisfies
+$f(u,m)=w$, so its point probability is at most $2^{-256}$. If $m\ne m'$
+as effective field tuples, then $f(u,m)\ne f(u,m')$ for every $u$.
+Cache repeats before invoking the private interface. These are precisely
+the point-probability and all-secret freshness conditions of the
+hidden-input theorem stated in Appendix~\ref{app:primitive-inputs}
+\cite[Theorem~2]{dfh2022}. It gives the displayed bound for adaptive
+private queries. The independent $h$ interface is part of the unchanged
+auxiliary computation. Ordinary $H$ queries, including an accidentally
+matching known computation, retain their actual oracle responses and are
+counted in $Q_H$. The argument does not condition on avoiding a collision
+or on the final acceptance event.
+\end{proof}
+
+The cache key in this lemma cannot be replaced by an origin identifier.
+Two different original calls can have the same effective tuple: their real
+answers agree with probability one, whereas two independent per-origin
+ideal answers agree with probability $2^{-256}$. Conversely, dropping the
+other shared secret or any effective field could merge distinct real hash
+inputs. Provenance and hash consistency therefore require separate tables.
+
+\paragraph{Accepted original component calls.}
+Fix $j=(g,a)$ in the existing original-reservation ledger. The component
+adapter assigns its ML-KEM challenge public key only to generation origin
+$g$, retaining the locally sampled X25519 scalar, runtime admission and
+owner metadata. It obtains its challenge pair $(c_M^*,K_{\rm ch})$ at the
+first actual private encapsulation computation of $a$ on the original
+retained offer from $g$. It computes the X25519 leg locally and caches the
+whole result before subsequent persistence. Exact retries reuse that
+challenge; a fresh entropy reservation, including one after an unsuccessful
+attempt, receives its actual new original slot. Copies and reopenings do
+not create a new challenge invocation.
+
+After challenge creation, a PQ decapsulation under the selected generation
+owner with ciphertext $c_M^*$ returns the cached $K_{\rm ch}$, regardless
+of accompanying traditional ciphertext or context. All other PQ
+ciphertexts are routed to the component decapsulation interface. The
+traditional decapsulation and its rejection path remain native; a rejected
+traditional leg produces no ContextBound call. The challenged PQ
+ciphertext is never submitted to the postchallenge CCA oracle. The operational component game first supplies its generated public key
+and permits an ordinary prechallenge decapsulation phase. A single
+challenge is requested at the specified first computation of $a$; it
+returns a fresh encapsulation ciphertext and either its real key or an
+independent uniform 32-byte key. Thereafter its decapsulation oracle
+rejects that challenge ciphertext. Before challenge creation, selected-key
+decapsulation follows this ordinary prechallenge interface; a query that
+happens to equal the later sampled $c_M^*$ retains its original answer
+and is not deleted or retroactively replaced by $U$. Other original
+owners use their locally known keys, even when public-key bytes happen
+to coincide. No equivalence with an interface that supplies its challenge
+up front is assumed without a separate game conversion.
+
+The immutable admitted binding must show that $a$ consumes the original
+offer from $g$. An immutable contrary binding makes attribution to $j$
+permanently impossible and gives a free stop $U_j$ under
+Section~\ref{sec:candidate-local-accounting}; byte equality alone does not
+transfer provenance. Missing or unaccepted operations otherwise retain the
+native execution. Reveal and projection cases use the established free
+stops, charged stops and local record correspondence. Thus the existing
+component costs $a_j^+,a_j^-,\delta_j$ retain exactly their meanings;
+this adapter does not set correctness or permitted-projection costs to zero.
+More explicitly, the derived distinguisher $D_j^\sigma$ runs the entire
+adapter and outputs $\mathbf1[\Psi_j=\sigma]$ for
+$\sigma\in\{-1,+1\}$. Its operational advantage is
+\[
+ a_j^\sigma=\left|\Pr[D_j^\sigma=1\mid\text{real challenge}]
+                    -\Pr[D_j^\sigma=1\mid\text{uniform challenge}]\right|.
+\]
+The real branch matches $\mathsf V^{[j]}$ up to the selected-pair
+correctness cost $\delta_j$; the uniform branch is exactly the declared
+$\widetilde{\mathsf V}^{[j]}$. This gives the two output-event
+inequalities used in Proposition~\ref{prop:native-local-accounting}.
+
+In the resulting random-component game,
+$\widetilde{\mathsf V}^{[j]}$, $K_{\rm ch}=U$ is independent uniform.
+The reduction for Lemma~\ref{lem:cb-hidden-component} can materialize all
+actual native KEM tapes locally, execute their algorithms, and replace
+only the designated protected component returns by $U$. This is a new
+implementation of that adjacent pair of experiments, not reuse of the
+previous reduction's unavailable challenge tapes. Ordinary SHA3 work
+inside those algorithms is included in $Q_H$; opaque records and the same
+stopping code retain their declared interfaces.
+
+\paragraph{A concrete single-root source profile.}
+Use the next rekey of one established authoritative session. The two
+endpoints initially have the same established root $r$, confirmed epoch
+and control parent, with no pending selected rekey. The old root and
+wrapping keys may be known. The supported native call surface includes
+failed reservations and writes, process loss and exact resumption,
+adversarial public packets, old-epoch traffic, asynchronous final/receipt
+processing, the marked first-message interface of
+Corollary~\ref{cor:joint-first-message}, and subsequent epochs. Private
+selected owners are not additionally exported to arbitrary low-level SDK
+callers, and read-only copies are not activated as competing histories.
+These are an initial state and call surface; the original eligibility
+predicate is unchanged.
+
+\begin{lemma}[Next-rekey root-use correspondence]
+\label{lem:cb-native-root-use}
+In this profile, fix $j=(g,a)$ whose immutable original encapsulation
+binding consumes the retained original offer from $g$ for this next rekey.
+Let $m^*$ be that original encapsulation's effective tuple: its challenged
+$c_M^*$, locally generated $c_X^*$, traditional secret, retained offer and
+admitted policy determine all nine fields. Every protected
+use of that same tuple feeds one pair $(r,I_R)$, where $I_R$ is the complete
+97-byte native pending-root information string. They are one original
+Extract/Expand and exact repetitions. No raw combined-secret channel is
+added by retry, crash or completion. This invariant holds on every
+continuation of the matching binding, independently of later eligibility
+or attribution.
+\end{lemma}
+\begin{proof}
+The retained generation token proceeds to a fixed signed offer. Its
+reconstruction checks the regenerated public material against the saved
+offer. At the responder the encapsulation token is bound to the complete
+saved offer; a different offer conflicts, and completing or committed
+plans return their retained flights. While these tokens are pending,
+ordinary message operations do not change the established rekey root.
+The response prefix fixes the session, context, epochs, role, control
+parent and retained-offer digest. Equality of $m^*$ fixes both complete
+ciphertext fields, hence the response core and $I_R$. Both endpoints
+therefore use their common old $r$ and this same $I_R$.
+
+Before exposing its response, the responder replaces the active
+encapsulation-token stage by the stage retaining the derived root.
+The proposer replaces the generation-token stage before root installation.
+The final/receipt installation sites are the live updates of the rekey
+root. A crash before a transition recovers the same token and old root; a
+committed transition recovers the retained result. Neither resumes an old
+selected token under a newly installed root. This invariant is preserved
+by every supported call, authoritative write outcome and recovery step.
+The source artifact records the corresponding pinned call sites and the
+complete induction. The statement concerns protected-family uses; it
+makes no claim that independently sampled numeric secrets never coincide.
+\end{proof}
+
+\paragraph{Fresh allocation and score semantics.}
+Mark this original target tuple $m^*$ before its first actual private hash
+computation, at any protected alias call site and including a computation
+whose subsequent write fails. If a crash intervenes after component
+challenge creation, its cached ciphertext and locally determined traditional
+leg still identify $m^*$ before any such first use. An earlier private use
+at any alias site already allocates this entry and cannot be ignored at a
+later durable acceptance or network release. Other protected tuples do not
+become the target. If the selected original $a$ never supplies a usable
+target, the original candidate score is zero; no substitute tuple is chosen.
+In the private-random-function game,
+$S^*=\mathcal T(m^*)$ is a freshly allocated uniform 32-byte value;
+replays and aliases retrieve that same entry. It can be presampled and
+withheld at this allocation. This is an online allocation argument,
+not a claim of uniformity after conditioning on the future transcript.
+Other entries of $\mathcal T$ can be sampled by the controller. By
+Lemma~\ref{lem:cb-native-root-use}, all selected uses of $S^*$ are the
+one Extract/Expand required by Appendix~\ref{app:joint-root-entry}.
+The actual continuation is then the controller of
+Section~\ref{sec:joint-continuation}, including its fresh traffic-entry
+and direction mark, confirmations, ACKs, successors, shared $h$ work and
+private retained state.
+
+Every hop runs the same efficient terminal code $\Psi_j$ on its own actual
+trace. Its value is zero after the established local stops. The qualifying
+predicate in the message game must be computable from the available
+classical view and provenance ledger, as required by
+Corollary~\ref{cor:joint-first-message}. A hidden challenge bit is not an
+additional input to that predicate. This condition matters: if the guess
+is always zero and a fictitious predicate accepts exactly when the hidden
+bit is zero, the qualified signed score has expectation $1/2$ even for an
+otherwise bit-independent view. For the admitted predicate, making an
+independent fair guess on disqualified runs implements the full qualified
+score in the actual AEAD game; no unsupported zero-mean idealization is
+needed.
+
+\begin{theorem}[ContextBound connection for the next native rekey]
+\label{thm:cb-next-rekey}
+Use the concrete profile and adapters above, the local comparisons of
+Proposition~\ref{prop:native-local-accounting}, and the message interface
+of Corollary~\ref{cor:joint-first-message}. Fix finite budgets before the
+experiment. For candidate $j$, let $d_j$ bound its distinct protected
+effective tuples and $Q_{H,j}$ its complete ordinary $H$ queries. Let
+$\Delta_{{\rm init},j}$, $\Delta_{{\rm sched},j}$ and
+$\varepsilon_{{\rm AEAD},j}$ have the existing whole-continuation meanings
+of Appendix~\ref{app:joint-root-entry},
+Theorem~\ref{thm:joint-message-leaf} and
+Corollary~\ref{cor:joint-first-message}. Define
+\begin{equation}
+ B_j^{\rm cont}=\min\left\{1,
+ 2\Phi_{256}(d_j,Q_{H,j})+2\Delta_{{\rm init},j}
+ +2\Delta_{{\rm sched},j}+2\varepsilon_{{\rm AEAD},j}\right\}.
+ \label{eq:cb-continuation-bound}
+\end{equation}
+Then $|b_j|\le B_j^{\rm cont}$ and
+\begin{equation}
+\begin{split}
+ \operatorname{Adv}_{\rm msg}\le
+ \min\!\left\{\frac12,\frac12\left(
+ \eta_{\rm attr}^{\rm nat}+\eta_{\rm proj}^{\rm nat}\right.\right.\\[-2pt]
+ \left.\left.\qquad+
+ \sum_{j\in J}\bigl(\rho_j+a_j^++a_j^-+2\delta_j+B_j^{\rm cont}\bigr)
+ \right)\right\}.
+\end{split}
+ \label{eq:cb-native-bound}
+\end{equation}
+The residuals are still evaluated in the one original native experiment.
+Each candidate's ideal continuation is compared separately.
+\end{theorem}
+\begin{proof}
+Apply Lemma~\ref{lem:cb-hidden-component} to
+$\widetilde{\mathsf V}^{[j]}$. Fresh allocation of $m^*$ gives precisely
+the uniform-combined-contribution game
+$\mathsf W_{\rm cont}^{[j]}$ from
+Section~\ref{sec:joint-continuation}; all other private table entries and
+the entire native controller remain present. For any
+$\Psi_j\in[-1,1]$, a terminal randomized test that outputs one with
+probability $(\Psi_j+1)/2$ converts a bit gap $\varepsilon$ into a signed
+score gap at most $2\varepsilon$. Thus
+\[
+ |b_j-b_j^{\rm cont}|\le2\Phi_{256}(d_j,Q_{H,j}).
+\]
+The native root-use lemma supplies the single-entry hypothesis for the
+existing $\Delta_{{\rm init},j}$ comparison. The joint schedule and AEAD
+continuation then give
+$|b_j^{\rm cont}|\le2\Delta_{{\rm init},j}
+ +2\Delta_{{\rm sched},j}+2\varepsilon_{{\rm AEAD},j}$.
+All derived distinguishers include the complete preparation and continuation;
+no oracle budget resets at a hop. Combine these inequalities, use
+$|b_j|\le1$, and substitute in
+Proposition~\ref{prop:native-local-accounting}.
+\end{proof}
+
+The result supplies the previously explicit ContextBound comparison for the
+next-rekey instance. Its source requirement is expressed through the root-use
+descriptor, so extensions can retain the same tuple-level comparison while
+establishing their corresponding root-entry interface.
+% END SECTION SOURCE: contextbound-connection.tex
 % END SECTION SOURCE: computational-roadmap.tex
 % BEGIN SECTION SOURCE: established-results.tex
 \section{Mechanized recovery and separating executions}
@@ -2674,10 +2984,13 @@ as captured by extractor and swap-PRF formulations~\cite{hmacswap2023,rfc5869}.
 Appendix~\ref{app:joint-root-entry} gives the shared-oracle Extract/Expand
 reduction for a uniform combined contribution. Composing it with the joint
 schedule and the specified one-use AEAD game bounds this profile's
-ideal-contribution score. The next instantiation step connects the actual
-accepted ContextBound operation to that uniform-contribution entry:
-the component challenge and complete-context hash hop must use the same
-original invocation, cache, and accepted-prefix history. The native
+ideal-contribution score. Section~\ref{sec:contextbound-connection} supplies
+the preceding complete-tuple comparison and the accepted-operation adapter.
+The original reservation, component challenge-ciphertext class, effective
+hash tuple and root-use descriptor have distinct identities. Preserving each
+identity gives an executable comparison through failed writes and exact
+resumption. The next-rekey source profile fixes the root-use descriptor;
+the message continuation retains its fresh-allocation target rule. The native
 correspondence term $\rho_j$ and the selected candidate's actual projection
 residual $\eta_{\rm proj}^{\rm nat}$ retain their places in
 Proposition~\ref{prop:native-local-accounting}.
@@ -2698,7 +3011,8 @@ rewriting tests the provenance distinctions isolated by the present results.
 Persistent recovery is governed by original secret sources and their
 acquisition histories. The paper gives an exact record-exposure semantics,
 constructive simulations for private records and dependent immutable reports,
-a joint recovered-contribution-to-message continuation, and a mechanized
+a complete-tuple component connection to the joint first-message continuation,
+and a mechanized
 multi-epoch recovery theorem with concrete separating executions.
 These results preserve the meaning of
 fresh randomness across durable retries, copies and asynchronous progress.
@@ -2935,6 +3249,16 @@ The artifact also retains an earlier Q-Periapt manuscript on ContextBound
 binding and implementation assurance. Those materials document the reused
 cryptographic substrate; the original reservation, acquisition and persistent
 simulation results are developed in the present paper.
+
+The new connection artifact, \path{artifacts/contextbound-connection/},
+contains the complete proof, independent review and source induction for the
+next rekey of one established session. Its source map fixes fourteen files
+at \sourcecommit{} and the inspected development checkpoint. The
+self-contained checker recomputes six retained core vectors and exercises
+complete-tuple aliases, original-operation retries and component-challenge
+routing, with explicit incorrect-cache controls. The source audit is a
+separate command requiring the declared native revisions; its receipt records
+source identity and static assertions.
 
 \paragraph{Relation to earlier project material.}
 Earlier project work on SkyBridge Compass studies policy-governed

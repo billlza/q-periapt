@@ -2,15 +2,15 @@
   "schema": "qperiapt-joc-single-source/1",
   "input_entry": "main.tex",
   "output": "joc-submission.tex",
-  "output_sha256": "778f7d8c536540acb0989fa75be12c7826df43e514f4480a687d2701d982d518",
+  "output_sha256": "90dc3087af89667d6b67f5003756402f7106fabd001c4b34d79abe29b2d0cb35",
   "inputs": {
     "acquisition-nonadditivity.tex": {
       "sha256": "50cd83948e5e03329eacfbc380af9f7a99b63abab3cc6e3e75f0edf7f3dcd297",
       "bytes": 2821
     },
     "artifact-map.tex": {
-      "sha256": "32528d0af080e4a7932b575a360be5d444e2f0e664640c0199f68332b3b812e1",
-      "bytes": 13379
+      "sha256": "409d35b1dd8803496cf06592d81e89af6e0bcd14beb164b39bcf9ff12f17715c",
+      "bytes": 14006
     },
     "candidate-local-accounting.tex": {
       "sha256": "4a38c6bb00c70f2611c2395aec754c0af6b8231a8e3f94e027cf1a17b657865d",
@@ -21,20 +21,24 @@
       "bytes": 4589
     },
     "computational-roadmap.tex": {
-      "sha256": "9b230df8ea41c64d150c17093e813c52819f158301779517248eddcca95cbd50",
-      "bytes": 1582
+      "sha256": "b73e2ca7531d1653637dab00f49ad5981edaab9ff7c2abe896ded7ddce821f36",
+      "bytes": 1614
     },
     "construction.tex": {
       "sha256": "0bc19554764a4029df2375722a20397dd5b45bb71d133ecbf5f49b017099a9f9",
       "bytes": 5915
+    },
+    "contextbound-connection.tex": {
+      "sha256": "97758cda00a7159839b80f6bcc66e78ca4a0d8702ec5d12a687fa64f67ade0a1",
+      "bytes": 16725
     },
     "declarations.tex": {
       "sha256": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
       "bytes": 935
     },
     "discussion.tex": {
-      "sha256": "31760c00fe5bda9f1c68351ab182032ec4661135846520f81353667afa39d172",
-      "bytes": 3664
+      "sha256": "d2d343000995aff72f4b478add058cac1b3cd1c7baa3b2b7bcd55fdc2257dde1",
+      "bytes": 3932
     },
     "established-results.tex": {
       "sha256": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
@@ -49,8 +53,8 @@
       "bytes": 8973
     },
     "introduction.tex": {
-      "sha256": "4a864ece80c272d353f3efe4183c6cc929c681efb43f45f0b953138e053f3586",
-      "bytes": 9199
+      "sha256": "e17772bb631a83a9eaaa193045073eb3eca5eefd0c705bbd5b23a27d00735cef",
+      "bytes": 9625
     },
     "joint-continuation.tex": {
       "sha256": "865b128155662d8916ef648a7852a9973e9d24f22287d29c9ec59ca191fee989",
@@ -61,8 +65,8 @@
       "bytes": 10706
     },
     "main.tex": {
-      "sha256": "a5943cf25c0fcee03a441a05de2ef097b79835231efb6f2d30087cd9a5835941",
-      "bytes": 4184
+      "sha256": "17019866670f09c9570b63385ac1207bfe8bd5764c5a7dc57f0f80982ec5039d",
+      "bytes": 4285
     },
     "native-correspondence.tex": {
       "sha256": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",

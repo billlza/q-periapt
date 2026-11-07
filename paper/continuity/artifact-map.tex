@@ -210,6 +210,16 @@ binding and implementation assurance. Those materials document the reused
 cryptographic substrate; the original reservation, acquisition and persistent
 simulation results are developed in the present paper.
 
+The new connection artifact, \path{artifacts/contextbound-connection/},
+contains the complete proof, independent review and source induction for the
+next rekey of one established session. Its source map fixes fourteen files
+at \sourcecommit{} and the inspected development checkpoint. The
+self-contained checker recomputes six retained core vectors and exercises
+complete-tuple aliases, original-operation retries and component-challenge
+routing, with explicit incorrect-cache controls. The source audit is a
+separate command requiring the declared native revisions; its receipt records
+source identity and static assertions.
+
 \paragraph{Relation to earlier project material.}
 Earlier project work on SkyBridge Compass studies policy-governed
 authenticated establishment, complete-transcript binding, and a control-only

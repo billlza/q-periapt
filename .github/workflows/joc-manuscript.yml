@@ -46,6 +46,9 @@ jobs:
           python3 --version > python-version.txt
           python3 check_exposure.py --output results.json
           python3 review_exposure.py
+      - name: Check ContextBound encodings and adapter witnesses
+        working-directory: paper/continuity
+        run: python3 artifacts/contextbound-connection/check_contextbound_adapter.py --output build/contextbound-check.json
       - name: Package the single-file source
         working-directory: paper/continuity
         run: python3 export_submission.py --output build/joc-source.zip
@@ -61,6 +64,7 @@ jobs:
             paper/continuity/build/finite-model/python-version.txt
             paper/continuity/build/finite-model/results.json
             paper/continuity/build/finite-model/review_results.json
+            paper/continuity/build/contextbound-check.json
           if-no-files-found: error
       - name: Preserve build diagnostics
         if: always()

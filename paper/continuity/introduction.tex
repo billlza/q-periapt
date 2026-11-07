@@ -99,7 +99,13 @@ The paper establishes three connected results.
   verification, and disclosed successor roots and next chain seeds.
   Using exact private-row normalization, the composition makes the next
   hidden-input reduction possible without leaving an unmodeled parent-row use of its secret
-  (Lemma~\ref{lem:joint-expand-blocks}).
+  (Lemma~\ref{lem:joint-expand-blocks}). At the preceding component boundary,
+  the complete ContextBound encoding supports a hidden-input comparison
+  with consistent answers across tuple aliases. An original-operation adapter
+  embeds the ML-KEM challenge while retaining the native retry history.
+  For the next rekey of an established session, a source induction fixes
+  the root-use descriptor and connects that comparison to the message bound
+  (Section~\ref{sec:contextbound-connection}).
 
   \item \textbf{A multi-epoch recovery condition with separating executions.}
   We prove symbolic message secrecy when both target reservations follow the
@@ -140,5 +146,5 @@ Sections~\ref{sec:security-model} and~\ref{sec:computation} develop the
 record model and computational connections. Section~\ref{sec:established}
 gives the mechanized recovery theorem and separating executions, and
 Section~\ref{sec:evaluation} validates the exposure semantics.
-Section~\ref{sec:discussion} connects the recovered-contribution entry to
-the accepted-operation adapter and the matched protocol comparison.
+Section~\ref{sec:discussion} develops the consequences of these connections
+and the matched protocol comparison.
