@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "sh",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-throughput-resources-20261106/standalone-replay-01/captured-source/artifact/python-run.sh",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-throughput-resources-20261106/standalone-replay-01/captured-source/controller/validate-throughput-capsule.py",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/research/sdk-alpha1/evidence/20261106-installed-throughput/CAPTURE.zip",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/research/sdk-alpha1/evidence/20261106-installed-throughput/FILES.json",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-throughput-resources-20261106/standalone-replay-01/ARCHIVE_READBACK.json"
+  ],
+  "cwd": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-throughput-resources-20261106/standalone-replay-01/captured-source",
+  "returncode": 0
+}

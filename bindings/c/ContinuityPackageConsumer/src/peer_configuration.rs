@@ -209,3 +209,33 @@ pub unsafe extern "C" fn qpc_peer_v1_prepare_configured_reopen(
 
 #[cfg(all(test, unix))]
 mod tests;
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_peer_device_v1", ExpectedDeviceInput, {
+        account: enrollment::Pin,
+        device: [u8; 16],
+        generation: u64,
+    });
+    abi_record!("qpc_peer_configuration_v1", Input, {
+        header: Header,
+        quality: u32,
+        role: u32,
+        initiator: ExpectedDeviceInput,
+        responder: ExpectedDeviceInput,
+        directory: [u8; 32],
+        bundle: Blob,
+        tls_peer: Blob,
+        tls_name: Blob,
+    });
+    abi_function!(
+        qpc_peer_v1_prepare_configured,
+        (u64, *const Input, *mut u64, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_peer_v1_prepare_configured_reopen,
+        (u64, *const Input, *const u8, *mut u64, *mut ErrorRecord)
+    );
+}
+// END C ABI CHECKS

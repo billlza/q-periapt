@@ -1150,6 +1150,20 @@ verify_observed_installed_apk_signer() {
 	fi
 }
 
+report_android_failure_diagnostic() {
+	# Optional evidence must not replace the original failure or contact adb.
+	if [ "${DEVICE_KIND:-}" != "emulator" ]; then
+		return 0
+	fi
+	if PYTHONPATH=artifact python3 artifact/android_bounded_command.py \
+		report-failure-diagnostic --run-id "$RUN_ID" --leaf "$1" 2>/dev/null; then
+		:
+	else
+		printf 'ANDROID_FAILURE_DIAGNOSTIC_UNAVAILABLE\n' >&2
+	fi
+	return 0
+}
+
 observe_installed_package_sample() {
 	ownership_timeout=$1
 	ownership_phase=$2
@@ -1184,6 +1198,7 @@ observe_installed_package_sample() {
 		remove_installed_apk_copy || return 2
 		printf 'error: Android package ownership observation failed structurally; see %s\n' \
 			"$ownership_error" >&2
+		report_android_failure_diagnostic "${ownership_error##*/}" || :
 		return 2
 	fi
 	if ! ownership_result=$(/bin/cat -- "$ownership_output"); then
@@ -1639,6 +1654,7 @@ cleanup_android_app() {
 	remove_installed_apk_copy || return 2
 	printf 'error: Android app cleanup outcome is unresolved for device sha256:%s; see %s\n' \
 		"${SERIAL_SHA256_PREFIX:-unavailable}" "$PACKAGE_OBSERVATION_LOG" >&2
+	report_android_failure_diagnostic "adb-package-state-observation.log" || :
 	return 1
 }
 

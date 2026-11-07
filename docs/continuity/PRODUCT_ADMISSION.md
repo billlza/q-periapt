@@ -15,6 +15,31 @@ emulator is not required, and their absence does not make those results
 insufficient or untrustworthy. Subsequent software changes use the same phone for
 relevant regression checks; those checks do not reopen a hardware-count gate.
 
+## Hosted Windows qualification (2026-11-06)
+
+The Windows runtime gap recorded by earlier checkpoints is closed for source
+`453eef21f83c55cc7376e0334c0f550b45cbe2a8`. The PR checkout
+`73c0f1c3724fdfe1840fa2af4a35052a9c1a4b3e` has the same Git tree,
+`b2567159818b7ecd9af38435c635dfb2e9ea02a4`; the two commit identities remain
+distinct in the execution receipts.
+
+Both original main-workflow Windows jobs pass all 44 native host-store tests:
+[push](https://github.com/billlza/q-periapt/actions/runs/42278645393/job/128101917611)
+and [PR](https://github.com/billlza/q-periapt/actions/runs/42278671314/job/128101798720).
+The process-cut publication test, substituted-payload refusal and handle-based
+directory tests all pass with their original safety assertions.
+
+The [installed Windows workflow](https://github.com/billlza/q-periapt/actions/runs/42278671214)
+also passes all eight jobs: SDK production, preparation, four installed native
+Rust/C lifecycle partitions (Windows 2022/2025, Debug/Release), and both independent
+public-readback jobs. These hosted results qualify this Windows cohort. Earlier
+failed jobs and historical package cohorts retain their own outcomes and inputs.
+
+This update does not mark the surrounding main CI wave complete. Protocol,
+product ABI and resource-contract admission and the external security review
+still follow the existing release scope; the source and package identities must
+be reconciled again for the final candidate.
+
 ## What the installed consumers currently establish
 
 The unpublished [Android JNI adapter](../../bindings/android/ContinuityPackageConsumer/README.md)
@@ -307,7 +332,10 @@ the legacy installation constructor. Same-credential roster refresh and original
 session restoration preserve the original request, signer and journal. Required
 witness activation checks current signed authority; local Active alone cannot
 release an owner after denial or an unavailable reply. The C interface now has
-152 unpublished exports, separate from product ABI 2. SDK policy/store, TLS setup,
+158 unpublished exports, separate from product ABI 2. The complete
+[C declaration and layout snapshot](../../bindings/c/ContinuityPackageConsumer/abi/README.md)
+checks the 70 C records, callback and exact function surface; it does not freeze
+the protocol or grant product admission. SDK policy/store, TLS setup,
 authority transport and final provisioning remain independently supplied inputs;
 see [the C integration path](../../bindings/c/ContinuityPackageConsumer/README.md#registering-an-original-device).
 
@@ -713,6 +741,9 @@ Protocol/domain and durable-format freeze, explicit candidate-state disposition,
 package/version/export tables, installer failure behavior and maintenance policy
 must move together. Renaming a candidate package or retaining a successful pairwise
 test report cannot supply the missing product contracts above.
+The [upgrade and maintenance contract](UPGRADE_MAINTENANCE_V1.md) now records the
+current reader/writer matrix, original-state replacement procedure, existing
+Witness compatibility and remaining format/maintenance admission requirements.
 
 
 Native first-key publication now stages complete wrapping/signing images and uses
@@ -734,3 +765,71 @@ inferred from names. Post-publication live-policy closure is checked before an
 anchored journal owner escapes. This does not close orphan maintenance, legacy
 migration, actual archive/foreign/platform consumers, full recovery analysis or
 release admission.
+
+The shared host now has a versioned, continuously leased publication attempt and
+an explicit bounded reclamation API plus `qperiapt publication-reclaim`. The
+[v2 maintenance contract](../PRIVATE_PUBLICATION_MAINTENANCE.md) records its exact
+auxiliary format, original-result recovery, refusal of legacy/incomplete controls
+and retention policy. It addresses the live-publication/cleanup race and empty
+unpublished payload boundary without relaxing ordinary store admission. This new
+shared SDK/CLI source has its own
+[native maintenance checkpoint](../../research/sdk-alpha1/evidence/20261104-managed-publication-maintenance/README.md):
+12 fresh archives, four outside-checkout public API consumer tests and the actual
+extracted Apple-Silicon maintenance command, with original cleanup bytes and
+results retained. Earlier cohorts do not qualify it. The subsequent
+[installed-cohort checkpoint](../../research/sdk-alpha1/evidence/20261104-continuity-installed-maintenance/README.md)
+passes the archive-derived Rust consumers in both profiles and all 25 commands
+of a freshly installed independent wheel using the new native counterpart.
+It also records 1,488 candidate tests and 31 sealed-SDK tests per native profile:
+unfiltered Release and the complete existing Debug partition union. The original
+90-minute job budgets and captured source inputs remain unchanged.
+The earlier 600-second diagnostic observations remain timed out; their focused
+88-case result was not an aggregate pass. At that checkpoint, Windows runtime,
+other supported platform consumers, legacy-residue disposition and final product
+admission remained separate. The later [hosted Windows qualification](#hosted-windows-qualification-2026-11-06)
+closes that cohort's Windows runtime gap.
+
+The subsequent [complete installed Rust/C checkpoint](../../research/sdk-alpha1/evidence/20261104-continuity-c-maintenance/README.md)
+passes both existing profiles on Apple Silicon with the same maintenance SDK
+archives and unchanged runtime inputs. It includes all original lifecycle/fault
+scenarios, strict Clippy, final source/binary checks and the independent OpenSSL
+carrier: exact server count 146, client count 2 and four pre-store rejections in
+each profile. The full run remains inside its original 150-minute parent budget.
+This closes that local Rust/C cohort; the foreign/platform and final release
+boundaries above remain separate.
+
+The [installed Apple/Swift maintenance checkpoint](../../research/sdk-alpha1/evidence/20261105-continuity-swift-maintenance/README.md)
+then passes the full existing Swift Debug/Release qualifiers and Rust 1.90
+minimum-root regression over the unchanged C foundation. The extracted Apple
+package runs its macOS arm64 owner probe and builds arm64 iOS device/simulator
+consumers. Its three-arm64-target inventory leaves the retained x86_64 iOS
+simulator packaging requirement open; iOS builds do not establish iOS execution.
+The completed runtime receipts remain tied to their original source and package.
+The remaining platform matrix, final CI and product admission are not closed.
+
+The subsequent [four-target Apple package checkpoint](../../research/sdk-alpha1/evidence/20261105-continuity-ios-simulator-matrix/README.md)
+closes that local packaging omission. It builds all four native targets, binds
+both simulator payloads byte-for-byte into one fat slice, runs the extracted
+macOS arm64 owner probe and verifies separate device, arm64-simulator and
+x86_64-simulator consumer builds and link maps. Only Apple packaging helpers,
+their README and the CI target inventory changed; the original full Swift
+lifecycle cohort keeps its own identity. iOS runtime, hosted CI and final
+product admission remain separate.
+
+The [installed Kotlin/JVM maintenance checkpoint](../../research/sdk-alpha1/evidence/20261105-continuity-kotlin-maintenance/README.md)
+passes both full existing profiles over that unchanged native foundation, with
+Serial and G1 lifecycle/GC paths, strict owner-test and public-artifact readback,
+and all expected loader/access rejections. Its 229 top-level receipts include
+six reused native-build receipts; the 223 new commands contain 30 intentional
+negative-control exits. Source differences from the current local tip are
+explicitly recorded. This closes the named macOS arm64 Kotlin cohort, without
+claiming Android, another JVM, hosted CI or final-candidate qualification.
+
+The [maintenance-cohort program replacement](../../research/sdk-alpha1/evidence/20261104-maintenance-program-upgrade/README.md)
+additionally verifies original-state reopening across the previous installed SDK
+and the new maintenance cohort, with 32 real process cuts, 29 program switches
+and both sides of an unknown Witness mutation. The complete raw-message reader
+and 18 negative controls pass. The retained outer inventory-check failure and
+its subsequent exact wheel/controller readback are distinguished from the
+successful runtime commands. This is a finite same-format replacement edge;
+it does not admit arbitrary downgrades or close final product/platform admission.

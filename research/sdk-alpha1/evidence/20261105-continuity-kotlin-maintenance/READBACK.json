@@ -1,0 +1,1745 @@
+{
+  "all_selected_inputs_identical_to_current_main": false,
+  "captured_utc": "2026-11-05T07:03:03.836869+00:00",
+  "compatibility_scope": "Selected native production, C/Kotlin runtime and Kotlin qualifier inputs are unchanged. Differences are CI export/artifact ordering, Apple packaging/consumer support, and candidate test-only sources. This is the ff072bd6 cohort, not a new full-suite or final-candidate qualification.",
+  "completed": true,
+  "component_timeout_seconds": 900,
+  "current_main_commit": "852c3108927c7248fa356e2092364b860268a8a3",
+  "current_workflow_sha256": "b5ab0d9cb7ebfb27d3296a479c61e5de330b961174db4bf6a2db5b7572086a0d",
+  "gate_elapsed_seconds": 14684.180560749955,
+  "native_foundation_reused": true,
+  "native_foundation_unchanged": true,
+  "new_top_level_commands": 223,
+  "not_claimed": [
+    "Hosted CI completion",
+    "Android host JNI or Android device/emulator qualification",
+    "GNU/Linux runtime",
+    "Physical power loss",
+    "Current candidate complete native suite",
+    "Formal Continuity product ABI admission",
+    "External review",
+    "Formal release"
+  ],
+  "observed_returncodes": {
+    "0": 199,
+    "1": 30
+  },
+  "output_bytes": 591974470,
+  "output_files": 42997,
+  "owner_test_reports_rechecked": {
+    "debug": {
+      "suites": 15,
+      "tests": 79
+    },
+    "publication-build": {
+      "suites": 15,
+      "tests": 79
+    },
+    "release": {
+      "suites": 15,
+      "tests": 79
+    }
+  },
+  "public_manifests": [
+    {
+      "files": 139,
+      "path": "kotlin-account-cleanup/debug/public/PUBLIC_FILES.json",
+      "sha256": "c926928df6d9d81c7c788233ed81beab5f6ee5d2b4b013806196e82165d2f16b"
+    },
+    {
+      "files": 139,
+      "path": "kotlin-account-cleanup/release/public/PUBLIC_FILES.json",
+      "sha256": "c025d617bdc20f8a3287206e56b855962c93b9afc260440b6d0e776d448e980b"
+    },
+    {
+      "files": 70,
+      "path": "kotlin-account-delivery-public/debug/PUBLIC_FILES.json",
+      "sha256": "9cd9868ea14d4986e4cfaa98455925e745556e3f86cba545350021d26421a5f4"
+    },
+    {
+      "files": 70,
+      "path": "kotlin-account-delivery-public/release/PUBLIC_FILES.json",
+      "sha256": "8f8fed8efba6fe411711cdd90d4360ad884fa0ecc79bcbf63bc4aae608e24d45"
+    },
+    {
+      "files": 91,
+      "path": "kotlin-account-tls-loss-public/debug/PUBLIC_FILES.json",
+      "sha256": "fb0ef446a53375195274a94e79d1e63f3af590570cd2772d9558784534a2d4e5"
+    },
+    {
+      "files": 91,
+      "path": "kotlin-account-tls-loss-public/release/PUBLIC_FILES.json",
+      "sha256": "84b7cb8a6b663bcca994c1347b6b1418c569cd1cadbebc3db2a42901a97d331d"
+    },
+    {
+      "files": 68,
+      "path": "kotlin-account-tls-public/debug/PUBLIC_FILES.json",
+      "sha256": "b8a1939710088a34c80b89ab8321590abc9946c90ebad3b63839d535bb34fb72"
+    },
+    {
+      "files": 68,
+      "path": "kotlin-account-tls-public/release/PUBLIC_FILES.json",
+      "sha256": "d86bd95c923c59be8574e84f2bd9b051145d4a90731b2b980b67427e9cba50db"
+    },
+    {
+      "files": 68,
+      "path": "kotlin-account-witness-public/debug/PUBLIC_FILES.json",
+      "sha256": "3ee6dff6b81e4594921a64c76c4e08b47a9bf0f73579af4943e00fcb8e54cf13"
+    },
+    {
+      "files": 68,
+      "path": "kotlin-account-witness-public/release/PUBLIC_FILES.json",
+      "sha256": "4327ae74791b5283ad4c1eb70c52780b45c22d282b266cc65515cd895a757b4f"
+    },
+    {
+      "files": 70,
+      "path": "kotlin-own-account-delivery-public/debug/PUBLIC_FILES.json",
+      "sha256": "a46ba81840248240ed318fbe4ba7bd1e06cf347c9025d34ecfe9fc46664c6d77"
+    },
+    {
+      "files": 70,
+      "path": "kotlin-own-account-delivery-public/release/PUBLIC_FILES.json",
+      "sha256": "f7510cc452f6487aa0e43b8b72fe82e98b41fdbea712d8c926e853d3adf5067c"
+    },
+    {
+      "files": 91,
+      "path": "kotlin-own-account-tls-loss-public/debug/PUBLIC_FILES.json",
+      "sha256": "37ecf56293ac81fab761b613032df2fbd69c9da37d11f80c9e6555b0c77fb676"
+    },
+    {
+      "files": 91,
+      "path": "kotlin-own-account-tls-loss-public/release/PUBLIC_FILES.json",
+      "sha256": "3c035447998e60ee5a20556152a45badd9cc75a22f209b38f2e82afd64e6b2a4"
+    },
+    {
+      "files": 73,
+      "path": "kotlin-public/account/debug/G1/PUBLIC_FILES.json",
+      "sha256": "dbc99e23ea2fb8e46a66135395ab49affd6f92c4f432b036a69d7334d39d6722"
+    },
+    {
+      "files": 73,
+      "path": "kotlin-public/account/debug/Serial/PUBLIC_FILES.json",
+      "sha256": "c1322f5dc926bbe5bb12bd7c87fa122c6a606613d028d73d67095bdb192a5bdb"
+    },
+    {
+      "files": 73,
+      "path": "kotlin-public/account/release/G1/PUBLIC_FILES.json",
+      "sha256": "a8e3f6e5b436cc8f674ee57e67a6ef600aa95c2cca5e62357a8911cd8c18982f"
+    },
+    {
+      "files": 73,
+      "path": "kotlin-public/account/release/Serial/PUBLIC_FILES.json",
+      "sha256": "d057cc22db371d76154e10336a9c42647f8f35d7bcffdc24f7a4a7854b25f602"
+    },
+    {
+      "files": 31,
+      "path": "kotlin-public/client/debug/PUBLIC_FILES.json",
+      "sha256": "f0c619d18673abd08b9e4f35a8147085b23944df003608bb8ae636bc1e33a76f"
+    },
+    {
+      "files": 31,
+      "path": "kotlin-public/client/release/PUBLIC_FILES.json",
+      "sha256": "1938b716b320ae1ca6d61b986001e9d745c858b49323eebc67ed108fe722f6ac"
+    },
+    {
+      "files": 47,
+      "path": "kotlin-public/inflight-g1/debug/PUBLIC_FILES.json",
+      "sha256": "868e0cedf48f67715a37991f01ccf02c65cda7d7a0096c0034f34639306345ca"
+    },
+    {
+      "files": 47,
+      "path": "kotlin-public/inflight-g1/release/PUBLIC_FILES.json",
+      "sha256": "3b6366086cafbcb7c7035a1ee5a761286ba61ff7232c4d45e1536bec6edafdd4"
+    },
+    {
+      "files": 47,
+      "path": "kotlin-public/inflight-serial/debug/PUBLIC_FILES.json",
+      "sha256": "821f7d69b85a9d15a8183c213557f64b83d2398906bd264abf333277a68cd01a"
+    },
+    {
+      "files": 47,
+      "path": "kotlin-public/inflight-serial/release/PUBLIC_FILES.json",
+      "sha256": "f07cff51f5b208d2d33819f7d83a25da077295d42186088ab7880ba1a25914ca"
+    },
+    {
+      "files": 31,
+      "path": "kotlin-public/recovery/debug/PUBLIC_FILES.json",
+      "sha256": "4c4c40a498aaf2def71d61e868fd1390b204ac3b7504b13baee621199ad9191f"
+    },
+    {
+      "files": 31,
+      "path": "kotlin-public/recovery/release/PUBLIC_FILES.json",
+      "sha256": "c3c9c59f1e2d6f48480f6f35a8aee2835701f210c1b3c40b3d70a0195dbaab11"
+    },
+    {
+      "files": 24,
+      "path": "kotlin-public/restore/debug/PUBLIC_FILES.json",
+      "sha256": "b35e5176ca9378759b3b9042961ced74cef189196cb3124f1d9502250b1f075a"
+    },
+    {
+      "files": 24,
+      "path": "kotlin-public/restore/release/PUBLIC_FILES.json",
+      "sha256": "8890e773c435db6cc9631e25428fba37b187a3992d0c2fdca4a338f3b0647cc0"
+    },
+    {
+      "files": 39,
+      "path": "kotlin-public/restore-opening/debug/PUBLIC_FILES.json",
+      "sha256": "8c3e73cdb39c9cdd3345bb6b1070b252942a493b5c0576c6cac36b3849ab2029"
+    },
+    {
+      "files": 39,
+      "path": "kotlin-public/restore-opening/release/PUBLIC_FILES.json",
+      "sha256": "89c147530634d5dea989fc74d4fa05e8fe169285e157cd476069e47dcd467e92"
+    },
+    {
+      "files": 32,
+      "path": "kotlin-public/server/debug/PUBLIC_FILES.json",
+      "sha256": "2134adabc1eacf11e65021ff62a1ee5c732222447bb75ef9943ab55b49a2ce6e"
+    },
+    {
+      "files": 32,
+      "path": "kotlin-public/server/release/PUBLIC_FILES.json",
+      "sha256": "e010cf76d6b0293a8202fbb2254486833ea8197072e8fb51f9f82345d7f03999"
+    },
+    {
+      "files": 342,
+      "path": "kotlin-public/sync-faults/debug/PUBLIC_FILES.json",
+      "sha256": "1db33e4dc95f9eebeabe74a90786f2089f8958945bb926df009fbccaf04745ab"
+    },
+    {
+      "files": 342,
+      "path": "kotlin-public/sync-faults/release/PUBLIC_FILES.json",
+      "sha256": "582e928b56e7754d7ff00956ab5ac26fb8ebe63e25a51b8d54dece21d8faa603"
+    },
+    {
+      "files": 34,
+      "path": "kotlin-public/witness-mutual-tls/debug/PUBLIC_FILES.json",
+      "sha256": "bbfbe638308bdbd5d1fe333e867867060281d929395a5ef698227f990162fe24"
+    },
+    {
+      "files": 34,
+      "path": "kotlin-public/witness-mutual-tls/release/PUBLIC_FILES.json",
+      "sha256": "fd18c9c4b15e44bf6dc22b1aabcc49a17ca6334884f08b6344f31d0ea97a3c9c"
+    },
+    {
+      "files": 37,
+      "path": "kotlin-public/witness-opening/debug/PUBLIC_FILES.json",
+      "sha256": "d5e78b3d1278a823845699a9cc352e6a4b799106e3201f6aed5d8258df42184d"
+    },
+    {
+      "files": 37,
+      "path": "kotlin-public/witness-opening/release/PUBLIC_FILES.json",
+      "sha256": "ed53088b33b481c5050fbe4c9a68d871b71c116297fc7e3d3435c7877d450539"
+    },
+    {
+      "files": 39,
+      "path": "kotlin-public/witness-opening-interrupt/debug/PUBLIC_FILES.json",
+      "sha256": "4e353244d77d7fabb3882146d9bfc5ebc292069cc69ed518ea34f603158f2284"
+    },
+    {
+      "files": 39,
+      "path": "kotlin-public/witness-opening-interrupt/release/PUBLIC_FILES.json",
+      "sha256": "e6cbccd88b303278497ccf1efaead5e3f0b0647558b7c2660f0b6c8c103ca6a7"
+    },
+    {
+      "files": 59,
+      "path": "kotlin-public/witness-signed-tcp/debug/PUBLIC_FILES.json",
+      "sha256": "c5d3462638e5285f10ee5d5c4120e21a821a55332c985f9d54b007a2f545203e"
+    },
+    {
+      "files": 59,
+      "path": "kotlin-public/witness-signed-tcp/release/PUBLIC_FILES.json",
+      "sha256": "8220b62c69bccbc5997d9064143017cd23e344e33f6805a92fba1c90345c6b08"
+    },
+    {
+      "files": 151,
+      "path": "kotlin-root-public/debug-g1-adoption/PUBLIC_FILES.json",
+      "sha256": "98fc8e0f8d1426aa21e60ad5eb2a7f0aaf1c7cc68b85220f09cf9e4e9e51d2d5"
+    },
+    {
+      "files": 164,
+      "path": "kotlin-root-public/debug-g1-bound-transition/PUBLIC_FILES.json",
+      "sha256": "b9763b3b81bb148efc3ed6ac501813845a2171d86055878d638ffa61cce39b7d"
+    },
+    {
+      "files": 155,
+      "path": "kotlin-root-public/debug-g1-original/PUBLIC_FILES.json",
+      "sha256": "9730e130d8b93453abe1fcd111d460cc50540452bc117529bab9fd665dc174d6"
+    },
+    {
+      "files": 159,
+      "path": "kotlin-root-public/debug-g1-transition/PUBLIC_FILES.json",
+      "sha256": "a459269ae3c2cfe3a88733223a8d3ab73343aad732f7a3819c8d7b46a9721393"
+    },
+    {
+      "files": 151,
+      "path": "kotlin-root-public/debug-serial-adoption/PUBLIC_FILES.json",
+      "sha256": "06e7793ca16db062f89788e50a6a4306b4c3d5d258de16f69e37ab8963d9a66a"
+    },
+    {
+      "files": 164,
+      "path": "kotlin-root-public/debug-serial-bound-transition/PUBLIC_FILES.json",
+      "sha256": "f1b906fcf53abc53e51e3d49b02edad1bc77ecd70fb3a04284492e8910b461d3"
+    },
+    {
+      "files": 155,
+      "path": "kotlin-root-public/debug-serial-original/PUBLIC_FILES.json",
+      "sha256": "0eb1d3b497c4c3d608f89ee42df3dce8557fa9a1271c233f52a07259b403d73e"
+    },
+    {
+      "files": 159,
+      "path": "kotlin-root-public/debug-serial-transition/PUBLIC_FILES.json",
+      "sha256": "814d3e66a406754387a6e2b0fb4d65f65bc0a45588bd8e4baf4fea77c9677e2d"
+    },
+    {
+      "files": 151,
+      "path": "kotlin-root-public/release-g1-adoption/PUBLIC_FILES.json",
+      "sha256": "6d38ae24bcc58dd2528bc14409d7cfc2e674b9a77990e34eb2131280dfaec39c"
+    },
+    {
+      "files": 164,
+      "path": "kotlin-root-public/release-g1-bound-transition/PUBLIC_FILES.json",
+      "sha256": "e0e1a8f776beabbf0063187768c583629103ef961ca3a52a92cb3da1bc34698c"
+    },
+    {
+      "files": 155,
+      "path": "kotlin-root-public/release-g1-original/PUBLIC_FILES.json",
+      "sha256": "1ca4690bfe9024f66f816e8d591619d5ea684e97e45748220eab2fd2fc988455"
+    },
+    {
+      "files": 159,
+      "path": "kotlin-root-public/release-g1-transition/PUBLIC_FILES.json",
+      "sha256": "28ba3fe04bef80e0b87ea17fd9754a1d92368f1032701fa20bc5c548b9f5b67a"
+    },
+    {
+      "files": 151,
+      "path": "kotlin-root-public/release-serial-adoption/PUBLIC_FILES.json",
+      "sha256": "d9382d5b39f3c3124e3ec91787fdedbc14d315c99eaa785bbfef3699cdf07201"
+    },
+    {
+      "files": 164,
+      "path": "kotlin-root-public/release-serial-bound-transition/PUBLIC_FILES.json",
+      "sha256": "249fb7a5eeb4ad34f95d3397bbcd4e6292fe129f4cd327a040d30ce5a15c084e"
+    },
+    {
+      "files": 155,
+      "path": "kotlin-root-public/release-serial-original/PUBLIC_FILES.json",
+      "sha256": "45b4c59fb5a42ac0452370826b59eb0862fd0ecdf28c38429e55a78cc54e9a62"
+    },
+    {
+      "files": 159,
+      "path": "kotlin-root-public/release-serial-transition/PUBLIC_FILES.json",
+      "sha256": "c459c72e7b22b37ad776f6d77d2a845dede4cef05175580f77c7ae2b0070fa3b"
+    },
+    {
+      "files": 753,
+      "path": "kotlin-setup-fault-public/debug/PUBLIC_FILES.json",
+      "sha256": "47f19fa29796d2b5ffda35ca4518bad5e8747f59fc6980c112410f659d91739e"
+    },
+    {
+      "files": 753,
+      "path": "kotlin-setup-fault-public/release/PUBLIC_FILES.json",
+      "sha256": "a74214b507b8aec2bff3bb53a253fbb6d67f94c7c5b15fd7188f5e5f67cd96f3"
+    },
+    {
+      "files": 783,
+      "path": "kotlin-setup-io-public/debug/PUBLIC_FILES.json",
+      "sha256": "0624b06ba979d43388fdd6026088f8fd0b42271c65798831ea5ee31e6b3de844"
+    },
+    {
+      "files": 783,
+      "path": "kotlin-setup-io-public/release/PUBLIC_FILES.json",
+      "sha256": "60a6a474c3fa47e18f54d11917a2084515f6b3d6e53143a23d39a1c2fc31a78d"
+    },
+    {
+      "files": 20,
+      "path": "kotlin-setup-local-public/debug/PUBLIC_FILES.json",
+      "sha256": "65d6159d7aeceb04944cd3eede2696e36bba3b0711bd80509e6ea0128fa862f6"
+    },
+    {
+      "files": 20,
+      "path": "kotlin-setup-local-public/release/PUBLIC_FILES.json",
+      "sha256": "7c3a7129b4374bb27100284928698083fa84b425b64c4c3e50cb5fa430f1ab11"
+    },
+    {
+      "files": 933,
+      "path": "kotlin-setup-witness-fault-public/mutual-tls/exit/debug/PUBLIC_FILES.json",
+      "sha256": "30958dba5462c43d5accfd1d24585b7392989a825565a49d5268150e23c22739"
+    },
+    {
+      "files": 933,
+      "path": "kotlin-setup-witness-fault-public/mutual-tls/exit/release/PUBLIC_FILES.json",
+      "sha256": "17094feba350e1e9d4bfe6ffe673a63d4e57d741e45f2676bd21f36edf48dbe5"
+    },
+    {
+      "files": 963,
+      "path": "kotlin-setup-witness-fault-public/mutual-tls/io/debug/PUBLIC_FILES.json",
+      "sha256": "4ab5981a5834aa4c66f18959f5372dc664471b06d17993e3dcfe13edb76bc441"
+    },
+    {
+      "files": 963,
+      "path": "kotlin-setup-witness-fault-public/mutual-tls/io/release/PUBLIC_FILES.json",
+      "sha256": "13af06cec3541feb41cb75459e39b14eac03bc7ee736aae5d997654523b184d1"
+    },
+    {
+      "files": 888,
+      "path": "kotlin-setup-witness-fault-public/signed-tcp/exit/debug/PUBLIC_FILES.json",
+      "sha256": "79f1d16124edf03b0c9af5fc2eb3d109734c4420e14a810f3b02be27e2226478"
+    },
+    {
+      "files": 888,
+      "path": "kotlin-setup-witness-fault-public/signed-tcp/exit/release/PUBLIC_FILES.json",
+      "sha256": "68e0d9b26bdb64368ac0c3412b45d1bc26011f883f51e8013b29eebaf3df076a"
+    },
+    {
+      "files": 918,
+      "path": "kotlin-setup-witness-fault-public/signed-tcp/io/debug/PUBLIC_FILES.json",
+      "sha256": "f3554642c9a5a3ecf5799f43fd351115ac6f643bba1b7053fc9e853b70c00511"
+    },
+    {
+      "files": 918,
+      "path": "kotlin-setup-witness-fault-public/signed-tcp/io/release/PUBLIC_FILES.json",
+      "sha256": "28fec0ff7337d48bd359e95b5a9efbd0190439eb26a8645189e6e263b51b8b10"
+    },
+    {
+      "files": 36,
+      "path": "kotlin-setup-witness-public/debug/PUBLIC_FILES.json",
+      "sha256": "60b9f691413bfa2b0372f70dcdae0831befe7d1680d43fa94d8fce2880724015"
+    },
+    {
+      "files": 36,
+      "path": "kotlin-setup-witness-public/release/PUBLIC_FILES.json",
+      "sha256": "ec2775dfddbd9a17926e64e123a5638600a9f18b25bcd1ad53fbb95ee25fdb3e"
+    }
+  ],
+  "publication_performed": false,
+  "publication_readback": {
+    "debug-g1": {
+      "archive_sha256": "d0b4078c97b2cb87f7eddc7fc1456445abb96124ccef83f9a8ceb4d7f1e2caed",
+      "exact_publication_readback": true,
+      "files": 85,
+      "native_library_sha256": "272231b59197b1dea0fb736e55bab5ac1c6348a98c71c03dd8398923967770e6"
+    },
+    "debug-serial": {
+      "archive_sha256": "d0b4078c97b2cb87f7eddc7fc1456445abb96124ccef83f9a8ceb4d7f1e2caed",
+      "exact_publication_readback": true,
+      "files": 85,
+      "native_library_sha256": "272231b59197b1dea0fb736e55bab5ac1c6348a98c71c03dd8398923967770e6"
+    },
+    "release-g1": {
+      "archive_sha256": "dd765cc9859a356c628845ab010162f8a02d58b70b001f01425219ed1e80a338",
+      "exact_publication_readback": true,
+      "files": 85,
+      "native_library_sha256": "bedf8cb04fca3b66a9eeb916482257b933f095b39121e2c3a8894655fb63d385"
+    },
+    "release-serial": {
+      "archive_sha256": "dd765cc9859a356c628845ab010162f8a02d58b70b001f01425219ed1e80a338",
+      "exact_publication_readback": true,
+      "files": 85,
+      "native_library_sha256": "bedf8cb04fca3b66a9eeb916482257b933f095b39121e2c3a8894655fb63d385"
+    }
+  },
+  "release_claim_eligible": false,
+  "returncode_scope": "Expected nested fault/refusal exits remain retained and are evaluated by the unchanged scenario validators.",
+  "reused_native_build_commands": 6,
+  "scope": "Both existing installed Kotlin/JVM profiles over identical previously completed Rust/C foundation. Same-host macOS arm64; no Android runtime, hosted CI or final release claim.",
+  "sdk_producer_commit": "f560d803c43a24fff222daa5e5e5bd623bfdf874",
+  "sdk_report_sha256": "93fbef9dace1af6550a85095f6d2392285197a8fe589838f4d6f8447ba03c4f8",
+  "selected_input_additions": {
+    "research/continuity-identity-candidate/src/durable/messages/tests/classical_alias.rs": "2bdedc294d4907d5ae418722c428ade9c2b2f67da252cf76154a2eac6d881cb1",
+    "research/continuity-identity-candidate/src/durable/messages/tests/reservation_disclosure/aggregate_copy.rs": "d57d9c1fb561d1a37e5c9fc91a0881bf6eda7c961842cbb82b49072e526a4751"
+  },
+  "selected_input_changes": {
+    ".github/workflows/ci.yml": {
+      "current": "b5ab0d9cb7ebfb27d3296a479c61e5de330b961174db4bf6a2db5b7572086a0d",
+      "qualified": "c3b730598bca0fdefe63d9c551038c76f58f57e243763031315ef9d87b2979e6"
+    },
+    "artifact/continuity_apple_consumer.py": {
+      "current": "463f116a8ab583adbfbbe34f90e7c89c9146c62fab76e80b45f33b2215591d30",
+      "qualified": "c857a35182232a2b3c0552b3f3bc013fd461cac2c460a12f21b7a23f906e9321"
+    },
+    "artifact/continuity_apple_package.py": {
+      "current": "f78a425b00520e348e96be34299896229c75ad7bc1cd7d08f20765cfc2b57836",
+      "qualified": "a21facf4c34557ddafd6369dce0e37ba6a2391fb633d4e5e9bd8f57d2121567d"
+    },
+    "bindings/swift/ContinuityPackageConsumer/ApplePackageREADME.md": {
+      "current": "3529b831ff3470729f238c8be6213815f4415b4f0a0cffed573a46dcb2657fc2",
+      "qualified": "16925954d7ba90409158fd50d1f671061789c810540c442393a6b2b42df9de4d"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/tests.rs": {
+      "current": "3f1ef2cf7cdbb65262c3f7406aa8238d41a327b2789b2a96c95d3e8f4466ada5",
+      "qualified": "9f925fe143ba8842f8a9ca9c6b871fcf5f0b5fb3a4ad01d6f99f9b5fc5404e87"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/tests/reservation_disclosure.rs": {
+      "current": "43923f30930e2b5ff2b97992c0dc8a3e0d033df55b77c174fe8ad566be65c68b",
+      "qualified": "008edcdb1b01d683e7591c6fa14d9b8043564dccb344d04236dbc8051a11bdb2"
+    }
+  },
+  "source_commit": "ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20",
+  "timeout_seconds": 18000,
+  "top_level_command_receipts": [
+    {
+      "receipt": "c-enrollment-build-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": true
+    },
+    {
+      "receipt": "c-enrollment-build-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": true
+    },
+    {
+      "receipt": "c-enrollment-witness-build-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": true
+    },
+    {
+      "receipt": "c-enrollment-witness-build-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": true
+    },
+    {
+      "receipt": "c-retirement-build-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": true
+    },
+    {
+      "receipt": "c-retirement-build-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": true
+    },
+    {
+      "receipt": "kotlin-account-delivery-inventory-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-delivery-inventory-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-delivery-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-delivery-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-g1-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-g1-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-reconciliation-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-reconciliation-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-reconciliation-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-reconciliation-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-serial-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-serial-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-tls-inventory-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-tls-inventory-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-tls-loss-inventory-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-tls-loss-inventory-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-tls-loss-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-tls-loss-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-tls-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-tls-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-witness-inventory-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-witness-inventory-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-witness-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-account-witness-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-build-sdk.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-client-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-client-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-configuration-kotlin-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-configuration-kotlin-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-configuration-kotlin-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-configuration-kotlin-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-credential-renewal-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-credential-renewal-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-credential-renewal-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-credential-renewal-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-enrollment-local-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-enrollment-local-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-enrollment-local-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-enrollment-local-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-enrollment-mutual-tls-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-enrollment-mutual-tls-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-enrollment-mutual-tls-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-enrollment-mutual-tls-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-enrollment-signed-tcp-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-enrollment-signed-tcp-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-enrollment-signed-tcp-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-enrollment-signed-tcp-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-gc-g1-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-gc-g1-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-gc-serial-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-gc-serial-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-gradle-version.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-incompatible-library-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-incompatible-library-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-independent-policy-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-independent-policy-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-independent-policy-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-independent-policy-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-inflight-g1-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-inflight-g1-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-inflight-serial-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-inflight-serial-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-install-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-install-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-java-configuration-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-java-configuration-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-java-module-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-java-module-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-java-version.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-javac-version.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-managed-configuration-kotlin-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-managed-configuration-kotlin-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-managed-configuration-kotlin-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-managed-configuration-kotlin-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-managed-credential-configuration-kotlin-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-managed-credential-configuration-kotlin-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-managed-credential-configuration-kotlin-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-managed-credential-configuration-kotlin-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-native-license-metadata.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-RawAccountAuthorityProbe-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-RawAccountAuthorityProbe-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-RawConfigurationKeyProbe-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-RawConfigurationKeyProbe-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-RawConfigurationProbe-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-RawConfigurationProbe-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-denied-native-access-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-denied-native-access-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-directory-library-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-directory-library-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-missing-library-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-missing-library-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-missing-property-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-missing-property-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-missing-symbol-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-missing-symbol-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-raw-device-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-raw-device-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-raw-enrollment-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-raw-enrollment-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-raw-native-owner-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-raw-native-owner-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-raw-owner-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-raw-owner-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-raw-retired-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-raw-retired-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-raw-setup-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-raw-setup-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-relative-path-debug.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-negative-relative-path-release.json",
+      "returncode": 1,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-own-account-delivery-inventory-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-own-account-delivery-inventory-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-own-account-delivery-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-own-account-delivery-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-own-account-tls-loss-inventory-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-own-account-tls-loss-inventory-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-own-account-tls-loss-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-own-account-tls-loss-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-owner-tests-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-owner-tests-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-peer-configuration-kotlin-debug-g1-lifetime.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-peer-configuration-kotlin-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-peer-configuration-kotlin-debug-serial-lifetime.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-peer-configuration-kotlin-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-peer-configuration-kotlin-release-g1-lifetime.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-peer-configuration-kotlin-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-peer-configuration-kotlin-release-serial-lifetime.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-peer-configuration-kotlin-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-peer-tls-preprocessing-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-peer-tls-preprocessing-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-peer-tls-preprocessing-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-peer-tls-preprocessing-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-debug-g1-signed-fixed.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-debug-g1-signed-recoverable.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-debug-g1-tls-fixed.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-debug-g1-tls-recoverable.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-debug-serial-signed-fixed.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-debug-serial-signed-recoverable.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-debug-serial-tls-fixed.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-debug-serial-tls-recoverable.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-release-g1-signed-fixed.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-release-g1-signed-recoverable.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-release-g1-tls-fixed.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-release-g1-tls-recoverable.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-release-serial-signed-fixed.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-release-serial-signed-recoverable.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-release-serial-tls-fixed.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-policy-credential-kotlin-release-serial-tls-recoverable.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-publication-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-publication-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-publication-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-publication-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-recovery-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-recovery-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-restore-opening-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-restore-opening-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-restore-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-restore-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-retirement-trace-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-retirement-trace-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-retirement-trace-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-retirement-trace-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-debug-g1-adoption.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-debug-g1-bound-transition.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-debug-g1-original.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-debug-g1-transition.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-debug-serial-adoption.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-debug-serial-bound-transition.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-debug-serial-original.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-debug-serial-transition.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-release-g1-adoption.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-release-g1-bound-transition.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-release-g1-original.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-release-g1-transition.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-release-serial-adoption.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-release-serial-bound-transition.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-release-serial-original.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-root-release-serial-transition.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-server-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-server-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-setup-local-inventory-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-setup-local-inventory-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-setup-local-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-setup-local-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-setup-witness-inventory-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-setup-witness-inventory-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-setup-witness-trace-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-setup-witness-trace-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witness-mutual-tls-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witness-mutual-tls-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witness-opening-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witness-opening-interrupt-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witness-opening-interrupt-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witness-opening-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witness-signed-tcp-debug.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witness-signed-tcp-release.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-cancellation-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-cancellation-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-cancellation-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-cancellation-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-commit-error-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-commit-error-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-commit-error-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-commit-error-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-credential-renewal-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-credential-renewal-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-credential-renewal-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-credential-renewal-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-policy-cancellation-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-policy-cancellation-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-policy-cancellation-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-policy-cancellation-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-policy-continuation-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-policy-continuation-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-policy-continuation-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-policy-continuation-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-policy-expiry-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-policy-expiry-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-policy-expiry-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-policy-expiry-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-roster-debug-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-roster-debug-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-roster-release-g1.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    },
+    {
+      "receipt": "kotlin-witnessed-roster-release-serial.json",
+      "returncode": 0,
+      "reused_native_build_receipt": false
+    }
+  ],
+  "upload_patterns": [
+    "*.crate",
+    "continuity-android-classes.jar",
+    "android-jni-*.public",
+    "android-jni-*-inputs/**/*.public",
+    "android-jni-*-policy-credential-*/**",
+    "android-jni-*-joint-policy-*/**",
+    "android-jni-*-witness-joint-*/**",
+    "android-jni-*-joint-cycle-*/**",
+    "android-jni-*-root-*/**",
+    "android-jni-*-retirement/**",
+    "android-jni-*-roster-*/**",
+    "android-jni-*-policy-roster/**",
+    "android-jni-*-recovery-first-use-public/**",
+    "android-jni-*-recovery-oracle-*/**",
+    "android-jni-*-recovery-witness-calls/**",
+    "android-jni-*-recovery-result-calls/**",
+    "*.zip",
+    "*.json",
+    "*.stdout",
+    "*.stderr",
+    "apple-package/**",
+    "swift-minimum-root/**",
+    "*.events",
+    "debug-roster-renewal-public/**",
+    "release-roster-renewal-public/**",
+    "debug-device-replacement-public/**",
+    "release-device-replacement-public/**",
+    "debug-device-retirement-public/**",
+    "release-device-retirement-public/**",
+    "debug-enrollment-public/**",
+    "release-enrollment-public/**",
+    "debug-enrollment-reopen-public/**",
+    "release-enrollment-reopen-public/**",
+    "c-enrollment-public/**",
+    "c-publication-public/**",
+    "configuration-public/**",
+    "managed-configuration-public/**",
+    "managed-credential-configuration-public/**",
+    "policy-credential-*-public/**",
+    "c-managed-public/**",
+    "peer-configuration-public/**",
+    "c-retirement-public/**",
+    "c-root-public/**",
+    "c-enrollment-witness-public/**",
+    "c-witnessed-renewal-public/**",
+    "c-witnessed-policy-expiry-public/**",
+    "c-witnessed-cancellation-public/**",
+    "c-witnessed-commit-error-public/**",
+    "swift-witnessed-renewal-public/**",
+    "swift-witnessed-policy-expiry-public/**",
+    "swift-witnessed-cancellation-public/**",
+    "swift-witnessed-commit-error-public/**",
+    "kotlin-witnessed-renewal-public/**",
+    "kotlin-witnessed-policy-expiry-public/**",
+    "kotlin-witnessed-cancellation-public/**",
+    "kotlin-witnessed-commit-error-public/**",
+    "swift-enrollment-public/**",
+    "swift-publication-public/**",
+    "swift-retirement-public/**",
+    "kotlin-enrollment-public/**",
+    "kotlin-publication-public/**",
+    "kotlin-retirement-public/**",
+    "kotlin-*-tests*.xml",
+    "c-opening-public/**",
+    "c-witness-public/**",
+    "c-witness-tls-public/**",
+    "c-witness-openssl-public/**",
+    "c-sync-fault-public/**",
+    "c-restore-public/**",
+    "c-restore-opening-public/**",
+    "c-device-public/**",
+    "c-device-witness-public/**",
+    "c-account-public/**",
+    "c-account-cleanup/**",
+    "swift-account-cleanup/**",
+    "kotlin-account-cleanup/**",
+    "c-account-witness-public/**",
+    "c-account-tls-public/**",
+    "c-account-tls-loss-public/**",
+    "c-own-account-tls-loss-public/**",
+    "c-account-delivery-public/**",
+    "c-own-account-delivery-public/**",
+    "c-setup-local-public/**",
+    "c-setup-witness-public/**",
+    "swift-setup-local-public/**",
+    "swift-setup-witness-public/**",
+    "kotlin-setup-local-public/**",
+    "kotlin-setup-witness-public/**",
+    "c-setup-fault-public/**",
+    "swift-setup-fault-public/**",
+    "kotlin-setup-fault-public/**",
+    "c-setup-io-public/**",
+    "swift-setup-io-public/**",
+    "kotlin-setup-io-public/**",
+    "c-setup-witness-fault-public/**",
+    "swift-setup-witness-fault-public/**",
+    "kotlin-setup-witness-fault-public/**",
+    "swift-account-witness-public/**",
+    "swift-account-tls-public/**",
+    "swift-account-tls-loss-public/**",
+    "swift-own-account-tls-loss-public/**",
+    "swift-account-delivery-public/**",
+    "swift-own-account-delivery-public/**",
+    "kotlin-account-witness-public/**",
+    "kotlin-account-tls-public/**",
+    "kotlin-account-tls-loss-public/**",
+    "kotlin-own-account-tls-loss-public/**",
+    "kotlin-account-delivery-public/**",
+    "kotlin-own-account-delivery-public/**",
+    "swift-public/**",
+    "swift-root-public/**",
+    "kotlin-root-public/**",
+    "kotlin-public/**",
+    "kotlin-inflight-compilation/**",
+    "consumer-Cargo.lock",
+    "c-consumer-Cargo.lock"
+  ]
+}

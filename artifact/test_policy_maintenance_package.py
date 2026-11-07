@@ -21,7 +21,7 @@ class MaintenancePackageTests(unittest.TestCase):
         return {"packages": [{"name": name, "id": name, "source": None, "version": sdk.VERSION,
             "manifest_path": str(self.root / "packages" / f"{name}-{sdk.VERSION}" / "Cargo.toml")}
             for name in sorted(maintenance.RESOLVED_NAMES)],
-            "resolve": {"nodes": [{"id": maintenance.NAME, "features": ["policy-store-migration"]}]}}
+            "resolve": {"nodes": [{"id": maintenance.NAME, "features": list(maintenance.FEATURES)}]}}
 
     def lock(self):
         return ('version = 4\n' + ''.join(
@@ -35,7 +35,7 @@ class MaintenancePackageTests(unittest.TestCase):
         original = self.metadata()
         lock = self.lock()
         maintenance.validate_resolution(original, self.root, lock, lock)
-        for change in ("path", "extra", "version", "source", "feature", "checksum", "missing"):
+        for change in ("path", "extra", "version", "source", "feature", "maintenance-feature", "checksum", "missing"):
             changed = copy.deepcopy(original)
             selected_lock = lock
             if change == "path": changed["packages"][0]["manifest_path"] = "/checkout/Cargo.toml"
@@ -43,6 +43,7 @@ class MaintenancePackageTests(unittest.TestCase):
             if change == "version": changed["packages"][0]["version"] = "0.1.5"
             if change == "source": changed["packages"][0]["source"] = "registry+https://github.com/rust-lang/crates.io-index"
             if change == "feature": changed["resolve"]["nodes"][0]["features"] = []
+            if change == "maintenance-feature": changed["resolve"]["nodes"][0]["features"] = ["policy-store-migration"]
             if change == "checksum": selected_lock = lock.replace(b'a' * 64, b'd' * 64)
             if change == "missing":
                 entries = lock.split(b'[[package]]')

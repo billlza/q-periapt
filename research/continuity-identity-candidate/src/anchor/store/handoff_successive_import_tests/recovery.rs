@@ -145,13 +145,21 @@ fn successive_import_process_loss_preserves_exact_archive_and_decision() {
                 AnchorHandoffTarget::open(&next.db_path(), next.key(), next.approval.clone())
                     .is_err()
             );
-            assert!(fs::read_dir(&next.directory)
+            let attempts: Vec<_> = fs::read_dir(&next.directory)
                 .expect("owned directory")
-                .any(|entry| entry
-                    .expect("entry")
-                    .file_name()
-                    .to_string_lossy()
-                    .starts_with(".private-publication-")));
+                .map(|entry| entry.expect("entry").path())
+                .filter(|path| {
+                    path.file_name()
+                        .expect("leaf")
+                        .to_string_lossy()
+                        .starts_with(".private-attempt-v2-")
+                })
+                .collect();
+            assert_eq!(attempts.len(), 1, "unpublished original attempt retained");
+            let control = attempts.first().expect("original control");
+            for leaf in ["record", "lease", "payload"] {
+                assert!(control.join(leaf).is_file());
+            }
             // This owned fixture never published. Explicit first-use retry keeps
             // the unselected orphan; no automatic reset/recovery is introduced.
             next.provision()

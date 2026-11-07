@@ -20,6 +20,7 @@ from continuity_windows_c_public import CASES, capture_case
 from continuity_windows_root import qualify as qualify_roots
 from continuity_windows_configuration import qualify as qualify_configuration
 from continuity_c_consumer import verify_relay_diagnostics
+import continuity_c_abi as owner_abi
 
 LIB = 'q_periapt_continuity_c_consumer'
 
@@ -44,6 +45,7 @@ def consume(args):
     outside = Path(tempfile.mkdtemp(prefix='qpc-installed-windows-')).resolve()
     consumer, build = outside / 'consumer', outside / 'build'
     bundle.unpack(payload, receipt['files'], consumer, components=components(receipt['versions']))
+    abi_contract = owner_abi.load(consumer)
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(('CARGO_', 'RUST', 'QPC_', 'QPERIAPT_', 'AWS_LC_'))}
     private_root = args.private_root.resolve()
@@ -207,7 +209,8 @@ def consume(args):
                            *flags, '--', '--nocapture'], profile + '-relay-diagnostics')
         verify_relay_diagnostics(diagnostics.encode())
         run(['cargo', 'build', '--locked', '--lib', *flags], profile + '-build')
-        files = {'qpc_owner.h': (consumer / 'qpc_owner.h').read_bytes()}
+        files = {'qpc_owner.h': (consumer / 'qpc_owner.h').read_bytes(),
+                 owner_abi.CONTRACT: (consumer / owner_abi.CONTRACT).read_bytes()}
         for suffix in ('.dll', '.dll.lib'):
             files[LIB + suffix] = (build / profile / (LIB + suffix)).read_bytes()
         zipped = bundle.archive(files)
@@ -218,6 +221,19 @@ def consume(args):
         exports = run(['dumpbin', '/nologo', '/exports', str(installed / (LIB + '.dll'))], profile + '-exports', installed)
         names = re.findall(r'^\s+\d+\s+[0-9A-Fa-f]+\s+[0-9A-Fa-f]+\s+(\S+)\s*$', exports, re.M)
         require(len(names) == len(receipt['exports']) and set(names) == set(receipt['exports']), 'C export set differs')
+        abi_source = installed / 'abi-contract.c'
+        abi_source.write_bytes(owner_abi.c_probe(abi_contract))
+        abi_executable = installed / 'abi-contract.exe'
+        run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',
+             *(['-O2'] if profile == 'release' else ['-O0', '-g']),
+             str(abi_source), '-I', str(installed), str(installed / (LIB + '.dll.lib')),
+             '-o', str(abi_executable)], profile + '-abi-compile', installed)
+        c_layouts = owner_abi.layouts(run([str(abi_executable)], profile + '-abi-c', installed).encode(),
+                                     abi_contract, rust=False)
+        rust_layouts = owner_abi.layouts(run(['cargo', 'test', '--locked', '--lib', *flags,
+                                              owner_abi.TEST, '--', '--exact', '--nocapture', '--test-threads=1'],
+                                             profile + '-abi-rust').encode(), abi_contract, rust=True)
+        owner_abi.compare(c_layouts, rust_layouts, abi_contract)
         # This client sees only the installed public header/import library.
         client_source, effect_test = caller_checks[profile]
         executable = installed / 'first-configuration.exe'
@@ -244,7 +260,10 @@ def consume(args):
                 'C original record read/retention controls did not execute')
         require(all(digest(installed / name) == sha for name, sha in hashes.items()), 'installed C inputs changed')
         result['profiles'][profile] = {'files': hashes, 'zip_sha256': hashlib.sha256(zipped).hexdigest(),
-            'client_sha256': digest(executable), 'header_guard': True, 'cases': sorted(markers)}
+            'client_sha256': digest(executable), 'header_guard': True, 'cases': sorted(markers),
+            'abi_contract': {'completed': True, 'layouts': c_layouts,
+                             'probe_sha256': digest(abi_source), 'executable_sha256': digest(abi_executable),
+                             'frozen_product_contract': False, 'release_claim_eligible': False}}
         require(not any(private_root.iterdir()), 'C fixture leaked private state after closing')
         owner_client = installed / 'owner-client.exe'
         run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',

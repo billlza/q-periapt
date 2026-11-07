@@ -28,7 +28,7 @@ on:
       - bindings/rust/SDKPackageConsumer/**
       - bindings/*-vectors.json
   pull_request:
-    branches: [lza/windows-private-store]
+    branches: [lza/windows-private-store, feat/continuity-publication-verification]
     paths:
       - Cargo.toml
       - Cargo.lock

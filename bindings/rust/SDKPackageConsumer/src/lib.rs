@@ -136,6 +136,17 @@ mod tests {
         device: u64,
         inode: u64,
         bytes: Vec<u8>,
+        control_identity: (u64, u64),
+        record: (u64, u64, Vec<u8>),
+        lease: (u64, u64, Vec<u8>),
+    }
+    fn control_field(path: &std::path::Path, length: u64) -> Result<(u64, u64, Vec<u8>)> {
+        let metadata = std::fs::symlink_metadata(path)?;
+        assert!(metadata.is_file());
+        assert_eq!(metadata.permissions().mode() & 0o777, 0o600);
+        assert_eq!(metadata.nlink(), 1);
+        assert_eq!(metadata.len(), length);
+        Ok((metadata.dev(), metadata.ino(), std::fs::read(path)?))
     }
     fn unpublished_staging(path: &std::path::Path) -> Result<Vec<StagingSnapshot>> {
         let mut snapshots = Vec::new();
@@ -144,12 +155,18 @@ mod tests {
             if !entry
                 .file_name()
                 .to_string_lossy()
-                .starts_with(".private-publication-")
+                .starts_with(".private-attempt-v2-")
             {
                 continue;
             }
             assert!(!entry.file_type()?.is_symlink());
-            let metadata = entry.metadata()?;
+            let control = entry.metadata()?;
+            assert!(control.is_dir());
+            assert_eq!(control.permissions().mode() & 0o777, 0o700);
+            let record = control_field(&entry.path().join("record"), 154)?;
+            let lease = control_field(&entry.path().join("lease"), 24)?;
+            let payload = entry.path().join("payload");
+            let metadata = std::fs::symlink_metadata(&payload)?;
             assert!(metadata.is_file());
             assert_eq!(metadata.permissions().mode() & 0o777, 0o600);
             assert_eq!(metadata.nlink(), 1);
@@ -161,7 +178,10 @@ mod tests {
                 path: entry.path(),
                 device: metadata.dev(),
                 inode: metadata.ino(),
-                bytes: std::fs::read(entry.path())?,
+                bytes: std::fs::read(payload)?,
+                control_identity: (control.dev(), control.ino()),
+                record,
+                lease,
             });
         }
         snapshots.sort_by(|a, b| a.path.cmp(&b.path));
@@ -257,6 +277,36 @@ mod tests {
             retained,
             "first-use retry must not choose or sweep old staging"
         );
+        // Explicit maintenance acts on the original abandoned control, after
+        // the separate new publication succeeded. It must not touch that target.
+        use q_periapt_host_store::filesystem::{
+            reclaim_private_publication, PublicationCleanupOutcome,
+        };
+        let original = retained.first().expect("original failed attempt");
+        let formal_bytes = std::fs::read(path)?;
+        let expected = PublicationCleanupOutcome::Reclaimed {
+            entries: 1,
+            bytes: u64::try_from(original.bytes.len())?,
+        };
+        assert_eq!(
+            reclaim_private_publication(&original.path, Default::default())?,
+            expected
+        );
+        assert_eq!(
+            reclaim_private_publication(&original.path, Default::default())?,
+            expected
+        );
+        assert_eq!(std::fs::read(path)?, formal_bytes);
+        assert_eq!(
+            control_field(&original.path.join("record"), 154)?,
+            original.record
+        );
+        assert_eq!(
+            control_field(&original.path.join("lease"), 24)?,
+            original.lease
+        );
+        assert!(!original.path.join("payload").exists());
+        println!("RUST_SDK_ORIGINAL_PUBLICATION_RECLAIMED");
         Ok(())
     }
 

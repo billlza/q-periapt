@@ -34,9 +34,16 @@ fn denied() -> io::Error {
     )
 }
 
+#[cfg_attr(test, track_caller)]
 fn checked(ok: i32) -> io::Result<()> {
     if ok == 0 {
-        Err(io::Error::last_os_error())
+        let error = io::Error::last_os_error();
+        #[cfg(test)]
+        eprintln!(
+            "private Windows ACL call failed at {}: error={error:?}",
+            std::panic::Location::caller(),
+        );
+        Err(error)
     } else {
         Ok(())
     }
@@ -149,7 +156,10 @@ pub(crate) fn validate(file: &File) -> io::Result<()> {
     };
     let allocation = SecurityAllocation(descriptor);
     if status != 0 {
-        return Err(io::Error::from_raw_os_error(status as i32));
+        let error = io::Error::from_raw_os_error(status as i32);
+        #[cfg(test)]
+        eprintln!("private Windows GetSecurityInfo failed: error={error:?}");
+        return Err(error);
     }
     if allocation.0.is_null() || owner.is_null() || dacl.is_null() {
         return Err(denied());

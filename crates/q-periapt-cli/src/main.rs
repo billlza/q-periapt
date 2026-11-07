@@ -25,6 +25,21 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
+    /// Reclaim one versioned unpublished attempt. Never pass a formal store path.
+    /// Requires a publication-maintenance build and its supported native adapter.
+    PublicationReclaim {
+        /// Exact private control directory retained by the failed publication.
+        attempt: PathBuf,
+        /// Whole remaining payload entry budget, including its root (1..=4096).
+        #[arg(long)]
+        max_entries: usize,
+        /// Maximum payload depth, including regular files (1..=64).
+        #[arg(long)]
+        max_depth: usize,
+        /// Maximum sum of remaining file lengths (0..=4294967296).
+        #[arg(long)]
+        max_bytes: u64,
+    },
     /// Offline format-2 to format-3 upgrade of an existing v1 host policy store.
     /// Requires a policy-store-migration build on macOS or Linux.
     PolicyStoreUpgrade {
@@ -149,6 +164,58 @@ fn print_scan_errors(errors: &[ScanError]) {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.cmd {
+        Cmd::PublicationReclaim {
+            attempt,
+            max_entries,
+            max_depth,
+            max_bytes,
+        } => {
+            #[cfg(feature = "publication-maintenance")]
+            {
+                use q_periapt_host_store::filesystem::{
+                    reclaim_private_publication, PublicationCleanupLimits,
+                    PublicationCleanupOutcome,
+                };
+                let Some(name) = attempt.file_name().and_then(|name| name.to_str()) else {
+                    eprintln!("error: publication-reclaim requires an original versioned control directory");
+                    return ExitCode::FAILURE;
+                };
+                match reclaim_private_publication(
+                    &attempt,
+                    PublicationCleanupLimits {
+                        entries: max_entries,
+                        depth: max_depth,
+                        bytes: max_bytes,
+                    },
+                ) {
+                    Ok(outcome) => {
+                        let report = match outcome {
+                            PublicationCleanupOutcome::NoPayload => serde_json::json!({
+                                "schema_version": 1, "operation": "private-publication-reclaim/v2",
+                                "attempt": name, "outcome": "no-payload",
+                            }),
+                            PublicationCleanupOutcome::Reclaimed { entries, bytes } => {
+                                serde_json::json!({
+                                    "schema_version": 1, "operation": "private-publication-reclaim/v2",
+                                    "attempt": name, "outcome": "reclaimed", "entries": entries, "bytes": bytes,
+                                })
+                            }
+                        };
+                        emit(&report, None)
+                    }
+                    Err(error) => {
+                        eprintln!("error: publication reclamation failed: {error}; retain this control directory and its original records; an I/O failure may follow partial removal");
+                        ExitCode::FAILURE
+                    }
+                }
+            }
+            #[cfg(not(feature = "publication-maintenance"))]
+            {
+                let _ = (attempt, max_entries, max_depth, max_bytes);
+                eprintln!("error: publication-reclaim requires --features publication-maintenance");
+                ExitCode::FAILURE
+            }
+        }
         Cmd::PolicyStoreUpgrade {
             path,
             root,

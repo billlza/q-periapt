@@ -50,6 +50,50 @@ captured reservation entropy. For encapsulation, the response signature may
 still be unpublished, but the predictor can already compute the response core;
 it can use the later honest signature bytes when deriving transcript-bound traffic.
 
+## Aggregate image lineage
+
+[`seal_next_image`](../../research/continuity-identity-candidate/src/durable.rs)
+advances a device-global revision and reseals the complete image after the caller
+has updated its selected record. The image encoder samples its outer nonce after
+encoding the plaintext. An unchanged message record therefore keeps its original
+root, reservation and operation even when another session causes a new image.
+The [executed two-session trace](../../research/sdk-alpha1/evidence/20261105-aggregate-reservation-copy/README.md)
+checks that distinction through actual APIs, exact stored record equality,
+reopen/retry and six subsequent target-message decryptions in each build profile.
+
+The corresponding private-state mapping must preserve the origin of each
+session's retained material, including copies carried by later aggregate images:
+
+- A target generation or encapsulation reservation originates at the actual
+  SDK reservation call. Both calls precede `store_message_state`; API return,
+  a later global revision and a newly sampled image nonce are not that event.
+- The original sealed target first becomes durable in the pending write before
+  image application. Ordinary `apply` installs the exact retained target bytes;
+  it does not rerun the KEM reservation or reseal that target.
+- A sibling-only write preserves the target record's existing origin. It must
+  not manufacture a new target `KeyReserved`/`EncapReserved` event. An unchanged
+  pre-Cut session projection may retain its pre-Cut origin despite a later
+  aggregate write; excluding it solely by the global write time would strengthen
+  the declared acquisition restriction.
+- Conversely, if an acquired aggregate carries target-session state that was
+  saved after Cut, changing the last writer to another session does not make
+  that acquisition admissible under MAIN's post-Cut `Saved`/`Snapshot` exclusion.
+  The same accounting must include pending targets and retained copies.
+
+These are source-derived obligations for a content/provenance relation between
+device-global images and per-session symbolic states. The new test establishes
+one unchanged-copy case, not the complete relation across every phase, archive,
+failure and platform wrapper. The symbolic model performs reservation and save
+in one rule; the implementation has separate sampling and durable-write steps.
+A complete refinement must map those intervals explicitly rather than assign
+freshness to the later commit or ignore a durable pending target.
+
+The [hidden-record commitment argument](HIDDEN_RECORD_COMMITMENTS_V1.md) has a
+different role: it can hide the public commitments of one private image/original
+write using its fresh outer nonce. It neither replaces old KEM coins nor permits
+acquisition of that nonce/preimage. Cross-image commitment simulation must retain
+the same operation lineage and the unchanged disclosure conditions above.
+
 ## Stored phases and root ownership
 
 Here `n` means that endpoint's local `confirmed_epoch`, and `e = n + 1`.
@@ -144,6 +188,14 @@ whose context contains transcript-dependent values. A generic claim that one
 unknown input makes every subsequent key secure is therefore not substituted
 for the missing construction-specific argument.
 
+The [construction-specific computational note](COMPUTATIONAL_RECOVERY_V1.md)
+now expands the actual root, confirmation and traffic calls. It gives a
+conditional three-step root replacement, maps the fixed 32-byte salt inputs to
+a published HMAC swap-PRF result, and explains why downstream confirmation and
+signature bytes must be recomputed consistently in proof hybrids. The combiner
+premise, joint use of a root in both HMAC slots, PQ reductions and the full
+message-secrecy argument remain open; no implementation or threat model changed.
+
 
 A [symbolic research projection](../../research/continuity-recovery-symbolic/README.md)
 now checks the original positive recovery formula through a
@@ -231,3 +283,29 @@ not be reported as all queries passing or as completed multi-round non-vacuity
 evidence. The symbolic primitives still do not supply the construction-specific
 HKDF/hybrid argument, whole-journal correspondence, final implementation/platform
 qualification or external security review required for release.
+
+The [2026-11-04 independent replay](../../research/sdk-alpha1/evidence/20261104-multi-epoch-replay/README.md)
+rechecked this same certificate with the fixed tools and unchanged 900-second
+limit. MAIN and all reusable dependencies passed in 816.903 seconds; the output
+certificate was byte-identical to the retained input. All 40 queries remained,
+including the same 13 incomplete queries. This refreshes the symbolic evidence
+without changing the separate open obligations above.
+
+The subsequent [finite ground-trace record](../../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md)
+constructs one two-round exposed-ancestor execution using these exact operational
+rules and checks the complete original existential formula. A separate internal
+source-derived calculation rechecks all rule instances and global quantifiers.
+The skeleton can be expanded with the omitted fresh-generation and intruder
+steps while preserving its witness ordering. This supplies concrete non-vacuity
+evidence for that target; it is not a Tamarin certificate and does not change
+any of the thirteen incomplete query results or the other obligations above.
+
+The [finite delayed-receipt construction](../../research/sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace/README.md)
+then satisfies the original asymmetric-disclosure query. A pre-Cut B phase-3
+snapshot, delayed first receipt and post-Cut A encapsulation lead to a derived
+target-epoch payload. Both semantic calculations check the complete formula;
+seven legal countertraces reject. Its point audit identifies post-Cut generation
+as the sole false MAIN antecedent. The corresponding six-message SDK experiment
+also appears in the current source-bound complete Release record, without a
+new SDK run here. This supports the declared reservation-freshness boundary,
+not a counterexample to MAIN or a change to the 27/13 Tamarin inventory.

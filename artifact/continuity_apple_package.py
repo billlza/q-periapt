@@ -20,6 +20,13 @@ TARGETS = {
     "aarch64-apple-darwin": ("macos", None),
     "aarch64-apple-ios": ("ios", None),
     "aarch64-apple-ios-sim": ("ios", "simulator"),
+    "x86_64-apple-ios": ("ios", "simulator"),
+}
+ARCHITECTURES = {target: "x86_64" if target == "x86_64-apple-ios" else "arm64" for target in TARGETS}
+SLICES = {
+    "macos": ("aarch64-apple-darwin",),
+    "ios": ("aarch64-apple-ios",),
+    "simulator": ("aarch64-apple-ios-sim", "x86_64-apple-ios"),
 }
 NAME = "QPeriaptContinuity"
 ARCHIVE = "QPeriaptContinuity-Apple-candidate.zip"
@@ -91,6 +98,12 @@ def verify_exports(data: bytes) -> None:
                 "Apple native owner exports differ or are duplicated")
 
 
+def verify_architectures(data: bytes, expected: tuple[str, ...]) -> None:
+    observed = data.decode("ascii").split()
+    sdk.require(len(observed) == len(expected) and set(observed) == set(expected),
+                "Apple native architecture inventory differs or is duplicated")
+
+
 def relative_path(value: object) -> str:
     sdk.require(isinstance(value, str) and bool(value), "missing XCFramework member path")
     path = PurePosixPath(value)
@@ -102,7 +115,7 @@ def relative_path(value: object) -> str:
 def canonical_xcframework_info(data: bytes) -> bytes:
     info = plistlib.loads(data)
     rows = info.get("AvailableLibraries")
-    sdk.require(isinstance(rows, list) and len(rows) == len(TARGETS)
+    sdk.require(isinstance(rows, list) and len(rows) == len(SLICES)
                 and all(isinstance(row, dict) for row in rows), "XCFramework slice inventory differs")
     identifiers = [relative_path(row.get("LibraryIdentifier")) for row in rows]
     sdk.require(len(set(identifiers)) == len(identifiers), "XCFramework slice identifiers are duplicated")
@@ -112,21 +125,26 @@ def canonical_xcframework_info(data: bytes) -> bytes:
     return plistlib.dumps(info, fmt=plistlib.FMT_XML, sort_keys=True)
 
 
-def verify_xcframework(root: Path, binaries: dict, header: bytes) -> None:
+def verify_xcframework(root: Path, slices: dict, header: bytes) -> None:
     info = plistlib.loads(sdk.snapshot(root / "Info.plist").data)
     rows = info.get("AvailableLibraries")
-    sdk.require(isinstance(rows, list) and len(rows) == len(TARGETS), "XCFramework slice count differs")
+    sdk.require(isinstance(rows, list) and len(rows) == len(SLICES), "XCFramework slice count differs")
+    sdk.require(set(slices) == set(SLICES), "XCFramework native slice inventory differs")
     observed = set()
     for row in rows:
-        sdk.require(isinstance(row, dict) and row.get("SupportedArchitectures") == ["arm64"],
-                    "XCFramework contains an unsupported architecture")
+        sdk.require(isinstance(row, dict), "XCFramework slice metadata differs")
         platform = (row.get("SupportedPlatform"), row.get("SupportedPlatformVariant"))
         sdk.require(platform in TARGETS.values() and platform not in observed, "XCFramework platform missing or duplicated")
         observed.add(platform)
-        target = next(name for name, expected in TARGETS.items() if expected == platform)
+        name = next(name for name, targets in SLICES.items() if TARGETS[targets[0]] == platform)
+        architectures = row.get("SupportedArchitectures")
+        expected = [ARCHITECTURES[target] for target in SLICES[name]]
+        sdk.require(isinstance(architectures, list) and len(architectures) == len(expected)
+                    and all(isinstance(arch, str) for arch in architectures)
+                    and set(architectures) == set(expected), "XCFramework architecture inventory differs")
         folder = root / relative_path(row.get("LibraryIdentifier"))
         actual = sdk.snapshot(folder / relative_path(row.get("LibraryPath")), maximum=LIMITS.maximum_member_bytes)
-        sdk.require(actual.sha256 == binaries[target]["sha256"], "XCFramework selected the wrong native target")
+        sdk.require(actual.sha256 == slices[name]["sha256"], "XCFramework selected the wrong native target")
         headers = folder / relative_path(row.get("HeadersPath"))
         sdk.require(sdk.snapshot(headers / "qpc_owner.h").data == header
                     and sdk.snapshot(headers / "module.modulemap").data == MODULE,
@@ -134,14 +152,14 @@ def verify_xcframework(root: Path, binaries: dict, header: bytes) -> None:
     sdk.require(observed == set(TARGETS.values()), "XCFramework platform set differs")
 
 
-def verify_package(root: Path, expected: dict, binaries: dict, header: bytes) -> None:
+def verify_package(root: Path, expected: dict, slices: dict, header: bytes) -> None:
     contents = parse_strict_json_bytes(sdk.snapshot(root / CONTENTS).data, label="Apple package contents")
     sdk.require(contents == expected, "Apple package manifest changed")
     files = file_hashes(root)
     files.pop(CONTENTS)
     sdk.require(files == expected["files"], "Apple package members or bytes changed")
     sdk.require(sdk.snapshot(root / "Package.swift").data == MANIFEST, "Apple package target definition differs")
-    verify_xcframework(root / "CQPCOwner.xcframework", binaries, header)
+    verify_xcframework(root / "CQPCOwner.xcframework", slices, header)
     for target in TARGETS:
         licenses.verify(root / "LICENSES" / target, expected_target=target, root_package=c.NAME)
 
@@ -162,7 +180,8 @@ def qualify_apple(outside: Path, output: Path, environment: dict) -> dict:
     result = {"schema_version": 1, "kind": "qperiapt.continuity_apple_package", "completed": False,
               "targets": list(TARGETS), "release_claim_eligible": False, "publication_performed": False,
               "physical_device_execution": False, "simulator_execution": False,
-              "source_files": before, "native": {}, "scope": "installed Apple binary package, macOS public owner probe and iOS device/simulator consumer builds"}
+              "source_files": before, "native": {}, "slices": {},
+              "scope": "installed Apple binary package, macOS arm64 public owner probe and iOS arm64 device / arm64+x86_64 simulator consumer builds"}
     env = {key: value for key, value in environment.items()
            if key not in {"CC", "CXX", "AR", "LD", "CFLAGS", "CXXFLAGS", "CPPFLAGS", "LDFLAGS", "SDKROOT",
                           "CPATH", "C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH", "LIBRARY_PATH"}
@@ -185,21 +204,40 @@ def qualify_apple(outside: Path, output: Path, environment: dict) -> dict:
         headers = work / "headers"
         write(headers / "qpc_owner.h", header); write(headers / "module.modulemap", MODULE)
         arguments = ["/usr/bin/xcodebuild", "-create-xcframework"]
+        libraries = {}
         for target in TARGETS:
             compiled = run([str(tool / "cargo"), "rustc", "--locked", "--offline", "--lib", "--release",
                             "--crate-type", "staticlib", "--target", target, "--message-format=json", "-j", "2"], "build-" + target)
             library = built_static(compiled, consumer, build, target)
             snapshot = sdk.snapshot(library, maximum=LIMITS.maximum_member_bytes)
-            sdk.require(run(["/usr/bin/xcrun", "lipo", "-archs", str(library)], "arch-" + target).strip() == b"arm64",
-                        "Apple library is not arm64 only")
+            verify_architectures(run(["/usr/bin/xcrun", "lipo", "-archs", str(library)], "arch-" + target),
+                                 (ARCHITECTURES[target],))
             verify_exports(run([str(nm), "--defined-only", "--extern-only", str(library)], "exports-" + target))
             result["native"][target] = {"sha256": snapshot.sha256, "bytes": snapshot.size, "owner_exports": len(c.EXPORTS)}
-            arguments += ["-library", str(library), "-headers", str(headers)]
+            libraries[target] = library
             metadata = parse_strict_json_bytes(run([str(tool / "cargo"), "metadata", "--locked", "--offline",
                 "--format-version", "1", "--filter-platform", target], "licenses-" + target), label="Apple runtime dependencies")
             notice_root = staging / "LICENSES" / target
             notice_root.mkdir(parents=True)
             licenses.collect(consumer, notice_root, target, root_package=c.NAME, resolved_metadata=metadata)
+        for name, targets in SLICES.items():
+            library = libraries[targets[0]]
+            if len(targets) > 1:
+                library = work / "simulator" / LIBRARY
+                library.parent.mkdir()
+                run(["/usr/bin/xcrun", "lipo", "-create", *(str(libraries[target]) for target in targets),
+                     "-output", str(library)], "combine-simulator")
+                verify_architectures(run(["/usr/bin/xcrun", "lipo", "-archs", str(library)], "arch-simulator"),
+                                     tuple(ARCHITECTURES[target] for target in targets))
+                for target in targets:
+                    thin = library.parent / (target + ".a")
+                    run(["/usr/bin/xcrun", "lipo", str(library), "-thin", ARCHITECTURES[target],
+                         "-output", str(thin)], "readback-" + target)
+                    sdk.require(sdk.snapshot(thin, maximum=LIMITS.maximum_member_bytes).sha256
+                                == result["native"][target]["sha256"], "combined simulator archive changed a native target")
+            snapshot = sdk.snapshot(library, maximum=LIMITS.maximum_member_bytes)
+            result["slices"][name] = {"targets": list(targets), "sha256": snapshot.sha256, "bytes": snapshot.size}
+            arguments += ["-library", str(library), "-headers", str(headers)]
         run([*arguments, "-output", str(staging / "CQPCOwner.xcframework")], "xcframework")
         info = staging / "CQPCOwner.xcframework/Info.plist"
         info.write_bytes(canonical_xcframework_info(sdk.snapshot(info).data))
@@ -223,16 +261,16 @@ def qualify_apple(outside: Path, output: Path, environment: dict) -> dict:
         contents = {"schema_version": 1, "kind": "qperiapt.continuity_apple_contents",
                     "targets": list(TARGETS), "files": file_hashes(staging)}
         write(staging / CONTENTS, (json.dumps(contents, indent=2, sort_keys=True) + "\n").encode())
-        verify_package(staging, contents, result["native"], header)
+        verify_package(staging, contents, result["slices"], header)
         archive = output / ARCHIVE
         audit = create_zip(staging, archive, root_name=NAME, mtime=MTIME, limits=LIMITS)
         result["archive"] = {"file": ARCHIVE, "sha256": audit.archive_sha256, "bytes": audit.archive_bytes}
         installed = work / "installed"
         extract_zip(archive, installed, root_name=NAME, mtime=MTIME, expected_sha256=audit.archive_sha256, limits=LIMITS)
-        verify_package(installed / NAME, contents, result["native"], header)
+        verify_package(installed / NAME, contents, result["slices"], header)
         from continuity_apple_consumer import qualify_consumer
-        result["consumer"] = qualify_consumer(installed, evidence, env, result["native"])
-        verify_package(installed / NAME, contents, result["native"], header)
+        result["consumer"] = qualify_consumer(installed, evidence, env, result["slices"])
+        verify_package(installed / NAME, contents, result["slices"], header)
         sdk.require(file_hashes(consumer) == before, "C package source changed during Apple packaging")
         sdk.require(sdk.snapshot(nm, maximum=c.MAX_BINARY).sha256 == result["llvm_nm_sha256"], "symbol tool changed")
         result.update(completed=True, archive={"file": ARCHIVE, "sha256": audit.archive_sha256,

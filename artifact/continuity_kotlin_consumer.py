@@ -822,7 +822,10 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
                 "sync_faults": sync_faults, "sync_fault_public_files": fault_files,
                 "opening_interrupt_launcher": {"path": str(interrupt_launcher), "sha256": interrupt_launcher_sha},
                 "java_module_executed": True,
-                "negative_controls": sorted(negatives) + ["raw-owner-construction", "raw-device-construction", "raw-setup-construction", "raw-enrollment-construction", "raw-native-owner-construction"]}
+                "negative_controls": sorted(negatives) + ["raw-owner-construction", "raw-device-construction",
+                    "raw-setup-construction", "raw-enrollment-construction", "raw-native-owner-construction",
+                    "raw-retired-enrollment-construction", "raw-account-authority-construction",
+                    "raw-configuration-construction", "raw-configuration-key-access"]}
         sdk.require(source_files() == source and tools == {"java": tool_identity(java_home), "gradle": tool_identity(gradle_home)},
                     "Kotlin sources or tool installation changed during qualification")
         profiles_contract.require_execution(result, profiles, "profiles")

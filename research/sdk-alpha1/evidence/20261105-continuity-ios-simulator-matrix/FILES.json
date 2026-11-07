@@ -1,0 +1,670 @@
+{
+  "READBACK.json": {
+    "bytes": 3943,
+    "sha256": "06aa4c172d69eb1939d4287b4b605a33f7f6693dff04224d5081ca009a1fcd86"
+  },
+  "baseline-source/.github/workflows/ci.yml": {
+    "bytes": 165519,
+    "sha256": "aa6e752c641ada7a712f889b290109fb634b7b48b963ff34a273a6ee29a81586"
+  },
+  "baseline-source/artifact/apple_distribution.py": {
+    "bytes": 98857,
+    "sha256": "cc86f0cd5c4fd29828d5ff919becf7b0b18fe9bfe31d69e1e19b194a0162eac5"
+  },
+  "baseline-source/artifact/apple_sdk_profile.py": {
+    "bytes": 27209,
+    "sha256": "f85c2a8f3ae7b530410c2602b906fb508da9855e276b8e131ffaf2852d8170cf"
+  },
+  "baseline-source/artifact/continuity_apple_consumer.py": {
+    "bytes": 5808,
+    "sha256": "c857a35182232a2b3c0552b3f3bc013fd461cac2c460a12f21b7a23f906e9321"
+  },
+  "baseline-source/artifact/continuity_apple_package.py": {
+    "bytes": 14430,
+    "sha256": "a21facf4c34557ddafd6369dce0e37ba6a2391fb633d4e5e9bd8f57d2121567d"
+  },
+  "baseline-source/artifact/test_continuity_apple_package.py": {
+    "bytes": 8670,
+    "sha256": "15a2b60dee5a4873b3f152c2784f6bab5fd36f6562bfcb92ca7c146fe92a9d69"
+  },
+  "baseline-source/docs/continuity/RELEASE_0_2_SCOPE.md": {
+    "bytes": 25236,
+    "sha256": "00a7262380af4b0dd0ff4822b3bfdad66d3fe1eff9c6cc7e39f332f6695bd60d"
+  },
+  "capture/BASELINE.json": {
+    "bytes": 1969,
+    "sha256": "d84eb90f2198180c28c40f7c11d331f0def1f23a3369838fc443b2dfae2f4315"
+  },
+  "capture/DOWNLOAD_RESULT.json": {
+    "bytes": 1144,
+    "sha256": "201367f3715c1c02424f283e1b86c6ec141b96cd4f41b13890d72287064d12f5"
+  },
+  "capture/DRIVER_RESULT.json": {
+    "bytes": 428439,
+    "sha256": "a1ffeb3cfd47ac80f158cda5fa4e6033be61a33fe156cca83b12ef41d18ae122"
+  },
+  "capture/INPUTS.json": {
+    "bytes": 221212,
+    "sha256": "a366c8b2183435a6d0ff05f00f04dfbb1370dd5649a0b7fa2bd10294e1b43f94"
+  },
+  "capture/LAUNCH.json": {
+    "bytes": 691,
+    "sha256": "422c5c54a2a68bfe52b3022d9a0f407bf58e4645f254e2bb12e6f38b86f56fe8"
+  },
+  "capture/LAUNCH_RESULT.json": {
+    "bytes": 976,
+    "sha256": "4efc355abff4393cea3aa2be86e23a62ef1af4aab000b7e02f337c273e8172c3"
+  },
+  "capture/LOCATION.json": {
+    "bytes": 113,
+    "sha256": "d5fe20aa8ae856c4298d76546aa77016f218f6d7ad2992d923c885e3cabf4928"
+  },
+  "capture/PREPARATION_RESULT.json": {
+    "bytes": 2421994,
+    "sha256": "bbe698346017227dcfc8ae7a8475e1b4184a1c8864daaeea5d8b89b0b4c137cc"
+  },
+  "capture/PREPARATION_START.json": {
+    "bytes": 762,
+    "sha256": "251470ffae2c23e336eaffb8ddf5c79224984818ca0cea9654e7116c5a3d8619"
+  },
+  "capture/baseline.stderr": {
+    "bytes": 2357,
+    "sha256": "e3826a61f3d064deb204b4e0c8bccd6f5c8d5199f7d164214fd046176ee3ee37"
+  },
+  "capture/baseline.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/contract-01.stderr": {
+    "bytes": 356,
+    "sha256": "4f051d939b61170fe4e0206bd066347463e406ac8e6eba47aea7797514cde897"
+  },
+  "capture/contract-01.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/copy-consumer.json": {
+    "bytes": 348,
+    "sha256": "7c7e568658da4ae189a8f9250b392e6492d98a24ca1b2308ace4ce5537ccbc38"
+  },
+  "capture/copy-consumer.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/copy-consumer.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/copy-registry.json": {
+    "bytes": 366,
+    "sha256": "82b9107d5745d8d8e593b46c878a8da68ade5d3543f775d39e8b00feddbbd4e1"
+  },
+  "capture/copy-registry.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/copy-registry.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/copy-toolchain.json": {
+    "bytes": 350,
+    "sha256": "89d56d11120bf3ba73fec8032d4ccff30cb54ed4da534214de5e2f69b7b82341"
+  },
+  "capture/copy-toolchain.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/copy-toolchain.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/download.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/download.stdout": {
+    "bytes": 1144,
+    "sha256": "201367f3715c1c02424f283e1b86c6ec141b96cd4f41b13890d72287064d12f5"
+  },
+  "capture/download_std.py": {
+    "bytes": 3271,
+    "sha256": "67fc605aba90137fb1568528f0552979dfd449245a5f138fe5426be7b8c204c7"
+  },
+  "capture/driver.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/driver.stdout": {
+    "bytes": 3782,
+    "sha256": "a9932322003526b5ac458f0040fa0b3d8a1dfe49c55609371e8bea005553557a"
+  },
+  "capture/launch.py": {
+    "bytes": 2573,
+    "sha256": "727a5520134ca18ec189c4b7d2d77bb562ef672ae6635d887c98f386b320f763"
+  },
+  "capture/launcher.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/launcher.stdout": {
+    "bytes": 976,
+    "sha256": "4efc355abff4393cea3aa2be86e23a62ef1af4aab000b7e02f337c273e8172c3"
+  },
+  "capture/prepare.py": {
+    "bytes": 6101,
+    "sha256": "edb88b9c267dc47cc094bea7d8f62f886961f6075c9670e219d8d96195fbd87d"
+  },
+  "capture/prepare.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/prepare.stdout": {
+    "bytes": 176,
+    "sha256": "0de55e35f216aa248b652542f3676223229894f9ef2d3cb608b2df6a752049d5"
+  },
+  "capture/private-rustc.json": {
+    "bytes": 240,
+    "sha256": "654fa09ee430f880bcbe06c29dfcaaab197c9a2bdee0cf88c81498f3203dd0de"
+  },
+  "capture/private-rustc.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/private-rustc.stdout": {
+    "bytes": 192,
+    "sha256": "e2211d4c0760a2a3b03eab88e42f8848952b7aa2ed649277a8fdbf3ce1838fd4"
+  },
+  "capture/private-target.json": {
+    "bytes": 282,
+    "sha256": "60dac9bdce6706d019d7907101928da7463bb6087d5f03defb6f769640990ebe"
+  },
+  "capture/private-target.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/private-target.stdout": {
+    "bytes": 127,
+    "sha256": "a47cd54996a86939cad5fc8858384b01c0637ea2d9d8a72dc085795275ae45a6"
+  },
+  "capture/related-01.stderr": {
+    "bytes": 9742,
+    "sha256": "afb983f6fec1abcddedf77fe73cd12c3ea4d51e6d370e29ee54ee76f3d1f4c53"
+  },
+  "capture/related-01.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "capture/run.py": {
+    "bytes": 6279,
+    "sha256": "dd4ee7ae86ba947b9db503a21a4add8ac7283f2ecd6287a8b994f744665a9053"
+  },
+  "capture/rust-channel-manifest.toml": {
+    "bytes": 1034029,
+    "sha256": "e44f4ea0a633aa3e497e4dd161424419fbd7bdc203606ef840634fdd22dab9bf"
+  },
+  "capture/seal.py": {
+    "bytes": 6908,
+    "sha256": "9dd51cd0fc3117ff1c91bce93729587276ed33dd2c24ca3ed55be10b6412b2c6"
+  },
+  "capture/test_matrix_contract.py": {
+    "bytes": 1343,
+    "sha256": "84251e3c64d7b5318971212ebf1078e1bab854b8015e481efce777190e9639c4"
+  },
+  "capture/unit-01.stderr": {
+    "bytes": 1941,
+    "sha256": "f038e174f5c37ef95be196c44ecdf667cde16159aaf44d12a616155a7434ea1d"
+  },
+  "capture/unit-01.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "corrected-source/.github/workflows/ci.yml": {
+    "bytes": 165536,
+    "sha256": "d2ffcfd517060ef619a970de4e3d4de62585248f9a455a2bcbe564f1b58275f7"
+  },
+  "corrected-source/artifact/continuity_apple_consumer.py": {
+    "bytes": 6073,
+    "sha256": "463f116a8ab583adbfbbe34f90e7c89c9146c62fab76e80b45f33b2215591d30"
+  },
+  "corrected-source/artifact/continuity_apple_package.py": {
+    "bytes": 16799,
+    "sha256": "f78a425b00520e348e96be34299896229c75ad7bc1cd7d08f20765cfc2b57836"
+  },
+  "corrected-source/artifact/test_continuity_apple_package.py": {
+    "bytes": 10591,
+    "sha256": "0f4a3ca601d1e57a8d99deee26313e80c449c40b1fa94dff8f8e6cd7d5766685"
+  },
+  "corrected-source/bindings/swift/ContinuityPackageConsumer/ApplePackageREADME.md": {
+    "bytes": 1557,
+    "sha256": "3529b831ff3470729f238c8be6213815f4415b4f0a0cffed573a46dcb2657fc2"
+  },
+  "qualification/CONTINUITY_APPLE_PACKAGE.json": {
+    "bytes": 204254,
+    "sha256": "f87422fac810f21b9512ffdf07e377f17a8d761b0bf3877cc2b8065b64a2eeb5"
+  },
+  "qualification/QPeriaptContinuity-Apple-candidate.zip": {
+    "bytes": 30419262,
+    "sha256": "99bc45143c5039b2190b293a1d2982199ce0d797af97b51f4fa2be2e1dc0dc05"
+  },
+  "qualification/apple-package/arch-aarch64-apple-darwin.json": {
+    "bytes": 2744,
+    "sha256": "e354c7a58a2e51de46464ab27b72345341474071849814884ed75c2983055ccf"
+  },
+  "qualification/apple-package/arch-aarch64-apple-darwin.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/arch-aarch64-apple-darwin.stdout": {
+    "bytes": 6,
+    "sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+  },
+  "qualification/apple-package/arch-aarch64-apple-ios-sim.json": {
+    "bytes": 2747,
+    "sha256": "144666e2d35ea97a5ee100b411d324e44c180034705a26e58cfe7daea6d61442"
+  },
+  "qualification/apple-package/arch-aarch64-apple-ios-sim.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/arch-aarch64-apple-ios-sim.stdout": {
+    "bytes": 6,
+    "sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+  },
+  "qualification/apple-package/arch-aarch64-apple-ios.json": {
+    "bytes": 2742,
+    "sha256": "e2ac404183dfc5567ae8b5622949c22a03dcbbb4be488286f40c43d7b66fe449"
+  },
+  "qualification/apple-package/arch-aarch64-apple-ios.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/arch-aarch64-apple-ios.stdout": {
+    "bytes": 6,
+    "sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+  },
+  "qualification/apple-package/arch-simulator.json": {
+    "bytes": 2714,
+    "sha256": "112edd506fe95e3138545b27c3838f13a14e27cb0c576292acaf9fd08c5ac4e7"
+  },
+  "qualification/apple-package/arch-simulator.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/arch-simulator.stdout": {
+    "bytes": 13,
+    "sha256": "9cb483fd3739db2602d4c5bf672f4af954dc6dad82b36e8642b034af58f11c11"
+  },
+  "qualification/apple-package/arch-x86_64-apple-ios.json": {
+    "bytes": 2742,
+    "sha256": "22620b897554857d68d0942a67529b49f8cc394d5f7a7a39e35c376dd64d4057"
+  },
+  "qualification/apple-package/arch-x86_64-apple-ios.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/arch-x86_64-apple-ios.stdout": {
+    "bytes": 7,
+    "sha256": "aaf631698ae5160ceb04a97681a14887fdcab47cd6e0f163c87485b3b1340b62"
+  },
+  "qualification/apple-package/build-aarch64-apple-darwin.json": {
+    "bytes": 2815,
+    "sha256": "91685abcbeaa77f9b34736dc1fc7a6c5f94956af5a819565def771289d556b8f"
+  },
+  "qualification/apple-package/build-aarch64-apple-darwin.stderr": {
+    "bytes": 5110,
+    "sha256": "8de42a5db685cef23426d6021264d95fa48000a93c7165432bbbefc37d7f9919"
+  },
+  "qualification/apple-package/build-aarch64-apple-darwin.stdout": {
+    "bytes": 158716,
+    "sha256": "fe582ed6db7e49ee6c61e9c54ec4779f5b0db76ba9f4d889557b74136818a5b3"
+  },
+  "qualification/apple-package/build-aarch64-apple-ios-sim.json": {
+    "bytes": 2816,
+    "sha256": "f08bda18c72db1ead49d25cd14245f21338556785abfd7a018b7e28fe770c081"
+  },
+  "qualification/apple-package/build-aarch64-apple-ios-sim.stderr": {
+    "bytes": 4506,
+    "sha256": "bb4010f92ef6e3130cd27afb25cffc0b8169a225284c17f6c8bb44e79a024964"
+  },
+  "qualification/apple-package/build-aarch64-apple-ios-sim.stdout": {
+    "bytes": 158879,
+    "sha256": "6ffb9c64ec55a877435afc9f9fa2a7f802737c6252b40aa115d8498191b25667"
+  },
+  "qualification/apple-package/build-aarch64-apple-ios.json": {
+    "bytes": 2812,
+    "sha256": "838930ea913f7f05c11f017d9967e649339d587b1b6c7e3781dc0b58f31ad1d4"
+  },
+  "qualification/apple-package/build-aarch64-apple-ios.stderr": {
+    "bytes": 4506,
+    "sha256": "a2cd4f178dd77db8016ef72679c04535488e76b4deee5c4d10401cfad20094fa"
+  },
+  "qualification/apple-package/build-aarch64-apple-ios.stdout": {
+    "bytes": 158085,
+    "sha256": "8c49e1e848f70d974227b98df3d4b18f11cc27bea18c936d58708973452ec128"
+  },
+  "qualification/apple-package/build-x86_64-apple-ios.json": {
+    "bytes": 2811,
+    "sha256": "444ec020fd0718932131f8c6f015d254a5fa5c323995de3b776d70a5504f950c"
+  },
+  "qualification/apple-package/build-x86_64-apple-ios.stderr": {
+    "bytes": 4550,
+    "sha256": "4e46fb8b3cedd4e51908579a3777a3fc0e690e83353700c31ef7268294f7cbd2"
+  },
+  "qualification/apple-package/build-x86_64-apple-ios.stdout": {
+    "bytes": 158907,
+    "sha256": "d68fb73414e39365ec79b6fdca040c769d450f0556d2aba566b28df02e92d3d9"
+  },
+  "qualification/apple-package/combine-simulator.json": {
+    "bytes": 3120,
+    "sha256": "482bd7715571fa9b9813b6d69f9c9674b2ecee1cd623e9665aeaaedba4d0c9bc"
+  },
+  "qualification/apple-package/combine-simulator.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/combine-simulator.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/consumer-arch-aarch64-apple-darwin.json": {
+    "bytes": 1918,
+    "sha256": "33f7c2e22a526c8472072ac94aa455cdd66af890162ca2cd4dcbc5fc36648161"
+  },
+  "qualification/apple-package/consumer-arch-aarch64-apple-darwin.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/consumer-arch-aarch64-apple-darwin.stdout": {
+    "bytes": 6,
+    "sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+  },
+  "qualification/apple-package/consumer-arch-aarch64-apple-ios-sim.json": {
+    "bytes": 1969,
+    "sha256": "82d55b954bc1ef04c2b5f00316e7f39689a508575200096fcc7ba9d7a69a5317"
+  },
+  "qualification/apple-package/consumer-arch-aarch64-apple-ios-sim.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/consumer-arch-aarch64-apple-ios-sim.stdout": {
+    "bytes": 6,
+    "sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+  },
+  "qualification/apple-package/consumer-arch-aarch64-apple-ios.json": {
+    "bytes": 1956,
+    "sha256": "d1bd9c29c11db4ee38493d5b64c107b8412de273173996877596909531cbad3e"
+  },
+  "qualification/apple-package/consumer-arch-aarch64-apple-ios.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/consumer-arch-aarch64-apple-ios.stdout": {
+    "bytes": 6,
+    "sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+  },
+  "qualification/apple-package/consumer-arch-x86_64-apple-ios.json": {
+    "bytes": 1976,
+    "sha256": "1939138682f92757d7c894b0a29aeb92a53745a377863a4aed18fb4c20a729e4"
+  },
+  "qualification/apple-package/consumer-arch-x86_64-apple-ios.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/consumer-arch-x86_64-apple-ios.stdout": {
+    "bytes": 7,
+    "sha256": "aaf631698ae5160ceb04a97681a14887fdcab47cd6e0f163c87485b3b1340b62"
+  },
+  "qualification/apple-package/consumer-ios-build.json": {
+    "bytes": 2480,
+    "sha256": "120b5aea70d83881955c558b58fd7b104c3ac1c07c57fc72fe6d989773ce399b"
+  },
+  "qualification/apple-package/consumer-ios-build.stderr": {
+    "bytes": 385,
+    "sha256": "0eb5065a5392e3701642f117cd47ab3eab6551d42303875b63daf3348a5225c5"
+  },
+  "qualification/apple-package/consumer-ios-build.stdout": {
+    "bytes": 157959,
+    "sha256": "531212e8f5f94014ef6dba4a5ce6085278da44b6977f12d9707e097a058cca7f"
+  },
+  "qualification/apple-package/consumer-macos-bin.json": {
+    "bytes": 2100,
+    "sha256": "a8d1a5587bc7204468d94b48af9e0cb5d1455fc7e3578b98c658fc9799445c3f"
+  },
+  "qualification/apple-package/consumer-macos-bin.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/consumer-macos-bin.stdout": {
+    "bytes": 144,
+    "sha256": "45fb11a9109d304a795315b275069929ee71f3bbe1e0d935ad5cb15ea5c80409"
+  },
+  "qualification/apple-package/consumer-macos-build.json": {
+    "bytes": 2351,
+    "sha256": "c0a44f9c046704a55a9ee0092c1df3f56b42895b13890b1f4e67c9acf5d1f1d8"
+  },
+  "qualification/apple-package/consumer-macos-build.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/consumer-macos-build.stdout": {
+    "bytes": 488,
+    "sha256": "8e5ffe5940781f04bdd4e5b9a04926ad47de372c4fcbb98f2532b0afabdac9d2"
+  },
+  "qualification/apple-package/consumer-macos-run.json": {
+    "bytes": 1869,
+    "sha256": "dd06647b529b937a72c3f743d1ad8f6d3447ea6cb546cb398f317da553593782"
+  },
+  "qualification/apple-package/consumer-macos-run.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/consumer-macos-run.stdout": {
+    "bytes": 75,
+    "sha256": "87815c72425a19da7c32172f70fb8ab727553e09bef454693d69d69cc977d657"
+  },
+  "qualification/apple-package/consumer-simulator-build.json": {
+    "bytes": 2508,
+    "sha256": "2ee379d37f78c5efb7a489c001cd29d17c5c31732e4471e42f81ca5f26330ae1"
+  },
+  "qualification/apple-package/consumer-simulator-build.stderr": {
+    "bytes": 407,
+    "sha256": "099a56385ecc89e9e69c244942fe4ec545878ec92ea4d685884ec81c2e71726b"
+  },
+  "qualification/apple-package/consumer-simulator-build.stdout": {
+    "bytes": 164317,
+    "sha256": "ce608eaed51b417398ac41fc39c3e31c1607e3ab87c4cab0130b7da361ad0c9b"
+  },
+  "qualification/apple-package/consumer-simulator-x86_64-build.json": {
+    "bytes": 2523,
+    "sha256": "6e4ba54986355fbb0f27195a1a36c1170b9b686793fc8cba517a9bd58aad3f16"
+  },
+  "qualification/apple-package/consumer-simulator-x86_64-build.stderr": {
+    "bytes": 407,
+    "sha256": "44915df67c2d1a14249ba7602f000fbc2e0b362717faa693b4ce2eddd657e357"
+  },
+  "qualification/apple-package/consumer-simulator-x86_64-build.stdout": {
+    "bytes": 168007,
+    "sha256": "1b1bb907c5e88acc99a6ae93a24b6ca4f839587e7534d942781a7264113b6bf5"
+  },
+  "qualification/apple-package/exports-aarch64-apple-darwin.json": {
+    "bytes": 2885,
+    "sha256": "444cd939c5aef65dd76f0240dee20876eef4af177295cf539abf96a1aa910137"
+  },
+  "qualification/apple-package/exports-aarch64-apple-darwin.stderr": {
+    "bytes": 858,
+    "sha256": "cf20328b480d5254a13ceb5d2db76b7d64e6c365a9981f22a78c421f9fc10fe5"
+  },
+  "qualification/apple-package/exports-aarch64-apple-darwin.stdout": {
+    "bytes": 705275,
+    "sha256": "d9fe99cbeaaa53ca6e384ff46607ce41e9c0b606430703a64ade9a0d74c515fd"
+  },
+  "qualification/apple-package/exports-aarch64-apple-ios-sim.json": {
+    "bytes": 2888,
+    "sha256": "22e13fa44aeef08ec18251c27cf189a26a99e465f975862558d31232f9fc40b0"
+  },
+  "qualification/apple-package/exports-aarch64-apple-ios-sim.stderr": {
+    "bytes": 864,
+    "sha256": "bdc1a7bffadb717bef81fb13501c33cf0b1d63285a2ef103233170c675f2ea49"
+  },
+  "qualification/apple-package/exports-aarch64-apple-ios-sim.stdout": {
+    "bytes": 707129,
+    "sha256": "8fa20d524d43c78e3f15579e61eb9a7898334b147852491a7445e07f4b18a091"
+  },
+  "qualification/apple-package/exports-aarch64-apple-ios.json": {
+    "bytes": 2883,
+    "sha256": "aa71b17de0970a3c2221c8bbe5577b5348fe6064807482e7ff047bf0c586fc80"
+  },
+  "qualification/apple-package/exports-aarch64-apple-ios.stderr": {
+    "bytes": 852,
+    "sha256": "c98dc7ee741629ab6f930974ab89a2faea76b5980c506a7897892bf095418f0b"
+  },
+  "qualification/apple-package/exports-aarch64-apple-ios.stdout": {
+    "bytes": 706840,
+    "sha256": "48073ee1bf1bbc2de0d93f5d4a58b79f87fc27a74753cd67fd1c1205b3ea0f61"
+  },
+  "qualification/apple-package/exports-x86_64-apple-ios.json": {
+    "bytes": 2882,
+    "sha256": "7b2f35f0ce0e2ecefe90cad1c774c46d46d00832c3319c152eab271d7b4a8e07"
+  },
+  "qualification/apple-package/exports-x86_64-apple-ios.stderr": {
+    "bytes": 22978,
+    "sha256": "d817d0adc9f03b4e7d040d7a652a0f4c4c4428f4e39cd85b6317a64e8dda69eb"
+  },
+  "qualification/apple-package/exports-x86_64-apple-ios.stdout": {
+    "bytes": 706513,
+    "sha256": "ccf30e3093235238c3ae242eb8a075f2eb55b4f293dbca27050906a93ca6add6"
+  },
+  "qualification/apple-package/licenses-aarch64-apple-darwin.json": {
+    "bytes": 2745,
+    "sha256": "ff2423e41d2a6f12852dba49becac6cc05d90b922ac93d24837b1e34dcb538d3"
+  },
+  "qualification/apple-package/licenses-aarch64-apple-darwin.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/licenses-aarch64-apple-darwin.stdout": {
+    "bytes": 714460,
+    "sha256": "535c2bdf541a76eca8a6ebfbad7b44a48f04d23eb4a27e0cacf5378ccc506fde"
+  },
+  "qualification/apple-package/licenses-aarch64-apple-ios-sim.json": {
+    "bytes": 2747,
+    "sha256": "4aa744dcea2992d9d340ddc315bf79d9e1097743d47830e7c066a4ba7ae21ede"
+  },
+  "qualification/apple-package/licenses-aarch64-apple-ios-sim.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/licenses-aarch64-apple-ios-sim.stdout": {
+    "bytes": 714460,
+    "sha256": "535c2bdf541a76eca8a6ebfbad7b44a48f04d23eb4a27e0cacf5378ccc506fde"
+  },
+  "qualification/apple-package/licenses-aarch64-apple-ios.json": {
+    "bytes": 2743,
+    "sha256": "bc8b93d272abd8824d25ef9692f4cb55852368edb02911c9e6842924d3893679"
+  },
+  "qualification/apple-package/licenses-aarch64-apple-ios.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/licenses-aarch64-apple-ios.stdout": {
+    "bytes": 714460,
+    "sha256": "535c2bdf541a76eca8a6ebfbad7b44a48f04d23eb4a27e0cacf5378ccc506fde"
+  },
+  "qualification/apple-package/licenses-x86_64-apple-ios.json": {
+    "bytes": 2741,
+    "sha256": "fda1e29e993c5e97d5f1583317f416f839b8fbfb5edcbfd579cd223061eb20a5"
+  },
+  "qualification/apple-package/licenses-x86_64-apple-ios.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/licenses-x86_64-apple-ios.stdout": {
+    "bytes": 716507,
+    "sha256": "42387acd6f28ab2739a7108b552bcbc7ac4e383ea921ece057e8da2192431396"
+  },
+  "qualification/apple-package/readback-aarch64-apple-ios-sim.json": {
+    "bytes": 2893,
+    "sha256": "993de7af9883a747ad47ff96f762b0dfef5bbb72d08cbc3a0db827e6b80a8613"
+  },
+  "qualification/apple-package/readback-aarch64-apple-ios-sim.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/readback-aarch64-apple-ios-sim.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/readback-x86_64-apple-ios.json": {
+    "bytes": 2889,
+    "sha256": "b54c90ca9ff732744d65abdb74f1d6ab57491b55a23ed85d1e06c076ca058395"
+  },
+  "qualification/apple-package/readback-x86_64-apple-ios.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/readback-x86_64-apple-ios.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/rustc.json": {
+    "bytes": 2646,
+    "sha256": "1e5e0ce3d60803f4fe446bc879128d4133350839830bdc06145bd8781b80eec6"
+  },
+  "qualification/apple-package/rustc.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/rustc.stdout": {
+    "bytes": 192,
+    "sha256": "e2211d4c0760a2a3b03eab88e42f8848952b7aa2ed649277a8fdbf3ce1838fd4"
+  },
+  "qualification/apple-package/xcframework.json": {
+    "bytes": 3756,
+    "sha256": "9d492ba2af84e45f2af1d943a1f8d863d932c2d9c51cc62c7c7b8296feed568f"
+  },
+  "qualification/apple-package/xcframework.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/xcframework.stdout": {
+    "bytes": 193,
+    "sha256": "b73c74fc5fe293bf7202f83229084795f0e4abef1c805d7f6764e75d05acb423"
+  },
+  "qualification/apple-package/xcode-version.json": {
+    "bytes": 2542,
+    "sha256": "508251681deffdb79d735172e6a7206328932b98729ddc7a8f279539b51c6ecc"
+  },
+  "qualification/apple-package/xcode-version.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/apple-package/xcode-version.stdout": {
+    "bytes": 31,
+    "sha256": "67c5b47bcf0e788aecae2f9b3af345813bdf7fe736faefb9666a7f4b2bf27ba7"
+  },
+  "qualification/git-head.json": {
+    "bytes": 578,
+    "sha256": "545884cc44ff8b4f551c8461e27132498b225186ede0e386be1b12f4a5ecfcf9"
+  },
+  "qualification/git-head.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/git-head.stdout": {
+    "bytes": 41,
+    "sha256": "aadda5f849e5c8f27035d9935496e3a0a4ad5aba73fb802ac43662de861ce468"
+  },
+  "qualification/git-tracked-status.json": {
+    "bytes": 602,
+    "sha256": "0406a8558a36878059f35a00a6629ff731577e51d0c03329eac9cdb57d3e9e3e"
+  },
+  "qualification/git-tracked-status.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qualification/git-tracked-status.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

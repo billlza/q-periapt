@@ -62,9 +62,31 @@ prefix is not permission to allocate outside that cap.
 | 18, 19 | Permanent device retirement, retained cleanup inventory |
 | 20, 21 | Retained retired-device report, independent host acknowledgement |
 | 22 | Permanent account-root retirement |
+| 23, 24, 25 | Account freeze, replacement closure, preparation closure |
+| 26 | Independently approved exact pending-write recovery |
+| 27, 28, 29, 30, 31 | Witness handoff source freeze, cancellation, target import, source retirement and target activation |
+| 32, 33 | Account/policy handoff-adoption approval and target Witness client authorization |
+| 34, 35 | Transferred Witness request and reply |
+| 36, 37, 38 | Transferred account freeze, account decision and retired cleanup |
+| 39 | Accountable one-time directory lease |
 
 Purpose numbers are signature inputs, not a free-form signing API. No application
 message acquires a dual signature merely by belonging to a signed session.
+The complete name/byte inventory is generated from the same declaration as the
+internal signing enum and exposed as read-only `contract::SIGNATURE_PURPOSES`.
+The compiled contract descriptor's schema 3 compares that inventory with
+`BUDGETS_V1.json`, alongside the domains and numeric bounds, including the
+separate 16-record retained fanout quota. Schema 1 omitted signature purposes;
+schema 2 omitted that fanout quota. Neither qualifies the current complete
+descriptor check. No signature-purpose number, signed byte, protocol identifier
+or runtime capacity changes with this descriptor revision.
+
+Purposes 23–25 follow the [account-root transaction contract](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md),
+purpose 26 the [original pending-write contract](../../research/continuity-identity-candidate/PENDING_WRITE_RECOVERY.md),
+and purposes 27–38 the [Witness handoff and transferred-authority contracts](../../research/continuity-identity-candidate/ANCHOR_WITNESS.md).
+Purpose 39 follows the [directory lease contract](../../research/continuity-reference-app/DIRECTORY_LEASES.md).
+Their historical, current-authorization and transaction states remain distinct;
+the shared signature purpose table does not merge those permissions.
 
 Purpose 22 signs the 72-byte body
 `QPARTR01[8] || witness_binding[32] || proposal_binding[32]`, for a 3449-byte

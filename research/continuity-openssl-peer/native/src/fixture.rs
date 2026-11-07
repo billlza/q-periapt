@@ -522,7 +522,10 @@ fn shared_devices(
 
 // Read-only test-controller import. Every trust input is supplied separately
 // from the publication; this is not a directory or SDK network command.
-pub(super) fn verify_one_time_publication(path: &Path) -> Result<Vec<u8>> {
+pub(super) fn verify_one_time_publication(
+    path: &Path,
+    lease_output: Option<&Path>,
+) -> Result<Vec<u8>> {
     use q_periapt_continuity_identity_candidate::{
         PolicyCheckpoint, PrekeyPublicationId, PrekeyPublicationKey, PrekeyPublicationPlan,
         RosterCheckpoint,
@@ -633,6 +636,38 @@ pub(super) fn verify_one_time_publication(path: &Path) -> Result<Vec<u8>> {
     let selection = plan.verify_artifact(&publication, &journal, id, &device, &policy, now)?;
     if selection.quality() != PrekeyQuality::OneTimeBoth {
         return Err("publication fixture selection quality".into());
+    }
+    if let Some(output) = lease_output {
+        use q_periapt_continuity_identity_candidate::{
+            DirectoryLeaseConflict, DirectoryLeaseRequest, DirectoryPin, DirectorySigningKey,
+        };
+        // Deliberate signer equivocation fixture, not a durable allocator.
+        // Only public receipts escape; the new service owner stays in this process.
+        let signer = DirectorySigningKey::generate()?;
+        let pin = DirectoryPin::new([0xd1; 32], signer.public_key()?)?;
+        let first_request =
+            DirectoryLeaseRequest::new([0xa1; 32], [0xb1; 32], directory, validity)?;
+        let second_request =
+            DirectoryLeaseRequest::new([0xa2; 32], [0xb2; 32], directory, validity)?;
+        let first = signer.issue_lease(&pin, first_request, &selection, &device, &policy, now)?;
+        let second = signer.issue_lease(&pin, second_request, &selection, &device, &policy, now)?;
+        let resigned =
+            signer.issue_lease(&pin, first_request, &selection, &device, &policy, now)?;
+        let conflict = DirectoryLeaseConflict::verify(&pin, first.as_bytes(), second.as_bytes())?;
+        fs::create_dir(output)?;
+        save(output, "service-id", &pin.identity())?;
+        save(output, "service-key", &pin.public_key().encode())?;
+        save(output, "service-binding", &pin.binding())?;
+        save(output, "first", first.as_bytes())?;
+        save(output, "second", second.as_bytes())?;
+        save(output, "resigned-first", resigned.as_bytes())?;
+        save(output, "conflict", &conflict.to_bytes())?;
+        let verified = pin.verify_historical_lease(first.as_bytes())?;
+        save(
+            output,
+            "statement-digest-first",
+            &verified.statement_digest(),
+        )?;
     }
     let mut result = selection.as_bytes().to_vec();
     result.extend_from_slice(&selection.digest());

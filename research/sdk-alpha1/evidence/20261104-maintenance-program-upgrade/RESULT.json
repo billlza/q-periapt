@@ -1,0 +1,69 @@
+{
+  "after_sdk": "f560d803c43a24fff222daa5e5e5bd623bfdf874",
+  "after_source": "4effa8b2b25e7403ab912b65894a7d1e73695542",
+  "archive": {
+    "bytes": 22348480,
+    "file": "CAPTURE.zip",
+    "members": 3600,
+    "sha256": "63e68f58ed18a85813fe5af85eda9078c325f295c2c4644f05216a34f925b2f6"
+  },
+  "archive_only_runtime_readback_completed": true,
+  "before_sdk": "6084f3bfb09333f6b66291b38809ed512296a27b",
+  "before_source": "21e00e9c3cfd193b9f51491888347f583620dfe0",
+  "completed": true,
+  "controller_commit": "0b75a2d16fcb8c5acf333cfa8cb88d837e5546de",
+  "copied_controller_files_in_application": 101,
+  "corrected_exact_union_readback": true,
+  "installed_modules": 105,
+  "installed_wheel_files": 113,
+  "member_manifest_sha256": "51b4950cdd8f269eced44aff56825febb399f52b913c95b1388d52b7245e743c",
+  "native_commands": 1019,
+  "original_driver_exit": 1,
+  "original_final_inventory_check_failed": true,
+  "private_fixture_state_included": false,
+  "process_cuts": 32,
+  "program_switches": 29,
+  "publication_performed": false,
+  "rejected_controls": 18,
+  "release_claim_eligible": false,
+  "runtime_rerun": false,
+  "scenarios": [
+    {
+      "backward": 4,
+      "exact_replay_pairs": 6,
+      "forward": 5,
+      "native_commands": 328,
+      "preserved_inputs_per_cut": 58,
+      "process_cuts": 10,
+      "program_switches": 9,
+      "scenario": "run-01/peer",
+      "witness_attempts": 219
+    },
+    {
+      "backward": 5,
+      "exact_replay_pairs": 6,
+      "forward": 5,
+      "native_commands": 345,
+      "preserved_inputs_per_cut": 58,
+      "process_cuts": 11,
+      "program_switches": 10,
+      "scenario": "run-01/peer-before",
+      "witness_attempts": 230
+    },
+    {
+      "backward": 5,
+      "exact_replay_pairs": 6,
+      "forward": 5,
+      "native_commands": 346,
+      "preserved_inputs_per_cut": 58,
+      "process_cuts": 11,
+      "program_switches": 10,
+      "scenario": "run-01/peer-after",
+      "witness_attempts": 230
+    }
+  ],
+  "schema_version": 1,
+  "scope": "One current same-format installed native-program replacement edge on macOS arm64; fresh independent wheel; original-state exact recovery; no physical power loss or final release claim.",
+  "sealed_utc": "2026-11-04T22:30:43.815242+00:00",
+  "witness_attempts": 679
+}

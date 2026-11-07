@@ -1,0 +1,82 @@
+{
+  "archive_sha256": "8dcf1ec65c8b171d14b92d9dc17b263a3676dc9d2e3b427005f4617a9dc10b53",
+  "archive_bytes": 587845,
+  "members": {
+    "READBACK.json": {
+      "bytes": 1832,
+      "sha256": "5f612335332522de863e7b904fd7f7793953e8f6e1b0ad58620d8c08c13eaf08"
+    },
+    "artifact-13412121717.zip": {
+      "bytes": 22581,
+      "sha256": "6cf3f76891aafd6cf71b5e2ec8dc0eb5a1ff9e1e97e82da57da14dfe63e9b0be"
+    },
+    "artifact-13412219196.zip": {
+      "bytes": 188605,
+      "sha256": "831a454da3c193dc61e85bfa3b219422c9e915358c2cabebff3118e91c346829"
+    },
+    "artifact-13412319456.zip": {
+      "bytes": 233105,
+      "sha256": "b4b78352d7b82d4e5a0dc0f03e871c805d3455f70c390eb0b911880a4ee20fdc"
+    },
+    "job-127182939597.log": {
+      "bytes": 56154,
+      "sha256": "e2983602f84461d4b57efcb9847d62d5325427129b72471481fb85fcbb4598ed"
+    },
+    "job-127186189837.log": {
+      "bytes": 289220,
+      "sha256": "cf9a1fd147cae04fe48bd79d20979c3ad4836a9909e2518b317e03bd8a8c73c0"
+    },
+    "job-127187316739.log": {
+      "bytes": 288784,
+      "sha256": "7d7ce278596e20e624697b8bf2bd7058b1652eef38fa02333983bc356157f654"
+    },
+    "jobs-42008993544.json": {
+      "bytes": 311655,
+      "sha256": "e20895030d2fb80cf5b0a4386a5df83b268afafbb9b86f8a8a838dd9954e1fda"
+    },
+    "jobs-42008993679.json": {
+      "bytes": 301070,
+      "sha256": "1b8473f6fb1ec89f1b75775d04eb059d76e0714bbd0925a14ba6fd36e016d246"
+    },
+    "jobs-42008993976.json": {
+      "bytes": 50243,
+      "sha256": "588233b63d4d6a1f0e704c2100dcfe91fd93d7b81bdfc2721c641a9b0979caf3"
+    },
+    "jobs-42008994078.json": {
+      "bytes": 29455,
+      "sha256": "a52378e457aaaf5d996c89fde6f7aa9ab00448ea2f8a11d77169e6bf86b45ca9"
+    },
+    "jobs-42009001650.json": {
+      "bytes": 53652,
+      "sha256": "2f2097018d7a0b9614a93c566c80aa9464b011eb062cd331c644903541345d1e"
+    },
+    "jobs-42009001884.json": {
+      "bytes": 6835,
+      "sha256": "4d3468729e74b1ea15387abc21951f7581887ee4e8d876dc803cdbbd5d24fc1f"
+    },
+    "jobs-42009001947.json": {
+      "bytes": 302073,
+      "sha256": "8be7475fdfe2a0b27c4c8784581e7bd4ea5023f46f245fa0aea095df66196290"
+    },
+    "jobs-42009002052.json": {
+      "bytes": 8389,
+      "sha256": "ae0c8b1c4a43fbd40ac3010c8b929cc0f5ac117e51f73c1f462607d229889a7f"
+    },
+    "jobs-42009005313.json": {
+      "bytes": 306967,
+      "sha256": "fa4935ed8950ee1c701626a89c51e84e70827269d4503230495978fe2a342c19"
+    },
+    "jobs-42009005415.json": {
+      "bytes": 8403,
+      "sha256": "3b76b035116a7b88e2b305d955538a66f8f9f032a561db642bffeec275441e63"
+    },
+    "jobs-42009005451.json": {
+      "bytes": 32297,
+      "sha256": "9e92076780d9b1379e8e6b769f52c09f282292c69fdff9af68deb74f2c3b344d"
+    },
+    "jobs-42009005586.json": {
+      "bytes": 43910,
+      "sha256": "35d9d57a4b3511a136f4540db3971b1bd97dd93918da6f35345e1e07791c2264"
+    }
+  }
+}

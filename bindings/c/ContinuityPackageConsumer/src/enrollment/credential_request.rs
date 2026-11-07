@@ -141,3 +141,36 @@ pub unsafe extern "C" fn qpc_enrollment_v1_witnessed_credential_renewal_request(
     // SAFETY: required-witness admission never falls back to the local path.
     unsafe { request(handle, operation, output, error, true) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_credential_renewal_request_v1", CredentialRequest, {
+        operation: [u8; 32],
+        journal: [u8; 32],
+        original_owner: [u8; 32],
+        original_policy_digest: [u8; 32],
+        current_policy: PolicyCheckpoint,
+        current_policy_authorization: [u8; 32],
+        has_current_policy_authorization: u32,
+        reserved: u32,
+        previous_roster_checkpoint: Checkpoint,
+        original_roster_checkpoint: Checkpoint,
+        previous_valid_from: u64,
+        previous_valid_until: u64,
+        account: [u8; 32],
+        original_credential: PublicRecord,
+        original_roster: PublicRecord,
+        previous_credential: PublicRecord,
+        previous_roster: PublicRecord,
+    });
+    abi_function!(
+        qpc_enrollment_v1_credential_renewal_request,
+        (u64, *const u8, *mut CredentialRequest, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_witnessed_credential_renewal_request,
+        (u64, *const u8, *mut CredentialRequest, *mut ErrorRecord)
+    );
+}
+// END C ABI CHECKS

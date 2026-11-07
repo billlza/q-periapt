@@ -7,6 +7,7 @@ use crate::{
 };
 use std::{fs, sync::atomic::Ordering};
 
+mod classical_alias;
 mod closure;
 #[cfg(feature = "connection-tls")]
 mod connection_tls;

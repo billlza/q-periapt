@@ -15,11 +15,42 @@ from evidence_io import parse_strict_json_bytes
 
 PACKAGE = "qperiapt_continuity_reference"
 DIST = PACKAGE + "-0.0.0.dist-info"
+DIRECTORY_CLI_PUBLIC_FILES = frozenset((
+    "pin.json", "first.bin", "retry.bin", "cancelled.bin", "fork.bin", "fresh.bin",
+    "conflict.bin", "original-history.json", "inspection.json", "expected.json",
+    "cli-trace.jsonl", "history-trace.jsonl", "bad-signature.bin", "wrong-service.json", "wrong-key.json",
+))
 
 
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise ValueError(message)
+
+
+def verify_directory_cli_result(result: dict, source_hashes: dict, public_hashes: dict,
+                                implementation: str) -> None:
+    """Keep installed public-receipt readback separate from source CLI execution."""
+    require(result.get("schema") == "qperiapt-independent-directory-cli/1"
+            and set(public_hashes) == DIRECTORY_CLI_PUBLIC_FILES
+            and result.get("completed") is True
+            and result.get("source_sha256") == source_hashes
+            and result.get("public_files") == public_hashes
+            and result.get("implementation") == implementation,
+            "installed directory CLI input or implementation differs")
+    require(type(result.get("verified_original_receipts")) is int
+            and result["verified_original_receipts"] == 3
+            and result.get("exact_retry") is True and result.get("canonical_conflict_matched") is True
+            and type(result.get("cli_processes")) is int and result["cli_processes"] == 31
+            and type(result.get("historical_processes")) is int and result["historical_processes"] == 4
+            and result.get("negative_controls") == ["bad-signature", "wrong-service", "wrong-public-key",
+                                                    "exact-retry-is-not-conflict", "bad-pq-signature"],
+            "installed directory CLI readback coverage differs")
+    require(result.get("historical_only") is True
+            and result.get("current_authorization_or_consumption") is False
+            and result.get("session_qualified") is False and result.get("release_claim_eligible") is False
+            and result.get("directory_cli") == "source-build"
+            and result.get("provider", {}).get("cryptography") == "48.0.1",
+            "installed directory CLI readback scope differs")
 
 
 def verify_local_policy_profiles(result: dict) -> None:

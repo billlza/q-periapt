@@ -38,8 +38,9 @@ authoritative state under the acquired lease. These checks do not isolate mutual
 hostile code running as the same user.
 
 Initial databases and immutable keys now keep incomplete/unpublished bytes beneath
-private staging names. Database initialization durably commits its schema before
-file sync, NOREPLACE publication, inode verification and pinned-parent sync. The
+private v2 control directories, under their separate continuous attempt lease.
+Database initialization durably commits its schema before
+file sync, NOREPLACE publication, inode verification and both rename-parent syncs. The
 same Database and exclusive lock survive every step; auxiliary plain file probes
 never manage locks. Existing destination names are never replaced or removed.
 
@@ -51,6 +52,13 @@ Existing partial formal databases remain refused at application-schema admission
 although redb opening can update its own allocator/recovery metadata. No
 `open_or_create` recovery path exists. Existing transaction failures still require
 exact old-or-new commit reconciliation.
+
+Explicit [v2 publication maintenance](../PRIVATE_PUBLICATION_MAINTENANCE.md) may
+reclaim a bound inactive attempt after whole-payload admission; it never selects a
+staging image for operational recovery. Its original cleanup intent and result
+survive partial removal. Publication retires its own control metadata on success;
+a retirement error can leave a valid formal target with partial control metadata.
+Incomplete/legacy controls are refused, not automatically swept.
 
 ## Aggregate image and local write intent
 
@@ -86,8 +94,25 @@ cannot silently accept that record. Outer/inner tag mismatches are refused.
 Owner/context/source,
 one-time claims, authority references, payloads and their phase relationships are
 validated as a whole. Separate record quotas and the 2 MiB plaintext cap all apply.
-Terminal records/tombstones continue to count; removing them to reclaim capacity
+Terminal records/tombstones continue to count unless their explicit authenticated
+retirement contract permits removal; arbitrary deletion to reclaim capacity
 would change replay and one-time semantics.
+
+At most 16 retained fanout records may coexist in one journal. They also count
+toward the 128 session/operation records and the 2 MiB aggregate image limit;
+these limits apply together, rather than promising every maximum simultaneously.
+An acknowledged aggregate still occupies its fanout slot until explicit
+`retire_fanout`. Retirement refuses a reserved or abandoning batch, committed
+member ciphertext and pending resolution; it first checks the complete original
+member bindings. A successful retirement removes that aggregate's metadata and
+preserves the monotonic fanout ordinal, so its ID remains retired after reopen
+and cannot be reused. Capacity refusal does not evict an earlier aggregate or
+allocate the rejected next ID. See the actual
+[admission and retirement paths](../../research/continuity-identity-candidate/src/durable/messages/fanout.rs).
+
+The [numeric descriptor](BUDGETS_V1.json) uses schema 3 to include this existing
+fanout quota. This changes descriptive metadata only; the 16-record runtime
+limit, protocol identifiers, signed bytes and storage formats are unchanged.
 
 The explicit [account-authority adoption](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md)
 transaction moves an originally witnessed image to its registry-bound variant.
@@ -240,11 +265,15 @@ it does not broaden the physical-erasure or recovery guarantees above. The
 [encoding qualification](../../research/sdk-alpha1/evidence/20261017-secret-encoding/README.md)
 records format compatibility, original-owner capacity recovery and resource scope.
 
-There is no automatic candidate schema migration. An unsupported old table/tag,
+There is no automatic device-journal schema migration. An unsupported old table/tag,
 changed policy family/device generation, missing file or bad MAC never triggers
 empty-state initialization. Product upgrade/rollback support needs a separately
 specified, crash-safe migration and compatibility policy; refusing unsupported
-tables and envelopes is not a complete long-term maintenance strategy.
+tables and envelopes is not a complete long-term maintenance strategy. Witness
+images have their own existing authenticated compatibility and explicit identity
+admission paths. The [upgrade and maintenance contract](UPGRADE_MAINTENANCE_V1.md)
+separates these from program replacement and physical database migration, and
+records the remaining product-admission decisions.
 
 ## Source correspondence and qualification limits
 

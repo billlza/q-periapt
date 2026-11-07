@@ -114,7 +114,7 @@ fn preparation_error_and_panic_leave_only_unpublished_staging(
             .ok_or("missing staging")??
             .path();
         assert_eq!(
-            fs::read(staging.join("policy"))?,
+            fs::read(staging.join("payload/policy"))?,
             b"partial private preparation"
         );
         if panic {
@@ -158,11 +158,16 @@ fn every_publication_error_retains_original_error_and_complete_visible_tree(
         assert_eq!(error.operation().raw_os_error(), Some(5));
         assert!(error.staging_name().is_some());
         assert_eq!(target.exists(), index >= 5);
-        assert_eq!(fs::read_dir(&parent)?.count(), 1);
+        assert_eq!(fs::read_dir(&parent)?.count(), 1 + usize::from(index >= 5));
+        let control = parent.join(error.staging_name().ok_or("attempt record")?);
+        assert!(control.join("record").is_file());
+        assert!(control.join("lease").is_file());
         if index >= 5 {
             complete(&target)?;
         } else {
-            let retained = parent.join(error.staging_name().ok_or("staging diagnostic")?);
+            let retained = parent
+                .join(error.staging_name().ok_or("staging diagnostic")?)
+                .join("payload");
             assert!(retained.is_dir());
             if index > 0 {
                 complete(&retained)?;

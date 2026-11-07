@@ -451,9 +451,23 @@
           "artifact/test_continuity_context.py",
           "artifact/test_prekey_selection.py",
           "artifact/test_continuity_model_isolation.py"
+        ],
+        "specification": [
+          "docs/continuity/PRODUCT_ADMISSION.md",
+          "research/continuity-identity-candidate/README.md",
+          "research/continuity-reference-app/DIRECTORY_LEASES.md"
+        ],
+        "implementation": [
+          "research/continuity-identity-candidate/src/lib.rs",
+          "research/continuity-identity-candidate/src/directory_lease.rs",
+          "research/continuity-reference-app/src/directory_ledger.rs"
+        ],
+        "runtime_evidence": [
+          "research/sdk-alpha1/evidence/20261104-continuity-c-maintenance/README.md",
+          "research/sdk-alpha1/evidence/20261104-directory-cli-crosscheck/README.md"
         ]
       },
-      "boundary": "Not implemented. The selected public comparison pages now have a reproducible raw/Signal-cfemail-normalized drift verifier, but mutable pages are not archived and the component integration profile remains undefined. The repository has a publish=false, non-normative effect/journal lifecycle model with opaque operation commitments, a candidate canonical LifecycleContextV1 projection, and a strict model-only PrekeySelectionV1 record. Its 52 Rust tests retain a trusted pairwise SessionIdentity and structured AuthenticatedContext in abstract snapshot schema 3, reject protocol/policy/session/device/current-context grafts before reservation, derive lossless two-leg B21-B23 values atomically, use exact version+digest state advances, and reject a no-op anchor before mutation. Rust and independent Python encoders/decoders agree on frozen full-byte model vectors, but there is no outer Lifecycle or production snapshot/record/wire decoder, signed manifest/leaf verifier, lease/consumption/tombstone state, or context-advance API. The model retains exact typed pending repository and suspension intents, scrubs volatile results at every durable cut, preserves first-cause typed evidence, reconciles writes before durable quarantine, and replays exact release permits until a modeled acknowledgement. ProviderBinding is caller-selected: echo equality does not prove policy authorization, downgrade resistance, provider identity, or current epoch. Trusted genesis, credential/role/device-epoch authentication, manifest/prekey/directory authenticity, legal stage transitions, authenticated provider/repository/anchor/receipt adapters, and host fsync-before-effect remain external obligations. There is no production q-periapt-session crate, identity/prekey directory, wire protocol, persistent Double/Triple Ratchet or ML-KEM Braid state, Sesame-style session manager, storage/anchor adapter, recovery layer, or key-transparency service. The model, current KEM, demo handshake, symbolic proofs, bindings, and device proofs do not satisfy this broad parity claim."
+      "boundary": "The broad comparison claim remains pending; it is no longer an unimplemented session-design placeholder. The unpublished Continuity identity candidate implements authenticated enrollment, signed manifests and prekey selection, encrypted persistent pairwise state, fresh-PQ rekeys, original-operation retry and restricted recovery, revocation and account-wide fanout. Its public owned interfaces and source-bound installed lifecycle checkpoints are tracked in PRODUCT_ADMISSION.md; platform receipts retain their own source and workload identities. The reference directory additionally implements independently pinned hybrid-signed assignments, durable original-operation and algorithm-tagged key occupancy, cancellation and canonical conflict evidence. The real directory CLI and independent Python/OpenSSL public-artifact readback exercise these boundaries. These are implementation and scoped execution results, not evidence that Q-Periapt implements Signal's Double/Triple Ratchet, SPQR or Sesame, Apple PQ3, MLS, key transparency, or a completely matched integration of those systems. The earlier publish=false lifecycle/context/prekey model remains a separately scoped diagnostic and does not limit what the later implementation contains. Full lifecycle/security/performance parity requires an explicit comparison profile, selected reference revisions, matched authority, storage, delivery and compromise assumptions, and comparable workloads. Neither feature coverage nor passing package tests alone establishes that broad parity, formal-to-Rust refinement, independent deployment assurance or product release admission."
     },
     {
       "id": "SESSION-SECURITY-PERFORMANCE-LEAD",
@@ -487,9 +501,26 @@
           "artifact/test_prekey_selection.py",
           "artifact/test_continuity_model_isolation.py"
         ],
-        "comparison": ["docs/COMPETITIVE_ANALYSIS.md"]
+        "comparison": [
+          "docs/COMPETITIVE_ANALYSIS.md"
+        ],
+        "specification": [
+          "docs/continuity/RECOVERY_DEPENDENCIES_V1.md",
+          "docs/continuity/COMPUTATIONAL_RECOVERY_V1.md"
+        ],
+        "symbolic_verification": [
+          "research/sdk-alpha1/evidence/20261104-multi-epoch-replay/README.md",
+          "research/sdk-alpha1/evidence/20261104-multi-epoch-replay/VERIFICATION.json",
+          "research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md",
+          "research/sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace/README.md"
+        ],
+        "runtime_evidence": [
+          "research/sdk-alpha1/evidence/20261104-directory-cli-crosscheck/README.md",
+          "research/sdk-alpha1/evidence/20261106-resource-repeats/README.md",
+          "research/sdk-alpha1/evidence/20261106-installed-throughput/README.md"
+        ]
       },
-      "boundary": "Research hypothesis only. The 31-test lifecycle model exercises trusted durable pairwise session/current-context admission, reservation, full binding/result shape, exact version+digest state advances, typed persist subjects, every repository unknown stage and outcome after reconstruction, durable non-noop anchor preparation, volatile-result scrubbing, first-cause typed evidence, provider terminal-outcome contradiction, append-only suspension, fence loss, and idempotent release/ack ordering without real secrets or protocol wire bytes. Twelve context tests and eight strict prekey-selection tests plus independent Python encoders/decoders check candidate Lifecycle and Prekey bytes and frozen SHA3 vectors; one private regression checks that invalid receipt preflight cannot partially mutate the model. The prekey codec prevents opaque tuple laundering and lossless two-leg downgrade ambiguity, but it does not prove manifest authenticity, unique lease, consumption/tombstones, directory consistency, or rollback resistance. The model deliberately does not advance the authenticated context. Its five-mutant oracle is an independent monitor self-test, not exhaustive reachability. Trusted initialization is an assumption, not identity authentication. Provider profile/epoch echo equality is not policy authorization, downgrade resistance, provider identity, or epoch attestation. The model is not a credential, UKS/KCI, prekey-single-use, database durability, FS/PCS, rollback, ratchet, or session-security proof; authenticated provider/repository/anchor/receipt adapters, outer/production strict decoding, canonical snapshot/records, journal-ack-before-effect, benign rejection/dedup semantics, suspension-conflict convergence, WAL/fsync and kill/restart adapters remain open. No novelty proof, protocol proof, implementation refinement, interoperability, physical-device session benchmark, energy result, third-party audit, or deployment evidence exists. Any future claim must use the selected component-reference revisions plus separately specified manager integration, matched workloads and devices, explicit wire/latency/energy/privacy/healing budgets, and the gates in CONTINUITY_RESEARCH.md."
+      "boundary": "The combined superiority claim remains a research hypothesis, but the evidence now extends beyond the earlier abstract lifecycle model. The retained multi-epoch Tamarin MAIN secrecy theorem and all 24 reusable dependencies passed together under the stated identity, reservation-freshness and record-acquisition assumptions. The complete inventory remains 27 verified and 13 incomplete. Separate source-derived finite two-round and delayed-receipt executions support concrete non-vacuity and the reservation-freshness boundary; they are not additional Tamarin certificates. COMPUTATIONAL_RECOVERY_V1.md and its follow-ups provide conditional primitive and composition arguments while retaining the native/accepted-prefix simulation, authentication and full multi-root/traffic composition obligations. Source-bound installed lifecycle, original-message recovery, directory CLI/independent receipt checks and repeated resource/throughput observations now exist. Their fixed source, platform, workload and measurement denominators must be preserved. The repeated serial single-host observations are not a matched optimized-competitor comparison, production-tail or saturation result, or representative mobile-energy measurement. These results do not yet establish the combined claim of a proved security or assurance improvement with no worse end-to-end session performance. A future comparison must state its exact security improvement and proof model, selected component-reference revisions and integration, matched workloads and devices, and wire/latency/energy/privacy/recovery metrics. Product freeze, release qualification and external review have their own scopes and are not inferred from these research results."
     },
     {
       "id": "HQC-FIPS207-DRAFT-CANDIDATE-SHADOW",

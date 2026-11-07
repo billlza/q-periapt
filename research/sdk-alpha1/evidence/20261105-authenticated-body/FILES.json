@@ -1,0 +1,94 @@
+{
+  "AUTHENTICATED_BODY_LEMMA_V1.md": {
+    "bytes": 8209,
+    "sha256": "168fa37345c734e8a0c12c4ac91f4989d7eff606767657c838cf89885c04cb87"
+  },
+  "NOTES.md": {
+    "bytes": 7190,
+    "sha256": "8d95a7cae0294cbe050a9944548d5551039c18ac071e960c5600035e5ca9bbdd"
+  },
+  "READBACK.json": {
+    "bytes": 2883,
+    "sha256": "70de0e2d7a777b10779a8f4e8e0a1fed7ac3c67002271298462bfafd539ff286"
+  },
+  "SOURCE_OBSERVATIONS.json": {
+    "bytes": 4119,
+    "sha256": "acb26a29196e9f7ee60e91e97e8b17464cdc8bec3e3d69449200e2cb04862762"
+  },
+  "dependency/fips204-0.4.6/Cargo.toml": {
+    "bytes": 2299,
+    "sha256": "bb8e8da1c2fc8c07809773cd51ce822b8cbc7ddc326a8e8c1a125dd3f518bc09"
+  },
+  "dependency/fips204-0.4.6/LICENSE-APACHE": {
+    "bytes": 10849,
+    "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"
+  },
+  "dependency/fips204-0.4.6/LICENSE-MIT": {
+    "bytes": 1070,
+    "sha256": "d27687b51f2874822c1530976b7e837eac4f308d94bf3dd42047011b7d437b47"
+  },
+  "dependency/fips204-0.4.6/src/hashing.rs": {
+    "bytes": 11568,
+    "sha256": "33269eaa1d05b126cc03a8c42e616aefa4a8c001bf92ea0a4a3eeeab18bd45ce"
+  },
+  "dependency/fips204-0.4.6/src/lib.rs": {
+    "bytes": 36424,
+    "sha256": "fb073c02f39284431c072b587e8f97abe930c4b53fc40e47cd33f2e4c571ea0f"
+  },
+  "dependency/fips204-0.4.6/src/ml_dsa.rs": {
+    "bytes": 22499,
+    "sha256": "8cd47b247be255f6eb2ea5e1ab9928b1fa3b27f0fafb1b06fa364c50e96013e8"
+  },
+  "dependency/fips204-0.4.6/src/traits.rs": {
+    "bytes": 19882,
+    "sha256": "1d6fe99ffbc2128629b7965b106145b63cc1e013d976545f9a7f09f321a94f1d"
+  },
+  "original-run/EXTRACTS.json": {
+    "bytes": 1373,
+    "sha256": "afa5186016e050bed763d63ca7757c615d67d7ee568e985f9aa0e9697dbe2d3e"
+  },
+  "original-run/FORMAL_RELEASE_RESULT.json": {
+    "bytes": 373675,
+    "sha256": "342d0a0f8e01eb0538700d49b0431fcc7804885588b94aa564056e6b6946f7cd"
+  },
+  "read_source.py": {
+    "bytes": 4762,
+    "sha256": "d168594c62c6e659443cd7c301737cea1210aa6368888d0c4c2da6d18e9593e5"
+  },
+  "seal_body.py": {
+    "bytes": 5116,
+    "sha256": "6582e61aeb47fd6ad9e039efcfb3c7f6ae9783e5c896bd12a089793b3c258ae9"
+  },
+  "source/crates/q-periapt-backends/src/mldsa.rs": {
+    "bytes": 12268,
+    "sha256": "70635d3d134e3f7e4dd046c8224d1efbca135273f45a48d493b661810672263b"
+  },
+  "source/research/continuity-identity-candidate/src/bootstrap/classical_alias_tests.rs": {
+    "bytes": 5266,
+    "sha256": "f467926fa30356e512ce0fffdd76ec7e50eb9d3ed1d55af191a33d768349c6c7"
+  },
+  "source/research/continuity-identity-candidate/src/connection_transport/confirmation_tests.rs": {
+    "bytes": 10266,
+    "sha256": "9be97fae4440aa7f73b4f34b501c725c358d3dc2050cf5497e0247699eae11ff"
+  },
+  "source/research/continuity-identity-candidate/src/contract.rs": {
+    "bytes": 3957,
+    "sha256": "1fc3bb9131d9074b904208968430b45cb44799891ba102dc2c7b63545ee49431"
+  },
+  "source/research/continuity-identity-candidate/src/crypto.rs": {
+    "bytes": 18994,
+    "sha256": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4"
+  },
+  "source/research/continuity-identity-candidate/src/durable/messages/rekey.rs": {
+    "bytes": 17022,
+    "sha256": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10"
+  },
+  "source/research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs": {
+    "bytes": 42784,
+    "sha256": "d2ba085119db3cff2ebda780f4824b8b4cbd3a9f6e44531df45db48144a65c1e"
+  },
+  "source/research/continuity-identity-candidate/src/durable/messages/rekey/response.rs": {
+    "bytes": 15442,
+    "sha256": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59"
+  }
+}

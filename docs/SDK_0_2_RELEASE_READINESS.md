@@ -6284,3 +6284,204 @@ and pass the repaired one. All 24 focused checker regressions pass, including
 old/missing/extra counts and altered negotiation attributes. Original diagnostic
 failures remain retained. This closes the selected local installed regression;
 the full hosted CI wave and overall release qualification remain separate.
+
+The [actual directory CLI cross-check](../research/sdk-alpha1/evidence/20261104-directory-cli-crosscheck/README.md)
+adds Debug/Release service-produced receipts to the independent source and
+installed-wheel paths. Both readers verify each profile's same 15 public inputs,
+including exact output-loss recovery, cancellation history and identical canonical
+conflict bytes. Single-algorithm reservations remain occupied after cancellation;
+the real ledger retains one operation through retry/refusal and reaches two only
+after a fresh key pair succeeds. The original device-state byte-invariance check,
+56 independent artifact regressions, 13 workflow regressions, strict Clippy and
+format checks pass. This closes the selected local service/SDK/independent
+receipt increment. The CLI is source-built. The installed cohort below adds the
+separate Rust/Python boundary; the newly wired hosted path remains unqualified.
+
+The [installed Rust/Python lifecycle checkpoint](../research/sdk-alpha1/evidence/20261104-installed-independent-lifecycle/README.md)
+passes the complete existing installed registered-owner runner at `6ce866b3` on
+Apple Silicon. The native counterpart consumes actual SDK/candidate crate
+archives outside the checkout, and the independent implementation comes from an
+isolated wheel installation. All 25 top-level commands pass and the build/runtime
+binary hashes agree, including the P2 public directory receipt readback. This
+also retains and fixes a real Cargo-extension routing failure that selected a
+different Clippy compiler through the registry cache. Nine focused and 58
+independent checker tests, both consumer builds and strict Clippy pass. Per-case
+scope limits remain unchanged; this is same-host installed qualification, not
+cross-host, all-platform or final release qualification.
+
+The [current CI failure record](../research/sdk-alpha1/evidence/20261104-ci-runtime-failures/README.md)
+now observes the old READY census rejection in all four installed Rust/C push/PR
+jobs. The parent correction is prepared locally at `232ace17` and merged into
+the directory branch. Two Android 16-KiB failures retain guest-framework/transport
+diagnostics; an earlier artifact-download failure remains separate. Only those
+classified infrastructure failures have a one-job retry plan, after the current
+wave ends. The 10:19 UTC snapshot retains 258 successes, 63 queued, two running,
+seven failed and two skipped jobs across the twelve current-head runs. No rerun
+or new wave has been submitted. Formal external-review preparation is recorded
+in the [review brief](continuity/EXTERNAL_REVIEW_BRIEF.md); no engagement has begun.
+The 10:37 UTC refresh records both remaining capacity jobs succeeding: 260 pass,
+63 remain queued, seven fail and two are skipped. The wave is still open.
+
+The [computational recovery note](continuity/COMPUTATIONAL_RECOVERY_V1.md) maps
+the actual root/confirmation/traffic calls and gives a conditional root-replacement
+argument. Its 32-byte salt restriction fits the published HMAC swap-PRF theorem's
+input condition. This supplies a specific route for the extraction step, while
+combiner secrecy, shared-root composition, quantum-adversary reductions and the
+full message-secrecy argument remain required. The symbolic main result, protocol
+bytes and existing threat-model exclusions are unchanged.
+
+The new notes' local links resolve. A full-ledger link scan also identifies 50
+historical target files absent from both this checkout and the starting
+`6084f3bf` tree; the exact inventory is retained with the
+[installed cohort readback](../research/sdk-alpha1/evidence/20261104-installed-independent-lifecycle/README.md).
+Those historical references require location reconciliation before relying on
+them as current evidence. Their absence here does not establish absence from
+every other checkout/archive, and does not invalidate the separately retained
+new installed, directory or READY records.
+
+The [signature-purpose contract checkpoint](../research/sdk-alpha1/evidence/20261104-signature-purpose-contract/README.md)
+closes the missing compiled coverage for signature purposes 23–39 and completes
+the wire document's inventory. A single declaration generates the actual internal
+enum and read-only descriptor; all original numbers, domains and bounds remain
+unchanged. The old real installed descriptor is rejected by the expanded schema
+2 check, while the new installed descriptor matches all 39 purposes at `21e00e9c`.
+Seven reader tests, 17 source crypto/persistence tests, strict Clippy, formatting
+and 35/44 independent publication/directory checks pass. The failed attempt to
+run dependency-private tests as workspace members remains separately failed;
+the later source test run does not make that aggregate pass. This is a selected
+contract/interop checkpoint, not a full lifecycle rerun or formal ABI admission.
+
+The computational note now also maps the actual ContextBound LP transcript to
+a published quantum-oracle hash construction. The elementary encoding conditions
+are identified with a hidden uniform 256-bit PQ contribution. Establishing that
+contribution through the actual authenticated prefix, permitted leakage and
+shared hash/oracle interfaces still requires the explicit bridge described there.
+The existing EasyCrypt binding proof is not substituted for secret pseudorandomness.
+
+The [complete C owner ABI checkpoint](../research/sdk-alpha1/evidence/20261104-continuity-c-abi-contract/README.md)
+at `43c60a80` binds all 158 existing exports, 70 C records, 341 fields, one callback
+and 112 declared constants to an explicit unfrozen snapshot. Separate C and Rust
+compilers agree on complete layouts and field/function/callback types using the
+actual installed shared library and archive dependency graph. Exhaustive Rust
+patterns reject fields added into padding. Both Debug and Release pass the ABI
+comparison, strict Clippy and a separate complete 59-test owner regression.
+The 126 related Python/package/source-gate tests and formatting pass. The exact
+Rust source inventory is 1,165; no fresh CodeQL database scan is claimed.
+
+The initial gate's same-size type, padding and transcript-reader counterexamples
+were reproduced and repaired. Three failed/incomplete aggregate attempts remain
+retained separately from the final successful qualification. Windows packaging
+now carries the snapshot into its native consumer, but Windows/Linux/device
+runtime qualification of the new gate remains pending. This changes acceptance
+coverage without changing the existing production C implementations, protocol
+identifiers, storage formats or product ABI major. Formal ABI 2 admission still
+requires the remaining product contracts and platform evidence.
+
+At 12:21:39 UTC, the twelve current-head CI runs contain 262 successes, 61 queued,
+seven failures and two skipped jobs. The separate older independent run has two
+successes, one running and one queued job. The #117 push reference-account workflow
+is now 10/10 successful; the two new Apple Silicon completions and a connector
+log-fetch timeout are retained in the checkpoint. Neither PR head changed, and
+no new wave, rerun or push was requested while the current wave remains open.
+
+The [current installed resource baseline](../research/sdk-alpha1/evidence/20261104-installed-resource-baseline/README.md)
+at `539845d5` runs the existing aggregate-capacity/refusal/original-recovery workload
+from installed SDK/candidate archives. Four fresh Apple M4 Max/macOS 26.7.2
+processes complete 500 actual TLS business effects; the unchanged historical
+capacity reader and extended resource reader reject 548 altered-result controls.
+Strict observer build and Clippy pass. The peak whole-process RSS observations are
+154.67–159.81 MiB; all profiles retain the exact 124-message aggregate boundary,
+two original reopens and same-ID reclamation. This supplies current installation
+evidence for one declared capacity path without changing product code or limits.
+
+Inherited allocator controls were observed mid-collection and earlier runs lack
+individual allocator-environment receipts. The schedule's timing, uncontrolled
+host conditions, source/hardware differences from old captures, all failed
+preparatory attempts and raw measurements remain explicit. This is not a formal
+resource budget, isolated SDK memory, controlled tail/throughput result, mobile
+energy qualification or a full multi-session/maintenance resource result.
+At 13:11:21 UTC the current-head CI census is 263 successful, 60 queued, seven
+failed and two skipped jobs; the separate older independent run has two successful
+and two running jobs. No new wave or remote mutation was initiated.
+
+The [installed program-replacement checkpoint](../research/sdk-alpha1/evidence/20261104-installed-program-upgrade/README.md)
+now exercises the actual installed native builds `6ce866b3` and `21e00e9c`
+against freshly installed independent Python wheels. The ordinary successor path
+and unknown Witness outcomes before dispatch / after committed reply loss retain
+original state through 32 SIGKILL/re-exec cuts and 29 program switches (15 forward,
+14 backward). A separate single-program baseline completes ten cuts. Controllers
+are bound to `b22f627a` and `f1740265`; both runtime binaries and their installed
+build records are retained. No protocol, storage format or production code is
+changed. The two candidate archives differ only in contract-report and
+signature-purpose metadata sources, so this is a finite same-format replacement
+edge, not a legacy-format migration or general rollback promise.
+
+All 1,347 native command records and 898 Witness attempts are reread, including
+the actual PID chain, 58 original input hashes per cut, exact bootstrap/message/
+rekey results and original pending mutation identity/target. Witness transport
+retries correctly use a new challenge while retaining the immutable operation.
+The independent-tooling suite passes 67 tests, and 24 altered evidence controls
+are refused. The first observation-driver preparation failed the unchanged
+private-cache probe before lifecycle execution; its failure remains, followed by
+two complete fresh preparations. The 5,061-member capture is reread and all four
+scenario readers run directly over its contents; SHA-256 is
+`b05519651e9f54c18ae75aece12d21382e7983f0277176669b0cc979d9b633a8`.
+
+The [upgrade/maintenance admission contract](continuity/UPGRADE_MAINTENANCE_V1.md)
+separates program replacement, recognized Witness image compatibility, explicit
+original-identity admission and the policy store's narrow physical-engine tool.
+It records the same-store recovery procedure and existing maintenance limits.
+Final package/format/ABI freeze, explicit preview-state disposition, actual
+promised migration edges and orphan maintenance remain open. This checkpoint is
+Apple Silicon with synthetic fixture clocks and a co-located test Witness; it is
+not remote-Witness, other-platform, power-loss or full release qualification.
+
+At 14:24:09 UTC the twelve current-head runs contain 266 successes, 53 queued,
+four running, seven failures and two skipped jobs. The same seven failures remain
+the four old READY census checks, two classified Android 16 KiB jobs and the
+policy-maintenance artifact-transport failure. The older independent run
+`41791763191` at `adaaeb49` is now 4/4 successful on Linux x86_64 and Apple Silicon,
+covering Python source/installed wheel with source-built Rust counterparts.
+Neither PR head changed. No push, rerun or new wave was initiated; the next wave
+still waits for the effective wave to become terminal, with the local READY
+correction and the already classified bounded reruns tracked separately.
+
+The [staging-maintenance protocol experiment](../research/sdk-alpha1/evidence/20261104-staging-maintenance-protocol/README.md)
+advances the existing maintenance design without changing product code. A real
+installed `publish_private_directory` execution demonstrates that a hypothetical
+cleaner holding the old directory descriptor can delete a child after that same
+directory has become formal. The SDK has no such cleaner today; this is a
+counterexample to a proposed cleanup strategy, not a newly observed product
+data-loss defect. Source comparison confirms all 22 installed host-store Rust
+files match `c64a0248`, and all 1,037 copied installed package files remain unchanged.
+
+A separate control-directory record and continuous `LockedFileBackend` lease
+complete twelve basic experimental cases, including eleven recorded real owner
+SIGKILLs, four file/directory publication states, six malformed/substitution
+controls and a pre-metadata interruption. A separate active-lease replacement
+case confirms that a new unlocked file at the old lease name does not authorize
+cleanup while the original lease/owner still exists. These are Apple Silicon
+protocol experiments with a closed one-file tree, not general recursive cleanup
+or product/platform admission.
+
+The extended aggregate **fails** at a valid zero-byte payload after the metadata
+barrier: the existing operational opener returns `PrivateFileError` and leaves
+the original bound payload intact. That rejection is correct for normal storage.
+The next implementation requires an internal disposable-payload admission under
+the original record/lease, without relaxing existing operational opens. The
+failed aggregate is retained and is not replaced by the separate successful
+control. Per-attempt product integration, bounded recursive preflight, control
+record retirement/unknown-result semantics, pre-metadata residue bounds and
+platform adapters remain open.
+
+Two preparation compiler failures and the original selected-toolchain LLVM loader
+warning are retained. Explicit error typing and a child-process-only search for
+the same existing toolchain library resolve them; the subsequent experimental
+revisions pass Release build and strict Clippy with warnings denied. The
+193-member capture is reread, including a review which explicitly keeps
+`extended_aggregate_passed` and `product_maintenance_implemented` false. Capture
+SHA-256: `d931c617c7ba7af47d786dcca88f1c5a27969e304f0e08f29db3a5d19d661a7a`.
+
+At 15:27:43 UTC the current-head CI census is 275 successful, 47 queued, one
+running, seven failed and two skipped jobs. The failures and PR heads are
+unchanged. No push, rerun or new CI wave was initiated.

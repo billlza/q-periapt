@@ -253,6 +253,17 @@ impl TlsEndpoint {
     }
 }
 
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_witness_v1", Options, {
+        address: *const u8,
+        address_length: usize,
+        timeout_ms: u32,
+    });
+}
+// END C ABI CHECKS
+
 #[cfg(test)]
 mod tests {
     use super::*;

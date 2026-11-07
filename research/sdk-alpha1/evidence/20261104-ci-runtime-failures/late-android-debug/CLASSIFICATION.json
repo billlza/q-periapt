@@ -1,0 +1,31 @@
+{
+  "actual_checkout": "59bde0fd1a268de4d0e183c33bf3fc5e09c9be97",
+  "android_jni_execution_claimed": false,
+  "artifact_downloaded_in_this_capture": false,
+  "artifact_metadata_from_log": {
+    "bytes": 47521939,
+    "id": 13373619512,
+    "sha256": "f75c6a944df9ff796268c324cf85beb1748e3250ab81d4bc018284cd278807a2"
+  },
+  "captured_at": "2026-11-05 00:14:35 UTC",
+  "classification": "Tenth observed P0 old-count validator failure in the macOS C/OpenSSL prerequisite.",
+  "effective_wave_open": true,
+  "emulator_failure": false,
+  "hosted_observed_count": null,
+  "job_id": 126489776821,
+  "job_name": "continuity-installed-android-debug",
+  "job_url": "https://github.com/billlza/q-periapt/actions/runs/41791861104/job/126489776821",
+  "native_test_result_claimed": false,
+  "new_wave_started": false,
+  "old_exact_expectation": 142,
+  "push_performed": false,
+  "rerun_performed": false,
+  "run_id": 41791861104,
+  "wave_counts": {
+    "failure": 13,
+    "queued": 30,
+    "skipped": 2,
+    "success": 287
+  },
+  "workflow_cancelled": false
+}

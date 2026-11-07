@@ -43,7 +43,7 @@ def source_identity():
     paths.extend(ROOT/'research/continuity-reference-app'/name for name in ('Cargo.toml','Cargo.lock',
         'tests/native_exchange_fixture.py','tests/native_network_driver.py',
         'tests/witness_cli_exchange.py','tests/independent_inbound_cli.py'))
-    paths.extend(ROOT/'artifact'/name for name in ('continuity_browser_session.py','continuity_browser_session_records.py','continuity_browser_reverse.py',
+    paths.extend(ROOT/'artifact'/name for name in ('continuity_browser_session.py','continuity_browser_session_records.py','continuity_browser_exchange_records.py','continuity_browser_reverse.py',
         'continuity_browser_reverse_records.py',
         'continuity_browser_witness.py','continuity_browser_witness_records.py',
         'continuity_c_witness.py','continuity_c_recovery.py',
@@ -92,7 +92,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
     sdk.require(metadata.get('name')=='@playwright/cli' and metadata.get('version')=='0.1.22','browser CLI version differs')
     tool_identity=lambda:{'node':sdk.snapshot(node,maximum=256*1024**2).sha256,'cli':sdk.snapshot(cli).sha256}
     tools=tool_identity()
-    report={'schema_version':4 if required_witness else 2,'completed':False,'release_claim_eligible':False,'source':source,'tools':tools,
+    report={'schema_version':6 if required_witness else 5,'completed':False,'release_claim_eligible':False,'source':source,'tools':tools,
       'installed_sdk':binding,'native_binary_sha256':binary_hashes,'provider':provider.__version__,
       'native_build_profile':native_profile,
       'provider_files':provider_files,'provider_openssl':backend.openssl_version_text(),
@@ -188,7 +188,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
         value=parse_strict_json_bytes(text.split('### Result\n',1)[1].split('\n### ',1)[0].encode(),label='browser session phase '+name)
         sdk.require(value['status']=='INSTALLED_SESSION_PHASE' and value['phase']==name,'phase result differs')
         save(public/(name+'.json'),value)
-        remaining = transport_requests(value, public, origin, witness.report['frames'] if witness else [])
+        remaining = transport_requests(value, public, origin, witness.report['frames'] if witness else [], frames)
         if name in ('witness-unenrolled','witness-offline'):
             status='502' if name=='witness-unenrolled' else '503'
             sdk.require(value['http_errors']==[{'url':origin+'/witness','status':int(status)}]
@@ -265,7 +265,11 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
                 if dropped:
                     self.connection.shutdown(socket.SHUT_RDWR);self.close_connection=True;return
                 self.send_response(200);self.send_header('Content-Type','application/octet-stream')
-                self.send_header('Content-Length',str(len(response)));self.end_headers();self.wfile.write(response)
+                self.send_header('Content-Length',str(len(response)));self.end_headers()
+                split = len(response) // 2
+                self.wfile.write(response[:split]); self.wfile.flush()
+                time.sleep(0.02)  # Exercise fragmented bounded consumption; original response bytes unchanged.
+                self.wfile.write(response[split:])
             except BaseException as error:
                 failures.append({'type':type(error).__name__,'message':str(error)})
                 self.send_error(500)
@@ -274,7 +278,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
     origin=f'http://127.0.0.1:{server.server_port}'
     report['browser_origin'] = origin
     thread=threading.Thread(target=server.serve_forever,name='installed-browser-native-fixture');thread.start()
-    opened=False;primary_error=None;witness=None
+    browser_open_attempted=False;primary_error=None;witness=None
     try:
         if required_witness:
             witness=WitnessQualification(private,public,binaries['q-periapt-continuity-witness'],run,services)
@@ -291,7 +295,8 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
         save(web/'initial.json',{'invitation':invitation,
           'pins':load_json_object_snapshot(private/'policy-pins.json',label='browser test policy pins').value,
           'materials':load_json_object_snapshot(private/'policy-materials.json',label='browser test policy materials').value})
-        browser(['open',origin+'/index.html','--browser','chrome'],'browser-open');opened=True
+        browser_open_attempted=True
+        browser(['open',origin+'/index.html','--browser','chrome'],'browser-open')
         created=phase('create');sdk.require(created['secure'] and created['realm'],'not a real secure Worker')
         request=bytes(created['request']);sdk.require(len(request)==5506,'browser enrollment request width')
         save(public/'browser-enrollment.request',request)
@@ -368,7 +373,7 @@ def qualify(output, receipt, node, cli, provider_root, native_target, *, require
         raise
     finally:
         cleanup=[]
-        if opened:
+        if browser_open_attempted:
             try:browser(['close'],'browser-close')
             except BaseException as error:cleanup.append(error)
         server.shutdown();server.server_close();thread.join(timeout=5)

@@ -1779,11 +1779,12 @@ fi
         device_kind_override: str | None = None,
         emulator_started_override: bool | None = None,
         recovery_capture_status: int = 0,
+        diagnostic_status: int = 0,
     ) -> tuple[subprocess.CompletedProcess[bytes], dict[str, bytes], int, int]:
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
-        sample_start = producer.index("observe_installed_package_sample() {")
+        sample_start = producer.index("report_android_failure_diagnostic() {")
         observe_start = producer.index("observe_owned_installed_package() {")
         observe_end = producer.index("\n}\n\ncleanup_android_app()", observe_start)
         observe_function = producer[sample_start : observe_end + len("\n}\n")]
@@ -1838,6 +1839,8 @@ ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=0
 ANDROID_BOOT_AVD={1 if boot_owned_emulator else 0}
 DEVICE_KIND={device_kind}
 EMULATOR_STARTED={1 if emulator_started else 0}
+RUN_ID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+python3() {{ return {diagnostic_status}; }}
 remaining_bounded_timeout() {{
     observation_count=$(/bin/cat "$OBSERVATION_COUNTER")
     if [ "$observation_count" -lt {len(outcomes)} ]; then
@@ -1948,6 +1951,7 @@ exit "$observation_status"
         boot_owned_emulator: bool = False,
         transport_recovery_attempted: bool = False,
         recovery_capture_status: int = 0,
+        diagnostic_status: int = 0,
     ) -> tuple[
         subprocess.CompletedProcess[bytes], dict[str, bytes], list[str], int, bool
     ]:
@@ -1957,7 +1961,7 @@ exit "$observation_status"
         query_start = producer.index("query_package_state() {")
         query_end = producer.index("\n}\n\nobserve_preinstall_package_absence()", query_start)
         query_function = producer[query_start : query_end + len("\n}\n")]
-        sample_start = producer.index("observe_installed_package_sample() {")
+        sample_start = producer.index("report_android_failure_diagnostic() {")
         sample_end = producer.index("\n}\n\nobserve_owned_installed_package()", sample_start)
         sample_function = producer[sample_start : sample_end + len("\n}\n")]
         recovery_start = producer.index("capture_recovered_emulator_evidence() {")
@@ -2061,6 +2065,8 @@ ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED={1 if transport_recovery_attempted
 ANDROID_BOOT_AVD={1 if boot_owned_emulator else 0}
 DEVICE_KIND={"emulator" if boot_owned_emulator else "physical"}
 EMULATOR_STARTED={1 if boot_owned_emulator else 0}
+RUN_ID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+python3() {{ return {diagnostic_status}; }}
 SERIAL_SHA256_PREFIX=0123456789ab
 monotonic_deadline() {{ printf '999\n'; }}
 {remaining_function}
@@ -4684,6 +4690,25 @@ fi
         self.assertEqual(result.returncode, 2)
         self.assertEqual(observation_count, 2)
         self.assertEqual(signer_count, 1)
+
+
+    def test_failure_summary_error_preserves_structural_and_cleanup_exit_status(self) -> None:
+        result, _files, count, signer_count = self._run_installed_package_ownership_observation(
+            ("structural",), boot_owned_emulator=True, diagnostic_status=7,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual((count, signer_count), (1, 0))
+        self.assertIn(b"ANDROID_FAILURE_DIAGNOSTIC_UNAVAILABLE", result.stderr)
+        result, files, calls, signer_count, copy_exists = self._run_cleanup_observation(
+            ("nonzero",), boot_owned_emulator=True, diagnostic_status=7,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls, ["package-state"])
+        self.assertEqual(signer_count, 0)
+        self.assertFalse(copy_exists)
+        self.assertIn(b"reason=query-nonzero", files["adb-package-state-observation.log"])
+        self.assertIn(b"ANDROID_FAILURE_DIAGNOSTIC_UNAVAILABLE", result.stderr)
+
 
     def test_installed_package_ownership_rejects_unknown_retry_reason(self) -> None:
         result, _files, observation_count, signer_count = (

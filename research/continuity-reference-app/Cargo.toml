@@ -39,6 +39,7 @@ webauthn-rs = "=0.5.5"
 
 [dev-dependencies]
 q-periapt-backends = { version = "=0.2.0", path = "../../crates/q-periapt-backends" }
+q-periapt-core = { version = "=0.2.0", path = "../../crates/q-periapt-core" }
 q-periapt-sig = { version = "=0.2.0", path = "../../crates/q-periapt-sig" }
 zeroize = "=1.9.1"
 webauthn-authenticator-rs = { version = "=0.5.5", default-features = false, features = ["softpasskey"] }

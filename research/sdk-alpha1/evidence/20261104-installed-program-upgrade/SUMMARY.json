@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.installed_program_replacement",
+  "completed": true,
+  "release_claim_eligible": false,
+  "runtime_edges": [
+    {
+      "from": "6ce866b31088b3215bcc24bcfef84b4075ff5907",
+      "to": "21e00e9c3cfd193b9f51491888347f583620dfe0",
+      "storage": "same current formats",
+      "program_switches": 29,
+      "forward": 15,
+      "backward": 14
+    }
+  ],
+  "baseline_process_cuts": 10,
+  "replacement_scenario_process_cuts": 32,
+  "total_native_commands": 1347,
+  "total_witness_attempts": 898,
+  "tooling_tests": 67,
+  "receipt_negative_controls": 24,
+  "attempts": {
+    "run-02": {
+      "completed": true,
+      "controller_commit": "b22f627ace3df39a4317b5a50de192768f6ae5bf",
+      "installed_modules": 105,
+      "wheel_sha256": "596bba62781296558a64d768a12ed618043b8cf3e14070cdf81c2ed423d3a094"
+    },
+    "run-03": {
+      "completed": true,
+      "controller_commit": "f17402654cab21589eb774747bae928b540dba28",
+      "installed_modules": 105,
+      "wheel_sha256": "596bba62781296558a64d768a12ed618043b8cf3e14070cdf81c2ed423d3a094"
+    }
+  },
+  "retained_failed_attempt": {
+    "path": "ATTEMPT_01_FAILURE.json",
+    "scope": "pre-run observer setup, strict private-cache probe refused; no lifecycle execution"
+  },
+  "scope": "Apple Silicon installed candidates and installed independent wheel, original live state and synthetic fixture clocks; no legacy-image, product ABI, final-platform, remote Witness or power-loss qualification",
+  "remaining": "final product/version contract and candidate disposition, actual promised migration edges, orphan maintenance, broader release obligations"
+}

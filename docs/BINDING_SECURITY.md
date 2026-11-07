@@ -255,6 +255,13 @@ security semantics. See §6 and the [eprint 2026/140] adjacency.
 
 ContextBound's IND-CCA2 follows from the **GHP18-style combiner argument** ("combiner is IND-CCA if *either* component is IND-CCA"), importing ML-KEM-768 IND-CCA and X25519 strong-DH (ROM) for the classical bound, with SHA3 as a PRF/RO for the KDF.
 
+This is the component-combiner argument, not a proof of the Continuity ratchet's
+accepted execution prefix. The [computational recovery note](continuity/COMPUTATIONAL_RECOVERY_V1.md#bridging-the-actual-contextbound-contribution)
+maps the actual LP encoding to a published RO/QROM hashing step and identifies
+the remaining identity, reservation-leakage, challenge-query and shared-oracle
+simulation. The EasyCrypt collision reductions below prove binding and are not
+used as a real-versus-uniform secret replacement theorem.
+
 > **Recommendation:** given that formosa-x-wing's IND-CCA is unfinished/moving, **do not mechanize this half.** Cite formosa-x-wing and the published X-Wing IND-CCA result, and give a **paper argument** that the extra hashed inputs do not break the reduction. **Reserve all mechanization budget for the binding half** — the actual novelty.
 
 ### 4.4 Declared assumptions / trust base

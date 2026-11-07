@@ -104,6 +104,14 @@ a successful witness query does not make the same reservation fresh. New entropy
 must be reserved only for a genuinely new, admissible transition, never as a retry
 of an uncertain old operation.
 
+The [finite delayed-receipt witness](../../research/sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace/README.md)
+now checks this boundary on the unchanged multi-epoch model. Both parties
+confirm the target epoch after Cut, and the responder encapsulates after Cut,
+yet a pre-Cut phase-3 generation snapshot yields the actual symbolic payload.
+At that binding the sole false MAIN premise is post-Cut generation. The exact
+original query and seven legal countertraces are checked by two semantic
+implementations; this is not a new Tamarin certificate or SDK runtime test.
+
 Acquisition of the actual journal must include an uncommitted target retained
 in its `pending` write intent, not only the current `image` row. The
 [pending-image disclosure checkpoint](../../research/sdk-alpha1/evidence/20261031-pending-image-disclosure/README.md)
@@ -114,6 +122,16 @@ the first point when those private bytes become available. This supplies two
 concrete acquisition boundaries, not a complete whole-journal model refinement.
 A device-global image revision and a symbolic per-session `Saved` version must
 also remain distinct; resealing an unchanged reservation is not fresh entropy.
+
+The [shared-journal copy experiment](../../research/sdk-alpha1/evidence/20261105-aggregate-reservation-copy/README.md)
+now exercises two real sessions in each journal. An unrelated session send
+changes the aggregate revision, image digest and sampled outer nonce while the
+target's phase-three record remains byte-for-byte unchanged. A later capture
+still reconstructs six target epoch-two messages after reopen; a wrong wrapping
+key fails. Debug and Release pass this finite case. A fresh outer nonce can
+support the conditional hidden-head argument without refreshing the retained
+KEM reservation. This is correspondence evidence, not a counterexample to the
+main statement's explicit reservation and post-Cut snapshot conditions.
 
 The passive component experiments serialize KEM private keys directly. The actual
 candidate now also exercises both first-reservation cuts with process loss,

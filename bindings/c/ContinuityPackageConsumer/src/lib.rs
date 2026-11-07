@@ -2,6 +2,10 @@
 //! Unpublished C consumer of the installed Continuity Rust owner, not product ABI 2.
 #![deny(unsafe_op_in_unsafe_fn)]
 
+#[cfg(test)]
+#[macro_use]
+mod abi_contract;
+
 mod account;
 mod account_authority;
 mod configuration;
@@ -876,6 +880,108 @@ pub unsafe extern "C" fn qpc_owner_v1_rekey(
     };
     unsafe { boundary(error, false, action) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_error_v1", ErrorRecord, {
+        code: i32,
+        length: u32,
+        truncated: u32,
+        message: [u8; 512],
+    });
+    abi_function!(qpc_owner_v1_cancel, (u64, *mut ErrorRecord));
+    abi_function!(qpc_owner_v1_close, (u64, *mut ErrorRecord));
+    abi_function!(
+        qpc_owner_v1_establish,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const u8,
+            *mut [u8; 32],
+            *mut u16,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_owner_v1_message_status,
+        (u64, *const u8, *const u8, *mut u8, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_owner_v1_next_message,
+        (u64, *const u8, *mut [u8; 32], *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_owner_v1_open,
+        (*const u8, usize, u8, *mut u64, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_owner_v1_open_witness,
+        (
+            *const u8,
+            usize,
+            u8,
+            *const witness::Options,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_owner_v1_open_witness_tls,
+        (
+            *const u8,
+            usize,
+            u8,
+            *const witness::Options,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_owner_v1_rekey,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const u8,
+            u64,
+            *mut u64,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_owner_v1_send,
+        (
+            u64,
+            *const u8,
+            usize,
+            *const u8,
+            *const u8,
+            *const u8,
+            usize,
+            *const u8,
+            usize,
+            *mut u8,
+            *mut u16,
+            *mut ErrorRecord,
+        )
+    );
+    account::verify_c_abi();
+    account_authority::verify_c_abi();
+    configuration::verify_c_abi();
+    enrollment::verify_c_abi();
+    opening::verify_c_abi();
+    peer_configuration::verify_c_abi();
+    publication::verify_c_abi();
+    recovery::verify_c_abi();
+    retirement::verify_c_abi();
+    root_replacement::verify_c_abi();
+    server::verify_c_abi();
+    setup::verify_c_abi();
+    witness::verify_c_abi();
+}
+// END C ABI CHECKS
 
 #[cfg(test)]
 mod tests {

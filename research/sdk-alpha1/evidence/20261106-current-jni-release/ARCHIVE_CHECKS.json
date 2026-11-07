@@ -1,0 +1,18 @@
+{
+  "archive_inputs": {
+    "archive_sha256": "925e2b530291cb1eddb89b32fb7f466d1896a6a3796b2b904cd09644e47bfae2",
+    "verified_members": 16107,
+    "materialized_raw_members": 15543,
+    "private_runtime_materialized": false
+  },
+  "replayed_outcome_fields": 20,
+  "reconstructed_files": 4376,
+  "loaded_source_modules": 69,
+  "matches_original_public_readback": true,
+  "private_runtime_read": false,
+  "native_workload_rerun": false,
+  "driver_sha256": "1c867d7741334d6571d131e5c1efc0d859821071537741227f91cd3420038cc0",
+  "standalone_captured_source_replay": true,
+  "standalone_source_modules": 69,
+  "same_twenty_public_outcomes": true
+}

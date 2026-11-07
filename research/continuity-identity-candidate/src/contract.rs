@@ -9,6 +9,9 @@
 
 /// External ML-DSA context and prefix for the dual-signature envelope.
 pub const SIGNATURE_CONTEXT: &[u8] = b"Q-PERIAPT-CONTINUITY-IDENTITY-CANDIDATE/v1";
+/// Read-only inventory generated from the purposes actually used by the signer.
+/// A name/byte pair is descriptive metadata, not permission to sign that purpose.
+pub const SIGNATURE_PURPOSES: &[(&str, u8)] = crate::crypto::SIGNATURE_PURPOSES;
 /// Exact fixed rekey profile description hashed into every signed control.
 pub const REKEY_PROFILE: &[u8] = b"ML-KEM-768+X25519/ContextBound;ML-DSA-65+P-256/SHA-256;accountable-epoch-ratchet/v6;messages/v3;retained-epochs=4;settled-prefix-attestation/v1;application-send-budget/v1;control-request/v1";
 /// Rekey transcript/KDF domain, including its separator before each purpose label.
@@ -41,6 +44,9 @@ pub const MAX_CONTROL_BYTES: usize = 8192;
 pub const MAX_CONNECTION_FRAME_BYTES: usize = 32_768;
 /// Largest session/operation record count, excluding prekeys and account rosters.
 pub const MAX_SESSION_OPERATION_RECORDS: usize = 128;
+/// Largest retained fanout record count, also charged to the operation quota.
+/// Only explicit terminal retirement releases a slot; admission never evicts one.
+pub const MAX_RETAINED_FANOUT_RECORDS: usize = 16;
 /// Largest prekey record count, including retained retired/consumed identities.
 pub const MAX_PREKEY_RECORDS: usize = 1024;
 /// Largest number of separately counted installed account rosters.

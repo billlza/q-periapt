@@ -469,3 +469,88 @@ pub unsafe extern "C" fn qpc_enrollment_v1_close_witnessed_roster_refresh(
     // SAFETY: forwarded complete proposal/output contract.
     unsafe { run(handle, proposal, observed, error, Action::Close) }
 }
+
+// BEGIN C ABI CHECKS: reviewed alongside abi/qpc-owner-v1.json.
+#[cfg(test)]
+pub(crate) fn verify_c_abi() {
+    abi_record!("qpc_roster_refresh_proposal_v1", Proposal, {
+        bytes: [u8; 417],
+    });
+    abi_record!("qpc_roster_refresh_scope_v1", Scope, {
+        operation: [u8; 32],
+        previous: Checkpoint,
+        target: Checkpoint,
+        policy: PolicyCheckpoint,
+        policy_authorization: [u8; 32],
+        has_policy_authorization: u32,
+        reserved: u32,
+    });
+    abi_record!("qpc_roster_refresh_preparation_v1", Preparation, {
+        present: u32,
+        proposal: Proposal,
+        reserved: [u8; 3],
+    });
+    abi_record!("qpc_roster_refresh_progress_v1", Progress, {
+        phase: u32,
+        retired: u32,
+        scope: Scope,
+        proposal: Proposal,
+        reserved: [u8; 7],
+    });
+    abi_record!("qpc_roster_refresh_target_v1", Target, {
+        certificate: *const u8,
+        certificate_length: usize,
+        roster: *const u8,
+        roster_length: usize,
+        pin: *const Pin,
+    });
+    abi_function!(
+        qpc_enrollment_v1_abandon_unprepared_roster_refresh,
+        (u64, *const u8, *mut Progress, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_close_witnessed_roster_refresh,
+        (u64, *const Proposal, *mut u32, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_commit_witnessed_roster_refresh,
+        (u64, *const Proposal, u32, *mut u32, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_prepare_witnessed_roster_refresh,
+        (
+            u64,
+            *const u8,
+            u32,
+            *const Target,
+            *mut Proposal,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_reconcile_witnessed_roster_refresh,
+        (u64, *const Proposal, *mut u32, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_recover_witnessed_roster_refresh_preparation,
+        (u64, *mut Preparation, *mut ErrorRecord)
+    );
+    abi_function!(
+        qpc_enrollment_v1_refresh_roster_with_policy,
+        (
+            u64,
+            u32,
+            *const Checkpoint,
+            *const u8,
+            usize,
+            *const Pin,
+            *mut Status,
+            *mut ErrorRecord,
+        )
+    );
+    abi_function!(
+        qpc_enrollment_v1_witnessed_roster_refresh_progress,
+        (u64, *mut Progress, *mut ErrorRecord)
+    );
+}
+// END C ABI CHECKS

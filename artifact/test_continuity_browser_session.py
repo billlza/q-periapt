@@ -140,6 +140,21 @@ class InstalledBrowserNativeSession(unittest.TestCase):
         self.assertIn('--provider-root "$RUNNER_TEMP/browser-native-provider"', step)
         self.assertIn('target/browser-native-session/public/', job)
 
+    def test_peer_receipts_cannot_be_downgraded_to_a_legacy_schema(self):
+        path = self.public / 'logs/browser-activate.stdout'
+        original = path.read_bytes()
+        value = json.loads(original.decode().split('### Result\n', 1)[1].split('\n### ', 1)[0])
+        value['transport_receipts'] = [{'url': 'http://127.0.0.1:12345/exchange'}]
+        body = ('### Result\n' + json.dumps(value)).encode()
+        path.write_bytes(body)
+        changed = copy.deepcopy(self.report)
+        row = next(row for row in changed['commands'] if row['label'] == 'browser-activate')
+        row['stdout_sha256'] = hashlib.sha256(body).hexdigest()
+        for schema in (1, 2, 3, 4):
+            changed['schema_version'] = schema
+            with self.subTest(schema=schema), self.assertRaisesRegex(ValueError, 'own transcript schema'):
+                verify(changed, self.public)
+
 
 if __name__ == '__main__':
     unittest.main()

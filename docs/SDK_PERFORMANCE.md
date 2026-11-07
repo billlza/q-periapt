@@ -405,12 +405,50 @@ the rejected ID and all ciphertexts; an old-epoch acknowledgement frees space
 for that same ID. Both local and required-witness cohorts complete all 125
 business effects, with a third allocation-counter diagnostic kept separate.
 
-Current physical footprint remains about 207/210 MiB after all owners close in
-the two primary cohorts. A separate malloc diagnostic reports only about
-1.09 MiB of currently used malloc blocks after closure, while process footprint
-is about 199 MiB. The metrics have different accounting scopes; the unexplained
+At that checkpoint, physical footprint remained about 207/210 MiB after all owners
+closed in the two primary cohorts. A separate malloc diagnostic reported only
+about 1.09 MiB of used malloc blocks after closure, while process footprint
+was about 199 MiB. The metrics have different accounting scopes; the unexplained
 VM footprint still needs attribution. This is not a demonstrated object leak,
 allocator-retention proof or acceptable mobile-memory bound. All 375 effects,
 390 negative reader controls, the initial failed observer and source identities
 are retained in the checkpoint. No runtime optimization is promoted from these
 observations alone.
+
+That historical capacity observation preceded the
+[persistent secret encoding correction](../research/sdk-alpha1/evidence/20261017-secret-encoding/README.md),
+which removed moving reallocations from private serialization without changing
+wire/storage bytes. Its separate source cohorts observed lower process peaks;
+neither the old 200 MiB value nor that later value is a current installed-package
+resource guarantee.
+
+### Installed aggregate-capacity baseline (2026-11-04)
+
+The [installed resource checkpoint](../research/sdk-alpha1/evidence/20261104-installed-resource-baseline/README.md)
+uses the current archive-installed engine and SDK graph, with four fresh
+Apple M4 Max / macOS 26.7.2 processes. Two local-only and two required-Witness
+cohorts each retain 124 maximum messages across two epochs, preserve the exact
+rejected ID across two original-owner reopens, reclaim capacity through an
+old-epoch ACK and complete 125 real TLS business effects. Independent readback
+checks all 500 effects and rejects 548 altered-result controls.
+
+| Protection | Peak whole-process RSS, two observations | Physical footprint 15 s after owner closure |
+| --- | ---: | ---: |
+| Local-only | 154.67–156.55 MiB | 104.63–108.05 MiB |
+| Required Witness | 157.17–159.81 MiB | 61.70–63.89 MiB |
+
+These process totals include both peers, Witness where selected and the observer.
+The 2 MiB logical image bound corresponds here to an 11.879 MiB database file;
+neither is a process-memory budget. Each Witness cohort uses 3,937 signed
+exchanges and 28,901,517 framed bytes across the complete workload, excluding TCP
+and application TLS overhead. CPU and ordered durable-commit timing observations
+are retained with their narrower measurement intervals in the checkpoint.
+
+The host, OS and fixture differ from older measurements. Inherited
+`MallocNanoZone=0` was observed during collection; earlier processes lack separate
+allocator-environment receipts. Other host activity and power were uncontrolled,
+and the small opposite-order schedule was recorded after the first included
+observation. No speedup, stable tail, isolated SDK memory, device energy or final
+resource-budget claim follows from this baseline. Product code and limits are
+unchanged; the remaining declared-workload/platform resource qualification stays
+open.
