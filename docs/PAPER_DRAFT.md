@@ -1,5 +1,16 @@
 # Q-Periapt — TDSC paper draft (structural)
 
+> **Manuscript scope.** These notes and `paper/q-periapt.tex` preserve the earlier
+> KEM-binding and cross-substrate assurance manuscript. They have not been rewritten
+> around the later Continuity protocol, multi-epoch recovery theorem, durable lifecycle
+> or accountable-directory results. Those results are indexed in
+> [PRODUCT_ADMISSION.md](continuity/PRODUCT_ADMISSION.md),
+> [RECOVERY_DEPENDENCIES_V1.md](continuity/RECOVERY_DEPENDENCIES_V1.md) and the two
+> pending session claims in the claim ledger. Updating their evidence does not establish
+> the broad parity or security/performance-lead claims. The existing measurements and
+> figures keep their historical source identities; this documentation correction does
+> not rerun measurements or regenerate the checked-in paper PDF.
+>
 > **Status of this file.** Authoring notes, not the current evidence authority. The paper source is
 > [`../paper/q-periapt.tex`](../paper/q-periapt.tex), and machine-readable current claim status is
 > [`../artifact/claim-ledger.json`](../artifact/claim-ledger.json). Historical numbers and checked
@@ -8,7 +19,8 @@
 > is load-bearing — do not relax it under reviewer pressure. Target venue: **IEEE TDSC** (dependable systems + security; a PhD-appropriate
 > CCF-A target). Frame as an *assurance / dependable-deployment* contribution, NOT a new
 > cryptographic primitive.
-> ABI 2 / `0.1.5` is the stable-version Rust crate source line, succeeding the
+> The current workspace declares `0.2.0`, with Continuity still an unpublished candidate.
+> The historical ABI 2 / `0.1.5` stable Rust crate line succeeded the
 > published `0.1.4` release. Its GitHub distributions are public and immutable,
 > and all ten `0.1.5` crates are published and independently verified. The complete
 > three-domain record is preserved at `v0.1.5-verified-cohort`. Its pre-publication package-ready contract alone does not prove

@@ -80,21 +80,23 @@ not proof-selected. Repository provenance ignores local Git excludes, rejects ig
 bytecode, and dispatches verifier source under isolated/no-site CPython with a fresh private cache
 prefix; this is canonical source-input consistency after fixed generated-prefix exclusions, not a
 hermetic build-input, interpreter, or host attestation. Specification-to-
-implementation refinement, a current clean two-device Apple matrix, and cross-device/end-to-end
-performance parity remain explicitly pending. The current research-alpha release graph uses
+implementation refinement and cross-device/end-to-end performance parity remain
+explicitly pending; the historical device observations below retain their original scope. The current research-alpha release graph uses
 target-selected \code{mlkem-native}~v1.2.0 through a dedicated Rust/C boundary,
 plus pinned \code{fips204}~0.4.6 and \code{sha3}~0.10.9. Exactly five
-little-endian AArch64 Apple/Linux/Android targets use upstream native arithmetic
-plus a fixed Armv8-A FIPS~202 assembly profile; every other target, including Wasm,
-remains portable C. There is no runtime dispatch or Armv8.4-A SHA3 path, and ABI~2,
-key, and wire contracts are unchanged. That migration changed the canonical source
+little-endian AArch64 Apple/Linux/Android targets use upstream native arithmetic.
+The arm64 macOS and arm64 iOS-simulator slices select an Armv8.4-A SHA3 FIPS~202
+assembly profile; the iOS-device, Linux and Android slices retain Armv8-A scalar
+FIPS~202 assembly. Every other target, including Wasm, remains portable C.
+Selection is compile-time only, with no runtime dispatch; ABI~2, key and wire
+contracts are unchanged. That migration changed the canonical source
 digest, so all portable-derived package, device, performance, and binary-CT results
 are historical evidence; no clean source-bound replacement timing, device, or
 binary-CT measurement is claimed here. The current-source local footprint capture reported below
 is a platform/toolchain-specific diagnostic, not release provenance.
-ABI~2 / \code{0.1.5} is the stable-version, pre-publication package-ready
-Rust-crate source line, opened as the successor of the published \code{0.1.4}
-release; no \code{0.1.5} artifact has been built or published. Its package contract
+The current Rust workspace declares \code{0.2.0}; Continuity remains an unpublished
+candidate. The historical \code{v0.1.5} Apple XCFramework GitHub release was published
+on 2026-09-05. A pre-publication package-ready contract
 alone does not prove crates.io upload-API acceptance,
 crate-name ownership, publishing credentials or authorization, server-side policy acceptance,
 or a registry receipt. Receipt-gated, attestation-bound stable GitHub targets cover
@@ -483,9 +485,11 @@ audit, and constant-time posture remain per implementation and ISA. The ML-KEM s
 commit- and archive-hash-pinned, but RustSec does not inspect vendored C. Exactly the
 little-endian targets \code{aarch64-apple-darwin}, \code{aarch64-apple-ios},
 \code{aarch64-apple-ios-sim}, \code{aarch64-unknown-linux-gnu}, and
-\code{aarch64-linux-android} use upstream native arithmetic and fixed Armv8-A scalar
-x1/scalar-Neon x4 FIPS~202 assembly, while all other targets use portable C. The
-selection is compile-time only, with no runtime dispatch or v8.4-A SHA3 path.
+\code{aarch64-linux-android} use upstream native arithmetic. The macOS and
+iOS-simulator targets select Armv8.4-A SHA3 FIPS~202 assembly; the iOS-device,
+Linux and Android targets retain Armv8-A scalar x1/scalar-Neon x4 FIPS~202 assembly.
+All other targets use portable C. Selection is compile-time only, with no runtime
+dispatch.
 Upstream HOL-Light evidence covers only selected upstream assembly
 source/object routines, not downstream reassembly, this wrapper, or the full ABI.
 This trait boundary is also where \emph{crypto-agility} lives:
@@ -602,14 +606,16 @@ immutable, attestation-bound GitHub artifacts: the Apple XCFramework revision
 and the Android AAR (with API~35 / 16\,KiB-page emulator runtime evidence) plus Linux
 x86\_64/aarch64 and unsigned experimental Windows x64 MSVC SDK archives, each validated by
 attested candidate-CI native consumers and bound to machine-checked release receipts. These
-span the earlier \emph{research prereleases} and the two stable lines that have since
-published with \code{prerelease=false} (0.1.3 on 2026-08-25 and 0.1.4 on 2026-08-30).
+span the earlier \emph{research prereleases} and historical stable lines
+(0.1.3 on 2026-08-25 and 0.1.4 on 2026-08-30).
+The later \code{v0.1.5} Apple GitHub release was published on 2026-09-05; that
+publication does not promote this table's earlier measurements to current source.
 A clean-tree schema-v3 physical iPad+iPhone matrix passed for predecessor source only; the
 target-selection migration made it stale, and both physical lanes still require
 same-source native reruns. All ``released'' cells are exact pre-selection historical
 artifacts; their receipts do not attest a target-selected rebuild. The ten 0.1.3 and ten
-0.1.4 crates are published on crates.io; no crate is published for the current 0.1.5
-source line, and no other registry publication or physical-Android coverage is claimed.}\\
+0.1.4 crates are published on crates.io. These historical rows do not qualify the
+current \code{0.2.0} source or establish current physical-Android coverage.}\\
 \end{tabular}
 \end{table}
 
