@@ -1,0 +1,155 @@
+\section{Introduction}
+\label{sec:introduction}
+
+Recovery after compromise depends on the origin of the secrets that a protocol
+adds to its state.  Ratcheting protocols renew communication keys by combining
+existing state with new contributions, and their security analyses explain when
+later keys regain secrecy after earlier state has been exposed
+\cite{signal2020,tripleratchet2025}.  In a durable implementation, however, the
+random choices for a contribution can enter persistent storage before the
+cryptographic operation runs.  A restart may then execute that operation for the
+first time using randomness that was already present in a compromised record.
+The distinction between reserving a secret and using it is therefore part of the
+recovery argument.
+
+This separation arises naturally when interrupted operations must resume with
+the same output.  Q-Periapt Continuity, the construction studied in this paper,
+records a protected randomness reservation before computing a rekey offer or
+response.  The reservation fixes the original operation so that a crash,
+retry, or delayed storage acknowledgement preserves its meaning.  This provides
+a useful durability contract: the resumed computation belongs to the original
+exchange, and an already prepared public message can be retransmitted exactly.
+It also gives secret material a lifetime that begins before publication,
+execution, and confirmation.  An analysis that uses any of these later events
+as the birth of fresh entropy can consequently assign secrecy to material that
+an adversary already possesses.
+
+\paragraph{A motivating execution.}
+Consider an authenticated rekey from root $R_{e-1}$ to root $R_e$.  An endpoint
+first stores the randomness reservation for a KEM key-generation operation.
+Before the key pair is computed, an adversary acquires the protected reservation,
+its matching wrapping key, and the previous root.  The process then crashes.
+After restart, the honest endpoint resumes the reserved operation, publishes its
+offer, and completes the exchange and its confirmation messages.  The adversary
+can reconstruct the same private key from the captured reservation and obtain
+the new KEM contribution from the later public response.  Combining that
+contribution with $R_{e-1}$ yields the same descendant root and traffic keys.
+Every protocol message in this execution can be honestly authenticated.
+
+We realize this execution at the actual persistent key-generation boundary and
+at the analogous encapsulation boundary.  In each case, the honest peers finish
+the exchange, reopen their journals, and exchange six newly generated
+application messages that the predictor successfully decrypts.  The predictor
+uses the captured inputs and the public transcript; its subsequent derivation
+interface has no journal or future-private-state input.  These executions
+establish a concrete separation between post-restart computation and
+post-compromise entropy.
+% Evidence: research/continuity-identity-candidate/RESERVATION_DISCLOSURE.md.
+
+Asynchronous confirmation exposes a second distinction.  One endpoint may have
+committed an epoch and reserved a contribution for its successor while the
+other still awaits a receipt.  Our delayed-receipt execution captures precisely
+such a state: the lagging peer has confirmed epoch zero, yet the captured
+reservation exposes epoch-two traffic.  The record that matters is the one
+containing the contribution's ancestor, rather than the smaller of the two
+confirmed counters.  A third execution shows that writing another session into
+an aggregate device image preserves the target reservation's original origin.
+A later image revision and a newly sampled wrapping nonce change the storage
+representation, while the retained KEM randomness remains the same.
+% Evidence: docs/continuity/RECOVERY_DEPENDENCIES_V1.md;
+% research/sdk-alpha1/evidence/20261015-recovery-ancestry/README.md;
+% research/sdk-alpha1/evidence/20261105-aggregate-reservation-copy/README.md.
+
+\paragraph{The question studied here.}
+Which reservation and record-acquisition conditions suffice for a later epoch's
+messages to remain secret when operations are resumed, confirmations are
+asynchronous, and roots are inherited across epochs?  We answer this question
+for a multi-epoch symbolic abstraction of Continuity and construct native
+executions that isolate the role of the conditions.  The organizing object is
+an \emph{original reservation}: a sampled contribution associated with its
+owner, operation, session, and epoch.  Retrying that operation or copying its
+record preserves this origin.  Freshness is stated in terms of reservation and
+disclosure events, and the theorem derives message secrecy from those events.
+We also distinguish the creation of a session-record version from the later
+creation or resealing of an aggregate image that carries it.  An acquisition
+records which original versions were obtained, even when their readability
+changes later because a wrapping key is disclosed.
+
+This question fits naturally with the set-based account of exposure developed
+for sparse continuous key agreement (SCKA) \cite{scka2025}.  That account already
+distinguishes sending and receiving epochs, future key material, and retained
+out-of-order message keys.  Our focus is the persistent state beneath those
+interfaces: when the randomness for a future contribution became recoverable,
+which original operation a resumed call executes, and which records an
+adversary acquired.  We use the existing set-based perspective to organize
+reference experiments and make these additional state relationships explicit.
+
+\paragraph{Contributions.}
+The paper develops three connected results.
+\begin{enumerate}
+  \item \textbf{Exposure accounting and a mechanized multi-epoch recovery
+  theorem.}
+  We give an origin-preserving record interface and a normalization lemma
+  relating immutable record aliases to their originals, with the rendering
+  interface explicit in both experiments.  A conditional computational
+  accounting proposition separates record-interface error, source attribution,
+  component security, and the joint root/traffic residual.  We prove symbolic
+  message secrecy for a target epoch whose original
+  key-generation and encapsulation reservations both follow the compromise cut,
+  whose actual authentication keys and target-epoch reserved entropy remain
+  undisclosed, and for which no acquired target-session record was saved after
+  the cut.  The model supports inherited roots, alternating proposers,
+  asynchronous confirmation, and unbounded epochs.  It admits exposure of old
+  roots and wrapping keys and tracks actual key identities across their reuse.
+  The main theorem and all 24 reusable dependencies were checked together in an
+  independent Tamarin replay \cite{qperiaptSymbolic2026}.  A separately checked
+  two-round ground execution
+  supplies a concrete instance satisfying the complete positive witness
+  formula.
+  % Evidence: research/sdk-alpha1/evidence/20261104-multi-epoch-replay;
+  % research/sdk-alpha1/evidence/20261105-two-round-ground-trace.
+
+  \item \textbf{Constructive separations at the persistence and confirmation
+  boundaries.}
+  Native process-kill experiments reconstruct the future KEM contribution from
+  each of the two reserved-operation boundaries and decrypt messages after
+  honest confirmation and restart.  Further executions establish exposure
+  beyond the lagging peer's next confirmed epoch and preservation of an old
+  reservation through a sibling session's aggregate write.  A symbolic
+  delayed-receipt ground trace isolates the same freshness condition: the
+  generation reservation precedes the cut while the encapsulation reservation
+  follows it.  These witnesses explain why the theorem refers to original
+  reservations and acquired record contents.
+  % Evidence: research/sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace.
+
+  \item \textbf{Executable comparisons that preserve the meaning of exposure.}
+  We retain a pinned upstream SPQR implementation and an authenticated whole-KEM
+  control at three fixed intervals.  Across seven communication schedules,
+  these form 28 configuration--schedule combinations and 336 endpoint-snapshot
+  cases.  Independent derivation programs reconstruct available message keys
+  and compare them with actual sender outputs.  Results retain direction,
+  epoch, and message index, together with the contribution that enabled each
+  derivation.  This supplies a reproducible basis for comparing retained
+  secrets and communication opportunities while keeping authentication and
+  persistence interfaces explicit.
+  % Evidence: research/continuity-spqr-reference/COMPROMISE_EXPERIMENT.md;
+  % research/continuity-whole-kem-reference/README.md.  Counts exclude the
+  % separately identified 64-byte SPQR experimental variant.
+\end{enumerate}
+
+\paragraph{Scope of the security statement.}
+The mechanized recovery theorem establishes symbolic message secrecy under the stated
+reservation and record-acquisition conditions.  The native results establish
+the corresponding concrete disclosure executions.  The computational
+accounting proposition identifies the common-experiment bounds needed to
+connect protected records, a replaced KEM contribution, and joint root and
+traffic uses.  Its concrete instantiation is under development.  Throughout,
+crash recovery means resuming retained, bound
+operations under the specified authentication and storage model.  This makes
+the recovery claim precise in relation to the state-loss and conversation-level
+conditions studied in prior work \cite{sessionhandling2023,stateloss2025}.
+
+The resulting distinction is operationally useful: confirmation records
+protocol progress, while reservation provenance and disclosure history determine
+the premises of recovery.  Keeping these quantities separate permits exact
+replay and asynchronous progress to coexist with a precise secrecy argument.

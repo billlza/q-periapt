@@ -1,0 +1,58 @@
+\section{Source and evidence map}
+\label{app:artifacts}
+
+The source snapshot for this manuscript's established protocol and experiment
+records is commit
+\texttt{228c944fc476e3e57d6c08063cacb19bca5b360e}
+of \href{https://github.com/billlza/q-periapt}{\texttt{billlza/q-periapt}}.
+Each retained execution keeps its original source and tool identity.
+The local record model and accounting proofs in this manuscript are mathematical
+arguments; the following entries identify the independently recorded
+mechanization and native observations.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.25\linewidth}>{\raggedright\arraybackslash}p{0.69\linewidth}@{}}
+\toprule
+Result & Reproduction source\\
+\midrule
+\endhead
+Joint symbolic replay &
+\href{https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/sdk-alpha1/evidence/20261104-multi-epoch-replay}{20261104-multi-epoch-replay}.
+The original archive is \texttt{CAPTURE.zip}; the checked certificate member is
+\texttt{replay-01/01-baseline-replay.proof.spthy}.\\[5pt]
+Positive two-round trace &
+\href{https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/sdk-alpha1/evidence/20261105-two-round-ground-trace}{20261105-two-round-ground-trace}.\\[5pt]
+Delayed-receipt ground trace &
+\href{https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace}{20261105-delayed-receipt-ground-trace}.\\[5pt]
+Native reservation disclosure &
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/RESERVATION_DISCLOSURE.md}{RESERVATION\_DISCLOSURE.md}
+and \texttt{src/durable/messages/tests/reservation\_disclosure.rs}
+in the identity candidate.\\[5pt]
+Aggregate-copy execution &
+\href{https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/sdk-alpha1/evidence/20261105-aggregate-reservation-copy}{20261105-aggregate-reservation-copy}.\\[5pt]
+Root, traffic and phase mapping &
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/docs/continuity/RECOVERY_DEPENDENCIES_V1.md}{RECOVERY\_DEPENDENCIES\_V1.md};
+native \texttt{rekey/response.rs} and \texttt{rekey/completion.rs}.\\[5pt]
+SPQR snapshot corpus &
+\href{https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-spqr-reference}{continuity-spqr-reference}:
+\texttt{TRACE\_CORPUS.json}, \texttt{COMPROMISE\_CORPUS.json}, and
+\texttt{COMPROMISE\_EXPERIMENT.md}.\\[5pt]
+Whole-KEM corpus &
+\href{https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-whole-kem-reference}{continuity-whole-kem-reference}:
+\texttt{TRACE\_CORPUS.json}, \texttt{README.md}, and
+\texttt{ACTIVE\_COMPROMISE.md}.\\[5pt]
+Computational component arguments &
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/docs/continuity/COMPUTATIONAL_RECOVERY_V1.md}{COMPUTATIONAL\_RECOVERY\_V1.md}
+and its linked KEM adapter, hidden-record, shared-HMAC,
+root-extraction and adaptive-target notes.\\
+\bottomrule
+\end{longtable}
+
+The jointly checked certificate has SHA-256
+\begin{center}
+\small\texttt{dde5d06a071b1560da0d4c28c3f1fd81a3c39708f9fd8564ee391ddc362bcf7f}.
+\end{center}
+Its source-base receipt identifies
+\texttt{6084f3bfb09333f6b66291b38809ed512296a27b}.
+The fixed 4 November replay retained all 40 queries and its exact tool,
+resource and output receipts. Reading and checking this retained artifact while
+preparing the manuscript is distinct from executing another Tamarin run.

@@ -1,7 +1,9 @@
 # Completed hosted cohort and CI repair checkpoint — 2026-11-07
 
-Source: `228c944fc476e3e57d6c08063cacb19bca5b360e`  
-Git tree: `498b7efa0f9565fe910d73c8368b2a40377d5aa4`  
+Source: `228c944fc476e3e57d6c08063cacb19bca5b360e`
+
+Git tree: `498b7efa0f9565fe910d73c8368b2a40377d5aa4`
+
 PR #118 merge: `57d4358f4e3946e336bc7fba2b59b71875592435`, with the same tree.
 
 ## Completed execution

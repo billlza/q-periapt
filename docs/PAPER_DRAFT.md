@@ -1,4 +1,27 @@
-# Q-Periapt — TDSC paper draft (structural)
+# Q-Periapt manuscripts — Continuity draft and binding history
+
+## Current Continuity manuscript — 7 November 2026
+
+The integrated manuscript is now available as
+[Post-Compromise Security with Persistent Randomness Reservations](../paper/continuity/continuity.pdf),
+with [LaTeX source, build instructions and result status](../paper/continuity/README.md).
+The current 22-page draft contains the reservation/record/acquisition model,
+the proved alias-normalization lemma and stopping corollary, the retained joint
+multi-epoch symbolic theorem, native separating executions, the existing reference
+corpora and the proved conditional adaptive origin-pair accounting proposition.
+Its fourteen references and source/evidence appendix accompany the complete text.
+
+The agreed submission route is **Journal of Cryptology first, then ACM TOPS,
+then TIFS**. TDSC is excluded from the current route. The two concrete
+computational connections are stated in the manuscript's common-experiment
+section; the matching Continuity comparison has its explicit experimental design.
+These research tasks retain their own scope alongside the 0.2.0 product release.
+
+## Historical binding manuscript notes
+
+The following notes preserve the older binding manuscript and the initial
+Continuity outline. The integrated draft linked above supersedes their title,
+venue and writing-plan choices for the current Continuity paper.
 
 > **Manuscript scope.** These notes and `paper/q-periapt.tex` preserve the earlier
 > KEM-binding and cross-substrate assurance manuscript. They have not been rewritten
@@ -64,9 +87,10 @@
 
 ---
 
-## Continuity manuscript plan — 2026-11-07
+## Initial Continuity manuscript plan — 2026-11-07
 
-**Writing decision:** begin the new manuscript now. The completed research results
+**Initial writing decision, now realized in the integrated draft above:** begin
+the new manuscript. The completed research results
 and installed implementation support a full draft. Submission readiness depends
 on the claims selected for that paper and their evidence, while final product
 release follows its separate contract. External product review and registry

@@ -1,5 +1,23 @@
 # External security review preparation
 
+## Added review material — 7 November 2026
+
+The [bootstrap construction and compromise matrix](BOOTSTRAP_COMPROMISE_REVIEW_V1.md)
+now assembles B0–B7 stage permissions, role-specific identity/prekey/root
+disclosures, the actual non-circular KDF graph and the distinct local-activation
+and peer-confirmed connection boundaries. It links the retained same-body
+signature-alias/READY regressions and independent bootstrap execution to their
+original source identities, alongside the exact current implementation checks.
+
+The [candidate release identity capture](../../research/sdk-alpha1/evidence/20261107-release-manifest/README.md)
+also pins sixteen package definitions, separate SDK/Continuity C interfaces and
+the normative-file inventory, with forty-four source-file byte comparisons and
+forty-two passing verifier/contract tests. These materials are ready for the
+existing review process; the reviewer-selected final source and assessment remain
+recorded through that process.
+
+## Original review scope and retained execution history
+
 Planning snapshot: 2026-11-04. This prepares the independent review required by
 [the 0.2.0 release scope](RELEASE_0_2_SCOPE.md). The user identified **魏庄坤教授**
 as the designated reviewer on this date. No narrower agreed scope or special

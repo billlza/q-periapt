@@ -6,6 +6,29 @@ This is the concrete integration plan for the already agreed
 below are proposed changes, with the current implementation and completed
 qualification retained as their starting point.
 
+## Implemented checkpoint — 7 November 2026
+
+The [release-manifest identity contract](RELEASE_MANIFEST_V1.md) now has an
+executable verifier and a
+[real candidate capture](../../research/sdk-alpha1/evidence/20261107-release-manifest/README.md).
+The capture checks 16 actual package definitions, the separate 51/158-symbol C
+interfaces, and a candidate normative inventory. Its 44 source inputs match
+prepared commit `ee625d7a5501be0f3320511682f0fad95906e516` byte-for-byte. That source
+also pins the reference application's current engine dependency to `=0.0.0`.
+
+This completes the first executable package/specification identity checkpoint.
+The final adapter distribution identities, selected artifacts, compatibility
+adoption and coordinated freeze remain in the integration sequence below.
+Existing platform receipts retain their original source identities, and the
+active PR CI wave is preserved before advancing its head.
+
+The [bootstrap construction/compromise matrix](BOOTSTRAP_COMPROMISE_REVIEW_V1.md)
+also completes the stage-specific source and evidence assembly: B0–B7 output
+permissions, exact KDF dependencies, identity/prekey/root disclosure cases and
+the retained signature-alias and READY regressions. It is indexed in the
+[external-review brief](EXTERNAL_REVIEW_BRIEF.md). The construction assessment
+and supported-workload budget decision keep their original acceptance roles.
+
 ## Adopt the implemented contract
 
 The implementation already provides hybrid identity, independently approved
