@@ -1,0 +1,87 @@
+% Journal of Cryptology working manuscript.
+% Official Springer Nature authoring class, package v3.1 (December 2024).
+% JoC-specific numerical citations follow an alphabetically sorted bibliography.
+\documentclass[pdflatex]{sn-jnl}
+\usepackage[numbers,sort&compress]{natbib}
+\bibliographystyle{joc-basic}
+\setlength{\bibsep}{1em}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs,array,tabularx,longtable}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{xurl}
+\usepackage[capitalize,noabbrev]{cleveref}
+\pdfgentounicode=1
+\hypersetup{hidelinks,pdftitle={Exposure and Recovery with Persistent Randomness Reservations},pdfauthor={Ziang Li}}
+\theoremstyle{thmstyleone}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{thmstylethree}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{thmstyletwo}
+\newtheorem{remark}[theorem]{Remark}
+\setlist{topsep=4pt,itemsep=3pt,parsep=0pt}
+\setlength{\emergencystretch}{1.5em}
+\newcommand{\artifact}[1]{\texttt{\small\detokenize{#1}}}
+\newcommand{\qperiapt}{Q-Periapt Continuity}
+\newcommand{\sourcecommit}{\texttt{228c944f}}
+\raggedbottom
+
+\begin{document}
+\title[Persistent randomness: exposure and recovery]{Exposure and Recovery with Persistent Randomness Reservations}
+% Author and corresponding address confirmed by the author on 7 November 2026.
+% The alternative address is retained in author-metadata.json.
+\author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
+\affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
+\abstract{Persistent implementations can reserve randomness before a cryptographic
+operation executes. Recovery after compromise therefore depends on the
+generation and acquisition history of that randomness across restart. We
+formalize this history through immutable reservation origins and a record
+interface for acquisition, copying, rewrapping, and later key disclosure.
+Alias normalization preserves each retained representation's original
+operation. For fixed public key derivations, a guarded-path theorem exactly
+characterizes record exposure and its conjunctive acquisition dependencies. We
+construct a simulator for private images and intents without selected
+reservation coins, and compose immutable authentication reports in reverse
+causal order when their transcripts contain earlier report keys.
+Candidate-local accounting connects these interfaces through an origin-based stopping
+certificate valid before the final compromise cut is selected. Starting from a
+uniform recovered contribution, a joint theorem in the compression quantum
+random-oracle model separates a selected first-message key while retaining
+confirmation-dependent traffic derivation, real control and acknowledgement
+verification, and successor-root and next-seed disclosure. We instantiate the
+origin-based recovery condition in a hybrid post-quantum messaging protocol
+and establish multi-epoch symbolic message secrecy with inherited roots and
+asynchronous confirmation. Native executions separate post-restart computation
+from fresh entropy and show how aggregate rewriting preserves an earlier
+reservation. Finite-model checks and executable reference corpora validate the
+exposure semantics. These results identify the original sources, persistent
+observations, and joint cryptographic continuations required by a recovery
+argument.}
+\keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
+\maketitle
+
+\input{introduction}
+\input{related-work}
+\input{construction}
+\input{security-model}
+\input{computational-roadmap}
+\input{established-results}
+\input{evaluation}
+\input{discussion}
+\input{declarations}
+
+\bibliography{references}
+\appendix
+\input{artifact-map}
+\input{primitive-inputs}
+\input{joint-primitive-bounds}
+\input{common-virtual-accounting}
+\end{document}

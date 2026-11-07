@@ -1,0 +1,31 @@
+\section{Computational interfaces and composition}
+\label{sec:computation}
+
+The origin model provides the accounting boundary for a computational
+experiment. Each original generation or encapsulation invocation receives a
+slot when its entropy is reserved, including attempts that later fail.
+Replaying or copying that reservation retains its slot. Fix public lifetime
+budgets $G,C\geq1$ and write $J=[G]\times[C]$. Unused slots remain unused.
+These proof-resource budgets differ from a bound on the number of records
+resident at one time.
+
+The native application experiment evaluates the selected target after the
+adversary's interaction. Eligibility requires both original reservations to
+follow the selected cut, secrecy of the actual target signing keys and
+target-epoch entropy, and no acquisition of a selected-session version saved
+after that cut. It admits the asynchronous transitions of the construction,
+including sending after the local FinalReady transition.
+
+We first construct the private-record and immutable-report interfaces. We
+then connect their candidate-specific continuations to one native score,
+using original provenance to certify permanent local stopping. After the
+native constructor correspondence, a joint key-schedule theorem derives the
+selected first-message continuation from a uniform recovered contribution.
+The common-virtual-game
+accounting variant is retained in Appendix~\ref{app:common-virtual}.
+
+\input{opaque-rendering}
+\input{report-composition}
+\input{candidate-local-accounting}
+\input{native-correspondence}
+\input{joint-continuation}

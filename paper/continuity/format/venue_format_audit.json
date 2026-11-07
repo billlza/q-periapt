@@ -1,0 +1,655 @@
+{
+  "schema": "qperiapt-joc-format-audit/1",
+  "checked_at_utc": "2026-11-07 19:49:11 UTC",
+  "journal": "Journal of Cryptology",
+  "publisher": "Springer Nature",
+  "society": "IACR",
+  "scope": "official venue requirements and downloaded template; existing manuscript untouched; no CI query",
+  "sources": [
+    {
+      "id": "S1",
+      "title": "JoC Submission guidelines",
+      "url": "https://link.springer.com/journal/145/submission-guidelines",
+      "source_refs": [
+        "turn15view0",
+        "turn20view5"
+      ],
+      "role": "journal-specific instructions"
+    },
+    {
+      "id": "S2",
+      "title": "JoC Aims and scope",
+      "url": "https://link.springer.com/journal/145/aims-and-scope",
+      "source_refs": [
+        "turn16view0"
+      ],
+      "role": "journal scope"
+    },
+    {
+      "id": "S3",
+      "title": "IACR Journal of Cryptology",
+      "url": "https://www.iacr.org/jofc/",
+      "source_refs": [
+        "turn15view1"
+      ],
+      "role": "society official page"
+    },
+    {
+      "id": "S4",
+      "title": "Springer Journal policies",
+      "url": "https://link.springer.com/brands/springer/journal-policies",
+      "source_refs": [
+        "turn16view1",
+        "turn19view1",
+        "turn19view2",
+        "turn22view3"
+      ],
+      "role": "publisher policies linked by JoC"
+    },
+    {
+      "id": "S5",
+      "title": "JoC Ethics and disclosures",
+      "url": "https://link.springer.com/journal/145/ethics-and-disclosures",
+      "source_refs": [
+        "turn16view2",
+        "turn19view3"
+      ],
+      "role": "journal ethics page"
+    },
+    {
+      "id": "S6",
+      "title": "Springer Nature LaTeX author support",
+      "url": "https://www.springernature.com/gp/authors/campaigns/latex-author-support/see-where-our-services-will-take-you/18782940",
+      "source_refs": [
+        "turn15view2"
+      ],
+      "role": "official template download landing page",
+      "summary_word_limit": 25
+    },
+    {
+      "id": "S7",
+      "title": "Official Springer Nature template on Overleaf",
+      "url": "https://www.overleaf.com/latex/templates/springer-nature-latex-template/gsvvftmrppwq",
+      "source_refs": [
+        "turn16view4",
+        "turn19view4"
+      ],
+      "role": "publisher-authored official template"
+    },
+    {
+      "id": "S8",
+      "title": "AI use in manuscript preparation",
+      "url": "https://www.springernature.com/gp/policies/editorial-policies/ai-manuscript-preparation",
+      "source_refs": [
+        "turn20view0",
+        "turn25view0"
+      ],
+      "role": "current author-specific AI policy",
+      "summary_word_limit": 25
+    },
+    {
+      "id": "S9",
+      "title": "AI use in research practice",
+      "url": "https://www.springernature.com/gp/policies/editorial-policies/using-ai-in-research",
+      "source_refs": [
+        "turn20view1"
+      ],
+      "role": "related official policy",
+      "summary_word_limit": 25
+    },
+    {
+      "id": "S10",
+      "title": "Data availability statements",
+      "url": "https://www.springernature.com/gp/authors/research-data-policy/data-availability-statements",
+      "source_refs": [
+        "turn20view2",
+        "turn22view2"
+      ],
+      "role": "publisher data statement policy",
+      "summary_word_limit": 25
+    },
+    {
+      "id": "S11",
+      "title": "IACR Policy on Conflicts of Interest",
+      "url": "https://www.iacr.org/docs/conflicts.pdf",
+      "source_refs": [
+        "turn20view3"
+      ],
+      "role": "policy incorporated by IACR JoC page"
+    }
+  ],
+  "requirements": [
+    {
+      "topic": "language",
+      "class": "journal_instruction",
+      "value": "English",
+      "sources": [
+        "S1"
+      ]
+    },
+    {
+      "topic": "submission_portal",
+      "class": "journal_instruction",
+      "value": "https://www.editorialmanager.com/jcryptology/",
+      "sources": [
+        "S1",
+        "S3"
+      ]
+    },
+    {
+      "topic": "initial_file",
+      "class": "strong_recommendation",
+      "value": "single PDF; LaTeX or equivalent",
+      "sources": [
+        "S1"
+      ]
+    },
+    {
+      "topic": "source_files",
+      "class": "acceptance_requirement",
+      "value": "required at acceptance",
+      "sources": [
+        "S1"
+      ]
+    },
+    {
+      "topic": "title_page",
+      "class": "journal_instruction",
+      "fields": [
+        "title",
+        "authors",
+        "affiliations",
+        "corresponding_email"
+      ],
+      "conditional_fields": [
+        "ORCID_if_available"
+      ],
+      "sources": [
+        "S1"
+      ]
+    },
+    {
+      "topic": "abstract",
+      "class": "journal_instruction",
+      "minimum_words": 150,
+      "maximum_words": 250,
+      "rules": [
+        "defined_abbreviations",
+        "specified_references",
+        "minimal_math_symbols"
+      ],
+      "sources": [
+        "S1"
+      ]
+    },
+    {
+      "topic": "keywords",
+      "class": "journal_instruction",
+      "minimum": 5,
+      "maximum": 10,
+      "sources": [
+        "S1"
+      ]
+    },
+    {
+      "topic": "review_model",
+      "class": "journal_policy",
+      "value": "single-blind",
+      "anonymous_submission_required": false,
+      "sources": [
+        "S1"
+      ]
+    },
+    {
+      "topic": "references",
+      "class": "journal_instruction",
+      "citation": "square-bracket numerals",
+      "ordering": "author-surname alphabetical, then consecutive numbering",
+      "all_authors": true,
+      "full_bibliographic_details": true,
+      "sources": [
+        "S1"
+      ]
+    },
+    {
+      "topic": "page_limit",
+      "class": "not_specified_in_checked_sources",
+      "numeric_limit": null,
+      "not_an_unlimited_length_guarantee": true,
+      "sources": [
+        "S1",
+        "S3"
+      ]
+    },
+    {
+      "topic": "column_count_or_mandated_class",
+      "class": "not_specified_in_checked_sources",
+      "mandatory_two_column": false,
+      "mandatory_specific_class": null,
+      "sources": [
+        "S1"
+      ]
+    },
+    {
+      "topic": "math_macros",
+      "class": "implementation_choice",
+      "value": "AMS and template theorem styles; no JoC-specific macro mandate found",
+      "sources": [
+        "S1",
+        "S7"
+      ]
+    },
+    {
+      "topic": "single_tex",
+      "class": "template_technical_instruction",
+      "value": "one submission .tex; modular working sources may be flattened",
+      "sources": [
+        "S7"
+      ],
+      "planned_entry": "joc-submission.tex"
+    },
+    {
+      "topic": "declarations",
+      "class": "publisher_policy",
+      "items": [
+        "funding",
+        "competing_interests",
+        "author_contributions",
+        "applicable_ethics_consent",
+        "data_or_code_availability"
+      ],
+      "placement": "before references",
+      "sources": [
+        "S4",
+        "S5"
+      ]
+    },
+    {
+      "topic": "data_statement",
+      "class": "publisher_policy",
+      "value": "describe actual access",
+      "mandatory_specific_repository": false,
+      "joC_specific_implementation_not_separately_stated_on_checked_page": true,
+      "sources": [
+        "S4",
+        "S10"
+      ]
+    },
+    {
+      "topic": "preprint",
+      "class": "publisher_policy",
+      "permitted": true,
+      "posting_not_prior_publication": true,
+      "disclose_posting_at_submission": true,
+      "update_after_publication": true,
+      "sources": [
+        "S4"
+      ]
+    },
+    {
+      "topic": "AI",
+      "class": "publisher_policy",
+      "summary": "Disclosure and author accountability",
+      "fixed_joc_wording_or_location_found": false,
+      "sources": [
+        "S8"
+      ]
+    }
+  ],
+  "download": {
+    "observed_download_url": "https://cms-resources.apps.public.k8s.springernature.io/springer-cms/rest/v1/content/18782940/data/v12",
+    "final_url": "https://cms-resources.apps.public.k8s.springernature.io/springer-cms/rest/v1/content/18782940/data/v12",
+    "status": 200,
+    "content_type": "application/zip;charset=UTF-8",
+    "content_disposition": "inline; filename=\"Download+the+journal+article+template+package+%28December+2024+version%29.zip\"",
+    "last_modified": null,
+    "etag": "\"b902d1ee8d26fe55240b3911600d9666\"",
+    "bytes": 901814,
+    "sha256": "812e76dcaa9c28dc1bff1fb6065d51729b67d4ea140552a05088317414a3ecae",
+    "archive_file": "/workspace/scratch/646fb6c54bf4/work/joc_round3/templates/springer-nature-latex-template-dec2024-v12.zip",
+    "extracted_root": "/workspace/scratch/646fb6c54bf4/work/joc_round3/templates/official_sn_template",
+    "members": [
+      {
+        "path": "sn-article-template/bst/sn-apacite.bst",
+        "bytes": 151345,
+        "sha256": "be9346857b116ec0359319ff26ace70da573475e4c92c6fb9418f841ff7a7c75",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          12
+        ]
+      },
+      {
+        "path": "sn-article-template/bst/sn-aps.bst",
+        "bytes": 29828,
+        "sha256": "51464202b6682152fcd80583e0898c18b6abc5e8486ec98a9cbabea2004de15d",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          14
+        ]
+      },
+      {
+        "path": "sn-article-template/bst/sn-basic.bst",
+        "bytes": 35515,
+        "sha256": "4b368414cc5593169907933b417aacfdb0ce905866a39bdf55d21aad65e9d46c",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          49,
+          22
+        ]
+      },
+      {
+        "path": "sn-article-template/bst/sn-chicago.bst",
+        "bytes": 33968,
+        "sha256": "079647ab15887274acccfc3bd15b3e9928dd16adde8cfc95cf5f1bc5c98b7ba3",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          14
+        ]
+      },
+      {
+        "path": "sn-article-template/bst/sn-mathphys-ay.bst",
+        "bytes": 64023,
+        "sha256": "6a2306683997db76b5e58190acea4dac360c742044114f6a923a4380fbab9008",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          16
+        ]
+      },
+      {
+        "path": "sn-article-template/bst/sn-mathphys-num.bst",
+        "bytes": 64164,
+        "sha256": "b3a7c7fbcc1e7f9619de634fcea2f5bb7a245818a5942bc576e40ea001633332",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          16
+        ]
+      },
+      {
+        "path": "sn-article-template/bst/sn-nature.bst",
+        "bytes": 39056,
+        "sha256": "638d68f5b0e92ffb25d64d29c7334e1bac6bbf54574b602bc633af8d96e1fd9b",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          18
+        ]
+      },
+      {
+        "path": "sn-article-template/bst/sn-vancouver-ay.bst",
+        "bytes": 39951,
+        "sha256": "8f4603d045e2e24c304acc9aa9f4389dc0877811c24ff74d62de1a7dad3ebb63",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          18
+        ]
+      },
+      {
+        "path": "sn-article-template/bst/sn-vancouver-num.bst",
+        "bytes": 40758,
+        "sha256": "7fa6df12ec8e8945c86958a50fb703d181522745adcf72bf95a86f3633540e8a",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          18
+        ]
+      },
+      {
+        "path": "sn-article-template/empty.eps",
+        "bytes": 2890,
+        "sha256": "aca23a40a6a8e1bf92b417dbf15ebdceaefd2e4066e8ec98747232237facaa04",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          8
+        ]
+      },
+      {
+        "path": "sn-article-template/fig.eps",
+        "bytes": 91593,
+        "sha256": "000216a239b64210b463bb888e4be0a233410eccb24e7e4692de4f2ba940ee03",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          8
+        ]
+      },
+      {
+        "path": "sn-article-template/sn-article.pdf",
+        "bytes": 421391,
+        "sha256": "98f733c4946df6612fa8071dc864e3a43aa8be6dd7a4aacd1598cb6025216ac1",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          50,
+          34
+        ]
+      },
+      {
+        "path": "sn-article-template/sn-article.tex",
+        "bytes": 34686,
+        "sha256": "71777936dca4952ac34aef4b98f5ce543fe50597efb2c1798cbb7a97767b70a9",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          10,
+          15,
+          14
+        ]
+      },
+      {
+        "path": "sn-article-template/sn-bibliography.bib",
+        "bytes": 5123,
+        "sha256": "007a3f0da8a727b721cf43d4b5bc399831c13f5c8bb3a0728a729c67ab1c0c54",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          10
+        ]
+      },
+      {
+        "path": "sn-article-template/sn-jnl.cls",
+        "bytes": 55857,
+        "sha256": "36d0c3273a59d48dc6a9c7b080dfa1ec50dc10229d8751568d1f2e490ffa5ecc",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          10
+        ]
+      },
+      {
+        "path": "sn-article-template/user-manual.pdf",
+        "bytes": 418495,
+        "sha256": "4bb5d025c3ec64825cb3f4e1590d7ecc73b51c3c7c53e06711f59d2e840ed9e9",
+        "archive_timestamp": [
+          2024,
+          12,
+          13,
+          9,
+          31,
+          12
+        ]
+      }
+    ]
+  },
+  "template_package_version": "3.1 December 2024",
+  "class_providesclass_header": "2019/11/18 v0.1",
+  "download_url_observed_via": {
+    "page": "S6",
+    "link_id": 47,
+    "web_response_ref": "turn16view3",
+    "note": "Web tool rejected application/zip; actual HTTPS download succeeded with HTTP200 and verified archive hash"
+  },
+  "recommended_configuration": {
+    "class": "sn-jnl",
+    "class_options": [
+      "pdflatex"
+    ],
+    "natbib_options": [
+      "numbers",
+      "sort&compress"
+    ],
+    "bibliography_style": "joc-basic",
+    "template_is_generic_not_joc_exclusive": true,
+    "single_column": "official default; no iicol/twocolumn option",
+    "official_class_unchanged": true,
+    "derived_bst_not_official": "newly named derivative removing author truncation only, with changed identity and retained provenance",
+    "fullauthors_probe": {
+      "class_options": [
+        "pdflatex"
+      ],
+      "natbib_options": [
+        "numbers",
+        "sort&compress"
+      ],
+      "bibliography_style": "joc-basic",
+      "official_class_unchanged": true,
+      "style_change": "renamed local derivative; remove the 3-author truncation branch in format.names; preserve alphabetical SORT",
+      "style_sha256": "e13bb05675d7bc094191561a69557ce483046a3f98efc1397ca3854d2835b9c1",
+      "steps": [
+        {
+          "argv": [
+            "pdflatex",
+            "-no-shell-escape",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "joc-fullauthors-smoke.tex"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "bibtex",
+            "joc-fullauthors-smoke"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "pdflatex",
+            "-no-shell-escape",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "joc-fullauthors-smoke.tex"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "pdflatex",
+            "-no-shell-escape",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "joc-fullauthors-smoke.tex"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "success": true,
+      "bibitem_order": [
+        "alpha",
+        "many",
+        "middle",
+        "zulu"
+      ],
+      "five_authors_printed": true,
+      "no_et_al": true
+    },
+    "baseline_probes": [
+      {
+        "style": "sn-basic",
+        "citation_order": [
+          "zulu",
+          "alpha",
+          "middle"
+        ],
+        "bibitem_order": [
+          "alpha",
+          "middle",
+          "zulu"
+        ],
+        "exit_code": 0,
+        "bbl_path": "/workspace/scratch/646fb6c54bf4/work/joc_round3/templates/verification/sn-basic-probe.bbl",
+        "type": "synthetic local style behavior probe, not journal endorsement"
+      },
+      {
+        "style": "sn-mathphys-num",
+        "citation_order": [
+          "zulu",
+          "alpha",
+          "middle"
+        ],
+        "bibitem_order": [
+          "zulu",
+          "alpha",
+          "middle"
+        ],
+        "exit_code": 0,
+        "bbl_path": "/workspace/scratch/646fb6c54bf4/work/joc_round3/templates/verification/sn-mathphys-num-probe.bbl",
+        "type": "synthetic local style behavior probe, not journal endorsement"
+      }
+    ]
+  },
+  "local_paths": {
+    "audit_markdown": "/workspace/scratch/646fb6c54bf4/work/joc_round3/venue_format_audit.md",
+    "official_class": "/workspace/scratch/646fb6c54bf4/work/joc_round3/templates/official_sn_template/sn-article-template/sn-jnl.cls",
+    "official_template": "/workspace/scratch/646fb6c54bf4/work/joc_round3/templates/official_sn_template/sn-article-template/sn-article.tex",
+    "official_bst": "/workspace/scratch/646fb6c54bf4/work/joc_round3/templates/official_sn_template/sn-article-template/bst/sn-basic.bst",
+    "verification_derived_bst": "/workspace/scratch/646fb6c54bf4/work/joc_round3/templates/verification/joc-basic.bst",
+    "verification_document": "/workspace/scratch/646fb6c54bf4/work/joc_round3/templates/verification/joc-fullauthors-smoke.tex",
+    "verification_result": "/workspace/scratch/646fb6c54bf4/work/joc_round3/templates/verification/joc_fullauthors_verification.json"
+  },
+  "handoff": {
+    "author_metadata": "real names and affiliations only; unconfirmed corresponding email/coauthors/responsibility remain author-check items",
+    "AI_draft": "fact-only assistance description; do not assert unperformed human verification or unconfirmed author approval",
+    "editing_existing_manuscript_performed": false,
+    "journal_submission_performed": false
+  }
+}

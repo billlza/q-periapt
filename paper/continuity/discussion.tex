@@ -1,0 +1,63 @@
+\section{Consequences and further instantiation}
+\label{sec:discussion}
+
+\paragraph{A recovery condition attached to original operations.}
+The model distinguishes creation of an operation's random input, its first
+durable reservation, the acquisition of a retained representation, and the
+later availability of the matching decryption material. This distinction
+makes exact replay compatible with precise recovery statements: retries and
+aggregate writes preserve the original source, while fresh operations obtain
+new origins. The guarded characterization explains how records and keys
+combine to expose that source. The native executions demonstrate why both
+this conjunction and the original event history matter at the persistence
+and asynchronous-confirmation boundaries.
+
+\paragraph{Joint root and message instantiation.}
+For the stated finite interface, Theorem~\ref{thm:joint-message-leaf} supplies
+a joint continuation through the actual confirmation, traffic and
+first-message schedule. Its private
+Expand-table normalization permits the traffic information to depend on
+root-derived confirmation tags, while producing the independent hidden
+input needed by the next reduction. The continuation retains actual
+confirmation and ACK verification, successor-root disclosure, and disclosure
+of the next chain seed. Exact retries share the encryption result from its
+first private computation.
+
+The recovered-contribution entry uses the concrete root derivation
+of Equation~\eqref{eq:root},
+\[
+ p_e=\operatorname{HMAC}_{R_{e-1}}(S_e).
+\]
+If $R_{e-1}$ is disclosed, the remaining secret is in HMAC's message input,
+as captured by extractor and swap-PRF formulations~\cite{hmacswap2023,rfc5869}.
+Appendix~\ref{app:joint-root-entry} gives the shared-oracle Extract/Expand
+reduction for a uniform combined contribution. Composing it with the joint
+schedule and the specified one-use AEAD game bounds this profile's
+ideal-contribution score. The next instantiation step connects the actual
+accepted ContextBound operation to that uniform-contribution entry:
+the component challenge and complete-context hash hop must use the same
+original invocation, cache, and accepted-prefix history. The native
+correspondence term $\rho_j$ and the selected candidate's actual projection
+residual $\eta_{\rm proj}^{\rm nat}$ retain their places in
+Proposition~\ref{prop:native-local-accounting}.
+
+\paragraph{Matched protocol evaluation.}
+The reference corpus fixes reproducible communication opportunities for a
+matched Continuity comparison. Such a comparison records the same loss,
+reorder and duplication schedule, together with the construction's actual
+authentication authority and disclosure objects. For each case, the relevant
+observations are the original generation and encapsulation reservations,
+acquired record projection, known wrapping keys, public-wire availability,
+and reconstructed message set. Communication and persistence costs can then
+be measured over declared operation intervals. Holding a reservation fixed
+while varying execution time, acknowledgement delivery or aggregate
+rewriting tests the provenance distinctions isolated by the present results.
+
+\paragraph{Conclusion.}
+Persistent recovery is governed by original secret sources and their
+acquisition histories. The paper gives an exact record-exposure semantics,
+constructive simulations for private records and dependent immutable reports,
+a joint recovered-contribution-to-message continuation, and a mechanized
+multi-epoch recovery theorem with concrete separating executions.
+These results preserve the meaning of
+fresh randomness across durable retries, copies and asynchronous progress.

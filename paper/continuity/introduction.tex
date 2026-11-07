@@ -1,0 +1,144 @@
+\section{Introduction}
+\label{sec:introduction}
+
+Post-compromise recovery depends on the secrecy of contributions incorporated
+into later keys. Ratcheting protocols make this dependence precise through the
+evolution of key-exchange and messaging state
+\cite{signal2020,tripleratchet2025}. In a persistent implementation, a
+contribution also has a storage history: its randomness is sampled, a replay
+record is saved, the cryptographic operation is executed, and its result is
+published and confirmed. These events can be separated by a crash or a delayed
+message. A security experiment must account for the secret source across this
+entire history.
+
+\paragraph{The reservation boundary.}
+Consider an endpoint that durably reserves the random tape of a KEM operation
+so that an interrupted call can resume with its original inputs. An adversary
+acquires this reservation, its wrapping key, and the predecessor root before
+the key-generation call executes. After a crash, the endpoint resumes the call
+and completes an honestly authenticated exchange. The captured tape determines
+the same private key; the public response then determines the KEM contribution
+and, with the predecessor root, the descendant traffic keys. The resumed
+computation is a later event in the lifetime of the original secret source.
+
+Future-key exposure already has a precise place in messaging security.
+SCKA's vulnerable message sets include retained future-epoch keys
+\cite{scka2025}, and Triple Ratchet accounts for next-epoch material sampled
+while its transmission is in progress \cite{tripleratchet2025}. The question
+here concerns the persistent objects from which such material can be recovered:
+\emph{which facts about an original operation and the acquisition of its records
+must a recovery experiment preserve through restart, copying, and later key
+disclosure?}
+
+There are two related difficulties. First, one reservation may occur in a
+pending target, a current journal image, and several retained copies. A later
+wrapping-key disclosure can make an earlier capture readable, even after the
+honest endpoint has deleted its local copy. Second, a cryptographic reduction
+may possess a selected operation's public outputs without possessing its
+random tape. It must still account for public record commitments, complete-record
+equality, exact retries, reached persistence states, and authenticated reports
+whose inputs depend on retained private values. These are semantic and
+simulation obligations of the recovery argument.
+
+\paragraph{Original sources and durable executions.}
+We associate each reservation with its original owner, operation, session,
+epoch, and sampling event. We separately identify an immutable session-record
+version and a physical image carrying that version. Copying or resealing an
+image preserves the referenced source and record version. Acquisition records
+the objects obtained by the adversary; readability is evaluated against the
+complete acquisition and key-disclosure history. This representation makes
+the secrecy premise stable under changes to physical storage representation
+while allowing adversarial knowledge to grow.
+
+We study this representation in Q-Periapt Continuity, a hybrid post-quantum
+messaging construction with persistent rekey operations and asynchronous
+confirmation. The construction provides a concrete setting in which the
+reservation, execution, and confirmation events have distinct operational
+boundaries. Its journal can also aggregate several sessions, making the
+distinction between a new image and an existing source directly observable.
+
+\paragraph{Contributions.}
+The paper establishes three connected results.
+\begin{enumerate}
+  \item \textbf{A provenance-preserving model of durable exposure.}
+  We define the original-reservation and record-acquisition interface and prove
+  alias normalization with equality of public views and original-record
+  ledgers (Lemma~\ref{lem:alias-normalization}). The result preserves actual
+  rendering operations and counts distinct plaintext openings by original
+  record, while retaining the separate costs of fresh seals and public
+  cryptographic calls. For fixed public key derivations, an exact guarded-path
+  characterization equates readability with iterative decryption
+  (Theorem~\ref{thm:guarded-normalization}). Its conjunctive guards represent
+  the joint effect of captured ciphertexts and disclosed keys; alternative
+  copies supply additional routes to the same source.
+
+  \item \textbf{Constructive composition for persistent observations and
+  key derivation.}
+  We construct a table-based image/intent simulator that operates without the
+  selected reservation's bytes after the stated private-commitment replacement
+  (Theorem~\ref{thm:opaque-rendering}). The algorithm preserves original
+  invocation identities, complete intent prefixes, exact replay, and reached
+  durable state, with an explicit nonce-collision loss for byte equality.
+  A reverse-order hybrid theorem composes immutable authenticated reports
+  whose transcripts may contain earlier private report keys
+  (Theorem~\ref{thm:report-reverse-composition}). Its reduction uses the causal
+  order to execute later dependent reports without the selected unknown key.
+  Allowed key disclosures remain in the real experiment and contribute their
+  actual scored residual (Corollary~\ref{cor:report-exposure-residual}). These
+  interface results connect to the native application through candidate-local
+  accounting (Proposition~\ref{prop:native-local-accounting}). Its score
+  decomposition charges the selected candidate's actual disclosure residual
+  once in the original game, while retaining each candidate's own comparison
+  world. An origin-based stopping certificate remains valid before the final
+  cut and challenge are selected (Lemma~\ref{lem:adaptive-origin-stop}).
+  Starting from a uniform recovered contribution, a joint key-schedule
+  theorem separates the selected first-message key in the compression
+  quantum random-oracle model (Theorem~\ref{thm:joint-message-leaf} and
+  Corollary~\ref{cor:joint-first-message}). The reduction retains traffic
+  information chosen from confirmation outputs, real confirmation and ACK
+  verification, and disclosed successor roots and next chain seeds.
+  Using exact private-row normalization, the composition makes the next
+  hidden-input reduction possible without leaving an unmodeled parent-row use of its secret
+  (Lemma~\ref{lem:joint-expand-blocks}).
+
+  \item \textbf{A multi-epoch recovery condition with separating executions.}
+  We prove symbolic message secrecy when both target reservations follow the
+  compromise cut, the actual target authentication keys and target entropy
+  remain undisclosed, and no acquired target-session version was saved after
+  the cut (Theorem~\ref{thm:symbolic}). The model admits inherited roots,
+  shared key identities, alternating proposers, asynchronous confirmation,
+  and unbounded epochs. The theorem and its reusable dependencies were
+  checked together in Tamarin. Native process-kill executions at both
+  reservation boundaries reconstruct traffic after honest completion and
+  restart. A delayed-receipt execution exposes epoch-two traffic when the
+  peers' confirmed counters are zero and one; a sibling-session write retains
+  the target's original reservation through a new aggregate image. These
+  executions identify the concrete distinctions captured by the recovery
+  condition.
+\end{enumerate}
+
+\paragraph{Supporting validation.}
+An executable finite-model supplement checks the guarded characterization and
+its treatment of acquisition, deletion, and late disclosure against independent
+expected results. A source correspondence maps the image, intent, retry, report,
+and acquisition operations to the declared interfaces. Separately, pinned SPQR
+and whole-KEM reference corpora measure reconstructible message sets across
+communication schedules. Their purpose is to explain how retained material and
+communication opportunities affect observed exposure. The measurements retain
+the originating contribution, direction, epoch, and message index, together
+with each construction's authentication and storage interface.
+
+\paragraph{Security model and organization.}
+Crash recovery in this paper resumes retained, bound operations; authentication,
+acquisition, and disclosure are specified by the model in
+Section~\ref{sec:security-model}. The universal recovery result is symbolic.
+The quantitative results cover record and report simulation, native score
+accounting, and a joint first-message continuation for the stated finite
+interfaces. Their cryptographic and disclosure terms remain explicit in
+the common message experiment. Section~\ref{sec:construction} describes the construction;
+Sections~\ref{sec:security-model} and~\ref{sec:computation} develop the
+record model and computational connections. Section~\ref{sec:established}
+gives the mechanized recovery theorem and separating executions, and
+Section~\ref{sec:evaluation} validates the exposure semantics.
+Section~\ref{sec:discussion} connects the recovered-contribution entry to
+the accepted-operation adapter and the matched protocol comparison.

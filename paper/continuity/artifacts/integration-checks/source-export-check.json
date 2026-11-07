@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "files_in_source_zip": 9,
+  "clean_compile_exit_code": 0,
+  "extracted_pdf_text_equal": true,
+  "text_sha256": "44faa8d7b1e447738c1663626d1a134eee6268c8b2f2fe70ce7c052c1d8f5dfc",
+  "source_zip_sha256": "37aa2fabda9bb4fff106498608cad540838e6db28cf9f584b1aa5833d95470f6",
+  "failures": []
+}

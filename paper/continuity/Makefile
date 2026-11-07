@@ -1,0 +1,29 @@
+.PHONY: all check source clean
+
+BUILD := build
+TEX_SOURCES := $(filter-out joc-submission.tex,$(wildcard *.tex))
+SOURCES := $(TEX_SOURCES) references.bib sn-jnl.cls joc-basic.bst
+
+all: continuity.pdf
+
+joc-submission.tex: $(TEX_SOURCES) flatten_manuscript.py
+	python3 flatten_manuscript.py
+
+figures/confirmation-cut.pdf: figures/confirmation-cut.tex figures/confirmation-cut.tikz
+	mkdir -p $(BUILD)/figures
+	cd figures && latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=../$(BUILD)/figures confirmation-cut.tex
+	cp $(BUILD)/figures/confirmation-cut.pdf $@
+
+continuity.pdf: joc-submission.tex $(SOURCES) figures/confirmation-cut.pdf
+	latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=$(BUILD) joc-submission.tex
+	cp $(BUILD)/joc-submission.pdf $@
+
+check: continuity.pdf
+	python3 check_build.py
+
+source: check
+	python3 export_submission.py --output $(BUILD)/joc-source.zip
+
+clean:
+	latexmk -C -outdir=$(BUILD) joc-submission.tex
+	cd figures && latexmk -C -outdir=../$(BUILD)/figures confirmation-cut.tex
