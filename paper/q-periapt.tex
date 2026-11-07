@@ -82,18 +82,20 @@ prefix; this is canonical source-input consistency after fixed generated-prefix 
 hermetic build-input, interpreter, or host attestation. Specification-to-
 implementation refinement and cross-device/end-to-end performance parity remain
 explicitly pending; the historical device observations below retain their original scope. The current research-alpha release graph uses
-target-selected \code{mlkem-native}~v1.2.0 through a dedicated Rust/C boundary,
-plus pinned \code{fips204}~0.4.6 and \code{sha3}~0.10.9. Exactly five
+target-selected \code{mlkem-native}~v2.0.0 through a dedicated Rust/C boundary,
+plus pinned \code{fips204}~0.4.6, \code{sha3}~0.12.0 and \code{shake}~0.1.0. Exactly five
 little-endian AArch64 Apple/Linux/Android targets use upstream native arithmetic.
 The arm64 macOS and arm64 iOS-simulator slices select an Armv8.4-A SHA3 FIPS~202
 assembly profile; the iOS-device, Linux and Android slices retain Armv8-A scalar
-FIPS~202 assembly. Every other target, including Wasm, remains portable C.
-Selection is compile-time only, with no runtime dispatch; ABI~2, key and wire
+FIPS~202 assembly. Under the default feature set, every other target, including
+Wasm, uses portable C; this default mapping has no runtime CPU dispatch.
+A separately enabled GNU/Linux x86-64 native candidate dispatches after CPU/OS
+capability checks and has independent qualification records. ABI~2, key and wire
 contracts are unchanged. That migration changed the canonical source
 digest, so all portable-derived package, device, performance, and binary-CT results
 are historical evidence; no clean source-bound replacement timing, device, or
-binary-CT measurement is claimed here. The current-source local footprint capture reported below
-is a platform/toolchain-specific diagnostic, not release provenance.
+binary-CT measurement is claimed here. The historical working-tree footprint capture reported below
+is a platform/toolchain-specific diagnostic for its recorded cohort, not current release provenance.
 The current Rust workspace declares \code{0.2.0}; Continuity remains an unpublished
 candidate. The historical \code{v0.1.5} Apple XCFramework GitHub release was published
 on 2026-09-05. A pre-publication package-ready contract
@@ -479,7 +481,7 @@ The combiner and its encoding live in a single dependency-free Rust \code{no\_st
 component primitives are \emph{injected} through narrow traits (a \code{Kem} trait for ML-KEM and
 X25519, an extendable-output \code{Xof} trait for the hash), so the implementation under
 conformance test---the encoding and combiner---is the same code regardless of which third-party
-backend (target-selected \code{mlkem-native}~v1.2.0 for ML-KEM, x25519-dalek, and \code{sha3}~0.10.9) is
+backend (target-selected \code{mlkem-native}~v2.0.0 for ML-KEM, x25519-dalek, and \code{sha3}~0.12.0) is
 plugged in; ML-DSA uses \code{fips204}~0.4.6. Backend correctness,
 audit, and constant-time posture remain per implementation and ISA. The ML-KEM source is
 commit- and archive-hash-pinned, but RustSec does not inspect vendored C. Exactly the
@@ -488,8 +490,11 @@ little-endian targets \code{aarch64-apple-darwin}, \code{aarch64-apple-ios},
 \code{aarch64-linux-android} use upstream native arithmetic. The macOS and
 iOS-simulator targets select Armv8.4-A SHA3 FIPS~202 assembly; the iOS-device,
 Linux and Android targets retain Armv8-A scalar x1/scalar-Neon x4 FIPS~202 assembly.
-All other targets use portable C. Selection is compile-time only, with no runtime
-dispatch.
+All other default targets use portable C; this default mapping has no runtime
+CPU dispatch. A separately enabled \code{linux-x86\_64-avx2} candidate is restricted
+to \code{x86\_64-unknown-linux-gnu}, checks CPU/OS capabilities at runtime, and
+retains a portable implementation of the same algorithm. Its source, execution,
+binary-CT and performance qualification are tracked separately.
 Upstream HOL-Light evidence covers only selected upstream assembly
 source/object routines, not downstream reassembly, this wrapper, or the full ABI.
 This trait boundary is also where \emph{crypto-agility} lives:
@@ -621,7 +626,7 @@ current \code{0.2.0} source or establish current physical-Android coverage.}\\
 
 \section{CI-Gated Assurance}\label{sec:assurance}
 \subsection{A source\texorpdfstring{$\to$}{-to-}binary constant-time \emph{discriminator}}
-The release-graph ML-KEM backend is now target-selected \code{mlkem-native}~v1.2.0 behind a
+The release-graph ML-KEM backend is now target-selected \code{mlkem-native}~v2.0.0 behind a
 dedicated safe Rust/C boundary. No source-level secret-independence result from a replaced
 provider transfers to this backend.
 The binary-level question---does the compiled path branch or index on the genuine secret?---is
@@ -881,7 +886,7 @@ artifacts, and freshness. This source text cannot self-promote a stale run. A pa
 closes only a single-host matched-core diagnostic for those bytes, not device energy, rustls
 end-to-end, or optimized production-X-Wing parity.
 The migrated harness's canonical source and locked dependency inputs select
-\code{mlkem-native}~v1.2.0, \code{sha3}~0.10.9, and
+\code{mlkem-native}~v2.0.0, \code{sha3}~0.12.0, and
 \code{x25519-dalek}~3.0.0. The emitted backend identifier names the component families,
 while the proof binds the complete source/lock identity; every previously recorded paired proof
 has a different source/backend identity and must be recollected.
