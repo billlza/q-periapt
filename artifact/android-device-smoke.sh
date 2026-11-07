@@ -1159,7 +1159,7 @@ report_android_failure_diagnostic() {
 		report-failure-diagnostic --run-id "$RUN_ID" --leaf "$1" 2>/dev/null; then
 		:
 	else
-		printf 'ANDROID_FAILURE_DIAGNOSTIC_UNAVAILABLE\n' >&2
+		printf 'ANDROID_FAILURE_DIAGNOSTIC_UNAVAILABLE\n' >&2 || return 1
 	fi
 	return 0
 }
@@ -1198,7 +1198,7 @@ observe_installed_package_sample() {
 		remove_installed_apk_copy || return 2
 		printf 'error: Android package ownership observation failed structurally; see %s\n' \
 			"$ownership_error" >&2
-		report_android_failure_diagnostic "${ownership_error##*/}" || :
+		report_android_failure_diagnostic "${ownership_error##*/}" || return 2
 		return 2
 	fi
 	if ! ownership_result=$(/bin/cat -- "$ownership_output"); then
@@ -1654,7 +1654,7 @@ cleanup_android_app() {
 	remove_installed_apk_copy || return 2
 	printf 'error: Android app cleanup outcome is unresolved for device sha256:%s; see %s\n' \
 		"${SERIAL_SHA256_PREFIX:-unavailable}" "$PACKAGE_OBSERVATION_LOG" >&2
-	report_android_failure_diagnostic "adb-package-state-observation.log" || :
+	report_android_failure_diagnostic "adb-package-state-observation.log" || return 1
 	return 1
 }
 

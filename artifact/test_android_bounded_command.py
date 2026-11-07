@@ -4148,6 +4148,112 @@ class AndroidBoundedCommandTests(unittest.TestCase):
         write.assert_not_called()
         self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
 
+    def test_installed_apk_observation_expired_listener_rejects_exact_copy(self) -> None:
+        capability = self.load_capability()
+        installed_copy = self.work / commands.INSTALLED_APK_COPY_LEAF
+
+        def guard(_capability, *, deadline):
+            commands._remaining_adb_listener_timeout(deadline)
+
+        def observe(_layout, _capability, *, deadline):
+            installed_copy.write_bytes(self.apk.read_bytes())
+            installed_copy.chmod(0o600)
+            return BoundedResult(0, b"exact:" + b"a" * 64 + b"\n")
+
+        with (
+            mock.patch.object(commands.time, "monotonic", side_effect=[100.0, 100.0, 105.0]),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client", side_effect=guard) as check,
+            mock.patch.object(commands, "_observe_installed_apk", side_effect=observe) as observation,
+        ):
+            result = commands._invoke_installed_apk_observation(
+                self.layout, capability, timeout_seconds=5,
+            )
+        self.assertEqual(result, BoundedResult(0, b"retryable:deadline-exhausted\n"))
+        self.assertFalse(installed_copy.exists())
+        self.assertEqual([call.kwargs for call in check.call_args_list],
+                         [{"deadline": 105.0}, {"deadline": 105.0}])
+        observation.assert_called_once_with(self.layout, capability, deadline=105.0)
+
+    def test_installed_apk_observation_listener_budget_returns_no_ownership_fact(self) -> None:
+        capability = self.load_capability()
+        installed_copy = self.work / commands.INSTALLED_APK_COPY_LEAF
+        for before_expired, after_expired in ((True, True), (True, False), (False, True)):
+            installed_copy.write_bytes(self.apk.read_bytes())
+            installed_copy.chmod(0o600)
+            effects = [
+                commands.AdbValidationDeadlineExpired("original deadline") if expired else None
+                for expired in (before_expired, after_expired)
+            ]
+            with self.subTest(before=before_expired, after=after_expired):
+                with (
+                    mock.patch.object(commands, "_validate_owned_adb_server_for_client", side_effect=effects) as guard,
+                    mock.patch.object(commands, "_observe_installed_apk", return_value=BoundedResult(0, b"exact:" + b"a" * 64 + b"\n")) as observe,
+                ):
+                    result = commands._invoke_installed_apk_observation(
+                        self.layout, capability, timeout_seconds=5,
+                    )
+                self.assertEqual(result, BoundedResult(0, b"retryable:deadline-exhausted\n"))
+                self.assertFalse(installed_copy.exists())
+                self.assertEqual(guard.call_count, 2)
+                self.assertEqual(observe.call_count, int(not before_expired))
+                self.assertEqual(guard.call_args_list[0].kwargs["deadline"],
+                                 guard.call_args_list[1].kwargs["deadline"])
+
+    def test_installed_apk_observation_budget_failure_preserves_structural_errors(self) -> None:
+        capability = self.load_capability()
+        for first, second, observation_error in (
+            (commands.AdbValidationDeadlineExpired("deadline"), commands.AndroidCommandError("server drift"), None),
+            (commands.AndroidCommandError("server drift"), commands.AdbValidationDeadlineExpired("deadline"), None),
+            (None, commands.AdbValidationDeadlineExpired("deadline"), commands.AndroidCommandError("malformed APK path")),
+            (commands.AndroidCommandError("owned adb server validation deadline expired"), None, None),
+        ):
+            with self.subTest(first=first, second=second, observation_error=observation_error):
+                with (
+                    mock.patch.object(commands, "_validate_owned_adb_server_for_client", side_effect=[first, second]) as guard,
+                    mock.patch.object(commands, "_observe_installed_apk", side_effect=observation_error),
+                    self.assertRaises(commands.AndroidCommandError) as raised,
+                ):
+                    commands._invoke_installed_apk_observation(
+                        self.layout, capability, timeout_seconds=5,
+                    )
+                self.assertIs(raised.exception, first if first is not None else observation_error)
+                self.assertEqual(guard.call_count, 2)
+                if second is not None:
+                    self.assertTrue(any("post-observation" in note and str(second) in note
+                                        for note in raised.exception.__notes__))
+                self.assertFalse((self.work / commands.INSTALLED_APK_COPY_LEAF).exists())
+
+    def test_installed_apk_observation_annotated_budget_failure_remains_fatal(self) -> None:
+        error = commands.AdbValidationDeadlineExpired("deadline")
+        error.add_note("structural cleanup failure already attached")
+        with (
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client", side_effect=[error, None]),
+            mock.patch.object(commands, "_observe_installed_apk") as observe,
+            self.assertRaises(commands.AdbValidationDeadlineExpired) as raised,
+        ):
+            commands._invoke_installed_apk_observation(
+                self.layout, self.load_capability(), timeout_seconds=5,
+            )
+        self.assertIs(raised.exception, error)
+        self.assertEqual(raised.exception.__notes__, ["structural cleanup failure already attached"])
+        observe.assert_not_called()
+
+    def test_installed_apk_observation_budget_failure_preserves_copy_cleanup_failure(self) -> None:
+        error = commands.AdbValidationDeadlineExpired("deadline")
+        with (
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client", side_effect=[None, error]),
+            mock.patch.object(commands, "_observe_installed_apk", return_value=BoundedResult(0, b"exact:" + b"a" * 64 + b"\n")),
+            mock.patch.object(commands, "_remove_installed_apk_copy", side_effect=commands.AndroidCommandError("copy removal failed")) as remove,
+            self.assertRaises(commands.AdbValidationDeadlineExpired) as raised,
+        ):
+            commands._invoke_installed_apk_observation(
+                self.layout, self.load_capability(), timeout_seconds=5,
+            )
+        self.assertIs(raised.exception, error)
+        self.assertTrue(any("removing the rejected installed-APK copy" in note
+                            and "copy removal failed" in note for note in error.__notes__))
+        remove.assert_called_once_with(self.layout)
+
     def test_installed_apk_observation_rejects_exact_bytes_completed_after_deadline(
         self,
     ) -> None:

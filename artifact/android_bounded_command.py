@@ -3783,17 +3783,26 @@ def _invoke_installed_apk_observation(
     deadline = time.monotonic() + timeout_seconds
     result: BoundedResult | None = None
     primary: BaseException | None = None
+    deadline_only = False
     try:
         _validate_owned_adb_server_for_client(capability, deadline=deadline)
         result = _observe_installed_apk(layout, capability, deadline=deadline)
     except BaseException as exc:
         primary = exc
+        deadline_only = isinstance(exc, AdbValidationDeadlineExpired) and not getattr(
+            exc, "__notes__", None
+        )
     try:
         _validate_owned_adb_server_for_client(capability, deadline=deadline)
     except BaseException as postcheck_error:
+        postcheck_deadline = isinstance(
+            postcheck_error, AdbValidationDeadlineExpired
+        ) and not getattr(postcheck_error, "__notes__", None)
         if primary is None:
             primary = postcheck_error
+            deadline_only = postcheck_deadline
         else:
+            deadline_only = deadline_only and postcheck_deadline
             primary.add_note(
                 "owned adb server post-observation validation also failed: "
                 f"{postcheck_error}"
@@ -3808,6 +3817,7 @@ def _invoke_installed_apk_observation(
         try:
             _remove_installed_apk_copy(layout)
         except BaseException as cleanup_error:
+            deadline_only = False
             if primary is None:
                 primary = cleanup_error
             else:
@@ -3816,6 +3826,13 @@ def _invoke_installed_apk_observation(
                     f"{cleanup_error}"
                 )
     if primary is not None:
+        if deadline_only:
+            return BoundedResult(
+                0,
+                f"retryable:{InstalledApkRetryReason.DEADLINE_EXHAUSTED.value}\n".encode(
+                    "ascii"
+                ),
+            )
         raise primary
     _require(result is not None, "installed Android APK observation produced no result")
     return result

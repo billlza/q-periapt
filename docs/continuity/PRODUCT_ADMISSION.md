@@ -15,6 +15,26 @@ emulator is not required, and their absence does not make those results
 insufficient or untrustworthy. Subsequent software changes use the same phone for
 relevant regression checks; those checks do not reopen a hardware-count gate.
 
+## Hosted installed cohort (2026-11-07)
+
+The completed [main push cohort](https://github.com/billlza/q-periapt/actions/runs/42324117363)
+at `228c944fc476e3e57d6c08063cacb19bca5b360e` passes installed Rust/C and all six
+Swift, Kotlin and Android JNI Debug/Release partitions. Its aggregate verifier
+accepts all six source-matched reports; the original 1,001-byte coverage artifact
+and its digest are retained in the [CI release readback](../../research/sdk-alpha1/evidence/20261107-ci-release-readback/README.md).
+The same source also passes all 24 jobs across the reference-account, focused
+regressions, installed Windows, directory-lease and focused Android JNI workflows.
+This completes the hosted installed-profile checkpoint that was waiting for the
+long-running push wave.
+
+The push workflow's final outcome remains 67 successful jobs, two failures and
+one dependency skip. The readback separates the tooling assertion, Android
+runtime failures, and PR runner interruption from those completed partitions.
+The parallel PR wave is retained with its observed running and queued jobs.
+Final protocol/package admission continues under the existing release scope;
+the aggregate receipt records this completed candidate coverage separately from
+formal publication eligibility.
+
 ## Hosted Windows qualification (2026-11-06)
 
 The Windows runtime gap recorded by earlier checkpoints is closed for source

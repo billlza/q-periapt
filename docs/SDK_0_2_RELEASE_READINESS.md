@@ -5,6 +5,22 @@ Continuity scope and quality and maintainability review before delivery.
 No release-readiness claim is made until every applicable requirement has
 current-source evidence. The user's latest direction is **retain ABI major 2**.
 
+## Current hosted checkpoint (2026-11-07)
+
+The [completed push cohort](../research/sdk-alpha1/evidence/20261107-ci-release-readback/README.md)
+passes installed Rust/C, all six Swift/Kotlin/Android JNI Debug/Release partitions
+and their source-matched aggregate coverage check at `228c944f`. Five focused
+workflows also complete 24/24 jobs successfully. The same checkpoint retains the
+specific main-workflow failures and the still-active parallel PR wave.
+
+The [prepared admission change](continuity/RELEASE_0_2_ADMISSION_PLAN.md) maps the
+implemented protocol, public interfaces and compatibility behavior to the final
+0.2.0 package graph, specification lock and release manifest. The chronological
+checkpoints below retain the status observed at their original source; later
+completed cohorts supersede their earlier pending states for the same component.
+
+## Historical implementation checkpoints
+
 The [independent bootstrap checkpoint](../research/sdk-alpha1/evidence/20261018-independent-bootstrap/README.md)
 adds a Python/OpenSSL initiator that authenticates public authority and prekey
 inputs, constructs its own canonical context, and exchanges all three real
