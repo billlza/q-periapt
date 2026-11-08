@@ -9,6 +9,7 @@ import unittest
 from unittest import mock
 
 import codeql_rust_publication as publication
+from codeql_rust_profile import wasm_query_memory
 import codeql_rust_quality as quality
 from codeql_target_coverage import validate_macro_profiles
 from test_codeql_rust_profile import sarif
@@ -60,12 +61,16 @@ class RustPublicationTests(unittest.TestCase):
             host = quality.hosted_configuration(publication.profile_host(name))
             profile.update(compiler_host=host.compiler_host, query_threads=host.threads, query_ram_mb=host.ram_mb)
             self.write(directory / "PROFILE.json", profile)
+            if name == "wasm":
+                self.write(directory / "QUERY_MEMORY.json", wasm_query_memory(["-J-Xmx3356M", "--off-heap-ram=9329"]))
             self.write(directory / "ANALYSIS.json", {"completed": True, "codeql_version": publication.VERSION,
                        "query_pack": publication.QUERY_VERSION, "upload_performed": False,
                        "profile_sha256": self.digest(directory / "PROFILE.json"),
                        "query_inventory_sha256": self.digest(directory / "QUERY_INVENTORY.json"),
                        "query_result_sha256": {path: "b" * 64 for path in self.inventory},
-                       "sarif_sha256": self.digest(directory / "results.sarif")})
+                       "sarif_sha256": self.digest(directory / "results.sarif"),
+                       **({"query_memory_sha256": self.digest(directory / "QUERY_MEMORY.json")}
+                          if name == "wasm" else {})})
             self.paths[name] = directory
         patch = mock.patch.object(quality, "tracked_rust_paths", return_value=frozenset(self.sources))
         patch.start()
@@ -106,6 +111,21 @@ class RustPublicationTests(unittest.TestCase):
                     publication.latest_profile_directories(self.artifacts, 1)
             finally:
                 parked.rename(path)
+
+    def test_wasm_requires_its_bound_actual_memory_resolution(self) -> None:
+        directory = self.paths["wasm"]
+        original = self.read(directory / "QUERY_MEMORY.json")
+        self.write(directory / "QUERY_MEMORY.json", dict(original, heap_mb=3072))
+        with self.assertRaisesRegex(ValueError, "not bound"):
+            self.validate("wasm")
+        analysis = self.read(directory / "ANALYSIS.json")
+        analysis["query_memory_sha256"] = self.digest(directory / "QUERY_MEMORY.json")
+        self.write(directory / "ANALYSIS.json", analysis)
+        with self.assertRaisesRegex(ValueError, "differs from its resolved allocation"):
+            self.validate("wasm")
+        (directory / "QUERY_MEMORY.json").unlink()
+        with self.assertRaises(ValueError):
+            self.validate("wasm")
 
     def test_linux_and_wasm_cannot_certify_macos_only_code(self) -> None:
         with self.assertRaisesRegex(ValueError, "compiled peer"):

@@ -7,7 +7,8 @@ from pathlib import Path
 import re
 
 import codeql_rust_quality as quality
-from codeql_rust_profile import COMPILER, QUERY_VERSION, ROOT, TARGETS, VERSION, profile_host, validate_sarif
+from codeql_rust_profile import (COMPILER, QUERY_VERSION, ROOT, TARGETS, VERSION,
+                                 profile_host, validate_sarif, validate_wasm_query_memory)
 from codeql_target_coverage import MacroProfile, parse_macro_calls, validate_active_macro_coverage, validate_macro_profiles
 from evidence_io import parse_strict_json_bytes
 import rust_sdk_profile as sdk
@@ -66,6 +67,11 @@ def validate_profile_artifact(directory: Path, name: str, root: Path,
                 "analysis did not complete before publication")
     sdk.require(analysis.get("profile_sha256") == sdk.snapshot(directory / "PROFILE.json").sha256,
                 "analysis is not bound to this profile")
+    if name == "wasm":
+        memory = directory / "QUERY_MEMORY.json"
+        sdk.require(analysis.get("query_memory_sha256") == sdk.snapshot(memory).sha256,
+                    "WASM analysis is not bound to its evaluator memory record")
+        validate_wasm_query_memory(read_json(memory))
     source = {path: sdk.snapshot(root / path, maximum=5 * 1024**2).sha256
               for path in sorted(quality.tracked_rust_paths(root))}
     sdk.require(profile.get("source_sha256") == source, "profile Rust source bytes differ")
