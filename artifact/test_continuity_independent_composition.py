@@ -1,9 +1,12 @@
 """Reject partial or contradictory original lifecycle qualification receipts."""
 import importlib.util
+import os
 from pathlib import Path
+import sys
 import tempfile
 import threading
-from types import SimpleNamespace
+import time
+from types import ModuleType, SimpleNamespace
 import unittest
 from unittest import mock
 from continuity_independent_composition import verify_composition, verify_capacity
@@ -106,6 +109,93 @@ class NativeTranscriptTests(unittest.TestCase):
         self.assertEqual((self.native.cases / "approval.input").read_bytes(), b"request")
         self.assertEqual((self.native.cases / "approval.output").read_bytes(), b"")
         self.assertEqual(self.native.commands, [])
+
+
+@unittest.skipUnless(os.name == "posix", "native pipe processes require POSIX")
+class NativeExecutableIdentityTests(unittest.TestCase):
+    READY = b"\0\0\0\6\1ready"
+
+    def setUp(self):
+        peer = Path(__file__).resolve().parent.parent / "research/continuity-openssl-peer"
+        spec = importlib.util.spec_from_file_location("native_identity_run_test", peer / "run.py")
+        self.driver = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.driver)
+        # This process-identity test needs only the restart module's boolean guard.
+        # Its actual process lifecycle and preserved-file checks remain in use.
+        package = ModuleType("qperiapt_continuity_reference")
+        package.__path__ = []
+        wire = ModuleType("qperiapt_continuity_reference.wire")
+
+        def require(condition, reason):
+            if not condition:
+                raise ValueError(reason)
+
+        wire.require = require
+        modules = {package.__name__: package, wire.__name__: wire}
+        with mock.patch.dict(sys.modules, modules):
+            spec = importlib.util.spec_from_file_location("native_identity_restart_test", peer / "native_restart.py")
+            self.restart = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(self.restart)
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+        self.selected = self.root / "selected"
+        self.other = self.root / "other"
+        self.selected.mkdir()
+        self.other.mkdir()
+        for directory, identity in ((self.selected, "selected"), (self.other, "other")):
+            helper = directory / "native-helper"
+            helper.write_text(
+                "#!" + sys.executable + "\n"
+                "import os, sys\nfrom pathlib import Path\n"
+                "public = Path(sys.argv[1])\npublic.mkdir(exist_ok=True)\n"
+                "(public / 'selected-helper').write_text(" + repr(identity) + ")\n"
+                "os.write(1, " + repr(self.READY) + ")\n"
+                "while os.read(0, 4096):\n    pass\n"
+            )
+            helper.chmod(0o700)
+        self.output = self.root / "output"
+        self.output.mkdir()
+        previous = Path.cwd()
+        os.chdir(self.selected)
+        self.addCleanup(os.chdir, previous)
+
+    def start(self):
+        native = self.driver.Counterpart(Path("native-helper"), self.output, restartable_successor=True)
+        self.addCleanup(native.close)
+        self.assertEqual(native.read(len(self.READY), time.monotonic() + 5), self.READY)
+        return native
+
+    def test_initial_process_uses_selected_file_with_other_same_name_on_path(self):
+        with mock.patch.dict(os.environ, {"PATH": str(self.other)}):
+            native = self.start()
+        self.assertEqual((self.output / "public/selected-helper").read_text(), "selected")
+        self.assertEqual(native.executable, self.selected / "native-helper")
+
+    def test_restart_keeps_selected_file_after_path_changes(self):
+        with mock.patch.dict(os.environ, {"PATH": str(self.selected)}):
+            native = self.start()
+        public = self.output / "public"
+        witness, journal = self.root / "witness", self.root / "journal"
+        witness.mkdir()
+        journal.mkdir()
+        for name in ("key", "witness-id", "witness-key-id", "device-key-id", "witness-signer",
+                     "device-signer", "prekey-host-key", "prekey-reservation"):
+            (witness / name).write_bytes(b"original fixture")
+        for name in ("key", "identity"):
+            (journal / name).write_bytes(b"original fixture")
+        (public / "private-witness-path").write_text(str(witness))
+        (public / "private-fixture-path").write_text(str(journal))
+        (public / "root-successor").mkdir()
+        (public / "root-successor/control").write_bytes(b"original control")
+        (public / "root-successor/private-fixture-path").write_text(str(journal))
+        before = self.restart.preserved(public)
+        bridge = SimpleNamespace(native=native, lock=threading.Lock())
+        with mock.patch.dict(os.environ, {"PATH": str(self.other)}):
+            self.restart.restart(bridge, 150, "approved")
+        self.assertEqual(native.executable, self.selected / "native-helper")
+        self.assertEqual(self.restart.preserved(public), before)
+        self.assertEqual((public / "selected-helper").read_text(), "selected")
 
 
 class CompositionCapacityTests(unittest.TestCase):

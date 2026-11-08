@@ -347,6 +347,7 @@ def main():
                                                              'partial', 'partial-bound', 'partial-intent',
                                                              'tamper-head', 'tamper-binding', 'tamper-intent'))
     args = parser.parse_args(); args.implementation_root = args.implementation_root.resolve(strict=True)
+    args.native = args.native.resolve(strict=True)
     if args.native_restart_program_plan is not None and args.root_successor_process_restart not in ('peer', 'peer-before', 'peer-after'):
         parser.error('--native-restart-program-plan requires --root-successor-process-restart peer, peer-before or peer-after')
     if args.root_successor_process_restart is not None:args.root_successor=args.root_successor_process_restart

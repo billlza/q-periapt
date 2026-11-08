@@ -143,6 +143,7 @@ def main():
     for name in ('implementation-root','provider-root','native','output'):
         parser.add_argument('--'+name,type=Path,required=True)
     args=parser.parse_args(); args.implementation_root=args.implementation_root.resolve(strict=True)
+    args.native=args.native.resolve(strict=True)
     sys.path.insert(0,str(args.implementation_root))
     from qperiapt_continuity_reference.provider import load_provider
     provider,_=load_provider(args.provider_root)

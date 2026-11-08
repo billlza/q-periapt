@@ -1356,7 +1356,10 @@ def verify_dynamic_library(
 
     if platform not in {"macos", "linux", "windows"}:
         _fail(f"unknown dynamic-library platform: {platform}")
-    path = pathlib.Path(library_path)
+    # Inspect the selected file as data even when a relative directory begins
+    # with '-' or '@', which inspection tools can treat as option/response syntax.
+    # absolute() preserves the final symlink for the existing lstat rejection.
+    path = pathlib.Path(library_path).absolute()
     _require_regular_library(path)
     identity = contract.document["package"]["platforms"][platform]
     if path.name != identity["shared_filename"]:
