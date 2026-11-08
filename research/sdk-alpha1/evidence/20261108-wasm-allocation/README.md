@@ -1,4 +1,4 @@
-# WASM query allocation: completed diagnostic and production candidate
+# WASM query allocation and Rust analysis category continuity
 
 Recorded on 2026-11-08 against integration source
 `358b921ab3469ce49f166633fc9a762ff6ed7e3d`.
@@ -34,7 +34,7 @@ this observation supplies the candidate's complete evaluation result.
 The WASM call keeps `codeql database analyze`, the pinned security-extended
 suite, `--ram=14000`, four threads, `--threat-model=local`, and the five-hour
 deadline. It adds **`--off-heap-ram=9329`** only for the WASM profile. Native
-Linux and Apple Silicon retain their existing arguments.
+Linux and Apple Silicon retain their existing memory arguments.
 
 Before evaluation, the same pinned CLI runs `resolve ram` against the current
 `db-rust` dataset with these exact high-level memory options.
@@ -105,16 +105,51 @@ describes dataset-aware heap/native options. The exact 2.27.2 `database analyze
 --help -vv` also exposes `--off-heap-ram`; the actual-child check above confirms
 its propagation in this bundle.
 
-## Local validation
+## Initial allocation validation
 
-The four affected CodeQL modules' regression suites complete **98 tests with
-zero failures, errors or skips**. `LOCAL_VALIDATION.json` binds the command,
+The initial allocation change, published in
+`d42e7f64d5e5556e90bafc5236243cbd29bc4564`, completed **98 tests with
+zero failures, errors or skips**. `LOCAL_VALIDATION.json` binds that command,
 code-file hashes and raw output. Cases include native/macOS policy preservation,
 invalid and default allocations, resolver failure, altered typed receipts,
 WASM full-suite completion, omission of `SummaryStats.ql`, and memory-receipt
 binding at publication. The first linked-worktree attempt preserved the
 existing `.git`-directory policy; the full successful run used an independent
 copy of the original directory-based Git checkout.
+
+## Rust analysis category continuity
+
+PR #121's [CodeQL check 128817368077](https://github.com/billlza/q-periapt/runs/128817368077)
+reported `1 configuration not found` for main's `/language:rust` analysis.
+The old workflow used that category for its Ubuntu Rust analysis. The new
+three-profile workflow had named every result `/language:rust/target:<profile>`;
+finishing those jobs would not itself publish the old category.
+
+The native Linux profile now continues **`/language:rust`**. WASM and macOS keep
+**`/language:rust/target:wasm`** and **`/language:rust/target:macos`**. The analyzer
+and strict SARIF validator use one profile-to-category function, and the
+workflow uploads each corresponding SARIF once. Explicit `profile`, `target`,
+compiler host, source and compiled-source digests remain bound in the existing
+profile evidence; the publication validator is byte-for-byte unchanged from
+the allocation patch. Full query, extraction and paired macro-coverage gates
+continue to apply to all three profiles.
+
+GitHub's [analysis-category documentation](https://docs.github.com/en/code-security/reference/code-scanning/workflow-configuration-options#analysis-category)
+ties an explicit category to SARIF `automationDetails.id` and preserves an
+identity already present in the file. The repair therefore changes native
+generation, validation and upload together. The original failed check remains
+recorded in `CATEGORY_MIGRATION.json`; this change supplies the compatible
+identity for subsequent completed publication.
+
+The updated source passes **101 tests with zero failures, errors or skips** in
+the same four regression modules. `CATEGORY_VALIDATION.json` binds all five
+relevant code/workflow files and the test output. The new controls verify
+category selection for every profile, reject other targets even after a
+changed SARIF digest is rebound, and require exactly one corresponding upload
+per profile. The full-suite analysis controls retain rejection of missing
+`SummaryStats.ql` results for native, WASM and macOS. The unchanged WASM memory
+receipt checks remain covered. `CATEGORY_REVIEW.json` records the independent
+source review of these same bytes.
 
 The production patch and these receipts remain a candidate until the updated
 hosted workflow completes. The diagnostic branch and its running baseline

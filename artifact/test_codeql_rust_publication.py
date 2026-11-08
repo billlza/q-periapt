@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import tempfile
 import unittest
@@ -111,6 +112,32 @@ class RustPublicationTests(unittest.TestCase):
                     publication.latest_profile_directories(self.artifacts, 1)
             finally:
                 parked.rename(path)
+
+    def test_workflow_uploads_each_profile_once_with_its_strict_category(self) -> None:
+        workflow = (publication.ROOT / ".github/workflows/codeql.yml").read_text()
+        publication_job = workflow.split("\n  rust-publication:\n", 1)[1]
+        uploads = re.findall(r"category: (\S+)\n\s+sarif_file: [^\n]+/(native|wasm|macos)\.sarif", publication_job)
+        self.assertEqual(uploads, [("/language:rust", "native"), ("/language:rust/target:wasm", "wasm"),
+                                   ("/language:rust/target:macos", "macos")])
+
+    def test_rebinding_sarif_digest_cannot_change_a_profiles_category(self) -> None:
+        categories = {"native": "/language:rust/", "wasm": "/language:rust/target:wasm/",
+                      "macos": "/language:rust/target:macos/"}
+        for name, expected in categories.items():
+            directory = self.paths[name]
+            self.assertEqual(self.validate(name).target, publication.TARGETS[name])
+            original = self.read(directory / "results.sarif")
+            analysis = self.read(directory / "ANALYSIS.json")
+            for wrong in set(categories.values()) - {expected} | {"/language:rust/target:native/"}:
+                changed = sarif(name)
+                changed["runs"][0]["automationDetails"]["id"] = wrong
+                self.write(directory / "results.sarif", changed)
+                rebound = dict(analysis, sarif_sha256=self.digest(directory / "results.sarif"))
+                self.write(directory / "ANALYSIS.json", rebound)
+                with self.subTest(profile=name, wrong=wrong), self.assertRaisesRegex(ValueError, "different target"):
+                    self.validate(name)
+            self.write(directory / "results.sarif", original)
+            self.write(directory / "ANALYSIS.json", analysis)
 
     def test_wasm_requires_its_bound_actual_memory_resolution(self) -> None:
         directory = self.paths["wasm"]

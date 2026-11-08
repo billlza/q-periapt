@@ -20,11 +20,27 @@ from codeql_rust_profile import ProfileRun, compiler_commands, extract_database,
 
 def sarif(profile="native"):
     return {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "CodeQL", "semanticVersion": "2.27.2"}},
-             "automationDetails": {"id": f"/language:rust/target:{profile}/"},
+             "automationDetails": {"id": {"native": "/language:rust/", "wasm": "/language:rust/target:wasm/",
+                                           "macos": "/language:rust/target:macos/"}[profile]},
              "invocations": [{"executionSuccessful": True}], "results": []}]}
 
 
 class RustProfileTests(unittest.TestCase):
+    def test_native_category_preserves_main_identity_without_accepting_other_targets(self) -> None:
+        expected = {"native": "/language:rust", "wasm": "/language:rust/target:wasm",
+                    "macos": "/language:rust/target:macos"}
+        for name, category in expected.items():
+            with self.subTest(profile=name):
+                self.assertEqual(profile_module.sarif_category(name), category)
+                validate_sarif(sarif(name), name)
+            for wrong in set(expected.values()) - {category} | {"/language:rust/target:native"}:
+                changed = sarif(name)
+                changed["runs"][0]["automationDetails"]["id"] = wrong + "/"
+                with self.subTest(profile=name, wrong=wrong), self.assertRaisesRegex(ValueError, "different target"):
+                    validate_sarif(changed, name)
+        with self.assertRaisesRegex(ValueError, "unknown"):
+            validate_sarif(sarif(), "unreviewed")
+
     def test_wasm_memory_policy_uses_the_actual_dataset_and_preserves_the_total_request(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -91,9 +107,11 @@ class RustProfileTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 profile_module.validate_wasm_query_memory(dict(receipt, **{key: value}))
 
-    def test_wasm_analysis_keeps_the_full_suite_census_and_binds_memory_evidence(self) -> None:
-        for complete in (True, False):
-            with self.subTest(complete=complete), tempfile.TemporaryDirectory() as temporary:
+    def test_analysis_keeps_profile_category_full_suite_and_memory_evidence(self) -> None:
+        categories = {"native": "/language:rust", "wasm": "/language:rust/target:wasm",
+                      "macos": "/language:rust/target:macos"}
+        for name, complete in ((name, complete) for name in categories for complete in (True, False)):
+            with self.subTest(profile=name, complete=complete), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 pack = root / "query-pack"
                 pinned = json.loads((profile_module.ROOT / "artifact/codeql_rust_queries.json").read_text())
@@ -105,10 +123,11 @@ class RustProfileTests(unittest.TestCase):
                     inventory[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
                 (root / "artifact").mkdir()
                 (root / "artifact/codeql_rust_queries.json").write_text(json.dumps(dict(pinned, queries=inventory)))
-                run = ProfileRun(root, root / "run", Path(sys.executable), {})
+                run = ProfileRun(root, root / "run", Path(sys.executable), {},
+                                 host="darwin" if name == "macos" else "linux")
                 run.configuration = dataclasses.replace(run.configuration, database=root / "database")
                 (run.evidence / "PROFILE.json").write_text(json.dumps({
-                    "profile": "wasm", "target": profile_module.TARGETS["wasm"],
+                    "profile": name, "target": profile_module.TARGETS[name],
                     "source_commit": "a" * 40, "active_target_quality_passed": True}))
                 def command(label, argv, **kwargs):
                     if label == "resolve-suite":
@@ -118,10 +137,11 @@ class RustProfileTests(unittest.TestCase):
                     self.assertEqual(label, "analyze")
                     self.assertEqual(argv[1:3], ["database", "analyze"])
                     self.assertIn(str(pack / "codeql-suites/rust-security-extended.qls"), argv)
-                    self.assertIn("--ram=14000", argv)
-                    self.assertIn("--off-heap-ram=9329", argv)
-                    self.assertIn("--threads=4", argv)
+                    self.assertIn(f"--ram={run.configuration.ram_mb}", argv)
+                    self.assertEqual("--off-heap-ram=9329" in argv, name == "wasm")
+                    self.assertIn(f"--threads={run.configuration.threads}", argv)
                     self.assertIn("--threat-model=local", argv)
+                    self.assertIn("--sarif-category=" + categories[name], argv)
                     self.assertEqual(kwargs["seconds"], 18000)
                     for relative in inventory:
                         if not complete and relative == "queries/summary/SummaryStats.ql":
@@ -129,7 +149,7 @@ class RustProfileTests(unittest.TestCase):
                         result = run.configuration.database / "results/codeql/rust-queries" / Path(relative).with_suffix(".bqrs")
                         result.parent.mkdir(parents=True, exist_ok=True)
                         result.write_bytes(b"complete fixture result")
-                    (run.evidence / "results.sarif").write_text(json.dumps(sarif("wasm")))
+                    (run.evidence / "results.sarif").write_text(json.dumps(sarif(name)))
                     return b""
                 with mock.patch.object(run, "command", side_effect=command), \
                         mock.patch.object(profile_module.quality, "require_clean_checkout"):
@@ -138,13 +158,16 @@ class RustProfileTests(unittest.TestCase):
                     else:
                         with self.assertRaises(ValueError):
                             profile_module.analyze(run, pack)
-                self.assertTrue((run.evidence / "QUERY_MEMORY.json").is_file())
+                self.assertEqual((run.evidence / "QUERY_MEMORY.json").is_file(), name == "wasm")
                 self.assertEqual((run.evidence / "ANALYSIS.json").exists(), complete)
                 if complete:
                     result = json.loads((run.evidence / "ANALYSIS.json").read_text())
                     self.assertEqual(set(result["query_result_sha256"]), set(inventory))
-                    self.assertEqual(result["query_memory_sha256"],
-                                     hashlib.sha256((run.evidence / "QUERY_MEMORY.json").read_bytes()).hexdigest())
+                    if name == "wasm":
+                        self.assertEqual(result["query_memory_sha256"],
+                                         hashlib.sha256((run.evidence / "QUERY_MEMORY.json").read_bytes()).hexdigest())
+                    else:
+                        self.assertNotIn("query_memory_sha256", result)
 
     def _check_clang_selection(self, *, symlink: bool) -> None:
         class SetupComplete(Exception):

@@ -312,7 +312,8 @@ jobs:
             --output "$RUNNER_TEMP/qperiapt-rust-publication"
       - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
         with:
-          category: /language:rust/target:native
+          # Preserve main's Rust analysis identity for the native continuation.
+          category: /language:rust
           sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/native.sarif
           wait-for-processing: true
       - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2

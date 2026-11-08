@@ -49,6 +49,13 @@ def profile_host(profile: str) -> str:
     return "darwin" if profile == "macos" else "linux"
 
 
+def sarif_category(profile: str) -> str:
+    sdk.require(profile in TARGETS, "unknown Rust analysis profile")
+    # Keep the established Linux analysis identity on main. Target identity is
+    # also bound by PROFILE.json and its source, compiler and coverage checks.
+    return "/language:rust" if profile == "native" else "/language:rust/target:" + profile
+
+
 class ProfileRun:
     def __init__(self, root: Path, output: Path, codeql: Path, environment: dict[str, str], *, resume=False, host="linux"):
         self.root, self.output, self.codeql, self.environment = root, output, codeql, environment
@@ -123,7 +130,7 @@ def validate_sarif(data: object, profile: str) -> None:
     runs = data.get("runs")
     sdk.require(isinstance(runs, list) and len(runs) == 1 and isinstance(runs[0], dict), "unexpected Rust SARIF run set")
     run = runs[0]
-    sdk.require(run.get("automationDetails") == {"id": "/language:rust/target:" + profile + "/"},
+    sdk.require(run.get("automationDetails") == {"id": sarif_category(profile) + "/"},
                 "SARIF belongs to a different target")
     tool = run.get("tool")
     sdk.require(isinstance(tool, dict) and isinstance(tool.get("driver"), dict), "missing SARIF tool")
@@ -342,7 +349,7 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
                             "--format=sarif-latest", "--output=" + str(sarif),
                             f"--threads={run.configuration.threads}", *memory_arguments,
                             "--threat-model=local", "--no-download", "--common-caches=" + str(run.output / "cache"),
-                            "--sarif-category=/language:rust/target:" + profile["profile"]], seconds=18000,
+                            "--sarif-category=" + sarif_category(profile["profile"])], seconds=18000,
                 timeout_policy=TimeoutPolicy.LONG_ANALYSIS)
     results = {}
     for relative in inventory:
