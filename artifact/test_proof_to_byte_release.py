@@ -889,6 +889,68 @@ def workflow_archive_argument_lines(source: str) -> set[int]:
     return result
 
 
+def workflow_checkout_sparse_path_lines(source: str) -> set[int]:
+    """Identify only pinned checkout steps' sparse-checkout input scalars.
+
+    Unrecognized contexts receive no exception from the existing whole-file
+    runner guard. In particular env, run, and other action inputs stay checked.
+    """
+    parents: list[tuple[int, str, bool]] = []
+    steps: list[tuple[list[str], set[int]]] = []
+    current_step: tuple[list[str], set[int]] | None = None
+    scalar_indentation: int | None = None
+    scalar_paths: set[int] | None = None
+    for number, line in enumerate(source.splitlines(), start=1):
+        content = line.lstrip(" ")
+        indentation = len(line) - len(content)
+        if scalar_indentation is not None:
+            if not content.strip() or indentation > scalar_indentation:
+                if scalar_paths is not None:
+                    scalar_paths.add(number)
+                continue
+            scalar_indentation, scalar_paths = None, None
+        if not content.strip() or content.startswith("#"):
+            continue
+        if content == "-" or content.startswith("- "):
+            while parents and (parents[-1][0] > indentation or (
+                parents[-1][0] == indentation and (parents[-1][1] == "[]" or not parents[-1][2])
+            )):
+                parents.pop()
+            parent_path = tuple(name for _, name, _ in parents)
+            if len(parent_path) == 3 and parent_path[0] == "jobs" and parent_path[2] == "steps":
+                current_step = ([], set())
+                steps.append(current_step)
+            parents.append((indentation, "[]", False))
+            remainder = content[1:].lstrip(" ")
+            key_indentation = indentation + len(content) - len(remainder)
+            content = remainder
+        else:
+            while parents and parents[-1][0] >= indentation:
+                parents.pop()
+            key_indentation = indentation
+        path = tuple(name for _, name, _ in parents)
+        key = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_-]*):[ \t]*(.*)", content)
+        if key is None:
+            continue
+        name, value = key.group(1), key.group(2).strip()
+        is_step = len(path) == 4 and path[0] == "jobs" and path[2:] == ("steps", "[]")
+        is_input = len(path) == 5 and path[0] == "jobs" and path[2:] == ("steps", "[]", "with")
+        if current_step is not None and is_step and name == "uses":
+            current_step[0].append(value)
+        sparse_input = current_step is not None and is_input and name == "sparse-checkout"
+        if sparse_input:
+            current_step[1].add(number)
+        parents.append((key_indentation, name, not value or value.startswith("#")))
+        if re.fullmatch(r"[|>](?:[1-9][+-]?|[+-][1-9]?)?(?: +#.*)?", value):
+            scalar_indentation = key_indentation
+            scalar_paths = current_step[1] if sparse_input else None
+    result: set[int] = set()
+    for uses, paths in steps:
+        if len(uses) == 1 and re.fullmatch(r"actions/checkout@[0-9a-f]{40}(?: +#.*)?", uses[0]):
+            result.update(paths)
+    return result
+
+
 def extract_named_workflow_step(job: str, step_name: str) -> str:
     step_match = re.search(
         rf"(?ms)^      - name: {re.escape(step_name)}\n"
@@ -6368,10 +6430,11 @@ with _temporary_release_test_directories(parents):
             source = workflow.read_text(encoding="utf-8")
             path_filters = workflow_path_filter_lines(source)
             archive_arguments = workflow_archive_argument_lines(source)
+            checkout_paths = workflow_checkout_sparse_path_lines(source)
             for number, line in enumerate(
                 source.splitlines(), start=1
             ):
-                if not line.strip() or line.lstrip().startswith("#"):
+                if not line.strip() or line.lstrip().startswith("#") or number in checkout_paths:
                     continue
                 self.assertIsNone(
                     direct_python.search(line),
@@ -6449,6 +6512,98 @@ jobs:
                     with self.subTest(after=after):
                         path.write_text(source.replace(before, after))
                         with self.assertRaisesRegex(AssertionError, 'bypasses the one-shot runner'):
+                            self.test_ci_repository_python_calls_use_one_shot_runner()
+
+    def test_python_runner_guard_distinguishes_checkout_sparse_paths_and_execution(self) -> None:
+        source = ("jobs:\n  check:\n    steps:\n"
+                  "      - name: Checkout\n"
+                  "        uses: actions/checkout@0123456789012345678901234567890123456789 # pinned\n"
+                  "        with:\n"
+                  "          sparse-checkout: |\n"
+                  "            artifact/control.py\n"
+                  "            artifact/python3.py\n"
+                  "      - run: sh artifact/python-run.sh artifact/control.py\n"
+                  "      - run: sh artifact/python-run.sh artifact/other.py\n")
+        self.assertEqual(workflow_checkout_sparse_path_lines(source), {7, 8, 9})
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            workflows = root / ".github/workflows"
+            workflows.mkdir(parents=True)
+            path = workflows / "control.yml"
+            with mock.patch(__name__ + ".ROOT", root):
+                path.write_text(source)
+                self.test_ci_repository_python_calls_use_one_shot_runner()
+                uses_line = source.splitlines(keepends=True)[4]
+                reordered = source.replace(uses_line, "").replace(
+                    "      - run:", uses_line + "      - run:", 1)
+                path.write_text(reordered)
+                self.test_ci_repository_python_calls_use_one_shot_runner()
+                for replacement, message in (
+                    ("artifact/control.py", "bypasses the one-shot runner"),
+                    ("sh artifact/control.py", "bypasses the one-shot runner"),
+                    ("python3 artifact/control.py", "invokes Python directly"),
+                ):
+                    with self.subTest(replacement=replacement):
+                        path.write_text(source.replace(
+                            "- run: sh artifact/python-run.sh artifact/control.py", "- run: " + replacement))
+                        with self.assertRaisesRegex(AssertionError, message):
+                            self.test_ci_repository_python_calls_use_one_shot_runner()
+
+    def test_python_runner_guard_keeps_other_inputs_and_fake_checkout_text_checked(self) -> None:
+        checkout = ("      - uses: actions/checkout@0123456789012345678901234567890123456789\n"
+                    "        with:\n"
+                    "          sparse-checkout: |\n"
+                    "            artifact/control.py\n")
+        runs = ("      - run: sh artifact/python-run.sh artifact/first.py\n"
+                "      - run: sh artifact/python-run.sh artifact/second.py\n")
+        prefix = "jobs:\n  check:\n    steps:\n"
+        variants = (
+            checkout.replace("actions/checkout@", "other/action@"),
+            checkout.replace("@0123456789012345678901234567890123456789", "@main"),
+            checkout.replace("sparse-checkout:", "script:"),
+            checkout.replace("        with:", "        env:"),
+            checkout.replace("        with:", "        uses: other/action@0123456789012345678901234567890123456789\n        with:"),
+            "      - run: |\n" + "\n".join("    " + line for line in checkout.splitlines()) + "\n",
+            checkout + checkout.replace("actions/checkout@", "other/action@"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            workflows = root / ".github/workflows"
+            workflows.mkdir(parents=True)
+            path = workflows / "control.yml"
+            with mock.patch(__name__ + ".ROOT", root):
+                for variant in variants:
+                    with self.subTest(variant=variant):
+                        path.write_text(prefix + variant + runs)
+                        with self.assertRaisesRegex(AssertionError, "bypasses the one-shot runner"):
+                            self.test_ci_repository_python_calls_use_one_shot_runner()
+
+    def test_python_runner_guard_retains_env_bound_execution_rejection(self) -> None:
+        source = ("env:\n  SCRIPT: artifact/control.py\n  ALIAS: $SCRIPT\n"
+                  "jobs:\n  check:\n    steps:\n"
+                  "      - run: sh artifact/python-run.sh artifact/first.py\n"
+                  "      - run: sh artifact/python-run.sh artifact/second.py\n"
+                  "      - run: COMMAND\n")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            workflows = root / ".github/workflows"
+            workflows.mkdir(parents=True)
+            path = workflows / "control.yml"
+            target = root / "artifact/control.py"
+            target.parent.mkdir()
+            target.write_text("#!" + sys.executable + '\nprint("ENV_SCRIPT_EXECUTED")\n')
+            target.chmod(0o700)
+            actual = subprocess.run(
+                ["/bin/sh", "-c", '"$SCRIPT"'], cwd=root,
+                env={**os.environ, "SCRIPT": "artifact/control.py"},
+                capture_output=True, text=True, check=True, timeout=5,
+            )
+            self.assertEqual(actual.stdout, "ENV_SCRIPT_EXECUTED\n")
+            with mock.patch(__name__ + ".ROOT", root):
+                for command in ('\'"$SCRIPT"\'', 'eval "$ALIAS"', "& $env:SCRIPT", "${{ env.SCRIPT }}"):
+                    with self.subTest(command=command):
+                        path.write_text(source.replace("COMMAND", command))
+                        with self.assertRaisesRegex(AssertionError, "bypasses the one-shot runner"):
                             self.test_ci_repository_python_calls_use_one_shot_runner()
 
 

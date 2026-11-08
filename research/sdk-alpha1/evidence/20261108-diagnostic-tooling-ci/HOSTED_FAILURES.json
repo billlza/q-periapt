@@ -1,0 +1,59 @@
+{
+  "causes": [
+    "Strict-JSON architecture gate rejected codeql_current_memory.py:171:json.loads in all three jobs.",
+    "Linux additionally treated actions/checkout with.sparse-checkout file-list line36 as Python execution."
+  ],
+  "guard_preservation": {
+    "archive_argument_classifier_unchanged": true,
+    "existing_env_negative_test_unchanged": true,
+    "new_module_skip_added": false,
+    "production_strict_json_guard_unchanged": true,
+    "trigger_path_classifier_unchanged": true,
+    "workflow_changed": false
+  },
+  "head": "6ec4d7824cada30bdc4bdb6867fd00a0e34d9731",
+  "jobs": [
+    {
+      "existing_skips": 3,
+      "failures": 2,
+      "full_log": "job-128825647892.log",
+      "head_sha": "6ec4d7824cada30bdc4bdb6867fd00a0e34d9731",
+      "job_id": 128825647892,
+      "log_bytes": 999113,
+      "log_sha256": "6a16e1a7e7594bf45f990da903838509fe1f3bcd12d225a667a2543f3ff992a0",
+      "name": "check",
+      "representation": "Complete connector log; CRLF normalized to LF.",
+      "run_id": 42511575194,
+      "tests": 3547
+    },
+    {
+      "existing_skips": 6,
+      "failures": 1,
+      "full_log": "job-128825648074.log",
+      "head_sha": "6ec4d7824cada30bdc4bdb6867fd00a0e34d9731",
+      "job_id": 128825648074,
+      "log_bytes": 201384,
+      "log_sha256": "b9aa1a54010d4e34082ef60390ed75bacb14910f4ae7437b12fe68d094f12e3a",
+      "name": "windows",
+      "representation": "Complete connector log; CRLF normalized to LF.",
+      "run_id": 42511575194,
+      "tests": 175
+    },
+    {
+      "existing_skips": 6,
+      "failures": 1,
+      "full_log": "job-128825648083.log",
+      "head_sha": "6ec4d7824cada30bdc4bdb6867fd00a0e34d9731",
+      "job_id": 128825648083,
+      "log_bytes": 95070,
+      "log_sha256": "9a294055320a12a9495139bad85a3929bd7d95ac659973411e6b3304e9bcc746",
+      "name": "abi2-windows-package-2022",
+      "representation": "Complete connector log; CRLF normalized to LF.",
+      "run_id": 42511575194,
+      "tests": 175
+    }
+  ],
+  "runs": [
+    42511575194
+  ]
+}

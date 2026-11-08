@@ -1,0 +1,8 @@
+{
+  "invalid_key_cause_type": "EvidenceIOError",
+  "invalid_key_outer_type": "ControlError",
+  "safe_message": "unsupported quoted database metadata key",
+  "source_sha256": "bbff2a103cabf5c37f67ec77b9a7cbb45400854b6f024736165bff66451fcadd",
+  "status": "passed",
+  "valid_escaped_key": "inProgress"
+}

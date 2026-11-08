@@ -168,7 +168,7 @@ def metadata_root_fields(text: str) -> dict[str, list[str]]:
         key, value = match.groups()
         if key.startswith('"'):
             try:
-                key = json.loads(key)
+                key = parse_strict_json_bytes(key.encode("utf-8"), label="quoted database metadata key")
             except ValueError as error:
                 raise ControlError("unsupported quoted database metadata key") from error
         elif key.startswith("'"):

@@ -1,0 +1,311 @@
+{
+  "actual_run_lines_exempted": 0,
+  "exempt_source_line_count": 52,
+  "independent_parser": "PyYAML 6.0.3",
+  "records": [
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/abi2-platform-candidate.yml",
+      "run_steps": 23,
+      "sha256": "c02b0abce01e3848265c4ff422283f66c49b69183c54bed8c021019e88e4b700"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/android-platform-probe.yml",
+      "run_steps": 3,
+      "sha256": "6d5f87800f8de72bd1841c6ee4b265ecd9c565e6a871cf0536849e576ddceb82"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/android-runtime-control.yml",
+      "run_steps": 5,
+      "sha256": "73fefa4d17ce8f9811c0c49d63adf24d846ad0a989ddafedc4d8a4cc42a7ea50"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/ci.yml",
+      "run_steps": 178,
+      "sha256": "b5ab0d9cb7ebfb27d3296a479c61e5de330b961174db4bf6a2db5b7572086a0d"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [
+        {
+          "header_line": 35,
+          "job": "evaluate",
+          "source_lines": [
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44
+          ],
+          "uses": "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+        },
+        {
+          "header_line": 96,
+          "job": "compare",
+          "source_lines": [
+            96,
+            97,
+            98,
+            99,
+            100,
+            101,
+            102,
+            103,
+            104
+          ],
+          "uses": "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+        }
+      ],
+      "exempt_source_lines": [
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "path": ".github/workflows/codeql-current-memory.yml",
+      "run_steps": 4,
+      "sha256": "a4adf333d61d3ab04788ef7970ac7e49ada66f6192a00ec08c7f4c507180f684"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/codeql-log-recovery.yml",
+      "run_steps": 2,
+      "sha256": "1f05019299e981edc2ed259a47c39fee27fb80a48357dc6075e907f0e995899f"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/codeql-memory-control.yml",
+      "run_steps": 2,
+      "sha256": "bfe26e9012b1a98aa23b5621a6ee9cd53f8e0569b5cecd700670a9456a528de1"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/codeql.yml",
+      "run_steps": 13,
+      "sha256": "a1b95309d8e65e08fd2e82d95712bc5286a5ab053803c4ea9389705b1a8ac3ad"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/continuity-android-installed.yml",
+      "run_steps": 2,
+      "sha256": "c08615325d4dbcc804a458338555b4dd60b9ba34f952db9665708aabb828edf6"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/continuity-proof-environment.yml",
+      "run_steps": 3,
+      "sha256": "b96b3ac95b46d09b6ab0ad88b61b190d13145f17bbf0343a2d8cb84016feb8bd"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [
+        {
+          "header_line": 38,
+          "job": "regression",
+          "source_lines": [
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51
+          ],
+          "uses": "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+        }
+      ],
+      "exempt_source_lines": [
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51
+      ],
+      "path": ".github/workflows/continuity-regression.yml",
+      "run_steps": 3,
+      "sha256": "f3b3faec2b2e295c29fe8f26c1e494c246686ca9c6740ee2e20a16982cc72049"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/continuity-windows-package.yml",
+      "run_steps": 8,
+      "sha256": "c7b76d67ff6c7ab4182d6b3c2e72a7429881c8b803b434bc32621d09a4ae91fa"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [
+        {
+          "header_line": 36,
+          "job": "contract",
+          "source_lines": [
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46
+          ],
+          "uses": "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+        }
+      ],
+      "exempt_source_lines": [
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46
+      ],
+      "path": ".github/workflows/directory-lease-contract.yml",
+      "run_steps": 3,
+      "sha256": "37b98f82555b7fea1c2f6083b2793b5c9a9df0bcd265830134fb4db810f7fe46"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/fanout-latency.yml",
+      "run_steps": 5,
+      "sha256": "5690f3e49372bb199a3b7e0fb072681a64eea2d363e8b2569e4b65f9dd2ebe4c"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/host-store-windows.yml",
+      "run_steps": 8,
+      "sha256": "f0dd48c1929980c33f174389687c8765286f17c436f62c194f9ad32d27e2fdc1"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/independent-continuity.yml",
+      "run_steps": 34,
+      "sha256": "b39a02ac81f38b8586bfbcc6862ba77e5bd8cbce33923dd123c3c4c7e7f3a3a3"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [
+        {
+          "header_line": 62,
+          "job": "manuscript",
+          "source_lines": [
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69
+          ],
+          "uses": "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+        }
+      ],
+      "exempt_source_lines": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69
+      ],
+      "path": ".github/workflows/joc-manuscript.yml",
+      "run_steps": 9,
+      "sha256": "3bb681c77ea6fd8dfbd1399379e818286bb6b8619af56cd323321713463499cc"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/reference-account.yml",
+      "run_steps": 10,
+      "sha256": "23f841ed4256c37e8af42c0a3895563ef364f3d9599735614763623919c31b2f"
+    },
+    {
+      "actual_run_lines_exempted": 0,
+      "checkout_sparse_scalars": [],
+      "exempt_source_lines": [],
+      "path": ".github/workflows/reference-root.yml",
+      "run_steps": 4,
+      "sha256": "2d48cb76474bef088ad6688b2ed4095efad9ed669309180835c25bab2a7e2602"
+    }
+  ],
+  "run_step_count": 319,
+  "scope": "Final narrow exception for pinned actions/checkout with.sparse-checkout only; original whole-file guard remains elsewhere.",
+  "status": "passed",
+  "verified_sparse_scalar_count": 5,
+  "workflow_count": 19
+}

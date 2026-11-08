@@ -1,0 +1,44 @@
+{
+  "base_commit": "6ec4d7824cada30bdc4bdb6867fd00a0e34d9731",
+  "codeql_executed": false,
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_evidence_io.EvidenceIOTests.test_production_artifact_modules_do_not_bypass_strict_json",
+    "test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner",
+    "test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_distinguishes_trigger_paths_and_execution",
+    "test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_distinguishes_archive_members_and_execution",
+    "test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_distinguishes_checkout_sparse_paths_and_execution",
+    "test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_keeps_other_inputs_and_fake_checkout_text_checked",
+    "test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_retains_env_bound_execution_rejection",
+    "test_codeql_current_memory"
+  ],
+  "exit_code": 0,
+  "files": {
+    ".github/workflows/codeql-current-memory.yml": {
+      "bytes": 5390,
+      "sha256": "a4adf333d61d3ab04788ef7970ac7e49ada66f6192a00ec08c7f4c507180f684"
+    },
+    "artifact/codeql_current_memory.py": {
+      "bytes": 31831,
+      "sha256": "bbff2a103cabf5c37f67ec77b9a7cbb45400854b6f024736165bff66451fcadd"
+    },
+    "artifact/test_codeql_current_memory.py": {
+      "bytes": 46461,
+      "sha256": "4060a900c446f3192167b2f6184bb9fd65d7828b073174ba4eb507eea55aad09"
+    },
+    "artifact/test_proof_to_byte_release.py": {
+      "bytes": 314779,
+      "sha256": "4c135e385fb75c5f495653b721546dc9ef563bb59752a62a2a1aad1b96db61d7"
+    }
+  },
+  "scope": "Final narrow checkout-data exception; original whole-file env and non-checkout action checks retained. Includes the real harmless env-bound script execution regression.",
+  "skipped": 0,
+  "status": "passed",
+  "stderr_sha256": "1dff2c6f8ebfdaf7f3ed6145602f5bbfc664f275296d1f30897685ed5d10a300",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "tests": 70
+}

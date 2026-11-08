@@ -1,0 +1,16 @@
+{
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_evidence_io.EvidenceIOTests.test_production_artifact_modules_do_not_bypass_strict_json",
+    "test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner"
+  ],
+  "commit": "6ec4d7824cada30bdc4bdb6867fd00a0e34d9731",
+  "exit_code": 1,
+  "expected_failures_reproduced": 2,
+  "stderr_sha256": "c21b2b70c22f47743e9dcf5d195a22b92e098b5dc2c86f26c7e2752bcbd66d7f",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
