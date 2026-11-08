@@ -646,16 +646,14 @@ class FormalToolAssetTests(unittest.TestCase):
                 return self.write_result(arguments, self.payload)
 
             path = assets.download("test-asset", runner=runner)
-            stream = mock.Mock()
-            if operation == "write":
-                stream.write.side_effect = BrokenPipeError("stdout closed")
-            else:
-                stream.write.return_value = len(f"{path}\n")
-                stream.flush.side_effect = BrokenPipeError("stdout closed")
+            # Keep the real text-stream contract for argparse's terminal/color
+            # detection; inject only the publication failure under test.
+            stream = io.StringIO()
             with (
                 self.subTest(operation=operation),
                 mock.patch.object(assets, "download", return_value=path),
                 mock.patch.object(assets.sys, "stdout", stream),
+                mock.patch.object(stream, operation, side_effect=BrokenPipeError("stdout closed")),
                 self.assertRaisesRegex(BrokenPipeError, "stdout closed"),
             ):
                 assets.main(["--asset", "test-asset"])
