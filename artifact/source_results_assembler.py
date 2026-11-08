@@ -226,8 +226,10 @@ INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS = frozenset(
 # 61101393105ca4a8b32ce5c70a5d7e53b6a3c4884cf0ef064887bda9c7033c88, each
 # succeeded by the next current-to-current reopen baseline emitted by
 # reopen-source.
+# Reopened from the installed main baseline for the canonical CI maintenance
+# source; historical publication receipts and the frozen source identity remain.
 INITIAL_RESULTS_SHA256 = (
-    "a5cbbac1f3cec5f9d20de1912e5ee6ebc16d36da3eb934333259107087db9590"
+    "55bcbeb597873996a64f9f1e0a9f4b1f84d8bc08cc62e033f08b7ef7bdf9d943"
 )
 
 ANDROID_AAR_SECTION_FIELDS = frozenset(
