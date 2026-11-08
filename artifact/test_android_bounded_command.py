@@ -4520,11 +4520,28 @@ class AndroidBoundedCommandTests(unittest.TestCase):
     def test_emulator_exec_advances_receipt_before_fixed_exec_and_preserves_failure(
         self,
     ) -> None:
+        self._check_emulator_exec_boundary(
+            "macos-account", "arm64-v8a",
+            "QPeriapt_Release_16K_API_35_V1", [],
+        )
+
+    def test_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary(self) -> None:
+        with mock.patch.dict(state.ADB_PROFILE_PATHS, {"linux-system": self.adb}):
+            self._check_emulator_exec_boundary(
+                "linux-system", "x86_64",
+                "QPeriapt_Release_16K_API_35_CI_V1", ["-memory", "4096"],
+            )
+
+    def _check_emulator_exec_boundary(
+        self, adb_profile: str, device_abi: str,
+        avd_name: str, extra_arguments: list[str],
+    ) -> None:
         self.create_capability(
+            adb_profile=adb_profile,
             device_kind="emulator",
             expected_serial="emulator-5584",
         )
-        self.create_avd_fixture()
+        self.create_avd_fixture(avd_name)
         launcher = self.root / "fixed-emulator"
         backend = self.root / "fixed-emulator-backend"
         for executable in (launcher, backend):
@@ -4557,7 +4574,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                 [
                     str(launcher),
                     "-avd",
-                    "QPeriapt_Release_16K_API_35_V1",
+                    avd_name,
                     "-port",
                     "5584",
                     "-no-snapshot",
@@ -4570,7 +4587,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                     str(self.snapshot),
                     "-gpu",
                     "swiftshader",
-                ],
+                ] + extra_arguments,
             )
             self.assertEqual(environment["HOME"], str(self.root))
             self.assertEqual(
@@ -4604,7 +4621,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
             mock.patch.object(commands.os, "execve", side_effect=reject_exec),
             self.assertRaisesRegex(RuntimeError, "exec boundary"),
         ):
-            commands.exec_emulator(self.layout.run_id, "arm64-v8a")
+            commands.exec_emulator(self.layout.run_id, device_abi)
         self.assertEqual(order, ["close-lock", "exec"])
         checkpoint.assert_called_once_with(
             self.layout.run_id,
