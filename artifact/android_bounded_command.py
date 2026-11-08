@@ -1354,6 +1354,12 @@ def exec_emulator(
         "-gpu",
         "swiftshader",
     ]
+    if (capability.adb_profile == "linux-system" and canonical_abi == "x86_64"
+            and expected_runtime_profile == "api35-16k"):
+        # The hosted API 35 / 16 KiB image defaults to 2560 MiB and its
+        # system services repeatedly hit the low-memory killer. Give this
+        # fixed test profile explicit RAM; APK and cleanup admission stay exact.
+        argv.extend(["-memory", "4096"])
     runtime_state.record_pre_exec_adb_isolation_checkpoint(layout.run_id)
     try:
         runtime_state.arm_lane_lock_close_on_exec()

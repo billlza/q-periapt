@@ -5631,11 +5631,35 @@ exit "$QPERIAPT_TEST_DUMP_STATUS"
     def test_emulator_exec_advances_receipt_before_fixed_exec_and_preserves_failure(
         self,
     ) -> None:
+        self._check_emulator_exec_boundary(
+            "macos-account", "arm64-v8a", "api35-16k",
+            "QPeriapt_Release_16K_API_35_V1", [],
+        )
+
+    def test_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary(self) -> None:
+        with mock.patch.dict(state.ADB_PROFILE_PATHS, {"linux-system": self.adb}):
+            self._check_emulator_exec_boundary(
+                "linux-system", "x86_64", "api35-16k",
+                "QPeriapt_Release_16K_API_35_CI_V1", ["-memory", "4096"],
+            )
+
+    def test_minimum_api_emulator_retains_its_configured_ram(self) -> None:
+        with mock.patch.dict(state.ADB_PROFILE_PATHS, {"linux-system": self.adb}):
+            self._check_emulator_exec_boundary(
+                "linux-system", "x86_64", "api23-4k",
+                "QPeriapt_SDK_4K_API_23_CI_V1", [],
+            )
+
+    def _check_emulator_exec_boundary(
+        self, adb_profile: str, device_abi: str, runtime_profile: str,
+        avd_name: str, extra_arguments: list[str],
+    ) -> None:
         self.create_capability(
+            adb_profile=adb_profile,
             device_kind="emulator",
             expected_serial="emulator-5584",
         )
-        self.create_avd_fixture()
+        self.create_avd_fixture(avd_name)
         launcher = self.root / "fixed-emulator"
         backend = self.root / "fixed-emulator-backend"
         for executable in (launcher, backend):
@@ -5668,7 +5692,7 @@ exit "$QPERIAPT_TEST_DUMP_STATUS"
                 [
                     str(launcher),
                     "-avd",
-                    "QPeriapt_Release_16K_API_35_V1",
+                    avd_name,
                     "-port",
                     "5584",
                     "-no-snapshot",
@@ -5686,6 +5710,7 @@ exit "$QPERIAPT_TEST_DUMP_STATUS"
                     str(self.snapshot),
                     "-gpu",
                     "swiftshader",
+                    *extra_arguments,
                 ],
             )
             self.assertEqual(environment["HOME"], str(self.root))
@@ -5720,7 +5745,7 @@ exit "$QPERIAPT_TEST_DUMP_STATUS"
             mock.patch.object(commands.os, "execve", side_effect=reject_exec),
             self.assertRaisesRegex(RuntimeError, "exec boundary"),
         ):
-            commands.exec_emulator(self.layout.run_id, "arm64-v8a")
+            commands.exec_emulator(self.layout.run_id, device_abi, runtime_profile)
         self.assertEqual(order, ["close-lock", "exec"])
         checkpoint.assert_called_once_with(
             self.layout.run_id,

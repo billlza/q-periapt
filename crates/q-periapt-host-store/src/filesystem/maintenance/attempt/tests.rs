@@ -728,13 +728,12 @@ fn actual_cleanup_process_cuts_recover_original_receipts() {
         let pid = child.0.id();
         child.0.kill().expect("kill");
         let status = child.0.wait().expect("reap");
+        assert!(!status.success());
         #[cfg(unix)]
         {
             use std::os::unix::process::ExitStatusExt;
             assert_eq!(status.signal(), Some(9));
         }
-        #[cfg(windows)]
-        assert!(!status.success());
         let expected = PublicationCleanupOutcome::Reclaimed {
             entries: 3,
             bytes: u64::try_from(VALUE.len() * 2).expect("length"),

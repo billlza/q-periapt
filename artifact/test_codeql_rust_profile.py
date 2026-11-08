@@ -168,11 +168,16 @@ class RustProfileTests(unittest.TestCase):
             root = Path(temporary)
             run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
             with self.assertRaises(BoundedProcessError):
-                run.command("timeout", [sys.executable, "-c", "import time;time.sleep(5)"], seconds=1)
+                run.command("timeout", [sys.executable, "-c",
+                            "import sys,time;print('query started',flush=True);"
+                            "print('query diagnostic',file=sys.stderr,flush=True);time.sleep(5)"], seconds=1)
             record = json.loads((run.evidence / "timeout.json").read_text())
             self.assertFalse(record["completed"])
             self.assertEqual(record["boundary"], "timeout")
             self.assertFalse(record["cleanup_ambiguous"])
+            self.assertEqual((run.evidence / "timeout.stdout").read_text(), "query started\n")
+            self.assertEqual((run.evidence / "timeout.stderr").read_text(), "query diagnostic\n")
+            self.assertFalse((run.evidence / "ANALYSIS.json").exists())
 
     def test_full_and_reduced_summary_queries_are_both_required_by_the_pinned_suite(self) -> None:
         pinned = json.loads((profile_module.ROOT / "artifact/codeql_rust_queries.json").read_text())

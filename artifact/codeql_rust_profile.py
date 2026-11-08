@@ -59,9 +59,15 @@ class ProfileRun:
         started = time.monotonic()
         record = {"argv": argv, "cwd": str(cwd or self.root), "maximum_seconds": seconds}
         try:
-            with contextlib.chdir(cwd or self.root):
+            # Stream bounded diagnostics into fresh evidence files while the
+            # child runs. A timeout still fails, with the emitted query progress
+            # retained alongside the failure receipt.
+            with (self.evidence / (label + ".stdout")).open("xb") as stdout, \
+                    (self.evidence / (label + ".stderr")).open("xb") as stderr, \
+                    contextlib.chdir(cwd or self.root):
                 result = capture_output(argv, timeout_seconds=seconds, maximum_stdout_bytes=32 * 1024**2,
                                         maximum_stderr_bytes=16 * 1024**2, environment=self.environment,
+                                        stdout_sink=stdout.write, stderr_sink=stderr.write,
                                         timeout_policy=timeout_policy)
         except BoundedProcessError as exc:
             sdk.write_json(self.evidence / (label + ".json"), {
@@ -69,9 +75,6 @@ class ProfileRun:
                 "cleanup_ambiguous": exc.cleanup_ambiguous, "elapsed_seconds": time.monotonic() - started,
             })
             raise
-        for stream in ("stdout", "stderr"):
-            with (self.evidence / (label + "." + stream)).open("xb") as destination:
-                destination.write(getattr(result, stream))
         sdk.write_json(self.evidence / (label + ".json"), {
             **record, "returncode": result.returncode, "elapsed_seconds": time.monotonic() - started,
         })

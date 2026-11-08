@@ -246,6 +246,17 @@ jobs:
           path: ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/evidence/*
           if-no-files-found: error
           retention-days: 14
+      - name: Retain Rust query logs independently of the database archive
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-query-logs-${{ matrix.profile }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qperiapt-codeql-database/rust/log/**
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/evidence/analyze.*
+          if-no-files-found: error
+          retention-days: 14
       - name: Bundle the completed or partial database
         if: always()
         timeout-minutes: 10
