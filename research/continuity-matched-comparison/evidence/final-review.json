@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "review_stage": "publication_and_targeted_native_ci_readiness",
+  "observed_utc": "2026-11-08 23:49:11 UTC",
+  "decision": "ACCEPT_FOR_RESEARCH_BRANCH_AND_TARGETED_NATIVE_CI",
+  "blocking_findings": [],
+  "scope": "Independent review of the first matched directed-opportunity experiment, including design, schedule, native test-source module, isolated source runner, validators, controls and workflow.",
+  "base_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+  "upstream_spqr": {
+    "repository": "signalapp/SparsePostQuantumRatchet",
+    "commit": "f2589fef855c10f39d72634dab3d14654dd410bf",
+    "tree": "7286f31638620152a770f6c4d2e86ac6862a0319",
+    "commit_tree_relationship": "independently verified through GitHub connector"
+  },
+  "source_identity": {
+    "staging_manifest_sha256": "208ad1132227754ab1f1abc0deea7939804979f26bac3ba189101fb8cce59734",
+    "all_nine_candidate_hashes_match_staging": true,
+    "files": [
+      {
+        "path": "CONTRACT.md",
+        "sha256": "c7ff4ed80b87325f9cbd02912bbc8c3839a2d290471d4c3a0fa4e73500e1a271",
+        "bytes": 5954,
+        "review_scope": "full current candidate file"
+      },
+      {
+        "path": "README.md",
+        "sha256": "69d222f0d606ad195fa7403e7a245b7193faabb9a6b4ebc3a573c70775fe29a8",
+        "bytes": 5945,
+        "review_scope": "full current candidate file"
+      },
+      {
+        "path": "schedule.py",
+        "sha256": "1d3b361c6d99b0e28c2b0044c99287835f4eba41e9163c0fda2614e954b23b18",
+        "bytes": 6622,
+        "review_scope": "full current candidate file"
+      },
+      {
+        "path": "test_schedule.py",
+        "sha256": "b96780111cc94e20592c491ffe38866b8ab5e8f11ff668f468ddcd66d6ad7e95",
+        "bytes": 4367,
+        "review_scope": "full current candidate file"
+      },
+      {
+        "path": "validate.py",
+        "sha256": "80a2eed73944decaa8edde69db1b3523a12475930dd5e4da4821ca52add636bc",
+        "bytes": 22352,
+        "review_scope": "full current candidate file"
+      },
+      {
+        "path": "test_validate.py",
+        "sha256": "a24b2806f86f44cafc98ccffda66d76ca8cad8ae5ad310eca94cb7b8b4582023",
+        "bytes": 5266,
+        "review_scope": "full current candidate file"
+      },
+      {
+        "path": "run.py",
+        "sha256": "0af65ca924d53514fd30a979e406adb1a8930c33aad87fa4e239f787a9eb4baf",
+        "bytes": 14903,
+        "review_scope": "full current candidate file"
+      },
+      {
+        "path": "native_driver.rs.txt",
+        "sha256": "8ca7ea6b0d17923d16eff6f48c2a1ac07ce2eb5929c4b4526510e41a50db0fca",
+        "bytes": 23981,
+        "review_scope": "full current candidate file"
+      },
+      {
+        "path": "continuity-matched-comparison.yml",
+        "sha256": "1b8bb7905ec2c47ca2195eecd6dca751af68d02ec46d9a9dc52bd96f6027a93a",
+        "bytes": 3254,
+        "review_scope": "full current candidate file"
+      }
+    ]
+  },
+  "local_execution": [
+    {
+      "command": "python -m unittest -v test_schedule.py test_validate.py",
+      "cwd": "/workspace/scratch/084f6c1d017a/matched-next",
+      "exit_code": 0,
+      "tests_run": 22,
+      "tests_passed": 22,
+      "classification": "finite schedule and synthetic parser controls"
+    },
+    {
+      "call": "run.instrument_reference on isolated copies of both materialized reference src/main.rs files",
+      "exit_code": 0,
+      "classification": "offline instrumentation-anchor check",
+      "results": [
+        {
+          "construction": "spqr",
+          "before_sha256": "2255c4deedbac9dd28314988b7e0af7f7e09d83b884e553b1c2f7231322f9894",
+          "after_sha256": "1e9737b4401cff290c0f7ff0cceba8566c2d56c36d2cf7f24d09efada061f324"
+        },
+        {
+          "construction": "whole-kem",
+          "before_sha256": "df2bb2cd7e489c528f065ef733d820f953063b8e4b9e866992a73948c55dff73",
+          "after_sha256": "675b46db523113da6c7aff9c66050db72368136cc322bd3b0dd861bcd5c9c462"
+        }
+      ]
+    }
+  ],
+  "local_archive_attempt": {
+    "status": "interrupted",
+    "reason": "The local partial clone tried an automatic promisor fetch during git archive. Process was stopped; no prepared-source or native-run success was claimed. Dedicated CI explicitly fetches the complete selected base object."
+  },
+  "native_execution_status": "not executed by reviewer; next action is the dedicated real Rust CI job",
+  "scientific_alignment": {
+    "transport": "Common fixed sequence of directed opportunities; at most one frame per slot; all receive-generated control/ACK outputs queue; terminal drain cannot transmit new replies.",
+    "capture": "Both owners are captured separately before opportunity 1 after opportunity0 network actions. Native oracle owns a complete decoded/re-encoded session record and initial traffic seeds; assertions exclude pending next-rekey entropy at this fixed cut. Reference captures preserve their pending private keys.",
+    "predictor": "Independent HMAC-SHA256 HKDF implementation reconstructs exact actual message keys. Native candidates decrypt real emitted ciphertexts; altered seed must fail actual AEAD. Neither predictor interface receives future honest private state or RNG.",
+    "common_denominator": "Offered, committed, delivered and uncommitted FIFO requests are distinct. Snapshot exposure uses post-cut admitted requests; stalled/unadmitted requests are not classified as recovered messages.",
+    "baseline_envelope": "Reference component returned-state boundary remains explicit; a separate actual-key AEAD audit measures a complete public envelope. Native journal commit and reference returned state are not collapsed into one durability metric.",
+    "persistence": "Native image revision increments and actual counting-backend sync_data calls are measured after activation. Reference serialized-state returns are logical operations; absent physical disk metrics are null.",
+    "empirical_scope": "One specified passive snapshot predictor and fixed scripted schedules; not_derived is a predictor result. The accepted computational theorems retain their own games."
+  },
+  "resolved_findings": [
+    {
+      "id": "cross_slot_retry_identity",
+      "resolution": "schedule.verify_trace binds owner+logical identity to exact immutable bytes and rejects the concrete changed-retry counterexample."
+    },
+    {
+      "id": "native_plaintext_control",
+      "resolution": "decrypt_candidate verifies candidate-key plaintext recovery on actual native ciphertext and wrong-seed AEAD rejection."
+    },
+    {
+      "id": "all_frame_kind_retries",
+      "resolution": "validator derives retransmissions from repeated owner+logical identities for application, control and ACK; piggyback control-body repeats remain a separate reference metric."
+    },
+    {
+      "id": "admission_outcome_logging",
+      "resolution": "Suspended and RekeyRequired each emit explicit admission_blocked events without removing queued requests."
+    },
+    {
+      "id": "key_material_in_failure_logs",
+      "resolution": "Raw-key assert_eq/assert_ne were replaced by fixed-message boolean assertions. Raw keys and captured records have no public trace/log serialization path in the added module/runner."
+    }
+  ],
+  "runner_and_workflow_checks": [
+    "Explicit BASE commit/tree, before/after source file hashes, research-input hashes, schedule digests and exact pinned SPQR commit/tree/lock are recorded.",
+    "Selected source archive includes all root Cargo workspace members and native/reference dependencies. Test instrumentation occurs only in the isolated copy.",
+    "Chunk64 starts with the pristine driver and pinned upstream archive, then applies the retained patches; dependency-lock comparison only permits the SPQR git-to-path change.",
+    "All Cargo commands use --locked and Rust1.98.1; actual rustc/Cargo/protoc identities and executed binary hashes are retained.",
+    "Native test executable inventory and exact --list target are checked; only the named test executes, avoiding a successful zero-test substitution.",
+    "Subprocess nonzero exit and timeout propagate failure. Validation/inventory/source equality checks finish before matched-report/status complete is emitted.",
+    "Only permission0600 hidden measurement feeds serialize fresh reference keys. Existing snapshot predictors do not read those feeds.",
+    "Feed success unlink and main finally cleanup cover normal and exceptional exits; upload explicitly excludes hidden files and source/build directories.",
+    "Public upload includes schedule controls, execution logs, preparation, variant preparation, runtime, executable and evidence receipts, including useful failure logs.",
+    "The final report requires exactly49 rows:14 native and35 reference; native trace micro-order, real wire header fields, FIFO demand, duplicate/retry identity, terminal actions and persistence counters are checked."
+  ],
+  "remaining_original_dependency": "Successful native compilation and real execution under the already supplied dedicated workflow. This review authorizes starting that run; it is not a native-performance/result receipt.",
+  "previous_receipts": [
+    "design-review.json",
+    "native-static-review.json"
+  ]
+}
