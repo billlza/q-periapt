@@ -198,10 +198,11 @@ the displayed single-user bound; other owners are simulated locally.
 
 FIPS~204, Algorithm~7, derives internal masking randomness from a secret
 key seed, the external randomizer and the message representative
-\cite{fips204}. The reservation-aware ML-DSA advantage specifies the
-post-quantum assumption used here. The ordinary P-256 inequality gives
-the classical instantiation. A simple separation explains why the
-reserved-coin observation belongs in the signature experiment.
+\cite{fips204}. The reservation-aware ML-DSA game records this
+external-randomizer interface. Section~\ref{sec:reservation-ordinary-bridge}
+connects it to ordinary native unforgeability in the shared random-XOF
+model. The ordinary P-256 inequality gives the classical instantiation.
+The following separation explains the role of the reserved-coin interface.
 
 \begin{proposition}[A separation induced by signing-coin disclosure]
 \label{prop:signature-coin-separation}

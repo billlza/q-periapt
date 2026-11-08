@@ -44,9 +44,11 @@ The executed-slot selector then associates accepted allocations with the
 original reservation pair, up to the signature and framed-hash terms in
 Proposition~\ref{prop:executed-source-attribution}. Its signing adapter
 preserves original randomizers, exact retries and the declared owner
-observations. The post-quantum branch uses the specified reservation-aware
-ML-DSA game; the native deterministic P-256 component supplies a classical
-ordinary-signature instantiation.
+observations. The native ML-DSA bridge then expresses that signature term through
+ordinary hedged unforgeability, an exact-replay coupling and a shared-XOF
+query loss (Theorem~\ref{thm:native-mldsa-reservation-bridge}).
+The native deterministic P-256 component supplies the corresponding
+classical ordinary-signature instantiation.
 
 Proposition~\ref{prop:confirmation-message-auth} follows the same joint
 key table through the native confirmation and first-message interfaces.

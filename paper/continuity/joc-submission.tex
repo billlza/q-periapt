@@ -58,9 +58,9 @@ A compression quantum random-oracle reduction follows root extraction,
 confirmation, traffic derivation, and a selected first-message key, retaining
 real control and acknowledgement verification and successor-state disclosure.
 Its native instance covers the next rekey of an established session and a
-fresh marked message allocation. An executed-slot selector bounds
-source-association errors through a signature experiment retaining original
-signing randomizers. Finite descriptor families extend initialization to
+fresh marked message allocation. An executed-slot selector bounds source-association errors. A shared-XOF
+quantum reduction accommodates original-randomizer disclosure and connects
+native ML-DSA to ordinary unforgeability. Finite descriptor families extend initialization to
 adaptive fresh selection and exact aliases; a variable-length form covers
 SDK purpose-key derivations and separate owner lifecycles. A hybrid
 post-quantum messaging protocol supplies multi-epoch symbolic message secrecy
@@ -169,7 +169,12 @@ first message (Proposition~\ref{prop:confirmation-message-auth}). The
 source-association result records existing reservation slots at their first private
 computation and connects accepted allocations through a signature experiment
 that preserves signing reservations
-(Proposition~\ref{prop:executed-source-attribution}). The finite
+(Proposition~\ref{prop:executed-source-attribution}). A shared-XOF
+comparison connects the native ML-DSA reservation interface to ordinary
+hedged-signature unforgeability in the quantum random-oracle model,
+preserving openings, repeated effective inputs and private computations
+followed by failed publication
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}). The finite
 multiple-root entry theorem extends the initialization to available salts and
 complete information strings, preserving exact aliases and a fresh target in
 a previously used class (Section~\ref{sec:multiple-root-entry}).
@@ -269,8 +274,24 @@ from the key seed, \texttt{rnd} and the message representative
 \cite[Algorithm~7]{fips204}. These are distinct observation interfaces.
 Section~\ref{sec:executed-source-attribution} specifies the corresponding
 reservation-aware signature experiment and uses it to associate an accepted
-rekey with its original KEM calls. Its generic separation identifies why
-the coin-return interface must appear in the signature assumption.
+rekey with its original KEM calls. Section~\ref{sec:reservation-ordinary-bridge}
+then connects this interface to ordinary native hedged-signature security.
+
+\paragraph{Hedging and exposed nonces.}
+Nonce-based cryptography treats nonce handling as an explicit security
+interface; Bellare and Tackmann develop this perspective and introduce
+hedged extractors~\cite{bellare2016nonce}. Aranha et al. analyze hedged
+Fiat--Shamir signatures under fault attacks~\cite{aranha2020hedged}, and
+Grilo et al. give quantum random-oracle analyses of hedged Fiat--Shamir
+security against nonce and fault attacks~\cite{grilo2021reprogramming}.
+Kosuge and Xagawa study the fault security of ML-DSA
+\cite{kosuge2025mldsa}. Our signing connection uses this hedging perspective
+for persistent reservations: opening an original randomizer, selecting a
+reserved call, exact replay, and failed publication preserve their original
+message ledger. The native reduction compares the shared key-generation
+and hedging XOF with a private random-function interface and then returns
+to ordinary hedged ML-DSA security
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}).
 
 \paragraph{Session handling and state loss.}
 Cremers, Jacomme, and Naska analyze how the session-handling layer determines
@@ -3168,10 +3189,11 @@ the displayed single-user bound; other owners are simulated locally.
 
 FIPS~204, Algorithm~7, derives internal masking randomness from a secret
 key seed, the external randomizer and the message representative
-\cite{fips204}. The reservation-aware ML-DSA advantage specifies the
-post-quantum assumption used here. The ordinary P-256 inequality gives
-the classical instantiation. A simple separation explains why the
-reserved-coin observation belongs in the signature experiment.
+\cite{fips204}. The reservation-aware ML-DSA game records this
+external-randomizer interface. Section~\ref{sec:reservation-ordinary-bridge}
+connects it to ordinary native unforgeability in the shared random-XOF
+model. The ordinary P-256 inequality gives the classical instantiation.
+The following separation explains the role of the reserved-coin interface.
 
 \begin{proposition}[A separation induced by signing-coin disclosure]
 \label{prop:signature-coin-separation}
@@ -3207,6 +3229,228 @@ The record, KEM-correctness and joint-continuation terms retain their
 existing positions. The source map, full proof and finite fault/alias
 checks are recorded in Appendix~\ref{app:source-attribution}.
 % END SECTION SOURCE: source-attribution.tex
+% BEGIN SECTION SOURCE: reservation-signature-bridge.tex
+% Full proof, owner routing, and exact source identities accompany this module.
+\subsection{From signing reservations to ordinary unforgeability}
+\label{sec:reservation-ordinary-bridge}
+
+The retained randomizer can be incorporated into an ordinary-signature
+reduction. The simulator preserves every opened reservation and uses the
+complete pair of original randomizer and public message representative to
+identify repeated computations. For native ML-DSA, a shared-oracle
+comparison also accounts for the dependence created by key generation.
+
+Use the owner interface of
+Proposition~\ref{prop:reservation-signature-components}. A fresh owner
+generation receives a family index; exact references and imported copies
+retain that index. Independently generated owners remain separate when
+their public keys coincide. The family ledger records each original
+message at its first private invocation, including failed publication.
+It is contained in the native actual-key ledger. Stopping before a
+target-family key or signer-file return therefore gives an auxiliary
+fresh-message event containing the native stopped event. All routing and
+stopping decisions use declared lineage and public metadata, without
+testing hidden secret equality.
+
+\paragraph{Independent hedging.}
+Suppose signing factors as
+\[
+ \operatorname{Sign}(s,K,M;r)
+ =S\bigl(s,d_{pk}(M);F_K(r,d_{pk}(M))\bigr),
+\]
+where the complete computation after the public descriptor $d_{pk}(M)$
+is deterministic given its internal tape, and $K$ is generated
+independently of the remaining owner state. The ordinary signer draws a
+fresh hidden $r\in\{0,1\}^n$ per call. The reservation interface reveals
+original randomizers before or after execution and retains the complete
+original-message ledger. The joint PRF experiment supplies the same public
+oracle access as the signature game, including quantum queries when
+present; its private function calls are classical and its ideal random
+function is independent of the public companion oracle.
+
+\begin{proposition}[An ordinary-signature bridge for independent hedging]
+\label{prop:independent-hedging-bridge}
+For one protected family and at most $q$ distinct executed
+$(r,d_{pk}(M))$ pairs, there are an ordinary wrapper-EUF adversary $B$ and
+joint-PRF distinguishers $D_0,D_1$ such that
+\begin{equation}
+ p_{\rm res}(A)\le p_{\rm EUF}(B)
+   +\operatorname{Adv}^{\rm jprf}_F(D_0)
+   +\operatorname{Adv}^{\rm jprf}_F(D_1)
+   +\beta_n(q),\qquad
+ \beta_n(q)=\min\{1,\tbinom q2 2^{-n}\}.
+ \label{eq:independent-hedging-bridge}
+\end{equation}
+Each primitive interface receives at most $q$ calls. The bounds include
+the complete simulation, public descriptor work and owner observations.
+\end{proposition}
+\begin{proof}
+Replace the reservation signer's hedging function by a private random
+function, using independence to simulate the remaining key state. This
+costs the first joint-PRF advantage. Simulator $B$ samples all visible
+reservation randomizers and caches signatures by the full pair
+$(r,d_{pk}(M))$. A new pair causes one ordinary signing query on its
+original $M$; every first slot execution enters its original message in
+the local ledger, including a failed publication. A repeated pair reuses
+the cached signature.
+
+Replace the ordinary challenger's hedge by a private random function.
+Until its fresh hidden input repeats, its internal tapes are independent
+uniform values and can be coupled with the tapes of the distinct visible
+pairs. The $t$-th hidden draw repeats a prior input with probability at
+most $(t-1)2^{-n}$, giving $\beta_n(q)$. This charge concerns the ordinary
+challenger's draws. Arbitrarily many opened reservations and adaptively
+selected visible collisions are represented exactly by the pair cache.
+Returning the ordinary challenger to its real hedge costs the second
+joint-PRF term. Its signing queries are a subset of the executed-message
+ledger, so a fresh output is an ordinary forgery. Descriptor aliases need
+no separate charge: factorization gives the same signature, while the
+ledger retains every original message.
+\end{proof}
+
+For several protected families with a global stop before any of their
+key/file disclosures, the same argument uses indexed multiuser primitive
+games and the birthday term
+$\min\{1,2^{-n}\sum_h\binom{q_h}{2}\}$, with no extra user factor.
+Permitting other-owner disclosures instead uses the selected-family
+construction below. All displayed query caps hold across the relevant
+complete hybrids; an Execute-call cap is always a valid conservative
+choice for $q$.
+
+\paragraph{The shared ML-DSA oracle.}
+FIPS~204 key generation expands a uniform 32-byte seed into consecutive
+blocks $(\rho,\rho',K)$ of lengths $(32,64,32)$ bytes. Signing computes
+\[
+ \mu=H(\mathit{tr}\Vert M',64),\qquad
+ c=H(K\Vert r\Vert\mu,64).
+\]
+The remaining signing computation uses the other key components, $\mu$
+and $c$~\cite{fips204}. The pinned native backend passes its retained
+32 bytes to \texttt{try\_sign\_with\_seed}; the checked implementation
+uses $K$ only for this hedge in the signature computation. The full source
+map records the fixed crate archive and its upstream commit.
+
+Model SHAKE256 as a public random XOF $H$, with one independent infinite
+output string per complete input and consistent replies to every requested
+prefix. Other public algorithms retain the same interfaces in the
+comparison and are independent of the sampled random-XOF table. For a
+selected ML-DSA-65 family, let $q_*^{\rm res}$ and
+$q_*^{\rm ord}$ bound all remaining calls that can address a 34-byte or
+128-byte input in the two complete experiments, after rewriting every
+designated target seed expansion and hedge as in the proof. Count public
+adversarial queries, preparation, verification and all other-owner work.
+Define
+\[
+ \delta_{\rm C}(v)=\min\{1,v2^{-256}\},\qquad
+ \delta_{\rm Q}(v)=\min\{1,2v2^{-128}\}.
+\]
+
+\begin{theorem}[Native ML-DSA reservation bridge]
+\label{thm:native-mldsa-reservation-bridge}
+For the declared owner interface and a selected native ML-DSA-65 family,
+let $q$ bound the distinct executed target $(r,\mu)$ pairs in every
+relevant experiment. There is an ordinary hedged-ML-DSA EUF adversary $B$ with at most $q$
+signing queries such that
+\begin{equation}
+ p_{\rm res}^{H}(A)
+ \le p_{\rm EUF}^{H}(B)+\beta_{256}(q)
+       +\delta_{\mathsf X}(q_*^{\rm res})
+       +\delta_{\mathsf X}(q_*^{\rm ord}).
+ \label{eq:native-mldsa-reservation-bridge}
+\end{equation}
+Here $\mathsf X=\mathsf C$ denotes the classical random-oracle model and
+$\mathsf X=\mathsf Q$ the quantum random-oracle model. Reservation and
+signing calls are classical in both. Non-target owners may be generated
+locally and exposed; the target interface stops before key or signer-file
+return and has no earlier secret-byte observation. Both sides use the
+same ordinary native algorithm and public-oracle model, with their full
+simulation time and oracle budgets.
+\end{theorem}
+\begin{proof}
+Sample independent uniform $\xi,\rho,\rho',K$ of the specified lengths,
+a random XOF $H_0$, and a private random function
+$R:(r,\mu)\mapsto\{0,1\}^{512}$. Let
+\[
+ g=\xi\Vert\operatorname{byte}(6)\Vert\operatorname{byte}(5),\qquad
+ \mathcal S_K=\{K\Vert r\Vert\mu:\ |r|=32,\ |\mu|=64\},
+\]
+where these lengths are in bytes. Define $H_*$ by replacing the first
+128 output bytes at $g$ with $\rho\Vert\rho'\Vert K$, and the first
+64 bytes at each $K\Vert r\Vert\mu$ with $R(r,\mu)$. Preserve every
+remaining output bit from $H_0$. The two input sets have disjoint lengths
+34 and 128. Conditional on $\xi$ and the keygen output, all other full XOF strings
+remain independent uniform, including those in the selected slice.
+Thus $H_*$ and the keygen blocks have exactly the native joint distribution.
+
+Rewrite every target-lineage seed expansion, including reopened owners,
+to use those sampled blocks, and every target hedge, including retries,
+to use $R$. These are exact substitutions under $H_*$. Change every
+remaining oracle call to $H_0$. In this ideal experiment the query-register
+distribution is independent of the now-unused $\xi,K$. The remaining
+base state may depend on $\rho,\rho',H_0$, and every non-target owner keeps
+its original algorithm and shared-oracle calls.
+
+For any ideal query, its expected mass on
+$\mathcal D=\{g\}\cup\mathcal S_K$ is at most $2^{-256}$: each relevant
+length sector has that hidden-point or hidden-prefix probability, and the
+two sector masses sum to at most one. A classical identical-until-hit
+argument gives $q_*2^{-256}$. For a quantum query, the difference between
+the two XOR oracle actions has norm at most $2\sqrt{p_t(\mathcal D)}$.
+Telescoping using the ideal prefix states and applying Jensen's inequality
+gives expected final-state distance at most $2q_*2^{-128}$, which also
+bounds the difference in a final event probability
+\cite{bennett1997strengths}. This comparison includes verification.
+
+Apply it first to the reservation experiment. In the resulting ideal
+experiment $R$ is independent of the public oracle, so the pair-cache
+coupling from Proposition~\ref{prop:independent-hedging-bridge} gives the
+ordinary ideal experiment with loss $\beta_{256}(q)$. Apply the same
+oracle comparison in the reverse direction to the complete ordinary
+experiment. Its signer is now the native ordinary challenger, giving
+\eqref{eq:native-mldsa-reservation-bridge}. The actual reduction $B$ uses
+only that signing oracle and public interfaces; the statistical comparison
+does not require it to know or program $\xi$ or $K$.
+\end{proof}
+
+The source inventory makes the query budget concrete. After the designated
+rewrites, native ML-DSA-65 uses SHAKE256 input lengths 66 for secret-vector
+and mask expansion, 48 for challenge-to-ball sampling, 832 for commitment
+hashes, and 1952 for the public-key hash. Matrix expansion uses SHAKE128.
+The protocol's fixed context is 42 bytes; its complete descriptor input
+has length $155+|B|$ bytes. These target computations therefore agree
+exactly under $H_*$ and $H_0$, including every rejection-loop iteration.
+Arbitrary public SHAKE256 calls and non-target seed/hedge calls remain in
+$q_*$. Safe-domain calls are common operations in the query hybrid. A
+finite computation cutoff followed by a limit proves the same statistical
+bound for unbounded safe-domain rejection loops; full running time remains
+part of the ordinary-EUF term.
+
+\paragraph{Adaptive owners and the pair signature.}
+For at most $U$ fresh owner families, guess the target's creation index
+uniformly, retaining that index across aliases. Embed the single-user
+challenger there and generate all other owners locally, answering their
+permitted disclosures. This works for adaptive creation and gives
+\begin{equation}
+ \varepsilon_{\rm pair,res}
+ \le\min\left\{1,U\left(
+       \varepsilon_{\rm MLDSA,EUF}^{\rm su}
+       +\beta_{256}(q)
+       +\delta_{\mathsf X}(q_*^{\rm res})
+       +\delta_{\mathsf X}(q_*^{\rm ord})\right)\right\}.
+ \label{eq:native-pair-ordinary-mldsa}
+\end{equation}
+The ML-DSA oracle ledger is a subset of the selected native pair owner's
+ledger, hence of its actual-key ledger. No aggregation of distinct pair
+owners with coincident ML-DSA components is assumed. Their original
+generation and disclosure distribution is preserved. Cross-owner seed or
+hedge-prefix coincidences are among the remaining shared-oracle queries
+already counted in the selected-target comparison.
+
+Equation~\eqref{eq:native-pair-ordinary-mldsa} supplies an ordinary-ML-DSA
+instantiation of the signature term in
+Proposition~\ref{prop:executed-source-attribution}, preserving its record,
+KEM-correctness and joint-continuation accounting.
+% END SECTION SOURCE: reservation-signature-bridge.tex
 
 % BEGIN SECTION SOURCE: multiple-root-entry.tex
 % Finite multiple-root entry. Uses the existing joint-primitive bounds.
@@ -3872,9 +4116,11 @@ The executed-slot selector then associates accepted allocations with the
 original reservation pair, up to the signature and framed-hash terms in
 Proposition~\ref{prop:executed-source-attribution}. Its signing adapter
 preserves original randomizers, exact retries and the declared owner
-observations. The post-quantum branch uses the specified reservation-aware
-ML-DSA game; the native deterministic P-256 component supplies a classical
-ordinary-signature instantiation.
+observations. The native ML-DSA bridge then expresses that signature term through
+ordinary hedged unforgeability, an exact-replay coupling and a shared-XOF
+query loss (Theorem~\ref{thm:native-mldsa-reservation-bridge}).
+The native deterministic P-256 component supplies the corresponding
+classical ordinary-signature instantiation.
 
 Proposition~\ref{prop:confirmation-message-auth} follows the same joint
 key table through the native confirmation and first-message interfaces.
@@ -4250,6 +4496,28 @@ ledgers across unpublished results, and enumerate the generic separation's
 64 small key/randomizer assignments. These are finite interface checks
 and exact source audits. Their receipts keep the native Rust and
 mechanized-proof execution status separate.
+
+\subsection{Reservation-to-ordinary signature connection}
+\label{app:signature-bridge}
+
+Section~\ref{sec:reservation-ordinary-bridge} has its full reduction,
+source identities, finite controls and independent internal argument review
+in \path{artifacts/signature-bridge/}. The native correspondence uses
+revision \texttt{358b921ab3469ce49f166633fc9a762ff6ed7e3d} and the
+lockfile-authenticated \texttt{fips204} 0.4.6 source archive. Its upstream
+revision is \texttt{8d456d989dce681233ef963d3c3306da8f76d7c7}.
+The retained packet includes the inspected sources and their licenses, so
+its identity and call-length checks run from the manuscript checkout.
+
+The controls distinguish exact pair caching from per-slot oracle queries,
+preserve original-message freshness under descriptor aliases, and record
+private invocations whose publication fails. Independent finite enumeration
+checks the shared-XOF construction's joint distribution and its disjoint
+hidden-input sectors. Owner controls distinguish declared lineage, actual
+signing-state identity and public-key equality, and exercise non-target
+disclosure. The mathematical review covers the complete two-comparison
+ROM/QROM argument and its ordinary native signing endpoint; executable
+controls validate the specified finite distributions and source interfaces.
 % END SECTION SOURCE: artifact-map.tex
 % BEGIN SECTION SOURCE: primitive-inputs.tex
 \section{Primitive inputs to the record and report bounds}

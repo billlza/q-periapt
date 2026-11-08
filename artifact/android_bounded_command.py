@@ -1155,6 +1155,11 @@ def exec_emulator(run_id: str, device_abi: str) -> NoReturn:
         "-gpu",
         "swiftshader",
     ]
+    if (capability.adb_profile == "linux-system" and canonical_abi == "x86_64"
+            and canonical_avd == "QPeriapt_Release_16K_API_35_CI_V1"):
+        # Provision explicit guest RAM for the fixed hosted API 35 / 16 KiB
+        # image at the existing, receipt-bound emulator execution boundary.
+        argv.extend(["-memory", "4096"])
     runtime_state.record_pre_exec_adb_isolation_checkpoint(layout.run_id)
     try:
         runtime_state.arm_lane_lock_close_on_exec()

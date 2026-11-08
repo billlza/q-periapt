@@ -77,9 +77,15 @@ The finite/source checker passes 24 self-contained checks and 44 including seven
 
 The related-work addition cites Damm et al.'s 2026 JoC result on leakage of internal ML-DSA masking coefficients. The actual retained field here is the external 32-byte `rnd`; FIPS 204 derives internal masks through a secret-key-dependent seed. These observation objects remain distinct.
 
-## Focused continuation
+## Reservation-to-ordinary ML-DSA connection
 
-The precise post-quantum signature dependency is now the stated reservation-aware ML-DSA game. A next cryptographic step can analyze that native `rnd`-opening interface against ML-DSA's secret-seed derivation, or provide a justified reduction to a published leakage model. This is separate from the completed source-association induction and classical deterministic-component adapter. Broader target owner-file observations require their own correspondence cost if added to this controller.
+The native original-randomizer bridge is now established in the shared ROM/QROM. The reduction caches by the complete `(r,mu)` pair and records every private original-message invocation before publication. A private-random-function coupling preserves selected visible collisions; its birthday term counts hidden ordinary-challenger draws. A joint comparison of the hidden 34-byte key-generation input and 128-byte hedge slice returns to the original shared-XOF ordinary native signer. Its classical loss is `v / 2^256` per comparison and its quantum loss is `2v / 2^128`, each capped at one. The two complete experiments carry separate worst-case query budgets.
+
+For `U` adaptively created owner families, a random target-family embedding allows other owners to be generated and disclosed locally. Exact aliases retain their family; public-key coincidences remain in the native distribution. The selected ordinary ML-DSA query ledger is contained in the native pair owner's ledger, which gives the fresh-message implication. The resulting bound instantiates the executed-source attribution term. The full proof, exact crate/source identities, finite controls and independent internal mathematical review are retained in [the signature-bridge artifact](../artifacts/signature-bridge/README.md).
+
+This completes the preceding focused task of replacing the reservation-aware ML-DSA term by ordinary native hedged EUF with explicit losses in the declared shared-XOF model.
+
+## Focused continuation
 
 The matched Continuity/SPQR/whole-KEM comparison remains the focused experimental extension: use the same communication schedules and explicitly mapped capture objects, then measure reconstructed message sets and communication/persistence work. Any native authentication theorem also needs record and component comparisons for its own event bit; the confidentiality theorem's two signed-score event costs retain their established meanings. Existing symbolic recovery, record semantics and quantitative interface results keep their recorded scopes.
 

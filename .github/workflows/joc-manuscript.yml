@@ -73,6 +73,10 @@ jobs:
           git -C paper/continuity/build/source-attribution-native rev-parse HEAD > paper/continuity/build/native-source-commit.txt
       - name: Check source attribution models and pinned native interfaces
         run: sh artifact/python-run.sh paper/continuity/artifacts/source-attribution/check_source_attribution.py --repository "$GITHUB_WORKSPACE/paper/continuity/build/source-attribution-native" --output paper/continuity/build/source-attribution-check.json
+      - name: Check signature bridge controls and authenticated source packet
+        run: |
+          sh artifact/python-run.sh paper/continuity/artifacts/signature-bridge/check_bridge.py --crate-archive paper/continuity/artifacts/signature-bridge/sources/fips204-0.4.6.crate > paper/continuity/build/signature-bridge-check.json
+          sh artifact/python-run.sh paper/continuity/artifacts/signature-bridge/review_generic_controls.py > paper/continuity/build/signature-bridge-review.json
       - name: Package the single-file source
         run: sh artifact/python-run.sh paper/continuity/export_submission.py --output paper/continuity/build/joc-source.zip
       - name: Upload manuscript and source
@@ -91,6 +95,8 @@ jobs:
             paper/continuity/build/contextbound-check.json
             paper/continuity/build/confirmation-traffic-check.json
             paper/continuity/build/source-attribution-check.json
+            paper/continuity/build/signature-bridge-check.json
+            paper/continuity/build/signature-bridge-review.json
           if-no-files-found: error
       - name: Preserve build diagnostics
         if: always()
