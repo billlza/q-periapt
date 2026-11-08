@@ -1,0 +1,130 @@
+name: Retained WASM allocation comparison
+
+on:
+  push:
+    branches: [diagnostic/wasm-summary-memory]
+    paths:
+      - .github/workflows/codeql-current-memory.yml
+      - artifact/codeql_current_memory.py
+      - artifact/test_codeql_current_memory.py
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: codeql-current-memory-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    name: Retained 72acaacc database, ${{ matrix.profile }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        profile: [baseline, native-heavy]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        timeout-minutes: 5
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            artifact/codeql_current_memory.py
+            artifact/test_codeql_current_memory.py
+            artifact/codeql_log_recovery.py
+            artifact/codeql_rust_queries.json
+            artifact/bounded_process.py
+            artifact/evidence_io.py
+            artifact/python-run.sh
+            artifact/python-env.sh
+            artifact/python_bootstrap.py
+      - name: Check exact inputs, fresh results and strict paired comparison
+        timeout-minutes: 2
+        run: sh artifact/python-run.sh -m unittest -v test_codeql_current_memory
+      - name: Install the authenticated Rust CLI 2.27.2 bundle
+        timeout-minutes: 12
+        run: |
+          set -eu
+          CODEQL_ARCHIVE="$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst"
+          curl --fail --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 30 --max-time 600 --max-filesize 98247028 \
+            --output "$CODEQL_ARCHIVE" \
+            'https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.2/codeql-bundle-rust-linux64.tar.zst'
+          test "$(stat --format='%s' "$CODEQL_ARCHIVE")" = 98247028
+          printf '%s  %s\n' \
+            'acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea' \
+            "$CODEQL_ARCHIVE" | sha256sum --check --strict
+          mkdir -m 700 "$RUNNER_TEMP/codeql-current-tool"
+          tar --zstd --extract --file "$CODEQL_ARCHIVE" \
+            --directory "$RUNNER_TEMP/codeql-current-tool"
+      - name: Run all 39 original queries with a five-hour evaluator bound
+        timeout-minutes: 330
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CASE_PROFILE: ${{ matrix.profile }}
+        run: |
+          sh artifact/python-run.sh artifact/codeql_current_memory.py run \
+            --codeql "$RUNNER_TEMP/codeql-current-tool/codeql/codeql" \
+            --tool-archive "$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst" \
+            --profile "$CASE_PROFILE" \
+            --output "$RUNNER_TEMP/qperiapt-codeql-current-memory"
+      - name: Retain inputs, raw query logs and incomplete evaluation receipts
+        if: always()
+        timeout-minutes: 10
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-current-memory-${{ matrix.profile }}
+          path: ${{ runner.temp }}/qperiapt-codeql-current-memory/evidence/**
+          if-no-files-found: error
+          retention-days: 14
+
+  compare:
+    name: Require complete equivalent results from both allocations
+    if: always()
+    needs: evaluate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            artifact/codeql_current_memory.py
+            artifact/codeql_log_recovery.py
+            artifact/codeql_rust_queries.json
+            artifact/bounded_process.py
+            artifact/evidence_io.py
+            artifact/python-run.sh
+            artifact/python-env.sh
+            artifact/python_bootstrap.py
+      - name: Read baseline evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: codeql-current-memory-baseline
+          path: ${{ runner.temp }}/qperiapt-codeql-current-pair/baseline
+      - name: Read native-heavy evidence
+        if: always()
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: codeql-current-memory-native-heavy
+          path: ${{ runner.temp }}/qperiapt-codeql-current-pair/native-heavy
+      - name: Admit identical inputs and all 39 complete fresh semantic results
+        if: always()
+        run: |
+          sh artifact/python-run.sh artifact/codeql_current_memory.py compare \
+            --baseline "$RUNNER_TEMP/qperiapt-codeql-current-pair/baseline/RESULT.json" \
+            --candidate "$RUNNER_TEMP/qperiapt-codeql-current-pair/native-heavy/RESULT.json" \
+            --output "$RUNNER_TEMP/CURRENT_MEMORY_COMPARISON.json"
+      - name: Retain the comparison, including incomplete or mismatched outcomes
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-current-memory-comparison
+          path: ${{ runner.temp }}/CURRENT_MEMORY_COMPARISON.json
+          if-no-files-found: error
+          retention-days: 14
