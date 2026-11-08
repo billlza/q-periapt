@@ -1,75 +1,88 @@
-\documentclass[11pt,a4paper]{article}
+% Journal of Cryptology working manuscript.
+% Official Springer Nature authoring class, package v3.1 (December 2024).
+% JoC-specific numerical citations follow an alphabetically sorted bibliography.
+\documentclass[pdflatex]{sn-jnl}
+\usepackage[numbers,sort&compress]{natbib}
+\bibliographystyle{joc-basic}
+\setlength{\bibsep}{1em}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
-\usepackage[margin=28mm]{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
 \usepackage{booktabs,array,tabularx,longtable}
-\usepackage{graphicx,tikz}
-\usetikzlibrary{arrows.meta,positioning,calc}
+\usepackage{graphicx}
+\usepackage{xcolor}
 \usepackage{enumitem}
 \usepackage{microtype}
-\usepackage[hyphens]{url}
-\usepackage[hidelinks]{hyperref}
+\usepackage{xurl}
 \usepackage[capitalize,noabbrev]{cleveref}
-\input{glyphtounicode}
 \pdfgentounicode=1
-\hypersetup{pdftitle={Post-Compromise Security with Persistent Randomness Reservations}}
+\hypersetup{hidelinks,pdftitle={Exposure and Recovery with Persistent Randomness Reservations},pdfauthor={Ziang Li}}
+\theoremstyle{thmstyleone}
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{proposition}[theorem]{Proposition}
 \newtheorem{corollary}[theorem]{Corollary}
-\theoremstyle{definition}
+\theoremstyle{thmstylethree}
 \newtheorem{definition}[theorem]{Definition}
-\theoremstyle{remark}
+\theoremstyle{thmstyletwo}
 \newtheorem{remark}[theorem]{Remark}
 \setlist{topsep=4pt,itemsep=3pt,parsep=0pt}
 \setlength{\emergencystretch}{1.5em}
 \newcommand{\artifact}[1]{\texttt{\small\detokenize{#1}}}
 \newcommand{\qperiapt}{Q-Periapt Continuity}
 \newcommand{\sourcecommit}{\texttt{228c944f}}
-\title{Post-Compromise Security with\protect\\ Persistent Randomness Reservations}
-\author{}
-\date{Research manuscript --- 7 November 2026}
+\raggedbottom
 
 \begin{document}
+\title[Persistent randomness: exposure and recovery]{Exposure and Recovery with Persistent Randomness Reservations}
+% Author and corresponding address confirmed by the author on 7 November 2026.
+% The alternative address is retained in author-metadata.json.
+\author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
+\affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
+\abstract{Persistent implementations may reserve randomness before a cryptographic
+operation executes. Recovery after compromise therefore depends on the
+original sampling and acquisition history of that randomness across restart.
+We formalize this dependence through immutable reservation origins and an
+interface for acquiring, copying, rewrapping, and opening retained records.
+Alias normalization preserves the original operation. For fixed public key
+derivations, an exact guarded-path characterization captures exposure through
+captured ciphertexts and disclosed keys. We construct simulations of private
+images and intents without selected reservation coins, and compose immutable
+authentication reports in reverse causal order when their transcripts contain
+earlier private report keys. Candidate-local accounting connects these
+interfaces before the final compromise cut is selected. A full-tuple quantum
+hash comparison links a uniform component secret to the recovered contribution.
+A reduction in the compression quantum random-oracle model then follows root
+extraction, confirmation, traffic derivation, and the selected first-message
+key, retaining real control and acknowledgement verification and successor-state
+disclosure. Its native connection covers the next rekey of an established
+session and a fresh marked message allocation. The initialization extends to
+finite descriptor families with adaptive fresh selection and exact aliases.
+Its variable-length form covers the SDK's purpose-key derivations and owner
+lifecycles. We instantiate the provenance
+condition in a hybrid post-quantum messaging protocol and establish multi-epoch
+symbolic message secrecy with inherited roots and asynchronous confirmation.
+Native executions reconstruct traffic from pre-restart reservations and
+demonstrate the effect of aggregate rewriting and delayed receipts. Finite-model
+checks and executable corpora validate the exposure semantics.}
+\keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
-\begin{abstract}
-A persistent messaging protocol can reserve randomness so that interrupted
-cryptographic operations can resume with their original inputs. This separates
-the creation of secret material from the execution, publication, and confirmation
-of the operation that uses it. We study the resulting exposure semantics in a
-hybrid post-quantum messaging construction. Our record model assigns immutable
-origins to reserved entropy and follows those origins through pending writes,
-aggregate images, acquisition, and later wrapping-key disclosure. A
-record-interface normalization lemma relates alias-aware storage to an
-original-record experiment while preserving acquisition and readability.
-For the protocol's multi-epoch symbolic model, a jointly
-checked secrecy theorem establishes recovery under fresh target reservations,
-unexposed target authentication and entropy, and a precise record-acquisition
-condition. Native executions demonstrate the necessity of provenance-sensitive
-reasoning: a captured reservation reconstructs later traffic, a reservation
-captured during asynchronous confirmation exposes a successor beyond the smaller
-confirmation counter, and a
-sibling-session write preserves the original secret source. We organize these
-results with executable SPQR and whole-KEM reference corpora, and formulate the
-common computational experiment needed to connect concrete protected records
-to joint root, confirmation, traffic, and acknowledgement security. The analysis
-makes the origin and acquisition history of retained secret material explicit
-in the recovery statement.
-\end{abstract}
 
 \input{introduction}
 \input{related-work}
 \input{construction}
 \input{security-model}
+\input{computational-roadmap}
 \input{established-results}
 \input{evaluation}
-\input{computational-roadmap}
+\input{discussion}
+\input{declarations}
 
-\bibliographystyle{alpha}
 \bibliography{references}
-\clearpage
 \appendix
 \input{artifact-map}
+\input{primitive-inputs}
+\input{joint-primitive-bounds}
+\input{common-virtual-accounting}
 \end{document}

@@ -1,0 +1,126 @@
+{
+  "kind": "finite_algebra_and_counterexample_checks",
+  "native_rust_execution": false,
+  "formal_proof_tool_execution": false,
+  "source_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "development_pin": "1c68aa666db22d36ee136be1ec712545a9e74f03",
+  "paper_head": "da521d8388f5f0c64697387bf80b0b5b7837fb34",
+  "source_audit_performed": false,
+  "repositories": null,
+  "passed": 19,
+  "total": 19,
+  "source_files": 0,
+  "checks": [
+    {
+      "id": "domain_lengths",
+      "pass": true,
+      "detail": "Actual fixed source domain byte lengths."
+    },
+    {
+      "id": "core_lengths",
+      "pass": true,
+      "detail": "Response includes complete hybrid ciphertext; completion cores include closing length."
+    },
+    {
+      "id": "offer_and_mac_lengths",
+      "pass": true,
+      "detail": "Offer body is 1369 bytes; all three HMAC messages are 32-byte digests."
+    },
+    {
+      "id": "mac_compression_cost",
+      "pass": true,
+      "detail": "Two pad calls plus two remaining compression calls per uncached MAC."
+    },
+    {
+      "id": "aad_size",
+      "pass": true,
+      "detail": "Actual associated-data length is 142 + external-ad bytes."
+    },
+    {
+      "id": "finite_classical_verifier_0",
+      "pass": true,
+      "detail": "Exact maximum 0 over all all-failure-prefix strategies."
+    },
+    {
+      "id": "finite_classical_verifier_1",
+      "pass": true,
+      "detail": "Exact maximum 1/4 over all all-failure-prefix strategies."
+    },
+    {
+      "id": "finite_classical_verifier_2",
+      "pass": true,
+      "detail": "Exact maximum 1/2 over all all-failure-prefix strategies."
+    },
+    {
+      "id": "finite_classical_verifier_3",
+      "pass": true,
+      "detail": "Exact maximum 3/4 over all all-failure-prefix strategies."
+    },
+    {
+      "id": "same_core_replay_alias",
+      "pass": true,
+      "detail": "Exact repeats are prior-origin acceptance, not fresh-core forgery."
+    },
+    {
+      "id": "owner_alias_origin",
+      "pass": true,
+      "detail": "A copied owner retrieves the canonical role-key origin ledger."
+    },
+    {
+      "id": "failed_commit_keeps_private_origin",
+      "pass": true,
+      "detail": "Private computation must remain logged when later persistence fails."
+    },
+    {
+      "id": "digest_collision_witness",
+      "pass": true,
+      "detail": "A digest-authentication result needs a hash-collision term for complete-core origin."
+    },
+    {
+      "id": "general_selector_obstruction",
+      "pass": true,
+      "detail": "General metadata eligibility can hold for an unused failed-reservation handle."
+    },
+    {
+      "id": "source_resolved_selector",
+      "pass": true,
+      "detail": "Online first-computation registration designates g2 in this witness."
+    },
+    {
+      "id": "consumed_is_historical",
+      "pass": true,
+      "detail": "Arbitrary replacement bytes at a consumed index can return history; no new authentication is asserted."
+    },
+    {
+      "id": "forked_nonce_reuse_witness",
+      "pass": true,
+      "detail": "Two competing send owners using the same stream and nonce expose plaintext XOR."
+    },
+    {
+      "id": "public_retry_guess_witness",
+      "pass": true,
+      "detail": "A same-ID plaintext comparison is a challenge-bit-dependent public predicate."
+    },
+    {
+      "id": "coherent_verify_scope",
+      "pass": true,
+      "detail": "One Grover step succeeds with 0.47265625; the linear classical verification bound has a distinct interface."
+    }
+  ],
+  "finite_verifier": {
+    "tag_space": 4,
+    "messages": 2,
+    "maximum_attempts": 3,
+    "strategies": 585,
+    "table_evaluations": 9360,
+    "maximum_success_probabilities": {
+      "0": "0",
+      "1": "1/4",
+      "2": "1/2",
+      "3": "3/4"
+    }
+  },
+  "sources": [],
+  "dependencies": [],
+  "script_sha256": "eb6b7869df585ab9028523aaba9ccc2e6837af9a22db015e0e215fa455cd3811"
+}

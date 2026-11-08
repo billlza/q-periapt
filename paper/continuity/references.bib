@@ -145,6 +145,17 @@
   url = {https://www.rfc-editor.org/rfc/rfc5869.html}
 }
 
+@techreport{rfc2104,
+  author = {Hugo Krawczyk and Mihir Bellare and Ran Canetti},
+  title = {{HMAC}: Keyed-Hashing for Message Authentication},
+  institution = {Internet Engineering Task Force},
+  type = {RFC},
+  number = {2104},
+  year = {1997},
+  month = feb,
+  url = {https://www.rfc-editor.org/rfc/rfc2104}
+}
+
 @misc{qperiaptSymbolic2026,
   author = {{Q-Periapt project}},
   title = {Independent Joint Replay of Multi-Epoch Symbolic Message Secrecy},
@@ -153,4 +164,65 @@
   howpublished = {Q-Periapt research artifact},
   note = {November 4 replay; fixed repository checkpoint 228c944fc476e3e57d6c08063cacb19bca5b360e},
   url = {https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/sdk-alpha1/evidence/20261104-multi-epoch-replay}
+}
+
+
+% Only new bibliography entry used by the proposed related-work.tex.
+% Checked against the official USENIX page on 2026-11-07.
+% Read scope: official abstract and bibliographic record, not the full proof.
+@inproceedings{gojournal2021,
+  author = {Tej Chajed and Joseph Tassarotti and Mark Theng and Ralf Jung and M. Frans Kaashoek and Nickolai Zeldovich},
+  title = {{GoJournal}: A Verified, Concurrent, Crash-Safe Journaling System},
+  booktitle = {15th USENIX Symposium on Operating Systems Design and Implementation (OSDI 21)},
+  year = {2021},
+  month = jul,
+  pages = {423--439},
+  publisher = {USENIX Association},
+  isbn = {978-1-939133-22-9},
+  url = {https://www.usenix.org/conference/osdi21/presentation/chajed}
+}
+
+% Primary publication metadata checked on 2026-11-07.
+% DFH: publisher chapter, CWI repository, and Fehr author publication list.
+% HI: publisher chapter, including volume, pages, editors, and DOI.
+@inproceedings{dfh2022,
+  author = {Jelle Don and Serge Fehr and Yu-Hsuan Huang},
+  title = {Adaptive Versus Static Multi-oracle Algorithms, and Quantum Security of a Split-Key {PRF}},
+  editor = {Eike Kiltz and Vinod Vaikuntanathan},
+  booktitle = {Theory of Cryptography---TCC 2022, Proceedings, Part I},
+  series = {Lecture Notes in Computer Science},
+  volume = {13747},
+  pages = {33--51},
+  year = {2022},
+  publisher = {Springer},
+  doi = {10.1007/978-3-031-22318-1_2},
+  url = {https://arxiv.org/abs/2206.08132},
+  note = {Author manuscript available as arXiv:2206.08132}
+}
+
+@inproceedings{hmacqrom2021,
+  author = {Akinori Hosoyamada and Tetsu Iwata},
+  title = {On Tight Quantum Security of {HMAC} and {NMAC} in the Quantum Random Oracle Model},
+  editor = {Tal Malkin and Chris Peikert},
+  booktitle = {Advances in Cryptology---CRYPTO 2021, Proceedings, Part I},
+  series = {Lecture Notes in Computer Science},
+  volume = {12825},
+  pages = {585--615},
+  year = {2021},
+  publisher = {Springer},
+  doi = {10.1007/978-3-030-84242-0_21},
+  url = {https://eprint.iacr.org/2021/774},
+  note = {Full version: Cryptology ePrint Archive, Paper 2021/774}
+}
+
+@article{zhandryCollision2015,
+  author = {Mark Zhandry},
+  title = {A Note on the Quantum Collision and Set Equality Problems},
+  journal = {Quantum Information and Computation},
+  volume = {15},
+  number = {7--8},
+  pages = {557--567},
+  year = {2015},
+  doi = {10.26421/QIC15.7-8-2},
+  url = {https://www.rintonpress.com/xxqic15/qic-15-78/0557-0567.pdf}
 }

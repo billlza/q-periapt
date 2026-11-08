@@ -1,0 +1,185 @@
+diff --git a/paper/continuity/candidate-local-accounting.tex b/paper/continuity/candidate-local-accounting.tex
+index 637a0e33..0452a9b3 100644
+--- a/paper/continuity/candidate-local-accounting.tex
++++ b/paper/continuity/candidate-local-accounting.tex
+@@ -116,9 +116,10 @@ agree.  This proves~\eqref{eq:local-stop-identity}.  Partition the one native
+ score by attribution and its unique index; pointwise,
+ $\sum_j Z_j\mathbf1_{B_j}=Z\mathbf1_{A\land B_I}$.  Substitution proves
+ \eqref{eq:native-local-decomposition}.  The final index is used in this
+-identity, not predicted by the online monitor.  For a quantum adversary the
++identity through retrospective attribution. For a quantum adversary the
+ argument compares identical classical-prefix instruments and their stopped
+-continuations; it neither clones a state nor measures an oracle query.
++continuations, retaining the native quantum-state transformations and
++oracle-query interface up to the local stop.
+ \end{proof}
+ 
+ \paragraph{Local cryptographic comparisons.}
+diff --git a/paper/continuity/construction.tex b/paper/continuity/construction.tex
+index 1ee57742..a10abe0f 100644
+--- a/paper/continuity/construction.tex
++++ b/paper/continuity/construction.tex
+@@ -110,7 +110,7 @@ fresh encapsulation; it does not refresh the earlier generation reservation.}
+ 
+ The resulting counterexample targets the proposed bound
+ $\min(c_A,c_B)+1$: its value is one, yet epoch-two traffic is exposed.
+-The protocol's asymmetric progress is legitimate. Recovery reasoning must
+-therefore follow the retained inputs and their descendants rather than identify
+-the two endpoints' confirmation counters.
++The protocol permits this asymmetric progress. Recovery reasoning therefore
++follows the retained inputs and their descendants, with each endpoint's
++confirmation counter retaining its own value.
+ 
+diff --git a/paper/continuity/guarded-provenance.tex b/paper/continuity/guarded-provenance.tex
+index 10f42923..5b88805d 100644
+--- a/paper/continuity/guarded-provenance.tex
++++ b/paper/continuity/guarded-provenance.tex
+@@ -30,8 +30,8 @@ Containment is acyclic.  Record identities distinguish ciphertext objects;
+ source identities distinguish original sampling operations.  Several
+ records can contain the same source.  A rewrapped record has a new record
+ identity and may have a new key, while retaining its source identity.
+-Key identities are equivalence classes of equal actual keys, rather than
+-names assigned independently by separate API objects.
++Key identities are equivalence classes of equal actual keys. Equal key bytes
++therefore have one identity across separate API objects.
+ 
+ Let $\mathcal D\subseteq\mathcal K\times\mathcal K$ be fixed public key
+ derivation edges.  An edge $(k,k')$ means that possession of $k$ permits
+diff --git a/paper/continuity/joint-continuation.tex b/paper/continuity/joint-continuation.tex
+index 9719bc6f..c6776a25 100644
+--- a/paper/continuity/joint-continuation.tex
++++ b/paper/continuity/joint-continuation.tex
+@@ -8,9 +8,9 @@
+ A recovered root feeds confirmation, traffic derivation and the next epoch.
+ We treat these uses jointly and then isolate a selected message key.
+ The resulting continuation permits later contributions, successor roots and
+-the next chain seed to be disclosed. The current root is an internal value:
+-all outputs are regenerated in each hybrid, rather than fixed before a
+-root replacement.
++the next chain seed to be disclosed. The current root is an internal value.
++Each hybrid generates all outputs using that hybrid's root and subsequent
++key schedule.
+ 
+ \paragraph{Primitive experiments.}
+ Let $F(k,m)$ be HMAC-SHA256 over one public quantum compression oracle
+diff --git a/paper/continuity/joint-primitive-bounds.tex b/paper/continuity/joint-primitive-bounds.tex
+index 54cfbad5..41f3bf38 100644
+--- a/paper/continuity/joint-primitive-bounds.tex
++++ b/paper/continuity/joint-primitive-bounds.tex
+@@ -8,8 +8,8 @@ Section~\ref{sec:joint-continuation}. They use the same idealized SHA-256
+ compression oracle throughout. Each experiment begins with independent
+ oracle, hidden uniform 256-bit input and auxiliary state. All
+ oracle-dependent preparation is executed within the counted algorithm.
+-The designated hidden value has only the stated interfaces, and neither
+-it nor the private random tables are returned to the terminal test.
++The designated hidden value is accessed through its stated interfaces.
++It and the private random tables remain internal throughout terminal testing.
+ Ordinary public queries may be quantum; private function queries are
+ classical and exact repeats are cached.
+ 
+diff --git a/paper/continuity/opaque-rendering.tex b/paper/continuity/opaque-rendering.tex
+index 62b16035..efceef9c 100644
+--- a/paper/continuity/opaque-rendering.tex
++++ b/paper/continuity/opaque-rendering.tex
+@@ -107,8 +107,8 @@ one tag the prefix length is fixed: unequal prefixes differ before the
+ target image, while equal prefixes with different images differ at the
+ target's nonce. The same image and prefix give the same deterministic MAC
+ under the fixed key. Disjoint tags also separate images from intents.
+-This argument uses neither distinct private block values nor an injectivity
+-assumption about the encryption algorithm.
++This argument permits coincident private block values and ciphertext
++components; the explicit nonces distinguish the complete images.
+ \end{proof}
+ 
+ Let $I$ be the materialized ideal-commitment experiment, which retains real
+diff --git a/paper/continuity/report-composition.tex b/paper/continuity/report-composition.tex
+index a15149e9..6ba13e44 100644
+--- a/paper/continuity/report-composition.tex
++++ b/paper/continuity/report-composition.tex
+@@ -152,7 +152,7 @@ For replay and validation, the selected row is called only on its original
+ $m_i$; preserve each counted recomputation and compare supplied identifiers
+ with its retained reply.  Copying, failure after a durable commit, and
+ crash/resume use the same immutable handles and the actual reached storage
+-state.  They neither redraw a key nor replace a transcript.  Public decisions
++state. Each report retains its original key and immutable transcript. Public decisions
+ use available metadata and common-interface outputs.  Before an outward
+ protected-key projection, the same ledger event
+ $\mathsf{Bad}_{\rm rep}$ enters the common stopped state with application
+diff --git a/paper/continuity/security-model.tex b/paper/continuity/security-model.tex
+index 37b6e6f4..6ff4e347 100644
+--- a/paper/continuity/security-model.tex
++++ b/paper/continuity/security-model.tex
+@@ -71,8 +71,8 @@ operation identifier is reused.
+ 
+ The ideal source in this model draws independent tapes of the prescribed
+ lengths.  Explicit entropy-disclosure queries reveal designated tapes.
+-Independence is a distributional assumption about this source, rather than a
+-consequence of a later API call.  The generation and encapsulation budgets
++Independence is a distributional assumption about the source at sampling.
++Later API calls preserve the sampled tapes. The generation and encapsulation budgets
+ $G,C$ count original draws, including draws in attempts that subsequently
+ fail.  Exact retries consume no new slot.  Independently sampled operations
+ retain distinct origins even if some public outputs happen to coincide.
+@@ -82,8 +82,9 @@ A record version $v$ has an immutable payload $X_v$ and semantic metadata
+   \bigl(\mathsf{subject}(v),\mathsf{role}(v),
+          \mathsf{epoch}(v),\mathsf{phase}(v)\bigr).
+ \]
+-The subject identifies the session whose state is represented, rather than
+-the session that most recently wrote the enclosing journal.  A version can
++The subject identifies the session whose state is represented. A write to the
++enclosing journal preserves this subject, including a write by another session.
++A version can
+ refer to several reservation origins and to roots or traffic state derived
+ from earlier origins.  Preparing a version allocates its handle.  The event
+ $\mathsf{Saved}(v)$ occurs when that version first enters the durable
+@@ -330,8 +331,8 @@ references, and resealing evaluates the new recipe using those references.
+ Each operation preserves the session-record handles and their save times.
+ It follows by induction on the recipe constructors that
+ $\mathsf{paths}(h)$ is the same in both machines.  A public hash or MAC
+-constructor contributes its common output, rather than a spurious
+-record-acquisition path.
++constructor contributes its common output and has an empty record-acquisition
++path set.
+ 
+ On successful capture, output the cached object bytes in both experiments
+ and append its immutable descriptor to the adversary archive.  For each
+@@ -427,15 +428,14 @@ generation/encapsulation pair, with an adapter-computable association to the
+ original slots.  In particular, it connects the generation public key, the
+ encapsulation input, the authenticated response, and the target's subsequent
+ key schedule.  This matching is a
+-source/authentication obligation, rather than an additional eligibility
+-filter: a failure of $\mathsf{Attr}$ can occur while
++source/authentication obligation: a failure of $\mathsf{Attr}$ can occur while
+ $\mathsf{Eligible}_{s,e,c}$ holds and is charged in the computational
+ accounting.
+ 
+ The final line of~\eqref{eq:eligibility} concerns every saved version of session
+ $s$, across its roles and epochs.  It uses acquisition
+-$\mathcal C_T$, including protected bytes, rather than delayed readability
+-$\mathcal L_T$.  Other epochs' entropy disclosures retain their ordinary
++$\mathcal C_T$, including protected bytes, at the time they are obtained.
++Readability $\mathcal L_T$ is evaluated separately. Other epochs' entropy disclosures retain their ordinary
+ behavior.  Both peers' confirmation is not an additional send prerequisite.
+ 
+ Define the unconditional centered advantage by
+@@ -463,7 +463,7 @@ The computational accounting uses this latter convention.
+ 
+ The adaptive version retains one application challenge and permits the
+ candidate selector to choose its coordinates and reservation-event handles
+-from the observed interaction, rather than fixing them at setup.  Eligibility
++adaptively from the observed interaction. Eligibility
+ requires those coordinates to identify the challenge's accepted logical send;
+ selection never transfers its test bit to another send.  Eligibility
+ and the usable-pair attribution are evaluated on that experiment's complete
+@@ -532,8 +532,9 @@ time alone does not falsify the final conjunct of~\eqref{eq:eligibility}.
+ If instead $v$ was saved after $c$, a later write attributed to a sibling
+ does not change its subject or make its capture eligible.  Likewise, a
+ pre-cut generation reservation retained through a delayed receipt remains
+-pre-cut when its KEM computation completes later.  Its reservation condition,
+-rather than the slower endpoint's confirmed counter, determines that case.
++pre-cut when its KEM computation completes later. The reservation condition
++in~\eqref{eq:eligibility} determines that case, with the endpoints retaining
++their respective confirmed counters.
+ 
+ \subsection{Connection to the cryptographic argument}
+ 

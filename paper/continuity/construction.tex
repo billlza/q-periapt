@@ -9,6 +9,16 @@ plan, and later computes or replays the corresponding KEM operation. An exact
 retry uses the same reservation. The protocol alternates the proposing endpoint
 across epochs and carries separate send, receive, and confirmed-epoch state.
 
+\paragraph{Fixed cryptographic context.}
+The combiner hashes a length-delimited encoding of the two component secrets,
+both public keys and ciphertexts, and domain, suite, policy and
+application-context fields. On the rekey path, the application context is a
+domain-separated digest of the complete retained offer wire and is nested
+with the admitted policy digest. These fields form fixed inputs of the
+original operation; exact replay retains that binding and its reserved tape.
+The source correspondence in Appendix~\ref{app:contextbound-source} identifies
+the encoding and reservation constructors used here.
+
 \subsection{Reservations and persistent representations}
 
 A generation reservation determines the future hybrid key pair. An encapsulation
@@ -90,24 +100,7 @@ the public exchange reconstruct epoch-two traffic.
 
 \begin{figure}[t]
 \centering
-\begin{tikzpicture}[x=1cm,y=0.85cm,font=\small,>=Latex]
-\node[font=\bfseries] at (0,0.5) {$A$};
-\node[font=\bfseries] at (9.2,0.5) {$B$};
-\draw[gray] (0,0.1)--(0,-6.2);
-\draw[gray] (9.2,0.1)--(9.2,-6.2);
-\draw[->] (0,0)--node[above] {Final for epoch 1}(9.2,0);
-\node[align=left,anchor=west] at (9.35,-0.55) {};
-\draw[<- ,dashed] (2.1,-1.05)--node[above] {Receipt 1 held in transit}(9.2,-1.05);
-\node[align=center,fill=white] at (4.6,-2.0)
- {$B$ prepares epoch 2; capture $R_1$ and its generation reservation\\
-  $c_A=0,\ c_B=1$};
-\draw[densely dotted] (-0.4,-2.55)--(9.6,-2.55);
-\node[anchor=west] at (9.65,-2.55) {Cut};
-\draw[<-] (0,-3.15)--node[above] {Deliver receipt 1 and offer 2}(9.2,-3.15);
-\draw[->] (0,-4.0)--node[above] {Fresh epoch-two encapsulation at $A$}(9.2,-4.0);
-\draw[<->] (0,-4.85)--node[above] {Finish epoch 2 and restart}(9.2,-4.85);
-\draw[<->,thick] (0,-5.7)--node[above] {Six application messages; all reconstructed}(9.2,-5.7);
-\end{tikzpicture}
+\includegraphics[width=\linewidth]{figures/confirmation-cut.pdf}
 \caption{A retained native disclosure execution. The smaller confirmed counter
 is zero at capture, while the captured reservation enables epoch-two traffic
 recovery after the public exchange. The dotted Cut orders the exposure and the subsequent
@@ -117,6 +110,7 @@ fresh encapsulation; it does not refresh the earlier generation reservation.}
 
 The resulting counterexample targets the proposed bound
 $\min(c_A,c_B)+1$: its value is one, yet epoch-two traffic is exposed.
-The protocol's asymmetric progress is legitimate. Recovery reasoning must
-therefore follow the retained inputs and their descendants rather than identify
-the two endpoints' confirmation counters.
+The protocol permits this asymmetric progress. Recovery reasoning therefore
+follows the retained inputs and their descendants, with each endpoint's
+confirmation counter retaining its own value.
+

@@ -3,7 +3,7 @@
 % The normalization lemma below is a new, manually proved interface result.
 % The separately cited Tamarin theorem is an existing symbolic result.
 
-\section{Reservation Origins, Persistent Records, and Recovery}
+\section{Reservation origins, persistent records, and recovery}
 \label{sec:security-model}
 
 An interrupted cryptographic operation can retain its random tape before it
@@ -27,6 +27,30 @@ record-normalization lemma.  Fix finite execution, record-size, and query
 budgets; the wrapper's bookkeeping is polynomial in their total
 representation size.
 
+Table~\ref{tab:record-notation} summarizes the principal objects.
+
+\begin{table}[t]
+\centering
+\caption{Principal objects in the record model. The three identities separate
+an original random draw, an immutable session-state version and its physical
+storage representation.}
+\label{tab:record-notation}
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{.25\linewidth}X@{}}
+\toprule
+Notation & Meaning\\
+\midrule
+$o,\rho_o$ & Original invocation and its reserved random tape\\
+$v,X_v$ & Immutable session-state version and its payload\\
+$h$ & Physical image or pending object carrying one or more versions\\
+$\kappa$ & Identity of actual key material, shared by equal keys\\
+$\mathsf{res}(o)$ & Event at which the original random tape is drawn\\
+$\mathsf{save}(v)$ & First retention of $v$ on the durable acquisition surface\\
+$\mathcal C_t,\mathcal L_t$ & Acquired and readable original versions at prefix $t$\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 \subsection{Three origins and their event order}
 
 \begin{definition}[Reservation origin]
@@ -47,8 +71,8 @@ operation identifier is reused.
 
 The ideal source in this model draws independent tapes of the prescribed
 lengths.  Explicit entropy-disclosure queries reveal designated tapes.
-Independence is a distributional assumption about this source, rather than a
-consequence of a later API call.  The generation and encapsulation budgets
+Independence is a distributional assumption about the source at sampling.
+Later API calls preserve the sampled tapes. The generation and encapsulation budgets
 $G,C$ count original draws, including draws in attempts that subsequently
 fail.  Exact retries consume no new slot.  Independently sampled operations
 retain distinct origins even if some public outputs happen to coincide.
@@ -58,8 +82,9 @@ A record version $v$ has an immutable payload $X_v$ and semantic metadata
   \bigl(\mathsf{subject}(v),\mathsf{role}(v),
          \mathsf{epoch}(v),\mathsf{phase}(v)\bigr).
 \]
-The subject identifies the session whose state is represented, rather than
-the session that most recently wrote the enclosing journal.  A version can
+The subject identifies the session whose state is represented. A write to the
+enclosing journal preserves this subject, including a write by another session.
+A version can
 refer to several reservation origins and to roots or traffic state derived
 from earlier origins.  Preparing a version allocates its handle.  The event
 $\mathsf{Saved}(v)$ occurs when that version first enters the durable
@@ -306,8 +331,8 @@ references, and resealing evaluates the new recipe using those references.
 Each operation preserves the session-record handles and their save times.
 It follows by induction on the recipe constructors that
 $\mathsf{paths}(h)$ is the same in both machines.  A public hash or MAC
-constructor contributes its common output, rather than a spurious
-record-acquisition path.
+constructor contributes its common output and has an empty record-acquisition
+path set.
 
 On successful capture, output the cached object bytes in both experiments
 and append its immutable descriptor to the adversary archive.  For each
@@ -342,6 +367,9 @@ different public heads.  All such byte-level observations remain in the view.
 The repeated payload uses one original-record opening, whereas each genuinely
 fresh seal and each public hash or MAC computation keeps its own resource
 accounting.
+
+\input{guarded-provenance}
+\input{acquisition-nonadditivity}
 
 \subsection{A recovery experiment with acquisition-based eligibility}
 
@@ -400,15 +428,14 @@ generation/encapsulation pair, with an adapter-computable association to the
 original slots.  In particular, it connects the generation public key, the
 encapsulation input, the authenticated response, and the target's subsequent
 key schedule.  This matching is a
-source/authentication obligation, rather than an additional eligibility
-filter: a failure of $\mathsf{Attr}$ can occur while
+source/authentication obligation: a failure of $\mathsf{Attr}$ can occur while
 $\mathsf{Eligible}_{s,e,c}$ holds and is charged in the computational
 accounting.
 
 The final line of~\eqref{eq:eligibility} concerns every saved version of session
 $s$, across its roles and epochs.  It uses acquisition
-$\mathcal C_T$, including protected bytes, rather than delayed readability
-$\mathcal L_T$.  Other epochs' entropy disclosures retain their ordinary
+$\mathcal C_T$, including protected bytes, at the time they are obtained.
+Readability $\mathcal L_T$ is evaluated separately. Other epochs' entropy disclosures retain their ordinary
 behavior.  Both peers' confirmation is not an additional send prerequisite.
 
 Define the unconditional centered advantage by
@@ -436,7 +463,7 @@ The computational accounting uses this latter convention.
 
 The adaptive version retains one application challenge and permits the
 candidate selector to choose its coordinates and reservation-event handles
-from the observed interaction, rather than fixing them at setup.  Eligibility
+adaptively from the observed interaction. Eligibility
 requires those coordinates to identify the challenge's accepted logical send;
 selection never transfers its test bit to another send.  Eligibility
 and the usable-pair attribution are evaluated on that experiment's complete
@@ -505,63 +532,33 @@ time alone does not falsify the final conjunct of~\eqref{eq:eligibility}.
 If instead $v$ was saved after $c$, a later write attributed to a sibling
 does not change its subject or make its capture eligible.  Likewise, a
 pre-cut generation reservation retained through a delayed receipt remains
-pre-cut when its KEM computation completes later.  Its reservation condition,
-rather than the slower endpoint's confirmed counter, determines that case.
+pre-cut when its KEM computation completes later. The reservation condition
+in~\eqref{eq:eligibility} determines that case, with the endpoints retaining
+their respective confirmed counters.
 
 \subsection{Connection to the cryptographic argument}
 
-Lemma~\ref{lem:alias-normalization} gives an exact structural result for the
-specified interface.  Its renderer preserves the actual bytes and all
-cryptographic dependencies; it performs no KEM or hash replacement.
-Corollary~\ref{cor:target-acquisition-stop} supplies a usable stopping rule
-for a fixed-target eligible-event reduction.  Together they remove copy
-multiplicity and delayed decryption from the logical ambiguity of that
-interface while keeping the acquisition predicate intact.
+The normalization theorem fixes the original objects whose bytes, acquisition,
+and key identities the reduction must represent. The next section gives
+constructive image/intent and report interfaces for a selected KEM operation
+whose public outputs are available while its original random tape is opaque.
+Their algorithms preserve original-object caches, public commitments, exact
+retries, and actual durable outcomes. The fixed-target stopping rule above
+extends to an adaptive provenance certificate in
+Lemma~\ref{lem:adaptive-origin-stop}.
 
-The next cryptographic connection is the implementation of
-$\mathsf{RenderOriginal}$ when a selected PQ reservation is an opaque KEM
-challenge handle.  The required outputs are the actual permitted public
-heads, intent digests, report MACs, metadata, and error responses, with
-original-object caches and all shared-oracle preparation preserved.  The
-existing commitment and cleanup-report modules address named subinterfaces
-of this connection.  Successful forbidden acquisition can use the stopping
-corollary; public rendering and permitted acquisitions require their own
-consistent answers.
+Usable attribution is computed from available semantic metadata. Original
+generation and encapsulation slots belong to a fixed lifetime budget
+$[G]\times[C]$: a fresh draw receives a new slot, while copies retain their
+source. Each candidate induces its own protected records and report-key
+closure. Proposition~\ref{prop:native-local-accounting} decomposes the score
+in the native experiment before comparing those local continuations. It
+retains both unattributable eligible executions and permitted key projections
+as explicit native-game terms.
 
-The native source correspondence has a concrete form: map every in-scope
-current image, pending target, and retained copy to the original version
-handles, their first durable save events, and their wrapping-key identities;
-show that the source transitions implement the constructor rules above.
-Arbitrary byte residues or partial captures require their actual projection
-interface, rather than automatic promotion to a whole-record snapshot.
-This correspondence also supplies the usable original-slot attribution
-$\mathsf{Attr}$.  It must be evaluable from the adapter's metadata, without
-testing an unknown challenge tape.  Eligibility remains meaningful on
-executions where that attribution fails.
-
-After that connection, the existing original-operation KEM adapter addresses
-one selected generation/encapsulation pair: exact challenge-ciphertext
-repeats share the same component result and one correctness event.
-For adaptive attribution the slots belong to the fixed set
-$[G]\times[C]$, with origin and eligibility evaluated in each comparison
-experiment.  Copies of a reservation do not create more slots, while genuinely
-new draws do.  Alias normalization supplies no additional multiplicative
-loss; the component reductions and adaptive-target accounting retain their
-own resource terms.
-
-The subsequent root argument uses the actual order
-\[
-  p_e=\mathsf{HMAC}_{R_{e-1}}(S_e),\qquad
-  R_e=\mathsf{HMAC}_{p_e}
-       \bigl(D_{\rm root}\Vert H_{\rm core}(C_e)\Vert\mathtt{01}\bigr).
-\]
-When $R_{e-1}$ is disclosed, the recovered secret occupies the first HMAC's
-message input.  The source-derived extraction modules address that call
-shape.  Their contribution-replacement interface is before the root's
-confirmation tags: downstream signatures, transcript digests, traffic,
-ACK keys, and later epochs are recomputed consistently in each hybrid.
-Shared HMAC inputs and exact retries use consistent values.
-This supplies the precise division of work: the present result proves
-record-interface normalization and acquisition-based stopping; the accepted
-prefix and key-schedule composition establish computational recovery for
-the experiment in~\eqref{eq:recovery-score}.
+The computational composition evaluates accepted operations, eligibility, and
+all public outputs anew in each comparison world. Exact component repeats
+retain one response and one correctness event. The native constructor map in
+Section~\ref{sec:native-correspondence} identifies the storage operations used
+by these interfaces; Section~\ref{sec:discussion} specifies the joint root and
+message continuation to which their bounds connect.

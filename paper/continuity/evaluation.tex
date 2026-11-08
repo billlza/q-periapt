@@ -1,17 +1,128 @@
-\section{Executable reference corpora and comparison design}
+\section{Validation of exposure semantics}
 \label{sec:evaluation}
 
-The executable references provide reproducible observations of communication
-and exposure. The pinned SPQR source is
-\texttt{f2589fef855c10f39d72634dab3d14654dd410bf}. Seven schedules each contain
-2,048 sends: alternating, loss, reordering, duplication, 9:1 asymmetry,
-offline-then-exchange, and one-way traffic. Six capture points for each endpoint
-produce 84 passive snapshot cases. The whole-KEM control runs those schedules
-at local-send intervals 1, 32 and 64, producing 252 corresponding cases.
-Together these are 28 configuration/schedule combinations and 336 snapshots.
-The explicitly modified 64-byte SPQR variant has its own source identity.
+The validation asks how the formal exposure conditions appear in executable
+state and communication histories. We use three complementary designs.
+First, the native executions in Section~\ref{sec:established} vary the time
+of reservation use, acknowledgement delivery and aggregate rewriting while
+retaining the original secret source. Second, two implementations of record
+readability are checked against each other and against independently stated
+expected results. Third, a reference corpus records the message keys derivable
+from actual component snapshots under fixed communication schedules.
+Table~\ref{tab:validation-questions} relates each design to the question it answers.
 
-\subsection{Observed derivation and communication}
+\begin{table}[t]
+\centering
+\caption{Research questions and their validation objects. Native plaintext
+recovery, finite-model equality and component key derivation are recorded as
+separate outcomes.}
+\label{tab:validation-questions}
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{.30\linewidth}X@{}}
+\toprule
+Question & Design and observation\\
+\midrule
+Which event fixes a contribution's origin? &
+Reservation-boundary captures, delayed receipts and sibling aggregate writes;
+reconstruction of subsequent traffic from the captured original inputs.\\
+Which acquired objects jointly expose a source? &
+Iterative decryption and guarded routes on the same finite graphs, with
+explicit expected cases for key dependencies and later disclosures.\\
+How does retained state interact with communication opportunities? &
+Pinned component snapshots across seven schedules, with reconstructed keys
+indexed by direction, epoch and message number.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Finite-record semantics}
+
+\label{sec:guarded-checks}
+
+The specialization in Section~\ref{sec:guarded-provenance} has two executable
+realizations: iterative decryption of available record objects, and evaluation
+of normalized paths after computing key reachability. Their common inputs
+are a finite immutable record graph, canonical key identities, fixed public
+key-derivation edges, acquired records, directly disclosed keys, and directly
+disclosed source values. The evaluator checks equality of their exposed-source
+sets for every subset assignment in each declared graph.
+
+Table~\ref{tab:guarded-checks} gives the complete finite inventory. The 5,360
+assignments include direct-source subsets; they are separate from the 336
+reference endpoint-snapshot cases reported above. Cyclic key derivation requires
+an initially disclosed key to seed reachability. Cyclic record containment is
+rejected. The source-preserving copy and rewrapping relations are inputs to
+these graphs, while the native executions in Section~\ref{sec:established}
+provide their separately identified implementation evidence.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}Xr@{}}
+\toprule
+Record and key configuration & Assignments\\
+\midrule
+Journal-derived operation-wrapping key & 512\\
+Independent inner and outer wrapping keys & 128\\
+Rewrapped representations of one origin & 512\\
+Nested aggregate with derived keys & 4,096\\
+One actual key reused across wrappers & 16\\
+Empty record and unrelated source & 64\\
+Key-derivation cycle requiring a disclosed seed & 32\\
+\midrule
+Total & 5,360\\
+\bottomrule
+\end{tabularx}
+\caption{Exhaustive acquisition, key-disclosure and direct-source assignments
+for the declared finite graphs. The general equality theorem is proved in
+Section~\ref{sec:guarded-provenance}; these checks validate its executable
+realizations on the stated graph inventory.}
+\label{tab:guarded-checks}
+\end{table}
+
+The history driver additionally evaluates all 360 legal permutations of a
+six-event acquisition, disclosure and deletion schedule, checking equality
+and knowledge monotonicity at all 2,160 prefixes. Ten directed histories
+exercise late key disclosure, capture before local deletion, retained pending
+targets, sibling copies, independent inner guards, and direct entropy
+disclosure. All records in these finite histories are initially available;
+record-creation events and operation-context validation remain in the
+surrounding provenance interface.
+
+An independent review driver adds 17 cases with explicitly specified expected
+outputs. These cover seeded and unseeded key cycles, a self-loop, a reversed
+key-derivation chain, shared-child paths, direct child capture, partial keys
+from distinct paths, and local deletion of an embedded record's standalone
+copy. Expected outputs are checked independently of the agreement between
+the two algorithms. All 17 cases pass.
+
+Five semantic controls exhibit the effect of discarding an adversary's copy
+on local deletion, fixing exposure at capture despite later key disclosure,
+resetting a source to the newest image identifier, dropping an inner-key
+guard, and treating a public digest as record acquisition. Each produces a
+specified disagreement with the declared semantics. They are controls on
+interpretations of the record model.
+
+Appendix~\ref{app:artifacts} identifies the source, result files and
+independent expected-result checks. The reproduction entry point rejects
+execution modes that disable its assertions.
+
+\subsection{Reference snapshots and communication schedules}
+
+The pinned SPQR source is
+\texttt{f2589fef855c10f39d72634dab3d14654dd410bf}.
+Seven schedules each contain 2,048 sends: alternating, loss, reordering,
+duplication, 9:1 asymmetry, offline-then-exchange, and one-way traffic.
+Six capture points for each endpoint produce 84 passive snapshot cases.
+An authenticated whole-KEM control runs those schedules at local-send
+intervals 1, 32 and 64, producing 252 corresponding cases. Together these
+are 28 configuration--schedule combinations and 336 snapshots. An isolated
+64-byte polynomial-chunk SPQR variant has a separate source identity; its
+alternating-workload result is explicitly labeled in Table~\ref{tab:reference}.
+The 32-byte and 64-byte labels describe the polynomial chunk width.
+
+\subsection{Exposure and communication observations}
+
 
 The snapshot predictor receives one endpoint's serialized state and the full
 public transcript, including packets lost before peer delivery. A separate
@@ -21,7 +132,7 @@ derivation through the declared predictor interface. The output label
 \texttt{not\_derived} denotes that predictor's result. It is separate from the
 security predicate of a computational experiment.
 
-Table~\ref{tab:reference} reproduces the retained alternating-schedule
+Table~\ref{tab:reference} reports the alternating-schedule
 observations. The snapshot is taken at $A$ immediately after its first send,
 leaving 2,047 future sends. The pending KEM key accounts for 87 of the 172
 derived keys in the pinned 32-byte SPQR case, demonstrating why the currently
@@ -34,14 +145,14 @@ emitted chain epoch alone does not describe exposure.
 \toprule
 Component/profile & Mean bytes/send & Peak frame & Epochs $A/B$ & Derived keys\\
 \midrule
-Pinned SPQR, 32 B & 32.150 & 37 & 24/23 & 172\\
-SPQR variant, 64 B & 58.971 & 69 & 46/45 & 88\\
+SPQR, 32-byte chunks & 32.150 & 37 & 24/23 & 172\\
+SPQR, 64-byte chunks & 58.971 & 69 & 46/45 & 88\\
 Whole KEM, interval 1 & 819.658 & 1,225 & 683/683 & 4\\
 Whole KEM, interval 32 & 44.047 & 1,223 & 32/32 & 66\\
 Whole KEM, interval 64 & 25.023 & 1,223 & 16/16 & 130\\
 \bottomrule
 \end{tabular}
-\caption{Retained component-level alternating workload. Byte counts are the
+\caption{Component-level alternating workload; SPQR byte labels denote polynomial chunk width. Byte counts are the
 component wire contribution; epoch counts are each component's root/output
 observations. The constructions have different authentication and retention
 graphs. Outer application AEAD, transport, durable storage and energy are
@@ -58,28 +169,3 @@ match the attacker-derived keys. This supplies a concrete distinction between
 fresh KEM execution and authenticated recovery when the ongoing authentication
 authority is itself derived from captured session state.
 
-\subsection{Aligning the Continuity experiment}
-
-A matched experiment must give each construction the same application and
-control-message opportunities and the same loss, reorder and duplication
-schedule. Authentication capabilities are recorded explicitly: the whole-KEM
-control uses session-state authentication, whereas Continuity controls use
-the separately modeled device signing authority. Serialized volatile state,
-retained reservations and actual durable journal images are distinct disclosure
-objects.
-
-The planned Continuity comparison records, for each exposure case, the original
-generation and encapsulation reservation identifiers, the retained record
-projection, acquired wrapping-key identifiers, endpoint phase/counter state,
-public-wire availability and the actually reconstructed message set.
-Communication records include total bytes and largest frame. Persistence
-records include durable writes, restart/retry work and retained-state size.
-Each timing denominator covers its declared operation interval and names the
-compiler profile, primitive backend, host and sample unit.
-
-The principal ablations hold the underlying reservation fixed while changing
-its execution time, delay a receipt, copy a target through a sibling aggregate
-write, and compare origin-preserving labels with labels based on the last image
-write. These ablations test the mechanisms isolated by the theorem and
-separating executions. Their comparison will explain both exposure and cost
-under each matched workload.

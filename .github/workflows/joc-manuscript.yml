@@ -1,0 +1,81 @@
+name: JoC manuscript
+
+on:
+  pull_request:
+    paths:
+      - 'paper/continuity/**'
+      - '.github/workflows/joc-manuscript.yml'
+      - 'artifact/python-run.sh'
+      - 'artifact/python-env.sh'
+      - 'artifact/python_bootstrap.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: joc-manuscript-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  manuscript:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out manuscript source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify source identity
+        env:
+          EXPECTED_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE"
+          mkdir -p paper/continuity/build
+          git rev-parse HEAD > paper/continuity/build/source-commit.txt
+      - name: Install LaTeX and PDF tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y latexmk texlive-latex-extra texlive-fonts-recommended texlive-science lmodern poppler-utils
+      - name: Compile and verify the manuscript
+        run: make -B -C paper/continuity check PYTHON="sh $GITHUB_WORKSPACE/artifact/python-run.sh"
+      - name: Exercise the retained finite-record model
+        run: |
+          mkdir -p paper/continuity/build/finite-model
+          cp paper/continuity/artifacts/guarded-provenance/check_exposure.py paper/continuity/artifacts/guarded-provenance/review_exposure.py paper/continuity/build/finite-model/
+          sh artifact/python-run.sh -c 'import sys; print(sys.version)' > paper/continuity/build/finite-model/python-version.txt
+          sh artifact/python-run.sh paper/continuity/build/finite-model/check_exposure.py --output paper/continuity/build/finite-model/results.json
+          sh artifact/python-run.sh paper/continuity/build/finite-model/review_exposure.py
+      - name: Check ContextBound encodings and adapter witnesses
+        run: sh artifact/python-run.sh paper/continuity/artifacts/contextbound-connection/check_contextbound_adapter.py --output paper/continuity/build/contextbound-check.json
+      - name: Check finite confirmation and traffic interfaces
+        run: sh artifact/python-run.sh paper/continuity/artifacts/confirmation-traffic/check_interfaces.py --finite-only --output paper/continuity/build/confirmation-traffic-check.json
+      - name: Package the single-file source
+        run: sh artifact/python-run.sh paper/continuity/export_submission.py --output paper/continuity/build/joc-source.zip
+      - name: Upload manuscript and source
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: joc-manuscript-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            paper/continuity/continuity.pdf
+            paper/continuity/build/joc-source.zip
+            paper/continuity/build/build-check.json
+            paper/continuity/build/source-commit.txt
+            paper/continuity/build/finite-model/python-version.txt
+            paper/continuity/build/finite-model/results.json
+            paper/continuity/build/finite-model/review_results.json
+            paper/continuity/build/contextbound-check.json
+            paper/continuity/build/confirmation-traffic-check.json
+          if-no-files-found: error
+      - name: Preserve build diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: joc-manuscript-diagnostics-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            paper/continuity/build/*.log
+            paper/continuity/build/*.blg
+            paper/continuity/build/build-check.json
+            paper/continuity/build/source-commit.txt
+          if-no-files-found: warn

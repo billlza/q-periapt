@@ -1,4 +1,4 @@
-\section{Computational accounting and the common experiment}
+\section{Computational interfaces and composition}
 \label{sec:computation}
 
 The origin model provides the accounting boundary for a computational
@@ -9,132 +9,29 @@ budgets $G,C\geq1$ and write $J=[G]\times[C]$. Unused slots remain unused.
 These proof-resource budgets differ from a bound on the number of records
 resident at one time.
 
-\subsection{A selected-target experiment}
-
-Let $V$ be the virtual original-record experiment with the real KEM component.
-The adversary chooses its target after its observed interaction. Eligibility
-$E$ retains the selected recovery conditions: both original target reservations
-follow Cut, the actual target signing keys and target-epoch entropy remain
-unexposed, and no selected-session record saved after Cut is acquired.
-The experiment follows allowed asynchronous control and application transitions,
+The native application experiment evaluates the selected target after the
+adversary's interaction. Eligibility requires both original reservations to
+follow the selected cut, secrecy of the actual target signing keys and
+target-epoch entropy, and no acquisition of a selected-session version saved
+after that cut. It admits the asynchronous transitions of the construction,
 including sending after the local FinalReady transition.
 
-Let $\mathsf{Attr}$ mean that the selected target has a unique usable pair of
-original slots, and let $I\in J$ denote that pair. The mapping and every event
-used by the reduction must be computable from the adapter's known semantic
-state and observations. Let
-\[
- \eta\ \geq\ \Pr_V[E\wedge\neg\mathsf{Attr}].
-\]
-For $j\in J$, define $V_j$ as the full experiment with the adapter's random
-component override at pair $j$. Its transcript, eligibility and target choice
-are recomputed in that world. The remaining protocol and oracle calls use
-the same common interfaces.
+We first construct the private-record and immutable-report interfaces. We
+then connect their candidate-specific continuations to one native score,
+using original provenance to certify permanent local stopping. After the
+native constructor correspondence, a joint key-schedule theorem derives the
+selected first-message continuation from a uniform recovered contribution.
+The common-virtual-game
+accounting variant is retained in Appendix~\ref{app:common-virtual}.
 
-The application test bit is sampled by the surrounding simulator. Write
-$S=+1$ for a correct guess and $S=-1$ otherwise; invalid tests contribute zero
-through $E$. Every $E=0$ execution is completed by an independent fair guess. Thus the
-usual message-guessing advantage is
-$\tfrac12|\mathbb E[E S]|$.
-The simulator can evaluate this score without observing the hidden bit of its
-component KEM challenger.
+\input{opaque-rendering}
+\input{report-composition}
+\input{candidate-local-accounting}
+\input{native-correspondence}
+\input{joint-continuation}
+\input{contextbound-connection}
+\input{live-core-instantiation}
+\input{confirmation-traffic}
 
-\subsection{Centered-score composition}
-
-For each $j$, put $E_j=E\wedge\mathsf{Attr}\wedge(I=j)$.
-Suppose the fixed-pair component adapter gives, for $\sigma\in\{+1,-1\}$,
-\begin{equation}
-\left|\Pr_V[E_j\wedge S=\sigma]
-      -\Pr_{V_j}[E_j\wedge S=\sigma]\right|
- \leq a_j^\sigma+\delta_j,                         \label{eq:component-hop}
-\end{equation}
-where $a_j^\sigma$ is the advantage of the actual derived component
-distinguisher and $\delta_j$ is the corresponding correctness term.
-The distinguisher includes target selection and all relevant oracle queries.
-Define
-\[
- b_j=\mathbb E_{V_j}[E_jS].
-\]
-Finally, let $\epsilon_{\rm rec}$ bound the binary distinguishing gap between
-the native and virtual experiments for their efficiently evaluable
-positive-score and negative-score events. This is the concrete record-interface
-connection, including public outputs and accepted operation histories.
-
-\begin{proposition}[Adaptive origin-pair accounting]
-\label{prop:adaptive-accounting}
-Under these stated interface and fixed-pair bounds, the native application's
-guessing advantage satisfies
-\begin{equation}
-\operatorname{Adv}_{\rm msg}
- \leq \min\left\{\frac12,\
- \epsilon_{\rm rec}+\frac12
- \left(\eta+\sum_{j\in J}|b_j|
-       +\sum_{j\in J}(a_j^{+}+a_j^{-}+2\delta_j)\right)\right\}.
-\label{eq:accounting}
-\end{equation}
-\end{proposition}
-\begin{proof}
-In the single experiment $V$, the attributed events $E_j$ are disjoint.
-Decomposing its score yields
-\[
- \mathbb E_V[ES]
- =\mathbb E_V[ES\,\mathbf1_{\neg\mathsf{Attr}}]
-   +\sum_{j\in J}\mathbb E_V[E_jS].
-\]
-The first term has magnitude at most $\eta$. Each attributed expectation is the
-positive-event probability minus the negative-event probability. Applying
-\eqref{eq:component-hop} to those two events and then the triangle inequality
-bounds its distance from $b_j$ by
-$a_j^++a_j^-+2\delta_j$. Summing gives the virtual score bound.
-The two native/virtual binary-event comparisons contribute at most
-$2\epsilon_{\rm rec}$ to the score difference. Dividing by two and using the
-maximum bit-guessing advantage proves \eqref{eq:accounting}.
-\end{proof}
-
-The selector may depend adaptively on its entire observed transcript.
-The absolute values in $\sum_j|b_j|$ retain each override world's own target
-selection. In particular, the override probabilities are not normalized as
-though they belonged to one common ideal distribution. The score decomposition
-also retains failed and ineligible executions in the experiment, avoiding an
-uncontrolled division by the probability of eligibility.
-
-Uniform bounds $|b_j|\leq\beta$, $a_j^\sigma\leq a$, and
-$\delta_j\leq\delta$ give
-\[
- \operatorname{Adv}_{\rm msg}
- \leq \min\left\{\frac12,\
- \epsilon_{\rm rec}+\frac{\eta}{2}
-       +\frac{GC}{2}(\beta+2a+2\delta)\right\}.
-\]
-Alias proliferation changes the record inventory while preserving the original
-slot count. This is the point at which origin-preserving record accounting
-enters the reduction.
-
-\subsection{The joint root and message interface}
-
-The root derivation in \eqref{eq:root} begins with
-\[
- p_e=\operatorname{HMAC}_{R_{e-1}}(S_e).
-\]
-After disclosure of $R_{e-1}$, the secret is in HMAC's message input.
-The applicable extractor/swap-PRF condition therefore concerns that input
-distribution; ordinary PRF security for an unknown HMAC key is a different
-premise~\cite{hmacswap2023,rfc5869}. The retained computational notes instantiate
-the actual input lengths and domains, treat shared root uses and aliases,
-and state the corresponding quantum-oracle accounting.
-
-The quantities in \eqref{eq:accounting} organize the next two cryptographic
-connections. To bound $\epsilon_{\rm rec}$ and $\eta$, the concrete adapter must
-simulate protected pending writes, public commitments, replay results, report
-keys and permitted acquisition using original operation handles, while matching
-the source's accepted histories. To bound each $b_j$, the random-component
-world must jointly generate root extraction, confirmation tags, traffic,
-acknowledgements and successor epochs. Replacing a contribution before producing
-its dependent controls keeps those descendants consistent.
-
-The current record-interface lemma and source-derived event definitions isolate
-the provenance part of the first connection. The existing root-extraction, shared-HMAC,
-KEM-adapter and adaptive-target modules supply its cryptographic interfaces
-and the second connection's component statements. Equation~\eqref{eq:accounting}
-is a proved accounting proposition with these explicit inputs; completing the
-common experiment requires concrete bounds for those inputs.
+\input{multiple-root-entry}
+\input{sdk-purpose-connection}

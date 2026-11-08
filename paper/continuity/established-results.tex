@@ -1,4 +1,4 @@
-\section{Established recovery result and separating executions}
+\section{Mechanized recovery and separating executions}
 \label{sec:established}
 
 \subsection{The multi-epoch symbolic theorem}
@@ -33,21 +33,10 @@ $\mathsf{AcquiredAfterSave}_c(s)$ is false, then $\tau$ contains no adversarial
 knowledge event $\mathsf K(m)$.
 \end{theorem}
 
-The theorem is the retained query
-\path{multi_epoch_fresh_reservations_recover_symbolic_message_secrecy}.
-Its certificate was replayed with all 24 reusable dependencies in the same
-Tamarin process. The independent 4 November replay used Tamarin 1.12.0 and
-Maude 3.5.1, one worker, a 12-GiB heap bound and the unchanged 900-second limit;
-it completed in 816.903 seconds. The output certificate was byte-identical to
-the retained input. Appendix~\ref{app:artifacts} gives its digest and archive
-member, making the theorem's exact formula and proof available for inspection.
-
-The complete inventory contains 40 queries: 27 verified and 13 incomplete.
-The latter comprise eleven multi-round existence queries and two historical
-all-trace queries outside the main theorem's dependency group. Two subsequent
-finite ground-trace constructions supply the concrete executions discussed
-below. Their independently checked formulas and original certificate inventory
-remain separately identifiable.
+The theorem was checked with all 24 reusable dependencies in one Tamarin
+process. An independent replay produced a byte-identical proof certificate.
+Appendix~\ref{app:artifacts} identifies the exact query, source, toolchain,
+replay receipt and complete auxiliary-query inventory.
 
 The theorem uses the modeled cryptographic constructors and record interface.
 Its key scope follows actual identity ownership: a shared signer exposed through
@@ -96,7 +85,7 @@ responder snapshot.
 
 \begin{proposition}[Execution-time and counter-based separation]
 \label{prop:counter-separation}
-In the retained native executions, computing a KEM after restart, completing
+In the native executions, computing a KEM after restart, completing
 the target epoch, and subsequently reopening the journal do not make a
 previously disclosed reservation an independent secret contribution.
 Moreover, $\min(c_A,c_B)+1$ is not a universal upper bound on exposed epochs.
@@ -120,7 +109,8 @@ messages in each build profile. The new global revision and outer encryption
 nonce coexist with the old target reservation. This execution instantiates the
 alias/provenance distinction in the record model.
 
-All native results above are claims about their identified executions. The
-symbolic theorem supplies the universal statement within its model; the
-computational accounting in Section~\ref{sec:computation} specifies the next
-connection between the concrete record format and message security.
+The native executions isolate the reservation and acquisition conditions
+used in Theorem~\ref{thm:symbolic}. Section~\ref{sec:computation} gives the
+record simulations and common-experiment accounting for the corresponding
+computational interfaces.
+

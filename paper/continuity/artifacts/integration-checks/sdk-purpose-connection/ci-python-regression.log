@@ -1,0 +1,37 @@
+test_cleanup_failure_is_a_note_and_never_replaces_primary (test_formal_tool_asset.FormalToolAssetTests.test_cleanup_failure_is_a_note_and_never_replaces_primary) ... ok
+test_directory_path_replacement_is_detected_without_deleting_replacement (test_formal_tool_asset.FormalToolAssetTests.test_directory_path_replacement_is_detected_without_deleting_replacement) ... ok
+test_hostile_runner_temp_is_ignored (test_formal_tool_asset.FormalToolAssetTests.test_hostile_runner_temp_is_ignored) ... ok
+test_integrity_and_metadata_failures_never_retry_and_clean (test_formal_tool_asset.FormalToolAssetTests.test_integrity_and_metadata_failures_never_retry_and_clean) ... ok
+test_interrupts_and_sleep_failure_propagate_after_cleanup (test_formal_tool_asset.FormalToolAssetTests.test_interrupts_and_sleep_failure_propagate_after_cleanup) ... test-asset curl status 56; retrying in 15 seconds
+ok
+test_main_reports_explicit_download_error_to_stderr (test_formal_tool_asset.FormalToolAssetTests.test_main_reports_explicit_download_error_to_stderr) ... ok
+test_main_success_prints_only_the_path (test_formal_tool_asset.FormalToolAssetTests.test_main_success_prints_only_the_path) ... ok
+test_malformed_runner_result_fails_without_retry (test_formal_tool_asset.FormalToolAssetTests.test_malformed_runner_result_fails_without_retry) ... ok
+test_nonzero_runner_cannot_leave_a_retry_target (test_formal_tool_asset.FormalToolAssetTests.test_nonzero_runner_cannot_leave_a_retry_target) ... ok
+test_oversize_and_symlink_outputs_fail_without_retry (test_formal_tool_asset.FormalToolAssetTests.test_oversize_and_symlink_outputs_fail_without_retry) ... ok
+test_persistent_curl_failure_is_bounded_and_cleans (test_formal_tool_asset.FormalToolAssetTests.test_persistent_curl_failure_is_bounded_and_cleans) ... test-asset curl status 22; retrying in 15 seconds
+test-asset curl status 22; retrying in 30 seconds
+ok
+test_persistent_timeout_is_bounded_chained_and_cleans (test_formal_tool_asset.FormalToolAssetTests.test_persistent_timeout_is_bounded_chained_and_cleans) ... test-asset download timed out; retrying in 15 seconds
+test-asset download timed out; retrying in 30 seconds
+ok
+test_private_fixed_parent_rejects_relative_symlink_and_wrong_mode (test_formal_tool_asset.FormalToolAssetTests.test_private_fixed_parent_rejects_relative_symlink_and_wrong_mode) ... ok
+test_production_asset_table_is_exact_and_immutable (test_formal_tool_asset.FormalToolAssetTests.test_production_asset_table_is_exact_and_immutable) ... ok
+test_production_fixed_parent_requires_linux_root_owned_exact_01777 (test_formal_tool_asset.FormalToolAssetTests.test_production_fixed_parent_requires_linux_root_owned_exact_01777) ... ok
+test_published_cleanup_refuses_a_matching_directory_outside_fixed_parent (test_formal_tool_asset.FormalToolAssetTests.test_published_cleanup_refuses_a_matching_directory_outside_fixed_parent) ... ok
+test_removed_temporary_parent_api_is_rejected (test_formal_tool_asset.FormalToolAssetTests.test_removed_temporary_parent_api_is_rejected) ... ok
+test_stdout_write_or_flush_failure_cleans_before_propagating (test_formal_tool_asset.FormalToolAssetTests.test_stdout_write_or_flush_failure_cleans_before_propagating) ... ok
+test_structural_process_errors_fail_immediately_and_clean (test_formal_tool_asset.FormalToolAssetTests.test_structural_process_errors_fail_immediately_and_clean) ... ok
+test_success_uses_one_fixed_curl_command_and_private_output (test_formal_tool_asset.FormalToolAssetTests.test_success_uses_one_fixed_curl_command_and_private_output) ... ok
+test_two_curl_failures_retry_from_absent_target_then_succeed (test_formal_tool_asset.FormalToolAssetTests.test_two_curl_failures_retry_from_absent_target_then_succeed) ... test-asset curl status 56; retrying in 15 seconds
+test-asset curl status 56; retrying in 30 seconds
+ok
+test_two_timeouts_retry_then_succeed_and_preserve_from_zero (test_formal_tool_asset.FormalToolAssetTests.test_two_timeouts_retry_then_succeed_and_preserve_from_zero) ... test-asset download timed out; retrying in 15 seconds
+test-asset download timed out; retrying in 30 seconds
+ok
+test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 0.077s
+
+OK
