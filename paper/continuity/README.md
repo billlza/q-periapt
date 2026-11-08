@@ -14,28 +14,33 @@ The computational development constructs private-record and dependent-report sim
 
 The multiple-root entry theorem extends the initialization interface to a finite family of available salts and complete information strings. Its exact descriptor table preserves HMAC pad-state aliases and supports an online fresh target in a previously used class. Other generated roots remain available to the controller, and every target alias retrieves one retained schedule handle. The complete-query bound and first-message consequence appear in Section 5.7.
 
+The variable-length form now applies that comparison to the native SDK purpose-key interface. Complete information strings index the key table, while each returned owner keeps its own lifecycle. The source correspondence covers the fixed salt, exact field encoding, repeated derivation, export and close operations. The existing five-purpose dual-peer workload supplies a concrete finite instance; a separate application experiment gives the selected-key AEAD consequence.
+
 The proofs and independent reviews are retained by subject:
 
 - [Candidate-local accounting](artifacts/candidate-local/): the stopped source/record interface and original-game score accounting.
 - [Joint continuation](artifacts/joint-continuation/README.md): the root-to-message schedule and its shared-compression primitives.
 - [ContextBound connection](artifacts/contextbound-connection/README.md): complete encoding, component adapter and next-rekey source induction.
 - [Multiple-root entry](artifacts/multiple-root-entry/README.md): finite class-row comparison, adaptive target embedding and complete budgets.
+- [SDK purpose-key correspondence](artifacts/sdk-purpose-connection/README.md): variable-length entry comparison, exact native descriptors and separate owner states.
 
 [RESEARCH_HANDOFF.md](notes/RESEARCH_HANDOFF.md) records the established connections and the next focused research question. [The SkyBridge scope note](notes/skybridge-scope.md) explains the earlier transcript, admission and recovery-release mechanisms; its migration and platform results remain their independent research line.
 
 ## Edit, build and review
 
-Edit `main.tex` and the section modules, then run:
+Edit `main.tex` and the section modules. From the repository root, run:
 
 ```sh
-make -B check
-python3 artifacts/contextbound-connection/check_contextbound_adapter.py --output build/contextbound-check.json
-make source
+make -B -C paper/continuity check PYTHON="sh $PWD/artifact/python-run.sh"
+sh artifact/python-run.sh paper/continuity/artifacts/contextbound-connection/check_contextbound_adapter.py --output paper/continuity/build/contextbound-check.json
+make -C paper/continuity source PYTHON="sh $PWD/artifact/python-run.sh"
 ```
 
 The build expands the modules into **`joc-submission.tex`**, compiles that source and copies its PDF to `continuity.pdf`. `flatten_manifest.json` binds the generated source to its modules. `make check` verifies references, citations, overflow, author/contact metadata and source identities. `make source` produces `build/joc-source.zip` with the single-file entry and its dependencies. The exported package is also compiled in a clean directory and its extracted text compared with the reading copy.
 
 The [update workflow](notes/WORKFLOW.md) maintains stable manuscript names, complete proof records and a connected academic narrative. The manuscript CI compiles the actual PR head, runs the retained finite-record and ContextBound checks, and uploads the PDF, source package and verification receipts.
+
+CI and the repository commands above use the common isolated Python launcher. The Makefile supplies absolute script and output paths so that the launcher's repository-root working directory preserves the manuscript's build locations.
 
 ## Publisher format
 

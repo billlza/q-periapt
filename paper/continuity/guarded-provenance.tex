@@ -30,8 +30,8 @@ Containment is acyclic.  Record identities distinguish ciphertext objects;
 source identities distinguish original sampling operations.  Several
 records can contain the same source.  A rewrapped record has a new record
 identity and may have a new key, while retaining its source identity.
-Key identities are equivalence classes of equal actual keys, rather than
-names assigned independently by separate API objects.
+Key identities are equivalence classes of equal actual keys. Equal key bytes
+therefore have one identity across separate API objects.
 
 Let $\mathcal D\subseteq\mathcal K\times\mathcal K$ be fixed public key
 derivation edges.  An edge $(k,k')$ means that possession of $k$ permits

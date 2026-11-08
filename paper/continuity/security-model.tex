@@ -71,8 +71,8 @@ operation identifier is reused.
 
 The ideal source in this model draws independent tapes of the prescribed
 lengths.  Explicit entropy-disclosure queries reveal designated tapes.
-Independence is a distributional assumption about this source, rather than a
-consequence of a later API call.  The generation and encapsulation budgets
+Independence is a distributional assumption about the source at sampling.
+Later API calls preserve the sampled tapes. The generation and encapsulation budgets
 $G,C$ count original draws, including draws in attempts that subsequently
 fail.  Exact retries consume no new slot.  Independently sampled operations
 retain distinct origins even if some public outputs happen to coincide.
@@ -82,8 +82,9 @@ A record version $v$ has an immutable payload $X_v$ and semantic metadata
   \bigl(\mathsf{subject}(v),\mathsf{role}(v),
          \mathsf{epoch}(v),\mathsf{phase}(v)\bigr).
 \]
-The subject identifies the session whose state is represented, rather than
-the session that most recently wrote the enclosing journal.  A version can
+The subject identifies the session whose state is represented. A write to the
+enclosing journal preserves this subject, including a write by another session.
+A version can
 refer to several reservation origins and to roots or traffic state derived
 from earlier origins.  Preparing a version allocates its handle.  The event
 $\mathsf{Saved}(v)$ occurs when that version first enters the durable
@@ -330,8 +331,8 @@ references, and resealing evaluates the new recipe using those references.
 Each operation preserves the session-record handles and their save times.
 It follows by induction on the recipe constructors that
 $\mathsf{paths}(h)$ is the same in both machines.  A public hash or MAC
-constructor contributes its common output, rather than a spurious
-record-acquisition path.
+constructor contributes its common output and has an empty record-acquisition
+path set.
 
 On successful capture, output the cached object bytes in both experiments
 and append its immutable descriptor to the adversary archive.  For each
@@ -427,15 +428,14 @@ generation/encapsulation pair, with an adapter-computable association to the
 original slots.  In particular, it connects the generation public key, the
 encapsulation input, the authenticated response, and the target's subsequent
 key schedule.  This matching is a
-source/authentication obligation, rather than an additional eligibility
-filter: a failure of $\mathsf{Attr}$ can occur while
+source/authentication obligation: a failure of $\mathsf{Attr}$ can occur while
 $\mathsf{Eligible}_{s,e,c}$ holds and is charged in the computational
 accounting.
 
 The final line of~\eqref{eq:eligibility} concerns every saved version of session
 $s$, across its roles and epochs.  It uses acquisition
-$\mathcal C_T$, including protected bytes, rather than delayed readability
-$\mathcal L_T$.  Other epochs' entropy disclosures retain their ordinary
+$\mathcal C_T$, including protected bytes, at the time they are obtained.
+Readability $\mathcal L_T$ is evaluated separately. Other epochs' entropy disclosures retain their ordinary
 behavior.  Both peers' confirmation is not an additional send prerequisite.
 
 Define the unconditional centered advantage by
@@ -463,7 +463,7 @@ The computational accounting uses this latter convention.
 
 The adaptive version retains one application challenge and permits the
 candidate selector to choose its coordinates and reservation-event handles
-from the observed interaction, rather than fixing them at setup.  Eligibility
+adaptively from the observed interaction. Eligibility
 requires those coordinates to identify the challenge's accepted logical send;
 selection never transfers its test bit to another send.  Eligibility
 and the usable-pair attribution are evaluated on that experiment's complete
@@ -532,8 +532,9 @@ time alone does not falsify the final conjunct of~\eqref{eq:eligibility}.
 If instead $v$ was saved after $c$, a later write attributed to a sibling
 does not change its subject or make its capture eligible.  Likewise, a
 pre-cut generation reservation retained through a delayed receipt remains
-pre-cut when its KEM computation completes later.  Its reservation condition,
-rather than the slower endpoint's confirmed counter, determines that case.
+pre-cut when its KEM computation completes later. The reservation condition
+in~\eqref{eq:eligibility} determines that case, with the endpoints retaining
+their respective confirmed counters.
 
 \subsection{Connection to the cryptographic argument}
 

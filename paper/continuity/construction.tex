@@ -110,7 +110,7 @@ fresh encapsulation; it does not refresh the earlier generation reservation.}
 
 The resulting counterexample targets the proposed bound
 $\min(c_A,c_B)+1$: its value is one, yet epoch-two traffic is exposed.
-The protocol's asymmetric progress is legitimate. Recovery reasoning must
-therefore follow the retained inputs and their descendants rather than identify
-the two endpoints' confirmation counters.
+The protocol permits this asymmetric progress. Recovery reasoning therefore
+follows the retained inputs and their descendants, with each endpoint's
+confirmation counter retaining its own value.
 

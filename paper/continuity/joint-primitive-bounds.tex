@@ -8,8 +8,8 @@ Section~\ref{sec:joint-continuation}. They use the same idealized SHA-256
 compression oracle throughout. Each experiment begins with independent
 oracle, hidden uniform 256-bit input and auxiliary state. All
 oracle-dependent preparation is executed within the counted algorithm.
-The designated hidden value has only the stated interfaces, and neither
-it nor the private random tables are returned to the terminal test.
+The designated hidden value is accessed through its stated interfaces.
+It and the private random tables remain internal throughout terminal testing.
 Ordinary public queries may be quantum; private function queries are
 classical and exact repeats are cached.
 

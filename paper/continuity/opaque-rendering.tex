@@ -107,8 +107,8 @@ one tag the prefix length is fixed: unequal prefixes differ before the
 target image, while equal prefixes with different images differ at the
 target's nonce. The same image and prefix give the same deterministic MAC
 under the fixed key. Disjoint tags also separate images from intents.
-This argument uses neither distinct private block values nor an injectivity
-assumption about the encryption algorithm.
+This argument permits coincident private block values and ciphertext
+components; the explicit nonces distinguish the complete images.
 \end{proof}
 
 Let $I$ be the materialized ideal-commitment experiment, which retains real

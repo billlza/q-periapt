@@ -5,6 +5,9 @@ on:
     paths:
       - 'paper/continuity/**'
       - '.github/workflows/joc-manuscript.yml'
+      - 'artifact/python-run.sh'
+      - 'artifact/python-env.sh'
+      - 'artifact/python_bootstrap.py'
   workflow_dispatch:
 
 permissions:
@@ -36,22 +39,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y latexmk texlive-latex-extra texlive-fonts-recommended texlive-science lmodern poppler-utils
       - name: Compile and verify the manuscript
-        run: make -B -C paper/continuity check
+        run: make -B -C paper/continuity check PYTHON="sh $GITHUB_WORKSPACE/artifact/python-run.sh"
       - name: Exercise the retained finite-record model
-        working-directory: paper/continuity
         run: |
-          mkdir -p build/finite-model
-          cp artifacts/guarded-provenance/check_exposure.py artifacts/guarded-provenance/review_exposure.py build/finite-model/
-          cd build/finite-model
-          python3 --version > python-version.txt
-          python3 check_exposure.py --output results.json
-          python3 review_exposure.py
+          mkdir -p paper/continuity/build/finite-model
+          cp paper/continuity/artifacts/guarded-provenance/check_exposure.py paper/continuity/artifacts/guarded-provenance/review_exposure.py paper/continuity/build/finite-model/
+          sh artifact/python-run.sh -c 'import sys; print(sys.version)' > paper/continuity/build/finite-model/python-version.txt
+          sh artifact/python-run.sh paper/continuity/build/finite-model/check_exposure.py --output paper/continuity/build/finite-model/results.json
+          sh artifact/python-run.sh paper/continuity/build/finite-model/review_exposure.py
       - name: Check ContextBound encodings and adapter witnesses
-        working-directory: paper/continuity
-        run: python3 artifacts/contextbound-connection/check_contextbound_adapter.py --output build/contextbound-check.json
+        run: sh artifact/python-run.sh paper/continuity/artifacts/contextbound-connection/check_contextbound_adapter.py --output paper/continuity/build/contextbound-check.json
       - name: Package the single-file source
-        working-directory: paper/continuity
-        run: python3 export_submission.py --output build/joc-source.zip
+        run: sh artifact/python-run.sh paper/continuity/export_submission.py --output paper/continuity/build/joc-source.zip
       - name: Upload manuscript and source
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

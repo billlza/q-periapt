@@ -8,9 +8,9 @@
 A recovered root feeds confirmation, traffic derivation and the next epoch.
 We treat these uses jointly and then isolate a selected message key.
 The resulting continuation permits later contributions, successor roots and
-the next chain seed to be disclosed. The current root is an internal value:
-all outputs are regenerated in each hybrid, rather than fixed before a
-root replacement.
+the next chain seed to be disclosed. The current root is an internal value.
+Each hybrid generates all outputs using that hybrid's root and subsequent
+key schedule.
 
 \paragraph{Primitive experiments.}
 Let $F(k,m)$ be HMAC-SHA256 over one public quantum compression oracle

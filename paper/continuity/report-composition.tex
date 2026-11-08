@@ -152,7 +152,7 @@ For replay and validation, the selected row is called only on its original
 $m_i$; preserve each counted recomputation and compare supplied identifiers
 with its retained reply.  Copying, failure after a durable commit, and
 crash/resume use the same immutable handles and the actual reached storage
-state.  They neither redraw a key nor replace a transcript.  Public decisions
+state. Each report retains its original key and immutable transcript. Public decisions
 use available metadata and common-interface outputs.  Before an outward
 protected-key projection, the same ledger event
 $\mathsf{Bad}_{\rm rep}$ enters the common stopped state with application

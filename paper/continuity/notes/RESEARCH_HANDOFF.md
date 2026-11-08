@@ -41,11 +41,21 @@ A mark selects a descriptor before its first root evaluation. It may select a ne
 
 The [multiple-root artifact](../artifacts/multiple-root-entry/README.md) contains the integrated theorem, a complete constructive proof, a worked controller and a 25-point independent review. It distinguishes PRK allocation from target-root allocation and preserves numerical key coincidences through the shared oracle. This completes the finite multiple-root mathematical extension proposed after the next-rekey result.
 
+## Owned SDK purpose-key correspondence
+
+The concrete broader workload is now the SDK's `SharedSecret::derive_key` interface. A length-parameterized form of the finite entry comparison covers its exact information strings, including the suite, ContextBound profile, authenticated policy state, trust-root digest, purpose, protocol label, context and output size. The fixed 27-byte salt has the same HMAC padded key block as its 32-byte zero-extended representation.
+
+Complete information strings index one shared key table. Each accepted derivation creates a separate `DerivedKey` owner, so repeated descriptors preserve key bytes while close and export operations follow their own guards. Source closure, runtime closure and exported copies keep the source's actual lifecycle behavior. The proof uses a finite lifetime descriptor budget; Rust in-flight admission and FFI handle capacity retain their distinct operational meanings.
+
+The entry comparison permits all derived keys to be exported and establishes their joint pseudorandom separation while the parent contribution and Extract value remain within the KDF interface. The existing five-purpose dual-peer workload has five descriptors, 144-byte information strings and 145-byte row messages. Its conservative ordinary-query budgets are `B + 32` for the hidden-contribution column and `B + 2` for the hidden-PRK row. At full SDK limits the row length is 65,899 bytes and the compression length parameter is 1,031.
+
+A separate one-key application experiment marks a fresh descriptor before its first private evaluation and routes every target alias through one controlled AEAD interface. Its qualified score bound is `min(1, 2 Delta_sdk + 2 epsilon_AEAD)`. The complete-tuple ContextBound term composes when the stopped contribution family realizes the stated controller. The durable rekey driver retains its established 97-byte root-information profile.
+
+The [SDK correspondence artifact](../artifacts/sdk-purpose-connection/README.md) contains the full proof, native source map, independent review and retained Rust test outcomes. The completed current-source CI already passed the five relevant native tests; the manuscript update performs a separate source and mathematical review.
+
 ## Focused continuation
 
-The next research task is to select a concrete broader source workload and establish its correspondence to the finite controller. The first source analysis should trace complete root descriptors and target-handle ownership through existing owner, retry and fork call sites. It should then supply an online simulation for that workload or identify a specific additional operation that needs a new interface argument. This determines where Theorem 5.15 applies beyond the already established next-rekey profile.
-
-The current mathematical extension and the established next-rekey source theorem have their own completed proof scopes. Further source instantiation extends their application.
+The finite entry theorem now has two concrete uses: the established next-rekey continuation and the owned SDK purpose-key table. A useful next extension is a declared application that uses several purpose outputs together, such as directional traffic keys and confirmation keys. Its experiment must specify the actual confirmation transcript, verification responses, nonce policy and plaintext interface. The key-table comparison supplies the joint uniform-key entry; the remaining work is that application's authentication and message composition. This is an additional research result with its own interface and proof obligations.
 
 ## SkyBridge allocation
 

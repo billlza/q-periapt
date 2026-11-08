@@ -2,31 +2,31 @@
   "schema": "qperiapt-joc-single-source/1",
   "input_entry": "main.tex",
   "output": "joc-submission.tex",
-  "output_sha256": "ff86556ee982e54e32211769e5f9a58469652db28d63cda2fce3a974c166296f",
+  "output_sha256": "8ea18e09bd8cdcd41164542500008ad4f17fb9f31659e87c5f12884d908fde4e",
   "inputs": {
     "acquisition-nonadditivity.tex": {
       "sha256": "50cd83948e5e03329eacfbc380af9f7a99b63abab3cc6e3e75f0edf7f3dcd297",
       "bytes": 2821
     },
     "artifact-map.tex": {
-      "sha256": "c7d034e2c70b75d78abc42190e3f3ecf16a9d1024a137285e4361f1632016ac2",
-      "bytes": 15056
+      "sha256": "59eb54021e9155e888e7444152ff4506b15b732b56bb3652065e07052bffe71e",
+      "bytes": 16215
     },
     "candidate-local-accounting.tex": {
-      "sha256": "4a38c6bb00c70f2611c2395aec754c0af6b8231a8e3f94e027cf1a17b657865d",
-      "bytes": 8913
+      "sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "bytes": 8953
     },
     "common-virtual-accounting.tex": {
       "sha256": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
       "bytes": 4589
     },
     "computational-roadmap.tex": {
-      "sha256": "a341639293db0b659f281492c0a663754278be2447d17adc8dfbdc6dae044e03",
-      "bytes": 1643
+      "sha256": "655100520ef0a4e36e12a0f62645b7d142b2b52118f499909d5c3caacc643fbf",
+      "bytes": 1674
     },
     "construction.tex": {
-      "sha256": "0bc19554764a4029df2375722a20397dd5b45bb71d133ecbf5f49b017099a9f9",
-      "bytes": 5915
+      "sha256": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+      "bytes": 5913
     },
     "contextbound-connection.tex": {
       "sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
@@ -37,8 +37,8 @@
       "bytes": 935
     },
     "discussion.tex": {
-      "sha256": "058ff6bcd955475cb2c75327e7b677980f4fd38211e8fcfabc79214450a002bb",
-      "bytes": 4550
+      "sha256": "58915b1686b86f6ca6af30aef09ec86ccf9d43d48d62e86c7a1004177447da08",
+      "bytes": 5110
     },
     "established-results.tex": {
       "sha256": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
@@ -49,24 +49,24 @@
       "bytes": 8418
     },
     "guarded-provenance.tex": {
-      "sha256": "f7b36ef86bdd4733af0b882c9f192e52ad40ef041ae22046e63e1584e2c897ca",
-      "bytes": 8973
+      "sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+      "bytes": 8980
     },
     "introduction.tex": {
-      "sha256": "85251596494e2d364a2b920bfae242189985ed27f841ff48b47cb0e7719c00fc",
-      "bytes": 8274
+      "sha256": "6d57ce22ee96af32e13da370e8338cb6d7ccd9cad903174f13307027f7814922",
+      "bytes": 8505
     },
     "joint-continuation.tex": {
-      "sha256": "d6c980912918b309c33f4c9f8116d6835dd521be639d5c866b198496a9dd3bcb",
-      "bytes": 17988
+      "sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "bytes": 17987
     },
     "joint-primitive-bounds.tex": {
-      "sha256": "728694d237734b071496d355c13c359825aef219d918ed54810f97d2457e9dbd",
-      "bytes": 10654
+      "sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+      "bytes": 10663
     },
     "main.tex": {
-      "sha256": "034f7b8ea467dd89b1b8248bcaac18af4fc2e73f3f96d17044c3957078118e18",
-      "bytes": 4268
+      "sha256": "d8dcf5f78729cec3fbfcf3e6952fa7afbff55a3639579ffb502edc46b03deaa6",
+      "bytes": 4308
     },
     "multiple-root-entry.tex": {
       "sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
@@ -77,8 +77,8 @@
       "bytes": 5624
     },
     "opaque-rendering.tex": {
-      "sha256": "178f6ab0c486b053d9f8447ca09bce60ab5d5cb35bbc7a0ac881d2fb138f64fe",
-      "bytes": 11320
+      "sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "bytes": 11335
     },
     "primitive-inputs.tex": {
       "sha256": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
@@ -89,12 +89,16 @@
       "bytes": 6371
     },
     "report-composition.tex": {
-      "sha256": "3f1a5922e095d154433caf2e92673018796de4c629a0fa7a7bc16edfc2ab9186",
-      "bytes": 13062
+      "sha256": "b5c46a2c69bcb7d9dee8d460cdc55bf8ec8b691d612e8d33ccef1679408b45d3",
+      "bytes": 13071
+    },
+    "sdk-purpose-connection.tex": {
+      "sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+      "bytes": 9312
     },
     "security-model.tex": {
-      "sha256": "9d79088958d146971df8eaf9df983d6fabdfa033ce5de259d753f6d5f89cd0e6",
-      "bytes": 30597
+      "sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "bytes": 30624
     }
   },
   "figure": "figures/confirmation-cut.pdf",

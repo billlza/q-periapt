@@ -91,6 +91,10 @@ message allocation (Section~\ref{sec:contextbound-connection}). The finite
 multiple-root entry theorem extends the initialization to available salts and
 complete information strings, preserving exact aliases and a fresh target in
 a previously used class (Section~\ref{sec:multiple-root-entry}).
+Its variable-length form gives a source-backed application to the SDK's
+purpose-key interface: complete input aliases share a key value while each
+derived owner retains its own lifecycle
+(Section~\ref{sec:sdk-purpose-connection}).
 
 The same provenance condition supports symbolic message secrecy when the target's original reservations
 follow the compromise cut and the stated authentication, entropy and
