@@ -97,18 +97,11 @@ attribution. Every control signature and transcript hash in this trace is
 honest. This execution is already charged by
 $\eta_{\rm attr}^{\rm nat}$ in the general theorem.
 
-A source-resolved application can instead register $g$ and $a$ when their
-retained plans first reach actual private generation and encapsulation,
-before those computations return. Exact resumptions retain these original
-slots, and a reservation that fails before reaching computation has no
-executed-source designation. The source-association argument for this
-interface must relate each retained plan transition to its original slot.
-The signed-message encoding binds the signature purpose and entire body;
-the bodies bind the session, context, epoch, role and parent. Response and
-completion checks additionally bind the complete retained control wires
-through their framed transcript hashes. These checks supply the concrete
-bindings for a dedicated source-association and authentication reduction.
-Its signing
-interface must preserve reserved signing randomness, exact replays and the
-experiment's actual retained-object observations. Equation~\ref{eq:live-core-next-rekey}
-keeps the attribution term while that cryptographic interface is specified.
+Section~\ref{sec:executed-source-attribution} defines an executed-slot
+selector that registers $g,a$ before their first private KEM computations
+return. A retained-plan induction preserves those original slots, and the
+complete signed-body and wire bindings associate an accepted allocation
+with them. Its signature experiment retains original signing randomizers
+and exact resumptions. That selector receives the explicit signature/hash
+bound in~\eqref{eq:executed-attribution-cost}; the general metadata selector
+in~\eqref{eq:live-core-next-rekey} retains its original attribution term.

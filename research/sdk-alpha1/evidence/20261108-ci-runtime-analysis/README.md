@@ -45,6 +45,13 @@ setup and the original tests.
 
 ## Local validation
 
+The 116-test preflight recorded below belongs to the first CI repair, published
+as `4e4c1b6deac233600d0cabc617c013d1307abbe1`. Its original `CHECKS.json` is
+preserved. The subsequent Cargo/Clang executable-selection repairs are documented
+in `LICENSE_BOUNDARY.md` and `COMPILER_BOUNDARY.md`; their 118-test CodeQL
+preflight has separate complete streams and source hashes in
+`CODEQL_PREFLIGHT_CHECKS.json`.
+
 All 116 existing CodeQL preflight tests pass through the isolated repository
 Python launcher. The expanded real-child timeout test preserves both streams,
 records the timeout, and produces no successful analysis receipt. Running the

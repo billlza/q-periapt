@@ -43,29 +43,30 @@
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
 \abstract{Persistent implementations may reserve randomness before a cryptographic
 operation executes. Recovery after compromise therefore depends on the
-original sampling and acquisition history of that randomness across restart.
+sampling and acquisition history of that randomness across restart.
 We formalize this dependence through immutable reservation origins and an
 interface for acquiring, copying, rewrapping, and opening retained records.
-Alias normalization preserves the original operation. For fixed public key
+Alias normalization preserves original operations. For fixed public key
 derivations, an exact guarded-path characterization captures exposure through
-captured ciphertexts and disclosed keys. We construct simulations of private
-images and intents without selected reservation coins, and compose immutable
+acquired ciphertexts and disclosed keys. We construct private-image and
+intent simulations without selected reservation coins, and compose immutable
 authentication reports in reverse causal order when their transcripts contain
 earlier private report keys. Candidate-local accounting connects these
 interfaces before the final compromise cut is selected. A full-tuple quantum
 hash comparison links a uniform component secret to the recovered contribution.
-A reduction in the compression quantum random-oracle model then follows root
-extraction, confirmation, traffic derivation, and the selected first-message
-key, retaining real control and acknowledgement verification and successor-state
-disclosure. Its native connection covers the next rekey of an established
-session and a fresh marked message allocation. The initialization extends to
-finite descriptor families with adaptive fresh selection and exact aliases.
-Its variable-length form covers the SDK's purpose-key derivations and owner
-lifecycles. We instantiate the provenance
-condition in a hybrid post-quantum messaging protocol and establish multi-epoch
-symbolic message secrecy with inherited roots and asynchronous confirmation.
+A compression quantum random-oracle reduction follows root extraction,
+confirmation, traffic derivation, and a selected first-message key, retaining
+real control and acknowledgement verification and successor-state disclosure.
+Its native instance covers the next rekey of an established session and a
+fresh marked message allocation. An executed-slot selector bounds
+source-association errors through a signature experiment retaining original
+signing randomizers. Finite descriptor families extend initialization to
+adaptive fresh selection and exact aliases; a variable-length form covers
+SDK purpose-key derivations and separate owner lifecycles. A hybrid
+post-quantum messaging protocol supplies multi-epoch symbolic message secrecy
+with inherited roots and asynchronous confirmation.
 Native executions reconstruct traffic from pre-restart reservations and
-demonstrate the effect of aggregate rewriting and delayed receipts. Finite-model
+demonstrate aggregate rewriting and delayed receipts. Finite-model
 checks and executable corpora validate the exposure semantics.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
@@ -164,7 +165,11 @@ message allocation (Section~\ref{sec:contextbound-connection}). The live-core
 instantiation makes its record cost explicit
 (Corollary~\ref{cor:live-core-next-rekey}). The same joint key table yields
 an authentication bound for accepted confirmation cores and the selected
-first message (Proposition~\ref{prop:confirmation-message-auth}). The finite
+first message (Proposition~\ref{prop:confirmation-message-auth}). The
+source-association result records existing reservation slots at their first private
+computation and connects accepted allocations through a signature experiment
+that preserves signing reservations
+(Proposition~\ref{prop:executed-source-attribution}). The finite
 multiple-root entry theorem extends the initialization to available salts and
 complete information strings, preserving exact aliases and a fresh target in
 a previously used class (Section~\ref{sec:multiple-root-entry}).
@@ -254,6 +259,18 @@ illustrate the interaction: an operation resumes with its original inputs,
 and those inputs can also determine the adversary's later derivation. The
 guarded normalization theorem expresses that relation for the stated
 encrypted-record fragment.
+
+\paragraph{Signing-randomness leakage.}
+Damm et al. recover ML-DSA secret-key material from noisy bit leakage of
+the internal masking vector $y$ \cite{damm2026}. The retained signing
+record studied here contains the external 32-byte randomizer
+\texttt{rnd}. FIPS~204 derives $y$ through a secret-key-dependent seed
+from the key seed, \texttt{rnd} and the message representative
+\cite[Algorithm~7]{fips204}. These are distinct observation interfaces.
+Section~\ref{sec:executed-source-attribution} specifies the corresponding
+reservation-aware signature experiment and uses it to associate an accepted
+rekey with its original KEM calls. Its generic separation identifies why
+the coin-return interface must appear in the signature assumption.
 
 \paragraph{Session handling and state loss.}
 Cremers, Jacomme, and Naska analyze how the session-handling layer determines
@@ -2746,21 +2763,14 @@ attribution. Every control signature and transcript hash in this trace is
 honest. This execution is already charged by
 $\eta_{\rm attr}^{\rm nat}$ in the general theorem.
 
-A source-resolved application can instead register $g$ and $a$ when their
-retained plans first reach actual private generation and encapsulation,
-before those computations return. Exact resumptions retain these original
-slots, and a reservation that fails before reaching computation has no
-executed-source designation. The source-association argument for this
-interface must relate each retained plan transition to its original slot.
-The signed-message encoding binds the signature purpose and entire body;
-the bodies bind the session, context, epoch, role and parent. Response and
-completion checks additionally bind the complete retained control wires
-through their framed transcript hashes. These checks supply the concrete
-bindings for a dedicated source-association and authentication reduction.
-Its signing
-interface must preserve reserved signing randomness, exact replays and the
-experiment's actual retained-object observations. Equation~\ref{eq:live-core-next-rekey}
-keeps the attribution term while that cryptographic interface is specified.
+Section~\ref{sec:executed-source-attribution} defines an executed-slot
+selector that registers $g,a$ before their first private KEM computations
+return. A retained-plan induction preserves those original slots, and the
+complete signed-body and wire bindings associate an accepted allocation
+with them. Its signature experiment retains original signing randomizers
+and exact resumptions. That selector receives the explicit signature/hash
+bound in~\eqref{eq:executed-attribution-cost}; the general metadata selector
+in~\eqref{eq:live-core-next-rekey} retains its original attribution term.
 % END SECTION SOURCE: live-core-instantiation.tex
 % BEGIN SECTION SOURCE: confirmation-traffic.tex
 \subsection{Confirmation and first-message authentication}
@@ -2957,6 +2967,246 @@ The component costs $a_j^+,a_j^-$ in the confidentiality theorem are the
 specified signed-score event distinguishers. This keeps the accounting
 of a new authentication event explicit.
 % END SECTION SOURCE: confirmation-traffic.tex
+% BEGIN SECTION SOURCE: source-attribution.tex
+\subsection{Executed sources and signing reservations}
+\label{sec:executed-source-attribution}
+
+The attribution question can be resolved for an independently specified
+source selector. Use the established-session controller with one
+authoritative history per endpoint for the selected session. Its key is
+the actual signer, session and epoch, including the admitted context and
+control parent. Passive copies, exact pending-target reconciliation and
+reopening preserve that history. This premise is substantive: the journal
+identity enters an operation scope but is absent from the signed control
+prefix, so two independently active journals with identical session
+coordinates would require an additional ownership rule.
+
+For each local epoch, register its original generation or encapsulation
+slot immediately before the first actual private KEM computation. The
+registers $\mathsf{ExecG}$ and $\mathsf{ExecA}$ contain the existing
+reservation indices in $[G]$ and $[C]$; the sampling events and their cut
+tests are unchanged. Exact computation retries retrieve the register.
+The \emph{executed-slot selector} chooses the logical challenge send and
+cut as before, then uses these two registered handles. A missing register
+fails the existing reservation-event test. Registration reads retained
+plan identity and public bindings, independently of future acceptance.
+
+\begin{lemma}[Stability of executed source slots]
+\label{lem:executed-slot-stability}
+Each authoritative local epoch has at most one executed generation origin
+and one executed encapsulation origin. Failed later writes, process loss
+and exact resumptions preserve these origins and their complete bindings.
+\end{lemma}
+\begin{proof}
+Generation follows successful retention of \texttt{Plan::Key};
+encapsulation follows successful retention of the exact offer and
+\texttt{Stage::Encapsulation}. A first-retention error exits before the
+KEM call. If its target became durable, recovery obtains that token; if
+no target became durable, the unused reservation can be followed by a
+new draw. Once a KEM call is reached, its original token is already
+authoritative. Subsequent phases retain that token or its result and
+root. A failed phase update recovers an earlier phase with the same
+source. The responder also rejects a different complete offer while its
+plan exists. Completion clears the plan while advancing the epoch;
+terminal retirement ends the session. Induction over these transitions
+establishes both invariants without requiring distinct public-key or
+ciphertext bytes.
+\end{proof}
+
+An honest signing ledger records the actual key, purpose, complete body
+and originating retained plan at the first private signing invocation,
+before any subsequent write or release. The signed string is
+\[
+ M=\mathit{signatureContext}\Vert\mathit{purpose}_{1}
+       \Vert\operatorname{BE32}(|B|)\Vert B.
+\]
+The ledger includes every honest invocation under the actual key across
+public purposes and exact owner aliases. Absence from this actual-key
+ledger implies absence from its projected owner-index query ledger.
+Let $\mathsf{Bad}_{\rm sig}^{0}$ be a successful target-key verification
+of a string absent from this ledger, before the first target signing-key
+or signer-file disclosure. An alternative valid signature of an issued
+body is an issued-message alias. Let $\mathsf{Bad}_H$ be a collision
+between distinct classical framed SHA3 inputs used by the association
+checks. Write $\chi_H(Q_H)$ for the complete-query collision bound from
+Section~\ref{sec:confirmation-traffic}, counting preparation, honest
+computation and witness extraction.
+
+\begin{proposition}[Source association for the executed-slot selector]
+\label{prop:executed-source-attribution}
+For the controller above and the unchanged recovery eligibility $E$,
+usable source association $A$ satisfies
+\[
+ E\land\neg A\ \Longrightarrow\
+       \mathsf{Bad}_{\rm sig}^{0}\lor\mathsf{Bad}_H.
+\]
+If $\varepsilon_{\rm sig}$ bounds the fresh-body event in the complete
+signing execution stopped before returning a target key or signer-file
+capture, then
+\begin{equation}
+ \eta_{\rm attr}^{\rm exec}
+ \le\Delta_{\rm attr}
+ :=\min\{1,\varepsilon_{\rm sig}+\chi_H(Q_H)\}.
+ \label{eq:executed-attribution-cost}
+\end{equation}
+\end{proposition}
+\begin{proof}
+Eligibility excludes both target-identity disclosures throughout the
+execution. A comparison stopped immediately before the first such
+return has the same prefix, including the adversary's quantum-state
+transformation. Retaining whether a fresh-body verification has already
+succeeded gives exactly the event $\mathsf{Bad}_{\rm sig}^{0}$.
+
+Consider a first proposer traffic installation before either bad event.
+Its retained offer $O$ and regenerated private owner carry the unique
+registered generation $g$. A verified response body has an honest
+signing invocation. Its complete context, session, epoch, role and parent
+locate the responder's same local epoch, hence its unique encapsulation
+$a$. The checked offer-wire digest equals the digest of the offer
+retained by $a$. Collision freedom for these two actual framed inputs
+makes the offered wires equal. The response therefore carries $a$'s
+ciphertext on $g$'s public key with the exact KEM context used by the
+proposer. Native regeneration checks the public key against the saved
+offer before decapsulation and root confirmation. Source attribution
+identifies these original calls and bindings; their component-output
+correctness keeps its separate $\delta_j$ term.
+
+A different valid outer response signature can preserve the same body.
+It keeps the source pair and root inputs, while the presented complete
+response supplies its actual traffic information and final-flight
+binding. The joint schedule already retains these information aliases.
+
+A responder installs traffic after checking a final against both its
+saved offer and ready response. The final's honest signing invocation
+comes from a proposer transition of the preceding kind. Its two checked
+wire digests give the same complete offer and response in the absence
+of $\mathsf{Bad}_H$, and hence the same $g,a$. Receipt acceptance makes
+no additional root allocation. Cached returns and reopened plans retain
+their earlier source association by
+Lemma~\ref{lem:executed-slot-stability}. All association tests use available
+ledger identities and public strings, so the component adapter can
+evaluate them with an unknown selected tape. This proves the implication;
+the probability bound follows by a union bound.
+\end{proof}
+
+The failed-first-retention trace in
+Section~\ref{sec:live-core-instantiation} keeps its original two draws.
+Its executed generation register contains $g_2$ because $g_1$ never
+reaches computation. Thus the new selector removes that mismatch while
+preserving the general metadata-selector experiment and its residual.
+
+\paragraph{The signing-coin interface.}
+Fix a signature scheme whose internal signing procedure is deterministic
+given key, message and randomizer. A reservation-aware fresh-message
+experiment provides classical Reserve, Open, Execute and Verify calls.
+Reserve samples the original randomizer and binds key, operation, purpose
+and complete body. Open returns that binding and randomizer at any time.
+Execute uses the original tuple, records the message at its first private
+computation and caches the exact signature; retries reuse it. Verify wins
+on a valid message absent from the corresponding signing-query ledger.
+The controlled native calls use their retained original tuples, including
+the proposer's recomputed-body equality check; they expose no arbitrary
+tuple-retarget operation through the hashed reservation binding.
+
+The owner interface begins with provisioned keys and supplies public keys,
+public identity and lifecycle metadata, signing reservations and signatures.
+It stops before a target-key or signer-file return and supplies no earlier
+byte-dependent observation of that secret owner file. This keeps the
+owner's serialized key seed outside the simulation, while every permitted
+signing-reservation record is represented exactly. Additional owner-file
+observations require their own correspondence cost.
+
+For $U$ independently generated honest signing owners, use the usual
+per-owner-index message ledgers. Reopening or reusing an owner preserves
+its index. Accidental public-key coincidences remain in the distribution,
+and the native admission checks are performed normally. All query and
+time bounds cover the complete wrapper. The native pair reserves only
+ML-DSA's 32-byte randomizer; its P-256 component uses deterministic
+RFC~6979 signing and low-$s$ canonicalization
+\cite{rfc6979,fips204}. The pinned implementation routes
+\texttt{try\_sign} to RFC~6979 with empty additional data
+\cite{rustcryptoEcdsa017}; the ordinary
+P-256 game below uses exactly this native signing distribution.
+
+\begin{proposition}[Signature component adapters with retained randomizers]
+\label{prop:reservation-signature-components}
+For this owner interface, the native pair's reservation-aware fresh-message
+success probability satisfies
+\[
+ \varepsilon_{\rm pair,res}
+ \le\varepsilon_{\rm MLDSA,res}^{\rm mu}.
+\]
+For classical adversaries it also satisfies
+\[
+ \varepsilon_{\rm pair,res}
+ \le\varepsilon_{\rm P256,EUF}^{\rm mu}
+ \le\min\{1,U\varepsilon_{\rm P256,EUF}^{\rm su}\},
+\]
+with the complete simulation time and at most the original Execute-call
+budget of signing queries in the single-user reduction.
+\end{proposition}
+\begin{proof}
+For the first inequality generate the P-256 keys locally and route each
+ML-DSA reservation and execution to its reservation-aware challenger.
+Privately Open each original reservation before materializing its record,
+counting these calls, and disclose the known randomizer through the
+native observation interface when requested. Fixed-context ML-DSA
+signatures come from the challenger; deterministic P-256 signatures and
+canonicalization are local. A fresh accepted pair projects to a fresh
+ML-DSA message forgery.
+
+For the second inequality generate ML-DSA keys and every reserved
+randomizer locally. Obtain the P-256 component from the native
+deterministic signing challenger at first private computation, and cache
+the pair by original reservation. All reservation records and openings
+use known bytes. A repeated body with new randomness can have a new
+ML-DSA signature while its deterministic component repeats. A fresh
+accepted pair yields a P-256 forgery on the same unqueried message.
+Both simulations are exact. Guessing one of the $U$ owner indices gives
+the displayed single-user bound; other owners are simulated locally.
+\end{proof}
+
+FIPS~204, Algorithm~7, derives internal masking randomness from a secret
+key seed, the external randomizer and the message representative
+\cite{fips204}. The reservation-aware ML-DSA advantage specifies the
+post-quantum assumption used here. The ordinary P-256 inequality gives
+the classical instantiation. A simple separation explains why the
+reserved-coin observation belongs in the signature experiment.
+
+\begin{proposition}[A separation induced by signing-coin disclosure]
+\label{prop:signature-coin-separation}
+Let $\Sigma_0$ be a deterministic EUF-CMA signature scheme whose secret
+key encoding $s$ has fixed length $L$. Define
+\[
+ \operatorname{Sign}_{+}(s,M;r)
+   =\bigl(\operatorname{Sign}_0(s,M),r\oplus s\bigr),
+ \qquad r\leftarrow\{0,1\}^{L},
+\]
+and verify the first component and the appendix's fixed length.
+Its ordinary fresh-message game has exact transcript-preserving
+reductions to and from that of $\Sigma_0$, with their simulation time counted.
+One opened signing reservation and its signature reveal $s$.
+\end{proposition}
+\begin{proof}
+For every fixed secret and signing transcript, the appendix of each
+fresh call is independent uniform. An ordinary reduction simulates it
+with fresh uniform bytes and projects a fresh forgery to $\Sigma_0$;
+conversely a base forger ignores the appendices. In the reservation
+experiment, XOR of the original randomizer and its appendix recovers
+$s$, enabling a fresh signature with the base scheme's correctness
+probability.
+\end{proof}
+
+This generic witness distinguishes the experiments; its signing
+construction is separate from the native ML-DSA algorithm. For the
+executed-slot controller with the declared owner interface,
+\eqref{eq:executed-attribution-cost} replaces the attribution residual
+in Corollary~\ref{cor:live-core-next-rekey}, using the appropriate component
+advantage from Proposition~\ref{prop:reservation-signature-components}.
+The record, KEM-correctness and joint-continuation terms retain their
+existing positions. The source map, full proof and finite fault/alias
+checks are recorded in Appendix~\ref{app:source-attribution}.
+% END SECTION SOURCE: source-attribution.tex
 
 % BEGIN SECTION SOURCE: multiple-root-entry.tex
 % Finite multiple-root entry. Uses the existing joint-primitive bounds.
@@ -3618,8 +3868,13 @@ class, the effective hash tuple, and the root-use descriptor. The next-rekey
 source profile fixes that descriptor, and the message continuation selects a
 fresh allocation. Corollary~\ref{cor:live-core-next-rekey} substitutes the
 explicit image/intent comparison cost for the authoritative live core.
-Its source-selection analysis identifies the precise authentication interface
-needed to relate an accepted exchange to its original reservation pair.
+The executed-slot selector then associates accepted allocations with the
+original reservation pair, up to the signature and framed-hash terms in
+Proposition~\ref{prop:executed-source-attribution}. Its signing adapter
+preserves original randomizers, exact retries and the declared owner
+observations. The post-quantum branch uses the specified reservation-aware
+ML-DSA game; the native deterministic P-256 component supplies a classical
+ordinary-signature instantiation.
 
 Proposition~\ref{prop:confirmation-message-auth} follows the same joint
 key table through the native confirmation and first-message interfaces.
@@ -3925,15 +4180,13 @@ source identity and static assertions.
 \paragraph{Relation to earlier project material.}
 Earlier project work on SkyBridge Compass studies policy-governed
 authenticated establishment, complete-transcript binding, and a control-only
-recovery phase before application traffic.\footnote{Unpublished project
-manuscript, source
-\href{https://github.com/billlza/Skybridge-Compass/blob/d49d2a9ed4e1fb00905adeb06c02989562e375af/Docs/TDSC-2026-01-0318_IEEE_Paper_SkyBridge_Compass_patched.tex}{revision \texttt{d49d2a9}}.}
-This earlier work supplies the operation-admission and traffic-release
-perspective. The present paper follows the secrecy of the admitted operation's
-original randomness through persistence and acquisition, and develops the
-associated record and report simulations. The artifact's \path{notes/skybridge-scope.md}
-records the exact source versions and the allocation of material between
-these research questions.
+recovery phase before application traffic
+(\href{https://github.com/billlza/Skybridge-Compass/blob/d49d2a9ed4e1fb00905adeb06c02989562e375af/Docs/TDSC-2026-01-0318_IEEE_Paper_SkyBridge_Compass_patched.tex}{unpublished manuscript, revision \texttt{d49d2a9}}).
+It supplies the operation-admission and traffic-release perspective. Here we
+follow the admitted operation's original randomness through persistence and
+acquisition, and develop record and report simulations. The artifact's
+\path{notes/skybridge-scope.md} fixes the source versions and allocates material
+between these research questions.
 
 
 \subsection{Finite multiple-root entry}
@@ -3971,6 +4224,32 @@ outcomes, covering the RFC~5869 vector, domain separation, dual-peer
 derivation, runtime closure, input admission and trust-root binding.
 The source correspondence and mathematical review record the additional
 manuscript claims.
+
+\subsection{Executed sources and signing-reservation interfaces}
+\label{app:source-attribution}
+
+Section~\ref{sec:executed-source-attribution} has its complete proof,
+source identities and independent mathematical review in
+\path{artifacts/source-attribution/}. The directly inspected native
+revision is \texttt{72acaaccde1ca9ea27e5af022da5fbce932ed4e9}; five of its
+seven inspected files additionally match the earlier native-pin receipt.
+The source map records the exact reservation/persistence/computation order,
+complete-wire bindings, original-signing-randomizer encoding and the
+separate signer-seed-file interface.
+
+The executable model explores 34 recovered states for generation and
+34 for encapsulation, with up to three original draws and two epochs.
+Its 486 call-boundary edges include failed writes with absent or retained
+targets, private-computation failure, process loss, release denial and
+completion. Six deliberate source-tracking mutations have explicit
+counterexamples. An independent expected matrix covers offer, response
+and final signature aliases; the response alias permits proposer traffic
+allocation with unchanged sources and changed complete traffic information.
+The signature checks preserve original randomizers and private-query
+ledgers across unpublished results, and enumerate the generic separation's
+64 small key/randomizer assignments. These are finite interface checks
+and exact source audits. Their receipts keep the native Rust and
+mechanized-proof execution status separate.
 % END SECTION SOURCE: artifact-map.tex
 % BEGIN SECTION SOURCE: primitive-inputs.tex
 \section{Primitive inputs to the record and report bounds}

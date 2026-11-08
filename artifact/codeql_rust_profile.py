@@ -215,6 +215,9 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
     if profile == "wasm":
         clang = shutil.which("clang")
         sdk.require(clang is not None, "WASM analysis requires clang")
+        # Keep the selected launcher identity across repository and Cargo cwd
+        # changes without dereferencing a multicall/compiler symlink.
+        clang = str(Path(clang).absolute())
         targets = run.command("clang-targets", [clang, "--print-targets"])
         sdk.require(b"wasm32" in targets, "clang does not support the WASM target")
         run.environment["CC_wasm32_unknown_unknown"] = clang

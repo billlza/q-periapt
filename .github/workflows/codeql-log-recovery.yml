@@ -1,0 +1,42 @@
+name: Retained CodeQL query-log recovery
+
+on:
+  push:
+    branches: [integration/sdk-020]
+    paths:
+      - .github/workflows/codeql-log-recovery.yml
+      - artifact/codeql_log_recovery.py
+      - artifact/test_codeql_log_recovery.py
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  recover:
+    name: Recover fixed WASM query logs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - name: Test archive admission, output bounds and credential isolation
+        timeout-minutes: 2
+        run: sh artifact/python-run.sh -m unittest -v test_codeql_log_recovery
+      - name: Recover logs from the exact retained artifact
+        timeout-minutes: 22
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sh artifact/python-run.sh artifact/codeql_log_recovery.py \
+            --output "$RUNNER_TEMP/codeql-query-log-recovery"
+      - name: Retain recovered logs and recovery failures
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-wasm-retained-query-logs-13609897355
+          path: ${{ runner.temp }}/codeql-query-log-recovery/evidence/**
+          if-no-files-found: error
+          retention-days: 14

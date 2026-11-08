@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import json
+import os
 import pathlib
 import tempfile
 import unittest
@@ -270,6 +272,48 @@ class ThirdPartyLicenseTests(unittest.TestCase):
                     self.root,
                     "x86_64-unknown-linux-gnu",
                 )
+
+    def _metadata_launcher(self, directory: pathlib.Path, name: str, selection: str) -> pathlib.Path:
+        directory.mkdir(parents=True, exist_ok=True)
+        if os.name == "nt":
+            launcher = directory / (name + ".cmd")
+            source = '@echo off\necho {"selected":"' + selection + '","program":"%~n0"}\n'
+        else:
+            launcher = directory / name
+            source = (
+                '#!/bin/sh\nprintf \'{"selected":"' + selection
+                + '","program":"%s"}\\n\' "${0##*/}"\n'
+            )
+        launcher.write_text(source, encoding="utf-8")
+        launcher.chmod(0o700)
+        return launcher
+
+    def test_cargo_metadata_keeps_relative_path_selection_across_cwd_change(self) -> None:
+        caller = pathlib.Path(self.temporary.name) / "caller"
+        self._metadata_launcher(caller / "bin", "cargo", "caller")
+        self._metadata_launcher(self.root / "bin", "cargo", "checkout")
+        with (
+            contextlib.chdir(caller),
+            mock.patch.dict(os.environ, {"PATH": "bin", "PATHEXT": ".CMD"}),
+        ):
+            observed = third_party_licenses._cargo_metadata(
+                self.root, "x86_64-unknown-linux-gnu"
+            )
+        self.assertEqual(observed, {"selected": "caller", "program": "cargo"})
+
+    def test_cargo_metadata_preserves_multicall_symlink_name(self) -> None:
+        caller = pathlib.Path(self.temporary.name) / "caller"
+        multicall = self._metadata_launcher(caller / "bin", "rustup", "caller")
+        cargo = multicall.with_name("cargo" + multicall.suffix)
+        cargo.symlink_to(multicall.name)
+        with (
+            contextlib.chdir(caller),
+            mock.patch.dict(os.environ, {"PATH": "bin", "PATHEXT": ".CMD"}),
+        ):
+            observed = third_party_licenses._cargo_metadata(
+                self.root, "x86_64-unknown-linux-gnu"
+            )
+        self.assertEqual(observed, {"selected": "caller", "program": "cargo"})
 
     def test_cargo_metadata_failure_never_discloses_stderr_or_credentials(self) -> None:
         private_registry = (

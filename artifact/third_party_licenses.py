@@ -114,6 +114,9 @@ def _cargo_metadata(root: pathlib.Path, target: str) -> dict[str, Any]:
     require(TARGET_RE.fullmatch(target) is not None, f"invalid Rust target triple: {target!r}")
     cargo = shutil.which("cargo", path=os.environ.get("PATH"))
     require(cargo is not None, "cargo is required to collect third-party licenses")
+    # which() can return a relative PATH entry. Bind it to the caller's
+    # directory before changing cwd, without resolving Cargo's rustup symlink.
+    cargo = str(pathlib.Path(cargo).absolute())
     try:
         process = subprocess.run(
             [

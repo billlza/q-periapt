@@ -24,6 +24,62 @@ def sarif(profile="native"):
 
 
 class RustProfileTests(unittest.TestCase):
+    def _check_clang_selection(self, *, symlink: bool) -> None:
+        class SetupComplete(Exception):
+            pass
+
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary).resolve()
+            caller, root, sysroot = (base / name for name in ("caller", "checkout", "sysroot"))
+            (sysroot / "lib/rustlib/src/rust/library").mkdir(parents=True)
+            for directory, selected in ((caller, "caller"), (root, "checkout")):
+                tools = directory / "bin"
+                tools.mkdir(parents=True)
+                launcher = tools / ("compiler" if symlink and directory == caller else "clang")
+                launcher.write_text('#!/bin/sh\nprintf \'wasm32 ' + selected + ' %s\\n\' "${0##*/}"\n')
+                launcher.chmod(0o700)
+                if launcher.name != "clang":
+                    (tools / "clang").symlink_to(launcher.name)
+            environment = dict(os.environ, PATH="bin")
+            run = ProfileRun(root, base / "run", Path(sys.executable), environment)
+            real_command = run.command
+
+            def command(label, argv, **kwargs):
+                if label == "codeql-version":
+                    return b"2.27.2\n"
+                if label == "rust-version":
+                    return b"rustc 1.98.1 (48a229cea 2026-09-01)\nhost: x86_64-unknown-linux-gnu\n"
+                if label == "rust-sysroot":
+                    return os.fsencode(sysroot)
+                self.assertEqual(label, "clang-targets")
+                return real_command(label, argv, **kwargs)
+
+            with (
+                contextlib.chdir(caller),
+                mock.patch.dict(os.environ, PATH="bin"),
+                mock.patch.object(profile_module.quality, "require_repository_target_absent"),
+                mock.patch.object(profile_module.quality, "require_clean_checkout"),
+                mock.patch.object(profile_module.quality, "tracked_rust_paths", return_value=[]),
+                mock.patch.object(run, "command", side_effect=command),
+                mock.patch.object(profile_module, "install_metadata_adapter", side_effect=SetupComplete),
+                self.assertRaises(SetupComplete),
+            ):
+                profile_module.prepare(run, "wasm", "a" * 40)
+            self.assertEqual((run.evidence / "clang-targets.stdout").read_bytes(), b"wasm32 caller clang\n")
+            selected = run.environment["CC_wasm32_unknown_unknown"]
+            self.assertEqual(selected, str(caller / "bin/clang"))
+            consumer = root / "nested-consumer"
+            consumer.mkdir()
+            self.assertEqual(real_command("clang-consumer", [selected, "--print-targets"], cwd=consumer),
+                             b"wasm32 caller clang\n")
+            self.assertFalse((run.evidence / "ANALYSIS.json").exists())
+
+    def test_clang_selection_survives_repository_and_consumer_cwd_changes(self) -> None:
+        self._check_clang_selection(symlink=False)
+
+    def test_clang_selection_preserves_multicall_symlink_name(self) -> None:
+        self._check_clang_selection(symlink=True)
+
     def test_extraction_inputs_survive_quality_failure_without_certifying_profile(self) -> None:
         for passed in (False, True):
             with self.subTest(passed=passed), tempfile.TemporaryDirectory() as temporary:

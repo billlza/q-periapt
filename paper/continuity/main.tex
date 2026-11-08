@@ -42,29 +42,30 @@
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
 \abstract{Persistent implementations may reserve randomness before a cryptographic
 operation executes. Recovery after compromise therefore depends on the
-original sampling and acquisition history of that randomness across restart.
+sampling and acquisition history of that randomness across restart.
 We formalize this dependence through immutable reservation origins and an
 interface for acquiring, copying, rewrapping, and opening retained records.
-Alias normalization preserves the original operation. For fixed public key
+Alias normalization preserves original operations. For fixed public key
 derivations, an exact guarded-path characterization captures exposure through
-captured ciphertexts and disclosed keys. We construct simulations of private
-images and intents without selected reservation coins, and compose immutable
+acquired ciphertexts and disclosed keys. We construct private-image and
+intent simulations without selected reservation coins, and compose immutable
 authentication reports in reverse causal order when their transcripts contain
 earlier private report keys. Candidate-local accounting connects these
 interfaces before the final compromise cut is selected. A full-tuple quantum
 hash comparison links a uniform component secret to the recovered contribution.
-A reduction in the compression quantum random-oracle model then follows root
-extraction, confirmation, traffic derivation, and the selected first-message
-key, retaining real control and acknowledgement verification and successor-state
-disclosure. Its native connection covers the next rekey of an established
-session and a fresh marked message allocation. The initialization extends to
-finite descriptor families with adaptive fresh selection and exact aliases.
-Its variable-length form covers the SDK's purpose-key derivations and owner
-lifecycles. We instantiate the provenance
-condition in a hybrid post-quantum messaging protocol and establish multi-epoch
-symbolic message secrecy with inherited roots and asynchronous confirmation.
+A compression quantum random-oracle reduction follows root extraction,
+confirmation, traffic derivation, and a selected first-message key, retaining
+real control and acknowledgement verification and successor-state disclosure.
+Its native instance covers the next rekey of an established session and a
+fresh marked message allocation. An executed-slot selector bounds
+source-association errors through a signature experiment retaining original
+signing randomizers. Finite descriptor families extend initialization to
+adaptive fresh selection and exact aliases; a variable-length form covers
+SDK purpose-key derivations and separate owner lifecycles. A hybrid
+post-quantum messaging protocol supplies multi-epoch symbolic message secrecy
+with inherited roots and asynchronous confirmation.
 Native executions reconstruct traffic from pre-restart reservations and
-demonstrate the effect of aggregate rewriting and delayed receipts. Finite-model
+demonstrate aggregate rewriting and delayed receipts. Finite-model
 checks and executable corpora validate the exposure semantics.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle

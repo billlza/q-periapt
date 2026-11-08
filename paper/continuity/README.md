@@ -12,7 +12,9 @@ The paper models original randomness reservations and the acquisition of their p
 
 The computational development constructs private-record and dependent-report simulations, connects them through candidate-local accounting, and carries a recovered contribution through root initialization, confirmation, traffic derivation and a selected first message. The complete ContextBound tuple comparison and original-operation adapter connect the actual ML-KEM component game to this continuation. The next-rekey source induction supplies one concrete native instance.
 
-The live-core instantiation supplies the explicit native image/intent comparison cost and its complete admitted observation interface. The same joint key table also supports a confirmation and first-message authentication bound, with private origin ledgers, classical verification and quantum public-oracle queries. The general source-attribution residual remains explicit; its selector counterexample identifies the interface required for a stronger source-resolved result.
+The live-core instantiation supplies the explicit native image/intent comparison cost and its complete admitted observation interface. The same joint key table also supports a confirmation and first-message authentication bound, with private origin ledgers, classical verification and quantum public-oracle queries. An executed-slot selector now registers original KEM sources before their first computations return. Its retained-plan induction and complete signed-transcript checks bound source-association failure by fresh-body signature and hash-collision events. The general metadata selector keeps its original residual and failed-reservation counterexample.
+
+The signing connection preserves original randomizers, exact replay and the declared signing-owner observation interface. It has an exact classical reduction through the native deterministic RFC 6979 P-256 component and a post-quantum branch stated in the reservation-aware ML-DSA game. A generic separation explains the additional coin-opening interface. The source-map and finite fault/alias checks accompany the independent proof review.
 
 The multiple-root entry theorem extends the initialization interface to a finite family of available salts and complete information strings. Its exact descriptor table preserves HMAC pad-state aliases and supports an online fresh target in a previously used class. Other generated roots remain available to the controller, and every target alias retrieves one retained schedule handle. The complete-query bound and first-message consequence appear together in the finite multiple-root entry section.
 
@@ -24,6 +26,7 @@ The proofs and independent reviews are retained by subject:
 - [Joint continuation](artifacts/joint-continuation/README.md): the root-to-message schedule and its shared-compression primitives.
 - [ContextBound connection](artifacts/contextbound-connection/README.md): complete encoding, component adapter and next-rekey source induction.
 - [Live-core and authentication connection](artifacts/confirmation-traffic/README.md): explicit record cost, source selection, accepted confirmation cores and first-message integrity.
+- [Executed-source attribution](artifacts/source-attribution/README.md): retained-plan source association, signature component adapters, original-randomizer observations and finite fault/alias checks.
 - [Multiple-root entry](artifacts/multiple-root-entry/README.md): finite class-row comparison, adaptive target embedding and complete budgets.
 - [SDK purpose-key correspondence](artifacts/sdk-purpose-connection/README.md): variable-length entry comparison, exact native descriptors and separate owner states.
 
@@ -36,8 +39,16 @@ Edit `main.tex` and the section modules. From the repository root, run:
 ```sh
 make -B -C paper/continuity check PYTHON="sh $PWD/artifact/python-run.sh"
 sh artifact/python-run.sh paper/continuity/artifacts/contextbound-connection/check_contextbound_adapter.py --output paper/continuity/build/contextbound-check.json
+sh artifact/python-run.sh paper/continuity/artifacts/source-attribution/check_source_attribution.py --finite-only --output paper/continuity/build/source-attribution-finite.json
 make -C paper/continuity source PYTHON="sh $PWD/artifact/python-run.sh"
 ```
+
+The source-attribution finite checks run from the manuscript checkout alone.
+The full source audit additionally reads the seven native files at checkpoint
+`72acaaccde1ca9ea27e5af022da5fbce932ed4e9` from a separate checkout supplied with
+`--repository`. The [artifact reproduction instructions](artifacts/source-attribution/README.md#reproduce-the-finite-and-source-checks)
+provide the exact sparse checkout and full command. Manuscript CI uses that
+pinned checkout and uploads both the check receipt and `native-source-commit.txt`.
 
 The build expands the modules into **`joc-submission.tex`**, compiles that source and copies its PDF to `continuity.pdf`. `flatten_manifest.json` binds the generated source to its modules. `make check` verifies references, citations, overflow, author/contact metadata and source identities. `make source` produces `build/joc-source.zip` with the single-file entry and its dependencies. The exported package is also compiled in a clean directory and its extracted text compared with the reading copy.
 
@@ -56,5 +67,7 @@ The current build statistics, PDF hash, visual review and independent source-exp
 Native source facts and retained protocol evidence are pinned to `228c944fc476e3e57d6c08063cacb19bca5b360e`, with inspected development checkpoint `1c68aa666db22d36ee136be1ec712545a9e74f03`. The retained live profile compares 24 files. The ContextBound audit separately compares 14 files and checks 12 static assertions; all inspected files match the two stated revisions.
 
 The finite-record model covers 5,360 assignments, 360 histories, 2,160 prefix checks and 17 independent expected cases, together with mutation and invalid-input controls. The ContextBound checker has 36 format and finite-adapter cases. Each receipt records its own execution and scope. New mathematical results have their complete proof and independent argument review; historical native, Tamarin and benchmark evidence retains its source and execution identity.
+
+The source-attribution supplement passes 24 self-contained checks and 44 checks including seven exact native-source identities. Its two fault models each explore 34 reachable recovered states, and all six deliberate source-tracking mutations yield counterexamples. These checks validate the finite model and recorded source interfaces; they execute neither Rust nor a formal verifier.
 
 `integration_record.json` binds the current local document and research checks. Prior integration records are archived in `artifacts/prior-integration/`. Remote CI outcomes are attached to the dedicated PR's actual head commit.

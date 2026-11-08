@@ -40,8 +40,13 @@ class, the effective hash tuple, and the root-use descriptor. The next-rekey
 source profile fixes that descriptor, and the message continuation selects a
 fresh allocation. Corollary~\ref{cor:live-core-next-rekey} substitutes the
 explicit image/intent comparison cost for the authoritative live core.
-Its source-selection analysis identifies the precise authentication interface
-needed to relate an accepted exchange to its original reservation pair.
+The executed-slot selector then associates accepted allocations with the
+original reservation pair, up to the signature and framed-hash terms in
+Proposition~\ref{prop:executed-source-attribution}. Its signing adapter
+preserves original randomizers, exact retries and the declared owner
+observations. The post-quantum branch uses the specified reservation-aware
+ML-DSA game; the native deterministic P-256 component supplies a classical
+ordinary-signature instantiation.
 
 Proposition~\ref{prop:confirmation-message-auth} follows the same joint
 key table through the native confirmation and first-message interfaces.
