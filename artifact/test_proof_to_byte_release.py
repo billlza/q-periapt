@@ -1533,9 +1533,16 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertNotIn("        if:", gate)
         uploads = extract_action_steps(publication, action.format(action="upload-sarif"))
         self.assertEqual(len(uploads), 3)
-        for step, target in zip(uploads, ("native", "wasm", "macos")):
+        # Native continues the established main-branch analysis category;
+        # the additional targets retain their separate publication identities.
+        expected_categories = (
+            ("native", "/language:rust"),
+            ("wasm", "/language:rust/target:wasm"),
+            ("macos", "/language:rust/target:macos"),
+        )
+        for step, (target, category) in zip(uploads, expected_categories):
             self.assertNotIn("        if:", step)
-            self.assertIn("category: /language:rust/target:" + target, step)
+            self.assertRegex(step, r"(?m)^\s+category: " + re.escape(category) + r"\s*$")
             self.assertIn("sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/" + target + ".sarif", step)
             self.assertIn("wait-for-processing: true", step)
             self.assertLess(publication.index(gate), publication.index(step))
@@ -1548,6 +1555,29 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertEqual(str(codeql_rust_quality.FIXED_CODEQL_DATABASE),
                          "/home/runner/work/_temp/qperiapt-codeql-database/rust")
         self.assertEqual(str(codeql_rust_quality.FIXED_RUNNER_TEMP), "/home/runner/work/_temp")
+
+    def test_rust_codeql_publication_rejects_wrong_target_categories(self) -> None:
+        source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
+        mutations = (
+            ("native category suffix", "/language:rust", "/language:rust/target:native"),
+            ("WASM aliases native", "/language:rust/target:wasm", "/language:rust"),
+            ("macOS aliases WASM", "/language:rust/target:macos", "/language:rust/target:wasm"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            workflow = pathlib.Path(temporary) / "codeql.yml"
+            for label, category, wrong_category in mutations:
+                with self.subTest(mutation=label):
+                    line = "          category: " + category + "\n"
+                    self.assertEqual(source.count(line), 1)
+                    workflow.write_text(
+                        source.replace(line, "          category: " + wrong_category + "\n", 1),
+                        encoding="utf-8",
+                    )
+                    with (
+                        mock.patch(__name__ + ".CODEQL_WORKFLOW", workflow),
+                        self.assertRaisesRegex(AssertionError, "Regex didn't match"),
+                    ):
+                        self.test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate()
 
     def test_rust_codeql_targets_and_upload_boundary_are_documented(self) -> None:
         guide = ARTIFACT_GUIDE.read_text(encoding="utf-8")

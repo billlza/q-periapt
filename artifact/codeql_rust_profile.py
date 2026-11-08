@@ -28,10 +28,11 @@ VERSION = "2.27.2"
 QUERY_VERSION = "0.1.44"
 COMPILER = "1.98.1"
 # The retained WASM database completed the full 39-query suite with more
-# evaluator memory outside the Java heap. This is specific to the WASM profile;
+# evaluator memory outside the Java heap. Current Linux native and WASM runs
+# both exhausted their five-hour bound in SummaryStats with the default split.
 # CodeQL resolves the remaining heap against each current database and the
-# unchanged 14,000-MB total request.
-WASM_OFF_HEAP_RAM_MB = 9329
+# unchanged 14,000-MB total request; macOS retains its separate hosted policy.
+LINUX_OFF_HEAP_RAM_MB = 9329
 WORKSPACE_LOCKFILES = (
     "Cargo.lock",
     "fuzz/Cargo.lock",
@@ -284,42 +285,43 @@ def validate_query_inventory(inventory: dict[str, str], expected: object) -> Non
                 "resolved query bytes differ from the pinned full suite")
 
 
-def wasm_query_memory(resolved: object) -> dict:
+def linux_query_memory(resolved: object, profile: str) -> dict:
+    sdk.require(profile in ("native", "wasm"), "memory policy requires a Linux analysis profile")
     sdk.require(isinstance(resolved, list) and len(resolved) == 2
                 and all(isinstance(argument, str) for argument in resolved),
-                "WASM evaluator memory resolution is malformed")
+                "Linux evaluator memory resolution is malformed")
     heap = re.fullmatch(r"-J-Xmx([1-9][0-9]*)M", resolved[0])
-    sdk.require(heap is not None and resolved[1] == f"--off-heap-ram={WASM_OFF_HEAP_RAM_MB}",
-                "WASM evaluator allocation differs from the selected policy")
+    sdk.require(heap is not None and resolved[1] == f"--off-heap-ram={LINUX_OFF_HEAP_RAM_MB}",
+                "Linux evaluator allocation differs from the selected policy")
     heap_mb = int(heap[1])
-    sdk.require(heap_mb + WASM_OFF_HEAP_RAM_MB <= 14000,
-                "WASM evaluator allocation exceeds its total budget")
-    return {"schema": 1, "profile": "wasm", "codeql_version": VERSION,
-            "requested_ram_mb": 14000, "off_heap_ram_mb": WASM_OFF_HEAP_RAM_MB,
-            "heap_mb": heap_mb, "remaining_budget_mb": 14000 - heap_mb - WASM_OFF_HEAP_RAM_MB,
+    sdk.require(heap_mb + LINUX_OFF_HEAP_RAM_MB <= 14000,
+                "Linux evaluator allocation exceeds its total budget")
+    return {"schema": 1, "profile": profile, "codeql_version": VERSION,
+            "requested_ram_mb": 14000, "off_heap_ram_mb": LINUX_OFF_HEAP_RAM_MB,
+            "heap_mb": heap_mb, "remaining_budget_mb": 14000 - heap_mb - LINUX_OFF_HEAP_RAM_MB,
             "resolved_arguments": resolved}
 
 
-def validate_wasm_query_memory(record: object) -> None:
+def validate_linux_query_memory(record: object, profile: str) -> None:
     sdk.require(isinstance(record, dict) and all(type(record.get(key)) is int for key in
                 ("schema", "requested_ram_mb", "off_heap_ram_mb", "heap_mb", "remaining_budget_mb")),
-                "WASM evaluator memory record is malformed")
-    sdk.require(record == wasm_query_memory(record.get("resolved_arguments")),
-                "WASM evaluator memory record differs from its resolved allocation")
+                "Linux evaluator memory record is malformed")
+    sdk.require(record == linux_query_memory(record.get("resolved_arguments"), profile),
+                "Linux evaluator memory record differs from its resolved allocation")
 
 
 def analysis_memory_arguments(run: ProfileRun, profile: str) -> list[str]:
     sdk.require(profile_host(profile) == run.configuration.platform,
                 "analysis memory profile belongs to a different host")
     arguments = [f"--ram={run.configuration.ram_mb}"]
-    if profile == "wasm":
+    if profile in ("native", "wasm"):
         sdk.require(run.configuration.ram_mb == 14000 and run.configuration.threads == 4,
-                    "WASM allocation requires its reviewed hosted budget")
-        arguments.append(f"--off-heap-ram={WASM_OFF_HEAP_RAM_MB}")
+                    "Linux allocation requires its reviewed hosted budget")
+        arguments.append(f"--off-heap-ram={LINUX_OFF_HEAP_RAM_MB}")
         resolved = parse_strict_json_bytes(run.command("resolve-analysis-ram", [
             str(run.codeql), "resolve", "ram", "--dataset=" + str(run.configuration.database / "db-rust"),
-            *arguments, "--format=json"]), label="WASM evaluator memory resolution")
-        sdk.write_json(run.evidence / "QUERY_MEMORY.json", wasm_query_memory(resolved))
+            *arguments, "--format=json"]), label="Linux evaluator memory resolution")
+        sdk.write_json(run.evidence / "QUERY_MEMORY.json", linux_query_memory(resolved, profile))
     return arguments
 
 
@@ -364,7 +366,7 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
         "query_result_sha256": results, "sarif_sha256": sdk.snapshot(sarif, maximum=64 * 1024**2).sha256,
         "codeql_version": VERSION, "query_pack": QUERY_VERSION, "upload_performed": False,
         **({"query_memory_sha256": sdk.snapshot(run.evidence / "QUERY_MEMORY.json").sha256}
-           if profile["profile"] == "wasm" else {}),
+           if profile["profile"] in ("native", "wasm") else {}),
     })
 
 

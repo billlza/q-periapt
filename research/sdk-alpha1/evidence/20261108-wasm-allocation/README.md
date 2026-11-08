@@ -1,7 +1,8 @@
-# WASM query allocation and Rust analysis category continuity
+# Linux query allocation and Rust analysis category continuity
 
-Recorded on 2026-11-08 against integration source
-`358b921ab3469ce49f166633fc9a762ff6ed7e3d`.
+Recorded on 2026-11-08. The current candidate builds on integration head
+`358b921ab3469ce49f166633fc9a762ff6ed7e3d`; each experiment below identifies
+its exact checked-out source or retained database separately.
 
 ## Completed retained-database evaluation
 
@@ -31,10 +32,12 @@ this observation supplies the candidate's complete evaluation result.
 
 ## Production candidate
 
-The WASM call keeps `codeql database analyze`, the pinned security-extended
-suite, `--ram=14000`, four threads, `--threat-model=local`, and the five-hour
-deadline. It adds **`--off-heap-ram=9329`** only for the WASM profile. Native
-Linux and Apple Silicon retain their existing memory arguments.
+The native Linux and WASM calls keep `codeql database analyze`, the pinned
+security-extended suite, `--ram=14000`, four threads, `--threat-model=local`,
+and the five-hour deadline. Both Linux profiles add
+**`--off-heap-ram=9329`**. Apple Silicon retains its existing 5,500-MB
+automatic allocation. The native Linux extension follows the two complete
+hosted timeout receipts described below.
 
 Before evaluation, the same pinned CLI runs `resolve ram` against the current
 `db-rust` dataset with these exact high-level memory options.
@@ -46,8 +49,8 @@ different from the diagnostic's explicit 3,072-MB heap. The adapter records
 that result directly.
 
 The completion record binds the memory receipt's SHA-256. The publication
-validator checks that binding, the fixed WASM native allocation, the typed
-receipt fields, and the total budget. Every previous full-query, extraction,
+validator checks that binding, the fixed Linux native allocation, the typed
+receipt fields, the expected profile, and the total budget. Every previous full-query, extraction,
 macro-coverage, source-identity and SARIF qualification check remains active.
 An invalid resolver result, missing full-summary BQRS, or changed memory
 receipt rejects completion/publication. Production acceptance follows the
@@ -130,8 +133,8 @@ The native Linux profile now continues **`/language:rust`**. WASM and macOS keep
 and strict SARIF validator use one profile-to-category function, and the
 workflow uploads each corresponding SARIF once. Explicit `profile`, `target`,
 compiler host, source and compiled-source digests remain bound in the existing
-profile evidence; the publication validator is byte-for-byte unchanged from
-the allocation patch. Full query, extraction and paired macro-coverage gates
+profile evidence. At the category-continuity revision, the publication
+validator was byte-for-byte unchanged from the initial allocation patch. Full query, extraction and paired macro-coverage gates
 continue to apply to all three profiles.
 
 GitHub's [analysis-category documentation](https://docs.github.com/en/code-security/reference/code-scanning/workflow-configuration-options#analysis-category)
@@ -141,7 +144,7 @@ generation, validation and upload together. The original failed check remains
 recorded in `CATEGORY_MIGRATION.json`; this change supplies the compatible
 identity for subsequent completed publication.
 
-The updated source passes **101 tests with zero failures, errors or skips** in
+The category-continuity source passed **101 tests with zero failures, errors or skips** in
 the same four regression modules. `CATEGORY_VALIDATION.json` binds all five
 relevant code/workflow files and the test output. The new controls verify
 category selection for every profile, reject other targets even after a
@@ -154,3 +157,63 @@ source review of these same bytes.
 The production patch and these receipts remain a candidate until the updated
 hosted workflow completes. The diagnostic branch and its running baseline
 keep their original immutable inputs.
+
+## Complete-workflow category regression
+
+The two full CI jobs on `4854acd800f51955de4a4b9a6dbb12ff1acf6247`
+each ran 3,494 tests and reported one failure: the repository-wide workflow
+wiring test still expected the superseded `/language:rust/target:native`
+upload category. `GLOBAL_CATEGORY_FAILURES.json` binds the exact jobs and
+their complete log digests.
+
+That test now uses an explicit category for each of the three profiles and
+matches the entire category line. In particular, accepting `/language:rust`
+cannot accidentally accept an added `/target:native` suffix. Three mutation
+controls exercise the full wiring gate with the native suffix restored,
+WASM aliased to native, and macOS aliased to WASM; each is rejected.
+`GLOBAL_CATEGORY_VALIDATION.json` records both passing tests and the three
+negative mutations. The production workflow and analysis/publication code
+are unchanged by this correction, and their previously recorded 101-test
+validation retains its original source identity.
+
+
+## Linux allocation extension after full hosted evaluation
+
+The original three-profile run
+[42507570881](https://github.com/billlza/q-periapt/actions/runs/42507570881)
+checked out PR merge commit `f99a1100a74a10cb649a6f2a5fc61430f1174436`
+from integration head `358b921ab3469ce49f166633fc9a762ff6ed7e3d`. Native
+Linux job `128813667918` and WASM job `128813667753` each completed 38 of
+39 queries and reached the 18,000-second boundary in the full
+`SummaryStats.ql` query. Both passed the active-target extraction quality
+gate, with zero extraction errors and warnings. Both used an observed
+5,668-MB Java heap and 6,733-MB off-heap allocation. Their final logs record
+repeated eviction of approximately 207–210 MiB cache arrays.
+
+`LINUX_HOSTED_TIMEOUTS.json` binds the final job observations, artifact
+digests, result census, memory arguments and log excerpts. Each of the 1,173
+source entries was compared against the actual merge commit, and all 39
+query identities matched the pinned manifest. This establishes the same
+full-summary timeout condition for both Linux profiles. The retained WASM
+database experiment above supplies the completed candidate observation on
+its separately identified input.
+
+The extension uses the same dataset-aware resolver and 9,329-MB off-heap
+policy for native Linux and WASM. Receipts carry their actual profile;
+publication rejects a native receipt substituted for WASM or the reverse.
+`LINUX_ALLOCATION_VALIDATION.json` records **104 passing tests**, zero
+failures, errors or skips, including the global category regression and
+three category mutation controls. `VALIDATION_SOURCES.json` binds all
+513 source/configuration files used by this validation, unchanged between
+the beginning and end of execution. The earlier 98-test, 101-test and
+two-test receipts remain records of their respective earlier revisions.
+
+`NATIVE_CLI_PROPAGATION.json` records an additional execution through the
+actual CodeQL 2.27.2 native high-level command on the one-file TRAP fixture.
+All 39 queries completed in 9.198 seconds; the observed child evaluator
+used heap 3,584 MB and off-heap 9,329 MB, matching `resolve ram`, and the
+SARIF automation id was `/language:rust/`. `executed_native_probe.py`
+retains the executed script. This is a parameter propagation check; the
+updated repository-scale runs provide the full-source completion result.
+The verbatim CLI child log uses the execution host's offset clock; the
+validation receipt records the actual UTC observation.

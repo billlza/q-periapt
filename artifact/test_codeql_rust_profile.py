@@ -41,71 +41,78 @@ class RustProfileTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unknown"):
             validate_sarif(sarif(), "unreviewed")
 
-    def test_wasm_memory_policy_uses_the_actual_dataset_and_preserves_the_total_request(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
-            resolution = ["-J-Xmx3356M", "--off-heap-ram=9329"]
-            with mock.patch.object(run, "command", return_value=json.dumps(resolution).encode()) as command:
-                arguments = profile_module.analysis_memory_arguments(run, "wasm")
-            self.assertEqual(arguments, ["--ram=14000", "--off-heap-ram=9329"])
-            self.assertEqual(command.call_args.args[0], "resolve-analysis-ram")
-            self.assertEqual(command.call_args.args[1], [
-                str(run.codeql), "resolve", "ram",
-                "--dataset=" + str(run.configuration.database / "db-rust"),
-                "--ram=14000", "--off-heap-ram=9329", "--format=json"])
-            receipt = json.loads((run.evidence / "QUERY_MEMORY.json").read_text())
-            self.assertEqual(receipt["heap_mb"], 3356)
-            self.assertEqual(receipt["resolved_arguments"], resolution)
-            profile_module.validate_wasm_query_memory(receipt)
-            self.assertFalse((run.evidence / "ANALYSIS.json").exists())
-
-    def test_native_and_macos_keep_their_existing_analysis_memory_policy(self) -> None:
-        for profile, host, expected in (("native", "linux", ["--ram=14000"]),
-                                        ("macos", "darwin", ["--ram=5500"])):
+    def test_linux_memory_policy_uses_the_actual_dataset_and_preserves_the_total_request(self) -> None:
+        for profile in ("native", "wasm"):
             with self.subTest(profile=profile), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
-                run = ProfileRun(root, root / "run", Path(sys.executable), {}, host=host)
-                with mock.patch.object(run, "command") as command:
-                    self.assertEqual(profile_module.analysis_memory_arguments(run, profile), expected)
-                command.assert_not_called()
-                self.assertFalse((run.evidence / "QUERY_MEMORY.json").exists())
+                run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+                resolution = ["-J-Xmx3356M", "--off-heap-ram=9329"]
+                with mock.patch.object(run, "command", return_value=json.dumps(resolution).encode()) as command:
+                    arguments = profile_module.analysis_memory_arguments(run, profile)
+                self.assertEqual(arguments, ["--ram=14000", "--off-heap-ram=9329"])
+                self.assertEqual(command.call_args.args[0], "resolve-analysis-ram")
+                self.assertEqual(command.call_args.args[1], [
+                    str(run.codeql), "resolve", "ram",
+                    "--dataset=" + str(run.configuration.database / "db-rust"),
+                    "--ram=14000", "--off-heap-ram=9329", "--format=json"])
+                receipt = json.loads((run.evidence / "QUERY_MEMORY.json").read_text())
+                self.assertEqual(receipt["profile"], profile)
+                self.assertEqual(receipt["heap_mb"], 3356)
+                self.assertEqual(receipt["resolved_arguments"], resolution)
+                profile_module.validate_linux_query_memory(receipt, profile)
+                self.assertFalse((run.evidence / "ANALYSIS.json").exists())
 
-    def test_wasm_memory_resolution_cannot_silently_use_default_or_invalid_allocation(self) -> None:
+    def test_macos_keeps_its_existing_analysis_memory_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), {}, host="darwin")
+            with mock.patch.object(run, "command") as command:
+                self.assertEqual(profile_module.analysis_memory_arguments(run, "macos"), ["--ram=5500"])
+            command.assert_not_called()
+            self.assertFalse((run.evidence / "QUERY_MEMORY.json").exists())
+
+    def test_linux_memory_resolution_cannot_silently_use_default_or_invalid_allocation(self) -> None:
         invalid = [None, {}, [], ["-J-Xmx3072M"], [True, "--off-heap-ram=9329"],
                    ["-J-Xmx5668M", "--off-heap-ram=6733"],
                    ["-J-Xmx4672M", "--off-heap-ram=9329"],
                    ["-J-Xmx0M", "--off-heap-ram=9329"],
                    ["-J-Xmx03072M", "--off-heap-ram=9329"],
                    ["-J-Xmx3072M", "--off-heap-ram=9329", "--threads=1"]]
-        for resolution in invalid:
-            with self.subTest(resolution=resolution), tempfile.TemporaryDirectory() as temporary:
+        for profile in ("native", "wasm"):
+            for resolution in invalid:
+                with self.subTest(profile=profile, resolution=resolution), tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary)
+                    run = ProfileRun(root, root / "run", Path(sys.executable), {})
+                    with mock.patch.object(run, "command", return_value=json.dumps(resolution).encode()), \
+                            self.assertRaises(ValueError):
+                        profile_module.analysis_memory_arguments(run, profile)
+                    self.assertFalse((run.evidence / "QUERY_MEMORY.json").exists())
+                    self.assertFalse((run.evidence / "ANALYSIS.json").exists())
+
+    def test_linux_memory_resolution_failure_preserves_failed_state(self) -> None:
+        for profile in ("native", "wasm"):
+            with self.subTest(profile=profile), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 run = ProfileRun(root, root / "run", Path(sys.executable), {})
-                with mock.patch.object(run, "command", return_value=json.dumps(resolution).encode()), \
-                        self.assertRaises(ValueError):
-                    profile_module.analysis_memory_arguments(run, "wasm")
+                with mock.patch.object(run, "command", side_effect=ValueError("resolver failed")), \
+                        self.assertRaisesRegex(ValueError, "resolver failed"):
+                    profile_module.analysis_memory_arguments(run, profile)
                 self.assertFalse((run.evidence / "QUERY_MEMORY.json").exists())
                 self.assertFalse((run.evidence / "ANALYSIS.json").exists())
 
-    def test_wasm_memory_resolution_failure_preserves_failed_state(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            run = ProfileRun(root, root / "run", Path(sys.executable), {})
-            with mock.patch.object(run, "command", side_effect=ValueError("resolver failed")), \
-                    self.assertRaisesRegex(ValueError, "resolver failed"):
-                profile_module.analysis_memory_arguments(run, "wasm")
-            self.assertFalse((run.evidence / "QUERY_MEMORY.json").exists())
-            self.assertFalse((run.evidence / "ANALYSIS.json").exists())
-
-    def test_wasm_allocation_record_is_an_exact_typed_description(self) -> None:
-        receipt = profile_module.wasm_query_memory(["-J-Xmx3072M", "--off-heap-ram=9329"])
-        profile_module.validate_wasm_query_memory(receipt)
-        for key, value in (("schema", True), ("heap_mb", 3072.0), ("requested_ram_mb", 15000),
-                           ("off_heap_ram_mb", 6733), ("remaining_budget_mb", 1600),
-                           ("profile", "native"), ("codeql_version", "2.27.3")):
-            with self.subTest(key=key), self.assertRaises(ValueError):
-                profile_module.validate_wasm_query_memory(dict(receipt, **{key: value}))
+    def test_linux_allocation_record_is_an_exact_typed_profile_description(self) -> None:
+        for profile in ("native", "wasm"):
+            receipt = profile_module.linux_query_memory(["-J-Xmx3072M", "--off-heap-ram=9329"], profile)
+            profile_module.validate_linux_query_memory(receipt, profile)
+            for key, value in (("schema", True), ("heap_mb", 3072.0), ("requested_ram_mb", 15000),
+                               ("off_heap_ram_mb", 6733), ("remaining_budget_mb", 1600),
+                               ("profile", "native" if profile == "wasm" else "wasm"),
+                               ("codeql_version", "2.27.3")):
+                with self.subTest(profile=profile, key=key), self.assertRaises(ValueError):
+                    profile_module.validate_linux_query_memory(dict(receipt, **{key: value}), profile)
+        for profile in ("macos", "unreviewed"):
+            with self.subTest(profile=profile), self.assertRaisesRegex(ValueError, "Linux analysis profile"):
+                profile_module.linux_query_memory(["-J-Xmx3072M", "--off-heap-ram=9329"], profile)
 
     def test_analysis_keeps_profile_category_full_suite_and_memory_evidence(self) -> None:
         categories = {"native": "/language:rust", "wasm": "/language:rust/target:wasm",
@@ -138,7 +145,7 @@ class RustProfileTests(unittest.TestCase):
                     self.assertEqual(argv[1:3], ["database", "analyze"])
                     self.assertIn(str(pack / "codeql-suites/rust-security-extended.qls"), argv)
                     self.assertIn(f"--ram={run.configuration.ram_mb}", argv)
-                    self.assertEqual("--off-heap-ram=9329" in argv, name == "wasm")
+                    self.assertEqual("--off-heap-ram=9329" in argv, name in ("native", "wasm"))
                     self.assertIn(f"--threads={run.configuration.threads}", argv)
                     self.assertIn("--threat-model=local", argv)
                     self.assertIn("--sarif-category=" + categories[name], argv)
@@ -158,12 +165,12 @@ class RustProfileTests(unittest.TestCase):
                     else:
                         with self.assertRaises(ValueError):
                             profile_module.analyze(run, pack)
-                self.assertEqual((run.evidence / "QUERY_MEMORY.json").is_file(), name == "wasm")
+                self.assertEqual((run.evidence / "QUERY_MEMORY.json").is_file(), name in ("native", "wasm"))
                 self.assertEqual((run.evidence / "ANALYSIS.json").exists(), complete)
                 if complete:
                     result = json.loads((run.evidence / "ANALYSIS.json").read_text())
                     self.assertEqual(set(result["query_result_sha256"]), set(inventory))
-                    if name == "wasm":
+                    if name in ("native", "wasm"):
                         self.assertEqual(result["query_memory_sha256"],
                                          hashlib.sha256((run.evidence / "QUERY_MEMORY.json").read_bytes()).hexdigest())
                     else:
