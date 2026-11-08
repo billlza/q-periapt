@@ -232,15 +232,13 @@ source identity and static assertions.
 \paragraph{Relation to earlier project material.}
 Earlier project work on SkyBridge Compass studies policy-governed
 authenticated establishment, complete-transcript binding, and a control-only
-recovery phase before application traffic.\footnote{Unpublished project
-manuscript, source
-\href{https://github.com/billlza/Skybridge-Compass/blob/d49d2a9ed4e1fb00905adeb06c02989562e375af/Docs/TDSC-2026-01-0318_IEEE_Paper_SkyBridge_Compass_patched.tex}{revision \texttt{d49d2a9}}.}
-This earlier work supplies the operation-admission and traffic-release
-perspective. The present paper follows the secrecy of the admitted operation's
-original randomness through persistence and acquisition, and develops the
-associated record and report simulations. The artifact's \path{notes/skybridge-scope.md}
-records the exact source versions and the allocation of material between
-these research questions.
+recovery phase before application traffic
+(\href{https://github.com/billlza/Skybridge-Compass/blob/d49d2a9ed4e1fb00905adeb06c02989562e375af/Docs/TDSC-2026-01-0318_IEEE_Paper_SkyBridge_Compass_patched.tex}{unpublished manuscript, revision \texttt{d49d2a9}}).
+It supplies the operation-admission and traffic-release perspective. Here we
+follow the admitted operation's original randomness through persistence and
+acquisition, and develop record and report simulations. The artifact's
+\path{notes/skybridge-scope.md} fixes the source versions and allocates material
+between these research questions.
 
 
 \subsection{Finite multiple-root entry}
@@ -278,3 +276,29 @@ outcomes, covering the RFC~5869 vector, domain separation, dual-peer
 derivation, runtime closure, input admission and trust-root binding.
 The source correspondence and mathematical review record the additional
 manuscript claims.
+
+\subsection{Executed sources and signing-reservation interfaces}
+\label{app:source-attribution}
+
+Section~\ref{sec:executed-source-attribution} has its complete proof,
+source identities and independent mathematical review in
+\path{artifacts/source-attribution/}. The directly inspected native
+revision is \texttt{72acaaccde1ca9ea27e5af022da5fbce932ed4e9}; five of its
+seven inspected files additionally match the earlier native-pin receipt.
+The source map records the exact reservation/persistence/computation order,
+complete-wire bindings, original-signing-randomizer encoding and the
+separate signer-seed-file interface.
+
+The executable model explores 34 recovered states for generation and
+34 for encapsulation, with up to three original draws and two epochs.
+Its 486 call-boundary edges include failed writes with absent or retained
+targets, private-computation failure, process loss, release denial and
+completion. Six deliberate source-tracking mutations have explicit
+counterexamples. An independent expected matrix covers offer, response
+and final signature aliases; the response alias permits proposer traffic
+allocation with unchanged sources and changed complete traffic information.
+The signature checks preserve original randomizers and private-query
+ledgers across unpublished results, and enumerate the generic separation's
+64 small key/randomizer assignments. These are finite interface checks
+and exact source audits. Their receipts keep the native Rust and
+mechanized-proof execution status separate.

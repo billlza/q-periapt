@@ -42,6 +42,18 @@ and those inputs can also determine the adversary's later derivation. The
 guarded normalization theorem expresses that relation for the stated
 encrypted-record fragment.
 
+\paragraph{Signing-randomness leakage.}
+Damm et al. recover ML-DSA secret-key material from noisy bit leakage of
+the internal masking vector $y$ \cite{damm2026}. The retained signing
+record studied here contains the external 32-byte randomizer
+\texttt{rnd}. FIPS~204 derives $y$ through a secret-key-dependent seed
+from the key seed, \texttt{rnd} and the message representative
+\cite[Algorithm~7]{fips204}. These are distinct observation interfaces.
+Section~\ref{sec:executed-source-attribution} specifies the corresponding
+reservation-aware signature experiment and uses it to associate an accepted
+rekey with its original KEM calls. Its generic separation identifies why
+the coin-return interface must appear in the signature assumption.
+
 \paragraph{Session handling and state loss.}
 Cremers, Jacomme, and Naska analyze how the session-handling layer determines
 conversation security and give a Tamarin analysis of Signal's Sesame
