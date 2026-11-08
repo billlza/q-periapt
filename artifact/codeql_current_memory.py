@@ -85,6 +85,14 @@ def read_json(path: Path) -> object:
         path, maximum=64 * 1024**2, label="experiment JSON").data, label="experiment JSON")
 
 
+def database_archive_root(members: list[zipfile.ZipInfo]) -> PurePosixPath:
+    metadata = [member for member in members if PurePosixPath(member.filename).name == "codeql-database.yml"]
+    require(len(metadata) == 1 and not metadata[0].is_dir(), "database metadata root is missing or ambiguous")
+    root = PurePosixPath(metadata[0].filename).parent
+    require(len(root.parts) <= 1, "database archive must have a flat root or one directory prefix")
+    return root
+
+
 def select_database_members(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
     members = archive.infolist()
     require(0 < len(members) <= MAX_DATABASE_MEMBERS
@@ -98,10 +106,75 @@ def select_database_members(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
         require(member.file_size <= MAX_DATABASE_MEMBER_BYTES, "database member exceeds its size bound")
     require(sum(member.file_size for member in members) <= MAX_DATABASE_BYTES,
             "database archive exceeds its total size bound")
-    names = {member.filename for member in members}
-    require("codeql-database.yml" in names and any(name.startswith("db-rust/") for name in names),
-            "archive does not contain a Rust database")
+    root = database_archive_root(members)
+    normalized: dict[PurePosixPath, zipfile.ZipInfo] = {}
+    for member in members:
+        try:
+            relative = PurePosixPath(member.filename).relative_to(root)
+        except ValueError as error:
+            raise ControlError("database archive contains a member outside its metadata root") from error
+        require(relative not in normalized and (relative.parts or member.is_dir()),
+                "database archive has duplicate normalized members or a non-directory root")
+        normalized[relative] = member
+    files = {path for path, member in normalized.items() if not member.is_dir()}
+    require(all(not any(parent in files for parent in path.parents) for path in normalized),
+            "database archive has a file/directory ancestor conflict")
+    require(any(path.parts and path.parts[0] == "db-rust" and len(path.parts) > 1 for path in normalized)
+            and PurePosixPath("db-rust") not in files, "archive does not contain a Rust database")
     return sorted(members, key=lambda member: member.filename)
+
+
+def record_database_archive(inner: Path, evidence: Path) -> None:
+    """Retain bounded read-only shape evidence before any restoration rejection."""
+    with zipfile.ZipFile(inner) as archive:
+        members = archive.infolist()
+        candidates = [member for member in members if PurePosixPath(member.filename).name == "codeql-database.yml"]
+        metadata = []
+        for member in candidates[:4]:
+            entry = {"path": member.filename[:512], "declared_bytes": member.file_size, "is_directory": member.is_dir()}
+            if not member.is_dir():
+                try:
+                    with archive.open(member) as stream:
+                        data = stream.read(32769)
+                    entry.update(text=data[:32768].decode("utf-8", errors="replace"), truncated=len(data) > 32768)
+                except (OSError, RuntimeError, ValueError, zipfile.BadZipFile) as error:
+                    entry["read_error"] = type(error).__name__
+            metadata.append(entry)
+        names = []
+        for member in members[:32]:
+            try:
+                names.append({"path": str(retained.safe_member(member))[:512], "safe": True})
+            except retained.RecoveryError:
+                names.append({"path": member.filename[:512], "safe": False})
+        components = sorted({PurePosixPath(member.filename).parts[0]
+                             for member in members if PurePosixPath(member.filename).parts})
+        write_json(evidence / "DATABASE_ARCHIVE.json", {
+            "schema": 1, "inner_bytes": inner.stat().st_size, "inner_sha256": sha(inner),
+            "member_count": len(members), "declared_total_bytes": sum(member.file_size for member in members),
+            "top_level_components": [name[:512] for name in components[:32]],
+            "top_level_component_count": len(components), "metadata_candidate_count": len(candidates),
+            "metadata_candidates": metadata, "first_members": names})
+
+
+def metadata_root_fields(text: str) -> dict[str, list[str]]:
+    """Read scalar keys in CodeQL's block mapping; refuse other root syntax."""
+    fields: dict[str, list[str]] = {}
+    key_pattern = r'''("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_-]*)[ \t]*:(?:[ \t]+(.*))?'''
+    for line in text.splitlines():
+        if not line.strip() or line[0].isspace() or line.startswith("#") or line.strip() in ("---", "..."):
+            continue
+        match = re.fullmatch(key_pattern, line)
+        require(match is not None, "unsupported top-level database metadata mapping syntax")
+        key, value = match.groups()
+        if key.startswith('"'):
+            try:
+                key = json.loads(key)
+            except ValueError as error:
+                raise ControlError("unsupported quoted database metadata key") from error
+        elif key.startswith("'"):
+            key = key[1:-1].replace("''", "'")
+        fields.setdefault(key, []).append((value or "").strip())
+    return fields
 
 
 def restore_database(inner_zip: Path, destination: Path) -> dict:
@@ -114,20 +187,28 @@ def restore_database(inner_zip: Path, destination: Path) -> dict:
         require(shutil.disk_usage(destination.parent).free
                 >= sum(member.file_size for member in members) + MIN_FREE_BYTES,
                 "insufficient free disk for the complete database and evaluator reserve")
-        metadata_info = archive.getinfo("codeql-database.yml")
+        archive_root = database_archive_root(members)
+        metadata_info = archive.getinfo(str(archive_root / "codeql-database.yml"))
         require(metadata_info.file_size <= 128 * 1024, "database metadata exceeds its bound")
         metadata = archive.read(metadata_info)
-        text = metadata.decode("utf-8")
-        require(re.search(r"(?m)^primaryLanguage: rust\s*$", text) is not None
-                and re.search(r"(?m)^finalised: true\s*$", text) is not None
-                and re.search(r"(?m)^\s+cliVersion: ['\"]?2\.27\.2['\"]?\s*$", text) is not None,
+        text = metadata.decode("utf-8-sig")
+        fields = metadata_root_fields(text)
+        scalar = lambda pattern: [value.strip() for value in re.findall(pattern, text)]
+        quoted = lambda value: {value, "'" + value + "'", '"' + value + '"'}
+        language = fields.get("primaryLanguage", [])
+        finalized = fields.get("finalised", [])
+        version = scalar(r"(?m)^[ \t]+cliVersion:[ \t]*([^\r\n]*)$")
+        require(len(language) == 1 and language[0] in quoted("rust")
+                and "inProgress" not in fields and (not finalized or finalized == ["true"])
+                and len(version) == 1 and version[0] in quoted(CLI_VERSION),
                 "database language, finalization, or CLI identity differs")
-        git_shas = re.findall(r"(?m)^\s+sha: ['\"]?([0-9a-f]{40})['\"]?\s*$", text)
-        require(not git_shas or git_shas == [SOURCE["analyzed_commit"]], "database creation commit differs")
+        git_shas = scalar(r"(?m)^[ \t]+sha:[ \t]*([^\r\n]*)$")
+        require(not git_shas or (len(git_shas) == 1 and git_shas[0] in quoted(SOURCE["analyzed_commit"])),
+                "database creation commit differs")
         destination.mkdir(mode=0o700)
         for member in members:
             require(time.monotonic() <= deadline, "database restoration exceeded its time bound")
-            relative = retained.safe_member(member)
+            relative = retained.safe_member(member).relative_to(archive_root)
             path = destination / relative
             for parent in relative.parents:
                 directories.setdefault(str(parent), {"mode": 0o700, "mtime": DIRECTORY_EPOCH})
@@ -158,10 +239,10 @@ def restore_database(inner_zip: Path, destination: Path) -> dict:
             os.utime(directory, (identity["mtime"], identity["mtime"]))
     cache = {name: identity for name, identity in files.items() if name.startswith("db-rust/default/cache/")}
     require(cache, "retained evaluator cache is absent")
-    return {"files": files, "directories": directories,
+    return {"files": files, "directories": directories, "archive_root": str(archive_root),
             "database_inventory_sha256": canonical_sha({"files": files, "directories": directories}),
             "cache_inventory_sha256": canonical_sha(cache), "metadata_sha256": hashlib.sha256(metadata).hexdigest(),
-            "metadata_git_sha": git_shas[0] if git_shas else None}
+            "metadata_git_sha": SOURCE["analyzed_commit"] if git_shas else None}
 
 
 def prepare_database(root: Path) -> tuple[Path, dict]:
@@ -190,6 +271,7 @@ def prepare_database(root: Path) -> tuple[Path, dict]:
                 output.write(block)
         require(count == info.file_size, "retained database ZIP is truncated")
     database = root / "database"
+    record_database_archive(inner, root / "evidence")
     inventory = restore_database(inner, database)
     write_json(root / "evidence/DATABASE_INPUTS.json", inventory)
     identity = {name: inventory[name] for name in

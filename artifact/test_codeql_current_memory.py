@@ -65,6 +65,15 @@ def database_members():
     ]
 
 
+def prefixed_database_members(prefix="rust", include_root=True):
+    members = [zip_member(prefix + "/", b"", mode=stat.S_IFDIR | 0o750)] if include_root else []
+    for member, body in database_members():
+        renamed = copy.copy(member)
+        renamed.filename = renamed.orig_filename = prefix + "/" + member.filename
+        members.append((renamed, body))
+    return members
+
+
 def valid_report(profile: str) -> dict:
     heap, native = {"baseline": (5668, 6733), "native-heavy": (3072, 9329)}[profile]
     return {
@@ -184,6 +193,161 @@ class DatabaseRestorationTests(unittest.TestCase):
         selected = self.select(database_members())
         self.assertEqual({member.filename for member in selected},
                          {member.filename for member, _ in database_members()})
+
+    def test_single_prefix_is_normalized_and_root_metadata_is_preserved(self):
+        source = self.root / "bundled.zip"
+        source.write_bytes(archive_bytes(prefixed_database_members()))
+        destination = self.root / "restored"
+        inventory = control.restore_database(source, destination)
+        self.assertEqual(inventory["archive_root"], "rust")
+        self.assertFalse((destination / "rust").exists())
+        self.assertEqual((destination / "db-rust/default/cache/entry.bin").read_bytes(), b"retained cache bytes")
+        self.assertEqual(set(inventory["files"]), {member.filename for member, _ in database_members() if not member.is_dir()})
+        self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o750)
+        self.assertEqual(destination.stat().st_mtime_ns, (destination / "codeql-database.yml").stat().st_mtime_ns)
+        self.assertEqual(stat.S_IMODE((destination / "db-rust/default/data.bin").stat().st_mode), 0o640)
+
+    def test_prefix_without_explicit_directory_entry_retains_all_file_identities(self):
+        flat, wrapped = self.root / "flat.zip", self.root / "wrapped.zip"
+        flat.write_bytes(archive_bytes(database_members()))
+        wrapped.write_bytes(archive_bytes(prefixed_database_members(include_root=False)))
+        first = control.restore_database(flat, self.root / "first")
+        second = control.restore_database(wrapped, self.root / "second")
+        self.assertEqual(first["files"], second["files"])
+        self.assertEqual(first["directories"], second["directories"])
+        self.assertEqual(first["database_inventory_sha256"], second["database_inventory_sha256"])
+        self.assertEqual(first["cache_inventory_sha256"], second["cache_inventory_sha256"])
+
+    def test_multiple_or_nested_metadata_roots_are_rejected(self):
+        cases = [prefixed_database_members() + prefixed_database_members("other"),
+                 prefixed_database_members() + [database_members()[0]],
+                 prefixed_database_members("outer/rust"),
+                 database_members() + [zip_member("nested/codeql-database.yml", b"other metadata")]]
+        for members in cases:
+            with self.subTest(names=[member.filename for member, _ in members]), self.assertRaises(control.ControlError):
+                self.select(members)
+
+    def test_member_outside_selected_metadata_root_is_rejected(self):
+        for name in ("outside.txt", "db-rust/default/cache/foreign", "other/extra"):
+            with self.subTest(name=name), self.assertRaises(control.ControlError):
+                self.select(prefixed_database_members() + [zip_member(name, b"outside")])
+
+    def test_directory_metadata_and_wrong_dataset_location_are_rejected(self):
+        members = database_members()[1:] + [zip_member("codeql-database.yml/", b"", mode=stat.S_IFDIR | 0o750)]
+        with self.assertRaises(control.ControlError):
+            self.select(members)
+        members = prefixed_database_members()
+        for member, _ in members:
+            member.filename = member.orig_filename = member.filename.replace("rust/db-rust", "rust/not-db-rust")
+        with self.assertRaises(control.ControlError):
+            self.select(members)
+
+    def test_normalized_duplicates_and_file_ancestor_conflicts_are_rejected(self):
+        for extras in ([zip_member("rust/db-rust", b"regular file")],
+                       [zip_member("rust/extra", b"file"), zip_member("rust/extra/child", b"child")]):
+            with self.subTest(names=[member.filename for member, _ in extras]), self.assertRaises(control.ControlError):
+                self.select(prefixed_database_members() + extras)
+
+    def test_matching_scalar_quotes_keep_exact_metadata_identities(self):
+        for quote in (b"'", b'"'):
+            with self.subTest(quote=quote):
+                members = database_members()
+                info, metadata = members[0]
+                for plain in (b"rust", b"2.27.2", SOURCE["analyzed_commit"].encode()):
+                    metadata = metadata.replace(plain, quote + plain + quote)
+                members[0] = (info, metadata)
+                source = self.root / ("quoted-" + str(quote[0]) + ".zip")
+                source.write_bytes(archive_bytes(members))
+                inventory = control.restore_database(source, self.root / ("quote-" + str(quote[0])))
+                self.assertEqual(inventory["metadata_git_sha"], SOURCE["analyzed_commit"])
+
+    def test_completed_database_without_legacy_finalised_field_is_admitted(self):
+        members = prefixed_database_members()
+        info, metadata = members[1]
+        members[1] = (info, metadata.replace(b"finalised: true\n", b""))
+        source = self.root / "current-format.zip"
+        source.write_bytes(archive_bytes(members))
+        inventory = control.restore_database(source, self.root / "current-format")
+        self.assertEqual(inventory["archive_root"], "rust")
+        self.assertEqual(inventory["metadata_git_sha"], SOURCE["analyzed_commit"])
+
+    def test_any_root_in_progress_key_rejects_regardless_of_value_or_quoting(self):
+        count = 0
+        for key in (b"inProgress", b"'inProgress'", b'"inProgress"', b'"inPro\\u0067ress"'):
+            for value in (b"", b"null", b"false", b"true", b"0", b"{}", b"[]", b'"false"'):
+                with self.subTest(key=key, value=value):
+                    members = database_members()
+                    info, metadata = members[0]
+                    members[0] = (info, metadata.replace(b"finalised: true\n", b"") + key + b": " + value + b"\n")
+                    source = self.root / ("progress-" + str(count) + ".zip")
+                    source.write_bytes(archive_bytes(members))
+                    with self.assertRaises(control.ControlError):
+                        control.restore_database(source, self.root / ("progress-" + str(count)))
+                    count += 1
+
+    def test_legacy_finalised_must_be_explicit_boolean_true_when_present(self):
+        for index, value in enumerate((b"false", b"null", b"", b'"true"', b"true\n'finalised': false")):
+            with self.subTest(value=value):
+                members = database_members()
+                info, metadata = members[0]
+                members[0] = (info, metadata.replace(b"finalised: true", b"finalised: " + value))
+                source = self.root / ("legacy-" + str(index) + ".zip")
+                source.write_bytes(archive_bytes(members))
+                with self.assertRaises(control.ControlError):
+                    control.restore_database(source, self.root / ("legacy-" + str(index)))
+
+    def test_wrong_or_ambiguous_metadata_and_missing_cache_remain_rejected(self):
+        original = database_members()[0][1]
+        bad_metadata = [original.replace(b"rust", b"java"), original.replace(b"2.27.2", b"2.27.3"),
+                        original.replace(b"true", b"false"), original.replace(SOURCE["analyzed_commit"].encode(), b"0" * 40),
+                        original + b"primaryLanguage: java\n", original.replace(b"rust", b'"rust\''),
+                        original.replace(b"  cliVersion: 2.27.2\n", b"")]
+        for index, metadata in enumerate(bad_metadata):
+            with self.subTest(index=index):
+                members = database_members()
+                members[0] = (members[0][0], metadata)
+                source = self.root / (str(index) + ".zip")
+                source.write_bytes(archive_bytes(members))
+                with self.assertRaises(control.ControlError):
+                    control.restore_database(source, self.root / ("bad-" + str(index)))
+        source = self.root / "no-cache.zip"
+        source.write_bytes(archive_bytes([(member, body) for member, body in database_members() if "/cache/" not in member.filename]))
+        with self.assertRaisesRegex(control.ControlError, "retained evaluator cache is absent"):
+            control.restore_database(source, self.root / "no-cache")
+
+    def test_archive_receipt_is_bounded_and_records_actual_metadata_paths(self):
+        source = self.root / "observed.zip"
+        members = prefixed_database_members()
+        members[1] = (members[1][0], b"x" * 40000)
+        source.write_bytes(archive_bytes(members))
+        control.record_database_archive(source, self.root)
+        receipt = json.loads((self.root / "DATABASE_ARCHIVE.json").read_text())
+        self.assertEqual(receipt["inner_sha256"], digest(source.read_bytes()))
+        self.assertEqual(receipt["member_count"], len(members))
+        self.assertEqual(receipt["top_level_components"], ["rust"])
+        self.assertEqual(receipt["metadata_candidates"][0]["path"], "rust/codeql-database.yml")
+        self.assertIs(receipt["metadata_candidates"][0]["truncated"], True)
+        self.assertEqual(len(receipt["metadata_candidates"][0]["text"]), 32768)
+        self.assertLess((self.root / "DATABASE_ARCHIVE.json").stat().st_size, 40000)
+
+    def test_prepare_retains_archive_receipt_before_metadata_rejection(self):
+        members = prefixed_database_members()
+        info, metadata = members[1]
+        members[1] = (info, metadata.replace(b"rust", b"java"))
+        inner = archive_bytes(members)
+        outer = archive_bytes([zip_member(control.INNER_MEMBER, inner)])
+        fake_source = dict(control.SOURCE, artifact_bytes=len(outer), artifact_sha256=digest(outer))
+        (self.root / "evidence").mkdir()
+        with patch.object(control, "SOURCE", fake_source), \
+             patch.object(control.retained, "ARCHIVE_BYTES", len(outer)), \
+             patch.object(control.retained, "ARCHIVE_SHA256", digest(outer)), \
+             patch.object(control.retained, "download", side_effect=lambda path: path.write_bytes(outer)):
+            with self.assertRaisesRegex(control.ControlError, "database language, finalization, or CLI identity differs"):
+                control.prepare_database(self.root)
+        receipt = json.loads((self.root / "evidence/DATABASE_ARCHIVE.json").read_text())
+        self.assertEqual(receipt["metadata_candidates"][0]["path"], "rust/codeql-database.yml")
+        self.assertIn("primaryLanguage: java", receipt["metadata_candidates"][0]["text"])
+        self.assertFalse((self.root / "evidence/DATABASE_INPUTS.json").exists())
 
     def test_unsafe_paths_are_rejected_before_restoration(self):
         for name in ("/outside", "../outside", "a/../../outside", "a//b", "a/./b", "a\\b"):
