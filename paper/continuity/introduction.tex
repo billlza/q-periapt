@@ -87,7 +87,11 @@ initialization, confirmation, traffic derivation, and the selected
 first-message key. It retains real verification and the stated successor-state
 disclosures (Theorem~\ref{thm:joint-message-leaf}). The native connection is
 established for the next rekey of an existing session and a fresh marked
-message allocation (Section~\ref{sec:contextbound-connection}). The finite
+message allocation (Section~\ref{sec:contextbound-connection}). The live-core
+instantiation makes its record cost explicit
+(Corollary~\ref{cor:live-core-next-rekey}). The same joint key table yields
+an authentication bound for accepted confirmation cores and the selected
+first message (Proposition~\ref{prop:confirmation-message-auth}). The finite
 multiple-root entry theorem extends the initialization to available salts and
 complete information strings, preserving exact aliases and a fresh target in
 a previously used class (Section~\ref{sec:multiple-root-entry}).

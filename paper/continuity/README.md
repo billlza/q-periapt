@@ -12,7 +12,9 @@ The paper models original randomness reservations and the acquisition of their p
 
 The computational development constructs private-record and dependent-report simulations, connects them through candidate-local accounting, and carries a recovered contribution through root initialization, confirmation, traffic derivation and a selected first message. The complete ContextBound tuple comparison and original-operation adapter connect the actual ML-KEM component game to this continuation. The next-rekey source induction supplies one concrete native instance.
 
-The multiple-root entry theorem extends the initialization interface to a finite family of available salts and complete information strings. Its exact descriptor table preserves HMAC pad-state aliases and supports an online fresh target in a previously used class. Other generated roots remain available to the controller, and every target alias retrieves one retained schedule handle. The complete-query bound and first-message consequence appear in Section 5.7.
+The live-core instantiation supplies the explicit native image/intent comparison cost and its complete admitted observation interface. The same joint key table also supports a confirmation and first-message authentication bound, with private origin ledgers, classical verification and quantum public-oracle queries. The general source-attribution residual remains explicit; its selector counterexample identifies the interface required for a stronger source-resolved result.
+
+The multiple-root entry theorem extends the initialization interface to a finite family of available salts and complete information strings. Its exact descriptor table preserves HMAC pad-state aliases and supports an online fresh target in a previously used class. Other generated roots remain available to the controller, and every target alias retrieves one retained schedule handle. The complete-query bound and first-message consequence appear together in the finite multiple-root entry section.
 
 The variable-length form now applies that comparison to the native SDK purpose-key interface. Complete information strings index the key table, while each returned owner keeps its own lifecycle. The source correspondence covers the fixed salt, exact field encoding, repeated derivation, export and close operations. The existing five-purpose dual-peer workload supplies a concrete finite instance; a separate application experiment gives the selected-key AEAD consequence.
 
@@ -21,6 +23,7 @@ The proofs and independent reviews are retained by subject:
 - [Candidate-local accounting](artifacts/candidate-local/): the stopped source/record interface and original-game score accounting.
 - [Joint continuation](artifacts/joint-continuation/README.md): the root-to-message schedule and its shared-compression primitives.
 - [ContextBound connection](artifacts/contextbound-connection/README.md): complete encoding, component adapter and next-rekey source induction.
+- [Live-core and authentication connection](artifacts/confirmation-traffic/README.md): explicit record cost, source selection, accepted confirmation cores and first-message integrity.
 - [Multiple-root entry](artifacts/multiple-root-entry/README.md): finite class-row comparison, adaptive target embedding and complete budgets.
 - [SDK purpose-key correspondence](artifacts/sdk-purpose-connection/README.md): variable-length entry comparison, exact native descriptors and separate owner states.
 

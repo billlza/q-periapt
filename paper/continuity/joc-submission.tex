@@ -160,7 +160,11 @@ initialization, confirmation, traffic derivation, and the selected
 first-message key. It retains real verification and the stated successor-state
 disclosures (Theorem~\ref{thm:joint-message-leaf}). The native connection is
 established for the next rekey of an existing session and a fresh marked
-message allocation (Section~\ref{sec:contextbound-connection}). The finite
+message allocation (Section~\ref{sec:contextbound-connection}). The live-core
+instantiation makes its record cost explicit
+(Corollary~\ref{cor:live-core-next-rekey}). The same joint key table yields
+an authentication bound for accepted confirmation cores and the selected
+first message (Proposition~\ref{prop:confirmation-message-auth}). The finite
 multiple-root entry theorem extends the initialization to available salts and
 complete information strings, preserving exact aliases and a fresh target in
 a previously used class (Section~\ref{sec:multiple-root-entry}).
@@ -2642,6 +2646,317 @@ next-rekey instance. Its source requirement is expressed through the root-use
 descriptor, so extensions can retain the same tuple-level comparison while
 establishing their corresponding root-entry interface.
 % END SECTION SOURCE: contextbound-connection.tex
+% BEGIN SECTION SOURCE: live-core-instantiation.tex
+\subsection{A native live-core instantiation}
+\label{sec:live-core-instantiation}
+
+The next-rekey comparison has a concrete record cost on the authoritative
+live-session profile. Its application owns plaintext-bearing Send and
+delivery; the network interface includes exact Resume, active control and
+message processing, ACKs, status and public commitments. Storage follows
+the native immutable-image and pending-intent history through failed writes,
+process loss and reopening. Captures of old or unrelated records remain
+available. A complete post-cut target-session acquisition invokes the
+original eligibility stop. The selected successor-root and next-chain-seed
+projections use the ownership and phase checks of the joint continuation.
+The partial secret-field interface consists exactly of these two named,
+phase-checked projections; other record acquisitions return the declared
+complete objects. These observations and the private-application/Resume
+boundary define the core's complete call surface. The retained live-profile
+artifact records their source correspondence in
+Appendix~\ref{app:joint-artifacts}.
+
+This core obtains all its replies through the record, primitive and
+application interfaces already constructed. Its ordinary calls expose
+public metadata or declared available values. Consequently its charged
+projection event is empty: $B_j=\varnothing$ for each candidate and
+$\eta_{\rm proj}^{\rm nat}=0$. The report composition theorem supplies a
+separate extension for cleanup and report interfaces with their declared
+projection events.
+
+For candidate $j$, let $M_j^{\rm seal}$ bound fresh outer sealing
+invocations, including attempts whose subsequent commit fails. Let
+$d_{j,i}$ bound the distinct private image/intent digest inputs in row $i$,
+and let $Q_{j,i}$ bound the entire ordinary-$H$ computation of its derived
+distinguisher. These are deterministic bounds fixed before execution and
+cover every corresponding comparison world. Define
+\begin{equation}
+\begin{split}
+ \varepsilon_{{\rm rec},j}
+ &=\min\left\{1,
+     \sum_{i=1}^{M_j^{\rm seal}}\Phi_{192}(d_{j,i},Q_{j,i})
+       +\delta_{{\rm seal},j}\right\},\\
+ \delta_{{\rm seal},j}
+ &=\min\left\{1,\binom{M_j^{\rm seal}}{2}2^{-192}\right\}.
+\end{split}
+\label{eq:live-core-record-cost}
+\end{equation}
+The second term is the private-wire structural-equality comparison of
+Corollary~\ref{cor:real-to-opaque}; it is zero when that equality interface
+is absent. Copies and exact pending-target application retain their
+original sealing handles. Atom-free rows have $d_{j,i}=0$.
+
+\begin{corollary}[Next-rekey confidentiality on the live core]
+\label{cor:live-core-next-rekey}
+Use the native next-rekey and marked first-message interfaces of
+Theorem~\ref{thm:cb-next-rekey} with the live core above, its recorded source
+correspondence and finite whole-execution budgets. Then
+\begin{equation}
+\begin{split}
+ \operatorname{Adv}_{\rm msg}\le\min\left\{\frac12,
+ \frac12\left(\eta_{\rm attr}^{\rm nat}\right.\right.\\[-2pt]
+ \left.\left.\qquad+
+ \sum_{j\in J}\left(2\varepsilon_{{\rm rec},j}
+      +a_j^++a_j^-+2\delta_j+B_j^{\rm cont}\right)
+ \right)\right\}.
+\end{split}
+\label{eq:live-core-next-rekey}
+\end{equation}
+Here $B_j^{\rm cont}$ is the explicit ContextBound, root-initialization,
+joint-schedule and AEAD score cost in~\eqref{eq:cb-continuation-bound}.
+Attribution is evaluated in the original native experiment.
+\end{corollary}
+\begin{proof}
+The live-profile representation invariant follows the original reservation,
+saved-version and sealing handles through each native transition. On its
+stopped interface, the materialized record machine has exactly the native
+outputs and storage outcomes. Corollary~\ref{cor:real-to-opaque} and
+Appendix~\ref{app:primitive-inputs} therefore give
+$\rho_j\le2\varepsilon_{{\rm rec},j}$. The core's complete captures use
+the existing acquisition stop, and its remaining replies use the declared
+interfaces, so its charged projection event is empty. Substitute these two
+facts into~\eqref{eq:cb-native-bound}.
+\end{proof}
+
+\paragraph{Source selection and attribution.}
+The attribution term distinguishes two actual interfaces. In the general
+experiment, the selector may name any original reservation handles with
+the required session, epoch and role metadata. For example, a generation
+reservation $g_1$ may be installed in a transaction-private
+\texttt{Plan::Key} whose first persistence fails before a complete pending
+target or image becomes durable. Reopening the prior
+authoritative state permits a new reservation $g_2$, followed by an honest
+accepted exchange using $(g_2,a_2)$. Choose
+$c<\mathsf{res}(g_1)<\mathsf{res}(g_2)$ and
+$c<\mathsf{res}(a_2)$, with the target signing keys and designated entropy
+unexposed and with no acquisition of a post-cut target-session version.
+A selector naming $(g_1,a_2)$ can pass
+the reservation-event and recovery-cut checks while failing usable
+attribution. Every control signature and transcript hash in this trace is
+honest. This execution is already charged by
+$\eta_{\rm attr}^{\rm nat}$ in the general theorem.
+
+A source-resolved application can instead register $g$ and $a$ when their
+retained plans first reach actual private generation and encapsulation,
+before those computations return. Exact resumptions retain these original
+slots, and a reservation that fails before reaching computation has no
+executed-source designation. The source-association argument for this
+interface must relate each retained plan transition to its original slot.
+The signed-message encoding binds the signature purpose and entire body;
+the bodies bind the session, context, epoch, role and parent. Response and
+completion checks additionally bind the complete retained control wires
+through their framed transcript hashes. These checks supply the concrete
+bindings for a dedicated source-association and authentication reduction.
+Its signing
+interface must preserve reserved signing randomness, exact replays and the
+experiment's actual retained-object observations. Equation~\ref{eq:live-core-next-rekey}
+keeps the attribution term while that cryptographic interface is specified.
+% END SECTION SOURCE: live-core-instantiation.tex
+% BEGIN SECTION SOURCE: confirmation-traffic.tex
+\subsection{Confirmation and first-message authentication}
+\label{sec:confirmation-traffic}
+
+The same native rekey uses the three confirmation keys and directional
+traffic material of Theorem~\ref{thm:joint-message-leaf}. We now retain
+each confirmation key behind its actual MAC and verification interfaces
+and derive a joint authentication consequence. Public queries to the
+independent oracles $H$ and $h$ may be quantum. Protocol requests, MAC
+inputs, verification requests and their replies are classical.
+
+\paragraph{Native transcripts and application interface.}
+Write $\mathcal H_L(x)=H(\operatorname{LP}(D\Vert L)
+\Vert\operatorname{LP}(x))$, with $\operatorname{LP}$ the source's
+eight-byte length prefix. For $d\in\{r,f,a\}$, let $C_d$ be the responder,
+final or receipt confirmation key. The tag is
+\begin{equation}
+\begin{aligned}
+ t_d&=F(C_d,\mathcal H_{L_d}(X_d)),\\
+ (L_r,L_f,L_a)&=(\texttt{response-core},\texttt{final-core},
+                         \texttt{receipt-core}).
+\end{aligned}
+\label{eq:native-confirmation-tag}
+\end{equation}
+The complete responder core contains the control tag, profile, context,
+session, current and target epochs, sender role, control parent, digest of
+the complete signed offer, and hybrid ciphertext. The final core contains
+its corresponding control prefix, the offer and response wire digests,
+and the old sending-chain length. The receipt additionally contains the
+complete final-wire digest. Their respective source lengths are 1305,
+225 and 257 bytes. Every MAC input in~\eqref{eq:native-confirmation-tag}
+has 32 bytes.
+
+The native verifier checks the complete prefix, body width and identity
+signature before the relevant MAC verification. The public result follows
+the actual success, failure, persistence and status transitions. The MAC
+comparison may therefore give the reduction the expected tag internally;
+the verification caller obtains the native result. Every honest tag
+construction enters a ghost origin ledger at its first private
+computation, before a subsequent write or release. Verification
+computations have their own query ledger. Exact repetitions and matching
+endpoint aliases use the same role-key identity and the same original
+construction entry. A different signature encoding of an already logged
+core retains that core's origin.
+
+For the marked traffic allocation and direction, use the first-message
+interface of Corollary~\ref{cor:joint-first-message}. The encryption nonce
+is $0^{96}$, and the associated data is
+\[
+ D_M\Vert\texttt{aead}\Vert\mathit{header}_{93}
+       \Vert\operatorname{BE16}(|ad|)\Vert ad.
+\]
+The header binds session, direction, epoch, index, message identifier and
+plaintext length. The first private encryption is recorded by its exact
+$(\mathit{AAD},\mathit{ciphertext})$ pair and original send identity.
+Retries retrieve its cached result through Resume. Plaintext delivery
+belongs to the private application. A fresh authenticated receive means
+a successful AEAD check followed by installation of the corresponding
+native inbox entry. The source's \texttt{PreviouslyConsumed} result is
+a historical consumption status. An existing inbox entry retains its
+original authenticated receive-intent digest and plaintext; a cached
+return refers to that earlier receive.
+
+Let $\mathsf{Bad}_{\rm conf}$ mean that, before the declared local stop,
+a successful native confirmation verification accepts a complete core
+with no earlier honest private tag construction under that role-key
+identity. Let $\mathsf{Bad}_{\rm msg}$ mean that a fresh authenticated
+receive under the selected first-message key installs a pair absent from
+its honest encryption ledger. These definitions include failures and
+unaccepted executions in the probability space.
+
+\paragraph{Operational bounds.}
+Fix a role order $r,f,a$. After exact-input caching, let $T_d$ bound the
+distinct 32-byte messages evaluated under $C_d$ by both tag construction
+and verification, and let $V_d$ bound verification attempts. Repeated
+guesses count in $V_d$. All budgets are fixed before execution. Define
+\begin{equation}
+ \Delta_{\rm conf}=\min\left\{1,
+       \sum_{d\in\{r,f,a\}}
+          \varepsilon_{\rm Hrow}(T_d,q_d,32)\right\},
+ \qquad V=V_r+V_f+V_a.
+\label{eq:confirmation-row-cost}
+\end{equation}
+Here $q_d$ counts every ordinary $h$ query of that row's complete
+distinguisher. In particular, it includes preparation, the target
+application, all other real primitives and terminal testing. If $B_c$
+bounds all such work outside these three confirmation MAC rows, the
+conservative choices
+\[
+ q_d=B_c+4\sum_{e>d}T_e
+\]
+are valid: earlier rows are already ideal, later rows remain real, and a
+32-byte HMAC evaluation uses at most four compression calls including
+its two pads. The row lemma separately charges the replaced row's
+private evaluations.
+
+Let $\chi_H(Q)$ bound production of two distinct complete strings with
+equal $H$ output by a $Q$-query algorithm. It counts the entire derived
+experiment's ordinary and honest $H$ evaluations, including preparation
+and the final collision test. For the random oracle with 256-bit output,
+an admissible bound is
+\[
+ \chi_H(Q)=\min\{1,C_{\rm col}(Q+2)^3 2^{-256}\},
+\]
+with the universal constant of the quantum collision theorem
+\cite[Theorem~7]{zhandryCollision2015}. The operational notation retains
+that constant.
+
+Finally, let $\varepsilon_{\rm INT}$ bound a quantum adversary's success
+in the one-key, at-most-one-encryption ciphertext-integrity experiment
+with nonce $0^{96}$, classical decryption and the same independent public
+oracles. A successful decryption of a pair absent from the encryption
+ledger wins. All repeated decryption attempts are included in its query
+budget. The encryption ledger begins at the first private computation.
+
+\begin{proposition}[Joint confirmation and message authentication]
+\label{prop:confirmation-message-auth}
+Use the controller of Theorem~\ref{thm:joint-message-leaf} and the above
+native interfaces. Each $C_d$ is accessed through its tag and verification
+service; the selected message key is accessed through its single original
+encryption, classical decryption and exact-retry service. Then
+\begin{equation}
+\begin{split}
+ \Pr_{G_R}[\mathsf{Bad}_{\rm conf}\lor\mathsf{Bad}_{\rm msg}]
+ \le\min\{1,\;&\Delta_{\rm sched}+\Delta_{\rm conf}
+       +V2^{-256}\\
+       &+\chi_H(Q_H^{\rm conf})+\varepsilon_{\rm INT}\}.
+\end{split}
+\label{eq:confirmation-message-auth}
+\end{equation}
+The same controller retains the qualified confidentiality bound
+$|\mathbb E_{G_R}Z|\le2\Delta_{\rm sched}
+ +2\varepsilon_{\rm AEAD}$ of
+Corollary~\ref{cor:joint-first-message}. Its confirmation and verification
+operations are part of that complete continuation.
+\end{proposition}
+\begin{proof}
+Apply Theorem~\ref{thm:joint-message-leaf} to the union event's terminal
+bit. This costs $\Delta_{\rm sched}$ once and provides the joint
+independent-key experiment $G_{\rm leaf}$. All transcript strings and
+subsequent information strings are generated in the current world.
+
+For confirmation, replace the three HMAC rows in the fixed role order by
+independent private random functions $W_d$. The adaptive classical row
+lemma applies to every tag and verification evaluation; its ordinary
+query budgets include the remaining real rows. This costs
+$\Delta_{\rm conf}$. Independent key samples may coincide numerically;
+the real rows retain the shared compression oracle, and the row
+comparisons account for those coincidences.
+
+Consider a second execution that returns failure on every verification
+whose digest has no earlier honest tag-construction entry under that
+role. The coupling stops at the first internal MAC equality on such an
+unissued digest, before subsequent persistence or a public response.
+Up to this first hit, the two executions have
+the same classical replies and induce the same transformation of the
+adversary's quantum private state. In the second execution, the unissued
+value $W_d(m)$ is independent of the available prefix: its verification
+result is fixed to failure and its table value remains private. Each
+of at most $V$ attempted tags equals this value with probability
+$2^{-256}$. A union bound therefore bounds the first fresh-digest
+success by $V2^{-256}$. It also covers repeated guesses for the same
+digest. If a fresh complete core instead has a digest already used by
+an honest construction under that role, the two different framed core
+strings give a collision for $H$. The reduction records these classical
+inputs and outputs the pair; its probability is bounded by
+$\chi_H(Q_H^{\rm conf})$.
+
+For message integrity in $G_{\rm leaf}$, sample every key except the
+selected message key locally, preserving the actual confirmation, ACK,
+successor-root and subsequent-chain computation. Forward the selected
+original encryption and every selected-key decryption to the integrity
+challenger. Exact retries use the first private encryption cache. A new
+authenticated inbox installation without an encryption origin entails a
+successful new decryption pair, so its probability is at most
+$\varepsilon_{\rm INT}$. Existing inbox entries and historical consumed
+statuses use their original metadata. The union bound in
+$G_{\rm leaf}$ proves~\eqref{eq:confirmation-message-auth}.
+
+For confidentiality, the AEAD reduction samples the confirmation keys
+locally and executes their actual verification services. Thus
+Corollary~\ref{cor:joint-first-message} applies with its unchanged
+complete-continuation budget. For an independent application challenge
+bit, both arguments may first fix that bit and then average.
+\end{proof}
+
+The authentication statement starts at the uniform epoch-root interface
+$G_R$. The established root-initialization and complete-tuple comparisons
+can precede it at their output-bit costs, for a controller realizing their
+stated interfaces. A native authentication event additionally uses the
+record and component comparisons for that event's own terminal bit.
+The component costs $a_j^+,a_j^-$ in the confidentiality theorem are the
+specified signed-score event distinguishers. This keeps the accounting
+of a new authentication event explicit.
+% END SECTION SOURCE: confirmation-traffic.tex
 
 % BEGIN SECTION SOURCE: multiple-root-entry.tex
 % Finite multiple-root entry. Uses the existing joint-primitive bounds.
@@ -3301,9 +3616,18 @@ The executable comparison tracks four identities across failed writes and
 exact resumption: the original reservation, the component's challenge-ciphertext
 class, the effective hash tuple, and the root-use descriptor. The next-rekey
 source profile fixes that descriptor, and the message continuation selects a
-fresh allocation. Proposition~\ref{prop:native-local-accounting} carries the
-native correspondence term $\rho_j$ and the selected candidate's actual
-projection residual $\eta_{\rm proj}^{\rm nat}$ into the resulting score.
+fresh allocation. Corollary~\ref{cor:live-core-next-rekey} substitutes the
+explicit image/intent comparison cost for the authoritative live core.
+Its source-selection analysis identifies the precise authentication interface
+needed to relate an accepted exchange to its original reservation pair.
+
+Proposition~\ref{prop:confirmation-message-auth} follows the same joint
+key table through the native confirmation and first-message interfaces.
+Its origin ledgers distinguish a fresh authenticated acceptance from an
+exact replay or historical consumption status. The joint schedule is charged
+once for the union of the confirmation and message events; the remaining
+terms account for the MAC rows, complete-core hash collisions and one-key
+ciphertext integrity.
 
 Section~\ref{sec:multiple-root-entry} generalizes the entry step to a finite
 family of available salts and complete root-information strings. Lifetime
@@ -3562,6 +3886,14 @@ locations. Its 24 source files are byte-identical between the protocol pin
 \texttt{1c68aa66}; this identity check is separate from the retained native
 execution receipts.
 
+The live-core instantiation and joint authentication consequence are retained
+in \path{artifacts/confirmation-traffic/}. Their proof and separate reviews
+record the complete observation surface, the reservation-selector witness,
+the native confirmation cores and the original encryption ledger. The source
+map fixes each inspected file at the protocol checkpoint. The authentication
+argument starts at the uniform-root interface and assigns its own terminal
+event to any preceding comparison.
+
 \subsection{ContextBound and original-operation inputs}
 \label{app:contextbound-source}
 
@@ -3633,13 +3965,12 @@ the protocol pin and development checkpoint. The accompanying review
 checks the variable-length compression budgets, complete-input aliases,
 owner transitions and selected-key experiment.
 
-The existing Rust check job at development revision \texttt{1c68aa66}
-passed five purpose-key tests on 7 November 2026, covering the RFC~5869
-vector, domain separation, dual-peer derivation and runtime closure, input
-limits and admission, and different trust-root bindings.
-The retained test receipt identifies that completed execution and its
-individual test outcomes. The source correspondence and mathematical
-review identify the additional claims established in this manuscript.
+The Rust check job at development revision \texttt{1c68aa66} passed all
+five purpose-key tests on 7 November 2026. The retained receipt lists their
+outcomes, covering the RFC~5869 vector, domain separation, dual-peer
+derivation, runtime closure, input admission and trust-root binding.
+The source correspondence and mathematical review record the additional
+manuscript claims.
 % END SECTION SOURCE: artifact-map.tex
 % BEGIN SECTION SOURCE: primitive-inputs.tex
 \section{Primitive inputs to the record and report bounds}

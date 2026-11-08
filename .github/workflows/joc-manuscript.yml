@@ -49,6 +49,8 @@ jobs:
           sh artifact/python-run.sh paper/continuity/build/finite-model/review_exposure.py
       - name: Check ContextBound encodings and adapter witnesses
         run: sh artifact/python-run.sh paper/continuity/artifacts/contextbound-connection/check_contextbound_adapter.py --output paper/continuity/build/contextbound-check.json
+      - name: Check finite confirmation and traffic interfaces
+        run: sh artifact/python-run.sh paper/continuity/artifacts/confirmation-traffic/check_interfaces.py --finite-only --output paper/continuity/build/confirmation-traffic-check.json
       - name: Package the single-file source
         run: sh artifact/python-run.sh paper/continuity/export_submission.py --output paper/continuity/build/joc-source.zip
       - name: Upload manuscript and source
@@ -64,6 +66,7 @@ jobs:
             paper/continuity/build/finite-model/results.json
             paper/continuity/build/finite-model/review_results.json
             paper/continuity/build/contextbound-check.json
+            paper/continuity/build/confirmation-traffic-check.json
           if-no-files-found: error
       - name: Preserve build diagnostics
         if: always()

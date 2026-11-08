@@ -1449,6 +1449,12 @@ cleanup_android_app() {
 					fi
 					case "$OWNERSHIP_SAMPLE_STATE" in
 						exact)
+							if [ -n "$ANDROID_APP_UNINSTALL_PATH_SHA256" ] && \
+								[ "$OWNERSHIP_SAMPLE_PATH_SHA256" != "$ANDROID_APP_UNINSTALL_PATH_SHA256" ]; then
+								printf 'error: Android cleanup package path changed after an uninstall request; refusing to uninstall it\n' >&2
+								remove_installed_apk_copy || return 2
+								return 2
+							fi
 							if [ "$OWNERSHIP_SAMPLE_PATH_SHA256" = \
 								"$cleanup_ownership_previous_path_sha256" ]; then
 								cleanup_ownership_consecutive_exact=$((cleanup_ownership_consecutive_exact + 1))
@@ -1491,16 +1497,26 @@ cleanup_android_app() {
 							printf 'error: Android cleanup deadline expired before owned uninstall\n' >&2
 							return 1
 						fi
-						if ! android_command uninstall-app \
+						ANDROID_APP_UNINSTALL_PATH_SHA256=$OWNERSHIP_SAMPLE_PATH_SHA256
+						ANDROID_APP_UNINSTALL_REQUESTED=1
+						if android_command uninstall-app \
 							--timeout-seconds "$uninstall_timeout" \
 							>>"$DIST/adb-uninstall-cleanup.log" 2>&1; then
-							printf 'phase=cleanup invocation=%s attempt=%s uninstall=unknown-or-failed\n' \
-								"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
-						else
 							printf 'phase=cleanup invocation=%s attempt=%s uninstall=request-returned-zero\n' \
 								"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
+						else
+							uninstall_status=$?
+							printf 'phase=cleanup invocation=%s attempt=%s uninstall=unknown-or-failed\n' \
+								"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
+							case "$uninstall_status" in
+								2 | 129 | 130 | 143) return "$uninstall_status" ;;
+							esac
+							ANDROID_APP_UNINSTALL_REQUESTED=0
+							# A failed request needs two fresh observations and a
+							# signer check of this same path before another request.
+							cleanup_ownership_consecutive_exact=0
+							cleanup_ownership_previous_path_sha256=
 						fi
-						ANDROID_APP_UNINSTALL_REQUESTED=1
 					fi
 				fi
 				;;
@@ -1714,6 +1730,7 @@ ANDROID_APP_CLEANUP_ARMED=0
 ANDROID_APP_INSTALL_CONFIRMED=0
 ANDROID_APP_CLEANUP_INVOCATION=0
 ANDROID_APP_UNINSTALL_REQUESTED=0
+ANDROID_APP_UNINSTALL_PATH_SHA256=
 ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=0
 ADB_PRIVATE_SERVER_CLEANUP_ARMED=0
 ADB_PRIVATE_SERVER_DIRECTORY=

@@ -20,7 +20,7 @@ The full frozen proof and its 22-point cross-check are in [the joint-continuatio
 
 ## Accepted operation to recovered contribution
 
-The accepted-operation-to-uniform-contribution connection is now complete for the next rekey of an established authoritative session and its marked first-message interface:
+The attributed-original-operation-to-uniform-contribution connection is established for the next rekey of an established authoritative session and its marked first-message interface:
 
 1. **Lemma 5.12** applies the cited adaptive hidden-input theorem to the complete ten-field LP8 ContextBound encoding, with bit gap `Phi_256(d_j,Q_H,j)`. Exact repetitions are cached by the effective tuple, including the other shared secret. Origin metadata and hash-table identity remain distinct.
 2. The **operational component adapter** installs the ML-KEM-768 public key at the original generation and creates its one challenge at the original encapsulation's first actual computation. It preserves prechallenge answers; afterwards the selected PQ ciphertext is intercepted regardless of traditional ciphertext/context. X25519 and its failures remain actual native computations. The stated component advantages refer to this two-stage experiment; no unproved conversion to a different game is assumed.
@@ -33,11 +33,11 @@ The two oracle interfaces are explicit: whole SHA3-256 for ContextBound and inde
 
 ## Finite multiple-root entry
 
-**Theorem 5.15** proves the finite entry service from one hidden uniform contribution to several adaptive root descriptors. The cryptographic identity is the full pair `(Gamma(r), I)`, with `Gamma(r)` the two public HMAC pad states and `I` the complete root information. Its table is shared across callers, aliases and resumptions; source provenance remains in the separate origin ledger.
+**The finite multiple-root entry theorem** proves the finite entry service from one hidden uniform contribution to several adaptive root descriptors. The cryptographic identity is the full pair `(Gamma(r), I)`, with `Gamma(r)` the two public HMAC pad states and `I` the complete root information. Its table is shared across callers, aliases and resumptions; source provenance remains in the separate origin ledger.
 
 One hidden-contribution column comparison and a sequence of adaptive class-row comparisons produce a private table of independent roots. The finite bounds distinguish available salt strings `D`, pad-state classes `C` and complete information entries `N_i`. The ordinary-query budgets are `q_S = B + 2D + 5 sum_i N_i` and `q_i = B + 2D + 5 sum_(k>i) N_k`, with the complete surrounding execution in `B`.
 
-A mark selects a descriptor before its first root evaluation. It may select a new information entry in a class that already produced other roots. All aliases of that target share the retained schedule handle. Unmarked roots are available to the controller and may become later salts. **Corollary 5.16** composes this entry with the retained first-message theorem, giving `min(1, 2 Delta_mr + 2 Delta_sched + 2 epsilon_AEAD)`. The ContextBound comparison supplies the preceding `2 Phi_256` term for a candidate whose stopped execution realizes this controller.
+A mark selects a descriptor before its first root evaluation. It may select a new information entry in a class that already produced other roots. All aliases of that target share the retained schedule handle. Unmarked roots are available to the controller and may become later salts. **Its first-message corollary** composes this entry with the retained first-message theorem, giving `min(1, 2 Delta_mr + 2 Delta_sched + 2 epsilon_AEAD)`. The ContextBound comparison supplies the preceding `2 Phi_256` term for a candidate whose stopped execution realizes this controller.
 
 The [multiple-root artifact](../artifacts/multiple-root-entry/README.md) contains the integrated theorem, a complete constructive proof, a worked controller and a 25-point independent review. It distinguishes PRK allocation from target-root allocation and preserves numerical key coincidences through the shared oracle. This completes the finite multiple-root mathematical extension proposed after the next-rekey result.
 
@@ -53,9 +53,23 @@ A separate one-key application experiment marks a fresh descriptor before its fi
 
 The [SDK correspondence artifact](../artifacts/sdk-purpose-connection/README.md) contains the full proof, native source map, independent review and retained Rust test outcomes. The completed current-source CI already passed the five relevant native tests; the manuscript update performs a separate source and mathematical review.
 
+## Native live core and authentication
+
+The live-core corollary now explicitly substitutes the existing source correspondence into the native confidentiality bound. For candidate `j`, the image/intent record cost is the whole-query commitment sum plus the 192-bit sealing-nonce structural-equality term, capped at one; its score contribution is twice that bit cost. The complete declared live interface admits the named successor-root and next-chain-seed projections and complete-object acquisitions. Its original-game projection residual is zero. Optional report and additional partial-secret interfaces retain their own accounting.
+
+The general attribution residual remains explicit. An original draw `g1` can enter a transaction-private key plan whose persistence fails before any pending target or image is durable. After reopening the prior authoritative state, a new `g2` can produce the honest accepted exchange with `a2`. A selector naming `(g1,a2)` may satisfy the general reservation metadata and cut conditions while missing the actual exchange. This witness is already covered by the original attribution term and requires no signature forgery.
+
+The confirmation/message proposition starts at the established uniform epoch-root interface. It bounds the union of fresh accepted confirmation cores and new authenticated first-message inbox installations by the joint-schedule cost once, adaptive confirmation-row costs, classical tag guessing, a full-core quantum hash-collision cost and a one-key ciphertext-integrity term. Exact private tag/encryption origins are logged before later persistence or release. `PreviouslyConsumed` and an existing inbox entry retain their actual historical status. The same controller retains the existing qualified confidentiality result.
+
+The new result uses the actual three next-rekey confirmation keys and the marked traffic allocation. The SDK five-purpose workload retains its established derive/export interpretation. The production bootstrap's separate raw contribution use retains its own construction analysis.
+
+The complete proof, fixed-source map, finite semantic controls and independent reviews are in [the live-core and authentication artifact](../artifacts/confirmation-traffic/README.md). No new native Rust, Tamarin or performance execution is claimed by this mathematical increment.
+
 ## Focused continuation
 
-The finite entry theorem now has two concrete uses: the established next-rekey continuation and the owned SDK purpose-key table. A useful next extension is a declared application that uses several purpose outputs together, such as directional traffic keys and confirmation keys. Its experiment must specify the actual confirmation transcript, verification responses, nonce policy and plaintext interface. The key-table comparison supplies the joint uniform-key entry; the remaining work is that application's authentication and message composition. This is an additional research result with its own interface and proof obligations.
+The next decisive mathematical task is a source-resolved attribution game for actual accepted exchanges. Register the original KEM slots at their first private computations, preserve exact resumptions, and prove the association through native retained-plan transitions and complete signed transcript bindings. The signing adapter must model `SigningReservation` random coins and retained representations: a conventional signing oracle alone does not supply the identical coins needed to materialize those records.
+
+Once that interface is specified, reduce accepted source-association failures to its own signature/hash events and insert the bound at the existing native attribution term. This is the precise dependency for a stronger native computational recovery claim. Any native authentication theorem also needs record and component comparisons for its authentication-event bit; the confidentiality theorem's two signed-score event costs retain their original meanings. The already established exposure semantics, record simulation, symbolic recovery and current conditional quantitative results remain complete within their stated interfaces.
 
 ## SkyBridge allocation
 
