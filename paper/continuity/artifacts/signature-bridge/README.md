@@ -35,7 +35,7 @@ python review_generic_controls.py
 python -O review_generic_controls.py
 ```
 
-The default author checker reads the audited source copies in `sources/`. It verifies the fixed manifest digest, all 24 source/metadata/license file identities, the two lockfile pins, exact external-randomizer routing, native framing, and the XOF input-length inventory. It requires no repository checkout, package download, Rust build, or network access. Each command emits JSON and exits nonzero on a failed check.
+The default author checker reads the audited source copies in `sources/`. Frozen Rust witnesses use the `.rs.txt` suffix; `source_identity.json` retains their original upstream or native `.rs` paths and unchanged byte digests. This keeps historical evidence separate from compilable repository inputs. `snapshot_layout.json` records the eleven path mappings and the CI failure that motivated this packaging correction. It verifies the fixed manifest digest, all 24 source/metadata/license file identities, the two lockfile pins, exact external-randomizer routing, native framing, and the XOF input-length inventory. It requires no repository checkout, package download, Rust build, or network access. Each command emits JSON and exits nonzero on a failed check.
 
 For the finite controls alone:
 
@@ -62,7 +62,7 @@ The native checkpoint is `358b921ab3469ce49f166633fc9a762ff6ed7e3d`. Both lockfi
 
 `c9fb5a367b9846933e271a3c2a992930743f82ae5e8cb7faa780715a80fa0b15`.
 
-The authenticated package records upstream commit `8d456d989dce681233ef963d3c3306da8f76d7c7`. Exact source paths, SHA256 digests, Git blob identities and byte lengths are in [source_identity.json](source_identity.json). The upstream package's Apache/MIT license files and the applicable native source license files are retained beside the copied sources. These files are an audit snapshot; the supplement does not build or redistribute a modified cryptographic library.
+The authenticated package records upstream commit `8d456d989dce681233ef963d3c3306da8f76d7c7`. Exact source paths, SHA256 digests, Git blob identities and byte lengths are in [source_identity.json](source_identity.json). The upstream package's Apache/MIT license files and the applicable native source license files are retained beside the copied sources. These files are an audit snapshot; the supplement does not build or redistribute a modified cryptographic library. Earlier review receipts retain their original audit-time paths and checker identity; `snapshot_layout_checks.json` records the current self-contained replay against the unchanged source identities.
 
 The checked context literal has 42 bytes, giving a protocol descriptor input of `155 + body_length` bytes. The remaining target SHAKE256 input lengths are 66, 48, 832 and 1952 bytes. Matrix expansion uses SHAKE128. This source correspondence justifies excluding target rejection-loop calls from the sensitive-domain query budget while retaining their full computational cost.
 

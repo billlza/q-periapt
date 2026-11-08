@@ -40,33 +40,31 @@
 % The alternative address is retained in author-metadata.json.
 \author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
-\abstract{Persistent implementations may reserve randomness before a cryptographic
-operation executes. Recovery after compromise therefore depends on the
-sampling and acquisition history of that randomness across restart.
-We formalize this dependence through immutable reservation origins and an
-interface for acquiring, copying, rewrapping, and opening retained records.
-Alias normalization preserves original operations. For fixed public key
-derivations, an exact guarded-path characterization captures exposure through
-acquired ciphertexts and disclosed keys. We construct private-image and
-intent simulations without selected reservation coins, and compose immutable
-authentication reports in reverse causal order when their transcripts contain
-earlier private report keys. Candidate-local accounting connects these
-interfaces before the final compromise cut is selected. A full-tuple quantum
-hash comparison links a uniform component secret to the recovered contribution.
-A compression quantum random-oracle reduction follows root extraction,
-confirmation, traffic derivation, and a selected first-message key, retaining
-real control and acknowledgement verification and successor-state disclosure.
-Its native instance covers the next rekey of an established session and a
-fresh marked message allocation. An executed-slot selector bounds source-association errors. A shared-XOF
-quantum reduction accommodates original-randomizer disclosure and connects
-native ML-DSA to ordinary unforgeability. Finite descriptor families extend initialization to
-adaptive fresh selection and exact aliases; a variable-length form covers
-SDK purpose-key derivations and separate owner lifecycles. A hybrid
-post-quantum messaging protocol supplies multi-epoch symbolic message secrecy
-with inherited roots and asynchronous confirmation.
-Native executions reconstruct traffic from pre-restart reservations and
-demonstrate aggregate rewriting and delayed receipts. Finite-model
-checks and executable corpora validate the exposure semantics.}
+\abstract{Protocols that retain randomness across crashes must distinguish the
+creation of a secret source from the later computation that uses it. We study
+how persistent randomness reservations affect recovery after compromise.
+Our model assigns immutable origins to operations and tracks acquisition of
+their encrypted representations and disclosure of the keys that open them.
+Alias normalization preserves those origins, and an exact guarded-path
+theorem characterizes record exposure for fixed public key derivations.
+We give constructive simulations for private records and dependent
+authentication reports, together with candidate-local accounting for an
+adaptively selected compromise cut. These results connect original-operation
+exposure to computational confidentiality and selected-root authentication
+bounds for the next rekey of an established session and a selected first
+message. The reduction follows the
+complete hybrid contribution, root extraction, confirmation and traffic
+schedule in the stated quantum random-oracle models, retaining real
+verification and successor-state disclosure. A shared-XOF bridge reduces the
+native signing-reservation interface to ordinary hedged ML-DSA unforgeability
+and supplies the source-attribution bound. Finite descriptor families also
+yield a purpose-key derivation result with exact aliases and separate owner
+lifecycles. A mechanized symbolic theorem establishes multi-epoch message
+secrecy under the provenance condition. Native executions demonstrate traffic
+reconstruction from pre-restart reservations, aggregate copies and delayed
+receipts. Independent finite checks and pinned reference workloads validate
+the exposure semantics and quantify the message sets reconstructed from
+retained state.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 

@@ -59,7 +59,7 @@ distinction between a new image and an existing source directly observable.
 
 \paragraph{Contributions.}
 The paper connects the exposure of original randomness, computational
-message confidentiality, and multi-epoch recovery.
+message confidentiality and authentication, and multi-epoch recovery.
 
 We give a provenance-preserving model of reservations and record acquisition.
 Alias normalization relates copied and resealed representations to the same
@@ -72,41 +72,34 @@ alternative copies provide further routes to that source. This gives
 recovery experiments a stable exposure condition across physical changes
 to storage.
 
-These exposure semantics support a constructive computational connection
-through the persistent observations and key derivations of one recovery experiment. The private-image and intent
-simulator represents the selected operation without its reservation coins,
-and reverse-causal composition handles immutable reports whose transcripts
-contain earlier private report keys. Candidate-local accounting connects
-these simulations to the native score and certifies permanent stopping from
-original provenance before the final cut is selected
-(Proposition~\ref{prop:native-local-accounting}). At the cryptographic entry,
-the complete ContextBound tuple supports a quantum hidden-input comparison,
-and an original-operation adapter embeds the ML-KEM challenge while preserving
-retries. The shared-compression-oracle analysis then follows root
-initialization, confirmation, traffic derivation, and the selected
-first-message key. It retains real verification and the stated successor-state
-disclosures (Theorem~\ref{thm:joint-message-leaf}). The native connection is
-established for the next rekey of an existing session and a fresh marked
-message allocation (Section~\ref{sec:contextbound-connection}). The live-core
-instantiation makes its record cost explicit
-(Corollary~\ref{cor:live-core-next-rekey}). The same joint key table yields
-an authentication bound for accepted confirmation cores and the selected
-first message (Proposition~\ref{prop:confirmation-message-auth}). The
-source-association result records existing reservation slots at their first private
-computation and connects accepted allocations through a signature experiment
-that preserves signing reservations
-(Proposition~\ref{prop:executed-source-attribution}). A shared-XOF
-comparison connects the native ML-DSA reservation interface to ordinary
-hedged-signature unforgeability in the quantum random-oracle model,
-preserving openings, repeated effective inputs and private computations
-followed by failed publication
-(Theorem~\ref{thm:native-mldsa-reservation-bridge}). The finite
-multiple-root entry theorem extends the initialization to available salts and
-complete information strings, preserving exact aliases and a fresh target in
-a previously used class (Section~\ref{sec:multiple-root-entry}).
-Its variable-length form gives a source-backed application to the SDK's
-purpose-key interface: complete input aliases share a key value while each
-derived owner retains its own lifecycle
+We use this semantics to connect retained native state to message security.
+The computational result covers the next rekey of an established session
+and a fresh marked message allocation, with explicit record, component,
+hash, key-schedule and AEAD costs
+(Corollary~\ref{cor:live-core-next-rekey}). Its proof constructs private
+images and intents when the reduction holds only an operation's public
+outputs, composes dependent immutable reports in reverse causal order,
+and localizes the native score before the compromise cut is selected.
+An original-operation adapter then carries the operational ML-KEM
+experiment through the complete ContextBound tuple, root initialization,
+confirmation and traffic derivation. The joint continuation retains actual
+verification and the specified successor-state disclosures. Applying the
+same chain to the selected authentication event gives a native bound for
+confirmation and first-message integrity
+(Theorem~\ref{thm:native-selected-authentication}). Its original-game
+localization and Boolean comparisons charge each simulation step once.
+
+The association between an accepted allocation and its original KEM calls
+is part of that connection. A selector registers the existing reservation
+slots before their first private computations. Persistent signing calls
+retain their randomizer and original-message ledger through opening,
+replay and failed publication. A joint shared-XOF comparison reduces this
+native ML-DSA interface to ordinary hedged-signature unforgeability
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}), supplying the
+signature term in the source-attribution bound. The key-derivation analysis
+also extends to finite families of salts and complete information strings.
+Its SDK instance separates the shared value of a repeated derivation from
+the lifecycle of each returned owner
 (Section~\ref{sec:sdk-purpose-connection}).
 
 The same provenance condition supports symbolic message secrecy when the target's original reservations

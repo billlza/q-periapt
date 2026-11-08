@@ -4,7 +4,7 @@ Research manuscript for Journal of Cryptology.
 
 **Author:** Ziang Li (李子昂), Department of Engineering, Durham University. **Correspondence:** 2403871950@qq.com. The alternative contact, bhmq03@durham.ac.uk, is retained in `author-metadata.json`.
 
-The repository maintains one manuscript on **`paper/joc-persistent-recovery`**, through [draft PR #119](https://github.com/billlza/q-periapt/pull/119). The reading copy is [continuity.pdf](continuity.pdf). External copies use the stable filenames `Q-Periapt_JoC_Manuscript.pdf` and `Q-Periapt_JoC_Research.zip`; Git commits and artifact hashes identify the research history.
+The repository maintains one manuscript on **`paper/joc-persistent-recovery`**, through [manuscript PR #119](https://github.com/billlza/q-periapt/pull/119). The reading copy is [continuity.pdf](continuity.pdf). External copies use the stable filenames `Q-Periapt_JoC_Manuscript.pdf` and `Q-Periapt_JoC_Research.zip`; Git commits and artifact hashes identify the research history.
 
 ## Research structure
 
@@ -14,11 +14,15 @@ The computational development constructs private-record and dependent-report sim
 
 The live-core instantiation supplies the explicit native image/intent comparison cost and its complete admitted observation interface. The same joint key table also supports a confirmation and first-message authentication bound, with private origin ledgers, classical verification and quantum public-oracle queries. An executed-slot selector now registers original KEM sources before their first computations return. Its retained-plan induction and complete signed-transcript checks bound source-association failure by fresh-body signature and hash-collision events. The general metadata selector keeps its original residual and failed-reservation counterexample.
 
+The native authentication composition carries the selected confirmation and first-message integrity event through the record, operational component, complete-tuple, root-initialization and joint-schedule comparisons. It localizes the joint event with original eligibility in the native game; each Boolean comparison contributes once. The same admitted online marking and exact-alias rules identify the recovered root and first-message allocation throughout.
+
 The signing connection preserves original randomizers, exact replay and the declared signing-owner observation interface. It has an exact classical reduction through the native deterministic RFC 6979 P-256 component. The native ML-DSA bridge now connects original-randomizer opening to ordinary hedged unforgeability in the shared ROM/QROM. Its exact pair cache preserves visible collisions and replay, while a joint hidden-seed and hedge-slice comparison accounts for shared SHAKE256 use. Adaptive owner creation and non-target disclosure have an explicit single-user conversion. Source maps, finite controls and independent internal argument reviews accompany the proof.
 
 The multiple-root entry theorem extends the initialization interface to a finite family of available salts and complete information strings. Its exact descriptor table preserves HMAC pad-state aliases and supports an online fresh target in a previously used class. Other generated roots remain available to the controller, and every target alias retrieves one retained schedule handle. The complete-query bound and first-message consequence appear together in the finite multiple-root entry section.
 
 The variable-length form now applies that comparison to the native SDK purpose-key interface. Complete information strings index the key table, while each returned owner keeps its own lifecycle. The source correspondence covers the fixed salt, exact field encoding, repeated derivation, export and close operations. The existing five-purpose dual-peer workload supplies a concrete finite instance; a separate application experiment gives the selected-key AEAD consequence.
+
+The reference evaluation now presents all seven retained communication schedules for pinned SPQR, its isolated 64-byte chunk variant and the three whole-KEM controls. Its deterministic analysis binds four original corpus files and checks 35 configuration/schedule pairs and 420 snapshots. The full table uses one common capture coordinate and places reconstructed message sets alongside component bytes per send. Independent integer-arithmetic recomputation and source-mutation controls accompany the analysis.
 
 The proofs and independent reviews are retained by subject:
 
@@ -28,8 +32,10 @@ The proofs and independent reviews are retained by subject:
 - [Live-core and authentication connection](artifacts/confirmation-traffic/README.md): explicit record cost, source selection, accepted confirmation cores and first-message integrity.
 - [Executed-source attribution](artifacts/source-attribution/README.md): retained-plan source association, signature component adapters, original-randomizer observations and finite fault/alias checks.
 - [Reservation-to-ordinary signature bridge](artifacts/signature-bridge/README.md): exact pair caching, native shared-XOF ROM/QROM reduction, adaptive owners and pinned source correspondence.
+- [Native authentication composition](artifacts/native-authentication/README.md): the selected eligible native event, complete Boolean proof chain and independent accounting controls.
 - [Multiple-root entry](artifacts/multiple-root-entry/README.md): finite class-row comparison, adaptive target embedding and complete budgets.
 - [SDK purpose-key correspondence](artifacts/sdk-purpose-connection/README.md): variable-length entry comparison, exact native descriptors and separate owner states.
+- [Complete reference schedule comparison](artifacts/reference-comparison/README.md): retained source corpora, all 420 snapshot cases, generated seven-schedule table and independent recomputation.
 
 [RESEARCH_HANDOFF.md](notes/RESEARCH_HANDOFF.md) records the established connections and the next focused research question. [The SkyBridge scope note](notes/skybridge-scope.md) explains the earlier transcript, admission and recovery-release mechanisms; its migration and platform results remain their independent research line.
 
@@ -43,6 +49,8 @@ sh artifact/python-run.sh paper/continuity/artifacts/contextbound-connection/che
 sh artifact/python-run.sh paper/continuity/artifacts/source-attribution/check_source_attribution.py --finite-only --output paper/continuity/build/source-attribution-finite.json
 sh artifact/python-run.sh paper/continuity/artifacts/signature-bridge/check_bridge.py --crate-archive paper/continuity/artifacts/signature-bridge/sources/fips204-0.4.6.crate > paper/continuity/build/signature-bridge-check.json
 sh artifact/python-run.sh paper/continuity/artifacts/signature-bridge/review_generic_controls.py > paper/continuity/build/signature-bridge-review.json
+sh artifact/python-run.sh paper/continuity/artifacts/reference-comparison/analyze_reference.py --check
+sh artifact/python-run.sh paper/continuity/artifacts/native-authentication/review_auth_bit_accounting.py
 make -C paper/continuity source PYTHON="sh $PWD/artifact/python-run.sh"
 ```
 

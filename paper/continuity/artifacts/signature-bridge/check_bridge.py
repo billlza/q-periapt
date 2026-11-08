@@ -42,6 +42,16 @@ def verify_file(data: bytes, record: dict) -> None:
     require(git_hash == record["git_blob_sha1"], "source Git blob: " + record["path"])
 
 
+def snapshot_path(directory: Path, source_path: str) -> Path:
+    """Keep frozen Rust witnesses distinct from compilable repository sources."""
+    original = directory / source_path
+    if original.suffix == ".rs":
+        require(not original.exists() and not original.is_symlink(),
+                "duplicate compilable source snapshot: " + source_path)
+        return original.with_name(original.name + ".txt")
+    return original
+
+
 def source_audit(repository: Path | None, archive: Path | None) -> dict:
     manifest_bytes = (ROOT / "source_identity.json").read_bytes()
     require(sha256(manifest_bytes) == MANIFEST_SHA256, "source identity manifest changed")
@@ -54,7 +64,7 @@ def source_audit(repository: Path | None, archive: Path | None) -> dict:
     files = []
     for directory, records in ((upstream, manifest["files"]), (native, manifest["local_source_files"])):
         for record in records:
-            verify_file((directory / record["path"]).read_bytes(), record)
+            verify_file(snapshot_path(directory, record["path"]).read_bytes(), record)
             files.append({"packet": directory.name, "path": record["path"], "sha256": record["sha256"]})
     if repository is not None:
         for record in manifest["local_source_files"]:
@@ -73,7 +83,7 @@ def source_audit(repository: Path | None, archive: Path | None) -> dict:
         require('\nversion = "0.4.6"\n' in stanza, "wrong locked fips204 version")
         require(f'checksum = "{ARCHIVE_SHA256}"' in stanza, "wrong lockfile checksum")
 
-    mldsa = (upstream / "src/ml_dsa.rs").read_text()
+    mldsa = snapshot_path(upstream, "src/ml_dsa.rs").read_text()
     signing = mldsa.split("pub(crate) fn sign_internal", 1)[1].split("/// # Algorithm 8", 1)[0]
     signing_code = re.sub(r"//[^\n]*", "", signing)
     require(len(re.findall(r"\bcap_k\b", signing_code)) == 2, "K has a new signing use")
@@ -81,23 +91,23 @@ def source_audit(repository: Path | None, archive: Path | None) -> dict:
     require("h256_xof(&[xi, &[K.to_le_bytes()[0]], &[L.to_le_bytes()[0]]])" in mldsa, "seed expansion framing changed")
     require("cap_k: _" in mldsa.split("fn private_to_public_key", 1)[1], "public-key derivation uses K")
 
-    traits = (upstream / "src/traits.rs").read_text()
+    traits = snapshot_path(upstream, "src/traits.rs").read_text()
     require("self.try_sign_with_rng(&mut DummyRng {data: *seed}, message, ctx)" in traits, "seeded signing route changed")
     require("out.copy_from_slice(&self.data);" in traits, "original randomizer transport changed")
-    backend = (native / "crates/q-periapt-backends/src/mldsa.rs").read_text()
+    backend = snapshot_path(native, "crates/q-periapt-backends/src/mldsa.rs").read_text()
     require("try_sign_with_seed" in backend and "keygen_from_seed" in backend, "native backend route changed")
 
-    contract = (native / "research/continuity-identity-candidate/src/contract.rs").read_text()
+    contract = snapshot_path(native, "research/continuity-identity-candidate/src/contract.rs").read_text()
     literal = re.search(r'SIGNATURE_CONTEXT: &\[u8\] = b"([^"]+)";', contract)
     require(literal is not None, "context literal missing")
     context = literal.group(1).encode("ascii")
     require(len(context) == 42, "native context size changed")
-    owner = (native / "research/continuity-identity-candidate/src/crypto.rs").read_text()
+    owner = snapshot_path(native, "research/continuity-identity-candidate/src/crypto.rs").read_text()
     message_code = owner.split("fn signed_message", 1)[1].split("pub(crate) fn envelope", 1)[0]
     for operation in ("message.extend_from_slice(SIGNATURE_CONTEXT);", "message.push(purpose as u8);", "message.extend_from_slice(&length.to_be_bytes());", "message.extend_from_slice(body);"):
         require(operation in message_code, "original-message framing changed")
 
-    lib = (upstream / "src/lib.rs").read_text()
+    lib = snapshot_path(upstream, "src/lib.rs").read_text()
     params = lib.split("pub mod ml_dsa_65 {", 1)[1].split("functionality!();", 1)[0]
     k = int(re.search(r"const K: usize = (\d+);", params).group(1))
     ell = int(re.search(r"const L: usize = (\d+);", params).group(1))
@@ -106,7 +116,7 @@ def source_audit(repository: Path | None, archive: Path | None) -> dict:
     require((k, ell, security, pk_bytes) == (6, 5, 192, 1952), "ML-DSA-65 parameters changed")
     require("const GAMMA2: i32 = (Q - 1) / 32;" in params, "commitment parameters changed")
     w1_bytes = 32 * k * (16 - 1).bit_length()
-    hashing = (upstream / "src/hashing.rs").read_text()
+    hashing = snapshot_path(upstream, "src/hashing.rs").read_text()
     for anchor in ("let mut h_ctx = h256_xof(&[rho]);", "let mut xof = h256_xof(rhos);", "let mut xof = h256_xof(&[rho, &n.to_le_bytes()]);", "let mut xof = g128_xof(rhos);"):
         require(anchor in hashing, "hash call inventory changed")
     lengths = {
@@ -131,6 +141,7 @@ def source_audit(repository: Path | None, archive: Path | None) -> dict:
         "upstream_commit": UPSTREAM_COMMIT,
         "source_and_license_files": files,
         "source_and_license_file_count": len(files),
+        "rust_snapshot_suffix": ".rs.txt",
         "external_checkout_checked": repository is not None,
         "original_crate_archive_authenticated": archive is not None,
         "input_lengths_bytes": lengths,

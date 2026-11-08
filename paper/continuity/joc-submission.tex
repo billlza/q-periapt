@@ -41,33 +41,31 @@
 % The alternative address is retained in author-metadata.json.
 \author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
-\abstract{Persistent implementations may reserve randomness before a cryptographic
-operation executes. Recovery after compromise therefore depends on the
-sampling and acquisition history of that randomness across restart.
-We formalize this dependence through immutable reservation origins and an
-interface for acquiring, copying, rewrapping, and opening retained records.
-Alias normalization preserves original operations. For fixed public key
-derivations, an exact guarded-path characterization captures exposure through
-acquired ciphertexts and disclosed keys. We construct private-image and
-intent simulations without selected reservation coins, and compose immutable
-authentication reports in reverse causal order when their transcripts contain
-earlier private report keys. Candidate-local accounting connects these
-interfaces before the final compromise cut is selected. A full-tuple quantum
-hash comparison links a uniform component secret to the recovered contribution.
-A compression quantum random-oracle reduction follows root extraction,
-confirmation, traffic derivation, and a selected first-message key, retaining
-real control and acknowledgement verification and successor-state disclosure.
-Its native instance covers the next rekey of an established session and a
-fresh marked message allocation. An executed-slot selector bounds source-association errors. A shared-XOF
-quantum reduction accommodates original-randomizer disclosure and connects
-native ML-DSA to ordinary unforgeability. Finite descriptor families extend initialization to
-adaptive fresh selection and exact aliases; a variable-length form covers
-SDK purpose-key derivations and separate owner lifecycles. A hybrid
-post-quantum messaging protocol supplies multi-epoch symbolic message secrecy
-with inherited roots and asynchronous confirmation.
-Native executions reconstruct traffic from pre-restart reservations and
-demonstrate aggregate rewriting and delayed receipts. Finite-model
-checks and executable corpora validate the exposure semantics.}
+\abstract{Protocols that retain randomness across crashes must distinguish the
+creation of a secret source from the later computation that uses it. We study
+how persistent randomness reservations affect recovery after compromise.
+Our model assigns immutable origins to operations and tracks acquisition of
+their encrypted representations and disclosure of the keys that open them.
+Alias normalization preserves those origins, and an exact guarded-path
+theorem characterizes record exposure for fixed public key derivations.
+We give constructive simulations for private records and dependent
+authentication reports, together with candidate-local accounting for an
+adaptively selected compromise cut. These results connect original-operation
+exposure to computational confidentiality and selected-root authentication
+bounds for the next rekey of an established session and a selected first
+message. The reduction follows the
+complete hybrid contribution, root extraction, confirmation and traffic
+schedule in the stated quantum random-oracle models, retaining real
+verification and successor-state disclosure. A shared-XOF bridge reduces the
+native signing-reservation interface to ordinary hedged ML-DSA unforgeability
+and supplies the source-attribution bound. Finite descriptor families also
+yield a purpose-key derivation result with exact aliases and separate owner
+lifecycles. A mechanized symbolic theorem establishes multi-epoch message
+secrecy under the provenance condition. Native executions demonstrate traffic
+reconstruction from pre-restart reservations, aggregate copies and delayed
+receipts. Independent finite checks and pinned reference workloads validate
+the exposure semantics and quantify the message sets reconstructed from
+retained state.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 
@@ -133,7 +131,7 @@ distinction between a new image and an existing source directly observable.
 
 \paragraph{Contributions.}
 The paper connects the exposure of original randomness, computational
-message confidentiality, and multi-epoch recovery.
+message confidentiality and authentication, and multi-epoch recovery.
 
 We give a provenance-preserving model of reservations and record acquisition.
 Alias normalization relates copied and resealed representations to the same
@@ -146,41 +144,34 @@ alternative copies provide further routes to that source. This gives
 recovery experiments a stable exposure condition across physical changes
 to storage.
 
-These exposure semantics support a constructive computational connection
-through the persistent observations and key derivations of one recovery experiment. The private-image and intent
-simulator represents the selected operation without its reservation coins,
-and reverse-causal composition handles immutable reports whose transcripts
-contain earlier private report keys. Candidate-local accounting connects
-these simulations to the native score and certifies permanent stopping from
-original provenance before the final cut is selected
-(Proposition~\ref{prop:native-local-accounting}). At the cryptographic entry,
-the complete ContextBound tuple supports a quantum hidden-input comparison,
-and an original-operation adapter embeds the ML-KEM challenge while preserving
-retries. The shared-compression-oracle analysis then follows root
-initialization, confirmation, traffic derivation, and the selected
-first-message key. It retains real verification and the stated successor-state
-disclosures (Theorem~\ref{thm:joint-message-leaf}). The native connection is
-established for the next rekey of an existing session and a fresh marked
-message allocation (Section~\ref{sec:contextbound-connection}). The live-core
-instantiation makes its record cost explicit
-(Corollary~\ref{cor:live-core-next-rekey}). The same joint key table yields
-an authentication bound for accepted confirmation cores and the selected
-first message (Proposition~\ref{prop:confirmation-message-auth}). The
-source-association result records existing reservation slots at their first private
-computation and connects accepted allocations through a signature experiment
-that preserves signing reservations
-(Proposition~\ref{prop:executed-source-attribution}). A shared-XOF
-comparison connects the native ML-DSA reservation interface to ordinary
-hedged-signature unforgeability in the quantum random-oracle model,
-preserving openings, repeated effective inputs and private computations
-followed by failed publication
-(Theorem~\ref{thm:native-mldsa-reservation-bridge}). The finite
-multiple-root entry theorem extends the initialization to available salts and
-complete information strings, preserving exact aliases and a fresh target in
-a previously used class (Section~\ref{sec:multiple-root-entry}).
-Its variable-length form gives a source-backed application to the SDK's
-purpose-key interface: complete input aliases share a key value while each
-derived owner retains its own lifecycle
+We use this semantics to connect retained native state to message security.
+The computational result covers the next rekey of an established session
+and a fresh marked message allocation, with explicit record, component,
+hash, key-schedule and AEAD costs
+(Corollary~\ref{cor:live-core-next-rekey}). Its proof constructs private
+images and intents when the reduction holds only an operation's public
+outputs, composes dependent immutable reports in reverse causal order,
+and localizes the native score before the compromise cut is selected.
+An original-operation adapter then carries the operational ML-KEM
+experiment through the complete ContextBound tuple, root initialization,
+confirmation and traffic derivation. The joint continuation retains actual
+verification and the specified successor-state disclosures. Applying the
+same chain to the selected authentication event gives a native bound for
+confirmation and first-message integrity
+(Theorem~\ref{thm:native-selected-authentication}). Its original-game
+localization and Boolean comparisons charge each simulation step once.
+
+The association between an accepted allocation and its original KEM calls
+is part of that connection. A selector registers the existing reservation
+slots before their first private computations. Persistent signing calls
+retain their randomizer and original-message ledger through opening,
+replay and failed publication. A joint shared-XOF comparison reduces this
+native ML-DSA interface to ordinary hedged-signature unforgeability
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}), supplying the
+signature term in the source-attribution bound. The key-derivation analysis
+also extends to finite families of salts and complete information strings.
+Its SDK instance separates the shared value of a repeated derivation from
+the lifecycle of each returned owner
 (Section~\ref{sec:sdk-purpose-connection}).
 
 The same provenance condition supports symbolic message secrecy when the target's original reservations
@@ -2979,14 +2970,11 @@ complete-continuation budget. For an independent application challenge
 bit, both arguments may first fix that bit and then average.
 \end{proof}
 
-The authentication statement starts at the uniform epoch-root interface
-$G_R$. The established root-initialization and complete-tuple comparisons
-can precede it at their output-bit costs, for a controller realizing their
-stated interfaces. A native authentication event additionally uses the
-record and component comparisons for that event's own terminal bit.
-The component costs $a_j^+,a_j^-$ in the confidentiality theorem are the
-specified signed-score event distinguishers. This keeps the accounting
-of a new authentication event explicit.
+The native composition in Section~\ref{sec:native-authentication}
+precedes this uniform epoch-root interface with the record, component,
+complete-tuple and root-initialization comparisons. Each comparison uses
+the selected authentication event's terminal bit and complete continuation
+budget, connecting the present bound to the original recovery experiment.
 % END SECTION SOURCE: confirmation-traffic.tex
 % BEGIN SECTION SOURCE: source-attribution.tex
 \subsection{Executed sources and signing reservations}
@@ -3451,6 +3439,258 @@ instantiation of the signature term in
 Proposition~\ref{prop:executed-source-attribution}, preserving its record,
 KEM-correctness and joint-continuation accounting.
 % END SECTION SOURCE: reservation-signature-bridge.tex
+% BEGIN SECTION SOURCE: native-authentication.tex
+\subsection{Native authentication for the selected recovered root}
+\label{sec:native-authentication}
+
+The confirmation and first-message authentication bound can be transported
+through the native execution by comparing its own terminal event bit.  This
+gives an end-to-end authentication statement for the same recovered root whose
+first message appears in the confidentiality game.
+
+\paragraph{Target event.}
+Fix the live-core, single-root next-rekey profile and an admitted marked
+controller of Theorem~\ref{thm:cb-next-rekey} and
+Proposition~\ref{prop:confirmation-message-auth}.  In particular, for each
+fixed candidate its target contribution and marked traffic entry are
+designated at the allocation points required by those interfaces; the
+original terminal selector corresponds to those designated entries whenever
+it returns that eligible candidate.  As in
+Definition~\ref{def:recovery-game} and its adaptive version, the experiment
+retains one application challenge.  Its original accepted logical send fixes
+the target root schedule through the send's stored provenance handle.  The
+terminal selector may choose coordinates, reservation handles, and the cut
+adaptively; eligibility requires those coordinates to identify that same
+accepted send.  Let $E$ be its original eligibility event, $A$ its
+source-attribution event, and $I\in J=[G]\times[C]$ the attributed pair of
+original generation and encapsulation reservations on $A$.
+
+The target root and its event history are defined by the actual accepted
+challenge send, including on executions where $A$ fails.  A challenge without
+an accepted send has $E=0$ and we set the target event flag to zero.  On $A$,
+the root handle is the schedule entry generated from the effective
+ContextBound tuple $m^*$ of the attributed pair.  The handle is carried
+through replay, recovery, exact tuple aliases, and the resulting role keys
+and marked first-message key.  Ledger aliasing follows
+Proposition~\ref{prop:confirmation-message-auth}.
+
+For this target, let $\mathsf{Bad}_{\rm auth}$ be the union of the following
+events: a successful native response, final, or receipt confirmation whose
+complete core is absent from the earlier honest private-tag ledger under the
+corresponding target role key; or a fresh authenticated first-message receive
+and inbox installation whose $(\mathrm{AAD},\mathrm{ciphertext})$ pair is absent
+from the earlier honest private-encryption ledger under the marked target
+first-message key.  These are the events of the uniform-root authentication
+proposition restricted to this selected root schedule.  The honest ledgers
+are populated at the first private computation, before persistence or public
+release.  A repeated delivery or a previously consumed inbox result retains
+its original ledger provenance.  Genuine aliases of the selected schedule
+entry share its honest ledger, while independently allocated entries retain
+their own provenance.
+
+The experiment records these event flags as execution proceeds.  Its eventual
+evaluation reads the accepted challenge send's root history, which may
+include confirmation events before that send.  For a fixed pair $j=(g,a)$,
+the original $a$ determines $m^*$ before its first private hash computation
+at any protected alias, including a computation followed by a failed write,
+as specified in Section~\ref{sec:contextbound-connection}.  Other protected
+tuples retain their own entries.  If the original $a$ never supplies a usable
+target, the candidate event is zero.  The root entry, traffic entry, and
+direction retain their prescribed online marks.  These rules connect the
+recorded history to the admitted controller throughout the comparisons.
+The probability bounded below is the joint probability
+$\Pr[E\wedge\mathsf{Bad}_{\rm auth}]$ in the original native game.  The
+attribution residual bounds its part on $E\wedge\neg A$.
+
+\paragraph{Authentication-specific comparisons.}
+For each fixed $j\in J$, use the native stopped continuation
+$G_{\rm nat}^{[j]}$, its real-component record idealization $V^{[j]}$, and the
+uniform-component continuation $\widetilde V^{[j]}$ from the candidate-local
+accounting.  Apply to each of these worlds the same terminal Boolean code
+\[
+ W_j=\mathbf1[
+ E\wedge A\wedge I=j\wedge\mathsf{Bad}_{\rm auth}],
+ \qquad W_j=0\text{ after a declared local stop}.
+\]
+All eligibility, attribution, tuple selection, ledger membership, and event
+flags are evaluated on the execution of that world.  They are computable from
+the classical execution and provenance ledgers available to the existing
+reduction interface; no test of an unknown challenge bit is used.
+
+Let $a_j^{\rm auth}$ be the real-versus-uniform advantage of the operational
+ML-KEM adapter of Section~\ref{sec:contextbound-connection} when its output
+bit is $W_j$.  Its public key is installed at the original generation's
+first actual private invocation, its encapsulation challenge at the original
+encapsulation's first actual private invocation, and every post-challenge decapsulation of
+the selected PQ ciphertext under the selected generation owner returns the
+challenge secret, regardless of the traditional ciphertext or context.
+The native traditional-component validation, its rejections, the original
+prechallenge history, and exact-retry caches are retained.  The selected-pair correctness allowance is
+$\delta_j$.  Consequently this adapter gives
+\begin{equation}
+ \left|\Pr_{V^{[j]}}[W_j=1]
+       -\Pr_{\widetilde V^{[j]}}[W_j=1]\right|
+ \le a_j^{\rm auth}+\delta_j.
+ \label{eq:native-auth-component}
+\end{equation}
+This uses the same two-stage component experiment as the existing adapter,
+with the authentication event as its output bit.
+
+Use the whole-continuation budgets of the ContextBound, root-initialization,
+joint-schedule, and confirmation comparisons.  Define
+\begin{align}
+ \Omega_j^{\rm auth}
+ :=\min\bigl\{1,{}&
+ \Phi_{256}(d_j,Q_{H,j})+\Delta_{{\rm init},j}
+       +\Delta_{{\rm sched},j}+\Delta_{{\rm conf},j}
+       +V_j2^{-256}\nonumber\\[-1mm]
+       &+\chi_H(Q_{H,j}^{\rm conf})
+       +\varepsilon_{{\rm INT},j}\bigr\}.
+ \label{eq:native-auth-continuation}
+\end{align}
+Here $d_j$ counts distinct effective protected tuples in the ContextBound
+comparison; $\Delta_{{\rm init},j}$ is the event-bit cost of replacing the
+selected contribution's single native root-initialization entry by a fresh
+root; $\Delta_{{\rm sched},j}$ is the shared-compression joint-schedule cost;
+$\Delta_{{\rm conf},j}$ replaces the three confirmation HMAC rows;
+$V_j$ counts the native confirmation verification attempts;
+$\chi_H$ is the framed-input collision bound; and
+$\varepsilon_{{\rm INT},j}$ is the one-key, at-most-one-encryption
+first-message AEAD integrity advantage with the native decryption interface.
+Each query budget includes preparation, ordinary primitive computations,
+honest protocol work, later continuation, and terminal event evaluation of
+its derived experiment.  Budgets are fixed before interaction and are not
+reset at a challenge or at a hybrid boundary.
+
+\begin{theorem}[Native selected-root authentication]
+\label{thm:native-selected-authentication}
+In the live-core single-root next-rekey profile, with the admitted marked
+controller just specified and the origin-preservation interfaces of
+Section~\ref{sec:native-correspondence}, Lemma~\ref{lem:cb-native-root-use},
+and Theorem~\ref{thm:joint-message-leaf},
+\begin{equation}
+ \Pr_{G_{\rm nat}}[E\wedge\mathsf{Bad}_{\rm auth}]
+ \le
+ \min\!\left\{1,\;
+ \eta_{\rm attr}^{\rm nat}
+ +\sum_{j\in J}
+  \min\{1,\varepsilon_{{\rm rec},j}
+           +a_j^{\rm auth}+\delta_j+\Omega_j^{\rm auth}\}
+ \right\}.
+ \label{eq:native-selected-authentication}
+\end{equation}
+The record cost $\varepsilon_{{\rm rec},j}$ is the live-core record event
+cost~\eqref{eq:live-core-record-cost}, including its original fresh-seal
+equality allowance.  The attribution
+residual is measured once in the original native game.  For the executed-slot
+selector, it may be instantiated by
+Proposition~\ref{prop:executed-source-attribution} and the established
+reservation-signature bridge.  An explicitly modeled projection extension adds
+its original selected-candidate residual $\eta_{\rm proj}^{\rm nat}$ and uses
+the corresponding event-bit record/report comparison in place of
+$\varepsilon_{{\rm rec},j}$.
+\end{theorem}
+
+\begin{proof}
+First localize the native event.  Write
+$F=E\wedge\mathsf{Bad}_{\rm auth}$.  On attributed native executions the
+events $I=j$ partition $F\wedge A$.  For a general declared projection
+extension, split off $F\wedge A\wedge B_I$.  Its probability is at most
+$\eta_{\rm proj}^{\rm nat}=\Pr[E\wedge A\wedge B_I]$; likewise
+$\Pr[F\wedge\neg A]\le\eta_{\rm attr}^{\rm nat}$.
+For each fixed $j$, couple the original execution and $G_{\rm nat}^{[j]}$
+until the first free or charged local stop.  The free-stop certificate
+permanently falsifies $E\wedge A\wedge I=j$ on every continuation.  A charged
+stop is absent on the summand restricted to $\neg B_j$.  Therefore the same
+identical-prefix argument as Lemma~\ref{lem:native-local-score}, now applied to a
+Boolean variable, gives the exact identity
+\[
+ \Pr_{G_{\rm nat}}[F\wedge A\wedge I=j\wedge\neg B_j]
+ =\Pr_{G_{\rm nat}^{[j]}}[W_j=1].
+\]
+This identity remains valid when a recorded authentication event occurs
+before the challenge send or terminal selection: the stopped predicate is the conjunction
+with final eligibility and attribution, and its free-stop certificate
+concerns every possible continuation.  Consequently
+\begin{equation}
+ \Pr_{G_{\rm nat}}[F]
+ \le\eta_{\rm attr}^{\rm nat}+\eta_{\rm proj}^{\rm nat}
+    +\sum_j\Pr_{G_{\rm nat}^{[j]}}[W_j=1].
+ \label{eq:native-auth-localization}
+\end{equation}
+The live-core interface has $B_j=\varnothing$ and
+$\eta_{\rm proj}^{\rm nat}=0$.
+
+Next compare a fixed continuation.  The native representation invariant and
+immutable-history simulator preserve the selected event's classical
+execution, role-key provenance, private-tag and private-encryption ledgers,
+and original allocation indices.  The real-to-opaque record comparison
+therefore applies with output $W_j$.  Because it is a bit, its probability
+changes by at most $\varepsilon_{{\rm rec},j}$.  This gives
+\[
+ \Pr_{G_{\rm nat}^{[j]}}[W_j=1]
+ \le\varepsilon_{{\rm rec},j}
+       +\Pr_{V^{[j]}}[W_j=1]
+ \le\varepsilon_{{\rm rec},j}+a_j^{\rm auth}+\delta_j
+       +\Pr_{\widetilde V^{[j]}}[W_j=1],
+\]
+where the second inequality is the operational component comparison
+\eqref{eq:native-auth-component}.  All role-key and honest-origin ledgers
+remain private reduction bookkeeping.  Membership is checked by recording
+the actual complete core or encryption pair at its native invocation; it
+requires no inspection of quantum queries or unknown component tape.
+
+In $\widetilde V^{[j]}$, the protected PQ component is an independent uniform
+256-bit value.  Apply Lemma~\ref{lem:cb-hidden-component} to the same Boolean
+continuation, with the complete effective tuple cache.  It replaces each
+protected ContextBound answer by a private random-function entry at cost
+$\Phi_{256}(d_j,Q_{H,j})$.  Exact aliases, including aliases occurring before
+the eventual selected send, share their entry.  The target entry is marked
+at its first actual private use as prescribed by the existing controller
+interface, so its fresh value is sampled without conditioning on a future
+selection.  If this target is never allocated or never becomes eligible,
+$W_j=0$.
+
+Lemma~\ref{lem:cb-native-root-use} places every use of this target contribution
+in one old-root and complete-info initialization entry.  Its event-bit
+comparison~\eqref{eq:appendix-root-initialization} costs
+$\Delta_{{\rm init},j}$ and leaves the uniform selected root controller of
+Proposition~\ref{prop:confirmation-message-auth}.  All other tuple
+entries, numerical coincidences, asynchronous confirmations, failed writes,
+recoveries, and permitted successor computations are simulated as in that
+controller.  The event $W_j=1$ implies an instance of its selected-root
+confirmation or marked first-message integrity event.  The existing
+uniform-root authentication bound hence gives
+\[
+ \Pr_{\widetilde V^{[j]}}[W_j=1]
+ \le\Omega_j^{\rm auth}.
+\]
+In particular the shared-compression schedule, the confirmation rows,
+fresh-tag guesses, framed-input collisions, and first-message integrity
+contribute exactly the event costs displayed in
+\eqref{eq:native-auth-continuation}.  Additional eligibility and source
+requirements can only restrict this event in the final world.
+
+Each fixed candidate is thus bounded by
+$\min\{1,\varepsilon_{{\rm rec},j}+a_j^{\rm auth}+\delta_j
++\Omega_j^{\rm auth}\}$.  Substitute these bounds in
+\eqref{eq:native-auth-localization} and cap the result by one.  The partition
+was used only in the original native game.  Ideal continuations retain their
+own selectors and event flags throughout, so no partition of different
+hybrid worlds is required.
+\end{proof}
+
+\paragraph{What the composition establishes.}
+The theorem connects an eligible native recovery execution to origin
+authentication of its selected confirmation schedule and marked first
+message.  The comparison uses a single probability event at every stage;
+record and primitive reductions therefore enter with coefficient one.  The
+operational component advantage $a_j^{\rm auth}$ is attached to this event's
+derived distinguisher.  Its value is independently controlled by the same
+component security assumption as any output bit admitted by that experiment.
+The target scope, final eligibility, and whole-continuation budgets above
+specify exactly the executions to which the bound applies.
+% END SECTION SOURCE: native-authentication.tex
 
 % BEGIN SECTION SOURCE: multiple-root-entry.tex
 % Finite multiple-root entry. Uses the existing joint-primitive bounds.
@@ -3948,8 +4188,9 @@ disclosed source values. The evaluator checks equality of their exposed-source
 sets for every subset assignment in each declared graph.
 
 Table~\ref{tab:guarded-checks} gives the complete finite inventory. The 5,360
-assignments include direct-source subsets; they are separate from the 336
-reference endpoint-snapshot cases reported above. Cyclic key derivation requires
+assignments include direct-source subsets; they are separate from the 420
+reference endpoint-snapshot cases described below, including the isolated
+chunk-width variant. Cyclic key derivation requires
 an initially disclosed key to seed reachability. Cyclic record containment is
 rejected. The source-preserving copy and rewrapping relations are inputs to
 these graphs, while the native executions in Section~\ref{sec:established}
@@ -4017,9 +4258,10 @@ Six capture points for each endpoint produce 84 passive snapshot cases.
 An authenticated whole-KEM control runs those schedules at local-send
 intervals 1, 32 and 64, producing 252 corresponding cases. Together these
 are 28 configuration--schedule combinations and 336 snapshots. An isolated
-64-byte polynomial-chunk SPQR variant has a separate source identity; its
-alternating-workload result is explicitly labeled in Table~\ref{tab:reference}.
-The 32-byte and 64-byte labels describe the polynomial chunk width.
+64-byte polynomial-chunk SPQR variant supplies another seven schedules and
+84 snapshots with its own source identity. The combined comparison therefore
+has 35 configuration--schedule combinations and 420 snapshots. The 32-byte
+and 64-byte labels describe the polynomial chunk width.
 
 \subsection{Exposure and communication observations}
 
@@ -4059,6 +4301,61 @@ graphs. Outer application AEAD, transport, durable storage and energy are
 outside these measurements.}
 \label{tab:reference}
 \end{table}
+
+% BEGIN SECTION SOURCE: reference-schedule-table.tex
+% Generated by artifacts/reference-comparison/analyze_reference.py.
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Schedule & SPQR 32 & SPQR 64 & KEM 1 & KEM 32 & KEM 64\\
+\midrule
+\multicolumn{6}{l}{Reconstructed keys among 2,047 future sends}\\
+Alternating & 172 & 88 & 4 & 66 & 130\\
+Loss & 198 & 102 & 6 & 66 & 130\\
+Reordering & 219 & 121 & 37 & 93 & 163\\
+Duplication & 172 & 88 & 4 & 66 & 130\\
+9:1 & 748 & 388 & 28 & 338 & 658\\
+Offline then exchange & 424 & 342 & 260 & 322 & 386\\
+One-way & 2047 & 2047 & 2047 & 2047 & 2047\\
+\midrule
+\multicolumn{6}{l}{Mean component bytes per send}\\
+Alternating & 32.150 & 58.971 & 819.658 & 44.047 & 25.023\\
+Loss & 31.957 & 58.336 & 819.564 & 44.047 & 23.520\\
+Reordering & 31.876 & 61.795 & 817.999 & 38.927 & 23.058\\
+Duplication & 32.150 & 58.971 & 819.658 & 44.047 & 25.023\\
+9:1 & 23.508 & 40.531 & 819.381 & 21.031 & 13.417\\
+Offline then exchange & 32.957 & 60.376 & 869.973 & 44.125 & 25.118\\
+One-way & 38.875 & 70.875 & 1223.938 & 44.969 & 25.954\\
+\bottomrule
+\end{tabular}
+\caption{The seven retained schedules at the same snapshot coordinate: endpoint $A$ immediately after its first send. SPQR 32 and 64 identify polynomial-chunk widths in bytes; KEM 1, 32 and 64 identify whole-KEM local-send intervals. Each column uses its recorded construction, authentication graph and retained-state interface. Bytes cover the component wire; reconstructed keys are exact predictor matches.}
+\label{tab:reference-schedules}
+\end{table}
+% END SECTION SOURCE: reference-schedule-table.tex
+
+Table~\ref{tab:reference-schedules} extends the comparison to every retained
+schedule at the same capture coordinate. Increasing the SPQR chunk width
+from 32 to 64 bytes changes the alternating trace from 172 to 88
+reconstructed keys, while mean component traffic rises from 32.150 to
+58.971 bytes per send. Under 9:1 traffic, those reconstructed sets contain
+748 and 388 keys. The whole-KEM interval-32 trace similarly changes from
+66 keys under alternating traffic to 338 under 9:1 traffic, while its mean
+bytes per send fall from 44.047 to 21.031. These paired observations show
+how communication direction and control progress shape exposure alongside
+the amount of transmitted material. The retained construction and disclosure
+interface identify the comparison in each column.
+
+The offline prefix leaves substantial exposure even for the whole-KEM
+interval-1 control: its predictor reconstructs 260 future keys at this cut,
+compared with four in the alternating trace. Exact duplicate delivery leaves
+the emitted-byte and reconstructed-key measurements unchanged in all five
+profiles. The accompanying deterministic analysis checks all 420 snapshot
+inventories and reproduces the displayed rows directly from four hash-bound
+corpus files. It preserves the original execution identities and the exact
+derived-key interpretation.
 
 The one-way schedule produces no fresh PQ epoch in these references and the
 predictor derives every post-snapshot key. The whole-KEM active-control
@@ -4122,12 +4419,15 @@ query loss (Theorem~\ref{thm:native-mldsa-reservation-bridge}).
 The native deterministic P-256 component supplies the corresponding
 classical ordinary-signature instantiation.
 
-Proposition~\ref{prop:confirmation-message-auth} follows the same joint
-key table through the native confirmation and first-message interfaces.
+Theorem~\ref{thm:native-selected-authentication} carries the selected
+confirmation and first-message authentication event through this native
+proof chain. Original-game localization retains final eligibility and
+source attribution, and the event's own component adapter precedes the
+uniform-root bound of Proposition~\ref{prop:confirmation-message-auth}.
 Its origin ledgers distinguish a fresh authenticated acceptance from an
-exact replay or historical consumption status. The joint schedule is charged
-once for the union of the confirmation and message events; the remaining
-terms account for the MAC rows, complete-core hash collisions and one-key
+exact replay or historical consumption status. The Boolean comparisons
+charge each record, primitive and schedule step once; the final terms
+account for the MAC rows, complete-core hash collisions and one-key
 ciphertext integrity.
 
 Section~\ref{sec:multiple-root-entry} generalizes the entry step to a finite
@@ -4163,13 +4463,15 @@ rewriting tests the provenance distinctions isolated by the present results.
 
 \paragraph{Conclusion.}
 Persistent recovery is governed by original secret sources and their
-acquisition histories. The paper gives an exact record-exposure semantics,
-constructive simulations for private records and dependent immutable reports,
-a complete-tuple component connection to the joint first-message continuation,
-a finite entry comparison with an owned SDK purpose-key instance, and a mechanized multi-epoch recovery
-theorem with concrete separating executions.
-These results preserve the meaning of
-fresh randomness across durable retries, copies and asynchronous progress.
+acquisition histories. An exact record-exposure semantics and constructive
+record/report simulations connect an eligible native rekey to confidentiality
+and authentication of its marked message. Original-operation and shared-XOF
+reductions preserve source attribution through retained randomizers and exact
+replay. The finite key-entry comparison supplies a purpose-key instance,
+while the mechanized multi-epoch theorem and concrete executions establish
+the corresponding provenance-based recovery statements. These results
+preserve the meaning of fresh randomness across durable retries, copies and
+asynchronous progress.
 % END SECTION SOURCE: discussion.tex
 % BEGIN SECTION SOURCE: declarations.tex
 \section*{Data and code availability}
@@ -4240,6 +4542,17 @@ and its linked KEM adapter, hidden-record, shared-HMAC,
 root-extraction and adaptive-target notes.\\
 \bottomrule
 \end{longtable}
+
+The complete seven-schedule reference comparison is reproduced by
+\path{artifacts/reference-comparison/analyze_reference.py} with
+\texttt{--check}. Its four retained corpus files are bound to the source
+snapshot above by Git blob and SHA-256 identities in
+\path{artifacts/reference-comparison/source_identity.json}.
+\path{analysis.json} in that directory records all 420 snapshot cases and
+the 35 configuration--schedule rows; the generated
+\path{reference-schedule-table.tex} supplies Table~\ref{tab:reference-schedules}.
+The independent review checks every displayed count and decimal mean using
+separate integer arithmetic and rejects eight altered-input controls.
 
 The jointly checked certificate has SHA-256
 \begin{center}
@@ -4518,6 +4831,20 @@ signing-state identity and public-key equality, and exercise non-target
 disclosure. The mathematical review covers the complete two-comparison
 ROM/QROM argument and its ordinary native signing endpoint; executable
 controls validate the specified finite distributions and source interfaces.
+
+\subsection{Native authentication composition}
+\label{app:native-authentication}
+
+Section~\ref{sec:native-authentication} gives the complete selected-root
+authentication proof. Its argument review and executable accounting
+controls are retained in \path{artifacts/native-authentication/}.
+The controls check the native Boolean decomposition on 160 compatible
+assignments, including free and charged stops. Separate finite examples
+distinguish the selected authentication event from the confidentiality
+score events, joint eligibility from conditional probability, and the
+selected root from other root histories. The proof uses the source and
+primitive correspondences identified in the preceding supplements; its
+event-bit comparisons retain their own complete continuation budgets.
 % END SECTION SOURCE: artifact-map.tex
 % BEGIN SECTION SOURCE: primitive-inputs.tex
 \section{Primitive inputs to the record and report bounds}

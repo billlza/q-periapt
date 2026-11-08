@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "submission_files": 9,
+  "clean_compile_exit_code": 0,
+  "extracted_text_byte_identical": true,
+  "extracted_text_sha256": "6e029737f8c043c5ca662ac63b77d39eb3392ca18445f93c01464477dd239490",
+  "reading_pdf_sha256": "86ac540369405c31c22a1cc0710cfdc97e95e4b99aa47f7a713f1223823cbb07",
+  "submission_zip_sha256": "8a7fc508feb4d322d8d2a9131658f4edef8e68117414980f7fcb06798cd7935b",
+  "all_fonts_embedded": true,
+  "fonts": 47,
+  "clean_compile_log_sha256": "026c30eb67ee10326b06c0abdcf418b313a238b6d3b64fa88d84356f67b62dc5"
+}

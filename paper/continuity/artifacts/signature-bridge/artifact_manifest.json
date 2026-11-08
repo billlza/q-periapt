@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "date_utc": "2026-11-08",
-  "scope": "reviewed signature-bridge proof, proposed manuscript/prose, finite/source controls, frozen source packet and licenses; self-excluding inventory",
+  "scope": "reviewed signature-bridge proof, manuscript/prose, finite/source controls, frozen text source packet and licenses; historical receipts retain their original execution identities; self-excluding inventory",
   "files": [
     {
       "path": "README.md",
-      "bytes": 6452,
-      "sha256": "d856ec149c922ac02126bcf9180cb5932c426176ef9213b965ad9818f360816e"
+      "bytes": 6995,
+      "sha256": "2399d56c93d56bc152d16fd15b7ef9a70dbba36b06855bc6f012e1cb6f289aae"
     },
     {
       "path": "author_check_receipt.json",
@@ -50,8 +50,8 @@
     },
     {
       "path": "check_bridge.py",
-      "bytes": 14431,
-      "sha256": "c476ee077f38e15cbb79eb39d793070cbe7a6980a730d789511d5022bfd55635"
+      "bytes": 15007,
+      "sha256": "156263eb9465e4ba39a70d1b40ccebfe4ef8fd0f77e5edcf826ffed1572056f8"
     },
     {
       "path": "generic_bridge_review.md",
@@ -109,6 +109,21 @@
       "sha256": "78e65adb8c2107a440fcbd73be2a7b8b3fae5d98d73403d608d2dc77b1c6bdfd"
     },
     {
+      "path": "snapshot_layout.json",
+      "bytes": 3550,
+      "sha256": "a9d682bb08dbac6be1572353369aca81248ddad2366b635a4dc76cb30111f7f5"
+    },
+    {
+      "path": "snapshot_layout_checks.json",
+      "bytes": 6310,
+      "sha256": "1565a6a25a41fb9903cc7d0c61420942539843ad774b4b5a3529ffffd0802aec"
+    },
+    {
+      "path": "snapshot_layout_review.json",
+      "bytes": 5970,
+      "sha256": "2f25538deacbad92468a7a4dbeeee1fd257a95d836a431f4773ccc71120f0efa"
+    },
+    {
       "path": "source_identity.json",
       "bytes": 6700,
       "sha256": "09eed0e31a48d9663c06e20a8dad0d8e832c87a1cb12d47a6646fb4660b2908c"
@@ -134,37 +149,37 @@
       "sha256": "d27687b51f2874822c1530976b7e837eac4f308d94bf3dd42047011b7d437b47"
     },
     {
-      "path": "sources/fips204-0.4.6/src/encodings.rs",
+      "path": "sources/fips204-0.4.6/src/encodings.rs.txt",
       "bytes": 17256,
       "sha256": "f9798a1135d75fc756a17fe1703514f72d3977d36234152faa32207c4d510b14"
     },
     {
-      "path": "sources/fips204-0.4.6/src/hashing.rs",
+      "path": "sources/fips204-0.4.6/src/hashing.rs.txt",
       "bytes": 11568,
       "sha256": "33269eaa1d05b126cc03a8c42e616aefa4a8c001bf92ea0a4a3eeeab18bd45ce"
     },
     {
-      "path": "sources/fips204-0.4.6/src/helpers.rs",
+      "path": "sources/fips204-0.4.6/src/helpers.rs.txt",
       "bytes": 8010,
       "sha256": "97bf78a6c8e360fb8b2002b27fd17d67f5dc69a2a1c4dc2e5240b0b6ec53fdb4"
     },
     {
-      "path": "sources/fips204-0.4.6/src/lib.rs",
+      "path": "sources/fips204-0.4.6/src/lib.rs.txt",
       "bytes": 36424,
       "sha256": "fb073c02f39284431c072b587e8f97abe930c4b53fc40e47cd33f2e4c571ea0f"
     },
     {
-      "path": "sources/fips204-0.4.6/src/ml_dsa.rs",
+      "path": "sources/fips204-0.4.6/src/ml_dsa.rs.txt",
       "bytes": 22499,
       "sha256": "8cd47b247be255f6eb2ea5e1ab9928b1fa3b27f0fafb1b06fa364c50e96013e8"
     },
     {
-      "path": "sources/fips204-0.4.6/src/traits.rs",
+      "path": "sources/fips204-0.4.6/src/traits.rs.txt",
       "bytes": 19882,
       "sha256": "1d6fe99ffbc2128629b7965b106145b63cc1e013d976545f9a7f09f321a94f1d"
     },
     {
-      "path": "sources/fips204-0.4.6/src/types.rs",
+      "path": "sources/fips204-0.4.6/src/types.rs.txt",
       "bytes": 1761,
       "sha256": "d811518ef64dbac77e0aead6f33edde8ae1ec89ef641334b6232d2a35bd1cb18"
     },
@@ -199,7 +214,7 @@
       "sha256": "b93c8c0efb8cfe3c10b26ab6e2982b44cb2e4a1dce72dd12f23d89814553c5f6"
     },
     {
-      "path": "sources/q-periapt-native/crates/q-periapt-backends/src/mldsa.rs",
+      "path": "sources/q-periapt-native/crates/q-periapt-backends/src/mldsa.rs.txt",
       "bytes": 12268,
       "sha256": "70635d3d134e3f7e4dd046c8224d1efbca135273f45a48d493b661810672263b"
     },
@@ -224,17 +239,17 @@
       "sha256": "b93c8c0efb8cfe3c10b26ab6e2982b44cb2e4a1dce72dd12f23d89814553c5f6"
     },
     {
-      "path": "sources/q-periapt-native/research/continuity-identity-candidate/src/contract.rs",
+      "path": "sources/q-periapt-native/research/continuity-identity-candidate/src/contract.rs.txt",
       "bytes": 4170,
       "sha256": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e"
     },
     {
-      "path": "sources/q-periapt-native/research/continuity-identity-candidate/src/crypto/persistence.rs",
+      "path": "sources/q-periapt-native/research/continuity-identity-candidate/src/crypto/persistence.rs.txt",
       "bytes": 7998,
       "sha256": "f502bef3368bedec46cefd7f8955d4706550d45ab9baf2c7d6bca8ee45b4d405"
     },
     {
-      "path": "sources/q-periapt-native/research/continuity-identity-candidate/src/crypto.rs",
+      "path": "sources/q-periapt-native/research/continuity-identity-candidate/src/crypto.rs.txt",
       "bytes": 18994,
       "sha256": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4"
     }

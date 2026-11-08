@@ -50,12 +50,15 @@ query loss (Theorem~\ref{thm:native-mldsa-reservation-bridge}).
 The native deterministic P-256 component supplies the corresponding
 classical ordinary-signature instantiation.
 
-Proposition~\ref{prop:confirmation-message-auth} follows the same joint
-key table through the native confirmation and first-message interfaces.
+Theorem~\ref{thm:native-selected-authentication} carries the selected
+confirmation and first-message authentication event through this native
+proof chain. Original-game localization retains final eligibility and
+source attribution, and the event's own component adapter precedes the
+uniform-root bound of Proposition~\ref{prop:confirmation-message-auth}.
 Its origin ledgers distinguish a fresh authenticated acceptance from an
-exact replay or historical consumption status. The joint schedule is charged
-once for the union of the confirmation and message events; the remaining
-terms account for the MAC rows, complete-core hash collisions and one-key
+exact replay or historical consumption status. The Boolean comparisons
+charge each record, primitive and schedule step once; the final terms
+account for the MAC rows, complete-core hash collisions and one-key
 ciphertext integrity.
 
 Section~\ref{sec:multiple-root-entry} generalizes the entry step to a finite
@@ -91,10 +94,12 @@ rewriting tests the provenance distinctions isolated by the present results.
 
 \paragraph{Conclusion.}
 Persistent recovery is governed by original secret sources and their
-acquisition histories. The paper gives an exact record-exposure semantics,
-constructive simulations for private records and dependent immutable reports,
-a complete-tuple component connection to the joint first-message continuation,
-a finite entry comparison with an owned SDK purpose-key instance, and a mechanized multi-epoch recovery
-theorem with concrete separating executions.
-These results preserve the meaning of
-fresh randomness across durable retries, copies and asynchronous progress.
+acquisition histories. An exact record-exposure semantics and constructive
+record/report simulations connect an eligible native rekey to confidentiality
+and authentication of its marked message. Original-operation and shared-XOF
+reductions preserve source attribution through retained randomizers and exact
+replay. The finite key-entry comparison supplies a purpose-key instance,
+while the mechanized multi-epoch theorem and concrete executions establish
+the corresponding provenance-based recovery statements. These results
+preserve the meaning of fresh randomness across durable retries, copies and
+asynchronous progress.

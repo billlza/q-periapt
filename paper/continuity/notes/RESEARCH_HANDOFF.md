@@ -85,9 +85,19 @@ For `U` adaptively created owner families, a random target-family embedding allo
 
 This completes the preceding focused task of replacing the reservation-aware ML-DSA term by ordinary native hedged EUF with explicit losses in the declared shared-XOF model.
 
+## Native selected-root authentication composition
+
+The native event composition now connects the original eligible next-rekey execution to confirmation and first-message integrity under its selected recovered root. It preserves the original executed-slot attribution, online tuple/root/allocation marks, exact aliases and private honest-origin ledgers. The proof first partitions the event in the one native game, then applies candidate-local record, operational component, ContextBound, root-initialization and uniform-root authentication comparisons to the same recomputed Boolean predicate.
+
+For the live core, the bound is `Pr[E AND Bad_auth] <= min(1, eta_attr + sum_j min(1, epsilon_rec,j + a_auth,j + delta_j + Omega_auth,j))`. The component advantage is the output-bit advantage of this event's actual adapter. `Omega_auth` collects the complete-tuple, initialization, schedule, confirmation-row, tag-guessing, framed-collision and one-key integrity costs. The explicit report/projection extension retains its original selected-candidate residual. The executed-slot attribution term uses the completed ordinary-signature connection above.
+
+The complete manuscript proof and independent review are retained with 160 compatible Boolean assignment checks and explicit event/scope countermodels in [the native authentication artifact](../artifacts/native-authentication/README.md). This completes the previously identified authentication-event composition task for the declared marked controller.
+
 ## Focused continuation
 
-The matched Continuity/SPQR/whole-KEM comparison remains the focused experimental extension: use the same communication schedules and explicitly mapped capture objects, then measure reconstructed message sets and communication/persistence work. Any native authentication theorem also needs record and component comparisons for its own event bit; the confidentiality theorem's two signed-score event costs retain their established meanings. Existing symbolic recovery, record semantics and quantitative interface results keep their recorded scopes.
+The retained reference analysis now presents all seven schedules for five profiles, with 35 configuration/schedule pairs and all 420 snapshots. Four original corpus files match both the native evidence pin and integration checkpoint `358b921ab3469ce49f166633fc9a762ff6ed7e3d`. A deterministic source-bound analysis generates the manuscript table; a separate integer-arithmetic review confirms all 70 displayed numeric cells and rejects eight altered-input controls. These are a complete reanalysis of the existing executions, with their original native evidence identities.
+
+The matched Continuity/SPQR/whole-KEM comparison remains the focused experimental extension: use the same communication schedules and explicitly mapped capture objects, then measure reconstructed message sets and communication/persistence work. The native authentication composition above and the ordinary ML-DSA bridge are completed mathematical connections. Existing symbolic recovery, record semantics and quantitative interface results keep their recorded scopes.
 
 ## SkyBridge allocation
 

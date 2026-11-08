@@ -77,6 +77,10 @@ jobs:
         run: |
           sh artifact/python-run.sh paper/continuity/artifacts/signature-bridge/check_bridge.py --crate-archive paper/continuity/artifacts/signature-bridge/sources/fips204-0.4.6.crate > paper/continuity/build/signature-bridge-check.json
           sh artifact/python-run.sh paper/continuity/artifacts/signature-bridge/review_generic_controls.py > paper/continuity/build/signature-bridge-review.json
+      - name: Reproduce the retained reference schedule comparison
+        run: sh artifact/python-run.sh paper/continuity/artifacts/reference-comparison/analyze_reference.py --check > paper/continuity/build/reference-comparison-check.json
+      - name: Check native authentication event accounting
+        run: sh artifact/python-run.sh paper/continuity/artifacts/native-authentication/review_auth_bit_accounting.py > paper/continuity/build/native-authentication-check.json
       - name: Package the single-file source
         run: sh artifact/python-run.sh paper/continuity/export_submission.py --output paper/continuity/build/joc-source.zip
       - name: Upload manuscript and source
@@ -97,6 +101,8 @@ jobs:
             paper/continuity/build/source-attribution-check.json
             paper/continuity/build/signature-bridge-check.json
             paper/continuity/build/signature-bridge-review.json
+            paper/continuity/build/reference-comparison-check.json
+            paper/continuity/build/native-authentication-check.json
           if-no-files-found: error
       - name: Preserve build diagnostics
         if: always()
