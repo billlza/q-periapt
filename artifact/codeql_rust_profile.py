@@ -350,7 +350,9 @@ def analysis_memory_arguments(run: ProfileRun, profile: str) -> list[str]:
 
 def analyze(run: ProfileRun, query_pack: Path) -> None:
     profile_path = run.evidence / "PROFILE.json"
-    profile = parse_strict_json_bytes(sdk.snapshot(profile_path).data, label="Rust analysis profile")
+    # Bind the receipt to the same snapshots whose contents are validated.
+    profile_snapshot = sdk.snapshot(profile_path)
+    profile = parse_strict_json_bytes(profile_snapshot.data, label="Rust analysis profile")
     sdk.require(profile.get("target") == TARGETS.get(profile.get("profile"))
                 and analysis_host(profile["profile"]) == run.configuration.platform,
                 "analysis profile belongs to a different host or target")
@@ -398,7 +400,8 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
     for relative in inventory:
         path = run.configuration.database / "results/codeql/rust-queries" / Path(relative).with_suffix(".bqrs")
         results[relative] = sdk.snapshot(path, maximum=64 * 1024**2).sha256
-    data = parse_strict_json_bytes(sdk.snapshot(sarif, maximum=64 * 1024**2).data, label="Rust SARIF")
+    sarif_snapshot = sdk.snapshot(sarif, maximum=64 * 1024**2)
+    data = parse_strict_json_bytes(sarif_snapshot.data, label="Rust SARIF")
     validate_sarif(data, profile["profile"])
     quality.require_clean_checkout(profile["source_commit"])
     sdk.write_json(run.evidence / "ANALYSIS.json", {
@@ -406,9 +409,9 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
         "source_commit": profile["source_commit"], "run_id": run_id, "run_attempt": attempt,
         "analysis_host": run.configuration.platform,
         "query_threads": run.configuration.threads, "query_ram_mb": run.configuration.ram_mb,
-        "completed": True, "profile_sha256": sdk.snapshot(profile_path).sha256,
+        "completed": True, "profile_sha256": profile_snapshot.sha256,
         "query_inventory_sha256": sdk.snapshot(run.evidence / "QUERY_INVENTORY.json").sha256,
-        "query_result_sha256": results, "sarif_sha256": sdk.snapshot(sarif, maximum=64 * 1024**2).sha256,
+        "query_result_sha256": results, "sarif_sha256": sarif_snapshot.sha256,
         "codeql_version": VERSION, "query_pack": QUERY_VERSION, "upload_performed": False,
         "query_memory_sha256": sdk.snapshot(run.evidence / "QUERY_MEMORY.json").sha256,
         **({"transfer_sha256": sdk.snapshot(run.evidence / "TRANSFER.json").sha256}
