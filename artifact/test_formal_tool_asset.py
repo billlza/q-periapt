@@ -7,13 +7,14 @@ import operator
 import os
 import pathlib
 import stat
+import sys
 import tempfile
 import unittest
 from types import MappingProxyType
 from unittest import mock
 
 import formal_tool_asset as assets
-from bounded_process import BoundedProcessError, BoundedResult, ErrorKind
+from bounded_process import BoundedProcessError, BoundedResult, ErrorKind, write_stdout_at
 from evidence_io import EvidenceIOError
 
 
@@ -345,14 +346,14 @@ class FormalToolAssetTests(unittest.TestCase):
 
         with self.assertRaisesRegex(
             assets.FormalToolAssetError,
-            "failed after 3 attempts with curl status 22",
+            "failed after 6 attempts with curl status 22",
         ):
             assets.download(
                 "test-asset",
                 runner=runner,
                 sleeper=lambda _delay: None,
             )
-        self.assertEqual(attempts, 3)
+        self.assertEqual(attempts, 6)
         self.assert_root_empty()
 
     def test_persistent_timeout_is_bounded_chained_and_cleans(self) -> None:
@@ -364,16 +365,170 @@ class FormalToolAssetTests(unittest.TestCase):
             raise BoundedProcessError("timeout", f"timeout {attempts}")
 
         with self.assertRaisesRegex(
-            assets.FormalToolAssetError, "timed out on all 3 attempts"
+            assets.FormalToolAssetError, "timed out on all 6 attempts"
         ) as raised:
             assets.download(
                 "test-asset",
                 runner=runner,
                 sleeper=lambda _delay: None,
             )
-        self.assertEqual(attempts, 3)
+        self.assertEqual(attempts, 6)
         self.assertIsInstance(raised.exception.__cause__, BoundedProcessError)
-        self.assertEqual(str(raised.exception.__cause__), "timeout 3")
+        self.assertEqual(str(raised.exception.__cause__), "timeout 6")
+        self.assert_root_empty()
+
+    def test_http_failure_burst_recovers_with_real_partial_output_cleanup(self) -> None:
+        attempts = 0
+        sleeps: list[float] = []
+        urls: list[str] = []
+
+        def runner(argv: tuple[str, ...], **arguments: object) -> BoundedResult:
+            nonlocal attempts
+            attempts += 1
+            urls.append(argv[-1])
+            with self.assertRaises(FileNotFoundError):
+                os.stat(
+                    str(arguments["output_name"]),
+                    dir_fd=int(arguments["output_directory_fd"]),
+                    follow_symlinks=False,
+                )
+            payload = self.payload if attempts == 4 else b"partial\n"
+            status = 0 if attempts == 4 else 22
+            program = (
+                f"import os; os.write(1, {payload!r}); raise SystemExit({status})"
+            )
+            return write_stdout_at(
+                (sys.executable, "-I", "-S", "-c", program),
+                **arguments,
+            )
+
+        path = assets.download("test-asset", runner=runner, sleeper=sleeps.append)
+        self.addCleanup(self.cleanup_success, path)
+        self.assertEqual(attempts, 4)
+        self.assertEqual(sleeps, [15, 30, 60])
+        self.assertEqual(urls, [self.asset.url] * 4)
+        self.assertEqual(path.read_bytes(), self.payload)
+        self.assertEqual(list(path.parent.iterdir()), [path])
+
+    def test_sixth_attempt_can_finish_inside_shared_transport_budget(self) -> None:
+        elapsed = [0.0]
+        calls = 0
+        sleeps: list[float] = []
+
+        def runner(_argv: tuple[str, ...], **arguments: object) -> BoundedResult:
+            nonlocal calls
+            calls += 1
+            elapsed[0] += 3
+            if calls == 6:
+                return self.write_result(arguments, self.payload)
+            return BoundedResult(22)
+
+        def sleeper(delay: float) -> None:
+            sleeps.append(delay)
+            elapsed[0] += delay
+
+        path = assets.download(
+            "test-asset", runner=runner, sleeper=sleeper, clock=lambda: elapsed[0]
+        )
+        self.addCleanup(self.cleanup_success, path)
+        self.assertEqual(calls, 6)
+        self.assertEqual(sleeps, [15, 30, 60, 120, 180])
+        self.assertEqual(elapsed[0], 423)
+
+    def test_shared_budget_shortens_final_process_and_curl_timeout(self) -> None:
+        elapsed = [0.0]
+        timeouts: list[int] = []
+        curl_timeouts: list[int] = []
+        sleeps: list[float] = []
+
+        def runner(argv: tuple[str, ...], **arguments: object) -> BoundedResult:
+            timeout = int(arguments["timeout_seconds"])
+            timeouts.append(timeout)
+            curl_timeouts.append(int(argv[argv.index("--max-time") + 1]))
+            elapsed[0] += timeout
+            raise BoundedProcessError("timeout", "fixture transport deadline")
+
+        def sleeper(delay: float) -> None:
+            sleeps.append(delay)
+            elapsed[0] += delay
+
+        with self.assertRaisesRegex(
+            assets.FormalToolAssetError, "exhausted its 900-second transport budget"
+        ):
+            assets.download(
+                "test-asset", runner=runner, sleeper=sleeper, clock=lambda: elapsed[0]
+            )
+        self.assertEqual(timeouts, [300, 300, 255])
+        self.assertEqual(curl_timeouts, [270, 270, 255])
+        self.assertEqual(sleeps, [15, 30])
+        self.assertEqual(elapsed[0], 900)
+        self.assert_root_empty()
+
+    def test_insufficient_retry_budget_fails_before_sleep_or_second_process(self) -> None:
+        elapsed = [0.0]
+        calls = 0
+        sleeper = mock.Mock()
+
+        def runner(_argv: tuple[str, ...], **_arguments: object) -> BoundedResult:
+            nonlocal calls
+            calls += 1
+            # Scheduling and process cleanup are included in elapsed time.
+            elapsed[0] = 890.0
+            return BoundedResult(22)
+
+        with self.assertRaisesRegex(
+            assets.FormalToolAssetError, "cannot schedule another attempt.*900-second"
+        ):
+            assets.download(
+                "test-asset", runner=runner, sleeper=sleeper, clock=lambda: elapsed[0]
+            )
+        self.assertEqual(calls, 1)
+        sleeper.assert_not_called()
+        self.assert_root_empty()
+
+    def test_overslept_retry_never_starts_a_process_after_deadline(self) -> None:
+        elapsed = [0.0]
+        runner = mock.Mock(return_value=BoundedResult(22))
+
+        def sleeper(_delay: float) -> None:
+            elapsed[0] = 901.0
+
+        with self.assertRaisesRegex(
+            assets.FormalToolAssetError, "exhausted its 900-second transport budget"
+        ):
+            assets.download(
+                "test-asset", runner=runner, sleeper=sleeper, clock=lambda: elapsed[0]
+            )
+        runner.assert_called_once()
+        self.assert_root_empty()
+
+    def test_certificate_local_io_and_unknown_curl_failures_are_not_retried(self) -> None:
+        for status in (1, 3, 23, 26, 27, 48, 60, 63, 77, 83, 90, 97, -9):
+            runner = mock.Mock(return_value=BoundedResult(status))
+            sleeper = mock.Mock()
+            with self.subTest(status=status), self.assertRaisesRegex(
+                assets.FormalToolAssetError, f"non-retryable curl status {status}"
+            ):
+                assets.download("test-asset", runner=runner, sleeper=sleeper)
+            runner.assert_called_once()
+            sleeper.assert_not_called()
+            self.assert_root_empty()
+
+    def test_transport_retry_preserves_immediate_integrity_failure(self) -> None:
+        calls = 0
+        sleeps: list[float] = []
+
+        def runner(_argv: tuple[str, ...], **arguments: object) -> BoundedResult:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return BoundedResult(22)
+            return self.write_result(arguments, b"X" * len(self.payload))
+
+        with self.assertRaisesRegex(assets.FormalToolAssetError, "SHA-256 mismatch"):
+            assets.download("test-asset", runner=runner, sleeper=sleeps.append)
+        self.assertEqual(calls, 2)
+        self.assertEqual(sleeps, [15])
         self.assert_root_empty()
 
     def test_structural_process_errors_fail_immediately_and_clean(self) -> None:
