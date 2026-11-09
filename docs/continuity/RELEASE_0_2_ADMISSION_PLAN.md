@@ -42,10 +42,14 @@ handles the 64-byte `S0 || S1` Extract together with `S0`'s initial-confirmation
 use, preserving the shared first compression point and effective descriptor
 aliases. Its independent review checks the analytical comparison, exact
 padding equations and separate global/per-slot query bounds.
+The [terminal schedule connection](BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md)
+now completes the effective-descriptor/full-class reconciliation. Its deferred
+root-table argument permits registration after opaque root retention, its
+compression-collision witness accounts for pad aliases, and its two-sided
+comparison supplies U1's ACK-only experiment with actual sibling outputs.
 The remaining source-level composition instantiates the original
-contribution/disclosure adapters and reconciles effective descriptors with the
-terminal theorem's complete transcript classes, retaining the explicit alias
-and original-stop accounting identified in that proof.
+contribution/disclosure adapters, including source-consistent family assignment
+and opaque retained records under the original disclosure accounting.
 
 The [supported-workload budget](SUPPORTED_WORKLOAD_BUDGETS_0_2.md) selects the
 existing desktop reference workloads and six regression ceilings: 11/19 seconds
@@ -117,8 +121,9 @@ adopts these mechanisms and connects them to a formal distribution.
 | Ownership and maintenance | Device-scoped ownership, original intent, restricted recovery, witnessed state, roster fanout and existing maintenance v2 | Bind current public entry points to the final package/export inventory and the compatibility policy below. |
 | Limits and measured cost | Compiled contract schema 3, joint implementation limits and selected reference-workload budgets | Bind the chosen cost policy and selected-source validation into the coordinated specification lock. |
 
-The bootstrap entry comparison is the remaining substantive construction work
-in this table. The workload choice is recorded above; package/artifact binding,
+The bootstrap original-component/disclosure adapter is the remaining
+substantive construction work in this table. The primitive entry and terminal
+connection are completed inputs. The workload choice is recorded above; package/artifact binding,
 selected-source validation and final review retain their existing roles. Keep the completed
 [2026-11-07 hosted cohort](../../research/sdk-alpha1/evidence/20261107-ci-release-readback/README.md)
 attached to its original source and reuse it when the relevant inputs are
