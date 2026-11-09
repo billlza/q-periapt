@@ -1037,12 +1037,11 @@ acquisition, contradicting $E(\{r,k\})=\{o\}$.
 \end{proof}
 
 \paragraph{Meaning of exposure.}
-The proposition concerns derivability in an explicitly specified rule
-system.  The identifier $o$ may itself be public; its membership in $E(A)$
-records derivability of its protected seed, not discovery of the identifier.
-Derivability excludes guessing and is not a claim that a computational
-adversary has zero success probability.  As a separate probabilistic
-illustration, let $S,W$ be independent uniform $\lambda$-bit strings and
+Membership of an origin $o$ in $E(A)$ records derivability of its
+protected seed under the specified closure rules; the identifier itself
+may be public. Computational estimation is measured separately by success
+probability. A one-time-pad illustration makes the dependence on joint
+observations explicit: let $S,W$ be independent uniform $\lambda$-bit strings and
 $C=S\mathbin{\oplus}W$, with no additional observation depending on $S$ or
 $W$.  Then
 \[
@@ -1051,8 +1050,9 @@ $W$.  Then
 \]
 From either observation alone, any estimator of $S$ succeeds with
 probability at most $2^{-\lambda}$; from both, $S=C\mathbin{\oplus}W$
-recovers it exactly.  This illustration does not instantiate the record
-encryption used by the protocol.
+recovers it exactly. The XOR construction serves here as an
+information-theoretic illustration of acquisition; the protocol's record
+encryption is handled by its cryptographic record interface.
 
 \paragraph{Consequence for provenance routes.}
 A source label and an exposure decision serve different purposes.  Copying
@@ -1061,10 +1061,9 @@ of a matching key may change exposure.  A guarded-route representation
 retains this distinction: alternative acquired records supply alternative
 routes to the same source, and every route retains the conjunction of its
 required keys.  Exposure is therefore evaluated from the joint acquisition
-and key-derivation history.  The proposition does not rule out stateful
-labels, history-dependent vulnerability sets, or conservative per-object
-overapproximations; it rules out an exact, fixed, per-object union in the
-presence of the stated conjunctive dependency.
+and key-derivation history. The separation applies specifically to an
+exact exposure representation formed by the union of fixed per-object
+labels.
 % END SECTION SOURCE: acquisition-nonadditivity.tex
 
 \subsection{A recovery experiment with acquisition-based eligibility}
@@ -1723,19 +1722,18 @@ The report replacement precedes KEM embedding.  Afterwards every protected
 row needs only its original cached tag, and every unprotected recipe is free
 of $\mathcal X$ and protected raw-key dependencies.  The report layer can
 therefore use opaque source handles for tag generation and immutable tag
-validation.  Direct source-atom or application-plaintext outputs retain their
-own adapters and acquisition rules.  The preceding private-record hop keeps
-its own error and acquisition correspondence; this theorem does not infer
-that correspondence from the report stopping game.  One precise native
-composition first charges the actual eligible-exposure residual, then
-abstracts the stopped native experiment, and finally applies the report
-hybrids.  The record correspondence must be proved for that explicit stopped
-interface; a key-only fragment does not inherit the original renderer's
-permanent-target-failure premise.  Likewise, arbitrary
-changed-byte import is a separate MAC-query interface from the immutable
-validation proved here.  These are specific interface boundaries of the
-composition, while the dependent immutable rows themselves are covered by
-the explicit reduction above.
+validation.  A native composition first charges the actual eligible-exposure
+residual, then uses a private-record correspondence proved for the
+explicitly stopped native interface, and finally applies the report hybrids.
+This record hop retains its own comparison error and acquisition rules. For
+key-only fragments, that correspondence requires an explicit mapping of
+their actual provenance and justification of every permanent-ineligibility
+premise used by the renderer.
+Direct source-atom or application-plaintext outputs retain their own
+adapters and acquisition rules. Immutable validation uses the original
+transcript and cached tag; arbitrary changed-byte import has a distinct
+MAC-query interface. Under these stated interfaces, the explicit reduction
+covers dependent immutable report rows.
 % END SECTION SOURCE: report-composition.tex
 % BEGIN SECTION SOURCE: candidate-local-accounting.tex
 % Independent manuscript fragment. Requires amsmath, amssymb, amsthm.

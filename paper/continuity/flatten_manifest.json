@@ -2,11 +2,11 @@
   "schema": "qperiapt-joc-single-source/1",
   "input_entry": "main.tex",
   "output": "joc-submission.tex",
-  "output_sha256": "0cd8e8f286400d0803fced3f7a0005ef135d1822e26d3766f4c36f0a64980375",
+  "output_sha256": "6a3e4c191079f3e78ff0bde0fc230677dddcbe3155974f1cc0bce6bd8bf19fb6",
   "inputs": {
     "acquisition-nonadditivity.tex": {
-      "sha256": "50cd83948e5e03329eacfbc380af9f7a99b63abab3cc6e3e75f0edf7f3dcd297",
-      "bytes": 2821
+      "sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+      "bytes": 2722
     },
     "artifact-map.tex": {
       "sha256": "064276150353cea640d9034f00bfdd333d60020be99c24934345d4081e763e4d",
@@ -113,8 +113,8 @@
       "bytes": 8113
     },
     "report-composition.tex": {
-      "sha256": "b5c46a2c69bcb7d9dee8d460cdc55bf8ec8b691d612e8d33ccef1679408b45d3",
-      "bytes": 13071
+      "sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+      "bytes": 12978
     },
     "reservation-signature-bridge.tex": {
       "sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",

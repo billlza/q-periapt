@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "scope": "Scientific equivalence and exact source correspondence for the contribution-focused explanatory wording.",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1798,
+      "sha256": "de52c120a4cc5b4ee48f426213bfe678340d87b6fc9848fc09a3c7955a3e4775"
+    },
+    {
+      "path": "after/acquisition-nonadditivity.tex",
+      "bytes": 2722,
+      "sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15"
+    },
+    {
+      "path": "after/report-composition.tex",
+      "bytes": 12978,
+      "sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7"
+    },
+    {
+      "path": "before/acquisition-nonadditivity.tex",
+      "bytes": 2821,
+      "sha256": "50cd83948e5e03329eacfbc380af9f7a99b63abab3cc6e3e75f0edf7f3dcd297"
+    },
+    {
+      "path": "before/report-composition.tex",
+      "bytes": 13071,
+      "sha256": "b5c46a2c69bcb7d9dee8d460cdc55bf8ec8b691d612e8d33ccef1679408b45d3"
+    },
+    {
+      "path": "independent-review.json",
+      "bytes": 2345,
+      "sha256": "7b91d98f9db5831747deb854fb500c6ba71895374196f981823107479e23a2c2"
+    },
+    {
+      "path": "source-correspondence.json",
+      "bytes": 6474,
+      "sha256": "c5b1df80c598d479b005b3fa931655eba4b754cb3b24a36c41b1e0fbc520a28b"
+    },
+    {
+      "path": "wording.diff",
+      "bytes": 4395,
+      "sha256": "8bb9d6abe1ffbd36213da0e23513b1d3890818c21eb35bc8054cac7bd0512706"
+    }
+  ]
+}
