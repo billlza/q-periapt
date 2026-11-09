@@ -21,6 +21,7 @@ continuity.pdf: joc-submission.tex $(SOURCES) figures/confirmation-cut.pdf
 
 check: continuity.pdf
 	$(PYTHON) "$(CURDIR)/artifacts/chain-prefix/check_prefix.py"
+	$(PYTHON) "$(CURDIR)/artifacts/native-online-chain/check_native_chain.py"
 	$(PYTHON) "$(CURDIR)/artifacts/matched-comparison/analyze_matched.py" --check
 	$(PYTHON) "$(CURDIR)/artifacts/matched-comparison/check_input_controls.py"
 	$(PYTHON) "$(CURDIR)/artifacts/matched-comparison/test_audit_input_boundaries.py"

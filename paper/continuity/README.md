@@ -16,6 +16,8 @@ The live-core instantiation supplies the explicit native image/intent comparison
 
 The native authentication composition carries the selected confirmation and first-message integrity event through the record, operational component, complete-tuple, root-initialization and joint-schedule comparisons. It localizes the joint event with original eligibility in the native game; each Boolean comparison contributes once. The same admitted online marking and exact-alias rules identify the recovered root and first-message allocation throughout.
 
+The online finite-chain composition now connects a target selected after earlier message-key disclosures to the original native application experiment. Separate online marks identify the complete root tuple, fresh traffic direction and first private computation of the selected step. A monotone original-computation ledger includes skipped receive steps, failed authentication and exact retries across endpoint aliases. Complete record acquisitions retain their original eligibility and candidate-local stopping behavior. The resulting native confidentiality and selected-message integrity bounds use the existing executed-source attribution and ordinary-signature bridge, with the prefix comparison supplying the chain cost and no additional message-index guess.
+
 The signing connection preserves original randomizers, exact replay and the declared signing-owner observation interface. It has an exact classical reduction through the native deterministic RFC 6979 P-256 component. The native ML-DSA bridge now connects original-randomizer opening to ordinary hedged unforgeability in the shared ROM/QROM. Its exact pair cache preserves visible collisions and replay, while a joint hidden-seed and hedge-slice comparison accounts for shared SHAKE256 use. Adaptive owner creation and non-target disclosure have an explicit single-user conversion. Source maps, finite controls and independent internal argument reviews accompany the proof.
 
 The multiple-root entry theorem extends the initialization interface to a finite family of available salts and complete information strings. Its exact descriptor table preserves HMAC pad-state aliases and supports an online fresh target in a previously used class. Other generated roots remain available to the controller, and every target alias retrieves one retained schedule handle. The complete-query bound and first-message consequence appear together in the finite multiple-root entry section.
@@ -33,6 +35,7 @@ The proofs and independent reviews are retained by subject:
 - [Candidate-local accounting](artifacts/candidate-local/): the stopped source/record interface and original-game score accounting.
 - [Joint continuation](artifacts/joint-continuation/README.md): the root-to-message schedule and its shared-compression primitives.
 - [Online finite-chain selection](artifacts/chain-prefix/README.md): adaptive target selection after earlier-key disclosure, with a complete prefix comparison and selected-key confidentiality/integrity corollaries.
+- [Native online-chain composition](artifacts/native-online-chain/README.md): the original native experiment, exact first-computation controller, record-stop correspondence, source attribution and complete selected-message confidentiality/integrity bounds.
 - [ContextBound connection](artifacts/contextbound-connection/README.md): complete encoding, component adapter and next-rekey source induction.
 - [Live-core and authentication connection](artifacts/confirmation-traffic/README.md): explicit record cost, source selection, accepted confirmation cores and first-message integrity.
 - [Executed-source attribution](artifacts/source-attribution/README.md): retained-plan source association, signature component adapters, original-randomizer observations and finite fault/alias checks.
@@ -44,7 +47,7 @@ The proofs and independent reviews are retained by subject:
 - [Retry readiness](artifacts/retry-readiness/README.md): 28 native executions, fourteen repeated-baseline/age-four pairs, public retry-age recount and regenerated service/cost table.
 - [Complete reference schedule comparison](artifacts/reference-comparison/README.md): retained source corpora, all 420 snapshot cases, generated seven-schedule table and independent recomputation.
 
-[RESEARCH_HANDOFF.md](notes/RESEARCH_HANDOFF.md) records the established connections and the next focused research question. [The SkyBridge scope note](notes/skybridge-scope.md) explains the earlier transcript, admission and recovery-release mechanisms; its migration and platform results remain their independent research line.
+[RESEARCH_HANDOFF.md](notes/RESEARCH_HANDOFF.md) records the established connections and the remaining manuscript synthesis and final review. [The SkyBridge scope note](notes/skybridge-scope.md) explains the earlier transcript, admission and recovery-release mechanisms; its migration and platform results remain their independent research line.
 
 ## Edit, build and review
 
@@ -53,6 +56,7 @@ Edit `main.tex` and the section modules. From the repository root, run:
 ```sh
 make -B -C paper/continuity check PYTHON="sh $PWD/artifact/python-run.sh"
 sh artifact/python-run.sh paper/continuity/artifacts/chain-prefix/check_prefix.py
+sh artifact/python-run.sh paper/continuity/artifacts/native-online-chain/check_native_chain.py
 sh artifact/python-run.sh paper/continuity/artifacts/contextbound-connection/check_contextbound_adapter.py --output paper/continuity/build/contextbound-check.json
 sh artifact/python-run.sh paper/continuity/artifacts/source-attribution/check_source_attribution.py --finite-only --output paper/continuity/build/source-attribution-finite.json
 sh artifact/python-run.sh paper/continuity/artifacts/signature-bridge/check_bridge.py --crate-archive paper/continuity/artifacts/signature-bridge/sources/fips204-0.4.6.crate > paper/continuity/build/signature-bridge-check.json

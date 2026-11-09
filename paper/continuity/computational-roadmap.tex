@@ -16,13 +16,23 @@ target-epoch entropy, and no acquisition of a selected-session version saved
 after that cut. It admits the asynchronous transitions of the construction,
 including sending after the local FinalReady transition.
 
-We first construct the private-record and immutable-report interfaces. We
-then connect their candidate-specific continuations to one native score,
-using original provenance to certify permanent local stopping. After the
-native constructor correspondence, a joint key-schedule theorem derives the
-selected first-message continuation from a uniform recovered contribution.
-The common-virtual-game
-accounting variant is retained in Appendix~\ref{app:common-virtual}.
+The main native results are the established-session confidentiality bound
+(Corollary~\ref{cor:live-core-next-rekey}), selected-root authentication
+(Theorem~\ref{thm:native-selected-authentication}), and their online
+selected-message extension (Theorem~\ref{thm:native-online-message}).
+Their proofs share three connections. Private-record and immutable-report
+simulations feed candidate-local accounting, whose permanent stopping
+certificates use original provenance. The complete ContextBound and
+root-entry comparisons then supply a uniform recovered root. Finally,
+the joint schedule and online prefix comparison carry that root to the
+selected message while retaining the declared verification and disclosure
+operations. Executed-slot attribution and the ordinary-signature bridge
+close the association between that message and its original KEM sources.
+
+The final two subsections develop the finite multiple-root and SDK
+purpose-key instances of the same primitive method. The
+common-virtual-game accounting variant is retained in
+Appendix~\ref{app:common-virtual}.
 
 \input{opaque-rendering}
 \input{report-composition}
@@ -36,6 +46,7 @@ accounting variant is retained in Appendix~\ref{app:common-virtual}.
 \input{source-attribution}
 \input{reservation-signature-bridge}
 \input{native-authentication}
+\input{native-chain-composition}
 
 \input{multiple-root-entry}
 \input{sdk-purpose-connection}
