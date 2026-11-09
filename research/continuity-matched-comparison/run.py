@@ -189,6 +189,15 @@ def prepare_variant(source: Path, output: Path, env: dict) -> dict:
 
 def run(repository: Path, output: Path) -> None:
     prepare(repository, output)
+    # Successful preparation exclusively creates this output directory. Only
+    # executing the prepared observers can create private measurement feeds.
+    try:
+        _execute_prepared(output)
+    finally:
+        _cleanup_private_feeds(output)
+
+
+def _execute_prepared(output: Path) -> None:
     source = output / 'source'
     evidence = output / 'evidence'
     evidence.mkdir()
@@ -251,6 +260,14 @@ def run(repository: Path, output: Path) -> None:
     print('Complete matched native/reference execution and validation.', flush=True)
 
 
+def _cleanup_private_feeds(output: Path) -> None:
+    # Retain failure cleanup for this run's owned output namespace.
+    if output.exists():
+        for path in output.rglob('.private-*.keys'):
+            require(path.is_file() and not path.is_symlink(), 'private feed type')
+            path.unlink()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices=('prepare', 'run'))
@@ -258,17 +275,10 @@ def main() -> None:
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     output = args.output.absolute()
-    try:
-        if args.mode == 'prepare':
-            prepare(args.repository.resolve(), output)
-        else:
-            run(args.repository.resolve(), output)
-    finally:
-        # Private observation feeds are never uploaded, including a failed run.
-        if output.exists():
-            for path in output.rglob('.private-*.keys'):
-                require(path.is_file() and not path.is_symlink(), 'private feed type')
-                path.unlink()
+    if args.mode == 'prepare':
+        prepare(args.repository.resolve(), output)
+    else:
+        run(args.repository.resolve(), output)
 
 
 if __name__ == '__main__':

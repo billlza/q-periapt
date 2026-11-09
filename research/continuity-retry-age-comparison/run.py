@@ -19,7 +19,7 @@ MIN_SENDER_TURNS = 4
 NATIVE = Path("research/continuity-identity-candidate")
 MATCHED_HASHES = {
     "native_driver.rs.txt": "8ca7ea6b0d17923d16eff6f48c2a1ac07ce2eb5929c4b4526510e41a50db0fca",
-    "run.py": "0af65ca924d53514fd30a979e406adb1a8930c33aad87fa4e239f787a9eb4baf",
+    "run.py": "0d089a5913adfa47e14a2ac85eb74771e505cde67ff18385a163bc533624547e",
     "validate.py": "80a2eed73944decaa8edde69db1b3523a12475930dd5e4da4821ca52add636bc",
     "schedule.py": "1d3b361c6d99b0e28c2b0044c99287835f4eba41e9163c0fda2614e954b23b18",
 }
