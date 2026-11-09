@@ -37,12 +37,11 @@ acquisition, contradicting $E(\{r,k\})=\{o\}$.
 \end{proof}
 
 \paragraph{Meaning of exposure.}
-The proposition concerns derivability in an explicitly specified rule
-system.  The identifier $o$ may itself be public; its membership in $E(A)$
-records derivability of its protected seed, not discovery of the identifier.
-Derivability excludes guessing and is not a claim that a computational
-adversary has zero success probability.  As a separate probabilistic
-illustration, let $S,W$ be independent uniform $\lambda$-bit strings and
+Membership of an origin $o$ in $E(A)$ records derivability of its
+protected seed under the specified closure rules; the identifier itself
+may be public. Computational estimation is measured separately by success
+probability. A one-time-pad illustration makes the dependence on joint
+observations explicit: let $S,W$ be independent uniform $\lambda$-bit strings and
 $C=S\mathbin{\oplus}W$, with no additional observation depending on $S$ or
 $W$.  Then
 \[
@@ -51,8 +50,9 @@ $W$.  Then
 \]
 From either observation alone, any estimator of $S$ succeeds with
 probability at most $2^{-\lambda}$; from both, $S=C\mathbin{\oplus}W$
-recovers it exactly.  This illustration does not instantiate the record
-encryption used by the protocol.
+recovers it exactly. The XOR construction serves here as an
+information-theoretic illustration of acquisition; the protocol's record
+encryption is handled by its cryptographic record interface.
 
 \paragraph{Consequence for provenance routes.}
 A source label and an exposure decision serve different purposes.  Copying
@@ -61,7 +61,6 @@ of a matching key may change exposure.  A guarded-route representation
 retains this distinction: alternative acquired records supply alternative
 routes to the same source, and every route retains the conjunction of its
 required keys.  Exposure is therefore evaluated from the joint acquisition
-and key-derivation history.  The proposition does not rule out stateful
-labels, history-dependent vulnerability sets, or conservative per-object
-overapproximations; it rules out an exact, fixed, per-object union in the
-presence of the stated conjunctive dependency.
+and key-derivation history. The separation applies specifically to an
+exact exposure representation formed by the union of fixed per-object
+labels.
