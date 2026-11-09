@@ -62,17 +62,43 @@ class RustPublicationTests(unittest.TestCase):
             host = quality.hosted_configuration(publication.profile_host(name))
             profile.update(compiler_host=host.compiler_host, query_threads=host.threads, query_ram_mb=host.ram_mb)
             self.write(directory / "PROFILE.json", profile)
-            if name in ("native", "wasm"):
-                self.write(directory / "QUERY_MEMORY.json", linux_query_memory(["-J-Xmx3356M", "--off-heap-ram=9329"], name))
-            self.write(directory / "ANALYSIS.json", {"completed": True, "codeql_version": publication.VERSION,
+            self.write(directory / "QUERY_MEMORY.json", linux_query_memory(["-J-Xmx3356M", "--off-heap-ram=9329"], name))
+            if name == "macos":
+                self.write(directory / "EXTRACTION_INPUTS.json", dict(profile, active_target_quality_passed=False))
+                evidence = {leaf: {"bytes": (directory / leaf).stat().st_size,
+                                   "sha256": self.digest(directory / leaf)}
+                            for leaf in ("PROFILE.json", "EXTRACTION_INPUTS.json", "Metrics.json",
+                                         "MacroCalls.json", "ExtractedPaths.json")}
+                self.write(directory / "TRANSFER.json", {
+                    "schema": 1, "profile": name, "target": publication.TARGETS[name],
+                    "source_commit": "a" * 40, "run_id": "123", "origin_attempt": "1",
+                    "origin_host": "darwin", "compiler_host": host.compiler_host,
+                    "compiler": publication.COMPILER, "codeql_version": publication.VERSION,
+                    "profile_sha256": self.digest(directory / "PROFILE.json"),
+                    "database": {"file": "database.zip", "bytes": 1024, "sha256": "c" * 64},
+                    "database_inventory_sha256": "d" * 64, "database_members": 3,
+                    "database_expanded_bytes": 2048, "evidence": evidence,
+                })
+            self.write(directory / "ANALYSIS.json", {"schema": 2, "completed": True,
+                       "profile": name, "target": publication.TARGETS[name],
+                       "source_commit": "a" * 40, "run_id": "123", "run_attempt": "1",
+                       "analysis_host": "linux", "query_threads": 4, "query_ram_mb": 14000,
+                       "codeql_version": publication.VERSION,
                        "query_pack": publication.QUERY_VERSION, "upload_performed": False,
                        "profile_sha256": self.digest(directory / "PROFILE.json"),
                        "query_inventory_sha256": self.digest(directory / "QUERY_INVENTORY.json"),
                        "query_result_sha256": {path: "b" * 64 for path in self.inventory},
                        "sarif_sha256": self.digest(directory / "results.sarif"),
-                       **({"query_memory_sha256": self.digest(directory / "QUERY_MEMORY.json")}
-                          if name in ("native", "wasm") else {})})
+                       "query_memory_sha256": self.digest(directory / "QUERY_MEMORY.json"),
+                       **({"transfer_sha256": self.digest(directory / "TRANSFER.json")}
+                          if name == "macos" else {})})
             self.paths[name] = directory
+        anchor = mock.patch.dict(publication.os.environ, {
+            "CODEQL_TRANSFER_SHA256": self.digest(self.paths["macos"] / "TRANSFER.json"),
+            "CODEQL_TRANSFER_ATTEMPT": "1",
+        })
+        anchor.start()
+        self.addCleanup(anchor.stop)
         patch = mock.patch.object(quality, "tracked_rust_paths", return_value=frozenset(self.sources))
         patch.start()
         self.addCleanup(patch.stop)
@@ -140,7 +166,7 @@ class RustPublicationTests(unittest.TestCase):
             self.write(directory / "ANALYSIS.json", analysis)
 
     def test_linux_requires_its_bound_actual_memory_resolution(self) -> None:
-        for name in ("native", "wasm"):
+        for name in ("native", "wasm", "macos"):
             with self.subTest(profile=name):
                 directory = self.paths[name]
                 original = self.read(directory / "QUERY_MEMORY.json")
@@ -157,7 +183,7 @@ class RustPublicationTests(unittest.TestCase):
                     self.validate(name)
 
     def test_rebinding_memory_digest_cannot_reuse_another_linux_profiles_record(self) -> None:
-        for name, other in (("native", "wasm"), ("wasm", "native")):
+        for name, other in (("native", "wasm"), ("wasm", "native"), ("macos", "native")):
             with self.subTest(profile=name, other=other):
                 directory = self.paths[name]
                 self.write(directory / "QUERY_MEMORY.json",
@@ -199,6 +225,98 @@ class RustPublicationTests(unittest.TestCase):
         self.write(directory / "ANALYSIS.json", analysis)
         with self.assertRaisesRegex(ValueError, "census is incomplete"):
             self.validate("macos")
+
+    def test_macos_origin_attempt_survives_a_later_linux_analysis_attempt(self) -> None:
+        directory = self.paths["macos"]
+        original_profile = (directory / "PROFILE.json").read_bytes()
+        analysis = self.read(directory / "ANALYSIS.json")
+        analysis["run_attempt"] = "2"
+        self.write(directory / "ANALYSIS.json", analysis)
+        with self.assertRaisesRegex(ValueError, "attempt identity"):
+            publication.validate_profile_artifact(directory, "macos", self.root, "a" * 40, "123", 2)
+        newer = directory.with_name("codeql-rust-profile-macos-2")
+        directory.rename(newer)
+        self.paths["macos"] = newer
+        selected = publication.latest_profile_directories(self.artifacts, 2)
+        self.assertEqual(selected["macos"], newer)
+        profile = publication.validate_profile_artifact(newer, "macos", self.root, "a" * 40, "123", 2)
+        self.assertEqual(profile.target, publication.TARGETS["macos"])
+        self.assertEqual((newer / "PROFILE.json").read_bytes(), original_profile)
+
+    def test_analysis_identity_and_budgets_are_separate_from_origin(self) -> None:
+        for name in publication.TARGETS:
+            directory = self.paths[name]
+            original = self.read(directory / "ANALYSIS.json")
+            mutations = (("schema", True), ("source_commit", "b" * 40), ("run_id", "124"),
+                         ("profile", "other"), ("target", "other"), ("run_attempt", "2"),
+                         ("analysis_host", "darwin"), ("query_threads", 2),
+                         ("query_threads", True), ("query_ram_mb", 5500))
+            for key, value in mutations:
+                with self.subTest(profile=name, key=key, value=value):
+                    self.write(directory / "ANALYSIS.json", dict(original, **{key: value}))
+                    with self.assertRaises(ValueError):
+                        self.validate(name)
+            self.write(directory / "ANALYSIS.json", original)
+
+    def test_origin_attempt_cannot_be_newer_than_analysis(self) -> None:
+        original = self.read(self.paths["macos"] / "PROFILE.json")
+        self.rebind_profile("macos", dict(original, run_attempt="2"))
+        with self.assertRaisesRegex(ValueError, "attempt identity"):
+            self.validate("macos")
+
+    def test_macos_requires_the_prepare_jobs_exact_transfer_anchor(self) -> None:
+        for key, value in (("CODEQL_TRANSFER_SHA256", ""), ("CODEQL_TRANSFER_SHA256", "f" * 64),
+                           ("CODEQL_TRANSFER_ATTEMPT", "2")):
+            with self.subTest(key=key), mock.patch.dict(publication.os.environ, {key: value}):
+                with self.assertRaisesRegex(ValueError, "transfer"):
+                    self.validate("macos")
+        directory = self.paths["macos"]
+        transfer = self.read(directory / "TRANSFER.json")
+        transfer["database"]["sha256"] = "e" * 64
+        self.write(directory / "TRANSFER.json", transfer)
+        analysis = self.read(directory / "ANALYSIS.json")
+        analysis["transfer_sha256"] = self.digest(directory / "TRANSFER.json")
+        self.write(directory / "ANALYSIS.json", analysis)
+        with self.assertRaisesRegex(ValueError, "anchored transfer"):
+            self.validate("macos")
+
+    def test_rebound_transfer_still_requires_its_mac_origin(self) -> None:
+        directory = self.paths["macos"]
+        original = self.read(directory / "TRANSFER.json")
+        for key, value in (("origin_host", "linux"), ("target", publication.TARGETS["native"]),
+                           ("source_commit", "b" * 40), ("run_id", "124"), ("origin_attempt", "2")):
+            with self.subTest(key=key):
+                self.write(directory / "TRANSFER.json", dict(original, **{key: value}))
+                digest = self.digest(directory / "TRANSFER.json")
+                analysis = self.read(directory / "ANALYSIS.json")
+                analysis["transfer_sha256"] = digest
+                self.write(directory / "ANALYSIS.json", analysis)
+                with mock.patch.dict(publication.os.environ, {"CODEQL_TRANSFER_SHA256": digest}):
+                    with self.assertRaises(ValueError):
+                        self.validate("macos")
+
+    def test_local_linux_profiles_cannot_claim_transfer_receipts(self) -> None:
+        for name in ("native", "wasm"):
+            directory = self.paths[name]
+            original = self.read(directory / "ANALYSIS.json")
+            with self.subTest(profile=name, field=True):
+                self.write(directory / "ANALYSIS.json", dict(original, transfer_sha256="f" * 64))
+                with self.assertRaisesRegex(ValueError, "cannot claim"):
+                    self.validate(name)
+            self.write(directory / "ANALYSIS.json", original)
+            with self.subTest(profile=name, file=True):
+                shutil.copyfile(self.paths["macos"] / "TRANSFER.json", directory / "TRANSFER.json")
+                with self.assertRaisesRegex(ValueError, "cannot claim"):
+                    self.validate(name)
+
+    def test_latest_failed_mac_analysis_cannot_fall_back_to_old_success(self) -> None:
+        newer = self.artifacts / "codeql-rust-profile-macos-2"
+        newer.mkdir()
+        shutil.copyfile(self.paths["macos"] / "PROFILE.json", newer / "PROFILE.json")
+        selected = publication.latest_profile_directories(self.artifacts, 2)
+        self.assertEqual(selected["macos"], newer)
+        with self.assertRaisesRegex(ValueError, "ANALYSIS.json"):
+            publication.validate_profile_artifact(newer, "macos", self.root, "a" * 40, "123", 2)
 
     def test_latest_failed_attempt_cannot_fall_back_to_old_success(self) -> None:
         newer = self.artifacts / "codeql-rust-profile-native-2"

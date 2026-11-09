@@ -42,7 +42,7 @@ class RustProfileTests(unittest.TestCase):
             validate_sarif(sarif(), "unreviewed")
 
     def test_linux_memory_policy_uses_the_actual_dataset_and_preserves_the_total_request(self) -> None:
-        for profile in ("native", "wasm"):
+        for profile in ("native", "wasm", "macos"):
             with self.subTest(profile=profile), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
@@ -62,12 +62,14 @@ class RustProfileTests(unittest.TestCase):
                 profile_module.validate_linux_query_memory(receipt, profile)
                 self.assertFalse((run.evidence / "ANALYSIS.json").exists())
 
-    def test_macos_keeps_its_existing_analysis_memory_policy(self) -> None:
+    def test_macos_origin_remains_native_and_analysis_requires_linux(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             run = ProfileRun(root, root / "run", Path(sys.executable), {}, host="darwin")
-            with mock.patch.object(run, "command") as command:
-                self.assertEqual(profile_module.analysis_memory_arguments(run, "macos"), ["--ram=5500"])
+            self.assertEqual(profile_module.profile_host("macos"), "darwin")
+            self.assertEqual(profile_module.analysis_host("macos"), "linux")
+            with mock.patch.object(run, "command") as command, self.assertRaisesRegex(ValueError, "different host"):
+                profile_module.analysis_memory_arguments(run, "macos")
             command.assert_not_called()
             self.assertFalse((run.evidence / "QUERY_MEMORY.json").exists())
 
@@ -78,7 +80,7 @@ class RustProfileTests(unittest.TestCase):
                    ["-J-Xmx0M", "--off-heap-ram=9329"],
                    ["-J-Xmx03072M", "--off-heap-ram=9329"],
                    ["-J-Xmx3072M", "--off-heap-ram=9329", "--threads=1"]]
-        for profile in ("native", "wasm"):
+        for profile in ("native", "wasm", "macos"):
             for resolution in invalid:
                 with self.subTest(profile=profile, resolution=resolution), tempfile.TemporaryDirectory() as temporary:
                     root = Path(temporary)
@@ -90,7 +92,7 @@ class RustProfileTests(unittest.TestCase):
                     self.assertFalse((run.evidence / "ANALYSIS.json").exists())
 
     def test_linux_memory_resolution_failure_preserves_failed_state(self) -> None:
-        for profile in ("native", "wasm"):
+        for profile in ("native", "wasm", "macos"):
             with self.subTest(profile=profile), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 run = ProfileRun(root, root / "run", Path(sys.executable), {})
@@ -101,7 +103,7 @@ class RustProfileTests(unittest.TestCase):
                 self.assertFalse((run.evidence / "ANALYSIS.json").exists())
 
     def test_linux_allocation_record_is_an_exact_typed_profile_description(self) -> None:
-        for profile in ("native", "wasm"):
+        for profile in ("native", "wasm", "macos"):
             receipt = profile_module.linux_query_memory(["-J-Xmx3072M", "--off-heap-ram=9329"], profile)
             profile_module.validate_linux_query_memory(receipt, profile)
             for key, value in (("schema", True), ("heap_mb", 3072.0), ("requested_ram_mb", 15000),
@@ -110,7 +112,7 @@ class RustProfileTests(unittest.TestCase):
                                ("codeql_version", "2.27.3")):
                 with self.subTest(profile=profile, key=key), self.assertRaises(ValueError):
                     profile_module.validate_linux_query_memory(dict(receipt, **{key: value}), profile)
-        for profile in ("macos", "unreviewed"):
+        for profile in ("unreviewed",):
             with self.subTest(profile=profile), self.assertRaisesRegex(ValueError, "Linux analysis profile"):
                 profile_module.linux_query_memory(["-J-Xmx3072M", "--off-heap-ram=9329"], profile)
 
@@ -131,11 +133,18 @@ class RustProfileTests(unittest.TestCase):
                 (root / "artifact").mkdir()
                 (root / "artifact/codeql_rust_queries.json").write_text(json.dumps(dict(pinned, queries=inventory)))
                 run = ProfileRun(root, root / "run", Path(sys.executable), {},
-                                 host="darwin" if name == "macos" else "linux")
+                                 host="linux")
                 run.configuration = dataclasses.replace(run.configuration, database=root / "database")
                 (run.evidence / "PROFILE.json").write_text(json.dumps({
                     "profile": name, "target": profile_module.TARGETS[name],
-                    "source_commit": "a" * 40, "active_target_quality_passed": True}))
+                    "source_commit": "a" * 40, "run_id": "123", "run_attempt": "1",
+                    "active_target_quality_passed": True}))
+                if name == "macos":
+                    from test_codeql_rust_transfer import profile_fixture, record_fixture
+                    extraction = profile_fixture()
+                    (run.evidence / "PROFILE.json").write_text(json.dumps(extraction))
+                    record = record_fixture(extraction, hashlib.sha256((run.evidence / "PROFILE.json").read_bytes()).hexdigest())
+                    (run.evidence / "TRANSFER.json").write_text(json.dumps(record))
                 def command(label, argv, **kwargs):
                     if label == "resolve-suite":
                         return json.dumps([str(pack / name) for name in inventory]).encode()
@@ -145,7 +154,7 @@ class RustProfileTests(unittest.TestCase):
                     self.assertEqual(argv[1:3], ["database", "analyze"])
                     self.assertIn(str(pack / "codeql-suites/rust-security-extended.qls"), argv)
                     self.assertIn(f"--ram={run.configuration.ram_mb}", argv)
-                    self.assertEqual("--off-heap-ram=9329" in argv, name in ("native", "wasm"))
+                    self.assertIn("--off-heap-ram=9329", argv)
                     self.assertIn(f"--threads={run.configuration.threads}", argv)
                     self.assertIn("--threat-model=local", argv)
                     self.assertIn("--sarif-category=" + categories[name], argv)
@@ -159,22 +168,28 @@ class RustProfileTests(unittest.TestCase):
                     (run.evidence / "results.sarif").write_text(json.dumps(sarif(name)))
                     return b""
                 with mock.patch.object(run, "command", side_effect=command), \
-                        mock.patch.object(profile_module.quality, "require_clean_checkout"):
+                        mock.patch.object(profile_module.quality, "require_clean_checkout"), \
+                        mock.patch.dict(os.environ, {"GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "2",
+                            "CODEQL_EXPECTED_COMMIT": "a" * 40, "CODEQL_TRANSFER_ATTEMPT": "1",
+                            "CODEQL_TRANSFER_SHA256": hashlib.sha256((run.evidence / "TRANSFER.json").read_bytes()).hexdigest()
+                            if name == "macos" else ""}):
                     if complete:
                         profile_module.analyze(run, pack)
                     else:
                         with self.assertRaises(ValueError):
                             profile_module.analyze(run, pack)
-                self.assertEqual((run.evidence / "QUERY_MEMORY.json").is_file(), name in ("native", "wasm"))
+                self.assertTrue((run.evidence / "QUERY_MEMORY.json").is_file())
                 self.assertEqual((run.evidence / "ANALYSIS.json").exists(), complete)
                 if complete:
                     result = json.loads((run.evidence / "ANALYSIS.json").read_text())
                     self.assertEqual(set(result["query_result_sha256"]), set(inventory))
-                    if name in ("native", "wasm"):
-                        self.assertEqual(result["query_memory_sha256"],
-                                         hashlib.sha256((run.evidence / "QUERY_MEMORY.json").read_bytes()).hexdigest())
-                    else:
-                        self.assertNotIn("query_memory_sha256", result)
+                    self.assertEqual(result["query_memory_sha256"],
+                                     hashlib.sha256((run.evidence / "QUERY_MEMORY.json").read_bytes()).hexdigest())
+                    self.assertEqual(result["schema"], 2)
+                    self.assertEqual(result["run_attempt"], "2")
+                    self.assertEqual(result["analysis_host"], "linux")
+                    self.assertEqual(json.loads((run.evidence / "PROFILE.json").read_text())["run_attempt"], "1")
+                    self.assertEqual("transfer_sha256" in result, name == "macos")
 
     def _check_clang_selection(self, *, symlink: bool) -> None:
         class SetupComplete(Exception):

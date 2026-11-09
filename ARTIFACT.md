@@ -45,7 +45,11 @@ The WASM metadata adapter adds the host platform only to Cargo's filtered metada
 request, preserving host build dependencies; compilation arguments, cfg values,
 standard streams and exit codes remain unchanged.
 
-Each profile has a 360-minute job bound and a 300-minute full-suite process bound.
+Each full-suite analysis has a 360-minute job bound and a 300-minute process bound.
+The macOS extraction runs first in a separate, 120-minute preparation job. Its
+source-bound database then moves to a standard Ubuntu 24.04 query worker. This
+preserves the Apple Silicon compiler, target-specific code and macro expansions
+while giving the full query suite the reviewed Linux memory budget.
 Extraction and active-source quality are checked before running all 39 pinned
 security-extended queries, including full `SummaryStats`. Query text hashes are
 fixed by `artifact/codeql_rust_queries.json`; every expected fresh BQRS result is
@@ -56,6 +60,18 @@ analysis jobs. A separate job verifies all three profiles before publication. Re
 may use a completed profile from an earlier attempt of the same workflow run and
 source commit; a newer incomplete profile never falls back to an older result.
 The selected attempts remain explicit in the paired receipt.
+
+The transfer manifest binds the database archive and each extraction evidence
+file. Its SHA-256 and origin attempt are fixed by the preparation job's outputs;
+the Linux importer and publication gate both verify that independent anchor.
+The importer also checks the current source bytes, archive paths and sizes, and
+all transferred file hashes before using the fixed CodeQL unbundle command.
+Bundles exclude previous query results, logs and temporary query configuration.
+The immutable origin `PROFILE.json` retains the macOS host and preparation
+budget. `ANALYSIS.json` records the Linux query host, actual allocation and analysis
+attempt separately. An origin from attempt 1 may support analysis attempt 2 in
+the same run and source commit; the final artifact is named for analysis attempt 2.
+An incomplete analysis never becomes publishable through a successful extraction.
 
 The [target coverage qualification](research/sdk-alpha1/evidence/20261016-codeql-target-coverage/README.md)
 contains real compiler and CodeQL controls, including a valid compiler-only
@@ -155,17 +171,22 @@ categories, tool versions, and successful invocations. Raw results and failures
 are retained rather than rewritten to produce zero counts.
 
 The Ubuntu 24.04 Rust jobs use four threads and 14,000 MB. The Apple Silicon
-`macos-26` job uses two threads and 5,500 MB within the standard runner's
+`macos-26` preparation job uses two threads and 5,500 MB within the standard runner's
 [3 CPU / 7 GB allocation](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
-These budgets apply to extraction, quality queries and the complete security suite.
-Both platforms retain the 900-second Metrics limit and 300-second limits for other queries and decoding.
+The preparation budgets apply to compilation, extraction and quality queries.
+All three target databases execute their complete security suites on Linux with
+9,329 MB of off-heap memory; the pinned CLI resolves the remaining heap against
+each database within the 14,000-MB total request. The resolved arguments and their
+typed allocation record are bound into the completed analysis.
+Both extraction platforms retain the 1800-second Metrics limit and 300-second limits for other queries and decoding.
 Resource failures block publication. The fixed-path adapter selects the platform's
 CodeQL 2.27.2 toolcache path and workflow database layout, checks file types, requires current-user-owned database
 paths without cross-account write permission, and revalidates open path identities
 around queries and decoding. The compiler host is pinned to Linux x86_64 or macOS arm64;
 the macOS analysis does not add Intel Mac support. Each target must complete its own
-suite, including the macOS-only tests and test support which Linux/WASM cannot compile;
-runner or hardware changes require fresh qualification. Frozen 0.1.x publication
+suite. The macOS database includes the macOS-only tests and test support compiled
+on Apple Silicon; moving that database does not replace native macOS extraction.
+Runner or hardware changes require fresh qualification. Frozen 0.1.x publication
 receipts keep their original analysis categories and are not reinterpreted as
 qualification of this 0.2.0 pipeline.
 The pinned action's fixed GitHub-hosted toolcache launcher may be foreign-owned,

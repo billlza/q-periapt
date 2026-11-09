@@ -31,7 +31,8 @@ COMPILER = "1.98.1"
 # evaluator memory outside the Java heap. Current Linux native and WASM runs
 # both exhausted their five-hour bound in SummaryStats with the default split.
 # CodeQL resolves the remaining heap against each current database and the
-# unchanged 14,000-MB total request; macOS retains its separate hosted policy.
+# unchanged 14,000-MB total request. macOS compilation/extraction keeps its
+# native hosted policy; its sealed database uses the same Linux query budget.
 LINUX_OFF_HEAP_RAM_MB = 9329
 WORKSPACE_LOCKFILES = (
     "Cargo.lock",
@@ -56,6 +57,11 @@ PAPER_ARCHIVE_LOCKFILES = {
 def profile_host(profile: str) -> str:
     sdk.require(profile in TARGETS, "unknown Rust analysis profile")
     return "darwin" if profile == "macos" else "linux"
+
+
+def analysis_host(profile: str) -> str:
+    sdk.require(profile in TARGETS, "unknown Rust analysis profile")
+    return "linux"
 
 
 def sarif_category(profile: str) -> str:
@@ -303,7 +309,7 @@ def validate_query_inventory(inventory: dict[str, str], expected: object) -> Non
 
 
 def linux_query_memory(resolved: object, profile: str) -> dict:
-    sdk.require(profile in ("native", "wasm"), "memory policy requires a Linux analysis profile")
+    sdk.require(profile in TARGETS, "memory policy requires a reviewed Linux analysis profile")
     sdk.require(isinstance(resolved, list) and len(resolved) == 2
                 and all(isinstance(argument, str) for argument in resolved),
                 "Linux evaluator memory resolution is malformed")
@@ -328,10 +334,10 @@ def validate_linux_query_memory(record: object, profile: str) -> None:
 
 
 def analysis_memory_arguments(run: ProfileRun, profile: str) -> list[str]:
-    sdk.require(profile_host(profile) == run.configuration.platform,
+    sdk.require(analysis_host(profile) == run.configuration.platform,
                 "analysis memory profile belongs to a different host")
     arguments = [f"--ram={run.configuration.ram_mb}"]
-    if profile in ("native", "wasm"):
+    if profile in TARGETS:
         sdk.require(run.configuration.ram_mb == 14000 and run.configuration.threads == 4,
                     "Linux allocation requires its reviewed hosted budget")
         arguments.append(f"--off-heap-ram={LINUX_OFF_HEAP_RAM_MB}")
@@ -346,9 +352,27 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
     profile_path = run.evidence / "PROFILE.json"
     profile = parse_strict_json_bytes(sdk.snapshot(profile_path).data, label="Rust analysis profile")
     sdk.require(profile.get("target") == TARGETS.get(profile.get("profile"))
-                and profile_host(profile["profile"]) == run.configuration.platform,
+                and analysis_host(profile["profile"]) == run.configuration.platform,
                 "analysis profile belongs to a different host or target")
     sdk.require(profile["active_target_quality_passed"] is True, "active target quality has not passed")
+    run_id, attempt = os.environ.get("GITHUB_RUN_ID", ""), os.environ.get("GITHUB_RUN_ATTEMPT", "")
+    expected_commit = os.environ.get("CODEQL_EXPECTED_COMMIT", "")
+    sdk.require(re.fullmatch(r"[1-9][0-9]*", run_id) is not None
+                and re.fullmatch(r"[1-9][0-9]*", attempt) is not None
+                and re.fullmatch(r"[0-9a-f]{40}", expected_commit) is not None
+                and profile.get("source_commit") == expected_commit
+                and profile.get("run_id") == run_id
+                and isinstance(profile.get("run_attempt"), str)
+                and re.fullmatch(r"[1-9][0-9]*", profile["run_attempt"]) is not None
+                and int(profile["run_attempt"]) <= int(attempt), "analysis workflow identity differs")
+    if profile["profile"] == "macos":
+        from codeql_rust_transfer import validate_transfer_anchor
+        validate_transfer_anchor(run.evidence, profile, expected_commit=expected_commit,
+                                 run_id=run_id, analysis_attempt=int(attempt))
+    else:
+        sdk.require(not (run.evidence / "TRANSFER.json").exists()
+                    and not (run.evidence / "TRANSFER.json").is_symlink(),
+                    "native Linux extraction cannot use a macOS database transfer")
     quality.require_clean_checkout(profile["source_commit"])
     suite = query_pack / "codeql-suites/rust-security-extended.qls"
     resolved = parse_strict_json_bytes(run.command("resolve-suite", [str(run.codeql), "resolve", "queries", str(suite), "--format=json"]), label="CodeQL query inventory")
@@ -378,21 +402,28 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
     validate_sarif(data, profile["profile"])
     quality.require_clean_checkout(profile["source_commit"])
     sdk.write_json(run.evidence / "ANALYSIS.json", {
+        "schema": 2, "profile": profile["profile"], "target": profile["target"],
+        "source_commit": profile["source_commit"], "run_id": run_id, "run_attempt": attempt,
+        "analysis_host": run.configuration.platform,
+        "query_threads": run.configuration.threads, "query_ram_mb": run.configuration.ram_mb,
         "completed": True, "profile_sha256": sdk.snapshot(profile_path).sha256,
         "query_inventory_sha256": sdk.snapshot(run.evidence / "QUERY_INVENTORY.json").sha256,
         "query_result_sha256": results, "sarif_sha256": sdk.snapshot(sarif, maximum=64 * 1024**2).sha256,
         "codeql_version": VERSION, "query_pack": QUERY_VERSION, "upload_performed": False,
-        **({"query_memory_sha256": sdk.snapshot(run.evidence / "QUERY_MEMORY.json").sha256}
-           if profile["profile"] in ("native", "wasm") else {}),
+        "query_memory_sha256": sdk.snapshot(run.evidence / "QUERY_MEMORY.json").sha256,
+        **({"transfer_sha256": sdk.snapshot(run.evidence / "TRANSFER.json").sha256}
+           if profile["profile"] == "macos" else {}),
     })
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "analyze"))
+    parser.add_argument("action", choices=("prepare", "export", "import", "analyze"))
     parser.add_argument("--profile", choices=tuple(TARGETS), required=True)
     args = parser.parse_args()
-    host = profile_host(args.profile)
+    sdk.require(args.action not in ("export", "import") or args.profile == "macos",
+                "only the macOS extraction uses a database transfer")
+    host = profile_host(args.profile) if args.action in ("prepare", "export") else analysis_host(args.profile)
     configuration = quality.hosted_configuration(host)
     sdk.require(sys.platform == host, "Rust hosted profile requires its selected platform")
     sdk.require(os.environ.get("CODEQL_BINARY") == str(configuration.codeql), "unexpected CodeQL binary path")
@@ -406,6 +437,10 @@ def main() -> None:
     if args.action == "prepare":
         run = ProfileRun(ROOT, output, configuration.codeql, environment, host=host)
         prepare(run, args.profile, os.environ.get("CODEQL_EXPECTED_COMMIT", ""))
+    elif args.action in ("export", "import"):
+        from codeql_rust_transfer import export_database, import_database
+        run = ProfileRun(ROOT, output, configuration.codeql, environment, resume=args.action == "export", host=host)
+        (export_database if args.action == "export" else import_database)(run)
     else:
         run = ProfileRun(ROOT, output, configuration.codeql, environment, resume=True, host=host)
         pack = run.codeql.parent / "qlpacks/codeql/rust-queries" / QUERY_VERSION
