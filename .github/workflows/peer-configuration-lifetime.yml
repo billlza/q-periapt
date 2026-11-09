@@ -26,6 +26,16 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /.github/workflows/peer-configuration-lifetime.yml
+            /artifact/test_peer_configuration_lifetime.py
+            /artifact/testdata/peer_configuration_lifetime.c
+            /bindings/c/ContinuityPackageConsumer/peer_configuration_client.c
+            /bindings/c/ContinuityPackageConsumer/qpc_owner.h
+            /artifact/python-run.sh
+            /artifact/python-env.sh
+            /artifact/python_bootstrap.py
       - name: Record source and run the existing optimized C controls
         shell: bash
         env:
