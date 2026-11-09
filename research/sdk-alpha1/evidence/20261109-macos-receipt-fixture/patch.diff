@@ -1,0 +1,31 @@
+--- a/artifact/test_codeql_rust_profile.py
++++ b/artifact/test_codeql_rust_profile.py
+@@ -243,7 +243,9 @@
+ 
+     def _check_analysis_snapshot_binding(self, replacement: str | None) -> None:
+         with tempfile.TemporaryDirectory() as temporary:
+-            root = Path(temporary)
++            # Match the production entry point's canonical query-pack path,
++            # including a macOS temporary parent reached through /var aliases.
++            root = Path(temporary).resolve(strict=True)
+             pack = root / "query-pack"
+             pinned = json.loads((profile_module.ROOT / "artifact/codeql_rust_queries.json").read_text())
+             inventory = {}
+@@ -324,6 +326,17 @@
+ 
+     def test_analysis_receipt_identifies_validated_sarif_after_path_replacement(self) -> None:
+         self._check_analysis_snapshot_binding("results.sarif")
++
++    def test_analysis_snapshot_receipts_with_symlinked_temporary_parent(self) -> None:
++        with tempfile.TemporaryDirectory() as temporary:
++            parent = Path(temporary).resolve(strict=True)
++            physical = parent / "private" / "var"
++            physical.mkdir(parents=True)
++            alias = parent / "var"
++            alias.symlink_to(physical, target_is_directory=True)
++            for replacement in (None, "PROFILE.json", "results.sarif"):
++                with self.subTest(replacement=replacement), mock.patch.object(tempfile, "tempdir", str(alias)):
++                    self._check_analysis_snapshot_binding(replacement)
+ 
+     def _check_clang_selection(self, *, symlink: bool) -> None:
+         class SetupComplete(Exception):
