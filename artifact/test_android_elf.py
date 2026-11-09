@@ -669,6 +669,16 @@ class AndroidElfVerifierTests(unittest.TestCase):
                 llvm_readelf=readelf,
             )
 
+    def test_load_alignment_must_be_power_of_two(self) -> None:
+        output = "LOAD 0x0 0x0 0x0 0x100 0x100 R E 0x6000\n"
+        with self.assertRaisesRegex(AndroidVerificationError, "not a power of two"):
+            android_elf.verify_program_headers(output, pathlib.Path("fixture.so"))
+
+    def test_load_offset_and_virtual_address_must_be_congruent(self) -> None:
+        output = "LOAD 0x1000 0x2000 0x2000 0x100 0x100 R E 0x4000\n"
+        with self.assertRaisesRegex(AndroidVerificationError, "incongruent LOAD"):
+            android_elf.verify_program_headers(output, pathlib.Path("fixture.so"))
+
     def test_expected_aar_sha256_mismatch_fails_closed(self) -> None:
         nm, readelf = self.fake_tools()
         with self.assertRaisesRegex(AndroidVerificationError, r"SHA-256 mismatch"):
