@@ -152,6 +152,16 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(len(self.contract["java"]), 68)
         self.assertEqual(result["classes"]["callbacks"], self.callbacks)
 
+    def test_vendored_mlkem_notices_are_required_exact_current_source_bytes(self):
+        entries = aar.zip_entries(aar.make_aar(self.selection, self.inputs, self.contract), canonical_aar=True)
+        for name in ("INVENTORY.sha256", "LICENSE-INVENTORY.md", "LICENSE.mlkem-native", "PROVENANCE.md"):
+            path = "META-INF/licenses/mlkem-native/" + name
+            self.assertEqual(entries[path], (aar.ROOT / "crates/q-periapt-mlkem-native-sys/vendor" / name).read_bytes())
+            missing = dict(entries); del missing[path]
+            with self.subTest(name=name, change="missing"), self.assertRaises(ValueError): self.verify(missing)
+            replaced = {**entries, path: b"unrelated notice"}
+            with self.subTest(name=name, change="replaced"), self.assertRaises(ValueError): self.verify(replaced)
+
     def test_selection_rejects_legacy_version_source_and_extra_fields_after_rehash(self):
         for key, value in (("version", "0.0.0"), ("abi", "sdk/2"), ("target", "x86_64-linux-android"),
                            ("source", {**self.source, "commit": "c" * 40}), ("schema_version", True), ("extra", 1)):

@@ -154,6 +154,11 @@ def source_contract(paths: list[str]) -> dict:
     bridge = source(ADAPTER + "/jni/continuity_jni.c", 65536).decode()
     licenses = {"META-INF/licenses/" + name: source("LICENSES/" + name, MAX_ENTRY)
         for name in ("Apache-2.0.txt", "MIT.txt", "Rust-1.98.1-library.html")}
+    # This locally installed SDK crate carries vendored C implementation
+    # notices; registry-only Rust dependency collection does not cover them.
+    licenses.update({"META-INF/licenses/mlkem-native/" + name:
+        source("crates/q-periapt-mlkem-native-sys/vendor/" + name, MAX_ENTRY)
+        for name in ("INVENTORY.sha256", "LICENSE-INVENTORY.md", "LICENSE.mlkem-native", "PROVENANCE.md")})
     return {"exports": set(abi["functions"]), "java": sources, "rules": rules, "bridge": bridge,
             "licenses": licenses, "pinned": pinned}
 

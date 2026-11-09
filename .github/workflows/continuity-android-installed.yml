@@ -1,8 +1,7 @@
 name: Installed Continuity Android JNI
 
-# This focused cohort runs the same Android producer as ci.yml against an
-# explicitly pinned SDK artifact. It does not stand in for physical devices or
-# join older Swift/Kotlin partitions into a new six-partition coverage claim.
+# The host JNI partitions and fresh arm64 AAR build select the same pinned SDK
+# cohort. The AAR job records native/Java compilation and static readback.
 on:
   push:
     paths:
@@ -164,4 +163,103 @@ jobs:
             target/continuity-installed-swift/c-setup-witness-fault-public/**
             target/continuity-installed-swift/consumer-Cargo.lock
             target/continuity-installed-swift/c-consumer-Cargo.lock
+          if-no-files-found: error
+
+  android-aar:
+    name: continuity-android-aar-arm64
+    runs-on: macos-15
+    timeout-minutes: 210
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: clippy
+          targets: aarch64-linux-android
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Check Android build and distribution controls
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: sh artifact/python-run.sh -m unittest -v test_continuity_android_build test_continuity_android_distribution
+      - name: Select exact SDK cohort and current Android source
+        id: inputs
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+          test "$(uname -m)" = arm64
+          sh artifact/python-run.sh - <<'PYTHON'
+          from pathlib import Path
+          import os
+          from continuity_android_distribution import repository_paths, source_identity
+          from continuity_independent_package import validate_sdk_selection
+          from evidence_io import parse_strict_json_bytes
+          selection = parse_strict_json_bytes(Path(".github/continuity-android-installed.json").read_bytes(), label="Android SDK cohort")
+          if type(selection) is not dict or set(selection) != {"sdk_run_id", "sdk_report_sha256"}:
+              raise ValueError("Android SDK cohort must contain exactly one run and report digest")
+          if not validate_sdk_selection(selection["sdk_run_id"], selection["sdk_report_sha256"]):
+              raise ValueError("Android SDK cohort cannot be empty")
+          source = source_identity(paths=repository_paths(Path.cwd()))
+          if source["commit"] != os.environ["EXPECTED_COMMIT"]:
+              raise ValueError("Android source does not identify this workflow commit")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
+              for key, value in {**selection, **{"source_" + key: value for key, value in source.items()}}.items():
+                  stream.write(key + "=" + value + "\n")
+          PYTHON
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: rust-sdk-package
+          run-id: ${{ steps.inputs.outputs.sdk_run_id }}
+          github-token: ${{ github.token }}
+          path: target/continuity-sdk-input
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          packages: platform-tools
+      - name: Install the selected NDK r29
+        run: |
+          license_answers=$(printf 'y\n%.0s' {1..64})
+          sdkmanager --licenses <<< "$license_answers" >/dev/null
+          unset license_answers
+          sdkmanager "ndk;29.0.14206865"
+      - name: Compile current Continuity sources and reopen the arm64 AAR
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          SDK_REPORT_SHA256: ${{ steps.inputs.outputs.sdk_report_sha256 }}
+          SDK_RUN_ID: ${{ steps.inputs.outputs.sdk_run_id }}
+          SOURCE_COMMIT: ${{ steps.inputs.outputs.source_commit }}
+          SOURCE_TREE: ${{ steps.inputs.outputs.source_tree }}
+          SOURCE_TREE_SHA256: ${{ steps.inputs.outputs.source_tree_sha256 }}
+        run: |
+          sh artifact/python-run.sh artifact/continuity_android_build.py \
+            --report target/continuity-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json \
+            --report-sha256 "$SDK_REPORT_SHA256" \
+            --sdk-run-id "$SDK_RUN_ID" \
+            --source-commit "$SOURCE_COMMIT" --source-tree "$SOURCE_TREE" \
+            --source-tree-sha256 "$SOURCE_TREE_SHA256" \
+            --toolchain-root "$(rustc +1.98.1 --print sysroot)" \
+            --ndk "$ANDROID_HOME/ndk/29.0.14206865" --java-home "$JAVA_HOME" \
+            --native-package-id continuity-native \
+            --output target/continuity-android-build
+          git diff --exit-code
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: continuity-android-aar-arm64
+          path: target/continuity-android-build/
           if-no-files-found: error
