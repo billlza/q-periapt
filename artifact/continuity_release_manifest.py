@@ -83,9 +83,23 @@ def canonical_digest(value: object) -> str:
     return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
 
 
-def package_graph_digest(packages: list[dict]) -> str:
-    """Hash package identities and edges, separately from per-build evidence."""
-    return canonical_digest([{key: row[key] for key in GRAPH_FIELDS} for row in packages])
+def package_graph_digest(packages: list[dict], *, schema_version: int = 1) -> str:
+    """Hash the explicitly selected lock schema's package identity projection.
+
+    Schema 1 retains the original byte-for-byte graph commitment. Schema 2
+    keeps distribution identity paths and their normative fields, while their
+    source/artifact-bearing document digests remain verified in the outer
+    manifest. Cargo/npm definitions and workspace pins remain in both locks.
+    """
+    require(type(schema_version) is int and schema_version in {1, 2},
+            "package graph schema differs")
+    graph = [{key: row[key] for key in GRAPH_FIELDS} for row in packages]
+    if schema_version == 1:
+        return canonical_digest(graph)
+    for row in graph:
+        if row["format"] == "distribution":
+            row["metadata"] = {"path": row["metadata"]["path"]}
+    return canonical_digest({"schema_version": 2, "packages": graph})
 
 
 class Inputs:
@@ -493,7 +507,7 @@ def verify_manifest(root: Path, manifest_path: str, *, expected_sha256: str,
                            "normative_files", "supporting_files", "compiled_descriptor", "package_graph_sha256",
                            "interfaces_sha256"}, "specification lock")
     frozen = stage == "release"
-    require(type(lock["schema_version"]) is int and lock["schema_version"] == 1 and lock["kind"] == LOCK_KIND
+    require(type(lock["schema_version"]) is int and lock["schema_version"] in {1, 2} and lock["kind"] == LOCK_KIND
             and lock["stage"] == stage and lock["product_version"] == VERSION
             and lock["frozen_product_contract"] is frozen, "specification lock identity or freeze state differs")
     normative = object_with_keys(lock["normative_files"], NORMATIVE_ROLES, "normative inventory")
@@ -513,7 +527,7 @@ def verify_manifest(root: Path, manifest_path: str, *, expected_sha256: str,
         require(_contract(inputs.json(compiled), frozen=frozen) == reviewed, "compiled descriptor differs from normative budgets")
     exports = _interfaces(manifest["interfaces"], inputs, frozen=frozen)
     summary = _packages(manifest["packages"], inputs, stage=stage, source=expected_source, interfaces=manifest["interfaces"])
-    graph_digest = package_graph_digest(manifest["packages"])
+    graph_digest = package_graph_digest(manifest["packages"], schema_version=lock["schema_version"])
     require(digest(lock["package_graph_sha256"], 64, "locked package graph") == graph_digest,
             "package graph differs from the specification lock")
     interface_digest = canonical_digest(manifest["interfaces"])
@@ -522,6 +536,7 @@ def verify_manifest(root: Path, manifest_path: str, *, expected_sha256: str,
     inputs.unchanged()
     return {"schema_version": 1, "kind": "qperiapt.continuity_release_manifest_verification", "completed": True,
             "stage": stage, "source": expected_source, "manifest_sha256": snapshot.sha256,
+            "spec_lock_schema_version": lock["schema_version"],
             "spec_lock_sha256": manifest["spec_lock"]["sha256"], "package_graph_sha256": graph_digest,
             "interfaces_sha256": interface_digest, "compiled_descriptor_matched": compiled is not None,
             "exports": exports, "files": len(inputs.refs), **summary,
