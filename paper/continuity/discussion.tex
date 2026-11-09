@@ -90,9 +90,14 @@ rekey work. The one-way control reaches its admission cap with both confirmed
 epochs still zero and with every admitted post-capture key reconstructed.
 These observations connect the provenance condition to a concrete accounting
 of recovery, service and queued demand. The frame partition further identifies
-the selected immediate-retry policy's contribution to communication cost,
-providing a measured starting point for changing retry scheduling while
-preserving the original allocation and wire identities.
+the selected immediate-retry policy's contribution to communication cost.
+A paired native ablation changes application-retry readiness using a public
+sender-turn clock. Under the same 2,048 opportunities, it raises alternating
+deliveries to 971 and 999 while the derived counts remain 63 and 127.
+All twelve bidirectional or resumed budget--schedule pairs deliver more
+applications, with their full byte accounting reporting both reductions
+and increases in cost per delivery. This separates a controllable scheduling
+cost from the allocation envelope and the one-way admission boundary.
 
 \paragraph{Conclusion.}
 Persistent recovery is governed by original secret sources and their

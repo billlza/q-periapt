@@ -9,7 +9,9 @@ import argparse
 from collections import Counter, defaultdict
 import hashlib
 import json
-from pathlib import Path
+import os
+from pathlib import Path, PurePosixPath, PureWindowsPath
+import stat
 
 
 PROFILES = ("continuity-32", "continuity-64", "spqr-32", "spqr-64",
@@ -38,20 +40,58 @@ def decode(text):
                           ValueError("nonfinite JSON")))
 
 
+def read_bytes(path):
+    """Read one regular-file snapshot and retain the exact bytes consumed."""
+    require(path.is_file() and not path.is_symlink(), "nonregular evidence input")
+    before = path.lstat()
+    require(stat.S_ISREG(before.st_mode), "nonregular evidence input")
+    identity = lambda info: (info.st_dev, info.st_ino, info.st_size,
+                             info.st_mtime_ns, info.st_ctime_ns)
+    with path.open("rb") as source:
+        opened = os.fstat(source.fileno())
+        require(stat.S_ISREG(opened.st_mode) and identity(opened) == identity(before),
+                "evidence input replaced before reading")
+        data = source.read()
+        after = os.fstat(source.fileno())
+    require(identity(after) == identity(opened) and len(data) == opened.st_size,
+            "evidence input changed while reading")
+    return data
+
+
 def digest(path):
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashlib.sha256(read_bytes(path)).hexdigest()
 
 
 def read(path):
-    require(path.is_file() and not path.is_symlink(), "nonregular evidence input")
-    return decode(path.read_text())
+    return decode(read_bytes(path).decode("utf-8"))
+
+
+def decode_rows(data):
+    data = data.decode("utf-8")
+    require(data.endswith("\n"), "incomplete trace tail")
+    return [decode(line) for line in data.splitlines()]
 
 
 def rows(path):
-    require(path.is_file() and not path.is_symlink(), "nonregular trace input")
-    data = path.read_text()
-    require(data.endswith("\n"), "incomplete trace tail")
-    return [decode(line) for line in data.splitlines()]
+    return decode_rows(read_bytes(path))
+
+
+def manifest_path(directory, value):
+    """Admit canonical relative paths within the selected evidence directory."""
+    require(isinstance(value, str) and value and "\\" not in value,
+            "invalid manifest path")
+    relative = PurePosixPath(value)
+    require(not relative.is_absolute() and not PureWindowsPath(value).drive
+            and relative.as_posix() == value and ".." not in relative.parts
+            and value != ".", "manifest path escape")
+    root = directory.resolve(strict=True)
+    current = root
+    for part in relative.parts:
+        current = current / part
+        require(not current.is_symlink(), "symlink in manifest path")
+    resolved = current.resolve(strict=True)
+    require(resolved.is_relative_to(root), "manifest path escape")
+    return current
 
 
 def sender(scenario, opportunity):
@@ -63,7 +103,8 @@ def sender(scenario, opportunity):
 
 
 def native(path, profile, scenario):
-    trace = rows(path)
+    trace_bytes = read_bytes(path)
+    trace = decode_rows(trace_bytes)
     config = trace[0]
     require(config["event"] == "configuration" and config["profile"] == profile
             and config["scenario"] == scenario and config["opportunities"] == N
@@ -166,7 +207,8 @@ def native(path, profile, scenario):
         "physical_sync_data": sum(last_checkpoint["sync_data"]),
     }
     retry_detail = {
-        "profile": profile, "scenario": scenario, "trace_sha256": digest(path),
+        "profile": profile, "scenario": scenario,
+        "trace_sha256": hashlib.sha256(trace_bytes).hexdigest(),
         "frame_counts": dict(frames), "frame_bytes": dict(wire_bytes),
         "retry_reception_outcomes": dict(retry_outcomes),
         "retry_emissions_after_prior_logical_delivery": len(delivered_before_retry),
@@ -238,12 +280,13 @@ def main():
     require(manifests["status"] == "complete" and len(manifests["files"]) == 126,
             "public manifest inventory")
     for item in manifests["files"]:
-        rel = Path(item["path"])
-        require(not rel.is_absolute() and ".." not in rel.parts, "manifest path escape")
-        path = evidence/rel
-        require(path.is_file() and not path.is_symlink() and path.stat().st_size == item["bytes"]
-                and digest(path) == item["sha256"], "manifest digest mismatch")
-    expected = {(r["profile"], r["scenario"]):r for r in read(args.compact_results)}
+        path = manifest_path(evidence, item["path"])
+        data = read_bytes(path)
+        require(len(data) == item["bytes"] and hashlib.sha256(data).hexdigest() == item["sha256"],
+                "manifest digest mismatch")
+    compact_bytes = read_bytes(args.compact_results)
+    expected = {(r["profile"], r["scenario"]):r
+                for r in decode(compact_bytes.decode("utf-8"))}
     require(set(expected) == {(p,s) for p in PROFILES for s in SCENARIOS}, "49-row inventory")
     details = []
     for profile in PROFILES:
@@ -260,7 +303,8 @@ def main():
         "native_traces_recounted": 14, "reference_traces_and_envelopes_recounted": 35,
         "compact_rows_equal": 49, "public_manifest_hashes_verified": 126,
         "capture_before_opportunity": 1, "post_capture_denominator": "first commitments after opportunity 0",
-        "script_sha256": digest(Path(__file__)), "compact_results_sha256": digest(args.compact_results),
+        "script_sha256": digest(Path(__file__)),
+        "compact_results_sha256": hashlib.sha256(compact_bytes).hexdigest(),
         "native_retry_analysis": details,
         "interpretation": {
             "retry_outcomes": "Reception events; duplicated network deliveries are counted separately from emission identities.",

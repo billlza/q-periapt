@@ -26,6 +26,8 @@ The reference evaluation now presents all seven retained communication schedules
 
 The matched comparison adds 49 newly executed native/reference profile--schedule pairs under 2,048 directed transmission opportunities. Its manuscript tables report post-capture derived sets together with first commitments, logical delivery, emitted bytes and native durability work. The report retains exact source/execution identities, complete 49-row JSON/CSV, a source-bound table generator and fourteen directed incorrect-report controls. A separate trace recount exposes the immediate-retry policy's measured communication cost. The one-way control records epoch-zero admission suspension and the resulting demand backlog.
 
+A paired native scheduling experiment sets minimum application-retry age to four public sender turns. Its 28 executions include fourteen fresh reproductions of the retained immediate baseline and fourteen age-four runs. At fixed opportunity budgets, every bidirectional or resumed case delivers more applications; alternating deliveries rise to 971/999 while the reconstructed counts remain 63/127. Complete frame and persistence accounting records the schedule-dependent unit costs, the unchanged one-way service and the committed-but-undelivered requests at the observation boundary.
+
 The proofs and independent reviews are retained by subject:
 
 - [Candidate-local accounting](artifacts/candidate-local/): the stopped source/record interface and original-game score accounting.
@@ -38,6 +40,7 @@ The proofs and independent reviews are retained by subject:
 - [Multiple-root entry](artifacts/multiple-root-entry/README.md): finite class-row comparison, adaptive target embedding and complete budgets.
 - [SDK purpose-key correspondence](artifacts/sdk-purpose-connection/README.md): variable-length entry comparison, exact native descriptors and separate owner states.
 - [Matched directed opportunities](artifacts/matched-comparison/README.md): 49 native/reference executions, complete report projection, service/communication tables, independent trace recount and capture/accounting controls.
+- [Retry readiness](artifacts/retry-readiness/README.md): 28 native executions, fourteen repeated-baseline/age-four pairs, public retry-age recount and regenerated service/cost table.
 - [Complete reference schedule comparison](artifacts/reference-comparison/README.md): retained source corpora, all 420 snapshot cases, generated seven-schedule table and independent recomputation.
 
 [RESEARCH_HANDOFF.md](notes/RESEARCH_HANDOFF.md) records the established connections and the next focused research question. [The SkyBridge scope note](notes/skybridge-scope.md) explains the earlier transcript, admission and recovery-release mechanisms; its migration and platform results remain their independent research line.
@@ -55,6 +58,7 @@ sh artifact/python-run.sh paper/continuity/artifacts/signature-bridge/review_gen
 sh artifact/python-run.sh paper/continuity/artifacts/reference-comparison/analyze_reference.py --check
 sh artifact/python-run.sh paper/continuity/artifacts/matched-comparison/analyze_matched.py --check
 sh artifact/python-run.sh paper/continuity/artifacts/matched-comparison/check_input_controls.py
+sh artifact/python-run.sh paper/continuity/artifacts/retry-readiness/analyze_retry.py --check
 sh artifact/python-run.sh paper/continuity/artifacts/native-authentication/review_auth_bit_accounting.py
 make -C paper/continuity source PYTHON="sh $PWD/artifact/python-run.sh"
 ```

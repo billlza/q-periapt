@@ -11,6 +11,8 @@ expected results. Third, a reference corpus records the message keys derivable
 from actual component snapshots under fixed communication schedules.
 Fourth, native and reference executions share a directed opportunity budget
 and report exposure jointly with admitted service and communication work.
+A paired native ablation within this design isolates application-retry
+readiness while retaining the protocol and the opportunity list.
 Table~\ref{tab:validation-questions} relates each design to the question it answers.
 
 \begin{table}[t]
@@ -200,3 +202,5 @@ fresh KEM execution and authenticated recovery when the ongoing authentication
 authority is itself derived from captured session state.
 
 \input{matched-opportunities}
+
+\input{retry-readiness}
