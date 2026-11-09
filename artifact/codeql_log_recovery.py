@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from collections import deque
+from contextlib import contextmanager
 import gzip
 import hashlib
 import json
@@ -11,13 +12,14 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import stat
+import tempfile
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
 
-from evidence_io import fresh_output_directory
+from evidence_io import EvidenceIOError, consume_regular_snapshot, fresh_output_directory
 
 
 ARTIFACT_ID = 13609897355
@@ -126,6 +128,27 @@ def select_logs(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
     return sorted(logs, key=lambda member: member.filename)
 
 
+@contextmanager
+def verified_source(path: Path, *, deadline: float):
+    # Hash and copy the same bounded chunks; parse only the private copy.
+    # Memory stays at one MiB, while temporary disk is capped by ARCHIVE_BYTES.
+    with tempfile.TemporaryFile(mode="w+b", dir=path.parent) as source:
+        def capture(chunk: bytes) -> None:
+            require(time.monotonic() <= deadline, "query-log recovery exceeded its time bound")
+            require(source.write(chunk) == len(chunk), "retained artifact snapshot write was incomplete")
+
+        try:
+            snapshot = consume_regular_snapshot(path, maximum=ARCHIVE_BYTES,
+                                                label="retained artifact", consume=capture)
+        except EvidenceIOError as error:
+            raise RecoveryError("retained artifact size or SHA-256 differs: " + str(error)) from error
+        require(snapshot.size == ARCHIVE_BYTES and snapshot.sha256 == ARCHIVE_SHA256,
+                "retained artifact size or SHA-256 differs")
+        require(time.monotonic() <= deadline, "query-log recovery exceeded its time bound")
+        source.seek(0)
+        yield source
+
+
 class CompressedBudget:
     def __init__(self) -> None:
         self.bytes = 0
@@ -192,11 +215,7 @@ def recover_logs(path: Path, evidence: Path) -> list[dict]:
     deadline = time.monotonic() + EXTRACTION_SECONDS
     recovered: list[dict] = []
     budget = CompressedBudget()
-    with path.open("rb") as source:
-        require(os.fstat(source.fileno()).st_size == ARCHIVE_BYTES
-                and hashlib.file_digest(source, "sha256").hexdigest() == ARCHIVE_SHA256,
-                "retained artifact size or SHA-256 differs")
-        source.seek(0)
+    with verified_source(path, deadline=deadline) as source:
         with zipfile.ZipFile(source) as archive:
             logs = select_logs(archive)
             for info in logs:
@@ -206,8 +225,10 @@ def recover_logs(path: Path, evidence: Path) -> list[dict]:
                 destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
                 partial = destination.with_suffix(destination.suffix + ".partial")
                 count, digest, summary = 0, hashlib.sha256(), LogSummary()
+                partial_created = False
                 try:
                     with archive.open(info) as log, partial.open("xb") as output:
+                        partial_created = True
                         with gzip.GzipFile(filename="", mode="wb", fileobj=BudgetWriter(output, budget),
                                            compresslevel=6, mtime=0) as compressed:
                             while line := log.readline(MAX_LINE_BYTES + 1):
@@ -222,7 +243,7 @@ def recover_logs(path: Path, evidence: Path) -> list[dict]:
                     require(time.monotonic() <= deadline, "query-log recovery exceeded its time bound")
                     partial.replace(destination)
                 except BaseException:
-                    if partial.exists():
+                    if partial_created and partial.exists():
                         partial.unlink()
                     raise
                 recovered.append({"archive_member": info.filename, "bytes": count,
