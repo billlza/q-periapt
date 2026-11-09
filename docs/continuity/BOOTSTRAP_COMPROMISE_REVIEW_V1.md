@@ -55,6 +55,24 @@ executed public-input controls are retained in a separate
 The cryptographic dependency is the specified joint schedule under the selected
 disclosures; the terminal conversion is now a completed input to that assessment.
 
+## Joint-schedule and retention assessment — 9 November 2026
+
+The [joint-schedule assessment](BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md) completes
+U3's source and derivability correspondence for the named bootstrap phases,
+journal images, pending targets, replay tokens, prekey inventory and signer
+files, using the existing exact guarded-normalization and retained-history
+results. It preserves original source identities across retries and later
+matching-key disclosure.
+
+For U2, that assessment identifies the already established native
+ML-DSA signing-reservation bridge and supplies a conditional derivation from
+a fresh uniform bootstrap PRK through the three labels, finite root-entry
+table and five activation blocks. The remaining entry comparison is localized
+to the two ContextBound contributions, the actual 64-byte `S0 || S1` Extract
+and `S0`'s shared initial-confirmation use. The U1/U2/U3 identifiers below remain
+the original review tracking items; this update records their current
+disposition without relabelling the historical executions.
+
 ## 1. Secret names and the actual derivation graph
 
 Let **I** be the bootstrap initiator and **R** the responder. The context `ctx`
@@ -192,7 +210,7 @@ by a convenient session label.
 | **I's complete initiation plan after both KEM reservations, plus the matching wrapping key** | The same original key and encapsulation can be replayed to recover `sk_reply` and `S0`; the later public Reply supplies the ciphertext needed for `S1`. Later execution or exact retry does not create a replacement secret. | **S**, `InitiationPlan::{compute,complete,encode}`. T2 covers exact reservation/retry behavior. A generation-only plan from B1 is a narrower capture and must not be silently upgraded to the later complete plan. |
 | **R's readable `ResponseKemReserved` or later private plan/checkpoint** | The phase-13 plan already retains authenticated `S0` and the sealed original encapsulation for `S1`; its exact bound public input permits replay. A prepared checkpoint directly retains `K_B` and the remaining confirmation state. | **S**, `ResponsePlan::{reserve,compute,encode}` and responder checkpoint. T3/T4 cover preservation and commit ordering. These field dependencies identify the exposed branch even when the public Reply is emitted later. |
 | **Encrypted journal or token without the matching wrapping key; key learned later** | Captured bytes remain a retained object. Later key disclosure can make their original reservations or roots readable; deletion or a newer outer write does not invalidate the adversary's copy. The actual captured phases determine the resulting secrets. | **S** storage/replay mapping. Confidentiality of the protected bytes uses the existing record/AEAD assumptions. Signer files are separately typed assets; including them with their matching wrapping key also exposes identity authority. |
-| **Signing-reservation `rnd` without the signing key** | The reservation contains an input binding and explicit ML-DSA signing randomness. The P-256 path uses its own signing operation; these stored bytes are not an exposed P-256 nonce. | **S**, `SigningReservation` and the pinned ML-DSA backend; the existing [body-origin analysis](AUTHENTICATED_BODY_LEMMA_V1.md) identifies the nonce-aware primitive premise (**U2**). |
+| **Signing-reservation `rnd` without the signing key** | The reservation contains an input binding and explicit ML-DSA signing randomness. The P-256 path uses its own signing operation; these stored bytes are not an exposed P-256 nonce. | **S**, `SigningReservation` and the pinned ML-DSA backend. The [joint-schedule assessment](BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md#4-component-and-identity-assessment-matrix) incorporates the established native reservation-to-ordinary-ML-DSA bridge under its declared model and owner interface. |
 | **Consumed one-time prekey is replayed or relabelled by a new manifest** | Durable records use actual key fingerprints as claims, and consumption remains linked to the original response. An exact committed Initial reuses its response; a different Initial competing for that one-time key fails. Re-labelling a public key does not create a new one-time key. | **S; T3/T4/T6**. Both selected one-time entries are consumed only where the selected quality requires them. The volatile `ResponderOperation` alone has no global one-time inventory; the journal is the enforcing layer. |
 
 ### 3.3 Session-root and carrier compromise
@@ -201,7 +219,7 @@ by a convenient session label.
 | --- | --- | --- |
 | **An old session's root/state, while establishing a fresh independent bootstrap** | No old session-root parameter enters `schedule` or `pending`; the fresh exchange uses `S0`, `S1` and its role-ordered transcript. A proof or ACK for another session fails exact session/direction/epoch checks. Any shared identity, prekey, RNG or storage disclosure must additionally be included in the case. | **S** graph and ACK parser; T5 covers the ACK/epoch checks. General fresh-session independence with correlated compromise histories remains part of **U1/U2**. |
 | **This bootstrap's `K_B`, or both `S0` and `S1` with the complete public transcript** | The graph reconstructs `R_0`, both epoch-zero chains and both ACK keys. An attacker holding the applicable ACK key can compute the root-possession proof. That proof consequently certifies key possession under its secrecy premise; it is not an additional independent identity signature. | **S**, `pending`, `State::new`, `Traffic::from_material`, `acknowledgement`. The stage contract explicitly distinguishes this disclosure from the next row. |
-| **Only the initial stored rekey root `R_0`** | `R_0` and `T_0` are sibling outputs of the 160-byte expansion from `K_B`. The implemented graph contains no `R_0 → T_0` derivation. A whole message-state capture includes additional fields, whereas this row names only `R_0`. | **S** exact source distinction. Turning separation of fields into an indistinguishability theorem requires the KDF argument in **U2**. |
+| **Only the initial stored rekey root `R_0`** | `R_0` and `T_0` are sibling outputs of the 160-byte expansion from `K_B`. The implemented graph contains no `R_0 → T_0` derivation. A whole message-state capture includes additional fields, whereas this row names only `R_0`. | **S** exact source distinction. The [conditional downstream derivation](BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md#3-completed-conditional-derivation-from-a-bootstrap-prk) supplies the sibling-table comparison from a fresh uniform bootstrap PRK; **U2** retains its explicit joint-entry obligation. |
 | **A later old-epoch rekey root or ACK key** | Later-epoch material follows the rekey equations and may expose that epoch's chains/ACKs. ACKs bind the actual session, direction and epoch; an authenticated old prefix retains authority over its old outboxes. It does not by itself authenticate another epoch's acknowledgement. | **S; T5**, including an old-key-generated modified new-epoch ACK rejection. The full rekey recovery analysis remains in its existing recovery notes, not a bootstrap KCI result. |
 | **Configured TLS peer key or arbitrary portable carrier control, with public READY fields** | The carrier may drop, replay or alter public frames. Native and portable establishment still require the matching epoch-zero ACK MAC. R2 gives the adversarial carrier its actual configured TLS key and only R's classical device-signing component; both public-only READY and a well-formed forged proof are rejected. | **R2; R3** for portable tamper/loss and exact retry. A valid retained ACK does not establish current peer availability, fresh remote authorization, physical erasure or a host application effect. |
 
@@ -250,7 +268,7 @@ success. The live independent bootstrap proves its recorded interoperability
 and confirmation outcomes; no private-root export hook was added to make that
 test possible.
 
-## 5. Remaining construction propositions and review handoff
+## 5. Construction propositions and review handoff
 
 The following are the existing proof/review questions localized by this matrix,
 not additional package or platform gates:
@@ -258,8 +276,8 @@ not additional package or platform gates:
 | ID | Proposition to settle | Exact interface supplied by this review |
 | --- | --- | --- |
 | **U1: staged agreement and KCI** | Proposition 1 and Theorem 2 of the [terminal assessment](BOOTSTRAP_TERMINAL_AGREEMENT_V1.md) establish the full-wire Final invariant and the joint-schedule-to-terminal-agreement conversion. The KCI assessment now instantiates that schedule with the chosen local-identity and prekey disclosures, alongside its context-admission assumptions. | B0–B7 permissions, exact transcript classes, prior durable responder activation and the explicit multi-key verification bound. The source-linked theorem permits exact READY replay; R1/R2 retain the live B4/B6 separation. |
-| **U2: computational key schedule and hybrid authentication** | Connect the two ContextBound contributions and allowed component/entropy disclosures to the joint HKDF, confirmation, root and ACK experiment. Cover the actual shared inputs and signature-randomness interface under the declared classical/PQ assumptions. | The explicit `S0/S1 → seed/KR/KI → K_B → R_0/T_0` graph, source-defined contexts and the specific disclosure rows. The existing conditional body-origin and recovery component notes remain inputs to this analysis. |
-| **U3: disclosure and retention correspondence** | Match any claimed erasure or post-compromise history to the actual retained journal, one-time inventory, replay tokens, wrapping keys and signer files. Preserve original operation identities across retry and pending writes. | Actual staged plans and checkpoint fields; atomic consumption and exact outbox behavior; temporary claims versus consumption; named storage/test paths. A fresh execution time is not substituted for the retained reservation's origin. |
+| **U2: computational key schedule and hybrid authentication** | The native signature-randomizer bridge and conditional bootstrap-PRK-to-activation derivation are completed inputs. Complete the original-operation component comparison and joint 64-byte `S0 || S1` Extract with `S0`'s SDK initial-confirmation use, retaining allowed identity disclosures and actual aliases. | The [joint-schedule assessment](BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md) gives exact lengths, source/proof mappings, surviving-contribution cases, full-input cache rules and the specific entry comparisons to compose with U1. |
+| **U3: disclosure and retention correspondence** | **Completed for the named bootstrap records and passive acquisition/key-disclosure histories** by the [phase/guard correspondence](BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md#5-u3-completed-disclosure-and-retention-correspondence). Original operations persist across retry, pending targets, aggregate copies and late matching-key disclosure. | The exact phase matrix, fixed key guards, deterministic replay/schedule closure and preservation induction instantiate the existing guarded-normalization/history results. The assessment identifies current live fields separately from previously acquired versions and keeps the existing authoritative-history scope. |
 
 The completed source review supports carrying forward the current derivation
 graph and stage-specific output contracts as the concrete construction under

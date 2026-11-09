@@ -1,4 +1,4 @@
-# 0.2.0 Continuity admission change — prepared plan
+# 0.2.0 Continuity admission plan
 
 Prepared against `228c944fc476e3e57d6c08063cacb19bca5b360e` on 2026-11-07.
 This is the concrete integration plan for the already agreed
@@ -20,10 +20,51 @@ The C snapshot now records package version `0.2.0` while retaining all existing
 `QPeriaptContinuity-Apple-0.2.0.zip` and Kotlin's producer/consumer use
 `dev.qperiapt:q-periapt-continuity-kotlin:0.2.0`. The package identity change keeps
 the current protocol domains and persisted formats. Selected native/Android and
-service distribution records, actual archive digests, the construction and
-workload-budget decisions, and the coordinated specification lock remain in the
+service distribution records, actual archive digests, the remaining bootstrap
+entry comparison, and the coordinated specification lock remain in the
 execution sequence below. Historical qualification keeps its original source
 and artifact identities.
+
+## Construction, workload and compatibility decisions — 9 November 2026
+
+The [joint-schedule and retained-state assessment](BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md)
+completes U3 for the declared bootstrap records and acquisition histories. Its
+phase map includes the complete aggregate image, pending target, original KEM
+and signing reservations, prekey inventory/tombstones and separately acquired
+signer files. The guarded-history correspondence preserves original sources
+through retry, copying, cancellation and later key disclosure.
+
+U2 now has three completed inputs: the existing native ML-DSA randomizer bridge,
+the complete-tuple and finite-entry primitive results, and the conditional
+bootstrap-PRK-to-activation derivation with the actual five-block schedule.
+The remaining bootstrap comparison has two precise steps: instantiate the
+original contribution/disclosure adapters, then handle the 64-byte `S0 || S1`
+Extract jointly with `S0`'s initial-confirmation use. The assessment identifies
+their exact compression inputs, alias handling and connection to the completed
+terminal-agreement theorem.
+
+The [supported-workload budget](SUPPORTED_WORKLOAD_BUDGETS_0_2.md) selects the
+existing desktop reference workloads and six regression ceilings: 11/19 seconds
+for local/required-Witness single-session intervals; 6/11 seconds for the matching
+two-recipient fanout intervals; 200 MiB peak RSS and 15 MiB sender database for
+the existing capacity/recovery fixture. These are engineering budgets derived
+from the largest retained observations with a 25% allowance and upward rounding.
+The table retains the exact host, source, complete-interval denominator and
+maintenance work. The 21 implemented limits are adopted as joint admission
+constraints. The signed send allowance remains issuer-selected, with the existing
+application/connection owner's independent PQ-control responsibility.
+
+The budget choice and U3 assessment inputs are complete. Final admission still
+binds the selected artifacts, actual validation, review findings and normative
+lock in one coordinated change; `frozen_product_contract` remains false until
+that change. The agreed functional platform scope is retained, with the numeric
+cost policy attached to the specified reference class.
+
+The [0.2.0 compatibility policy](COMPATIBILITY_0_2.md) adopts the existing named
+formats and same-format program-replacement/maintenance edges. Their executed
+cohorts retain their exact source and artifact identities. This completes the
+compatibility choice; final admission binds the selected 0.2.0 artifacts to
+that policy and their affected installation/replacement checks.
 
 ## Implemented checkpoint — 7 November 2026
 
@@ -67,14 +108,14 @@ adopts these mechanisms and connects them to a formal distribution.
 | --- | --- | --- |
 | Identity, witness and authority | ML-DSA-65 AND P-256; independent pins/checkpoints; signed rosters; explicit registration and root replacement; caller-supplied trusted time | Record the host's trusted-time and independently approved trust-input responsibilities in the deployment contract. |
 | Accountable directory | Signed assignments; durable original-operation recovery; exact retries; retained one-time reservations; cancellation and canonical conflict proofs | Include the existing operator-driven service, approval/configuration input, pin, checkpoint, validity and capacity contract in the service package manifest. |
-| Bootstrap authority | Current KDF graph and stage-specific output permissions; epoch-zero root-bound ACK before established | Finish the existing construction review with a stage-specific identity/prekey/session compromise matrix and references to the actual signature, confirmation, ACK and current-authority checks. |
+| Bootstrap authority | Current KDF graph and stage-specific output permissions; epoch-zero root-bound ACK before established | Complete the original-contribution and joint 64-byte entry comparison using the completed terminal conversion, signature bridge, conditional downstream schedule and U3 correspondence. |
 | Ratchet and traffic policy | Existing v6 profile, four retained epochs, signed application-send allowance, explicit no-padding behavior | Adopt the current domains, allowance replenishment and recovery conditions as one versioned product policy. |
 | Ownership and maintenance | Device-scoped ownership, original intent, restricted recovery, witnessed state, roster fanout and existing maintenance v2 | Bind current public entry points to the final package/export inventory and the compatibility policy below. |
-| Limits and measured cost | Compiled contract schema 3 and current implementation limits; retained lifecycle/fanout/throughput observations | Lock hard limits and select the supported workload cost budgets from the existing measured cohorts. |
+| Limits and measured cost | Compiled contract schema 3, joint implementation limits and selected reference-workload budgets | Bind the chosen cost policy and selected-source validation into the coordinated specification lock. |
 
-The bootstrap review and workload-budget decisions are the remaining substantive
-acceptance work in this table. Most other rows concern formal adoption and
-package identity. Keep the completed
+The bootstrap entry comparison is the remaining substantive construction work
+in this table. The workload choice is recorded above; package/artifact binding,
+selected-source validation and final review retain their existing roles. Keep the completed
 [2026-11-07 hosted cohort](../../research/sdk-alpha1/evidence/20261107-ci-release-readback/README.md)
 attached to its original source and reuse it when the relevant inputs are
 unchanged.
@@ -107,9 +148,10 @@ publisher topology where applicable, platform archive metadata, ABI snapshot
 identity and a single release manifest. Keep existing cryptographic domain bytes,
 table names and storage tags stable during this packaging work.
 
-## Preview and program-replacement policy
+## Adopted preview and program-replacement policy
 
-Adopt the compatibility edges already implemented and qualified:
+The [compatibility table](COMPATIBILITY_0_2.md) records the selected policy and
+its source-bound execution evidence. It carries forward these existing edges:
 
 - Open the current journal, installation and witness formats specified by the
   final manifest; retain identity, original session and pending operation.
@@ -124,17 +166,18 @@ Adopt the compatibility edges already implemented and qualified:
   incomplete staging residue, retain the state and return the existing explicit
   refusal. A new migration promise is a separate, specific compatibility edge.
 
-The final compatibility table should list exact package/format pairs and link
-their retained replacement-process evidence. The already completed same-format
-replacement work remains useful after final package identities are assigned.
+The selected table lists the package/format combinations and their retained
+replacement-process evidence. Final artifact binding records the chosen archive
+identities and the applicable installation/replacement checks against this
+existing policy.
 
 ## Stable specification lock and per-release evidence
 
 Create the normative lock after the package and compatibility choices above
 have been applied. Its inputs are:
 
-1. Protocol, wire, state-machine, storage/recovery, metadata, limits and
-   upgrade/maintenance contracts, including their normative enrollment,
+1. Protocol, wire, state-machine, storage/recovery, metadata, limits, the selected
+   supported-workload cost policy and upgrade/maintenance contracts, including their normative enrollment,
    bootstrap, directory, authority and witness transaction references.
 2. Compiled contract schema 3 descriptor and its exact digest.
 3. Separate SDK C ABI 2 and Continuity `qpc-owner/1` interface manifests.
@@ -154,14 +197,19 @@ candidate reader behavior.
 
 ## Concrete execution order
 
-1. Finish the prepared tooling/deadline repair after the active PR wave reaches
-   its recorded endpoint; retain all original successful and failed jobs.
-2. Complete the package/export and compatibility manifest using the selected
-   Rust source archive channel and implemented versioned metadata. Bind remaining
-   native, Android and service distribution identities to their actual artifacts.
-3. Complete the stage-specific construction-review matrix and the supported
-   workload budget table from existing source, proof and measurement evidence.
-   Include these in the existing external-security-review package.
+1. Complete the current-source CI qualification and the full SummaryStats
+   execution repair. The retained-database allocation control is implemented;
+   its measured outcome informs the production setting. Retain the successful,
+   failed and incomplete runs with their original source identities.
+2. Complete the package/export manifest using the selected Rust source archive
+   channel and implemented versioned metadata. Bind remaining native, Android
+   and service distribution identities and the adopted compatibility policy to
+   their actual artifacts.
+3. Complete the two bootstrap U2 entry-comparison steps identified above.
+   The stage matrix, U3 correspondence and workload-budget selection are already
+   recorded. Include them and the completed terminal conversion in the existing
+   external-review package, then retain the actual assessed scope, findings and
+   any required fix rechecks.
 4. Generate the normative lock and final release manifest; run the affected
    contract, packaging, installation and replacement checks on the selected
    source. Preserve unchanged-component receipts with their actual provenance.
