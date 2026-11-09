@@ -9,6 +9,7 @@ Earlier allocation and cache-expectation controls remain available for replay.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -75,33 +76,66 @@ def safe_name(info: zipfile.ZipInfo) -> PurePosixPath:
     return path
 
 
-def inspect_database(path: Path) -> list[str]:
-    require(path.stat().st_size == DB_BYTES and sha(path) == DB_SHA,
-            "retained database archive identity differs")
-    with zipfile.ZipFile(path) as archive:
-        members = archive.infolist()
-        require(len(members) == len({m.filename for m in members}) == 25256
-                and sum(m.file_size for m in members) == 6833539370,
-                "retained database inventory differs")
-        for member in members:
-            safe_name(member)
-        metadata = archive.read("codeql-database.yml").decode()
-        require("\nfinalised: true\n" in metadata and f"  sha: {MERGE_SHA}\n" in metadata
-                and "  cliVersion: 2.27.1\n" in metadata
-                and "primaryLanguage: rust\n" in metadata, "database metadata differs")
-        require(parse_strict_json_bytes(archive.read("temp/analysisConfig.json"), label="frozen analysis config")
-                == {"extensionPacks": [], "threatModels": ["local"]},
-                "database threat model or extensions differ")
-        suite = archive.read("temp/config-queries.qls")
-        require(hashlib.sha256(suite).hexdigest() == SUITE_SHA, "query suite differs")
-        queries = re.findall(r"^\s+query: (.+\.ql)$", suite.decode(), re.MULTILINE)
-        expected = parse_strict_json_bytes(QUERY_MANIFEST.read_bytes(), label="frozen query manifest")["query_hashes"]
-        require(len(queries) == len(set(queries)) == len(expected) == 39
-                and {q.removeprefix(QUERY_PREFIX) for q in queries} == set(expected),
-                "query census differs")
-        require(sum(m.filename.endswith(".bqrs") for m in members) == 38,
-                "retained result census differs")
+def inspect_open_database(archive: zipfile.ZipFile) -> list[str]:
+    members = archive.infolist()
+    require(len(members) == len({m.filename for m in members}) == 25256
+            and sum(m.file_size for m in members) == 6833539370,
+            "retained database inventory differs")
+    for member in members:
+        safe_name(member)
+    metadata = archive.read("codeql-database.yml").decode()
+    require("\nfinalised: true\n" in metadata and f"  sha: {MERGE_SHA}\n" in metadata
+            and "  cliVersion: 2.27.1\n" in metadata
+            and "primaryLanguage: rust\n" in metadata, "database metadata differs")
+    require(parse_strict_json_bytes(archive.read("temp/analysisConfig.json"), label="frozen analysis config")
+            == {"extensionPacks": [], "threatModels": ["local"]},
+            "database threat model or extensions differ")
+    suite = archive.read("temp/config-queries.qls")
+    require(hashlib.sha256(suite).hexdigest() == SUITE_SHA, "query suite differs")
+    queries = re.findall(r"^\s+query: (.+\.ql)$", suite.decode(), re.MULTILINE)
+    expected = parse_strict_json_bytes(QUERY_MANIFEST.read_bytes(), label="frozen query manifest")["query_hashes"]
+    require(len(queries) == len(set(queries)) == len(expected) == 39
+            and {q.removeprefix(QUERY_PREFIX) for q in queries} == set(expected),
+            "query census differs")
+    require(sum(m.filename.endswith(".bqrs") for m in members) == 38,
+            "retained result census differs")
     return queries
+
+
+@contextmanager
+def verified_database(path: Path):
+    # One descriptor supplies the pin, ZIP index and extracted member streams.
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0))
+    try:
+        with os.fdopen(descriptor, "rb", closefd=False) as source:
+            before = os.fstat(descriptor)
+            require(stat.S_ISREG(before.st_mode) and before.st_size == DB_BYTES,
+                    "retained database archive identity differs")
+
+            def identity(observed):
+                return (observed.st_dev, observed.st_ino, observed.st_mode, observed.st_size,
+                        observed.st_mtime_ns, observed.st_ctime_ns, observed.st_nlink)
+
+            def unchanged():
+                require(identity(os.fstat(descriptor)) == identity(before),
+                        "retained database archive changed while in use")
+
+            require(hashlib.file_digest(source, "sha256").hexdigest() == DB_SHA,
+                    "retained database archive identity differs")
+            unchanged()
+            source.seek(0)
+            with zipfile.ZipFile(source) as archive:
+                queries = inspect_open_database(archive)
+                unchanged()
+                yield archive, queries
+                unchanged()
+    finally:
+        os.close(descriptor)
+
+
+def inspect_database(path: Path) -> list[str]:
+    with verified_database(path) as (_archive, queries):
+        return queries
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -140,10 +174,9 @@ def prepare_database(root: Path) -> tuple[Path, list[str]]:
         require(member.file_size == DB_BYTES, "inner archive size differs")
         with archive.open(member) as source, inner.open("xb") as destination:
             shutil.copyfileobj(source, destination, 2 * 1024 * 1024)
-    queries = inspect_database(inner)
-    database = root / "database"
-    database.mkdir(mode=0o700)
-    with zipfile.ZipFile(inner) as archive:
+    with verified_database(inner) as (archive, queries):
+        database = root / "database"
+        database.mkdir(mode=0o700)
         for member in archive.infolist():
             destination = database / safe_name(member)
             if member.is_dir():

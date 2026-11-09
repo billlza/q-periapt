@@ -39,6 +39,73 @@ class CaptureTest(unittest.TestCase):
                 self.assertEqual((obj.output / (record["label"] + ".stdout")).read_bytes(), payload)
             self.assertEqual([r["capture_method"] for r in obj.events], ["direct-file", "bounded-writer"])
 
+    def _text_record(self, obj, label, payload):
+        return obj.command(label, [sys.executable, "-I", "-c",
+                           "import sys; sys.stdout.buffer.write(sys.stdin.buffer.read())"],
+                           input_bytes=payload)
+
+    def test_text_preserves_unchanged_capture_and_text_decoding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            obj = self.make_control(directory)
+            for index, (payload, expected) in enumerate([
+                (b"", ""), (b" expected\n", "expected"),
+                (b" first\r\nsecond\rthird\n ", "first\nsecond\nthird"),
+            ]):
+                with self.subTest(payload=payload):
+                    record = self._text_record(obj, "text-" + str(index), payload)
+                    self.assertEqual(obj.text(record), expected)
+            bounded = obj.bounded_command("bounded-text", [sys.executable, "-I", "-c",
+                "import sys; sys.stdout.buffer.write(b' bounded\\r\\ntext\\n')"], 1024)
+            self.assertEqual(obj.text(bounded), "bounded\ntext")
+
+    def test_text_accepts_the_exact_recorded_size_limit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            obj = self.make_control(directory)
+            payload = b"x" * (1024 * 1024)
+            record = self._text_record(obj, "text-limit", payload)
+            self.assertEqual(obj.text(record), payload.decode())
+
+    def test_text_rejects_same_size_stdout_replacement(self):
+        with tempfile.TemporaryDirectory() as directory:
+            obj = self.make_control(directory)
+            record = self._text_record(obj, "text-replaced", b"expected\n")
+            changed = b"tampered\n"
+            self.assertEqual(len(changed), record["stdout_bytes"])
+            self.assertNotEqual(hashlib.sha256(changed).hexdigest(), record["stdout_sha256"])
+            staged = obj.output / "replacement.stdout"
+            staged.write_bytes(changed)
+            os.replace(staged, obj.output / "text-replaced.stdout")
+            with self.assertRaisesRegex(RuntimeError, "differs from capture"):
+                obj.text(record)
+
+    def test_text_rejects_stdout_growth_beyond_the_text_limit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            obj = self.make_control(directory)
+            record = self._text_record(obj, "text-grown", b"expected\n")
+            output = obj.output / "text-grown.stdout"
+            with output.open("ab") as stream:
+                stream.write(b"x" * (1024 * 1024 + 1 - record["stdout_bytes"]))
+            self.assertEqual(output.stat().st_size, 1024 * 1024 + 1)
+            self.assertEqual(record["stdout_bytes"], 9)
+            with self.assertRaises(RuntimeError):
+                obj.text(record)
+
+    def test_text_keeps_the_original_recorded_size_rejection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            obj = self.make_control(directory)
+            record = self._text_record(obj, "text-oversized", b"x" * (1024 * 1024 + 1))
+            with self.assertRaisesRegex(RuntimeError, "unexpectedly large command text"):
+                obj.text(record)
+
+    def test_text_keeps_command_failure_and_timeout_rejection_before_reading(self):
+        with tempfile.TemporaryDirectory() as directory:
+            obj = self.make_control(directory)
+            record = self._text_record(obj, "text-failed", b"expected\n")
+            (obj.output / "text-failed.stdout").unlink()
+            for failure in ({"returncode": 7}, {"timed_out": True}):
+                with self.subTest(failure=failure), self.assertRaisesRegex(RuntimeError, "command failed"):
+                    obj.text(dict(record, **failure))
+
     def test_successful_truncation_fails_both_copy_methods(self):
         with tempfile.TemporaryDirectory() as directory:
             obj = self.make_control(directory)

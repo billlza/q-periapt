@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Controls for the source derivative and independent retry-age verifier."""
 from pathlib import Path
+import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 
 import run as ablation
 
@@ -104,6 +107,34 @@ class SourceDerivativeTests(unittest.TestCase):
     def test_original_file_unchanged(self):
         ablation.aged_driver(self.original)
         self.assertEqual(ablation.sha(self.path),ablation.MATCHED_HASHES[self.path.name])
+
+
+class RunnerInputTests(unittest.TestCase):
+    def test_failed_source_check_preserves_existing_files(self):
+        for mode in ("prepare", "run"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
+                root=Path(temporary)
+                output=root/"preexisting"
+                output.mkdir()
+                private=output/".private-unrelated.keys"
+                private.write_bytes(b"preexisting unrelated data")
+                argv=["run.py",mode,"--repository",str(root),"--output",str(output)]
+                with patch.object(sys,"argv",argv),self.assertRaisesRegex(ValueError,"nonregular input"):
+                    ablation.main()
+                self.assertEqual(private.read_bytes(),b"preexisting unrelated data")
+                self.assertFalse((output/"source").exists())
+
+    def test_exact_matched_source_pin_loads(self):
+        repository=Path(__file__).resolve().parents[2]
+        matched,module=ablation.load_matched(repository)
+        self.assertEqual(matched,repository/"research/continuity-matched-comparison")
+        self.assertEqual(module.BASE,ablation.BASE)
+
+    def test_changed_matched_runner_pin_refuses(self):
+        repository=Path(__file__).resolve().parents[2]
+        with patch.dict(ablation.MATCHED_HASHES,{"run.py":"0"*64}), \
+                self.assertRaisesRegex(ValueError,"matched input changed: run.py"):
+            ablation.load_matched(repository)
 
 
 if __name__=="__main__":
