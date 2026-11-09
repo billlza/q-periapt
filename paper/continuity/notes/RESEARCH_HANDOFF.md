@@ -121,7 +121,13 @@ For each candidate, the confidentiality continuation cost is `B_chain = min(1, 2
 
 The [native online-chain packet](../artifacts/native-online-chain/README.md) retains the complete statement, source mapping, proof review and executable controls. The controls cover 19,440 traces with marking choices, 77,760 first-call decisions, 450 stop-time assignments, 256 signed/Boolean partition identities, receive-before-send event history and 18 source-order anchors. All six inspected native files match the original evidence pin and integration checkpoint `a4c089570c787522210d16226219c0cc8aa9b05e`. The 49 matched and 28 retry executions retain their exact prior packets.
 
-The next manuscript work is to consolidate the contribution narrative and proof dependencies, then complete the final integrated argument, citation and layout review. The native online composition is a completed research result; production bootstrap engineering keeps its separate release scope.
+The contribution and proof-dependency consolidation is complete. The computational roadmap now maps the exposure, record, contribution, continuation and attribution interfaces to their establishing results. Its accounting paragraph distinguishes signed-score comparisons from Boolean-event comparisons, keeps each terminal test's whole-execution budget, and recomputes eligibility and provenance in the current comparison world. The introduction retains the first-message scope of the original live-core result and the later online-chain extension. The discussion expresses the native signing bound through the assumed ordinary ML-DSA advantage with its explicit losses.
+
+An independent semantic review binds the three revised modules and thirteen unchanged proof modules in `artifacts/editorial-review/proof-dependencies/`. A complete source comparison preserves all 107 formal environments and 95 display blocks in the 36 canonical modules. The 49 matched and 28 retry executions keep their original evidence identities. Final build and source-export receipts are indexed by `integration_record.json`.
+
+The citation audit is also complete for the declared scope: all 28 keys resolve, the principal metadata of 27 external entries matches primary records, and the named core theorem/standard locators retain their correct full-version numbering. `artifacts/editorial-review/citations/` records the per-source coverage and access outcomes; no bibliography correction was required.
+
+The next manuscript task is the complete integrated-argument cross-check against the final selected source. Current-layout verification covers the revised exposition and dependency table. The native online composition remains a completed research result; production bootstrap engineering keeps its separate release scope.
 
 ## SkyBridge allocation
 

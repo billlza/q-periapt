@@ -17,19 +17,19 @@
     "bibliography_style_sha256": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
     "style_derivation": "sn-basic.bst; renamed derived file; all authors retained; alphabetical sorting unchanged",
     "single_tex_entry": "joc-submission.tex",
-    "single_tex_sha256": "7ee572bdb9426ca581d8860cc4df89e310d17383a0493b74f748fab8a31fb65c",
+    "single_tex_sha256": "6d118ead087f6cbecbee91a593f02aafc4c449b379c591cc223c805bb7f82334",
     "layout": "single-column",
     "layout_decision": "format/layout_decision.md",
     "layout_decision_sha256": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e"
   },
   "schema": "qperiapt-joc-integration/15",
-  "completed_at_utc": "2026-11-09T14:25:18.389670+00:00",
-  "previous_integration_record": "artifacts/prior-integration/chain-prefix.json",
-  "previous_integration_record_sha256": "f79aa392429749d27ebe920b0283fefba72ebd3604dbea4c176637c005d84e9c",
-  "previous_pdf_sha256": "123057b5f2ac1d8270be0663ab90740ae287e18a02cdc7009b40424fc14a5d83",
+  "completed_at_utc": "2026-11-09T17:59:21Z",
+  "previous_integration_record": "artifacts/prior-integration/native-online-chain.json",
+  "previous_integration_record_sha256": "d23a471a9c42b850e876ef40d8f63687c464743128e25eed3a240f2232742592",
+  "previous_pdf_sha256": "8160ce5d0ae831a06789e7ddce19fd156fa6298dfc943d1436f40bdddf550f0b",
   "pdf_path": "continuity.pdf",
-  "pdf_pages": 100,
-  "pdf_sha256": "8160ce5d0ae831a06789e7ddce19fd156fa6298dfc943d1436f40bdddf550f0b",
+  "pdf_pages": 101,
+  "pdf_sha256": "19f3d7e69f1094abe642d9888f694e745071ff01380f598d51618a6de0624f40",
   "abstract_words": 245,
   "keywords": 7,
   "bibliography_entries": 28,
@@ -37,27 +37,27 @@
     "native_online_selected_message": {
       "section": {
         "number": "5.13",
-        "page": 61
+        "page": 62
       },
       "correspondence": {
         "number": "5.26",
-        "page": 62
+        "page": 63
       },
       "theorem": {
         "number": "5.27",
-        "page": 64
+        "page": 65
       },
       "confidentiality_bound": {
         "number": "35",
-        "page": 64
+        "page": 65
       },
       "integrity_bound": {
         "number": "36",
-        "page": 64
+        "page": 65
       },
       "appendix": {
         "number": "A.16",
-        "page": 93
+        "page": 94
       },
       "artifact": "artifacts/native-online-chain/",
       "proof": "artifacts/native-online-chain/proof.md",
@@ -92,43 +92,43 @@
     "current_statement_locations": {
       "thm:joint-message-leaf": {
         "number": "5.10",
-        "page": 36
+        "page": 37
       },
       "cor:live-core-next-rekey": {
         "number": "5.17",
-        "page": 47
+        "page": 48
       },
       "thm:multiple-root-entry": {
         "number": "5.28",
-        "page": 66
+        "page": 67
       },
       "cor:multiple-root-message": {
         "number": "5.29",
-        "page": 67
+        "page": 68
       },
       "prop:sdk-purpose-table": {
         "number": "5.31",
-        "page": 69
+        "page": 70
       },
       "lem:executed-slot-stability": {
         "number": "5.19",
-        "page": 51
+        "page": 52
       },
       "prop:executed-source-attribution": {
         "number": "5.20",
-        "page": 52
+        "page": 53
       },
       "prop:reservation-signature-components": {
         "number": "5.21",
-        "page": 53
+        "page": 54
       },
       "prop:signature-coin-separation": {
         "number": "5.22",
-        "page": 54
+        "page": 55
       },
       "eq:executed-attribution-cost": {
         "number": "25",
-        "page": 52
+        "page": 53
       }
     },
     "historical_proof_and_source_records": "Retained in their subject directories and the exact prior integration record. Their native/formal execution identities are unchanged.",
@@ -152,27 +152,27 @@
       "location_scope": "Historical source-attribution integration locations; current labels are in current_statement_locations."
     },
     "reservation_to_ordinary_signature_bridge": {
-      "section": "5.10",
+      "section": "5.11",
       "statements": {
         "prop:independent-hedging-bridge": {
           "number": "5.23",
-          "page": 55
+          "page": 56
         },
         "thm:native-mldsa-reservation-bridge": {
           "number": "5.24",
-          "page": 56
+          "page": 57
         },
         "eq:independent-hedging-bridge": {
           "number": "26",
-          "page": 55
+          "page": 56
         },
         "eq:native-mldsa-reservation-bridge": {
           "number": "27",
-          "page": 56
+          "page": 57
         },
         "eq:native-pair-ordinary-mldsa": {
           "number": "28",
-          "page": 57
+          "page": 58
         }
       },
       "tex": "reservation-signature-bridge.tex",
@@ -200,7 +200,7 @@
       "crate_archive_sha256": "c9fb5a367b9846933e271a3c2a992930743f82ae5e8cb7faa780715a80fa0b15"
     },
     "native_authentication": {
-      "section": "5.11",
+      "section": "5.12",
       "statements": {
         "sec:native-authentication": {
           "number": "5.12",
@@ -208,11 +208,11 @@
         },
         "eq:native-auth-component": {
           "number": "29",
-          "page": 59
+          "page": 60
         },
         "eq:native-auth-continuation": {
           "number": "30",
-          "page": 59
+          "page": 60
         },
         "thm:native-selected-authentication": {
           "number": "5.25",
@@ -220,11 +220,11 @@
         },
         "eq:native-selected-authentication": {
           "number": "31",
-          "page": 60
+          "page": 61
         },
         "eq:native-auth-localization": {
           "number": "32",
-          "page": 60
+          "page": 61
         },
         "app:native-authentication": {
           "number": "A.12",
@@ -247,8 +247,8 @@
     },
     "complete_retained_reference_comparison": {
       "table": {
-        "number": "7",
-        "page": 75
+        "number": "8",
+        "page": 76
       },
       "profiles": 5,
       "schedules": 7,
@@ -273,16 +273,16 @@
     "matched_directed_opportunities": {
       "section": {
         "number": "7.4",
-        "page": 76
+        "page": 77
       },
       "tables": {
         "matched_opportunities": {
-          "number": "8",
-          "page": 77
+          "number": "9",
+          "page": 78
         },
         "native_accounting": {
-          "number": "9",
-          "page": 77
+          "number": "10",
+          "page": 78
         }
       },
       "appendix": {
@@ -320,12 +320,12 @@
         "page": 79
       },
       "table": {
-        "number": "10",
-        "page": 79
+        "number": "11",
+        "page": 80
       },
       "appendix": {
         "number": "A.14",
-        "page": 92
+        "page": 93
       },
       "native_executions": 28,
       "paired_cases": 14,
@@ -364,15 +364,15 @@
     "online_selected_chain_leaf": {
       "section": {
         "number": "5.6",
-        "page": 39
+        "page": 40
       },
       "theorem": {
         "number": "5.12",
-        "page": 40
+        "page": 41
       },
       "corollary": {
         "number": "5.13",
-        "page": 41
+        "page": 42
       },
       "appendix": {
         "number": "A.15",
@@ -414,7 +414,7 @@
       "compatibility_review": "artifacts/matched-comparison/input-boundary-review/compatibility-review.json",
       "measurements_unchanged_after_checker_fix": true
     },
-    "execution_scope": "This increment completes the native online-message correspondence, original-game confidentiality and selected-message integrity bounds, their independent internal review and finite/source controls. The original 49 matched executions, 28 retry executions and preceding chain-prefix packet remain byte-identical and their existing checks were replayed.",
+    "execution_scope": "Contribution/dependency synthesis and independent semantic review; all 36 canonical modules preserve their 107 formal environments and 95 displays. Required build checks replay the retained finite and projection controls. Native/formal executions keep their prior identities.",
     "editorial_equivalence": {
       "status": "accepted",
       "canonical_hashes_match_review": true,
@@ -475,6 +475,40 @@
       "source_files": 6,
       "source_anchors": 18,
       "independent_review": "artifacts/native-online-chain/independent_review.json"
+    },
+    "proof_dependency_editorial": {
+      "status": "passed",
+      "review": "artifacts/editorial-review/proof-dependencies/semantic-review.json",
+      "review_sha256": "d68fd9a3d938d4f31c9aeffcc2bd9ca69714e668567cc6e0e869b336e2254b1b",
+      "formal_preservation": "artifacts/editorial-review/proof-dependencies/formal-preservation.json",
+      "retained_packets": {
+        "matched-comparison": {
+          "files": 31,
+          "byte_unchanged": true
+        },
+        "retry-readiness": {
+          "files": 26,
+          "byte_unchanged": true
+        },
+        "chain-prefix": {
+          "files": 11,
+          "byte_unchanged": true
+        },
+        "native-online-chain": {
+          "files": 15,
+          "byte_unchanged": true
+        }
+      }
+    },
+    "citation_audit": {
+      "status": "passed",
+      "record": "artifacts/editorial-review/citations/audit.json",
+      "record_sha256": "757510f1eccacd3fd0ac1001a48c53f4381eb59a893e0a626859ca2a5f477f36",
+      "bibliography_sha256": "cf692417f60a293777dc23c59e10310b380149f81b0cb70bd6153806cbe83ce5",
+      "entries": 28,
+      "external_entries_with_primary_metadata_checks": 27,
+      "required_corrections": 0,
+      "scope": "Citation-key resolution and principal publication metadata; semantic support checked for the named core source locators with per-source access outcomes in the receipt."
     }
   },
   "retained_historical_evidence": {
@@ -513,46 +547,43 @@
   },
   "build_review": {
     "status": "passed",
-    "pdf_pages": 100,
-    "pdf_sha256": "8160ce5d0ae831a06789e7ddce19fd156fa6298dfc943d1436f40bdddf550f0b",
+    "pdf_pages": 101,
+    "pdf_sha256": "19f3d7e69f1094abe642d9888f694e745071ff01380f598d51618a6de0624f40",
     "undefined_references_or_citations": 0,
     "overfull_boxes": 0,
-    "underfull_box_notices": 109,
+    "underfull_box_notices": 112,
     "all_fonts_embedded": true,
     "fonts": 47,
     "inspected_pages": [
-      1,
+      2,
       3,
       4,
+      21,
       22,
-      61,
-      62,
-      63,
-      64,
-      65,
-      80,
+      23,
       81,
-      93
+      82,
+      83,
+      84
     ],
-    "reading_review": "artifacts/integration-checks/native-online-chain/visual-layout-review.json",
-    "build_receipt": "artifacts/integration-checks/native-online-chain/build-check.json",
-    "research_checks": "artifacts/integration-checks/native-online-chain/research-checks.json",
-    "source_export_receipt": "artifacts/integration-checks/native-online-chain/source_export_check.json",
+    "reading_review": "artifacts/editorial-review/proof-dependencies/visual-review.json",
+    "build_receipt": "artifacts/editorial-review/proof-dependencies/build-check.json",
+    "source_export_receipt": "artifacts/editorial-review/proof-dependencies/source-export-check.json",
     "source_export": {
       "status": "passed",
       "files": 9,
-      "pages": 100,
+      "pages": 101,
       "plain_text_identical": true,
       "layout_text_identical": true,
-      "plain_text_sha256": "3b600e01c58697df6afb7489dc5749aefa3f9f7921a3880a4c5b886e7869e2e5",
-      "layout_text_sha256": "e237949044c56154634c31a506a09927f9a3350b4830946ff8d5b803145421ec",
+      "plain_text_sha256": "b4d0ef7babaa4e6d406faf9c699cf5826f11f617f0352495c2054285666878cf",
+      "layout_text_sha256": "25089c56e1733ab991fde9b930696f4fad2eab9a6f4a604e99d66e56046285f8",
       "all_fonts_embedded": true,
       "font_count": 47,
       "undefined_references_or_citations": 0,
       "overfull_boxes": 0,
-      "zip_sha256": "8add663e5595653bafcf0dc454a29f6e53379c598e1c45f66b551fb4365e5c84",
-      "pdf_sha256": "8160ce5d0ae831a06789e7ddce19fd156fa6298dfc943d1436f40bdddf550f0b",
-      "export_pdf_sha256": "a81bd05b8102d52d1c55031a3e3e377a55b05f175ad058770d427daf920e782e",
+      "zip_sha256": "6017d24710dab8cb652de344e3eaf51310a1cfc205406706366b25314f46602e",
+      "pdf_sha256": "19f3d7e69f1094abe642d9888f694e745071ff01380f598d51618a6de0624f40",
+      "export_pdf_sha256": "18f6fe3b050145a4c69e476698813e285907c132955c11681eea46402e25d1e2",
       "exported_files": [
         "README.md",
         "SHA256SUMS.json",
@@ -575,10 +606,10 @@
     "base": "main",
     "pr": 119,
     "url": "https://github.com/billlza/q-periapt/pull/119",
-    "previous_head": "e798d3d76d0bbdb9ec3642b5e168886f242bde09",
-    "snapshot": "Prepublication source and build receipt for the 100-page native online-message composition. Hosted qualification belongs to the resulting published head.",
-    "previous_tree": "a4e760d32c0883cb8c8494022be7058e9f760c74",
-    "previous_repository_tree": "b291d4791e73fe47c961a54169181532c1eb9f30"
+    "previous_head": "de4fbce0a116157083320937db0606f44fd67345",
+    "snapshot": "Prepublication source and build receipt for the reviewed contribution/dependency synthesis. Hosted results belong to the resulting published head.",
+    "previous_tree": "6c8a3477db13720718938f91a3f6f08da2cbf476",
+    "previous_repository_tree": "c4d35a7bb813dce3272b89e6d9ed1afad4274900"
   },
   "completed_connection": "Executed original source attribution and ordinary native ML-DSA signing -> candidate-local private-record correspondence -> operational ML-KEM -> complete-tuple ContextBound -> single-entry root initialization -> joint schedule -> online finite-chain selected-message confidentiality and integrity in the original native experiment. The selected confirmation/first-message authentication theorem is retained separately.",
   "source_hashes": {
@@ -588,19 +619,19 @@
     "candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
     "chain-prefix-continuation.tex": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
     "common-virtual-accounting.tex": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
-    "computational-roadmap.tex": "1a8ed3e0e6325904abb7b5ea328b672374ea04257ff5f81e533f8f6ad8b3accd",
+    "computational-roadmap.tex": "7c5083d07bc26f12565498043d973d5972868973ce509d823aea57e8088a7efd",
     "confirmation-traffic.tex": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
     "construction.tex": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
     "contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
     "declarations.tex": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
-    "discussion.tex": "24ed126cbceda9f30946a1c40f4d4431ef00a5465e5fca51d5d08b0f57a959e7",
+    "discussion.tex": "e8d694ff894e31364c1845742a09332f7452104644281c1e77de91b29c75334f",
     "established-results.tex": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
     "evaluation.tex": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe",
     "figures/confirmation-cut.pdf": "b88e0eaa6a2f838967aae58e93ff131f2afd13a0f145347ce57e34db596ebfaf",
     "guarded-provenance.tex": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
-    "introduction.tex": "194b477f7dfd9dc1814d4a9c82c7805c5a82f96858ca752ae9a531b8429e66d3",
+    "introduction.tex": "5eb3cc1042d0b005d6f1c56e79986cf7db15e8a689987342d181c80427e5aeb8",
     "joc-basic.bst": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
-    "joc-submission.tex": "7ee572bdb9426ca581d8860cc4df89e310d17383a0493b74f748fab8a31fb65c",
+    "joc-submission.tex": "6d118ead087f6cbecbee91a593f02aafc4c449b379c591cc223c805bb7f82334",
     "joint-continuation.tex": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
     "joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
     "live-core-instantiation.tex": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
@@ -628,7 +659,7 @@
   },
   "current_supporting_hashes": {
     "Makefile": "fe106cfc870057d39e7038425535dd0f03f8fb8cd06c7a81fb3130b35dc02d2b",
-    "README.md": "0a8b9bce01c3eea5f85dc6315d604fd055caed0a016163397d13c5ba42ed69bb",
+    "README.md": "289f8960eacf4a62566a357741cc61615a13f045b236c6ce6e52fac7c96112eb",
     "artifacts/chain-prefix/README.md": "d662e103fe6c6bcbab3c7e9178ee6c4031444883e93b0c5b8082d42c288df303",
     "artifacts/chain-prefix/artifact_manifest.json": "81f660e667cd60ccf21854a74b70e323e2247d746009e7326c3dc4a2c7e510f5",
     "artifacts/chain-prefix/check_prefix.py": "da95d3050d4bff8ecc132b7fdae01ac9c5cbabd0c7c74f8fcd3baa23447d5b35",
@@ -640,6 +671,8 @@
     "artifacts/chain-prefix/sources/contract.rs.txt": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
     "artifacts/chain-prefix/sources/messages.rs.txt": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
     "artifacts/chain-prefix/sources/traffic.rs.txt": "5e19c0a6719895888a7018db2583c89da50c1de029d443834c357bce342cb6e2",
+    "artifacts/editorial-review/citations/AUDIT.md": "3d32888991642d41fff8e5fe63780ea735b3a19b62f19ef8022284ee873fed02",
+    "artifacts/editorial-review/citations/audit.json": "757510f1eccacd3fd0ac1001a48c53f4381eb59a893e0a626859ca2a5f477f36",
     "artifacts/editorial-review/contribution-wording/README.md": "de52c120a4cc5b4ee48f426213bfe678340d87b6fc9848fc09a3c7955a3e4775",
     "artifacts/editorial-review/contribution-wording/after/acquisition-nonadditivity.tex": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
     "artifacts/editorial-review/contribution-wording/after/report-composition.tex": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
@@ -649,6 +682,15 @@
     "artifacts/editorial-review/contribution-wording/independent-review.json": "7b91d98f9db5831747deb854fb500c6ba71895374196f981823107479e23a2c2",
     "artifacts/editorial-review/contribution-wording/source-correspondence.json": "c5b1df80c598d479b005b3fa931655eba4b754cb3b24a36c41b1e0fbc520a28b",
     "artifacts/editorial-review/contribution-wording/wording.diff": "8bb9d6abe1ffbd36213da0e23513b1d3890818c21eb35bc8054cac7bd0512706",
+    "artifacts/editorial-review/proof-dependencies/build-check.json": "6b4e514c7bc7cf6c84610c1b21305c66ba9918a6ad7ba4ced91f0a37f65a6462",
+    "artifacts/editorial-review/proof-dependencies/embedded-fonts.txt": "01d09709771c8042ec7a57a6bfff363b352b19b901232bff0c220f9b8ba28ac8",
+    "artifacts/editorial-review/proof-dependencies/formal-preservation.json": "814581bd5e58dc9d67347b6e146e7848f2b0db78c6350e89d2fdf761b74ef55b",
+    "artifacts/editorial-review/proof-dependencies/retained-packets.json": "b373234d836e7ff0069a22009b28cb833e37e4be847aa6c9527fb9c280868acc",
+    "artifacts/editorial-review/proof-dependencies/review.md": "960c6a189dc4d7771d47b14560271d2c4cd4a6cd1488852d5b27b5f324f3a2dc",
+    "artifacts/editorial-review/proof-dependencies/semantic-review.json": "d68fd9a3d938d4f31c9aeffcc2bd9ca69714e668567cc6e0e869b336e2254b1b",
+    "artifacts/editorial-review/proof-dependencies/source-export-check.json": "4ce9723ff108eff001377b5bb28c57a3a6bc51a84c8c3175c22d52c7bc1dfe05",
+    "artifacts/editorial-review/proof-dependencies/statement-locations.json": "a4ccaee7f2951031eb609be48fdd5a8a118bbe8391e9c466adb8a62a0f8dd802",
+    "artifacts/editorial-review/proof-dependencies/visual-review.json": "4cab1276df27e7923ee59aaef3aff663f0f4e909b25c3caede477c58b34d2637",
     "artifacts/integration-checks/chain-prefix/build-check.json": "f2dafe8236a0c214a6a73b7c2b77b640fc2e68bba70fcf8f7c9e413aa09f83c3",
     "artifacts/integration-checks/chain-prefix/embedded_fonts.txt": "aee116de53e211f349a71a4460da1b31cd4ac0acf97bfc852d9f6d7f476f69bf",
     "artifacts/integration-checks/chain-prefix/research-checks.json": "4e4a427855cdb4e91e0681a46cbee6d84c7f6e1cbf9bdbb96fe46ce78b3f3bb1",
@@ -722,6 +764,7 @@
     "artifacts/prior-integration/contribution-wording.json": "cf4b053e404d402476cccf713afffcab4c72a66dc62cf9efb7c9c0ee68f227af",
     "artifacts/prior-integration/matched-comparison.json": "52cdb49806b39bd97692f504c65ddee0f53b475904ba5b5431769f245bccc791",
     "artifacts/prior-integration/native-authentication.json": "7b21966af2604bbfe304bb6ddf98be01dd49419fa7f42378a3d8054c24d6e73d",
+    "artifacts/prior-integration/native-online-chain.json": "d23a471a9c42b850e876ef40d8f63687c464743128e25eed3a240f2232742592",
     "artifacts/prior-integration/retry-readiness.json": "b05cbb418102ef775bb0e60c65a87d81acf2d556bd140cb2db110fc295479bcb",
     "artifacts/retry-readiness/README.md": "ba97fc8c2f5c69ade6b6b3372c60df28652719905edbff10a56ddce0727555c3",
     "artifacts/retry-readiness/analysis.json": "0f2deb41f94f561a265cf1ccb8a3951c77cfaa8090ddcdd03229fe8aa96ad5c3",
@@ -749,24 +792,28 @@
     "artifacts/retry-readiness/sources/runtime.json": "14e2579981cb2eb4f9720571e9d3ce9ea6de75ddde2682675df808a26932de20",
     "artifacts/retry-readiness/sources/source-and-readiness-controls.log": "feae252a729722159a9d98427cceec546f484977072f6f8d8b2080659bb87531",
     "artifacts/retry-readiness/sources/summarize_retry_ablation.py.txt": "9c869d4a58861b5e9fa5d6be97a730753f07421f7af0315d46010c70a8bee15d",
-    "flatten_manifest.json": "56e2c847cf175ce2e1b17c404f9fdf1e609a56be49f412ff84ec4ac1e0a8a941",
-    "notes/RESEARCH_HANDOFF.md": "0bfffcc6c1f2b00975f2a4c24e7fde5a590721e45b45b0d87c5e5d8ab0c411fb",
+    "flatten_manifest.json": "13351190e8225897e037c8a4d638c1379bdd57f9e4f3fa25b8b9706aaf5f57c3",
+    "notes/RESEARCH_HANDOFF.md": "66b05195eeed5933197065f229508238a47c35daae7e5667918ba4182612d6f4",
     "retry-readiness-table.tex": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
     "retry-readiness.tex": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516"
   },
   "editorial_revision": {
-    "status": "accepted",
-    "scope": "Retained prior revision of the explanatory paragraphs after acquisition nonadditivity and the final record-connection consequence paragraph; both canonical files remain byte-identical in this increment.",
+    "status": "passed",
+    "scope": "Consolidated contribution narrative and discussion; shared computational dependency table and signed-score/Boolean-event accounting.",
     "changed_modules": [
-      "acquisition-nonadditivity.tex",
-      "report-composition.tex"
+      "introduction.tex",
+      "computational-roadmap.tex",
+      "discussion.tex"
     ],
-    "independent_review": "artifacts/editorial-review/contribution-wording/independent-review.json",
-    "source_correspondence": "artifacts/editorial-review/contribution-wording/source-correspondence.json",
-    "formal_environments_byte_unchanged": 7,
-    "display_math_blocks_byte_unchanged": 12,
-    "matched_study_and_author_metadata_byte_unchanged": true,
-    "retained_artifact_files_byte_unchanged_at_prior_revision": 312
+    "independent_review": "artifacts/editorial-review/proof-dependencies/semantic-review.json",
+    "formal_environments_byte_unchanged": 107,
+    "display_math_blocks_byte_unchanged": 95,
+    "dependency_table": {
+      "number": "3",
+      "page": 22
+    },
+    "new_mathematical_result_claim": false,
+    "new_native_execution_claim": false
   },
   "completed_research_extension": {
     "name": "Native recovery with an online selected message",
@@ -775,5 +822,5 @@
     "evidence": "artifacts/native-online-chain/",
     "result": "A source-attributed native theorem preserves original eligibility and local stopping while permitting online target selection after earlier-key disclosure."
   },
-  "next_research_connection": "Consolidate the contribution narrative and proof dependencies, then complete the final integrated argument, citation and layout review. The native online composition is complete; separate production bootstrap engineering retains its release scope."
+  "next_research_connection": "Complete the integrated-argument cross-check against the final selected source. The native online composition, contribution/dependency synthesis and scoped citation audit are complete. Production bootstrap retains its own source-level composition scope."
 }
