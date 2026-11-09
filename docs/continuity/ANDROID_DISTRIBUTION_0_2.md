@@ -1,20 +1,21 @@
 # Continuity Android 0.2.0 distribution construction
 
-`artifact/continuity_android_distribution.py` assembles and independently reads
-the selected Continuity Android companion at
-`dev.qperiapt:q-periapt-continuity-android:0.2.0`. It consumes separately pinned
-native libraries, Java classes and their original build reports, produces an
-AAR and Maven directory, and emits the existing release-manifest distribution
-identity. The commands operate locally; registry publication remains with the
-existing release tooling.
+`artifact/continuity_android_build.py` builds the selected Continuity sources
+into the Android companion at
+`dev.qperiapt:q-periapt-continuity-android:0.2.0`. It installs the pinned SDK
+archives outside the checkout, packages the current 0.2.0 engine, cross-compiles
+the arm64 C/JNI libraries, compiles the Java API, and records their exact build
+inputs. `artifact/continuity_android_distribution.py` then assembles and
+independently reopens the AAR/Maven capsule, including its release-manifest
+distribution identity. Publication uses the existing release tooling.
 
-This implementation completes the bounded assembly and static readback path.
-The retained 6 November AAR remains `0.0.0` with its original source and hashes.
-Fresh native/class compilation, an installed AAR consumer, R8 execution and
-device execution for the selected 0.2.0 artifact have not been executed by this
-increment. Its tests use explicitly synthetic ELF/class fixtures and simulated
-LLVM output. The producer's original compilation inputs must come from an
-actual fresh build before a 0.2.0 capsule can be produced.
+The focused installed-Android workflow now connects this producer to the same
+explicit SDK cohort as its host JNI partitions. Implementation validation
+executes the producer orchestration and real archive readers with synthetic
+compiler outputs; a successful CI build supplies the actual compiler receipts.
+Installed AAR/R8 and ART/device qualification attach to those resulting bytes
+as separate execution evidence. The retained 6 November `0.0.0` AAR keeps its
+original identity and provides the established cross-build recipe.
 
 ## Selected package surface
 
@@ -31,7 +32,7 @@ actual fresh build before a 0.2.0 capsule can be produced.
 | Android compile floor | API 23 in both manifest and ELF Android note |
 | ELF load geometry | Power-of-two alignment at least 16 KiB, congruent file offset/virtual address, bounded LOAD file ranges and `filesz <= memsz` |
 | Runtime linker surface | Exact SONAME and NEEDED sets, NOW and RELRO, nonexecutable stack, no RPATH/RUNPATH/TEXTREL |
-| Release content | Stripped libraries, release binary scan, unchanged R8 keep rules and project/compiler/dependency license texts |
+| Release content | Stripped libraries, release binary scan, unchanged R8 keep rules, project/compiler/dependency licenses and current mlkem-native vendor notices |
 
 The compile API is a build parameter. Runtime and device qualification retain
 their separately recorded environment and artifact bindings. This change adds
@@ -41,6 +42,84 @@ The native C Cargo package remains an unpublished qualification harness at its
 existing version. Its package name is used to identify the resolved production
 license closure. The formal distribution's version is `0.2.0`; changing that
 harness version is not required to identify the engine and distributed AAR.
+
+## Fresh current-source build
+
+The build command requires an independently selected clean source commit, Git
+tree and canonical tree SHA-256, plus the exact SDK report digest and originating
+workflow run. It admits the report against the current Rust workspace digest,
+validates the nine installed SDK archives, and calls the existing
+`continuity_package.package_candidate` helper to create the 0.2.0 engine archive.
+Every packaged engine member is compared with the source snapshot captured at
+admission. The C and JNI builders consume private copies of that same tracked
+inventory; the Java compiler receives the assembler's exact current API bytes.
+
+```sh
+sh artifact/python-run.sh artifact/continuity_android_build.py \
+  --report "$SDK_REPORT" --report-sha256 "$SDK_REPORT_SHA256" \
+  --sdk-run-id "$SDK_RUN_ID" \
+  --source-commit "$SOURCE_COMMIT" --source-tree "$SOURCE_TREE" \
+  --source-tree-sha256 "$SOURCE_TREE_SHA256" \
+  --toolchain-root "$RUST_TOOLCHAIN" --ndk "$ANDROID_NDK" \
+  --java-home "$JAVA_HOME" --native-package-id continuity-native \
+  --output "$PWD/target/continuity-android-build"
+```
+
+This producer selects macOS arm64, Rust 1.98.1 with the Android standard library
+and Clippy, NDK `29.0.14206865`, and Java 25. The existing workflow pins its
+checkout/tool setup actions, installs that NDK revision, selects the SDK artifact
+through `.github/continuity-android-installed.json`, and passes the three source
+identities captured for the workflow commit. Its `continuity-android-aar-arm64`
+job retains the complete build directory, including failure diagnostics.
+
+The native recipe comes from `controller/build-android-native02.py` in
+[`20261106-current-android-aar/CAPTURE.zip`](../../research/sdk-alpha1/evidence/20261106-current-android-aar/CAPTURE.zip).
+Its strict Release Cargo/Clippy commands, API 23 linker wrapper, JNI warning
+policy, hidden exports, SONAME and 16 KiB hardening flags are preserved.
+`controller/package-android-aar02.py` supplies the Java `--release 11`, warning
+and license-collection recipe. The new producer replaces the historical
+machine paths and preexisting candidate report with explicit tool inputs and
+fresh source packaging.
+
+Both the private build directory and account root are remapped in Rust and C
+paths. The account-root mapping addresses the recorded rustls panic-location
+leak in the first historical attempt. The release scan runs on both new native
+libraries before successful receipts are issued. The producer also discards
+inherited compiler/loader/JVM/Git overrides; Git inventories use the fixed Git
+binary, explicit checkout paths and the initially captured source inventory.
+The private Cargo cache is populated by the existing locked fetch step; package,
+metadata, native compilation and Clippy then use offline resolution.
+
+Each command writes bounded stdout/stderr and an execution receipt. Package,
+native Cargo build and Clippy each have a 1,800-second ceiling; fetch has 900
+seconds; metadata, package listing, JNI compilation and Java compilation have
+300 seconds; version, Git and strip commands have 60 seconds. Receipts record
+the selected limit and elapsed time, and retain partial streams on a timeout.
+The CI job has its own 210-minute outer limit, covering setup and artifact
+retention as well as build execution.
+
+Before recording success, the producer rereads the installed SDK/engine/C/JNI
+sources, resolved lockfile, original SDK report, selected tools and consumed
+source digest. Native verification checks all 158 current C exports and the
+sole JNI export, the Android note, linker hardening and release content. The
+class reader checks the current Java set and all 23 native/three callback
+descriptors. The registry dependency license archive is combined with the
+project/Rust licenses and four current mlkem-native vendor notice/provenance
+files. All of these files participate in the assembler's exact AAR inventory.
+
+Successful output includes `native-build.json`, `classes-build.json`,
+`INPUT_SELECTION.json` and `capsule/`. `BUILD.json` records whether compilation
+was invoked, whether the complete build succeeded, and whether the produced
+capsule passed independent reopening. A failed command leaves its diagnostics
+and an incomplete build report; source/tool/bytecode/license checks must all
+pass before compilation receipts and the selection document are written.
+
+The focused regression suite exercises the complete producer-to-reader path
+with explicit synthetic native/class data, rejects changed source/JNI/class
+contracts, checks failure propagation, and executes a short real subprocess
+timeout to verify diagnostic retention. Native compilation itself is performed
+by the CI job with the declared toolchain; test fixtures are never release
+artifacts.
 
 ## Independent input selection
 
