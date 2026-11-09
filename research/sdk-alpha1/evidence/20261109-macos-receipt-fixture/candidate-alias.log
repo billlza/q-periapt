@@ -1,0 +1,9 @@
+test_analysis_receipt_identifies_validated_stable_inputs (test_codeql_rust_profile.RustProfileTests.test_analysis_receipt_identifies_validated_stable_inputs) ... ok
+test_analysis_receipt_identifies_validated_profile_after_path_replacement (test_codeql_rust_profile.RustProfileTests.test_analysis_receipt_identifies_validated_profile_after_path_replacement) ... ok
+test_analysis_receipt_identifies_validated_sarif_after_path_replacement (test_codeql_rust_profile.RustProfileTests.test_analysis_receipt_identifies_validated_sarif_after_path_replacement) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.051s
+
+OK
+{"codeql_execution": "existing mocked query/receipt unit fixtures", "errors": [], "failures": [], "skipped": [], "successful": true, "test_fixture": "real symlinked temporary parent (var -> private/var)", "tests_run": 3}
