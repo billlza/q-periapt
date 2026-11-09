@@ -117,11 +117,26 @@ class RustProfileTests(unittest.TestCase):
                 profile_module.linux_query_memory(["-J-Xmx3072M", "--off-heap-ram=9329"], profile)
 
     def test_analysis_keeps_profile_category_full_suite_and_memory_evidence(self) -> None:
+        self._check_analysis_evidence()
+
+    def test_analysis_evidence_with_symlinked_temporary_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary).resolve(strict=True)
+            physical = parent / "private" / "var"
+            physical.mkdir(parents=True)
+            alias = parent / "var"
+            alias.symlink_to(physical, target_is_directory=True)
+            with mock.patch.object(tempfile, "tempdir", str(alias)):
+                self._check_analysis_evidence()
+
+    def _check_analysis_evidence(self) -> None:
         categories = {"native": "/language:rust", "wasm": "/language:rust/target:wasm",
                       "macos": "/language:rust/target:macos"}
         for name, complete in ((name, complete) for name in categories for complete in (True, False)):
             with self.subTest(profile=name, complete=complete), tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary)
+                # The production entry point resolves its query pack before
+                # analysis. Keep this fixture canonical under macOS /var aliases.
+                root = Path(temporary).resolve(strict=True)
                 pack = root / "query-pack"
                 pinned = json.loads((profile_module.ROOT / "artifact/codeql_rust_queries.json").read_text())
                 inventory = {}
@@ -190,6 +205,41 @@ class RustProfileTests(unittest.TestCase):
                     self.assertEqual(result["analysis_host"], "linux")
                     self.assertEqual(json.loads((run.evidence / "PROFILE.json").read_text())["run_attempt"], "1")
                     self.assertEqual("transfer_sha256" in result, name == "macos")
+
+    def test_analysis_rejects_queries_outside_the_pinned_pack(self) -> None:
+        for escape in ("direct", "symlink"):
+            with self.subTest(escape=escape), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary).resolve(strict=True)
+                pack = root / "query-pack"
+                pack.mkdir()
+                queries = []
+                for index in range(38):
+                    query = pack / f"query-{index}.ql"
+                    query.write_text("// contained fixture query")
+                    queries.append(str(query))
+                outside = root / "outside.ql"
+                outside.write_text("// query outside the pinned pack")
+                if escape == "symlink":
+                    alias = pack / "escape.ql"
+                    alias.symlink_to(outside)
+                    queries.append(str(alias))
+                else:
+                    queries.append(str(outside))
+                run = ProfileRun(root, root / "run", Path(sys.executable), {}, host="linux")
+                (run.evidence / "PROFILE.json").write_text(json.dumps({
+                    "profile": "native", "target": profile_module.TARGETS["native"],
+                    "source_commit": "a" * 40, "run_id": "123", "run_attempt": "1",
+                    "active_target_quality_passed": True}))
+                with mock.patch.object(run, "command", return_value=json.dumps(queries).encode()) as command, \
+                        mock.patch.object(profile_module.quality, "require_clean_checkout"), \
+                        mock.patch.dict(os.environ, {"GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1",
+                                                    "CODEQL_EXPECTED_COMMIT": "a" * 40}), \
+                        self.assertRaisesRegex(ValueError, "query outside pinned Rust pack"):
+                    profile_module.analyze(run, pack)
+                command.assert_called_once()
+                self.assertEqual(command.call_args.args[0], "resolve-suite")
+                for receipt in ("QUERY_INVENTORY.json", "QUERY_MEMORY.json", "ANALYSIS.json"):
+                    self.assertFalse((run.evidence / receipt).exists())
 
     def _check_clang_selection(self, *, symlink: bool) -> None:
         class SetupComplete(Exception):
