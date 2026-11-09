@@ -23,6 +23,10 @@ initial-confirmation cross-use retained.
 The [terminal schedule connection](BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md),
 assessed at `360aa810`, completes the registration-time and descriptor-to-class
 connection and derives the ACK-only comparison required by U1.
+The [original reply-source adapter](BOOTSTRAP_REPLY_SOURCE_ADAPTER_V1.md),
+assessed at `68549dbc`, instantiates the reply-surviving profile with original
+reservation slots, native owner restoration, online opening certificates and
+an explicit two-endpoint immutable-record acquisition term.
 
 | Existing item | Result available for this assessment | Disposition |
 | --- | --- | --- |
@@ -31,8 +35,9 @@ connection and derives the ACK-only comparison required by U1.
 | U2 hidden ContextBound input | `lem:cb-hidden-component` treats the full effective tuple, permits the other component to be known, and preserves all tuple aliases. | Established after the selected component replacement. Bootstrap source attribution and disclosures supply its concrete invocation. |
 | U2 HMAC/HKDF composition | The shared-oracle row/column lemmas, finite root-entry theorem and exact Expand-table identity supply the required downstream operations. | Reusable results. Section 3 instantiates the bootstrap lengths and five activation blocks. |
 | U3 retained-state correspondence | `thm:guarded-normalization` and `cor:guarded-history`, instantiated by the phase and acquisition maps in section 5. | Complete for the named bootstrap records, passive acquisitions and declared key disclosures along one authoritative history. |
-| U2 bootstrap entry | The [joint entry theorem](BOOTSTRAP_JOINT_ENTRY_V1.md) compares the hidden-`S1` long Extract and the hidden-`S0` short/long service to complete-descriptor PRK tables under the common compression oracle. | Primitive services completed; original-contribution/disclosure attribution remains in section 7. |
+| U2 bootstrap entry | The [joint entry theorem](BOOTSTRAP_JOINT_ENTRY_V1.md) compares the hidden-`S1` long Extract and the hidden-`S0` short/long service to complete-descriptor PRK tables under the common compression oracle. | Primitive services completed; section 7 records the concrete reply-source instantiation and its acquisition partition. |
 | U2 terminal-family connection | The [terminal schedule connection](BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md) permits online protection after opaque root allocation, charges the complete-class pad-alias event, and compares both ACK endpoint experiments to one full-table game. | Completed for the incoming source-consistent opaque PRK service; its two-sided bound supplies the exact substitution into U1. |
+| U2 original reply source | The [reply-source adapter](BOOTSTRAP_REPLY_SOURCE_ADAPTER_V1.md) binds the selected generation and response encapsulation at their original slots, retains import validation and fixes the complete tuple/PRK family before response signing. | Completed bound for its stated reply-surviving profile, including exact acquisition residuals; the marked-record acquisition-free branch instantiates the constructive renderer. |
 
 The result for U3 is a source and derivability correspondence. The
 confidentiality comparison that hides an acquired ciphertext, or embeds an
@@ -427,7 +432,7 @@ recovery. This assessment uses those outcomes through that ledger and the new
 exact source pins. The finite calculations add reproducible checks of the
 derivations written here.
 
-## 7. Completed terminal connection and remaining source adapter
+## 7. Completed terminal connection and original reply-source profile
 
 The two primitive entry services are complete in the
 [joint entry theorem](BOOTSTRAP_JOINT_ENTRY_V1.md), including adaptive salts,
@@ -442,25 +447,36 @@ comparisons. With valid common budgets its conditional cost is
 `2 Delta_tail + 2 chi_h(Q_h)`. The two schedule terms preserve the actual
 siblings in the real and ACK-replaced endpoint games.
 
-The remaining source adapter instantiates the selected bootstrap
-prekey/Initial encapsulation or reply-key/response encapsulation with its
-actual original slots, complete ContextBound tuples and U3 classifier. It
-retains admitted local-identity disclosures and non-target calls, supplies
-the opaque retained-record observations and assigns one consistent effective
-PRK family to both endpoints of a complete class. The existing body-origin
-and native signature-reservation reductions supply the authentication
-component. The known next-rekey source invariant gives the operational
-component-game template; the bootstrap retains its own original slots and
-uses. Parent-seed/PRK disclosure before protection belongs to this adapter's
-declared stopping or partition argument.
+The [original reply-source adapter](BOOTSTRAP_REPLY_SOURCE_ADAPTER_V1.md)
+now supplies a concrete source comparison for the profile with available
+`S0` and traditional material, a surviving reply PQ source, and the expected
+responder signing owner protected. The initiator signer can be disclosed.
+The original generation/encapsulation pair fixes the complete ContextBound
+tuple and PRK family before signing. A finite adjacent-ACK decomposition
+handles parent opening before protection through candidate-local free stops;
+later opening retains U1's global pre-return stop and latched event.
 
-Section 6 of the terminal connection records this adapter as `E_src,b`,
-retains the completed joint-entry cost in each endpoint game, and gives the
-explicit combined schedule term for U1. The completed U3 correspondence,
-signature bridge, primitive entry services, downstream derivation and
-terminal-class connection are finished assessment inputs. The current
-package, platform qualification and workload-budget choices retain their
-existing acceptance roles.
+The adapter preserves native expanded-owner consistency checks. It monitors
+collisions with other honest encapsulations before and after challenge
+creation and counts all original fresh randomness slots, including unused
+reservations. Its explicit `nu_enc` term follows from equal ciphertexts
+implying equal original messages outside the declared K-PKE correctness
+event. The resulting source, entry and tail terms substitute directly into
+the terminal theorem with their complete continuation budgets.
+
+For immutable records containing any selected opaque value or descendant,
+the bound retains the exact two-endpoint capture residual `eta_cap,r`.
+The branch with no successful raw acquisition of those marked versions has
+zero capture residual and uses the existing constructive record renderer.
+The captured-byte extension supplies the joint journal-encryption and
+derived-wrapping-key comparison; the initial-surviving-source profile uses
+its own original prekey/Initial-encapsulation adapter and completed
+short/long entry service. These are the concrete next source constructions.
+
+The U3 correspondence, signature bridge, primitive entries, downstream
+derivation, terminal connection and stated reply-source bound are completed
+assessment inputs. Package, platform qualification and workload-budget
+choices retain their existing acceptance roles.
 
 [evidence]: ../../research/sdk-alpha1/evidence/20261109-bootstrap-joint-schedule-review/README.md
 [bootstrap]: ../../research/continuity-identity-candidate/src/bootstrap.rs

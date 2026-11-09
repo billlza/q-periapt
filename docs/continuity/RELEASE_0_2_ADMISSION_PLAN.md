@@ -47,9 +47,15 @@ now completes the effective-descriptor/full-class reconciliation. Its deferred
 root-table argument permits registration after opaque root retention, its
 compression-collision witness accounts for pad aliases, and its two-sided
 comparison supplies U1's ACK-only experiment with actual sibling outputs.
-The remaining source-level composition instantiates the original
-contribution/disclosure adapters, including source-consistent family assignment
-and opaque retained records under the original disclosure accounting.
+The [original reply-source adapter](BOOTSTRAP_REPLY_SOURCE_ADAPTER_V1.md)
+now instantiates the reply-surviving profile, including original random-tape
+slots, source-consistent family assignment, expanded-owner validation and
+candidate-local pre-protection opening stops. Its bound retains both
+endpoints' exact marked-record acquisition residuals; those terms vanish
+in its declared acquisition-free branch, where the existing constructive
+record renderer applies. The next source constructions extend the captured
+ciphertext interface under the actual journal/derived-key hierarchy and
+instantiate the initial-surviving-source profile.
 
 The [supported-workload budget](SUPPORTED_WORKLOAD_BUDGETS_0_2.md) selects the
 existing desktop reference workloads and six regression ceilings: 11/19 seconds
@@ -116,7 +122,7 @@ adopts these mechanisms and connects them to a formal distribution.
 | --- | --- | --- |
 | Identity, witness and authority | ML-DSA-65 AND P-256; independent pins/checkpoints; signed rosters; explicit registration and root replacement; caller-supplied trusted time | Record the host's trusted-time and independently approved trust-input responsibilities in the deployment contract. |
 | Accountable directory | Signed assignments; durable original-operation recovery; exact retries; retained one-time reservations; cancellation and canonical conflict proofs | Include the existing operator-driven service, approval/configuration input, pin, checkpoint, validity and capacity contract in the service package manifest. |
-| Bootstrap authority | Current KDF graph and stage-specific output permissions; epoch-zero root-bound ACK before established | Complete the source-level composition specified above using the reviewed joint entry services, terminal conversion, signature bridge, conditional downstream schedule and U3 correspondence. |
+| Bootstrap authority | Current KDF graph and stage-specific output permissions; epoch-zero root-bound ACK before established | Carry the completed reply-source bound and its acquisition partition into the source-level assessment; complete the captured-byte and initial-source extensions specified above using the reviewed entries, terminal conversion and U3 correspondence. |
 | Ratchet and traffic policy | Existing v6 profile, four retained epochs, signed application-send allowance, explicit no-padding behavior | Adopt the current domains, allowance replenishment and recovery conditions as one versioned product policy. |
 | Ownership and maintenance | Device-scoped ownership, original intent, restricted recovery, witnessed state, roster fanout and existing maintenance v2 | Bind current public entry points to the final package/export inventory and the compatibility policy below. |
 | Limits and measured cost | Compiled contract schema 3, joint implementation limits and selected reference-workload budgets | Bind the chosen cost policy and selected-source validation into the coordinated specification lock. |
