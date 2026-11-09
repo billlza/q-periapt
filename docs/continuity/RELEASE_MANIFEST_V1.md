@@ -117,7 +117,7 @@ remain separate. This does not rerun the existing header/layout/binary checks.
 
 The lock has exactly:
 
-- `schema_version: 1`, `kind: "qperiapt.continuity_spec_lock"`, `stage`,
+- `schema_version: 1` or `2`, `kind: "qperiapt.continuity_spec_lock"`, `stage`,
   `product_version: "0.2.0"`, `frozen_product_contract`.
 - `normative_files`: exactly the `protocol`, `wire`, `state`, `storage`, `metadata`,
   `budgets`, and `upgrade` roles, each containing one distinct file reference.
@@ -127,14 +127,44 @@ The lock has exactly:
   `null` for a candidate inventory without that output.
 - `package_graph_sha256`, `interfaces_sha256`.
 
-`package_graph_sha256` is `canonical_digest` of package rows with only `artifacts`
-and `assessments` omitted. `interfaces_sha256` is `canonical_digest` of the full
-interface object. The implementation exposes `package_graph_digest(packages)` and
-`canonical_digest(value)`, using the existing publication canonical-JSON function.
-Callers should use these helpers rather than an independently formatted JSON dump.
-Actual package-definition and interface file pins therefore participate in the
-lock; individual build artifacts and assessment reports remain in the outer
-manifest. The lock must not reference itself or the outer manifest.
+The lock schema selects the package-graph commitment explicitly:
+
+| Lock schema | Package-graph commitment |
+| --- | --- |
+| `1` | The original `canonical_digest` of package rows with `artifacts` and `assessments` omitted. All remaining file references participate in full. |
+| `2` | The same projection, with each `distribution` row's `metadata` reduced to its exact `path`, wrapped as `{"schema_version": 2, "packages": projected_rows}` before `canonical_digest`. Cargo/npm metadata and Cargo workspace references retain their full size/digest pins. |
+
+Use schema `2` for the coordinated 0.2.0 normative lock. A distribution identity
+document contains its build's source commit/tree and artifact references. In
+schema `1`, hashing that document's file reference also places those per-build
+values inside the normative lock. A compatible distribution rebuild therefore
+changes the original graph commitment. Schema `2` keeps the stable row identity,
+version, format, metadata location, dependency edges and interface names in the
+lock, while the outer manifest pins the actual distribution document and bytes
+for the selected build.
+
+The exact distribution schema continues to reject additional fields. Its
+`name`, `version`, `dependencies` and `interfaces` must match the locked row; its
+`source` must match the independently selected source; its artifact references
+must match the package row. Every metadata file, artifact and assessment still
+passes the original byte/digest checks and final reread. A changed package
+identity, dependency edge, interface, metadata location, Cargo/npm definition or
+workspace pin requires a new graph commitment. An unselected artifact or a
+mismatched distribution binding is rejected before a successful result.
+
+`interfaces_sha256` remains `canonical_digest` of the full interface object in
+both schemas. The implementation exposes
+`package_graph_digest(packages, schema_version=2)` and `canonical_digest(value)`,
+using the existing publication canonical-JSON function. Omitting the helper's
+schema argument retains schema `1` for historical callers. Verification selects
+only the schema declared by the lock; it never tries another digest after a
+mismatch. Unknown schema values and boolean/string substitutes are rejected.
+The verification result records `spec_lock_schema_version`.
+
+The outer manifest and distribution identity schemas remain `1`. Existing
+schema-1 locks and their original commitments remain valid under their original
+meaning; the checker performs no automatic conversion. The lock must not
+reference itself or the outer manifest.
 
 Candidate mode retains false freeze flags, current unpublished package versions,
 and an honestly incomplete distribution inventory. Its result reports which

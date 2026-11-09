@@ -74,7 +74,8 @@ class ContinuityReleaseManifestTests(unittest.TestCase):
                 "interfaces": [], "artifacts": [], "assessments": []}
 
     def save(self) -> str:
-        self.lock["package_graph_sha256"] = manifest.package_graph_digest(self.document["packages"])
+        self.lock["package_graph_sha256"] = manifest.package_graph_digest(
+            self.document["packages"], schema_version=self.lock["schema_version"])
         self.lock["interfaces_sha256"] = manifest.canonical_digest(self.document["interfaces"])
         self.document["spec_lock"] = self.json_file("SPEC_LOCK.json", self.lock)
         self.selected = self.json_file("MANIFEST.json", self.document)
@@ -503,6 +504,141 @@ class ContinuityReleaseManifestTests(unittest.TestCase):
         self.save()
         with self.assertRaisesRegex(ValueError, "identity or freeze state"):
             self.verify()
+
+    def replace_distribution_build(self):
+        """Change only per-build bytes/provenance in the synthetic release."""
+        self.source = {"commit": hashlib.sha1(b"compatible-rebuild-commit").hexdigest(),
+                       "tree": hashlib.sha1(b"compatible-rebuild-tree").hexdigest()}
+        self.document["source"] = self.source
+        for row in self.document["packages"]:
+            row["artifacts"] = [self.file(row["artifacts"][0]["path"],
+                f"Synthetic compatible rebuild {row['id']}.\n".encode())]
+            row["assessments"] = [self.json_file(row["assessments"][0]["path"],
+                {"kind": "unit.synthetic_package_report", "completed": True,
+                 "source_commit": self.source["commit"], "scope": "synthetic rebuild"})]
+            if row["format"] == "distribution":
+                self.refresh_distribution_metadata(row)
+        self.selected = self.json_file("MANIFEST.json", self.document)
+
+    def refresh_distribution_metadata(self, row):
+        row["metadata"] = self.json_file(row["metadata"]["path"], {
+            "schema_version": 1, "kind": "qperiapt.continuity_distribution_identity",
+            "name": row["name"], "version": row["version"], "source": self.source,
+            "dependencies": row["dependencies"], "interfaces": row["interfaces"],
+            "artifacts": row["artifacts"]})
+
+    def test_original_lock_schema_keeps_its_rebuild_sensitive_commitment(self):
+        self.release_fixture()
+        original_lock = (self.root / "SPEC_LOCK.json").read_bytes()
+        self.assertEqual(self.verify()["spec_lock_schema_version"], 1)
+        self.replace_distribution_build()
+        self.assertEqual((self.root / "SPEC_LOCK.json").read_bytes(), original_lock)
+        with self.assertRaisesRegex(ValueError, "package graph differs from the specification lock"):
+            self.verify()
+
+    def test_schema_two_preserves_the_normative_lock_across_a_verified_rebuild(self):
+        self.release_fixture()
+        self.lock["schema_version"] = 2
+        self.save()
+        original_lock = (self.root / "SPEC_LOCK.json").read_bytes()
+        before = self.verify()
+        self.replace_distribution_build()
+        after = self.verify()
+        self.assertEqual((self.root / "SPEC_LOCK.json").read_bytes(), original_lock)
+        self.assertEqual(after["spec_lock_schema_version"], 2)
+        self.assertEqual(before["spec_lock_sha256"], after["spec_lock_sha256"])
+        self.assertEqual(before["package_graph_sha256"], after["package_graph_sha256"])
+        self.assertNotEqual(before["source"], after["source"])
+        self.assertNotEqual(before["manifest_sha256"], after["manifest_sha256"])
+
+    def test_lock_schema_is_explicit_and_does_not_retry_the_other_digest(self):
+        self.lock["schema_version"] = 2
+        self.document["spec_lock"] = self.json_file("SPEC_LOCK.json", self.lock)
+        self.selected = self.json_file("MANIFEST.json", self.document)
+        with self.assertRaisesRegex(ValueError, "package graph differs from the specification lock"):
+            self.verify()
+        for version in (True, 0, 3, "2", None):
+            with self.subTest(version=version):
+                self.lock["schema_version"] = version
+                self.document["spec_lock"] = self.json_file("SPEC_LOCK.json", self.lock)
+                self.selected = self.json_file("MANIFEST.json", self.document)
+                with self.assertRaisesRegex(ValueError, "lock identity or freeze state"):
+                    self.verify()
+                with self.assertRaisesRegex(ValueError, "package graph schema differs"):
+                    manifest.package_graph_digest(self.document["packages"], schema_version=version)
+
+    def test_schema_two_distribution_identity_and_dependency_changes_require_a_new_lock(self):
+        for field in ("name", "dependencies", "interfaces", "metadata"):
+            with self.subTest(field=field):
+                self.release_fixture()
+                self.lock["schema_version"] = 2
+                self.save()
+                row = next(row for row in self.document["packages"] if row["id"] == "service")
+                if field == "name":
+                    row[field] += "-different"
+                elif field == "dependencies":
+                    row[field] = [self.document["packages"][0]["id"]]
+                elif field == "interfaces":
+                    row[field] = ["continuity_c"]
+                else:
+                    row["metadata"] = dict(row["metadata"], path="packages/different-service.json")
+                self.refresh_distribution_metadata(row)
+                self.selected = self.json_file("MANIFEST.json", self.document)
+                with self.assertRaisesRegex(ValueError, "package graph differs from the specification lock"):
+                    self.verify()
+
+    def test_schema_two_cargo_npm_and_workspace_definition_bytes_remain_locked(self):
+        for kind in ("cargo", "npm", "workspace"):
+            with self.subTest(kind=kind):
+                self.release_fixture()
+                self.lock["schema_version"] = 2
+                if kind == "workspace":
+                    row = self.document["packages"][0]
+                    row["metadata"] = self.file(row["metadata"]["path"], (
+                        '[package]\nname = "' + row["name"] + '"\nversion.workspace = true\n').encode())
+                    row["workspace"] = self.workspace
+                else:
+                    row = next(row for row in self.document["packages"] if row["format"] == kind)
+                self.save()
+                field = "workspace" if kind == "workspace" else "metadata"
+                ref = row[field]
+                row[field] = self.file(ref["path"], (self.root / ref["path"]).read_bytes() + b"\n")
+                self.selected = self.json_file("MANIFEST.json", self.document)
+                with self.assertRaisesRegex(ValueError, "package graph differs from the specification lock"):
+                    self.verify()
+
+    def test_schema_two_rebuild_still_requires_exact_artifact_bytes_and_distribution_bindings(self):
+        for altered in ("artifact", "artifact_reference", "source", "extra_metadata"):
+            with self.subTest(altered=altered):
+                self.release_fixture()
+                self.lock["schema_version"] = 2
+                self.save()
+                self.replace_distribution_build()
+                row = next(row for row in self.document["packages"] if row["id"] == "service")
+                metadata = json.loads((self.root / row["metadata"]["path"]).read_bytes())
+                if altered == "artifact":
+                    self.file(row["artifacts"][0]["path"], b"unselected binary replacement")
+                    message = "file bytes or digest differ"
+                elif altered == "artifact_reference":
+                    metadata["artifacts"][0]["sha256"] = "0" * 64
+                    message = "distribution identity binding differs"
+                elif altered == "source":
+                    metadata["source"]["commit"] = "0" * 40
+                    message = "distribution identity binding differs"
+                else:
+                    metadata["unlocked_contract"] = "changed deployment rule"
+                    message = "distribution identity fields differ"
+                if altered != "artifact":
+                    row["metadata"] = self.json_file(row["metadata"]["path"], metadata)
+                    self.selected = self.json_file("MANIFEST.json", self.document)
+                with self.assertRaisesRegex(ValueError, message):
+                    self.verify()
+
+    def test_schema_two_does_not_mutate_rows_when_computing_the_graph(self):
+        self.release_fixture()
+        original = copy.deepcopy(self.document["packages"])
+        manifest.package_graph_digest(self.document["packages"], schema_version=2)
+        self.assertEqual(self.document["packages"], original)
 
 
 if __name__ == "__main__":
