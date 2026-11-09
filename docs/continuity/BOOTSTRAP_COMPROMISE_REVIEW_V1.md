@@ -42,6 +42,19 @@ promoted to an execution receipt, and a successful concrete execution is not
 promoted to a general KCI or AKE theorem. No tests, CI jobs, providers, wire
 formats or admission rules were changed or rerun for this document.
 
+## Terminal-agreement assessment — 9 November 2026
+
+The [terminal-agreement assessment](BOOTSTRAP_TERMINAL_AGREEMENT_V1.md)
+proves exact full-wire correspondence at responder Final acceptance and derives
+historical responder activation from initiator READY acceptance under an explicit
+online protected-family ACK-key schedule and multi-key MAC experiment. The conversion preserves
+exact retries, same-body signature aliases and the distinction between the
+bootstrap root and its initial rekey-root output. Its source correspondence and
+executed public-input controls are retained in a separate
+[evidence packet](../../research/sdk-alpha1/evidence/20261109-bootstrap-terminal-agreement/README.md).
+The cryptographic dependency is the specified joint schedule under the selected
+disclosures; the terminal conversion is now a completed input to that assessment.
+
 ## 1. Secret names and the actual derivation graph
 
 Let **I** be the bootstrap initiator and **R** the responder. The context `ctx`
@@ -244,7 +257,7 @@ not additional package or platform gates:
 
 | ID | Proposition to settle | Exact interface supplied by this review |
 | --- | --- | --- |
-| **U1: staged agreement and KCI** | State the target stage and role under local identity disclosure, peer compromise, prekey compromise, concurrent sessions and active transcript substitution. Establish the appropriate matching-session/agreement result for each claimed stage. | B0–B7 permissions; fixed versus newly admitted contexts; purpose-5/6 signatures; MAC0/MACR/MACI; exact signed-wire binding; epoch-zero ACK. R1/R2 show that B4 cannot stand in for B6. |
+| **U1: staged agreement and KCI** | Proposition 1 and Theorem 2 of the [terminal assessment](BOOTSTRAP_TERMINAL_AGREEMENT_V1.md) establish the full-wire Final invariant and the joint-schedule-to-terminal-agreement conversion. The KCI assessment now instantiates that schedule with the chosen local-identity and prekey disclosures, alongside its context-admission assumptions. | B0–B7 permissions, exact transcript classes, prior durable responder activation and the explicit multi-key verification bound. The source-linked theorem permits exact READY replay; R1/R2 retain the live B4/B6 separation. |
 | **U2: computational key schedule and hybrid authentication** | Connect the two ContextBound contributions and allowed component/entropy disclosures to the joint HKDF, confirmation, root and ACK experiment. Cover the actual shared inputs and signature-randomness interface under the declared classical/PQ assumptions. | The explicit `S0/S1 → seed/KR/KI → K_B → R_0/T_0` graph, source-defined contexts and the specific disclosure rows. The existing conditional body-origin and recovery component notes remain inputs to this analysis. |
 | **U3: disclosure and retention correspondence** | Match any claimed erasure or post-compromise history to the actual retained journal, one-time inventory, replay tokens, wrapping keys and signer files. Preserve original operation identities across retry and pending writes. | Actual staged plans and checkpoint fields; atomic consumption and exact outbox behavior; temporary claims versus consumption; named storage/test paths. A fresh execution time is not substituted for the retained reservation's origin. |
 
