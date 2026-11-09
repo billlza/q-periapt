@@ -3,7 +3,7 @@
 //! ROOT_C_* names identify the existing fixture wire format, not a client language.
 #[path = "root/alternatives.rs"]
 mod alternatives;
-#[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
+#[path = "../packages/q-periapt-continuity-0.2.0/tests/owned_connection.rs"]
 mod fixture;
 #[path = "root/fixture.rs"]
 mod setup;

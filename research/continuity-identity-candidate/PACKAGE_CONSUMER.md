@@ -1,9 +1,13 @@
-# Installed Rust candidate connection
+# Installed Continuity source archive connection
 
-The crate remains `0.0.0`, `publish = false`, outside the SDK workspace and its
-publication topology. This gate establishes a Cargo archive and Rust installation
-boundary for the existing engine. It does not freeze Continuity, add foreign
-bindings, publish a registry package or close the 0.2.0 release requirements.
+The formal companion is `q-periapt-continuity` `0.2.0`, distributed as
+`q-periapt-continuity-0.2.0.crate`. It retains `publish = false` in its separate
+workspace because its selected channel is a source archive; the SDK's twelve
+registry crates keep their existing publisher topology. The
+[distribution contract](../../docs/continuity/SOURCE_DISTRIBUTION_0_2.md) gives a
+public `continuity` Cargo alias and the exact extracted-archive dependency setup.
+This gate qualifies that Cargo archive and installed Rust execution. Final
+artifact selection and protocol admission follow the release manifest.
 
 `artifact/continuity_package.py` accepts a digest-pinned `RUST_SDK_PACKAGE.json`
 and its twelve-crate cohort. Before compiling, it checks the current SDK source

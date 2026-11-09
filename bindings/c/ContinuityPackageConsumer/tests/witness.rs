@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Actual installed C owners against an independently owned native witness socket.
-#[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
+#[path = "../packages/q-periapt-continuity-0.2.0/tests/owned_connection.rs"]
 mod fixture;
 #[path = "witness/opening.rs"]
 mod opening;

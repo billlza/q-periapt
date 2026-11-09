@@ -26,7 +26,7 @@ CONSUMERS = {
     "sdk-rust": sdk.FIXTURE,
 }
 CANDIDATE = "research/continuity-identity-candidate"
-ALIAS = "packages/q-periapt-continuity-identity-candidate-0.0.0"
+ALIAS = "packages/q-periapt-continuity-0.2.0"
 
 
 def identity(path: Path) -> dict:
@@ -71,7 +71,7 @@ def providers(root: Path, label: str) -> dict[str, tuple[Path, str]]:
     workspace = tomllib.loads(sdk.snapshot(root / "Cargo.toml").data.decode())["workspace"]
     names = set(sdk.CONSUMER_CRATES)
     if label == "continuity-c":
-        names.add("q-periapt-continuity-identity-candidate")
+        names.add("q-periapt-continuity")
     found = {}
     for relative in [*workspace["members"], CANDIDATE]:
         manifest = root / relative / "Cargo.toml"

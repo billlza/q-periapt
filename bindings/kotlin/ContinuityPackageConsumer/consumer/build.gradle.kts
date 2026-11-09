@@ -14,7 +14,7 @@ repositories {
     }
     mavenCentral()
 }
-dependencies { implementation("dev.qperiapt:q-periapt-continuity-kotlin:0.0.0") }
+dependencies { implementation("dev.qperiapt:q-periapt-continuity-kotlin:0.2.0") }
 kotlin.compilerOptions {
     jvmTarget.set(JvmTarget.JVM_25)
     freeCompilerArgs.add("-Xjdk-release=25")

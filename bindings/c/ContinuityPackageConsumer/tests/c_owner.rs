@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Actual C client and independent Rust process consuming the same installed core.
-#[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
+#[path = "../packages/q-periapt-continuity-0.2.0/tests/owned_connection.rs"]
 mod fixture;
 
 use q_periapt_continuity_identity_candidate as p;

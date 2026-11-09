@@ -107,7 +107,7 @@ def qualify(outside: Path, output: Path, source: Path, swift_files: dict[str, by
         files["LICENSES/Rust-1.90.0-library.html"] = sdk.snapshot(notice).data
         hashes = {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}
         payload = archive(files)
-        package = output / "q-periapt-continuity-swift-0.0.0-minimum-root.zip"
+        package = output / "q-periapt-continuity-swift-0.2.0-minimum-root.zip"
         with package.open("xb") as stream:
             stream.write(payload)
         installed = outside / "swift-minimum-root-installed"

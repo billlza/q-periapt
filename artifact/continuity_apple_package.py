@@ -29,7 +29,8 @@ SLICES = {
     "simulator": ("aarch64-apple-ios-sim", "x86_64-apple-ios"),
 }
 NAME = "QPeriaptContinuity"
-ARCHIVE = "QPeriaptContinuity-Apple-candidate.zip"
+VERSION = "0.2.0"
+ARCHIVE = "QPeriaptContinuity-Apple-0.2.0.zip"
 LIBRARY = "libq_periapt_continuity_c_consumer.a"
 CONTENTS = "PACKAGE_CONTENTS.json"
 MTIME = 1767225600
@@ -259,6 +260,7 @@ def qualify_apple(outside: Path, output: Path, environment: dict) -> dict:
         for path in (rust_docs / "licenses").rglob("*"):
             if path.is_file(): copy(path, staging / "LICENSES/rust-standard-library" / path.relative_to(rust_docs / "licenses"))
         contents = {"schema_version": 1, "kind": "qperiapt.continuity_apple_contents",
+                    "name": NAME, "version": VERSION, "abi": "qpc-owner/1",
                     "targets": list(TARGETS), "files": file_hashes(staging)}
         write(staging / CONTENTS, (json.dumps(contents, indent=2, sort_keys=True) + "\n").encode())
         verify_package(staging, contents, result["slices"], header)

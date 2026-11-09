@@ -9,7 +9,7 @@ license = "Apache-2.0 OR MIT"
 [workspace]
 
 [dependencies]
-q-periapt-continuity-identity-candidate = { path = "../../continuity-identity-candidate" }
+q-periapt-continuity-identity-candidate = { package = "q-periapt-continuity", version = "=0.2.0", path = "../../continuity-identity-candidate" }
 q-periapt-backends = { path = "../../../crates/q-periapt-backends" }
 q-periapt-core = { path = "../../../crates/q-periapt-core" }
 q-periapt-host-store = { path = "../../../crates/q-periapt-host-store" }

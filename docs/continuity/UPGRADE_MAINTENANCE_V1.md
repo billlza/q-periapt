@@ -14,13 +14,14 @@ the existing logical format. An authenticated logical-image transition can occur
 inside the same physical database format. A database-engine upgrade alone does
 not establish either protocol or logical-image compatibility.
 
-The native candidate and independent Python wheel currently both carry version
-`0.0.0`. That string cannot identify a compatible pair. Qualification must bind
-source commit, package/archive digest, installed executable/module digest,
-dependency resolution, platform and the actual reader/writer scenario. The
-release manifest must eventually replace this preview ambiguity with a unique
-product version and the frozen contract digest; renaming the package is not that
-qualification.
+The native engine now has formal package identity `q-periapt-continuity` `0.2.0`
+through the [Cargo source archive channel](SOURCE_DISTRIBUTION_0_2.md). The
+independent Python wheel retains its separate `0.0.0` research identity.
+Qualification binds source commit, package/archive digest, installed
+executable/module digest, dependency resolution, platform and the actual
+reader/writer scenario. The package identity carries the current format table
+below; each retained replacement receipt continues to identify its actual
+historical build. Final release selection adds the coordinated contract digest.
 
 | Persisted object | Current reader/writer boundary | Upgrade implication |
 | --- | --- | --- |

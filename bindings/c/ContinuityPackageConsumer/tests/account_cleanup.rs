@@ -2,7 +2,7 @@
 //! Real installed C whole-account cleanup fixtures and independent native readback.
 #[path = "common/account_cleanup.rs"]
 mod common;
-#[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
+#[path = "../packages/q-periapt-continuity-0.2.0/tests/owned_connection.rs"]
 mod fixture;
 use common::{bytes_id, client};
 use q_periapt_continuity_identity_candidate as p;

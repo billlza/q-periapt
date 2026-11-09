@@ -79,7 +79,7 @@ def normalized_cargo_lock(
             (
                 "[[package]]",
                 f'name = "{name}"',
-                'version = "0.0.0"' if name == "q-periapt-continuity-identity-candidate"
+                'version = "0.2.0"' if name == "q-periapt-continuity"
                 else 'version = "0.1.5"',
                 "",
             )
@@ -1389,7 +1389,7 @@ class RustPublishContractTests(unittest.TestCase):
             )
 
     def test_browser_candidate_lock_admission_stays_private_and_exact(self) -> None:
-        candidate = "q-periapt-continuity-identity-candidate"
+        candidate = "q-periapt-continuity"
         valid = normalized_cargo_lock(local_names=RUST_WORKSPACE_LOCAL_CRATES)
         self.assertEqual(
             len(rust_publish_contract._parse_cargo_lock_scope(valid, scope="workspace")),
@@ -1404,9 +1404,9 @@ class RustPublishContractTests(unittest.TestCase):
                 rust_publish_contract._parse_cargo_lock_scope(
                     normalized_cargo_lock(local_names=local | {candidate}), scope=scope
                 )
-        marker = f'name = "{candidate}"\nversion = "0.0.0"'.encode()
+        marker = f'name = "{candidate}"\nversion = "0.2.0"'.encode()
         for replacement, message in (
-            (marker.replace(b'0.0.0', b'0.2.0'), "version differs"),
+            (marker.replace(b'0.2.0', b'0.0.0'), "version differs"),
             (marker + b'\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "'
              + b'a' * 64 + b'"', "required local package from crates.io"),
         ):

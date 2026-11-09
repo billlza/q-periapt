@@ -3,8 +3,27 @@
 Prepared against `228c944fc476e3e57d6c08063cacb19bca5b360e` on 2026-11-07.
 This is the concrete integration plan for the already agreed
 [release scope](RELEASE_0_2_SCOPE.md). Package names and distribution choices
-below are proposed changes, with the current implementation and completed
+below record the selected changes, with the current implementation and completed
 qualification retained as their starting point.
+
+## Package identity checkpoint — 9 November 2026
+
+The [source distribution contract](SOURCE_DISTRIBUTION_0_2.md) selects
+`q-periapt-continuity` `0.2.0` as a formal Cargo source archive. Its manifest,
+five direct consumers and four committed lockfiles use the same package identity.
+The retained library target and internal aliases preserve existing Rust imports;
+public applications can use the documented `continuity` alias. The SDK's twelve
+registry publishers keep their existing topology.
+
+The C snapshot now records package version `0.2.0` while retaining all existing
+`qpc-owner/1` declarations. Swift's producer uses
+`QPeriaptContinuity-Apple-0.2.0.zip` and Kotlin's producer/consumer use
+`dev.qperiapt:q-periapt-continuity-kotlin:0.2.0`. The package identity change keeps
+the current protocol domains and persisted formats. Selected native/Android and
+service distribution records, actual archive digests, the construction and
+workload-budget decisions, and the coordinated specification lock remain in the
+execution sequence below. Historical qualification keeps its original source
+and artifact identities.
 
 ## Implemented checkpoint — 7 November 2026
 
@@ -60,7 +79,7 @@ package identity. Keep the completed
 attached to its original source and reuse it when the relevant inputs are
 unchanged.
 
-## Proposed package and export graph
+## Package and export graph
 
 Use a versioned Continuity companion alongside SDK ABI 2. The engine already
 depends on the SDK, so the dependency direction remains SDK → engine → adapters
@@ -77,10 +96,11 @@ in build order. Existing browser exports remain in the SDK WASM `/web` surface.
 | Directory and witness/reference services | Named executables and configuration contracts in the same release manifest | Existing service binaries, approval inputs, trust pins, checkpoint and storage contracts. |
 | Independent Python/OpenSSL implementation | Retained interoperability/testing distribution | Existing independent-reader and peer scope. |
 
-The Rust public package name is a proposal; publication-channel selection will
-determine whether it joins the registry publisher topology or ships as a formal
-source archive. The release must describe that choice consistently. Existing
-twelve-crate SDK publication alone covers the SDK portion of the agreed scope.
+The Rust companion uses the formal source archive channel, with
+`publish = false` and a separate workspace. This selection preserves the existing
+twelve-crate SDK registry topology. Its normalized Cargo archive and installed
+consumers use the formal package name and exact dependencies described in the
+[distribution contract](SOURCE_DISTRIBUTION_0_2.md).
 
 Implement the final choice through Cargo manifests and exact dependency versions,
 publisher topology where applicable, platform archive metadata, ABI snapshot
@@ -136,9 +156,9 @@ candidate reader behavior.
 
 1. Finish the prepared tooling/deadline repair after the active PR wave reaches
    its recorded endpoint; retain all original successful and failed jobs.
-2. Implement the proposed package/export and compatibility manifests as one
-   reviewable integration change. Resolve the public Rust distribution choice
-   before starting a publication transaction.
+2. Complete the package/export and compatibility manifest using the selected
+   Rust source archive channel and implemented versioned metadata. Bind remaining
+   native, Android and service distribution identities to their actual artifacts.
 3. Complete the stage-specific construction-review matrix and the supported
    workload budget table from existing source, proof and measurement evidence.
    Include these in the existing external-security-review package.

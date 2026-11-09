@@ -10,7 +10,7 @@ from rust_sdk_profile import classify, validate_browser_candidate_dependency
 
 ROOT = Path(__file__).resolve().parents[1]
 CANDIDATE = ROOT / "research/continuity-identity-candidate"
-NAME = "q-periapt-continuity-identity-candidate"
+NAME = "q-periapt-continuity"
 
 
 def metadata(manifest: Path) -> dict:
@@ -32,7 +32,13 @@ class ContinuityIdentityIsolationTests(unittest.TestCase):
         self.assertEqual(len(candidate["workspace_members"]), 1)
         package, = candidate["packages"]
         self.assertEqual(package["name"], NAME)
+        self.assertEqual(package["version"], "0.2.0")
         self.assertEqual(package["publish"], [])
+        library, = [target for target in package["targets"] if "rlib" in target["crate_types"]]
+        self.assertEqual(library["name"], "q_periapt_continuity_identity_candidate")
+        self.assertEqual(package["metadata"]["qperiapt"], {
+            "distribution": "cargo-source-archive", "product-version": "0.2.0",
+        })
         self.assertNotIn("q-periapt-continuity-model", {
             dependency["name"] for dependency in package["dependencies"]
         })
@@ -62,7 +68,7 @@ class ContinuityIdentityIsolationTests(unittest.TestCase):
         lock = tomllib.loads((ROOT / "Cargo.lock").read_text())
         self.assertEqual(edges, ["q-periapt-sdk-wasm"])
         candidate, = [package for package in lock["package"] if package["name"] == NAME]
-        self.assertEqual(candidate["version"], "0.0.0")
+        self.assertEqual(candidate["version"], "0.2.0")
         self.assertNotIn("source", candidate)
         self.assertNotIn("checksum", candidate)
 

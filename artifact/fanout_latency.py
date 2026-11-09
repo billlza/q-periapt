@@ -30,8 +30,12 @@ def binary_digest(path):
 def manifest(data: bytes, root: Path) -> bytes:
     text = data.decode()
     parsed = tomllib.loads(text)
-    require(parsed['package']['name'] == 'q-periapt-continuity-identity-candidate'
-            and parsed['package']['version'] == '0.0.0' and parsed['package']['publish'] is False,
+    # The fixed source-pinned experiment retains its original preview identity.
+    # Current metadata uses the formal archive identity; mixed pairs are invalid.
+    require((parsed['package']['name'], parsed['package']['version']) in {
+                ('q-periapt-continuity-identity-candidate', '0.0.0'),
+                ('q-periapt-continuity', '0.2.0'),
+            } and parsed['package']['publish'] is False,
             'candidate package identity differs')
     require(parsed['profile']['release'] == {'opt-level': 3, 'lto': 'thin', 'codegen-units': 1,
                                              'overflow-checks': True}, 'Release profile differs')

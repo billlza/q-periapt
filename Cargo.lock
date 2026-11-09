@@ -1503,8 +1503,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "q-periapt-continuity-identity-candidate"
-version = "0.0.0"
+name = "q-periapt-continuity"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chacha20poly1305",
@@ -1679,7 +1679,7 @@ name = "q-periapt-sdk-wasm"
 version = "0.2.0"
 dependencies = [
  "js-sys",
- "q-periapt-continuity-identity-candidate",
+ "q-periapt-continuity",
  "q-periapt-core",
  "q-periapt-policy",
  "q-periapt-sdk",

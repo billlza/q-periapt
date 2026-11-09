@@ -99,7 +99,7 @@ def consume(args):
     for row in metadata['packages']:
         if not row['name'].startswith('q-periapt'):
             require(row['source'] == 'registry+https://github.com/rust-lang/crates.io-index', 'non-registry external source')
-    candidate = next(row for row in metadata['packages'] if row['name'] == 'q-periapt-continuity-identity-candidate')
+    candidate = next(row for row in metadata['packages'] if row['name'] == 'q-periapt-continuity')
     node = next(row for row in metadata['resolve']['nodes'] if row['id'] == candidate['id'])
     require(candidate['publish'] == [] and {'connection-tls', 'control-tls', 'anchor-tls'} <= set(node['features']), 'candidate features changed')
     (output / 'Cargo.lock').write_bytes(lock)

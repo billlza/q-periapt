@@ -29,9 +29,9 @@ def browser_metadata():
     value = metadata()
     package = next(p for p in value["packages"] if p["name"] == "q-periapt-sdk-wasm")
     package["dependencies"].append({
-        "name": "q-periapt-continuity-identity-candidate", "req": "=0.0.0",
+        "name": "q-periapt-continuity", "req": "=0.2.0",
         "path": str(sdk.ROOT / "research/continuity-identity-candidate"),
-        "source": None, "registry": None, "rename": None, "kind": None,
+        "source": None, "registry": None, "rename": "q-periapt-continuity-identity-candidate", "kind": None,
         "optional": True, "uses_default_features": True, "features": [],
         "target": 'cfg(all(target_arch = "wasm32", target_os = "unknown"))',
     })
@@ -63,12 +63,12 @@ class RustSDKProfileTests(unittest.TestCase):
         value, _ = browser_metadata()
         packages = sdk.classify(value)
         self.assertEqual(len(packages), 18)
-        self.assertNotIn("q-periapt-continuity-identity-candidate", packages)
-        self.assertNotIn("q-periapt-continuity-identity-candidate", sdk.COHORT)
+        self.assertNotIn("q-periapt-continuity", packages)
+        self.assertNotIn("q-periapt-continuity", sdk.COHORT)
 
     def test_browser_candidate_dependency_admission_is_narrow(self):
         for field, changed in (
-            ("req", "*"), ("req", "=0.2.0"), ("path", "/other/candidate"),
+            ("req", "*"), ("req", "=0.0.0"), ("path", "/other/candidate"),
             ("source", "registry+https://github.com/rust-lang/crates.io-index"),
             ("registry", "https://other.invalid"), ("rename", "engine"),
             ("kind", "dev"), ("optional", False), ("uses_default_features", False),
@@ -92,8 +92,8 @@ class RustSDKProfileTests(unittest.TestCase):
             candidate.mkdir(parents=True)
             for name, version, publish in (
                 ("another-candidate", "0.0.0", "false"),
-                ("q-periapt-continuity-identity-candidate", "0.2.0", "false"),
-                ("q-periapt-continuity-identity-candidate", "0.0.0", "true"),
+                ("q-periapt-continuity", "0.0.0", "false"),
+                ("q-periapt-continuity", "0.2.0", "true"),
             ):
                 (candidate / "Cargo.toml").write_text(
                     f'[package]\nname="{name}"\nversion="{version}"\npublish={publish}\n')

@@ -1,10 +1,17 @@
-# Continuity identity, prekey selection and bootstrap candidate
+# Q-Periapt Continuity 0.2.0
 
-The [installed Rust package gate](PACKAGE_CONSUMER.md) packages this unchanged
-shared engine and exercises the public connection/recovery trace through exact
-crate archives outside the checkout. It retains the unpublished candidate boundary;
-complete foreign-distribution qualification and the product protocol freeze remain
-separate release work.
+The `q-periapt-continuity` `0.2.0` companion uses the
+[Cargo source archive channel](../../docs/continuity/SOURCE_DISTRIBUTION_0_2.md).
+Its `publish = false` setting keeps the separate engine outside the twelve-crate
+SDK registry topology. Applications can import the public API through
+`continuity = { package = "q-periapt-continuity", version = "=0.2.0", path = "packages/q-periapt-continuity-0.2.0" }`.
+The existing library target and protocol/storage identifiers are retained.
+
+The [installed Rust package gate](PACKAGE_CONSUMER.md) exercises the public
+connection/recovery trace through exact crate archives outside the checkout.
+Selected release artifacts, construction and workload-budget acceptance, and
+the coordinated protocol freeze follow the
+[0.2.0 admission plan](../../docs/continuity/RELEASE_0_2_ADMISSION_PLAN.md).
 
 [Exact ordinary-write recovery after expiry](PENDING_WRITE_RECOVERY.md) separates
 independent witness approval from historical device authentication. The original

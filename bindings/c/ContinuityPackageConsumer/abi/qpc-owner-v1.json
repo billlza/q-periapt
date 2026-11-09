@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "abi": "qpc-owner/1",
-  "package_version": "0.0.0",
+  "package_version": "0.2.0",
   "frozen_product_contract": false,
   "declarations": [
     "typedef struct { int32_t code ; uint32_t length ; uint32_t truncated ; uint8_t message [ 512 ] ; } qpc_error_v1 ;",

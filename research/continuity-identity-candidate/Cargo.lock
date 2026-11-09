@@ -886,8 +886,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "q-periapt-continuity-identity-candidate"
-version = "0.0.0"
+name = "q-periapt-continuity"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chacha20poly1305",

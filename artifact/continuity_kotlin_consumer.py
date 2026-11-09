@@ -165,8 +165,8 @@ def verify_gc_execution(stdout: bytes) -> dict:
 
 
 def maven_contract() -> jvm.MavenContract:
-    return jvm.MavenContract("dev.qperiapt", "q-periapt-continuity-kotlin", "0.0.0",
-        "dev.qperiapt.continuity", "Q-Periapt Continuity JVM candidate",
+    return jvm.MavenContract("dev.qperiapt", "q-periapt-continuity-kotlin", "0.2.0",
+        "dev.qperiapt.continuity", "Q-Periapt Continuity JVM",
         (("QPeriapt-Continuity-ABI", "qpc-owner/1"),), "dev/qperiapt/continuity/",
         ("RootReplacementScope", "RootReplacementPlan", "RootReplacementProposal", "RootReplacementState",
          "RootReplacementTransition", "RootReplacementAdoption", "AccountAuthorityID", "ApplicationAccountID", "AccountAuthorityTrust", "AccountAuthorityCheckpoint", "ContinuityAccountAuthority", "PeerDeviceExpectation", "PeerConfiguration", "SdkPolicyTrust", "InitialSdkPolicy", "LocalTlsIdentity", "InstallationConfiguration", "ConfigurationWitness",
@@ -495,7 +495,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             sdk.require(library.sha256 == row["binaries"]["C_library"]["sha256"], "native library changed before Kotlin installation")
             payload = files | {"native/lib/" + library_name: library.data}
             hashes = {name: hashlib.sha256(data).hexdigest() for name, data in payload.items()}
-            data = archive(payload); filename = f"q-periapt-continuity-kotlin-0.0.0-{target}-{profile}.zip"
+            data = archive(payload); filename = f"q-periapt-continuity-kotlin-0.2.0-{target}-{profile}.zip"
             with (output / filename).open("xb") as stream: stream.write(data)
             installed = outside / ("kotlin-installed-" + profile)
             unpack(sdk.snapshot(output / filename, maximum=MAX_PACKAGE).data, hashes, installed)

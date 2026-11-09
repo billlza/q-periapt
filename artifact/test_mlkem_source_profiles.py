@@ -135,7 +135,7 @@ class MlKemSourceProfilesTests(unittest.TestCase):
                                     self.assertIs(section, manifest["target"]['cfg(all(target_arch = "wasm32", target_os = "unknown"))'])
                                     self.assertEqual(key, "dependencies")
                                     self.assertEqual(dependency, {
-                                        "version": "=0.0.0", "optional": True,
+                                        "package": "q-periapt-continuity", "version": "=0.2.0", "optional": True,
                                         "path": "../../research/continuity-identity-candidate",
                                     })
                                 else:

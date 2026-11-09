@@ -494,10 +494,11 @@ class ContinuityPackageTests(unittest.TestCase):
                 self.assertIn(relative, sources)
                 self.assertEqual(sources[relative], sdk.snapshot(path).sha256)
 
-    def test_candidate_archive_version_does_not_relax_sdk_default(self):
+    def test_companion_source_archive_uses_the_exact_product_version(self):
         data = archive(name=package.NAME)
         with self.assertRaisesRegex(ValueError, "root differs"):
-            sdk.archive_files(data, package.NAME, version=package.VERSION)
+            sdk.archive_files(data, package.NAME, version="0.0.0")
+        self.assertEqual(len(sdk.archive_files(data, package.NAME, version=package.VERSION)), 4)
         self.assertEqual(len(sdk.archive_files(data, package.NAME)), 4)
 
     def test_installed_graph_requires_archive_origins_and_both_transports(self):
@@ -507,7 +508,7 @@ class ContinuityPackageTests(unittest.TestCase):
             lock = b"version = 4\npackage = []\n"
             self.assertEqual(package.verify_resolution(good, root, lock, lock)["candidate_crates"], 1)
             for field, value in (("manifest_path", str(root / "checkout/Cargo.toml")),
-                                 ("version", "0.2.0"), ("source", "registry+injected"), ("publish", None)):
+                                 ("version", "0.0.0"), ("source", "registry+injected"), ("publish", None)):
                 changed = copy.deepcopy(good)
                 changed["packages"][-1][field] = value
                 with self.subTest(field=field), self.assertRaises(ValueError):

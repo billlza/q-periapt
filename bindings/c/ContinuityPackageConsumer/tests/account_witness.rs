@@ -4,7 +4,7 @@
 mod common;
 #[path = "account_witness/delivery.rs"]
 mod delivery;
-#[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
+#[path = "../packages/q-periapt-continuity-0.2.0/tests/owned_connection.rs"]
 mod fixture;
 #[path = "account_witness/tls.rs"]
 mod tls;
