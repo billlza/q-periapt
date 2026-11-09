@@ -20,6 +20,8 @@ continuity.pdf: joc-submission.tex $(SOURCES) figures/confirmation-cut.pdf
 	cp $(BUILD)/joc-submission.pdf $@
 
 check: continuity.pdf
+	$(PYTHON) "$(CURDIR)/artifacts/matched-comparison/analyze_matched.py" --check
+	$(PYTHON) "$(CURDIR)/artifacts/matched-comparison/check_input_controls.py"
 	$(PYTHON) "$(CURDIR)/check_build.py"
 
 source: check

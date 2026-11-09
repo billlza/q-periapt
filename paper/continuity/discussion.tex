@@ -44,16 +44,21 @@ The executed-slot selector then associates accepted allocations with the
 original reservation pair, up to the signature and framed-hash terms in
 Proposition~\ref{prop:executed-source-attribution}. Its signing adapter
 preserves original randomizers, exact retries and the declared owner
-observations. The post-quantum branch uses the specified reservation-aware
-ML-DSA game; the native deterministic P-256 component supplies a classical
-ordinary-signature instantiation.
+observations. The native ML-DSA bridge then expresses that signature term through
+ordinary hedged unforgeability, an exact-replay coupling and a shared-XOF
+query loss (Theorem~\ref{thm:native-mldsa-reservation-bridge}).
+The native deterministic P-256 component supplies the corresponding
+classical ordinary-signature instantiation.
 
-Proposition~\ref{prop:confirmation-message-auth} follows the same joint
-key table through the native confirmation and first-message interfaces.
+Theorem~\ref{thm:native-selected-authentication} carries the selected
+confirmation and first-message authentication event through this native
+proof chain. Original-game localization retains final eligibility and
+source attribution, and the event's own component adapter precedes the
+uniform-root bound of Proposition~\ref{prop:confirmation-message-auth}.
 Its origin ledgers distinguish a fresh authenticated acceptance from an
-exact replay or historical consumption status. The joint schedule is charged
-once for the union of the confirmation and message events; the remaining
-terms account for the MAC rows, complete-core hash collisions and one-key
+exact replay or historical consumption status. The Boolean comparisons
+charge each record, primitive and schedule step once; the final terms
+account for the MAC rows, complete-core hash collisions and one-key
 ciphertext integrity.
 
 Section~\ref{sec:multiple-root-entry} generalizes the entry step to a finite
@@ -75,24 +80,28 @@ experiment. A selected private key additionally supports the stated
 application-encryption experiment when all its aliases follow that
 experiment's key-use interface.
 
-\paragraph{Matched protocol evaluation.}
-The reference corpus fixes reproducible communication opportunities for a
-matched Continuity comparison. Such a comparison records the same loss,
-reorder and duplication schedule, together with the construction's actual
-authentication authority and disclosure objects. For each case, the relevant
-observations are the original generation and encapsulation reservations,
-acquired record projection, known wrapping keys, public-wire availability,
-and reconstructed message set. Communication and persistence costs can then
-be measured over declared operation intervals. Holding a reservation fixed
-while varying execution time, acknowledgement delivery or aggregate
-rewriting tests the provenance distinctions isolated by the present results.
+\paragraph{Exposure budgets and completed service.}
+The matched executions make the two-chain current-epoch capacity visible
+under a common communication budget. At the declared capture cut, budgets
+32 and 64 yield 63 and 127 reconstructed future applications in alternating
+traffic, while completing 688 and 718 applications. Reporting the admitted
+denominator alongside the reconstructed set exposes the cost of more frequent
+rekey work. The one-way control reaches its admission cap with both confirmed
+epochs still zero and with every admitted post-capture key reconstructed.
+These observations connect the provenance condition to a concrete accounting
+of recovery, service and queued demand. The frame partition further identifies
+the selected immediate-retry policy's contribution to communication cost,
+providing a measured starting point for changing retry scheduling while
+preserving the original allocation and wire identities.
 
 \paragraph{Conclusion.}
 Persistent recovery is governed by original secret sources and their
-acquisition histories. The paper gives an exact record-exposure semantics,
-constructive simulations for private records and dependent immutable reports,
-a complete-tuple component connection to the joint first-message continuation,
-a finite entry comparison with an owned SDK purpose-key instance, and a mechanized multi-epoch recovery
-theorem with concrete separating executions.
-These results preserve the meaning of
-fresh randomness across durable retries, copies and asynchronous progress.
+acquisition histories. An exact record-exposure semantics and constructive
+record/report simulations connect an eligible native rekey to confidentiality
+and authentication of its marked message. Original-operation and shared-XOF
+reductions preserve source attribution through retained randomizers and exact
+replay. The finite key-entry comparison supplies a purpose-key instance,
+while the mechanized multi-epoch theorem and concrete executions establish
+the corresponding provenance-based recovery statements. These results
+preserve the meaning of fresh randomness across durable retries, copies and
+asynchronous progress.

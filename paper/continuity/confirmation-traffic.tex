@@ -183,11 +183,8 @@ complete-continuation budget. For an independent application challenge
 bit, both arguments may first fix that bit and then average.
 \end{proof}
 
-The authentication statement starts at the uniform epoch-root interface
-$G_R$. The established root-initialization and complete-tuple comparisons
-can precede it at their output-bit costs, for a controller realizing their
-stated interfaces. A native authentication event additionally uses the
-record and component comparisons for that event's own terminal bit.
-The component costs $a_j^+,a_j^-$ in the confidentiality theorem are the
-specified signed-score event distinguishers. This keeps the accounting
-of a new authentication event explicit.
+The native composition in Section~\ref{sec:native-authentication}
+precedes this uniform epoch-root interface with the record, component,
+complete-tuple and root-initialization comparisons. Each comparison uses
+the selected authentication event's terminal bit and complete continuation
+budget, connecting the present bound to the original recovery experiment.

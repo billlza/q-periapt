@@ -51,8 +51,24 @@ from the key seed, \texttt{rnd} and the message representative
 \cite[Algorithm~7]{fips204}. These are distinct observation interfaces.
 Section~\ref{sec:executed-source-attribution} specifies the corresponding
 reservation-aware signature experiment and uses it to associate an accepted
-rekey with its original KEM calls. Its generic separation identifies why
-the coin-return interface must appear in the signature assumption.
+rekey with its original KEM calls. Section~\ref{sec:reservation-ordinary-bridge}
+then connects this interface to ordinary native hedged-signature security.
+
+\paragraph{Hedging and exposed nonces.}
+Nonce-based cryptography treats nonce handling as an explicit security
+interface; Bellare and Tackmann develop this perspective and introduce
+hedged extractors~\cite{bellare2016nonce}. Aranha et al. analyze hedged
+Fiat--Shamir signatures under fault attacks~\cite{aranha2020hedged}, and
+Grilo et al. give quantum random-oracle analyses of hedged Fiat--Shamir
+security against nonce and fault attacks~\cite{grilo2021reprogramming}.
+Kosuge and Xagawa study the fault security of ML-DSA
+\cite{kosuge2025mldsa}. Our signing connection uses this hedging perspective
+for persistent reservations: opening an original randomizer, selecting a
+reserved call, exact replay, and failed publication preserve their original
+message ledger. The native reduction compares the shared key-generation
+and hedging XOF with a private random-function interface and then returns
+to ordinary hedged ML-DSA security
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}).
 
 \paragraph{Session handling and state loss.}
 Cremers, Jacomme, and Naska analyze how the session-handling layer determines

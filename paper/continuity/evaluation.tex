@@ -2,13 +2,15 @@
 \label{sec:evaluation}
 
 The validation asks how the formal exposure conditions appear in executable
-state and communication histories. We use three complementary designs.
+state and communication histories. We use four complementary designs.
 First, the native executions in Section~\ref{sec:established} vary the time
 of reservation use, acknowledgement delivery and aggregate rewriting while
 retaining the original secret source. Second, two implementations of record
 readability are checked against each other and against independently stated
 expected results. Third, a reference corpus records the message keys derivable
 from actual component snapshots under fixed communication schedules.
+Fourth, native and reference executions share a directed opportunity budget
+and report exposure jointly with admitted service and communication work.
 Table~\ref{tab:validation-questions} relates each design to the question it answers.
 
 \begin{table}[t]
@@ -31,6 +33,9 @@ explicit expected cases for key dependencies and later disclosures.\\
 How does retained state interact with communication opportunities? &
 Pinned component snapshots across seven schedules, with reconstructed keys
 indexed by direction, epoch and message number.\\
+How does a recovery budget trade exposure for service? &
+Native and reference runs under common directed opportunities, with separate
+first commitments, logical deliveries, derived sets and full-frame costs.\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -48,8 +53,9 @@ disclosed source values. The evaluator checks equality of their exposed-source
 sets for every subset assignment in each declared graph.
 
 Table~\ref{tab:guarded-checks} gives the complete finite inventory. The 5,360
-assignments include direct-source subsets; they are separate from the 336
-reference endpoint-snapshot cases reported above. Cyclic key derivation requires
+assignments include direct-source subsets; they are separate from the 420
+reference endpoint-snapshot cases described below, including the isolated
+chunk-width variant. Cyclic key derivation requires
 an initially disclosed key to seed reachability. Cyclic record containment is
 rejected. The source-preserving copy and rewrapping relations are inputs to
 these graphs, while the native executions in Section~\ref{sec:established}
@@ -117,9 +123,10 @@ Six capture points for each endpoint produce 84 passive snapshot cases.
 An authenticated whole-KEM control runs those schedules at local-send
 intervals 1, 32 and 64, producing 252 corresponding cases. Together these
 are 28 configuration--schedule combinations and 336 snapshots. An isolated
-64-byte polynomial-chunk SPQR variant has a separate source identity; its
-alternating-workload result is explicitly labeled in Table~\ref{tab:reference}.
-The 32-byte and 64-byte labels describe the polynomial chunk width.
+64-byte polynomial-chunk SPQR variant supplies another seven schedules and
+84 snapshots with its own source identity. The combined comparison therefore
+has 35 configuration--schedule combinations and 420 snapshots. The 32-byte
+and 64-byte labels describe the polynomial chunk width.
 
 \subsection{Exposure and communication observations}
 
@@ -160,6 +167,29 @@ outside these measurements.}
 \label{tab:reference}
 \end{table}
 
+\input{reference-schedule-table}
+
+Table~\ref{tab:reference-schedules} extends the comparison to every retained
+schedule at the same capture coordinate. Increasing the SPQR chunk width
+from 32 to 64 bytes changes the alternating trace from 172 to 88
+reconstructed keys, while mean component traffic rises from 32.150 to
+58.971 bytes per send. Under 9:1 traffic, those reconstructed sets contain
+748 and 388 keys. The whole-KEM interval-32 trace similarly changes from
+66 keys under alternating traffic to 338 under 9:1 traffic, while its mean
+bytes per send fall from 44.047 to 21.031. These paired observations show
+how communication direction and control progress shape exposure alongside
+the amount of transmitted material. The retained construction and disclosure
+interface identify the comparison in each column.
+
+The offline prefix leaves substantial exposure even for the whole-KEM
+interval-1 control: its predictor reconstructs 260 future keys at this cut,
+compared with four in the alternating trace. Exact duplicate delivery leaves
+the emitted-byte and reconstructed-key measurements unchanged in all five
+profiles. The accompanying deterministic analysis checks all 420 snapshot
+inventories and reproduces the displayed rows directly from four hash-bound
+corpus files. It preserves the original execution identities and the exact
+derived-key interpretation.
+
 The one-way schedule produces no fresh PQ epoch in these references and the
 predictor derives every post-snapshot key. The whole-KEM active-control
 experiment addresses a different property: one initial endpoint-state capture
@@ -169,3 +199,4 @@ match the attacker-derived keys. This supplies a concrete distinction between
 fresh KEM execution and authenticated recovery when the ongoing authentication
 authority is itself derived from captured session state.
 
+\input{matched-opportunities}

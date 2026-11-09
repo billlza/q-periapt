@@ -1,0 +1,84 @@
+{
+  "status": "passed",
+  "scope": "Independent recalculation of fixed retained results; no new native cryptographic execution.",
+  "source_commit": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "observed_integration_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+  "source_identities": [
+    {
+      "name": "spqr32-traces.json",
+      "bytes": 5073,
+      "sha256": "2df62d39ffcd2cd0cd3365eb3648532791b009da8c8713eb170196985fed639b",
+      "git_blob": "54dcfad025e08c7eb3dcd435222103d398f59945"
+    },
+    {
+      "name": "spqr32-snapshots.json",
+      "bytes": 16201,
+      "sha256": "572dc536d61ae23ed4aa367b1b62a3cd2e164c491e60880e766f67e49422d033",
+      "git_blob": "d897a537b3c5bccadc31a3fdc24e7c66e8ad29b1"
+    },
+    {
+      "name": "spqr64-corpus.json",
+      "bytes": 22829,
+      "sha256": "aee184c8415594d58692ee2d63419f741a703aaacfbfff69a6471e68fd19250e",
+      "git_blob": "617686652df1a2a770255a4704cc8d21a8414913"
+    },
+    {
+      "name": "whole-kem-corpus.json",
+      "bytes": 77339,
+      "sha256": "dd01c8d7a39f9c0486079b9b5b313248bd709badfa333f6ca24d1406d940de88",
+      "git_blob": "17856f89072457d4128757270f34a8527f732ab5"
+    }
+  ],
+  "scenario_profile_pairs": 35,
+  "snapshot_cases": 420,
+  "displayed_numeric_cells": 70,
+  "mean_rounding": "independent integer division with nearest-ties-to-even at 0.001 byte",
+  "negative_controls": [
+    {
+      "name": "duplicate snapshot coordinate",
+      "rejected": true,
+      "reason": "duplicate snapshot coordinate"
+    },
+    {
+      "name": "missing snapshot coordinate",
+      "rejected": true,
+      "reason": "incomplete snapshot inventory"
+    },
+    {
+      "name": "altered derived count",
+      "rejected": true,
+      "reason": "snapshot accounting differs"
+    },
+    {
+      "name": "unknown schedule",
+      "rejected": true,
+      "reason": "duplicate or unknown schedule"
+    },
+    {
+      "name": "wrong summary schedule",
+      "rejected": true,
+      "reason": "summary schedule differs"
+    },
+    {
+      "name": "wrong communication opportunities",
+      "rejected": true,
+      "reason": "communication opportunities differ"
+    },
+    {
+      "name": "Boolean snapshot owner",
+      "rejected": true,
+      "reason": "unknown snapshot coordinate"
+    },
+    {
+      "name": "balanced count change rejected by source pin",
+      "rejected": true,
+      "reason": "corpus identity changed: spqr32-snapshots.json"
+    }
+  ],
+  "reviewed_files": {
+    "analyze_reference.py": "a9c1edfa04c9f6a738d34f84a45bd37617cd0894c224766a6ab4e4b84aaf59a5",
+    "analysis.json": "630b067f08f4170570c534f2105b95cdcf0f6e0a40b8350d30dba35c6cca82a2",
+    "source_identity.json": "a72e66891d5d9c7a8a8ac6a9d7bd9f79b08fd957aa70d4f126b5a58b74e16d63",
+    "reference-schedule-table.tex": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9"
+  }
+}
