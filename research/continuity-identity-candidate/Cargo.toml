@@ -1,21 +1,27 @@
 [package]
-name = "q-periapt-continuity-identity-candidate"
-version = "0.0.0"
+name = "q-periapt-continuity"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.90"
 publish = false
 license = "Apache-2.0 OR MIT"
-description = "Isolated Continuity accountable identity and prekey-manifest candidate"
+description = "Persistent Continuity identity, account and recovery companion"
 repository = "https://github.com/billlza/q-periapt"
 readme = "README.md"
 
 # Separate native qualification workspace; the private browser facade also
 # resolves this engine through the SDK workspace lockfile.
+[package.metadata.qperiapt]
+distribution = "cargo-source-archive"
+product-version = "0.2.0"
+
 [workspace]
 resolver = "2"
 members = ["."]
 
 [lib]
+# Preserve the existing Rust API target and native library names.
+name = "q_periapt_continuity_identity_candidate"
 crate-type = ["rlib", "cdylib"]
 
 [dependencies]

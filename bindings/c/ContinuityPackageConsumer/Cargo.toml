@@ -19,7 +19,7 @@ connection-tls = ["q-periapt-continuity-identity-candidate/connection-tls"]
 control-tls = ["q-periapt-continuity-identity-candidate/control-tls"]
 
 [dependencies]
-q-periapt-continuity-identity-candidate = { version = "=0.0.0", features = ["connection-tls", "control-tls", "anchor-tls"] }
+q-periapt-continuity-identity-candidate = { package = "q-periapt-continuity", version = "=0.2.0", features = ["connection-tls", "control-tls", "anchor-tls"] }
 q-periapt-host-store = "=0.2.0"
 q-periapt-policy = "=0.2.0"
 q-periapt-sdk = { version = "=0.2.0", features = ["sealed-operations"] }

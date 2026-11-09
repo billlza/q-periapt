@@ -91,8 +91,14 @@ class FanoutLatencyChecks(unittest.TestCase):
         result = manifest(source, root)
         self.assertIn(b'lto = "thin"', result)
         self.assertNotIn(b'path = "../../crates/', result)
+        legacy_name = source.replace(b'name = "q-periapt-continuity"',
+                                     b'name = "q-periapt-continuity-identity-candidate"', 1)
+        legacy = legacy_name.replace(b'version = "0.2.0"', b'version = "0.0.0"', 1)
+        self.assertNotIn(b'path = "../../crates/', manifest(legacy, root))
         for invalid in (source.replace(b'lto = "thin"', b'lto = false'),
-                        source.replace(b'../../crates/', b'xx/xx/crates/')):
+                        source.replace(b'../../crates/', b'xx/xx/crates/'),
+                        source.replace(b'version = "0.2.0"', b'version = "0.0.0"', 1),
+                        legacy_name):
             with self.assertRaises(ValueError):
                 manifest(invalid, root)
 

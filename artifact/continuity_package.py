@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Qualify the unpublished Continuity crate through exact installed Cargo archives.
+"""Qualify the Continuity source distribution through exact installed Cargo archives.
 
-This is a candidate Rust package boundary, not SDK publication or a frozen protocol.
+The companion uses versioned source archives outside the SDK registry cohort.
 All endpoint code is compiled outside the checkout from the produced archives.
 """
 from __future__ import annotations
@@ -22,8 +22,10 @@ from rust_sdk_msrv import tool_identity, validate_report
 
 ROOT = Path(__file__).resolve().parent.parent
 CANDIDATE = ROOT / "research/continuity-identity-candidate"
-NAME = "q-periapt-continuity-identity-candidate"
-VERSION = "0.0.0"
+NAME = "q-periapt-continuity"
+VERSION = "0.2.0"
+LIBRARY = "q_periapt_continuity_identity_candidate"
+DISTRIBUTION = "cargo-source-archive"
 CONSUMER = "q-periapt-continuity-package-consumer"
 FIXTURE = "bindings/rust/ContinuityPackageConsumer/Cargo.toml"
 TESTS = {"service_peer_process", "owned_services_connect_restart_rekey_and_reconcile_unknown_delivery",
@@ -72,13 +74,26 @@ def source_inputs() -> dict:
     return identity
 
 
+def validate_package_identity(manifest: dict) -> None:
+    """Keep the formal package, archive channel and existing Rust target together."""
+    package = manifest.get("package", {})
+    sdk.require(package.get("name") == NAME and package.get("version") == VERSION
+                and package.get("publish") is False,
+                "companion package identity or registry boundary changed")
+    sdk.require(package.get("metadata", {}).get("qperiapt") == {
+        "distribution": DISTRIBUTION, "product-version": VERSION,
+    }, "companion source archive channel differs")
+    library = manifest.get("lib", {})
+    sdk.require(library.get("name") == LIBRARY
+                and sorted(library.get("crate-type", [])) == ["cdylib", "rlib"],
+                "companion Rust library target changed")
+
+
 def validate_candidate(data: bytes, expected_files: set[str]) -> dict[str, bytes]:
     files = sdk.archive_files(data, NAME, version=VERSION)
     sdk.require(set(files) == expected_files, "candidate differs from Cargo package inventory")
     manifest = tomllib.loads(files["Cargo.toml"].decode())
-    package = manifest["package"]
-    sdk.require(package["name"] == NAME and package["version"] == VERSION and package["publish"] is False,
-                "candidate package identity or publication boundary changed")
+    validate_package_identity(manifest)
     for section in ("dependencies", "dev-dependencies"):
         for name, dep in manifest.get(section, {}).items():
             if name.startswith("q-periapt"):
@@ -422,7 +437,10 @@ def qualify(args: argparse.Namespace) -> dict:
     result = {"schema_version": 1, "kind": "qperiapt.continuity_candidate_package"
               + ("_partition" if args.build_profile is not None else ""), "completed": False,
               "partition_completed": False, "build_profiles": list(profiles),
-              "candidate_version": VERSION, "source_commit": commit, "source_inputs": before,
+              "candidate_version": VERSION,
+              "package_identity": {"name": NAME, "version": VERSION, "library": LIBRARY,
+                                   "distribution": DISTRIBUTION, "registry_publish": False},
+              "source_commit": commit, "source_inputs": before,
               "rust_report_sha256": pinned.sha256, "host_os": os.uname().sysname,
               "host_arch": os.uname().machine, "tool_binaries": tools,
               "requested_consumers": (["Rust", "C"] if args.with_c_consumer else ["Rust"])

@@ -13,7 +13,7 @@ connection-tls = ["q-periapt-continuity-identity-candidate/connection-tls"]
 control-tls = ["q-periapt-continuity-identity-candidate/control-tls"]
 
 [dev-dependencies]
-q-periapt-continuity-identity-candidate = "=0.0.0"
+q-periapt-continuity-identity-candidate = { package = "q-periapt-continuity", version = "=0.2.0" }
 q-periapt-backends = "=0.2.0"
 q-periapt-policy = "=0.2.0"
 q-periapt-sdk = { version = "=0.2.0", features = ["sealed-operations"] }
@@ -28,14 +28,14 @@ tempfile = "=3.27.0"
 # Use the workload shipped in the exact Cargo archive; never include checkout code.
 [[test]]
 name = "owned_connection"
-path = "packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"
+path = "packages/q-periapt-continuity-0.2.0/tests/owned_connection.rs"
 
 [profile.dev.package."*"]
 opt-level = 3
 debug-assertions = true
 overflow-checks = true
 
-[profile.dev.package.q-periapt-continuity-identity-candidate]
+[profile.dev.package.q-periapt-continuity]
 opt-level = 0
 debug-assertions = true
 overflow-checks = true

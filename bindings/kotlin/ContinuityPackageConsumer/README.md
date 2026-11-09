@@ -1,8 +1,10 @@
-# Continuity Kotlin/JVM candidate
+# Continuity Kotlin/JVM companion
 
-This separate, unpublished `dev.qperiapt:q-periapt-continuity-kotlin:0.0.0`
-module calls the existing `qpc-owner/1` C/Rust engine. It is not product ABI 2,
-an Android JNI implementation, or an admitted 0.2.0 release artifact.
+The `dev.qperiapt:q-periapt-continuity-kotlin:0.2.0` module calls the existing
+`qpc-owner/1` C/Rust engine. Its producer and installed Maven consumer use that
+exact coordinate. The companion keeps the `dev.qperiapt.continuity` module and
+its separate native ABI; SDK ABI 2 keeps its own package. Selected release
+artifacts follow the [distribution contract](../../../docs/continuity/SOURCE_DISTRIBUTION_0_2.md).
 
 For a new installation, start with [first-use configuration](#first-use-configuration-unpublished-candidate):
 `ContinuityConfiguration.prepareCreate(path, input)`, `finishOpen()`, then

@@ -95,7 +95,7 @@ def load(consumer: Path) -> dict:
         "schema_version", "abi", "package_version", "frozen_product_contract", "declarations"},
         "C ABI snapshot fields differ")
     sdk.require(type(document["schema_version"]) is int and document["schema_version"] == 1
-                and document["abi"] == "qpc-owner/1" and document["package_version"] == "0.0.0"
+                and document["abi"] == "qpc-owner/1" and document["package_version"] == "0.2.0"
                 and document["frozen_product_contract"] is False,
                 "C ABI snapshot identity or admission claim differs")
     expected = document["declarations"]

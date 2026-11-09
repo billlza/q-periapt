@@ -1,4 +1,4 @@
-# Installed Continuity C owner candidate
+# Installed Continuity C owner companion
 
 For a new integration, start with [explicit first-use configuration](#explicit-first-use-configuration).
 That entry validates your independently supplied trust, policy and TLS inputs,
@@ -6,7 +6,10 @@ publishes the initial configuration and wrapping key, then creates the original
 enrollment owner. The host obtains account approval and signed grants from its
 chosen authority. Use the explicit reconcile/open paths for uncertain or existing
 state; an open failure never authorizes creating a replacement identity.
-This is an unpublished `qpc-owner/1` candidate, separate from product SDK ABI 2.
+The 0.2.0 companion snapshot retains `qpc-owner/1`, separate from SDK ABI 2.
+Its 158 functions, 70 records, callback and 112 constants keep their existing
+declarations. The [distribution contract](../../../docs/continuity/SOURCE_DISTRIBUTION_0_2.md)
+records the formal package identity and selected-archive admission steps.
 
 The installed C test harness retains a bounded failure event before removing a
 failed child's temporary fixture: PID, parent PID, executable basename, scenario,

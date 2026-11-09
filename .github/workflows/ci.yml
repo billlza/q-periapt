@@ -2734,7 +2734,7 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
         run: |
-          cargo +1.98.1 fmt --manifest-path research/continuity-identity-candidate/Cargo.toml --package q-periapt-continuity-identity-candidate -- --check 2>&1 | tee target/continuity-native-checks/format.log
+          cargo +1.98.1 fmt --manifest-path research/continuity-identity-candidate/Cargo.toml --package q-periapt-continuity -- --check 2>&1 | tee target/continuity-native-checks/format.log
           cargo +1.98.1 doc --manifest-path research/continuity-identity-candidate/Cargo.toml --all-features --locked --no-deps 2>&1 | tee target/continuity-native-checks/doc.log
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         if: matrix.os == 'macos-15' && matrix.partition == 'suite'

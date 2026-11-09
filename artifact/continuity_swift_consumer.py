@@ -203,7 +203,7 @@ def qualify_swift(outside: Path, output: Path, native: dict, environment: dict, 
             files = dict(source, **{"native/lib/" + LIBRARY: library.data})
             hashes = {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}
             data = archive(files)
-            filename = f"q-periapt-continuity-swift-0.0.0-{profile}.zip"
+            filename = f"q-periapt-continuity-swift-{package.VERSION}-{profile}.zip"
             with (output / filename).open("xb") as stream:
                 stream.write(data)
             consumer = outside / ("swift-installed-" + profile)

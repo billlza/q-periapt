@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "dev.qperiapt"
-version = "0.0.0"
+version = "0.2.0"
 repositories { mavenCentral() }
 dependencies { testImplementation(kotlin("test")) }
 kotlin {
@@ -29,7 +29,7 @@ tasks.withType<Jar>().configureEach {
 tasks.jar {
     manifest.attributes(
         "Automatic-Module-Name" to "dev.qperiapt.continuity",
-        "Implementation-Title" to "Q-Periapt Continuity JVM candidate",
+        "Implementation-Title" to "Q-Periapt Continuity JVM",
         "Implementation-Version" to project.version,
         "QPeriapt-Continuity-ABI" to "qpc-owner/1",
     )

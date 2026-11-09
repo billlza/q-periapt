@@ -98,7 +98,7 @@ def prepare(args) -> None:
     files['Cargo.lock'] = files['original-Cargo.lock']
     manifest = files['Cargo.toml'].decode()
     for target in ('configuration_paths', 'owned_connection'):
-        manifest += f'\n[[test]]\nname = "{target}"\npath = "packages/q-periapt-continuity-identity-candidate-0.0.0/tests/{target}.rs"\n'
+        manifest += f'\n[[test]]\nname = "{target}"\npath = "packages/q-periapt-continuity-0.2.0/tests/{target}.rs"\n'
     manifest += '\n[patch.crates-io]\n'
     manifest += ''.join(f'{name} = {{ path = "packages/{name}-{version}" }}\n' for name, version in versions.items())
     files['Cargo.toml'] = manifest.encode()

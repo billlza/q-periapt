@@ -1,9 +1,10 @@
 # Installed Continuity Swift owner
 
-This unpublished Swift package uses the existing `qpc-owner/1` owner and shared
-Rust Continuity engine. It adds no ratchet, KDF, credential parser or private-key
-export. It is a language-admission step toward 0.2.0, not a frozen product package
-or an addition to ABI 2. The manifest declares macOS 13 and iOS 16 source floors;
+The `QPeriaptContinuity` 0.2.0 companion uses the existing `qpc-owner/1` owner and
+shared Rust Continuity engine. Its versioned archive preserves the Swift product,
+module and native interface alongside the separate SDK ABI 2 package. Selected
+release artifacts follow the [distribution contract](../../../docs/continuity/SOURCE_DISTRIBUTION_0_2.md).
+The manifest declares macOS 13 and iOS 16 source floors;
 execution records identify the actual OS. The initial iOS storage and identity
 route has [physical iPhone evidence](../../../research/sdk-alpha1/evidence/20261012-ios-main-integrated/README.md).
 It covers creation, registration, process reopening and private-path refusals.
@@ -38,9 +39,9 @@ transaction handling, simulator execution and canonical release-pipeline admissi
 remain separate work.
 
 The installed native qualification now accepts `--with-apple-package` alongside
-`--with-c-consumer`. It builds `QPeriaptContinuity-Apple-candidate.zip` from the
+`--with-c-consumer`. It builds `QPeriaptContinuity-Apple-0.2.0.zip` from the
 same admitted C source and normalized dependency graph, with macOS arm64, iOS
-arm64 and arm64 simulator static slices. The existing Swift CI job selects this
+arm64, arm64 simulator and x86_64 simulator static slices. The existing Swift CI job selects this
 step. Each slice must expose the exact owner functions, and target-specific
 third-party notices accompany the deterministic archive. A consumer outside the
 checkout uses only the extracted package; its link maps and copied libraries

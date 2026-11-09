@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 use zeroize::Zeroizing;
-#[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
+#[path = "../packages/q-periapt-continuity-0.2.0/tests/owned_connection.rs"]
 mod fixture;
 #[path = "common/peer_bundle.rs"]
 mod peer_bundle;

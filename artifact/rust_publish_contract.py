@@ -175,7 +175,7 @@ RUST_WORKSPACE_LOCAL_CRATES = frozenset(
         "q-periapt-backends",
         "q-periapt-cli",
         # Optional private browser engine, not part of the publication cohort.
-        "q-periapt-continuity-identity-candidate",
+        "q-periapt-continuity",
         "q-periapt-continuity-model",
         "q-periapt-core",
         "q-periapt-ctstats",
@@ -604,7 +604,7 @@ def _parse_cargo_lock_scope(
                 raise RustPublishContractError(
                     f"{lock_label} contains a duplicate local package: {name}"
                 )
-            if name == "q-periapt-continuity-identity-candidate" and version != "0.0.0":
+            if name == "q-periapt-continuity" and version != "0.2.0":
                 raise RustPublishContractError(
                     f"{lock_label} private browser candidate version differs"
                 )

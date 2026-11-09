@@ -67,7 +67,7 @@ class ContractTests(unittest.TestCase):
 
     def test_snapshot_cannot_claim_product_admission_or_different_identity(self):
         for key, value in (("schema_version", True), ("schema_version", 2),
-                           ("abi", "2"), ("package_version", "0.2.0"),
+                           ("abi", "2"), ("package_version", "0.0.0"),
                            ("frozen_product_contract", True), ("extra", 1)):
             with self.subTest(key=key, value=value), self.assertRaises(ValueError):
                 self.check_copy(document=dict(self.document, **{key: value}))

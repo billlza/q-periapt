@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //! Installed-language setup calls over native independently provisioned enrollment inputs.
-#[path = "../packages/q-periapt-continuity-identity-candidate-0.0.0/tests/owned_connection.rs"]
+#[path = "../packages/q-periapt-continuity-0.2.0/tests/owned_connection.rs"]
 pub(crate) mod fixture;
 #[path = "common/witness.rs"]
 pub(crate) mod witness;

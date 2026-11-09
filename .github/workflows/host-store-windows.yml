@@ -95,9 +95,9 @@ jobs:
           Copy-Item bindings/c/ContinuityPackageConsumer/Cargo.toml $consumer
           Copy-Item research/continuity-identity-candidate/Cargo.lock (Join-Path $consumer 'Cargo.lock')
           $patches = "`n[patch.crates-io]`n"
-          $names = @('q-periapt-backends', 'q-periapt-core', 'q-periapt-host-store', 'q-periapt-kem', 'q-periapt-mlkem-native-sys', 'q-periapt-policy', 'q-periapt-rustls', 'q-periapt-sdk', 'q-periapt-sig', 'q-periapt-continuity-identity-candidate')
+          $names = @('q-periapt-backends', 'q-periapt-core', 'q-periapt-host-store', 'q-periapt-kem', 'q-periapt-mlkem-native-sys', 'q-periapt-policy', 'q-periapt-rustls', 'q-periapt-sdk', 'q-periapt-sig', 'q-periapt-continuity')
           foreach ($name in $names) {
-            $relative = if ($name -eq 'q-periapt-continuity-identity-candidate') { 'research/continuity-identity-candidate' } else { "crates/$name" }
+            $relative = if ($name -eq 'q-periapt-continuity') { 'research/continuity-identity-candidate' } else { "crates/$name" }
             $path = (Join-Path $root $relative).Replace('\', '/') | ConvertTo-Json -Compress
             $patches += "$name = { path = $path }`n"
           }
