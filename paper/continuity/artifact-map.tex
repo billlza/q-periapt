@@ -423,3 +423,29 @@ post-capture denominator. Reproduction from the compact packet is:
 python3 artifacts/retry-readiness/analyze_retry.py --check
 \end{verbatim}
 \end{quote}
+
+\subsection{Online finite-chain selection}
+\label{app:chain-prefix}
+
+The complete proof and source correspondence for
+Theorem~\ref{thm:online-chain-leaf} are retained in
+\path{artifacts/chain-prefix/}. Three native files retain identical
+source identities at the original pin \texttt{228c944f} and inspected
+integration checkpoint \texttt{6a0ac0bb}. They identify the fixed-width
+chain derivation, zero nonce, exact outbox resumption and
+transaction-private skipped-key advancement.
+
+Exact finite enumeration covers all 128 online marking policies over
+a binary three-step ideal chain, together with eight four-valued
+policies. The selected key remains uniform conditional on earlier
+returned keys, the mark and the disclosed successor. Separate controls
+exhibit retrospective-selection bias, reconstruct later keys from an
+exposed prefix seed, and reject marking after an alias's first private
+computation. These controls validate the selection and source
+interfaces used by the mathematical comparison.
+\begin{quote}
+\small
+\begin{verbatim}
+python3 artifacts/chain-prefix/check_prefix.py
+\end{verbatim}
+\end{quote}

@@ -32,6 +32,7 @@ The proofs and independent reviews are retained by subject:
 
 - [Candidate-local accounting](artifacts/candidate-local/): the stopped source/record interface and original-game score accounting.
 - [Joint continuation](artifacts/joint-continuation/README.md): the root-to-message schedule and its shared-compression primitives.
+- [Online finite-chain selection](artifacts/chain-prefix/README.md): adaptive target selection after earlier-key disclosure, with a complete prefix comparison and selected-key confidentiality/integrity corollaries.
 - [ContextBound connection](artifacts/contextbound-connection/README.md): complete encoding, component adapter and next-rekey source induction.
 - [Live-core and authentication connection](artifacts/confirmation-traffic/README.md): explicit record cost, source selection, accepted confirmation cores and first-message integrity.
 - [Executed-source attribution](artifacts/source-attribution/README.md): retained-plan source association, signature component adapters, original-randomizer observations and finite fault/alias checks.
@@ -51,6 +52,7 @@ Edit `main.tex` and the section modules. From the repository root, run:
 
 ```sh
 make -B -C paper/continuity check PYTHON="sh $PWD/artifact/python-run.sh"
+sh artifact/python-run.sh paper/continuity/artifacts/chain-prefix/check_prefix.py
 sh artifact/python-run.sh paper/continuity/artifacts/contextbound-connection/check_contextbound_adapter.py --output paper/continuity/build/contextbound-check.json
 sh artifact/python-run.sh paper/continuity/artifacts/source-attribution/check_source_attribution.py --finite-only --output paper/continuity/build/source-attribution-finite.json
 sh artifact/python-run.sh paper/continuity/artifacts/signature-bridge/check_bridge.py --crate-archive paper/continuity/artifacts/signature-bridge/sources/fips204-0.4.6.crate > paper/continuity/build/signature-bridge-check.json
