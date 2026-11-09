@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import datetime, timezone
+import io
 import json
 import os
 from pathlib import Path
@@ -19,6 +20,7 @@ import tempfile
 import time
 
 import bounded_process
+from evidence_io import EvidenceIOError, read_regular_snapshot
 
 
 IMAGE = "system-images;android-35;google_apis_ps16k;x86_64"
@@ -190,7 +192,17 @@ class Control:
             raise RuntimeError("command failed: " + record["label"])
         if record["stdout_bytes"] > 1024 * 1024:
             raise RuntimeError("unexpectedly large command text: " + record["label"])
-        return (self.output / (record["label"] + ".stdout")).read_text().strip()
+        try:
+            snapshot = read_regular_snapshot(
+                self.output / (record["label"] + ".stdout"),
+                maximum=1024 * 1024, label="command text: " + record["label"],
+            )
+        except EvidenceIOError as error:
+            raise RuntimeError("invalid command text: " + record["label"]) from error
+        if snapshot.size != record["stdout_bytes"] or snapshot.sha256 != record["stdout_sha256"]:
+            raise RuntimeError("command text differs from capture: " + record["label"])
+        with io.TextIOWrapper(io.BytesIO(snapshot.data)) as stream:
+            return stream.read().strip()
 
     def spawn(self, label: str, argv: list[str], environment: dict | None = None):
         with (self.output / (label + ".log")).open("xb") as log:
