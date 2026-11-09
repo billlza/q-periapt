@@ -1,17 +1,169 @@
 from pathlib import Path
+from contextlib import contextmanager, ExitStack
+import hashlib
 import json
 import os
+import shutil
 import stat
 import sys
 import tempfile
 import unittest
 import zipfile
+from unittest import mock
 
 import codeql_memory_control as control
 from bounded_process import BoundedProcessError
 
 
 class MemoryControlTests(unittest.TestCase):
+    @contextmanager
+    def _database_fixture(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            manifest = json.loads(control.QUERY_MANIFEST.read_text())
+            suite = ("queries:\n" + "".join(
+                "  query: " + control.QUERY_PREFIX + name + "\n"
+                for name in manifest["query_hashes"])).encode()
+            metadata = ("\nfinalised: true\n  sha: " + control.MERGE_SHA
+                        + "\n  cliVersion: 2.27.1\nprimaryLanguage: rust\n").encode()
+
+            def database(path, payload):
+                with zipfile.ZipFile(path, "w") as archive:
+                    archive.writestr("db-rust/control.txt", payload)
+                    archive.writestr("codeql-database.yml", metadata)
+                    archive.writestr("temp/analysisConfig.json",
+                                     json.dumps({"extensionPacks": [], "threatModels": ["local"]}))
+                    archive.writestr("temp/config-queries.qls", suite)
+                    for number in range(38):
+                        archive.writestr(f"results/retained-{number}.bqrs", b"fixture")
+
+            admitted = root / "admitted.zip"
+            database(admitted, b"trusted-data\n")
+            replacement = root / "replacement.zip"
+            database(replacement, b"altered-data\n")
+            with zipfile.ZipFile(admitted) as archive:
+                expected_members = len(archive.infolist())
+                expected_uncompressed = sum(member.file_size for member in archive.infolist())
+            outer = root / "outer.zip"
+            with zipfile.ZipFile(outer, "w") as archive:
+                archive.write(admitted, "db-rust-partial.zip")
+            output = root / "output"
+            output.mkdir()
+            actual_require, actual_infolist = control.require, zipfile.ZipFile.infolist
+            last_members = []
+
+            def record_members(archive):
+                nonlocal last_members
+                last_members = actual_infolist(archive)
+                return last_members
+
+            def fixture_require(condition, message):
+                if message == "retained database inventory differs":
+                    # Substitute only the two aggregate corpus constants for
+                    # this small real ZIP; member and 39-query checks stay real.
+                    condition = (len(last_members) == len({m.filename for m in last_members})
+                                 == expected_members
+                                 and sum(m.file_size for m in last_members) == expected_uncompressed)
+                return actual_require(condition, message)
+
+            def download_fixture(path):
+                shutil.copyfile(outer, path)
+                actual_require(path.stat().st_size == control.ARCHIVE_BYTES
+                               and control.sha(path) == control.ARCHIVE_SHA,
+                               "artifact digest differs")
+
+            with ExitStack() as patches:
+                for name, value in {
+                    "DB_BYTES": admitted.stat().st_size,
+                    "DB_SHA": control.sha(admitted),
+                    "SUITE_SHA": hashlib.sha256(suite).hexdigest(),
+                    "ARCHIVE_BYTES": outer.stat().st_size,
+                    "ARCHIVE_SHA": control.sha(outer),
+                }.items():
+                    patches.enter_context(mock.patch.object(control, name, value))
+                patches.enter_context(mock.patch.object(control, "require", side_effect=fixture_require))
+                patches.enter_context(mock.patch.object(zipfile.ZipFile, "infolist", record_members))
+                patches.enter_context(mock.patch.object(control, "download", side_effect=download_fixture))
+                yield root, admitted, replacement, output
+
+    def test_verified_database_fixture_inspects_and_extracts(self):
+        with self._database_fixture() as (_root, admitted, _replacement, output):
+            queries = control.inspect_database(admitted)
+            database, extracted_queries = control.prepare_database(output)
+            self.assertEqual(len(queries), 39)
+            self.assertEqual(extracted_queries, queries)
+            self.assertEqual((database / "db-rust/control.txt").read_bytes(), b"trusted-data\n")
+
+    def test_database_path_replacement_after_hash_is_rejected(self):
+        with self._database_fixture() as (_root, admitted, replacement, _output):
+            identity = (admitted.stat().st_dev, admitted.stat().st_ino)
+            actual_digest = hashlib.file_digest
+            replaced = False
+
+            def digest(source, algorithm, **kwargs):
+                nonlocal replaced
+                result = actual_digest(source, algorithm, **kwargs)
+                observed = os.fstat(source.fileno())
+                if not replaced and (observed.st_dev, observed.st_ino) == identity:
+                    os.replace(replacement, admitted)
+                    replaced = True
+                return result
+
+            with mock.patch.object(hashlib, "file_digest", side_effect=digest):
+                with self.assertRaisesRegex(control.ControlError, "archive.*changed"):
+                    control.inspect_database(admitted)
+                    self.fail("inspection accepted an archive replaced after its actual pin hash")
+            self.assertTrue(replaced)
+
+    def test_database_path_replacement_after_inspection_is_rejected(self):
+        with self._database_fixture() as (_root, _admitted, replacement, output):
+            actual_parse = control.parse_strict_json_bytes
+            replaced = False
+
+            def parse(data, *, label):
+                nonlocal replaced
+                result = actual_parse(data, label=label)
+                if label == "frozen query manifest" and not replaced:
+                    os.replace(replacement, output / "db.zip")
+                    replaced = True
+                return result
+
+            with mock.patch.object(control, "parse_strict_json_bytes", side_effect=parse):
+                with self.assertRaisesRegex(control.ControlError, "archive.*changed"):
+                    database, _queries = control.prepare_database(output)
+                    self.assertEqual((database / "db-rust/control.txt").read_bytes(),
+                                     b"trusted-data\n", "extraction consumed the unpinned replacement")
+                    self.fail("preparation accepted a replaced database archive")
+            self.assertTrue(replaced)
+            self.assertFalse((output / "database/db-rust/control.txt").exists())
+
+    def test_database_in_place_change_after_hash_is_rejected(self):
+        with self._database_fixture() as (_root, admitted, replacement, _output):
+            before = admitted.stat()
+            replacement_bytes = replacement.read_bytes()
+            self.assertEqual(len(replacement_bytes), before.st_size)
+            actual_digest = hashlib.file_digest
+            changed = False
+
+            def digest(source, algorithm, **kwargs):
+                nonlocal changed
+                result = actual_digest(source, algorithm, **kwargs)
+                observed = os.fstat(source.fileno())
+                if not changed and (observed.st_dev, observed.st_ino) == (before.st_dev, before.st_ino):
+                    with admitted.open("r+b") as destination:
+                        destination.write(replacement_bytes)
+                    changed = True
+                return result
+
+            with mock.patch.object(hashlib, "file_digest", side_effect=digest):
+                with self.assertRaisesRegex(control.ControlError, "archive.*changed"):
+                    control.inspect_database(admitted)
+                    self.fail("inspection accepted an equal-length in-place change after its pin hash")
+            after = admitted.stat()
+            self.assertTrue(changed)
+            self.assertEqual((after.st_dev, after.st_ino, after.st_size),
+                             (before.st_dev, before.st_ino, before.st_size))
+
     def test_archive_escape_and_links_are_rejected(self):
         for name in ("/outside", "../outside", "a/../../outside", "a\\outside", "a//b"):
             with self.subTest(name=name), self.assertRaises(control.ControlError):
