@@ -112,6 +112,49 @@ same BQRS bytes whose digest is reported. Tuple order is normalized, while
 columns, values, and tuple multiplicity remain part of the semantic digest.
 Binary-container hashes may differ when decoded semantics agree.
 
+## Interrupted evaluation evidence
+
+[Run 42634713742](https://github.com/billlza/q-periapt/actions/runs/42634713742)
+reached the existing 18,000-second evaluator deadline in both allocation arms.
+Each log records 38 completed queries, with the full `SummaryStats.ql` remaining
+in its taint-reach fixed point. The
+[source-bound outcome](../research/sdk-alpha1/evidence/20261109-codeql-summary-control-outcome/README.md)
+retains both original artifact identities, input checks, progress observations,
+and the failed full-suite comparison.
+
+That run exposed a diagnostic retention defect: fresh BQRS were written under
+`results/`, while the always-run upload retained `evidence/`. Copying and decoding
+fresh BQRS happened only after a successful evaluator return, so the interrupted
+arms uploaded the 38 original reference results but no fresh result files.
+Failure retention now covers the fresh output paths as well.
+
+After the supervisor has stopped the evaluator, the controller copies available
+results for the 39 pinned queries into `evidence/partial-fresh-bqrs/`. It takes
+stable regular-file snapshots of all available results before starting decoders.
+Snapshot admission rejects symlinks, changing files, and files above 64 MiB;
+copied data also has a 512 MiB aggregate bound. The authenticated query paths
+form the capture allowlist. Unrelated output files and the original database's
+retained results are outside this capture.
+
+Copying and partial decoding share one 120-second work budget, checked during
+copying and before each decode. A decoder receives the remaining whole seconds;
+the process supervisor retains its bounded shutdown procedure. Budget exhaustion
+leaves already captured BQRS in place, with undecoded entries marked
+`not_attempted`. Successful decodes use the same semantic normalization as the
+complete-result path, and record equality or mismatch against each available
+original reference result. Decoder errors retain the raw BQRS and bounded
+stdout/stderr. Ambiguous evaluator cleanup skips capture; ambiguous decoder
+cleanup stops further decoding.
+
+`PARTIAL_RESULTS.json` and the `partial_results` field in `RESULT.json` record
+captured, missing, rejected, decoded, and unattempted queries separately. Their
+`analysis_completed` flag stays false even if every expected BQRS was copied.
+The original evaluator failure remains the primary failure if capture or decoding
+also fails. These partial records support diagnosis; the existing comparison
+continues to require a successful evaluation and complete fresh results for all
+39 queries in each arm. The prior run's fresh files were outside its uploaded
+artifact; this repair supplies that evidence on subsequent runs.
+
 An incomplete arm or missing artifact leaves a failed aggregate comparison.
 No SARIF is uploaded and no release qualification is asserted by this workflow.
 A successful pair establishes complete, equivalent results for this retained
@@ -136,7 +179,9 @@ sh artifact/python-run.sh -m unittest -v test_codeql_summary_control
 
 These tests exercise source binding, safe restoration, old-versus-fresh result
 admission, semantic equivalence, actual-allocation observation, process failure,
-and pair comparison. They do not execute the hosted Rust queries.
+partial-result retention, and pair comparison. Partial-result fixtures contain
+explicit synthetic BQRS bytes; the timeout regressions use real supervised child
+processes. The tests do not execute the hosted Rust queries.
 
 ## Primary technical references
 
