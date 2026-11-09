@@ -1,0 +1,32 @@
+{
+  "archive_bytes": 193,
+  "cases": [
+    {
+      "accepted": true,
+      "case": "stable",
+      "payload": "original\n",
+      "published_member_sha256": "25718360e05d3c2d0963d1381e9dd4dae5fca789244ee4b9f861adcc0cc96218",
+      "retained_files": [
+        "LOGS.json",
+        "raw/query.log.gz"
+      ]
+    },
+    {
+      "accepted": true,
+      "case": "equal_length_rewrite_restored_mtime",
+      "observed_ctime_change": true,
+      "payload": "replaced\n",
+      "published_member_sha256": "e2208f01e42b2cab0fef975b55dc70d39579dd3d0c5d0758c499baa5109ef187",
+      "restored_mtime": true,
+      "retained_files": [
+        "LOGS.json",
+        "raw/query.log.gz"
+      ],
+      "same_inode": true,
+      "same_size": true
+    }
+  ],
+  "original_archive_sha256": "256ae95031115387fec798b98c59c0f176833d88527bd15fdd6bf435dbe2d3f4",
+  "replacement_archive_sha256": "f362f8ec7ec1b760aa09c513256a96fefcd8696de62e79ddc94e64086f78f079",
+  "source_sha256": "29a02a7e98a8b420c47e5194a09f93fc644481712e98a5b348547b69c9d72677"
+}

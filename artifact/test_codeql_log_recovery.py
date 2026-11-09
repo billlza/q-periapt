@@ -145,6 +145,134 @@ class LogRecoveryTests(unittest.TestCase):
         self.assertEqual(summary["cache_eviction_pauses"], 1)
         self.assertEqual(json.loads((self.evidence / "LOGS.json").read_text()), rows)
 
+    def test_equal_length_rewrite_after_validation_keeps_original_snapshot(self) -> None:
+        member = recovery.LOG_PREFIX + "query.log"
+        path = self.root / "diagnostics.zip"
+
+        def encoded(payload: bytes) -> bytes:
+            output = io.BytesIO()
+            with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
+                archive.writestr(zipfile.ZipInfo(member), payload)
+            return output.getvalue()
+
+        original, replacement = encoded(b"original\n"), encoded(b"replaced\n")
+        self.assertEqual(len(original), len(replacement))
+        self.assertNotEqual(hashlib.sha256(original).digest(), hashlib.sha256(replacement).digest())
+        path.write_bytes(original)
+        before = path.stat()
+        real_init = zipfile.ZipFile.__init__
+
+        def replace_after_validation(archive, source, *args, **kwargs):
+            with path.open("r+b") as changed:
+                changed.write(replacement)
+                changed.flush()
+                os.fsync(changed.fileno())
+            os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+            self.assertEqual(path.stat().st_ino, before.st_ino)
+            self.assertEqual(path.stat().st_size, before.st_size)
+            self.assertEqual(path.stat().st_mtime_ns, before.st_mtime_ns)
+            return real_init(archive, source, *args, **kwargs)
+
+        with (
+            self.admitted(original),
+            mock.patch.object(zipfile.ZipFile, "__init__", replace_after_validation),
+        ):
+            rows = recovery.recover_logs(path, self.evidence)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(gzip.decompress((self.evidence / rows[0]["gzip"]).read_bytes()), b"original\n")
+        self.assertEqual(rows[0]["sha256"], hashlib.sha256(b"original\n").hexdigest())
+        self.assertEqual(path.read_bytes(), replacement)
+
+    def test_path_replacement_after_validation_keeps_original_snapshot(self) -> None:
+        path = self.archive({recovery.LOG_PREFIX + "query.log": b"original log\n"})
+        original = path.read_bytes()
+        substitute = self.root / "substitute.zip"
+        substitute.write_bytes(original)
+        held = self.root / "held-original.zip"
+        real_init = zipfile.ZipFile.__init__
+
+        def replace_after_validation(archive, source, *args, **kwargs):
+            path.replace(held)
+            substitute.replace(path)
+            self.assertNotEqual(path.stat().st_ino, held.stat().st_ino)
+            return real_init(archive, source, *args, **kwargs)
+
+        with (
+            self.admitted(original),
+            mock.patch.object(zipfile.ZipFile, "__init__", replace_after_validation),
+        ):
+            rows = recovery.recover_logs(path, self.evidence)
+        self.assertEqual(gzip.decompress((self.evidence / rows[0]["gzip"]).read_bytes()), b"original log\n")
+
+    def test_source_rewrite_during_member_read_keeps_original_snapshot(self) -> None:
+        path = self.archive({recovery.LOG_PREFIX + "query.log": b"bounded log\n"})
+        original = path.read_bytes()
+        before = path.stat()
+        real_observe = recovery.LogSummary.observe
+        changed = False
+
+        def rewrite_after_line(summary, line):
+            nonlocal changed
+            real_observe(summary, line)
+            if not changed:
+                # Trailing ZIP data changes the retained container
+                # after the member stream has supplied its actual bytes.
+                with path.open("ab") as output:
+                    output.write(b"changed container")
+                    output.flush()
+                    os.fsync(output.fileno())
+                self.assertEqual(path.stat().st_ino, before.st_ino)
+                changed = True
+
+        with (
+            self.admitted(original),
+            mock.patch.object(recovery.LogSummary, "observe", rewrite_after_line),
+        ):
+            rows = recovery.recover_logs(path, self.evidence)
+        self.assertTrue(changed)
+        self.assertEqual(gzip.decompress((self.evidence / rows[0]["gzip"]).read_bytes()), b"bounded log\n")
+        self.assertEqual(rows[0]["sha256"], hashlib.sha256(b"bounded log\n").hexdigest())
+
+    def test_recovery_preserves_partial_created_by_another_call(self) -> None:
+        path = self.archive({recovery.LOG_PREFIX + "query.log": b"bounded log\n"})
+        partial = self.evidence / "raw/query.log.gz.partial"
+        real_open = Path.open
+
+        def racing_open(selected, mode="r", *args, **kwargs):
+            if selected == partial and mode == "xb":
+                with real_open(selected, "xb") as rival:
+                    rival.write(b"another call owns this partial\n")
+            return real_open(selected, mode, *args, **kwargs)
+
+        with (
+            self.admitted(path.read_bytes()),
+            mock.patch.object(Path, "open", racing_open),
+            self.assertRaises(FileExistsError),
+        ):
+            recovery.recover_logs(path, self.evidence)
+        self.assertTrue(partial.is_file(), "failed exclusive creation removed an unowned partial")
+        self.assertEqual(partial.read_bytes(), b"another call owns this partial\n")
+        self.assertFalse((self.evidence / "raw/query.log.gz").exists())
+        self.assertFalse((self.evidence / "LOGS.json").exists())
+
+    def test_changed_archive_failure_receipt_keeps_recovery_incomplete(self) -> None:
+        original = self.archive({recovery.LOG_PREFIX + "query.log": b"original log\n"}).read_bytes()
+        output = self.root / "recovery"
+        with (
+            self.admitted(original),
+            mock.patch.dict(os.environ, RUNNER_TEMP=str(self.root), GITHUB_SHA="a" * 40),
+            mock.patch.object(recovery, "download", side_effect=lambda path: path.write_bytes(original + b"changed container")),
+            self.assertRaisesRegex(RuntimeError, "log recovery failed"),
+        ):
+            recovery.recover(output)
+        record = json.loads((output / "evidence/RECOVERY.json").read_text())
+        for field in ("diagnostic_recovery_complete", "analysis_executed", "sarif_published", "release_claim_eligible"):
+            self.assertIs(record[field], False)
+        self.assertEqual(record["failure"]["phase"], "recover_logs")
+        self.assertEqual(record["failure"]["type"], "RecoveryError")
+        self.assertFalse((output / "evidence/LOGS.json").exists())
+        self.assertFalse((output / "evidence/raw").exists())
+
     def test_missing_or_oversized_logs_are_rejected_before_extraction(self) -> None:
         path = self.archive({"qperiapt-codeql-wasm/diagnostics/database.zip": b"database"})
         with self.admitted(path.read_bytes()), self.assertRaisesRegex(recovery.RecoveryError, "census"):

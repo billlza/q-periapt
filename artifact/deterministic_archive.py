@@ -623,8 +623,10 @@ def _write_atomic(path: pathlib.Path, data: bytes) -> None:
     temporary = parent / f".{output.name}.tmp-{os.getpid()}"
     if temporary.exists() or temporary.is_symlink():
         _fail(f"archive temporary output already exists: {temporary}")
+    temporary_created = False
     try:
         with temporary.open("xb") as handle:
+            temporary_created = True
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
@@ -642,7 +644,8 @@ def _write_atomic(path: pathlib.Path, data: bytes) -> None:
     except OSError as exc:
         cleanup_error: OSError | None = None
         try:
-            temporary.unlink(missing_ok=True)
+            if temporary_created:
+                temporary.unlink(missing_ok=True)
         except OSError as cleanup_exc:
             cleanup_error = cleanup_exc
         suffix = f"; temporary-file cleanup also failed: {cleanup_error}" if cleanup_error else ""
@@ -1378,10 +1381,12 @@ def _extract_entries(
     if staging.exists() or staging.is_symlink():
         _fail(f"extraction staging path already exists: {staging}")
     target_claimed = False
+    staging_created = False
     published_root: pathlib.Path | None = None
     root_published = False
     try:
         staging.mkdir(mode=0o700)
+        staging_created = True
         for entry in entries:
             relative = pathlib.PurePosixPath(entry.path)
             output = staging.joinpath(*relative.parts)
@@ -1423,7 +1428,8 @@ def _extract_entries(
     except (OSError, NotImplementedError) as exc:
         cleanup_errors: list[str] = []
         try:
-            shutil.rmtree(staging)
+            if staging_created:
+                shutil.rmtree(staging)
         except FileNotFoundError:
             pass
         except OSError as cleanup_exc:
