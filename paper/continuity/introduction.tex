@@ -89,6 +89,15 @@ confirmation and first-message integrity
 (Theorem~\ref{thm:native-selected-authentication}). Its original-game
 localization and Boolean comparisons charge each simulation step once.
 
+The joint schedule also admits a finite-chain continuation in which the
+target message is selected online after earlier message keys have been
+disclosed (Theorem~\ref{thm:online-chain-leaf}). Each selection precedes
+that index's first private computation across all matching aliases.
+Successive Extract and Expand comparisons isolate the selected key while
+retaining its disclosed successor seed and real later chain computation.
+The resulting confidentiality and integrity bounds use explicit lifetime
+and whole-execution query budgets (Corollary~\ref{cor:online-chain-message}).
+
 The association between an accepted allocation and its original KEM calls
 is part of that connection. A selector registers the existing reservation
 slots before their first private computations. Persistent signing calls
