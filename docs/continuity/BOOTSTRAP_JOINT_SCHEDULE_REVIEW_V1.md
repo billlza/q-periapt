@@ -20,6 +20,9 @@ declared bootstrap records and acquisition interface. The subsequent
 [joint entry proof](BOOTSTRAP_JOINT_ENTRY_V1.md), assessed at `b1cff2a0`,
 completes both surviving-contribution primitive entry services with the
 initial-confirmation cross-use retained.
+The [terminal schedule connection](BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md),
+assessed at `360aa810`, completes the registration-time and descriptor-to-class
+connection and derives the ACK-only comparison required by U1.
 
 | Existing item | Result available for this assessment | Disposition |
 | --- | --- | --- |
@@ -28,7 +31,8 @@ initial-confirmation cross-use retained.
 | U2 hidden ContextBound input | `lem:cb-hidden-component` treats the full effective tuple, permits the other component to be known, and preserves all tuple aliases. | Established after the selected component replacement. Bootstrap source attribution and disclosures supply its concrete invocation. |
 | U2 HMAC/HKDF composition | The shared-oracle row/column lemmas, finite root-entry theorem and exact Expand-table identity supply the required downstream operations. | Reusable results. Section 3 instantiates the bootstrap lengths and five activation blocks. |
 | U3 retained-state correspondence | `thm:guarded-normalization` and `cor:guarded-history`, instantiated by the phase and acquisition maps in section 5. | Complete for the named bootstrap records, passive acquisitions and declared key disclosures along one authoritative history. |
-| U2 bootstrap entry | The [joint entry theorem](BOOTSTRAP_JOINT_ENTRY_V1.md) compares the hidden-`S1` long Extract and the hidden-`S0` short/long service to complete-descriptor PRK tables under the common compression oracle. | Primitive services completed; original-contribution/disclosure attribution and terminal class reconciliation remain in section 7. |
+| U2 bootstrap entry | The [joint entry theorem](BOOTSTRAP_JOINT_ENTRY_V1.md) compares the hidden-`S1` long Extract and the hidden-`S0` short/long service to complete-descriptor PRK tables under the common compression oracle. | Primitive services completed; original-contribution/disclosure attribution remains in section 7. |
+| U2 terminal-family connection | The [terminal schedule connection](BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md) permits online protection after opaque root allocation, charges the complete-class pad-alias event, and compares both ACK endpoint experiments to one full-table game. | Completed for the incoming source-consistent opaque PRK service; its two-sided bound supplies the exact substitution into U1. |
 
 The result for U3 is a source and derivability correspondence. The
 confidentiality comparison that hides an acquired ciphertext, or embeds an
@@ -110,13 +114,14 @@ instance; section 3 retains every relevant descriptor rather than selecting a
 convenient transcript after the fact.
 
 The terminal theorem's classes are complete `(ctx,x,y)` tuples. The schedule
-table first preserves its actual cryptographic aliases. To instantiate the
-terminal theorem's independent-per-class ACK ideal, the entry proof must also
-account for distinct classes whose effective descriptors coincide. In
-particular, for one seed and `ctx`, a collision in `Gamma(sid)` is an explicit
-pad-alias event. A collision-free full-wire SHA3 digest alone does not identify
-the SHA-256 pad-state pair. This is accounting inside the existing U2 bridge,
-not a change to accepted wire encodings or the terminal theorem.
+table first preserves its actual cryptographic aliases. The
+[terminal schedule connection](BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md)
+now reconciles these indices: before the declared transcript-hash collision,
+distinct classes sharing one effective root descriptor yield an explicit
+inner-pad compression collision. Its global quantum collision bound accounts
+for adaptive salt selection. The connection also permits protection after
+opaque root allocation and compares both real-sibling ACK experiments to a
+common full table, retaining the terminal theorem's exact output interface.
 
 ## 3. Completed conditional derivation from a bootstrap PRK
 
@@ -422,37 +427,40 @@ recovery. This assessment uses those outcomes through that ledger and the new
 exact source pins. The finite calculations add reproducible checks of the
 derivations written here.
 
-## 7. Remaining U2 integration work
+## 7. Completed terminal connection and remaining source adapter
 
 The two primitive entry services are complete in the
 [joint entry theorem](BOOTSTRAP_JOINT_ENTRY_V1.md), including adaptive salts,
 the exact short/long raw-input alias, complete pad-state descriptors and
-whole-continuation query budgets. Their first-allocation table comparison
-composes with section 3 under its opaque three-label wrapper. The remaining
-integration connects these completed primitive results to the original
-bootstrap operations and the terminal theorem:
+whole-continuation query budgets. Their table comparison composes with section
+3 under its opaque three-label wrapper. The
+[terminal schedule connection](BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md)
+completes the subsequent integration. It samples unopened root-table entries
+at first exposure, reconciles the complete signed-wire classes with effective
+descriptors, and reaches U1's ACK-only endpoint through two full-table
+comparisons. With valid common budgets its conditional cost is
+`2 Delta_tail + 2 chi_h(Q_h)`. The two schedule terms preserve the actual
+siblings in the real and ACK-replaced endpoint games.
 
-1. **Original contributions and permitted observations.** Instantiate the
-   component challenge adapter for the selected bootstrap prekey/initial
-   encapsulation or reply-key/response encapsulation, using its actual original
-   slots, complete ContextBound tuples and the U3 classifier. Keep all admitted
-   local-identity disclosures and all non-target calls in the simulation. The
-   existing body-origin and native signature-reservation reductions supply the
-   authentication component. The known next-rekey source invariant is a useful
-   proof pattern; the bootstrap has the distinct uses enumerated in section 1.
-2. **Terminal-family composition.** Invoke the completed entry theorem
-   for the source-realized surviving-contribution service, followed by the
-   protected activation-table derivation. Reconcile actual descriptor aliases
-   with the terminal full-class ideal, retaining the explicit pad-state-alias
-   term and the original disclosure/latched-stop behavior, then substitute
-   the resulting schedule term into U1.
+The remaining source adapter instantiates the selected bootstrap
+prekey/Initial encapsulation or reply-key/response encapsulation with its
+actual original slots, complete ContextBound tuples and U3 classifier. It
+retains admitted local-identity disclosures and non-target calls, supplies
+the opaque retained-record observations and assigns one consistent effective
+PRK family to both endpoints of a complete class. The existing body-origin
+and native signature-reservation reductions supply the authentication
+component. The known next-rekey source invariant gives the operational
+component-game template; the bootstrap retains its own original slots and
+uses. Parent-seed/PRK disclosure before protection belongs to this adapter's
+declared stopping or partition argument.
 
-These are the original U2 construction obligations in an executable source
-shape. The current package, platform qualification and workload-budget choices
-keep their existing acceptance roles. The completed U3 correspondence, existing
-signature bridge, both primitive entry services and conditional downstream
-derivation are finished assessment inputs. The source-specific adapter and
-terminal-family reconciliation identify the remaining integration precisely.
+Section 6 of the terminal connection records this adapter as `E_src,b`,
+retains the completed joint-entry cost in each endpoint game, and gives the
+explicit combined schedule term for U1. The completed U3 correspondence,
+signature bridge, primitive entry services, downstream derivation and
+terminal-class connection are finished assessment inputs. The current
+package, platform qualification and workload-budget choices retain their
+existing acceptance roles.
 
 [evidence]: ../../research/sdk-alpha1/evidence/20261109-bootstrap-joint-schedule-review/README.md
 [bootstrap]: ../../research/continuity-identity-candidate/src/bootstrap.rs
