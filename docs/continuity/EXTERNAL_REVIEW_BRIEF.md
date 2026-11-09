@@ -1,5 +1,46 @@
 # External security review preparation
 
+## Added review material — 9 November 2026
+
+The [bootstrap joint-schedule assessment](BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md)
+records the completed disclosure/retention correspondence for the named bootstrap
+objects and histories (U3). Its phase and acquisition maps include original
+reservations, checkpoints, complete journal images, pending targets, prekey
+tombstones and separate signer files. It also connects an independent bootstrap
+PRK to the downstream confirmation/root/activation schedule under the stated
+private-use interface and actual input lengths. The existing signature-randomizer
+bridge is retained as a completed reduction.
+
+The remaining U2 work is now localized to the bootstrap original-contribution
+adapters and the 64-byte two-contribution Extract shared with initial
+confirmation. These are the precise entry comparisons to inspect alongside the
+[terminal-agreement conversion](BOOTSTRAP_TERMINAL_AGREEMENT_V1.md). Public
+vectors, exact source/proof pins and finite closure/alias controls accompany the
+assessment; the original live execution records retain their identities.
+
+The [selected supported-workload policy](SUPPORTED_WORKLOAD_BUDGETS_0_2.md)
+records joint hard-limit admission, the complete measured desktop reference
+workloads, six explicit regression budgets and issuer-selected send allowance.
+Its source mapping retains the ordinary delivery, independent PQ updates,
+retained-outcome reads and fanout retirement in their actual denominators.
+Platform functional support follows the existing agreed stages. The selected
+budget policy is ready for the coordinated artifact validation and specification
+lock.
+
+The [adopted compatibility policy](COMPATIBILITY_0_2.md) records the named
+formats and existing same-format program-replacement/maintenance edges. Their
+original execution cohorts and archive identities remain attached to those
+edges; the selected 0.2.0 artifacts receive the affected final checks through
+the existing admission sequence.
+
+The [formal source distribution](SOURCE_DISTRIBUTION_0_2.md) aligns the engine,
+consumers and adapter metadata at `0.2.0`, including the separate `qpc-owner/1`
+interface. The current [JoC manuscript](../../paper/continuity/README.md) adds
+the native online selected-message confidentiality/integrity composition.
+Together these are additional internal review materials; the source-bound
+external assessment and its findings remain recorded through the existing
+review process below.
+
 ## Added review material — 7 November 2026
 
 The [bootstrap construction and compromise matrix](BOOTSTRAP_COMPROMISE_REVIEW_V1.md)
