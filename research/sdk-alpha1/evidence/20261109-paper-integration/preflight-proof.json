@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "merge_base": "7c5e3db4b441b3aa2aee62c48242f71ff0b2643d",
+  "input_commits": {
+    "base": "7c5e3db4b441b3aa2aee62c48242f71ff0b2643d",
+    "integration": "93a8ce264624d2c711c894d02c04c582b0d10c63",
+    "paper": "9a9bb4bf3d5adea9a70e487e30cbe888fbb18f7a"
+  },
+  "ordered_merge_parents": [
+    "93a8ce264624d2c711c894d02c04c582b0d10c63",
+    "9a9bb4bf3d5adea9a70e487e30cbe888fbb18f7a"
+  ],
+  "input_trees_reconstructed_exactly": {
+    "base": "e18aa1fe389e6f76aea2f7a856928a3964f3e83a",
+    "integration": "ac25145315161f102997233937a64002e5cea3d0",
+    "paper": "828df85c299e21c0f57c8222d153f17c5a48729b"
+  },
+  "input_tree_counts": {
+    "base": 893,
+    "integration": 6853,
+    "paper": 1021
+  },
+  "path_classifications": {
+    "same": 594,
+    "integration_only": 6275,
+    "paper_only": 141,
+    "divergent_both": 2
+  },
+  "all_paper_delta_paths_accounted": 149,
+  "all_integration_only_changes_retained": 6275,
+  "integration_only_deletions_retained": 37,
+  "target_leaves": 6975,
+  "target_tree_sha": "8c1f760a5455a8796af3d925b89118d866fdf0ae",
+  "manuscript_subtree_matches_paper": "370e68c7ed4566ccd85c5ac314b505419c5af4c0",
+  "all_nonpaper_integration_coordinates_unchanged_except_joc_workflow": true,
+  "preserved_top_level_subtrees": {
+    "LICENSES": "faf6a7c30c8cbc0ed6db906f4b4264c95a686cde",
+    "artifact": "48b8c1233c40a7ac6406e2fdbf05186136d66e23",
+    "bindings": "4b77f45c5889bde58e8d5ebf7494afe15da14551",
+    "research": "51d6a277afd1f7346cd45af3cc3fbe5a8a963b9b",
+    "services": "4cb4ae1ec44b4902cdf1104a77b56fb6f05a4ef9",
+    "ctstats": "4ad3b08e219de0caea827044caffa1363977ab82",
+    ".cargo": "ceeea1862ed5ae8d348c1a7fcac650f1231c1aab",
+    "crates": "1fe85cd80c9fcb4c2c42be4825251bf4b2e07797",
+    "formal": "50abaf7d137270d3aa5b8c1852a680164ab666ea",
+    "models": "1e5c7cbd950c905a57a721ab8c0e491278d0907d",
+    "bench": "d564d0bc3dd917926892c55e3706cc116d5b165e",
+    "tests": "7d02fca4cbf9372b46949bae07d98df41807ac37",
+    "docs": "28086c114136c615a24bc8a3f10d59b0c8bd231d",
+    "fuzz": "e342f2459640fa974e7380a49e200ad82bfa9b53",
+    "sbom": "d564d0bc3dd917926892c55e3706cc116d5b165e"
+  },
+  "inventories": {
+    "rust": {
+      "before": 1173,
+      "after": 1173,
+      "added": [],
+      "deleted": [],
+      "modified": [],
+      "before_inventory_sha256": "ed03e8eed9daa0f382ed6fc757d8048348bbd191daac62ad39e42c55dd89680d",
+      "after_inventory_sha256": "ed03e8eed9daa0f382ed6fc757d8048348bbd191daac62ad39e42c55dd89680d"
+    },
+    "cargo_manifests": {
+      "before": 30,
+      "after": 30,
+      "added": [],
+      "deleted": [],
+      "modified": [],
+      "before_inventory_sha256": "1203d0a677fa49ac5277cbbf0dbe0095898e389e76cd68e6392f25b2046abe23",
+      "after_inventory_sha256": "1203d0a677fa49ac5277cbbf0dbe0095898e389e76cd68e6392f25b2046abe23"
+    },
+    "cargo_locks": {
+      "before": 8,
+      "after": 10,
+      "added": [
+        "paper/continuity/artifacts/signature-bridge/sources/q-periapt-native/Cargo.lock",
+        "paper/continuity/artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/Cargo.lock"
+      ],
+      "deleted": [],
+      "modified": [],
+      "before_inventory_sha256": "403cc03c1f599fa9b5ff5c38e1e69bcbc9b41983c49aad5ec8dc731b14ad65d2",
+      "after_inventory_sha256": "d53b4dd2a75339603ff5f746d3a045a731e6fe16a4b63da10b91520f4878906b"
+    },
+    "workflows": {
+      "before": 19,
+      "after": 19,
+      "added": [],
+      "deleted": [],
+      "modified": [
+        ".github/workflows/joc-manuscript.yml"
+      ],
+      "before_inventory_sha256": "8b6070bf034f3dad7a644a4ff0dd97bbb086c05715d6282fe16f886ed37c6fc5",
+      "after_inventory_sha256": "bce863d33eccbfb38a9e3c93da2f090bf1ebe9bd2a68088745423e3d7fbb1de2"
+    }
+  },
+  "targeted_checks_sha256": "f83eca9f3bb76296bb5f64ff956f03834d20210a8cd413fcbe25464f51d21c78"
+}
