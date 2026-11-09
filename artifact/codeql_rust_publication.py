@@ -9,6 +9,7 @@ import re
 import codeql_rust_quality as quality
 from codeql_rust_profile import (COMPILER, QUERY_VERSION, ROOT, TARGETS, VERSION,
                                  profile_host, validate_sarif, validate_linux_query_memory)
+from codeql_rust_transfer import validate_transfer_record
 from codeql_target_coverage import MacroProfile, parse_macro_calls, validate_active_macro_coverage, validate_macro_profiles
 from evidence_io import parse_strict_json_bytes
 import rust_sdk_profile as sdk
@@ -49,29 +50,57 @@ def validate_profile_artifact(directory: Path, name: str, root: Path,
                 and profile.get("target") == TARGETS[name]
                 and profile.get("source_commit") == expected_commit
                 and profile.get("run_id") == run_id, "profile source or workflow identity differs")
-    generation = profile.get("run_attempt")
-    sdk.require(isinstance(generation, str) and re.fullmatch(r"[1-9][0-9]*", generation) is not None
-                and int(generation) <= attempt and directory.name == f"codeql-rust-profile-{name}-{generation}",
-                "profile attempt identity differs")
+    origin_generation = profile.get("run_attempt")
+    generation = analysis.get("run_attempt")
+    sdk.require(type(analysis.get("schema")) is int and analysis["schema"] == 2
+                and analysis.get("profile") == name and analysis.get("target") == TARGETS[name]
+                and analysis.get("source_commit") == expected_commit and analysis.get("run_id") == run_id,
+                "analysis source or workflow identity differs")
+    sdk.require(isinstance(origin_generation, str)
+                and re.fullmatch(r"[1-9][0-9]*", origin_generation) is not None
+                and isinstance(generation, str) and re.fullmatch(r"[1-9][0-9]*", generation) is not None
+                and int(origin_generation) <= int(generation) <= attempt
+                and directory.name == f"codeql-rust-profile-{name}-{generation}",
+                "origin or analysis attempt identity differs")
     sdk.require(profile.get("codeql_version") == analysis.get("codeql_version") == VERSION
                 and profile.get("compiler") == COMPILER and analysis.get("query_pack") == QUERY_VERSION,
                 "analysis toolchain identity differs")
-    configuration = quality.hosted_configuration(profile_host(name))
-    sdk.require(profile.get("compiler_host") == configuration.compiler_host
-                and type(profile.get("query_threads")) is int and profile["query_threads"] == configuration.threads
-                and type(profile.get("query_ram_mb")) is int and profile["query_ram_mb"] == configuration.ram_mb,
+    origin = quality.hosted_configuration(profile_host(name))
+    sdk.require(profile.get("compiler_host") == origin.compiler_host
+                and type(profile.get("query_threads")) is int and profile["query_threads"] == origin.threads
+                and type(profile.get("query_ram_mb")) is int and profile["query_ram_mb"] == origin.ram_mb,
+                "origin host or resource budget differs")
+    configuration = quality.hosted_configuration("linux")
+    sdk.require(analysis.get("analysis_host") == configuration.platform
+                and type(analysis.get("query_threads")) is int and analysis["query_threads"] == configuration.threads
+                and type(analysis.get("query_ram_mb")) is int and analysis["query_ram_mb"] == configuration.ram_mb,
                 "analysis host or resource budget differs")
     sdk.require(profile.get("active_target_quality_passed") is True
                 and profile.get("paired_target_quality_passed") is False
                 and analysis.get("completed") is True and analysis.get("upload_performed") is False,
                 "analysis did not complete before publication")
-    sdk.require(analysis.get("profile_sha256") == sdk.snapshot(directory / "PROFILE.json").sha256,
+    profile_digest = sdk.snapshot(directory / "PROFILE.json").sha256
+    sdk.require(analysis.get("profile_sha256") == profile_digest,
                 "analysis is not bound to this profile")
-    if name in ("native", "wasm"):
-        memory = directory / "QUERY_MEMORY.json"
-        sdk.require(analysis.get("query_memory_sha256") == sdk.snapshot(memory).sha256,
-                    "Linux analysis is not bound to its evaluator memory record")
-        validate_linux_query_memory(read_json(memory), name)
+    transfer = directory / "TRANSFER.json"
+    if name == "macos":
+        anchor = os.environ.get("CODEQL_TRANSFER_SHA256", "")
+        anchored_generation = os.environ.get("CODEQL_TRANSFER_ATTEMPT", "")
+        sdk.require(re.fullmatch(r"[0-9a-f]{64}", anchor) is not None
+                    and anchored_generation == origin_generation,
+                    "macOS transfer job-output identity differs")
+        sdk.require(analysis.get("transfer_sha256") == sdk.snapshot(transfer).sha256 == anchor,
+                    "macOS analysis is not bound to the anchored transfer")
+        validate_transfer_record(read_json(transfer), profile, profile_digest,
+                                 expected_commit=expected_commit, run_id=run_id,
+                                 analysis_attempt=int(generation))
+    else:
+        sdk.require("transfer_sha256" not in analysis and not transfer.exists() and not transfer.is_symlink(),
+                    "local Linux profile cannot claim a macOS transfer")
+    memory = directory / "QUERY_MEMORY.json"
+    sdk.require(analysis.get("query_memory_sha256") == sdk.snapshot(memory).sha256,
+                "Linux analysis is not bound to its evaluator memory record")
+    validate_linux_query_memory(read_json(memory), name)
     source = {path: sdk.snapshot(root / path, maximum=5 * 1024**2).sha256
               for path in sorted(quality.tracked_rust_paths(root))}
     sdk.require(profile.get("source_sha256") == source, "profile Rust source bytes differ")

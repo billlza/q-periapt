@@ -1479,6 +1479,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
         source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
         other_languages = extract_workflow_job(source, "analyze")
         rust = extract_workflow_job(source, "rust")
+        macos_prepare = extract_workflow_job(source, "rust-macos-prepare")
+        macos_analysis = extract_workflow_job(source, "rust-macos-analyze")
         publication = extract_workflow_job(source, "rust-publication")
         action = PINNED_CODEQL_ACTION.split(" #", 1)[0]
         self.assertEqual(other_languages.count(action.format(action="init")), 1)
@@ -1488,28 +1490,36 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
         self.assertIn("runs-on: ${{ matrix.runner }}", rust)
         for entry in ("- profile: native\n            runner: ubuntu-24.04\n            bundle: linux64",
-                      "- profile: wasm\n            runner: ubuntu-24.04\n            bundle: linux64",
-                      "- profile: macos\n            runner: macos-26\n            bundle: osx64"):
+                      "- profile: wasm\n            runner: ubuntu-24.04\n            bundle: linux64"):
             self.assertIn(entry, rust)
+        self.assertNotIn("- profile: macos", rust)
+        self.assertIn("runs-on: macos-26", macos_prepare)
+        self.assertIn("runs-on: ubuntu-24.04", macos_analysis)
+        self.assertIn("needs: rust-macos-prepare", macos_analysis)
+        self.assertIn("name: Analyze Rust (macos)", macos_analysis)
         self.assertIn("fail-fast: false", rust)
-        self.assertIn("CODEQL_EXPECTED_COMMIT: ${{ github.sha }}", rust)
-        self.assertIn(PINNED_CANONICAL_RUST_ACTION, rust)
-        self.assertIn("toolchain: 1.98.1", rust)
-        self.assertIn("components: rust-src", rust)
+        for job in (rust, macos_prepare, macos_analysis):
+            self.assertIn("CODEQL_EXPECTED_COMMIT: ${{ github.sha }}", job)
+            self.assertIn(action.format(action="setup-codeql"), job)
+        for job in (rust, macos_prepare):
+            self.assertIn(PINNED_CANONICAL_RUST_ACTION, job)
+            self.assertIn("toolchain: 1.98.1", job)
+            self.assertIn("components: rust-src", job)
         self.assertIn("targets: wasm32-unknown-unknown", rust)
-        self.assertIn(action.format(action="setup-codeql"), rust)
         self.assertIn(
             "tools: https://github.com/github/codeql-action/releases/download/"
             "codeql-bundle-v2.27.2/codeql-bundle-${{ matrix.bundle }}.tar.gz", rust)
-        dependencies = extract_named_workflow_step(rust, "Install macOS analysis build dependencies")
-        self.assertIn("if: runner.os == 'macOS'", dependencies)
+        for job, bundle in ((macos_prepare, "osx64"), (macos_analysis, "linux64")):
+            self.assertIn("codeql-bundle-v2.27.2/codeql-bundle-" + bundle + ".tar.gz", job)
+        dependencies = extract_named_workflow_step(macos_prepare, "Install macOS analysis build dependencies")
         self.assertIn('test "$(uname -m)" = arm64', dependencies)
         # Every independently successful target and the coverage validator
         # must precede publication. Analysis has no upload authority.
-        self.assertNotIn("security-events:", rust)
-        self.assertNotIn("upload-sarif", rust)
-        self.assertNotIn(action.format(action="analyze"), rust)
-        for job in (rust, publication):
+        for job in (rust, macos_prepare, macos_analysis):
+            self.assertNotIn("security-events:", job)
+            self.assertNotIn("upload-sarif", job)
+            self.assertNotIn(action.format(action="analyze"), job)
+        for job in (rust, macos_prepare, macos_analysis, publication):
             self.assertNotIn("continue-on-error", job)
             self.assertNotIn("|| true", job)
         prepare = extract_named_workflow_step(rust, "Compile and extract the actual target")
@@ -1519,16 +1529,41 @@ class BoundVerifierWiringTests(unittest.TestCase):
             self.assertIn("CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}", step)
             self.assertIn('artifact/codeql_rust_profile.py ' + command + ' --profile "$RUST_PROFILE"', step)
         self.assertLess(rust.index(prepare), rust.index(analyze))
+        mac_prepare = extract_named_workflow_step(macos_prepare, "Compile and extract the actual macOS target")
+        export = extract_named_workflow_step(macos_prepare, "Export the source-bound macOS database")
+        identity = extract_named_workflow_step(macos_prepare, "Bind the transfer to the preparation job")
+        imported = extract_named_workflow_step(macos_analysis, "Import the anchored macOS database")
+        mac_analyze = extract_named_workflow_step(macos_analysis, "Run every security-extended query on the macOS database")
+        for step, command in ((mac_prepare, "prepare"), (export, "export"),
+                              (imported, "import"), (mac_analyze, "analyze")):
+            self.assertNotIn("        if:", step)
+            self.assertIn("CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}", step)
+            self.assertIn('artifact/codeql_rust_profile.py ' + command + ' --profile "$RUST_PROFILE"', step)
+        self.assertIn('artifact/codeql_rust_transfer.py identity >> "$GITHUB_OUTPUT"', identity)
+        self.assertNotIn("        if:", identity)
+        self.assertLess(macos_prepare.index(mac_prepare), macos_prepare.index(export))
+        self.assertLess(macos_prepare.index(export), macos_prepare.index(identity))
+        self.assertLess(macos_analysis.index(imported), macos_analysis.index(mac_analyze))
+        self.assertNotIn("codeql_rust_profile.py prepare", macos_analysis)
+        self.assertNotIn("codeql-rust-profile-macos-", macos_prepare)
+        self.assertIn("transfer_sha256: ${{ steps.rust_transfer.outputs.transfer_sha256 }}", macos_prepare)
+        self.assertIn("origin_attempt: ${{ steps.rust_transfer.outputs.origin_attempt }}", macos_prepare)
+        self.assertIn("name: codeql-rust-macos-transfer-${{ needs.rust-macos-prepare.outputs.origin_attempt }}", macos_analysis)
+        self.assertIn("name: codeql-rust-profile-macos-${{ github.run_attempt }}", macos_analysis)
+        self.assertIn("timeout-minutes: 305", mac_analyze)
         evidence = extract_named_workflow_step(rust, "Retain profile evidence before bundling diagnostics")
         bundle = extract_named_workflow_step(rust, "Bundle the completed or partial database")
         self.assertIn("if: always()", evidence)
         self.assertIn("if-no-files-found: error", evidence)
         self.assertLess(rust.index(evidence), rust.index(bundle))
-        self.assertIn("needs: rust", publication)
+        self.assertIn("needs: [rust, rust-macos-prepare, rust-macos-analyze]", publication)
         self.assertIn("security-events: write", publication)
         self.assertIn("pattern: codeql-rust-profile-*", publication)
         gate = extract_named_workflow_step(publication, "Require matching source, compiler coverage and complete suites")
         self.assertIn("CODEQL_EXPECTED_COMMIT: ${{ github.sha }}", gate)
+        for job in (macos_analysis, gate):
+            self.assertIn("CODEQL_TRANSFER_SHA256: ${{ needs.rust-macos-prepare.outputs.transfer_sha256 }}", job)
+            self.assertIn("CODEQL_TRANSFER_ATTEMPT: ${{ needs.rust-macos-prepare.outputs.origin_attempt }}", job)
         self.assertIn("artifact/codeql_rust_publication.py", gate)
         self.assertNotIn("        if:", gate)
         uploads = extract_action_steps(publication, action.format(action="upload-sarif"))
@@ -1579,6 +1614,32 @@ class BoundVerifierWiringTests(unittest.TestCase):
                     ):
                         self.test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate()
 
+    def test_macos_transfer_workflow_rejects_unbound_or_premature_publication(self) -> None:
+        source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
+        mutations = (
+            ("publication omits macOS analysis", "needs: [rust, rust-macos-prepare, rust-macos-analyze]",
+             "needs: [rust, rust-macos-prepare]"),
+            ("analysis uses its attempt for origin download",
+             "name: codeql-rust-macos-transfer-${{ needs.rust-macos-prepare.outputs.origin_attempt }}",
+             "name: codeql-rust-macos-transfer-${{ github.run_attempt }}"),
+            ("final artifact uses origin attempt", "name: codeql-rust-profile-macos-${{ github.run_attempt }}",
+             "name: codeql-rust-profile-macos-${{ needs.rust-macos-prepare.outputs.origin_attempt }}"),
+            ("analysis loses origin anchor",
+             "\n      CODEQL_TRANSFER_SHA256: ${{ needs.rust-macos-prepare.outputs.transfer_sha256 }}",
+             "\n      CODEQL_TRANSFER_SHA256: unbound"),
+            ("publication loses origin anchor",
+             "\n          CODEQL_TRANSFER_SHA256: ${{ needs.rust-macos-prepare.outputs.transfer_sha256 }}",
+             "\n          CODEQL_TRANSFER_SHA256: unbound"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            workflow = pathlib.Path(temporary) / "codeql.yml"
+            for label, original, replacement in mutations:
+                with self.subTest(mutation=label):
+                    self.assertEqual(source.count(original), 1)
+                    workflow.write_text(source.replace(original, replacement, 1), encoding="utf-8")
+                    with mock.patch(__name__ + ".CODEQL_WORKFLOW", workflow), self.assertRaises(AssertionError):
+                        self.test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate()
+
     def test_rust_codeql_targets_and_upload_boundary_are_documented(self) -> None:
         guide = ARTIFACT_GUIDE.read_text(encoding="utf-8")
         normalized = " ".join(guide.split())
@@ -1601,10 +1662,14 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "No query is removed",
             "These controls do not establish whole-repository query completion",
             "four threads and 14,000 MB",
-            "900-second Metrics limit and 300-second limits for other queries and decoding",
+            "1800-second Metrics limit and 300-second limits for other queries and decoding",
+            "source-bound database then moves to a standard Ubuntu 24.04 query worker",
+            "The immutable origin `PROFILE.json` retains the macOS host and preparation budget",
+            "`ANALYSIS.json` records the Linux query host, actual allocation and analysis attempt separately",
+            "An origin from attempt 1 may support analysis attempt 2 in the same run and source commit",
             "Resource failures block publication",
             "Ubuntu 24.04 Rust jobs",
-            "runner or hardware changes require fresh qualification",
+            "Runner or hardware changes require fresh qualification",
             "trusted-runner integrity checks",
             "not isolation from hostile code",
             "path-identity snapshots",
