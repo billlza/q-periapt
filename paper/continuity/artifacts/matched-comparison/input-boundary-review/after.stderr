@@ -1,0 +1,12 @@
+test_change_during_descriptor_read_is_rejected (__main__.AuditInputBoundaryTests.test_change_during_descriptor_read_is_rejected) ... ok
+test_compact_digest_binds_parsed_bytes_after_a_later_path_change (__main__.AuditInputBoundaryTests.test_compact_digest_binds_parsed_bytes_after_a_later_path_change) ... ok
+test_manifest_rejects_leaf_and_directory_symlinks (__main__.AuditInputBoundaryTests.test_manifest_rejects_leaf_and_directory_symlinks) ... ok
+test_manifest_rejects_noncanonical_and_cross_platform_escapes (__main__.AuditInputBoundaryTests.test_manifest_rejects_noncanonical_and_cross_platform_escapes) ... ok
+test_nonregular_inputs_are_rejected (__main__.AuditInputBoundaryTests.test_nonregular_inputs_are_rejected) ... ok
+test_regular_file_bytes_and_digest_agree (__main__.AuditInputBoundaryTests.test_regular_file_bytes_and_digest_agree) ... ok
+test_replacement_between_stat_and_open_is_rejected (__main__.AuditInputBoundaryTests.test_replacement_between_stat_and_open_is_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.017s
+
+OK

@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source_identity": "source_identity.json",
-  "scope": "Executed matched-opportunity evidence, deterministic manuscript projection, negative controls and independent reanalysis receipts.",
+  "scope": "Executed matched-opportunity evidence, deterministic manuscript projection, original negative controls, independent recounts and validated auditor input snapshots.",
   "files": [
     {
       "path": "README.md",
@@ -20,8 +20,8 @@
     },
     {
       "path": "audit_matched_traces.py",
-      "bytes": 14650,
-      "sha256": "39fd2a8f1987229b83777510871fce75f227b56ab204a072e57dc2ca172b6d4a"
+      "bytes": 16364,
+      "sha256": "235e93ccab4e4491e97ca0c28dff586077cf0a61502a61240cc7f3930f0d1bd1"
     },
     {
       "path": "check_input_controls.py",
@@ -32,6 +32,51 @@
       "path": "independent-review.json",
       "bytes": 59120,
       "sha256": "480cb138a11476bd2cf02be0303fa2895714028f19e8dc4cfcd156ac3f4986d4"
+    },
+    {
+      "path": "input-boundary-review/README.md",
+      "bytes": 2094,
+      "sha256": "d495aed51095ff09b84b8de26828000dcd5af604bbcb8ca01c8a34eaf2c9a2c8"
+    },
+    {
+      "path": "input-boundary-review/after.stderr",
+      "bytes": 1096,
+      "sha256": "f117782239c7d344bf72a77e7b3491d826c1cd55014e8e0f3fecbccb4ea7402d"
+    },
+    {
+      "path": "input-boundary-review/after.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "input-boundary-review/audit-fixed.json",
+      "bytes": 59120,
+      "sha256": "bf2019bd7cb440911ca738d2ec3940a16117303f21968391737efe8a48e9cb16"
+    },
+    {
+      "path": "input-boundary-review/before.stderr",
+      "bytes": 1209,
+      "sha256": "1f50ba6aa8fcff9d875ca20018cb14d9a05320f53c9dc01f5761910289ca6348"
+    },
+    {
+      "path": "input-boundary-review/before.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "input-boundary-review/compatibility-review.json",
+      "bytes": 1743,
+      "sha256": "695aa13b41cf50a79b273f9b51dd0c0b8c8d55ac18024599ec46b9360a947210"
+    },
+    {
+      "path": "input-boundary-review/independent-review.json",
+      "bytes": 2108,
+      "sha256": "8c2040cac35da0454856a489a6fa660a142312ea19d531b83e47079a8b3e563a"
+    },
+    {
+      "path": "input-boundary-review/validation.json",
+      "bytes": 2275,
+      "sha256": "25b0007912af55816a360369924285d89d64c89d3bde25b4f1f375f275129e9e"
     },
     {
       "path": "input-controls.json",
@@ -102,6 +147,11 @@
       "path": "sources/variant-preparation.json",
       "bytes": 14579,
       "sha256": "a41489dd437dd306389352d2968d5ebf4a79918871d86e4325095e756a038983"
+    },
+    {
+      "path": "test_audit_input_boundaries.py",
+      "bytes": 6851,
+      "sha256": "977c28c4e97fc7741ad42790b412aee7bb14380a7fff16517a1c778666950326"
     }
   ]
 }
