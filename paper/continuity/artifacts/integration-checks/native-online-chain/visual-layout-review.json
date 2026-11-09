@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "pdf_sha256": "8160ce5d0ae831a06789e7ddce19fd156fa6298dfc943d1436f40bdddf550f0b",
+  "pages": 100,
+  "review_method": "Rendered final-PDF pages inspected at reading resolution: title, complete contribution/navigation text, all pages of the new correspondence and theorem, discussion and new appendix.",
+  "inspected_pages": [
+    1,
+    3,
+    4,
+    22,
+    61,
+    62,
+    63,
+    64,
+    65,
+    80,
+    81,
+    93
+  ],
+  "render_hashes": {
+    "1": "2763806d409a832aca480cd86128734b29ee5ac658fbb211b8dca0c2052e5c08",
+    "3": "1e77417658f12ac50ce1db9dab79fad376b8c9c550b0d7b88a9823c7e8b7627f",
+    "4": "c7be2cd230ad02b010579c7b38c9fb6b2877b25902812bd3e954cf1f162657b4",
+    "22": "b3957955e7f77dc4af9b805d7e91860fa6c80944c32c715082484dd64592bfd8",
+    "61": "1a7000431d163bc34e187222ed3f80ea8e35b7e8c73db0c6574185c2b19cfe39",
+    "62": "8b9c9dcb4a47a1b0ff934efa77d377f7484d046785bb914331d04dbbf06362bf",
+    "63": "2cdacf36b28bdcd4f63ad013f6736c6d3a087cad85fa6ec271fd6381b28209d5",
+    "64": "d558f8fa35cdc1a2b79f5801c5cb14a08a7442b18e06e652bb2b3061dc0cae27",
+    "65": "755b3620988f04ea7aa73f0794e0030cddb43010c6adea66409e911cb456b3e7",
+    "80": "3a820a8f6cdd17b3b7dbbfdca5e88a85e7ed56f51cea72dff699a80f9fcafada",
+    "81": "60e1b0a81bc462516550cd08c97b325d68b9e561eb2f89522a8d56febc4763e0",
+    "93": "6e4d0257b7b56f459109c0f077174eb21ee44fefbacf169185d4faebd8abfe32"
+  },
+  "findings": [
+    "No clipped or overlapping content in the inspected pages.",
+    "The complete new statement, inequalities and proofs are legible inside the text block.",
+    "Main native results, common proof tools and the multiple-root/SDK instances have connected navigation.",
+    "The final compiled log has no unresolved citations/references or overfull boxes."
+  ],
+  "layout_adjustment": "The signed-score bound uses fixed-size delimiters across its two lines to avoid oversized automatic brackets."
+}

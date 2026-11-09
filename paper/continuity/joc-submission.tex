@@ -56,9 +56,9 @@ bounds for the next rekey of an established session and a selected first
 message. The reduction follows the
 complete hybrid contribution, root extraction, confirmation and traffic
 schedule in the stated quantum random-oracle models, retaining real
-verification and successor-state disclosure. A finite-chain continuation
-permits online message selection after earlier-key
-disclosure. A shared-XOF bridge reduces the
+verification and successor-state disclosure. An online finite-chain
+composition extends native confidentiality and message integrity to a
+target chosen after earlier-key disclosure. A shared-XOF bridge reduces the
 native signing-reservation interface to ordinary hedged ML-DSA unforgeability
 and supplies the source-attribution bound. Finite descriptor families also
 yield a purpose-key derivation result with exact aliases and separate owner
@@ -171,6 +171,12 @@ Successive Extract and Expand comparisons isolate the selected key while
 retaining its disclosed successor seed and real later chain computation.
 The resulting confidentiality and integrity bounds use explicit lifetime
 and whole-execution query budgets (Corollary~\ref{cor:online-chain-message}).
+Theorem~\ref{thm:native-online-message} connects this controller to the
+original native experiment. It retains candidate-local record stops,
+the accepted send's original KEM sources and selection before any
+endpoint's first computation, including failed receive-side advances.
+The composition charges the source, root and record comparisons once;
+the prefix comparison supplies the index-wise chain cost.
 
 The association between an accepted allocation and its original KEM calls
 is part of that connection. A selector registers the existing reservation
@@ -221,7 +227,7 @@ schedule-dependent communication cost.
 Crash recovery resumes retained, bound operations under the authentication,
 acquisition and disclosure interface of Section~\ref{sec:security-model}.
 The symbolic theorem covers unbounded epochs. The computational results
-connect the stated finite record, report and first-message interfaces within
+connect the stated finite record, report and online message interfaces within
 the common message experiment, retaining their explicit cryptographic and
 disclosure terms. Section~\ref{sec:construction} describes the construction;
 Sections~\ref{sec:security-model} and~\ref{sec:computation} develop the record
@@ -1293,13 +1299,23 @@ target-epoch entropy, and no acquisition of a selected-session version saved
 after that cut. It admits the asynchronous transitions of the construction,
 including sending after the local FinalReady transition.
 
-We first construct the private-record and immutable-report interfaces. We
-then connect their candidate-specific continuations to one native score,
-using original provenance to certify permanent local stopping. After the
-native constructor correspondence, a joint key-schedule theorem derives the
-selected first-message continuation from a uniform recovered contribution.
-The common-virtual-game
-accounting variant is retained in Appendix~\ref{app:common-virtual}.
+The main native results are the established-session confidentiality bound
+(Corollary~\ref{cor:live-core-next-rekey}), selected-root authentication
+(Theorem~\ref{thm:native-selected-authentication}), and their online
+selected-message extension (Theorem~\ref{thm:native-online-message}).
+Their proofs share three connections. Private-record and immutable-report
+simulations feed candidate-local accounting, whose permanent stopping
+certificates use original provenance. The complete ContextBound and
+root-entry comparisons then supply a uniform recovered root. Finally,
+the joint schedule and online prefix comparison carry that root to the
+selected message while retaining the declared verification and disclosure
+operations. Executed-slot attribution and the ordinary-signature bridge
+close the association between that message and its original KEM sources.
+
+The final two subsections develop the finite multiple-root and SDK
+purpose-key instances of the same primitive method. The
+common-virtual-game accounting variant is retained in
+Appendix~\ref{app:common-virtual}.
 
 % BEGIN SECTION SOURCE: opaque-rendering.tex
 \subsection{An explicit renderer for private images and intents}
@@ -3909,6 +3925,292 @@ component security assumption as any output bit admitted by that experiment.
 The target scope, final eligibility, and whole-continuation budgets above
 specify exactly the executions to which the bound applies.
 % END SECTION SOURCE: native-authentication.tex
+% BEGIN SECTION SOURCE: native-chain-composition.tex
+\subsection{Native recovery with an online selected message}
+\label{sec:native-online-chain}
+
+The finite-chain comparison can now be connected to the original native
+recovery experiment. The connection preserves its acquisition-based
+eligibility and executed source slots while allowing earlier message-key
+disclosures to influence which later application send is challenged.
+The root, traffic material and message step have separate allocation
+boundaries; keeping those boundaries explicit makes the selection
+implementable by the same native execution ledger.
+
+\paragraph{The online native controller.}
+Retain the established-session live core of
+Section~\ref{sec:live-core-instantiation}, with one authoritative history
+per endpoint and passive copies, and fix $1\le L\le2^{64}-1$ before
+interaction. For each fixed candidate $j=(g,a)$, designate its original
+effective tuple $m^*$ immediately before its first private ContextBound
+hash computation at any protected alias, as in
+Section~\ref{sec:contextbound-connection}. Designate the complete
+traffic entry $I^*$ and direction before that entry's first block allocation.
+These designations are retained through later acceptance, recovery and
+equal-input aliases.
+
+The controller maintains a private bookkeeping table indexed by
+$(\mathcal M,d,i)$, where $\mathcal M$ is the complete original traffic
+material handle, $d$ its direction and $i$ its chain index. Equal-info
+aliases of the same root schedule share $\mathcal M$; an independently
+allocated material has its own handle even when its epoch, index or
+numeric key bytes coincide. Immediately before a previously unseen
+selected-direction step, the controller chooses either Continue or
+Mark, using its available history and the public descriptor of that
+step. Mark occurs at most once and only for $i<L$. A receive-side
+advance, including a skipped step followed by failed authentication,
+is a first computation for this purpose. Repeating a computation after
+a failed write retrieves the existing ledger entry and offers no new
+selection point. This ledger is reduction bookkeeping and changes no
+native state transition or response.
+
+For each step passed with Continue before Mark, the observer may obtain
+its message key; the prefix seed and Extract value retain private
+handles. At a marked
+step $\ell$, the observer may obtain the paired successor seed
+$s_{\ell+1}$ after its derivation. This named projection is bound to
+$(\mathcal M,d,\ell)$, irrespective of subsequent progress at either
+endpoint. Later chain steps are real computations from that seed.
+The selected current root, private prefix seeds, Extract values and
+marked message key have only the uses in the preceding interfaces.
+The already admitted successor-root, opposite-direction and other
+traffic-entry observations remain available.
+
+These typed projections are the complete additional observation
+interface. Acquiring a complete session version still has its original
+scope and save time. In particular, a version containing an available
+successor seed also contains an acquired session version and remains
+subject to the original acquisition predicate. Public commitments and
+failed captures retain their original behavior.
+
+There is one left-or-right application operation, tied to the marked
+step's original send. Its messages have equal length and common
+associated data. A native rejection, uncertain outcome or exact retry
+does not move that operation to another step. The terminal selector
+chooses the cut and original reservation handles as before and must
+identify this same accepted logical send. If no mark or accepted send
+is reached, the original valid-target condition is false. Application
+payloads and payload-bearing delivery remain private; the adversary
+has the existing plaintext-free Resume and public protocol interfaces.
+Thus $E$ is exactly the original eligibility predicate evaluated on
+this controller's execution.
+
+A mark may first occur during receive-side advancement, before the
+target send is reached. Accordingly the one-key AEAD experiments below
+allow classical decryption queries before their at-most-one encryption
+call. Such earlier queries retain their actual replies. After the
+left-or-right call, an exact challenge decryption returns the existing
+authenticated marker. This operational convention preserves the
+native receive-before-send order and is included in the stated AEAD
+advantages.
+
+\begin{lemma}[Native online-chain correspondence]
+\label{lem:native-online-chain-correspondence}
+For this controller and a fixed candidate $j$, the stopped native live
+core realizes the prefix interface of Section~\ref{sec:chain-prefix}
+after the existing record, component, ContextBound and root-entry
+comparisons. Its original send and receive computations use one cached
+step per $(\mathcal M,d,i)$. The marked step has at most one original
+encryption tuple, and the live-core charged projection event remains
+empty.
+\end{lemma}
+\begin{proof}
+At traffic installation, the exact root schedule and complete traffic
+information string determine the material handle. The role-dependent
+assignment in the native traffic constructor makes one endpoint's
+send seed the matching endpoint's receive seed; the opposite direction
+has its other handle. Copying, reopening and exact pending-target
+reconciliation preserve this association. The source-attribution
+induction fixes the KEM origins of each installed schedule independently
+of which message index is later marked.
+
+Induct on actual private chain calls across both endpoints. For index
+zero, the constructor supplies the corresponding traffic block. A
+later call uses the predecessor's successor with the fixed native
+domain and big-endian index. A repeated call under the same material,
+direction and index therefore repeats the same Extract/Expand inputs.
+Record its result at first computation, including in transaction-private
+receive state. If receive authentication or a later durable update
+fails, the native state may return to an earlier counter, while this
+proof ledger retains the original result. A retried advance obtains
+that result again. Taking an already retained skipped key likewise
+introduces no new computation or marking opportunity. This is an
+exact representation of the deterministic native computation in
+each comparison world.
+
+The sender stores its pending message plan before reaching the chain
+step and encryption. A first-retention failure exits before encryption;
+once encryption is reached, the authoritative plan binds the message
+identifier, plaintext and associated data. A failed later write or
+process loss recovers that same plan or its committed outbox. Exact
+resumption uses its original encryption tuple, and successful commitment
+advances the send index. Hence the first encryption answer can be
+cached before its durable outcome, with at most one original tuple
+under the marked material and index. This also covers a mark whose
+first step computation occurred at the receiver.
+
+The representation invariant for images and intents carries the same
+material and step handles through their immutable versions. Acquiring
+an intact version of an occurred candidate reservation's session,
+saved at or after that reservation, certifies the existing free stop.
+Lemma~\ref{lem:adaptive-origin-stop} applies before a final cut is chosen:
+every eligible cut precedes both reservations and therefore that
+acquired version's save. This certificate is independent of message
+index or marking time. Complete old or unrelated versions
+retain their ordinary correspondence. The new individual projections
+return exactly earlier message blocks and the marked pair's successor,
+which the prefix reduction already supplies. They expose no additional
+protected record or report key. Thus the live core retains
+$B_j=\varnothing$ and its established real-to-opaque record comparison.
+
+After the ContextBound and root-entry comparisons, the complete native
+continuation therefore has the three online designations and the
+private prefix uses of Theorem~\ref{thm:online-chain-leaf}. Real control
+verification, ACKs, other materials and later epochs remain in that
+continuation. The whole-execution budgets include their computations
+and all newly permitted prefix and suffix observations.
+\end{proof}
+
+\paragraph{Original-game costs.}
+Use the original native $E,A,I$ and its residual
+$\eta_{\rm attr}^{\rm nat}=\Pr[E\wedge\neg A]$. Let
+$\varepsilon_{{\rm rec},j}$ be the record event cost in
+\eqref{eq:live-core-record-cost}, now with the complete online controller's
+budgets. The operational component adapters retain their definitions
+from Section~\ref{sec:contextbound-connection}, with their output events
+evaluated in this expanded experiment. For candidate $j$, set
+\begin{equation}
+ B_j^{\rm chain}=\min\bigl\{1,\;
+  2\Phi_{256}(d_j,Q_{H,j})+2\Delta_{{\rm init},j}
+  +2\Delta_{{\rm prefix},j}(L)+2\varepsilon_{{\rm AEAD},j}\bigr\}.
+ \label{eq:native-chain-continuation}
+\end{equation}
+Every budget is fixed before interaction and covers preparation,
+failed attempts, all endpoint aliases, the adaptive mark, real suffix
+computation and the terminal test in its corresponding comparison.
+The prefix sum in \eqref{eq:prefix-error} gives the explicit index-wise
+comparison cost. No additional combinatorial message-index guessing
+factor is introduced; all other whole-execution budgets may also grow
+with $L$.
+
+Let $\mathsf{Bad}_{\rm msg}^{\rm chain}$ record a fresh authenticated
+receive and inbox installation under the marked step whose complete
+$(\mathrm{AAD},\mathrm{ciphertext})$ pair is absent from the earlier
+honest encryption ledger for that material, direction and index.
+The flag is recorded at that installation, including before the target
+send, and later encryption does not erase it. Accepted-send provenance
+identifies the event at the end of the original experiment. For the
+component adapter with Boolean output
+$W_j=\mathbf1[E\wedge A\wedge I=j\wedge
+\mathsf{Bad}_{\rm msg}^{\rm chain}]$, write its operational advantage
+as $a_j^{\rm msg}$ and define
+\begin{equation}
+ \Omega_j^{\rm chain}=\min\bigl\{1,\;
+  \Phi_{256}(d_j,Q_{H,j})+\Delta_{{\rm init},j}
+  +\Delta_{{\rm prefix},j}(L)+\varepsilon_{{\rm INT},j}\bigr\}.
+ \label{eq:native-chain-integrity-cost}
+\end{equation}
+The costs for the two terminal tests use their own complete-query
+bounds; sharing notation does not identify their distinguishers.
+
+\begin{theorem}[Native online selected-message security]
+\label{thm:native-online-message}
+In the online native live-core experiment above,
+\begin{equation}
+\begin{split}
+ \operatorname{Adv}_{\rm msg}^{\rm chain}
+ \le\min\biggl\{\frac12,\frac12\Bigl[
+    \eta_{\rm attr}^{\rm nat}\\[-2pt]
+ \qquad+
+ \sum_{j\in J}\bigl(2\varepsilon_{{\rm rec},j}
+       +a_j^++a_j^-+2\delta_j+B_j^{\rm chain}\bigr)
+                       \Bigr]\biggr\},
+\end{split}
+\label{eq:native-online-confidentiality}
+\end{equation}
+and
+\begin{equation}
+\begin{split}
+ \Pr_{G_{\rm nat}}[E\wedge\mathsf{Bad}_{\rm msg}^{\rm chain}]
+ \le\min\biggl\{1,\;&\eta_{\rm attr}^{\rm nat}\\[-2pt]
+ &+\sum_{j\in J}\min\{1,\varepsilon_{{\rm rec},j}
+       +a_j^{\rm msg}+\delta_j+\Omega_j^{\rm chain}\}\biggr\}.
+\end{split}
+\label{eq:native-online-integrity}
+\end{equation}
+For the executed-slot selector, the corresponding original-game
+residual in each bound is at most $\Delta_{\rm attr}$ from
+\eqref{eq:executed-attribution-cost}, using the complete expanded
+signing experiment and its established reservation-signature bridge.
+\end{theorem}
+\begin{proof}
+For confidentiality, put
+$S=2\mathbf1[g=b]-1$ and run the same available candidate terminal
+code $\Psi_j=\mathbf1[E\wedge A\wedge I=j]S$ in every world.
+The identity in Lemma~\ref{lem:native-local-score} localizes the
+original score before any candidate-specific comparison. The native
+free stops remain valid by
+Lemma~\ref{lem:native-online-chain-correspondence}. Its record
+correspondence gives $\rho_j\le2\varepsilon_{{\rm rec},j}$;
+the two operational component-event comparisons cost
+$a_j^++a_j^-+2\delta_j$.
+
+In the random-component world, apply
+Lemma~\ref{lem:cb-hidden-component} with the unchanged complete tuple
+cache. The target contribution is selected at its own first private
+allocation, before the later traffic and message designations. Its
+single root-use entry is still that of
+Lemma~\ref{lem:cb-native-root-use}, since later chain work does not
+reuse the combined contribution or alter its original pending-root
+inputs. The two score comparisons therefore cost
+$2\Phi_{256}(d_j,Q_{H,j})+2\Delta_{{\rm init},j}$.
+The resulting uniform-root continuation is exactly the online prefix
+interface by the new correspondence lemma.
+Corollary~\ref{cor:online-chain-message} bounds its qualified signed
+score by $2\Delta_{{\rm prefix},j}(L)+2\varepsilon_{{\rm AEAD},j}$.
+Every selector, disclosure, eligibility check and terminal event is
+recomputed within that world. In particular, qualifying a run uses
+the available provenance and view rather than direct access to $b$.
+Thus the random-component score is bounded by $B_j^{\rm chain}$.
+Substitution in Proposition~\ref{prop:native-local-accounting}
+proves~\eqref{eq:native-online-confidentiality}.
+
+For integrity, apply the Boolean localization identity from
+\eqref{eq:native-auth-localization} to the selected-message event
+$W_j$. The same free-stop certificate makes a stopped candidate's
+final conjunction false, even if its recorded inbox event preceded
+the challenge send. The record comparison costs
+$\varepsilon_{{\rm rec},j}$, and the operational component comparison
+costs $a_j^{\rm msg}+\delta_j$. Apply the complete-tuple and root-entry
+comparisons to this Boolean continuation. The remaining event is a
+subset of the selected-key integrity event in
+Corollary~\ref{cor:online-chain-message}, so its probability is bounded
+by $\Omega_j^{\rm chain}$. A fresh successful decryption before the
+honest encryption is already a valid integrity witness; the reduction
+may return it immediately. This justifies the same bound when Mark
+was first reached by the receiver. Summing the native candidate
+partition and capping by one proves~\eqref{eq:native-online-integrity}.
+
+Finally, the executed-slot association proof is an induction over
+traffic installation and its originating KEM plans. Its signed-body
+and full-wire checks precede the message-index choice. Advancing,
+retaining or reopening the installed traffic entry preserves those
+origins, while the earlier-key projections only enlarge the complete
+adversarial continuation. Proposition~\ref{prop:executed-source-attribution}
+therefore gives the stated original-game attribution bound with
+its updated whole-execution resources. This term is charged once,
+and the root, record and component costs retain their displayed
+coefficients; no additional guess of the marked message index is used.
+\end{proof}
+
+For $L=1$, the prefix cost reduces to the existing first-message
+schedule cost. The enlarged controller adds the choice of a later
+uncomputed index after observing earlier keys, while preserving the
+native source and acquisition semantics. An explicitly modeled
+record/report projection extension keeps its original
+$\eta_{\rm proj}^{\rm nat}$ and corresponding local comparison costs,
+as in the preceding native theorems.
+% END SECTION SOURCE: native-chain-composition.tex
 
 % BEGIN SECTION SOURCE: multiple-root-entry.tex
 % Finite multiple-root entry. Uses the existing joint-primitive bounds.
@@ -4872,9 +5174,17 @@ step in chronological index order and removes its internal parent-row
 reference before proceeding to the next hidden seed. This gives the
 selected-message confidentiality and integrity bounds of
 Corollary~\ref{cor:online-chain-message}, including real suffix
-computation from the selected successor seed. The original native
-next-rekey theorem retains its declared first-message experiment;
-the finite-chain result supplies the broader continuation interface.
+computation from the selected successor seed.
+Theorem~\ref{thm:native-online-message} realizes that controller in
+the original native application experiment. The root tuple, traffic
+allocation and message index retain separate online designation points.
+Actual receive-side work enters the original computation ledger even
+when authentication or persistence later fails. Complete-image
+acquisitions retain their candidate-local stopping condition, while
+the named earlier-key and successor-seed observations follow the
+primitive continuation. This establishes native confidentiality and
+selected-message integrity after earlier-key disclosure with explicit
+whole-execution costs.
 
 The connection begins with the root derivation of Equation~\eqref{eq:root},
 \[
@@ -5436,6 +5746,35 @@ interfaces used by the mathematical comparison.
 \small
 \begin{verbatim}
 python3 artifacts/chain-prefix/check_prefix.py
+\end{verbatim}
+\end{quote}
+
+\subsection{Native online-chain composition}
+\label{app:native-online-chain}
+
+The original-experiment composition of
+Theorem~\ref{thm:native-online-message} is retained in
+\path{artifacts/native-online-chain/}. Its source map binds six native
+files to the original evidence pin \texttt{228c944f} and inspected
+integration checkpoint \texttt{a4c08957}. The identical source blobs
+fix pending-plan retention before encryption, directional aliases,
+transaction-private receive advancement, skipped-key reuse and the
+complete originating KEM plans.
+
+Finite controls enumerate 19,440 traces with marking choices and
+77,760 first-computation decisions. Independent temporal and algebraic
+enumerations check 450 reservation/cut/version assignments and 256
+signed-score or Boolean-event partition identities. Counterexample
+controls exercise a rolled-back receive ledger, collapsed material
+identities, complete-image acquisition, candidate-local stopping and
+a fresh receive event followed by later honest encryption. Eighteen
+source-order anchors bind these interfaces to the retained source.
+The complete native bounds are proved in the manuscript; the controls
+check the finite accounting and source interfaces used by that proof.
+\begin{quote}
+\small
+\begin{verbatim}
+python3 artifacts/native-online-chain/check_native_chain.py
 \end{verbatim}
 \end{quote}
 % END SECTION SOURCE: artifact-map.tex

@@ -97,6 +97,12 @@ Successive Extract and Expand comparisons isolate the selected key while
 retaining its disclosed successor seed and real later chain computation.
 The resulting confidentiality and integrity bounds use explicit lifetime
 and whole-execution query budgets (Corollary~\ref{cor:online-chain-message}).
+Theorem~\ref{thm:native-online-message} connects this controller to the
+original native experiment. It retains candidate-local record stops,
+the accepted send's original KEM sources and selection before any
+endpoint's first computation, including failed receive-side advances.
+The composition charges the source, root and record comparisons once;
+the prefix comparison supplies the index-wise chain cost.
 
 The association between an accepted allocation and its original KEM calls
 is part of that connection. A selector registers the existing reservation
@@ -147,7 +153,7 @@ schedule-dependent communication cost.
 Crash recovery resumes retained, bound operations under the authentication,
 acquisition and disclosure interface of Section~\ref{sec:security-model}.
 The symbolic theorem covers unbounded epochs. The computational results
-connect the stated finite record, report and first-message interfaces within
+connect the stated finite record, report and online message interfaces within
 the common message experiment, retaining their explicit cryptographic and
 disclosure terms. Section~\ref{sec:construction} describes the construction;
 Sections~\ref{sec:security-model} and~\ref{sec:computation} develop the record

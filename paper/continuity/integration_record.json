@@ -17,54 +17,75 @@
     "bibliography_style_sha256": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
     "style_derivation": "sn-basic.bst; renamed derived file; all authors retained; alphabetical sorting unchanged",
     "single_tex_entry": "joc-submission.tex",
-    "single_tex_sha256": "66aa266bfca1d83766a681d5dfac0e0b1b4c8d9e0dafb2dddfd2a0c3cc3ce40d",
+    "single_tex_sha256": "7ee572bdb9426ca581d8860cc4df89e310d17383a0493b74f748fab8a31fb65c",
     "layout": "single-column",
     "layout_decision": "format/layout_decision.md",
     "layout_decision_sha256": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e"
   },
-  "schema": "qperiapt-joc-integration/14",
-  "completed_at_utc": "2026-11-09T11:14:57.588684+00:00",
-  "previous_integration_record": "artifacts/prior-integration/retry-readiness.json",
-  "previous_integration_record_sha256": "b05cbb418102ef775bb0e60c65a87d81acf2d556bd140cb2db110fc295479bcb",
-  "previous_pdf_sha256": "7317b04cc63dfbd18d1f59a97bfee91ef27e2c7afd12d41538acdcb48196a425",
+  "schema": "qperiapt-joc-integration/15",
+  "completed_at_utc": "2026-11-09T14:25:18.389670+00:00",
+  "previous_integration_record": "artifacts/prior-integration/chain-prefix.json",
+  "previous_integration_record_sha256": "f79aa392429749d27ebe920b0283fefba72ebd3604dbea4c176637c005d84e9c",
+  "previous_pdf_sha256": "123057b5f2ac1d8270be0663ab90740ae287e18a02cdc7009b40424fc14a5d83",
   "pdf_path": "continuity.pdf",
-  "pdf_pages": 96,
-  "pdf_sha256": "123057b5f2ac1d8270be0663ab90740ae287e18a02cdc7009b40424fc14a5d83",
-  "abstract_words": 238,
+  "pdf_pages": 100,
+  "pdf_sha256": "8160ce5d0ae831a06789e7ddce19fd156fa6298dfc943d1436f40bdddf550f0b",
+  "abstract_words": 245,
   "keywords": 7,
   "bibliography_entries": 28,
   "new_results": {
-    "online_selected_chain_leaf": {
+    "native_online_selected_message": {
       "section": {
-        "number": "5.6",
-        "page": 39
+        "number": "5.13",
+        "page": 61
+      },
+      "correspondence": {
+        "number": "5.26",
+        "page": 62
       },
       "theorem": {
-        "number": "5.12",
-        "page": 40
+        "number": "5.27",
+        "page": 64
       },
-      "corollary": {
-        "number": "5.13",
-        "page": 41
+      "confidentiality_bound": {
+        "number": "35",
+        "page": 64
+      },
+      "integrity_bound": {
+        "number": "36",
+        "page": 64
       },
       "appendix": {
-        "number": "A.15",
-        "page": 88
+        "number": "A.16",
+        "page": 93
       },
-      "artifact": "artifacts/chain-prefix/",
-      "proof": "artifacts/chain-prefix/proof.md",
-      "review": "artifacts/chain-prefix/independent_review.json",
-      "statement": "A finite uniform-recovered-root continuation permits online target selection before its first private step, after earlier message-key disclosure, and permits selected successor-seed disclosure.",
-      "comparison": "The existing three joint-root/traffic comparisons followed by two whole-execution primitive comparisons per potential protected chain index.",
-      "application_results": [
-        "Event-qualified selected-message confidentiality.",
-        "Fresh selected-key inbox integrity."
-      ],
-      "native_source_files": 3,
+      "artifact": "artifacts/native-online-chain/",
+      "proof": "artifacts/native-online-chain/proof.md",
+      "review": "artifacts/native-online-chain/independent_review.json",
+      "statement": "Original native selected-message confidentiality and integrity after online message selection following earlier-key disclosures, retaining original eligibility, candidate-local record stops and executed KEM source attribution.",
+      "selection": "Effective tuple before its first private hash at any alias; complete traffic entry/direction before allocation; selected step before its first private computation, including skipped receive work and failed attempts.",
+      "comparison": "Established source/record/component/ContextBound/root costs once, then the completed finite-prefix comparison; signed-score factor two and Boolean-event factor one.",
+      "native_source_files": 6,
       "native_source_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
-      "inspected_integration_checkpoint": "6a0ac0bbd7a5be77443e10b22c20a31f4b3be271",
+      "inspected_integration_checkpoint": "a4c089570c787522210d16226219c0cc8aa9b05e",
       "native_source_blobs_unchanged": true,
-      "native_complete_experiment": "The complete native next-rekey theorem retains its first-message controller; the new theorem supplies the broader finite-chain continuation and its explicit interface."
+      "retained_native_packets": {
+        "matched-comparison": {
+          "files": 31,
+          "byte_unchanged": true,
+          "manifest_sha256": "586955abb608844ddb0948579c635a9c15d27b725a24a9e54487976ed2d4ab32"
+        },
+        "retry-readiness": {
+          "files": 26,
+          "byte_unchanged": true,
+          "manifest_sha256": "ca67aafd1bc67c3704cbb022704e707486661d221206b6869516b9fb27785c41"
+        },
+        "chain-prefix": {
+          "files": 11,
+          "byte_unchanged": true,
+          "manifest_sha256": "81f660e667cd60ccf21854a74b70e323e2247d746009e7326c3dc4a2c7e510f5"
+        }
+      }
     }
   },
   "retained_results": {
@@ -78,16 +99,16 @@
         "page": 47
       },
       "thm:multiple-root-entry": {
-        "number": "5.26",
-        "page": 62
+        "number": "5.28",
+        "page": 66
       },
       "cor:multiple-root-message": {
-        "number": "5.27",
-        "page": 63
+        "number": "5.29",
+        "page": 67
       },
       "prop:sdk-purpose-table": {
-        "number": "5.29",
-        "page": 65
+        "number": "5.31",
+        "page": 69
       },
       "lem:executed-slot-stability": {
         "number": "5.19",
@@ -183,7 +204,7 @@
       "statements": {
         "sec:native-authentication": {
           "number": "5.12",
-          "page": 57
+          "page": 58
         },
         "eq:native-auth-component": {
           "number": "29",
@@ -195,11 +216,11 @@
         },
         "thm:native-selected-authentication": {
           "number": "5.25",
-          "page": 59
+          "page": 60
         },
         "eq:native-selected-authentication": {
           "number": "31",
-          "page": 59
+          "page": 60
         },
         "eq:native-auth-localization": {
           "number": "32",
@@ -207,7 +228,7 @@
         },
         "app:native-authentication": {
           "number": "A.12",
-          "page": 87
+          "page": 92
         }
       },
       "tex": "native-authentication.tex",
@@ -227,7 +248,7 @@
     "complete_retained_reference_comparison": {
       "table": {
         "number": "7",
-        "page": 68
+        "page": 75
       },
       "profiles": 5,
       "schedules": 7,
@@ -252,21 +273,21 @@
     "matched_directed_opportunities": {
       "section": {
         "number": "7.4",
-        "page": 72
+        "page": 76
       },
       "tables": {
         "matched_opportunities": {
           "number": "8",
-          "page": 73
+          "page": 77
         },
         "native_accounting": {
           "number": "9",
-          "page": 73
+          "page": 77
         }
       },
       "appendix": {
         "number": "A.13",
-        "page": 87
+        "page": 92
       },
       "profiles": 7,
       "schedules": 7,
@@ -296,15 +317,15 @@
     "retry_readiness_ablation": {
       "section": {
         "number": "7.5",
-        "page": 74
+        "page": 79
       },
       "table": {
         "number": "10",
-        "page": 75
+        "page": 79
       },
       "appendix": {
         "number": "A.14",
-        "page": 88
+        "page": 92
       },
       "native_executions": 28,
       "paired_cases": 14,
@@ -339,6 +360,38 @@
         "All post-capture denominators and the three age-four committed-but-undelivered residuals remain explicit. Offline derived counts change from 32/64 to 33/65 within the same current-epoch allocation envelope."
       ],
       "measurement_scope": "Completed service and communication/persistence work under a fixed opportunity budget; the cryptographic algorithms and durability interfaces are fixed."
+    },
+    "online_selected_chain_leaf": {
+      "section": {
+        "number": "5.6",
+        "page": 39
+      },
+      "theorem": {
+        "number": "5.12",
+        "page": 40
+      },
+      "corollary": {
+        "number": "5.13",
+        "page": 41
+      },
+      "appendix": {
+        "number": "A.15",
+        "page": 93
+      },
+      "artifact": "artifacts/chain-prefix/",
+      "proof": "artifacts/chain-prefix/proof.md",
+      "review": "artifacts/chain-prefix/independent_review.json",
+      "statement": "A finite uniform-recovered-root continuation permits online target selection before its first private step, after earlier message-key disclosure, and permits selected successor-seed disclosure.",
+      "comparison": "The existing three joint-root/traffic comparisons followed by two whole-execution primitive comparisons per potential protected chain index.",
+      "application_results": [
+        "Event-qualified selected-message confidentiality.",
+        "Fresh selected-key inbox integrity."
+      ],
+      "native_source_files": 3,
+      "native_source_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "inspected_integration_checkpoint": "6a0ac0bbd7a5be77443e10b22c20a31f4b3be271",
+      "native_source_blobs_unchanged": true,
+      "native_complete_experiment": "The completed native online-message theorem now realizes this prefix interface with original eligibility, record stops and source attribution; its proof packet is retained separately."
     }
   },
   "current_research_checks": {
@@ -361,7 +414,7 @@
       "compatibility_review": "artifacts/matched-comparison/input-boundary-review/compatibility-review.json",
       "measurements_unchanged_after_checker_fix": true
     },
-    "execution_scope": "This increment adds the online finite-chain theorem and selected-key application corollaries, their independent internal mathematical review and executed finite/source controls. The original 49 matched executions and 28 retry executions retain their exact packets and were rechecked through the existing manuscript projections. No new native workload or formal-verifier execution is attributed to this increment.",
+    "execution_scope": "This increment completes the native online-message correspondence, original-game confidentiality and selected-message integrity bounds, their independent internal review and finite/source controls. The original 49 matched executions, 28 retry executions and preceding chain-prefix packet remain byte-identical and their existing checks were replayed.",
     "editorial_equivalence": {
       "status": "accepted",
       "canonical_hashes_match_review": true,
@@ -392,12 +445,12 @@
     },
     "formal_source_preservation": {
       "status": "passed",
-      "record": "artifacts/chain-prefix/formal-source-preservation.json",
-      "original_modules": 32,
-      "original_formal_blocks_preserved": 95,
-      "original_display_blocks_preserved": 93,
+      "record": "artifacts/native-online-chain/formal-source-preservation.json",
+      "original_modules": 35,
+      "original_formal_blocks_preserved": 101,
+      "original_display_blocks_preserved": 95,
       "new_formal_blocks": 6,
-      "new_display_blocks": 2
+      "new_display_blocks": 0
     },
     "online_prefix_controls": {
       "status": "passed",
@@ -409,6 +462,19 @@
       "source_files": 3,
       "source_anchors": 12,
       "independent_review": "artifacts/chain-prefix/independent_review.json"
+    },
+    "native_online_chain_controls": {
+      "status": "passed",
+      "record": "artifacts/native-online-chain/checks.json",
+      "predesignated_material_direction_targets": 3,
+      "traces_with_mark_choices": 19440,
+      "first_call_decisions": 77760,
+      "temporal_assignments": 450,
+      "signed_and_boolean_partition_checks": 256,
+      "reachable_send_failure_paths": 3,
+      "source_files": 6,
+      "source_anchors": 18,
+      "independent_review": "artifacts/native-online-chain/independent_review.json"
     }
   },
   "retained_historical_evidence": {
@@ -421,7 +487,7 @@
       "snapshot_cases": 84
     },
     "tamarin_reusable_dependencies": 24,
-    "prior_record": "artifacts/prior-integration/retry-readiness.json",
+    "prior_record": "artifacts/prior-integration/chain-prefix.json",
     "preceding_manuscript_increment_review": {
       "status": "passed",
       "source_files_bound": 12,
@@ -447,38 +513,59 @@
   },
   "build_review": {
     "status": "passed",
-    "pdf_pages": 96,
-    "pdf_sha256": "123057b5f2ac1d8270be0663ab90740ae287e18a02cdc7009b40424fc14a5d83",
+    "pdf_pages": 100,
+    "pdf_sha256": "8160ce5d0ae831a06789e7ddce19fd156fa6298dfc943d1436f40bdddf550f0b",
     "undefined_references_or_citations": 0,
     "overfull_boxes": 0,
-    "underfull_box_notices": 105,
+    "underfull_box_notices": 109,
     "all_fonts_embedded": true,
     "fonts": 47,
     "inspected_pages": [
       1,
       3,
-      39,
-      40,
-      41,
-      42,
-      76,
-      88,
-      89
+      4,
+      22,
+      61,
+      62,
+      63,
+      64,
+      65,
+      80,
+      81,
+      93
     ],
-    "reading_review": "artifacts/integration-checks/chain-prefix/visual-layout-review.json",
-    "build_receipt": "artifacts/integration-checks/chain-prefix/build-check.json",
-    "research_checks": "artifacts/integration-checks/chain-prefix/research-checks.json",
-    "source_export_receipt": "artifacts/integration-checks/chain-prefix/source_export_check.json",
+    "reading_review": "artifacts/integration-checks/native-online-chain/visual-layout-review.json",
+    "build_receipt": "artifacts/integration-checks/native-online-chain/build-check.json",
+    "research_checks": "artifacts/integration-checks/native-online-chain/research-checks.json",
+    "source_export_receipt": "artifacts/integration-checks/native-online-chain/source_export_check.json",
     "source_export": {
       "status": "passed",
       "files": 9,
-      "pages": 96,
+      "pages": 100,
       "plain_text_identical": true,
       "layout_text_identical": true,
+      "plain_text_sha256": "3b600e01c58697df6afb7489dc5749aefa3f9f7921a3880a4c5b886e7869e2e5",
+      "layout_text_sha256": "e237949044c56154634c31a506a09927f9a3350b4830946ff8d5b803145421ec",
       "all_fonts_embedded": true,
       "font_count": 47,
-      "zip_sha256": "03040653071963443a85d12c6090ce0f089071064e7e55af9ed685173e8fb468",
-      "pdf_sha256": "123057b5f2ac1d8270be0663ab90740ae287e18a02cdc7009b40424fc14a5d83"
+      "undefined_references_or_citations": 0,
+      "overfull_boxes": 0,
+      "zip_sha256": "8add663e5595653bafcf0dc454a29f6e53379c598e1c45f66b551fb4365e5c84",
+      "pdf_sha256": "8160ce5d0ae831a06789e7ddce19fd156fa6298dfc943d1436f40bdddf550f0b",
+      "export_pdf_sha256": "a81bd05b8102d52d1c55031a3e3e377a55b05f175ad058770d427daf920e782e",
+      "exported_files": [
+        "README.md",
+        "SHA256SUMS.json",
+        "author-metadata.json",
+        "figures/confirmation-cut.pdf",
+        "joc-basic.bst",
+        "joc-submission.tex",
+        "references.bib",
+        "sn-basic.bst",
+        "sn-jnl.cls"
+      ],
+      "verification_script_sha256": "631043d3473ae08741687a02554ffaddef8fbbb6a8295971c002f156e57f0ffc",
+      "method": "Nine-file archive extracted into a newly created directory; every exported file digest checked; independent pdfLaTeX/BibTeX build with latexmk; full plain and layout text comparison, font embedding and final-log checks."
     }
   },
   "paper_workflow": {
@@ -488,39 +575,41 @@
     "base": "main",
     "pr": 119,
     "url": "https://github.com/billlza/q-periapt/pull/119",
-    "previous_head": "ff02634a279d1ea45edc3583043fb7afb8a69a27",
-    "snapshot": "Prepublication source and build receipt for the 96-page online finite-chain increment. Hosted qualification belongs to the resulting published head.",
-    "previous_tree": "fc18e9ce61c7b8f5b04a70fdafc3b1ed3e78245d"
+    "previous_head": "e798d3d76d0bbdb9ec3642b5e168886f242bde09",
+    "snapshot": "Prepublication source and build receipt for the 100-page native online-message composition. Hosted qualification belongs to the resulting published head.",
+    "previous_tree": "a4e760d32c0883cb8c8494022be7058e9f760c74",
+    "previous_repository_tree": "b291d4791e73fe47c961a54169181532c1eb9f30"
   },
-  "completed_connection": "Executed original source attribution and ordinary native ML-DSA signing -> real-to-opaque record correspondence -> operational ML-KEM -> complete-tuple ContextBound -> single-entry root initialization -> joint confirmation and marked first-message authentication in the original native experiment.",
+  "completed_connection": "Executed original source attribution and ordinary native ML-DSA signing -> candidate-local private-record correspondence -> operational ML-KEM -> complete-tuple ContextBound -> single-entry root initialization -> joint schedule -> online finite-chain selected-message confidentiality and integrity in the original native experiment. The selected confirmation/first-message authentication theorem is retained separately.",
   "source_hashes": {
     "acquisition-nonadditivity.tex": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
-    "artifact-map.tex": "e9c552e32838a1f87229a2d7d40d4dad527fb122cc267afca10e07fbcd4a1940",
+    "artifact-map.tex": "d5f540216c65fc30de7ad597935c3fd211c81834ba46e29dcf1899cf3c52ee72",
     "author-metadata.json": "a4654fb096735dd2277cf4251ad37866fe00b3a8333a5e6731155308ad495ec8",
     "candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
     "chain-prefix-continuation.tex": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
     "common-virtual-accounting.tex": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
-    "computational-roadmap.tex": "c33379e21f9de1664beac57f4842a6c34960c90b91730bc6609e1e55e1456a48",
+    "computational-roadmap.tex": "1a8ed3e0e6325904abb7b5ea328b672374ea04257ff5f81e533f8f6ad8b3accd",
     "confirmation-traffic.tex": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
     "construction.tex": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
     "contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
     "declarations.tex": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
-    "discussion.tex": "26a204c0d3ed3a30150d899dd9d44655bfa403db81bd62487aa824160527ecc5",
+    "discussion.tex": "24ed126cbceda9f30946a1c40f4d4431ef00a5465e5fca51d5d08b0f57a959e7",
     "established-results.tex": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
     "evaluation.tex": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe",
     "figures/confirmation-cut.pdf": "b88e0eaa6a2f838967aae58e93ff131f2afd13a0f145347ce57e34db596ebfaf",
     "guarded-provenance.tex": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
-    "introduction.tex": "e5b5fd455fb35786ff7bce07677361aa97dc05443040287d8437a977d05a165f",
+    "introduction.tex": "194b477f7dfd9dc1814d4a9c82c7805c5a82f96858ca752ae9a531b8429e66d3",
     "joc-basic.bst": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
-    "joc-submission.tex": "66aa266bfca1d83766a681d5dfac0e0b1b4c8d9e0dafb2dddfd2a0c3cc3ce40d",
+    "joc-submission.tex": "7ee572bdb9426ca581d8860cc4df89e310d17383a0493b74f748fab8a31fb65c",
     "joint-continuation.tex": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
     "joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
     "live-core-instantiation.tex": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
-    "main.tex": "d1155ffed82b73a724c34e8684946ffa10984f710ddb16cd16352f76ce7c3c1f",
+    "main.tex": "02e7bc9204fb9745c5b7c03a7c883a1377315d258e1fcdc54ad4cf210c883dde",
     "matched-opportunities.tex": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
     "matched-opportunity-tables.tex": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
     "multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
     "native-authentication.tex": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+    "native-chain-composition.tex": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e",
     "native-correspondence.tex": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
     "opaque-rendering.tex": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
     "primitive-inputs.tex": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
@@ -538,8 +627,8 @@
     "source-attribution.tex": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e"
   },
   "current_supporting_hashes": {
-    "Makefile": "48c7b8967aad15896c2b3bf2f4e9eb2ad2b0f46f534b18ca9dd81e2bfe667363",
-    "README.md": "72901f86df8b4abfc4cee352b726f46c6249ff6dc8ea68f74706681825db0d7c",
+    "Makefile": "fe106cfc870057d39e7038425535dd0f03f8fb8cd06c7a81fb3130b35dc02d2b",
+    "README.md": "0a8b9bce01c3eea5f85dc6315d604fd055caed0a016163397d13c5ba42ed69bb",
     "artifacts/chain-prefix/README.md": "d662e103fe6c6bcbab3c7e9178ee6c4031444883e93b0c5b8082d42c288df303",
     "artifacts/chain-prefix/artifact_manifest.json": "81f660e667cd60ccf21854a74b70e323e2247d746009e7326c3dc4a2c7e510f5",
     "artifacts/chain-prefix/check_prefix.py": "da95d3050d4bff8ecc132b7fdae01ac9c5cbabd0c7c74f8fcd3baa23447d5b35",
@@ -573,6 +662,11 @@
     "artifacts/integration-checks/matched-comparison/embedded_fonts.txt": "df30a897429798718be2a07d561b9c2a8229faed4a7e92abea8ac884c8c080cc",
     "artifacts/integration-checks/matched-comparison/source_export_check.json": "ad30f90cc1c79831b28aebd62c4abb53252def9660a9b16d210485a7af52d0bb",
     "artifacts/integration-checks/matched-comparison/visual-layout-review.json": "abcc444d92dab50e8b45249eb1969d7c9f80aead1d09b496b15494141f787add",
+    "artifacts/integration-checks/native-online-chain/build-check.json": "488e93c11a0797d4d917015fa4c2feacedb803fb69e63579e87094868edd095c",
+    "artifacts/integration-checks/native-online-chain/embedded_fonts.txt": "78caa7007c7fbe8670ff0490615bbf3db2d79b6700cde0cbe8743dfb32f2c85a",
+    "artifacts/integration-checks/native-online-chain/research-checks.json": "5d0616f487cb525887721695844d6f8c9aaca7dea25ba74481f1587e752c28ab",
+    "artifacts/integration-checks/native-online-chain/source_export_check.json": "4314f72a8dcd33c333a9e81732ca0d0bcd99733798b0a3dba9e2788db6544022",
+    "artifacts/integration-checks/native-online-chain/visual-layout-review.json": "f346e2ddf54b276ab941232d9fccfeb8f02b2e57547620b3631b45adb49b610a",
     "artifacts/integration-checks/retry-readiness/build-check.json": "02bbc97d9141f2a349eb11ecdc1110dcb6ae481cf08217fbe813225b3114a048",
     "artifacts/integration-checks/retry-readiness/embedded_fonts.txt": "87d01af5af5754cd02eacedfa69577e84ef1b7ffdc2dc6dd33ad913354e5b928",
     "artifacts/integration-checks/retry-readiness/research-checks.json": "1f912152954e134ea075238fc78f67dbce1d47fcc1cd5feaa5b42db6e413c28a",
@@ -609,6 +703,22 @@
     "artifacts/matched-comparison/sources/validate.py.txt": "80a2eed73944decaa8edde69db1b3523a12475930dd5e4da4821ca52add636bc",
     "artifacts/matched-comparison/sources/variant-preparation.json": "a41489dd437dd306389352d2968d5ebf4a79918871d86e4325095e756a038983",
     "artifacts/matched-comparison/test_audit_input_boundaries.py": "977c28c4e97fc7741ad42790b412aee7bb14380a7fff16517a1c778666950326",
+    "artifacts/native-online-chain/README.md": "b83b1098c2e57956b35a6e56d5d53b9d19f366be187c1eeed767d73938f11c23",
+    "artifacts/native-online-chain/artifact_manifest.json": "d9118332e96d6e3c0cf4b3dbd71fff6f0b2e4356d63befcc2ea39eacf83e9e65",
+    "artifacts/native-online-chain/check_native_chain.py": "732f5149b304a315a99f591d1f38f9d37d9606dd915ac2b50c7860e1c0ca32e2",
+    "artifacts/native-online-chain/checks.json": "eeed74af8a166ecb2ef1b7352345ca7797e861f02e678c9491735b06907cbfdd",
+    "artifacts/native-online-chain/formal-source-preservation.json": "a138789c2f634566ddc5a9cab9d6a45b84f9794e28c9eaefa225fafae4d11755",
+    "artifacts/native-online-chain/independent_review.json": "df07f5d9cbc4937499a3db746c941d17ac0eff7ba0afa3ecf59f382b620cd75a",
+    "artifacts/native-online-chain/proof.md": "6f1970f1b01ec83ced39bbe190b19705a5c3d1f46b993daaa404d95a7d28850d",
+    "artifacts/native-online-chain/source-map.md": "775b04a399533b7cde6976727f1ade0f90609429bf8c806270f121a92fd0c194",
+    "artifacts/native-online-chain/source_identity.json": "93f800eb564c8bf618bcdb206557d0628d181108c7ae93a90ec5ad2183cfb780",
+    "artifacts/native-online-chain/sources/contract.rs.txt": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
+    "artifacts/native-online-chain/sources/messages.rs.txt": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
+    "artifacts/native-online-chain/sources/rekey-completion.rs.txt": "d2ba085119db3cff2ebda780f4824b8b4cbd3a9f6e44531df45db48144a65c1e",
+    "artifacts/native-online-chain/sources/rekey-response.rs.txt": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59",
+    "artifacts/native-online-chain/sources/rekey.rs.txt": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10",
+    "artifacts/native-online-chain/sources/traffic.rs.txt": "5e19c0a6719895888a7018db2583c89da50c1de029d443834c357bce342cb6e2",
+    "artifacts/prior-integration/chain-prefix.json": "f79aa392429749d27ebe920b0283fefba72ebd3604dbea4c176637c005d84e9c",
     "artifacts/prior-integration/contribution-wording.json": "cf4b053e404d402476cccf713afffcab4c72a66dc62cf9efb7c9c0ee68f227af",
     "artifacts/prior-integration/matched-comparison.json": "52cdb49806b39bd97692f504c65ddee0f53b475904ba5b5431769f245bccc791",
     "artifacts/prior-integration/native-authentication.json": "7b21966af2604bbfe304bb6ddf98be01dd49419fa7f42378a3d8054c24d6e73d",
@@ -639,8 +749,8 @@
     "artifacts/retry-readiness/sources/runtime.json": "14e2579981cb2eb4f9720571e9d3ce9ea6de75ddde2682675df808a26932de20",
     "artifacts/retry-readiness/sources/source-and-readiness-controls.log": "feae252a729722159a9d98427cceec546f484977072f6f8d8b2080659bb87531",
     "artifacts/retry-readiness/sources/summarize_retry_ablation.py.txt": "9c869d4a58861b5e9fa5d6be97a730753f07421f7af0315d46010c70a8bee15d",
-    "flatten_manifest.json": "0bf28cd802602897dd20ee4f143c83012142a0e0db6b0761ee4a383a28e6f77b",
-    "notes/RESEARCH_HANDOFF.md": "45625f9d5b0377b7218da673d594e0bdd1f7cd4c443c049b9777c62449ba8d2a",
+    "flatten_manifest.json": "56e2c847cf175ce2e1b17c404f9fdf1e609a56be49f412ff84ec4ac1e0a8a941",
+    "notes/RESEARCH_HANDOFF.md": "0bfffcc6c1f2b00975f2a4c24e7fde5a590721e45b45b0d87c5e5d8ab0c411fb",
     "retry-readiness-table.tex": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
     "retry-readiness.tex": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516"
   },
@@ -659,11 +769,11 @@
     "retained_artifact_files_byte_unchanged_at_prior_revision": 312
   },
   "completed_research_extension": {
-    "name": "Online selected message in a finite recovered chain",
+    "name": "Native recovery with an online selected message",
     "status": "completed",
-    "section": "5.6",
-    "evidence": "artifacts/chain-prefix/",
-    "result": "Finite-chain continuation, selected-message confidentiality and selected-key integrity with explicit whole-execution budgets."
+    "section": "5.13",
+    "evidence": "artifacts/native-online-chain/",
+    "result": "A source-attributed native theorem preserves original eligibility and local stopping while permitting online target selection after earlier-key disclosure."
   },
-  "next_research_connection": "Realize the completed online prefix controller in the original native source-attributed application experiment while preserving candidate-local record stops and executed-slot attribution."
+  "next_research_connection": "Consolidate the contribution narrative and proof dependencies, then complete the final integrated argument, citation and layout review. The native online composition is complete; separate production bootstrap engineering retains its release scope."
 }
