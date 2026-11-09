@@ -33,6 +33,12 @@ static qpc_peer_device_v1 peer_config_device(const char *path, const char *prefi
     device.generation=enrollment_counter(counter);
     return device;
 }
+static void peer_config_overwrite(void *memory, size_t length) {
+    /* Qualification observes a changed caller allocation after prepare returns.
+     * Volatile stores keep that observation valid under dead-store elimination. */
+    volatile unsigned char *bytes=(volatile unsigned char *)memory;
+    for(size_t index=0;index<length;++index) bytes[index]=0;
+}
 static uint64_t configured_device_peer_open(uint64_t parent,const char *path,
                                             uint32_t role,const uint8_t *existing) {
     uint8_t left[1985],right[1985],bundle[65536],certificate[8192],name[128],session[32]={0};
@@ -53,9 +59,10 @@ static uint64_t configured_device_peer_open(uint64_t parent,const char *path,
     if(!handle) fail("configured peer pending handle");
     /* All buffers stay live but change before finish; a borrowed-pointer bug
      * cannot be hidden by unchanged allocator storage. These are public values. */
-    memset(left,0,sizeof(left));memset(right,0,sizeof(right));memset(bundle,0,sizeof(bundle));
-    memset(certificate,0,sizeof(certificate));memset(name,0,sizeof(name));
-    memset(session,0,sizeof(session));memset(&input,0,sizeof(input));
+    peer_config_overwrite(left,sizeof(left));peer_config_overwrite(right,sizeof(right));
+    peer_config_overwrite(bundle,sizeof(bundle));peer_config_overwrite(certificate,sizeof(certificate));
+    peer_config_overwrite(name,sizeof(name));peer_config_overwrite(session,sizeof(session));
+    peer_config_overwrite(&input,sizeof(input));
     require(qpc_owner_v1_finish_open(handle,&error),&error);
     return handle;
 }
