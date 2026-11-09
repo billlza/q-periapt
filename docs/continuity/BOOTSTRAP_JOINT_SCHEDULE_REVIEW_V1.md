@@ -16,7 +16,10 @@ the exact ideal HKDF block-table identity. They also settle the general
 retained-record readability and copying semantics. This assessment applies
 those results to the actual bootstrap fields, completes a conditional
 downstream schedule derivation, and completes the U3 correspondence for the
-declared bootstrap records and acquisition interface.
+declared bootstrap records and acquisition interface. The subsequent
+[joint entry proof](BOOTSTRAP_JOINT_ENTRY_V1.md), assessed at `b1cff2a0`,
+completes both surviving-contribution primitive entry services with the
+initial-confirmation cross-use retained.
 
 | Existing item | Result available for this assessment | Disposition |
 | --- | --- | --- |
@@ -25,7 +28,7 @@ declared bootstrap records and acquisition interface.
 | U2 hidden ContextBound input | `lem:cb-hidden-component` treats the full effective tuple, permits the other component to be known, and preserves all tuple aliases. | Established after the selected component replacement. Bootstrap source attribution and disclosures supply its concrete invocation. |
 | U2 HMAC/HKDF composition | The shared-oracle row/column lemmas, finite root-entry theorem and exact Expand-table identity supply the required downstream operations. | Reusable results. Section 3 instantiates the bootstrap lengths and five activation blocks. |
 | U3 retained-state correspondence | `thm:guarded-normalization` and `cor:guarded-history`, instantiated by the phase and acquisition maps in section 5. | Complete for the named bootstrap records, passive acquisitions and declared key disclosures along one authoritative history. |
-| U2 bootstrap entry | The same `S0` feeds initial confirmation and the 64-byte `S0 || S1` Extract; the two surviving-contribution cases require their joint original-operation comparison. | The precise remaining bridge is specified in sections 4 and 7. |
+| U2 bootstrap entry | The [joint entry theorem](BOOTSTRAP_JOINT_ENTRY_V1.md) compares the hidden-`S1` long Extract and the hidden-`S0` short/long service to complete-descriptor PRK tables under the common compression oracle. | Primitive services completed; original-contribution/disclosure attribution and terminal class reconciliation remain in section 7. |
 
 The result for U3 is a source and derivability correspondence. The
 confidentiality comparison that hides an acquired ciphertext, or embeds an
@@ -285,8 +288,12 @@ hybrid encoding, with no implication that the implementation has failed.
 
 In the hidden-`S1` case, `S0` and the entire initial-confirmation path are
 locally computable; the protected block has the form `known_S0 || S1`.
-These two explicit services localize the remaining primitive composition.
-The three labels that follow `P_B` are already covered by section 3.
+The [joint entry theorem](BOOTSTRAP_JOINT_ENTRY_V1.md) now proves both
+services. Its first replacement preserves that complete raw cache; its second
+uses the disjoint short-outer and full-padding encodings, and its final
+replacement yields the full `(known_half,alpha,beta)` PRK table. The SDK
+initial PRK remains independent in the final table experiment. Section 3
+supplies the three-label and activation tail under its stated wrapper.
 
 ## 5. U3: completed disclosure and retention correspondence
 
@@ -417,8 +424,13 @@ derivations written here.
 
 ## 7. Remaining U2 integration work
 
-Two concrete comparisons remain to turn the completed inputs into the complete
-bootstrap schedule instance requested by the terminal theorem:
+The two primitive entry services are complete in the
+[joint entry theorem](BOOTSTRAP_JOINT_ENTRY_V1.md), including adaptive salts,
+the exact short/long raw-input alias, complete pad-state descriptors and
+whole-continuation query budgets. Their first-allocation table comparison
+composes with section 3 under its opaque three-label wrapper. The remaining
+integration connects these completed primitive results to the original
+bootstrap operations and the terminal theorem:
 
 1. **Original contributions and permitted observations.** Instantiate the
    component challenge adapter for the selected bootstrap prekey/initial
@@ -428,19 +440,19 @@ bootstrap schedule instance requested by the terminal theorem:
    existing body-origin and native signature-reservation reductions supply the
    authentication component. The known next-rekey source invariant is a useful
    proof pattern; the bootstrap has the distinct uses enumerated in section 1.
-2. **Joint two-contribution entry.** Prove the hidden-`S1` 64-byte Extract
-   service and the hidden-`S0` service shared with SDK initial confirmation,
-   under the same public compression oracle. Their exact blocks and cross-use
-   cache are specified in section 4. The output is a consistent fresh PRK
-   family with the declared disclosures and whole-prefix budgets. Compose it
-   with section 3, reconcile actual descriptor aliases with the terminal class
-   ideal, then substitute the resulting schedule term into U1.
+2. **Terminal-family composition.** Invoke the completed entry theorem
+   for the source-realized surviving-contribution service, followed by the
+   protected activation-table derivation. Reconcile actual descriptor aliases
+   with the terminal full-class ideal, retaining the explicit pad-state-alias
+   term and the original disclosure/latched-stop behavior, then substitute
+   the resulting schedule term into U1.
 
 These are the original U2 construction obligations in an executable source
 shape. The current package, platform qualification and workload-budget choices
 keep their existing acceptance roles. The completed U3 correspondence, existing
-signature bridge and conditional downstream derivation can be recorded as
-finished assessment inputs while this specific entry comparison is completed.
+signature bridge, both primitive entry services and conditional downstream
+derivation are finished assessment inputs. The source-specific adapter and
+terminal-family reconciliation identify the remaining integration precisely.
 
 [evidence]: ../../research/sdk-alpha1/evidence/20261109-bootstrap-joint-schedule-review/README.md
 [bootstrap]: ../../research/continuity-identity-candidate/src/bootstrap.rs

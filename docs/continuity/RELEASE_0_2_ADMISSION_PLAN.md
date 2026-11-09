@@ -21,7 +21,7 @@ The C snapshot now records package version `0.2.0` while retaining all existing
 `dev.qperiapt:q-periapt-continuity-kotlin:0.2.0`. The package identity change keeps
 the current protocol domains and persisted formats. Selected native/Android and
 service distribution records, actual archive digests, the remaining bootstrap
-entry comparison, and the coordinated specification lock remain in the
+source-level composition, and the coordinated specification lock remain in the
 execution sequence below. Historical qualification keeps its original source
 and artifact identities.
 
@@ -34,14 +34,18 @@ and signing reservations, prekey inventory/tombstones and separately acquired
 signer files. The guarded-history correspondence preserves original sources
 through retry, copying, cancellation and later key disclosure.
 
-U2 now has three completed inputs: the existing native ML-DSA randomizer bridge,
-the complete-tuple and finite-entry primitive results, and the conditional
-bootstrap-PRK-to-activation derivation with the actual five-block schedule.
-The remaining bootstrap comparison has two precise steps: instantiate the
-original contribution/disclosure adapters, then handle the 64-byte `S0 || S1`
-Extract jointly with `S0`'s initial-confirmation use. The assessment identifies
-their exact compression inputs, alias handling and connection to the completed
-terminal-agreement theorem.
+U2 now includes the native ML-DSA randomizer bridge, complete-tuple and
+finite-entry results, both surviving-contribution bootstrap entry services,
+and the conditional bootstrap-PRK-to-activation derivation with the actual
+five-block schedule. The [joint entry proof](BOOTSTRAP_JOINT_ENTRY_V1.md)
+handles the 64-byte `S0 || S1` Extract together with `S0`'s initial-confirmation
+use, preserving the shared first compression point and effective descriptor
+aliases. Its independent review checks the analytical comparison, exact
+padding equations and separate global/per-slot query bounds.
+The remaining source-level composition instantiates the original
+contribution/disclosure adapters and reconciles effective descriptors with the
+terminal theorem's complete transcript classes, retaining the explicit alias
+and original-stop accounting identified in that proof.
 
 The [supported-workload budget](SUPPORTED_WORKLOAD_BUDGETS_0_2.md) selects the
 existing desktop reference workloads and six regression ceilings: 11/19 seconds
@@ -108,7 +112,7 @@ adopts these mechanisms and connects them to a formal distribution.
 | --- | --- | --- |
 | Identity, witness and authority | ML-DSA-65 AND P-256; independent pins/checkpoints; signed rosters; explicit registration and root replacement; caller-supplied trusted time | Record the host's trusted-time and independently approved trust-input responsibilities in the deployment contract. |
 | Accountable directory | Signed assignments; durable original-operation recovery; exact retries; retained one-time reservations; cancellation and canonical conflict proofs | Include the existing operator-driven service, approval/configuration input, pin, checkpoint, validity and capacity contract in the service package manifest. |
-| Bootstrap authority | Current KDF graph and stage-specific output permissions; epoch-zero root-bound ACK before established | Complete the original-contribution and joint 64-byte entry comparison using the completed terminal conversion, signature bridge, conditional downstream schedule and U3 correspondence. |
+| Bootstrap authority | Current KDF graph and stage-specific output permissions; epoch-zero root-bound ACK before established | Complete the source-level composition specified above using the reviewed joint entry services, terminal conversion, signature bridge, conditional downstream schedule and U3 correspondence. |
 | Ratchet and traffic policy | Existing v6 profile, four retained epochs, signed application-send allowance, explicit no-padding behavior | Adopt the current domains, allowance replenishment and recovery conditions as one versioned product policy. |
 | Ownership and maintenance | Device-scoped ownership, original intent, restricted recovery, witnessed state, roster fanout and existing maintenance v2 | Bind current public entry points to the final package/export inventory and the compatibility policy below. |
 | Limits and measured cost | Compiled contract schema 3, joint implementation limits and selected reference-workload budgets | Bind the chosen cost policy and selected-source validation into the coordinated specification lock. |
@@ -205,7 +209,7 @@ candidate reader behavior.
    channel and implemented versioned metadata. Bind remaining native, Android
    and service distribution identities and the adopted compatibility policy to
    their actual artifacts.
-3. Complete the two bootstrap U2 entry-comparison steps identified above.
+3. Complete the bootstrap U2 source-level composition identified above.
    The stage matrix, U3 correspondence and workload-budget selection are already
    recorded. Include them and the completed terminal conversion in the existing
    external-review package, then retain the actual assessed scope, findings and
