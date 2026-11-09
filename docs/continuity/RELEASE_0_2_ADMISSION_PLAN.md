@@ -29,6 +29,13 @@ the retained signature-alias and READY regressions. It is indexed in the
 [external-review brief](EXTERNAL_REVIEW_BRIEF.md). The construction assessment
 and supported-workload budget decision keep their original acceptance roles.
 
+The [terminal-agreement assessment](BOOTSTRAP_TERMINAL_AGREEMENT_V1.md) now
+completes the exact signed-wire Final invariant and the conversion from a joint online protected-family
+epoch-zero ACK-key schedule to historical responder activation. It supplies a
+source-bound theorem and independently executed encoding/alias controls for
+the matrix's terminal stages. The remaining construction assessment instantiates
+the explicit joint schedule under its chosen component and identity disclosures.
+
 ## Adopt the implemented contract
 
 The implementation already provides hybrid identity, independently approved
