@@ -18,20 +18,19 @@ static void peer_config_exact(const char *path, const char *prefix, const char *
     if(n<0 || (size_t)n>=sizeof(name)) fail("peer input name");
     enrollment_exact(path,name,output,length);
 }
-static qpc_peer_device_v1 peer_config_device(const char *path, const char *prefix,
-                                            uint8_t root[1985]) {
-    qpc_peer_device_v1 device={0}; uint8_t counter[8];
+static void peer_config_device(qpc_peer_device_v1 *device, const char *path,
+                               const char *prefix, uint8_t root[1985]) {
+    *device=(qpc_peer_device_v1){0}; uint8_t counter[8];
     peer_config_exact(path,prefix,"root",root,1985);
-    device.account.root=root; device.account.root_length=1985;
-    peer_config_exact(path,prefix,"account",device.account.account,32);
-    enrollment_exact(path,"family",device.account.family,32);
+    device->account.root=root; device->account.root_length=1985;
+    peer_config_exact(path,prefix,"account",device->account.account,32);
+    enrollment_exact(path,"family",device->account.family,32);
     peer_config_exact(path,prefix,"roster-version",counter,8);
-    device.account.checkpoint.version=enrollment_counter(counter);
-    peer_config_exact(path,prefix,"roster-digest",device.account.checkpoint.digest,32);
-    peer_config_exact(path,prefix,"device",device.device,16);
+    device->account.checkpoint.version=enrollment_counter(counter);
+    peer_config_exact(path,prefix,"roster-digest",device->account.checkpoint.digest,32);
+    peer_config_exact(path,prefix,"device",device->device,16);
     peer_config_exact(path,prefix,"generation",counter,8);
-    device.generation=enrollment_counter(counter);
-    return device;
+    device->generation=enrollment_counter(counter);
 }
 static void peer_config_overwrite(void *memory, size_t length) {
     /* Qualification observes a changed caller allocation after prepare returns.
@@ -45,8 +44,8 @@ static uint64_t configured_device_peer_open(uint64_t parent,const char *path,
     qpc_peer_configuration_v1 input={0};
     input.header=(qpc_configuration_header_v1){sizeof(input),1};
     input.quality=1; input.role=role;
-    input.initiator=peer_config_device(path,"initiator",left);
-    input.responder=peer_config_device(path,"responder",right);
+    peer_config_device(&input.initiator,path,"initiator",left);
+    peer_config_device(&input.responder,path,"responder",right);
     enrollment_exact(path,"directory",input.directory,32);
     input.bundle=(qpc_configuration_blob_v1){bundle,enrollment_read(path,"bootstrap.bundle",bundle,sizeof(bundle))};
     input.tls_peer=(qpc_configuration_blob_v1){certificate,enrollment_read(path,"tls-peer",certificate,sizeof(certificate))};
