@@ -1,0 +1,177 @@
+[2026-11-09 17:43:13] [PROGRESS] resolve queries> Recording pack reference codeql/rust-queries at /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44.
+[2026-11-09 17:43:13] [PROGRESS] execute queries> Resolving data extensions.
+[2026-11-09 17:43:13] [PROGRESS] resolve queries> Recording pack reference codeql/rust-queries at /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/dataflow/internal/empty.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/actix-web.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/asyncstd/fs.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/asyncstd/io.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/asyncstd/net.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/axum.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/biscotti.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/cookie.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/empty.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/futures.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/genericarray.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/http.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/libc.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/log.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/mysql-async.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/mysql.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/native-tls.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/poem.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/postgres.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/regex.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/reqwest.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/rusqlite.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/rustcrypto/rustcrypto.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/rustls.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/sqlx.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/stdlib/alloc.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/stdlib/core.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/stdlib/env.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/stdlib/ffi.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/stdlib/fs.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/stdlib/io.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/stdlib/net.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/stdlib/process.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/tokio/fs.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/tokio/io.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/tokio/net.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/tokio/postgres.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/url.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/codeql/rust/frameworks/warp.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/actix-web.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/clap.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/hyper.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/libc.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/log.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/memchr.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/once_cell.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/rand.model.yml.
+[2026-11-09 17:43:13] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/reqwest.model.yml.
+[2026-11-09 17:43:14] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/rust.model.yml.
+[2026-11-09 17:43:14] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/serde.model.yml.
+[2026-11-09 17:43:14] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/smallvec.model.yml.
+[2026-11-09 17:43:14] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/tokio.model.yml.
+[2026-11-09 17:43:14] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/threat-models/1.0.59/ext/supported-threat-models.model.yml.
+[2026-11-09 17:43:14] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/threat-models/1.0.59/ext/threat-model-grouping.model.yml.
+[2026-11-09 17:43:14] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/util/2.0.46/ext/default-alert-filter.yml.
+[2026-11-09 17:43:14] [PROGRESS] execute queries> Finished resolving data extensions.
+[2026-11-09 17:43:14] [PROGRESS] execute queries> Loading data extensions.
+[2026-11-09 17:43:14] [PROGRESS] execute queries> Finished loading data extensions.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [1/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractedFiles.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [2/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/AstConsistencyCounts.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [3/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractionErrors.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [4/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/CfgConsistencyCounts.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [5/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractionWarnings.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [6/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/UnextractedElements.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [7/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/SsaConsistencyCounts.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [8/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/UnresolvedMacroCalls.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [9/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/DataFlowConsistencyCounts.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [10/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/TypeInferenceConsistencyCounts.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [11/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-020/RegexInjection.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [12/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-022/TaintedPath.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [13/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-078/CommandInjection.qlx.
+[2026-11-09 17:43:15] [PROGRESS] execute queries> [14/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-079/XSS.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [15/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-295/DisabledCertificateCheck.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [16/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-311/CleartextTransmission.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [17/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-117/LogInjection.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [18/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-089/SqlInjection.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [19/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-327/BrokenCryptoAlgorithm.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [20/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-312/CleartextLogging.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [21/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-312/CleartextStorageDatabase.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [22/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-319/UseOfHttp.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [23/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-327/WeakSensitiveDataHashing.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [24/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-614/InsecureCookie.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [25/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-770/UncontrolledAllocationSize.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [26/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-798/HardcodedCryptographicValue.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [27/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-825/AccessAfterLifetime.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [28/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/LinesOfCode.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [29/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/LinesOfUserCode.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [30/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NumberOfFilesExtractedWithErrors.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [31/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NumberOfSuccessfullyExtractedFiles.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [32/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NodesWithTypeAtLengthLimit.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [33/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-825/AccessInvalidPointer.qlx.
+[2026-11-09 17:43:16] [PROGRESS] execute queries> [34/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-918/RequestForgery.qlx.
+[2026-11-09 17:43:17] [PROGRESS] execute queries> [35/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/QuerySinkCounts.qlx.
+[2026-11-09 17:43:17] [PROGRESS] execute queries> [36/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStats.qlx.
+[2026-11-09 17:43:17] [PROGRESS] execute queries> [37/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/telemetry/DatabaseQualityDiagnostics.qlx.
+[2026-11-09 17:43:17] [PROGRESS] execute queries> [38/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/telemetry/ExtractorInformation.qlx.
+[2026-11-09 17:43:17] [PROGRESS] execute queries> [39/39] Loaded /home/runner/work/_temp/codeql-summary-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStatsReduced.qlx.
+[2026-11-09 17:43:17] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.ql.
+[2026-11-09 17:43:17] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.ql.
+[2026-11-09 17:43:17] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.ql.
+[2026-11-09 17:43:23] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractedFiles.ql.
+[2026-11-09 17:43:23] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractionErrors.ql.
+[2026-11-09 17:43:23] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractionWarnings.ql.
+[2026-11-09 17:43:23] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.ql.
+[2026-11-09 17:43:23] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.ql.
+[2026-11-09 17:43:23] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/UnextractedElements.ql.
+[2026-11-09 17:43:23] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.ql.
+[2026-11-09 17:43:23] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-020/RegexInjection.ql.
+[2026-11-09 17:43:23] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-022/TaintedPath.ql.
+[2026-11-09 17:43:23] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-078/CommandInjection.ql.
+[2026-11-09 17:43:23] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-079/XSS.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-089/SqlInjection.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-117/LogInjection.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-312/CleartextLogging.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-319/UseOfHttp.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-614/InsecureCookie.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-918/RequestForgery.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/LinesOfCode.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/LinesOfUserCode.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/QuerySinkCounts.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/SummaryStats.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/SummaryStatsReduced.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.ql.
+[2026-11-09 17:43:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/telemetry/ExtractorInformation.ql.
+[2026-11-09 17:44:16] [PROGRESS] execute queries> [1/39 eval 53.2s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractedFiles.bqrs.
+[2026-11-09 17:44:16] [PROGRESS] execute queries> [2/39 eval 53.2s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionWarnings.bqrs.
+[2026-11-09 17:44:16] [PROGRESS] execute queries> [3/39 eval 53.2s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionErrors.bqrs.
+[2026-11-09 17:44:16] [PROGRESS] execute queries> [4/39 eval 53s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnextractedElements.bqrs.
+[2026-11-09 17:44:16] [PROGRESS] execute queries> [5/39 eval 51.4s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.bqrs.
+[2026-11-09 17:44:16] [PROGRESS] execute queries> [6/39 eval 51.4s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs.
+[2026-11-09 17:44:27] [PROGRESS] execute queries> [7/39 eval 1m2s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfCode.bqrs.
+[2026-11-09 17:44:27] [PROGRESS] execute queries> [8/39 eval 1m2s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfUserCode.bqrs.
+[2026-11-09 17:44:27] [PROGRESS] execute queries> [9/39 eval 1m4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.bqrs.
+[2026-11-09 17:45:12] [PROGRESS] execute queries> [10/39 eval 1m55s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.bqrs.
+[2026-11-09 17:45:51] [PROGRESS] execute queries> [11/39 eval 2m34s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.bqrs.
+[2026-11-09 17:46:01] [PROGRESS] execute queries> [12/39 eval 2m38s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.bqrs.
+[2026-11-09 17:47:29] [PROGRESS] execute queries> [13/39 eval 4m6s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs.
+[2026-11-09 17:47:32] [PROGRESS] execute queries> [14/39 eval 4m7s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.bqrs.
+[2026-11-09 17:47:46] [PROGRESS] execute queries> [15/39 eval 4m29s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.bqrs.
+[2026-11-09 17:47:47] [PROGRESS] execute queries> [16/39 eval 4m24s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-020/RegexInjection.bqrs.
+[2026-11-09 17:47:52] [PROGRESS] execute queries> [17/39 eval 4m27s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.bqrs.
+[2026-11-09 17:47:52] [PROGRESS] execute queries> [18/39 eval 4m27s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.bqrs.
+[2026-11-09 17:47:53] [PROGRESS] execute queries> [19/39 eval 4m28s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-089/SqlInjection.bqrs.
+[2026-11-09 17:47:54] [PROGRESS] execute queries> [20/39 eval 4m31s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-079/XSS.bqrs.
+[2026-11-09 17:47:55] [PROGRESS] execute queries> [21/39 eval 4m31s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs.
+[2026-11-09 17:48:06] [PROGRESS] execute queries> [22/39 eval 4m42s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-117/LogInjection.bqrs.
+[2026-11-09 17:48:07] [PROGRESS] execute queries> [23/39 eval 4m42s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs.
+[2026-11-09 17:48:10] [PROGRESS] execute queries> [24/39 eval 4m45s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs.
+[2026-11-09 17:48:12] [PROGRESS] execute queries> [25/39 eval 4m49s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-078/CommandInjection.bqrs.
+[2026-11-09 17:48:12] [PROGRESS] execute queries> [26/39 eval 4m47s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-614/InsecureCookie.bqrs.
+[2026-11-09 17:48:24] [PROGRESS] execute queries> [27/39 eval 4m59s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextLogging.bqrs.
+[2026-11-09 17:48:33] [PROGRESS] execute queries> [28/39 eval 5m8s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs.
+[2026-11-09 17:48:33] [PROGRESS] execute queries> [29/39 eval 5m9s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.bqrs.
+[2026-11-09 17:48:34] [PROGRESS] execute queries> [30/39 eval 5m11s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-022/TaintedPath.bqrs.
+[2026-11-09 17:48:35] [PROGRESS] execute queries> [31/39 eval 5m10s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-918/RequestForgery.bqrs.
+[2026-11-09 17:48:37] [PROGRESS] execute queries> [32/39 eval 5m12s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.bqrs.
+[2026-11-09 17:48:38] [PROGRESS] execute queries> [33/39 eval 5m13s] Evaluation done; writing results to codeql/rust-queries/queries/summary/QuerySinkCounts.bqrs.
+[2026-11-09 17:48:42] [PROGRESS] execute queries> [34/39 eval 5m17s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.bqrs.
+[2026-11-09 17:48:48] [PROGRESS] execute queries> [35/39 eval 5m23s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.bqrs.
+[2026-11-09 17:48:48] [PROGRESS] execute queries> [36/39 eval 5m23s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/ExtractorInformation.bqrs.
+[2026-11-09 17:48:49] [PROGRESS] execute queries> [37/39 eval 5m24s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStatsReduced.bqrs.
+[2026-11-09 17:49:25] [PROGRESS] execute queries> [38/39 eval 6m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs.
