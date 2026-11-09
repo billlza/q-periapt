@@ -324,12 +324,60 @@ class RustProfileTests(unittest.TestCase):
             self.assertEqual(profile_module.tracked_lockfiles(Path("/source")), expected)
         changed = [expected[:index] + expected[index + 1:] for index in range(len(expected))]
         changed.extend((expected + ("unreviewed/Cargo.lock",), expected + (expected[-1],),
-                        expected[:-1] + ("unreviewed/Cargo.lock",)))
+                        expected[:-1] + ("unreviewed/Cargo.lock",),
+                        expected + ("paper/unreviewed/Cargo.lock",)))
         for paths in changed:
             with self.subTest(paths=paths), mock.patch.object(
                     profile_module, "run_git_bytes", return_value="\n".join(paths).encode()):
                 with self.assertRaisesRegex(ValueError, "workspace lock inventory differs"):
                     profile_module.tracked_lockfiles(Path("/source"))
+
+    @contextlib.contextmanager
+    def paper_lock_inventory_fixture(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            expected = profile_module.WORKSPACE_LOCKFILES
+            archives = {}
+            for relative in profile_module.PAPER_ARCHIVE_LOCKFILES:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                payload = ("retained source lock: " + relative + "\n").encode()
+                path.write_bytes(payload)
+                archives[relative] = hashlib.sha256(payload).hexdigest()
+            tracked = tuple(sorted((*expected, *archives)))
+            with mock.patch.object(profile_module, "PAPER_ARCHIVE_LOCKFILES", archives), \
+                    mock.patch.object(profile_module, "run_git_bytes", return_value="\n".join(tracked).encode()):
+                yield root, expected, archives
+
+    def test_workspace_lock_inventory_keeps_pinned_paper_archives_out_of_fetch_roots(self) -> None:
+        with self.paper_lock_inventory_fixture() as (root, expected, archives):
+            self.assertEqual(profile_module.tracked_lockfiles(root), expected)
+            self.assertTrue(set(expected).isdisjoint(archives))
+
+    def test_workspace_lock_inventory_rejects_changed_paper_archive_bytes(self) -> None:
+        with self.paper_lock_inventory_fixture() as (root, _expected, archives):
+            for relative in archives:
+                with self.subTest(archive=relative):
+                    path = root / relative
+                    original = path.read_bytes()
+                    path.write_bytes(original + b"changed\n")
+                    with self.assertRaisesRegex(ValueError, "archived paper lock snapshot differs"):
+                        profile_module.tracked_lockfiles(root)
+                    path.write_bytes(original)
+
+    def test_workspace_lock_inventory_rejects_adjacent_archive_manifests(self) -> None:
+        with self.paper_lock_inventory_fixture() as (root, _expected, archives):
+            for relative in archives:
+                manifest = (root / relative).with_name("Cargo.toml")
+                for kind in ("regular", "dangling-symlink"):
+                    with self.subTest(archive=relative, manifest=kind):
+                        if kind == "regular":
+                            manifest.write_text("[workspace]\n")
+                        else:
+                            manifest.symlink_to("absent-manifest")
+                        with self.assertRaisesRegex(ValueError, "archived paper lock has an adjacent Cargo.toml"):
+                            profile_module.tracked_lockfiles(root)
+                        manifest.unlink()
 
     def test_macos_extraction_uses_its_own_finite_resource_budget(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

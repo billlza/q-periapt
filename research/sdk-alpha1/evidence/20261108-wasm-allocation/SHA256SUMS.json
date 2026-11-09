@@ -1,5 +1,29 @@
 {
   "files": {
+    "ARCHIVAL_LOCKS_FAILURE.json": {
+      "bytes": 622,
+      "sha256": "caddb6e64ac2d238d35e769e260d32c6309e18134feefe278177e29a9c46811d"
+    },
+    "ARCHIVAL_LOCKS_IDENTITIES.json": {
+      "bytes": 795,
+      "sha256": "d811bde71d97452c573e7d69938a8c20a86de61f967fe39a825a27a899784d2a"
+    },
+    "ARCHIVAL_LOCKS_PROFILE_TESTS.json": {
+      "bytes": 548,
+      "sha256": "70644ee45bcd1fbd42f30be935c4fef618d6edfce4e05fad5ca54ec63d66971f"
+    },
+    "ARCHIVAL_LOCKS_PROFILE_TESTS.stderr": {
+      "bytes": 4922,
+      "sha256": "d4367a375dc24bbfb5576f4f5fb7faae6ac2dcfb03ce79c6d2fb0819a9289d39"
+    },
+    "ARCHIVAL_LOCKS_REVIEW.json": {
+      "bytes": 1944,
+      "sha256": "4da375590e28707ab286cfd05d94dda8e2bd29d592ff0331eb3069ce3477efdd"
+    },
+    "ARCHIVAL_LOCKS_VALIDATION.json": {
+      "bytes": 17852,
+      "sha256": "209ba0126782a237bd28cff7b10b40da23131bdfd1fc4d0cb7ce590fb042758e"
+    },
     "CATEGORY_MIGRATION.json": {
       "bytes": 4334,
       "sha256": "c7c14f7652ebebb2197f2b4afde548905f00910f23a29077b94f8b3b05770dd2"
@@ -89,8 +113,8 @@
       "sha256": "6e2d860dab9ec3657ed78f6fa3acda5354e46bdd4df65506eca7487c25e7b496"
     },
     "README.md": {
-      "bytes": 12962,
-      "sha256": "b0a73b716e2e91fd8ad86e33da9f675263c3300ed47d1389f6ab1f9790c7cf86"
+      "bytes": 14375,
+      "sha256": "a04a98ca20ecaa0cfb19a95b5484b7d72b3bf9aaab430b0b2e5097884707bc22"
     },
     "UPSTREAM_QUERY_SOURCES.json": {
       "bytes": 558,

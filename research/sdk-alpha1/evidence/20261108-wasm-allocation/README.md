@@ -217,3 +217,28 @@ retains the executed script. This is a parameter propagation check; the
 updated repository-scale runs provide the full-source completion result.
 The verbatim CLI child log uses the execution host's offset clock; the
 validation receipt records the actual UTC observation.
+
+
+## Paper archive lockfile compatibility
+
+The actual merge rehearsal with paper head
+`f26e30a57cd6f22370ac2f1b3ba1962c1997b25d` exposed a separate preparation
+failure: the global `*Cargo.lock` inventory contained the eight active
+workspaces and two immutable paper source witnesses. The latter have no
+adjacent `Cargo.toml` and are provenance records rather than fetch roots.
+`ARCHIVAL_LOCKS_FAILURE.json` records the exact pre-fix rejection.
+
+The active `WORKSPACE_LOCKFILES` tuple and its exact equality check remain
+unchanged. The two known paper paths are identified separately by the exact
+SHA-256 values of their f26 source bytes. A changed archive or any adjacent
+`Cargo.toml`, including a dangling symlink, is rejected; every other additional
+lockfile still rejects the inventory. The returned fetch list is exactly the
+original eight active workspaces.
+
+`ARCHIVAL_LOCKS_PROFILE_TESTS.json` and its raw log record all **27 profile
+module tests passing**. `ARCHIVAL_LOCKS_VALIDATION.json` records **10 passing
+source-bound positive/negative controls** on the real memory-only and combined
+source layouts, using the actual f26 archive bytes. The independent review is
+in `ARCHIVAL_LOCKS_REVIEW.json`. These receipts identify this subsequent
+preparation fix separately from the earlier 104-test allocation/category run
+and the successful 3,496-test hosted run at `8fb8e869f1a2178586ab58a68391622b79e621e0`.
