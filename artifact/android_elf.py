@@ -470,7 +470,13 @@ def verify_program_headers(output: str, path: pathlib.Path) -> None:
             continue
         if fields[0] == "LOAD":
             try:
-                load_alignments.append(int(fields[-1], 0))
+                require(len(fields) >= 8, f"cannot parse LOAD geometry for {path}: {line!r}")
+                file_offset, address, alignment = int(fields[1], 0), int(fields[2], 0), int(fields[-1], 0)
+                require(alignment > 0 and alignment & (alignment - 1) == 0,
+                        f"{path} has a LOAD alignment that is not a power of two: {alignment:#x}")
+                require(file_offset >= 0 and address >= 0 and file_offset % alignment == address % alignment,
+                        f"{path} has incongruent LOAD file offset and virtual address")
+                load_alignments.append(alignment)
             except (ValueError, IndexError) as exc:
                 raise AndroidVerificationError(f"cannot parse LOAD alignment for {path}: {line!r}") from exc
         elif fields[0] == "GNU_RELRO":
