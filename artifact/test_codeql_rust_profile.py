@@ -241,6 +241,90 @@ class RustProfileTests(unittest.TestCase):
                 for receipt in ("QUERY_INVENTORY.json", "QUERY_MEMORY.json", "ANALYSIS.json"):
                     self.assertFalse((run.evidence / receipt).exists())
 
+    def _check_analysis_snapshot_binding(self, replacement: str | None) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            pack = root / "query-pack"
+            pinned = json.loads((profile_module.ROOT / "artifact/codeql_rust_queries.json").read_text())
+            inventory = {}
+            for relative in pinned["queries"]:
+                path = pack / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("// query fixture " + relative)
+                inventory[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+            (root / "artifact").mkdir()
+            (root / "artifact/codeql_rust_queries.json").write_text(json.dumps(dict(pinned, queries=inventory)))
+            run = ProfileRun(root, root / "run", Path(sys.executable), {}, host="linux")
+            run.configuration = dataclasses.replace(run.configuration, database=root / "database")
+            extraction = {
+                "profile": "native", "target": profile_module.TARGETS["native"],
+                "source_commit": "a" * 40, "run_id": "123", "run_attempt": "1",
+                "active_target_quality_passed": True,
+            }
+            original = {
+                "PROFILE.json": json.dumps(extraction).encode(),
+                "results.sarif": json.dumps(sarif()).encode(),
+            }
+            (run.evidence / "PROFILE.json").write_bytes(original["PROFILE.json"])
+
+            def command(label, _argv, **_kwargs):
+                if label == "resolve-suite":
+                    return json.dumps([str(pack / name) for name in inventory]).encode()
+                if label == "resolve-analysis-ram":
+                    return b'["-J-Xmx3356M", "--off-heap-ram=9329"]'
+                self.assertEqual(label, "analyze")
+                for relative in inventory:
+                    result = run.configuration.database / "results/codeql/rust-queries" / Path(relative).with_suffix(".bqrs")
+                    result.parent.mkdir(parents=True, exist_ok=True)
+                    result.write_bytes(b"complete fixture result")
+                (run.evidence / "results.sarif").write_bytes(original["results.sarif"])
+                return b""
+
+            checkout_checks = 0
+
+            def require_clean_checkout(commit):
+                nonlocal checkout_checks
+                self.assertEqual(commit, "a" * 40)
+                checkout_checks += 1
+                if checkout_checks == 2 and replacement is not None:
+                    # Replace the real path after analyze has validated its
+                    # bytes, before ANALYSIS.json records their identity.
+                    changed = json.loads(original[replacement])
+                    if replacement == "PROFILE.json":
+                        changed["active_target_quality_passed"] = False
+                    else:
+                        changed["runs"][0]["invocations"][0]["executionSuccessful"] = False
+                        with self.assertRaisesRegex(ValueError, "unsuccessful"):
+                            validate_sarif(changed, "native")
+                    staged = run.evidence / "replacement.json"
+                    staged.write_text(json.dumps(changed))
+                    os.replace(staged, run.evidence / replacement)
+
+            with mock.patch.object(run, "command", side_effect=command), \
+                    mock.patch.object(profile_module.quality, "require_clean_checkout", side_effect=require_clean_checkout), \
+                    mock.patch.dict(os.environ, {"GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "2",
+                        "CODEQL_EXPECTED_COMMIT": "a" * 40}):
+                profile_module.analyze(run, pack)
+            self.assertEqual(checkout_checks, 2)
+            if replacement is not None:
+                self.assertNotEqual((run.evidence / replacement).read_bytes(), original[replacement])
+            analysis = json.loads((run.evidence / "ANALYSIS.json").read_text())
+            self.assertIs(analysis["completed"], True)
+            self.assertEqual(analysis["source_commit"], "a" * 40)
+            self.assertIs(analysis["upload_performed"], False)
+            for filename, key in (("PROFILE.json", "profile_sha256"), ("results.sarif", "sarif_sha256")):
+                self.assertEqual(analysis[key], hashlib.sha256(original[filename]).hexdigest(),
+                                 filename + " receipt must identify the bytes actually validated")
+
+    def test_analysis_receipt_identifies_validated_stable_inputs(self) -> None:
+        self._check_analysis_snapshot_binding(None)
+
+    def test_analysis_receipt_identifies_validated_profile_after_path_replacement(self) -> None:
+        self._check_analysis_snapshot_binding("PROFILE.json")
+
+    def test_analysis_receipt_identifies_validated_sarif_after_path_replacement(self) -> None:
+        self._check_analysis_snapshot_binding("results.sarif")
+
     def _check_clang_selection(self, *, symlink: bool) -> None:
         class SetupComplete(Exception):
             pass
