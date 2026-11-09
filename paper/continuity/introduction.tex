@@ -58,8 +58,9 @@ boundaries. Its journal can also aggregate several sessions, making the
 distinction between a new image and an existing source directly observable.
 
 \paragraph{Contributions.}
-The paper connects the exposure of original randomness, computational
-message confidentiality and authentication, and multi-epoch recovery.
+The paper establishes an exposure condition that follows original secret
+sources through persistent execution, and carries that condition into
+computational message security and symbolic multi-epoch recovery.
 
 We give a provenance-preserving model of reservations and record acquisition.
 Alias normalization relates copied and resealed representations to the same
@@ -72,49 +73,43 @@ alternative copies provide further routes to that source. This gives
 recovery experiments a stable exposure condition across physical changes
 to storage.
 
-We use this semantics to connect retained native state to message security.
-The computational result covers the next rekey of an established session
-and a fresh marked message allocation, with explicit record, component,
-hash, key-schedule and AEAD costs
-(Corollary~\ref{cor:live-core-next-rekey}). Its proof constructs private
-images and intents when the reduction holds only an operation's public
-outputs, composes dependent immutable reports in reverse causal order,
-and localizes the native score before the compromise cut is selected.
-An original-operation adapter then carries the operational ML-KEM
-experiment through the complete ContextBound tuple, root initialization,
-confirmation and traffic derivation. The joint continuation retains actual
-verification and the specified successor-state disclosures. Applying the
-same chain to the selected authentication event gives a native bound for
-confirmation and first-message integrity
-(Theorem~\ref{thm:native-selected-authentication}). Its original-game
-localization and Boolean comparisons charge each simulation step once.
+The computational connection constructs the retained private state needed
+by a reduction that holds an operation's public outputs. Images and intents
+preserve original record identities; dependent immutable reports are
+simulated in reverse causal order. Candidate-local accounting then
+localizes the original native score before the compromise cut is selected.
+An original-operation adapter carries this execution through the
+operational ML-KEM experiment, complete ContextBound tuple, root
+initialization, confirmation and traffic derivation. The resulting bounds
+establish confidentiality for a fresh marked first message after the next
+rekey of an established session
+(Corollary~\ref{cor:live-core-next-rekey}) and confirmation and first-message
+integrity under its selected recovered root
+(Theorem~\ref{thm:native-selected-authentication}). They retain real
+verification, declared successor-state disclosures and explicit record,
+component, hash, key-schedule and AEAD costs.
 
-The joint schedule also admits a finite-chain continuation in which the
-target message is selected online after earlier message keys have been
-disclosed (Theorem~\ref{thm:online-chain-leaf}). Each selection precedes
-that index's first private computation across all matching aliases.
-Successive Extract and Expand comparisons isolate the selected key while
-retaining its disclosed successor seed and real later chain computation.
-The resulting confidentiality and integrity bounds use explicit lifetime
-and whole-execution query budgets (Corollary~\ref{cor:online-chain-message}).
-Theorem~\ref{thm:native-online-message} connects this controller to the
-original native experiment. It retains candidate-local record stops,
-the accepted send's original KEM sources and selection before any
-endpoint's first computation, including failed receive-side advances.
-The composition charges the source, root and record comparisons once;
-the prefix comparison supplies the index-wise chain cost.
+An online finite-chain comparison extends this connection to a target
+chosen after earlier message-key disclosure
+(Theorem~\ref{thm:online-chain-leaf}). Successive Extract and Expand
+comparisons isolate the selected key while preserving its disclosed
+successor seed and real suffix computation. The selection occurs before
+that step's first private computation across all endpoint aliases,
+including failed receive-side advances. The native composition retains
+the accepted send's original sources and candidate-local record stops,
+giving confidentiality and selected-message integrity with explicit
+lifetime and whole-execution budgets
+(Theorem~\ref{thm:native-online-message}).
 
-The association between an accepted allocation and its original KEM calls
-is part of that connection. A selector registers the existing reservation
-slots before their first private computations. Persistent signing calls
-retain their randomizer and original-message ledger through opening,
-replay and failed publication. A joint shared-XOF comparison reduces this
-native ML-DSA interface to ordinary hedged-signature unforgeability
-(Theorem~\ref{thm:native-mldsa-reservation-bridge}), supplying the
-signature term in the source-attribution bound. The key-derivation analysis
-also extends to finite families of salts and complete information strings.
-Its SDK instance separates the shared value of a repeated derivation from
-the lifecycle of each returned owner
+The accepted allocation is associated with its original KEM calls by
+registering their existing reservation slots before private computation.
+A shared-XOF comparison preserves the signing randomizer and
+original-message ledger through replay and failed publication, reducing
+the native ML-DSA interface to ordinary hedged-signature unforgeability
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}). This instantiates the
+signature term in the source-attribution bound. The key-entry method also
+handles finite salt and information-string families, yielding a purpose-key
+instance with equal-input aliases and separate returned-owner lifecycles
 (Section~\ref{sec:sdk-purpose-connection}).
 
 The same provenance condition supports symbolic message secrecy when the target's original reservations

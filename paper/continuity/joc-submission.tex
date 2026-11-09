@@ -132,8 +132,9 @@ boundaries. Its journal can also aggregate several sessions, making the
 distinction between a new image and an existing source directly observable.
 
 \paragraph{Contributions.}
-The paper connects the exposure of original randomness, computational
-message confidentiality and authentication, and multi-epoch recovery.
+The paper establishes an exposure condition that follows original secret
+sources through persistent execution, and carries that condition into
+computational message security and symbolic multi-epoch recovery.
 
 We give a provenance-preserving model of reservations and record acquisition.
 Alias normalization relates copied and resealed representations to the same
@@ -146,49 +147,43 @@ alternative copies provide further routes to that source. This gives
 recovery experiments a stable exposure condition across physical changes
 to storage.
 
-We use this semantics to connect retained native state to message security.
-The computational result covers the next rekey of an established session
-and a fresh marked message allocation, with explicit record, component,
-hash, key-schedule and AEAD costs
-(Corollary~\ref{cor:live-core-next-rekey}). Its proof constructs private
-images and intents when the reduction holds only an operation's public
-outputs, composes dependent immutable reports in reverse causal order,
-and localizes the native score before the compromise cut is selected.
-An original-operation adapter then carries the operational ML-KEM
-experiment through the complete ContextBound tuple, root initialization,
-confirmation and traffic derivation. The joint continuation retains actual
-verification and the specified successor-state disclosures. Applying the
-same chain to the selected authentication event gives a native bound for
-confirmation and first-message integrity
-(Theorem~\ref{thm:native-selected-authentication}). Its original-game
-localization and Boolean comparisons charge each simulation step once.
+The computational connection constructs the retained private state needed
+by a reduction that holds an operation's public outputs. Images and intents
+preserve original record identities; dependent immutable reports are
+simulated in reverse causal order. Candidate-local accounting then
+localizes the original native score before the compromise cut is selected.
+An original-operation adapter carries this execution through the
+operational ML-KEM experiment, complete ContextBound tuple, root
+initialization, confirmation and traffic derivation. The resulting bounds
+establish confidentiality for a fresh marked first message after the next
+rekey of an established session
+(Corollary~\ref{cor:live-core-next-rekey}) and confirmation and first-message
+integrity under its selected recovered root
+(Theorem~\ref{thm:native-selected-authentication}). They retain real
+verification, declared successor-state disclosures and explicit record,
+component, hash, key-schedule and AEAD costs.
 
-The joint schedule also admits a finite-chain continuation in which the
-target message is selected online after earlier message keys have been
-disclosed (Theorem~\ref{thm:online-chain-leaf}). Each selection precedes
-that index's first private computation across all matching aliases.
-Successive Extract and Expand comparisons isolate the selected key while
-retaining its disclosed successor seed and real later chain computation.
-The resulting confidentiality and integrity bounds use explicit lifetime
-and whole-execution query budgets (Corollary~\ref{cor:online-chain-message}).
-Theorem~\ref{thm:native-online-message} connects this controller to the
-original native experiment. It retains candidate-local record stops,
-the accepted send's original KEM sources and selection before any
-endpoint's first computation, including failed receive-side advances.
-The composition charges the source, root and record comparisons once;
-the prefix comparison supplies the index-wise chain cost.
+An online finite-chain comparison extends this connection to a target
+chosen after earlier message-key disclosure
+(Theorem~\ref{thm:online-chain-leaf}). Successive Extract and Expand
+comparisons isolate the selected key while preserving its disclosed
+successor seed and real suffix computation. The selection occurs before
+that step's first private computation across all endpoint aliases,
+including failed receive-side advances. The native composition retains
+the accepted send's original sources and candidate-local record stops,
+giving confidentiality and selected-message integrity with explicit
+lifetime and whole-execution budgets
+(Theorem~\ref{thm:native-online-message}).
 
-The association between an accepted allocation and its original KEM calls
-is part of that connection. A selector registers the existing reservation
-slots before their first private computations. Persistent signing calls
-retain their randomizer and original-message ledger through opening,
-replay and failed publication. A joint shared-XOF comparison reduces this
-native ML-DSA interface to ordinary hedged-signature unforgeability
-(Theorem~\ref{thm:native-mldsa-reservation-bridge}), supplying the
-signature term in the source-attribution bound. The key-derivation analysis
-also extends to finite families of salts and complete information strings.
-Its SDK instance separates the shared value of a repeated derivation from
-the lifecycle of each returned owner
+The accepted allocation is associated with its original KEM calls by
+registering their existing reservation slots before private computation.
+A shared-XOF comparison preserves the signing randomizer and
+original-message ledger through replay and failed publication, reducing
+the native ML-DSA interface to ordinary hedged-signature unforgeability
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}). This instantiates the
+signature term in the source-attribution bound. The key-entry method also
+handles finite salt and information-string families, yielding a purpose-key
+instance with equal-input aliases and separate returned-owner lifecycles
 (Section~\ref{sec:sdk-purpose-connection}).
 
 The same provenance condition supports symbolic message secrecy when the target's original reservations
@@ -1311,6 +1306,70 @@ the joint schedule and online prefix comparison carry that root to the
 selected message while retaining the declared verification and disclosure
 operations. Executed-slot attribution and the ordinary-signature bridge
 close the association between that message and its original KEM sources.
+
+\paragraph{Proof dependencies and advantage accounting.}
+Table~\ref{tab:computational-dependencies} identifies the interface supplied
+by each connection. Each fixed-candidate comparison retains the original
+label $j=(g,a)$ and evaluates the same terminal code on that world's
+execution. Eligibility, accepted-send provenance and acquisition history
+are recomputed from its own ledgers. The final
+selector may choose the compromise cut after interaction; the protected
+tuple, traffic entry and message step are designated at their specified
+first-private-allocation boundaries. This order permits adaptive target
+selection while preserving the simulator's input and alias tables.
+
+\begin{table}[t]
+\caption{Shared dependencies of the native computational results.
+Each row identifies an interface and its establishing result.}
+\label{tab:computational-dependencies}
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.25\textwidth}X@{}}
+\toprule
+Connection & Supplied interface and principal result \\
+\midrule
+Record exposure & Original sources, immutable versions and acquisition
+history; guarded normalization
+(Theorem~\ref{thm:guarded-normalization}). \\
+Private retained state & Real-to-opaque image and intent correspondence
+(Corollary~\ref{cor:real-to-opaque}); candidate-local stopping and
+original-score localization (Lemma~\ref{lem:native-local-score}). \\
+Hybrid contribution & Original-operation component adapter and
+complete-tuple comparison; native single-root use
+(Lemma~\ref{lem:cb-native-root-use}). \\
+Application continuation & Joint confirmation and traffic schedule
+(Theorem~\ref{thm:joint-message-leaf}); online prefix continuation
+(Theorem~\ref{thm:online-chain-leaf}). \\
+Source attribution & Executed-slot allocation provenance
+(Proposition~\ref{prop:executed-source-attribution}), instantiated through
+ordinary hedged ML-DSA
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The final confidentiality bounds compare a signed score: a comparison
+whose output-bit advantage is $\varepsilon$ contributes at most
+$2\varepsilon$ before the final factor $1/2$ converts that score to
+message advantage. The operational component uses the two actual
+positive and negative output tests, giving $a_j^++a_j^-+2\delta_j$.
+Authentication compares its own Boolean event, so the corresponding
+record cost is $\varepsilon_{{\rm rec},j}$ and its component cost is
+$a_j^{\rm auth}+\delta_j$, or $a_j^{\rm msg}+\delta_j$ for online
+message integrity. Each of these adapters retains its own
+whole-execution query budget. The source-attribution residual is
+localized once in the original game. The live core supplies its complete
+observation interface in Section~\ref{sec:live-core-instantiation}; the
+separate report extension carries its declared projection event.
+
+Consequently the three native statements share the record and source
+connection, with the continuation selected by the terminal test:
+the first-message score in~\eqref{eq:live-core-next-rekey}, the
+confirmation/first-message event in~\eqref{eq:native-selected-authentication},
+and the online message score and event
+in~\eqref{eq:native-online-confidentiality}--\eqref{eq:native-online-integrity}.
+The native online correspondence
+(Lemma~\ref{lem:native-online-chain-correspondence}) is the additional
+source-order connection for the last pair.
 
 The final two subsections develop the finite multiple-root and SDK
 purpose-key instances of the same primitive method. The
@@ -5157,93 +5216,64 @@ combine to expose that source. The native executions demonstrate why both
 this conjunction and the original event history matter at the persistence
 and asynchronous-confirmation boundaries.
 
-\paragraph{Joint root and message instantiation.}
-Theorem~\ref{thm:joint-message-leaf} follows the stated finite interface through
-confirmation, traffic derivation and the selected first message. Private
-Expand-table normalization allows traffic information to depend on
-root-derived confirmation tags and supplies the independent hidden input for
-the next reduction. Real confirmation and ACK verification, successor-root
-disclosure, and disclosure of the next chain seed remain in that continuation.
-Exact retries reuse the encryption result from its first private computation.
+\paragraph{From a recovered epoch to application security.}
+The computational argument follows a selected original contribution
+through the complete tuple, root initialization, confirmation, traffic
+material and message chain. The joint comparison preserves real
+confirmation and ACK verification, successor-root disclosure and the
+selected message's next-chain-seed disclosure
+(Theorem~\ref{thm:joint-message-leaf}). The online extension permits earlier
+message keys to influence the selected index, with selection fixed before
+its first private computation across all aliases
+(Theorem~\ref{thm:online-chain-leaf}). Exact retries reuse that original
+computation, and real suffix processing continues from the disclosed
+successor seed.
 
-Theorem~\ref{thm:online-chain-leaf} extends the joint continuation along
-a finite message chain. Earlier message-key disclosure can influence an
-online choice of the target, provided that choice precedes its first
-private step at every alias. The proof compares each protected prefix
-step in chronological index order and removes its internal parent-row
-reference before proceeding to the next hidden seed. This gives the
-selected-message confidentiality and integrity bounds of
-Corollary~\ref{cor:online-chain-message}, including real suffix
-computation from the selected successor seed.
-Theorem~\ref{thm:native-online-message} realizes that controller in
-the original native application experiment. The root tuple, traffic
-allocation and message index retain separate online designation points.
-Actual receive-side work enters the original computation ledger even
-when authentication or persistence later fails. Complete-image
-acquisitions retain their candidate-local stopping condition, while
-the named earlier-key and successor-seed observations follow the
-primitive continuation. This establishes native confidentiality and
-selected-message integrity after earlier-key disclosure with explicit
-whole-execution costs.
+The native composition assigns these primitive interfaces to the actual
+send and receive order, including receive-side advances followed by
+failed authentication or persistence. Candidate-local stops retain the
+complete-image acquisition condition; the permitted individual key
+observations enter through their named interfaces. The resulting
+confidentiality and selected-message integrity bounds
+(Theorem~\ref{thm:native-online-message}) therefore apply to the original
+eligible application send. The selected-root authentication theorem
+also accounts for its earlier confirmation history
+(Theorem~\ref{thm:native-selected-authentication}). Each terminal event
+is recomputed in the compared execution, with its own component adapter
+and whole-execution budgets. Table~\ref{tab:computational-dependencies}
+records the shared dependencies.
 
-The connection begins with the root derivation of Equation~\eqref{eq:root},
+\paragraph{Primitive instantiation and reusable interfaces.}
+For root derivation, the placement of a surviving secret determines the
+required comparison. Equation~\eqref{eq:root} gives
 \[
  p_e=\operatorname{HMAC}_{R_{e-1}}(S_e).
 \]
-When $R_{e-1}$ is disclosed, the secret contribution occupies HMAC's message
-input, the position studied by extractor and swap-PRF
-formulations~\cite{hmacswap2023,rfc5869}.
-Appendix~\ref{app:joint-root-entry} gives the shared-oracle Extract/Expand
-reduction for a uniform combined contribution. Together with the joint
-schedule and the specified one-use AEAD game, it bounds the profile's
-ideal-contribution score. Section~\ref{sec:contextbound-connection} supplies
-the preceding complete-tuple comparison and original-operation adapter.
+Disclosure of the parent root leaves the new contribution in HMAC's
+message input, as studied by
+extractor and swap-PRF formulations~\cite{hmacswap2023,rfc5869}.
+The shared-oracle entry proof in Appendix~\ref{app:joint-root-entry}
+supplies the uniform-root interface after the complete-tuple comparison
+of Section~\ref{sec:contextbound-connection}. The finite-family extension
+preserves exact pad-state and information-string aliases
+(Section~\ref{sec:multiple-root-entry}). Its purpose-key instance permits
+all outputs of the declared derivation table to be exported while
+retaining a separate lifecycle for each returned owner
+(Section~\ref{sec:sdk-purpose-connection}). A marked private entry supports
+the corresponding one-key application experiment.
 
-The executable comparison tracks four identities across failed writes and
-exact resumption: the original reservation, the component's challenge-ciphertext
-class, the effective hash tuple, and the root-use descriptor. The next-rekey
-source profile fixes that descriptor, and the message continuation selects a
-fresh allocation. Corollary~\ref{cor:live-core-next-rekey} substitutes the
-explicit image/intent comparison cost for the authoritative live core.
-The executed-slot selector then associates accepted allocations with the
-original reservation pair, up to the signature and framed-hash terms in
-Proposition~\ref{prop:executed-source-attribution}. Its signing adapter
-preserves original randomizers, exact retries and the declared owner
-observations. The native ML-DSA bridge then expresses that signature term through
-ordinary hedged unforgeability, an exact-replay coupling and a shared-XOF
-query loss (Theorem~\ref{thm:native-mldsa-reservation-bridge}).
-The native deterministic P-256 component supplies the corresponding
-classical ordinary-signature instantiation.
-
-Theorem~\ref{thm:native-selected-authentication} carries the selected
-confirmation and first-message authentication event through this native
-proof chain. Original-game localization retains final eligibility and
-source attribution, and the event's own component adapter precedes the
-uniform-root bound of Proposition~\ref{prop:confirmation-message-auth}.
-Its origin ledgers distinguish a fresh authenticated acceptance from an
-exact replay or historical consumption status. The Boolean comparisons
-charge each record, primitive and schedule step once; the final terms
-account for the MAC rows, complete-core hash collisions and one-key
-ciphertext integrity.
-
-Section~\ref{sec:multiple-root-entry} generalizes the entry step to a finite
-family of available salts and complete root-information strings. Lifetime
-pad-state classes preserve exact HMAC aliases; successive row comparisons
-produce an independent table of root entries. A fresh entry in a previously
-used class can initialize the marked schedule, while other roots remain
-available for later computation. The target's aliases share one schedule
-handle, and the complete budgets include public class scheduling and every
-other real root computation. A concrete source workload can use this result
-by realizing the declared available-data controller.
-
-Section~\ref{sec:sdk-purpose-connection} supplies such a workload in the
-SDK's purpose-key API. Its exact information encoding separates purposes,
-labels, contexts and policy bindings. The comparison preserves a shared key
-entry for equal complete inputs and an independent lifecycle for each
-returned owner. It permits all derived-key exports in the joint key-table
-experiment. A selected private key additionally supports the stated
-application-encryption experiment when all its aliases follow that
-experiment's key-use interface.
+The other connection concerns the origin of an accepted allocation.
+Executed-slot registration ties it to the original KEM calls through
+retained plans and complete signed-body bindings
+(Proposition~\ref{prop:executed-source-attribution}). The native signing
+adapter carries original randomizers and exact retries into a shared-XOF
+comparison, expressing the native reservation-interface bound through
+ordinary hedged ML-DSA unforgeability, with explicit replay-coupling and
+oracle-query losses
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}). These two connections
+instantiate different parts of the final bound: the key-entry argument
+supplies recovered secret material, and the signature bridge supplies
+its original-source attribution.
 
 \paragraph{Exposure budgets and completed service.}
 The matched executions make the two-chain current-epoch capacity visible

@@ -12,6 +12,10 @@ The paper models original randomness reservations and the acquisition of their p
 
 The computational development constructs private-record and dependent-report simulations, connects them through candidate-local accounting, and carries a recovered contribution through root initialization, confirmation, traffic derivation and a selected first message. The complete ContextBound tuple comparison and original-operation adapter connect the actual ML-KEM component game to this continuation. The next-rekey source induction supplies one concrete native instance.
 
+The computational roadmap gives a shared dependency table and explains the signed-score and Boolean-event coefficients used by the three native results. Eligibility, accepted-send provenance and acquisition history are recomputed within each comparison world; the original-game attribution term is charged once. The contribution narrative and discussion connect these interfaces to their application consequences. The [semantic review](artifacts/editorial-review/proof-dependencies/review.md) binds that exposition to the unchanged theorem modules.
+
+The [citation audit](artifacts/editorial-review/citations/AUDIT.md) checks all 28 citation keys, the principal metadata of 27 external entries, and the named core theorem/standard locators against primary records. It confirms the current full-version proposition numbering and bibliography, with its inspected scope and source-access outcomes recorded separately.
+
 The live-core instantiation supplies the explicit native image/intent comparison cost and its complete admitted observation interface. The same joint key table also supports a confirmation and first-message authentication bound, with private origin ledgers, classical verification and quantum public-oracle queries. An executed-slot selector now registers original KEM sources before their first computations return. Its retained-plan induction and complete signed-transcript checks bound source-association failure by fresh-body signature and hash-collision events. The general metadata selector keeps its original residual and failed-reservation counterexample.
 
 The native authentication composition carries the selected confirmation and first-message integrity event through the record, operational component, complete-tuple, root-initialization and joint-schedule comparisons. It localizes the joint event with original eligibility in the native game; each Boolean comparison contributes once. The same admitted online marking and exact-alias rules identify the recovered root and first-message allocation throughout.
@@ -47,7 +51,7 @@ The proofs and independent reviews are retained by subject:
 - [Retry readiness](artifacts/retry-readiness/README.md): 28 native executions, fourteen repeated-baseline/age-four pairs, public retry-age recount and regenerated service/cost table.
 - [Complete reference schedule comparison](artifacts/reference-comparison/README.md): retained source corpora, all 420 snapshot cases, generated seven-schedule table and independent recomputation.
 
-[RESEARCH_HANDOFF.md](notes/RESEARCH_HANDOFF.md) records the established connections and the remaining manuscript synthesis and final review. [The SkyBridge scope note](notes/skybridge-scope.md) explains the earlier transcript, admission and recovery-release mechanisms; its migration and platform results remain their independent research line.
+[RESEARCH_HANDOFF.md](notes/RESEARCH_HANDOFF.md) records the established connections, completed contribution/dependency synthesis and scoped citation audit, and remaining integrated-argument review. [The SkyBridge scope note](notes/skybridge-scope.md) explains the earlier transcript, admission and recovery-release mechanisms; its migration and platform results remain their independent research line.
 
 ## Edit, build and review
 
