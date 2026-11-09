@@ -3,12 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import tempfile
 import unittest
 from unittest import mock
 
 import codeql_rust_publication as publication
+from codeql_rust_profile import linux_query_memory
 import codeql_rust_quality as quality
 from codeql_target_coverage import validate_macro_profiles
 from test_codeql_rust_profile import sarif
@@ -60,12 +62,16 @@ class RustPublicationTests(unittest.TestCase):
             host = quality.hosted_configuration(publication.profile_host(name))
             profile.update(compiler_host=host.compiler_host, query_threads=host.threads, query_ram_mb=host.ram_mb)
             self.write(directory / "PROFILE.json", profile)
+            if name in ("native", "wasm"):
+                self.write(directory / "QUERY_MEMORY.json", linux_query_memory(["-J-Xmx3356M", "--off-heap-ram=9329"], name))
             self.write(directory / "ANALYSIS.json", {"completed": True, "codeql_version": publication.VERSION,
                        "query_pack": publication.QUERY_VERSION, "upload_performed": False,
                        "profile_sha256": self.digest(directory / "PROFILE.json"),
                        "query_inventory_sha256": self.digest(directory / "QUERY_INVENTORY.json"),
                        "query_result_sha256": {path: "b" * 64 for path in self.inventory},
-                       "sarif_sha256": self.digest(directory / "results.sarif")})
+                       "sarif_sha256": self.digest(directory / "results.sarif"),
+                       **({"query_memory_sha256": self.digest(directory / "QUERY_MEMORY.json")}
+                          if name in ("native", "wasm") else {})})
             self.paths[name] = directory
         patch = mock.patch.object(quality, "tracked_rust_paths", return_value=frozenset(self.sources))
         patch.start()
@@ -106,6 +112,61 @@ class RustPublicationTests(unittest.TestCase):
                     publication.latest_profile_directories(self.artifacts, 1)
             finally:
                 parked.rename(path)
+
+    def test_workflow_uploads_each_profile_once_with_its_strict_category(self) -> None:
+        workflow = (publication.ROOT / ".github/workflows/codeql.yml").read_text()
+        publication_job = workflow.split("\n  rust-publication:\n", 1)[1]
+        uploads = re.findall(r"category: (\S+)\n\s+sarif_file: [^\n]+/(native|wasm|macos)\.sarif", publication_job)
+        self.assertEqual(uploads, [("/language:rust", "native"), ("/language:rust/target:wasm", "wasm"),
+                                   ("/language:rust/target:macos", "macos")])
+
+    def test_rebinding_sarif_digest_cannot_change_a_profiles_category(self) -> None:
+        categories = {"native": "/language:rust/", "wasm": "/language:rust/target:wasm/",
+                      "macos": "/language:rust/target:macos/"}
+        for name, expected in categories.items():
+            directory = self.paths[name]
+            self.assertEqual(self.validate(name).target, publication.TARGETS[name])
+            original = self.read(directory / "results.sarif")
+            analysis = self.read(directory / "ANALYSIS.json")
+            for wrong in set(categories.values()) - {expected} | {"/language:rust/target:native/"}:
+                changed = sarif(name)
+                changed["runs"][0]["automationDetails"]["id"] = wrong
+                self.write(directory / "results.sarif", changed)
+                rebound = dict(analysis, sarif_sha256=self.digest(directory / "results.sarif"))
+                self.write(directory / "ANALYSIS.json", rebound)
+                with self.subTest(profile=name, wrong=wrong), self.assertRaisesRegex(ValueError, "different target"):
+                    self.validate(name)
+            self.write(directory / "results.sarif", original)
+            self.write(directory / "ANALYSIS.json", analysis)
+
+    def test_linux_requires_its_bound_actual_memory_resolution(self) -> None:
+        for name in ("native", "wasm"):
+            with self.subTest(profile=name):
+                directory = self.paths[name]
+                original = self.read(directory / "QUERY_MEMORY.json")
+                self.write(directory / "QUERY_MEMORY.json", dict(original, heap_mb=3072))
+                with self.assertRaisesRegex(ValueError, "not bound"):
+                    self.validate(name)
+                analysis = self.read(directory / "ANALYSIS.json")
+                analysis["query_memory_sha256"] = self.digest(directory / "QUERY_MEMORY.json")
+                self.write(directory / "ANALYSIS.json", analysis)
+                with self.assertRaisesRegex(ValueError, "differs from its resolved allocation"):
+                    self.validate(name)
+                (directory / "QUERY_MEMORY.json").unlink()
+                with self.assertRaises(ValueError):
+                    self.validate(name)
+
+    def test_rebinding_memory_digest_cannot_reuse_another_linux_profiles_record(self) -> None:
+        for name, other in (("native", "wasm"), ("wasm", "native")):
+            with self.subTest(profile=name, other=other):
+                directory = self.paths[name]
+                self.write(directory / "QUERY_MEMORY.json",
+                           linux_query_memory(["-J-Xmx3356M", "--off-heap-ram=9329"], other))
+                analysis = self.read(directory / "ANALYSIS.json")
+                analysis["query_memory_sha256"] = self.digest(directory / "QUERY_MEMORY.json")
+                self.write(directory / "ANALYSIS.json", analysis)
+                with self.assertRaisesRegex(ValueError, "differs from its resolved allocation"):
+                    self.validate(name)
 
     def test_linux_and_wasm_cannot_certify_macos_only_code(self) -> None:
         with self.assertRaisesRegex(ValueError, "compiled peer"):

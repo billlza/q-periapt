@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import contextlib
+import dataclasses
 import hashlib
 import json
 import os
@@ -19,11 +20,162 @@ from codeql_rust_profile import ProfileRun, compiler_commands, extract_database,
 
 def sarif(profile="native"):
     return {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "CodeQL", "semanticVersion": "2.27.2"}},
-             "automationDetails": {"id": f"/language:rust/target:{profile}/"},
+             "automationDetails": {"id": {"native": "/language:rust/", "wasm": "/language:rust/target:wasm/",
+                                           "macos": "/language:rust/target:macos/"}[profile]},
              "invocations": [{"executionSuccessful": True}], "results": []}]}
 
 
 class RustProfileTests(unittest.TestCase):
+    def test_native_category_preserves_main_identity_without_accepting_other_targets(self) -> None:
+        expected = {"native": "/language:rust", "wasm": "/language:rust/target:wasm",
+                    "macos": "/language:rust/target:macos"}
+        for name, category in expected.items():
+            with self.subTest(profile=name):
+                self.assertEqual(profile_module.sarif_category(name), category)
+                validate_sarif(sarif(name), name)
+            for wrong in set(expected.values()) - {category} | {"/language:rust/target:native"}:
+                changed = sarif(name)
+                changed["runs"][0]["automationDetails"]["id"] = wrong + "/"
+                with self.subTest(profile=name, wrong=wrong), self.assertRaisesRegex(ValueError, "different target"):
+                    validate_sarif(changed, name)
+        with self.assertRaisesRegex(ValueError, "unknown"):
+            validate_sarif(sarif(), "unreviewed")
+
+    def test_linux_memory_policy_uses_the_actual_dataset_and_preserves_the_total_request(self) -> None:
+        for profile in ("native", "wasm"):
+            with self.subTest(profile=profile), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+                resolution = ["-J-Xmx3356M", "--off-heap-ram=9329"]
+                with mock.patch.object(run, "command", return_value=json.dumps(resolution).encode()) as command:
+                    arguments = profile_module.analysis_memory_arguments(run, profile)
+                self.assertEqual(arguments, ["--ram=14000", "--off-heap-ram=9329"])
+                self.assertEqual(command.call_args.args[0], "resolve-analysis-ram")
+                self.assertEqual(command.call_args.args[1], [
+                    str(run.codeql), "resolve", "ram",
+                    "--dataset=" + str(run.configuration.database / "db-rust"),
+                    "--ram=14000", "--off-heap-ram=9329", "--format=json"])
+                receipt = json.loads((run.evidence / "QUERY_MEMORY.json").read_text())
+                self.assertEqual(receipt["profile"], profile)
+                self.assertEqual(receipt["heap_mb"], 3356)
+                self.assertEqual(receipt["resolved_arguments"], resolution)
+                profile_module.validate_linux_query_memory(receipt, profile)
+                self.assertFalse((run.evidence / "ANALYSIS.json").exists())
+
+    def test_macos_keeps_its_existing_analysis_memory_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), {}, host="darwin")
+            with mock.patch.object(run, "command") as command:
+                self.assertEqual(profile_module.analysis_memory_arguments(run, "macos"), ["--ram=5500"])
+            command.assert_not_called()
+            self.assertFalse((run.evidence / "QUERY_MEMORY.json").exists())
+
+    def test_linux_memory_resolution_cannot_silently_use_default_or_invalid_allocation(self) -> None:
+        invalid = [None, {}, [], ["-J-Xmx3072M"], [True, "--off-heap-ram=9329"],
+                   ["-J-Xmx5668M", "--off-heap-ram=6733"],
+                   ["-J-Xmx4672M", "--off-heap-ram=9329"],
+                   ["-J-Xmx0M", "--off-heap-ram=9329"],
+                   ["-J-Xmx03072M", "--off-heap-ram=9329"],
+                   ["-J-Xmx3072M", "--off-heap-ram=9329", "--threads=1"]]
+        for profile in ("native", "wasm"):
+            for resolution in invalid:
+                with self.subTest(profile=profile, resolution=resolution), tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary)
+                    run = ProfileRun(root, root / "run", Path(sys.executable), {})
+                    with mock.patch.object(run, "command", return_value=json.dumps(resolution).encode()), \
+                            self.assertRaises(ValueError):
+                        profile_module.analysis_memory_arguments(run, profile)
+                    self.assertFalse((run.evidence / "QUERY_MEMORY.json").exists())
+                    self.assertFalse((run.evidence / "ANALYSIS.json").exists())
+
+    def test_linux_memory_resolution_failure_preserves_failed_state(self) -> None:
+        for profile in ("native", "wasm"):
+            with self.subTest(profile=profile), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                run = ProfileRun(root, root / "run", Path(sys.executable), {})
+                with mock.patch.object(run, "command", side_effect=ValueError("resolver failed")), \
+                        self.assertRaisesRegex(ValueError, "resolver failed"):
+                    profile_module.analysis_memory_arguments(run, profile)
+                self.assertFalse((run.evidence / "QUERY_MEMORY.json").exists())
+                self.assertFalse((run.evidence / "ANALYSIS.json").exists())
+
+    def test_linux_allocation_record_is_an_exact_typed_profile_description(self) -> None:
+        for profile in ("native", "wasm"):
+            receipt = profile_module.linux_query_memory(["-J-Xmx3072M", "--off-heap-ram=9329"], profile)
+            profile_module.validate_linux_query_memory(receipt, profile)
+            for key, value in (("schema", True), ("heap_mb", 3072.0), ("requested_ram_mb", 15000),
+                               ("off_heap_ram_mb", 6733), ("remaining_budget_mb", 1600),
+                               ("profile", "native" if profile == "wasm" else "wasm"),
+                               ("codeql_version", "2.27.3")):
+                with self.subTest(profile=profile, key=key), self.assertRaises(ValueError):
+                    profile_module.validate_linux_query_memory(dict(receipt, **{key: value}), profile)
+        for profile in ("macos", "unreviewed"):
+            with self.subTest(profile=profile), self.assertRaisesRegex(ValueError, "Linux analysis profile"):
+                profile_module.linux_query_memory(["-J-Xmx3072M", "--off-heap-ram=9329"], profile)
+
+    def test_analysis_keeps_profile_category_full_suite_and_memory_evidence(self) -> None:
+        categories = {"native": "/language:rust", "wasm": "/language:rust/target:wasm",
+                      "macos": "/language:rust/target:macos"}
+        for name, complete in ((name, complete) for name in categories for complete in (True, False)):
+            with self.subTest(profile=name, complete=complete), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                pack = root / "query-pack"
+                pinned = json.loads((profile_module.ROOT / "artifact/codeql_rust_queries.json").read_text())
+                inventory = {}
+                for relative in pinned["queries"]:
+                    path = pack / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text("// query fixture " + relative)
+                    inventory[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+                (root / "artifact").mkdir()
+                (root / "artifact/codeql_rust_queries.json").write_text(json.dumps(dict(pinned, queries=inventory)))
+                run = ProfileRun(root, root / "run", Path(sys.executable), {},
+                                 host="darwin" if name == "macos" else "linux")
+                run.configuration = dataclasses.replace(run.configuration, database=root / "database")
+                (run.evidence / "PROFILE.json").write_text(json.dumps({
+                    "profile": name, "target": profile_module.TARGETS[name],
+                    "source_commit": "a" * 40, "active_target_quality_passed": True}))
+                def command(label, argv, **kwargs):
+                    if label == "resolve-suite":
+                        return json.dumps([str(pack / name) for name in inventory]).encode()
+                    if label == "resolve-analysis-ram":
+                        return b'["-J-Xmx3356M", "--off-heap-ram=9329"]'
+                    self.assertEqual(label, "analyze")
+                    self.assertEqual(argv[1:3], ["database", "analyze"])
+                    self.assertIn(str(pack / "codeql-suites/rust-security-extended.qls"), argv)
+                    self.assertIn(f"--ram={run.configuration.ram_mb}", argv)
+                    self.assertEqual("--off-heap-ram=9329" in argv, name in ("native", "wasm"))
+                    self.assertIn(f"--threads={run.configuration.threads}", argv)
+                    self.assertIn("--threat-model=local", argv)
+                    self.assertIn("--sarif-category=" + categories[name], argv)
+                    self.assertEqual(kwargs["seconds"], 18000)
+                    for relative in inventory:
+                        if not complete and relative == "queries/summary/SummaryStats.ql":
+                            continue
+                        result = run.configuration.database / "results/codeql/rust-queries" / Path(relative).with_suffix(".bqrs")
+                        result.parent.mkdir(parents=True, exist_ok=True)
+                        result.write_bytes(b"complete fixture result")
+                    (run.evidence / "results.sarif").write_text(json.dumps(sarif(name)))
+                    return b""
+                with mock.patch.object(run, "command", side_effect=command), \
+                        mock.patch.object(profile_module.quality, "require_clean_checkout"):
+                    if complete:
+                        profile_module.analyze(run, pack)
+                    else:
+                        with self.assertRaises(ValueError):
+                            profile_module.analyze(run, pack)
+                self.assertEqual((run.evidence / "QUERY_MEMORY.json").is_file(), name in ("native", "wasm"))
+                self.assertEqual((run.evidence / "ANALYSIS.json").exists(), complete)
+                if complete:
+                    result = json.loads((run.evidence / "ANALYSIS.json").read_text())
+                    self.assertEqual(set(result["query_result_sha256"]), set(inventory))
+                    if name in ("native", "wasm"):
+                        self.assertEqual(result["query_memory_sha256"],
+                                         hashlib.sha256((run.evidence / "QUERY_MEMORY.json").read_bytes()).hexdigest())
+                    else:
+                        self.assertNotIn("query_memory_sha256", result)
+
     def _check_clang_selection(self, *, symlink: bool) -> None:
         class SetupComplete(Exception):
             pass
@@ -172,12 +324,60 @@ class RustProfileTests(unittest.TestCase):
             self.assertEqual(profile_module.tracked_lockfiles(Path("/source")), expected)
         changed = [expected[:index] + expected[index + 1:] for index in range(len(expected))]
         changed.extend((expected + ("unreviewed/Cargo.lock",), expected + (expected[-1],),
-                        expected[:-1] + ("unreviewed/Cargo.lock",)))
+                        expected[:-1] + ("unreviewed/Cargo.lock",),
+                        expected + ("paper/unreviewed/Cargo.lock",)))
         for paths in changed:
             with self.subTest(paths=paths), mock.patch.object(
                     profile_module, "run_git_bytes", return_value="\n".join(paths).encode()):
                 with self.assertRaisesRegex(ValueError, "workspace lock inventory differs"):
                     profile_module.tracked_lockfiles(Path("/source"))
+
+    @contextlib.contextmanager
+    def paper_lock_inventory_fixture(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            expected = profile_module.WORKSPACE_LOCKFILES
+            archives = {}
+            for relative in profile_module.PAPER_ARCHIVE_LOCKFILES:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                payload = ("retained source lock: " + relative + "\n").encode()
+                path.write_bytes(payload)
+                archives[relative] = hashlib.sha256(payload).hexdigest()
+            tracked = tuple(sorted((*expected, *archives)))
+            with mock.patch.object(profile_module, "PAPER_ARCHIVE_LOCKFILES", archives), \
+                    mock.patch.object(profile_module, "run_git_bytes", return_value="\n".join(tracked).encode()):
+                yield root, expected, archives
+
+    def test_workspace_lock_inventory_keeps_pinned_paper_archives_out_of_fetch_roots(self) -> None:
+        with self.paper_lock_inventory_fixture() as (root, expected, archives):
+            self.assertEqual(profile_module.tracked_lockfiles(root), expected)
+            self.assertTrue(set(expected).isdisjoint(archives))
+
+    def test_workspace_lock_inventory_rejects_changed_paper_archive_bytes(self) -> None:
+        with self.paper_lock_inventory_fixture() as (root, _expected, archives):
+            for relative in archives:
+                with self.subTest(archive=relative):
+                    path = root / relative
+                    original = path.read_bytes()
+                    path.write_bytes(original + b"changed\n")
+                    with self.assertRaisesRegex(ValueError, "archived paper lock snapshot differs"):
+                        profile_module.tracked_lockfiles(root)
+                    path.write_bytes(original)
+
+    def test_workspace_lock_inventory_rejects_adjacent_archive_manifests(self) -> None:
+        with self.paper_lock_inventory_fixture() as (root, _expected, archives):
+            for relative in archives:
+                manifest = (root / relative).with_name("Cargo.toml")
+                for kind in ("regular", "dangling-symlink"):
+                    with self.subTest(archive=relative, manifest=kind):
+                        if kind == "regular":
+                            manifest.write_text("[workspace]\n")
+                        else:
+                            manifest.symlink_to("absent-manifest")
+                        with self.assertRaisesRegex(ValueError, "archived paper lock has an adjacent Cargo.toml"):
+                            profile_module.tracked_lockfiles(root)
+                        manifest.unlink()
 
     def test_macos_extraction_uses_its_own_finite_resource_budget(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

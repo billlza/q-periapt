@@ -27,6 +27,12 @@ TARGETS = {"native": "x86_64-unknown-linux-gnu", "wasm": "wasm32-unknown-unknown
 VERSION = "2.27.2"
 QUERY_VERSION = "0.1.44"
 COMPILER = "1.98.1"
+# The retained WASM database completed the full 39-query suite with more
+# evaluator memory outside the Java heap. Current Linux native and WASM runs
+# both exhausted their five-hour bound in SummaryStats with the default split.
+# CodeQL resolves the remaining heap against each current database and the
+# unchanged 14,000-MB total request; macOS retains its separate hosted policy.
+LINUX_OFF_HEAP_RAM_MB = 9329
 WORKSPACE_LOCKFILES = (
     "Cargo.lock",
     "fuzz/Cargo.lock",
@@ -37,11 +43,26 @@ WORKSPACE_LOCKFILES = (
     "research/continuity-whole-kem-reference/Cargo.lock",
     "research/hqc-fips207-candidate/Cargo.lock",
 )
+# Source snapshots retained by the paper at f26e30a57cd6f22370ac2f1b3ba1962c1997b25d.
+# These exact files preserve provenance; they are not Cargo fetch roots.
+PAPER_ARCHIVE_LOCKFILES = {
+    "paper/continuity/artifacts/signature-bridge/sources/q-periapt-native/Cargo.lock":
+        "b3f7403faca9c95c0f77d5abb6ce732bb9b89c1a4c72ad6ba6e58f533e0af3d9",
+    "paper/continuity/artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/Cargo.lock":
+        "fda2e0592f7e013816b343d461da1e32346b4256603eda317d12b4ebd200c26b",
+}
 
 
 def profile_host(profile: str) -> str:
     sdk.require(profile in TARGETS, "unknown Rust analysis profile")
     return "darwin" if profile == "macos" else "linux"
+
+
+def sarif_category(profile: str) -> str:
+    sdk.require(profile in TARGETS, "unknown Rust analysis profile")
+    # Keep the established Linux analysis identity on main. Target identity is
+    # also bound by PROFILE.json and its source, compiler and coverage checks.
+    return "/language:rust" if profile == "native" else "/language:rust/target:" + profile
 
 
 class ProfileRun:
@@ -108,8 +129,17 @@ def compiler_commands(root: Path, profile: str):
 
 
 def tracked_lockfiles(root: Path) -> tuple[str, ...]:
-    locks = tuple(run_git_bytes(root, ["ls-files", "--", "*Cargo.lock"]).decode().splitlines())
+    tracked = tuple(run_git_bytes(root, ["ls-files", "--", "*Cargo.lock"]).decode().splitlines())
+    locks = tuple(path for path in tracked if path not in PAPER_ARCHIVE_LOCKFILES)
     sdk.require(locks == WORKSPACE_LOCKFILES, "tracked workspace lock inventory differs")
+    for relative in tracked:
+        if relative in PAPER_ARCHIVE_LOCKFILES:
+            archive = root / relative
+            manifest = archive.with_name("Cargo.toml")
+            sdk.require(not manifest.exists() and not manifest.is_symlink(),
+                        "archived paper lock has an adjacent Cargo.toml")
+            sdk.require(sdk.snapshot(archive, maximum=1024 * 1024).sha256 == PAPER_ARCHIVE_LOCKFILES[relative],
+                        "archived paper lock snapshot differs")
     return locks
 
 
@@ -118,7 +148,7 @@ def validate_sarif(data: object, profile: str) -> None:
     runs = data.get("runs")
     sdk.require(isinstance(runs, list) and len(runs) == 1 and isinstance(runs[0], dict), "unexpected Rust SARIF run set")
     run = runs[0]
-    sdk.require(run.get("automationDetails") == {"id": "/language:rust/target:" + profile + "/"},
+    sdk.require(run.get("automationDetails") == {"id": sarif_category(profile) + "/"},
                 "SARIF belongs to a different target")
     tool = run.get("tool")
     sdk.require(isinstance(tool, dict) and isinstance(tool.get("driver"), dict), "missing SARIF tool")
@@ -272,6 +302,46 @@ def validate_query_inventory(inventory: dict[str, str], expected: object) -> Non
                 "resolved query bytes differ from the pinned full suite")
 
 
+def linux_query_memory(resolved: object, profile: str) -> dict:
+    sdk.require(profile in ("native", "wasm"), "memory policy requires a Linux analysis profile")
+    sdk.require(isinstance(resolved, list) and len(resolved) == 2
+                and all(isinstance(argument, str) for argument in resolved),
+                "Linux evaluator memory resolution is malformed")
+    heap = re.fullmatch(r"-J-Xmx([1-9][0-9]*)M", resolved[0])
+    sdk.require(heap is not None and resolved[1] == f"--off-heap-ram={LINUX_OFF_HEAP_RAM_MB}",
+                "Linux evaluator allocation differs from the selected policy")
+    heap_mb = int(heap[1])
+    sdk.require(heap_mb + LINUX_OFF_HEAP_RAM_MB <= 14000,
+                "Linux evaluator allocation exceeds its total budget")
+    return {"schema": 1, "profile": profile, "codeql_version": VERSION,
+            "requested_ram_mb": 14000, "off_heap_ram_mb": LINUX_OFF_HEAP_RAM_MB,
+            "heap_mb": heap_mb, "remaining_budget_mb": 14000 - heap_mb - LINUX_OFF_HEAP_RAM_MB,
+            "resolved_arguments": resolved}
+
+
+def validate_linux_query_memory(record: object, profile: str) -> None:
+    sdk.require(isinstance(record, dict) and all(type(record.get(key)) is int for key in
+                ("schema", "requested_ram_mb", "off_heap_ram_mb", "heap_mb", "remaining_budget_mb")),
+                "Linux evaluator memory record is malformed")
+    sdk.require(record == linux_query_memory(record.get("resolved_arguments"), profile),
+                "Linux evaluator memory record differs from its resolved allocation")
+
+
+def analysis_memory_arguments(run: ProfileRun, profile: str) -> list[str]:
+    sdk.require(profile_host(profile) == run.configuration.platform,
+                "analysis memory profile belongs to a different host")
+    arguments = [f"--ram={run.configuration.ram_mb}"]
+    if profile in ("native", "wasm"):
+        sdk.require(run.configuration.ram_mb == 14000 and run.configuration.threads == 4,
+                    "Linux allocation requires its reviewed hosted budget")
+        arguments.append(f"--off-heap-ram={LINUX_OFF_HEAP_RAM_MB}")
+        resolved = parse_strict_json_bytes(run.command("resolve-analysis-ram", [
+            str(run.codeql), "resolve", "ram", "--dataset=" + str(run.configuration.database / "db-rust"),
+            *arguments, "--format=json"]), label="Linux evaluator memory resolution")
+        sdk.write_json(run.evidence / "QUERY_MEMORY.json", linux_query_memory(resolved, profile))
+    return arguments
+
+
 def analyze(run: ProfileRun, query_pack: Path) -> None:
     profile_path = run.evidence / "PROFILE.json"
     profile = parse_strict_json_bytes(sdk.snapshot(profile_path).data, label="Rust analysis profile")
@@ -293,11 +363,12 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
     validate_query_inventory(inventory, expected)
     sdk.write_json(run.evidence / "QUERY_INVENTORY.json", inventory)
     sarif = run.evidence / "results.sarif"
+    memory_arguments = analysis_memory_arguments(run, profile["profile"])
     run.command("analyze", [str(run.codeql), "database", "analyze", str(run.configuration.database), str(suite),
                             "--format=sarif-latest", "--output=" + str(sarif),
-                            f"--threads={run.configuration.threads}", f"--ram={run.configuration.ram_mb}",
+                            f"--threads={run.configuration.threads}", *memory_arguments,
                             "--threat-model=local", "--no-download", "--common-caches=" + str(run.output / "cache"),
-                            "--sarif-category=/language:rust/target:" + profile["profile"]], seconds=18000,
+                            "--sarif-category=" + sarif_category(profile["profile"])], seconds=18000,
                 timeout_policy=TimeoutPolicy.LONG_ANALYSIS)
     results = {}
     for relative in inventory:
@@ -311,6 +382,8 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
         "query_inventory_sha256": sdk.snapshot(run.evidence / "QUERY_INVENTORY.json").sha256,
         "query_result_sha256": results, "sarif_sha256": sdk.snapshot(sarif, maximum=64 * 1024**2).sha256,
         "codeql_version": VERSION, "query_pack": QUERY_VERSION, "upload_performed": False,
+        **({"query_memory_sha256": sdk.snapshot(run.evidence / "QUERY_MEMORY.json").sha256}
+           if profile["profile"] in ("native", "wasm") else {}),
     })
 
 
