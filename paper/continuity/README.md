@@ -24,6 +24,8 @@ The variable-length form now applies that comparison to the native SDK purpose-k
 
 The reference evaluation now presents all seven retained communication schedules for pinned SPQR, its isolated 64-byte chunk variant and the three whole-KEM controls. Its deterministic analysis binds four original corpus files and checks 35 configuration/schedule pairs and 420 snapshots. The full table uses one common capture coordinate and places reconstructed message sets alongside component bytes per send. Independent integer-arithmetic recomputation and source-mutation controls accompany the analysis.
 
+The matched comparison adds 49 newly executed native/reference profile--schedule pairs under 2,048 directed transmission opportunities. Its manuscript tables report post-capture derived sets together with first commitments, logical delivery, emitted bytes and native durability work. The report retains exact source/execution identities, complete 49-row JSON/CSV, a source-bound table generator and fourteen directed incorrect-report controls. A separate trace recount exposes the immediate-retry policy's measured communication cost. The one-way control records epoch-zero admission suspension and the resulting demand backlog.
+
 The proofs and independent reviews are retained by subject:
 
 - [Candidate-local accounting](artifacts/candidate-local/): the stopped source/record interface and original-game score accounting.
@@ -35,6 +37,7 @@ The proofs and independent reviews are retained by subject:
 - [Native authentication composition](artifacts/native-authentication/README.md): the selected eligible native event, complete Boolean proof chain and independent accounting controls.
 - [Multiple-root entry](artifacts/multiple-root-entry/README.md): finite class-row comparison, adaptive target embedding and complete budgets.
 - [SDK purpose-key correspondence](artifacts/sdk-purpose-connection/README.md): variable-length entry comparison, exact native descriptors and separate owner states.
+- [Matched directed opportunities](artifacts/matched-comparison/README.md): 49 native/reference executions, complete report projection, service/communication tables, independent trace recount and capture/accounting controls.
 - [Complete reference schedule comparison](artifacts/reference-comparison/README.md): retained source corpora, all 420 snapshot cases, generated seven-schedule table and independent recomputation.
 
 [RESEARCH_HANDOFF.md](notes/RESEARCH_HANDOFF.md) records the established connections and the next focused research question. [The SkyBridge scope note](notes/skybridge-scope.md) explains the earlier transcript, admission and recovery-release mechanisms; its migration and platform results remain their independent research line.
@@ -50,6 +53,8 @@ sh artifact/python-run.sh paper/continuity/artifacts/source-attribution/check_so
 sh artifact/python-run.sh paper/continuity/artifacts/signature-bridge/check_bridge.py --crate-archive paper/continuity/artifacts/signature-bridge/sources/fips204-0.4.6.crate > paper/continuity/build/signature-bridge-check.json
 sh artifact/python-run.sh paper/continuity/artifacts/signature-bridge/review_generic_controls.py > paper/continuity/build/signature-bridge-review.json
 sh artifact/python-run.sh paper/continuity/artifacts/reference-comparison/analyze_reference.py --check
+sh artifact/python-run.sh paper/continuity/artifacts/matched-comparison/analyze_matched.py --check
+sh artifact/python-run.sh paper/continuity/artifacts/matched-comparison/check_input_controls.py
 sh artifact/python-run.sh paper/continuity/artifacts/native-authentication/review_auth_bit_accounting.py
 make -C paper/continuity source PYTHON="sh $PWD/artifact/python-run.sh"
 ```

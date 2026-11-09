@@ -17,93 +17,66 @@
     "bibliography_style_sha256": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
     "style_derivation": "sn-basic.bst; renamed derived file; all authors retained; alphabetical sorting unchanged",
     "single_tex_entry": "joc-submission.tex",
-    "single_tex_sha256": "7b543ad40281c544ddcf9ada0f0d313fb6fe55f67043cb09bc2e559fae3ae53c",
+    "single_tex_sha256": "0cd8e8f286400d0803fced3f7a0005ef135d1822e26d3766f4c36f0a64980375",
     "layout": "single-column",
     "layout_decision": "format/layout_decision.md",
     "layout_decision_sha256": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e"
   },
-  "next_research_extension": "Matched Continuity/SPQR/whole-KEM comparison using common communication schedules and explicitly mapped capture objects, measuring reconstructed message sets and communication/persistence work.",
-  "schema": "qperiapt-joc-integration/10",
-  "completed_at_utc": "2026-11-08T22:46:40Z",
-  "previous_integration_record": "artifacts/prior-integration/signature-bridge.json",
-  "previous_integration_record_sha256": "8a08012a8ffe9bbe9747ea0fcee6406ec2642eb7dfb2c8cec5fa2a1d44a88070",
-  "previous_pdf_sha256": "b60c5174235b537cbc5e7f4c0c7f21f48767a865b4a60709b553b5dc3e2d5a8e",
-  "previous_delivered_pdf_sha256": "5a0ed4fcccb145e71991d3de99f06585497a9d221769a138e8bd1520d873d592",
+  "schema": "qperiapt-joc-integration/11",
+  "completed_at_utc": "2026-11-09T02:33:25.698227+00:00",
+  "previous_integration_record": "artifacts/prior-integration/native-authentication.json",
+  "previous_integration_record_sha256": "7b21966af2604bbfe304bb6ddf98be01dd49419fa7f42378a3d8054c24d6e73d",
+  "previous_pdf_sha256": "86ac540369405c31c22a1cc0710cfdc97e95e4b99aa47f7a713f1223823cbb07",
   "pdf_path": "continuity.pdf",
-  "pdf_pages": 86,
-  "pdf_sha256": "86ac540369405c31c22a1cc0710cfdc97e95e4b99aa47f7a713f1223823cbb07",
-  "abstract_words": 221,
+  "pdf_pages": 90,
+  "pdf_sha256": "869cafaa87a54e6d8b29d1ce60bab2377cb292ff8b3e3d562bf4cb9948cf1fc0",
+  "abstract_words": 228,
   "keywords": 7,
   "bibliography_entries": 28,
   "new_results": {
-    "native_authentication": {
-      "section": "5.11",
-      "statements": {
-        "sec:native-authentication": {
-          "number": "5.11",
-          "page": 54
+    "matched_directed_opportunities": {
+      "section": {
+        "number": "7.4",
+        "page": 69
+      },
+      "tables": {
+        "matched_opportunities": {
+          "number": "8",
+          "page": 70
         },
-        "eq:native-auth-component": {
-          "number": "27",
-          "page": 56
-        },
-        "eq:native-auth-continuation": {
-          "number": "28",
-          "page": 56
-        },
-        "thm:native-selected-authentication": {
-          "number": "5.23",
-          "page": 56
-        },
-        "eq:native-selected-authentication": {
-          "number": "29",
-          "page": 56
-        },
-        "eq:native-auth-localization": {
-          "number": "30",
-          "page": 57
-        },
-        "app:native-authentication": {
-          "number": "A.12",
-          "page": 79
+        "native_accounting": {
+          "number": "9",
+          "page": 70
         }
       },
-      "tex": "native-authentication.tex",
-      "tex_sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
-      "review": "artifacts/native-authentication/independent_review.json",
-      "review_status": "accepted",
-      "event": "Joint native probability Pr[E and Bad_auth] for the root fixed by the accepted logical application challenge; final selection supplies its coordinates and cut.",
-      "bound": "min(1, eta_attr_nat + sum_j min(1, eps_rec_j + a_auth_j + delta_j + Omega_auth_j))",
-      "connections": [
-        "The original native event is localized before real-to-opaque record and operational ML-KEM comparisons.",
-        "Authentication uses its own Boolean output-bit component advantage, with coefficient one for each probability hop.",
-        "Complete protected-tuple caching, online first-use root marking and origin-preserving ledgers connect ContextBound, root initialization and the shared-oracle joint key schedule.",
-        "The selected-root bound includes confirmation acceptance and the marked first-message AEAD integrity event, preserving failed writes and exact retries.",
-        "The executed-slot attribution residual is instantiated through the retained ordinary native ML-DSA bridge."
-      ]
-    },
-    "complete_retained_reference_comparison": {
-      "table": {
-        "number": "7",
-        "page": 68
+      "appendix": {
+        "number": "A.13",
+        "page": 82
       },
-      "profiles": 5,
+      "profiles": 7,
       "schedules": 7,
-      "scenario_profile_pairs": 35,
-      "snapshot_cases": 420,
-      "displayed_numeric_cells": 70,
-      "source_commit": "228c944fc476e3e57d6c08063cacb19bca5b360e",
-      "observed_integration_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
-      "artifact": "artifacts/reference-comparison/",
-      "execution_identity": "Deterministic reanalysis of the existing pinned native corpora, including the isolated SPQR-64 corpus.",
-      "metrics": "Exact reconstructed-key matches at a common capture coordinate and mean component bytes per send."
-    },
-    "source_witness_packaging": {
-      "renamed_snapshots": 11,
-      "original_bytes_preserved": true,
-      "compilable_source_count_restored": 106,
-      "production_codeql_gate_changed": false,
-      "review": "artifacts/signature-bridge/snapshot_layout_review.json"
+      "configuration_schedule_pairs": 49,
+      "capture_cases": 98,
+      "protocol_source": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+      "research_head": "fec8472060728cc1bb35cf15042c117dda00e336",
+      "checkout_merge_commit": "0d12e77d0c7c1cfb4760b654947f2838bb05d4ee",
+      "run_id": 42537214047,
+      "job_id": 128904069349,
+      "artifact_id": 13641008832,
+      "artifact": "artifacts/matched-comparison/",
+      "execution_identity": "Manuscript integration and independent deterministic reanalysis of the 49 native/reference executions already completed in the identified hosted run.",
+      "capture_coordinate": "After opportunity 0 scheduled local/network actions and checkpoint, before opportunity 1 local computation.",
+      "opportunities_per_schedule": 2048,
+      "offered_payload_bytes": 32,
+      "frame_byte_cap": 8192,
+      "denominator": "First commitments strictly after the capture cut: total first commitments minus the one pre-cut allocation.",
+      "conclusions": [
+        "At the alternating capture cut the native current-epoch allocation envelope is 2b-1; b=32 and b=64 attain 63 and 127 reconstructed later commitments, respectively.",
+        "The same native budget change gives 688 versus 718 admitted and delivered requests and 565288 versus 407596 total emitted bytes under the common 2048 opportunities.",
+        "Fair cyclic arbitration charges immediate application retries to that common opportunity budget. Independent trace analysis identifies 592 and 572 retries after prior logical delivery, while the sender still awaits its ACK.",
+        "The one-way control records exhausted-budget suspension, zero confirmed-epoch advance and every later admitted current-epoch allocation reconstructed; excess offered requests remain queued.",
+        "The matched artifact retains all 49 service, exposure, queue and work results, including native physical persistence and the reference component-state observation boundary."
+      ]
     }
   },
   "retained_results": {
@@ -215,38 +188,101 @@
       "upstream_crate": "fips204 0.4.6",
       "upstream_commit": "8d456d989dce681233ef963d3c3306da8f76d7c7",
       "crate_archive_sha256": "c9fb5a367b9846933e271a3c2a992930743f82ae5e8cb7faa780715a80fa0b15"
-    }
-  },
-  "current_research_checks": {
-    "native_authentication": {
-      "mathematical_review": "accepted",
-      "review_checks": 12,
-      "dependency_hashes_verified": 11,
-      "resolved_references": 15,
-      "compatible_boolean_assignments": 160,
-      "controls": "artifacts/native-authentication/auth_bit_accounting_controls.json"
     },
-    "reference_comparison": {
-      "status": "passed",
+    "native_authentication": {
+      "section": "5.11",
+      "statements": {
+        "sec:native-authentication": {
+          "number": "5.11",
+          "page": 54
+        },
+        "eq:native-auth-component": {
+          "number": "27",
+          "page": 56
+        },
+        "eq:native-auth-continuation": {
+          "number": "28",
+          "page": 56
+        },
+        "thm:native-selected-authentication": {
+          "number": "5.23",
+          "page": 56
+        },
+        "eq:native-selected-authentication": {
+          "number": "29",
+          "page": 56
+        },
+        "eq:native-auth-localization": {
+          "number": "30",
+          "page": 57
+        },
+        "app:native-authentication": {
+          "number": "A.12",
+          "page": 79
+        }
+      },
+      "tex": "native-authentication.tex",
+      "tex_sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+      "review": "artifacts/native-authentication/independent_review.json",
+      "review_status": "accepted",
+      "event": "Joint native probability Pr[E and Bad_auth] for the root fixed by the accepted logical application challenge; final selection supplies its coordinates and cut.",
+      "bound": "min(1, eta_attr_nat + sum_j min(1, eps_rec_j + a_auth_j + delta_j + Omega_auth_j))",
+      "connections": [
+        "The original native event is localized before real-to-opaque record and operational ML-KEM comparisons.",
+        "Authentication uses its own Boolean output-bit component advantage, with coefficient one for each probability hop.",
+        "Complete protected-tuple caching, online first-use root marking and origin-preserving ledgers connect ContextBound, root initialization and the shared-oracle joint key schedule.",
+        "The selected-root bound includes confirmation acceptance and the marked first-message AEAD integrity event, preserving failed writes and exact retries.",
+        "The executed-slot attribution residual is instantiated through the retained ordinary native ML-DSA bridge."
+      ]
+    },
+    "complete_retained_reference_comparison": {
+      "table": {
+        "number": "7",
+        "page": 68
+      },
+      "profiles": 5,
+      "schedules": 7,
       "scenario_profile_pairs": 35,
       "snapshot_cases": 420,
       "displayed_numeric_cells": 70,
-      "negative_controls": 8,
-      "review": "artifacts/reference-comparison/reference_comparison_review.json"
+      "source_commit": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "observed_integration_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+      "artifact": "artifacts/reference-comparison/",
+      "execution_identity": "Deterministic reanalysis of the existing pinned native corpora, including the isolated SPQR-64 corpus.",
+      "metrics": "Exact reconstructed-key matches at a common capture coordinate and mean component bytes per send."
     },
-    "signature_source_packaging": {
-      "status": "passed",
-      "exact_source_and_license_files": 24,
-      "unchanged_historical_receipts": 16,
-      "negative_controls": 2,
-      "default_and_external_archive_replays": "passed",
+    "source_witness_packaging": {
+      "renamed_snapshots": 11,
+      "original_bytes_preserved": true,
+      "compilable_source_count_restored": 106,
+      "production_codeql_gate_changed": false,
       "review": "artifacts/signature-bridge/snapshot_layout_review.json"
     },
-    "ordinary_signature_bridge": {
-      "status": "accepted",
-      "review": "artifacts/integration-checks/native-authentication/signature_bridge_review.json"
+    "prior_proof_modules_byte_unchanged": true
+  },
+  "current_research_checks": {
+    "matched_report_projection": {
+      "status": "passed",
+      "configuration_schedule_pairs": 49,
+      "capture_cases": 98,
+      "independent_compact_json_and_csv_equal": true,
+      "negative_controls_rejected": 14,
+      "analysis": "artifacts/matched-comparison/analysis.json",
+      "controls": "artifacts/matched-comparison/input-controls.json"
     },
-    "execution_scope": "Formal argument review, finite bookkeeping controls, pinned-corpus reanalysis, source-identity checks and manuscript/source-export builds. Earlier native Rust, Tamarin and benchmark executions retain their original receipts."
+    "independent_trace_reanalysis": {
+      "status": "passed",
+      "native_traces": 14,
+      "reference_traces_and_envelopes": 35,
+      "public_manifest_hashes_verified": 126,
+      "report": "artifacts/matched-comparison/independent-review.json"
+    },
+    "incremental_manuscript_review": {
+      "status": "passed",
+      "source_files_bound": 12,
+      "report": "artifacts/matched-comparison/manuscript-increment-review.json"
+    },
+    "execution_scope": "The original hosted run supplies the native/reference executions. This authoring increment reruns deterministic projection, malformed-input controls, source checks and document builds; prior native Rust and Tamarin execution receipts retain their original identities."
   },
   "retained_historical_evidence": {
     "original_combined_corpus": {
@@ -261,38 +297,54 @@
     "native_rust_rerun_this_integration": false,
     "tamarin_rerun_this_integration": false,
     "baseline_rerun_this_integration": false,
-    "prior_record": "artifacts/prior-integration/signature-bridge.json"
+    "prior_record": "artifacts/prior-integration/native-authentication.json"
   },
   "build_review": {
     "status": "passed",
-    "pdf_pages": 86,
-    "pdf_sha256": "86ac540369405c31c22a1cc0710cfdc97e95e4b99aa47f7a713f1223823cbb07",
+    "pdf_pages": 90,
+    "pdf_sha256": "869cafaa87a54e6d8b29d1ce60bab2377cb292ff8b3e3d562bf4cb9948cf1fc0",
     "build_exit_code": 0,
     "undefined_references_or_citations": 0,
     "overfull_boxes": 0,
-    "underfull_box_notices": 94,
+    "underfull_box_notices": 99,
     "all_fonts_embedded": true,
-    "contact_review_pages": 86,
     "reading_review_pages": [
-      56,
-      57,
-      68,
+      1,
+      4,
+      65,
+      66,
       69,
-      79
+      70,
+      71,
+      72,
+      73,
+      82,
+      83
     ],
-    "contact_review": "artifacts/integration-checks/native-authentication/visual-layout-review.json",
-    "reading_review": "artifacts/integration-checks/native-authentication/root-reading-review.json",
+    "reading_review": "artifacts/integration-checks/matched-comparison/visual-layout-review.json",
     "source_export": {
+      "schema": 1,
       "status": "passed",
       "submission_files": 9,
       "clean_compile_exit_code": 0,
-      "extracted_text_byte_identical": true,
-      "extracted_text_sha256": "6e029737f8c043c5ca662ac63b77d39eb3392ca18445f93c01464477dd239490",
-      "reading_pdf_sha256": "86ac540369405c31c22a1cc0710cfdc97e95e4b99aa47f7a713f1223823cbb07",
-      "submission_zip_sha256": "8a7fc508feb4d322d8d2a9131658f4edef8e68117414980f7fcb06798cd7935b",
+      "reading_pdf_sha256": "869cafaa87a54e6d8b29d1ce60bab2377cb292ff8b3e3d562bf4cb9948cf1fc0",
+      "clean_pdf_sha256": "a6967fb60ee70b8f759e8d764c91e183b36f61abb9f99808426c8d0cc3f1bb68",
+      "submission_zip_sha256": "dba40572b0e65e4d39c2e171d4e33f6a3d4fcf567ca6af4d22ef6ed827b21950",
+      "clean_compile_log_sha256": "2a751e3a7e13dc222fa96c7c025fa5eb7e8aaf17d254cfd8f7810a6dd53d6e83",
+      "text_comparisons": {
+        "plain": {
+          "equal": true,
+          "bytes": 263792,
+          "sha256": "9bb2bda2e420804338775c15d6bdbdaf38257e1c67071ccb83db9f671b2de46c"
+        },
+        "layout": {
+          "equal": true,
+          "bytes": 292762,
+          "sha256": "fd1191f8685e5f0d74ed3accf231c7cae8f1d019b8b50132bdfc2c0ecff9246c"
+        }
+      },
       "all_fonts_embedded": true,
-      "fonts": 47,
-      "clean_compile_log_sha256": "026c30eb67ee10326b06c0abdcf418b313a238b6d3b64fa88d84356f67b62dc5"
+      "fonts": 47
     }
   },
   "paper_workflow": {
@@ -302,17 +354,19 @@
     "base": "main",
     "pr": 119,
     "url": "https://github.com/billlza/q-periapt/pull/119",
-    "previous_head": "621ae301da5f479fa2401689893c78399512548e",
+    "previous_head": "f26e30a57cd6f22370ac2f1b3ba1962c1997b25d",
     "previous_manuscript_run": {
       "id": 42528255100,
       "conclusion": "success"
     },
-    "snapshot": "Precommit local integration receipt. The final published head and subsequent hosted CI observations are recorded in the delivery metadata and PR."
+    "snapshot": "Prepublication local integration receipt. The final published head and subsequent hosted CI observations are recorded in delivery metadata and the PR.",
+    "previous_tree": "ae365779c8f9e43287d029aaf886737b2b64912c"
   },
   "completed_connection": "Executed original source attribution and ordinary native ML-DSA signing -> real-to-opaque record correspondence -> operational ML-KEM -> complete-tuple ContextBound -> single-entry root initialization -> joint confirmation and marked first-message authentication in the original native experiment.",
+  "next_research_extension": "Compare a declared retry-eligibility policy with the retained immediate-retry driver under the same opportunity contract, evaluating admitted service, exact derived sets, full emitted bytes and persistence work.",
   "source_hashes": {
     "acquisition-nonadditivity.tex": "50cd83948e5e03329eacfbc380af9f7a99b63abab3cc6e3e75f0edf7f3dcd297",
-    "artifact-map.tex": "7db236e2dfcda2d558b1d71a6fa258953fc504f29f3b72e2c6c8298e132b12fb",
+    "artifact-map.tex": "064276150353cea640d9034f00bfdd333d60020be99c24934345d4081e763e4d",
     "author-metadata.json": "a4654fb096735dd2277cf4251ad37866fe00b3a8333a5e6731155308ad495ec8",
     "candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
     "common-virtual-accounting.tex": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
@@ -321,18 +375,20 @@
     "construction.tex": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
     "contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
     "declarations.tex": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
-    "discussion.tex": "714d4716b8ebf60beafb21e8db6e535d20310d0cb1ddcf9656732be70644ced5",
+    "discussion.tex": "da44f4ae60ae57bbe35a9902b356897d91f85f9171b5c031578d9b7e95b01680",
     "established-results.tex": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
-    "evaluation.tex": "c78418398671129795711714e6a8cfcc5dd84beba646b509d5b0a30a87db8120",
+    "evaluation.tex": "f9b1735b4ea73460744eb12a7dd2848e5a3d57ec5289d6195911574bd6a14d68",
     "figures/confirmation-cut.pdf": "c0af668c165ac354102e3977eac92203e28eb1825176b6d61794424180dae689",
     "guarded-provenance.tex": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
-    "introduction.tex": "18c5757f7bf28f717d5bc6eb347e1e204dd5df70b70ac6ba125eca28ec5ab47d",
+    "introduction.tex": "1c8a7d82a94e9394932d5d989f041d899a72b461ebdf83f379831314add2b211",
     "joc-basic.bst": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
-    "joc-submission.tex": "7b543ad40281c544ddcf9ada0f0d313fb6fe55f67043cb09bc2e559fae3ae53c",
+    "joc-submission.tex": "0cd8e8f286400d0803fced3f7a0005ef135d1822e26d3766f4c36f0a64980375",
     "joint-continuation.tex": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
     "joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
     "live-core-instantiation.tex": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
-    "main.tex": "583bd9a44371df8a66b69cc1643e33ef0ea21c2e39bab3efb26f9afb8cab9a20",
+    "main.tex": "52e395482e12f522aa198b1b833a7e4d3ad958eaf71a7997612002a343d7445a",
+    "matched-opportunities.tex": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
+    "matched-opportunity-tables.tex": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
     "multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
     "native-authentication.tex": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
     "native-correspondence.tex": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
@@ -350,84 +406,31 @@
     "source-attribution.tex": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e"
   },
   "current_supporting_hashes": {
-    "artifacts/native-authentication/README.md": "6f6635f297b65bf7cc908405657072216d41cc1d80f505cf99e5178c64a038d2",
-    "artifacts/native-authentication/artifact_manifest.json": "f31950537a45dfc5b18dd71696822dcd4f21c2fefc7dcc5f78987b3a00ef2638",
-    "artifacts/native-authentication/auth_bit_accounting_controls.json": "c8664cdfd178468df08508f53944bf15bce4eeffe54f3d2ac6dd959fb78b8399",
-    "artifacts/native-authentication/author_identity.json": "78fff6d5539a9e355f86fa9d859d9ce88639e08ea35ff52a1b6283421500300d",
-    "artifacts/native-authentication/independent_review.json": "5eceaecb2f0a8c1c81548d79e0ecff306ad8c9a68ed14b1f545d178b2f5e9411",
-    "artifacts/native-authentication/independent_review.md": "36c7889d7e9c935eeb55266565c26b5ed786cc125f6069329202bbfa397e97ba",
-    "artifacts/native-authentication/proof.tex": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
-    "artifacts/native-authentication/review_auth_bit_accounting.py": "0e93c1e4ff47780593c20996e38b2ec751a60acdd799da1a5094395e007e28c2",
-    "artifacts/reference-comparison/README.md": "3468d1d04f63d1f680ea6d589994a6ac062cdd978137b7efe4e687445c2d35f3",
-    "artifacts/reference-comparison/analysis.json": "630b067f08f4170570c534f2105b95cdcf0f6e0a40b8350d30dba35c6cca82a2",
-    "artifacts/reference-comparison/analyze_reference.py": "a9c1edfa04c9f6a738d34f84a45bd37617cd0894c224766a6ab4e4b84aaf59a5",
-    "artifacts/reference-comparison/artifact_manifest.json": "706096f157bdfc5075d995092b9f889ca350e62a979e592aff4cf71265b4c923",
-    "artifacts/reference-comparison/reference_comparison_review.json": "3f55cdda5fe691662bed1df159a545fbdbb0fe1001d7e1e8e2aab5a3d25fa398",
-    "artifacts/reference-comparison/reference_comparison_review.md": "f1ea2b0c7ebb7bdf1792740107a92233963ec2879b8c3bd4b4488fd3fbd5bc32",
-    "artifacts/reference-comparison/review_reference_comparison.py": "9e026ee44bd5db0ca3cc17f0970e0e8402edbe901220c6a17cce0df17dcd3e13",
-    "artifacts/reference-comparison/source_identity.json": "a72e66891d5d9c7a8a8ac6a9d7bd9f79b08fd957aa70d4f126b5a58b74e16d63",
-    "artifacts/reference-comparison/sources/spqr32-snapshots.json": "572dc536d61ae23ed4aa367b1b62a3cd2e164c491e60880e766f67e49422d033",
-    "artifacts/reference-comparison/sources/spqr32-traces.json": "2df62d39ffcd2cd0cd3365eb3648532791b009da8c8713eb170196985fed639b",
-    "artifacts/reference-comparison/sources/spqr64-corpus.json": "aee184c8415594d58692ee2d63419f741a703aaacfbfff69a6471e68fd19250e",
-    "artifacts/reference-comparison/sources/whole-kem-corpus.json": "dd01c8d7a39f9c0486079b9b5b313248bd709badfa333f6ca24d1406d940de88",
-    "artifacts/integration-checks/native-authentication/build-check.json": "1c478e2a35aaf81ef8921069cdacfa626bc536d01e3f8b7f469808d94d0d1d5c",
-    "artifacts/integration-checks/native-authentication/embedded_fonts.txt": "d02fea11f3a5af4290d97fc7fc1c43293b4c819b0fcbe3e781eaf1ed6b8cc857",
-    "artifacts/integration-checks/native-authentication/review-dependency-verification.json": "9d4f4d3f21dd56e50beeffb706dd45c09ed9c744bf488374ae5f9e4b0e53a67b",
-    "artifacts/integration-checks/native-authentication/root-reading-review.json": "ce4ddb3aad530307270d18651732d77d5138806a7350e80593b8e189be7239fb",
-    "artifacts/integration-checks/native-authentication/signature_bridge_review.json": "4708182e101e312bb6ca48cd2129d31f4da615f5cc331b35ce88016d43342b50",
-    "artifacts/integration-checks/native-authentication/signature_bridge_review.md": "bf604e3a23249f4a2c83ec0f765219bb266a0b13811818eef41119c007a75834",
-    "artifacts/integration-checks/native-authentication/source_export_check.json": "39e3fd55ab1ccf297c99d0540aa1655541f85209d475be6537fcd26a42e8bfda",
-    "artifacts/integration-checks/native-authentication/visual-layout-review.json": "892ef09ab1b2b6d13979f61339690eaccb401637f91e0ca60d522cbeafc3073d",
-    "artifacts/signature-bridge/README.md": "2399d56c93d56bc152d16fd15b7ef9a70dbba36b06855bc6f012e1cb6f289aae",
-    "artifacts/signature-bridge/artifact_manifest.json": "3305c74fa7f4a2ec79e1974489fe026531132d1a954b560600b14199aef1a67b",
-    "artifacts/signature-bridge/author_check_receipt.json": "52e668e2fdc90882bb2c0f3f914e51bda31d50608902a6e0dc18e8fc624448da",
-    "artifacts/signature-bridge/author_checks.json": "d859e20106d159f51c357962aefd3631854eab3eb93ab37ba1a6bf6720c272b1",
-    "artifacts/signature-bridge/author_checks_finite.json": "e918d1afcb948002d18f7603315f46be80b85172e0721d85da0da48deba0c84d",
-    "artifacts/signature-bridge/author_checks_finite_optimized.json": "e918d1afcb948002d18f7603315f46be80b85172e0721d85da0da48deba0c84d",
-    "artifacts/signature-bridge/author_checks_optimized.json": "d859e20106d159f51c357962aefd3631854eab3eb93ab37ba1a6bf6720c272b1",
-    "artifacts/signature-bridge/author_checks_provenance.json": "aca8a03d562330a116ec593f33bf80b28a27cf9988708c6ef06d19727c64e721",
-    "artifacts/signature-bridge/author_checks_provenance_optimized.json": "aca8a03d562330a116ec593f33bf80b28a27cf9988708c6ef06d19727c64e721",
-    "artifacts/signature-bridge/author_negative_controls.json": "c3ce9ce03d68b7b35c26cae2647db605de91cb0e45fdb26169814e7d969e2764",
-    "artifacts/signature-bridge/check_bridge.py": "156263eb9465e4ba39a70d1b40ccebfe4ef8fd0f77e5edcf826ffed1572056f8",
-    "artifacts/signature-bridge/generic_bridge_review.md": "fde7b9e80e88b54c2d96f8185b82c9a74e2767ed745b61bc9b5f7352196f01cc",
-    "artifacts/signature-bridge/independent_bridge_review_checks.json": "0ad1c58c844fc776b39762169de05205ed4e0f64893e1d531d508e067564050d",
-    "artifacts/signature-bridge/independent_bridge_review_identity.json": "0a1784e92c8f974ab0d234de5729e4790e41bcfc50b4fa605b728dfcd2d14e1d",
-    "artifacts/signature-bridge/integration_replacements.json": "c2c04e321a5d71b69182a0b9fcdba3394510df97f713faaabc8cbb136d68fe06",
-    "artifacts/signature-bridge/literature-positioning.md": "02123993c6a243e3a36750479898a6ab4dd8cff4649b98a99c756b4207e1d563",
-    "artifacts/signature-bridge/positioning.tex": "edd6e9e9297568e99d3c779fe8d0420914433aefe72fab2d8fbcd7da138b67a2",
-    "artifacts/signature-bridge/proof.md": "a9f3bb6ba4934c1d5cd0e20ec978ba17a07bcf427aac21c7a0042f1fea9868c2",
-    "artifacts/signature-bridge/proposed.tex": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
-    "artifacts/signature-bridge/references-additions.bib": "99016f33027bff49a4f53b1b57c6bfe42ce8a796b63f7876d39a4cea54026edd",
-    "artifacts/signature-bridge/review_generic_controls.json": "56d2325468603a0ca52091c6c9b962470a620aa88b5397d3355794a171f96614",
-    "artifacts/signature-bridge/review_generic_controls.py": "78e65adb8c2107a440fcbd73be2a7b8b3fae5d98d73403d608d2dc77b1c6bdfd",
-    "artifacts/signature-bridge/snapshot_layout.json": "a9d682bb08dbac6be1572353369aca81248ddad2366b635a4dc76cb30111f7f5",
-    "artifacts/signature-bridge/snapshot_layout_checks.json": "1565a6a25a41fb9903cc7d0c61420942539843ad774b4b5a3529ffffd0802aec",
-    "artifacts/signature-bridge/snapshot_layout_review.json": "2f25538deacbad92468a7a4dbeeee1fd257a95d836a431f4773ccc71120f0efa",
-    "artifacts/signature-bridge/source_identity.json": "09eed0e31a48d9663c06e20a8dad0d8e832c87a1cb12d47a6646fb4660b2908c",
-    "artifacts/signature-bridge/sources/fips204-0.4.6/.cargo_vcs_info.json": "bb934677d8080dcd00346edbbb1bbdfd902fab762352d3fcab63119d4884215e",
-    "artifacts/signature-bridge/sources/fips204-0.4.6/Cargo.toml.orig": "304ddd4e991fbd3accf309f2a484c12d735b4cb7b98e0eb90a6e54c14d132fd8",
-    "artifacts/signature-bridge/sources/fips204-0.4.6/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
-    "artifacts/signature-bridge/sources/fips204-0.4.6/LICENSE-MIT": "d27687b51f2874822c1530976b7e837eac4f308d94bf3dd42047011b7d437b47",
-    "artifacts/signature-bridge/sources/fips204-0.4.6/src/encodings.rs.txt": "f9798a1135d75fc756a17fe1703514f72d3977d36234152faa32207c4d510b14",
-    "artifacts/signature-bridge/sources/fips204-0.4.6/src/hashing.rs.txt": "33269eaa1d05b126cc03a8c42e616aefa4a8c001bf92ea0a4a3eeeab18bd45ce",
-    "artifacts/signature-bridge/sources/fips204-0.4.6/src/helpers.rs.txt": "97bf78a6c8e360fb8b2002b27fd17d67f5dc69a2a1c4dc2e5240b0b6ec53fdb4",
-    "artifacts/signature-bridge/sources/fips204-0.4.6/src/lib.rs.txt": "fb073c02f39284431c072b587e8f97abe930c4b53fc40e47cd33f2e4c571ea0f",
-    "artifacts/signature-bridge/sources/fips204-0.4.6/src/ml_dsa.rs.txt": "8cd47b247be255f6eb2ea5e1ab9928b1fa3b27f0fafb1b06fa364c50e96013e8",
-    "artifacts/signature-bridge/sources/fips204-0.4.6/src/traits.rs.txt": "1d6fe99ffbc2128629b7965b106145b63cc1e013d976545f9a7f09f321a94f1d",
-    "artifacts/signature-bridge/sources/fips204-0.4.6/src/types.rs.txt": "d811518ef64dbac77e0aead6f33edde8ae1ec89ef641334b6232d2a35bd1cb18",
-    "artifacts/signature-bridge/sources/fips204-0.4.6.crate": "c9fb5a367b9846933e271a3c2a992930743f82ae5e8cb7faa780715a80fa0b15",
-    "artifacts/signature-bridge/sources/q-periapt-native/Cargo.lock": "b3f7403faca9c95c0f77d5abb6ce732bb9b89c1a4c72ad6ba6e58f533e0af3d9",
-    "artifacts/signature-bridge/sources/q-periapt-native/LICENSE": "ed972005262b556e78016964a8c210b2e64e341b51d3064bab951b0b86f28c3f",
-    "artifacts/signature-bridge/sources/q-periapt-native/crates/q-periapt-backends/LICENSE": "45179fef4a66e21d461cf531279d364f3ce375a6affa9b186d7d145206304d35",
-    "artifacts/signature-bridge/sources/q-periapt-native/crates/q-periapt-backends/LICENSE-APACHE": "cfdff80f6bf12fb250921ea93684b84ffa97b7aa02f0ec859de0c7312a72ceb3",
-    "artifacts/signature-bridge/sources/q-periapt-native/crates/q-periapt-backends/LICENSE-MIT": "b93c8c0efb8cfe3c10b26ab6e2982b44cb2e4a1dce72dd12f23d89814553c5f6",
-    "artifacts/signature-bridge/sources/q-periapt-native/crates/q-periapt-backends/src/mldsa.rs.txt": "70635d3d134e3f7e4dd046c8224d1efbca135273f45a48d493b661810672263b",
-    "artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/Cargo.lock": "fda2e0592f7e013816b343d461da1e32346b4256603eda317d12b4ebd200c26b",
-    "artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/LICENSE": "45179fef4a66e21d461cf531279d364f3ce375a6affa9b186d7d145206304d35",
-    "artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/LICENSE-APACHE": "cfdff80f6bf12fb250921ea93684b84ffa97b7aa02f0ec859de0c7312a72ceb3",
-    "artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/LICENSE-MIT": "b93c8c0efb8cfe3c10b26ab6e2982b44cb2e4a1dce72dd12f23d89814553c5f6",
-    "artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/src/contract.rs.txt": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
-    "artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/src/crypto/persistence.rs.txt": "f502bef3368bedec46cefd7f8955d4706550d45ab9baf2c7d6bca8ee45b4d405",
-    "artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/src/crypto.rs.txt": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4"
+    "artifacts/matched-comparison/README.md": "cd38e70e82c3f8fb716bc9ba9357b97d884ae0a3f205ce123640e400e02707fd",
+    "artifacts/matched-comparison/analysis.json": "02b86436e8ff1e2c964dbf3c293a2895613a918922967d26bbf5219c2ab4dea7",
+    "artifacts/matched-comparison/analyze_matched.py": "e41b7ef10cc7bb3a2cabca72d15cdb31b2da7503c82489b5ec0377ca10e59a6d",
+    "artifacts/matched-comparison/artifact_manifest.json": "64e4f868cf516ae576e51154e05e42589d4b4b736d870a5837d5b19dadaa38c0",
+    "artifacts/matched-comparison/audit_matched_traces.py": "39fd2a8f1987229b83777510871fce75f227b56ab204a072e57dc2ca172b6d4a",
+    "artifacts/matched-comparison/check_input_controls.py": "25a133edc88fa128eeda76f4ff51e4400832360858273673b72443944d182a2e",
+    "artifacts/matched-comparison/independent-review.json": "480cb138a11476bd2cf02be0303fa2895714028f19e8dc4cfcd156ac3f4986d4",
+    "artifacts/matched-comparison/input-controls.json": "6c51a291cf4964632542b00c000956ce421e180988bbfe236b7881e317a8c93d",
+    "artifacts/matched-comparison/manuscript-increment-review.json": "20daee0301a1226211e9635aaa3b135d630f80b67c9e11c0356de94912e4461a",
+    "artifacts/matched-comparison/source_identity.json": "4cea9913f76f69f363f816ee6e3d633256d367ae998c529a0ef30a83a0718730",
+    "artifacts/matched-comparison/sources/executables.json": "5fdabca0a7d7eca9e0ab3667024aad447b6392fc97ee8967f12a0469570e77a5",
+    "artifacts/matched-comparison/sources/matched-report.json.gz": "9e8a34beb079f78fa3d89dfd7d6c6d3026d97c5322c5b0b87609829cbf611d68",
+    "artifacts/matched-comparison/sources/public-evidence-audit.json": "e94fb222ceb5f1831a3d300c400d6ac014969741974890510f6da85b3efdaba5",
+    "artifacts/matched-comparison/sources/public-manifest.json": "d7602eab190e9b1cd7c48dcce2788f5d0f777af4f303a113c452656d60f45dc1",
+    "artifacts/matched-comparison/sources/qualification.json": "956640c95443206e0a1b4c9b663e498ee8c1281be6801d134abde4951648ed6a",
+    "artifacts/matched-comparison/sources/results-49.csv": "19bdb09b98cb4817da4efc7cfada4f081185d2ccdac1d09f8406324ad2a234b6",
+    "artifacts/matched-comparison/sources/results-49.json": "588fd79e8b3fa0d1681bd56dd93162a8f64d20c86c1303e29faf58f1333a0be4",
+    "artifacts/matched-comparison/sources/runtime.json": "200105389e589cd985648c00853f6f4bed951cc55ed1c05200eae9a42a6edbc2",
+    "artifacts/matched-comparison/sources/schedule.py.txt": "1d3b361c6d99b0e28c2b0044c99287835f4eba41e9163c0fda2614e954b23b18",
+    "artifacts/matched-comparison/sources/validate.py.txt": "80a2eed73944decaa8edde69db1b3523a12475930dd5e4da4821ca52add636bc",
+    "artifacts/matched-comparison/sources/variant-preparation.json": "a41489dd437dd306389352d2968d5ebf4a79918871d86e4325095e756a038983",
+    "artifacts/integration-checks/matched-comparison/build-check.json": "92fab773ddb382226376e84a39a76438171c6e5a4c7f6f02a20aeea57304e509",
+    "artifacts/integration-checks/matched-comparison/embedded_fonts.txt": "df30a897429798718be2a07d561b9c2a8229faed4a7e92abea8ac884c8c080cc",
+    "artifacts/integration-checks/matched-comparison/source_export_check.json": "ad30f90cc1c79831b28aebd62c4abb53252def9660a9b16d210485a7af52d0bb",
+    "artifacts/integration-checks/matched-comparison/visual-layout-review.json": "abcc444d92dab50e8b45249eb1969d7c9f80aead1d09b496b15494141f787add",
+    "artifacts/prior-integration/native-authentication.json": "7b21966af2604bbfe304bb6ddf98be01dd49419fa7f42378a3d8054c24d6e73d"
   }
 }

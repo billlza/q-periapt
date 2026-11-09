@@ -2,13 +2,15 @@
 \label{sec:evaluation}
 
 The validation asks how the formal exposure conditions appear in executable
-state and communication histories. We use three complementary designs.
+state and communication histories. We use four complementary designs.
 First, the native executions in Section~\ref{sec:established} vary the time
 of reservation use, acknowledgement delivery and aggregate rewriting while
 retaining the original secret source. Second, two implementations of record
 readability are checked against each other and against independently stated
 expected results. Third, a reference corpus records the message keys derivable
 from actual component snapshots under fixed communication schedules.
+Fourth, native and reference executions share a directed opportunity budget
+and report exposure jointly with admitted service and communication work.
 Table~\ref{tab:validation-questions} relates each design to the question it answers.
 
 \begin{table}[t]
@@ -31,6 +33,9 @@ explicit expected cases for key dependencies and later disclosures.\\
 How does retained state interact with communication opportunities? &
 Pinned component snapshots across seven schedules, with reconstructed keys
 indexed by direction, epoch and message number.\\
+How does a recovery budget trade exposure for service? &
+Native and reference runs under common directed opportunities, with separate
+first commitments, logical deliveries, derived sets and full-frame costs.\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -194,3 +199,4 @@ match the attacker-derived keys. This supplies a concrete distinction between
 fresh KEM execution and authenticated recovery when the ongoing authentication
 authority is itself derived from captured session state.
 
+\input{matched-opportunities}

@@ -63,9 +63,9 @@ yield a purpose-key derivation result with exact aliases and separate owner
 lifecycles. A mechanized symbolic theorem establishes multi-epoch message
 secrecy under the provenance condition. Native executions demonstrate traffic
 reconstruction from pre-restart reservations, aggregate copies and delayed
-receipts. Independent finite checks and pinned reference workloads validate
-the exposure semantics and quantify the message sets reconstructed from
-retained state.}
+receipts. Independent finite checks validate the exposure semantics. Pinned reference
+workloads and 49 matched native/reference executions quantify reconstructed
+message sets jointly with admitted service, communication and persistence work.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 
@@ -192,10 +192,14 @@ its treatment of acquisition, deletion, and late disclosure against independent
 expected results. A source correspondence maps the image, intent, retry, report,
 and acquisition operations to the declared interfaces. Separately, pinned SPQR
 and whole-KEM reference corpora measure reconstructible message sets across
-communication schedules. Their purpose is to explain how retained material and
-communication opportunities affect observed exposure. The measurements retain
-the originating contribution, direction, epoch, and message index, together
-with each construction's authentication and storage interface.
+communication schedules. A further 49 native/reference executions share a list of directed
+transmission opportunities and charge control traffic and exact retries to
+that common budget. They measure reconstructed message sets jointly with
+first commitments, logical deliveries, emitted bytes and native persistence
+work. The measurements retain the originating contribution, direction, epoch
+and message index, together with each construction's authentication and
+storage interface. A one-way control records exhausted-budget suspension,
+its uncommitted requests and the exposure of the applications actually admitted.
 
 \paragraph{Security model and organization.}
 Crash recovery resumes retained, bound operations under the authentication,
@@ -207,9 +211,9 @@ disclosure terms. Section~\ref{sec:construction} describes the construction;
 Sections~\ref{sec:security-model} and~\ref{sec:computation} develop the record
 model and computational connection. Section~\ref{sec:established} presents
 the mechanized recovery theorem and separating executions, and
-Section~\ref{sec:evaluation} validates the exposure semantics.
-Section~\ref{sec:discussion} develops their consequences and the matched
-protocol comparison.
+Section~\ref{sec:evaluation} validates the exposure semantics and presents
+the matched executions. Section~\ref{sec:discussion} develops their
+consequences and further instantiation.
 % END SECTION SOURCE: introduction.tex
 % BEGIN SECTION SOURCE: related-work.tex
 \section{Related work}
@@ -4142,13 +4146,15 @@ computational interfaces.
 \label{sec:evaluation}
 
 The validation asks how the formal exposure conditions appear in executable
-state and communication histories. We use three complementary designs.
+state and communication histories. We use four complementary designs.
 First, the native executions in Section~\ref{sec:established} vary the time
 of reservation use, acknowledgement delivery and aggregate rewriting while
 retaining the original secret source. Second, two implementations of record
 readability are checked against each other and against independently stated
 expected results. Third, a reference corpus records the message keys derivable
 from actual component snapshots under fixed communication schedules.
+Fourth, native and reference executions share a directed opportunity budget
+and report exposure jointly with admitted service and communication work.
 Table~\ref{tab:validation-questions} relates each design to the question it answers.
 
 \begin{table}[t]
@@ -4171,6 +4177,9 @@ explicit expected cases for key dependencies and later disclosures.\\
 How does retained state interact with communication opportunities? &
 Pinned component snapshots across seven schedules, with reconstructed keys
 indexed by direction, epoch and message number.\\
+How does a recovery budget trade exposure for service? &
+Native and reference runs under common directed opportunities, with separate
+first commitments, logical deliveries, derived sets and full-frame costs.\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -4365,6 +4374,156 @@ confirmed epochs increase. All 1,536 sender keys across three 512-send profiles
 match the attacker-derived keys. This supplies a concrete distinction between
 fresh KEM execution and authenticated recovery when the ongoing authentication
 authority is itself derived from captured session state.
+
+% BEGIN SECTION SOURCE: matched-opportunities.tex
+\subsection{Matched directed opportunities and admitted service}
+\label{sec:matched-opportunities}
+
+The matched experiment executes native Continuity with per-direction send
+budgets $b\in\{32,64\}$ and the five reference profiles under seven common
+schedules. Its 49 configuration--schedule pairs place exposure, admitted
+application work and communication cost on the same opportunity budget.
+The protocol source is fixed at \texttt{358b921a}; the reference SPQR revision
+and its isolated chunk-width variant retain the identities stated above.
+
+\paragraph{Workload and capture.}
+Each schedule contains 2,048 directed transmission opportunities, indexed
+0--2,047. The designated sender receives one 32-byte application request at
+each opportunity and may emit at most one frame of at most 8,192 bytes.
+Uncommitted requests remain in its FIFO queue. A response queued by receipt
+uses a later opportunity in the response direction. Protocol retries consume
+opportunities and retain their exact bytes; network duplication adds only a
+delivery. Terminal draining delivers already emitted frames.
+
+Both capture experiments use the cut after opportunity 0's scheduled
+local and network actions and its checkpoint, and before opportunity 1
+begins local computation. They separately acquire the complete current session
+state of $A$ or $B$, together with every public emission, including packets
+lost before delivery. For Continuity this is the selected session record and
+its matching wrapping key; its independently owned identity signer remains
+separate. The references authenticate through their session MAC state.
+One application has been committed before the cut in every profile, so the
+post-capture denominator is the total first-commitment count minus one.
+
+Native admission is a DeviceJournal-committed ciphertext; reference admission
+is a returned component state, with a separately executed 32-byte-payload
+AEAD audit. The native predictor derives candidate keys from the captured
+epoch-zero chain seeds and checks them against the actual ciphertext, with
+altered-seed rejection controls. Reference predictors recover component
+message keys, and the execution audits their envelopes with the actual keys
+and wrong-key controls. The displayed derived sets are the outputs of these
+specified predictors. The cryptographic recovery results use the eligibility
+and observation interfaces of Sections~\ref{sec:security-model}
+and~\ref{sec:computation}.
+
+\paragraph{Current-epoch capacity and renewed exchange.}
+At this cut, the first application has consumed one of the two directions'
+epoch-zero allocation indices, and the captured native records contain no
+pending rekey entropy. Each direction admits at most $b$ first allocations
+under that epoch. Thus at most $2b-1$ further epoch-zero allocations remain;
+exact retransmissions reuse their original allocation. Equality requires both
+directions to use their remaining epoch-zero capacity. This elementary
+allocation count supplies the exposure envelope tested by the native trace
+predictor.
+
+% BEGIN SECTION SOURCE: matched-opportunity-tables.tex
+% Generated by artifacts/matched-comparison/analyze_matched.py.
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Profile & Committed / & Capture $A$ & Capture $B$ & Emitted\\
+ & delivered & derived / admitted & derived / admitted & bytes\\
+\midrule
+Continuity, $b=32$ & 688 / 688 & 63 / 687 & 63 / 687 & 565,288\\
+Continuity, $b=64$ & 718 / 718 & 127 / 717 & 127 / 717 & 407,596\\
+SPQR, chunk 32 & 2,048 / 2,048 & 172 / 2,047 & 85 / 2,047 & 172,339\\
+SPQR, chunk 64 & 2,048 / 2,048 & 88 / 2,047 & 43 / 2,047 & 227,268\\
+Whole KEM, interval 1 & 2,048 / 2,048 & 4 / 2,047 & 1 / 2,047 & 1,785,156\\
+Whole KEM, interval 32 & 2,048 / 2,048 & 66 / 2,047 & 1 / 2,047 & 196,704\\
+Whole KEM, interval 64 & 2,048 / 2,048 & 130 / 2,047 & 1 / 2,047 & 157,744\\
+\bottomrule
+\end{tabular}
+\caption{Alternating transport with 2,048 directed opportunities and 2,048 offered 32-byte requests. Each exposure denominator counts first commitments after the capture cut; $A/B$ identify the separately captured endpoint. Emitted bytes include actual native frames or the reference component with its executed payload envelope. Uncommitted requests equal 2,048 minus the committed count.}
+\label{tab:matched-opportunities}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}rrrrrrrr@{}}
+\toprule
+Budget & First & ACK & Control & App. & All exact & Image & \texttt{sync\_data}\\
+ & app. & & & retries & retries & revisions & calls\\
+\midrule
+32 & 688 & 676 & 80 & 604 & 636 & 3,554 & 14,219\\
+64 & 718 & 711 & 40 & 579 & 596 & 3,644 & 14,579\\
+\bottomrule
+\end{tabular}
+\caption{Native alternating communication and persistence. First application, ACK, control and application-retry columns partition the 2,048 emitted frames. All exact retries also count repeated control frames and overlap that partition. Image revisions and physical sync calls sum both endpoints.}
+\label{tab:matched-accounting}
+\end{table}
+% END SECTION SOURCE: matched-opportunity-tables.tex
+
+In the alternating schedule, reducing $b$ from 64 to 32 changes the derived
+set from 127 of 717 post-capture commitments to 63 of 687
+(Table~\ref{tab:matched-opportunities}). Both counts attain $2b-1$.
+The same change delivers 688 rather than 718 applications, a reduction of
+30, or 4.18\%, under the common 2,048 opportunities. Both endpoints finish
+at confirmed epoch 10 for $b=32$ and epoch 5 for $b=64$; the corresponding
+emitted-byte costs are 565,288 and 407,596. The budget therefore has a
+measured exposure--service--communication tradeoff under this workload.
+The references give their own captured-state outcomes at the same cut. For
+example, SPQR with 32-byte chunks derives 172 of 2,047 later commitments
+from capture $A$ and 85 of 2,047 from capture $B$, reflecting the different
+pending material present in the two endpoint snapshots.
+
+\paragraph{Communication policy and durability.}
+The native driver uses fair cyclic arbitration among queued control traffic,
+ACKs, exact application retries and new applications. An unacknowledged frame
+is immediately eligible for retry. Table~\ref{tab:matched-accounting} exposes
+that policy's cost: the alternating $b=32$ execution spends 604 opportunities
+on application retries and the $b=64$ execution spends 579. Independent
+trace analysis places 592 and 572 of those transmissions after the request's
+first logical delivery, accounting for 83,472 and 80,652 bytes. This uses the
+analyst's delivery history; the sender is still awaiting its ACK. The four
+frame classes partition each run's 2,048 emissions. Image-revision and
+\texttt{sync\_data} counts measure the real native journal. Each alternating
+reference execution returns component state 4,096 times; its physical
+persistence fields are \texttt{null}, recording the component-serialization
+boundary. The communication totals include all native control, ACK and retry
+frames, and the references' complete component-plus-payload envelopes.
+
+\paragraph{Transport controls.}
+The one-way schedule supplies only $A\!\to\!B$ opportunities, including for
+control traffic. Continuity commits and delivers 32 or 64 applications and
+then retains 2,016 or 1,984 offered requests in its queue. Both endpoints
+remain at confirmed epoch zero; all 31 or 63 post-capture commitments are
+derived from either captured state. The references continue committing
+2,048 requests, with 2,047 of 2,047 post-capture keys derived. This control
+identifies budget-induced admission suspension and its backlog explicitly.
+Recovery during renewed exchange is assessed through the later admitted
+allocations and their original sources.
+
+The lossy schedule drops the 205 common opportunities whose index is
+congruent to 4 modulo 10. Continuity delivers all 665 or 681 admitted
+applications, charging retransmissions to the opportunity budget. Each
+reference commits 2,048 component applications and delivers 1,843 under its
+declared workload without application retransmission. Network duplication
+leaves native first commitments, logical deliveries, emitted bytes, final
+epochs and derived sets equal to the alternating execution. Reordering, 9:1
+asymmetry and a 256-opportunity offline prefix complete the seven-schedule
+inventory; their request queues, exact derived sets and work counters are
+retained in the complete 49-row artifact.
+
+The manuscript tables are regenerated from the hash-bound executed report
+and checked against its independently recomputed public-evidence projection.
+Appendix~\ref{app:matched-comparison} identifies the source, execution and
+validation records.
+% END SECTION SOURCE: matched-opportunities.tex
 % END SECTION SOURCE: evaluation.tex
 % BEGIN SECTION SOURCE: discussion.tex
 \section{Consequences and further instantiation}
@@ -4449,17 +4608,19 @@ experiment. A selected private key additionally supports the stated
 application-encryption experiment when all its aliases follow that
 experiment's key-use interface.
 
-\paragraph{Matched protocol evaluation.}
-The reference corpus fixes reproducible communication opportunities for a
-matched Continuity comparison. Such a comparison records the same loss,
-reorder and duplication schedule, together with the construction's actual
-authentication authority and disclosure objects. For each case, the relevant
-observations are the original generation and encapsulation reservations,
-acquired record projection, known wrapping keys, public-wire availability,
-and reconstructed message set. Communication and persistence costs can then
-be measured over declared operation intervals. Holding a reservation fixed
-while varying execution time, acknowledgement delivery or aggregate
-rewriting tests the provenance distinctions isolated by the present results.
+\paragraph{Exposure budgets and completed service.}
+The matched executions make the two-chain current-epoch capacity visible
+under a common communication budget. At the declared capture cut, budgets
+32 and 64 yield 63 and 127 reconstructed future applications in alternating
+traffic, while completing 688 and 718 applications. Reporting the admitted
+denominator alongside the reconstructed set exposes the cost of more frequent
+rekey work. The one-way control reaches its admission cap with both confirmed
+epochs still zero and with every admitted post-capture key reconstructed.
+These observations connect the provenance condition to a concrete accounting
+of recovery, service and queued demand. The frame partition further identifies
+the selected immediate-retry policy's contribution to communication cost,
+providing a measured starting point for changing retry scheduling while
+preserving the original allocation and wire identities.
 
 \paragraph{Conclusion.}
 Persistent recovery is governed by original secret sources and their
@@ -4845,6 +5006,43 @@ score events, joint eligibility from conditional probability, and the
 selected root from other root histories. The proof uses the source and
 primitive correspondences identified in the preceding supplements; its
 event-bit comparisons retain their own complete continuation budgets.
+
+\subsection{Matched directed-opportunity executions}
+\label{app:matched-comparison}
+
+Section~\ref{sec:matched-opportunities} uses research revision
+\texttt{fec8472060728cc1bb35cf15042c117dda00e336}, executed by GitHub run
+\href{https://github.com/billlza/q-periapt/actions/runs/42537214047}{42537214047}.
+Its checkout is the synthetic merge \texttt{0d12e77d}; preparation archives
+protocol source \texttt{358b921a} into an isolated execution tree. The retained
+preparation and executable receipts identify the native driver, SPQR and its
+64-byte chunk variant, and the whole-KEM reference. The run completed all
+49 profile--schedule pairs.
+
+\path{artifacts/matched-comparison/} retains the complete executed report,
+its 49-row JSON/CSV projection, original public-audit and qualification
+receipts, source digests and deterministic manuscript-table generator.
+The compressed report preserves the exact original JSON bytes. The generator
+checks complete profile/schedule and capture-owner inventories, admission and
+exposure partitions, frame budgets, full-envelope bytes and the distinction
+between native physical persistence and reference state returns. Input
+controls exercise altered denominators, duplicate rows, inconsistent request
+sets, fabricated physical counters and omitted frame-envelope work.
+
+The original public audit recomputed 14 native traces, 35 reference
+trace/snapshot cases and 35 public envelope schedules, and checked all 126
+public-evidence manifest entries. The hosted run performed the real native
+plaintext and reference AEAD key checks. The retained qualification receipt
+binds archive 13641008832, its SHA-256, the exact source and execution, and
+these verification outcomes. The manuscript projection preserves those
+execution identities and can be regenerated from the retained packet alone:
+\begin{quote}
+\small
+\begin{verbatim}
+python3 artifacts/matched-comparison/analyze_matched.py --check
+python3 artifacts/matched-comparison/check_input_controls.py
+\end{verbatim}
+\end{quote}
 % END SECTION SOURCE: artifact-map.tex
 % BEGIN SECTION SOURCE: primitive-inputs.tex
 \section{Primitive inputs to the record and report bounds}
