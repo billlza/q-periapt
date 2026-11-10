@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out manuscript source
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
@@ -52,7 +52,7 @@ jobs:
       - name: Check finite confirmation and traffic interfaces
         run: sh artifact/python-run.sh paper/continuity/artifacts/confirmation-traffic/check_interfaces.py --finite-only --output paper/continuity/build/confirmation-traffic-check.json
       - name: Check out pinned native attribution sources
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: billlza/q-periapt
           ref: 72acaaccde1ca9ea27e5af022da5fbce932ed4e9

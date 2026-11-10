@@ -27,7 +27,7 @@ jobs:
     # This job also produces the C SDK, whose GLIBC floor is 2.35.
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -151,7 +151,7 @@ jobs:
   rust-publish-contract:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -220,7 +220,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -281,7 +281,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -373,7 +373,7 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -454,7 +454,7 @@ jobs:
             target: aarch64-unknown-linux-gnu
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -542,7 +542,7 @@ jobs:
   no_std:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -568,7 +568,7 @@ jobs:
           - riscv64gc-unknown-linux-gnu    # RISC-V
           - wasm32-unknown-unknown         # WASM
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -603,7 +603,7 @@ jobs:
   riscv64-run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -634,7 +634,7 @@ jobs:
       matrix:
         toolchain: [stable, beta, nightly]
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -653,7 +653,7 @@ jobs:
   msrv:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -673,7 +673,7 @@ jobs:
   sidechannel:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -710,7 +710,7 @@ jobs:
             uname_machine: aarch64
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -785,7 +785,7 @@ jobs:
   x86-avx2-candidate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -826,7 +826,7 @@ jobs:
   transport:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -850,7 +850,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -891,7 +891,7 @@ jobs:
   bindings-wasm:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -1031,7 +1031,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -1100,7 +1100,7 @@ jobs:
   bindings-swift:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -1292,7 +1292,7 @@ jobs:
     # The native library must keep the same GLIBC 2.35 floor as the Linux SDK.
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -1387,7 +1387,7 @@ jobs:
       aar_sha256: ${{ steps.sdk_aar_identity.outputs.aar_sha256 }}
       manifest_sha256: ${{ steps.sdk_aar_identity.outputs.manifest_sha256 }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -1494,7 +1494,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -1847,7 +1847,7 @@ jobs:
       EXPECTED_AAR_SHA256: ${{ needs.bindings-android-aar.outputs.aar_sha256 }}
       EXPECTED_MANIFEST_SHA256: ${{ needs.bindings-android-aar.outputs.manifest_sha256 }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -1913,7 +1913,7 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -1978,7 +1978,7 @@ jobs:
   pq-optional-backends:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -1997,7 +1997,7 @@ jobs:
   hqc-draft-candidate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -2023,7 +2023,7 @@ jobs:
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/target/continuity-spqr-reference-build
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -2136,7 +2136,7 @@ jobs:
     # Individual command (15 minutes) and transport deadlines stay unchanged.
     timeout-minutes: 150
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -2257,7 +2257,7 @@ jobs:
         consumer: [swift, kotlin, android]
         profile: [debug, release]
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -2455,7 +2455,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -2568,7 +2568,7 @@ jobs:
             toolchain: 1.90.0
             partition: enrollment-other
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -2792,7 +2792,7 @@ jobs:
   feature-fence:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -2821,7 +2821,7 @@ jobs:
   formal-proof:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -2843,7 +2843,7 @@ jobs:
   formal-easycrypt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -2886,7 +2886,7 @@ jobs:
   tamarin-proof:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -3028,7 +3028,7 @@ jobs:
   proverif-proof:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: init.defaultBranch
