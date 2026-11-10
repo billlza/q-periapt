@@ -20,12 +20,12 @@ The C snapshot now records package version `0.2.0` while retaining all existing
 `QPeriaptContinuity-Apple-0.2.0.zip` and Kotlin's producer/consumer use
 `dev.qperiapt:q-periapt-continuity-kotlin:0.2.0`. The package identity change keeps
 the current protocol domains and persisted formats. Selected native/Android and
-service distribution records, actual archive digests, the remaining bootstrap
-source-level composition, and the coordinated specification lock remain in the
+service distribution records, actual archive digests, the source-level
+construction assessment, and the coordinated specification lock remain in the
 execution sequence below. Historical qualification keeps its original source
 and artifact identities.
 
-## Construction, workload and compatibility decisions — 9 November 2026
+## Construction, workload and compatibility decisions — 10 November 2026
 
 The [joint-schedule and retained-state assessment](BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md)
 completes U3 for the declared bootstrap records and acquisition histories. Its
@@ -53,9 +53,23 @@ slots, source-consistent family assignment, expanded-owner validation and
 candidate-local pre-protection opening stops. Its bound retains both
 endpoints' exact marked-record acquisition residuals; those terms vanish
 in its declared acquisition-free branch, where the existing constructive
-record renderer applies. The next source constructions extend the captured
-ciphertext interface under the actual journal/derived-key hierarchy and
-instantiate the initial-surviving-source profile.
+record renderer applies.
+The [original initial-source adapter](BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md)
+now supplies the complementary inventory-prekey/Initial-encapsulation
+composition. It preserves the SDK initial confirmation before the adaptive
+Reply family, applies the complete joint short/long entry service, and then
+localizes the independent long-PRK table by first descriptor allocation.
+The later-family count multiplies the terminal-tail terms only. This profile
+admits an available responder signer, traditional material and actual reply
+contributions while protecting the original initial PQ source and initiator
+purpose-5 body ledger. Its bootstrap/recovery/activation/epoch-zero-ACK
+operation surface and typed observations are stated explicitly in that proof.
+
+Both original-source bounds are completed construction inputs with their
+exact two-endpoint record terms. The captured-ciphertext extension uses the
+actual journal-encryption and derived-wrapping-key hierarchy. Closure/fanout
+reports over complete serialized message state use their additional report
+interface when that broader surface is included in the assessment.
 
 The [supported-workload budget](SUPPORTED_WORKLOAD_BUDGETS_0_2.md) selects the
 existing desktop reference workloads and six regression ceilings: 11/19 seconds
@@ -107,8 +121,8 @@ The [terminal-agreement assessment](BOOTSTRAP_TERMINAL_AGREEMENT_V1.md) now
 completes the exact signed-wire Final invariant and the conversion from a joint online protected-family
 epoch-zero ACK-key schedule to historical responder activation. It supplies a
 source-bound theorem and independently executed encoding/alias controls for
-the matrix's terminal stages. The remaining construction assessment instantiates
-the explicit joint schedule under its chosen component and identity disclosures.
+the matrix's terminal stages. The original-source assessments above instantiate
+the joint schedule under their stated component and identity disclosures.
 
 ## Adopt the implemented contract
 
@@ -122,15 +136,17 @@ adopts these mechanisms and connects them to a formal distribution.
 | --- | --- | --- |
 | Identity, witness and authority | ML-DSA-65 AND P-256; independent pins/checkpoints; signed rosters; explicit registration and root replacement; caller-supplied trusted time | Record the host's trusted-time and independently approved trust-input responsibilities in the deployment contract. |
 | Accountable directory | Signed assignments; durable original-operation recovery; exact retries; retained one-time reservations; cancellation and canonical conflict proofs | Include the existing operator-driven service, approval/configuration input, pin, checkpoint, validity and capacity contract in the service package manifest. |
-| Bootstrap authority | Current KDF graph and stage-specific output permissions; epoch-zero root-bound ACK before established | Carry the completed reply-source bound and its acquisition partition into the source-level assessment; complete the captured-byte and initial-source extensions specified above using the reviewed entries, terminal conversion and U3 correspondence. |
+| Bootstrap authority | Current KDF graph and stage-specific output permissions; epoch-zero root-bound ACK before established | Carry both completed original-source bounds and their exact acquisition partitions into the source-level assessment; bind the admitted operation surface and its captured-byte/report extensions to the reviewed entries, terminal conversion and U3 correspondence. |
 | Ratchet and traffic policy | Existing v6 profile, four retained epochs, signed application-send allowance, explicit no-padding behavior | Adopt the current domains, allowance replenishment and recovery conditions as one versioned product policy. |
 | Ownership and maintenance | Device-scoped ownership, original intent, restricted recovery, witnessed state, roster fanout and existing maintenance v2 | Bind current public entry points to the final package/export inventory and the compatibility policy below. |
 | Limits and measured cost | Compiled contract schema 3, joint implementation limits and selected reference-workload budgets | Bind the chosen cost policy and selected-source validation into the coordinated specification lock. |
 
-The bootstrap original-component/disclosure adapter is the remaining
-substantive construction work in this table. The primitive entry and terminal
-connection are completed inputs. The workload choice is recorded above; package/artifact binding,
-selected-source validation and final review retain their existing roles. Keep the completed
+The construction assessment now consumes both original-component adapters,
+the joint entry and terminal connection, and their declared record and
+disclosure terms. Its captured-byte and additional-report comparisons retain
+the interfaces specified above. The workload choice is recorded above;
+package/artifact binding, selected-source validation and final review retain
+their existing roles. Keep the completed
 [2026-11-07 hosted cohort](../../research/sdk-alpha1/evidence/20261107-ci-release-readback/README.md)
 attached to its original source and reuse it when the relevant inputs are
 unchanged.
@@ -220,11 +236,13 @@ candidate reader behavior.
    channel and implemented versioned metadata. Bind remaining native, Android
    and service distribution identities and the adopted compatibility policy to
    their actual artifacts.
-3. Complete the bootstrap U2 source-level composition identified above.
-   The stage matrix, U3 correspondence and workload-budget selection are already
-   recorded. Include them and the completed terminal conversion in the existing
-   external-review package, then retain the actual assessed scope, findings and
-   any required fix rechecks.
+3. Integrate both completed bootstrap U2 original-source compositions and
+   their exact record terms into the source-level assessment. The stage matrix,
+   U3 correspondence and workload-budget selection are already recorded.
+   Include the stated operation surface, applicable captured-byte/report
+   extensions and completed terminal conversion in the existing external-review
+   package, then retain the actual assessed scope, findings and required fix
+   rechecks.
 4. Generate the normative lock and final release manifest; run the affected
    contract, packaging, installation and replacement checks on the selected
    source. Preserve unchanged-component receipts with their actual provenance.
