@@ -191,6 +191,16 @@ unsupported platforms, unavailable procfs, read/write failures, and incomplete
 shutdown are explicit diagnostic outcomes. An evaluator success, nonzero exit,
 or supervised timeout retains its original outcome if sampling also fails.
 
+A stop request can interrupt the final process census before it reaches the
+controller. The worker discards that unfinished sample when the census explicitly
+reports `stopping`, the stop event is set, and the census has no read errors or
+observed controller-identity contradiction, then records a completed shutdown.
+The summary retains the interrupted census count and any read-error count even
+when no sample is emitted. Missing-controller errors from other census outcomes,
+read errors, and format errors retain their diagnostic failure status, including
+when a stop request arrives at the same time. Deterministic controls exercise the
+real census loop as well as its caller without relaxing the live allocation tests.
+
 These counters have precise interpretation. RSS from `stat` is approximate;
 summing it across processes can count shared pages multiple times. A maximum of
 non-atomic samples is a **sampled tree RSS maximum**, not the actual job memory

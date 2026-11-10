@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
+import io
 import json
 import os
 from pathlib import Path
@@ -10,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -89,6 +92,103 @@ class StatAndMembershipTests(unittest.TestCase):
                 resources.read_small(root / "link")
             with self.assertRaisesRegex(resources.SamplingError, "proc_file_limit"):
                 resources.read_small(root / "data")
+
+
+class SamplingShutdownTests(unittest.TestCase):
+    def worker(self, census, *, stop: bool = False, error: Exception | None = None):
+        sampler = resources.ProcessResourceSampler(Path("."))
+        sampler.state["status"] = "sampling"
+        sampler.controller = (1, 10)
+        sampler.excluded_roots = set()
+        sampler.stream = io.BytesIO()
+
+        def sample_census():
+            if stop:
+                sampler.stop_event.set()
+            if error is not None:
+                raise error
+            return census
+
+        with patch.object(sampler, "_census", side_effect=sample_census):
+            sampler._worker()
+        self.assertTrue(sampler.stream.closed)
+        self.assertEqual((sampler.state["samples"], sampler.state["output_bytes"]), (0, 0))
+        return sampler.state
+
+    def test_stop_during_census_discards_unfinished_sample(self):
+        state = self.worker(({}, {"read_errors": 0, "complete": False,
+                                  "limit": "stopping", "processes_seen": 0}), stop=True)
+        self.assertEqual(state["status"], "stopped")
+        self.assertNotIn("failure", state)
+
+    def test_missing_controller_remains_a_failure_during_stop(self):
+        for limit in (None, "census_work_limit"):
+            for stop in (False, True):
+                with self.subTest(limit=limit, stop=stop):
+                    state = self.worker(({}, {"read_errors": 1, "complete": limit is None,
+                                              "limit": limit, "processes_seen": 1}), stop=stop)
+                    self.assertEqual(state["status"], "partial")
+                    self.assertEqual(state["failure"], "controller_not_in_census")
+
+    def test_stopping_census_requires_an_actual_stop_request(self):
+        state = self.worker(({}, {"read_errors": 0, "complete": False,
+                                  "limit": "stopping", "processes_seen": 0}))
+        self.assertEqual((state["status"], state["failure"]), ("partial", "controller_not_in_census"))
+
+    def test_read_errors_are_preserved_when_stop_is_requested(self):
+        for error in (PermissionError("proc access denied"),
+                      resources.SamplingError("malformed_stat_identity")):
+            with self.subTest(error=type(error).__name__):
+                state = self.worker(None, stop=True, error=error)
+                self.assertEqual(state["status"], "partial")
+                self.assertEqual(state["failure_type"], type(error).__name__)
+
+
+class CensusShutdownTests(unittest.TestCase):
+    def worker(self, stat_operation, *, entries: tuple[int, ...] = (1, 2)):
+        sampler = resources.ProcessResourceSampler(Path("."))
+        sampler.state["status"] = "sampling"
+        sampler.controller = (1, 10)
+        sampler.excluded_roots = set()
+        sampler.stream = io.BytesIO()
+        directory = nullcontext(iter(SimpleNamespace(name=str(pid)) for pid in entries))
+        with patch.object(resources.os, "scandir", return_value=directory), \
+                patch.object(sampler, "_stat", side_effect=lambda pid: stat_operation(sampler, pid)):
+            sampler._worker()
+        self.assertTrue(sampler.stream.closed)
+        self.assertEqual((sampler.state["samples"], sampler.state["output_bytes"]), (0, 0))
+        self.assertEqual(sampler.state["partial_censuses"], 1)
+        return sampler.state
+
+    def test_clean_census_interrupted_before_controller_stops_normally(self):
+        def stat_operation(sampler, pid):
+            sampler.stop_event.set()
+            return process(pid, 99, 20)
+
+        state = self.worker(stat_operation, entries=(2, 1))
+        self.assertEqual((state["status"], state["proc_read_errors"]), ("stopped", 0))
+        self.assertNotIn("failure", state)
+
+    def test_census_read_error_is_preserved_with_simultaneous_stop(self):
+        for error in (PermissionError("controller read denied"),
+                      resources.SamplingError("malformed_stat_identity")):
+            def stat_operation(sampler, _pid):
+                sampler.stop_event.set()
+                raise error
+
+            with self.subTest(error=type(error).__name__):
+                state = self.worker(stat_operation)
+                self.assertEqual((state["status"], state["proc_read_errors"]), ("partial", 1))
+                self.assertEqual(state["failure"], "interrupted_census_read_errors")
+
+    def test_observed_controller_identity_change_is_preserved_during_stop(self):
+        def stat_operation(sampler, pid):
+            sampler.stop_event.set()
+            return process(pid, 0, 11)
+
+        state = self.worker(stat_operation)
+        self.assertEqual((state["status"], state["proc_read_errors"]), ("partial", 0))
+        self.assertEqual(state["failure"], "controller_identity_changed")
 
 
 @unittest.skipUnless(platform.system() == "Linux", "real procfs sampling requires Linux")

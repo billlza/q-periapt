@@ -225,9 +225,20 @@ class ProcessResourceSampler:
             if self.stream is not None and (self.thread is None or not self.thread.is_alive()):
                 self.stream.close()
 
-    def _sample(self) -> dict:
+    def _sample(self) -> dict | None:
         started = time.monotonic()
         census, notes = self._census()
+        if notes["limit"] == "stopping" and self.stop_event.is_set():
+            # stop() may interrupt the census before it reaches the controller.
+            # Retain errors and any identity contradiction already observed;
+            # only an otherwise clean interrupted census can be discarded.
+            self.state["proc_read_errors"] += notes["read_errors"]
+            self.state["partial_censuses"] += 1
+            if self.controller[0] in census and identity(census[self.controller[0]]) != self.controller:
+                raise SamplingError("controller_identity_changed")
+            if notes["read_errors"]:
+                raise SamplingError("interrupted_census_read_errors")
+            return None
         selected = select_processes(census, self.controller, self.excluded_roots, self.observed)
         processes = []
         for pid in sorted(selected):
@@ -262,6 +273,8 @@ class ProcessResourceSampler:
                 if self.state["samples"] >= self.max_samples:
                     raise SamplingError("sample_count_limit")
                 sample = self._sample()
+                if sample is None:
+                    break
                 encoded = (json.dumps(sample, sort_keys=True, separators=(",", ":")) + "\n").encode()
                 if self.state["output_bytes"] + len(encoded) > self.max_output:
                     raise SamplingError("sample_output_limit")
