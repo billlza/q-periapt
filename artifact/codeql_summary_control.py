@@ -28,6 +28,7 @@ import zipfile
 from typing import BinaryIO
 
 from bounded_process import BoundedProcessError, TimeoutPolicy, capture_output
+from codeql_process_resources import ProcessResourceSampler
 from evidence_io import (EvidenceIOError, consume_regular_snapshot, fresh_output_directory,
                          parse_strict_json_bytes, read_regular_snapshot)
 import codeql_log_recovery as retained
@@ -64,6 +65,8 @@ FULL_SUMMARY = "queries/summary/SummaryStats.ql"
 SOURCE_ALLOCATION = ["-J-Xmx3362M", "--off-heap-ram=9329"]
 TRANSFER_SECONDS = 600
 OBSERVATION_SECONDS = 120
+PARTIAL_RESULT_SECONDS = 120
+MAX_PARTIAL_RESULT_BYTES = 512 * 1024**2
 MAX_EVALUATOR_LOG_BYTES = 2 * 1024**3
 MAX_EVALUATOR_TOTAL_BYTES = 4 * 1024**3
 CACHE_SCOPE = "Warm-cache control: exact retained database/cache; fresh common cache and all 39 output BQRS."
@@ -378,9 +381,10 @@ def validate_query_inventory(observed: dict, pinned: dict) -> None:
             "full SummaryStats query differs")
 
 
-def small_command(command: list[str], prefix: Path, environment: dict[str, str]) -> bytes:
+def small_command(command: list[str], prefix: Path, environment: dict[str, str], *,
+                  timeout_seconds: int = 120) -> bytes:
     with prefix.with_suffix(".stdout").open("xb") as stdout, prefix.with_suffix(".stderr").open("xb") as stderr:
-        result = capture_output(command, timeout_seconds=120, maximum_stdout_bytes=32 * 1024**2,
+        result = capture_output(command, timeout_seconds=timeout_seconds, maximum_stdout_bytes=32 * 1024**2,
                                 maximum_stderr_bytes=8 * 1024**2, environment=environment,
                                 stdout_sink=stdout.write, stderr_sink=stderr.write)
     write_json(prefix.with_suffix(".json"), {"command": command, "returncode": result.returncode})
@@ -446,7 +450,13 @@ def query_command(codeql: Path, database: Path, root: Path, profile: str) -> lis
 def run_queries(command: list[str], evidence: Path, environment: dict, seconds: int = EVALUATION_SECONDS) -> dict:
     start = time.monotonic()
     report = {"command": command, "returncode": None, "stopped": None}
+    sampler = None
     try:
+        try:
+            sampler = ProcessResourceSampler(evidence)
+            sampler.start()
+        except Exception as error:
+            report["resource_observation"] = {"status": "unavailable", "failure_type": type(error).__name__}
         with (evidence / "query.stdout").open("xb") as stdout, (evidence / "query.stderr").open("xb") as stderr:
             result = capture_output(command, timeout_seconds=seconds, timeout_policy=TimeoutPolicy.LONG_ANALYSIS,
                                     maximum_stdout_bytes=32 * 1024**2, maximum_stderr_bytes=16 * 1024**2,
@@ -458,7 +468,22 @@ def run_queries(command: list[str], evidence: Path, environment: dict, seconds: 
         raise
     finally:
         report["seconds"] = time.monotonic() - start
+        try:
+            if sampler is not None:
+                report["resource_observation"] = {**sampler.stop(), **report.get("resource_observation", {})}
+            write_json(evidence / "PROCESS_RESOURCES.json", report["resource_observation"])
+        except Exception as error:
+            report["resource_observation_failure"] = {"type": type(error).__name__}
         write_json(evidence / "query.json", report)
+
+
+def result_semantic_sha(decoded: bytes) -> str:
+    data = parse_strict_json_bytes(decoded, label="CodeQL result")
+    require(isinstance(data, dict) and data, "query result is malformed")
+    for table in data.values():
+        require(isinstance(table, dict) and isinstance(table.get("tuples"), list), "query result table differs")
+        table["tuples"].sort(key=lambda row: json.dumps(row, sort_keys=True, separators=(",", ":")))
+    return canonical_sha(data)
 
 
 def decode_query_results(codeql: Path, queries: dict[str, Path], result_root: Path,
@@ -480,12 +505,7 @@ def decode_query_results(codeql: Path, queries: dict[str, Path], result_root: Pa
         os.chmod(admitted, 0o400)
         decoded = small_command([str(codeql), "bqrs", "decode", "--format=json", str(admitted)],
                                 evidence / (prefix + Path(relative).stem + "-decoded"), environment)
-        data = parse_strict_json_bytes(decoded, label="CodeQL result")
-        require(isinstance(data, dict) and data, "query result is malformed")
-        for table in data.values():
-            require(isinstance(table, dict) and isinstance(table.get("tuples"), list), "query result table differs")
-            table["tuples"].sort(key=lambda row: json.dumps(row, sort_keys=True, separators=(",", ":")))
-        results[relative] = {"bqrs_sha256": snapshot.sha256, "semantic_sha256": canonical_sha(data)}
+        results[relative] = {"bqrs_sha256": snapshot.sha256, "semantic_sha256": result_semantic_sha(decoded)}
     return results
 
 
@@ -500,6 +520,96 @@ def decode_retained_results(codeql: Path, queries: dict[str, Path], root: Path, 
     original = {query: path for query, path in queries.items() if query != FULL_SUMMARY}
     return decode_query_results(codeql, original, root / "database/results/codeql/rust-queries",
                                 root / "evidence", environment, "retained-")
+
+
+def retain_partial_results(codeql: Path, queries: dict[str, Path], root: Path, environment: dict,
+                           original: dict, *, cleanup_ambiguous: bool) -> dict:
+    """Keep failure evidence from pinned fresh paths, without admitting completion."""
+    start = time.monotonic()
+    deadline = start + PARTIAL_RESULT_SECONDS
+    evidence = root / "evidence"
+    report = {"schema": 1, "kind": "qperiapt.codeql_summary_control_partial_results",
+              "status": "partial", "analysis_completed": False, "budget_seconds": PARTIAL_RESULT_SECONDS,
+              "budget_exhausted": False, "byte_budget_exhausted": False,
+              "expected_query_count": len(queries), "results": {},
+              "missing_queries": [], "capture_errors": {}, "all_expected_bqrs_captured": False}
+    consumed = 0
+
+    def capture_block(block: bytes, output: BinaryIO) -> None:
+        nonlocal consumed
+        consumed += len(block)
+        report["byte_budget_exhausted"] = consumed > MAX_PARTIAL_RESULT_BYTES
+        require(consumed <= MAX_PARTIAL_RESULT_BYTES, "partial BQRS capture exceeds its byte bound")
+        require(time.monotonic() < deadline, "partial result capture exhausted its time budget")
+        output.write(block)
+
+    try:
+        require(len(queries) == 39 and FULL_SUMMARY in queries, "full original query census is required")
+        if cleanup_ambiguous:
+            report.update(status="skipped", reason="evaluator cleanup is ambiguous")
+            return report
+        # Copy every available authenticated output path before starting any
+        # decoder. The snapshot reader rejects symlinks and non-regular files,
+        # including in parents; old database/results are never a fallback.
+        for relative in sorted(queries):
+            if report["byte_budget_exhausted"]:
+                break
+            if time.monotonic() >= deadline:
+                report["budget_exhausted"] = True
+                break
+            source = root / "results/codeql/rust-queries" / Path(relative).with_suffix(".bqrs")
+            admitted = evidence / "partial-fresh-bqrs" / Path(relative).with_suffix(".bqrs")
+            created = False
+            try:
+                source.lstat()
+                admitted.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                with admitted.open("xb") as output:
+                    created = True
+                    snapshot = consume_regular_snapshot(source, maximum=64 * 1024**2,
+                        label="partial fresh CodeQL BQRS", consume=lambda block: capture_block(block, output))
+                os.chmod(admitted, 0o400)
+                report["results"][relative] = {"path": admitted.relative_to(evidence).as_posix(),
+                    "bytes": snapshot.size, "bqrs_sha256": snapshot.sha256, "decode_status": "not_attempted"}
+            except FileNotFoundError:
+                report["missing_queries"].append(relative)
+            except (ValueError, OSError) as error:
+                report["capture_errors"][relative] = {"type": type(error).__name__}
+            finally:
+                if created and relative not in report["results"]:
+                    admitted.unlink(missing_ok=True)
+        report["all_expected_bqrs_captured"] = set(report["results"]) == set(queries)
+        for relative, record in report["results"].items():
+            remaining = int(deadline - time.monotonic())
+            if remaining < 1:
+                report["budget_exhausted"] = True
+                break
+            record["decode_timeout_seconds"] = remaining
+            try:
+                decoded = small_command([str(codeql), "bqrs", "decode", "--format=json",
+                                         str(evidence / record["path"])],
+                    evidence / ("partial-fresh-" + Path(relative).stem + "-decoded"), environment,
+                    timeout_seconds=remaining)
+                record.update(semantic_sha256=result_semantic_sha(decoded), decode_status="decoded")
+                if relative in original:
+                    record["retained_semantics_equal"] = (
+                        record["semantic_sha256"] == original[relative]["semantic_sha256"])
+            except (ValueError, OSError, BoundedProcessError) as error:
+                record.update(decode_status="failed", decode_error={"type": type(error).__name__})
+                if isinstance(error, BoundedProcessError):
+                    record["decode_error"].update(stopped=error.kind, cleanup_ambiguous=error.cleanup_ambiguous)
+                    if error.cleanup_ambiguous:
+                        report["decode_stop_reason"] = "decoder cleanup is ambiguous"
+                        break
+    except BaseException as error:
+        report["capture_failure"] = {"type": type(error).__name__}
+    finally:
+        report["seconds"] = time.monotonic() - start
+        report["budget_exhausted"] |= report["seconds"] >= PARTIAL_RESULT_SECONDS
+        report["captured_query_count"] = len(report["results"])
+        report["decoded_query_count"] = sum(value["decode_status"] == "decoded" for value in report["results"].values())
+        report["uncaptured_queries"] = sorted(set(queries) - set(report["results"]))
+        write_json(evidence / "PARTIAL_RESULTS.json", report)
+    return report
 
 
 def validate_retained_results(original: dict, fresh: dict, queries: dict) -> None:
@@ -744,11 +854,18 @@ def evaluate(codeql: Path, bundle: Path, output: Path, profile: str) -> None:
         validate_retained_results(report["retained_results"], report["results"], queries)
         report["completed"] = True
     except BaseException as error:
-        if (evidence / "query.json").is_file():
-            report["evaluation"] = read_json(evidence / "query.json")
         report["failure"] = {"phase": phase, "type": type(error).__name__,
                              "message": str(error) if isinstance(error, ControlError)
                              else "operation failed; inspect retained command receipts and logs"}
+        try:
+            if (evidence / "query.json").is_file():
+                report["evaluation"] = read_json(evidence / "query.json")
+            if phase in ("evaluate", "decode_results") and isinstance(report.get("evaluation"), dict):
+                report["partial_results"] = retain_partial_results(codeql, queries, root, environment,
+                    report["retained_results"], cleanup_ambiguous=report["evaluation"].get("cleanup_ambiguous", False))
+        except BaseException as capture_error:
+            # Secondary retention failures must not replace the evaluator failure.
+            report["partial_result_failure"] = {"type": type(capture_error).__name__}
         raise RuntimeError("Retained SummaryStats control failed; inspect evidence/RESULT.json") from None
     finally:
         write_json(evidence / "RESULT.json", report)

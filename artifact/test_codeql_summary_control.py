@@ -634,6 +634,219 @@ class FreshResultDecodingTests(unittest.TestCase):
                 self.decode(output)
 
 
+class PartialResultRetentionTests(unittest.TestCase):
+    """Synthetic BQRS fixtures test retention; no Rust query evaluation is simulated as evidence."""
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name).resolve()
+        (self.root / "evidence").mkdir()
+        self.queries = {name: Path("/unused/queries") / name for name in QUERY_HASHES}
+        self.decoded = b'{"#select":{"tuples":[[1],[2]]}}'
+        self.original = {name: {"semantic_sha256": control.result_semantic_sha(self.decoded)}
+                         for name in self.queries if name != FULL_SUMMARY}
+
+    def source(self, query):
+        return self.root / "results/codeql/rust-queries" / Path(query).with_suffix(".bqrs")
+
+    def populate(self, names):
+        for name in names:
+            path = self.source(name)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(("synthetic fresh:" + name).encode())
+
+    def retain(self, cleanup_ambiguous=False):
+        return control.retain_partial_results(Path("/unused/codeql"), self.queries, self.root, {},
+                                              self.original, cleanup_ambiguous=cleanup_ambiguous)
+
+    def test_38_fresh_results_are_preserved_but_do_not_satisfy_complete_comparison(self):
+        self.populate(self.original)
+        with patch.object(control, "small_command", return_value=self.decoded):
+            result = self.retain()
+        self.assertEqual(result["captured_query_count"], 38)
+        self.assertEqual(result["decoded_query_count"], 38)
+        self.assertEqual(result["missing_queries"], [FULL_SUMMARY])
+        self.assertEqual(result["uncaptured_queries"], [FULL_SUMMARY])
+        self.assertFalse(result["all_expected_bqrs_captured"])
+        self.assertEqual(result["status"], "partial")
+        self.assertFalse(result["analysis_completed"])
+        self.assertTrue(all(item["retained_semantics_equal"] for item in result["results"].values()))
+        candidate = valid_report("heap-1536")
+        candidate["partial_results"] = result
+        candidate.pop("results")
+        with self.assertRaisesRegex(control.ControlError, "fresh 39-query result census differs"):
+            control.compare_reports(valid_report("heap-2048"), candidate)
+        candidate["results"] = result["results"]
+        with self.assertRaisesRegex(control.ControlError, "fresh 39-query result census differs"):
+            control.compare_reports(valid_report("heap-2048"), candidate)
+        self.assertEqual(control.read_json(self.root / "evidence/PARTIAL_RESULTS.json"), result)
+
+    def test_all_snapshots_precede_decoding_and_replaced_source_is_not_decoded(self):
+        self.populate(self.queries)
+        unexpected = self.source("queries/summary/Unexpected.ql")
+        unexpected.write_bytes(b"not a pinned query")
+        first = sorted(self.queries)[0]
+        def decode(command, prefix, environment, *, timeout_seconds):
+            copies = list((self.root / "evidence/partial-fresh-bqrs").rglob("*.bqrs"))
+            self.assertEqual(len(copies), 39)
+            self.source(first).write_bytes(b"later source replacement")
+            path = Path(command[-1])
+            relative = path.relative_to(self.root / "evidence/partial-fresh-bqrs").with_suffix(".ql").as_posix()
+            self.assertEqual(path.read_bytes(), ("synthetic fresh:" + relative).encode())
+            self.assertGreaterEqual(timeout_seconds, 1)
+            self.assertLessEqual(timeout_seconds, control.PARTIAL_RESULT_SECONDS)
+            return self.decoded
+        with patch.object(control, "small_command", side_effect=decode):
+            result = self.retain()
+        self.assertTrue(result["all_expected_bqrs_captured"])
+        self.assertFalse(result["analysis_completed"])
+        self.assertEqual(result["results"][first]["bqrs_sha256"], digest(("synthetic fresh:" + first).encode()))
+        self.assertEqual(result["captured_query_count"], 39)
+        self.assertNotIn("queries/summary/Unexpected.ql", result["results"])
+
+    def test_invalid_decode_preserves_raw_bqrs_and_other_semantic_results(self):
+        names = sorted(self.queries)[:2]
+        self.populate(names)
+        with patch.object(control, "small_command", side_effect=[b'{"#select":{"tuples":[[NaN]]}}', self.decoded]):
+            result = self.retain()
+        self.assertEqual(result["captured_query_count"], 2)
+        self.assertEqual(result["decoded_query_count"], 1)
+        self.assertEqual(result["results"][names[0]]["decode_status"], "failed")
+        self.assertNotIn("semantic_sha256", result["results"][names[0]])
+        for name in names:
+            self.assertEqual((self.root / "evidence" / result["results"][name]["path"]).read_bytes(),
+                             ("synthetic fresh:" + name).encode())
+
+    def test_partial_semantic_mismatch_is_recorded_without_hiding_other_results(self):
+        names = sorted(self.original)[:2]
+        self.populate(names)
+        self.original[names[0]]["semantic_sha256"] = digest(b"different retained semantics")
+        with patch.object(control, "small_command", return_value=self.decoded):
+            result = self.retain()
+        self.assertFalse(result["results"][names[0]]["retained_semantics_equal"])
+        self.assertTrue(result["results"][names[1]]["retained_semantics_equal"])
+        self.assertFalse(result["analysis_completed"])
+
+    def test_ambiguous_cleanup_skips_all_capture_and_decoding(self):
+        self.populate(self.queries)
+        with patch.object(control, "small_command") as decoder:
+            result = self.retain(cleanup_ambiguous=True)
+        decoder.assert_not_called()
+        self.assertEqual(result["status"], "skipped")
+        self.assertEqual(result["captured_query_count"], 0)
+        self.assertEqual(result["reason"], "evaluator cleanup is ambiguous")
+        self.assertFalse((self.root / "evidence/partial-fresh-bqrs").exists())
+
+    def test_old_database_results_are_not_used_when_fresh_outputs_are_absent(self):
+        for name in self.original:
+            path = self.root / "database/results/codeql/rust-queries" / Path(name).with_suffix(".bqrs")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"retained old result")
+        with patch.object(control, "small_command") as decoder:
+            result = self.retain()
+        decoder.assert_not_called()
+        self.assertEqual(result["captured_query_count"], 0)
+        self.assertEqual(result["missing_queries"], sorted(self.queries))
+
+    def test_unsafe_and_oversized_bqrs_are_not_published_as_stable_snapshots(self):
+        names = sorted(self.queries)[:3]
+        self.populate(names)
+        self.source(names[0]).unlink()
+        self.source(names[0]).symlink_to(self.source(names[2]))
+        with self.source(names[1]).open("wb") as stream:
+            stream.truncate(64 * 1024**2 + 1)
+        with patch.object(control, "small_command", return_value=self.decoded):
+            result = self.retain()
+        self.assertEqual(set(result["capture_errors"]), set(names[:2]))
+        self.assertEqual(set(result["results"]), {names[2]})
+        copies = list((self.root / "evidence/partial-fresh-bqrs").rglob("*.bqrs"))
+        self.assertEqual(len(copies), 1)
+
+    def test_capture_byte_bound_retains_only_prior_complete_snapshots(self):
+        names = sorted(self.queries)[:2]
+        self.populate(names)
+        with patch.object(control, "MAX_PARTIAL_RESULT_BYTES", self.source(names[0]).stat().st_size), \
+                patch.object(control, "small_command", return_value=self.decoded):
+            result = self.retain()
+        self.assertTrue(result["byte_budget_exhausted"])
+        self.assertEqual(set(result["results"]), {names[0]})
+        self.assertIn(names[1], result["capture_errors"])
+        self.assertEqual(len(list((self.root / "evidence/partial-fresh-bqrs").rglob("*.bqrs"))), 1)
+
+    def test_real_decoder_timeout_preserves_all_raw_snapshots_and_stops_at_shared_budget(self):
+        self.populate(self.original)
+        decoder = self.root / "decoder"
+        decoder.write_text("#!" + sys.executable + "\nimport sys,time\nprint('partial decode',flush=True)\n"
+                           "print('decoder stderr',file=sys.stderr,flush=True)\ntime.sleep(60)\n")
+        decoder.chmod(0o700)
+        with patch.object(control, "PARTIAL_RESULT_SECONDS", 2):
+            result = control.retain_partial_results(decoder, self.queries, self.root, dict(os.environ),
+                                                     self.original, cleanup_ambiguous=False)
+        self.assertEqual(result["captured_query_count"], 38)
+        self.assertEqual(result["decoded_query_count"], 0)
+        self.assertTrue(result["budget_exhausted"])
+        attempted = [item for item in result["results"].values() if item["decode_status"] == "failed"]
+        self.assertEqual(len(attempted), 1)
+        self.assertEqual(attempted[0]["decode_error"]["stopped"], "timeout")
+        self.assertLess(result["seconds"], 10)
+        streams = list((self.root / "evidence").glob("partial-fresh-*-decoded.stdout"))
+        self.assertEqual(len(streams), 1)
+        self.assertIn(b"partial decode", streams[0].read_bytes())
+        self.assertIn(b"decoder stderr", streams[0].with_suffix(".stderr").read_bytes())
+        self.assertEqual(len(list((self.root / "evidence/partial-fresh-bqrs").rglob("*.bqrs"))), 38)
+
+    def run_failed_evaluation(self, *, timeout=False, retention_failure=False):
+        output = self.root / "case"
+        name = sorted(self.queries)[0]
+        source = output / "results/codeql/rust-queries" / Path(name).with_suffix(".bqrs")
+        script = "from pathlib import Path;import sys,time;p=Path(sys.argv[1]);p.parent.mkdir(parents=True);p.write_bytes(b'synthetic child BQRS');print('evaluator output',flush=True);"
+        script += "time.sleep(60)" if timeout else "sys.exit(7)"
+        real_run = control.run_queries
+        def run(command, evidence, environment):
+            return real_run([sys.executable, "-c", script, str(source)], evidence, environment, 1 if timeout else 5)
+        with patch.dict(os.environ, {"RUNNER_TEMP": str(self.root)}), \
+                patch.object(control, "prepare_database", return_value=(output / "database", {})), \
+                patch.object(control, "admit_tool", return_value=(self.queries, {}, QUERY_HASHES, COMPILED_HASHES, control.SOURCE_ALLOCATION)), \
+                patch.object(control, "jvm_probe", return_value=valid_report("heap-2048")["jvm_admission"]), \
+                patch.object(control, "decode_retained_results", return_value=self.original), \
+                patch.object(control, "evaluator_observations", return_value=valid_report("heap-2048")["observations"]), \
+                patch.object(control, "run_queries", side_effect=run), \
+                patch.object(control, "small_command", return_value=self.decoded), \
+                patch.object(control, "retain_partial_results", side_effect=OSError("secondary retention error")
+                             if retention_failure else control.retain_partial_results):
+            with self.assertRaisesRegex(RuntimeError, "Retained SummaryStats control failed"):
+                control.evaluate(Path("/unused/codeql"), Path("/unused/tool.tar.zst"), output, "heap-2048")
+        return output, control.read_json(output / "evidence/RESULT.json")
+
+    def test_evaluate_real_timeout_captures_child_results_and_keeps_timeout_failure(self):
+        output, result = self.run_failed_evaluation(timeout=True)
+        self.assertEqual(result["evaluation"]["stopped"], "timeout")
+        self.assertEqual(result["failure"]["type"], "BoundedProcessError")
+        self.assertEqual(result["failure"]["phase"], "evaluate")
+        self.assertFalse(result["completed"])
+        self.assertNotIn("results", result)
+        self.assertEqual(result["partial_results"]["captured_query_count"], 1)
+        snapshot = next(iter(result["partial_results"]["results"].values()))
+        self.assertEqual((output / "evidence" / snapshot["path"]).read_bytes(), b"synthetic child BQRS")
+        self.assertEqual(snapshot["bqrs_sha256"], digest(b"synthetic child BQRS"))
+
+    def test_evaluate_nonzero_exit_captures_results_without_claiming_completion(self):
+        _, result = self.run_failed_evaluation()
+        self.assertEqual(result["evaluation"]["returncode"], 7)
+        self.assertEqual(result["failure"]["phase"], "evaluate")
+        self.assertFalse(result["completed"])
+        self.assertEqual(result["partial_results"]["decoded_query_count"], 1)
+
+    def test_secondary_capture_error_does_not_replace_real_timeout(self):
+        _, result = self.run_failed_evaluation(timeout=True, retention_failure=True)
+        self.assertEqual(result["evaluation"]["stopped"], "timeout")
+        self.assertEqual(result["failure"]["type"], "BoundedProcessError")
+        self.assertEqual(result["failure"]["phase"], "evaluate")
+        self.assertEqual(result["partial_result_failure"], {"type": "OSError"})
+        self.assertFalse(result["completed"])
+
+
 class PairedComparisonTests(unittest.TestCase):
     def test_complete_equal_results_are_comparable(self):
         result = control.compare_reports(valid_report("heap-2048"), valid_report("heap-1536"))
