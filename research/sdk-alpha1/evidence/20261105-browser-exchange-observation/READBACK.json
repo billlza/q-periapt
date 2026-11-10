@@ -1,0 +1,104 @@
+{
+  "analysis": "Two ERR_ABORTED observer events identify real ordinary exchanges with HTTP 200 and retained relay responses. Existing client telemetry records only Witness profile 1, so exact ordinary Fetch fulfillment/response-byte readback is missing. HTTP status and server bytes alone do not prove complete client receipt.",
+  "artifact_bytes": 3659134,
+  "artifact_id": 13407418993,
+  "artifact_members": 548,
+  "artifact_sha256": "456935ecff7887382134de44e52b9f20e5097a6a4102d8f73b502fc46a50782e",
+  "browser": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+  "captured_utc": "2026-11-05T10:55:53.547810+00:00",
+  "console_or_page_diagnostics": [],
+  "correlated_observer_events": [
+    {
+      "failure": {
+        "errorText": "net::ERR_ABORTED"
+      },
+      "http_response_status": 200,
+      "kind": 3,
+      "relay_response_sha256": "820cda7e598c67c41bfab5156a8ebe16e9810177763552430cf6d0859e5eea06",
+      "request_bytes": 172,
+      "request_sha256": "8a818c95e1ec534bd102d253f52caa1e37dc6eb206ba112cd2da7f06b0a0172d",
+      "response_bytes_at_relay": 90,
+      "sequence": 3,
+      "timing": {
+        "connectEnd": 0.105,
+        "connectStart": 0.037,
+        "domainLookupEnd": 0.037,
+        "domainLookupStart": 0.031,
+        "requestStart": 0.145,
+        "responseEnd": 136.727,
+        "responseStart": 135.606,
+        "secureConnectionStart": -1,
+        "startTime": 1793875450132.768
+      },
+      "url": "http://127.0.0.1:41699/exchange",
+      "withheld": false
+    },
+    {
+      "failure": {
+        "errorText": "net::ERR_ABORTED"
+      },
+      "http_response_status": 200,
+      "kind": 4,
+      "relay_response_sha256": "1de151543235f009f98fca370f86a2aa6fa0e475fc140f948de909ac62043c4e",
+      "request_bytes": 3643,
+      "request_sha256": "9ee5f7ba61a1a9b9410de626e3fb26d7e90b912f1143d238b71aa83ed47682d1",
+      "response_bytes_at_relay": 3676,
+      "sequence": 5,
+      "timing": {
+        "connectEnd": 0.125,
+        "connectStart": 0.041,
+        "domainLookupEnd": 0.041,
+        "domainLookupStart": 0.035,
+        "requestStart": 0.165,
+        "responseEnd": 125.375,
+        "responseStart": 124.162,
+        "secureConnectionStart": -1,
+        "startTime": 1793875450733.6262
+      },
+      "url": "http://127.0.0.1:41699/exchange",
+      "withheld": false
+    },
+    {
+      "failure": {
+        "errorText": "net::ERR_EMPTY_RESPONSE"
+      },
+      "http_response_status": null,
+      "kind": 3,
+      "relay_response_sha256": "4612d87c741dc84dd6c7223a97b26db066257a3116b3e9f2b5b1f5d35380bc94",
+      "request_bytes": 183,
+      "request_sha256": "df163c4563b3dd3692b312077f5cae5f5a9501010b44afd51ebaa754e643b01b",
+      "response_bytes_at_relay": 98,
+      "sequence": 6,
+      "timing": {
+        "connectEnd": -1,
+        "connectStart": -1,
+        "domainLookupEnd": -1,
+        "domainLookupStart": -1,
+        "requestStart": -1,
+        "responseEnd": -1,
+        "responseStart": -1,
+        "secureConnectionStart": -1,
+        "startTime": 0
+      },
+      "url": "http://127.0.0.1:41699/exchange/drop-once",
+      "withheld": true
+    }
+  ],
+  "disallowed_shortcut": "Do not drop arbitrary ERR_ABORTED events or remove controller.abort from actual error handling.",
+  "failed_phase": "activate",
+  "fulfilled_witness_receipts": 89,
+  "hosted_job": 127182901124,
+  "hosted_run": 42008993679,
+  "http_errors": [],
+  "hypothesis": "Ordinary exchange observer cancellation can accompany a fulfilled bounded Fetch, as previously studied for Witness. This remains a hypothesis here.",
+  "local_policy_session_report_completed": true,
+  "next_evidence": "Capture bounded profile-2 original Promise fulfillment/rejection and exact request/response hashes without changing SDK behavior; compare with retained relay frames before admitting any observer event.",
+  "ordinary_exchange_client_receipts_present": false,
+  "product_or_verifier_modified": false,
+  "readback_completed": true,
+  "relay_failures": [],
+  "release_claim_eligible": false,
+  "required_witness_session_report_completed": false,
+  "root_cause_confirmed": false,
+  "source_commit": "ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20"
+}

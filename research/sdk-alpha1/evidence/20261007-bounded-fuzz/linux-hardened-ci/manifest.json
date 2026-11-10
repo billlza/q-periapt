@@ -1,0 +1,23 @@
+{
+  "product_commit": "6ece94f25e1b9d308c99c319325138d02f87228f",
+  "artifact_tests": 2631,
+  "artifact_tests_passed": true,
+  "CI_isolated_fuzz_passed": true,
+  "files": {
+    "cargo-fuzz.txt": "3e2aa5c2baaf44e5a4968cc3fedb864f4717f85b713deacf3fc4294162358ca1",
+    "artifact-suite.json": "15f6d43ddd457bf679dbea889570517e4cb0f185985bdfa0f4bf1fc2406bef18",
+    "combine-log.json": "fc1571ff7ea26f2c577d08c1d64f459328934478d86c91200382fa734f8b7b98",
+    "transport-log.json": "be502c1f38dd317e4e7cc1f202ae9fd85c5b832b4b630da9d52ce20f2def4867",
+    "corpora.json": "d447c4da4b403fa7e74be3d4df89d1e37747f52730ffb272f008983c4823a5c0",
+    "workflow-fix-controls.json": "a017a7784b441ea9c3bc703b8d18d6e3f989890c2fd754e7b7c7e77287814073",
+    "README.md": "ecedc4a6bfc92e2c5bff811f14fa1a9cee4599c36e939aa050def6d32830dda1",
+    "READBACK.json": "ca7ded28bc96a799449f4e7bc0002ca5193898822c4eb6f057837fe532573afc",
+    "artifact-suite-stdout.json": "729386eee3ef9cdf8ca35de93b35c51976d04e1802c1c34509eefdb90d76f2e5",
+    "EXPERIMENT.json": "2b6ffe035331d0eea6e3e2e9f46492c740739aa1029d4acb1633a6a723f5784e",
+    "clang.txt": "3635b8631d4ebcd8ed7586f4e01e7a6b44407de9d38db6e01daca9c242ed7a53",
+    "rustc.txt": "d32b8ccfb01193453f35368c09025018ecb0ef085cc7561705e471b8ef872914",
+    "artifact-suite-stderr.json": "0662188c5bfa920e1ee04da6cdbc94bad828bffe5b8fa6ca27e811bad1344be1",
+    "mlkem_decapsulate-log.json": "0f51ee1f2abccf66aed0a0d4f37cbea5701f12e0eecd4cbb0fe614a77b3fac8b"
+  },
+  "release_claim_eligible": false
+}

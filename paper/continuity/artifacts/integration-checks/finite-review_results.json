@@ -1,0 +1,403 @@
+{
+  "scope": "independent expected-result checks of finite typed derivability; no native or computational-security claim",
+  "status": "passed",
+  "reviewed_checker_sha256": "f1d099836194f17a165527d5a2296c06a7d2bd44bf187c1ab9c7456e4beeb92c",
+  "review_script_sha256": "679b5588658894becf74d46b487bf8f50b3a8af801b951d0fdc9fe8e03c83788",
+  "cases": [
+    {
+      "case": "unseeded_key_cycle_stays_unknown",
+      "expected": [],
+      "forward": [],
+      "normalized": [],
+      "derived_keys": [],
+      "witnesses": [],
+      "status": "passed"
+    },
+    {
+      "case": "either_cycle_seed_enables_both_guards_a",
+      "expected": [
+        "o"
+      ],
+      "forward": [
+        "o"
+      ],
+      "normalized": [
+        "o"
+      ],
+      "derived_keys": [
+        "a",
+        "b"
+      ],
+      "witnesses": [
+        {
+          "origin": "o",
+          "acquired": "image",
+          "guards": [
+            "a",
+            "b"
+          ],
+          "path": [
+            "image",
+            "inner"
+          ]
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case": "either_cycle_seed_enables_both_guards_b",
+      "expected": [
+        "o"
+      ],
+      "forward": [
+        "o"
+      ],
+      "normalized": [
+        "o"
+      ],
+      "derived_keys": [
+        "a",
+        "b"
+      ],
+      "witnesses": [
+        {
+          "origin": "o",
+          "acquired": "image",
+          "guards": [
+            "a",
+            "b"
+          ],
+          "path": [
+            "image",
+            "inner"
+          ]
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case": "direct_source_does_not_backderive_key",
+      "expected": [
+        "o"
+      ],
+      "forward": [
+        "o"
+      ],
+      "normalized": [
+        "o"
+      ],
+      "derived_keys": [],
+      "witnesses": [],
+      "status": "passed"
+    },
+    {
+      "case": "unseeded_self_loop_stays_unknown",
+      "expected": [],
+      "forward": [],
+      "normalized": [],
+      "derived_keys": [],
+      "witnesses": [],
+      "status": "passed"
+    },
+    {
+      "case": "seeded_self_loop_terminates",
+      "expected": [
+        "o"
+      ],
+      "forward": [
+        "o"
+      ],
+      "normalized": [
+        "o"
+      ],
+      "derived_keys": [
+        "a"
+      ],
+      "witnesses": [
+        {
+          "origin": "o",
+          "acquired": "token",
+          "guards": [
+            "a"
+          ],
+          "path": [
+            "token"
+          ]
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case": "reverse_ordered_key_edges_reach_fixpoint",
+      "expected": [
+        "o"
+      ],
+      "forward": [
+        "o"
+      ],
+      "normalized": [
+        "o"
+      ],
+      "derived_keys": [
+        "a",
+        "b",
+        "c"
+      ],
+      "witnesses": [
+        {
+          "origin": "o",
+          "acquired": "token",
+          "guards": [
+            "c"
+          ],
+          "path": [
+            "token"
+          ]
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case": "diamond_left_route_suffices",
+      "expected": [
+        "o"
+      ],
+      "forward": [
+        "o"
+      ],
+      "normalized": [
+        "o"
+      ],
+      "derived_keys": [
+        "leaf-key",
+        "left-key",
+        "outer-key"
+      ],
+      "witnesses": [
+        {
+          "origin": "o",
+          "acquired": "outer",
+          "guards": [
+            "leaf-key",
+            "left-key",
+            "outer-key"
+          ],
+          "path": [
+            "outer",
+            "left",
+            "leaf"
+          ]
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case": "diamond_right_route_suffices",
+      "expected": [
+        "o"
+      ],
+      "forward": [
+        "o"
+      ],
+      "normalized": [
+        "o"
+      ],
+      "derived_keys": [
+        "leaf-key",
+        "outer-key",
+        "right-key"
+      ],
+      "witnesses": [
+        {
+          "origin": "o",
+          "acquired": "outer",
+          "guards": [
+            "leaf-key",
+            "outer-key",
+            "right-key"
+          ],
+          "path": [
+            "outer",
+            "right",
+            "leaf"
+          ]
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case": "diamond_all_outer_guards_without_leaf_key_fail",
+      "expected": [],
+      "forward": [],
+      "normalized": [],
+      "derived_keys": [
+        "left-key",
+        "outer-key",
+        "right-key"
+      ],
+      "witnesses": [],
+      "status": "passed"
+    },
+    {
+      "case": "diamond_shared_leaf_does_not_remove_branch_guard",
+      "expected": [],
+      "forward": [],
+      "normalized": [],
+      "derived_keys": [
+        "leaf-key",
+        "outer-key"
+      ],
+      "witnesses": [],
+      "status": "passed"
+    },
+    {
+      "case": "direct_leaf_capture_has_only_leaf_guard",
+      "expected": [
+        "o"
+      ],
+      "forward": [
+        "o"
+      ],
+      "normalized": [
+        "o"
+      ],
+      "derived_keys": [
+        "leaf-key"
+      ],
+      "witnesses": [
+        {
+          "origin": "o",
+          "acquired": "leaf",
+          "guards": [
+            "leaf-key"
+          ],
+          "path": [
+            "leaf"
+          ]
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case": "partial_keys_from_distinct_routes_cannot_be_spliced",
+      "expected": [],
+      "forward": [],
+      "normalized": [],
+      "derived_keys": [
+        "a",
+        "d"
+      ],
+      "witnesses": [],
+      "status": "passed"
+    },
+    {
+      "case": "one_completed_route_survives_other_partial_route",
+      "expected": [
+        "o"
+      ],
+      "forward": [
+        "o"
+      ],
+      "normalized": [
+        "o"
+      ],
+      "derived_keys": [
+        "a",
+        "b",
+        "d"
+      ],
+      "witnesses": [
+        {
+          "origin": "o",
+          "acquired": "left-image",
+          "guards": [
+            "a",
+            "b"
+          ],
+          "path": [
+            "left-image",
+            "left-token"
+          ]
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "case": "deleted_standalone_token_remains_inside_live_immutable_image",
+      "events": [
+        [
+          "delete_local",
+          "token"
+        ],
+        [
+          "acquire",
+          "image"
+        ],
+        [
+          "disclose_key",
+          "journal"
+        ]
+      ],
+      "expected_prefixes": [
+        [],
+        [],
+        [
+          "o"
+        ]
+      ],
+      "observed_prefixes": [
+        [],
+        [],
+        [
+          "o"
+        ]
+      ],
+      "status": "passed"
+    },
+    {
+      "case": "captured_image_survives_deletion_of_both_local_objects",
+      "events": [
+        [
+          "acquire",
+          "image"
+        ],
+        [
+          "delete_local",
+          "token"
+        ],
+        [
+          "delete_local",
+          "image"
+        ],
+        [
+          "disclose_key",
+          "journal"
+        ]
+      ],
+      "expected_prefixes": [
+        [],
+        [],
+        [],
+        [
+          "o"
+        ]
+      ],
+      "observed_prefixes": [
+        [],
+        [],
+        [],
+        [
+          "o"
+        ]
+      ],
+      "status": "passed"
+    },
+    {
+      "case": "record_self_containment_rejected",
+      "expected_error": "cyclic record containment",
+      "observed_error": "cyclic record containment",
+      "status": "passed"
+    }
+  ],
+  "count": 17
+}

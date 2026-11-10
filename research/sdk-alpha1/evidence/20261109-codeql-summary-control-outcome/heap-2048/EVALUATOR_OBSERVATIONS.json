@@ -1,0 +1,32 @@
+{
+  "evaluator_start_lines": 1,
+  "eviction_categories": {
+    "ARRAYS": 76024
+  },
+  "eviction_pause_count": 76024,
+  "first_timestamp": "2026-11-09 17:43:50",
+  "last_timestamp": "2026-11-09 22:43:50",
+  "logs": [
+    {
+      "bytes": 409405511,
+      "path": "evaluator/execute-queries-20261109.174350.440.log",
+      "sha256": "0fea008f65166e64ffd599f4dec7b652997b873fc810c8a02aaf4082572399f9"
+    }
+  ],
+  "max_heap_bytes_observed": [
+    2147483648
+  ],
+  "max_taint_stage_iterations": {
+    "1": 216,
+    "2": 671,
+    "3": 756,
+    "4": 284
+  },
+  "off_heap_mb_observed": [
+    10643
+  ],
+  "pause_count": 76024,
+  "query_completions": 38,
+  "query_starts": 39,
+  "schema": 1
+}

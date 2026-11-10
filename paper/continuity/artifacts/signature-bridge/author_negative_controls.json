@@ -1,0 +1,31 @@
+{
+  "status": "passed",
+  "controls": [
+    {
+      "case": "one_byte_source_mutation",
+      "optimized": false,
+      "rejected": true,
+      "diagnostic": "source SHA256"
+    },
+    {
+      "case": "one_byte_source_mutation",
+      "optimized": true,
+      "rejected": true,
+      "diagnostic": "source SHA256"
+    },
+    {
+      "case": "source_manifest_mutation",
+      "optimized": false,
+      "rejected": true,
+      "diagnostic": "source identity manifest changed"
+    },
+    {
+      "case": "source_manifest_mutation",
+      "optimized": true,
+      "rejected": true,
+      "diagnostic": "source identity manifest changed"
+    }
+  ],
+  "checker_sha256": "c476ee077f38e15cbb79eb39d793070cbe7a6980a730d789511d5022bfd55635",
+  "scope": "failure-path controls for pinned source integrity; temporary copies only"
+}

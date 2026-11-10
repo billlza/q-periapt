@@ -1,0 +1,60 @@
+{
+  "bytes": 972164,
+  "members": 829,
+  "routes": {
+    "local-fixed": {
+      "business_effects": 1,
+      "credential_renewed": true,
+      "foreign_processes": 46,
+      "independent_policy_renewed": true,
+      "issuer_request_from_public_owner": true,
+      "next_issuer_predecessor_advanced": true,
+      "operation": "5f3a8be2220df4b8e671965734e73f206152a8979c4d2c28693a6e045209dbe0",
+      "original_message": "00000000000000000000000000000000668eeb492bdf60107269b7d5ae3366a6",
+      "original_request_sha256": "ce30bf95240fa3758a8c3fc9b6003313a419fdd90c328922433aaa03511135f3",
+      "original_session": "dbe0ae297b58787353dbace84018122a01cb1836b047f2937ae65dc4b644e025",
+      "policy_expired": true
+    },
+    "local-recoverable": {
+      "business_effects": 1,
+      "credential_renewed": true,
+      "foreign_processes": 46,
+      "independent_policy_renewed": true,
+      "issuer_request_from_public_owner": true,
+      "next_issuer_predecessor_advanced": true,
+      "operation": "40627e3cfc8738df0418c4dcc4ab11be905725b3ebfadb977ef317198024a6f1",
+      "original_message": "00000000000000000000000000000000046ac54d96533c8e8aaa9d866d523be4",
+      "original_request_sha256": "8aba3caf850d69c2033e45b8cebf5375cc86e79a50079fb90ee5734f9eda48fd",
+      "original_session": "01d69433dd47e68641233451cd2876f19acb97521a56608fcc7bcbda8ec60296",
+      "policy_expired": true
+    },
+    "signed-recoverable": {
+      "business_effects": 1,
+      "credential_renewed": true,
+      "foreign_processes": 60,
+      "independent_policy_renewed": true,
+      "issuer_request_from_public_owner": true,
+      "next_issuer_predecessor_advanced": true,
+      "operation": "029ccf5773e751a38ee1594efa45d23cb3eb680222cdbb80d4cab54ee49d825a",
+      "original_message": "00000000000000000000000000000000d10a9618969b129fc7f9497d648939a8",
+      "original_request_sha256": "d4f632609a05b0a6018203cc3fede1ff28f8a423a0963460e58fb3bff186e57b",
+      "original_session": "20e59db95a5f5eff8628ca38ed4310a3b2e1ca7d9f33d06218015bffd01292e1",
+      "policy_expired": true
+    },
+    "tls-fixed": {
+      "business_effects": 1,
+      "credential_renewed": true,
+      "foreign_processes": 60,
+      "independent_policy_renewed": true,
+      "issuer_request_from_public_owner": true,
+      "next_issuer_predecessor_advanced": true,
+      "operation": "f869feb8bf0362978200e814a0d9861fc6f8db3197ba3fff7595ba6acbf3fb4d",
+      "original_message": "00000000000000000000000000000000865f4d8d0e5590435c95ce05674ef525",
+      "original_request_sha256": "b17f58128caf4190d6fcad418a7195329cf86c34d9ecf029e9a625c14fa28552",
+      "original_session": "faad9c71efd624734945f74606c0e23a6755e1e6f87915d39fe59d378a801320",
+      "policy_expired": true
+    }
+  },
+  "scope": "Source-linked host JNI, not physical acceptance",
+  "sha256": "029ebbfaf83899084848b7175c4764cbfc43bd31031635d7551ff9f48694b322"
+}

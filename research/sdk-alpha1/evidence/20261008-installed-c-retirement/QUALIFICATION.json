@@ -1,0 +1,755 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T18:17:13.817020+00:00",
+  "native_source_commit": "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef",
+  "pushed_preflight_commit": "15819e5146710a47f063f7403b77bbdd3f6c69ac",
+  "native_report_sha256": "f98598c1e77096785a3b5c7fc3e868cc642740c0d06329f9d503c658a57bf1a2",
+  "native_archive": {
+    "bytes": 1189997,
+    "file": "q-periapt-continuity-identity-candidate-0.0.0.crate",
+    "files": [
+      "ANCHOR_TLS.md",
+      "ANCHOR_WITNESS.md",
+      "BOOTSTRAP.md",
+      "BOOTSTRAP_BUNDLE.md",
+      "BOOTSTRAP_CANCELLATION.md",
+      "CONNECTION_TLS.md",
+      "CONTROL_PROGRESS.md",
+      "CONTROL_TLS.md",
+      "CREDENTIAL_RENEWAL.md",
+      "Cargo.lock",
+      "Cargo.toml",
+      "Cargo.toml.orig",
+      "DURABILITY.md",
+      "ENROLLMENT.md",
+      "EPOCH_CUTOVER.md",
+      "EPOCH_RESOLUTION.md",
+      "FANOUT.md",
+      "FANOUT_ABANDONMENT.md",
+      "INSTALLATION.md",
+      "LICENSE",
+      "LICENSE-APACHE",
+      "LICENSE-MIT",
+      "LIFECYCLE_RENEWAL.md",
+      "MESSAGES.md",
+      "PACKAGE_CONSUMER.md",
+      "POLICY_CONTINUATION.md",
+      "README.md",
+      "REKEY_OFFERS.md",
+      "REQUIRED_ANCHOR.md",
+      "RESERVATION_DISCLOSURE.md",
+      "RETENTION.md",
+      "ROSTER_AUTHORITY.md",
+      "SESSION_ARCHIVE_STORE.md",
+      "SESSION_CLOSURE.md",
+      "SIGNING_OWNERS.md",
+      "WRITE_INTENTS.md",
+      "examples/contract_report.rs",
+      "examples/import_bootstrap_bundle.rs",
+      "examples/public_vectors.rs",
+      "scripts/exercise_bootstrap_bundle.py",
+      "scripts/verify_anchor_vectors.py",
+      "scripts/verify_public_vectors.py",
+      "src/anchor.rs",
+      "src/anchor/policy_renewal.rs",
+      "src/anchor/roster_refresh.rs",
+      "src/anchor/store.rs",
+      "src/anchor/store/lineage.rs",
+      "src/anchor/store/policy_renewal.rs",
+      "src/anchor/store/policy_renewal/tests.rs",
+      "src/anchor/store/renewal.rs",
+      "src/anchor/store/renewal_tests.rs",
+      "src/anchor/store/replacement.rs",
+      "src/anchor/store/replacement_receipt.rs",
+      "src/anchor/store/replacement_tests.rs",
+      "src/anchor/store/retired_cleanup.rs",
+      "src/anchor/store/retired_cleanup_tests.rs",
+      "src/anchor/store/retired_report.rs",
+      "src/anchor/store/roster_refresh.rs",
+      "src/anchor/store/roster_refresh/tests.rs",
+      "src/anchor/store/tests.rs",
+      "src/anchor/tls.rs",
+      "src/anchor/tls/channel.rs",
+      "src/anchor/tls/tests.rs",
+      "src/anchor/transport.rs",
+      "src/bootstrap.rs",
+      "src/bootstrap/response_staged.rs",
+      "src/bootstrap/retained.rs",
+      "src/bootstrap/staged.rs",
+      "src/bootstrap_bundle.rs",
+      "src/bootstrap_bundle/codec.rs",
+      "src/bootstrap_bundle/reopen.rs",
+      "src/bootstrap_bundle/tests.rs",
+      "src/bootstrap_bundle/tests/historical.rs",
+      "src/cancellation.rs",
+      "src/codec.rs",
+      "src/connect.rs",
+      "src/connection_transport.rs",
+      "src/connection_transport/client.rs",
+      "src/connection_transport/codec.rs",
+      "src/connection_transport/server.rs",
+      "src/contract.rs",
+      "src/control_transport.rs",
+      "src/control_transport/socket.rs",
+      "src/crypto.rs",
+      "src/crypto/persistence.rs",
+      "src/crypto/persistence/retirement.rs",
+      "src/crypto/persistence/tests.rs",
+      "src/durable.rs",
+      "src/durable/anchoring.rs",
+      "src/durable/anchoring/credential_recovery_tests.rs",
+      "src/durable/anchoring/independent_policy_tests.rs",
+      "src/durable/anchoring/tests.rs",
+      "src/durable/cancellation.rs",
+      "src/durable/cancellation/tests.rs",
+      "src/durable/initiator.rs",
+      "src/durable/initiator/tests.rs",
+      "src/durable/messages.rs",
+      "src/durable/messages/acknowledgement.rs",
+      "src/durable/messages/closure.rs",
+      "src/durable/messages/closure/archive.rs",
+      "src/durable/messages/delivery.rs",
+      "src/durable/messages/fanout.rs",
+      "src/durable/messages/fanout/abandonment.rs",
+      "src/durable/messages/fanout/archive.rs",
+      "src/durable/messages/fanout/codec.rs",
+      "src/durable/messages/progress.rs",
+      "src/durable/messages/rekey.rs",
+      "src/durable/messages/rekey/completion.rs",
+      "src/durable/messages/rekey/driver.rs",
+      "src/durable/messages/rekey/request.rs",
+      "src/durable/messages/rekey/response.rs",
+      "src/durable/messages/resolution.rs",
+      "src/durable/messages/retired.rs",
+      "src/durable/messages/terminal.rs",
+      "src/durable/messages/tests.rs",
+      "src/durable/messages/tests/closure.rs",
+      "src/durable/messages/tests/closure/archive.rs",
+      "src/durable/messages/tests/connection_tls.rs",
+      "src/durable/messages/tests/connection_tls/archives.rs",
+      "src/durable/messages/tests/connection_tls/failures.rs",
+      "src/durable/messages/tests/connection_tls/lifecycle.rs",
+      "src/durable/messages/tests/control_progress.rs",
+      "src/durable/messages/tests/control_tls.rs",
+      "src/durable/messages/tests/epoch_resolution.rs",
+      "src/durable/messages/tests/fanout.rs",
+      "src/durable/messages/tests/fanout/abandonment.rs",
+      "src/durable/messages/tests/fanout/archive.rs",
+      "src/durable/messages/tests/fanout/archive/committed.rs",
+      "src/durable/messages/tests/fanout/connection.rs",
+      "src/durable/messages/tests/fanout/installation.rs",
+      "src/durable/messages/tests/fanout/lifecycle.rs",
+      "src/durable/messages/tests/fanout/policy_continuation.rs",
+      "src/durable/messages/tests/fanout/process.rs",
+      "src/durable/messages/tests/fanout/roles.rs",
+      "src/durable/messages/tests/fanout/witness.rs",
+      "src/durable/messages/tests/renewal.rs",
+      "src/durable/messages/tests/reservation_disclosure.rs",
+      "src/durable/messages/tests/send_budget.rs",
+      "src/durable/messages/tests/tls_identity.rs",
+      "src/durable/messages/traffic.rs",
+      "src/durable/prekeys.rs",
+      "src/durable/prekeys/tests.rs",
+      "src/durable/responder.rs",
+      "src/durable/retired_report.rs",
+      "src/durable/rosters.rs",
+      "src/durable/rosters/local_renewal.rs",
+      "src/durable/rosters/local_renewal_tests.rs",
+      "src/durable/rosters/peer_roster.rs",
+      "src/durable/rosters/policy_continuation_tests.rs",
+      "src/durable/rosters/policy_renewal.rs",
+      "src/durable/rosters/policy_renewal_tests.rs",
+      "src/durable/rosters/renewal_tests.rs",
+      "src/durable/rosters/roster_refresh.rs",
+      "src/durable/rosters/tests.rs",
+      "src/durable/tests.rs",
+      "src/durable/tests/key_files.rs",
+      "src/durable/tests/provisioning.rs",
+      "src/durable/write_intent.rs",
+      "src/durable/write_intent/credential_cancellation.rs",
+      "src/durable/write_intent/policy_renewal.rs",
+      "src/durable/write_intent/retired_cleanup.rs",
+      "src/durable/write_intent/retired_cleanup/erasure.rs",
+      "src/durable/write_intent/roster_refresh.rs",
+      "src/durable/write_intent/tests.rs",
+      "src/enrollment.rs",
+      "src/enrollment/credential_request_tests.rs",
+      "src/enrollment/expired_renewal_tests.rs",
+      "src/enrollment/historical_policy_recovery_tests.rs",
+      "src/enrollment/policy_continuation_owner_tests.rs",
+      "src/enrollment/policy_continuation_tests.rs",
+      "src/enrollment/policy_renewal.rs",
+      "src/enrollment/policy_renewal/credential.rs",
+      "src/enrollment/policy_renewal/request.rs",
+      "src/enrollment/policy_renewal/resolution.rs",
+      "src/enrollment/policy_renewal/roster.rs",
+      "src/enrollment/policy_renewal/witness.rs",
+      "src/enrollment/policy_renewal/witness/operational.rs",
+      "src/enrollment/policy_renewal_connection_tests.rs",
+      "src/enrollment/policy_renewal_credential_expiry_tests.rs",
+      "src/enrollment/policy_renewal_credential_tests.rs",
+      "src/enrollment/policy_renewal_owner_tests.rs",
+      "src/enrollment/policy_renewal_recovery_tests.rs",
+      "src/enrollment/policy_renewal_request_tests.rs",
+      "src/enrollment/policy_renewal_resolution_recovery_tests.rs",
+      "src/enrollment/policy_renewal_resolution_tests.rs",
+      "src/enrollment/policy_renewal_roster_tests.rs",
+      "src/enrollment/policy_renewal_tests.rs",
+      "src/enrollment/renewal.rs",
+      "src/enrollment/renewal/expiry.rs",
+      "src/enrollment/renewal/request.rs",
+      "src/enrollment/renewal/witness.rs",
+      "src/enrollment/renewal_connection_tests.rs",
+      "src/enrollment/renewal_tests.rs",
+      "src/enrollment/renewed_operations_tests.rs",
+      "src/enrollment/retired_enrollment_tests.rs",
+      "src/enrollment/retirement.rs",
+      "src/enrollment/roster_refresh.rs",
+      "src/enrollment/roster_resolution.rs",
+      "src/enrollment/roster_resolution_recovery_tests.rs",
+      "src/enrollment/roster_resolution_tests.rs",
+      "src/enrollment/roster_tests.rs",
+      "src/enrollment/tests.rs",
+      "src/enrollment/witness_cancellation_tests.rs",
+      "src/enrollment/witness_independent_policy_operational_tests.rs",
+      "src/enrollment/witness_independent_policy_process_tests.rs",
+      "src/enrollment/witness_independent_policy_tests.rs",
+      "src/enrollment/witness_peer_roster_tests.rs",
+      "src/enrollment/witness_policy_cancellation_tests.rs",
+      "src/enrollment/witness_policy_fanout_tests.rs",
+      "src/enrollment/witness_policy_session_tests.rs",
+      "src/enrollment/witness_policy_transaction_tests.rs",
+      "src/enrollment/witness_renewal_tests.rs",
+      "src/enrollment/witness_roster_atomicity_tests.rs",
+      "src/enrollment/witness_roster_enrollment_process_tests.rs",
+      "src/enrollment/witness_roster_enrollment_tests.rs",
+      "src/enrollment/witness_roster_journal_tests.rs",
+      "src/enrollment/witness_roster_operational_tests.rs",
+      "src/identity.rs",
+      "src/identity/renewal.rs",
+      "src/identity/renewal/tests.rs",
+      "src/installation.rs",
+      "src/installation/recovery.rs",
+      "src/installation/reopen.rs",
+      "src/installation/retired.rs",
+      "src/installation/retired/tests.rs",
+      "src/installation/retired/tests/erasure.rs",
+      "src/installation/tests.rs",
+      "src/installation/tests/recovery.rs",
+      "src/installation/tests/reopen.rs",
+      "src/installation/tests/reopen/peer_roster_service.rs",
+      "src/installation/tests/reopen/policy_continuation.rs",
+      "src/installation/tests/reopen/renewal.rs",
+      "src/lib.rs",
+      "src/manifest.rs",
+      "src/merkle.rs",
+      "src/native_transport.rs",
+      "src/native_transport/socket.rs",
+      "src/selection.rs",
+      "src/session_archives.rs",
+      "src/session_archives/tests.rs",
+      "src/session_policy.rs",
+      "src/session_policy/continuation.rs",
+      "src/session_policy/continuation/tests.rs",
+      "src/session_policy/renewal.rs",
+      "src/session_policy/renewal/tests.rs",
+      "src/tests.rs",
+      "tests/credential_request.rs",
+      "tests/fixtures/historical-context/1/bundle.bin",
+      "tests/fixtures/historical-context/1/context-digest.bin",
+      "tests/fixtures/historical-context/1/directory.bin",
+      "tests/fixtures/historical-context/1/initiator-account.bin",
+      "tests/fixtures/historical-context/1/initiator-device.bin",
+      "tests/fixtures/historical-context/1/initiator-generation.bin",
+      "tests/fixtures/historical-context/1/initiator-root.bin",
+      "tests/fixtures/historical-context/1/initiator-roster-digest.bin",
+      "tests/fixtures/historical-context/1/initiator-roster-version.bin",
+      "tests/fixtures/historical-context/1/policy-digest.bin",
+      "tests/fixtures/historical-context/1/policy-family.bin",
+      "tests/fixtures/historical-context/1/policy-root.bin",
+      "tests/fixtures/historical-context/1/policy-version.bin",
+      "tests/fixtures/historical-context/1/policy-wire.bin",
+      "tests/fixtures/historical-context/1/responder-account.bin",
+      "tests/fixtures/historical-context/1/responder-device.bin",
+      "tests/fixtures/historical-context/1/responder-generation.bin",
+      "tests/fixtures/historical-context/1/responder-root.bin",
+      "tests/fixtures/historical-context/1/responder-roster-digest.bin",
+      "tests/fixtures/historical-context/1/responder-roster-version.bin",
+      "tests/fixtures/historical-context/1/send-budget.bin",
+      "tests/fixtures/historical-context/2/bundle.bin",
+      "tests/fixtures/historical-context/2/context-digest.bin",
+      "tests/fixtures/historical-context/2/directory.bin",
+      "tests/fixtures/historical-context/2/initiator-account.bin",
+      "tests/fixtures/historical-context/2/initiator-device.bin",
+      "tests/fixtures/historical-context/2/initiator-generation.bin",
+      "tests/fixtures/historical-context/2/initiator-root.bin",
+      "tests/fixtures/historical-context/2/initiator-roster-digest.bin",
+      "tests/fixtures/historical-context/2/initiator-roster-version.bin",
+      "tests/fixtures/historical-context/2/policy-digest.bin",
+      "tests/fixtures/historical-context/2/policy-family.bin",
+      "tests/fixtures/historical-context/2/policy-root.bin",
+      "tests/fixtures/historical-context/2/policy-version.bin",
+      "tests/fixtures/historical-context/2/policy-wire.bin",
+      "tests/fixtures/historical-context/2/responder-account.bin",
+      "tests/fixtures/historical-context/2/responder-device.bin",
+      "tests/fixtures/historical-context/2/responder-generation.bin",
+      "tests/fixtures/historical-context/2/responder-root.bin",
+      "tests/fixtures/historical-context/2/responder-roster-digest.bin",
+      "tests/fixtures/historical-context/2/responder-roster-version.bin",
+      "tests/fixtures/historical-context/2/send-budget.bin",
+      "tests/fixtures/historical-context/3/bundle.bin",
+      "tests/fixtures/historical-context/3/context-digest.bin",
+      "tests/fixtures/historical-context/3/directory.bin",
+      "tests/fixtures/historical-context/3/initiator-account.bin",
+      "tests/fixtures/historical-context/3/initiator-device.bin",
+      "tests/fixtures/historical-context/3/initiator-generation.bin",
+      "tests/fixtures/historical-context/3/initiator-root.bin",
+      "tests/fixtures/historical-context/3/initiator-roster-digest.bin",
+      "tests/fixtures/historical-context/3/initiator-roster-version.bin",
+      "tests/fixtures/historical-context/3/policy-digest.bin",
+      "tests/fixtures/historical-context/3/policy-family.bin",
+      "tests/fixtures/historical-context/3/policy-root.bin",
+      "tests/fixtures/historical-context/3/policy-version.bin",
+      "tests/fixtures/historical-context/3/policy-wire.bin",
+      "tests/fixtures/historical-context/3/responder-account.bin",
+      "tests/fixtures/historical-context/3/responder-device.bin",
+      "tests/fixtures/historical-context/3/responder-generation.bin",
+      "tests/fixtures/historical-context/3/responder-root.bin",
+      "tests/fixtures/historical-context/3/responder-roster-digest.bin",
+      "tests/fixtures/historical-context/3/responder-roster-version.bin",
+      "tests/fixtures/historical-context/3/send-budget.bin",
+      "tests/fixtures/historical-context/4/bundle.bin",
+      "tests/fixtures/historical-context/4/context-digest.bin",
+      "tests/fixtures/historical-context/4/directory.bin",
+      "tests/fixtures/historical-context/4/initiator-account.bin",
+      "tests/fixtures/historical-context/4/initiator-device.bin",
+      "tests/fixtures/historical-context/4/initiator-generation.bin",
+      "tests/fixtures/historical-context/4/initiator-root.bin",
+      "tests/fixtures/historical-context/4/initiator-roster-digest.bin",
+      "tests/fixtures/historical-context/4/initiator-roster-version.bin",
+      "tests/fixtures/historical-context/4/policy-digest.bin",
+      "tests/fixtures/historical-context/4/policy-family.bin",
+      "tests/fixtures/historical-context/4/policy-root.bin",
+      "tests/fixtures/historical-context/4/policy-version.bin",
+      "tests/fixtures/historical-context/4/policy-wire.bin",
+      "tests/fixtures/historical-context/4/responder-account.bin",
+      "tests/fixtures/historical-context/4/responder-device.bin",
+      "tests/fixtures/historical-context/4/responder-generation.bin",
+      "tests/fixtures/historical-context/4/responder-root.bin",
+      "tests/fixtures/historical-context/4/responder-roster-digest.bin",
+      "tests/fixtures/historical-context/4/responder-roster-version.bin",
+      "tests/fixtures/historical-context/4/send-budget.bin",
+      "tests/fixtures/historical-context/PROVENANCE.json",
+      "tests/historical_identity.rs",
+      "tests/owned_connection.rs",
+      "tests/owned_connection/enrollment.rs",
+      "tests/owned_connection/reopen.rs",
+      "tests/owned_connection/replacement.rs",
+      "tests/owned_connection/retirement.rs",
+      "tests/owned_connection/roster_renewal.rs"
+    ],
+    "sha256": "26adc81f1ff8949ff2ddd4637dde72dc3fb9cc2d2bf4e7465bc064e002ddcf14"
+  },
+  "full_producer": {
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source",
+    "head": "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef",
+    "source_clean": true,
+    "head_unchanged": true,
+    "runs": [
+      {
+        "label": "source-gate",
+        "command": [
+          "sh",
+          "artifact/python-run.sh",
+          "artifact/source_results_assembler.py",
+          "ci-source-gate",
+          "--profile",
+          "sdk-020",
+          "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda",
+          "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef"
+        ],
+        "returncode": 0,
+        "seconds": 13.78808220778592,
+        "stdout_sha256": "cce7de034096eae2ebbd959a38c4dafce1b2767eba3248222ad75aa8e9de90e5",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "installed",
+        "command": [
+          "sh",
+          "artifact/python-run.sh",
+          "artifact/continuity_package.py",
+          "--report",
+          "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source/target/registry-alias-rust-package-01/RUST_SDK_PACKAGE.json",
+          "--report-sha256",
+          "0b829385401232b2c33ede818bf3dd55e29ce1e288856ba0b33f61e7ca59b58b",
+          "--toolchain-root",
+          "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin",
+          "--with-c-consumer",
+          "--witness-openssl-prefix",
+          "/opt/homebrew/opt/openssl@3",
+          "--output",
+          "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source/target/continuity-retirement-ce70bf83"
+        ],
+        "returncode": 0,
+        "seconds": 4348.420942415949,
+        "stdout_sha256": "3ed2a110c97cbc2467999eed8db0ca5b6ae1e41166a1b9cab3e68214322e964f",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "recorded_at": "2026-10-08T17:31:37.049504+00:00",
+    "release_claim_eligible": false
+  },
+  "source_preflight": {
+    "head": "15819e5146710a47f063f7403b77bbdd3f6c69ac",
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/source",
+    "runs": [
+      {
+        "label": "source-gate",
+        "command": [
+          "sh",
+          "artifact/python-run.sh",
+          "artifact/source_results_assembler.py",
+          "ci-source-gate",
+          "--profile",
+          "sdk-020",
+          "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda",
+          "15819e5146710a47f063f7403b77bbdd3f6c69ac"
+        ],
+        "returncode": 0,
+        "seconds": 3.824473583139479
+      },
+      {
+        "label": "codeql-quality-tests",
+        "command": [
+          "sh",
+          "artifact/python-run.sh",
+          "-c",
+          "import unittest; unittest.main(module=None,argv=[\"unittest\",\"artifact.test_codeql_rust_quality\",\"-v\"],warnings=\"error\")"
+        ],
+        "returncode": 0,
+        "seconds": 1.0690756670664996
+      },
+      {
+        "label": "artifact-tests",
+        "command": [
+          "sh",
+          "artifact/python-run.sh",
+          "-c",
+          "import unittest; unittest.main(module=None,argv=[\"unittest\",\"discover\",\"-s\",\"artifact\",\"-p\",\"test_*.py\",\"-v\"],warnings=\"error\")"
+        ],
+        "returncode": 0,
+        "seconds": 649.4382164159324
+      }
+    ],
+    "source_clean": true,
+    "head_unchanged": true
+  },
+  "artifact_tests": 2660,
+  "skipped": 0,
+  "independent_retirement_readback": {
+    "native_source_commit": "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef",
+    "profiles": {
+      "debug": {
+        "completed": true,
+        "scope": "C restricted retired-enrollment API across eight actual cleanup processes; native Rust enrollment, required-witness generation replacement and fresh-generation TLS traffic. Native independent readback compares the complete original report and checks session/message accounting; original report/host ACK and logical journal/signer erasure remain exact. Same host/implementation, signed TCP witness; no physical erasure, independent protocol or complete foreign-device lifecycle claim.",
+        "outcomes": {
+          "old_session": "76936cf57d27be1806b701708510a3f31db900a86ea03a0a2e96e31f01e4b0e6",
+          "old_message": "00000000000000000000000000000000c666ba2c0168ec06d722377acf69237e",
+          "new_session": "dd448facb5cbbad56f8e8e498cf3e2adf63b93e3e281be6ba82641d22fa2f3ea",
+          "new_message": "00000000000000000000000000000000bad3cf7a105b2c971219d040126d4cf4",
+          "report_id": "f1df81f5b8dd65fed3e22f616069040b92311bb44da445b575883c57075e5183",
+          "report_sessions": 1,
+          "unconsumed_deliveries": 1,
+          "consumed_before": 0,
+          "host_effects": 1,
+          "recovery_processes": 8,
+          "uncertain_process_exits": 3,
+          "required_witness": true,
+          "old_authority_refused": true,
+          "original_report_reopened": true,
+          "journal_erased": true,
+          "signer_erased": true
+        },
+        "recovery_process_ids": [
+          77824,
+          77825,
+          77826,
+          77827,
+          77828,
+          77829,
+          77830,
+          77831
+        ],
+        "witness_requests": 274,
+        "public_readbacks": {
+          "result.json": {
+            "sha256": "9eef0b12e3a5cec874783e4d4f59bb96302ebf6bf565277444294af37a36e452",
+            "bytes": 667
+          },
+          "witness-request-count": {
+            "sha256": "87b57123aa9098828a66996f9f985c88925f302463077b578fd386d0a680715b",
+            "bytes": 8
+          },
+          "witness-id": {
+            "sha256": "bc91349f65c08b9f888566acf8f792b1f7bda12cce33458f850eaf6f50c4d1fa",
+            "bytes": 32
+          },
+          "witness-public": {
+            "sha256": "f05e4f4b7461f22e97beb2e5e75e2243b171db3b10030ff83da746a97eeb58c3",
+            "bytes": 1985
+          },
+          "witness-subject": {
+            "sha256": "31d2d41cb62321f8b42c0a63f9eb0965e735f7e0c1458b88cd41b5a598923bb1",
+            "bytes": 96
+          },
+          "retirement-proposal": {
+            "sha256": "89560aad611caa594b349bc3fdbc00cff2cdb869486da413076518c03b226765",
+            "bytes": 674
+          },
+          "retirement-receipt": {
+            "sha256": "2609aa9b964442bb2c7024dc171585afe61423334f9b79f9d877cbfe05b56448",
+            "bytes": 3754
+          },
+          "retirement-inventory": {
+            "sha256": "f4435c6394e62792d84d43dd428954ef3c422c78a236894cc31037add9663542",
+            "bytes": 313
+          },
+          "retirement-inventory-receipt": {
+            "sha256": "e2a25131da79845558b5b2188aabd866f41f2d8c98ffe3d20401247469aea0b5",
+            "bytes": 3690
+          },
+          "retirement-report-proposal": {
+            "sha256": "dc08dcca1a908495ede32cbd2206ef3e2176434e5ec7de855741dcc1b999760d",
+            "bytes": 353
+          },
+          "retirement-report-receipt": {
+            "sha256": "31cfff2988dba4c8b32efb7c636827531fed335d30598d55ad08d16e9996fa1b",
+            "bytes": 3730
+          },
+          "retirement-ack": {
+            "sha256": "1a2206a9f3e9cb1c961c8fbe3e46573a2a8d04e4a0baabbb4fab0a5281d61614",
+            "bytes": 3730
+          },
+          "retirement-host-report": {
+            "sha256": "d6aca14ae1ec5c59fdc04103143be86886044279c8f90d56ba00c3157832d86a",
+            "bytes": 13907
+          },
+          "retirement-host-report-verified": {
+            "sha256": "d6aca14ae1ec5c59fdc04103143be86886044279c8f90d56ba00c3157832d86a",
+            "bytes": 13907
+          },
+          "retirement-report-reopened": {
+            "sha256": "ceb48f3c26a8405af7a7e0351bec4fc3dddbce4f0981665360156d3dbac9fec9",
+            "bytes": 32
+          },
+          "retirement-verified": {
+            "sha256": "ceb48f3c26a8405af7a7e0351bec4fc3dddbce4f0981665360156d3dbac9fec9",
+            "bytes": 32
+          },
+          "retirement-process-inventory": {
+            "sha256": "82742e812dbeaf2785d8ba010a76f7f0de803e1e313de1fb305e20eb5a3d1386",
+            "bytes": 8
+          },
+          "retirement-process-prepare-report": {
+            "sha256": "088449602be5f3fdccbc6781a7cb1f58ad899a0a5b3166a560785396cee10a05",
+            "bytes": 8
+          },
+          "retirement-process-report": {
+            "sha256": "2c531ffd7cb3731e0aa2eaa3a9d88253e40d9881fb2c5aa5e0b3198122769e9d",
+            "bytes": 8
+          },
+          "retirement-process-report-reopen": {
+            "sha256": "95983f96faa651f92aaeb0487df814eacac50211c4d0f3e83578612a65b828bc",
+            "bytes": 8
+          },
+          "retirement-process-prepare-ack": {
+            "sha256": "bbc6347d3b247a9a14e9918e2ba1d5be33371f83c4cac4bde84481c9bfe545e5",
+            "bytes": 8
+          },
+          "retirement-process-erase-journal": {
+            "sha256": "7de0237b54e888b0d9fb5d2eb1048ded2456f6dd781b847049169adad4af3911",
+            "bytes": 8
+          },
+          "retirement-process-erase-signer": {
+            "sha256": "1740213a2fce5bb68440c2cd9dfdfb5b01a0cc39fae6c23cf4f7cb6c95b735e1",
+            "bytes": 8
+          },
+          "retirement-process-verify": {
+            "sha256": "435be0047067be2576ea83f5ba0e4fe1ac939a1097cafe8d8e5120bd70dbfb50",
+            "bytes": 8
+          },
+          "old-effect": {
+            "sha256": "891468232d83ad686114d274a8b77e4b737367eded45c9f2a5b2df0d6609603b",
+            "bytes": 113
+          },
+          "new-effect": {
+            "sha256": "69dc4a75f707e5d1ac61e9297424121a39f2956d1f8b0e6d8090afef4dbc65ba",
+            "bytes": 98
+          },
+          "signer-terminal": {
+            "sha256": "adcb8374c13acb3c22ee19bcfb48ac4753c5d68494b3d083d5a487da183dcf72",
+            "bytes": 8
+          }
+        },
+        "release_claim_eligible": false,
+        "consumer_language": "C"
+      },
+      "release": {
+        "completed": true,
+        "scope": "C restricted retired-enrollment API across eight actual cleanup processes; native Rust enrollment, required-witness generation replacement and fresh-generation TLS traffic. Native independent readback compares the complete original report and checks session/message accounting; original report/host ACK and logical journal/signer erasure remain exact. Same host/implementation, signed TCP witness; no physical erasure, independent protocol or complete foreign-device lifecycle claim.",
+        "outcomes": {
+          "old_session": "2a47e303e0e29a3d16227c19333b1553b60f2e1c41b8adbc026e31712ec696e1",
+          "old_message": "00000000000000000000000000000000e76e153a0ed293f6346b29e9834870d8",
+          "new_session": "840b9bbac60223cff52f554f7944aca2084eefa8de9a61157e8355f69a4594a1",
+          "new_message": "00000000000000000000000000000000274674a42660c8066c5d33864d32c9e8",
+          "report_id": "01728c2ed8a1717264bb00f809830fda17ec42225585c76a3a647697f0ada1ad",
+          "report_sessions": 1,
+          "unconsumed_deliveries": 1,
+          "consumed_before": 0,
+          "host_effects": 1,
+          "recovery_processes": 8,
+          "uncertain_process_exits": 3,
+          "required_witness": true,
+          "old_authority_refused": true,
+          "original_report_reopened": true,
+          "journal_erased": true,
+          "signer_erased": true
+        },
+        "recovery_process_ids": [
+          89192,
+          89199,
+          89203,
+          89214,
+          89215,
+          89219,
+          89224,
+          89231
+        ],
+        "witness_requests": 274,
+        "public_readbacks": {
+          "result.json": {
+            "sha256": "e5fb3b274903ed9418198fc5e5cb76b824b40455edd1fba32168adc8a60a7522",
+            "bytes": 667
+          },
+          "witness-request-count": {
+            "sha256": "87b57123aa9098828a66996f9f985c88925f302463077b578fd386d0a680715b",
+            "bytes": 8
+          },
+          "witness-id": {
+            "sha256": "b5c53ec7a84bf762da6b0cdc9d25bb63903e6cf748d26e46795359f0fe3ac0b4",
+            "bytes": 32
+          },
+          "witness-public": {
+            "sha256": "c344dbc7cae22c96c5f1230e01970e86f666481b7c286121fefadd4e5e61fc79",
+            "bytes": 1985
+          },
+          "witness-subject": {
+            "sha256": "adc203059af7ec7f04b3fd5c1f236c3a2c49f59bf83cf7933fb74b07b7e05f7b",
+            "bytes": 96
+          },
+          "retirement-proposal": {
+            "sha256": "f2999b868dfad76a01f174197ac13f153125dc24b59c04e8b60eb55ef392ebec",
+            "bytes": 674
+          },
+          "retirement-receipt": {
+            "sha256": "b5f2d434e175e85f451cd0b54a83e7fe461fcce2e61938c258066eae65245a13",
+            "bytes": 3754
+          },
+          "retirement-inventory": {
+            "sha256": "e08995719fa13c896b190ccc9ee48f3ef60a8f570de3a3b313ab0810ea129e1e",
+            "bytes": 313
+          },
+          "retirement-inventory-receipt": {
+            "sha256": "f311c1fac8af5b76d607cb1c7ef752804cf88df1a852585d0e9f3978c96be350",
+            "bytes": 3690
+          },
+          "retirement-report-proposal": {
+            "sha256": "1b1625d22c79ed3fd0322ad5cc30992d9957c28527ffa81648032c9936caf568",
+            "bytes": 353
+          },
+          "retirement-report-receipt": {
+            "sha256": "13cb0f85267aa905021441fb57d58a42d4ea4c9efbbe3c6e7af8ec2f01bfc9a3",
+            "bytes": 3730
+          },
+          "retirement-ack": {
+            "sha256": "66e95aac92c58eb409549839878741419d98fea3771eb818f8488d8447389a35",
+            "bytes": 3730
+          },
+          "retirement-host-report": {
+            "sha256": "133719c334ddea41f24e45d19d342f126d9265f8416fab66f0f4681699bdffe6",
+            "bytes": 13907
+          },
+          "retirement-host-report-verified": {
+            "sha256": "133719c334ddea41f24e45d19d342f126d9265f8416fab66f0f4681699bdffe6",
+            "bytes": 13907
+          },
+          "retirement-report-reopened": {
+            "sha256": "515e2eb25ef16ef9c021513882609c6dc1ddc0c649792c3b45e5a843d7640284",
+            "bytes": 32
+          },
+          "retirement-verified": {
+            "sha256": "515e2eb25ef16ef9c021513882609c6dc1ddc0c649792c3b45e5a843d7640284",
+            "bytes": 32
+          },
+          "retirement-process-inventory": {
+            "sha256": "6449fa9b6e9b763d6cefcabd6f3b2b6e35d25caee060e3c1f41c2ccaa1571086",
+            "bytes": 8
+          },
+          "retirement-process-prepare-report": {
+            "sha256": "c88a760a0217e39a12aa1c816687679330ff701832f61ecca5756404ad082760",
+            "bytes": 8
+          },
+          "retirement-process-report": {
+            "sha256": "009c5c9db021c7e40398569d41ef6e0ca7c87e6531702957f2b2a64d2c303389",
+            "bytes": 8
+          },
+          "retirement-process-report-reopen": {
+            "sha256": "45ac0a5a5a6918eb4113246eb361d706580f419592d51532f069b053849cf3ef",
+            "bytes": 8
+          },
+          "retirement-process-prepare-ack": {
+            "sha256": "a8db63ee6f157ef844e53f4c5ade37ac6da6cddcef7c6f248e2454e90b9d856a",
+            "bytes": 8
+          },
+          "retirement-process-erase-journal": {
+            "sha256": "fc5c9501e8355555d54fc0e0db52a51d26e1005dc1d8a9db003907fc3e55c69e",
+            "bytes": 8
+          },
+          "retirement-process-erase-signer": {
+            "sha256": "1adb568867655a1216ff3767c5e574721514dcabffe63026502082344c16b2b8",
+            "bytes": 8
+          },
+          "retirement-process-verify": {
+            "sha256": "3748c64dad664ef86d28c6ecf82b0e0ac729c7771f2b68b25b6057439a57bd32",
+            "bytes": 8
+          },
+          "old-effect": {
+            "sha256": "4f199bd56b7a331a41e2262bf105f80c0f38949d9632d7e0ee68ebb3ecf35896",
+            "bytes": 113
+          },
+          "new-effect": {
+            "sha256": "3ee05fbdfe6c401ad2317f97a47b51dc576d6ae888ccf915ba9233717eb60663",
+            "bytes": 98
+          },
+          "signer-terminal": {
+            "sha256": "adcb8374c13acb3c22ee19bcfb48ac4753c5d68494b3d083d5a487da183dcf72",
+            "bytes": 8
+          }
+        },
+        "release_claim_eligible": false,
+        "consumer_language": "C"
+      }
+    },
+    "release_claim_eligible": false
+  },
+  "captures": {
+    "file": "CAPTURES.zip",
+    "sha256": "7ba129cff20d9959c0eda2cfc240b3155b260d6f75de6cf0accbcb4611995b2e",
+    "bytes": 12140161,
+    "members": 19608
+  },
+  "scope": "Complete native Rust/C installed producer passed both profiles, including existing lifecycle, actual expiry, storage faults and OpenSSL witness interoperability. Captures retain producer logs/reports, candidate crate and selected complete retirement public records; other public/private runtime material remains in the recorded local output. Same host/implementation; no full foreign replacement, independent protocol, physical erasure or release claim.",
+  "publication_performed": false,
+  "release_claim_eligible": false
+}

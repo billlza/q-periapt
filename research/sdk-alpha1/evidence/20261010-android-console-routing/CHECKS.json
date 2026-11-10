@@ -1,0 +1,53 @@
+{
+  "base_head": "29ec0a37877dfdf0b1328f6886ed731e1436d440",
+  "controller_sha256": "787918c382a715534a821ee240a1764ec22963c32d22cd30c63ab936a77cfa05",
+  "local_tests": {
+    "command": [
+      "python3.14",
+      "-I",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "artifact",
+      "-p",
+      "test_android*control.py"
+    ],
+    "returncode": 0,
+    "seconds": 1.1603237090166658
+  },
+  "cold_emulator_executed_locally": false,
+  "local_emulator_help_version": "36.6.11.0; confirms flag exists, not the pinned CI runtime",
+  "required_remote_emulator": "37.2.12.0",
+  "prior_ci_run": 38013166235,
+  "prior_failure": "QEMU -serial stdio cannot use stdio by multiple character devices; no guest workload ran",
+  "change": "Keep kernel console on emulator.log, route logcat to a separate guest-logcat.log through -logcat-output. Preserve both ADB-independent channels.",
+  "runtime_regression_verification": "pending next authorized CI push",
+  "release_claim_eligible": false,
+  "scope": "Repair the no-SDK diagnostic launcher only; no product runtime admission, retry, memory, LMKD or timeout changes.",
+  "capture": {
+    "file": "CAPTURE.zip",
+    "sha256": "33e080716820f596875bcb10b428c2c274709195628cb47571423ad257287e4f",
+    "bytes": 14561,
+    "files": {
+      "ARTIFACTS.json": "2c3146d175848627b8c0105076a4db76b75d769576662af51dbb90396365978b",
+      "android-framework-instrumentation-control/RESULT.json": "399e1ed269016043b58c82259fca9c7cb1e7a74730c171b3b4c9c08a85551444",
+      "android-framework-instrumentation-control/emulator.log": "becea1e02cf51e10abc6cde1d72a5649832acdf271eac597d1b6b6ce8b23f4b5",
+      "android-runtime-no-sdk-control/RESULT.json": "d77fec2cf3001545ded6e989b2835dd5b55c6603fbb7b52e0c0b4e817647959b",
+      "android-runtime-no-sdk-control/emulator.log": "ac3aa020562601f0bd6391097d860dc82b6eb1282da99a36d99aca5f160bdca1",
+      "local-validation/tests.stderr": "f89a51a4a413560db1136cd299de6ce363db2fef054344e7f944f0081cc3ae32",
+      "local-validation/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "local-validation/CHECKS.json": "7874a0e92d7a074073ff8f76f0ecb1d0cba3729a9cf1b9bac6cf991cd9aa3f22",
+      "local-validation/local-logcat-output-help.txt": "f8730abe68117ce32d66f8b71fff5e961d426f3555a58cea43e20f4bdcb9b052"
+    }
+  },
+  "upstream_explanation": {
+    "url": "https://android.googlesource.com/platform/external/qemu/+/emu-master-dev/android-qemu2-glue/main.cpp",
+    "observed_lines": [
+      2893,
+      2914
+    ],
+    "observation": "VirtconsoleLogcat uses a stdio character device unless logcat_output supplies a file. This public branch explains the routing; it is not asserted as the exact source identity of emulator 37.2.12.0."
+  },
+  "remote_after_fix": "pending; local controller tests do not establish cold-boot success"
+}

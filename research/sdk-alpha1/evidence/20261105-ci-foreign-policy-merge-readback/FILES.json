@@ -1,0 +1,26 @@
+{
+  "CLASSIFICATION.json": {
+    "bytes": 3438,
+    "sha256": "e404502cf988a149201f5be015e6cf8eab012fe568d91df0bd2f1bd57bebfa39"
+  },
+  "capture/CHANGES.json": {
+    "bytes": 762,
+    "sha256": "7d854c8b198c65df4bbeec7780ef47d84cb14f2abff9fb8bdadaf8086a67f65c"
+  },
+  "capture/CI_STATUS.json": {
+    "bytes": 1892124,
+    "sha256": "fab34abd5bbed80d74cb12e156bee68895e7a51664319b7bb4f43e18cd5e2108"
+  },
+  "capture/job-126449257971.log": {
+    "bytes": 61656,
+    "sha256": "95406b66aa45d2b1013094cdcf87e77d1d8e69ca662493768aa825b9e384b4b2"
+  },
+  "capture/job-126456506050.log": {
+    "bytes": 66066,
+    "sha256": "a8b02e54c7a42bd0f8918a9a15164921d50c98a779a6b343f232339598894ab4"
+  },
+  "capture/seal.py": {
+    "bytes": 5128,
+    "sha256": "3e6754a4e0f9d28b0ba2c33f5256a224cb5cea79c3ea9eb114c4683bd475a18f"
+  }
+}

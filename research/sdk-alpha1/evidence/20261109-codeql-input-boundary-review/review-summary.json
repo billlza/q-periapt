@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "reviewed_at": "2026-11-09T02:41:23.970233+00:00",
+  "repository": "billlza/q-periapt",
+  "workflow_run_id": 42507570881,
+  "workflow_run_attempt": 1,
+  "workflow_head": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+  "checked_out_merge": "f99a1100a74a10cb649a6f2a5fc61430f1174436",
+  "codeql_version": "2.27.1",
+  "current_integration_head": "93a8ce264624d2c711c894d02c04c582b0d10c63",
+  "current_pr_merge_candidate": "7bf90654c921c09d08e91f07086d9136d3a2e9a2",
+  "reviewed_source_count": 73,
+  "unchanged_reviewed_sources_in_current_candidate": 72,
+  "changed_reviewed_sources_in_current_candidate": [
+    {
+      "path": "bindings/c/ContinuityPackageConsumer/peer_configuration_client.c",
+      "reviewed_git_blob": "3f8458bdc9a0ef53ae5cf1dbddbf9a98f4716ae9",
+      "current_git_blob": "f9305517059c3d573aa44512064b3495f56cd846",
+      "identical": false
+    }
+  ],
+  "python_critical_results_reviewed": 52,
+  "c_results_reviewed": 4,
+  "reviewed_raw_result_count": 56,
+  "raw_thread_flow_count": 155,
+  "unique_sink_and_full_input_chain_count": 140,
+  "unique_rule_and_sink_count": 56,
+  "semantic_review_group_count": 30,
+  "python_classifications": {
+    "reviewed_explicit_execution_interface": 11,
+    "reviewed_fixture_driver": 10,
+    "reviewed_fixed_command_with_data_arguments": 1,
+    "reviewed_retained_experiment_driver": 30
+  },
+  "c_classifications": {
+    "confirmed_qualification_defect_fixed": 1,
+    "reviewed_fixture_environment_capability": 3
+  },
+  "remaining_results_individually_unreviewed": 1257,
+  "remaining_rule_counts": {
+    "py/clear-text-storage-sensitive-data": 1,
+    "py/weak-sensitive-data-hashing": 1,
+    "py/path-injection": 1202,
+    "py/overly-permissive-file": 53
+  },
+  "confirmed_defects": [
+    {
+      "result": "cpp:0",
+      "group": "C01",
+      "state": "fixed_in_current_integration",
+      "pr": 128,
+      "commit": "96f58b924dfd2e026e73b8adc01cad9ee4476b06"
+    }
+  ],
+  "review_outcome": "The reviewed critical flows are intentional operator-controlled execution interfaces or retained/test drivers. The one confirmed C qualification defect is fixed. Three C path flows are harness-controlled test capabilities with explicitly recorded same-user/environment assumptions.",
+  "scope": "Review of the exact 52 Python critical and four C/C++ SARIF results and their recorded input chains. No classification is transferred to the other 1257 Python results.",
+  "check_status_observation": {
+    "integration_head": "93a8ce264624d2c711c894d02c04c582b0d10c63",
+    "checks_total": 136,
+    "queued": 136,
+    "new_aggregate_codeql_check_present": false,
+    "observed_at": "2026-11-09T02:36:49.957Z"
+  },
+  "actions": {
+    "remote_mutation": false,
+    "queries_changed": false,
+    "exclusions_changed": false,
+    "alerts_dismissed": false,
+    "thresholds_changed": false,
+    "alert_dismissal_attempted": false
+  },
+  "review_conversation_resolution": {
+    "reported_by_repository_integrator": true,
+    "scope": "Four C review conversations on PR 121 resolved after the actual PR 128 fix and harness input-boundary review.",
+    "code_scanning_alerts_dismissed": false,
+    "required_check_status_changed": false
+  },
+  "package_scope": "Finite source review, with per-result classifications, exact source and scan provenance, and a separate individually-unreviewed high-result index. Raw scan/source copies are intentionally not duplicated in this package."
+}

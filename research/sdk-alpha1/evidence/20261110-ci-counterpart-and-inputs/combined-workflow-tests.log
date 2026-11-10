@@ -1,0 +1,10 @@
+test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner) ... ok
+test_python_runner_guard_distinguishes_trigger_paths_and_execution (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_distinguishes_trigger_paths_and_execution) ... ok
+test_python_runner_guard_distinguishes_archive_members_and_execution (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_distinguishes_archive_members_and_execution) ... ok
+test_python_runner_guard_distinguishes_sparse_checkout_data_and_execution (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_distinguishes_sparse_checkout_data_and_execution) ... ok
+test_python_runner_guard_distinguishes_checksum_inputs_and_interpreter_search (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_distinguishes_checksum_inputs_and_interpreter_search) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.141s
+
+OK

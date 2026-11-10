@@ -15,7 +15,9 @@ use crate::{
 };
 use proptest::prelude::*;
 use q_periapt_core::{combine, CombineInput, Error, Profile, SHARED_SECRET_LEN};
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 
 /// A `ContextBound` input with every field supplied; tests vary what they probe.
 #[allow(clippy::too_many_arguments)]
@@ -77,6 +79,23 @@ proptest! {
             ct_pq: &[], pk_pq: &[], ct_trad: &ok, pk_trad: &ok, context: &[],
         };
         prop_assert_eq!(secret(Profile::CompatXWing, &inp), Err(Error::InvalidLength));
+    }
+
+    /// CompatXWing has no suite/version/context inputs. Any supplied metadata must fail as a
+    /// policy error instead of being silently discarded or reaching the length/hash path.
+    #[test]
+    fn compat_xwing_rejects_noncanonical_metadata(
+        suite in prop::collection::vec(any::<u8>(), 0..32),
+        version in any::<u32>(),
+        context in prop::collection::vec(any::<u8>(), 0..64),
+        field in any::<[u8; 32]>(),
+    ) {
+        prop_assume!(!suite.is_empty() || version != 0 || !context.is_empty());
+        let inp = CombineInput {
+            suite_id: &suite, policy_version: version, ss_pq: &field, ss_trad: &field,
+            ct_pq: &[], pk_pq: &[], ct_trad: &field, pk_trad: &field, context: &context,
+        };
+        prop_assert_eq!(secret(Profile::CompatXWing, &inp), Err(Error::PolicyDenied));
     }
 
     /// ContextBound requires a non-empty context as an explicit-label profile rule;
@@ -165,7 +184,15 @@ proptest! {
             .unwrap();
 
         let dec = hk
-            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, b"")
+            .decapsulate(
+                PqSecretKey::new(&sk_pq),
+                PqCiphertext::new(&ct_pq),
+                PqPublicKey::new(&pk_pq),
+                TradSecretKey::new(&sk_x),
+                TradCiphertext::new(&ct_x),
+                TradPublicKey::new(&pk_x),
+                b"",
+            )
             .unwrap();
 
         prop_assert_eq!(enc.as_bytes(), dec.as_bytes());
@@ -207,7 +234,15 @@ proptest! {
             .unwrap();
 
         let dec = hk
-            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, &ctx)
+            .decapsulate(
+                PqSecretKey::new(&sk_pq),
+                PqCiphertext::new(&ct_pq),
+                PqPublicKey::new(&pk_pq),
+                TradSecretKey::new(&sk_x),
+                TradCiphertext::new(&ct_x),
+                TradPublicKey::new(&pk_x),
+                &ctx,
+            )
             .unwrap();
 
         prop_assert_eq!(enc.as_bytes(), dec.as_bytes());

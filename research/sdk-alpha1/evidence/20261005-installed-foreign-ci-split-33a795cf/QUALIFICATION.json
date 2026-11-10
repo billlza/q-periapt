@@ -1,0 +1,22 @@
+{
+  "baseline_commit": "33a795cf1127f19943eb5dc503858d2bce1d9769",
+  "workflow_sha256": "499157da6f7a06be7c550ec13b8a7fa66646bbc107e217cecac3181450dae079",
+  "change": "Partition existing installed foreign qualification by Swift/Kotlin; preserve all Rust+C prerequisites, language profiles, original deadlines and public evidence selection",
+  "hosted_old_source": "4126bb5bc18dbe8c16c331859155b1f689b613f3",
+  "hosted_old_run": 37236532231,
+  "hosted_old_result": "42 success, one Android16KiB failure, one installed-foreign 120-minute cancellation, one skipped job; CodeQL success",
+  "old_component_reports": "C and Swift report completed; Kotlin and whole-package reports absent. No completed final source/tool/archive recheck.",
+  "validation": {
+    "tests": 47,
+    "tests_passed": true,
+    "bash_syntax_passed": true,
+    "actionlint_new_diagnostics": false,
+    "actionlint_clean": false,
+    "existing_actionlint_diagnostics": "two unchanged ubuntu-26.04 runner-label errors in both baseline and candidate",
+    "failed_initial_preflights": "01 compares absolute rather than actual relative diagnostic path; 02 selects a nested synthetic class instead of actual test class; original outputs retained",
+    "new_hosted_execution": "not yet uploaded"
+  },
+  "product_runtime_changes": false,
+  "runtime_P0_P1_refactor_included": false,
+  "release_claim_eligible": false
+}

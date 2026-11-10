@@ -1,0 +1,48 @@
+{
+  "base": {
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "-v",
+      "control_test_formal_tool_asset.FormalToolAssetTests.test_http_failure_burst_recovers_with_real_partial_output_cleanup"
+    ],
+    "returncode": 1,
+    "log_sha256": "50a18a9ceae1dedb4eb9c0dcab570eb254a07cd4049faf887b30f3d024ca8204"
+  },
+  "candidate": {
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "-v",
+      "test_formal_tool_asset.FormalToolAssetTests.test_http_failure_burst_recovers_with_real_partial_output_cleanup"
+    ],
+    "returncode": 0,
+    "log_sha256": "b7b665b375f3354b27d303dc9f1079c234ef8e86d4113160415c46ced06569be"
+  },
+  "regressions": {
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "-v",
+      "test_formal_tool_asset"
+    ],
+    "returncode": 0,
+    "tests": 29,
+    "log_sha256": "1457dd5115c1a33dd6809ff3685a7d06eabe9f96cb8b6d1732d4219824a8846b"
+  },
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "asserted_scope": "Real child-process failure/partial-output cleanup and deterministic transport-budget controls; hosted formal-tool jobs remain pending.",
+  "base_commit": "b1cff2a045d23aecf75aef12122e5080a8419676",
+  "sources": {
+    "formal_tool_asset.py": "0442c6d42ff7181e34f89f85d0f2368ad8dca339c0b6260cd5cdb7c6e82cd417",
+    "test_formal_tool_asset.py": "38cf472796634ea7cb1f7aaecbbf12caf00b5f13b1722e26ce1b4d904b433827",
+    "bounded_process.py": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+    "evidence_io.py": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d"
+  }
+}

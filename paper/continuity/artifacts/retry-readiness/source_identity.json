@@ -1,0 +1,138 @@
+{
+  "actual_checkout": "23f600f5b3ef69d9f0196efdaa66d146e271c9a4",
+  "artifact": {
+    "all_extracted_member_bytes_verified": true,
+    "bytes": 12213618,
+    "id": 13650034930,
+    "sha256": "59866ec99686b1068f016ebefc0476802e8102d890bc4a1e8cce6630b9d9d3a1",
+    "zip_members": 42
+  },
+  "files": [
+    {
+      "bytes": 8211,
+      "original_path": "research-review/audit_retry_ablation.py",
+      "path": "sources/audit_retry_ablation.py.txt",
+      "sha256": "3398deb63f1803283d2869f7f0be775718da1626cda387efd1af680894422e33"
+    },
+    {
+      "bytes": 240,
+      "original_path": "retry-executed-42551086845/unpacked/continuity-retry-age-execution/drivers.json",
+      "path": "sources/drivers.json",
+      "sha256": "90d3ccf825fb22d4a42edcf4728d4bb268be419161712841e982861c2c52464b"
+    },
+    {
+      "bytes": 382,
+      "original_path": "retry-executed-42551086845/unpacked/continuity-retry-age-execution/executable.json",
+      "path": "sources/executable.json",
+      "sha256": "6fd2dec8f8c11bdd268b59759f0e77e240ed2cb71f8947d0334a42c3152019f2"
+    },
+    {
+      "bytes": 704,
+      "original_path": "retry-executed-42551086845/github-checkout.json",
+      "path": "sources/github-checkout.json",
+      "sha256": "92f7b7e826bb83ad12e8f2439a841129b52f123a8420e84692a4f03d6bdf1563"
+    },
+    {
+      "bytes": 322,
+      "original_path": "retry-executed-42551086845/github-fixed-base.json",
+      "path": "sources/github-fixed-base.json",
+      "sha256": "b843d88da5949d7797cdb7fb776aa77ef8b0a6a3abf99ac17c08ff8a2b7ab6f2"
+    },
+    {
+      "bytes": 14656,
+      "original_path": "retry-executed-42551086845/github-run.json",
+      "path": "sources/github-run.json",
+      "sha256": "b53207a627815c6f26ad1021b6225f0585c7d83c10fae383c93828d6a1107168"
+    },
+    {
+      "bytes": 150247,
+      "original_path": "retry-executed-42551086845/independent-audit.json",
+      "path": "sources/independent-audit.json",
+      "sha256": "68d955b7d09a1229b7d4688b7f1d9524218569e3403c7c2211c9cc4a9fa17e47"
+    },
+    {
+      "bytes": 274109,
+      "original_path": "retry-executed-42551086845/unpacked/continuity-retry-age-execution/preparation.json",
+      "path": "sources/preparation.json.gz",
+      "sha256": "a30b7604aadd0094467303acff3f15a4c564a3e061e1b5e7f8679500b24a3a11",
+      "uncompressed_bytes": 903442,
+      "uncompressed_sha256": "6eccaf8db02b94bfb88a199d678b79e1f59fc0242c62df4560f4a6c4a01778f2"
+    },
+    {
+      "bytes": 4087,
+      "original_path": "retry-executed-42551086845/provenance-review.json",
+      "path": "sources/provenance-review.json",
+      "sha256": "485569f51e55c72c542b02c1109a1b03d0b58c0ce866a81195ec8bcafb32f4d1"
+    },
+    {
+      "bytes": 4288,
+      "original_path": "retry-executed-42551086845/unpacked/continuity-retry-age-execution/evidence/manifest.json",
+      "path": "sources/public-manifest.json",
+      "sha256": "c67c72b965ad097837a6cecac0f09d871ca09d60df389a57820240e367bdbfb6"
+    },
+    {
+      "bytes": 33885,
+      "original_path": "retry-executed-42551086845/remote-sources.json",
+      "path": "sources/remote-sources.json.gz",
+      "sha256": "cadd8525c25a5e5b848b83ca649ba92abfd6f7ad743e2dc2f03cd2201a0836f7",
+      "uncompressed_bytes": 170791,
+      "uncompressed_sha256": "20f70e32bccad549d598a39d3b3bda2801f94fad37c4109f9501f3471fca63ef"
+    },
+    {
+      "bytes": 11431,
+      "original_path": "retry-executed-42551086845/unpacked/continuity-retry-age-execution/evidence/retry-age-report.json",
+      "path": "sources/retry-age-report.json.gz",
+      "sha256": "5cc5cee4a79a464c6a9530ff9bd768e77c877d110dd4e1e7b6e4a170d1d74a2a",
+      "uncompressed_bytes": 206192,
+      "uncompressed_sha256": "7771c25ad23271fa2676b81dfe53b1ecfc3ec1ec2301893d4eb914fb56c738ee"
+    },
+    {
+      "bytes": 24785,
+      "original_path": "retry-executed-42551086845/unpacked/continuity-retry-age-execution/retry_age_driver.rs.txt",
+      "path": "sources/retry_age_driver.rs.txt",
+      "sha256": "75cd41f4cfd38852622a7b6fade4df7af8b5a4f06673465d98615aee2c3e2b1a"
+    },
+    {
+      "bytes": 8759,
+      "original_path": "retry-executed-42551086845/analysis/comparison-analysis.csv",
+      "path": "sources/reviewed-analysis.csv",
+      "sha256": "85c9eeea986268bda4d08a5edae889fe7e09ee18cfb81738c0bfc3ecd56f59fa"
+    },
+    {
+      "bytes": 42016,
+      "original_path": "retry-executed-42551086845/analysis/comparison-analysis.json",
+      "path": "sources/reviewed-analysis.json",
+      "sha256": "f32325bde019300198933214ec20a2c7455c8a7f267ea4b35c2d30c5791f3626"
+    },
+    {
+      "bytes": 9413,
+      "original_path": "retry-executed-42551086845/analysis/RESULTS.md",
+      "path": "sources/reviewed-results.md",
+      "sha256": "046a71cbc848eda9e8cf9c8b4fcda437a5c921c85bf5b991518f909394bda5c5"
+    },
+    {
+      "bytes": 423,
+      "original_path": "retry-executed-42551086845/unpacked/continuity-retry-age-execution/runtime.json",
+      "path": "sources/runtime.json",
+      "sha256": "14e2579981cb2eb4f9720571e9d3ce9ea6de75ddde2682675df808a26932de20"
+    },
+    {
+      "bytes": 1555,
+      "original_path": "retry-executed-42551086845/unpacked/continuity-retry-age-controls/controls.log",
+      "path": "sources/source-and-readiness-controls.log",
+      "sha256": "feae252a729722159a9d98427cceec546f484977072f6f8d8b2080659bb87531"
+    },
+    {
+      "bytes": 13397,
+      "original_path": "research-review/summarize_retry_ablation.py",
+      "path": "sources/summarize_retry_ablation.py.txt",
+      "sha256": "9c869d4a58861b5e9fa5d6be97a730753f07421f7af0315d46010c70a8bee15d"
+    }
+  ],
+  "fixed_protocol_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+  "job_id": 128946601334,
+  "research_head": "29f1c362b67bcd06123ea1bef847af82e9f9e100",
+  "schema": 1,
+  "source_boundary": "Two isolated native test modules added to the fixed protocol source; application-retry readiness is the intervention.",
+  "workflow_run_id": 42551086845
+}

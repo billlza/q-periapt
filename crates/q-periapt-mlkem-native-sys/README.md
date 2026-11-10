@@ -3,9 +3,11 @@
 # q-periapt-mlkem-native-sys
 
 This crate is the single native-code and `unsafe` boundary for Q-Periapt's
-portable ML-KEM implementation. It vendors the `mlkem/` subtree from
-`pq-code-package/mlkem-native` v1.2.0 and exposes only safe, allocation-free,
-exact-array Rust operations for ML-KEM-512, ML-KEM-768, and ML-KEM-1024.
+target-selected ML-KEM implementation. It vendors the `mlkem/` subtree from
+`pq-code-package/mlkem-native` v2.0.0 and exposes only safe, allocation-free,
+exact-array Rust operations for ML-KEM-512, ML-KEM-768, and ML-KEM-1024. The
+public `IMPLEMENTATION_ID` reports the build configuration;
+`active_implementation_id()` reports the implementation selected in the process.
 
 Despite the `-sys` suffix, raw C declarations are private. Callers use
 `MlKem512`, `MlKem768`, or `MlKem1024` and provide all output storage in place.
@@ -14,9 +16,9 @@ An error always leaves every output filled with zeroes.
 ## Security boundary
 
 - All upstream KEM entry points and parameter-dependent helpers have static
-  linkage in one C translation unit. mlkem-native's remaining shared FIPS 202
+  linkage within each implementation's C translation unit. mlkem-native's remaining shared FIPS 202
   helpers use a unique versioned namespace and hidden visibility.
-- Rust links only versioned `qpn_mlkem_bridge_v1_2_0_*` symbols. Those symbols
+- Rust links only versioned `qpn_mlkem_bridge_v2_0_0_*` symbols. Those symbols
   have hidden visibility and deliberately do not use the product-reserved
   `q_periapt_` prefix.
 - Public Rust signatures encode every C buffer length as an array type.
@@ -29,20 +31,32 @@ An error always leaves every output filled with zeroes.
 - Malformed ciphertext is handled by FIPS 203 implicit rejection and is not
   reported as an API failure.
 
-The crate is portable-C only. Its configuration rejects the upstream native
-arithmetic and FIPS 202 backend selectors, and the build compiles no upstream
-`.S` file. It contains no Cargo feature that enables a native backend or
-compile-time CPU assumptions. Native builds retain mlkem-native's small inline
-value barrier, which is part of the portable C constant-time strategy rather
-than an optimized arithmetic/Keccak implementation. Freestanding targets that
-cannot support it select the integration's fixed-loop memory/zeroization
-helpers and upstream's C value barrier. This applies to Wasm and bare-metal
-builds so their C object does not depend on target C-library headers. Windows
-uses its normal C runtime functions and upstream's `SecureZeroMemory` path. Those
-small helpers are part of this crate's integration TCB. The crate is `no_std`
-at the Rust runtime boundary, but building it requires a supported C compiler.
+The build selects upstream AArch64 native arithmetic and a fixed per-target
+FIPS 202 assembly profile only for these five little-endian targets:
 
-mlkem-native v1.2.0 declares its randomized functions even when their
+- `aarch64-apple-darwin` (Armv8.4-A SHA3 profile)
+- `aarch64-apple-ios` (Armv8-A scalar profile)
+- `aarch64-apple-ios-sim` (Armv8.4-A SHA3 profile)
+- `aarch64-unknown-linux-gnu` (Armv8-A scalar profile)
+- `aarch64-linux-android` (Armv8-A scalar profile)
+
+Those builds require GCC or Clang and compile the upstream assembly SCU exactly
+once. The two Apple Silicon slices, whose entire install base guarantees
+FEAT_SHA3 in hardware, force `-march=armv8.4-a+sha3` and use the upstream
+Armv8.4-A SHA3 x1 plus two-way x2 Keccak implementations; the remaining three
+targets force `-march=armv8-a+nosha3` and use the upstream scalar x1 plus
+Armv8-A scalar/Neon x4 Keccak implementations. Each profile is fixed at build
+time, so the resulting artifacts have no compiler-dependent backend selection
+and no runtime CPU dispatch. By default every other target remains portable C,
+including x86, Windows/MSVC, Wasm, and freestanding targets. The Linux x86-64
+candidate below is an explicit opt-in. Freestanding targets select the integration's fixed-loop
+memory/zeroization helpers and upstream's C value barrier, so their C object does
+not depend on target C-library headers. Windows uses its normal C runtime
+functions and upstream's `SecureZeroMemory` path. These helpers and the selected
+assembly are part of this crate's integration TCB. The crate is `no_std` at the
+Rust runtime boundary, but building it requires a supported C compiler.
+
+mlkem-native v2.0.0 declares its randomized functions even when their
 definitions are disabled, which conflicts with strict GCC diagnostics once the
 upstream API has static linkage. The translation unit therefore retains those
 functions as unreachable static-inline code and binds a private random-byte
@@ -51,10 +65,11 @@ function has a bridge or Rust declaration, and deterministic operations never
 call this provider. It is neither a public API nor a runtime fallback.
 
 The upstream project provides CBMC memory/type-safety evidence for C and
-separate formal evidence for selected assembly backends. This crate does not
-use those assembly backends, and it does not claim that portable C has a full
-functional-correctness or source-level constant-time proof. It has not received
-an independent security audit.
+separate formal evidence for selected assembly routines. The allowlisted
+AArch64 builds use upstream routines from that source tree, but this crate does
+not reproduce the proofs or claim end-to-end functional correctness or
+source-level constant-time verification for the integration. Portable targets
+do not inherit assembly evidence.
 
 ELF and Mach-O builds mark the bridge and remaining versioned helpers hidden.
 COFF has no equivalent source-level visibility class; the bridge deliberately
@@ -69,13 +84,49 @@ symbols are unsupported implementation details, absent from the public header,
 and may change without ABI notice. The exact-nine claim therefore applies to all
 named exports of the `cdylib`/DLL. For a `staticlib`, only the reserved public
 `q_periapt_*` namespace is constrained to those nine names; the embedding process
-is a trusted same-address-space boundary, not a sandbox.
+is a trusted same-address-space boundary, not a sandbox. The nine-symbol count
+above is the retained 0.1.5 contract; the 0.2.0 SDK extension remains ABI 2 with
+its separate exact export allowlist.
+
+## Linux x86-64 candidate
+
+`--features linux-x86_64-avx2` is restricted to the exact
+`x86_64-unknown-linux-gnu` target. Other targets reject that explicit feature;
+their default implementation mapping is unchanged. Higher-level backends, SDK,
+FFI and CT harness crates forward the same feature. It is not enabled by default
+until native Linux qualification and performance/release gates are complete.
+
+The candidate compiles the unchanged v2.0.0 portable implementation and the
+upstream AVX2 arithmetic/four-way Keccak implementation into distinct hidden
+namespaces. C code in both units uses `-march=x86-64 -mno-avx -mno-avx2`; only the
+separate assembly unit contains AVX instructions. Rust CPU/feature overrides and
+non-baseline target features are rejected. A `no_std` dispatcher admits the
+fixed native unit only when CPUID reports SSSE3, SSE4.1, POPCNT, XSAVE, OSXSAVE,
+AVX, AVX2 and BMI2, and XGETBV(0) confirms OS preservation of XMM and YMM state.
+It never executes XGETBV before its prerequisites are established.
+
+The non-AVX requirements are load-bearing: pinned rejection sampling includes
+`pshufb`, `pblendw`, `pinsrd`/`pinsrq`, `popcntq` and `pextq`. Do not infer these
+independent feature bits from an AVX2 bit or a CPU brand. The feature cache stores
+only process-wide public CPU/OS capability, assumes uniform capabilities for the
+process, and never contains key or policy material. Capability-based portable
+selection preserves the exact ML-KEM algorithm, key/ciphertext encodings, key
+checks and implicit rejection. There is no classical KEM fallback.
+
+Build identity is `mlkem-native-2.0.0/x86_64-avx2+portable-dispatch`. Active identity
+is either `mlkem-native-2.0.0/x86_64-native-arith+fips202-avx2` or the unchanged
+portable identity. Capture the active identity inside instrumentation as well:
+an AVX2 build running the portable path is not an AVX2 CT/performance result.
+This new dispatcher and its assembly are integration TCB; upstream proofs do
+not by themselves verify this integration.
+
+See [candidate validation and open gates](../../docs/SDK_X86_CANDIDATE.md).
 
 ## Vendored source
 
 [`vendor/PROVENANCE.md`](vendor/PROVENANCE.md) records the immutable commit and
 archive hashes. [`vendor/INVENTORY.sha256`](vendor/INVENTORY.sha256) covers all
-124 files in the repository copy of the upstream `mlkem/` subtree. From a full
+125 files in the repository copy of the upstream `mlkem/` subtree. From a full
 Q-Periapt repository checkout, run:
 
 ```text
@@ -83,13 +134,13 @@ python3 scripts/verify-vendor.py
 ```
 
 The published `.crate` deliberately contains the pinned inventory, provenance,
-licenses, and all 118 build-relevant upstream code files, but not the repository
+licenses, and all 119 build-relevant upstream code files, but not the repository
 maintenance scripts. Crates.io package readers verify its immutable contents via
 the archive checksum and inventory; the commands in this section require a
 repository checkout.
 
 The repository retains the exact upstream subtree. The crates.io package
-contains all 118 code files (`.c`, `.h`, `.inc`, and `.S`) but excludes the six
+contains all 119 code files (`.c`, `.h`, `.inc`, and `.S`) but excludes the six
 CC-BY-4.0 upstream README files because they do not participate in the build.
 The packaged code is available under Apache-2.0 or MIT, matching this crate.
 
@@ -104,10 +155,15 @@ Without `--archive`, the update script downloads the immutable commit archive,
 verifies it before extraction, rejects unsafe paths and non-regular selected
 members, and replaces the subtree only after complete staging.
 
-## Resource bounds
+## Historical portable stack reference
 
-The upstream v1.2.0 headers report the following maximum cumulative stack
-allocations for the portable configurations used here:
+The following v1.2.0 figures are retained as historical context; they do not
+establish v2.0.0 stack bounds. Fresh compiler/target measurements are required.
+
+The upstream v1.2.0 headers report the following maximum cumulative C stack
+allocations. The table applies directly to portable builds; allowlisted AArch64
+builds additionally enter bounded assembly frames and require separate
+source-bound stack verification:
 
 | Parameter set | Key generation | Encapsulation | Decapsulation |
 | --- | ---: | ---: | ---: |
@@ -115,4 +171,4 @@ allocations for the portable configurations used here:
 | ML-KEM-768 | 10,176 bytes | 13,248 bytes | 14,336 bytes |
 | ML-KEM-1024 | 15,552 bytes | 19,136 bytes | 20,704 bytes |
 
-These are C implementation bounds and do not include caller or Rust stack use.
+These bounds do not include caller, Rust, or native assembly stack use.

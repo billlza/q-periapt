@@ -1,0 +1,24 @@
+[package]
+name = "sdk-x25519-table-probe"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.98"
+publish = false
+
+[workspace]
+
+[features]
+precomputed = ["x25519-dalek/precomputed-tables"]
+
+[dependencies]
+q-periapt-sdk = "=0.2.0"
+x25519-dalek = { version = "=3.0.0", default-features = false, features = ["static_secrets", "zeroize"] }
+
+[patch.crates-io]
+q-periapt-core = { path = "packages/q-periapt-core-0.2.0" }
+q-periapt-kem = { path = "packages/q-periapt-kem-0.2.0" }
+q-periapt-sig = { path = "packages/q-periapt-sig-0.2.0" }
+q-periapt-mlkem-native-sys = { path = "packages/q-periapt-mlkem-native-sys-0.2.0" }
+q-periapt-backends = { path = "packages/q-periapt-backends-0.2.0" }
+q-periapt-policy = { path = "packages/q-periapt-policy-0.2.0" }
+q-periapt-sdk = { path = "packages/q-periapt-sdk-0.2.0" }

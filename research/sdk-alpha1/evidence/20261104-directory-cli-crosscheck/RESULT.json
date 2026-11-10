@@ -1,0 +1,471 @@
+{
+  "schema": "qperiapt-directory-cli-crosscheck-evidence/1",
+  "completed": true,
+  "candidate_base_commit": "6084f3bfb09333f6b66291b38809ed512296a27b",
+  "candidate_form": "uncommitted P2 worktree files; hashes identify exact tested inputs",
+  "source_files": {
+    ".github/workflows/independent-continuity.yml": "b39a02ac81f38b8586bfbcc6862ba77e5bd8cbce33923dd123c3c4c7e7f3a3a3",
+    "artifact/continuity_independent_python.py": "778b2a13b3f5dbe838cae05259e7aec22fbb1b4764a8992dc15f6a49637ccd0a",
+    "artifact/continuity_independent_python_run.py": "4f9346ffaf647f5ff3195e26f2e5df6235ef1e52040e1dc35f1cd0c9a831f4fd",
+    "artifact/test_continuity_independent_directory_cli.py": "aacfaa5d36871247899378863c4c274636410161f6115b620d5647089d7d03b1",
+    "research/continuity-reference-app/Cargo.toml": "d8331e7364fca5d4f0cd5cc7fcaf2a7337b26e6a5ca9dfa61eb62fb9b7c6af96",
+    "research/continuity-reference-app/Cargo.lock": "b766c72a0cbf315b814742bc71439d62ce61e0ecc491d3fa514d592d7408670b",
+    "research/continuity-reference-app/tests/native_device/directory_leases.rs": "a6c47be0010ec25382e76eb5ed3906509390111f1e8e8abc6a01e968de3dd6a1",
+    "research/continuity-reference-app/tests/native_device/publication.rs": "4f4da12175701a25d7c9b1e98a39ee93d628d0901985a0c603364e379db14cb7",
+    "research/continuity-openssl-peer/directory_cli_checks.py": "8d5afa69d58159754247d1175ebcb835d537c5156c58ed99b0674409908d4112",
+    "research/continuity-openssl-peer/README.md": "96e72c95a5d45f96586259b6700f8d037970da68b5a252dd6f53b2bb0439892c"
+  },
+  "profiles": [
+    {
+      "profile": "debug",
+      "cli_test_passed": true,
+      "test_stdout": "cli-05.stdout",
+      "cli_sha256": "4544396137e5aa3fc5eb266a5113091f3205c6c943072ff8791fa61eb1481f67",
+      "source_report": "source-03/RESULT.json",
+      "installed_report": "installed-03/RESULT.json",
+      "public_directory": "public-05",
+      "public_files": {
+        "cancelled.bin": "7327625a1d40ad2dfa6383d281203ee1ebb3097b4f02a53085485aafbd420255",
+        "original-history.json": "fd460344945851a7dba8f090013d66a529226ea0c0aadee17fb9f709bc00eb6f",
+        "expected.json": "8249c3a66ba3289806775bf06894c1b63fd0eec67dcabf2b569964d66eda0622",
+        "fresh.bin": "6f3fa93a0ca187a239bc3242307ceee2d1624671213e0d28c6557fcc5188725e",
+        "retry.bin": "7327625a1d40ad2dfa6383d281203ee1ebb3097b4f02a53085485aafbd420255",
+        "bad-signature.bin": "bfa191e253803bd45961201d099659fc266a4811087216c0ca5b0d164879b405",
+        "pin.json": "bbf1af1cd801bc55e9daff629a5ff62c920e6e2409987fbba836f08d4ae28042",
+        "conflict.bin": "18dde36b05a8c35f51d4802853c57166df9ecf52a7b53243265b5e6b89622693",
+        "fork.bin": "f305731218ae881225fd8dfe6866692e5987e382b348dfaf93ab9157d40deb02",
+        "first.bin": "7327625a1d40ad2dfa6383d281203ee1ebb3097b4f02a53085485aafbd420255",
+        "cli-trace.jsonl": "52a75498919971ff7b0ada41a43df3783f7413bff17fac805b809df2b2eea15c",
+        "wrong-service.json": "91296acf2ec2a69d6bcddfe606a23811a91fae51f44325f5d13d5e52d820a765",
+        "inspection.json": "932fed92c70fae6e20e1a2bdc7f7958837c9f9b5590a3d0c4b0050b5723def4d",
+        "history-trace.jsonl": "5d8473bc6480bb3cbb82211dbfefbe71da2670a1e9bdf904e7877b5306eb3630",
+        "wrong-key.json": "b89e10e492fbcbeb24568f788f8844eccf654eb7a79cde5d9a540b540aff7912"
+      },
+      "cli_processes": 31,
+      "historical_processes": 4,
+      "ledger_operation_counts": {
+        "after_cancel_and_refusals": 1,
+        "after_exact_retry": 1,
+        "after_fresh_pair": 2
+      },
+      "negative_controls": [
+        "bad-signature",
+        "wrong-service",
+        "wrong-public-key",
+        "exact-retry-is-not-conflict",
+        "bad-pq-signature"
+      ],
+      "canonical_conflict_sha256": "18dde36b05a8c35f51d4802853c57166df9ecf52a7b53243265b5e6b89622693"
+    },
+    {
+      "profile": "release",
+      "cli_test_passed": true,
+      "test_stdout": "cli-release-02.stdout",
+      "cli_sha256": "3601a8b3f67545880d8d98c55da2f545bdfa38a27306561835bb56ebe5b4ce4e",
+      "source_report": "source-release-01/RESULT.json",
+      "installed_report": "installed-release-01/RESULT.json",
+      "public_directory": "public-release-02",
+      "public_files": {
+        "cancelled.bin": "c1290fd6292af7cdb36a2dda57307d29507d2be18ec58d2df488b68363c9f7c5",
+        "original-history.json": "b7a5fcf440da1e09792558df5d3fbbeadaab3df632d99c16d67d010c8210b58d",
+        "expected.json": "236a830054441037bfe92c8bb6f5cb1ed8cb7aeac7963001822a4e0c637c3b9e",
+        "fresh.bin": "566a29af532589d13d8852fdccd047d6294bfb8e9d2965dbf283608db9765ad0",
+        "retry.bin": "c1290fd6292af7cdb36a2dda57307d29507d2be18ec58d2df488b68363c9f7c5",
+        "bad-signature.bin": "4f0e93dadfb19b9b0c042f7136f3fa6f813b02e621c4cd8c43cdfbb8d72172a1",
+        "pin.json": "9d55254942c97ebfdc7b53e96fabbf93dc0d01afbc075e04edeb6505f2b4538f",
+        "conflict.bin": "88ab36cc108266ab792ade1b042115b5392232ca2ebcc74fbbbebdfe7941417e",
+        "fork.bin": "ae55d92ce0b3e054d53869648b724f9420b02df9653c3dc434c9d7aa5597800f",
+        "first.bin": "c1290fd6292af7cdb36a2dda57307d29507d2be18ec58d2df488b68363c9f7c5",
+        "cli-trace.jsonl": "0e86e009112a9658a2946525a402b07a8ae8fb48716eedc927527296b88889e6",
+        "wrong-service.json": "54f9ac50823ce102ac2a1ba5ca7bfd43ddccc4e9611a035c0597d030b6f77002",
+        "inspection.json": "3867d5c57df128d362614b8d4acd0b14be6d22ef95b37e5af7463c5ff1053985",
+        "history-trace.jsonl": "9e93d06733fc0d6e2cd12c255c9a52549695a5e9252a0dfbc501c0dab337db1e",
+        "wrong-key.json": "215542198fa49d7f719c05541055ecd5224980c2c5ce32161472d63dfebdab11"
+      },
+      "cli_processes": 31,
+      "historical_processes": 4,
+      "ledger_operation_counts": {
+        "after_cancel_and_refusals": 1,
+        "after_exact_retry": 1,
+        "after_fresh_pair": 2
+      },
+      "negative_controls": [
+        "bad-signature",
+        "wrong-service",
+        "wrong-public-key",
+        "exact-retry-is-not-conflict",
+        "bad-pq-signature"
+      ],
+      "canonical_conflict_sha256": "88ab36cc108266ab792ade1b042115b5392232ca2ebcc74fbbbebdfe7941417e"
+    }
+  ],
+  "commands": [
+    {
+      "label": "cli-05",
+      "env": {
+        "OPENSSL_DIR": "/Users/bhmq03@durham.ac.uk/Documents/Codex/2026-10-30/la/work/release-020/openssl-3.5.9-preparation/installed",
+        "CARGO_HOME": "/Users/bhmq03@durham.ac.uk/Documents/Codex/2026-10-30/la/work/rust-runtime/cargo",
+        "CARGO_TARGET_DIR": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/directory-cli-crosscheck/build",
+        "RUSTFLAGS": "-D warnings",
+        "QPERIAPT_DIRECTORY_PUBLIC_OUTPUT": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/directory-cli-crosscheck/public-05"
+      },
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "research/continuity-reference-app/Cargo.toml",
+        "--test",
+        "native_device",
+        "publication::actual_cli_verifies_one_time_publication_without_opening_state",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "cli-release-02",
+      "argv": [
+        "cargo",
+        "test",
+        "--release",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--manifest-path",
+        "research/continuity-reference-app/Cargo.toml",
+        "--test",
+        "native_device",
+        "publication::actual_cli_verifies_one_time_publication_without_opening_state",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "environment_same_as": "cli-05 except QPERIAPT_DIRECTORY_PUBLIC_OUTPUT=/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/directory-cli-crosscheck/public-release-02",
+      "exit": 0
+    },
+    {
+      "label": "clippy-02",
+      "argv": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "research/continuity-reference-app/Cargo.toml",
+        "--test",
+        "native_device",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "fmt-02",
+      "argv": [
+        "cargo",
+        "fmt",
+        "--manifest-path",
+        "research/continuity-reference-app/Cargo.toml",
+        "--",
+        "--check"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "evidence-tests-02",
+      "argv": [
+        "sh",
+        "artifact/python-run.sh",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "artifact",
+        "-p",
+        "test_continuity_independent*.py"
+      ],
+      "tests": 56,
+      "exit": 0
+    },
+    {
+      "label": "workflow-tests-02",
+      "argv": [
+        "sh",
+        "artifact/python-run.sh",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "artifact",
+        "-p",
+        "test_continuity_workflow_partitions.py"
+      ],
+      "tests": 13,
+      "exit": 0
+    }
+  ],
+  "wheel": {
+    "completed": true,
+    "scope": "focused installed Python wheel directory CLI readback",
+    "whole_installed_lifecycle_run": false,
+    "rust_cli": "source-build",
+    "installed_rust_counterpart": false,
+    "wheel_sha256": "596bba62781296558a64d768a12ed618043b8cf3e14070cdf81c2ed423d3a094",
+    "modules": {
+      "__init__.py": "9d7337e6f4f439c45ab9dc47bfdbff1335ec366df00229f36a31ae65f489bf9c",
+      "account_authority.py": "32dca4d3733ab5fe192abb8d11a9f3611a28dc0c5379676e7128dede3c21f948",
+      "account_authority_state.py": "12b9158ad46ac97143f420da09faad0387d85e39b247953bdba43570b78b54aa",
+      "account_binding.py": "6e3f55715c8a4203f1486293485e67aa073c6ef7cc2d7848bad66b7e109a936b",
+      "account_record.py": "f50d6f8f0ae69ae8b4c53e0f6784c38bbfb02051389eb30d193cca3eae08cc01",
+      "account_request.py": "108458fb1436afc37364692e782519305ec02e2252d4fb06d03c8b4b26a7b823",
+      "account_root_protocol.py": "39f8a03388f2754d5dd37f3a9c8efbf751d1e9d78d279d2031bc3ed8391b6506",
+      "account_root_record.py": "fa9e8b813d26debb6516a9d4b4b11fc50077cb06858461197da2f3dfe99b503b",
+      "account_snapshot.py": "028f510b29a3840083cde52e89772fe362a69b599421dadbaed443326bb6b51e",
+      "account_state.py": "8018e40b50685730a6220ec0dc48a50219738ee9473041edd82bc2c4e1ae772e",
+      "authority.py": "a81bad1479ee3f1f808c0c48273e44c89c9db87a4ac832d09a5be192f71fa689",
+      "bootstrap.py": "0a5803f8f553a8c45447beb8b82c0c5e6a5a90c6426f77b7320611e8a7ccbef5",
+      "bootstrap_bundle.py": "7ddeb7c2c58be462cf28af6a9518dbedc221ad3a0ea445097c8442f6b8219438",
+      "cli_files.py": "d216ae6146a8a7c421e5d158485a09d965e68c66576649e4c92805ccbb41d38a",
+      "client_configuration.py": "b0f26ed5effde46e079f1618cb63241e45a9760914784721cb4c8855c71c2de4",
+      "client_root.py": "f28fb9ddf8df835ef7dceffaef09ad15728ed9720fb363c62445618b63c0846e",
+      "client_root_adoption.py": "7431e9f592fe5cfd8fea5840d77c65a1a5a45ae24690e8264f5006757ac46821",
+      "client_root_recovery.py": "4805bbb906b5a5993ed181c983320bf13978e86f71b20efaed0e3b45c37de2a5",
+      "client_root_successor.py": "9d984b313bd4d1c7937c9e14df29afb28c416d9eb0a00902afd221914f67398e",
+      "client_root_winner.py": "f1fcae3adcf312854b65fefdd8ec15186a3f43c77653f01ed895fb63190af2c8",
+      "client_successor_retirement.py": "5fda0c08bd21df22aee4c89771014f017fe20fcd58c8285bc6d82e190a165f6d",
+      "connection.py": "8bc863875cf7716edd4a5cc5e5aee281225611ed55f479c419e710fbe527ae1e",
+      "connection_confirmation.py": "a7770003119379679d811af200e6e51cde95a3f4a2874ec72003c1d7bed702e1",
+      "connection_run.py": "bd1b4d6614b28e3c4e967dbb9ccffd2963aa313d8cd5c57c81ee555e9aedc9be",
+      "connection_wire.py": "21ade90904aaa59ae78316e241e0d9e1bb02f44009049de1774a80ead408e28f",
+      "control.py": "de618f2cde8686a8767ce0d7c80e04e3854670b47a5b0399e20ad2217e1010a6",
+      "credential_cli.py": "03e3ef0baaba608073f7b6506d1c5bf86ae925cb98df06600b4ca2a8cbb230e5",
+      "credential_inputs.py": "5c40b1117803d1f05581880913fd7c435bf43ca4f9eca50d42ec79bddb805257",
+      "credential_request.py": "88c5162a3a70188205ce3b74ec5090e51880db7f80f2ba341056b1afe2eec8d1",
+      "directory_lease.py": "145ad31ea8058fba8f680bf70bfef75f535d3750db962dea38d27d5781d982d4",
+      "durable.py": "992a9b51a221baa60a436074b34191f9c18a993a996bf776c23739da5ca84865",
+      "enrollment_cli.py": "fad3a5a1a9e7a6d34b1e87d073656ba7ca9d6e21973b4f5c5def432ee6fb036e",
+      "enrollment_client.py": "3bc55d3183cfb87fb6d4e93416b6cc4a4d005c160695299b8c7d0b0c9c942071",
+      "enrollment_exchange.py": "dd3aaff4b7e547b73872c39807df1d97b1780f6d98922eefcad08feb821aa3e1",
+      "enrollment_extension.py": "3f7f83f6d1347757f8535fa0131b0a88dc885660a4aa8ce114605f3e0132266b",
+      "epoch_codec.py": "18f52cc050a54aac22ceecd7a25b748d2329695d55cda315ef21019eb199555c",
+      "epoch_state.py": "f82e7be479cb881d2aed80832a6c1d26e1af2495e86b75c3bbc1eb52e6d9bf0c",
+      "epoch_validation.py": "055b2adfaf01e48684ae9e08c59849bf7813c6985b0d9f86c291e7a25d7d9198",
+      "historical_inputs.py": "3d26d7a4735e6b3e3f6c26ca0fe5b991eebb4f4eba2ea2629c349059c8e49fc3",
+      "identity.py": "1652643e4203c5d1e707b62ca7f4f9ca338a205381fb8cbeb7be21f25504a158",
+      "identity_state.py": "b711225fbb259cbd90e3162d8d6c4b524af9c23ac65c9470618c82041c2ca6cf",
+      "journal.py": "d90303f781308ae73bfa2e067dc97b34b6709322f03a492cceecd6f62bb67beb",
+      "kem.py": "f7ecbfe02d3c50ae61a0843cda962671d5b3e41931bc922fcb15d6bbbba6e1e9",
+      "local_authority_control.py": "132681c554cbca165f34d1b7fc2c4bb1be8c3c50ac22b772ff71dafb8f641a36",
+      "local_credential.py": "dd89e4251dc46909c3042a41b4ae50b3c50012019f45d97a2d287ca68bbfbc3a",
+      "local_policy.py": "513c07f4e5ecee24a64e369dbcde29f25de184533454ec76c9e594e2d26b45e4",
+      "local_renewal.py": "592a708142ae80d62ad6ad5c6f64b4472b476dd534421c0f6e747bf345ae7b65",
+      "local_renewal_intent.py": "19ebd8265b635a22c8c62ed9abe4eecd355acd5837a0081b2d690f55a2e0ed34",
+      "local_renewal_protocol.py": "c263c675ae1acf2cddb791a1616b9a3fb7f8f162f01707388ac6d81b6928aec9",
+      "local_renewal_record.py": "504ec5738e3dc1c9cd121ef7d1fbaf85b3f377dc4219dc89f62f6bd1b49a46bc",
+      "mailbox.py": "6b3f8785b45c605d18807d22dd33125af93744353b57d0e8e4a0fba55050be38",
+      "maintenance_terminal.py": "06ecd2b0daebae3fc0457e50d0a4e00f494287738845ae1b8afe5fb19696fd24",
+      "network.py": "79bc360a26c39035670ffba7d9a5e84a21b150cfcf76025db2bc2f968fb1fd42",
+      "network_server.py": "0d1f68074627a2f02b16cf8fe7f4a76b349477e89885ad3df439e4993537f4d0",
+      "one_time_publication.py": "f7be7c0ff9bbe9096a8274b41ad5f8213f4db7da6116729d7835d83ba8a2fff0",
+      "owner_guard.py": "4b18dfff66ae347c30351860070aefdc0f909555a951f848d24d259ba52d5dc9",
+      "peer_owner.py": "ac1187b289b68959a74eb057aec35b2479b4192d2008df2ffaade99dbad64eb1",
+      "pending_recovery.py": "650a76ab96488f906316cdc0792d5ce651a6e7a632d9e35943a2486f805af7b9",
+      "pending_recovery_protocol.py": "94a1cbb4c78144efc17d3fca1bf86cd930389df9e8c1479d46be8593d216c6d3",
+      "pending_recovery_views.py": "d048a4097feb5e96a395bb644c1d830651eb0d17d871d855879c42180ae7277b",
+      "policy_cli.py": "a2ca25605f8b9e3ac919beb117767cb9a0c4287a9381caa4681de0d0e2d1aa98",
+      "policy_control.py": "067d89a36a350d8eebbb70a5bc349a3550b85b379eea64a9fa326d0980fc854d",
+      "policy_intent.py": "6af359c8567e6dbbc88d9c7ebfdbc87426b1a9e363a6502472b6f3ad84f09618",
+      "policy_owner_inputs.py": "0df252267e624d160cafb81b5e5ea867755c215dc4acbe1ca4b11afdd58f9326",
+      "policy_record.py": "626ac3918d2e78bb762a555d88282d4070d233fa09d52ed3af3d2ea21e77cbaf",
+      "policy_renewal_proof.py": "3023de38a5971773e0facead2be6788bfb0e2b7ca2f9f762261f072722a7c31f",
+      "policy_request.py": "9dd5aea109f389d44b2bf475da71b3ae7c882634d8106d511bfe6351dbb2968d",
+      "policy_snapshot.py": "8629e8be4daf59bfc712ceef81817355f1de32aa0de2b691ebd31452cd0d23ad",
+      "policy_witness_protocol.py": "19ed2dbf96bbe7967d3392dfa707b5b4064681ca30a114668503f89e6d4a9d4c",
+      "private_files.py": "4488e949e14b10991517c283ae1bbe588295c672897716a26a2e643293f473f3",
+      "provider.py": "cc4840f7c2c7c23d97b522fb512bb6547b0570e79da092dcef4881988362bd76",
+      "publication.py": "cd9cfa11ef45c948965664da0bdfa70f6a9f7b0b564b965518523d632019d626",
+      "publication_inputs.py": "8e32bf2ef042042b62910134d1c9afd7c9b3ed3a0dca6407c7dba3a081ffce6a",
+      "registered_owner.py": "794d82ad610d28d12fde52664bb01e9a4e133b6854c2062ffd03e1a00540405d",
+      "registration.py": "14415123ee4b909e19c479ce77bae19a5f0a7147050cdf7b1ef27a56df0411f1",
+      "registration_connection.py": "c7619b041cfcd0d38ecc3163a4abe02bc8512946c120b926a3e623d93d3d8ef8",
+      "registration_extension.py": "aa75b4d12f7c5bc2ffdeffb6acc1d35557ae7dbc454b31c970e69cf488493ff3",
+      "registration_inputs.py": "3fd7c6f37e63067da33b3044b496d0d2b724039649abbf8601a688e2cf342c8c",
+      "registration_protocol.py": "2848f9f70fc0d5ae38fdbb2a0e25ff4b5c1261d6a553126ec7cde098984bf31c",
+      "registration_session.py": "9cab095215a5c6a712f10fe074cdb9e8c95713f43c9a91121375fe2c7712ef97",
+      "registration_state.py": "a0c2473952f9cbe468968329ad687da2d8f35ae1faa30170a4cb269c2f3a33c6",
+      "rekey.py": "2e8c6bf5115c2bff9e854c2d71773e93a864fbf6bb902d4a8ac63159233ac897",
+      "rekey_owner.py": "3ebecfd06c0613ebd92cf0b2c293498adf57017a9e74e0da90c50232a59788c6",
+      "renewal.py": "4b2eafcf382bbe017dec5be15e2648500ae8efb215b8d73366775946ef91dd30",
+      "resolution.py": "9bf42d1f765f92c16e50823db8ab2fe1162c28d4e453cdf3360a536256fa0f75",
+      "resolution_owner.py": "dd30c4fc2c219120f8a1ce3476bc539156b89c03d5dfb581d25eb1e4df664585",
+      "root_adoption_journal.py": "c23dc5fb27576530ef7293d0c9eb4b5543286e0491d58c573b6ab61f91a5446a",
+      "root_child_snapshot.py": "875595aa10e56629a52ac239de3a041192092ab65cd2b37ff197e66c5f134b71",
+      "root_fence.py": "89891869cc7f272633f6c33b77af089f5076e5021859c03c414ca8d5956fbd28",
+      "roster_control.py": "be18d145739c6b85829063a58092a976ab492f6d8c140a3b53e81634f95c36a4",
+      "roster_intent.py": "cc39792c6664dfe8b17041e0bf3fb424e800ed5c4e822fb41189fd8d50dc68d1",
+      "roster_protocol.py": "560917fdedc37effca27056f0bc06fbe9efdf7e60122b8b01073e8f5201afc0a",
+      "roster_refresh.py": "14d2c4cac53764eb6d1a5ce0cc7e464a707723640f1477aebab28a6192845c55",
+      "session_cli.py": "67356d7a4fdd6429d7daa2e5e815c63fefeccc681647dc81317cd4aa895ae737",
+      "session_server.py": "0f18f7a3c9d50d2ab62a31a2a6fb2c2682bf0657e2b0f01f646db67429ef3a32",
+      "snapshot_fields.py": "2d5d3a33410fd58ccd217640fe5ccf654c66a55d51ef09b02948e001c68a135f",
+      "state_codec.py": "c222a084f5c784e0f6e21c788a83df002ba3f4977df6bdf93626ce6183f12ef1",
+      "storage_budget.py": "082c5e12520a4aa49a262a34268c9bbac8a7576c62ee12c31816550d940ed980",
+      "traffic.py": "fc6212e4560bfc0db0a9d1811abf9a3bdc447bf40e903a744597bc2e131ec1de",
+      "traffic_codec.py": "0392ba7bac589b92fb584201f2bf19f9bdfa6ca0c4336fa0a48dd10a9a62a7a7",
+      "wire.py": "bc662b0a96acca08b70812c853025ebb1724a0bce4e958f8f6e035e903247c97",
+      "witness.py": "25bcebe0a724c68e27199c444ec1aef905e9b8cedb98dc8f710eb2d0c9430c6a",
+      "witness_journal.py": "4597ce5c37f6e96390328384af6d1fdb2fe1a9c5098273c344a8489b411a6e4e",
+      "witness_policy.py": "45fff8c7c215bb70c0691012cf55a2d4b98d4789dfd3a63fca1ac5a3dbbead55",
+      "witness_session.py": "8cb0980dcd98f0673e781acc926ec9ee21e4508a61ddfbda8f1280ec6dbae0f3"
+    },
+    "public_files": {
+      "cancelled.bin": "7327625a1d40ad2dfa6383d281203ee1ebb3097b4f02a53085485aafbd420255",
+      "original-history.json": "fd460344945851a7dba8f090013d66a529226ea0c0aadee17fb9f709bc00eb6f",
+      "expected.json": "8249c3a66ba3289806775bf06894c1b63fd0eec67dcabf2b569964d66eda0622",
+      "fresh.bin": "6f3fa93a0ca187a239bc3242307ceee2d1624671213e0d28c6557fcc5188725e",
+      "retry.bin": "7327625a1d40ad2dfa6383d281203ee1ebb3097b4f02a53085485aafbd420255",
+      "bad-signature.bin": "bfa191e253803bd45961201d099659fc266a4811087216c0ca5b0d164879b405",
+      "pin.json": "bbf1af1cd801bc55e9daff629a5ff62c920e6e2409987fbba836f08d4ae28042",
+      "conflict.bin": "18dde36b05a8c35f51d4802853c57166df9ecf52a7b53243265b5e6b89622693",
+      "fork.bin": "f305731218ae881225fd8dfe6866692e5987e382b348dfaf93ab9157d40deb02",
+      "first.bin": "7327625a1d40ad2dfa6383d281203ee1ebb3097b4f02a53085485aafbd420255",
+      "cli-trace.jsonl": "52a75498919971ff7b0ada41a43df3783f7413bff17fac805b809df2b2eea15c",
+      "wrong-service.json": "91296acf2ec2a69d6bcddfe606a23811a91fae51f44325f5d13d5e52d820a765",
+      "inspection.json": "932fed92c70fae6e20e1a2bdc7f7958837c9f9b5590a3d0c4b0050b5723def4d",
+      "history-trace.jsonl": "5d8473bc6480bb3cbb82211dbfefbe71da2670a1e9bdf904e7877b5306eb3630",
+      "wrong-key.json": "b89e10e492fbcbeb24568f788f8844eccf654eb7a79cde5d9a540b540aff7912"
+    },
+    "module_implementation": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-directory-python-akg2_n1g/installed-final/qperiapt_continuity_reference/directory_lease.py",
+    "commands": [
+      {
+        "argv": [
+          "/Users/bhmq03@durham.ac.uk/.local/bin/python3",
+          "-I",
+          "-m",
+          "pip",
+          "install",
+          "--isolated",
+          "--disable-pip-version-check",
+          "--no-index",
+          "--no-deps",
+          "--no-compile",
+          "--require-hashes",
+          "--target",
+          "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-directory-python-akg2_n1g/installed-final",
+          "-r",
+          "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/directory-cli-crosscheck/wheel-final-requirements.txt"
+        ],
+        "cwd": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-directory-python-akg2_n1g",
+        "exit": 0,
+        "wheel_sha256": "596bba62781296558a64d768a12ed618043b8cf3e14070cdf81c2ed423d3a094"
+      },
+      {
+        "argv": [
+          "/Users/bhmq03@durham.ac.uk/.local/bin/python3",
+          "-I",
+          "-S",
+          "-B",
+          "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-directory-python-akg2_n1g/artifact/python_bootstrap.py",
+          "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-directory-python-akg2_n1g/installed-final/directory_cli_checks.py",
+          "--provider-root",
+          "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-directory-python-akg2_n1g/provider",
+          "--input",
+          "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/directory-cli-crosscheck/public-05",
+          "--output",
+          "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/directory-cli-crosscheck/installed-03"
+        ],
+        "cwd": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-directory-python-akg2_n1g",
+        "exit": 0,
+        "wheel_sha256": "596bba62781296558a64d768a12ed618043b8cf3e14070cdf81c2ed423d3a094"
+      }
+    ],
+    "release_claim_eligible": false
+  },
+  "provider": {
+    "cryptography": "48.0.1",
+    "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+  },
+  "python": "3.14.10 (main, Oct 26 2026, 13:59:48) [Clang 23.1.3 ]",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "host": "Darwin arm64",
+  "earlier_failures": [
+    {
+      "attempt": "cli-01",
+      "cause": "OpenSSL build discovery missing explicit OPENSSL_DIR; target test did not execute",
+      "files": {
+        "cli-01.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "cli-01.stderr": {
+          "bytes": 10563,
+          "sha256": "ec20c572a7c10c92ccc60ed755213f875d0b812ca767c62eb6ef2271bf662ae1"
+        }
+      },
+      "private_log_retained_locally": false,
+      "local_directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/directory-cli-crosscheck",
+      "original_result": "failed"
+    },
+    {
+      "attempt": "cli-02",
+      "cause": "new test fixture needed explicit conversion from q-periapt-core error to boxed test error; fixed without suppressing",
+      "files": {
+        "cli-02.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "cli-02.stderr": {
+          "bytes": 6631,
+          "sha256": "fb32ae2ca2f3a23a42a98a00f4c18a2e7cf9608af9c1b72dfaf786b3c2ba89a6"
+        }
+      },
+      "private_log_retained_locally": false,
+      "local_directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/directory-cli-crosscheck",
+      "original_result": "failed"
+    },
+    {
+      "attempt": "cli-03",
+      "cause": "new status query reopened enrollment database and changed its pages; replaced with already retained signing_id; original byte invariance assertion retained",
+      "files": {
+        "cli-03.stdout": {
+          "bytes": 311,
+          "sha256": "7a8441b7b910d4cac5a2ee556ecc48aaadc77b389090bb8e95a459b832f0078e"
+        },
+        "cli-03.stderr": {
+          "bytes": 10954557,
+          "sha256": "922f6e5954ac5e97d434327da4a0f1c250b54ea73461f6a6c2a4fea5dec4172c"
+        }
+      },
+      "private_log_retained_locally": true,
+      "local_directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/directory-cli-crosscheck",
+      "original_result": "failed"
+    },
+    {
+      "attempt": "installed-01",
+      "cause": "checkout-root bootstrap correctly refused external installed script; used copied bootstrap rooted in isolated installation, with unchanged enforcement",
+      "files": {
+        "installed-01.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "installed-01.stderr": {
+          "bytes": 180,
+          "sha256": "709aada2e74ec11e877b4e58e1f9af16f110031f360060452986ef251b70f3dc"
+        }
+      },
+      "private_log_retained_locally": false,
+      "local_directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/directory-cli-crosscheck",
+      "original_result": "failed"
+    }
+  ],
+  "ci_workflow_executed": false,
+  "whole_installed_lifecycle_executed": false,
+  "installed_rust_counterpart": false,
+  "historical_verification_does_not_establish_current_permission": true,
+  "release_claim_eligible": false
+}

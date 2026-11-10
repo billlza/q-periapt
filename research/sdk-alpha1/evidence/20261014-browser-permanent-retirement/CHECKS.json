@@ -1,0 +1,138 @@
+{
+  "archive": {
+    "bytes": 47968605,
+    "members": 16257,
+    "sha256": "d01170655d60090c472f65da6e23aec77131d183e02f243f26f7aad792d8b186"
+  },
+  "base_commit": "3c223dcd3e7a2191b42e69188bac38a235b6c82a",
+  "browser_calls": 282,
+  "cases": [
+    {
+      "calls": 40,
+      "case": "signer-commit-loss",
+      "cleanup_complete": true,
+      "run": 4,
+      "views": [
+        "authoritative"
+      ]
+    },
+    {
+      "calls": 39,
+      "case": "signer-missing",
+      "cleanup_complete": false,
+      "run": 4,
+      "views": [
+        "authoritative"
+      ]
+    },
+    {
+      "calls": 39,
+      "case": "signer-swapped",
+      "cleanup_complete": false,
+      "run": 4,
+      "views": [
+        "authoritative"
+      ]
+    },
+    {
+      "calls": 41,
+      "case": "expired-unapplied",
+      "cleanup_complete": true,
+      "run": 6,
+      "views": [
+        "authoritative",
+        "uncommitted_target"
+      ]
+    },
+    {
+      "calls": 41,
+      "case": "expired-applied",
+      "cleanup_complete": true,
+      "run": 6,
+      "views": [
+        "superseded_source",
+        "authoritative"
+      ]
+    },
+    {
+      "calls": 42,
+      "case": "journal-interruption",
+      "cleanup_complete": true,
+      "run": 7,
+      "views": [
+        "authoritative"
+      ]
+    },
+    {
+      "calls": 40,
+      "case": "signer-cancellation",
+      "cleanup_complete": true,
+      "run": 7,
+      "views": [
+        "authoritative"
+      ]
+    }
+  ],
+  "completed": true,
+  "documentation": {
+    "docs/continuity/PRODUCT_ADMISSION.md": "a1e561af714a1045f34b73ee3522c5057453c41814a93dd5870e91cfb9a189a9"
+  },
+  "limits": [
+    "same shared engine on one host; loopback transport",
+    "logical erasure, not physical deletion or backup erasure",
+    "in-place renewal across unapplied expired intent remains open",
+    "managed account-root cutover and witness-key handoff remain open",
+    "nonempty inbox/prekey/terminal metadata, wider lifecycle/platform and release qualification remain open"
+  ],
+  "package": {
+    "browser_runtime": "not-run",
+    "installed_node_tests": "passed",
+    "manifest_sha256": "acf0cdd33ebdf5fb1591c719da13c8ecd78e4825325ca745bc4037267b6e5cee",
+    "sha256": "569510a0c601270bfa75b5ea10fb20a1b7abed8519727994d2c6c35761b922a3",
+    "typescript": "7.0.2 strict NodeNext passed"
+  },
+  "private_state_included": false,
+  "release_claim_eligible": false,
+  "source_overlay": {
+    "ARTIFACT.md": "23c737ddac6e61193d2ae82f9fcd7d333c392299cfe1a10f927ac5dba4f7c809",
+    "artifact/codeql_rust_quality.py": "1e20e7974d8a30f78fb638d49a9564f40f62ffb3e8afbc7506239daf83ca2ead",
+    "artifact/test_codeql_rust_quality.py": "3545b81d3a32d3a8aedf7361a55d9b6d4296d33cf7cc2baa9f495eb29c2992cc",
+    "crates/q-periapt-sdk-wasm/PackageREADME.md": "3a7589b751812d56717c0dd1e99b9abf89d1384559400419a4d4c87d41756fba",
+    "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "8741ae1c159283c151d936ecd665aeae9b6f293468063a55c7a6114ffc638814",
+    "crates/q-periapt-sdk-wasm/package/web/index.js": "a9a2e5163ef797130ce6e05d5702caa6e3c5d6f0903d4f4fba0b5225687aae7f",
+    "crates/q-periapt-sdk-wasm/src/continuity.rs": "98615d66d51866b494eb80ea2532477fd670a2c4c82a91f02053db35bc46524d",
+    "crates/q-periapt-sdk-wasm/src/continuity/recovery.rs": "caf42c28d1e8a9bae878abce786d03eae967f5cb7114a01802801104804c7869",
+    "crates/q-periapt-sdk-wasm/src/continuity/recovery/reports.rs": "07b30aebb41c1c2656ffc22b382d89c576020958faac0427e5aa1dbb657ef573",
+    "crates/q-periapt-sdk-wasm/src/continuity/retirement.rs": "afb075a5f7886f6a3170b0eea7659e74f53fde28ad8f7952a744d2d099fff238",
+    "crates/q-periapt-sdk-wasm/src/continuity/retirement/reports.rs": "deb3ca640c229cfa50ea0f8b99652157c00afa52b33dcd9009433837e1c011a3",
+    "crates/q-periapt-sdk-wasm/src/continuity/retirement/reports/bootstrap_metadata.rs": "61a8560e6f927a81297acf509ed93eeaec4b6e0a9fa16252eb2b845b0e515625",
+    "crates/q-periapt-sdk-wasm/src/continuity/retirement/reports/session_metadata.rs": "ba94d246f6f097d915af5e94f4d3706bbb739cfe6c3607403bde4ba3b7a8c00b",
+    "crates/q-periapt-sdk-wasm/tests/types.mts": "e18c25e100e4d8caf904c6da45a7f03662ce2d39d2c9e798bafb7b152e44f96f",
+    "research/continuity-identity-candidate/src/browser.rs": "2aec5c82e21a06552ec65ef0ae1804d2e870291eef4dd8f75ab6146b1b0fb000",
+    "research/continuity-identity-candidate/src/browser/credentials.rs": "c8fd85241294d25be5c621fbde11a34fec035ff7f26ae71b6b7183d477840e5e",
+    "research/continuity-identity-candidate/src/browser/opening.rs": "fdee01d611b0ff8eac36d7418ea123d75f1d4d0611bc70e94a36d83bbb2375d0",
+    "research/continuity-identity-candidate/src/browser/policies.rs": "aa1162419b00b8138c092f82ccb34053b274d2ea4456904c63249217d7a32ed5",
+    "research/continuity-identity-candidate/src/browser/retirement.rs": "1558db6ffdd570343ea1f9dc8fd40bffcad20b1671e9c7a4d43cc0df7b8ad25a",
+    "research/continuity-identity-candidate/src/browser/roster.rs": "90e6fa18c068da287fbbb432b244b25296a2b0aeab058748472746d4011533bf",
+    "research/continuity-identity-candidate/src/crypto.rs": "a99aef59ae3a9e9a6090e9f77e6e535c0a81ec86d10a8b416ac7e09a7f687f67",
+    "research/continuity-identity-candidate/src/crypto/persistence.rs": "89eb63fadc75bac4c23183ab3498dd68ca2bb6680d5b9979a571b547790d9bb7",
+    "research/continuity-identity-candidate/src/crypto/persistence/browser_retirement.rs": "99178bf76b11a09290e1191980831f897871dbee9bb8196fa3829032a76c6ba6",
+    "research/continuity-identity-candidate/src/crypto/persistence/retirement.rs": "8f2579ab69a9850382f399e6a4419b1e037530cd8b649552f095cd6d4aba6a10",
+    "research/continuity-identity-candidate/src/durable/write_intent/retired_cleanup.rs": "e165b0baf9ee9d99daa72db2eae040f6dd4e7327fcb9f3567093f22da58940c0",
+    "research/continuity-identity-candidate/src/durable/write_intent/retired_cleanup/erasure.rs": "d9c8374f0fa458fc83e5f6d2239104716ce31ab01e4259f3e7fdbea5164f3449",
+    "research/continuity-identity-candidate/src/enrollment/retirement.rs": "22c3fce400f0c53e76ad82087a403a2e89dc1b9909c7b963f64b3d033f23794a",
+    "research/continuity-identity-candidate/src/installation.rs": "8b0ff980f319f5265654f56a4c73422d8451db9718644e38f6a62df9ceb87316",
+    "research/continuity-identity-candidate/src/installation/retired.rs": "633d9465c03912d1077303d3db9be0ab934d41d7bcbdbf6274defdbd020b5fa4",
+    "research/continuity-identity-candidate/src/storage/browser.rs": "eee5239562d0a25ba89a394f6dba13e336c670bc42347731ab75d53343062564",
+    "research/continuity-identity-candidate/src/storage/browser/secrets.rs": "94bca0878c27445a2975d0cc6758d1c68910437dcde7d5e02bcc18ef0da1434d",
+    "research/continuity-identity-candidate/src/storage/browser/storage-catalogue.js": "ecbe1666155e30d6134a175029f829255565efd989b2d5eccb8d0ee4fbf478ea",
+    "research/continuity-identity-candidate/src/storage/browser/storage-root.js": "0a87b7410ca265b0fa66c7e8963ab75ee0a19de55e9531f8df04c086fcd45ac2"
+  },
+  "validation": {
+    "artifact_controls": 60,
+    "native_expiry_boundary_tests": 2,
+    "native_retired_tests": 36,
+    "strict_native_and_wasm_clippy": true,
+    "wasm_rust_1_90": true
+  }
+}

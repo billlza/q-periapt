@@ -1,0 +1,129 @@
+{
+  "schema": "q-periapt/bootstrap-initial-source-independent-review/v1",
+  "reviewed_at_utc": "2026-11-10T03:58:06.039006+00:00",
+  "status": "accepted_for_declared_profile_after_premise_and_surface_readback",
+  "source_commit": "471900bfe8070d1021a1feb67481437d599d80ba",
+  "reviewed_proof": {
+    "path": "/workspace/scratch/e41ac2378a11/bootstrap-nov10/candidate/docs/continuity/BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md",
+    "bytes": 32339,
+    "sha256": "b887e786d06b5226b9886d643c8b0e919cd49387cd5023e22b5878b0d93130ee"
+  },
+  "final_readback": {
+    "source_correctness_in_lemma_2": true,
+    "operation_surface_defined_once_positively": true,
+    "serialized_state_report_extension_separate_from_image_intent_cost": true,
+    "source_correctness_charged_in_delta_j": true,
+    "unresolved_substantive_findings": []
+  },
+  "analytical_review": [
+    {
+      "id": "TWO_LEVEL_LOCALIZATION",
+      "result": "passed",
+      "reason": "Localize each adjacent endpoint by original j=(g,a), apply the entire record/component/ContextBound/joint-entry comparison once, and only in the resulting private long-PRK table partition by first-allocation rank ell. This permits only the subsequent tail term to acquire the explicit L multiplier."
+    },
+    {
+      "id": "CAPTURE_ENDPOINTS",
+      "result": "passed",
+      "reason": "The immutable source-mark union covers all later parent families and contributes sum_b Pr_H(r,b)[J_r is not bottom and C_Jr] once per registration rank. Changed-game acquisition probabilities are not copied from one endpoint to the other, and this residual is not multiplied by L."
+    },
+    {
+      "id": "ARBITRARY_SIGNED_REPLY",
+      "result": "passed",
+      "reason": "Responder signing and all initiator reply-private owners may be available. The controller evaluates the actual second contribution at each Reply computation and retains native signature, context, decapsulation, confirmation and rejection behavior. Arbitrary attacker ciphertexts do not acquire an honest-ciphertext correctness premise."
+    },
+    {
+      "id": "INVENTORY_OWNER",
+      "result": "passed",
+      "reason": "The protected PQ source is the original inventory generation reservation. Its selected owner is regenerated from its original sealed seed, with the saved public-component equality and generated-key embedded-public check. This path is distinct from expanded reply-owner import and its fresh encapsulation validation."
+    },
+    {
+      "id": "COMPONENT_REFERENCES",
+      "result": "passed",
+      "reason": "The selected PQ and traditional inventory leaves may belong to different hybrid owners. Both actual references and their persisted order remain in the reduction."
+    },
+    {
+      "id": "ORIGINAL_TAPES",
+      "result": "passed",
+      "reason": "Generation and encapsulation reservations retain original sampling identity and counts even if persistence fails. An unknown PQ tape is supplied at first actual private use only after the record renderer has removed its value-dependent observations; traditional material is still sampled and disclosed at its original event."
+    },
+    {
+      "id": "JOINT_SHORT_LONG_SERVICE",
+      "result": "passed",
+      "reason": "The initial short Extract precedes Reply selection. The entire later S0||S1 service uses complete descriptors (known suffix, alpha, beta), retains the short/long raw alias, and keeps actual known S1 computations. The first-entry comparison is not repeated after choosing a later family."
+    },
+    {
+      "id": "ONLINE_PARENT_RANK",
+      "result": "passed",
+      "reason": "Ranks are allocated at the first attempted complete long request, including failed Reply checks; they persist through deletion and retries. A fresh table parent can be presampled before its first use. An earlier parent opening excludes only that family from the candidate score, while post-registration global recipe stops preserve the latched event."
+    },
+    {
+      "id": "SOURCE_AND_WIRE_ALIASES",
+      "result": "passed",
+      "reason": "Purpose-5 signature origin plus the complete hash/encapsulation monitors fixes the original Initial source and one ContextBound tuple on source correctness. Same-body Initial and Reply signature aliases retain their actual full-wire downstream bindings."
+    },
+    {
+      "id": "TAIL_SHARED_ORACLE",
+      "result": "passed",
+      "reason": "All five activation blocks and the block-4 feedback into block 5 are retained before the exported ACK replacement. Full root descriptors and effective compression aliases use the existing global collision comparison with complete continuation query budgets."
+    }
+  ],
+  "uniform_bound": "epsilon_schedule <= min(1, 2*R*alpha + sum_r eta_cap,r + 2*R*G*A*(nu_enc + rho + a + delta + Phi_256(d,Q_CB) + Delta_entry + L*(D_tail + chi_h(Q_h))))",
+  "cost_interpretation": "The explicit multiplicity L applies only to the terminal-tail comparison. Lifetime budgets inside the preceding terms still account for all actual later requests.",
+  "resolved_findings": [
+    {
+      "id": "LEMMA_2_CORRECTNESS_PREMISE",
+      "resolution": "The statement now explicitly assumes the source-correctness event whose complement is charged in delta_j."
+    },
+    {
+      "id": "OPERATION_SURFACE",
+      "resolution": "Section 1 lists the admitted bootstrap/ACK and disclosure surface once and assigns additional closure/fanout whole-State reports to the separate report interface."
+    }
+  ],
+  "independent_reproduction": {
+    "command": "python3 bootstrap-nov10/candidate/research/sdk-alpha1/evidence/20261110-bootstrap-initial-source-adapter/check_initial_source.py --source-root bootstrap-nov10/base --output android-nov10/math-review/INITIAL_SOURCE_REPRODUCTION.json",
+    "exit_code": 0,
+    "output": {
+      "path": "/workspace/scratch/e41ac2378a11/android-nov10/math-review/INITIAL_SOURCE_REPRODUCTION.json",
+      "bytes": 4692,
+      "sha256": "b53cdf1a373c1ac60aeb26600914f7d682d3a6d8d74544a5e2995e787a419181"
+    },
+    "author_output": {
+      "path": "/workspace/scratch/e41ac2378a11/bootstrap-nov10/candidate/research/sdk-alpha1/evidence/20261110-bootstrap-initial-source-adapter/RESULT.json",
+      "bytes": 4692,
+      "sha256": "b53cdf1a373c1ac60aeb26600914f7d682d3a6d8d74544a5e2995e787a419181"
+    },
+    "byte_identical": true,
+    "source_pins": 35,
+    "source_order_and_layout_checks": 29,
+    "finite_endpoint_executions": 49152,
+    "coin_tapes": 16384,
+    "deferred_parent_executions_per_game": 512,
+    "joint_views": 320,
+    "numerical_coincidence_executions_retained": 320,
+    "source_history_traces": 54,
+    "component_owner_cases": 4,
+    "fresh_slot_countermodel_executions": 64,
+    "finite_accounting_example": {
+      "two_level": "51/500",
+      "all_costs_repeated_per_rank": "231/500"
+    },
+    "scope": "Exact pinned source correspondence, byte encodings and finite accounting controls. General reduction correctness was reviewed analytically; the finite checks are not a proof or native cryptographic execution."
+  },
+  "additional_inputs": [
+    {
+      "path": "/workspace/scratch/e41ac2378a11/bootstrap-nov10/candidate/research/sdk-alpha1/evidence/20261110-bootstrap-initial-source-adapter/SOURCE_PINS.json",
+      "bytes": 8823,
+      "sha256": "56edba39cb6639b2b1ea251ec84bbdd86c38eaf838c6318b47624671f43452f2"
+    },
+    {
+      "path": "/workspace/scratch/e41ac2378a11/bootstrap-nov10/candidate/research/sdk-alpha1/evidence/20261110-bootstrap-initial-source-adapter/check_initial_source.py",
+      "bytes": 24312,
+      "sha256": "2a0b25421347c1cd8e8fbd24df655c96e33061c1dce7aee39e743e56d1fc5ae0"
+    },
+    {
+      "path": "/workspace/scratch/e41ac2378a11/android-nov10/math-review/RECOMMENDED_REPAIR.md",
+      "bytes": 7563,
+      "sha256": "1db4add8937a0e5d490498a51293001868bcd4cd34e38875b9cfdbbd5d20bef0"
+    }
+  ]
+}

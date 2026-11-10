@@ -1,0 +1,176 @@
+{
+  "atomic_normal_fast_forward": true,
+  "captured_utc": "2026-11-05T10:22:56.361453+00:00",
+  "dependency_alert_scope": "Three default-main rustls 0.23.43 alerts; both candidate source locks and installed foundation locks use patched 0.23.46. Not a complete dependency audit.",
+  "later_focused_android_pin_updated": false,
+  "latest_run_counts": {
+    "cancelled": 4,
+    "in_progress": 2,
+    "queued": 10
+  },
+  "local_android_complete_at_push": false,
+  "new_run_count": 16,
+  "next_sequence": "Wait for this wave; validate the hosted SDK producer identity before updating the focused Android pin and uploading later retained fixes.",
+  "old_historical_counts": {
+    "cancelled": 1,
+    "failure": 11,
+    "success": 59
+  },
+  "old_historical_run": 41724563802,
+  "old_last_android_artifact": {
+    "id": 13406565024,
+    "upload_reported_bytes": 32121924,
+    "upload_reported_sha256": "19c5938ae8866bfd3e406df5a8122a90535a217556568f8233f9b11ff2fb3247"
+  },
+  "old_last_android_artifact_downloaded": false,
+  "postpush_pr_refs_verified": true,
+  "prepush_all_checked_queue_states_empty": true,
+  "push_completed": true,
+  "push_elapsed_seconds": 5.887362250010483,
+  "push_finished_utc": "2026-11-05T10:14:05.104736+00:00",
+  "push_started_utc": "2026-11-05T10:13:59.216598+00:00",
+  "refs": [
+    {
+      "branch": "feat/continuity-publication-verification",
+      "candidate": "232ace17915407596d66f3a5fd7c7765251a38cc",
+      "expected": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "pr": 117
+    },
+    {
+      "branch": "feat/accountable-prekey-directory",
+      "candidate": "ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20",
+      "expected": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "pr": 118
+    }
+  ],
+  "release_claim_eligible": false,
+  "release_or_tag_operation": false,
+  "superseded_runs": [
+    {
+      "annotation": "Canceling since a higher priority waiting request for directory-lease-contract-118 exists",
+      "jobs": 2,
+      "representative_check": 127182924236,
+      "run": 42009001578,
+      "runner_execution_observed": false
+    },
+    {
+      "annotation": "Canceling since a higher priority waiting request for Continuity reference account-pull_request-118 exists",
+      "jobs": 10,
+      "representative_check": 127182925551,
+      "run": 42009001846,
+      "runner_execution_observed": false
+    },
+    {
+      "annotation": "Canceling since a higher priority waiting request for ci-pull_request-118 exists",
+      "jobs": 62,
+      "representative_check": 127182925302,
+      "run": 42009001542,
+      "runner_execution_observed": false
+    },
+    {
+      "annotation": "Canceling since a higher priority waiting request for continuity-regression-118 exists",
+      "jobs": 2,
+      "representative_check": 127182923893,
+      "run": 42009001556,
+      "runner_execution_observed": false
+    }
+  ],
+  "surviving_runs": [
+    {
+      "conclusion": null,
+      "event": "pull_request",
+      "head_sha": "232ace17915407596d66f3a5fd7c7765251a38cc",
+      "id": 42009005313,
+      "name": "ci",
+      "status": "queued"
+    },
+    {
+      "conclusion": null,
+      "event": "pull_request",
+      "head_sha": "232ace17915407596d66f3a5fd7c7765251a38cc",
+      "id": 42009005586,
+      "name": "Continuity reference account",
+      "status": "queued"
+    },
+    {
+      "conclusion": null,
+      "event": "pull_request",
+      "head_sha": "232ace17915407596d66f3a5fd7c7765251a38cc",
+      "id": 42009005451,
+      "name": "Installed Windows Continuity lifecycle",
+      "status": "in_progress"
+    },
+    {
+      "conclusion": null,
+      "event": "pull_request",
+      "head_sha": "232ace17915407596d66f3a5fd7c7765251a38cc",
+      "id": 42009005415,
+      "name": "Continuity focused regressions",
+      "status": "in_progress"
+    },
+    {
+      "conclusion": null,
+      "event": "push",
+      "head_sha": "232ace17915407596d66f3a5fd7c7765251a38cc",
+      "id": 42008993544,
+      "name": "ci",
+      "status": "queued"
+    },
+    {
+      "conclusion": null,
+      "event": "pull_request",
+      "head_sha": "ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20",
+      "id": 42009002052,
+      "name": "Continuity focused regressions",
+      "status": "queued"
+    },
+    {
+      "conclusion": null,
+      "event": "pull_request",
+      "head_sha": "ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20",
+      "id": 42009001884,
+      "name": "Directory lease contract",
+      "status": "queued"
+    },
+    {
+      "conclusion": null,
+      "event": "pull_request",
+      "head_sha": "ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20",
+      "id": 42009001947,
+      "name": "ci",
+      "status": "queued"
+    },
+    {
+      "conclusion": null,
+      "event": "pull_request",
+      "head_sha": "ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20",
+      "id": 42009001650,
+      "name": "Continuity reference account",
+      "status": "queued"
+    },
+    {
+      "conclusion": null,
+      "event": "push",
+      "head_sha": "ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20",
+      "id": 42008994078,
+      "name": "Independent Continuity interoperability",
+      "status": "queued"
+    },
+    {
+      "conclusion": null,
+      "event": "push",
+      "head_sha": "ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20",
+      "id": 42008993679,
+      "name": "ci",
+      "status": "queued"
+    },
+    {
+      "conclusion": null,
+      "event": "push",
+      "head_sha": "ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20",
+      "id": 42008993976,
+      "name": "Continuity reference account",
+      "status": "queued"
+    }
+  ]
+}

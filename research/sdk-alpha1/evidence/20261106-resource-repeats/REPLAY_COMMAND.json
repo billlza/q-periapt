@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "sh",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-resource-repeats-20261106/archive-replay-01/captured-source/artifact/python-run.sh",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-resource-repeats-20261106/archive-replay-01/captured-source/controller/validate-resource-repeat-capsule.py",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/research/sdk-alpha1/evidence/20261106-resource-repeats/CAPTURE.zip",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/research/sdk-alpha1/evidence/20261106-resource-repeats/FILES.json",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-resource-repeats-20261106/archive-replay-01/ARCHIVE_READBACK.json"
+  ],
+  "cwd": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-resource-repeats-20261106/archive-replay-01/captured-source",
+  "returncode": 0
+}

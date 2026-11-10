@@ -1,0 +1,57 @@
+{
+  "build_profiles": [
+    "debug",
+    "release"
+  ],
+  "completed": true,
+  "consumers": [
+    "Swift",
+    "Kotlin",
+    "AndroidJNI"
+  ],
+  "kind": "qperiapt.continuity_profile_coverage",
+  "partitions": {
+    "continuity-installed-android-debug": {
+      "build_profile": "debug",
+      "consumer": "AndroidJNI",
+      "report_bytes": 4704925,
+      "report_sha256": "4c108f599bb2e3ca2a3470ce75452f35d7525eb87867e5ed2c339b6b66cb9f3f"
+    },
+    "continuity-installed-android-release": {
+      "build_profile": "release",
+      "consumer": "AndroidJNI",
+      "report_bytes": 4716537,
+      "report_sha256": "60015d1f469136dacfc5281b5b180ba775c0ff08c8c99e88f8770d8c5e151188"
+    },
+    "continuity-installed-kotlin-debug": {
+      "build_profile": "debug",
+      "consumer": "Kotlin",
+      "report_bytes": 10943223,
+      "report_sha256": "59fd66f9c13b4a1bfea16f155bfedafcb85bb28940ef1592b43205e7e50b2651"
+    },
+    "continuity-installed-kotlin-release": {
+      "build_profile": "release",
+      "consumer": "Kotlin",
+      "report_bytes": 10978787,
+      "report_sha256": "c30c1c42ddaa28b63f1399a19caacdc0f15b7ba4404ebd2a4ec12446c9e794fa"
+    },
+    "continuity-installed-swift-debug": {
+      "build_profile": "debug",
+      "consumer": "Swift",
+      "report_bytes": 9057109,
+      "report_sha256": "c632297a2e8459ad2a5600ab865ea7d5084b701dce324ab14645e9f8d09230f8"
+    },
+    "continuity-installed-swift-release": {
+      "build_profile": "release",
+      "consumer": "Swift",
+      "report_bytes": 9187333,
+      "report_sha256": "e7e23bfbb30c7de85192eaca0e75e9fea7396a4e7cf7ff9fc2d7e4f7aec0b4b0"
+    }
+  },
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "rust_report_sha256": "56ae2a2ab6c4f661d8cc0b3c3c8e499ce31c9aee2a3737456424adf7602fb0cf",
+  "schema_version": 1,
+  "scope": "same-source debug/release partition receipt coverage for installed Rust/C and Swift/Kotlin/Android JNI consumers; scenario evidence remains in each producer artifact; not physical-device, independent-engine, or release qualification",
+  "source_commit": "232ace17915407596d66f3a5fd7c7765251a38cc"
+}

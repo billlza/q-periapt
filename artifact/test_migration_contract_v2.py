@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import ast
 import copy
 import hashlib
 import json
 import pathlib
+import re
 import tempfile
 import unittest
 
+import migration_contract_v2 as contract
 from migration_contract_v2 import (
     CONTEXT_DOMAIN,
     CONTEXT_ENCODED_LEN,
@@ -64,6 +67,185 @@ class MigrationContractV2Tests(unittest.TestCase):
         self.assertEqual(context[3], b"\x01")
         self.assertEqual(context[4], (1).to_bytes(8, "big"))
         self.assertEqual(len(context_bytes), CONTEXT_ENCODED_LEN)
+
+    def test_easycrypt_domains_schemas_and_roles_match_rust_and_python(self) -> None:
+        easycrypt = (
+            ROOT / "formal" / "easycrypt" / "MigrationBindingV2.ec"
+        ).read_text(encoding="utf-8")
+
+        def easycrypt_bytes(symbol: str) -> bytes:
+            matches = list(
+                re.finditer(
+                    rf"^op[ \t]+{re.escape(symbol)}[ \t]*:[ \t]*bytes[ \t]*="
+                    rf"[ \t\r\n]*\[(.*?)\][ \t]*\.",
+                    easycrypt,
+                    re.MULTILINE | re.DOTALL,
+                )
+            )
+            self.assertEqual(
+                len(matches), 1, f"expected one EasyCrypt byte op {symbol}"
+            )
+            tokens = [token.strip() for token in matches[0].group(1).split(";")]
+            self.assertTrue(tokens)
+            self.assertTrue(all(token.isdecimal() for token in tokens))
+            values = [int(token) for token in tokens]
+            self.assertTrue(all(0 <= value <= 255 for value in values))
+            return bytes(values)
+
+        def rust_byte_constant(path: pathlib.Path, symbol: str) -> bytes:
+            source = path.read_text(encoding="utf-8")
+            matches = list(
+                re.finditer(
+                    rf"^pub[ \t]+const[ \t]+{re.escape(symbol)}[ \t]*:[ \t]*"
+                    rf"&\[u8\][ \t]*=[ \t]*b(\"(?:\\.|[^\"\\])*\")[ \t]*;",
+                    source,
+                    re.MULTILINE,
+                )
+            )
+            self.assertEqual(
+                len(matches), 1, f"expected one Rust byte constant {path}:{symbol}"
+            )
+            value = ast.literal_eval("b" + matches[0].group(1))
+            self.assertIsInstance(value, bytes)
+            return value
+
+        def rust_u16_constant(path: pathlib.Path, symbol: str) -> bytes:
+            source = path.read_text(encoding="utf-8")
+            matches = list(
+                re.finditer(
+                    rf"^pub[ \t]+const[ \t]+{re.escape(symbol)}[ \t]*:[ \t]*"
+                    rf"u16[ \t]*=[ \t]*(\d+)[ \t]*;",
+                    source,
+                    re.MULTILINE,
+                )
+            )
+            self.assertEqual(
+                len(matches), 1, f"expected one Rust u16 constant {path}:{symbol}"
+            )
+            return int(matches[0].group(1)).to_bytes(2, "big")
+
+        def rust_endpoint_role(path: pathlib.Path, variant: str) -> bytes:
+            source = path.read_text(encoding="utf-8")
+            enum_matches = list(
+                re.finditer(
+                    r"^pub[ \t]+enum[ \t]+EndpointRole[ \t]*\{(.*?)^\}",
+                    source,
+                    re.MULTILINE | re.DOTALL,
+                )
+            )
+            self.assertEqual(
+                len(enum_matches), 1, f"expected one EndpointRole enum in {path}"
+            )
+            variant_matches = list(
+                re.finditer(
+                    rf"^[ \t]+{re.escape(variant)}[ \t]*=[ \t]*(\d+)[ \t]*,",
+                    enum_matches[0].group(1),
+                    re.MULTILINE,
+                )
+            )
+            self.assertEqual(
+                len(variant_matches), 1, f"expected one EndpointRole::{variant}"
+            )
+            return bytes([int(variant_matches[0].group(1))])
+
+        core = ROOT / "crates" / "q-periapt-core" / "src" / "lib.rs"
+        migration = ROOT / "models" / "q-periapt-migration" / "src"
+        rust_byte_mappings = (
+            ("migration_contextbound_domain", core, "DOMAIN"),
+            ("migration_v2_policy_context_domain", core, "POLICY_CONTEXT_DOMAIN"),
+            ("migration_v2_domain", migration / "context_v2.rs", "MIGRATION_CONTEXT_V2_DOMAIN"),
+            ("migration_state_v1_domain", migration / "state.rs", "MIGRATION_STATE_DOMAIN"),
+            (
+                "migration_post_kem_domain",
+                migration / "transcript.rs",
+                "POST_KEM_TRANSCRIPT_DOMAIN",
+            ),
+            (
+                "migration_finished_domain",
+                migration / "confirmation.rs",
+                "MIGRATION_FINISHED_DOMAIN",
+            ),
+            (
+                "migration_accepted_key_domain",
+                migration / "confirmation.rs",
+                "MIGRATION_ACCEPTED_KEY_DOMAIN",
+            ),
+        )
+        for easycrypt_symbol, rust_path, rust_symbol in rust_byte_mappings:
+            with self.subTest(easycrypt_symbol=easycrypt_symbol, rust_symbol=rust_symbol):
+                self.assertEqual(
+                    easycrypt_bytes(easycrypt_symbol),
+                    rust_byte_constant(rust_path, rust_symbol),
+                )
+        formal_domains = [
+            easycrypt_bytes(easycrypt_symbol)
+            for easycrypt_symbol, _rust_path, _rust_symbol in rust_byte_mappings
+        ]
+        self.assertEqual(len(formal_domains), len(set(formal_domains)))
+
+        rust_schema_mappings = (
+            (
+                "migration_v2_schema",
+                migration / "context_v2.rs",
+                "MIGRATION_CONTEXT_V2_SCHEMA_VERSION",
+            ),
+            ("migration_state_v1_schema", migration / "state.rs", "MIGRATION_STATE_SCHEMA_VERSION"),
+            (
+                "migration_post_kem_schema",
+                migration / "transcript.rs",
+                "MIGRATION_TRANSCRIPT_SCHEMA_VERSION",
+            ),
+        )
+        for easycrypt_symbol, rust_path, rust_symbol in rust_schema_mappings:
+            with self.subTest(easycrypt_symbol=easycrypt_symbol, rust_symbol=rust_symbol):
+                self.assertEqual(
+                    easycrypt_bytes(easycrypt_symbol),
+                    rust_u16_constant(rust_path, rust_symbol),
+                )
+
+        python_mappings = (
+            ("migration_v2_domain", "CONTEXT_DOMAIN"),
+            ("migration_v2_schema", "CONTEXT_SCHEMA_VERSION"),
+            ("migration_state_v1_domain", "STATE_DOMAIN"),
+            ("migration_state_v1_schema", "STATE_SCHEMA_VERSION"),
+            ("migration_post_kem_domain", "POST_KEM_DOMAIN"),
+            ("migration_post_kem_schema", "TRANSCRIPT_SCHEMA_VERSION"),
+            ("migration_finished_domain", "FINISHED_DOMAIN"),
+            ("migration_accepted_key_domain", "ACCEPTED_KEY_DOMAIN"),
+        )
+        for easycrypt_symbol, python_symbol in python_mappings:
+            with self.subTest(easycrypt_symbol=easycrypt_symbol, python_symbol=python_symbol):
+                value = getattr(contract, python_symbol)
+                if isinstance(value, int):
+                    value = value.to_bytes(2, "big")
+                self.assertEqual(easycrypt_bytes(easycrypt_symbol), value)
+
+        role_path = migration / "lib.rs"
+        role_mappings = (
+            ("migration_initiator_role", "Initiator"),
+            ("migration_responder_role", "Responder"),
+            ("migration_initiator_encapsulator", "Initiator"),
+            ("migration_responder_encapsulator", "Responder"),
+        )
+        for easycrypt_symbol, variant in role_mappings:
+            with self.subTest(easycrypt_symbol=easycrypt_symbol, variant=variant):
+                self.assertEqual(
+                    easycrypt_bytes(easycrypt_symbol),
+                    rust_endpoint_role(role_path, variant),
+                )
+        formal_role_codes = {
+            easycrypt_bytes(symbol)[0] for symbol, _variant in role_mappings[:2]
+        }
+        formal_direction_codes = {
+            easycrypt_bytes(symbol)[0] for symbol, _variant in role_mappings[2:]
+        }
+        rust_role_codes = {
+            rust_endpoint_role(role_path, variant)[0]
+            for _symbol, variant in role_mappings[:2]
+        }
+        self.assertEqual(formal_role_codes, rust_role_codes)
+        self.assertEqual(formal_direction_codes, rust_role_codes)
+        self.assertEqual(formal_role_codes, set(contract.ROLES))
 
     def test_every_state_and_context_truncation_and_trailing_byte_fails(self) -> None:
         records = (
@@ -122,8 +304,14 @@ class MigrationContractV2Tests(unittest.TestCase):
             candidate = copy.deepcopy(self.inputs)
             candidate[name] = value
             with self.subTest(name=name):
-                    with self.assertRaises(MigrationContractV2Error):
-                        render(candidate)
+                with self.assertRaises(MigrationContractV2Error):
+                    render(candidate)
+
+        invalid_direction = copy.deepcopy(self.inputs)
+        invalid_direction["encapsulator_role"] = 3
+        with self.assertRaises(MigrationContractV2Error) as error:
+            render(invalid_direction)
+        self.assertEqual(error.exception.code, "unknown_enum")
 
     def test_each_offer_floor_is_derived_from_authenticated_policy_and_state(self) -> None:
         for role in ("initiator", "responder"):

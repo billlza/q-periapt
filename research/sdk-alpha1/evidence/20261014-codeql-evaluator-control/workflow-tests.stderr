@@ -1,0 +1,8 @@
+test_codeql_covers_all_detected_languages_with_real_builds (test_proof_to_byte_release.BoundVerifierWiringTests.test_codeql_covers_all_detected_languages_with_real_builds) ... ok
+test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate (test_proof_to_byte_release.BoundVerifierWiringTests.test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate) ... ok
+test_rust_codeql_compatibility_and_upload_boundary_is_documented (test_proof_to_byte_release.BoundVerifierWiringTests.test_rust_codeql_compatibility_and_upload_boundary_is_documented) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.113s
+
+OK

@@ -1,0 +1,84 @@
+{
+  "cases": [
+    {
+      "implementation": "original",
+      "results": [
+        {
+          "errors": 0,
+          "failures": 1,
+          "passed": false,
+          "skipped": 0,
+          "test": "test_cargo_metadata_keeps_relative_path_selection_across_cwd_change"
+        },
+        {
+          "errors": 1,
+          "failures": 0,
+          "passed": false,
+          "skipped": 0,
+          "test": "test_cargo_metadata_preserves_multicall_symlink_name"
+        }
+      ]
+    },
+    {
+      "implementation": "fixed",
+      "results": [
+        {
+          "errors": 0,
+          "failures": 0,
+          "passed": true,
+          "skipped": 0,
+          "test": "test_cargo_metadata_keeps_relative_path_selection_across_cwd_change"
+        },
+        {
+          "errors": 0,
+          "failures": 0,
+          "passed": true,
+          "skipped": 0,
+          "test": "test_cargo_metadata_preserves_multicall_symlink_name"
+        }
+      ]
+    },
+    {
+      "implementation": "dereferenced_launcher_mutant",
+      "results": [
+        {
+          "errors": 0,
+          "failures": 0,
+          "passed": true,
+          "skipped": 0,
+          "test": "test_cargo_metadata_keeps_relative_path_selection_across_cwd_change"
+        },
+        {
+          "errors": 0,
+          "failures": 1,
+          "passed": false,
+          "skipped": 0,
+          "test": "test_cargo_metadata_preserves_multicall_symlink_name"
+        }
+      ]
+    }
+  ],
+  "full_license_module": {
+    "errors": 0,
+    "failures": 0,
+    "passed": true,
+    "skipped": 0,
+    "tests": 14
+  },
+  "kind": "qperiapt.third_party_license_executable_selection_repair",
+  "release_claim_eligible": false,
+  "runtime": {
+    "implementation": "cpython",
+    "platform": "linux",
+    "version": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]"
+  },
+  "schema": 1,
+  "source_after_sha256": "95e438302345d0919f117b8f6cdfe961a6c5b958a9120b7beb4549209c56b074",
+  "source_before_commit": "4e4c1b6deac233600d0cabc617c013d1307abbe1",
+  "source_before_sha256": "5735d298ff1263dfa4c66631534661cb2e08a451fdd234c37e203d9b8bd6d0e5",
+  "tests": [
+    "test_cargo_metadata_keeps_relative_path_selection_across_cwd_change",
+    "test_cargo_metadata_preserves_multicall_symlink_name"
+  ],
+  "tests_sha256": "9ef3ab6376e30d12d9904775afdbe28cdc169d8e3a7829512540bc620ed562dc"
+}

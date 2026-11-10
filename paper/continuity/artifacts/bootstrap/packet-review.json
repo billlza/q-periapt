@@ -1,0 +1,102 @@
+{
+  "makefile_review": {
+    "check_creates_output_directory": true,
+    "checks": [
+      {
+        "checker": "entry",
+        "independent_exit_code": 0,
+        "makefile_cli_matches": true,
+        "result_byte_identical": true,
+        "result_sha256": "3fa74c8ce32c56794f3f2b12266ac90b010fe3ad547eef8a6f2c81e74c08959b",
+        "source_commit": "b1cff2a045d23aecf75aef12122e5080a8419676",
+        "source_files": 7
+      },
+      {
+        "checker": "terminal",
+        "independent_exit_code": 0,
+        "makefile_cli_matches": true,
+        "result_byte_identical": true,
+        "result_sha256": "0bc8798af1e6c60cbf51053bd6e8795bcd7a81f068cd3d678a9583cb022bd7af",
+        "source_commit": "360aa8107aa7df502108627a4dcf89f30d106594",
+        "source_files": 18
+      },
+      {
+        "checker": "reply",
+        "independent_exit_code": 0,
+        "makefile_cli_matches": true,
+        "result_byte_identical": true,
+        "result_sha256": "ead62bb6fdaa6fd655e7bb7b923334c914a699e3784ef478abf6033f347dae8f",
+        "source_commit": "68549dbc3ae4491d8b5edaa708548dc60743eab7",
+        "source_files": 32
+      }
+    ]
+  },
+  "mathematical_review": {
+    "actual_internal_block_4_feeds_block_5_before_ACK_override": true,
+    "all_generation_and_verification_calls_in_107_byte_rows_counted": true,
+    "global_recipe_stop_preserves_latched_event": true,
+    "ideal_tag_guessing_and_historical_activation_order_match_manuscript": true,
+    "one_record_union_cost_plus_registered_row_costs_no_extra_two_sided_factor": true,
+    "raw_acquisition_includes_marked_image_intent_and_copy_independent_of_readability": true,
+    "record_comparison_precedes_unknown_ACK_row_embedding": true,
+    "same_defined_bootstrap_ack_surface": true,
+    "separate_local_capture_zero_cost_uses_H_R_one_endpoint": true,
+    "unresolved_findings": []
+  },
+  "reviewed_files": [
+    {
+      "bytes": 5470,
+      "path": "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/bootstrap/integration-proof.md",
+      "sha256": "644f2157e1727194cd9248d3b54c3bfb61c39b66f51813877686c6219d16b9e7"
+    },
+    {
+      "bytes": 24890,
+      "path": "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/bootstrap-authentication.tex",
+      "sha256": "72c4f982bdf7229623ca790d83d3a2dc55ef0f6cb0f32cc832a61700f28e766d"
+    },
+    {
+      "bytes": 2112,
+      "path": "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/Makefile",
+      "sha256": "ea3934bf6e722fe62db9bf87fad230f77a86fca97c2189c6ec9ff91ce55da6f4"
+    },
+    {
+      "bytes": 7707,
+      "path": "/workspace/scratch/e41ac2378a11/paper-work/.github/workflows/joc-manuscript.yml",
+      "sha256": "78dd1f7815db8192f9a1b0a432a206eaa10cffdd9bd71cc374d9dfc28732355b"
+    },
+    {
+      "bytes": 4575,
+      "path": "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/bootstrap/verify_source_export.py",
+      "sha256": "31c7ba9ae83f1d610ec60e56f1c445c63aa43766b408510f576d908b98bee3b2"
+    },
+    {
+      "bytes": 1168,
+      "path": "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/bootstrap/source-export-check.json",
+      "sha256": "c13633b291c31274503882d9e67d3e80070510499443e8193c575514154a46ce"
+    }
+  ],
+  "schema": "q-periapt/final-bootstrap-paper-packet-review/v1",
+  "scope": "Read-only mathematical and wiring review; three finite/source checkers independently reproduced outside the paper tree. Existing fresh source-export compilation receipt was inspected and identity-bound, without another compilation.",
+  "status": "passed_after_final_readback",
+  "workflow_review": {
+    "exact_nine_member_archive_and_digest_verification": true,
+    "existing_local_receipt": {
+      "all_fonts_embedded": true,
+      "files": 9,
+      "font_count": 48,
+      "layout_text_identical": true,
+      "pages": 111,
+      "plain_text_identical": true,
+      "status": "passed"
+    },
+    "existing_local_receipt_identity_verified": true,
+    "font_embedding_and_build_log_checks": true,
+    "fresh_work_directory_required_by_verifier": true,
+    "package_then_verify_then_upload_order": true,
+    "plain_and_layout_text_both_compared": true,
+    "source_export_parameters_match_parser": true,
+    "three_bootstrap_results_and_export_check_uploaded": true,
+    "verifier_recompiled_by_this_review": false,
+    "yaml_parse_passed": true
+  }
+}

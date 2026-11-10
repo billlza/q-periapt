@@ -1,0 +1,103 @@
+{
+  "archive": {
+    "bytes": 267883,
+    "members": 68,
+    "sha256": "afaf942343be5d6664f0d9b5d6ab62fef57efc604d18853484f05376b335bc0a"
+  },
+  "captured_utc": "2026-11-06T07:16:52.224399+00:00",
+  "complete_computational_theorem": false,
+  "completed": true,
+  "full_library_test_suite_executed": false,
+  "installed_package_qualification": false,
+  "native_binaries_included": false,
+  "native_executables": {
+    "debug": {
+      "bytes": 50822792,
+      "path": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-cleanup-causality-20261106/build/debug/deps/q_periapt_continuity_identity_candidate-8048dac8d42f6022",
+      "sha256_after_execution": "99b60415a0acc82d87f085a7d74e53832b71b4787d99026cae09cf23d07175c8"
+    },
+    "release": {
+      "bytes": 24772560,
+      "path": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-cleanup-causality-20261106/build/release/deps/q_periapt_continuity_identity_candidate-d3eb26eb6c704353",
+      "sha256_after_execution": "f3841c9f2c02af751e9d8423068ecbbf5800b118de8bf1e91f3a9b35579d4999"
+    }
+  },
+  "native_source_inventory_entries": 1155,
+  "native_source_inventory_still_matches": true,
+  "native_test_executions": 8,
+  "native_tests_extended": 1,
+  "new_tamarin_execution": false,
+  "parent_commit": "932e6e5d5c84efcb2d42fb194cb748c446cde6db",
+  "physical_power_loss_test": false,
+  "raw_public_protocol_files_exported": false,
+  "release_claim_eligible": false,
+  "runtime_sources_unchanged": true,
+  "rustfmt_and_strict_clippy_passed": true,
+  "sources": {
+    "docs/continuity/CLEANUP_REKEY_CAUSALITY_V1.md": {
+      "after": "16dba7f63482f6538952a912e6ca282dfc80beb855ac81d0bfeb1b323171adc8",
+      "before": null
+    },
+    "docs/continuity/CLEANUP_REPORT_MAC_V1.md": {
+      "after": "d66385d037175a521a5060374060ad8e1692fd660ebaab8ea80eacacfc60a72e",
+      "before": "231d8f3ad02c40db0756477186a5a61f48cbf37484ed7c8e8685b903aad7053c"
+    },
+    "docs/continuity/KEM_CHALLENGE_ADAPTER_V1.md": {
+      "after": "ee43f04b1b5146005d3e619e26d60dc3fe3b8a3d6824dd74724bd669947b933f",
+      "before": "ea65fc550347eb2e770044a433605baca51272d340e4143da527b4242d6ebe02"
+    },
+    "research/continuity-identity-candidate/src/durable.rs": {
+      "after": "664bc3bfad790cc4639168b54bea30fdcdb80520310454cddd80ac66a5b37c42",
+      "before": "664bc3bfad790cc4639168b54bea30fdcdb80520310454cddd80ac66a5b37c42"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/closure.rs": {
+      "after": "438b1e211925a869a27d377e07e3969032f4f182c736344b31beaf2f53f4b648",
+      "before": "438b1e211925a869a27d377e07e3969032f4f182c736344b31beaf2f53f4b648"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/fanout/abandonment.rs": {
+      "after": "630b1dac17ae9fabf3f50f46452f4d62ec813dc70d356202f128362cd8856a66",
+      "before": "630b1dac17ae9fabf3f50f46452f4d62ec813dc70d356202f128362cd8856a66"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/rekey.rs": {
+      "after": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10",
+      "before": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs": {
+      "after": "d2ba085119db3cff2ebda780f4824b8b4cbd3a9f6e44531df45db48144a65c1e",
+      "before": "d2ba085119db3cff2ebda780f4824b8b4cbd3a9f6e44531df45db48144a65c1e"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs": {
+      "after": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59",
+      "before": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/retired.rs": {
+      "after": "b68c13b2db9961ce570ead831b3b4bfce236d85cb3ce871913e7e635d1d171b3",
+      "before": "b68c13b2db9961ce570ead831b3b4bfce236d85cb3ce871913e7e635d1d171b3"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/tests/closure.rs": {
+      "after": "77e2785ecb430d7ff2b56aa7bf8267e6ba8c534e00c9e1c2064c60a852f6d168",
+      "before": "33de3bd420cb44724154cd44bdba80154830304ae5c16acf201c1cf82a3a3990"
+    },
+    "research/continuity-identity-candidate/src/durable/retired_report.rs": {
+      "after": "79a174735da6cb94a1ed1f3b404ce56beccde6f0ce769fd3f9d0b222167472ae",
+      "before": "79a174735da6cb94a1ed1f3b404ce56beccde6f0ce769fd3f9d0b222167472ae"
+    },
+    "research/continuity-identity-candidate/src/durable/write_intent.rs": {
+      "after": "502bbd9de26958575704edbd0207c6579c4a07e3b9ed4a57650f407f3fdb312d",
+      "before": "502bbd9de26958575704edbd0207c6579c4a07e3b9ed4a57650f407f3fdb312d"
+    },
+    "research/continuity-identity-candidate/src/durable/write_intent/pending_recovery.rs": {
+      "after": "3ac4e85df2064edda87e573afea64ce089a1aeaa5372b5ee9a38fb6716b58b8e",
+      "before": "3ac4e85df2064edda87e573afea64ce089a1aeaa5372b5ee9a38fb6716b58b8e"
+    },
+    "research/continuity-identity-candidate/src/enrollment/witness_pending_write_recovery_tests.rs": {
+      "after": "aa8454acfeeb2a701be4e8c970c6c302905131793d80071d8bd19ff14b581597",
+      "before": "aa8454acfeeb2a701be4e8c970c6c302905131793d80071d8bd19ff14b581597"
+    },
+    "research/continuity-recovery-symbolic/multi-epoch.spthy": {
+      "after": "78aaca97033b6a5ff470991883d1e36ad881a95e16ef6bd9f7c146e51e83ea0b",
+      "before": "78aaca97033b6a5ff470991883d1e36ad881a95e16ef6bd9f7c146e51e83ea0b"
+    }
+  },
+  "sync_fault_injections": 32
+}

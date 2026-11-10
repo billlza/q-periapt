@@ -14,7 +14,8 @@ permissions:
 
 concurrency:
   group: codeql-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Complete the running target analyses; keep the newest revision pending.
+  cancel-in-progress: false
 
 jobs:
   analyze:
@@ -41,14 +42,15 @@ jobs:
           - language: python
             build_mode: none
             runner: ubuntu-latest
-          - language: rust
-            build_mode: none
-            runner: ubuntu-latest
           - language: swift
             build_mode: manual
             runner: macos-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
 
@@ -56,29 +58,61 @@ jobs:
         if: matrix.language == 'java-kotlin' || matrix.language == 'swift'
         uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
-          toolchain: 1.96.1
+          toolchain: 1.98.1
 
-      - name: Set up Java 22
+      - name: Set up Java 25 LTS
         if: matrix.language == 'java-kotlin'
         uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
         with:
           distribution: temurin
-          java-version: "22"
+          java-version: "25"
 
-      - name: Set up Gradle 9.2.1
+      - name: Verify Java 25 LTS
+        if: matrix.language == 'java-kotlin'
+        run: |
+          test "$(command -v java)" = "$JAVA_HOME/bin/java"
+          test "$(command -v javac)" = "$JAVA_HOME/bin/javac"
+          java -version
+          javac -version
+
+      - name: Set up Gradle 9.8.0
         if: matrix.language == 'java-kotlin'
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
         with:
-          gradle-version: "9.2.1"
+          gradle-version: "9.8.0"
+
+      - name: Restore and verify selected Java after Gradle setup
+        if: matrix.language == 'java-kotlin'
+        run: |
+          # A matching preinstalled Gradle can prepend its shared /usr/bin directory.
+          export PATH="$JAVA_HOME/bin:$PATH"
+          test "$(command -v java)" = "$JAVA_HOME/bin/java"
+          test "$(command -v javac)" = "$JAVA_HOME/bin/javac"
+          printf '%s\n' "$JAVA_HOME/bin" >> "$GITHUB_PATH"
+          command -v java
+          command -v javac
+          java -version
+          javac -version
+          gradle --version
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        id: codeql_init
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           build-mode: ${{ matrix.build_mode }}
           config: |
             threat-models: [local]
+          db-location: ${{ runner.temp }}/qperiapt-codeql-database
+          debug: ${{ matrix.language == 'swift' }}
+          debug-artifact-name: codeql-${{ matrix.language }}-diagnostics
           languages: ${{ matrix.language }}
           queries: security-extended
+          tools: linked
+
+      - name: Verify linked CodeQL bundle
+        env:
+          CODEQL_BINARY: ${{ steps.codeql_init.outputs.codeql-path }}
+        run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.27.1"
 
       - name: Build Kotlin binding
         if: matrix.language == 'java-kotlin'
@@ -88,26 +122,391 @@ jobs:
 
       - name: Build Swift binding
         if: matrix.language == 'swift'
-        # The CodeQL Swift extractor may drive the SwiftPM build for a
-        # different architecture than the runner host (observed: an
-        # x86_64-apple-macosx SwiftPM triple on an arm64 runner). Provide a
-        # universal *static* library only, so whichever slice the tracer
-        # selects links hermetically and the XCTest binary carries no runtime
-        # dylib dependency.
+        # Compiled CodeQL extraction on Apple Silicon uses Rosetta. Keep the
+        # build in that traced process tree, targeting only arm64. XCTest must
+        # then run natively from the exact same freshly built test products.
         run: |
-          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          # The tracer can launch a translated shell on Apple Silicon. Check
+          # hardware capability; the Rust target and Swift triple below bind output.
+          test "$(/usr/sbin/sysctl -n hw.optional.arm64)" = 1
+          printf 'CODEQL_SWIFT_PROCESS_ARCH=%s\n' "$(uname -m)"
+          rustup target add aarch64-apple-darwin
           cargo build --locked -p q-periapt-ffi --release --target aarch64-apple-darwin
-          cargo build --locked -p q-periapt-ffi --release --target x86_64-apple-darwin
           mkdir -p target/release
           rm -f target/release/libq_periapt_ffi_abi2.a target/release/libq_periapt_ffi_abi2.dylib
-          lipo -create \
-            target/aarch64-apple-darwin/release/libq_periapt_ffi_abi2.a \
-            target/x86_64-apple-darwin/release/libq_periapt_ffi_abi2.a \
-            -output target/release/libq_periapt_ffi_abi2.a
+          cp target/aarch64-apple-darwin/release/libq_periapt_ffi_abi2.a target/release/libq_periapt_ffi_abi2.a
           lipo -info target/release/libq_periapt_ffi_abi2.a
-          swift test --package-path bindings/swift -Xlinker -L${{ github.workspace }}/target/release
+          codeql_swift_scratch="$(mktemp -d "$RUNNER_TEMP/qperiapt-codeql-swift.XXXXXX")"
+          swift build --build-tests --package-path bindings/swift --scratch-path "$codeql_swift_scratch" --triple arm64-apple-macosx13.0 -Xlinker -L${{ github.workspace }}/target/release
+          /usr/bin/arch -arm64 /usr/bin/xcrun swift test --skip-build --package-path bindings/swift --scratch-path "$codeql_swift_scratch" --triple arm64-apple-macosx13.0 -Xlinker -L${{ github.workspace }}/target/release
 
       - name: Analyze
-        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        id: codeql_analyze
+        timeout-minutes: 60
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           category: /language:${{ matrix.language }}
+          output: ${{ runner.temp }}/qperiapt-codeql-results-${{ matrix.language }}
+          upload: always
+          upload-database: true
+
+      - name: Record CodeQL analysis source
+        if: always() && steps.codeql_init.outcome == 'success'
+        env:
+          CODEQL_RESULTS_DIR: ${{ runner.temp }}/qperiapt-codeql-results-${{ matrix.language }}
+        run: |
+          mkdir -p "$CODEQL_RESULTS_DIR"
+          git rev-parse HEAD 'HEAD^{tree}' > "$CODEQL_RESULTS_DIR/source-identity.txt"
+
+      - name: Retain CodeQL SARIF results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: codeql-results-${{ matrix.language }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qperiapt-codeql-results-${{ matrix.language }}/*.sarif
+            ${{ runner.temp }}/qperiapt-codeql-results-${{ matrix.language }}/source-identity.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+  rust:
+    name: Analyze Rust (${{ matrix.profile }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: native
+            runner: ubuntu-24.04
+            bundle: linux64
+          - profile: wasm
+            runner: ubuntu-24.04
+            bundle: linux64
+    env:
+      RUST_PROFILE: ${{ matrix.profile }}
+      CODEQL_EXPECTED_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: rust-src
+          targets: wasm32-unknown-unknown
+      - name: Install analysis build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends protobuf-compiler clang
+      - name: Check target coverage and publication rejection cases
+        run: |
+          sh artifact/python-run.sh -m unittest -v \
+            test_codeql_rust_quality test_codeql_consumer_context \
+            test_codeql_target_coverage test_codeql_compiler_sources \
+            test_codeql_cargo_metadata test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer
+      - uses: github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+        id: rust_codeql
+        with:
+          tools: https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.2/codeql-bundle-${{ matrix.bundle }}.tar.gz
+          languages: rust
+      - name: Compile and extract the actual target
+        id: rust_prepare
+        # Include compilation/extraction as well as the 30-minute Metrics cap.
+        # The enclosing job retains its independent six-hour deadline.
+        timeout-minutes: 55
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: sh artifact/python-run.sh artifact/codeql_rust_profile.py prepare --profile "$RUST_PROFILE"
+      - name: Run every security-extended query
+        timeout-minutes: 305
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: sh artifact/python-run.sh artifact/codeql_rust_profile.py analyze --profile "$RUST_PROFILE"
+      - name: Retain profile evidence before bundling diagnostics
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-profile-${{ matrix.profile }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/evidence/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retain Rust query logs independently of the database archive
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-query-logs-${{ matrix.profile }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qperiapt-codeql-database/rust/log/**
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/evidence/analyze.*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Bundle the completed or partial database
+        if: always()
+        timeout-minutes: 10
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: |
+          diagnostic_dir="$RUNNER_TEMP/qperiapt-codeql-$RUST_PROFILE/diagnostics"
+          mkdir -p "$diagnostic_dir"
+          if test -f "$RUNNER_TEMP/qperiapt-codeql-database/rust/codeql-database.yml"; then
+            "$CODEQL_BINARY" database bundle "$RUNNER_TEMP/qperiapt-codeql-database/rust" \
+              --output="$diagnostic_dir/database.zip" --include-diagnostics --include-results --include-logs
+          else
+            printf '%s\n' 'No database metadata was produced; inspect the profile evidence.' > "$diagnostic_dir/no-database.txt"
+          fi
+      - name: Retain Rust database and consumer diagnostics
+        if: always()
+        timeout-minutes: 10
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-diagnostics-${{ matrix.profile }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/diagnostics/**
+            ${{ runner.temp }}/qperiapt-codeql-database/rust/log/**
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/consumers/*.json
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/consumers/*.stdout
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/consumers/*.stderr
+          if-no-files-found: error
+          retention-days: 14
+
+  rust-macos-prepare:
+    name: Prepare Rust (macos)
+    runs-on: macos-26
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      transfer_sha256: ${{ steps.rust_transfer.outputs.transfer_sha256 }}
+      origin_attempt: ${{ steps.rust_transfer.outputs.origin_attempt }}
+    env:
+      RUST_PROFILE: macos
+      CODEQL_EXPECTED_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: rust-src
+      - name: Install macOS analysis build dependencies
+        run: |
+          test "$(uname -m)" = arm64
+          if ! command -v protoc >/dev/null; then
+            brew install protobuf
+          fi
+          protoc --version
+      - name: Check target coverage and publication rejection cases
+        run: |
+          sh artifact/python-run.sh -m unittest -v \
+            test_codeql_rust_quality test_codeql_consumer_context \
+            test_codeql_target_coverage test_codeql_compiler_sources \
+            test_codeql_cargo_metadata test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer
+      - uses: github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+        id: rust_codeql
+        with:
+          tools: https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.2/codeql-bundle-osx64.tar.gz
+          languages: rust
+      - name: Compile and extract the actual macOS target
+        id: rust_prepare
+        timeout-minutes: 55
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: sh artifact/python-run.sh artifact/codeql_rust_profile.py prepare --profile "$RUST_PROFILE"
+      - name: Export the source-bound macOS database
+        id: rust_export
+        timeout-minutes: 15
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: sh artifact/python-run.sh artifact/codeql_rust_profile.py export --profile "$RUST_PROFILE"
+      - name: Bind the transfer to the preparation job
+        id: rust_transfer
+        run: sh artifact/python-run.sh artifact/codeql_rust_transfer.py identity >> "$GITHUB_OUTPUT"
+      - name: Retain the exact macOS database transfer
+        if: always()
+        timeout-minutes: 15
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-macos-transfer-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qperiapt-codeql-macos-transfer
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retain macOS extraction evidence
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-origin-macos-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qperiapt-codeql-macos/evidence/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Bundle preparation failure diagnostics
+        if: always() && steps.rust_export.outcome != 'success'
+        timeout-minutes: 10
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: |
+          diagnostic_dir="$RUNNER_TEMP/qperiapt-codeql-macos/diagnostics"
+          mkdir -p "$diagnostic_dir"
+          if test -f "$RUNNER_TEMP/qperiapt-codeql-database/rust/codeql-database.yml"; then
+            "$CODEQL_BINARY" database bundle "$RUNNER_TEMP/qperiapt-codeql-database/rust" \
+              --output="$diagnostic_dir/database.zip" --include-diagnostics --include-results --include-logs
+          else
+            printf '%s\n' 'No database metadata was produced; inspect the origin evidence.' > "$diagnostic_dir/no-database.txt"
+          fi
+      - name: Retain macOS preparation diagnostics
+        if: always()
+        timeout-minutes: 10
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-origin-diagnostics-macos-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qperiapt-codeql-macos/diagnostics/**
+            ${{ runner.temp }}/qperiapt-codeql-database/rust/log/**
+            ${{ runner.temp }}/qperiapt-codeql-macos/consumers/*.json
+            ${{ runner.temp }}/qperiapt-codeql-macos/consumers/*.stdout
+            ${{ runner.temp }}/qperiapt-codeql-macos/consumers/*.stderr
+          if-no-files-found: error
+          retention-days: 14
+
+  rust-macos-analyze:
+    name: Analyze Rust (macos)
+    needs: rust-macos-prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      actions: read
+    env:
+      RUST_PROFILE: macos
+      CODEQL_EXPECTED_COMMIT: ${{ github.sha }}
+      CODEQL_TRANSFER_SHA256: ${{ needs.rust-macos-prepare.outputs.transfer_sha256 }}
+      CODEQL_TRANSFER_ATTEMPT: ${{ needs.rust-macos-prepare.outputs.origin_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+        id: rust_codeql
+        with:
+          tools: https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.2/codeql-bundle-linux64.tar.gz
+          languages: rust
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: codeql-rust-macos-transfer-${{ needs.rust-macos-prepare.outputs.origin_attempt }}
+          path: ${{ runner.temp }}/qperiapt-codeql-macos-transfer
+      - name: Import the anchored macOS database
+        id: rust_import
+        timeout-minutes: 15
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: sh artifact/python-run.sh artifact/codeql_rust_profile.py import --profile "$RUST_PROFILE"
+      - name: Run every security-extended query on the macOS database
+        timeout-minutes: 305
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: sh artifact/python-run.sh artifact/codeql_rust_profile.py analyze --profile "$RUST_PROFILE"
+      - name: Retain the completed or failed macOS analysis evidence
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-profile-macos-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qperiapt-codeql-macos/evidence/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retain Rust query logs independently of the database archive
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-query-logs-macos-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qperiapt-codeql-database/rust/log/**
+            ${{ runner.temp }}/qperiapt-codeql-macos/evidence/analyze.*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Bundle the completed or partial macOS-origin database
+        if: always()
+        timeout-minutes: 10
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: |
+          diagnostic_dir="$RUNNER_TEMP/qperiapt-codeql-macos/diagnostics"
+          mkdir -p "$diagnostic_dir"
+          if test -f "$RUNNER_TEMP/qperiapt-codeql-database/rust/codeql-database.yml"; then
+            "$CODEQL_BINARY" database bundle "$RUNNER_TEMP/qperiapt-codeql-database/rust" \
+              --output="$diagnostic_dir/database.zip" --include-diagnostics --include-results --include-logs
+          else
+            printf '%s\n' 'No database was imported; inspect the transfer evidence.' > "$diagnostic_dir/no-database.txt"
+          fi
+      - name: Retain macOS-origin analysis diagnostics
+        if: always()
+        timeout-minutes: 10
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-diagnostics-macos-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qperiapt-codeql-macos/diagnostics/**
+            ${{ runner.temp }}/qperiapt-codeql-database/rust/log/**
+          if-no-files-found: error
+          retention-days: 14
+
+  rust-publication:
+    name: Validate and publish Rust target analyses
+    needs: [rust, rust-macos-prepare, rust-macos-analyze]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: codeql-rust-profile-*
+          path: ${{ runner.temp }}/qperiapt-rust-profiles
+      - name: Require matching source, compiler coverage and complete suites
+        env:
+          CODEQL_EXPECTED_COMMIT: ${{ github.sha }}
+          CODEQL_TRANSFER_SHA256: ${{ needs.rust-macos-prepare.outputs.transfer_sha256 }}
+          CODEQL_TRANSFER_ATTEMPT: ${{ needs.rust-macos-prepare.outputs.origin_attempt }}
+        run: |
+          sh artifact/python-run.sh artifact/codeql_rust_publication.py \
+            --inputs "$RUNNER_TEMP/qperiapt-rust-profiles" \
+            --output "$RUNNER_TEMP/qperiapt-rust-publication"
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+        with:
+          # Preserve main's Rust analysis identity for the native continuation.
+          category: /language:rust
+          sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/native.sarif
+          wait-for-processing: true
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+        with:
+          category: /language:rust/target:wasm
+          sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/wasm.sarif
+          wait-for-processing: true
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+        with:
+          category: /language:rust/target:macos
+          sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/macos.sarif
+          wait-for-processing: true
+      - name: Retain paired coverage result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-paired-quality-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qperiapt-rust-publication/PAIRED_QUALITY.json
+          if-no-files-found: error
+

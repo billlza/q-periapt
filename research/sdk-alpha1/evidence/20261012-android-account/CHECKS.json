@@ -1,0 +1,70 @@
+{
+  "completed": true,
+  "scope": "macOS arm64 host JNI against installed Debug/Release C libraries; Android device acceptance remains separately scoped",
+  "profiles": {
+    "debug": {
+      "passed": true,
+      "binary_sha256": "1337d53feb09384452fdf0c358616cbd0fe9df0061e010b279a6697ad65a1058",
+      "outcomes": {
+        "fixed": {
+          "foreign_processes": 27,
+          "original_operation": "0000000000000000d52c6e8a7bfc1fd5ac63a183cb226c50737b6b7abe0166d6",
+          "cancelled_operation": "0000000000000001f0430542e419772ca9e88fc3e59e2a5a81ce3f4bae17b391",
+          "recipients": 2,
+          "receiver_exit_77_cuts": 1,
+          "concurrent_close_busy_and_member_cancel": true
+        },
+        "recoverable": {
+          "foreign_processes": 27,
+          "original_operation": "0000000000000000473f18caf2025a3b380e5959a76f180cd28385d9814ec77a",
+          "cancelled_operation": "0000000000000001be72a0e6ce232a449ab95e70e07f7553aa8180fff435f87f",
+          "recipients": 2,
+          "receiver_exit_77_cuts": 1,
+          "concurrent_close_busy_and_member_cancel": true
+        }
+      }
+    },
+    "release": {
+      "passed": true,
+      "binary_sha256": "397156e745b728e2b756d63d198894f2c6687fe6abf9158768a359c5c45b3685",
+      "outcomes": {
+        "fixed": {
+          "foreign_processes": 27,
+          "original_operation": "000000000000000037a6b5333a0fb04a96156653cd6f7e3f5b0e6a5150dd1847",
+          "cancelled_operation": "00000000000000013e6006e18dc0ce7395aa15d81bafbcf4511a5b16400304f4",
+          "recipients": 2,
+          "receiver_exit_77_cuts": 1,
+          "concurrent_close_busy_and_member_cancel": true
+        },
+        "recoverable": {
+          "foreign_processes": 27,
+          "original_operation": "00000000000000003d03a3520595e946f37c3f1d3b96ebcba3fa214eef69142a",
+          "cancelled_operation": "0000000000000001b8237ed83a136d2e35c2c1fdee5a7f50aaef2d1b30374d8c",
+          "recipients": 2,
+          "receiver_exit_77_cuts": 1,
+          "concurrent_close_busy_and_member_cancel": true
+        }
+      }
+    }
+  },
+  "boundary": {
+    "debug": {
+      "passed": true,
+      "native_sha256": "9c34cdfa6033cedc96601ec9bfe22c0bc13a96efbbb54d570b5b214ed22b2f90",
+      "bridge_sha256": "09e39aa11a20b5ded1236891a50a620948e1e1b8f74ae2c5477aa36357c460ad"
+    },
+    "release": {
+      "passed": true,
+      "native_sha256": "4286dab8acda54e101ec8f9b0478ecfeaaa204dbee11b09023d34028e312c717",
+      "bridge_sha256": "b5745b980c3a15531018a2d232aeeebf63b5e3df9a5d74b72300cb71c15d2317"
+    }
+  },
+  "foreign_processes": 108,
+  "receiver_exit_77_cuts": 4,
+  "clippy_warnings_denied": true,
+  "public_source_matches_boundary_compile": true,
+  "all_archive_hashes_verified": true,
+  "archive_members": 500,
+  "capture_sha256": "9a765603d27dfe783e4fff425f60e02140c61d71478e891c08fc6c37cddb04a8",
+  "release_claim_eligible": false
+}

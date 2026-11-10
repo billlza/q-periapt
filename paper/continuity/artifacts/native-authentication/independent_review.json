@@ -1,0 +1,189 @@
+{
+  "status": "accepted",
+  "review_kind": "Independent formal mathematical composition and reduction-interface review",
+  "reviewed_source": {
+    "path": "/workspace/scratch/084f6c1d017a/research-next/native-authentication.tex",
+    "bytes": 13617,
+    "sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+    "git_blob_sha1": "25bcd611c9b308092226c871163078d827e4cd8d"
+  },
+  "repository_base_commit": "621ae301da5f479fa2401689893c78399512548e",
+  "dependency_identity_scope": "Exact current working-tree bytes, individually hashed; the base commit is context and does not assert that every dependency equals that commit.",
+  "reviewed_dependencies": [
+    {
+      "path": "/workspace/scratch/084f6c1d017a/q-periapt-paper/paper/continuity/security-model.tex",
+      "bytes": 30624,
+      "sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "git_blob_sha1": "6ff4e347deab62ad10368c97b287f837e30a98ec"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/q-periapt-paper/paper/continuity/candidate-local-accounting.tex",
+      "bytes": 8953,
+      "sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "git_blob_sha1": "0452a9b36bca27a885f70aa0823ba8e1d84f5e67"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/q-periapt-paper/paper/continuity/native-correspondence.tex",
+      "bytes": 5624,
+      "sha256": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+      "git_blob_sha1": "cf9a0a38db5256916694ce2d5b3f749aa5f63394"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/q-periapt-paper/paper/continuity/opaque-rendering.tex",
+      "bytes": 11335,
+      "sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "git_blob_sha1": "efceef9c75cca293f0b79cf9b51225c57f0e0f0e"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/q-periapt-paper/paper/continuity/live-core-instantiation.tex",
+      "bytes": 5679,
+      "sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+      "git_blob_sha1": "93e487100f318a2a00b923e729fc30b33708cefc"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/q-periapt-paper/paper/continuity/contextbound-connection.tex",
+      "bytes": 16401,
+      "sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "git_blob_sha1": "602813f56a05915381430fed457df4bdd6b1007d"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/q-periapt-paper/paper/continuity/joint-primitive-bounds.tex",
+      "bytes": 10663,
+      "sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+      "git_blob_sha1": "41f3bf38fdf26607751827ca3251459c79872ff1"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/q-periapt-paper/paper/continuity/joint-continuation.tex",
+      "bytes": 17987,
+      "sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "git_blob_sha1": "c6776a251741d293c76ac8f0b7303511763c4ade"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/q-periapt-paper/paper/continuity/confirmation-traffic.tex",
+      "bytes": 9959,
+      "sha256": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+      "git_blob_sha1": "bc4e851e2c3c12aa629f84e43c430a18c839ab6a"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/q-periapt-paper/paper/continuity/source-attribution.tex",
+      "bytes": 12838,
+      "sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+      "git_blob_sha1": "46e83b19ada210e2f8a5dd3a5f373e388a6953c2"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/q-periapt-paper/paper/continuity/reservation-signature-bridge.tex",
+      "bytes": 11624,
+      "sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+      "git_blob_sha1": "a78454db982b35557bb78d673049caf449b4ba2e"
+    }
+  ],
+  "checks": [
+    {
+      "id": "target_fixed",
+      "status": "pass",
+      "finding": "The unique accepted logical application challenge fixes the target root through stored provenance. Terminal adaptation selects only its coordinates, reservations and cut; the challenge is not transferred to another send."
+    },
+    {
+      "id": "event_total_definition",
+      "status": "pass",
+      "finding": "Bad_auth is defined using the actual accepted send root even when usable attribution A fails; no accepted send gives E=0. On A it corresponds to the attributed original pair and its effective tuple."
+    },
+    {
+      "id": "native_localization",
+      "status": "pass",
+      "finding": "The original native event splits into unattributed, selected charged-stop and unstopped attributed contributions. Free stops permanently falsify E and A and I=j. Only the original native world uses the candidate partition."
+    },
+    {
+      "id": "authentication_specific_adapter",
+      "status": "pass",
+      "finding": "The output-bit operational advantage a_j^auth is defined for W_j itself. Record bit cost, component advantage and selected-pair correctness delta_j each enter once, without reuse of confidentiality score-event gaps."
+    },
+    {
+      "id": "fixed_pair_implementability",
+      "status": "pass",
+      "finding": "The existing two-stage ML-KEM adapter supplies the selected original generation public key and challenges once at the original encapsulation invocation. Ordinary prechallenge decapsulation, postchallenge challenge-ciphertext cached returns, native traditional validation, locally simulated other owners and exact retries implement the required continuation. Immutable contrary binding is a free stop. The event evaluator uses complete cores/pairs and provenance handles, not unknown secret tapes, primitive keys or quantum queries."
+    },
+    {
+      "id": "private_origin_ledgers",
+      "status": "pass",
+      "finding": "Honest tag/encryption ledgers begin at the first private computation, including later failed writes. Complete-core or AAD/ciphertext membership and true aliases preserve original schedule/role/send identity; cached receives and consumed statuses do not create fresh authentication."
+    },
+    {
+      "id": "online_target_mark",
+      "status": "pass",
+      "finding": "The original a identifies m* before its first private hash at any protected alias. The selected root and fresh traffic entry/direction retain their online marks. Other tuples never replace m*, and a never supplying a usable target contributes zero."
+    },
+    {
+      "id": "hybrid_predicates",
+      "status": "pass",
+      "finding": "Every comparison runs the same W_j code on its own actual trace and recomputes eligibility, attribution, selector and event ledgers. Authentication before the challenge send can be recorded, while final qualification remains the original conjunction."
+    },
+    {
+      "id": "root_auth_composition",
+      "status": "pass",
+      "finding": "Complete effective-tuple caching supplies the hidden-component bit comparison. The one-old-root/complete-info correspondence supplies the single-entry initialization comparison. The resulting admitted uniform-root controller supplies the union confirmation/marked-message authentication bound; the schedule cost is charged once."
+    },
+    {
+      "id": "whole_continuation_budgets",
+      "status": "pass",
+      "finding": "Budgets cover preparation, ordinary and honest oracle work, continuations and terminal testing in each derived experiment. No budget reset or unmodeled direct protected-key observation is introduced."
+    },
+    {
+      "id": "probability_scope",
+      "status": "pass",
+      "finding": "The result bounds the joint native probability Pr[E and Bad_auth] for the selected schedule and marked first-message key. The projection extension keeps its residual in the original native game. Per-candidate and outer caps are monotone valid probability caps."
+    },
+    {
+      "id": "references",
+      "status": "pass",
+      "finding": "All 15 referenced theorem, equation, definition and section labels are defined in the draft/current manuscript dependencies."
+    }
+  ],
+  "mathematical_blockers": [],
+  "assumptions": [
+    "The stated live-core single-root next-rekey call surface and admitted online-marked controller, including original native eligibility and origin-preserving stops.",
+    "The existing real-to-opaque record correspondence, operational two-stage ML-KEM real-versus-uniform security/correctness, complete-tuple hidden-component comparison and single-entry root-use correspondence.",
+    "The same shared-oracle joint schedule, confirmation HMAC-row/collision and first-message AEAD-integrity operational bounds as in the referenced modules; confirmation keys remain behind their MAC/verification interfaces.",
+    "For the optional executed-slot instantiation of the attribution residual, its source-attribution result and reservation-signature bridge apply under their stated original-key/opaque-owner oracle interfaces."
+  ],
+  "controls": {
+    "existing_receipt": {
+      "path": "/workspace/scratch/084f6c1d017a/review-next/auth_bit_accounting_controls.json",
+      "bytes": 1420,
+      "sha256": "c8664cdfd178468df08508f53944bf15bce4eeffe54f3d2ac6dd959fb78b8399",
+      "git_blob_sha1": "e928003614a0609064ea67ab98ecbfc43838606e"
+    },
+    "existing_script": {
+      "path": "/workspace/scratch/084f6c1d017a/review-next/review_auth_bit_accounting.py",
+      "bytes": 3899,
+      "sha256": "0e93c1e4ff47780593c20996e38b2ec751a60acdd799da1a5094395e007e28c2",
+      "git_blob_sha1": "8d03805fa4ca2f0b30867ff16571f67033987e92"
+    },
+    "compatible_pointwise_assignments": 160,
+    "reused_existing_result": true,
+    "scope": "Finite Boolean bookkeeping controls and explicit countermodels; no protocol, primitive or quantum execution.",
+    "additional_checks": "Reference-label resolution only; no new protocol, primitive, quantum, benchmark or CI execution is claimed by this receipt."
+  },
+  "retained_prior_reviews": [
+    {
+      "path": "/workspace/scratch/084f6c1d017a/review-next/signature_bridge_review.json",
+      "bytes": 4556,
+      "sha256": "4708182e101e312bb6ca48cd2129d31f4da615f5cc331b35ce88016d43342b50",
+      "git_blob_sha1": "2cd2251c858f927c4513bc70355c3303c2b9d2d8"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/review-next/reference_comparison_review.json",
+      "bytes": 2841,
+      "sha256": "3f55cdda5fe691662bed1df159a545fbdbb0fe1001d7e1e8e2aab5a3d25fa398",
+      "git_blob_sha1": "a421a2386d6a87d324a8254b223fd7215ddb6291"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/review-next/snapshot_layout_review.json",
+      "bytes": 5970,
+      "sha256": "2f25538deacbad92468a7a4dbeeee1fd257a95d836a431f4773ccc71120f0efa",
+      "git_blob_sha1": "981ea8001d9c7c84e28c0f3a3edf2475f80db878"
+    }
+  ],
+  "references_checked": 15,
+  "missing_references": []
+}

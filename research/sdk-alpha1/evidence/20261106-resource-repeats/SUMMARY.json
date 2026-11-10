@@ -1,0 +1,545 @@
+{
+  "all_samples_retained": true,
+  "altered_input_controls": 432,
+  "background_desktop_applications_controlled": false,
+  "business_effects": 600,
+  "cohorts": [
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-operation-resources-20261105/validation-local-02",
+      "effects": 49,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "lifecycle",
+      "label": "validation-local-02",
+      "load_after": [
+        3.48193359375,
+        3.6572265625,
+        3.9560546875
+      ],
+      "load_before": [
+        3.36376953125,
+        3.65185546875,
+        3.9619140625
+      ],
+      "outside_measured_spans": 0,
+      "position": 1,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "local",
+      "round": 1,
+      "run_seconds": 11.870117291924544,
+      "spans": 106,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:18:45.645125+00:00",
+      "utc_before": "2026-11-06T03:18:24.583874+00:00",
+      "witness_exchanges": 0
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-operation-resources-20261105/validation-witness-02",
+      "effects": 49,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "lifecycle",
+      "label": "validation-witness-02",
+      "load_after": [
+        7.255859375,
+        4.6513671875,
+        4.3115234375
+      ],
+      "load_before": [
+        3.48193359375,
+        3.6572265625,
+        3.9560546875
+      ],
+      "outside_measured_spans": 60,
+      "position": 2,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "witness",
+      "round": 1,
+      "run_seconds": 19.332100208033808,
+      "spans": 106,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:19:14.754180+00:00",
+      "utc_before": "2026-11-06T03:18:46.026097+00:00",
+      "witness_exchanges": 1410
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-resources-20261106/validation-witness-peer-02",
+      "effects": 26,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "fanout",
+      "label": "validation-witness-peer-02",
+      "load_after": [
+        3.20166015625,
+        3.72705078125,
+        3.96923828125
+      ],
+      "load_before": [
+        3.208984375,
+        3.81494140625,
+        4.0107421875
+      ],
+      "outside_measured_spans": 23,
+      "position": 3,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "witness",
+      "round": 1,
+      "run_seconds": 24.097465749946423,
+      "spans": 89,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:22:28.038460+00:00",
+      "utc_before": "2026-11-06T03:21:49.640934+00:00",
+      "witness_exchanges": 1203
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-resources-20261106/validation-local-peer-02",
+      "effects": 26,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "fanout",
+      "label": "validation-local-peer-02",
+      "load_after": [
+        2.87890625,
+        3.59375,
+        3.9111328125
+      ],
+      "load_before": [
+        3.20166015625,
+        3.72705078125,
+        3.96923828125
+      ],
+      "outside_measured_spans": 0,
+      "position": 4,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "local",
+      "round": 1,
+      "run_seconds": 18.162358499947004,
+      "spans": 89,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:22:56.337933+00:00",
+      "utc_before": "2026-11-06T03:22:28.453468+00:00",
+      "witness_exchanges": 0
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-operation-resources-20261105/validation-witness-03",
+      "effects": 49,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "lifecycle",
+      "label": "validation-witness-03",
+      "load_after": [
+        2.47705078125,
+        3.42431640625,
+        3.837890625
+      ],
+      "load_before": [
+        2.87890625,
+        3.59375,
+        3.9111328125
+      ],
+      "outside_measured_spans": 60,
+      "position": 1,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "witness",
+      "round": 2,
+      "run_seconds": 19.269867833005264,
+      "spans": 106,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:23:25.043825+00:00",
+      "utc_before": "2026-11-06T03:22:56.675203+00:00",
+      "witness_exchanges": 1410
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-resources-20261106/validation-local-peer-03",
+      "effects": 26,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "fanout",
+      "label": "validation-local-peer-03",
+      "load_after": [
+        3.515625,
+        3.58349609375,
+        3.8818359375
+      ],
+      "load_before": [
+        2.47705078125,
+        3.42431640625,
+        3.837890625
+      ],
+      "outside_measured_spans": 0,
+      "position": 2,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "local",
+      "round": 2,
+      "run_seconds": 18.26712204096839,
+      "spans": 89,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:23:53.315349+00:00",
+      "utc_before": "2026-11-06T03:23:25.463205+00:00",
+      "witness_exchanges": 0
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-operation-resources-20261105/validation-local-03",
+      "effects": 49,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "lifecycle",
+      "label": "validation-local-03",
+      "load_after": [
+        3.30029296875,
+        3.52880859375,
+        3.8544921875
+      ],
+      "load_before": [
+        3.515625,
+        3.58349609375,
+        3.8818359375
+      ],
+      "outside_measured_spans": 0,
+      "position": 3,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "local",
+      "round": 2,
+      "run_seconds": 10.34047874994576,
+      "spans": 106,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:24:13.267739+00:00",
+      "utc_before": "2026-11-06T03:23:53.649993+00:00",
+      "witness_exchanges": 0
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-resources-20261106/validation-witness-peer-03",
+      "effects": 26,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "fanout",
+      "label": "validation-witness-peer-03",
+      "load_after": [
+        3.85400390625,
+        3.66748046875,
+        3.89306640625
+      ],
+      "load_before": [
+        3.30029296875,
+        3.52880859375,
+        3.8544921875
+      ],
+      "outside_measured_spans": 23,
+      "position": 4,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "witness",
+      "round": 2,
+      "run_seconds": 23.43589795799926,
+      "spans": 89,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:24:47.382760+00:00",
+      "utc_before": "2026-11-06T03:24:13.687621+00:00",
+      "witness_exchanges": 1203
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-resources-20261106/validation-local-peer-04",
+      "effects": 26,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "fanout",
+      "label": "validation-local-peer-04",
+      "load_after": [
+        3.70166015625,
+        3.64990234375,
+        3.87841796875
+      ],
+      "load_before": [
+        3.85400390625,
+        3.66748046875,
+        3.89306640625
+      ],
+      "outside_measured_spans": 0,
+      "position": 1,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "local",
+      "round": 3,
+      "run_seconds": 18.15343050006777,
+      "spans": 89,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:25:15.927031+00:00",
+      "utc_before": "2026-11-06T03:24:47.799934+00:00",
+      "witness_exchanges": 0
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-resources-20261106/validation-witness-peer-04",
+      "effects": 26,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "fanout",
+      "label": "validation-witness-peer-04",
+      "load_after": [
+        3.06689453125,
+        3.4970703125,
+        3.8125
+      ],
+      "load_before": [
+        3.70166015625,
+        3.64990234375,
+        3.87841796875
+      ],
+      "outside_measured_spans": 23,
+      "position": 2,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "witness",
+      "round": 3,
+      "run_seconds": 23.852711125044152,
+      "spans": 89,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:25:50.003192+00:00",
+      "utc_before": "2026-11-06T03:25:16.304614+00:00",
+      "witness_exchanges": 1203
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-operation-resources-20261105/validation-witness-04",
+      "effects": 49,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "lifecycle",
+      "label": "validation-witness-04",
+      "load_after": [
+        3.28515625,
+        3.51904296875,
+        3.8115234375
+      ],
+      "load_before": [
+        3.06689453125,
+        3.4970703125,
+        3.8125
+      ],
+      "outside_measured_spans": 60,
+      "position": 3,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "witness",
+      "round": 3,
+      "run_seconds": 18.444552459055558,
+      "spans": 106,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:26:18.068558+00:00",
+      "utc_before": "2026-11-06T03:25:50.415168+00:00",
+      "witness_exchanges": 1410
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-operation-resources-20261105/validation-local-04",
+      "effects": 49,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "lifecycle",
+      "label": "validation-local-04",
+      "load_after": [
+        4.5703125,
+        3.79296875,
+        3.90234375
+      ],
+      "load_before": [
+        3.28515625,
+        3.51904296875,
+        3.8115234375
+      ],
+      "outside_measured_spans": 0,
+      "position": 4,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "local",
+      "round": 3,
+      "run_seconds": 10.965833374997601,
+      "spans": 106,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:26:38.688680+00:00",
+      "utc_before": "2026-11-06T03:26:18.501060+00:00",
+      "witness_exchanges": 0
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-resources-20261106/validation-witness-peer-05",
+      "effects": 26,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "fanout",
+      "label": "validation-witness-peer-05",
+      "load_after": [
+        4.41748046875,
+        3.84423828125,
+        3.9169921875
+      ],
+      "load_before": [
+        4.6845703125,
+        3.82958984375,
+        3.91455078125
+      ],
+      "outside_measured_spans": 23,
+      "position": 1,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "witness",
+      "round": 4,
+      "run_seconds": 23.566818790975958,
+      "spans": 89,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:27:12.539447+00:00",
+      "utc_before": "2026-11-06T03:26:39.088706+00:00",
+      "witness_exchanges": 1203
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-operation-resources-20261105/validation-local-05",
+      "effects": 49,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "lifecycle",
+      "label": "validation-local-05",
+      "load_after": [
+        4.48828125,
+        3.88818359375,
+        3.93017578125
+      ],
+      "load_before": [
+        4.41748046875,
+        3.84423828125,
+        3.9169921875
+      ],
+      "outside_measured_spans": 0,
+      "position": 2,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "local",
+      "round": 4,
+      "run_seconds": 11.648657708079554,
+      "spans": 106,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:27:33.778274+00:00",
+      "utc_before": "2026-11-06T03:27:12.960244+00:00",
+      "witness_exchanges": 0
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-resources-20261106/validation-local-peer-05",
+      "effects": 26,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "fanout",
+      "label": "validation-local-peer-05",
+      "load_after": [
+        4.35205078125,
+        3.9130859375,
+        3.93603515625
+      ],
+      "load_before": [
+        4.52880859375,
+        3.90625,
+        3.93603515625
+      ],
+      "outside_measured_spans": 0,
+      "position": 3,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "local",
+      "round": 4,
+      "run_seconds": 18.203764499980025,
+      "spans": 89,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:28:02.170791+00:00",
+      "utc_before": "2026-11-06T03:27:34.167991+00:00",
+      "witness_exchanges": 0
+    },
+    {
+      "allocator_environment": {
+        "MallocNanoZone": "0"
+      },
+      "directory": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-operation-resources-20261105/validation-witness-05",
+      "effects": 49,
+      "hardware": "hw.model: Mac16,5\nhw.ncpu: 16\nhw.memsize: 51539607552\nmachdep.cpu.brand_string: Apple M4 Max\n",
+      "kind": "lifecycle",
+      "label": "validation-witness-05",
+      "load_after": [
+        3.701171875,
+        3.8056640625,
+        3.8955078125
+      ],
+      "load_before": [
+        4.35205078125,
+        3.9130859375,
+        3.93603515625
+      ],
+      "outside_measured_spans": 60,
+      "position": 4,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=25755747)\t100%; charged; 0:00 remaining present: true\n",
+      "profile": "witness",
+      "round": 4,
+      "run_seconds": 18.724196999915875,
+      "spans": 106,
+      "thermal_after": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "thermal_before": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "utc_after": "2026-11-06T03:28:30.477267+00:00",
+      "utc_before": "2026-11-06T03:28:02.541490+00:00",
+      "witness_exchanges": 1410
+    }
+  ],
+  "completed_cohorts": 16,
+  "controller_failure_retained": "Initial recorder failed only on a second exclusive PROGRESS write; resume kept its two successful native cohorts and continued the remaining original order.",
+  "no_other_qualification_processes_at_boundaries": true,
+  "performance_qualified": false,
+  "release_claim_eligible": false,
+  "scope": "Observed repeated baseline for the recorded M4 Max host and existing installed workloads; four independent setups per case. No production-tail, per-client memory, mobile-energy, maximum-capacity or frozen resource-budget claim.",
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "spans": 1560,
+  "witness_exchanges": 10452
+}

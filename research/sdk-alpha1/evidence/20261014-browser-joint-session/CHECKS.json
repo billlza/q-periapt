@@ -1,0 +1,97 @@
+{
+  "archive": {
+    "bytes": 19746264,
+    "members": 8641,
+    "path": "CAPTURE.zip",
+    "sha256": "66028e8958d32f0e4bf8b2fb17147347c2d4159217ed73f19287e3ddf6c6fe62"
+  },
+  "browser_calls": 193,
+  "cases": [
+    {
+      "calls": 37,
+      "case": "local",
+      "delivery": {
+        "consumption": 1,
+        "status": 3
+      },
+      "effect_identity_unchanged": true,
+      "epoch": "1",
+      "receiver_failed_after_effect": false,
+      "reverse_confirmed": true,
+      "run": "run01"
+    },
+    {
+      "calls": 39,
+      "case": "required",
+      "delivery": {
+        "consumption": 1,
+        "status": 3
+      },
+      "effect_identity_unchanged": true,
+      "epoch": "1",
+      "receiver_failed_after_effect": false,
+      "reverse_confirmed": true,
+      "run": "run01"
+    },
+    {
+      "calls": 41,
+      "case": "commit-loss",
+      "delivery": {
+        "consumption": 1,
+        "status": 3
+      },
+      "effect_identity_unchanged": true,
+      "epoch": "1",
+      "receiver_failed_after_effect": true,
+      "reverse_confirmed": true,
+      "run": "run02"
+    },
+    {
+      "calls": 39,
+      "case": "worker-cut",
+      "delivery": {
+        "consumption": 1,
+        "status": 3
+      },
+      "effect_identity_unchanged": true,
+      "epoch": "1",
+      "receiver_failed_after_effect": true,
+      "reverse_confirmed": true,
+      "run": "run02"
+    },
+    {
+      "calls": 37,
+      "case": "local",
+      "delivery": {
+        "consumption": 1,
+        "status": 3
+      },
+      "effect_identity_unchanged": true,
+      "epoch": "1",
+      "receiver_failed_after_effect": false,
+      "reverse_confirmed": true,
+      "run": "run04"
+    }
+  ],
+  "completed": true,
+  "package_sha256": "44ee7451655618f284e152cd76008447d281abda22c659ee81e7790b2705d4f1",
+  "private_material_archived": false,
+  "product_code_changed": false,
+  "release_claim_eligible": false,
+  "remaining": [
+    "Both-endpoint policy expiry and continuation in this joint browser session scenario",
+    "Browser process cut between local joint journal commit and completion receipt",
+    "Independent implementation, broader platforms/lifecycle/PCS/performance and release admission"
+  ],
+  "schema": 1,
+  "scope": "Current installed browser package and current-source native peer, same engine on one macOS arm64 host; native peer keeps still-live P0 and independently admits each peer G",
+  "source_commit": "e8949e78e531528736fb5731c4f41143773c82df",
+  "startup": {
+    "accepted_run": "run04",
+    "errors": 0,
+    "failed_check": "run03 required a console log file even for zero messages; failed result and original driver retained",
+    "fixed": true,
+    "original_error": "missing test-page favicon 404",
+    "warnings": 0
+  }
+}

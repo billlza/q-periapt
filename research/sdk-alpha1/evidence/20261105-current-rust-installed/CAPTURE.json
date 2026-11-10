@@ -1,0 +1,10 @@
+{
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "bytes": 7822827,
+  "sha256": "bd0b031a28f8e1e6da0bd943574217e0316113ea30a7cb81e1ebf9d755a41d42",
+  "members": 1991,
+  "sdk_report_sha256": "1e40fc2ae0c7c113509ae2a5c5a858cbd73a8a6fd7f63e66203316c4c61e228d",
+  "sdk_archive_capture": "../20261105-current-sdk-producer/CAPTURE.zip",
+  "sdk_archive_capture_sha256": "2fac380b3ba4a24c9d96d52166c0bcc152dff37c1f9658d287cc0498b8aa9bd5",
+  "scope": "Current installed Rust Debug/Release evidence. Public exports only; private runtime trees and retired native test binaries are not exported. SDK archives retained in the linked exact producer capsule."
+}

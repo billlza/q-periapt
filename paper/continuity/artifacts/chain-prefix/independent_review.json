@@ -1,0 +1,50 @@
+{
+  "schema": "qperiapt-chain-prefix-independent-review/1",
+  "review_type": "independent internal proof and exact-source review",
+  "status": "passed",
+  "inspected_integration_commit": "6a0ac0bbd7a5be77443e10b22c20a31f4b3be271",
+  "input_sha256": {
+    "chain-prefix-continuation.tex": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
+    "artifacts/chain-prefix/proof.md": "816d08944844de98794ee05b33329165622a03c00b43d3938f4f02d1f2dca795",
+    "artifacts/chain-prefix/check_prefix.py": "da95d3050d4bff8ecc132b7fdae01ac9c5cbabd0c7c74f8fcd3baa23447d5b35",
+    "artifacts/chain-prefix/source_identity.json": "bd98fa3c6ccfec295dd4892f8073c509c63c6661491f115679c2f6e3ecf71952"
+  },
+  "proof_findings": [
+    "The traffic material and direction are designated at fresh allocation; the online mark occurs before any alias of that index has a private step result.",
+    "Fixed index-order hybrids retain a real suffix after an earlier mark. The predecessor mark is already decided when the next private seed is allocated, so challenge embedding does not depend on a future decision.",
+    "Exact HKDF block-table normalization removes the hidden successor seed from its parent row before that seed is used as the next column challenge.",
+    "Each hidden seed has only the declared zero-salt extraction use. Each resulting Extract handle has two adaptive row uses with exact message lengths 57 and 89 bytes.",
+    "Never-reached steps leave their primitive challenge unused. Whole-execution query budgets remain deterministic and include preparation, the real suffix and terminal evaluation.",
+    "The joint root/traffic comparison is charged once, followed by two comparisons per potential prefix index. Numerical collisions remain in the shared-oracle experiments.",
+    "The AEAD challenger key can be installed after an online mark and before the pair is generated. Earlier key observations and the disclosed successor are available to the reduction.",
+    "First private encryption populates the original-operation ledger before a later persistence failure; exact retries consume one encryption query.",
+    "The confidentiality score incurs twice the bit-comparison cost; selected-message integrity uses one Boolean-event comparison.",
+    "Native end-to-end next-rekey statements retain their original first-message interface. The new result supplies the explicitly declared finite-chain continuation and application reductions."
+  ],
+  "review_corrections": [
+    "Clarified that pending and failed transaction resumption retains the proof ledger; the statement does not add an adversarial whole-storage rollback contract.",
+    "Made never-reached challenge handling and unconditional whole-execution budgets explicit.",
+    "The eight four-symbol policies use distinct masks of the first disclosed key; repeated offset classes were removed before finalization."
+  ],
+  "finite_check": {
+    "binary_policies": 128,
+    "binary_assignments": 8192,
+    "larger_policies": 8,
+    "larger_assignments": 32768,
+    "retrospective_mark_counterexample": true,
+    "source_files_verified_against_current_tree": 3
+  },
+  "scope": "The proof was reviewed statement by statement. The executed finite controls check the declared ideal-selection and interface properties and exact source identities; they retain their finite scope.",
+  "visual_review": {
+    "pdf_sha256": "123057b5f2ac1d8270be0663ab90740ae287e18a02cdc7009b40424fc14a5d83",
+    "pages_inspected": [
+      1,
+      39,
+      40,
+      41,
+      42,
+      88
+    ],
+    "result": "readable text and equations, consistent margins and section transitions, no observed clipping or overlap"
+  }
+}

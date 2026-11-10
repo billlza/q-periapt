@@ -1,0 +1,46 @@
+{
+  "source_commit": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "scope": "manual source correspondence for the declared graph shapes, not a whole-program refinement or new native execution",
+  "files": [
+    {
+      "path": "crates/q-periapt-sdk/src/expert/replay.rs",
+      "symbols": "RecoveryKey::from_host_key; SealedOperation; generate_key and encapsulate",
+      "source_observation": "The operation wrapping key is derived from the host key; the immutable token contains operation-bound randomness; replay opens it with the same binding.",
+      "git_blob": "3f793136fd8c508d1e1ace4a3386581e393ea023",
+      "sha256": "cc95985cd212a2c2f224dcce22bc7fba5f4f331dc190e263085a0261dd0a3713",
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-sdk/src/expert/replay.rs"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs",
+      "symbols": "DeviceJournal::rekey_recovery_key",
+      "source_observation": "The host input to the operation wrapping derivation is the active journal key.",
+      "git_blob": "4b3ec64baae74580f1b0d75e7d3ff3271c2ba941",
+      "sha256": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59",
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/src/durable/messages/rekey/response.rs"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable.rs",
+      "symbols": "seal; unseal_image; image_hash",
+      "source_observation": "The journal image serializes complete record payloads, encrypts them under the journal key, and hashes sealed bytes for its image digest.",
+      "git_blob": "9ba992940feff538465c82755791992807d1a069",
+      "sha256": "664bc3bfad790cc4639168b54bea30fdcdb80520310454cddd80ac66a5b37c42",
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/src/durable.rs"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/write_intent.rs",
+      "symbols": "PendingWrite; new_bound; authenticated_target",
+      "source_observation": "The pending intent embeds the intact sealed target; recovery authenticates/decrypts that original target.",
+      "git_blob": "0e4c351c9f99b080f950e4bbdba496819efa1e9c",
+      "sha256": "502bbd9de26958575704edbd0207c6579c4a07e3b9ed4a57650f407f3fdb312d",
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/src/durable/write_intent.rs"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/reservation_disclosure/aggregate_copy.rs",
+      "symbols": "another_session_write_preserves_the_original_reservation_and_its_exposure",
+      "source_observation": "The existing native test compares unchanged target payload bytes across a sibling write, checks changed wrapper nonce/digest, reopens and retries the exact offer, then predicts target traffic.",
+      "git_blob": "8f5f337cf4f66cdd7c73a3b3e8071aab33b8965f",
+      "sha256": "d57d9c1fb561d1a37e5c9fc91a0881bf6eda7c961842cbb82b49072e526a4751",
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/src/durable/messages/tests/reservation_disclosure/aggregate_copy.rs"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "baseline_head": "f014c6755d5782162f0d7e8025ca87caab773561",
+  "command": "make source PYTHON=\"sh <repository>/artifact/python-run.sh\"",
+  "build_log_sha256": "dc7d0e221c7a84be40c04bdb4506cfd46ee68bd48f05a16a355a38f88da7fefd",
+  "checks": {
+    "matched_projection": {
+      "configuration_schedule_pairs": 49,
+      "capture_cases": 98,
+      "status": "passed"
+    },
+    "matched_malformed_input_controls": {
+      "rejected": 14,
+      "status": "passed"
+    },
+    "auditor_input_boundary_controls": {
+      "passed": 7,
+      "failures": 0,
+      "status": "passed"
+    },
+    "retry_projection": {
+      "native_executions": 28,
+      "paired_cases": 14,
+      "fresh_baselines_equal": 14,
+      "status": "passed"
+    },
+    "build_and_source_export": {
+      "pages": 92,
+      "clean_export_files": 9,
+      "text_equal": true,
+      "status": "passed"
+    },
+    "formal_source_preservation": {
+      "outer_formal_blocks": 95,
+      "display_math_blocks": 93,
+      "status": "passed"
+    }
+  },
+  "scope": "Local manuscript integration checks and reviewed hosted execution receipts. A new published head receives its own hosted CI results."
+}

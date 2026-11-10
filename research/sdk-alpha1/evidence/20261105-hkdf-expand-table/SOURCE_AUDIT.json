@@ -1,0 +1,110 @@
+{
+  "call_sites": {
+    "epoch-traffic": {
+      "blocks": 4,
+      "label_anchor": "b\"epoch-traffic/HKDF-SHA256/ChaCha20Poly1305/\"",
+      "output_bytes": 128
+    },
+    "final-receipt-confirmation": {
+      "blocks": 1,
+      "label_anchor": "b\"-confirmation\"",
+      "output_bytes": 32
+    },
+    "initial-state": {
+      "blocks": 5,
+      "label_anchor": "label(b\"initial/HKDF-SHA256/ChaCha20Poly1305\")",
+      "output_bytes": 160
+    },
+    "message-chain": {
+      "blocks": 2,
+      "label_anchor": "label(b\"chain\")",
+      "output_bytes": 64
+    },
+    "pending-root": {
+      "blocks": 1,
+      "label_anchor": "b\"pending-root/HKDF-SHA256/\"",
+      "output_bytes": 32
+    },
+    "response-confirmation": {
+      "blocks": 1,
+      "label_anchor": "b\"responder-confirmation\"",
+      "output_bytes": 32
+    }
+  },
+  "captured_utc": "2026-11-05T07:43:33.916305+00:00",
+  "completed": true,
+  "dependency_lib_sha256": "11749cd8d24cd23569770f6b442ab537285139b8b7d103ab2d3abac0e5c892de",
+  "dependency_loop_order": [
+    {
+      "offset": 235,
+      "token": "if okm.len() > chunk_len * 255"
+    },
+    {
+      "offset": 280,
+      "token": "return Err(InvalidLength)"
+    },
+    {
+      "offset": 350,
+      "token": "okm.chunks_mut(chunk_len).enumerate()"
+    },
+    {
+      "offset": 402,
+      "token": "let mut hmac = self.hmac.clone()"
+    },
+    {
+      "offset": 449,
+      "token": "if let Some(ref prev) = prev"
+    },
+    {
+      "offset": 496,
+      "token": "hmac.update(prev)"
+    },
+    {
+      "offset": 692,
+      "token": "for info in info_components"
+    },
+    {
+      "offset": 738,
+      "token": "hmac.update(info)"
+    },
+    {
+      "offset": 784,
+      "token": "hmac.update(&[u8::try_from(block_n).expect(\"should convert\") + 1])"
+    },
+    {
+      "offset": 865,
+      "token": "let output = hmac.finalize()"
+    },
+    {
+      "offset": 949,
+      "token": "block.copy_from_slice(&output[..block_len])"
+    },
+    {
+      "offset": 1007,
+      "token": "prev = Some(output)"
+    }
+  ],
+  "dependency_matches_prior_vendor": true,
+  "hkdf_version": "0.13.0",
+  "invalid_extensions": [
+    "Independent table per requested output length",
+    "Untreated separate raw-row access",
+    "Independent rows for identical actual PRKs"
+  ],
+  "mathematical_result": "Perfect equality of the stated classical Expand-only interface and a full-info-indexed prefix-consistent random block table, after the row is already idealized.",
+  "multi_root_composition_established": false,
+  "primary_reference": "https://www.rfc-editor.org/rfc/rfc5869.html#section-2.3",
+  "product_sources_changed": false,
+  "release_claim_eligible": false,
+  "scope": "Pinned source/dependency byte and literal-order checks for the manual ideal-row interface identity; no new primitive run, empirical probability estimate or machine-checked cryptographic proof.",
+  "source_commit": "cc38ea0718400bc78b79a03e0ccc3c3a8fa725f6",
+  "source_files": {
+    "research/continuity-identity-candidate/Cargo.lock": "fda2e0592f7e013816b343d461da1e32346b4256603eda317d12b4ebd200c26b",
+    "research/continuity-identity-candidate/Cargo.toml": "b43a5363f62592929074f24abad5f1083ebed96f55b344737fc0883d99ef121f",
+    "research/continuity-identity-candidate/src/durable/messages.rs": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
+    "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs": "d2ba085119db3cff2ebda780f4824b8b4cbd3a9f6e44531df45db48144a65c1e",
+    "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59"
+  },
+  "source_hkdf_calls": 6,
+  "underlying_hmac_idealization_established_here": false
+}

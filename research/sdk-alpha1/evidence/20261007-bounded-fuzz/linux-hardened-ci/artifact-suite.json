@@ -1,0 +1,24 @@
+{
+  "at_utc": "2026-10-07T20:47:22.374465+00:00",
+  "head": "6ece94f25e1b9d308c99c319325138d02f87228f",
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "artifact",
+    "-p",
+    "test_*.py",
+    "-v"
+  ],
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/ci-4fc8412a-check-failure/source",
+  "returncode": 0,
+  "termination": null,
+  "seconds": 562.2584348749369,
+  "clean_source_after": true,
+  "head_unchanged": true,
+  "stdout_sha256": "7156cad027e9a7d45fc3c7a3802d08382353955ae2aad08b0d55180b998a1c39",
+  "stderr_sha256": "95d6bc79a5454c5287a2c5a62d19541d90d7dbce33bb4b6fc906fb301d143ddb"
+}

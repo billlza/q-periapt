@@ -6,15 +6,15 @@ use q_periapt_migration::{
     Abi2MigrationApplicationContextV2, AuthenticatedCapabilityOfferV1,
     AuthenticatedMigrationContextV2Input, AuthenticatedNegotiationInputV1,
     AuthenticatedNegotiationV1, CapabilityError, CapabilityOfferInputV1, CapabilityOfferV1,
-    ComponentMode, ConfirmationError, EndpointKeyShareV1, EndpointRole, MigrationAuthorityKeyId,
-    MigrationChainId, MigrationContextV2, MigrationContractError, MigrationFinishedV1,
-    MigrationIdentityKeyId, MigrationNonce, MigrationProtocolId, MigrationResetNonce,
-    MigrationResetV1, MigrationSecurityPosture, MigrationSessionId, MigrationStateDigest,
-    MigrationStateDraftV1, MigrationStateError, MigrationStateMachineV1, MigrationStateV1,
-    MigrationSuiteSet, PendingMutualConfirmationV1, PostKemTranscriptV1, PreKemTranscriptV1,
-    SecurityFloor, SignedCapabilityOfferV1, SignedMigrationResetV1, SignedMigrationStateV1,
-    StateCertificateKind, TranscriptError, UninitializedMigrationStateV1,
-    MIGRATION_CONTEXT_V2_ENCODED_LEN,
+    ComponentMode, ConfirmationError, EndpointKeyShareV1, EndpointRole, InitiatorConfirmationV1,
+    InitiatorFinishedV1, MigrationAuthorityKeyId, MigrationChainId, MigrationContextV2,
+    MigrationContractError, MigrationIdentityKeyId, MigrationNonce, MigrationProtocolId,
+    MigrationResetNonce, MigrationResetV1, MigrationSecurityPosture, MigrationSessionId,
+    MigrationStateDigest, MigrationStateDraftV1, MigrationStateError, MigrationStateMachineV1,
+    MigrationStateV1, MigrationSuiteSet, PostKemTranscriptV1, PreKemTranscriptV1,
+    ResponderAwaitingInitiatorFinishedV1, ResponderFinishedV1, SecurityFloor,
+    SignedCapabilityOfferV1, SignedMigrationResetV1, SignedMigrationStateV1, StateCertificateKind,
+    TranscriptError, UninitializedMigrationStateV1, MIGRATION_CONTEXT_V2_ENCODED_LEN,
 };
 use q_periapt_policy::{AuthenticatedPolicy, AuthenticatedResolvedSuite, HybridSuite, Policy};
 use q_periapt_sig::{SigAlg, Signer, Verifier};
@@ -416,25 +416,24 @@ fn v2_role_views_produce_one_exact_thirteen_field_context() -> Result<(), String
         .map_err(|error| error.to_string())?;
     let post = PostKemTranscriptV1::from_context(&fixture.context, &[0xC1; 64], &[0xC2; 32])
         .map_err(|error| error.to_string())?;
-    let initiator = PendingMutualConfirmationV1::<Sha3_256Xof>::new(
+    let initiator = InitiatorConfirmationV1::<Sha3_256Xof>::new(
         Secret::from_bytes([0xC3; 32]),
         &fixture.context,
         &post,
     )
     .map_err(|error| error.to_string())?;
-    let responder = PendingMutualConfirmationV1::<Sha3_256Xof>::new(
+    let responder = ResponderAwaitingInitiatorFinishedV1::<Sha3_256Xof>::new(
         Secret::from_bytes([0xC3; 32]),
         &responder_view,
         &post,
     )
     .map_err(|error| error.to_string())?;
-    let (initiator, initiator_finished) = initiator.issue_local_finished();
-    let (responder, responder_finished) = responder.issue_local_finished();
-    let accepted = initiator
-        .verify_peer_and_accept(&fixture.owner, &responder_finished)
+    let (initiator, initiator_finished) = initiator.issue_finished();
+    let (responder_accepted, responder_finished) = responder
+        .verify_accept_and_issue_finished(&fixture.owner, &initiator_finished)
         .map_err(|error| error.to_string())?;
-    let responder_accepted = responder
-        .verify_peer_and_accept(&fixture.owner, &initiator_finished)
+    let accepted = initiator
+        .verify_and_accept(&fixture.owner, &responder_finished)
         .map_err(|error| error.to_string())?;
     assert_eq!(
         accepted.secret().as_bytes(),
@@ -1285,7 +1284,7 @@ fn pq_only_state_is_explicitly_incompatible_with_abi2_and_confirmation() -> Resu
     let post = PostKemTranscriptV1::from_context(&context, &[0xB1; 64], &[0xB2; 32])
         .map_err(|error| error.to_string())?;
     assert_eq!(
-        PendingMutualConfirmationV1::<Sha3_256Xof>::new(
+        InitiatorConfirmationV1::<Sha3_256Xof>::new(
             Secret::from_bytes([0xB3; 32]),
             &context,
             &post,
@@ -1297,50 +1296,117 @@ fn pq_only_state_is_explicitly_incompatible_with_abi2_and_confirmation() -> Resu
 }
 
 #[test]
-fn mutual_finished_is_role_separated_and_state_current_at_acceptance() -> Result<(), String> {
-    let mut fixture = fixture(0xC0)?;
+fn confirmation_constructors_reject_the_opposite_role() -> Result<(), String> {
+    let fixture = fixture(0xC0)?;
     let responder_context = responder_context(&fixture)?;
     let post = PostKemTranscriptV1::from_context(&fixture.context, &[0xC1; 64], &[0xC2; 32])
         .map_err(|error| error.to_string())?;
-    let initiator = PendingMutualConfirmationV1::<Sha3_256Xof>::new(
+
+    assert_eq!(
+        InitiatorConfirmationV1::<Sha3_256Xof>::new(
+            Secret::from_bytes([0xC3; 32]),
+            &responder_context,
+            &post,
+        )
+        .err(),
+        Some(ConfirmationError::RoleMismatch)
+    );
+    assert_eq!(
+        ResponderAwaitingInitiatorFinishedV1::<Sha3_256Xof>::new(
+            Secret::from_bytes([0xC3; 32]),
+            &fixture.context,
+            &post,
+        )
+        .err(),
+        Some(ConfirmationError::RoleMismatch)
+    );
+    Ok(())
+}
+
+#[test]
+fn finished_flights_follow_initiator_responder_acceptance_order() -> Result<(), String> {
+    let fixture = fixture(0xC0)?;
+    let responder_context = responder_context(&fixture)?;
+    let post = PostKemTranscriptV1::from_context(&fixture.context, &[0xC1; 64], &[0xC2; 32])
+        .map_err(|error| error.to_string())?;
+    let initiator = InitiatorConfirmationV1::<Sha3_256Xof>::new(
         Secret::from_bytes([0xC3; 32]),
         &fixture.context,
         &post,
     )
     .map_err(|error| error.to_string())?;
-    let responder = PendingMutualConfirmationV1::<Sha3_256Xof>::new(
+    let responder = ResponderAwaitingInitiatorFinishedV1::<Sha3_256Xof>::new(
         Secret::from_bytes([0xC3; 32]),
         &responder_context,
         &post,
     )
     .map_err(|error| error.to_string())?;
-    let (initiator, initiator_finished) = initiator.issue_local_finished();
-    let (responder, responder_finished) = responder.issue_local_finished();
-    assert_ne!(initiator_finished, responder_finished);
-    let initiator_key = initiator
-        .verify_peer_and_accept(&fixture.owner, &responder_finished)
+
+    let (initiator, initiator_finished) = initiator.issue_finished();
+    let (responder_key, responder_finished) = responder
+        .verify_accept_and_issue_finished(&fixture.owner, &initiator_finished)
         .map_err(|error| error.to_string())?;
-    let responder_key = responder
-        .verify_peer_and_accept(&fixture.owner, &initiator_finished)
+    assert_ne!(initiator_finished.as_bytes(), responder_finished.as_bytes());
+    let initiator_key = initiator
+        .verify_and_accept(&fixture.owner, &responder_finished)
         .map_err(|error| error.to_string())?;
     assert_eq!(
         initiator_key.secret().as_bytes(),
         responder_key.secret().as_bytes()
     );
 
-    let pending = PendingMutualConfirmationV1::<Sha3_256Xof>::new(
+    let reflected_responder = ResponderAwaitingInitiatorFinishedV1::<Sha3_256Xof>::new(
+        Secret::from_bytes([0xC3; 32]),
+        &responder_context,
+        &post,
+    )
+    .map_err(|error| error.to_string())?;
+    let reflected_as_initiator = InitiatorFinishedV1::from_bytes(*responder_finished.as_bytes());
+    assert_eq!(
+        reflected_responder
+            .verify_accept_and_issue_finished(&fixture.owner, &reflected_as_initiator)
+            .err(),
+        Some(ConfirmationError::PeerFinishedMismatch)
+    );
+
+    let reflected_initiator = InitiatorConfirmationV1::<Sha3_256Xof>::new(
         Secret::from_bytes([0xC3; 32]),
         &fixture.context,
         &post,
     )
     .map_err(|error| error.to_string())?;
-    let (pending, _) = pending.issue_local_finished();
+    let (reflected_initiator, reflected_initiator_finished) = reflected_initiator.issue_finished();
+    let reflected_as_responder =
+        ResponderFinishedV1::from_bytes(*reflected_initiator_finished.as_bytes());
     assert_eq!(
-        pending
-            .verify_peer_and_accept(&fixture.owner, &MigrationFinishedV1::from_bytes([0u8; 32]),)
+        reflected_initiator
+            .verify_and_accept(&fixture.owner, &reflected_as_responder)
             .err(),
         Some(ConfirmationError::PeerFinishedMismatch)
     );
+    Ok(())
+}
+
+#[test]
+fn stale_state_precedes_finished_verification_for_both_roles() -> Result<(), String> {
+    let mut fixture = fixture(0xC0)?;
+    let responder_context = responder_context(&fixture)?;
+    let post = PostKemTranscriptV1::from_context(&fixture.context, &[0xC1; 64], &[0xC2; 32])
+        .map_err(|error| error.to_string())?;
+    let initiator = InitiatorConfirmationV1::<Sha3_256Xof>::new(
+        Secret::from_bytes([0xC3; 32]),
+        &fixture.context,
+        &post,
+    )
+    .map_err(|error| error.to_string())?
+    .issue_finished()
+    .0;
+    let responder = ResponderAwaitingInitiatorFinishedV1::<Sha3_256Xof>::new(
+        Secret::from_bytes([0xC3; 32]),
+        &responder_context,
+        &post,
+    )
+    .map_err(|error| error.to_string())?;
 
     let current = fixture.owner.current();
     let state = current.state();
@@ -1366,21 +1432,23 @@ fn mutual_finished_is_role_separated_and_state_current_at_acceptance() -> Result
         .owner
         .prepare_advance(&certificate, &TestSignature(SigAlg::MlDsa65), AUTHORITY_KEY)
         .map_err(|error| error.to_string())?;
-    let stale = PendingMutualConfirmationV1::<Sha3_256Xof>::new(
-        Secret::from_bytes([0xC3; 32]),
-        &fixture.context,
-        &post,
-    )
-    .map_err(|error| error.to_string())?
-    .issue_local_finished()
-    .0;
     fixture
         .owner
         .commit(advance)
         .map_err(|error| error.to_string())?;
+
     assert_eq!(
-        stale
-            .verify_peer_and_accept(&fixture.owner, &responder_finished)
+        responder
+            .verify_accept_and_issue_finished(
+                &fixture.owner,
+                &InitiatorFinishedV1::from_bytes([0u8; 32]),
+            )
+            .err(),
+        Some(ConfirmationError::StaleState)
+    );
+    assert_eq!(
+        initiator
+            .verify_and_accept(&fixture.owner, &ResponderFinishedV1::from_bytes([0u8; 32]),)
             .err(),
         Some(ConfirmationError::StaleState)
     );

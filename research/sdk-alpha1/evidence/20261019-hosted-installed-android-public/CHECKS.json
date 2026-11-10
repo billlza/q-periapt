@@ -1,0 +1,32 @@
+{
+  "head": "893d15178af2915d02d667ee49b1c7b9aa2151c0",
+  "run": 39187630264,
+  "source_files_per_profile": 1132,
+  "original_artifacts": [
+    {
+      "profile": "debug",
+      "id": 12164573016,
+      "sha256": "sha256:b3b2c37a5d19cab2c8f211ae62d85f02fe4463a5971ea4a56d0559013d119133",
+      "bytes": 70091633,
+      "public_reader_inputs": 430,
+      "original_archive_retained_locally": true
+    },
+    {
+      "profile": "release",
+      "id": 12164824067,
+      "sha256": "sha256:bd9a14b2e9b7d6282036781680f11ff9254e8473a74cf725e7fe71e2fe10c227",
+      "bytes": 70219178,
+      "public_reader_inputs": 430,
+      "original_archive_retained_locally": true
+    }
+  ],
+  "reader_sources": 43,
+  "public_inputs_per_profile": 430,
+  "standalone_public_replay_exit": 0,
+  "capture": {
+    "bytes": 4109680,
+    "members": 940,
+    "sha256": "139af056da62dce07c0bace64ec377bf51b5287f7f28d648fda8f87bd8918ea6"
+  },
+  "scope": "Separate focused debug/release Android JNI cohort. Actual host JVM/JNI packaged-consumer executions on macOS arm64, rederived fixed/recoverable lifecycle and account outcomes, and native enrollment public commitments. Not ART or physical-device rerun. No independent signature verification, new six-profile join, full lifecycle or release admission. Old2328 missing-export failures remain unchanged; the new cohort is not spliced into that join. Original70MB archives remain local; selected complete public reader inputs,43 frozen readers,candidate source crate and packaged JARs are retained here."
+}

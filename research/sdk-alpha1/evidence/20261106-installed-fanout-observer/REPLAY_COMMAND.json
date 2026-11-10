@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "sh",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-resources-20261106/archive-replay-01/captured-source/artifact/python-run.sh",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-resources-20261106/archive-replay-01/captured-source/controller/readback-fanout.py",
+    "--archive",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/research/sdk-alpha1/evidence/20261106-installed-fanout-observer/CAPTURE.zip",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/research/sdk-alpha1/evidence/20261106-installed-fanout-observer/FILES.json",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-resources-20261106/archive-replay-01/ARCHIVE_READBACK.json"
+  ],
+  "cwd": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-resources-20261106/archive-replay-01/captured-source",
+  "returncode": 0
+}

@@ -1,0 +1,86 @@
+{
+  "completed": true,
+  "platform": "macOS arm64",
+  "inputs": {
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/c/smoke.c": "5ba2088d303865d2c65c824b0b1fa9c279a0f7a98bf8e75d9ae8ce456f52f20a",
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/c/sdk_smoke.c": "42eb0b6bcdfcf11296700bd12f8bfac54d9f5efe5639465c33e1533443bcb522",
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/c/signed_policy_fixture.h": "7941aac4f08bda1daaa632de7bb8ae1e4983cd8fe3bd42b75f4fac85c8f4e41c",
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/c/sdk_policy_update_fixture.h": "cd92625e671a1c1ff85b45756cc63c0e51915fa24e170ba4891e23dd8f7e7708",
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi/abi/v0.1.5/q_periapt.h": "5ae994a7e973a80e4ab3a74d0ac22d90ce858865d529f94742024be7444ee4d3",
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi/include/q_periapt.h": "32e2f7e6b943e296ffe8099cd73aa20e64f55b053dcad8d2913972cc284ddfa6",
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release/libq_periapt_ffi_abi2.dylib": "ddb0c6cfccad02ac28a56c2f8d96fa93ea4fa2de5b1f13f3079a5e267459df6a"
+  },
+  "commands": [
+    {
+      "name": "legacy",
+      "stage": "build",
+      "command": [
+        "/usr/bin/clang",
+        "-arch",
+        "arm64",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "bindings/c/smoke.c",
+        "-I",
+        "crates/q-periapt-ffi/abi/v0.1.5",
+        "-L",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-lq_periapt_ffi_abi2",
+        "-Wl,-rpath,/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-o",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/legacy-ffi-boundary-current/c-01/legacy"
+      ],
+      "returncode": 0,
+      "seconds": 0.07142191613093019
+    },
+    {
+      "name": "legacy",
+      "stage": "execute",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/legacy-ffi-boundary-current/c-01/legacy"
+      ],
+      "returncode": 0,
+      "seconds": 0.31796016707085073
+    },
+    {
+      "name": "owned-sdk",
+      "stage": "build",
+      "command": [
+        "/usr/bin/clang",
+        "-arch",
+        "arm64",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "bindings/c/sdk_smoke.c",
+        "-I",
+        "crates/q-periapt-ffi/include",
+        "-L",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-lq_periapt_ffi_abi2",
+        "-Wl,-rpath,/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/native-stack-debug/build/release",
+        "-o",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/legacy-ffi-boundary-current/c-01/owned-sdk"
+      ],
+      "returncode": 0,
+      "seconds": 0.07195433299057186
+    },
+    {
+      "name": "owned-sdk",
+      "stage": "execute",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/legacy-ffi-boundary-current/c-01/owned-sdk"
+      ],
+      "returncode": 0,
+      "seconds": 0.14611954102292657
+    }
+  ],
+  "executables": {
+    "legacy": "c8910b38d26c95c3c1caf4dfc996bdfca2620fa7f95545e3431b7d46b2612ba4",
+    "owned-sdk": "7544a01ec2f95c224416e8e227ff0282c256cb8879e1d917e0388515540d0593"
+  },
+  "scope": "Actual C compile/link/run against current release dylib; legacy consumer uses frozen v0.1.5 header. Not an installed archive or physical cross-platform qualification."
+}

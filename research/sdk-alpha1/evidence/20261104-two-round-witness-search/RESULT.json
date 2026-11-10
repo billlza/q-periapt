@@ -1,0 +1,28 @@
+{
+  "all_40_formulas_and_modes_unchanged": true,
+  "archive": {
+    "bytes": 128723,
+    "file": "CAPTURE.zip",
+    "members": 17,
+    "sha256": "c22ce6fc7185e3c5ab2d2d760cf2247fba4b3693e59b2dc1d1e5354050853278"
+  },
+  "automatic_retry_performed": false,
+  "capture_verified": true,
+  "completed": false,
+  "derivation_seconds": 60,
+  "elapsed_seconds": 880.8861708330223,
+  "heap_limit_bytes": 12884901888,
+  "independent_replay_performed": false,
+  "new_certificate_produced": false,
+  "process_limit_seconds": 900,
+  "recorded_utc": "2026-11-04T23:10:22.448456+00:00",
+  "release_claim_eligible": false,
+  "retained_main_certificate_unchanged": true,
+  "returncode": 251,
+  "reusable_proofs_retained": 24,
+  "search_depth": 256,
+  "selected_theorem": "two_rounds_recover_with_exposed_ancestor_is_executable",
+  "status": "heap_exhausted_before_deadline",
+  "tools_unchanged": true,
+  "workers": 1
+}

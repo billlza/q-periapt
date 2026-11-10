@@ -1,0 +1,323 @@
+{
+  "schema": "qperiapt/formal-preservation/v2",
+  "status": "passed",
+  "baseline_paper_commit": "bee17822db65242adbfb3b0be7d32090fae2f752",
+  "prior_modules": 37,
+  "statements": 52,
+  "proofs": 47,
+  "unnumbered_display_groups": 102,
+  "numbered_display_groups": 54,
+  "comparison": "Exact ordered full statement/proof environments and display-math source in every preceding canonical module; new initial-source module excluded from the preserved baseline.",
+  "formal_environments": [
+    "theorem",
+    "lemma",
+    "proposition",
+    "corollary",
+    "definition",
+    "proof"
+  ],
+  "numbered_display_environments": [
+    "equation",
+    "align",
+    "gather",
+    "multline"
+  ],
+  "modules": [
+    {
+      "module": "acquisition-nonadditivity.tex",
+      "formal_blocks": 2,
+      "display_groups": 5,
+      "unchanged": true,
+      "formal_sequence_sha256": "9b6c15f4656bdab24862695463d8854d15b7562d2e7981483e2d888c67191cef",
+      "display_sequence_sha256": "6a0d3f543d97829ee24f61fa8c2f82476aa87bb4943126b9a907bf20ade58907"
+    },
+    {
+      "module": "artifact-map.tex",
+      "formal_blocks": 0,
+      "display_groups": 0,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "module": "bootstrap-authentication.tex",
+      "formal_blocks": 13,
+      "display_groups": 11,
+      "unchanged": true,
+      "formal_sequence_sha256": "5113e241c22f9af41f26590c84f4d96098725acebf266610825866ead91c0a49",
+      "display_sequence_sha256": "d3899c304530aaf80c889d4d385514d20ac545772ba1fdaba99a32b4d571ba15"
+    },
+    {
+      "module": "bootstrap-entry.tex",
+      "formal_blocks": 2,
+      "display_groups": 5,
+      "unchanged": true,
+      "formal_sequence_sha256": "9ef4f82f5ad3463bfed2f1d4e0554ecd08810469ab8b0333f1323c952ed7669c",
+      "display_sequence_sha256": "806bf095da615cffeb6c489fef5fac372ee714a4a912c7f37d5a18e9cd978a6b"
+    },
+    {
+      "module": "candidate-local-accounting.tex",
+      "formal_blocks": 6,
+      "display_groups": 9,
+      "unchanged": true,
+      "formal_sequence_sha256": "abeff2f43fc97b13f3c818419ea29fbd828f4070a0e431bbcb9729cf7bd715fa",
+      "display_sequence_sha256": "1056c29e03bf26c236ad3f2f398b42a3bdbf80275939578804100a774d32d5a8"
+    },
+    {
+      "module": "chain-prefix-continuation.tex",
+      "formal_blocks": 4,
+      "display_groups": 4,
+      "unchanged": true,
+      "formal_sequence_sha256": "fc2b9773a30a7b10544dfbac83783872c626e6ce53cff0a84b6af04772dc0f60",
+      "display_sequence_sha256": "702ec264344660a46af0b4531d6cb407885332fd6d34398a2bfb30a7ffe9970d"
+    },
+    {
+      "module": "common-virtual-accounting.tex",
+      "formal_blocks": 2,
+      "display_groups": 5,
+      "unchanged": true,
+      "formal_sequence_sha256": "e05fae01a9e6c4b2aed272ec0cc50473058fdec094ec5400be33814a4e3d0c24",
+      "display_sequence_sha256": "dcd68f7275eaa1701cecf6b24d05772ba9324811e92f08e7f32bbdd38a474e9f"
+    },
+    {
+      "module": "computational-roadmap.tex",
+      "formal_blocks": 0,
+      "display_groups": 0,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "module": "confirmation-traffic.tex",
+      "formal_blocks": 2,
+      "display_groups": 6,
+      "unchanged": true,
+      "formal_sequence_sha256": "a1b9651843eb13cd3e09a6136df490d7e60cdb42764d9fc6ef0f2cbea8afae1e",
+      "display_sequence_sha256": "1b170dde0351ea917fddfd31d10a37282b246e4a13e0aa1b7a49e5d7585955c5"
+    },
+    {
+      "module": "construction.tex",
+      "formal_blocks": 0,
+      "display_groups": 2,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "d7be211b98a53ceca294d868f0dd776b2f4ce07f737d80db4e998e4d560c9cd3"
+    },
+    {
+      "module": "contextbound-connection.tex",
+      "formal_blocks": 6,
+      "display_groups": 7,
+      "unchanged": true,
+      "formal_sequence_sha256": "c3813537d8bfcd4a4bf400753c405661b38b5241d8ac1cd3f369873f6a4a44da",
+      "display_sequence_sha256": "bdf2e1dc24d9cc35dfb24474b14b3f2fa5c9a1f2f74ee221c404419329e5b526"
+    },
+    {
+      "module": "declarations.tex",
+      "formal_blocks": 0,
+      "display_groups": 0,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "module": "discussion.tex",
+      "formal_blocks": 0,
+      "display_groups": 1,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "a623b0492a3b4807f38543d47f2069aaef1d6c2b821e2154988afddc5fddffa7"
+    },
+    {
+      "module": "established-results.tex",
+      "formal_blocks": 3,
+      "display_groups": 1,
+      "unchanged": true,
+      "formal_sequence_sha256": "1342d842e6434c271cf2fa7dff107a35b079f91c7affb30e5907e026229e14ee",
+      "display_sequence_sha256": "2691dade5b17e417f52e2294457ae18454e51c8be1284f21958cb9d719d8974f"
+    },
+    {
+      "module": "evaluation.tex",
+      "formal_blocks": 0,
+      "display_groups": 0,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "module": "guarded-provenance.tex",
+      "formal_blocks": 4,
+      "display_groups": 4,
+      "unchanged": true,
+      "formal_sequence_sha256": "81ce5a5102f1e83e2d30e94862112ec4da6a2b8a4d8c844fac559cf2e26ec818",
+      "display_sequence_sha256": "02c5f88a7fd15934bc81b0f287b48951ed3bc5704ed011e872a6bc0d5a21d530"
+    },
+    {
+      "module": "introduction.tex",
+      "formal_blocks": 0,
+      "display_groups": 0,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "module": "joint-continuation.tex",
+      "formal_blocks": 6,
+      "display_groups": 13,
+      "unchanged": true,
+      "formal_sequence_sha256": "779021b361d71a94c4bbe04bb738b411e2141791f58bbc34ee0c7f86ff67686b",
+      "display_sequence_sha256": "aa6046484078902392f9ce0b8ee9cbf9f0d08173b86889c306e2c427463d710f"
+    },
+    {
+      "module": "joint-primitive-bounds.tex",
+      "formal_blocks": 4,
+      "display_groups": 15,
+      "unchanged": true,
+      "formal_sequence_sha256": "cabd0cae5422f763cac8b9da85771bd6f0386f8a1d381f0fadbabf593d7f25c8",
+      "display_sequence_sha256": "0170d0227491e92469a2c732f2ba0c7eac3a80724b593239b9fe264331d6b27f"
+    },
+    {
+      "module": "live-core-instantiation.tex",
+      "formal_blocks": 2,
+      "display_groups": 2,
+      "unchanged": true,
+      "formal_sequence_sha256": "3866381ca5f470f6795f0331cd91f2f98ba14bf61a6503b29794e93eb7d54bd2",
+      "display_sequence_sha256": "0132e66780ed5d0cbf8701485930e4ff4ece7102c65ef8cbde5e7469ace88bd5"
+    },
+    {
+      "module": "matched-opportunities.tex",
+      "formal_blocks": 0,
+      "display_groups": 0,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "module": "matched-opportunity-tables.tex",
+      "formal_blocks": 0,
+      "display_groups": 0,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "module": "multiple-root-entry.tex",
+      "formal_blocks": 4,
+      "display_groups": 4,
+      "unchanged": true,
+      "formal_sequence_sha256": "564e509979d5ae27fc5b0570e6a6e31e57fc41d873e093e102b1dda61287863f",
+      "display_sequence_sha256": "c26762df7b728de3f0db88168effd8758d81ab95beab6a684fda9302c5b1f3cd"
+    },
+    {
+      "module": "native-authentication.tex",
+      "formal_blocks": 2,
+      "display_groups": 8,
+      "unchanged": true,
+      "formal_sequence_sha256": "214acb7a19589db644b2826a3e55f7c0e73c9d142b28fc1bdb78b03af3b8dde7",
+      "display_sequence_sha256": "186d86a56b4ef90aa54cf3901b1926fd59145c39d46e80801f62fb1dffd3a564"
+    },
+    {
+      "module": "native-chain-composition.tex",
+      "formal_blocks": 4,
+      "display_groups": 4,
+      "unchanged": true,
+      "formal_sequence_sha256": "fbfe133bfdbce487c56e10bfd16d88f78aada3134b6da1998830905c155f583d",
+      "display_sequence_sha256": "4cd1369f0e370a6aba45ce0cf6007b3b09d3f8c7e4e82fa726039a9b25349061"
+    },
+    {
+      "module": "native-correspondence.tex",
+      "formal_blocks": 0,
+      "display_groups": 0,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "module": "opaque-rendering.tex",
+      "formal_blocks": 6,
+      "display_groups": 6,
+      "unchanged": true,
+      "formal_sequence_sha256": "29998ba030e7d7ca1874dd4335309707ca49595ceec0f2e809efbcf245a24e13",
+      "display_sequence_sha256": "12755c2c944c1ef0373b52fa77b8f08cf7c0713669c1a3531d2f5509e41f169e"
+    },
+    {
+      "module": "primitive-inputs.tex",
+      "formal_blocks": 0,
+      "display_groups": 7,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "7123e74ee043f43d886ed6fd3f291cd34208378a30645e306956542e4a57ff50"
+    },
+    {
+      "module": "reference-schedule-table.tex",
+      "formal_blocks": 0,
+      "display_groups": 0,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "module": "related-work.tex",
+      "formal_blocks": 0,
+      "display_groups": 0,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "module": "report-composition.tex",
+      "formal_blocks": 4,
+      "display_groups": 8,
+      "unchanged": true,
+      "formal_sequence_sha256": "484e802613ba55443222b7ccfd8b3a18c907263fa53121e42e156e22d5413aa2",
+      "display_sequence_sha256": "27f5e6e297899c90fadba0a79111b82460b8c2e9f2f392e977eb885fce04b069"
+    },
+    {
+      "module": "reservation-signature-bridge.tex",
+      "formal_blocks": 4,
+      "display_groups": 7,
+      "unchanged": true,
+      "formal_sequence_sha256": "db91685582166517f3cc952da458e2143a7b4425b4d5e69307551acd6c3c6023",
+      "display_sequence_sha256": "f01d298d01c8a49e3194daa9a30e5fc00ad598de7ced755ab65363a93755b9db"
+    },
+    {
+      "module": "retry-readiness-table.tex",
+      "formal_blocks": 0,
+      "display_groups": 0,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "module": "retry-readiness.tex",
+      "formal_blocks": 0,
+      "display_groups": 0,
+      "unchanged": true,
+      "formal_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "display_sequence_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "module": "sdk-purpose-connection.tex",
+      "formal_blocks": 4,
+      "display_groups": 6,
+      "unchanged": true,
+      "formal_sequence_sha256": "11edc6974627d1c5dae877048ed97a2f744516848c0f0bb89f048741e1733eff",
+      "display_sequence_sha256": "f2bcb66882e0262d1adcc4d5ae9069776068959a19bc1eb58cde629912b7b013"
+    },
+    {
+      "module": "security-model.tex",
+      "formal_blocks": 7,
+      "display_groups": 10,
+      "unchanged": true,
+      "formal_sequence_sha256": "da75ea5af0dd03a93a133974ed5f2a85ba9e2b6c4a4f23ae9a793222706bf944",
+      "display_sequence_sha256": "d353330c6eb4807fd9369757a77347f0d66601c92f3ced3b508d2ba6dcdff971"
+    },
+    {
+      "module": "source-attribution.tex",
+      "formal_blocks": 8,
+      "display_groups": 6,
+      "unchanged": true,
+      "formal_sequence_sha256": "6eeacac0c0159df5847d1dba8216695208fb27b9c2c699cf2e87103086cf3a52",
+      "display_sequence_sha256": "bea25613ccc46d70bd9adecbd062bde25c0ec891dbb9e1998c552674262ad2f0"
+    }
+  ]
+}

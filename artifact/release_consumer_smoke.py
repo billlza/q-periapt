@@ -9,37 +9,88 @@ explicitly opts in.
 from __future__ import annotations
 
 import argparse
+import copy
+import datetime as dt
+import errno
+import json
 import os
 import pathlib
 import platform
 import re
+import secrets
 import shlex
 import shutil
 import stat
 import subprocess
 import tarfile
+import tempfile
+from dataclasses import dataclass
 from typing import Any
 
-from evidence_io import EvidenceIOError, load_json_object_snapshot
+from claim_ledger import canonical_tree_digest, repository_paths
+from evidence_io import (
+    EvidenceIOError,
+    JsonObjectSnapshot,
+    consume_regular_snapshot,
+    load_json_object_snapshot,
+)
+from proof_manifest import (
+    ProofManifestError,
+    load_results_manifest_snapshot,
+    resolve_bound_file_declaration,
+)
+
 from release_index import (
-    SCHEMA_VERSION,
+    REPOSITORY_ROOT,
+    MAX_TAR_ARCHIVE_BYTES,
+    SCHEMA_VERSION as RELEASE_INDEX_SCHEMA_VERSION,
+    ensure_private_directory,
     normalized_absolute,
+    protect_private_directory,
     require,
     require_no_symlink_components,
-    require_relative_safe,
+    release_pointer_selection,
     require_strictly_under,
     require_under,
-    sha256_file,
+    require_relative_safe,
+    require_utc_timestamp,
     verify_index_file as verify_release_file,
-    verify_release_index,
+    verify_release_index_snapshot,
     verify_sha256s,
 )
 
 
-POINTER_KIND = "qperiapt.local_release_index.pointer"
-HEX_SHA256 = re.compile(r"[0-9a-f]{64}")
 MAX_TAR_MEMBERS = 8192
 MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
+CONSUMER_RECEIPT_SCHEMA_VERSION = 1
+CONSUMER_RECEIPT_KIND = "qperiapt.local_release_consumer_receipt"
+CONSUMER_RECEIPT_LEAF = "qperiapt-release-consumer-receipt.json"
+MAX_CONSUMER_RECEIPT_BYTES = 64 * 1024
+RUN_ID_RE = re.compile(r"^[0-9a-f]{32}$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+CONSUMER_RECEIPT_FIELDS = frozenset(
+    {
+        "schema_version",
+        "kind",
+        "run_id",
+        "generated_at",
+        "status",
+        "source_commit",
+        "source_tree_dirty",
+        "proof_source_tree_sha256",
+        "index_path",
+        "index_sha256",
+        "index_generated_at",
+        "index_schema",
+        "c_archive_path",
+        "c_archive_bytes",
+        "c_archive_sha256",
+        "android_aar_sha256",
+        "android_runtime_run_id",
+        "android_runtime_proof_sha256",
+        "consumer_modes",
+    }
+)
 TRUSTED_TOOL_CANDIDATES = {
     "cc": ((pathlib.Path("/usr/bin/cc"), pathlib.Path("/usr")),),
     "pkg-config": (
@@ -50,66 +101,195 @@ TRUSTED_TOOL_CANDIDATES = {
 }
 
 
-def load_json(path: pathlib.Path) -> dict[str, Any]:
-    require(not path.is_symlink(), f"consumer JSON must not be a symlink: {path}")
-    try:
-        return load_json_object_snapshot(path, label=f"consumer JSON {path}").value
-    except EvidenceIOError as exc:
-        raise SystemExit(f"error: {exc}") from exc
+@dataclass(frozen=True, slots=True)
+class VerifiedArchiveReference:
+    path: pathlib.Path
+    size: int
+    sha256: str
 
 
-def pointer_index_path(root: pathlib.Path, pointer_path: pathlib.Path) -> pathlib.Path:
-    target = root / "target"
-    release_base = target / "qperiapt-local-release"
-    require_no_symlink_components(pointer_path, target, "release pointer")
-    require(pointer_path.is_file(), f"release pointer missing: {pointer_path}")
-    pointer = load_json(pointer_path)
-    require(pointer.get("schema_version") == SCHEMA_VERSION, "release pointer schema mismatch")
-    require(pointer.get("kind") == POINTER_KIND, "release pointer kind mismatch")
-    require(pointer.get("channel") == "release", "default release pointer must select release channel")
-    require(pointer.get("diagnostic_only") is False, "default release pointer must not be diagnostic")
-    rel = pointer.get("index_path")
-    expected = pointer.get("index_sha256")
-    require(isinstance(rel, str), "release pointer lacks index_path")
+@dataclass(frozen=True, slots=True)
+class ConsumerModeResults:
+    """Successful modes returned only after both consumers have executed."""
+
+    dynamic: str
+    static: str
+
+    @classmethod
+    def passed(cls) -> "ConsumerModeResults":
+        return cls(dynamic="pass", static="pass")
+
+    def receipt_value(self) -> dict[str, str]:
+        require(
+            self.dynamic == "pass" and self.static == "pass",
+            "local release consumer modes are not both passing",
+        )
+        return {"dynamic": self.dynamic, "static": self.static}
+
+
+def canonical_utc_now() -> str:
+    return dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def android_runtime_summary_identity(
+    index: dict[str, Any],
+) -> tuple[str | None, str | None]:
+    summaries = index.get("proof_summaries")
+    require(isinstance(summaries, dict), "release index proof summaries are malformed")
+    summary = summaries.get("android_runtime")
+    if summary is None:
+        return None, None
+    require(isinstance(summary, dict), "Android runtime summary is malformed")
+    result = summary.get("result")
+    run_id = result.get("run_id") if isinstance(result, dict) else None
+    proof_sha256 = summary.get("sha256")
     require(
-        isinstance(expected, str) and HEX_SHA256.fullmatch(expected) is not None,
-        "release pointer lacks a valid index_sha256",
+        isinstance(run_id, str)
+        and RUN_ID_RE.fullmatch(run_id) is not None
+        and isinstance(proof_sha256, str)
+        and SHA256_RE.fullmatch(proof_sha256) is not None,
+        "Android runtime summary identity is malformed",
     )
-    require_relative_safe(rel, "release pointer index_path")
-    index_path = normalized_absolute(target / pathlib.Path(rel))
-    require_strictly_under(index_path, release_base / "release", "default release index")
-    require_no_symlink_components(index_path, target, "default release index")
-    require(index_path.is_file(), f"default release index missing: {index_path}")
-    require(sha256_file(index_path) == expected, "release pointer index hash mismatch")
-    return index_path
+    return run_id, proof_sha256
 
 
-def default_index_path(root: pathlib.Path) -> pathlib.Path:
-    release_base = root / "target" / "qperiapt-local-release"
-    primary = release_base / "latest-release.json"
-    if primary.exists() or primary.is_symlink():
-        return pointer_index_path(root, primary)
-    # Schema-2 release emitters also update latest.json for compatibility.  It
-    # is still required to point at the release channel, never diagnostics.
-    return pointer_index_path(root, release_base / "latest.json")
+def indexed_android_aar_sha256(index: dict[str, Any]) -> str:
+    artifacts = index.get("artifacts")
+    require(isinstance(artifacts, list), "release index artifacts are malformed")
+    selected: list[str] = []
+    for artifact in artifacts:
+        require(isinstance(artifact, dict), "release artifact entry is malformed")
+        if artifact.get("face") != "android":
+            continue
+        files = artifact.get("files")
+        require(
+            isinstance(files, list) and len(files) == 1,
+            "Android release artifact must declare exactly one AAR",
+        )
+        record = files[0]
+        digest = record.get("sha256") if isinstance(record, dict) else None
+        require(
+            isinstance(digest, str) and SHA256_RE.fullmatch(digest) is not None,
+            "Android release artifact digest is malformed",
+        )
+        selected.append(digest)
+    require(len(selected) == 1, "release index must contain exactly one Android AAR")
+    return selected[0]
 
 
-def resolve_index_path(root: pathlib.Path, raw: str) -> pathlib.Path:
-    if not raw:
-        return default_index_path(root)
-    index_path = pathlib.Path(raw)
-    if not index_path.is_absolute():
-        index_path = root / index_path
-    index_path = normalized_absolute(index_path)
-    release_base = root / "target" / "qperiapt-local-release"
-    require_strictly_under(index_path, release_base, "release index")
-    require_no_symlink_components(index_path, root / "target", "release index")
-    require(index_path.is_file(), f"release index missing: {index_path}")
-    return index_path
+def validate_consumer_receipt(
+    receipt: dict[str, Any],
+    *,
+    root: pathlib.Path,
+    expected_run_id: str,
+    expected_source_commit: str,
+    expected_source_tree_dirty: bool,
+    expected_source_tree_sha256: str,
+    expected_index_path: str,
+    expected_index_sha256: str,
+    expected_index_generated_at: str,
+    expected_c_archive: VerifiedArchiveReference,
+    expected_android_aar_sha256: str,
+    expected_android_runtime_run_id: str | None,
+    expected_android_runtime_proof_sha256: str | None,
+) -> None:
+    require(
+        isinstance(receipt, dict) and set(receipt) == CONSUMER_RECEIPT_FIELDS,
+        "local release consumer receipt fields differ",
+    )
+    require(
+        type(receipt.get("schema_version")) is int
+        and receipt["schema_version"] == CONSUMER_RECEIPT_SCHEMA_VERSION,
+        "local release consumer receipt schema differs",
+    )
+    require(
+        receipt.get("kind") == CONSUMER_RECEIPT_KIND,
+        "local release consumer receipt kind differs",
+    )
+    require(
+        receipt.get("run_id") == expected_run_id
+        and RUN_ID_RE.fullmatch(expected_run_id) is not None,
+        "local release consumer receipt run id differs",
+    )
+    require_utc_timestamp(
+        receipt.get("generated_at"), "local release consumer receipt generated_at"
+    )
+    require(
+        receipt.get("status") == "pass",
+        "local release consumer receipt status is not pass",
+    )
+    require(
+        isinstance(expected_source_commit, str)
+        and re.fullmatch(r"[0-9a-f]{40,64}", expected_source_commit) is not None
+        and type(expected_source_tree_dirty) is bool
+        and isinstance(expected_source_tree_sha256, str)
+        and SHA256_RE.fullmatch(expected_source_tree_sha256) is not None
+        and receipt.get("source_commit") == expected_source_commit
+        and receipt.get("source_tree_dirty") is expected_source_tree_dirty
+        and receipt.get("proof_source_tree_sha256")
+        == expected_source_tree_sha256,
+        "local release consumer receipt source identity differs",
+    )
+    require(
+        isinstance(expected_index_path, str)
+        and pathlib.PurePosixPath(expected_index_path).as_posix()
+        == expected_index_path
+        and not pathlib.PurePosixPath(expected_index_path).is_absolute()
+        and ".." not in pathlib.PurePosixPath(expected_index_path).parts
+        and isinstance(expected_index_sha256, str)
+        and SHA256_RE.fullmatch(expected_index_sha256) is not None
+        and receipt.get("index_path") == expected_index_path
+        and receipt.get("index_sha256") == expected_index_sha256
+        and receipt.get("index_generated_at") == expected_index_generated_at
+        and type(receipt.get("index_schema")) is int
+        and receipt.get("index_schema") == RELEASE_INDEX_SCHEMA_VERSION,
+        "local release consumer receipt index identity differs",
+    )
+    try:
+        expected_archive_path = expected_c_archive.path.relative_to(root).as_posix()
+    except ValueError as exc:
+        raise SystemExit(
+            "error: expected local release consumer C archive escapes the repository"
+        ) from exc
+    require(
+        receipt.get("c_archive_path") == expected_archive_path
+        and type(receipt.get("c_archive_bytes")) is int
+        and receipt.get("c_archive_bytes") == expected_c_archive.size
+        and receipt.get("c_archive_sha256") == expected_c_archive.sha256,
+        "local release consumer receipt C archive identity differs",
+    )
+    require(
+        isinstance(expected_android_aar_sha256, str)
+        and SHA256_RE.fullmatch(expected_android_aar_sha256) is not None
+        and receipt.get("android_aar_sha256") == expected_android_aar_sha256,
+        "local release consumer receipt Android AAR identity differs",
+    )
+    runtime_identity_is_valid = (
+        expected_android_runtime_run_id is None
+        and expected_android_runtime_proof_sha256 is None
+    ) or (
+        isinstance(expected_android_runtime_run_id, str)
+        and RUN_ID_RE.fullmatch(expected_android_runtime_run_id) is not None
+        and isinstance(expected_android_runtime_proof_sha256, str)
+        and SHA256_RE.fullmatch(expected_android_runtime_proof_sha256) is not None
+    )
+    require(
+        runtime_identity_is_valid
+        and receipt.get("android_runtime_run_id") == expected_android_runtime_run_id
+        and receipt.get("android_runtime_proof_sha256")
+        == expected_android_runtime_proof_sha256,
+        "local release consumer receipt Android runtime identity differs",
+    )
+    require(
+        receipt.get("consumer_modes") == {"dynamic": "pass", "static": "pass"},
+        "local release consumer receipt mode results differ",
+    )
 
 
-def c_archive_entries(index: dict[str, Any], release_root: pathlib.Path) -> list[pathlib.Path]:
-    entries: list[pathlib.Path] = []
+def c_archive_entries(
+    index: dict[str, Any], release_root: pathlib.Path
+) -> list[VerifiedArchiveReference]:
+    entries: list[VerifiedArchiveReference] = []
     artifacts = index.get("artifacts")
     require(isinstance(artifacts, list), "release index artifacts are malformed")
     for artifact in artifacts:
@@ -122,49 +302,97 @@ def c_archive_entries(index: dict[str, Any], release_root: pathlib.Path) -> list
         for item in files:
             path = verify_release_file(release_root, item)
             require(path.name.endswith(".tar.gz"), f"C ABI package is not a tar.gz: {path}")
-            entries.append(path)
+            require(isinstance(item, dict), "C ABI package entry is malformed")
+            size = item.get("bytes")
+            digest = item.get("sha256")
+            require(type(size) is int, "C ABI package size is malformed")
+            require(isinstance(digest, str), "C ABI package digest is malformed")
+            entries.append(
+                VerifiedArchiveReference(path=path, size=size, sha256=digest)
+            )
     require(len(entries) == 1, f"release index must have exactly one C ABI archive, found {len(entries)}")
     return entries
 
 
-def safe_extract_tar_gz(archive: pathlib.Path, dest: pathlib.Path) -> None:
+def safe_extract_tar_gz(
+    archive: VerifiedArchiveReference, dest: pathlib.Path
+) -> None:
     require(not dest.is_symlink(), f"tar destination must not be a symlink: {dest}")
     try:
-        dest.mkdir(parents=True, exist_ok=True)
-        with tarfile.open(archive, "r:gz") as bundle:
-            members = bundle.getmembers()
-            require(members, f"archive is empty: {archive}")
-            require(
-                len(members) <= MAX_TAR_MEMBERS,
-                f"archive has too many members: {archive}",
+        dest.mkdir(parents=True, mode=0o700, exist_ok=True)
+        protect_private_directory(dest, "release consumer extraction")
+        with tempfile.SpooledTemporaryFile(
+            max_size=8 * 1024 * 1024,
+            mode="w+b",
+        ) as captured:
+            def write_archive(chunk: bytes) -> None:
+                written = captured.write(chunk)
+                require(written == len(chunk), "short write while capturing C archive")
+
+            snapshot = consume_regular_snapshot(
+                archive.path,
+                maximum=MAX_TAR_ARCHIVE_BYTES,
+                label="indexed C archive",
+                consume=write_archive,
             )
-            seen: set[str] = set()
-            total_size = 0
-            for member in members:
-                name = member.name
-                pure = pathlib.PurePosixPath(name)
-                require(name and not pure.is_absolute(), f"absolute/empty tar member: {name}")
-                require("\\" not in name, f"backslash tar member is unsupported: {name}")
-                require(":" not in pure.parts[0], f"drive-like tar member is unsupported: {name}")
-                require(
-                    all(part not in {"", ".", ".."} for part in pure.parts),
-                    f"unsafe tar member: {name}",
-                )
-                require(name not in seen, f"duplicate tar member: {name}")
-                seen.add(name)
-                require(member.isfile() or member.isdir(), f"unsupported tar member type: {name}")
-                if member.isfile():
-                    require(member.size >= 0, f"negative tar member size: {name}")
-                    total_size += member.size
+            require(
+                snapshot.size == archive.size and snapshot.sha256 == archive.sha256,
+                "indexed C archive changed after release-index verification",
+            )
+            captured.flush()
+            captured.seek(0)
+            with tarfile.open(fileobj=captured, mode="r:gz") as bundle:
+                member_count = 0
+                seen: set[str] = set()
+                total_size = 0
+                for member in bundle:
+                    member_count += 1
                     require(
-                        total_size <= MAX_EXTRACTED_BYTES,
-                        f"archive exceeds extracted-size limit: {archive}",
+                        member_count <= MAX_TAR_MEMBERS,
+                        f"archive has too many members: {archive.path}",
                     )
-                target = dest / pathlib.Path(*pure.parts)
-                require_under(target, dest, "tar extraction target")
-            bundle.extractall(dest, filter="data")
-    except (OSError, tarfile.TarError) as exc:
-        raise SystemExit(f"error: cannot extract {archive}: {exc}") from exc
+                    name = member.name
+                    pure = pathlib.PurePosixPath(name)
+                    require(
+                        name and not pure.is_absolute(),
+                        f"absolute/empty tar member: {name}",
+                    )
+                    accepted_name = (
+                        name[:-1]
+                        if member.isdir() and name.endswith("/")
+                        else name
+                    )
+                    canonical = require_relative_safe(
+                        pure.as_posix(), "consumer tar member"
+                    )
+                    require(
+                        accepted_name == canonical,
+                        f"non-canonical tar member: {name}",
+                    )
+                    require(
+                        canonical not in seen,
+                        f"duplicate tar member: {canonical}",
+                    )
+                    seen.add(canonical)
+                    require(
+                        member.isfile() or member.isdir(),
+                        f"unsupported tar member type: {name}",
+                    )
+                    if member.isfile():
+                        require(member.size >= 0, f"negative tar member size: {name}")
+                        total_size += member.size
+                        require(
+                            total_size <= MAX_EXTRACTED_BYTES,
+                            f"archive exceeds extracted-size limit: {archive.path}",
+                        )
+                    safe_member = copy.copy(member)
+                    safe_member.name = canonical
+                    target = dest / pathlib.Path(canonical)
+                    require_under(target, dest, "tar extraction target")
+                    bundle.extract(safe_member, dest, filter="data")
+                require(member_count > 0, f"archive is empty: {archive.path}")
+    except (EvidenceIOError, OSError, tarfile.TarError) as exc:
+        raise SystemExit(f"error: cannot extract {archive.path}: {exc}") from exc
 
 
 def find_c_package_root(extract_root: pathlib.Path) -> pathlib.Path:
@@ -368,12 +596,15 @@ def compile_and_run_c_smoke(
 
 def smoke_c_archive(
     root: pathlib.Path,
-    index_path: pathlib.Path,
-    archive: pathlib.Path,
+    index_sha256: str,
+    archive: VerifiedArchiveReference,
     out_dir: pathlib.Path,
-) -> None:
-    index_sha = sha256_file(index_path)
-    work = out_dir / index_sha[:16] / archive.name.removesuffix(".tar.gz")
+) -> ConsumerModeResults:
+    work = (
+        out_dir
+        / index_sha256[:16]
+        / archive.path.name.removesuffix(".tar.gz")
+    )
     require_strictly_under(work, out_dir, "release consumer work directory")
     require_no_symlink_components(work, out_dir, "release consumer work directory")
     try:
@@ -417,19 +648,13 @@ def smoke_c_archive(
         ),
     )
     require_under(work, root / "target", "release consumer smoke output")
+    return ConsumerModeResults.passed()
 
 
-def resolve_output_dir(root: pathlib.Path, raw: str) -> pathlib.Path:
+def resolve_output_dir() -> pathlib.Path:
+    root = REPOSITORY_ROOT
     target = root / "target"
-    base = target / "qperiapt-release-consumer-smoke"
-    if raw:
-        value = pathlib.Path(raw)
-        if not value.is_absolute():
-            value = root / value
-        output = normalized_absolute(value)
-        require_under(output, base, "release consumer output")
-    else:
-        output = base
+    output = target / "qperiapt-release-consumer-smoke"
     require_no_symlink_components(output, target, "release consumer output")
     if output.exists():
         require(output.is_dir(), f"release consumer output is not a directory: {output}")
@@ -440,27 +665,526 @@ def resolve_output_dir(root: pathlib.Path, raw: str) -> pathlib.Path:
             raise SystemExit(
                 f"error: cannot create release consumer output {output}: {exc}"
             ) from exc
+    protect_private_directory(output, "release consumer output")
     return output
+
+
+def _open_private_directory(path: pathlib.Path, label: str) -> int:
+    try:
+        descriptor = os.open(
+            path,
+            os.O_RDONLY
+            | os.O_DIRECTORY
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0),
+        )
+    except OSError as exc:
+        raise SystemExit(f"error: cannot open {label} {path}: {exc}") from exc
+    try:
+        metadata = os.fstat(descriptor)
+        require(
+            stat.S_ISDIR(metadata.st_mode)
+            and metadata.st_uid == os.geteuid()
+            and stat.S_IMODE(metadata.st_mode) == 0o700,
+            f"{label} must be one current-user private directory",
+        )
+    except BaseException as primary:
+        try:
+            os.close(descriptor)
+        except BaseException as cleanup_error:
+            _raise_visible_cleanup_failure(
+                primary,
+                f"closing rejected {label} also failed: {cleanup_error}",
+            )
+        raise
+    return descriptor
+
+
+def _close_descriptor(descriptor: int, label: str, primary: BaseException | None) -> None:
+    try:
+        os.close(descriptor)
+    except BaseException as cleanup_error:
+        if primary is not None:
+            _raise_visible_cleanup_failure(
+                primary,
+                f"closing {label} also failed: {cleanup_error}",
+            )
+        elif isinstance(cleanup_error, Exception):
+            raise SystemExit(f"error: cannot close {label}: {cleanup_error}") from cleanup_error
+        else:
+            raise
+
+
+def _raise_visible_cleanup_failure(
+    primary: BaseException, detail: str
+) -> None:
+    """Preserve non-SystemExit notes and make CLI SystemExit cleanup failures visible."""
+
+    if isinstance(primary, SystemExit):
+        message = str(primary.code) if primary.code not in {None, ""} else "error"
+        raise SystemExit(f"{message}; cleanup also failed: {detail}") from primary
+    primary.add_note(detail)
+
+
+def _fsync_private_directory(path: pathlib.Path, label: str) -> None:
+    descriptor = _open_private_directory(path, label)
+    primary: BaseException | None = None
+    try:
+        os.fsync(descriptor)
+    except OSError as exc:
+        primary = SystemExit(f"error: cannot persist {label} {path}: {exc}")
+        raise primary from exc
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        _close_descriptor(descriptor, label, primary)
+
+
+def _private_receipt_metadata(metadata: os.stat_result) -> None:
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or metadata.st_nlink != 1
+        or stat.S_IMODE(metadata.st_mode) != 0o600
+    ):
+        raise EvidenceIOError(
+            "local release consumer receipt must be one current-user-owned "
+            "regular file with mode 0600"
+        )
+
+
+def load_private_consumer_receipt(
+    path: pathlib.Path, *, expected_sha256: str | None = None
+) -> JsonObjectSnapshot:
+    try:
+        snapshot = load_json_object_snapshot(
+            path,
+            maximum=MAX_CONSUMER_RECEIPT_BYTES,
+            label="local release consumer receipt",
+            validate_metadata=_private_receipt_metadata,
+        )
+    except EvidenceIOError as exc:
+        raise SystemExit(f"error: {exc}") from exc
+    if expected_sha256 is not None:
+        require(
+            isinstance(expected_sha256, str)
+            and SHA256_RE.fullmatch(expected_sha256) is not None,
+            "expected local release consumer receipt digest is malformed",
+        )
+        require(
+            snapshot.file.sha256 == expected_sha256,
+            "local release consumer receipt hash differs from results manifest",
+        )
+    return snapshot
+
+
+def _publish_append_only_receipt(run_directory: pathlib.Path, data: bytes) -> None:
+    """Atomically link one complete private receipt without replacing a leaf."""
+
+    require(
+        type(data) is bytes and 0 < len(data) <= MAX_CONSUMER_RECEIPT_BYTES,
+        "local release consumer receipt bytes are empty or oversized",
+    )
+    directory_fd = _open_private_directory(
+        run_directory, "release consumer receipt run"
+    )
+    pending_leaf = f".{CONSUMER_RECEIPT_LEAF}.pending-{secrets.token_hex(16)}"
+    pending_fd = -1
+    pending_visible = False
+    primary: BaseException | None = None
+    try:
+        flags = (
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0)
+        )
+        pending_fd = os.open(pending_leaf, flags, 0o600, dir_fd=directory_fd)
+        pending_visible = True
+        os.fchmod(pending_fd, 0o600)
+        _private_receipt_metadata(os.fstat(pending_fd))
+        remaining = memoryview(data)
+        while remaining:
+            written = os.write(pending_fd, remaining)
+            require(written > 0, "short write for local release consumer receipt")
+            remaining = remaining[written:]
+        os.fsync(pending_fd)
+        completed_fd = pending_fd
+        pending_fd = -1
+        os.close(completed_fd)
+        try:
+            os.link(
+                pending_leaf,
+                CONSUMER_RECEIPT_LEAF,
+                src_dir_fd=directory_fd,
+                dst_dir_fd=directory_fd,
+                follow_symlinks=False,
+            )
+        except OSError as exc:
+            if exc.errno == errno.EEXIST:
+                raise SystemExit(
+                    "error: local release consumer receipt is append-only and already exists"
+                ) from exc
+            raise
+        os.unlink(pending_leaf, dir_fd=directory_fd)
+        pending_visible = False
+        os.fsync(directory_fd)
+    except OSError as exc:
+        primary = SystemExit(
+            f"error: cannot publish append-only local release consumer receipt: {exc}"
+        )
+        raise primary from exc
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        cleanup_errors: list[BaseException] = []
+        if pending_fd >= 0:
+            try:
+                os.close(pending_fd)
+            except BaseException as cleanup_error:
+                cleanup_errors.append(cleanup_error)
+        if pending_visible:
+            try:
+                os.unlink(pending_leaf, dir_fd=directory_fd)
+                os.fsync(directory_fd)
+            except FileNotFoundError:
+                pass
+            except BaseException as cleanup_error:
+                cleanup_errors.append(cleanup_error)
+        try:
+            os.close(directory_fd)
+        except BaseException as cleanup_error:
+            cleanup_errors.append(cleanup_error)
+        if cleanup_errors:
+            if primary is not None:
+                detail = "; ".join(
+                    "local release consumer receipt staging cleanup also failed: "
+                    f"{cleanup_error}"
+                    for cleanup_error in cleanup_errors
+                )
+                _raise_visible_cleanup_failure(primary, detail)
+            else:
+                raise SystemExit(
+                    "error: local release consumer receipt staging cleanup failed: "
+                    f"{cleanup_errors[0]}"
+                ) from cleanup_errors[0]
+
+
+def publish_consumer_receipt(
+    *,
+    root: pathlib.Path,
+    out_dir: pathlib.Path,
+    index_path: pathlib.Path,
+    index_sha256: str,
+    index: dict[str, Any],
+    archive: VerifiedArchiveReference,
+    mode_results: ConsumerModeResults,
+) -> JsonObjectSnapshot:
+    """Publish one append-only receipt only after both C consumers pass."""
+
+    source = index.get("git")
+    require(isinstance(source, dict), "release index Git provenance is malformed")
+    source_commit = source.get("commit")
+    source_dirty = source.get("source_tree_dirty")
+    require(
+        isinstance(source_commit, str)
+        and re.fullmatch(r"[0-9a-f]{40,64}", source_commit) is not None
+        and type(source_dirty) is bool,
+        "release index Git provenance is malformed",
+    )
+    require(
+        index.get("channel") == "release"
+        and index.get("diagnostic_only") is False
+        and source_dirty is False,
+        "local release consumer receipts require a clean release-channel index",
+    )
+    require(
+        type(index.get("schema_version")) is int
+        and index.get("schema_version") == RELEASE_INDEX_SCHEMA_VERSION,
+        "release index schema differs before consumer receipt publication",
+    )
+    index_generated_at = require_utc_timestamp(
+        index.get("generated_at"), "release index generated_at"
+    )
+    require(
+        isinstance(index_sha256, str) and SHA256_RE.fullmatch(index_sha256) is not None,
+        "release index digest is malformed before consumer receipt publication",
+    )
+    try:
+        index_relative = index_path.relative_to(root).as_posix()
+        archive_relative = archive.path.relative_to(root).as_posix()
+    except ValueError as exc:
+        raise SystemExit(
+            "error: local release consumer inputs must remain under the repository"
+        ) from exc
+    run_id = secrets.token_hex(16)
+    require(
+        RUN_ID_RE.fullmatch(run_id) is not None,
+        "generated local release consumer receipt run id is malformed",
+    )
+    generated_at = canonical_utc_now()
+    runtime_run_id, runtime_sha256 = android_runtime_summary_identity(index)
+    source_tree_sha256 = canonical_tree_digest(root, repository_paths(root))
+    android_aar_sha256 = indexed_android_aar_sha256(index)
+    receipt = {
+        "schema_version": CONSUMER_RECEIPT_SCHEMA_VERSION,
+        "kind": CONSUMER_RECEIPT_KIND,
+        "run_id": run_id,
+        "generated_at": generated_at,
+        "status": "pass",
+        "source_commit": source_commit,
+        "source_tree_dirty": source_dirty,
+        "proof_source_tree_sha256": source_tree_sha256,
+        "index_path": index_relative,
+        "index_sha256": index_sha256,
+        "index_generated_at": index_generated_at,
+        "index_schema": index["schema_version"],
+        "c_archive_path": archive_relative,
+        "c_archive_bytes": archive.size,
+        "c_archive_sha256": archive.sha256,
+        "android_aar_sha256": android_aar_sha256,
+        "android_runtime_run_id": runtime_run_id,
+        "android_runtime_proof_sha256": runtime_sha256,
+        "consumer_modes": mode_results.receipt_value(),
+    }
+    validate_consumer_receipt(
+        receipt,
+        root=root,
+        expected_run_id=run_id,
+        expected_source_commit=source_commit,
+        expected_source_tree_dirty=source_dirty,
+        expected_source_tree_sha256=source_tree_sha256,
+        expected_index_path=index_relative,
+        expected_index_sha256=index_sha256,
+        expected_index_generated_at=index_generated_at,
+        expected_c_archive=archive,
+        expected_android_aar_sha256=android_aar_sha256,
+        expected_android_runtime_run_id=runtime_run_id,
+        expected_android_runtime_proof_sha256=runtime_sha256,
+    )
+
+    receipts = out_dir / "receipts"
+    ensure_private_directory(receipts, out_dir)
+    _fsync_private_directory(out_dir, "release consumer output")
+    run_directory = receipts / run_id
+    receipt_path = run_directory / CONSUMER_RECEIPT_LEAF
+    run_directory_created = False
+    primary: BaseException | None = None
+    try:
+        try:
+            run_directory.mkdir(mode=0o700, exist_ok=False)
+            run_directory_created = True
+        except FileExistsError as exc:
+            raise SystemExit(
+                "error: local release consumer receipt run already exists; "
+                "refusing replacement"
+            ) from exc
+        protect_private_directory(run_directory, "release consumer receipt run")
+        _fsync_private_directory(receipts, "release consumer receipt parent")
+        _publish_append_only_receipt(
+            run_directory,
+            (json.dumps(receipt, indent=2, sort_keys=True) + "\n").encode("utf-8"),
+        )
+        snapshot = load_private_consumer_receipt(receipt_path)
+        validate_consumer_receipt(
+            snapshot.value,
+            root=root,
+            expected_run_id=run_id,
+            expected_source_commit=source_commit,
+            expected_source_tree_dirty=source_dirty,
+            expected_source_tree_sha256=source_tree_sha256,
+            expected_index_path=index_relative,
+            expected_index_sha256=index_sha256,
+            expected_index_generated_at=index_generated_at,
+            expected_c_archive=archive,
+            expected_android_aar_sha256=android_aar_sha256,
+            expected_android_runtime_run_id=runtime_run_id,
+            expected_android_runtime_proof_sha256=runtime_sha256,
+        )
+        return snapshot
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        if (
+            primary is not None
+            and run_directory_created
+            and not os.path.lexists(receipt_path)
+        ):
+            try:
+                run_directory.rmdir()
+                _fsync_private_directory(receipts, "release consumer receipt parent")
+            except BaseException as cleanup_error:
+                _raise_visible_cleanup_failure(
+                    primary,
+                    "release consumer receipt cleanup also failed: "
+                    f"{cleanup_error}",
+                )
+
+
+def run_consumer(args: argparse.Namespace) -> None:
+    root = REPOSITORY_ROOT
+    require(
+        args.channel == "release" or args.allow_diagnostic,
+        "diagnostic release consumer requires --allow-diagnostic",
+    )
+    out_dir = resolve_output_dir()
+    selection = release_pointer_selection(root, args.channel)
+    verified_index = verify_release_index_snapshot(
+        selection.path,
+        root,
+        allow_diagnostic=args.allow_diagnostic,
+        expected_index_sha256=selection.expected_sha256,
+        expected_generated_at=selection.expected_generated_at,
+    )
+    index = verified_index.value
+    release_root = verified_index.path.parent
+    archives = c_archive_entries(index, release_root)
+    mode_results = smoke_c_archive(
+        root, verified_index.sha256, archives[0], out_dir
+    )
+    verify_release_index_snapshot(
+        selection.path,
+        root,
+        allow_diagnostic=args.allow_diagnostic,
+        expected_index_sha256=selection.expected_sha256,
+        expected_generated_at=selection.expected_generated_at,
+    )
+    if args.channel == "release":
+        receipt = publish_consumer_receipt(
+            root=root,
+            out_dir=out_dir,
+            index_path=verified_index.path,
+            index_sha256=verified_index.sha256,
+            index=index,
+            archive=archives[0],
+            mode_results=mode_results,
+        )
+        verify_release_index_snapshot(
+            selection.path,
+            root,
+            allow_diagnostic=False,
+            expected_index_sha256=selection.expected_sha256,
+            expected_generated_at=selection.expected_generated_at,
+        )
+        print(
+            "QPERIAPT_RELEASE_CONSUMER_RECEIPT_PASS "
+            f"run-id={receipt.value['run_id']} sha256={receipt.file.sha256} "
+            f"path={receipt.file.path}"
+        )
+        print("QPERIAPT_RELEASE_CONSUMER_SMOKE_PASS c-abi")
+    else:
+        print("QPERIAPT_DIAGNOSTIC_RELEASE_CONSUMER_SMOKE_PASS c-abi receipt=not_emitted")
+
+
+def verify_bound_consumer(expected_results_manifest_sha256: str) -> None:
+    """Verify one results-selected index and its persisted consumer receipt."""
+
+    root = REPOSITORY_ROOT
+    results_path = root / "artifact/results.json"
+    try:
+        manifest = load_results_manifest_snapshot(
+            results_path,
+            expected_sha256=expected_results_manifest_sha256,
+        )
+        index_declaration = resolve_bound_file_declaration(
+            root, manifest, binding="local_release_index"
+        )
+        receipt_declaration = resolve_bound_file_declaration(
+            root, manifest, binding="local_release_consumer"
+        )
+    except ProofManifestError as exc:
+        raise SystemExit(f"error: {exc}") from exc
+
+    section = manifest.value["local_release_index"]
+    runtime = manifest.value["android_device_runtime"]
+    aar = manifest.value["android_aar"]
+    expected_receipt_path = (
+        root
+        / "target"
+        / "qperiapt-release-consumer-smoke"
+        / "receipts"
+        / section["consumer_receipt_run_id"]
+        / CONSUMER_RECEIPT_LEAF
+    )
+    require(
+        receipt_declaration.path == expected_receipt_path,
+        "results-selected local release consumer receipt path is not canonical",
+    )
+    for directory, label in (
+        (expected_receipt_path.parents[2], "release consumer output"),
+        (expected_receipt_path.parents[1], "release consumer receipt parent"),
+        (expected_receipt_path.parent, "release consumer receipt run"),
+    ):
+        descriptor = _open_private_directory(directory, label)
+        _close_descriptor(descriptor, label, None)
+    receipt = load_private_consumer_receipt(
+        receipt_declaration.path,
+        expected_sha256=receipt_declaration.sha256,
+    )
+    verified_index = verify_release_index_snapshot(
+        index_declaration.path,
+        root,
+        allow_diagnostic=False,
+        expected_index_sha256=index_declaration.sha256,
+        expected_generated_at=section["generated_at"],
+    )
+    index = verified_index.value
+    runtime_run_id, runtime_sha256 = android_runtime_summary_identity(index)
+    require(
+        runtime_run_id == runtime["run_id"]
+        and runtime_sha256 == runtime["proof_sha256"]
+        and runtime_run_id == section["android_runtime_run_id"]
+        and runtime_sha256 == section["android_runtime_proof_sha256"],
+        "results-selected local index does not contain the selected Android runtime",
+    )
+    index_aar_sha256 = indexed_android_aar_sha256(index)
+    require(
+        index_aar_sha256 == aar["aar_sha256"],
+        "results-selected local index does not contain the selected Android AAR",
+    )
+    archives = c_archive_entries(index, verified_index.path.parent)
+    validate_consumer_receipt(
+        receipt.value,
+        root=root,
+        expected_run_id=section["consumer_receipt_run_id"],
+        expected_source_commit=section["source_commit"],
+        expected_source_tree_dirty=False,
+        expected_source_tree_sha256=section["proof_source_tree_sha256"],
+        expected_index_path=section["index_path"],
+        expected_index_sha256=section["index_sha256"],
+        expected_index_generated_at=section["generated_at"],
+        expected_c_archive=archives[0],
+        expected_android_aar_sha256=index_aar_sha256,
+        expected_android_runtime_run_id=runtime_run_id,
+        expected_android_runtime_proof_sha256=runtime_sha256,
+    )
+    require(
+        receipt.value["generated_at"] == section["consumer_receipt_generated_at"],
+        "local release consumer receipt generation time differs from results",
+    )
+    print(
+        "QPERIAPT_RESULTS_BOUND_RELEASE_CONSUMER_VERIFY_PASS "
+        f"index_sha256={verified_index.sha256} receipt_sha256={receipt.file.sha256}"
+    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", default=".")
-    parser.add_argument("--index", default=os.environ.get("QPERIAPT_RELEASE_INDEX_PATH", ""))
-    parser.add_argument("--out-dir", default="")
-    parser.add_argument("--allow-diagnostic", action="store_true")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    run = subparsers.add_parser("run")
+    run.add_argument("--channel", choices=["release", "diagnostic"], default="release")
+    run.add_argument("--allow-diagnostic", action="store_true")
+    verify_bound = subparsers.add_parser("verify-bound")
+    verify_bound.add_argument("--expected-results-manifest-sha256", required=True)
     args = parser.parse_args()
-
-    root = pathlib.Path(args.root).resolve()
-    out_dir = resolve_output_dir(root, args.out_dir)
-    index_path = resolve_index_path(root, args.index)
-    index = verify_release_index(
-        index_path, root, allow_diagnostic=args.allow_diagnostic
-    )
-    release_root = index_path.parent
-    for archive in c_archive_entries(index, release_root):
-        smoke_c_archive(root, index_path, archive, out_dir)
-    print("QPERIAPT_RELEASE_CONSUMER_SMOKE_PASS c-abi")
+    if args.command == "run":
+        run_consumer(args)
+    else:
+        verify_bound_consumer(args.expected_results_manifest_sha256)
 
 
 if __name__ == "__main__":

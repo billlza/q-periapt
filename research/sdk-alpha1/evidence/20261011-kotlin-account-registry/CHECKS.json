@@ -1,0 +1,387 @@
+{
+  "source_commit": "7405413cb9c8da3265595af6a58457ccfb828249",
+  "completed": true,
+  "release_claim_eligible": false,
+  "scope": "Installed Maven/runtime Kotlin registry component, actual first registration and unchanged ordinary expiry/renewal regression; same-host Kotlin initiator and C receiver sharing the native engine",
+  "native_archive": {
+    "sha256": "cf640e4c1df89890edac083d35d7d4cc537359b826b5ced9e014b4e2753ecbca",
+    "bytes": 1331903,
+    "members": 406
+  },
+  "source_identity": "Kotlin SDK/test sources and final consumer sources byte-match the code commit. Reuses the immutable native archive built at 6d70c614; this is not a full current Kotlin distribution or release qualification.",
+  "ordinary_identity": "Ordinary cases used immutable client-02. Client-03 differs only in the strengthened managed no-revival probe, and that probe was separately executed in all final managed combinations.",
+  "validation": {
+    "Kotlin_Debug_tests": 68,
+    "Kotlin_Release_tests": 68,
+    "inventory_and_reader_tests": 78,
+    "strict_Clippy": [
+      "1.90.0",
+      "1.98.1"
+    ],
+    "Maven": "exact-version inventory/digests verified",
+    "runtime_dependencies": "verified outside source checkout",
+    "Java": "public inputs passed; raw owner constructor rejected at exact private-access boundary"
+  },
+  "profiles": {
+    "debug": {
+      "Serial": {
+        "managed_scenarios": [
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "ordinary_scenarios": [
+          "local-fixed",
+          "local-recoverable",
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "gc_observations": {
+          "signed-fixed": {
+            "collections": 2,
+            "rounds": 1,
+            "available_slots": 63
+          },
+          "signed-recoverable": {
+            "collections": 2,
+            "rounds": 1,
+            "available_slots": 63
+          },
+          "tls-fixed": {
+            "collections": 2,
+            "rounds": 1,
+            "available_slots": 63
+          },
+          "tls-recoverable": {
+            "collections": 2,
+            "rounds": 1,
+            "available_slots": 63
+          }
+        },
+        "managed_command": [
+          "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java",
+          "-Xms32m",
+          "-Xmx128m",
+          "-XX:+UseSerialGC",
+          "--enable-native-access=ALL-UNNAMED",
+          "--illegal-native-access=deny",
+          "-Dqperiapt.continuity.lib=/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-debug/libq_periapt_continuity_c_consumer.dylib",
+          "-cp",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/annotations-13.0.jar:/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar:/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar:/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar",
+          "configuration.FirstConfigurationClientKt"
+        ],
+        "managed_binaries": {
+          "helper": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build-authority-check/debug/deps/first_configuration-9a6d137abe215445",
+            "sha256": "5f7ac2f7c2d90354fca7588755fb72e576d060a20d1f1f3d36e60aca388765ce",
+            "bytes": 14173896
+          },
+          "client": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-first-final-01/configuration-debug-serial",
+            "sha256": "de97163f2476efa31d10d4d7a2f3f04dba1c8f5ca931a74b9ee4a5ae158648b9",
+            "bytes": 1314
+          },
+          "receiver": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-debug/qpc-c-client",
+            "sha256": "628df05ff27324ca12bbbe7406c5041852a726c07d83e5f6143ca69c531aa939",
+            "bytes": 176128
+          }
+        },
+        "ordinary_binaries": {
+          "helper": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build/debug/deps/first_configuration-9a6d137abe215445",
+            "sha256": "e82ead22df69639331d5af4a583da86ddf6720817c04dae4371d5b764b420542",
+            "bytes": 14167304
+          },
+          "client": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-ordinary-01/configuration-debug-serial",
+            "sha256": "8aac0aa269425bdef2a0c5ee8ea569dd44f69ef710c568f955d0adb64f1d1fcd",
+            "bytes": 1314
+          },
+          "receiver": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-debug/qpc-c-client",
+            "sha256": "628df05ff27324ca12bbbe7406c5041852a726c07d83e5f6143ca69c531aa939",
+            "bytes": 176128
+          }
+        }
+      },
+      "G1": {
+        "managed_scenarios": [
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "ordinary_scenarios": [
+          "local-fixed",
+          "local-recoverable",
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "gc_observations": {
+          "signed-fixed": {
+            "collections": 6,
+            "rounds": 2,
+            "available_slots": 63
+          },
+          "signed-recoverable": {
+            "collections": 6,
+            "rounds": 2,
+            "available_slots": 63
+          },
+          "tls-fixed": {
+            "collections": 6,
+            "rounds": 2,
+            "available_slots": 63
+          },
+          "tls-recoverable": {
+            "collections": 6,
+            "rounds": 2,
+            "available_slots": 63
+          }
+        },
+        "managed_command": [
+          "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java",
+          "-Xms32m",
+          "-Xmx128m",
+          "-XX:+UseG1GC",
+          "--enable-native-access=ALL-UNNAMED",
+          "--illegal-native-access=deny",
+          "-Dqperiapt.continuity.lib=/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-debug/libq_periapt_continuity_c_consumer.dylib",
+          "-cp",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/annotations-13.0.jar:/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar:/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar:/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar",
+          "configuration.FirstConfigurationClientKt"
+        ],
+        "managed_binaries": {
+          "helper": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build-authority-check/debug/deps/first_configuration-9a6d137abe215445",
+            "sha256": "5f7ac2f7c2d90354fca7588755fb72e576d060a20d1f1f3d36e60aca388765ce",
+            "bytes": 14173896
+          },
+          "client": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-first-final-01/configuration-debug-g1",
+            "sha256": "795c0d7438dadb43d88d2cf24d80464b5461e109a4eb5469e544cf5be1308139",
+            "bytes": 1310
+          },
+          "receiver": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-debug/qpc-c-client",
+            "sha256": "628df05ff27324ca12bbbe7406c5041852a726c07d83e5f6143ca69c531aa939",
+            "bytes": 176128
+          }
+        },
+        "ordinary_binaries": {
+          "helper": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build/debug/deps/first_configuration-9a6d137abe215445",
+            "sha256": "e82ead22df69639331d5af4a583da86ddf6720817c04dae4371d5b764b420542",
+            "bytes": 14167304
+          },
+          "client": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-ordinary-01/configuration-debug-g1",
+            "sha256": "666b70582c80659133f329ac298e9aa8cc119ca09d8e65797b80d67a9913e265",
+            "bytes": 1310
+          },
+          "receiver": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-debug/qpc-c-client",
+            "sha256": "628df05ff27324ca12bbbe7406c5041852a726c07d83e5f6143ca69c531aa939",
+            "bytes": 176128
+          }
+        }
+      }
+    },
+    "release": {
+      "Serial": {
+        "managed_scenarios": [
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "ordinary_scenarios": [
+          "local-fixed",
+          "local-recoverable",
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "gc_observations": {
+          "signed-fixed": {
+            "collections": 3,
+            "rounds": 2,
+            "available_slots": 63
+          },
+          "signed-recoverable": {
+            "collections": 2,
+            "rounds": 1,
+            "available_slots": 63
+          },
+          "tls-fixed": {
+            "collections": 2,
+            "rounds": 1,
+            "available_slots": 63
+          },
+          "tls-recoverable": {
+            "collections": 2,
+            "rounds": 1,
+            "available_slots": 63
+          }
+        },
+        "managed_command": [
+          "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java",
+          "-Xms32m",
+          "-Xmx128m",
+          "-XX:+UseSerialGC",
+          "--enable-native-access=ALL-UNNAMED",
+          "--illegal-native-access=deny",
+          "-Dqperiapt.continuity.lib=/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-release/libq_periapt_continuity_c_consumer.dylib",
+          "-cp",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/annotations-13.0.jar:/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar:/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar:/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar",
+          "configuration.FirstConfigurationClientKt"
+        ],
+        "managed_binaries": {
+          "helper": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build-authority-check/release/deps/first_configuration-15dc71aaec87a777",
+            "sha256": "29a78ac80011a3f5b2300224856add99c106fe7d5783276e04eb331fde9b1206",
+            "bytes": 8578944
+          },
+          "client": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-first-final-01/configuration-release-serial",
+            "sha256": "14ecaee0c439c1aa73f63fe7a74b36979cd9b3e5f391c069086e1da0c26d67a6",
+            "bytes": 1316
+          },
+          "receiver": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-release/qpc-c-client",
+            "sha256": "a497e9fa0d29a2c1a34f0729d08d4a7d7bdfed53719749f2eee6bb9f6066f791",
+            "bytes": 212016
+          }
+        },
+        "ordinary_binaries": {
+          "helper": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build/release/deps/first_configuration-15dc71aaec87a777",
+            "sha256": "649cbffa9693df75bf64cf41349740e9385b8362cdd287b6a02a4874b05307b3",
+            "bytes": 8578944
+          },
+          "client": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-ordinary-01/configuration-release-serial",
+            "sha256": "396b288aa71957ecbfbf0150a59ccd328994ce3cc99837672d50616409c64897",
+            "bytes": 1316
+          },
+          "receiver": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-release/qpc-c-client",
+            "sha256": "a497e9fa0d29a2c1a34f0729d08d4a7d7bdfed53719749f2eee6bb9f6066f791",
+            "bytes": 212016
+          }
+        }
+      },
+      "G1": {
+        "managed_scenarios": [
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "ordinary_scenarios": [
+          "local-fixed",
+          "local-recoverable",
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "gc_observations": {
+          "signed-fixed": {
+            "collections": 6,
+            "rounds": 2,
+            "available_slots": 63
+          },
+          "signed-recoverable": {
+            "collections": 6,
+            "rounds": 2,
+            "available_slots": 63
+          },
+          "tls-fixed": {
+            "collections": 6,
+            "rounds": 2,
+            "available_slots": 63
+          },
+          "tls-recoverable": {
+            "collections": 6,
+            "rounds": 2,
+            "available_slots": 63
+          }
+        },
+        "managed_command": [
+          "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java",
+          "-Xms32m",
+          "-Xmx128m",
+          "-XX:+UseG1GC",
+          "--enable-native-access=ALL-UNNAMED",
+          "--illegal-native-access=deny",
+          "-Dqperiapt.continuity.lib=/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-release/libq_periapt_continuity_c_consumer.dylib",
+          "-cp",
+          "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/annotations-13.0.jar:/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar:/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar:/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-consumer-client-03/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar",
+          "configuration.FirstConfigurationClientKt"
+        ],
+        "managed_binaries": {
+          "helper": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build-authority-check/release/deps/first_configuration-15dc71aaec87a777",
+            "sha256": "29a78ac80011a3f5b2300224856add99c106fe7d5783276e04eb331fde9b1206",
+            "bytes": 8578944
+          },
+          "client": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-first-final-01/configuration-release-g1",
+            "sha256": "08991f6861e0680ca68f5f6eb5972745e1fee8c6379084dd0b04e318dd1f6ce4",
+            "bytes": 1312
+          },
+          "receiver": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-release/qpc-c-client",
+            "sha256": "a497e9fa0d29a2c1a34f0729d08d4a7d7bdfed53719749f2eee6bb9f6066f791",
+            "bytes": 212016
+          }
+        },
+        "ordinary_binaries": {
+          "helper": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/build/release/deps/first_configuration-15dc71aaec87a777",
+            "sha256": "649cbffa9693df75bf64cf41349740e9385b8362cdd287b6a02a4874b05307b3",
+            "bytes": 8578944
+          },
+          "client": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/kotlin-authority-ordinary-01/configuration-release-g1",
+            "sha256": "d5903a8aab0b37e32b5ba5f0df3684666c1d4daf434df770de19aa4588482686",
+            "bytes": 1312
+          },
+          "receiver": {
+            "path": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-account-owner-tjvakd4h/enrollment-current-installed-release/qpc-c-client",
+            "sha256": "a497e9fa0d29a2c1a34f0729d08d4a7d7bdfed53719749f2eee6bb9f6066f791",
+            "bytes": 212016
+          }
+        }
+      }
+    }
+  },
+  "invariants": [
+    "Original real request precedes independent account association",
+    "No selected registry on activation returns 211",
+    "Explicit close and observed Cleaner disposal return 202 even while a newly opened original registry is live",
+    "GC observation includes weak queue and native capacity reclamation, with the enrollment fenced alive",
+    "Original session/message and host effect deduplication survive receiver exit",
+    "No test polling of activation or security downgrade to wait for Cleaner"
+  ],
+  "limits": [
+    "JDK 25 Serial/G1 and bounded heap only; no all-JVM cleanup scheduling guarantee",
+    "No independent protocol engine or cross-host/device claim",
+    "Managed policy renewal/credential renewal and complete account replacement remain separate compositions",
+    "No throughput/RSS/energy improvement claim"
+  ],
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 4413690,
+    "sha256": "c59302807374deacbb9b3939d6960abf814c11a2d4a9044cfe36858c60b46810",
+    "members": 1648
+  }
+}

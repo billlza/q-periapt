@@ -4,7 +4,7 @@
 //! # q-periapt-backends
 //!
 //! Third-party primitive backends wired into the `q-periapt-core` traits:
-//! - **ML-KEM** (FIPS 203) via the portable `mlkem-native` integration:
+//! - **ML-KEM** (FIPS 203) via the target-selected `mlkem-native` integration:
 //!   [`MlKem512`], [`MlKem768`], [`MlKem1024`] expose the FIPS-expanded decapsulation
 //!   key format and are therefore confined to `ContextBound`; [`MlKem768XWingSeed`]
 //!   exposes the X-Wing seed-derived key format and is the only ML-KEM backend here
@@ -23,16 +23,22 @@
 //! integration stay below it in `q-periapt-mlkem-native-sys`; security-critical
 //! composition stays in the dependency-free `q-periapt-core`.
 
-use q_periapt_core::{Error, Kem, Xof256, ZeroizingBytes, SHARED_SECRET_LEN};
+use q_periapt_core::{Error, Kem, PreparedKem, Xof256, ZeroizingBytes, SHARED_SECRET_LEN};
 use q_periapt_mlkem_native_sys::{
     Error as NativeMlKemError, MlKem1024 as NativeMlKem1024, MlKem512 as NativeMlKem512,
     MlKem768 as NativeMlKem768,
 };
-use sha3::{
+use sha3::{Digest, Sha3_256};
+use shake::{
     digest::{ExtendableOutput, Update, XofReader},
-    Digest, Sha3_256, Shake256,
+    Shake256,
 };
 use x25519_dalek::{PublicKey, StaticSecret};
+
+mod contextbound_key;
+pub use contextbound_key::{ExpandedKeyImportError, PreparedMlKem768Key};
+mod streaming_sha3;
+pub use streaming_sha3::StreamingSha3_256Xof;
 
 const _: [(); 64] = [(); q_periapt_mlkem_native_sys::KEY_GENERATION_SEED_LEN];
 const _: [(); 32] = [(); q_periapt_mlkem_native_sys::ENCAPSULATION_SEED_LEN];
@@ -77,7 +83,7 @@ mod enhanced_kat;
 #[cfg(feature = "slh-dsa")]
 mod slhdsa;
 #[cfg(feature = "slh-dsa")]
-pub use slhdsa::{SlhDsaSha2_128s, SlhDsaSha2_192s, SlhDsaSha2_256s};
+pub use slhdsa::{SlhDsaSha2_128s, SlhDsaSha2_192s, SlhDsaSha2_256s, SLH_DSA_BACKEND_ALGORITHMS};
 
 mod mldsa;
 pub use mldsa::{
@@ -85,7 +91,7 @@ pub use mldsa::{
     ML_DSA_44_SIG_LEN, ML_DSA_44_SK_LEN, ML_DSA_44_VK_LEN, ML_DSA_65_KEYGEN_SEED_LEN,
     ML_DSA_65_SIGN_RAND_LEN, ML_DSA_65_SIG_LEN, ML_DSA_65_SK_LEN, ML_DSA_65_VK_LEN,
     ML_DSA_87_KEYGEN_SEED_LEN, ML_DSA_87_SIGN_RAND_LEN, ML_DSA_87_SIG_LEN, ML_DSA_87_SK_LEN,
-    ML_DSA_87_VK_LEN,
+    ML_DSA_87_VK_LEN, ML_DSA_BACKEND_ALGORITHMS,
 };
 
 // NIST ACVP (FIPS 205) ground-truth conformance vectors for SLH-DSA-SHA2-{128,192,256}s.
@@ -100,6 +106,15 @@ pub const DEFAULT_SUITE_ID: &[u8] = b"ML-KEM-768+X25519";
 
 /// Default concrete hybrid suite as a NUL-terminated C string.
 pub const DEFAULT_SUITE_ID_CSTR: &[u8] = b"ML-KEM-768+X25519\0";
+
+/// Exact `mlkem-native` implementation selected for this compilation target.
+pub const ML_KEM_IMPLEMENTATION_ID: &str = q_periapt_mlkem_native_sys::IMPLEMENTATION_ID;
+
+/// ML-KEM implementation selected at runtime, including CPU/OS admission for
+/// the Linux AVX2 candidate. A build identity alone cannot prove AVX2 execution.
+pub fn ml_kem_active_implementation_id() -> &'static str {
+    q_periapt_mlkem_native_sys::active_implementation_id()
+}
 
 #[inline]
 fn to_arr<const N: usize>(s: &[u8]) -> Result<[u8; N], Error> {
@@ -131,164 +146,275 @@ fn sha3_256(data: &[u8]) -> [u8; SHARED_SECRET_LEN] {
 }
 
 #[inline]
-fn shake256<const N: usize>(data: &[u8]) -> [u8; N] {
+fn shake256_zeroizing<const N: usize>(data: &[u8]) -> ZeroizingBytes<N> {
     let mut state = Shake256::default();
     Update::update(&mut state, data);
     let mut reader = state.finalize_xof();
-    let mut output = [0u8; N];
-    XofReader::read(&mut reader, &mut output);
+    let mut output = ZeroizingBytes::<N>::zeroed();
+    XofReader::read(&mut reader, output.as_mut_bytes());
     output
 }
 
-/// Declares an ML-KEM (FIPS 203) backend over an `mlkem-native` parameter type: the
-/// public length constants, the unit struct, its seed-deterministic
-/// `generate` associated fn, and the [`Kem`] impl. All parameter sets share this
-/// boilerplate (validated expanded-key import, C2PRI ⇒ ciphertext-binding),
-/// differing only in module and byte lengths — so they are
-/// generated from one definition rather than hand-copied.
-macro_rules! mlkem_backend {
-    (
-        $name:ident, $native:ident, $alg:literal,
-        $pk_len:ident = $pk:literal,
-        $sk_len:ident = $sk:literal,
-        $ct_len:ident = $ct:literal,
-        $seed_len:ident = $seed:literal,
-        $rand_len:ident = $rand:literal,
-        $struct_doc:literal
-    ) => {
-        #[doc = concat!($alg, " encapsulation-key (public key) length, bytes.")]
-        pub const $pk_len: usize = $pk;
-        #[doc = concat!($alg, " decapsulation-key (secret key) length, bytes.")]
-        pub const $sk_len: usize = $sk;
-        #[doc = concat!($alg, " ciphertext length, bytes.")]
-        pub const $ct_len: usize = $ct;
-        #[doc = concat!($alg, " key-generation seed length, bytes (FIPS 203 d‖z).")]
-        pub const $seed_len: usize = $seed;
-        #[doc = concat!($alg, " encapsulation randomness length, bytes.")]
-        pub const $rand_len: usize = $rand;
+#[cfg(test)]
+fn shake256<const N: usize>(data: &[u8]) -> [u8; N] {
+    *shake256_zeroizing::<N>(data).as_bytes()
+}
 
-        const _: [(); $pk] = [(); $native::PUBLIC_KEY_LEN];
-        const _: [(); $sk] = [(); $native::DECAPSULATION_KEY_LEN];
-        const _: [(); $ct] = [(); $native::CIPHERTEXT_LEN];
+/// Anchors each backend family's registry to a single macro invocation,
+/// crate-wide.
+///
+/// `macro_rules!` expands where it is invoked, so a `*_BACKEND_ALGORITHMS` const
+/// is only ever the registry of *its own* module. A second invocation of a
+/// declaration macro in a different module would expand a second const there —
+/// a fully working backend in a registry every consumer, including
+/// `q-periapt-cli`'s CBOM, is unaware of. Trait coherence is the one crate-wide
+/// namespace a declarative macro can write into, so each declaration macro
+/// defines its registry as the associated const of `impl ... for ()` and
+/// publishes `*_BACKEND_ALGORITHMS` by reading that back. A second invocation,
+/// in any module of this crate, is then `error[E0119]: conflicting
+/// implementations` at the anchor rather than a silent second registry.
+///
+/// Each family gets its own anchor trait, so the three macros do not collide
+/// with each other; none of them is `#[macro_export]`ed, so every invocation
+/// that can exist is inside this crate and hits the same anchor.
+pub(crate) trait MlKemBackendRegistry {
+    /// The FIPS 203 identifiers of every ML-KEM backend this crate declares.
+    const ALGORITHMS: &'static [&'static str];
+}
 
-        #[doc = $struct_doc]
-        #[derive(Clone, Copy, Debug, Default)]
-        pub struct $name;
+/// The ML-DSA half of the registry anchor — see [`MlKemBackendRegistry`].
+pub(crate) trait MlDsaBackendRegistry {
+    /// The FIPS 204 algorithms of every ML-DSA backend this crate declares.
+    const ALGORITHMS: &'static [q_periapt_sig::SigAlg];
+}
 
-        impl $name {
-            /// Deterministically generate a key pair from a 64-byte seed.
-            /// Returns `(decapsulation_key, encapsulation_key)`.
-            ///
-            /// # Errors
-            ///
-            /// Returns [`Error::Backend`] if the pinned primitive cannot
-            /// complete deterministic key generation.
-            pub fn generate(
-                seed: [u8; $seed_len],
-            ) -> Result<([u8; $sk_len], [u8; $pk_len]), Error> {
-                let seed = ZeroizingBytes::from_bytes(seed);
-                let mut encapsulation_key = [0u8; $pk_len];
-                let mut decapsulation_key = ZeroizingBytes::<$sk_len>::zeroed();
-                $native::keypair_derand(
-                    seed.as_bytes(),
-                    &mut encapsulation_key,
-                    decapsulation_key.as_mut_bytes(),
-                )
-                .map_err(map_mlkem_error)?;
-                Ok((*decapsulation_key.as_bytes(), encapsulation_key))
+/// The SLH-DSA half of the registry anchor — see [`MlKemBackendRegistry`].
+#[cfg(feature = "slh-dsa")]
+pub(crate) trait SlhDsaBackendRegistry {
+    /// The FIPS 205 algorithms of every SLH-DSA backend this crate declares.
+    const ALGORITHMS: &'static [q_periapt_sig::SigAlg];
+}
+
+/// Declares every ML-KEM (FIPS 203) backend over an `mlkem-native` parameter
+/// type, and the registry of the algorithms they report.
+///
+/// Per parameter set it expands the public length constants, the unit struct,
+/// its seed-deterministic `generate` associated fn, and the [`Kem`] impl. All
+/// parameter sets share this boilerplate (validated expanded-key import,
+/// C2PRI ⇒ ciphertext-binding), differing only in module and byte lengths — so
+/// they are generated from one definition rather than hand-copied.
+///
+/// One invocation declares them all, so a parameter set added to it lands in
+/// [`ML_KEM_BACKEND_ALGORITHMS`] from the same `$alg` literal its
+/// `Kem::algorithm` returns. The macro has exactly one rule — the per-backend
+/// expansion is inlined into that rule's repetition rather than reachable as a
+/// second rule or a macro of its own — so no invocation can declare a backend
+/// without also expanding the registry, and the registry it expands is anchored
+/// by [`MlKemBackendRegistry`] so that a second invocation anywhere in this
+/// crate fails to compile instead of registering elsewhere.
+macro_rules! mlkem_backends {
+    ($(
+        {
+            $name:ident, $native:ident, $alg:literal,
+            $pk_len:ident = $pk:literal,
+            $sk_len:ident = $sk:literal,
+            $ct_len:ident = $ct:literal,
+            $seed_len:ident = $seed:literal,
+            $rand_len:ident = $rand:literal,
+            $struct_doc:literal
+        }
+    ),+ $(,)?) => {
+        $(
+            /// Encapsulation-key (public key) length in bytes.
+            pub const $pk_len: usize = $pk;
+            /// Decapsulation-key (secret key) length in bytes.
+            pub const $sk_len: usize = $sk;
+            /// Ciphertext length in bytes.
+            pub const $ct_len: usize = $ct;
+            /// Key-generation seed length in bytes (FIPS 203 `d || z`).
+            pub const $seed_len: usize = $seed;
+            /// Encapsulation randomness length in bytes.
+            pub const $rand_len: usize = $rand;
+
+            const _: [(); $pk] = [(); $native::PUBLIC_KEY_LEN];
+            const _: [(); $sk] = [(); $native::DECAPSULATION_KEY_LEN];
+            const _: [(); $ct] = [(); $native::CIPHERTEXT_LEN];
+
+            #[doc = $struct_doc]
+            #[derive(Clone, Copy, Debug, Default)]
+            pub struct $name;
+
+            impl $name {
+                /// Deterministically generate a key pair from a 64-byte seed.
+                /// Returns `(decapsulation_key, encapsulation_key)`.
+                ///
+                /// The decapsulation key is returned **by value** as a plain array,
+                /// so wiping every copy the return path materializes is the
+                /// caller's responsibility. Long-term keying paths should prefer
+                /// [`Self::generate_zeroizing`], which keeps the secret inside one
+                /// zeroizing heap owner end to end.
+                ///
+                /// # Errors
+                ///
+                /// Returns [`Error::Backend`] if the pinned primitive cannot
+                /// complete deterministic key generation.
+                pub fn generate(
+                    seed: [u8; $seed_len],
+                ) -> Result<([u8; $sk_len], [u8; $pk_len]), Error> {
+                    let seed = ZeroizingBytes::from_bytes(seed);
+                    let (decapsulation_key, encapsulation_key) =
+                        Self::generate_zeroizing(seed.as_bytes())?;
+                    Ok((*decapsulation_key.as_bytes(), encapsulation_key))
+                }
+
+                /// Deterministically generate a key pair from a borrowed 64-byte
+                /// seed, returning `(decapsulation_key, encapsulation_key)` with
+                /// the secret held in one stable zeroizing heap owner.
+                ///
+                /// The seed is borrowed (no by-value copy crosses this boundary)
+                /// and the expanded decapsulation key is written by the primitive
+                /// directly into the boxed [`ZeroizingBytes`] — mirroring
+                /// [`MlKem768XWingSeed::prepare`], moving the owner afterwards
+                /// moves only the box pointer, never the secret bytes, so no
+                /// unwiped stack copy of the key is left behind.
+                ///
+                /// # Errors
+                ///
+                /// Returns [`Error::Backend`] if the pinned primitive cannot
+                /// complete deterministic key generation.
+                pub fn generate_zeroizing(
+                    seed: &[u8; $seed_len],
+                ) -> Result<(Box<ZeroizingBytes<$sk_len>>, [u8; $pk_len]), Error> {
+                    let mut encapsulation_key = [0u8; $pk_len];
+                    let mut decapsulation_key = Box::new(ZeroizingBytes::<$sk_len>::zeroed());
+                    $native::keypair_derand(
+                        seed,
+                        &mut encapsulation_key,
+                        decapsulation_key.as_mut_bytes(),
+                    )
+                    .map_err(map_mlkem_error)?;
+                    Ok((decapsulation_key, encapsulation_key))
+                }
             }
+
+            impl Kem for $name {
+                const C2PRI: bool = true; // ML-KEM's primitive has FO ciphertext self-binding.
+                                          // This backend accepts arbitrary FIPS-expanded decapsulation keys. The expanded key
+                                          // format exposes rejection-seed material that can be adversarially imported/cached
+                                          // outside the seed-derived X-Wing key schedule. Use ContextBound for this raw-key
+                                          // backend; use MlKem768XWingSeed for byte-exact X-Wing compatibility.
+                const COMPAT_XWING_SAFE: bool = false;
+
+                fn algorithm(&self) -> &'static str {
+                    $alg
+                }
+
+                fn encapsulate(
+                    &self,
+                    pk: &[u8],
+                    randomness: &[u8],
+                    ct: &mut [u8],
+                    ss: &mut [u8],
+                ) -> Result<(), Error> {
+                    if ct.len() != $ct_len || ss.len() != SHARED_SECRET_LEN {
+                        return Err(Error::InvalidLength);
+                    }
+                    let public_key = to_arr::<$pk_len>(pk)?;
+                    let randomness = to_zeroizing::<$rand_len>(randomness)?;
+                    let mut ciphertext = [0u8; $ct_len];
+                    let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+                    $native::encapsulate_derand(
+                        &public_key,
+                        randomness.as_bytes(),
+                        &mut ciphertext,
+                        shared_secret.as_mut_bytes(),
+                    )
+                    .map_err(map_mlkem_error)?;
+                    write_exact(ct, &ciphertext)?;
+                    write_exact(ss, shared_secret.as_bytes())
+                }
+
+                fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
+                    if ss.len() != SHARED_SECRET_LEN {
+                        return Err(Error::InvalidLength);
+                    }
+                    let decapsulation_key = to_zeroizing::<$sk_len>(sk)?;
+                    let ciphertext = to_arr::<$ct_len>(ct)?;
+                    let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+                    $native::decapsulate(
+                        decapsulation_key.as_bytes(),
+                        &ciphertext,
+                        shared_secret.as_mut_bytes(),
+                    )
+                    .map_err(map_mlkem_error)?;
+                    write_exact(ss, shared_secret.as_bytes())
+                }
+            }
+        )+
+
+        // The crate's one ML-KEM registry, defined as a crate-wide-unique trait
+        // impl so that a second `mlkem_backends!` invocation -- in this module
+        // or any other -- is `error[E0119]: conflicting implementations` rather
+        // than a second registry const in a module nothing reads.
+        impl crate::MlKemBackendRegistry for () {
+            const ALGORITHMS: &'static [&'static str] = &[$($alg),+];
         }
 
-        impl Kem for $name {
-            const C2PRI: bool = true; // ML-KEM's primitive has FO ciphertext self-binding.
-                                      // This backend accepts arbitrary FIPS-expanded decapsulation keys. The expanded key
-                                      // format exposes rejection-seed material that can be adversarially imported/cached
-                                      // outside the seed-derived X-Wing key schedule. Use ContextBound for this raw-key
-                                      // backend; use MlKem768XWingSeed for byte-exact X-Wing compatibility.
-            const COMPAT_XWING_SAFE: bool = false;
-
-            fn algorithm(&self) -> &'static str {
-                $alg
-            }
-
-            fn encapsulate(
-                &self,
-                pk: &[u8],
-                randomness: &[u8],
-                ct: &mut [u8],
-                ss: &mut [u8],
-            ) -> Result<(), Error> {
-                if ct.len() != $ct_len || ss.len() != SHARED_SECRET_LEN {
-                    return Err(Error::InvalidLength);
-                }
-                let public_key = to_arr::<$pk_len>(pk)?;
-                let randomness = to_zeroizing::<$rand_len>(randomness)?;
-                let mut ciphertext = [0u8; $ct_len];
-                let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
-                $native::encapsulate_derand(
-                    &public_key,
-                    randomness.as_bytes(),
-                    &mut ciphertext,
-                    shared_secret.as_mut_bytes(),
-                )
-                .map_err(map_mlkem_error)?;
-                write_exact(ct, &ciphertext)?;
-                write_exact(ss, shared_secret.as_bytes())
-            }
-
-            fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
-                if ss.len() != SHARED_SECRET_LEN {
-                    return Err(Error::InvalidLength);
-                }
-                let decapsulation_key = to_zeroizing::<$sk_len>(sk)?;
-                let ciphertext = to_arr::<$ct_len>(ct)?;
-                let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
-                $native::decapsulate(
-                    decapsulation_key.as_bytes(),
-                    &ciphertext,
-                    shared_secret.as_mut_bytes(),
-                )
-                .map_err(map_mlkem_error)?;
-                write_exact(ss, shared_secret.as_bytes())
-            }
-        }
+        /// The FIPS 203 identifier of every ML-KEM backend declared through
+        /// `mlkem_backends!`, in declaration order.
+        ///
+        /// Generated by the same invocation that defines those backends, from
+        /// the same literal each one's [`Kem::algorithm`] returns, so a
+        /// parameter set added there is in this slice by construction. The macro
+        /// has one rule, which always expands this const, and the const reads it
+        /// back from the crate-wide-unique anchor impl above — so this is the
+        /// crate's only ML-KEM registry, whichever module the invocation is
+        /// written in.
+        ///
+        /// It is **not** an inventory of the crate: [`MlKem768XWingSeed`],
+        /// [`X25519`] and [`Sha3_256Xof`] are hand-written impls and are
+        /// absent, and a further backend written as a hand-written `impl Kem`
+        /// would be absent too. It is also a list of identifiers, not of types:
+        /// two backends reporting the same identifier appear once.
+        pub const ML_KEM_BACKEND_ALGORITHMS: &[&str] =
+            <() as crate::MlKemBackendRegistry>::ALGORITHMS;
     };
 }
 
-mlkem_backend!(
-    MlKem768,
-    NativeMlKem768,
-    "ML-KEM-768",
-    ML_KEM_768_PK_LEN = 1184,
-    ML_KEM_768_SK_LEN = 2400,
-    ML_KEM_768_CT_LEN = 1088,
-    ML_KEM_768_KEYGEN_SEED_LEN = 64,
-    ML_KEM_768_ENCAPS_RAND_LEN = 32,
-    "ML-KEM-768 backend (FIPS 203) via the portable mlkem-native integration."
-);
-
-mlkem_backend!(
-    MlKem1024,
-    NativeMlKem1024,
-    "ML-KEM-1024",
-    ML_KEM_1024_PK_LEN = 1568,
-    ML_KEM_1024_SK_LEN = 3168,
-    ML_KEM_1024_CT_LEN = 1568,
-    ML_KEM_1024_KEYGEN_SEED_LEN = 64,
-    ML_KEM_1024_ENCAPS_RAND_LEN = 32,
-    "ML-KEM-1024 backend (FIPS 203, NIST level 5) via the portable mlkem-native integration — the enhanced-mode KEM."
-);
-
-mlkem_backend!(
-    MlKem512,
-    NativeMlKem512,
-    "ML-KEM-512",
-    ML_KEM_512_PK_LEN = 800,
-    ML_KEM_512_SK_LEN = 1632,
-    ML_KEM_512_CT_LEN = 768,
-    ML_KEM_512_KEYGEN_SEED_LEN = 64,
-    ML_KEM_512_ENCAPS_RAND_LEN = 32,
-    "ML-KEM-512 backend (FIPS 203, NIST level 1) via the portable mlkem-native integration — the smallest parameter set."
+mlkem_backends!(
+    {
+        MlKem768,
+        NativeMlKem768,
+        "ML-KEM-768",
+        ML_KEM_768_PK_LEN = 1184,
+        ML_KEM_768_SK_LEN = 2400,
+        ML_KEM_768_CT_LEN = 1088,
+        ML_KEM_768_KEYGEN_SEED_LEN = 64,
+        ML_KEM_768_ENCAPS_RAND_LEN = 32,
+        "ML-KEM-768 backend (FIPS 203) via the target-selected mlkem-native integration."
+    },
+    {
+        MlKem1024,
+        NativeMlKem1024,
+        "ML-KEM-1024",
+        ML_KEM_1024_PK_LEN = 1568,
+        ML_KEM_1024_SK_LEN = 3168,
+        ML_KEM_1024_CT_LEN = 1568,
+        ML_KEM_1024_KEYGEN_SEED_LEN = 64,
+        ML_KEM_1024_ENCAPS_RAND_LEN = 32,
+        "ML-KEM-1024 backend (FIPS 203, NIST level 5) via the target-selected mlkem-native integration — the enhanced-mode KEM."
+    },
+    {
+        MlKem512,
+        NativeMlKem512,
+        "ML-KEM-512",
+        ML_KEM_512_PK_LEN = 800,
+        ML_KEM_512_SK_LEN = 1632,
+        ML_KEM_512_CT_LEN = 768,
+        ML_KEM_512_KEYGEN_SEED_LEN = 64,
+        ML_KEM_512_ENCAPS_RAND_LEN = 32,
+        "ML-KEM-512 backend (FIPS 203, NIST level 1) via the target-selected mlkem-native integration — the smallest parameter set."
+    },
 );
 
 /// X-Wing seed decapsulation key length, bytes.
@@ -304,11 +430,98 @@ pub const ML_KEM_768_XWING_SEED_LEN: usize = 32;
 pub struct MlKem768XWingSeed;
 
 #[inline]
-fn mlkem768_xwing_dz(seed: [u8; ML_KEM_768_XWING_SEED_LEN]) -> [u8; ML_KEM_768_KEYGEN_SEED_LEN] {
-    shake256::<ML_KEM_768_KEYGEN_SEED_LEN>(&seed)
+fn mlkem768_xwing_dz(
+    seed: &[u8; ML_KEM_768_XWING_SEED_LEN],
+) -> ZeroizingBytes<ML_KEM_768_KEYGEN_SEED_LEN> {
+    shake256_zeroizing::<ML_KEM_768_KEYGEN_SEED_LEN>(seed)
+}
+
+/// Process-local prepared ML-KEM-768 X-Wing key.
+///
+/// This owner contains the seed-derived 2400-byte expanded decapsulation key
+/// and its paired public encapsulation key. The expanded key is held only in
+/// zeroizing RAII storage and is erased on drop. It intentionally implements
+/// neither `Clone`, `Copy`, nor `Debug`, and its fields are private: callers can
+/// create it only through [`MlKem768XWingSeed::prepare`] from the stable 32-byte
+/// seed representation, never from arbitrary expanded-key bytes.
+///
+/// ```compile_fail
+/// use q_periapt_backends::{MlKem768XWingSeed, ML_KEM_768_XWING_SEED_LEN};
+/// use q_periapt_core::ZeroizingBytes;
+/// let key = MlKem768XWingSeed::prepare(ZeroizingBytes::from_bytes(
+///     [7; ML_KEM_768_XWING_SEED_LEN],
+/// ))?;
+/// let duplicate = key.clone();
+/// # Ok::<(), q_periapt_core::Error>(())
+/// ```
+///
+/// ```compile_fail
+/// use q_periapt_backends::{MlKem768XWingSeed, ML_KEM_768_XWING_SEED_LEN};
+/// use q_periapt_core::ZeroizingBytes;
+/// let key = MlKem768XWingSeed::prepare(ZeroizingBytes::from_bytes(
+///     [7; ML_KEM_768_XWING_SEED_LEN],
+/// ))?;
+/// println!("{key:?}");
+/// # Ok::<(), q_periapt_core::Error>(())
+/// ```
+///
+/// ```compile_fail
+/// use q_periapt_backends::{
+///     PreparedMlKem768XWingKey, ML_KEM_768_PK_LEN, ML_KEM_768_SK_LEN,
+/// };
+/// use q_periapt_core::ZeroizingBytes;
+/// let key = PreparedMlKem768XWingKey {
+///     expanded_decapsulation_key: Box::new(ZeroizingBytes::<ML_KEM_768_SK_LEN>::zeroed()),
+///     encapsulation_key: [0; ML_KEM_768_PK_LEN],
+/// };
+/// ```
+pub struct PreparedMlKem768XWingKey {
+    expanded_decapsulation_key: Box<ZeroizingBytes<ML_KEM_768_SK_LEN>>,
+    encapsulation_key: [u8; ML_KEM_768_PK_LEN],
+}
+
+impl PreparedMlKem768XWingKey {
+    /// Borrow the public encapsulation key paired with this prepared owner.
+    #[must_use]
+    pub fn encapsulation_key(&self) -> &[u8; ML_KEM_768_PK_LEN] {
+        &self.encapsulation_key
+    }
 }
 
 impl MlKem768XWingSeed {
+    /// Expand an owned 32-byte X-Wing seed exactly once into a process-local
+    /// prepared decapsulation key and its paired public key.
+    ///
+    /// The stable serialized private-key representation remains the 32-byte
+    /// seed used by [`Self::generate`]. The 2400-byte expanded form never crosses
+    /// this strongly typed owner and is securely erased when the owner is
+    /// dropped.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Backend`] if deterministic ML-KEM key generation fails.
+    pub fn prepare(
+        seed: ZeroizingBytes<ML_KEM_768_XWING_SEED_LEN>,
+    ) -> Result<PreparedMlKem768XWingKey, Error> {
+        let key_generation_seed = mlkem768_xwing_dz(seed.as_bytes());
+        let mut encapsulation_key = [0u8; ML_KEM_768_PK_LEN];
+        // Keep the large expanded key at one stable allocation: moving the
+        // prepared owner then moves only this pointer, rather than copying 2400
+        // secret bytes through successive stack frames before final Drop.
+        let mut expanded_decapsulation_key =
+            Box::new(ZeroizingBytes::<ML_KEM_768_SK_LEN>::zeroed());
+        NativeMlKem768::keypair_derand(
+            key_generation_seed.as_bytes(),
+            &mut encapsulation_key,
+            expanded_decapsulation_key.as_mut_bytes(),
+        )
+        .map_err(map_mlkem_error)?;
+        Ok(PreparedMlKem768XWingKey {
+            expanded_decapsulation_key,
+            encapsulation_key,
+        })
+    }
+
     /// Deterministically generate a key pair from a 32-byte X-Wing seed.
     /// Returns `(seed_decapsulation_key, encapsulation_key)`.
     ///
@@ -319,9 +532,8 @@ impl MlKem768XWingSeed {
     pub fn generate(
         seed: [u8; ML_KEM_768_XWING_SEED_LEN],
     ) -> Result<([u8; ML_KEM_768_XWING_SEED_LEN], [u8; ML_KEM_768_PK_LEN]), Error> {
-        let (expanded_sk, pk) = MlKem768::generate(mlkem768_xwing_dz(seed))?;
-        let _expanded_sk = ZeroizingBytes::from_bytes(expanded_sk);
-        Ok((seed, pk))
+        let prepared = Self::prepare(ZeroizingBytes::from_bytes(seed))?;
+        Ok((seed, *prepared.encapsulation_key()))
     }
 }
 
@@ -344,10 +556,37 @@ impl Kem for MlKem768XWingSeed {
     }
 
     fn decapsulate(&self, sk: &[u8], ct: &[u8], ss: &mut [u8]) -> Result<(), Error> {
-        let seed = to_arr::<ML_KEM_768_XWING_SEED_LEN>(sk)?;
-        let (expanded_sk, _pk) = MlKem768::generate(mlkem768_xwing_dz(seed))?;
-        let expanded_sk = ZeroizingBytes::from_bytes(expanded_sk);
-        MlKem768.decapsulate(expanded_sk.as_bytes(), ct, ss)
+        let seed = to_zeroizing::<ML_KEM_768_XWING_SEED_LEN>(sk)?;
+        let prepared = Self::prepare(seed)?;
+        self.decapsulate_prepared(&prepared, ct, ss)
+    }
+}
+
+impl PreparedKem for MlKem768XWingSeed {
+    type PreparedKey = PreparedMlKem768XWingKey;
+
+    fn prepared_encapsulation_key<'a>(&self, key: &'a Self::PreparedKey) -> &'a [u8] {
+        key.encapsulation_key()
+    }
+
+    fn decapsulate_prepared(
+        &self,
+        key: &Self::PreparedKey,
+        ct: &[u8],
+        ss: &mut [u8],
+    ) -> Result<(), Error> {
+        if ss.len() != SHARED_SECRET_LEN {
+            return Err(Error::InvalidLength);
+        }
+        let ciphertext = to_arr::<ML_KEM_768_CT_LEN>(ct)?;
+        let mut shared_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
+        NativeMlKem768::decapsulate(
+            key.expanded_decapsulation_key.as_bytes(),
+            &ciphertext,
+            shared_secret.as_mut_bytes(),
+        )
+        .map_err(map_mlkem_error)?;
+        write_exact(ss, shared_secret.as_bytes())
     }
 }
 
@@ -356,6 +595,13 @@ impl Kem for MlKem768XWingSeed {
 pub struct X25519;
 
 impl X25519 {
+    /// Derive only the public key from a borrowed secret scalar.
+    /// The primitive's internal scalar copy is erased by `x25519-dalek/zeroize`.
+    #[must_use]
+    pub fn public_key(secret: &[u8; X25519_LEN]) -> [u8; X25519_LEN] {
+        PublicKey::from(&StaticSecret::from(*secret)).to_bytes()
+    }
+
     /// Deterministically derive a key pair from a 32-byte secret scalar.
     /// Returns `(secret_key, public_key)`.
     #[must_use]
@@ -440,7 +686,7 @@ pub struct Sha3_256Xof {
 
 impl Sha3_256Xof {
     fn staged_len(&self) -> usize {
-        if self.spill.is_empty() {
+        if self.spill.capacity() == 0 {
             self.inline_len
         } else {
             self.spill.len()
@@ -554,8 +800,9 @@ impl Sha3_256Xof {
     }
 
     fn append_bytes(&mut self, data: &[u8]) {
-        // Once the input has outgrown the inline buffer, everything goes to heap.
-        if !self.spill.is_empty() {
+        // A known-large reservation selects heap staging before the first byte;
+        // an unreserved transcript selects it when the inline buffer overflows.
+        if self.spill.capacity() != 0 {
             let Some(required) = self.spill.len().checked_add(data.len()) else {
                 self.wipe_and_abort();
             };
@@ -645,15 +892,22 @@ impl Xof256 for Sha3_256Xof {
     }
 
     fn reserve(&mut self, additional: usize) {
-        // Allocate the heap spill once for the whole transcript so later `absorb`s never reallocate
-        // and leak a secret-bearing buffer (the migration path moves the inline-staged bytes into
-        // the spill, so its final length is the full transcript). Reserving over the inline
-        // capacity is harmless; ContextBound transcripts always exceed it.
+        // Stage a known-large transcript directly in its reserved allocation.
+        // If absorption has started, migrate its initialized prefix once and
+        // retain inline_len so Drop also erases any surviving inline secrets.
+        // Later growth still wipes the replaced allocation before releasing it.
         let Some(required) = self.staged_len().checked_add(additional) else {
             self.wipe_and_abort();
         };
         if required > SHA3_XOF_INLINE_CAP {
+            let migrate_inline = self.spill.capacity() == 0;
             self.ensure_spill_capacity(required);
+            if migrate_inline {
+                let Some(staged) = self.inline.get(..self.inline_len) else {
+                    self.wipe_and_abort();
+                };
+                self.spill.extend_from_slice(staged);
+            }
         }
     }
 
@@ -674,7 +928,7 @@ impl Xof256 for Sha3_256Xof {
     }
 
     fn squeeze32(mut self) -> [u8; SHARED_SECRET_LEN] {
-        if self.spill.is_empty() {
+        if self.spill.capacity() == 0 {
             let Some(staged) = self.inline.get(..self.inline_len) else {
                 self.wipe_and_abort();
             };
@@ -700,6 +954,87 @@ mod tests {
         let expected = "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a";
         let got: String = d.iter().map(|b| format!("{b:02x}")).collect();
         assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn sha3_large_reserve_activates_spill_before_absorb() {
+        let mut x = Sha3_256Xof::new();
+        x.reserve(SHA3_XOF_INLINE_CAP + 1);
+
+        assert!(x.spill.is_empty());
+        assert!(x.spill.capacity() > SHA3_XOF_INLINE_CAP);
+
+        x.absorb_public(b"prefix");
+        assert_eq!(x.inline_len, 0);
+        assert_eq!(x.spill, b"prefix");
+        assert_eq!(x.squeeze32(), sha3_256(b"prefix"));
+    }
+
+    #[test]
+    fn sha3_reserve_after_inline_absorb_migrates_prefix_once() {
+        let mut x = Sha3_256Xof::new();
+        x.absorb_public(b"prefix");
+        x.reserve(SHA3_XOF_INLINE_CAP + 1);
+        x.reserve(SHA3_XOF_INLINE_CAP + 32);
+        x.absorb_public(b"suffix");
+
+        assert_eq!(x.inline_len, b"prefix".len());
+        assert_eq!(x.spill, b"prefixsuffix");
+        assert_eq!(x.squeeze32(), sha3_256(b"prefixsuffix"));
+    }
+
+    #[test]
+    fn sha3_reservation_boundaries_preserve_digest_and_inline_capacity() {
+        for len in [
+            0,
+            1,
+            134,
+            SHA3_XOF_INLINE_CAP,
+            SHA3_XOF_INLINE_CAP + 1,
+            2500,
+        ] {
+            let input: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
+            let expected = sha3_256(&input);
+            for reserve in [0, len, len + SHA3_XOF_INLINE_CAP + 1] {
+                let mut x = Sha3_256Xof::new();
+                x.reserve(reserve);
+                x.absorb_public(&[]);
+                x.absorb_secret(&[]);
+                for chunk in input.chunks(31) {
+                    x.absorb_secret(chunk);
+                    x.reserve(0);
+                }
+                if len <= SHA3_XOF_INLINE_CAP && reserve <= SHA3_XOF_INLINE_CAP {
+                    assert_eq!(x.spill.capacity(), 0);
+                }
+                assert_eq!(x.squeeze32(), expected, "len={len}, reserve={reserve}");
+            }
+        }
+    }
+
+    #[test]
+    fn sha3_reserve_after_secret_preserves_wiping_of_both_copies() {
+        let prefix = b"public-prefix";
+        let secret = [0x5Au8; 32];
+        let suffix = b"public-suffix";
+        let mut x = Sha3_256Xof::new();
+        x.absorb_public(prefix);
+        x.absorb_secret(&secret);
+        x.reserve(SHA3_XOF_INLINE_CAP + 1);
+        x.absorb_public(suffix);
+
+        let secret_start = prefix.len();
+        let secret_end = secret_start + secret.len();
+        assert_eq!(x.inline_len, secret_end);
+        assert_eq!(&x.inline[secret_start..secret_end], &secret);
+        assert_eq!(&x.spill[secret_start..secret_end], &secret);
+        x.wipe_staged_secrets();
+
+        assert_eq!(&x.inline[..secret_start], prefix);
+        assert_eq!(&x.inline[secret_start..secret_end], &[0u8; 32]);
+        assert_eq!(&x.spill[..secret_start], prefix);
+        assert_eq!(&x.spill[secret_start..secret_end], &[0u8; 32]);
+        assert_eq!(&x.spill[secret_end..], suffix);
     }
 
     #[test]
@@ -888,8 +1223,126 @@ mod tests {
     }
 
     #[test]
+    fn xwing_serialized_and_prepared_keys_are_byte_equivalent() {
+        let seed = [0x27u8; ML_KEM_768_XWING_SEED_LEN];
+        let (serialized_seed, serialized_pk) = MlKem768XWingSeed::generate(seed).unwrap();
+        assert_eq!(serialized_seed.len(), ML_KEM_768_XWING_SEED_LEN);
+
+        let prepared = MlKem768XWingSeed::prepare(ZeroizingBytes::from_bytes(seed)).unwrap();
+        assert_eq!(prepared.encapsulation_key(), &serialized_pk);
+        assert!(
+            core::mem::needs_drop::<PreparedMlKem768XWingKey>(),
+            "the prepared expanded key must retain its zeroizing RAII owner"
+        );
+
+        let mut ciphertext = [0u8; ML_KEM_768_CT_LEN];
+        let mut encapsulated_secret = [0u8; SHARED_SECRET_LEN];
+        MlKem768XWingSeed
+            .encapsulate(
+                &serialized_pk,
+                &[0x39; ML_KEM_768_ENCAPS_RAND_LEN],
+                &mut ciphertext,
+                &mut encapsulated_secret,
+            )
+            .unwrap();
+
+        let mut serialized_secret = [0u8; SHARED_SECRET_LEN];
+        MlKem768XWingSeed
+            .decapsulate(&serialized_seed, &ciphertext, &mut serialized_secret)
+            .unwrap();
+        let mut prepared_secret = [0u8; SHARED_SECRET_LEN];
+        MlKem768XWingSeed
+            .decapsulate_prepared(&prepared, &ciphertext, &mut prepared_secret)
+            .unwrap();
+
+        assert_eq!(encapsulated_secret, serialized_secret);
+        assert_eq!(serialized_secret, prepared_secret);
+
+        fn consume_prepared(key: PreparedMlKem768XWingKey) -> [u8; ML_KEM_768_PK_LEN] {
+            *key.encapsulation_key()
+        }
+        assert_eq!(consume_prepared(prepared), serialized_pk);
+    }
+
+    #[test]
+    fn xwing_prepared_key_preserves_implicit_rejection() {
+        let prepared = MlKem768XWingSeed::prepare(ZeroizingBytes::from_bytes(
+            [0x41; ML_KEM_768_XWING_SEED_LEN],
+        ))
+        .unwrap();
+        let mut valid_ciphertext = [0u8; ML_KEM_768_CT_LEN];
+        let mut valid_secret = [0u8; SHARED_SECRET_LEN];
+        MlKem768XWingSeed
+            .encapsulate(
+                prepared.encapsulation_key(),
+                &[0x52; ML_KEM_768_ENCAPS_RAND_LEN],
+                &mut valid_ciphertext,
+                &mut valid_secret,
+            )
+            .unwrap();
+
+        let mut invalid_ciphertext = valid_ciphertext;
+        invalid_ciphertext[ML_KEM_768_CT_LEN / 2] ^= 1;
+        let mut rejected_a = [0u8; SHARED_SECRET_LEN];
+        let mut rejected_b = [0u8; SHARED_SECRET_LEN];
+        MlKem768XWingSeed
+            .decapsulate_prepared(&prepared, &invalid_ciphertext, &mut rejected_a)
+            .unwrap();
+        MlKem768XWingSeed
+            .decapsulate_prepared(&prepared, &invalid_ciphertext, &mut rejected_b)
+            .unwrap();
+
+        assert_eq!(rejected_a, rejected_b);
+        assert_ne!(rejected_a, valid_secret);
+    }
+
+    #[test]
+    fn concurrent_xwing_prepared_keys_are_independent() {
+        let workers = [
+            (0x61u8, 0x71u8),
+            (0x62u8, 0x72u8),
+            (0x63u8, 0x73u8),
+            (0x64u8, 0x74u8),
+        ]
+        .map(|(seed_byte, coins_byte)| {
+            std::thread::spawn(move || {
+                let prepared = MlKem768XWingSeed::prepare(ZeroizingBytes::from_bytes(
+                    [seed_byte; ML_KEM_768_XWING_SEED_LEN],
+                ))
+                .unwrap();
+                let public_key = *prepared.encapsulation_key();
+                let mut ciphertext = [0u8; ML_KEM_768_CT_LEN];
+                let mut encapsulated = [0u8; SHARED_SECRET_LEN];
+                MlKem768XWingSeed
+                    .encapsulate(
+                        &public_key,
+                        &[coins_byte; ML_KEM_768_ENCAPS_RAND_LEN],
+                        &mut ciphertext,
+                        &mut encapsulated,
+                    )
+                    .unwrap();
+                let mut decapsulated = [0u8; SHARED_SECRET_LEN];
+                MlKem768XWingSeed
+                    .decapsulate_prepared(&prepared, &ciphertext, &mut decapsulated)
+                    .unwrap();
+                assert_eq!(encapsulated, decapsulated);
+                (public_key, ciphertext, decapsulated)
+            })
+        });
+
+        let results = workers.map(|worker| worker.join().unwrap());
+        for left in 0..results.len() {
+            for right in (left + 1)..results.len() {
+                assert_ne!(results[left].0, results[right].0);
+                assert_ne!(results[left].1, results[right].1);
+                assert_ne!(results[left].2, results[right].2);
+            }
+        }
+    }
+
+    #[test]
     fn mlkem_algorithm_strings() {
-        // `algorithm()` is generated from the `mlkem_backend!` `$alg` literal — pin the
+        // `algorithm()` is generated from the `mlkem_backends!` `$alg` literal — pin the
         // three strings so a future macro edit can't silently relabel a backend.
         assert_eq!(MlKem512.algorithm(), "ML-KEM-512");
         assert_eq!(MlKem768.algorithm(), "ML-KEM-768");
@@ -931,7 +1384,10 @@ mod tests {
     #[test]
     fn hybrid_real_roundtrip_context_bound_expanded_and_compat_seed_dk() {
         use q_periapt_core::Profile;
-        use q_periapt_kem::HybridKem;
+        use q_periapt_kem::{
+            HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey,
+            TradSecretKey,
+        };
 
         let (sk_pq, pk_pq) = MlKem768::generate([7u8; 64]).unwrap();
         let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
@@ -963,7 +1419,15 @@ mod tests {
                 .unwrap();
 
             let dec = kem
-                .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, ctx)
+                .decapsulate(
+                    PqSecretKey::new(&sk_pq),
+                    PqCiphertext::new(&ct_pq),
+                    PqPublicKey::new(&pk_pq),
+                    TradSecretKey::new(&sk_trad),
+                    TradCiphertext::new(&ct_trad),
+                    TradPublicKey::new(&pk_trad),
+                    ctx,
+                )
                 .unwrap();
 
             assert_eq!(
@@ -974,16 +1438,13 @@ mod tests {
         }
 
         {
-            let (sk_pq, pk_pq) = MlKem768XWingSeed::generate([7u8; 32]).unwrap();
+            let seed_pq = [7u8; ML_KEM_768_XWING_SEED_LEN];
+            let (sk_pq, pk_pq) = MlKem768XWingSeed::generate(seed_pq).unwrap();
+            let prepared_pq =
+                MlKem768XWingSeed::prepare(ZeroizingBytes::from_bytes(seed_pq)).unwrap();
             let (pq, trad) = (MlKem768XWingSeed, X25519);
-            let kem = HybridKem::<_, _, Sha3_256Xof>::new(
-                &pq,
-                &trad,
-                Profile::CompatXWing,
-                b"ML-KEM-768+X25519",
-                1,
-            )
-            .unwrap();
+            let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, Profile::CompatXWing, b"", 0)
+                .unwrap();
             let mut ct_pq = [0u8; ML_KEM_768_CT_LEN];
             let mut ct_trad = [0u8; X25519_LEN];
             let enc = kem
@@ -998,12 +1459,35 @@ mod tests {
                 )
                 .unwrap();
             let dec = kem
-                .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, b"")
+                .decapsulate(
+                    PqSecretKey::new(&sk_pq),
+                    PqCiphertext::new(&ct_pq),
+                    PqPublicKey::new(&pk_pq),
+                    TradSecretKey::new(&sk_trad),
+                    TradCiphertext::new(&ct_trad),
+                    TradPublicKey::new(&pk_trad),
+                    b"",
+                )
+                .unwrap();
+            let prepared_dec = kem
+                .decapsulate_prepared(
+                    &prepared_pq,
+                    PqCiphertext::new(&ct_pq),
+                    TradSecretKey::new(&sk_trad),
+                    TradCiphertext::new(&ct_trad),
+                    TradPublicKey::new(&pk_trad),
+                    b"",
+                )
                 .unwrap();
             assert_eq!(
                 enc.as_bytes(),
                 dec.as_bytes(),
                 "CompatXWing seed-dk hybrid encap/decap must agree"
+            );
+            assert_eq!(
+                dec.as_bytes(),
+                prepared_dec.as_bytes(),
+                "serialized and prepared hybrid paths must be byte-identical"
             );
         }
     }
@@ -1017,8 +1501,8 @@ mod tests {
             &X25519,
             &MlKem768XWingSeed,
             Profile::CompatXWing,
-            b"reversed-slots",
-            1,
+            b"",
+            0,
         );
         assert!(matches!(result.err(), Some(Error::PolicyDenied)));
     }
@@ -1029,7 +1513,10 @@ mod tests {
         // confined to ContextBound; the buffers are sized to the 1024 ciphertext
         // (1568, NOT the 768 length). Proves the enhanced HybridKem actually round-trips.
         use q_periapt_core::Profile;
-        use q_periapt_kem::HybridKem;
+        use q_periapt_kem::{
+            HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey,
+            TradSecretKey,
+        };
 
         let (sk_pq, pk_pq) = MlKem1024::generate([7u8; 64]).unwrap();
         let (sk_trad, pk_trad) = X25519::generate([9u8; 32]);
@@ -1061,7 +1548,15 @@ mod tests {
                 .unwrap();
 
             let dec = kem
-                .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, ctx)
+                .decapsulate(
+                    PqSecretKey::new(&sk_pq),
+                    PqCiphertext::new(&ct_pq),
+                    PqPublicKey::new(&pk_pq),
+                    TradSecretKey::new(&sk_trad),
+                    TradCiphertext::new(&ct_trad),
+                    TradPublicKey::new(&pk_trad),
+                    ctx,
+                )
                 .unwrap();
 
             assert_eq!(
@@ -1070,14 +1565,11 @@ mod tests {
                 "enhanced ContextBound hybrid encap/decap must agree"
             );
         }
-        assert!(HybridKem::<_, _, Sha3_256Xof>::new(
-            &MlKem1024,
-            &X25519,
-            Profile::CompatXWing,
-            b"ML-KEM-1024+X25519",
-            1
-        )
-        .is_err());
+        assert!(matches!(
+            HybridKem::<_, _, Sha3_256Xof>::new(&MlKem1024, &X25519, Profile::CompatXWing, b"", 0)
+                .err(),
+            Some(Error::PolicyDenied)
+        ));
     }
 
     #[test]

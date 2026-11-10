@@ -42,8 +42,10 @@ use ml_kem::{
     MlKem512 as RcMlKem512, MlKem768 as RcMlKem768, B32,
 };
 use orion::hazardous::ecc::x25519 as ox;
-use q_periapt_core::{Kem, Profile, XWING_LABEL};
-use q_periapt_kem::HybridKem;
+use q_periapt_core::{Error, Kem, Profile, XWING_LABEL};
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 use q_periapt_sig::{Signer, Verifier};
 use sha3::{Digest, Sha3_256};
 
@@ -53,17 +55,25 @@ fn b32(s: &[u8]) -> B32 {
 
 /// X25519 base-point scalar multiplication via the independent orion impl (keygen).
 fn orion_pub(scalar: &[u8]) -> [u8; X25519_LEN] {
-    let sk = ox::PrivateKey::from_slice(scalar).unwrap();
-    ox::PublicKey::try_from(&sk).unwrap().to_bytes()
+    let mut seed = [0u8; X25519_LEN];
+    seed.copy_from_slice(scalar);
+    let sk = ox::PrivateKey::from(seed);
+    let mut out = [0u8; X25519_LEN];
+    out.copy_from_slice(ox::PublicKey::try_from(&sk).unwrap().as_ref());
+    out
 }
 
 /// X25519 Diffie–Hellman via the independent orion impl.
 fn orion_dh(scalar: &[u8], peer_pub: &[u8]) -> [u8; X25519_LEN] {
-    let sk = ox::PrivateKey::from_slice(scalar).unwrap();
-    let pk = ox::PublicKey::from_slice(peer_pub).unwrap();
+    let mut seed = [0u8; X25519_LEN];
+    seed.copy_from_slice(scalar);
+    let mut peer = [0u8; X25519_LEN];
+    peer.copy_from_slice(peer_pub);
+    let sk = ox::PrivateKey::from(seed);
+    let pk = ox::PublicKey::from(peer);
     let ss = ox::key_agreement(&sk, &pk).unwrap();
     let mut out = [0u8; X25519_LEN];
-    out.copy_from_slice(ss.unprotected_as_bytes());
+    out.copy_from_slice(ss.unprotected_as_ref::<[u8]>());
     out
 }
 
@@ -275,7 +285,15 @@ fn hybrid_compat_xwing_byte_identical_to_independent_reconstruction() {
 
         // --- decapsulation: ours, and an independent reconstruction, both agree ---
         let secret_dec = hk
-            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, b"")
+            .decapsulate(
+                PqSecretKey::new(&sk_pq),
+                PqCiphertext::new(&ct_pq),
+                PqPublicKey::new(&pk_pq),
+                TradSecretKey::new(&sk_trad),
+                TradCiphertext::new(&ct_trad),
+                TradPublicKey::new(&pk_trad),
+                b"",
+            )
             .unwrap();
         let ss_pq_dec: [u8; 32] = (&dk_rc.decapsulate(&ct_pq_rc).unwrap()[..])
             .try_into()
@@ -300,22 +318,28 @@ fn hybrid_compat_xwing_byte_identical_to_independent_reconstruction() {
 /// binds `ct_pq` and `pk_pq` directly.
 #[test]
 fn expanded_mlkem_backends_are_rejected_with_compat_xwing() {
-    assert!(HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(
-        &MlKem768,
-        &X25519,
-        Profile::CompatXWing,
-        b"",
-        0
-    )
-    .is_err());
-    assert!(HybridKem::<MlKem1024, X25519, Sha3_256Xof>::new(
-        &MlKem1024,
-        &X25519,
-        Profile::CompatXWing,
-        b"",
-        0
-    )
-    .is_err());
+    assert_eq!(
+        HybridKem::<MlKem768, X25519, Sha3_256Xof>::new(
+            &MlKem768,
+            &X25519,
+            Profile::CompatXWing,
+            b"",
+            0,
+        )
+        .err(),
+        Some(Error::PolicyDenied)
+    );
+    assert_eq!(
+        HybridKem::<MlKem1024, X25519, Sha3_256Xof>::new(
+            &MlKem1024,
+            &X25519,
+            Profile::CompatXWing,
+            b"",
+            0,
+        )
+        .err(),
+        Some(Error::PolicyDenied)
+    );
 }
 
 /// Separately written X-Wing transcript:

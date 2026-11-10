@@ -1,0 +1,325 @@
+{
+  "schema": "q-periapt.multiple-root-independent-review.v1",
+  "review_date": "2026-11-07",
+  "reviewer": "Independent proof-review agent, separate from the theory author",
+  "status": "PASS",
+  "inclusion_recommendation": "Include the finite multiple-root entry theorem and its first-message corollary under the stated available controller and retained primitive inputs.",
+  "review_kind": "Independent mathematical derivation, adversarial interface counterexamples, statement-by-statement final-text review and exact artifact hashing. Not a machine-checked proof or a native test execution.",
+  "paper_git_revision_observed": "1dd47a20e0605842a5d4217bff04413179d9381f",
+  "new_result_labels": [
+    "thm:multiple-root-entry",
+    "cor:multiple-root-message"
+  ],
+  "statement_checks": [
+    {
+      "id": "M01",
+      "statement": "One uniform contribution and the retained oracle model",
+      "status": "PASS",
+      "evidence": "TeX introduction and budget paragraph; MD sections 1-2",
+      "reason": "S is initially independent uniform on 32 bytes, with the same public compression oracle h and independent initial auxiliary state. Oracle-dependent preparation is executed and charged. The independent whole-hash H interface can remain present. The proof begins before the contribution is used, rather than assuming S is still uniform conditioned on earlier outputs."
+    },
+    {
+      "id": "M02",
+      "statement": "Contribution and PRK interfaces supply the reduction inputs",
+      "status": "PASS",
+      "evidence": "TeX introduction and descriptors/available-data paragraph; MD exact interface",
+      "reason": "The parent contribution is accessed through its Extract columns, and each resulting PRK through its class root-Expand row. The controller computes salts and complete infos from its defined available data. These positive interface definitions supply every byte string required by the column and row simulators."
+    },
+    {
+      "id": "M03",
+      "statement": "Exact Gamma quotient and descriptor identity",
+      "status": "PASS",
+      "evidence": "TeX descriptor paragraph; MD compression identity and lifetime tables",
+      "reason": "For 32-byte salts, the retained compression identity shows Gamma(r)=Gamma(r') implies F(r,S)=F(r',S) for every S. Equal complete infos then give equal root values. Canonicalizing by exact (Gamma(r),I) is therefore an exact real-interface rewrite; it does not assume equal pad-state pairs imply equal salts."
+    },
+    {
+      "id": "M04",
+      "statement": "Separate salt, class and root tables",
+      "status": "PASS",
+      "evidence": "MD section 2 lifetime tables; TeX lifetime class indices",
+      "reason": "The salt cache uses the actual 32-byte salt, the class map uses the full Gamma pair and a lifetime allocation index, and the root table uses class plus complete information. Exact aliases across call sites and restarts preserve these identities. The cryptographic table does not merge or transfer source provenance."
+    },
+    {
+      "id": "M05",
+      "statement": "Uniform finite budget vector",
+      "status": "PASS",
+      "evidence": "TeX finite-bounds paragraph; MD section 3",
+      "reason": "D, C and N_i are chosen in advance and bound every comparison execution. N_i refers to the i-th class in that execution's first-allocation order. The same budget-exhaustion action is retained if one is part of the controller. Counts from one observed real trace are not used as proof of a bound in all hybrids."
+    },
+    {
+      "id": "M06",
+      "statement": "Column reduction endpoints",
+      "status": "PASS",
+      "evidence": "Theorem multiple-root-entry proof opening; MD section 4",
+      "reason": "The simulator makes one hidden-S column call for the first representative of each new Gamma class and reuses that reply for equal classes. The real branch is the real root service; the ideal branch has independent private PRKs V(Gamma). All Expand rows and subsequent controller computation are simulated from numeric replies. The cost is the retained epsilon_Hjoint(C,0,q_S,32)."
+    },
+    {
+      "id": "M07",
+      "statement": "Adaptive class allocation and PRK challenge installation",
+      "status": "PASS",
+      "evidence": "TeX class-by-class proof; MD section 5 steps 1-4",
+      "reason": "The i-th row challenge key is presampled and withheld until the i-th new class is encountered. Before that event the complete prefix uses h, earlier replies and independent local values, with no access to this key. The class name may depend on that prefix; the proof does not treat the future name as a fixed independent value. The newly allocated V reply is nevertheless fresh uniform."
+    },
+    {
+      "id": "M08",
+      "statement": "Complete row hybrid endpoints",
+      "status": "PASS",
+      "evidence": "TeX class-by-class proof; MD definition of G_i and simulator",
+      "reason": "In hop i, earlier class rows are already private tables, class i uses the challenge row, and later classes use locally sampled independent keys with the same h. Every actual adaptive I||01 message is routed to the challenge row. The real branch is G_(i-1) and the ideal branch is G_i. Class scheduling is rerun on each actual game trace."
+    },
+    {
+      "id": "M09",
+      "statement": "Zero and never-allocated classes",
+      "status": "PASS",
+      "evidence": "TeX proof sentence on unused class slots; MD section 5",
+      "reason": "If class i never occurs, no challenge-row call is needed and the adjacent executions agree. With zero allocated classes the entry service is empty in both experiments. The fixed sum remains a valid conservative bound and does not condition on a realized random class count."
+    },
+    {
+      "id": "M10",
+      "statement": "Independent PRK coincidences across distinct Gamma classes",
+      "status": "PASS",
+      "evidence": "TeX numerical-coincidence paragraph; MD section 5 numerical PRK coincidences",
+      "reason": "The proof preserves the full independent-key distribution. A locally sampled real-row key can numerically equal the hidden challenge key; evaluation through the same h then preserves real functional correlations. Those known-key queries are in q_i. Earlier ideal rows retain their prescribed independent tables. No hidden-key equality test, collision-free conditioning or extra birthday premise is introduced."
+    },
+    {
+      "id": "M11",
+      "statement": "Adaptive complete infos and exact table rewrite",
+      "status": "PASS",
+      "evidence": "TeX final proof paragraph; MD section 6",
+      "reason": "The map from the full 97-byte I to the 98-byte I||01 row message is injective. Once all rows are ideal, the interface is exactly an independent table W(Gamma(r),I), with consistent aliases. Later infos may depend on prior replies, public-oracle computation and available protocol outputs; the adaptive row primitive and lazy table semantics cover this choice."
+    },
+    {
+      "id": "M12",
+      "statement": "Complete shared-oracle budgets in every reduction",
+      "status": "PASS",
+      "evidence": "TeX query-accounting paragraph; MD section 3",
+      "reason": "q_S and q_i include executed preparation, class scheduling, all other real primitive work, complete continuations and terminal testing. Downstream schedule/AEAD reductions separately include the complete entry controller. Work is charged within each full derived distinguisher; a later hop does not reset a counter or treat its prefix as free advice."
+    },
+    {
+      "id": "M13",
+      "statement": "External Gamma computation and internal column pad work",
+      "status": "PASS",
+      "evidence": "TeX explicit accounting; MD section 3",
+      "reason": "The controller caches Gamma by actual salt bytes, so at most D new salts require 2D external public compression calls. New salt bytes can share an existing class, so C alone does not bound this work. The column primitive's internal pad computations remain charged by its own bound. The possible duplicate computation is conservative, with no omitted pad queries."
+    },
+    {
+      "id": "M14",
+      "statement": "Five-compression Expand count and concrete query formulas",
+      "status": "PASS",
+      "evidence": "Equation multiple-root-budgets; MD section 3",
+      "reason": "For a 98-byte HMAC message, the two key-pad calls, two inner continuation blocks and one outer continuation block total five compression calls; ell(98)=3. All root rows are real in the column comparison, giving q_S=B+2D+5 sum N_k. At row step i only later classes remain real, giving q_i=B+2D+5 sum_(k>i) N_k. Earlier ideal rows' subsequent work remains in B."
+    },
+    {
+      "id": "M15",
+      "statement": "Distinct PRK and target-root freshness times",
+      "status": "PASS",
+      "evidence": "TeX row embedding and final proof paragraph; MD sections 5-6",
+      "reason": "The PRK challenge is installed at the class's first allocation and receives all its adaptive row messages. The marked root is installed at a new descriptor's first evaluation. These are different times. A class that has already produced other roots can supply a new independent root entry without pretending its already used PRK is fresh."
+    },
+    {
+      "id": "M16",
+      "statement": "Fresh marked descriptor and no extra target-class loss",
+      "status": "PASS",
+      "evidence": "Theorem multiple-root-entry conclusion and proof; MD section 6",
+      "reason": "The mark is chosen from the available prefix before the complete descriptor's first root evaluation. In the final table its unused value can be presampled independently of h and withheld until allocation. All class rows were already covered by the fixed hybrid sequence, so choosing the target adaptively in any class adds no class-guessing factor beyond that stated sum."
+    },
+    {
+      "id": "M17",
+      "statement": "One retained schedule handle for every target alias",
+      "status": "PASS",
+      "evidence": "TeX controller definition; MD marking and aliases",
+      "reason": "Every later equal descriptor retrieves the same retained schedule handle. All target-handle uses collectively satisfy the retained schedule's fixed session salt, {0,s} columns, confirmation/successor uses, full traffic-info table, fresh direction mark and budgets. This prevents an uncounted second session or a raw-value return through another descriptor alias."
+    },
+    {
+      "id": "M18",
+      "statement": "Available numeric values versus raw protected-handle feedback",
+      "status": "PASS",
+      "evidence": "TeX available-data definition; MD interface and section 9",
+      "reason": "Unmarked roots and declared schedule outputs may drive later salts and infos. A known value can numerically equal a protected root or PRK and still be computed locally with ordinary shared-h queries. Passing the protected handle's raw root into a new parent Extract would instead require an additional operation outside the declared schedule. The text identifies that interface distinction without conditioning on numerical inequality."
+    },
+    {
+      "id": "M19",
+      "statement": "First-message corollary and signed-score conversion",
+      "status": "PASS",
+      "evidence": "Corollary multiple-root-message and proof; MD section 7",
+      "reason": "The corollary expressly uses the available controller and retained first-message qualification predicate. The entry comparison is applied for each fixed application bit and then averaged. The terminal test with probability (Z+1)/2 yields the factor 2; no-marked-challenge runs have score zero. The resulting bound is min(1,2 Delta_mr+2 Delta_sched+2 epsilon_AEAD)."
+    },
+    {
+      "id": "M20",
+      "statement": "AEAD endpoint and candidate accounting",
+      "status": "PASS",
+      "evidence": "Corollary multiple-root-message; MD section 7",
+      "reason": "The qualified predicate is computable from the available view and ledger. Guessing fairly on unqualified runs realizes half the absolute expected score in the actual AEAD game. If a candidate's stopped execution realizes this root controller, the ContextBound hop contributes 2 Phi and Delta_mr substitutes for Delta_init. Existing component, correctness, record and original native residual terms retain their definitions."
+    },
+    {
+      "id": "M21",
+      "statement": "Constructive example including Gamma aliases",
+      "status": "PASS",
+      "evidence": "MD section 8",
+      "reason": "The four distinct complete infos are I0, I1, I* and I2. Consequently the later Root(R0,I2) remains an unmarked fresh descriptor even if Gamma(R0)=Gamma(r0). Bounds D=2, C=2, N_1=4 and N_2=1 cover both one-class and two-class executions, including accidental R0=r0. The totals q_S=B+29, q_1=B+9 and q_2=B+4 are arithmetically correct."
+    },
+    {
+      "id": "M22",
+      "statement": "Counterexamples identify concrete interface failures",
+      "status": "PASS",
+      "evidence": "MD section 9; independent_derivation.md section 5",
+      "reason": "Per-origin roots for an equal descriptor give the stated gap 1-2^-256; retrospectively marking a disclosed root defeats fresh-key embedding; merging two different effective infos changes the ideal-row distribution; new salt aliases still consume public pad work. Raw handle feedback and an extra session are correctly described as additional interfaces, not asserted attacks against the admitted controller."
+    },
+    {
+      "id": "M23",
+      "statement": "Single-entry specialization and source scope",
+      "status": "PASS",
+      "evidence": "MD sections 3 and 7; corollary candidate condition",
+      "reason": "The single-entry controller is an interface special case. The text correctly retains the older tighter Delta_init budget rather than asserting numerical equality with the new default conservative Delta_mr. The multiple-root mathematical interface is proved here; a concrete source instance supplies its descriptor, available-data and shared-handle correspondence. The existing one-root source result remains intact."
+    },
+    {
+      "id": "M24",
+      "statement": "Contribution attribution and positive presentation",
+      "status": "PASS",
+      "evidence": "TeX structure; MD section 10",
+      "reason": "The additional result is a finite composition with adaptive class allocation, exact descriptor consistency, explicit budgets and a fresh-root coupling. The underlying HMAC column/row bounds and prior joint schedule remain cited dependencies. The manuscript states one positive controller definition before the theorem and corollary, with boundary facts concentrated there and in one numerical-coincidence explanation; it contains no version-promotion label."
+    },
+    {
+      "id": "M25",
+      "statement": "Final file structure and evidence type",
+      "status": "PASS",
+      "evidence": "Final TeX and this review record",
+      "reason": "The final fragment has one theorem, one corollary, two matching proof environments and three matching numbered equation environments. This is independent mathematical argument review, not a formal verification or native execution campaign. Full manuscript compilation and integration are handled by the parent task. Input hashes bind the exact final fragment, proof note and retained dependencies."
+    }
+  ],
+  "bound": {
+    "entry_bit_gap": "min(1, epsilon_Hjoint(C,0,q_S,32) + sum_i epsilon_Hrow(N_i,q_i,98))",
+    "ordinary_column_budget": "B + 2D + 5 sum_k N_k",
+    "ordinary_row_i_budget": "B + 2D + 5 sum_(k>i) N_k",
+    "message_score": "min(1,2 Delta_mr + 2 Delta_sched + 2 epsilon_AEAD)",
+    "with_contextbound_score": "min(1,2 Phi_256(d,Q_H) + 2 Delta_mr + 2 Delta_sched + 2 epsilon_AEAD)"
+  },
+  "resolved_precision_points": [
+    "Separated first-class PRK challenge installation from first-descriptor selected-root installation.",
+    "Made the target's complete alias family share one retained schedule handle, including the fixed session salt and all retained budgets.",
+    "Explicitly accounted for distinct salt bytes D in external Gamma work, separately from C class calls and internal primitive pad work.",
+    "Explicitly used fixed application challenge bits followed by averaging in the score comparison.",
+    "Conditioned candidate-bound substitution on its stopped execution realizing the stated available controller.",
+    "Made all four information strings in the constructive example distinct, preserving the fourth entry even under a Gamma alias.",
+    "Distinguished the single-entry interface specialization from equality of the new conservative and older tighter query budgets."
+  ],
+  "unresolved_issues_within_declared_results": [],
+  "scope": [
+    "The result is one finite contribution/root-entry controller with the stated S, PRK and selected-root interfaces.",
+    "The marked descriptor may be adaptive and may lie in an existing Gamma class; its value is selected before its first evaluation, and all its aliases share the retained schedule handle.",
+    "A concrete native multi-root instance supplies source correspondence for this controller; the module does not assert that every unrestricted owner/fork/multi-session API automatically satisfies it.",
+    "Known numeric coincidences are admitted and covered by shared-oracle primitive comparisons; direct protected-handle feedback is a different interface.",
+    "Retained primitive bounds and published parameter regimes remain unchanged. No concrete numerical security level is inferred from asymptotic formulas."
+  ],
+  "validation": {
+    "manual_statement_checks": 25,
+    "manual_verdict": "PASS",
+    "tex_structure": {
+      "theorem": {
+        "begin": 1,
+        "end": 1
+      },
+      "corollary": {
+        "begin": 1,
+        "end": 1
+      },
+      "proof": {
+        "begin": 2,
+        "end": 2
+      },
+      "equation": {
+        "begin": 3,
+        "end": 3
+      }
+    },
+    "query_example": {
+      "D": 2,
+      "C": 2,
+      "N": [
+        4,
+        1
+      ],
+      "N_total": 5,
+      "q_S_extra": 29,
+      "q_1_extra": 9,
+      "q_2_extra": 4
+    },
+    "formal_proof_assistant": false,
+    "native_execution": false,
+    "full_manuscript_compilation": "Parent integration task; not asserted by this receipt"
+  },
+  "inputs": [
+    {
+      "logical_path": "module/multiple-root-entry.tex",
+      "absolute_path": "/workspace/scratch/83c4961eae79/multi_root_research/multiple-root-entry.tex",
+      "bytes": 8584,
+      "sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34"
+    },
+    {
+      "logical_path": "research/multiple_root_entry_proof.md",
+      "absolute_path": "/workspace/scratch/83c4961eae79/multi_root_research/multiple_root_entry_proof.md",
+      "bytes": 22661,
+      "sha256": "6fd92f5673f48e39658a8968d9ed1b4b9c7f45c6e6c6d66b3b5b88d415ab704e"
+    },
+    {
+      "logical_path": "review/independent_derivation.md",
+      "absolute_path": "/workspace/scratch/83c4961eae79/multi_root_review/independent_derivation.md",
+      "bytes": 9813,
+      "sha256": "e39516ea24ea3fdf964e0294b8cd3772a5c7eba0b7d55f250841c9cb9056b29a"
+    },
+    {
+      "logical_path": "dependency/current/joint-primitive-bounds.tex",
+      "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/joint-primitive-bounds.tex",
+      "bytes": 10706,
+      "sha256": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d"
+    },
+    {
+      "logical_path": "dependency/current/joint-continuation.tex",
+      "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/joint-continuation.tex",
+      "bytes": 18023,
+      "sha256": "865b128155662d8916ef648a7852a9973e9d24f22287d29c9ec59ca191fee989"
+    },
+    {
+      "logical_path": "dependency/current/primitive-inputs.tex",
+      "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/primitive-inputs.tex",
+      "bytes": 4315,
+      "sha256": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa"
+    },
+    {
+      "logical_path": "dependency/current/candidate-local-accounting.tex",
+      "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/candidate-local-accounting.tex",
+      "bytes": 8913,
+      "sha256": "4a38c6bb00c70f2611c2395aec754c0af6b8231a8e3f94e027cf1a17b657865d"
+    },
+    {
+      "logical_path": "dependency/current/contextbound-connection.tex",
+      "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/contextbound-connection.tex",
+      "bytes": 16725,
+      "sha256": "97758cda00a7159839b80f6bcc66e78ca4a0d8702ec5d12a687fa64f67ade0a1"
+    },
+    {
+      "logical_path": "dependency/frozen/joint-primitive-bounds.tex",
+      "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/artifacts/joint-continuation/joint-primitive-bounds.tex",
+      "bytes": 10706,
+      "sha256": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d"
+    },
+    {
+      "logical_path": "dependency/frozen/joint-continuation.tex",
+      "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/artifacts/joint-continuation/joint-continuation.tex",
+      "bytes": 18023,
+      "sha256": "865b128155662d8916ef648a7852a9973e9d24f22287d29c9ec59ca191fee989"
+    },
+    {
+      "logical_path": "dependency/frozen/candidate-local-accounting.tex",
+      "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/artifacts/candidate-local/candidate-local-accounting.tex",
+      "bytes": 8913,
+      "sha256": "4a38c6bb00c70f2611c2395aec754c0af6b8231a8e3f94e027cf1a17b657865d"
+    },
+    {
+      "logical_path": "dependency/frozen/contextbound-connection.tex",
+      "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/artifacts/contextbound-connection/contextbound-connection.tex",
+      "bytes": 16725,
+      "sha256": "97758cda00a7159839b80f6bcc66e78ca4a0d8702ec5d12a687fa64f67ade0a1"
+    }
+  ]
+}

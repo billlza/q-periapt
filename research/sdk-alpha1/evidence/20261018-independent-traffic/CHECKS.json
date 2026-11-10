@@ -1,0 +1,74 @@
+{
+  "base_head": "b60e982aaee2a02cebed42d832388a79bca500fe",
+  "scope": "Independent volatile bootstrap/epoch-zero traffic and actual Rust journal; no independent durable state, rekey, witness, installed package or release claim",
+  "traffic": {
+    "scope": "Independent volatile epoch-zero traffic versus real Rust journal; independent persistence remains unimplemented",
+    "directions": 2,
+    "fresh_messages_per_direction": 3,
+    "plaintext_sizes": [
+      0,
+      31,
+      16384
+    ],
+    "associated_data_sizes": [
+      5,
+      19,
+      1024
+    ],
+    "native_journal_reopens": 5,
+    "traffic_after_advertisement_expiry": true,
+    "contiguous_consumption_prefix": 3,
+    "actual_process_restart": false
+  },
+  "native_commands": 41,
+  "python_refusals": 51,
+  "peer_source_files": {
+    "peer/__init__.py": "9d7337e6f4f439c45ab9dc47bfdbff1335ec366df00229f36a31ae65f489bf9c",
+    "peer/authority.py": "8cf57f281b148af48fe7db3730326c8f9fa5267414606fca25b743cd23787731",
+    "peer/bootstrap.py": "d4683725f689d89d78e5d1083f8881d406bab2cca22bf7b98a3e22444f3d5618",
+    "peer/kem.py": "4a850dd70be6a02d6be233f8d65216de75760eb9b12e2b426637d9225abcdde3",
+    "peer/traffic.py": "a166fcc5f41224651f5f4b2d03e4acd79d9797c4cd746d0e11781fbf5b984f61",
+    "peer/wire.py": "76a64c94f876038a7f072d668307813d4b7b89a34bc760ad54adf18ac7b035af",
+    "run.py": "101b710edf4ce1ef9ca6a3d5f80a91c1b78adce8ba6ba767846777af34dfafcf",
+    "traffic_checks.py": "673c0b8e5c41ce0494d5c15b5a92cff0646caf1603c482f1fbd5c0603f3a7ef8",
+    "native/src/fixture.rs": "c5f14e4fe4d9a5fa8bf2c4069d2494e8dc3dc91f52e48b1f4368109ca3b5269f",
+    "native/src/journal.rs": "d11c455b85fa40aa04d704a708aa32fb239868e154694e302be853464633be06",
+    "native/src/main.rs": "f1753339aa6335fedbba09c6e5fcc343967188fb647c93bea138349a5a0cb211",
+    "native/Cargo.toml": "fe15d136d588decef21f96dcb229391f7c7b602f6ebf9db030da88a59dacec1b",
+    "native/Cargo.lock": "cc6e7de9921a0e051cb03b587ed5b194372427efe6f96ef829c7b5a025cd2d8d",
+    "requirements.txt": "484c3518a9e325f0ba45613d08e2a1a96113d5f8d265b6bc70855c87a0d15dd0"
+  },
+  "native_binary_sha256": "21ddc37b5707b8ad9c1bc65a5830dbe7d7bda9c246bb0cb2c361034fa1df8caf",
+  "provider": {
+    "cryptography": "48.0.1",
+    "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+  },
+  "private_artifact_boundary": {
+    "returncode": 1,
+    "rejected_before_private_files_created": true,
+    "empty_private_directories": 1,
+    "no_success_result": true
+  },
+  "validation": {
+    "strict_build": true,
+    "strict_clippy": true,
+    "rustfmt": true,
+    "actionlint": true,
+    "quality_gate_tests": 46,
+    "Rust_inventory": 722,
+    "candidate_registry_versions_checksums_retained": 118
+  },
+  "CI": "Current traffic source not yet submitted at capture time; earlier b60 Linux bootstrap result does not qualify this increment.",
+  "limits": [
+    "Python traffic state is volatile; no independent commit-before-release or process recovery.",
+    "Five native DeviceJournal close/reopens occur in the same process, not OS restart or power loss.",
+    "Public script framing is test orchestration, not network carrier qualification.",
+    "No production SDK root-export hook or product crate change.",
+    "Rekey/witness/renewal/revocation and full independent lifecycle remain open."
+  ],
+  "capture": {
+    "bytes": 2211506,
+    "members": 418,
+    "sha256": "db284fb8f42a8e829048022f10d94e7279416c7aa5f1ff1864e0b30c5a936e2c"
+  }
+}

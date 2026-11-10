@@ -1,0 +1,87 @@
+{
+  "base_commit": "238dd253954f0d8f6364d959b879c0fe3848c4d3",
+  "source_overlay": {
+    "ARTIFACT.md": "9045c7493c739a7bfd7b0d6cf0de2e3417e3c43a884af29866fa971026de68d1",
+    "artifact/codeql_rust_quality.py": "b8f67db556410d43ba3d0f951b7fcfa3e9c5248728c21d5d85765b0ac1fcd1ba",
+    "artifact/test_codeql_rust_quality.py": "d76538ba5ca9e0f79215bc3e9985066c4dc95372f59b5c4e5c1215449438a394",
+    "artifact/wasm_sdk_package.py": "98e0fff30507d4b8c9b43cbd0e47ea59b16248dbee232d7dc4c38d1c2e69ad4a",
+    "crates/q-periapt-sdk-wasm/PackageREADME.md": "824c3c2a54c31f849ff150565cef01f7a6c8103f78e3073a885203cf27c36451",
+    "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "c429398addcfc31df5f413dd580a8993685983238bfb3d394c4cdda07a58203b",
+    "crates/q-periapt-sdk-wasm/package/web/index.js": "2c4c17688b2f438ee0ca07933aa5b04a4fbf13c8d3f0823a9d574409529f4de9",
+    "crates/q-periapt-sdk-wasm/src/continuity.rs": "f62cf28b912666a8d8060870ddd4ab285edb04a9c7a65f115da36a1b8e1d2efe",
+    "crates/q-periapt-sdk-wasm/src/continuity/publication.rs": "8c05174c01a8e8ebae9e37b0be540c3c4e63af1ec64749e887688e3d14fcfb86",
+    "crates/q-periapt-sdk-wasm/tests/browser-acceptance.js": "1648010cbc50607c64139934cd299b6abacc987c48722f3bd100dfbb85409432",
+    "crates/q-periapt-sdk-wasm/tests/browser-suite.mjs": "62353d89654051047bf4f18c0a6cbe2f761ea6af4ac954f719b640b11d692eea",
+    "crates/q-periapt-sdk-wasm/tests/publication-inputs.mjs": "563ffdde8dcfed845af9b1f4a30a1ebd266227ee00c33423ca9ab168e85bba8c",
+    "crates/q-periapt-sdk-wasm/tests/serve.cjs": "417ddbc3075a39de85e56b7ade4246c50edb8dd9c47c5ca2ae7723c65443a3df",
+    "crates/q-periapt-sdk-wasm/tests/types.mts": "326198228dd218544861caaa419b7b8f8f9d25185218e01d2119d2c24f18601d",
+    "docs/continuity/PREKEY_PUBLICATION_CONTRACT.md": "b13a553def6d75ce1c369d2c7a5c3e66d684112a54d7e5a67bbbf94ce46f8d5e",
+    "research/continuity-identity-candidate/src/browser.rs": "40b357e6b00449f78c236bfeebff82ed35b3877252adeb5c8bfd8677cb62e7bf",
+    "research/continuity-identity-candidate/src/browser/errors.rs": "c24203d5596b105b9ccef0dfa87d970b2c0621301598de8eeb389fbefc9b647f",
+    "research/continuity-identity-candidate/src/browser/publication.rs": "9713439843c5fbd24f287ef2c5a02cbcb7e9e82948bf5f4ed26ee4709e9523bd",
+    "research/continuity-identity-candidate/src/storage/browser.rs": "6469a76b6be1b51d87c0d8b7eb49deeb8a9aa8250496dffa2193c0b441cd3de8",
+    "research/continuity-identity-candidate/src/storage/browser/storage-root.js": "ac78ae6d71d71bfee1314d4bbfbccb9022c267abc4590e1b275a1db1a582eabe"
+  },
+  "completed": true,
+  "release_claim_eligible": false,
+  "independent_implementation": false,
+  "final_package": {
+    "archive_sha256": "8a6457993e8e681cf8ebc81ea7e0fbf6c98bc4de59755f3f3fba7e142a38b526",
+    "manifest_sha256": "6038788cb425c9d48f3dc0070736fc6ed1dd8e5aa387684c31d8d8a31dad240a"
+  },
+  "packages": {
+    "1": {
+      "archive_sha256": "1b805aa043c260e88a505f9bd1681e779ff8ba81ad8919d9737c74080e13ad93",
+      "manifest_sha256": "a089a2809677ca06eec367ddf4ead619f0537ca8ab5b2dbbb2200c8d84f6c683"
+    },
+    "2": {
+      "archive_sha256": "6e60ab70faafb6416e1f536a6ccd8b3e0a0bf134eacedfcc37bc399fd790b787",
+      "manifest_sha256": "826ee8f4e216b3fd5207922872305360ace47373db1de16b571d51528da7cf93"
+    },
+    "3": {
+      "archive_sha256": "3ac4cc2a96ee5a79e87b492fefefb8d7ba4710180b37dfc78e6f6b4d26c4ef81",
+      "manifest_sha256": "9ed18a2cd8b57e7dd75504426b5fe6f9c1e7a31d99067621decb7e44fd54887e"
+    },
+    "4": {
+      "archive_sha256": "8a6457993e8e681cf8ebc81ea7e0fbf6c98bc4de59755f3f3fba7e142a38b526",
+      "manifest_sha256": "6038788cb425c9d48f3dc0070736fc6ed1dd8e5aa387684c31d8d8a31dad240a"
+    }
+  },
+  "publication_cases": 10,
+  "publication_witness_requests": 1445,
+  "legacy_lifecycle_cases": 9,
+  "legacy_witness_requests": 357,
+  "base_browser_cases": 10,
+  "roundtrip_assertions_per_realm": 178,
+  "canonical_input_assertions_per_realm": 96,
+  "packaging_unit_tests": 41,
+  "inventory_unit_tests": 44,
+  "wasm_clippy": "product and engine passed with -D warnings",
+  "error_boundary_before": {
+    "rejected": true,
+    "markerEscaped": true,
+    "reusable": false,
+    "reuseError": "Error: recursive use of an object detected which would lead to unsafe aliasing in rust",
+    "freed": false,
+    "freeError": "Error: attempted to take ownership of Rust value while it was borrowed"
+  },
+  "error_boundary_after": {
+    "rejected": true,
+    "markerEscaped": false,
+    "code": "InvalidInput",
+    "reusable": true,
+    "freed": true
+  },
+  "capture": {
+    "sha256": "166590898507c77a5a61fa4459acf18618e9708b231b549308516d860b9eff91",
+    "members": 10539,
+    "expanded_bytes": 59487119
+  },
+  "limitations": [
+    "Local Chrome/Node qualification; not deployed HTTPS or a minimum-browser/compiler matrix.",
+    "Native verification uses the same Rust protocol engine; no independent implementation claim.",
+    "Expiry is an injected trusted-clock cut; no real expired-policy renewal is demonstrated.",
+    "All private authority/key/wrapping directories are excluded; only schema-admitted public inputs are retained.",
+    "Hosted CI/CodeQL and full native installed qualification remain separate; no release or publication performed."
+  ]
+}

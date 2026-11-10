@@ -1,0 +1,93 @@
+\section{Primitive inputs to the record and report bounds}
+\label{app:primitive-inputs}
+
+The composition theorems use operational distinguishing bounds: a record
+commitment comparison and a single immutable report row. This appendix fixes
+the concrete parameter conventions. The public hash and compression oracles
+are idealized in the stated games; the source construction uses the specified
+SHA3 and HMAC-SHA256 algorithms.
+
+\subsection{Hidden-input random-oracle replacement}
+
+For a hidden-input entropy parameter $n$, define
+\[
+ \Phi_n(d,Q)=\min\!\left\{1,
+ 4\sqrt{2d^2Q\,2^{-n}}+4\sqrt{2Q^2d\,2^{-n}}\right\}.
+\]
+Don, Fehr and Huang's Theorem~2~\cite{dfh2022} supplies this bound when
+private oracle inputs have point probability at most $2^{-n}$ and distinct
+effective private queries encode distinct inputs for every secret value.
+Exact repeats are cached before that interface is queried. The two budgets
+count private classical queries and all ordinary public-oracle queries;
+public queries may be quantum.
+
+For image $i$, let $K_i^{\rm hdr}$ count original intent prefixes and let
+$d_i\le1+5K_i^{\rm hdr}$ count its distinct private digest inputs. There is
+one image-head domain and five intent-digest domains. With an independent
+192-bit seal nonce, the fixed-input encoding and per-nonce confinement
+conditions give the retained record bound
+\[
+ \epsilon_{\rm com}
+ \le\min\left\{1,\sum_{i=1}^{M}\Phi_{192}(d_i,Q_i)\right\}.
+\]
+Here $d_i=0$ for known, atom-free rows. The budget $Q_i$ includes the
+entire derived distinguisher, all other real rows and the final test.
+The nonce remains private before the declared acquisition stop. Local
+image encryption and intent authentication introduce no additional shared
+SHA3 calls. This comparison is made after private-wire equality has been
+replaced by structural equality; its separate collision term is the one in
+Corollary~\ref{cor:real-to-opaque}. The exact encoding domains and fixed-source
+arguments are identified in Appendix~\ref{app:opaque-artifacts}.
+
+\subsection{One immutable HMAC row}
+
+For the row experiment in Section~\ref{sec:report-composition}, let
+\[
+ h:\{0,1\}^{512}\times\{0,1\}^{256}\longrightarrow\{0,1\}^{256}
+\]
+be the public compression oracle, with arguments in message-block,
+chaining-state order. A 32-byte key $K$ determines the two pad blocks
+\[
+ I(K)=(K\Vert0^{32})\oplus\mathtt{36}^{64},\qquad
+ O(K)=(K\Vert0^{32})\oplus\mathtt{5c}^{64}.
+\]
+Zero exponents in these encodings count bytes. The ranges are disjoint and
+each encoding is injective in $K$. Cache the two evaluations at the fixed
+SHA-256 initial state. All oracle-dependent preparation is executed and
+counted; no oracle-correlated advice is supplied for free.
+
+Let $L$ be the maximum message length in bytes and put
+\[
+ L\le2^{61}-65,\qquad
+ \ell=1+\left\lceil\frac{L+9}{64}\right\rceil.
+\]
+The SHA-256 padding encodes $8(64+|m|)$ bits, retaining the already consumed
+64-byte key-pad block. Its suffix is determined by $|m|$ and it is injective
+within the stated length domain. The parameter $\ell$ bounds the remaining
+row compression work after the two key-pad calls.
+
+Write $E_{\rm NMAC}(T,q,\ell)$ for a valid NMAC distinguishing bound with two
+independent 256-bit inner/outer keys, the prescribed injective padding, at
+most $T$ keyed calls and $q$ public compression calls. Hosoyamada and Iwata's
+Proposition~6~\cite{hmacqrom2021} gives the asymptotic form
+\[
+ E_{\rm NMAC}(T,q,\ell)
+ =O\!\left(\sqrt{\frac{(q+T)^3\ell^5}{2^{256}}}\right)
+\]
+under its stated padding and query conditions. The implicit constant remains
+part of that published bound. Our message-length convention retains HMAC's
+consumed-block offset.
+
+The two key-pad replacements use $\Phi_{256}(2,q+\ell T)$. The subsequent
+NMAC replacement gives an admissible row bound
+\[
+ \epsilon_{\rm row}(T,q,L)
+ =\min\!\left\{1,
+ \Phi_{256}(2,q+\ell T)+E_{\rm NMAC}(T,q,\ell)\right\}.
+\]
+This is a restricted single-transcript application of the primitive results.
+The ideal NMAC function is queried on one original transcript only, so its
+first reply is a uniform tag and exact repeats retrieve the same value.
+Report nonzero-ID checks act on that reply in both games. All other real
+HMAC work remains in $q$; the multi-report theorem supplies the dependency
+order and its actual disclosure residual.

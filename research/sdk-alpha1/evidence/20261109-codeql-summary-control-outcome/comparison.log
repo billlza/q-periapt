@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/workspace/scratch/e41ac2378a11/ci-followthrough/summary-control/artifact/python_bootstrap.py", line 91, in <module>
+    dispatch(sys.argv[1:])
+  File "/workspace/scratch/e41ac2378a11/ci-followthrough/summary-control/artifact/python_bootstrap.py", line 87, in dispatch
+    runpy.run_path(str(resolved), run_name="__main__")
+  File "<frozen runpy>", line 286, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/workspace/scratch/e41ac2378a11/ci-followthrough/summary-control/artifact/codeql_summary_control.py", line 786, in <module>
+    main()
+  File "/workspace/scratch/e41ac2378a11/ci-followthrough/summary-control/artifact/codeql_summary_control.py", line 780, in main
+    raise RuntimeError("Paired memory comparison is incomplete; inspect its receipt") from None
+RuntimeError: Paired memory comparison is incomplete; inspect its receipt
