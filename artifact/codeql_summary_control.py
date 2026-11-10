@@ -28,6 +28,7 @@ import zipfile
 from typing import BinaryIO
 
 from bounded_process import BoundedProcessError, TimeoutPolicy, capture_output
+from codeql_process_resources import ProcessResourceSampler
 from evidence_io import (EvidenceIOError, consume_regular_snapshot, fresh_output_directory,
                          parse_strict_json_bytes, read_regular_snapshot)
 import codeql_log_recovery as retained
@@ -449,7 +450,13 @@ def query_command(codeql: Path, database: Path, root: Path, profile: str) -> lis
 def run_queries(command: list[str], evidence: Path, environment: dict, seconds: int = EVALUATION_SECONDS) -> dict:
     start = time.monotonic()
     report = {"command": command, "returncode": None, "stopped": None}
+    sampler = None
     try:
+        try:
+            sampler = ProcessResourceSampler(evidence)
+            sampler.start()
+        except Exception as error:
+            report["resource_observation"] = {"status": "unavailable", "failure_type": type(error).__name__}
         with (evidence / "query.stdout").open("xb") as stdout, (evidence / "query.stderr").open("xb") as stderr:
             result = capture_output(command, timeout_seconds=seconds, timeout_policy=TimeoutPolicy.LONG_ANALYSIS,
                                     maximum_stdout_bytes=32 * 1024**2, maximum_stderr_bytes=16 * 1024**2,
@@ -461,6 +468,12 @@ def run_queries(command: list[str], evidence: Path, environment: dict, seconds: 
         raise
     finally:
         report["seconds"] = time.monotonic() - start
+        try:
+            if sampler is not None:
+                report["resource_observation"] = {**sampler.stop(), **report.get("resource_observation", {})}
+            write_json(evidence / "PROCESS_RESOURCES.json", report["resource_observation"])
+        except Exception as error:
+            report["resource_observation_failure"] = {"type": type(error).__name__}
         write_json(evidence / "query.json", report)
 
 

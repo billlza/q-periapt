@@ -8,6 +8,8 @@ on:
       - .github/workflows/codeql-summary-control.yml
       - artifact/codeql_summary_control.py
       - artifact/test_codeql_summary_control.py
+      - artifact/codeql_process_resources.py
+      - artifact/test_codeql_process_resources.py
 
 permissions:
   contents: read
@@ -36,6 +38,8 @@ jobs:
           sparse-checkout: |
             artifact/codeql_summary_control.py
             artifact/test_codeql_summary_control.py
+            artifact/codeql_process_resources.py
+            artifact/test_codeql_process_resources.py
             artifact/codeql_log_recovery.py
             artifact/codeql_rust_queries.json
             artifact/bounded_process.py
@@ -45,7 +49,7 @@ jobs:
             artifact/python_bootstrap.py
       - name: Check exact inputs, fresh results and strict paired comparison
         timeout-minutes: 2
-        run: sh artifact/python-run.sh -m unittest -v test_codeql_summary_control
+        run: sh artifact/python-run.sh -m unittest -v test_codeql_summary_control test_codeql_process_resources
       - name: Install the authenticated Rust CLI 2.27.2 bundle
         timeout-minutes: 12
         run: |
@@ -96,6 +100,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             artifact/codeql_summary_control.py
+            artifact/codeql_process_resources.py
             artifact/codeql_log_recovery.py
             artifact/codeql_rust_queries.json
             artifact/bounded_process.py
