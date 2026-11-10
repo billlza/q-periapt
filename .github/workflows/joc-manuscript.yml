@@ -108,6 +108,7 @@ jobs:
             paper/continuity/build/bootstrap-entry.json
             paper/continuity/build/bootstrap-terminal.json
             paper/continuity/build/bootstrap-reply.json
+            paper/continuity/build/bootstrap-initial.json
             paper/continuity/build/source-export-check.json
           if-no-files-found: error
       - name: Preserve build diagnostics

@@ -13,6 +13,7 @@ this directory retains the complete source-level derivations and review trail.
 | Joint short/long entry | `entry/proof.md` | `entry/SOURCE_PINS.json`, 7 files | `entry/check_entry.py` |
 | Online terminal schedule | `terminal/proof.md`, `terminal/terminal-agreement.md` | `terminal/SOURCE_PINS.json`, 18 files | `terminal/check_connection.py` |
 | Original reply source | `reply/proof.md` | `reply/SOURCE_PINS.json`, 32 files | `reply/check_source_adapter.py` |
+| Original initial source | `initial/proof.md` | `initial/SOURCE_PINS.json`, 35 files | `initial/check_initial_source.py` |
 | Manuscript composition | `integration-proof.md` and the two manuscript modules | `ack/SOURCE_PINS.json`, 19 message-source files | independent analytical review |
 
 Each packet retains its original source bytes under `source/`, its original
@@ -20,17 +21,18 @@ Each packet retains its original source bytes under `source/`, its original
 `b1cff2a045d23aecf75aef12122e5080a8419676`,
 `360aa8107aa7df502108627a4dcf89f30d106594`, and
 `68549dbc3ae4491d8b5edaa708548dc60743eab7`, respectively.
-The ACK and message-interface census is pinned to
+The initial-source packet and the ACK/message-interface census are pinned to
 `471900bfe8070d1021a1feb67481437d599d80ba`.
 
 Run `make -C paper/continuity check` from a full checkout. It verifies these
-three retained source packets and writes separate receipts under `build/`.
+four retained source packets and writes separate receipts under `build/`.
 The source-local commands, from `paper/continuity`, are:
 
 ```sh
 python3 artifacts/bootstrap/entry/check_entry.py --source-root artifacts/bootstrap/entry/source --output build/bootstrap-entry.json
 python3 artifacts/bootstrap/terminal/check_connection.py --source-root artifacts/bootstrap/terminal/source --output build/bootstrap-terminal.json
 python3 artifacts/bootstrap/reply/check_source_adapter.py --source-root artifacts/bootstrap/reply/source --output build/bootstrap-reply.json
+python3 artifacts/bootstrap/initial/check_initial_source.py --source-root artifacts/bootstrap/initial/source --output build/bootstrap-initial.json
 ```
 
 The finite checks cover exact compression/HMAC equations, source order and
@@ -57,13 +59,15 @@ to add closure and fanout reports.
 display-math source of every preceding canonical module. Historical review
 records remain under their original subject directories.
 
-The independently reviewed initial-source SDK adapter is maintained in
-`docs/continuity/BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md` on the integration
-branch, with its source and review packet under
-`research/sdk-alpha1/evidence/20261110-bootstrap-initial-source-adapter/`.
-It supplies the complementary original-source construction; this manuscript
-increment instantiates the reply-source profile and includes both primitive
-short/long entry comparisons.
+The initial-source SDK adapter is retained in `initial/proof.md`, byte-identical
+to the reviewed `docs/continuity/BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md` from
+the integration branch. Its original analytical review, source identities and
+finite controls accompany the manuscript composition. The two-stage accounting
+first compares the complete initial source and its joint short/long entry;
+only the later terminal comparisons carry the long-descriptor multiplicity.
+The 35 pinned files, 29 source-order assertions and 49,152 finite endpoint
+executions keep their original scope and are independently replayed by the
+manuscript check.
 
 ## Primary primitive sources
 

@@ -87,7 +87,13 @@ versions in both compared histories. It establishes a concrete surviving-PQ
 profile even when the first contribution and initiator signing identity
 are disclosed. Its terminal conclusion is the expected responder's historical
 activation of the exact transcript, which remains meaningful under retries
-and delayed READY delivery. A broader captured-byte simulation has the
+and delayed READY delivery. The initial-source construction supplies the
+complementary profile with the responder signing identity and later reply
+contributions available. It first replaces the original source's complete
+short/long service, then partitions its private long-PRK table by online
+allocation rank. This order isolates the family multiplicity to the
+subsequent tail terms while preserving initial confirmation and
+source-specific lifetime budgets. A broader captured-byte simulation has the
 specific joint journal/derived-key interface described in
 Section~\ref{sec:bootstrap-authentication}; the present bound records its
 acquisition contribution explicitly.
