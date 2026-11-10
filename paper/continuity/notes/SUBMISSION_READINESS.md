@@ -21,7 +21,7 @@ online selected-message confidentiality/integrity under the declared marking
 and disclosure interfaces. Both complementary bootstrap source profiles have
 their schedule comparison and historical-activation consequence.
 
-This update completes the ordinary KEM connection: real prechallenge
+The ordinary KEM connection is complete: real prechallenge
 decapsulation is retained while the component advantage is bounded by ordinary
 IND-CCA security and an explicit ciphertext-intersection probability. Its
 proof and independent internal argument review are recorded in
@@ -34,28 +34,55 @@ The retained symbolic theorem, separating native executions, 49 matched
 native/reference runs and 28 retry-policy runs support their stated research
 questions. Their execution and source identities remain unchanged.
 
+## Completed main-result entry and selection-timing pass
+
+The introduction now presents native online selected-message security as the
+central result, with its next-rekey setting, original-source eligibility,
+permitted key observations and confidentiality/integrity conclusions. The
+computational opening distinguishes the original contribution tuple, traffic
+entry and message-step allocation boundaries from the terminal selection of
+the accepted send, original source pair and recovery cut. The existing
+proof-dependency table and signed-score/Boolean-event accounting remain in
+place.
+
+The final two-module exposition was checked against the full online controller,
+eligibility predicate and native theorem. All 57 statement/definition/remark
+environments, 52 proofs and 168 displayed-math groups in the 40 canonical
+modules are byte-identical to the preceding manuscript. The integrated reading
+copy remains 119 pages. The manuscript checks pass, and an independent build
+of the nine-file submission export produces identical complete plain and
+layout text, with 48 embedded fonts and no unresolved references or overfull
+boxes. Source correspondence, preservation and export receipts are recorded
+in `artifacts/editorial-review/main-result-entry/`.
+
 ## Focus of the final submission pass
 
-The remaining work is a continuous read of the integrated argument as a paper:
-check that the central experiment and result are easy to find, reconcile
-notation and assumptions across the component and application sections, and
-assess whether the main text gives sufficient guidance through the long proof
-development. This can change organization or explanations without reopening
-completed mathematical tasks. A final author pass should also confirm the
-closest-work comparison and the journal-facing title, abstract and declarations
-as one coherent submission.
+The remaining paper-wide read-through starts from the completed main-result
+entry and selection table. It should reconcile the notation for original
+invocation slots, material handles and chain indices across sections; follow
+the stated disclosure interfaces and whole-execution budgets into the final
+bounds; and check that cross-references guide a reader through the component
+and native arguments. This is an integrated consistency and exposition pass
+over the established results.
+
+The final author pass should confirm the closest-work distinctions against
+the retained primary-source audit and assess the title, abstract and
+declarations together as the journal-facing submission. Any resulting prose
+changes should keep each claim attached to its established theorem or retained
+execution.
 
 The current text's claims determine its experimental scope. A new baseline is
 needed if a new comparative claim depends on it; broader performance tuning,
 general computational multi-epoch composition and enlarged acquisition
 interfaces remain separate research opportunities.
 
-An estimated **five to ten focused working days** is a reasonable budget for
-that final submission pass, targeting **17–24 November 2026** from this
-checkpoint, provided the read-through identifies no defect requiring a new
-central proof. This is a planning estimate for a submission manuscript. A
-journal acceptance decision follows external review and has no fixed date in
-this assessment. SDK 0.2.0 release admission proceeds through its own platform
+The existing **17–24 November 2026** submission-manuscript planning window
+applies to these remaining tasks. It is the **five to ten focused working
+days** allocated from the 10 November checkpoint, including the main-result
+entry and selection-timing work now completed. A newly identified defect in
+the central argument would require revising that estimate. A journal
+acceptance decision follows external review and has no fixed date in this
+assessment. SDK 0.2.0 release admission proceeds through its own platform
 checks and does not delay a manuscript whose pinned evidence already supports
 its claims.
 
