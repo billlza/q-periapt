@@ -24,6 +24,7 @@ from rust_sdk_msrv import validate_report
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "research/continuity-openssl-peer/native"
 NAME = "q-periapt-independent-peer-counterpart"
+CONTINUITY_ALIAS = "q-periapt-continuity-identity-candidate"
 IMPORTER = "import_bootstrap_bundle"
 PRODUCTS = tuple(name for name in sdk.CONSUMER_CRATES if name != "q-periapt-rustls")
 VERSIONS = dict.fromkeys(PRODUCTS, sdk.VERSION) | {package.NAME: package.VERSION}
@@ -63,19 +64,27 @@ def installed_manifest(original: bytes) -> bytes:
                 and parsed.get("workspace") == {} and "patch" not in parsed,
                 "counterpart manifest identity or workspace differs")
     text = original.decode()
-    expected = {package.NAME, "q-periapt-backends", "q-periapt-core", "q-periapt-host-store", "q-periapt-policy",
+    expected = {CONTINUITY_ALIAS, "q-periapt-backends", "q-periapt-core", "q-periapt-host-store", "q-periapt-policy",
                 "q-periapt-sdk", "q-periapt-sig"}
     dependencies = parsed["dependencies"]
     sdk.require({name for name in dependencies if name.startswith("q-periapt")} == expected,
                 "counterpart product dependencies differ")
     for name in sorted(expected):
         dep = dependencies[name]
-        sdk.require(type(dep) is dict and set(dep) == {"path"} and type(dep["path"]) is str,
+        fields = {"package", "version", "path"} if name == CONTINUITY_ALIAS else {"path"}
+        sdk.require(type(dep) is dict and set(dep) == fields and type(dep["path"]) is str,
                     "counterpart dependency settings require explicit review")
-        old = f'{name} = {{ path = "{dep["path"]}" }}'
+        product = package.NAME if name == CONTINUITY_ALIAS else name
+        alias = ""
+        if name == CONTINUITY_ALIAS:
+            sdk.require(dep["package"] == package.NAME and dep["version"] == f"={package.VERSION}",
+                        "counterpart continuity alias or version differs")
+            alias = f'package = "{package.NAME}", '
+        source_version = f'version = "={package.VERSION}", ' if alias else ""
+        old = f'{name} = {{ {alias}{source_version}path = "{dep["path"]}" }}'
         sdk.require(text.count(old) == 1, "counterpart dependency declaration differs")
-        text = text.replace(old, f'{name} = {{ version = "={VERSIONS[name]}", '
-                            f'path = "packages/{name}-{VERSIONS[name]}" }}')
+        text = text.replace(old, f'{name} = {{ {alias}version = "={VERSIONS[product]}", '
+                            f'path = "packages/{product}-{VERSIONS[product]}" }}')
     # Cargo automatically admits path dependencies below a workspace. These
     # literal exclusions keep installed dependencies from becoming test members.
     exclusions = [f"packages/{name}-{version}" for name, version in sorted(VERSIONS.items())]
