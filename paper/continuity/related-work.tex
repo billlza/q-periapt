@@ -22,6 +22,23 @@ original source, its durable representations, and the later computation that
 uses it. Each representation may have its own acquisition time and wrapping
 keys while referring to the same reserved operation.
 
+\paragraph{State and randomness compromise.}
+Jaeger and Stepanovs define bidirectional channel security under repeated
+fine-grained state compromise and construct key-updating encryption and
+signature primitives for that setting~\cite{jaeger2018channel}.
+Balli, R\"osler, and Vaudenay combine local-state exposure with attacks on
+execution randomness in ratcheted key exchange, and characterize the
+key-updatable primitive needed by their strongest recovery requirements
+\cite{balli2020ratcheting}. Collins, Colombo, and Schaeffler extend
+unidirectional ratcheting to bounded leakage between send calls, with
+separate key-indistinguishability and one-way formulations
+\cite{collins2025leakage}.
+Our model resolves record acquisition into the encrypted representations,
+disclosed keys, and original operations that determine source readability.
+The guarded characterization establishes this relation for its record
+fragment. Constructive image and report simulations then carry these
+observations into the native message experiment.
+
 \paragraph{Persistence, exact replay, and crash recovery.}
 The Signal specification discusses deferring ratchet-key generation to shorten
 the lifetime of sensitive state \cite[Section~8.5]{doubleratchet2025}.
@@ -41,6 +58,21 @@ illustrate the interaction: an operation resumes with its original inputs,
 and those inputs can also determine the adversary's later derivation. The
 guarded normalization theorem expresses that relation for the stated
 encrypted-record fragment.
+
+\paragraph{Simulation under adaptive compromise.}
+Jaeger and Tyagi give a modular framework for encryption and PRFs under
+adaptive key compromise, including practical symmetric constructions in
+ideal models~\cite{jaeger2020adaptive}. Jaeger develops composable variants
+that support multi-user reductions, cascaded PRFs, and constructions
+sharing one ideal primitive~\cite{jaeger2023program}.
+Our retained-state comparison supplies a simulator with an original
+operation's public outputs while its random tape remains private.
+Immutable record identities preserve equality and retries; dependent
+reports are replaced in reverse causal order. Candidate-local stopping
+certificates connect those simulations to the original execution's
+eligibility event. The subsequent shared-oracle key-schedule comparisons
+retain the real verification operations and disclosed successor values
+within the same continuation.
 
 \paragraph{Signing-randomness leakage.}
 Damm et al. recover ML-DSA secret-key material from noisy bit leakage of
@@ -123,7 +155,3 @@ HMAC's swapped PRF use and characterize its feasible input domains
 root-extraction step. Our computational accounting places that use alongside
 the record, report, confirmation, and traffic interfaces of the same recovery
 experiment.
-
-% Optional compact comparison: copy comparison-table.tex and input it here
-% if the final manuscript benefits from a tabular overview. The prose above
-% is complete without that table. references-additions.bib supplies gojournal2021.

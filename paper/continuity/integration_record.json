@@ -1,8 +1,6 @@
 {
-  "schema": "qperiapt-joc-integration/17",
   "title": "Exposure and Recovery with Persistent Randomness Reservations",
   "target_venue": "Journal of Cryptology",
-  "completed_at_utc": "2026-11-10T04:54:05.592863Z",
   "source_checkpoint": "228c944fc476e3e57d6c08063cacb19bca5b360e",
   "bootstrap_ack_source_checkpoint": "471900bfe8070d1021a1feb67481437d599d80ba",
   "author_metadata": "author-metadata.json",
@@ -17,273 +15,139 @@
     "bibliography_style_sha256": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
     "style_derivation": "sn-basic.bst; renamed derived file; all authors retained; alphabetical sorting unchanged",
     "single_tex_entry": "joc-submission.tex",
-    "single_tex_sha256": "9370eaeeec7716559210ac59bf1019e7c812598c0024254b3a66b79d016d50b7",
+    "single_tex_sha256": "8dc5a0926bb0289da2f092aa9597363c8602caaff1d924b03edce052c3af5db3",
     "layout": "single-column",
     "layout_decision": "format/layout_decision.md",
     "layout_decision_sha256": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e"
   },
-  "previous_integration_record": "artifacts/prior-integration/reply-source-bootstrap.json",
-  "previous_integration_record_sha256": "8248951e83a60fc900fd55d8d6d1278de0a12a96008c9d7c3bf9ad1743fb54fc",
-  "previous_pdf_sha256": "e575119c4858e2e37d2ea4cbe245565f4ea531428c55b969ad1b15ae691494b8",
   "pdf_path": "continuity.pdf",
-  "pdf_pages": 116,
-  "pdf_sha256": "a1738c2c2983c309bce80f364468390f80ad42612bc04e74e4abeb789c349c8c",
-  "abstract_words": 250,
+  "schema": "qperiapt-joc-integration/18",
+  "completed_at_utc": "2026-11-10T11:37:51.118117Z",
+  "previous_integration_record": "artifacts/prior-integration/initial-source-bootstrap.json",
+  "previous_integration_record_sha256": "114f958daa401870b290c17a93cb0acd8c56210ad11df4fa2d21e56b49df0f0c",
+  "previous_pdf_sha256": "a1738c2c2983c309bce80f364468390f80ad42612bc04e74e4abeb789c349c8c",
+  "pdf_pages": 119,
+  "pdf_sha256": "053424684cb837d52655174e640dd218f2825fdc1444828e525d8d9bbaede631",
+  "abstract_words": 233,
   "keywords": 7,
-  "bibliography_entries": 29,
+  "bibliography_entries": 34,
   "new_results": {
-    "original_source_bootstrap_authentication": {
+    "ordinary_kem_game_connection": {
+      "proof_module": "kem-ordinary-bridge.tex",
+      "module_sha256": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f",
       "statement_locations": {
-        "sec:bootstrap-authentication": {
-          "number": "5.16",
-          "page": 72
+        "sec:kem-ordinary-bridge": {
+          "number": "5.8",
+          "page": 48
         },
-        "eq:bootstrap-schedule": {
-          "number": "43",
-          "page": 73
-        },
-        "def:bootstrap-online": {
-          "number": "5.32",
-          "page": 73
-        },
-        "lem:bootstrap-reply-origin": {
-          "number": "5.33",
-          "page": 74
-        },
-        "lem:bootstrap-validation": {
-          "number": "5.34",
-          "page": 75
-        },
-        "eq:bootstrap-validation": {
-          "number": "44",
-          "page": 75
-        },
-        "eq:bootstrap-capture": {
-          "number": "45",
-          "page": 76
-        },
-        "lem:bootstrap-deferred": {
-          "number": "5.35",
-          "page": 76
-        },
-        "eq:bootstrap-tail": {
-          "number": "46",
-          "page": 77
-        },
-        "prop:bootstrap-ack-table": {
-          "number": "5.36",
-          "page": 77
-        },
-        "thm:bootstrap-source-schedule": {
-          "number": "5.37",
-          "page": 78
-        },
-        "eq:bootstrap-source-schedule": {
-          "number": "47",
-          "page": 78
-        },
-        "thm:bootstrap-terminal": {
-          "number": "5.38",
-          "page": 78
-        },
-        "eq:bootstrap-terminal": {
-          "number": "48",
-          "page": 78
-        },
-        "eq:bootstrap-mac-records": {
-          "number": "49",
-          "page": 78
-        },
-        "app:bootstrap-artifacts": {
-          "number": "A.17",
-          "page": 107
-        },
-        "app:bootstrap-entry": {
-          "number": "D",
-          "page": 113
-        },
-        "eq:bootstrap-compression": {
-          "number": "60",
-          "page": 113
-        },
-        "thm:bootstrap-joint-entry": {
-          "number": "D.1",
-          "page": 113
-        },
-        "eq:bootstrap-joint-entry": {
-          "number": "61",
-          "page": 114
-        }
-      },
-      "proof_modules": [
-        "bootstrap-authentication.tex",
-        "bootstrap-entry.tex"
-      ],
-      "complete_source_proofs": [
-        "artifacts/bootstrap/entry/proof.md",
-        "artifacts/bootstrap/terminal/proof.md",
-        "artifacts/bootstrap/reply/proof.md",
-        "artifacts/bootstrap/integration-proof.md"
-      ],
-      "independent_review": "artifacts/bootstrap/independent-review_final.json",
-      "packet_review": "artifacts/bootstrap/packet-review.json",
-      "result": "Original reply-source association, real restored-owner validation and shared-oracle schedule composition imply historical responder activation of the exact signed transcript in the declared online bootstrap/ACK experiment.",
-      "entry_result": "Joint short/long Extract comparison from either surviving 32-byte contribution with complete effective descriptors, original aliases and full continuation budgets.",
-      "terminal_cost": "min(1, eta_MAC + rho_MAC + sum_r epsilon_Hrow(T_r,q_r,107))",
-      "terminal_comparison": "One-sided actual-record terminal event to opaque-record independent-row endpoint.",
-      "profile": "The first contribution and traditional material are available at creation; the initiator signing identity may be disclosed; the responder signer and original reply PQ source retain the stated protection.",
-      "source_packet_counts": {
-        "entry": 7,
-        "terminal": 18,
-        "reply": 32,
-        "ack_interface_census": 19
-      },
-      "complementary_initial_source": {
-        "status": "integrated_in_canonical_manuscript",
-        "pull_request": "https://github.com/billlza/q-periapt/pull/152",
-        "proof_sha256": "b887e786d06b5226b9886d643c8b0e919cd49387cd5023e22b5878b0d93130ee",
-        "publication_scope": "Section 5.17, Theorem 5.41 and Corollary 5.42, with both primitive entry comparisons retained in Appendix D."
-      }
-    },
-    "original_initial_source_authentication": {
-      "statement_locations": {
-        "sec:bootstrap-initial-source": {
+        "prop:kem-deferred-challenge": {
           "number": "5.17",
-          "page": 79
+          "page": 49
         },
-        "lem:bootstrap-initial-origin": {
-          "number": "5.39",
-          "page": 80
-        },
-        "eq:bootstrap-initial-service": {
-          "number": "50",
-          "page": 80
-        },
-        "eq:bootstrap-initial-capture": {
-          "number": "51",
-          "page": 81
-        },
-        "eq:bootstrap-initial-upstream": {
-          "number": "52",
-          "page": 82
-        },
-        "lem:bootstrap-initial-allocation": {
-          "number": "5.40",
-          "page": 82
-        },
-        "thm:bootstrap-initial-schedule": {
-          "number": "5.41",
-          "page": 83
-        },
-        "eq:bootstrap-initial-schedule": {
-          "number": "53",
-          "page": 83
-        },
-        "eq:bootstrap-initial-uniform": {
-          "number": "54",
-          "page": 83
-        },
-        "cor:bootstrap-initial-terminal": {
-          "number": "5.42",
-          "page": 83
+        "eq:kem-deferred-bridge": {
+          "number": "20",
+          "page": 49
         }
       },
-      "proof_module": "bootstrap-initial-source.tex",
-      "module_sha256": "d84118de7a0b90a451d47e2a1673a0da35a23e1655493502583976a08a279715",
-      "complete_source_proof": "artifacts/bootstrap/initial/proof.md",
-      "manuscript_review": "artifacts/bootstrap/initial/manuscript-review.json",
-      "profile": "Original inventory PQ source and initiator purpose-5 owner protected; responder signer, traditional material and actual second contributions available under the declared bootstrap/ACK surface.",
-      "result": "The complete source and hidden-first joint-entry comparisons precede the allocation-local parent partition; heterogeneous L_j multiplies terminal-tail costs only. The terminal corollary establishes historical activation of the exact signed transcript.",
-      "source_files": 35,
-      "source_assertions": 29,
-      "finite_endpoint_executions": 49152,
+      "review": "artifacts/kem-game-bridge/independent-review.md",
+      "bound": "Adv_op(D) <= min(1, Adv_cca(B) + min(1, q_pre * 2^(-256) + delta_mr))",
+      "correctness_event": "delta_mr is honest K-PKE message-recovery failure; existing final-KEM-key correctness terms remain separate.",
+      "model": "Classical component calls and quantum public queries to the same static public oracles.",
+      "coefficient": "One prechallenge-intersection term per Boolean component advantage; existing signed-score coefficients remain unchanged.",
+      "application": "Substitution in existing established-session, online-message and both original-source bootstrap bounds, retaining original-source indexing and record-acquisition stops.",
       "native_executions_added": 0
     }
   },
   "retained_results": {
-    "record": "artifacts/prior-integration/reply-source-bootstrap.json",
-    "formal_preservation": "artifacts/bootstrap/initial/formal-preservation.json",
-    "current_label_locations": "artifacts/bootstrap/initial/current-labels.json",
-    "preceding_canonical_modules": 37,
-    "preceding_statements": 52,
-    "preceding_proofs": 47,
-    "preceding_display_groups": 156,
-    "formal_source_identity": "All ordered statement/proof and displayed-math source bytes in preceding canonical modules are unchanged.",
-    "execution_identity": "Retained native, Tamarin, reference and retry evidence keeps its original source, runtime and output identities."
+    "record": "artifacts/prior-integration/initial-source-bootstrap.json",
+    "formal_preservation": "artifacts/kem-game-bridge/formal-preservation.json",
+    "current_label_locations": "artifacts/kem-game-bridge/current-labels.json",
+    "preceding_canonical_modules": 38,
+    "preceding_statements": 56,
+    "preceding_proofs": 51,
+    "preceding_display_groups": 164,
+    "formal_source_identity": "All ordered preceding statement/proof environments and displayed-math source remain byte-identical to canonical paper 4fde471641150c68a08b56e728067c72b39ab346.",
+    "bootstrap_source_profiles": "Both original reply-source and initial-source schedule/terminal constructions remain integrated.",
+    "execution_identity": "Native, Tamarin, reference and retry evidence retains its recorded source, runtime and output identities."
   },
   "current_research_checks": {
     "bootstrap_packets": {
-      "entry": "artifacts/bootstrap/entry/reproduced.json",
-      "terminal": "artifacts/bootstrap/terminal/reproduced.json",
-      "reply": "artifacts/bootstrap/reply/reproduced.json",
-      "all_byte_identical_to_original_results": true,
-      "initial": "artifacts/bootstrap/initial/reproduced.json"
+      "entry": {
+        "receipt": "artifacts/kem-game-bridge/bootstrap-entry.json",
+        "byte_identical_to_retained_result": true
+      },
+      "terminal": {
+        "receipt": "artifacts/kem-game-bridge/bootstrap-terminal.json",
+        "byte_identical_to_retained_result": true
+      },
+      "reply": {
+        "receipt": "artifacts/kem-game-bridge/bootstrap-reply.json",
+        "byte_identical_to_retained_result": true
+      },
+      "initial": {
+        "receipt": "artifacts/kem-game-bridge/bootstrap-initial.json",
+        "byte_identical_to_retained_result": true
+      }
     },
-    "make_check": "artifacts/bootstrap/initial/make-check.log",
-    "matched_auditor": {
-      "boundary_tests": 10,
-      "replayed_rows": 49,
-      "manifest_files": 126,
-      "review": "artifacts/matched-comparison/path-review-20261110/INDEPENDENT_REVIEW.json",
-      "change": "Read only the fixed expected inventory; untrusted manifest paths supply no filesystem path component.",
-      "result": "All native/reference statistics and retry details equal baseline and retained replay."
-    },
-    "primary_source_check": "artifacts/bootstrap/primary-source-check.json",
+    "make_check": "artifacts/kem-game-bridge/make-check.log",
+    "mathematical_review": "artifacts/kem-game-bridge/independent-review.md",
+    "main_result_review": "artifacts/editorial-review/submission-readiness/baseline-main-results-review.md",
+    "frontmatter_review": "artifacts/editorial-review/submission-readiness/frontmatter-review.json",
+    "primary_source_audit": "artifacts/editorial-review/submission-readiness/primary-sources.json",
     "preceding_citation_audit": "artifacts/editorial-review/citations/audit.json"
   },
   "build_review": {
     "status": "passed",
-    "pdf_pages": 116,
-    "pdf_sha256": "a1738c2c2983c309bce80f364468390f80ad42612bc04e74e4abeb789c349c8c",
+    "pdf_pages": 119,
+    "pdf_sha256": "053424684cb837d52655174e640dd218f2825fdc1444828e525d8d9bbaede631",
     "undefined_references_or_citations": 0,
     "overfull_boxes": 0,
-    "underfull_box_notices": 127,
+    "underfull_box_notices": 130,
     "all_fonts_embedded": true,
     "fonts": 48,
     "inspected_pages": [
       1,
+      2,
       3,
       4,
       5,
+      6,
+      7,
       22,
       23,
-      24,
-      78,
-      79,
-      80,
-      81,
-      82,
-      83,
-      84,
-      94,
-      95,
+      48,
+      49,
+      50,
+      51,
       96,
-      106,
-      107,
-      108,
-      113,
-      114,
-      115,
-      116
+      97,
+      98,
+      99,
+      100,
+      101,
+      110,
+      111,
+      118,
+      119
     ],
-    "reading_review": "artifacts/bootstrap/initial/visual-review.json",
-    "build_receipt": "artifacts/bootstrap/initial/build-check.json",
-    "source_export_receipt": "artifacts/bootstrap/initial/source-export-check.json",
+    "reading_review": "artifacts/kem-game-bridge/visual-review.json",
+    "build_receipt": "artifacts/kem-game-bridge/build-check.json",
+    "source_export_receipt": "artifacts/kem-game-bridge/source-export-check.json",
     "source_export": {
       "status": "passed",
       "files": 9,
-      "pages": 116,
+      "pages": 119,
       "plain_text_identical": true,
-      "plain_text_sha256": "619eec18d8449b1327de6bcd542cb48b2f09db997cf0a974531ea429c8d73bcc",
+      "plain_text_sha256": "983bd9b381dd00f579626100e2983e2c138d0e0f0dc4281e921dd5cf9792873c",
       "layout_text_identical": true,
-      "layout_text_sha256": "3eb32d59f5387460e6de082861ae92803223a03f16f529ce0299561810ff8c9b",
+      "layout_text_sha256": "a82d53b217e2b9e66ab99b5ad9cfe03f502655c2d030401796c77739d473374b",
       "all_fonts_embedded": true,
       "font_count": 48,
       "undefined_references_or_citations": 0,
       "overfull_boxes": 0,
-      "zip_sha256": "b26292ef16871e086f5bdd14905b30890cc409158ef3471f490d0602c281afb5",
-      "pdf_sha256": "a1738c2c2983c309bce80f364468390f80ad42612bc04e74e4abeb789c349c8c",
-      "export_pdf_sha256": "3bbb8e271a62d3970460bd01c6e78113cded1a492af1117d5a660c7e993a9090",
+      "zip_sha256": "763f81e25b0f4c31994a91d04fbd1f765a02e5d4a86daceab46738cf8767d9d9",
+      "pdf_sha256": "053424684cb837d52655174e640dd218f2825fdc1444828e525d8d9bbaede631",
+      "export_pdf_sha256": "1274644093fa5cffb1023e6a3ad362d2f2875e0b992edf98928af5665fdecb7e",
       "exported_files": [
         "README.md",
         "SHA256SUMS.json",
@@ -306,15 +170,15 @@
     "base": "main",
     "pr": 119,
     "url": "https://github.com/billlza/q-periapt/pull/119",
-    "previous_head": "bee17822db65242adbfb3b0be7d32090fae2f752",
-    "previous_repository_tree": "e1ba831587cecd96fb69986eec291ae9b5d4b51f",
+    "previous_head": "4fde471641150c68a08b56e728067c72b39ab346",
+    "previous_repository_tree": "b095799b9e6cbb5296d6240c1d85daa6db18c91e",
     "snapshot": "Prepublication paper, source and build identity. Hosted checks are associated with the resulting published head.",
-    "new_execution": "Four source-pinned bootstrap checks and a fresh independent source-export build are part of the manuscript workflow."
+    "new_execution": "The four source-pinned bootstrap checks reproduce byte-identical receipts; current make check and independent source-export build pass. Hosted outcomes remain attached to the published head."
   },
-  "completed_connection": "Both original bootstrap source profiles -> source association and immutable two-endpoint acquisition accounting -> operational component and complete ContextBound -> joint short/long entry -> allocation-local tail and complete activation schedule -> record-aware epoch-zero ACK authentication -> historical responder activation.",
+  "completed_connection": "Ordinary IND-CCA -> actual deferred ML-KEM component game -> original-operation ContextBound and key-entry adapters -> retained native confidentiality, authentication and complementary bootstrap source compositions.",
   "source_hashes": {
     "acquisition-nonadditivity.tex": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
-    "artifact-map.tex": "189067d4ee874fc8a3a2a1fb5ca9e30fc4f7a4b3060e2e9922a52470b3a69297",
+    "artifact-map.tex": "c97c63162e301538bdb656dd81955c4be23ae2db56a761382d9d9eef9244d6fd",
     "author-metadata.json": "a4654fb096735dd2277cf4251ad37866fe00b3a8333a5e6731155308ad495ec8",
     "bootstrap-authentication.tex": "72c4f982bdf7229623ca790d83d3a2dc55ef0f6cb0f32cc832a61700f28e766d",
     "bootstrap-entry.tex": "c97d14ab80160319d2d87f563f349566961e3f585ef4604417b8c87cce02af2e",
@@ -322,23 +186,24 @@
     "candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
     "chain-prefix-continuation.tex": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
     "common-virtual-accounting.tex": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
-    "computational-roadmap.tex": "d9a028388b95366465cc12f574b9c24ed3150b0c8947f58989b4e6d3354b5319",
+    "computational-roadmap.tex": "ba415e0eaf3e6799d1c7cce76a9cabd4dbcf2ff6c196829b61031bfcfe9da7a8",
     "confirmation-traffic.tex": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
     "construction.tex": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
     "contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
     "declarations.tex": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
-    "discussion.tex": "f75016f1a47970d9bf6e7331c0121010bd8c591562c270f5a57a4be6f5bfae92",
+    "discussion.tex": "4042b5a6d3d04f28db062abad7a9022ced67c4313702402d85bfbaf06224e7ca",
     "established-results.tex": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
     "evaluation.tex": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe",
-    "figures/confirmation-cut.pdf": "d908bc9067b942ac082edc17adb07d35f386ffc4a26183e230bba8233de4bb90",
+    "figures/confirmation-cut.pdf": "9426d82f657b44e35709a42f1019e4058ce0a0c091dd76fda766fa3e1d0c07a9",
     "guarded-provenance.tex": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
-    "introduction.tex": "8744a6e91eb15ace60088a7e255055444bb0f7fe169ca6c4351e44d9e05e865f",
+    "introduction.tex": "fcd3ff8514e2e9cd7adbb0b81b3d2548e64342a593c7fa83139eff3e30da4110",
     "joc-basic.bst": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
-    "joc-submission.tex": "9370eaeeec7716559210ac59bf1019e7c812598c0024254b3a66b79d016d50b7",
+    "joc-submission.tex": "8dc5a0926bb0289da2f092aa9597363c8602caaff1d924b03edce052c3af5db3",
     "joint-continuation.tex": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
     "joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+    "kem-ordinary-bridge.tex": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f",
     "live-core-instantiation.tex": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
-    "main.tex": "f46fd96f6c7da7ec9c9e431352d20b818efa40f7f8eb5b208a557f623e96737d",
+    "main.tex": "37436cf32b029d325faed36eb76211b2fbb4de829ccfb6b464a239a7a21e04b9",
     "matched-opportunities.tex": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
     "matched-opportunity-tables.tex": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
     "multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
@@ -348,8 +213,8 @@
     "opaque-rendering.tex": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
     "primitive-inputs.tex": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
     "reference-schedule-table.tex": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
-    "references.bib": "063c56969e496b8cdd202d8262669bf489d72ed1e19f498e9f1423c5d54cc36e",
-    "related-work.tex": "893342efdeac3b9d741e0295cfbe96545d621c154784b5006e3b66dc39e8f650",
+    "references.bib": "1e7dcd24d5aa6a464d88631c04ac5826490261b4e829186dc90c8c9b5a5eb6b4",
+    "related-work.tex": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
     "report-composition.tex": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
     "reservation-signature-bridge.tex": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
     "retry-readiness-table.tex": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
@@ -360,11 +225,17 @@
     "sn-jnl.cls": "36d0c3273a59d48dc6a9c7b080dfa1ec50dc10229d8751568d1f2e490ffa5ecc",
     "source-attribution.tex": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e"
   },
+  "editorial_revision": {
+    "scope": "Focused abstract and contribution narrative; five primary references on state/randomness compromise and adaptive composition; current handoff and submission assessment.",
+    "new_mathematical_results": true,
+    "review": "artifacts/editorial-review/submission-readiness/frontmatter-review.json",
+    "readiness_note": "notes/SUBMISSION_READINESS.md"
+  },
   "current_supporting_hashes": {
     ".gitattributes": "ce31a7ca88fa6aca38587ee367ee79be2ecbbb06574954482f7ed8a0a21f41f7",
     ".gitignore": "8d1d7e93cbe39f9fe8262e453b7c34cb9a5935181da322a468e37959405226b8",
     "Makefile": "e7b800d87fc7a4759652964272ef8ee9ce87f53780dd16dbfe4a8b5b075a8384",
-    "README.md": "4bdf05c2dc4cb24dd0d77a194c108a8387de443f30262b5c10456d5df7df6f31",
+    "README.md": "3b9d3aee4b11a5703c59a55344bbb9aa89b757cf65b88d134b09309d8d720622",
     "artifacts/bootstrap/README.md": "172103ab4ae00ecc8a2d255cbb2f10e23f4d37e70019d179a1d04c666d979642",
     "artifacts/bootstrap/ack/SOURCE_PINS.json": "cf9c16f4dc8069717c1a40386f96290cae0aec89c356f02f824d8b3143c73eb5",
     "artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages.rs": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
@@ -410,6 +281,57 @@
     "artifacts/bootstrap/independent-review_final.json": "33d03ae6533f31ead7d0237b112c7bf9f35ec2907f52d95a1adf37f500353f18",
     "artifacts/bootstrap/independent-review_final.md": "c93016e004a8303ad2e69b3777b789299078e89f9be8995e7e497d3457991c7e",
     "artifacts/bootstrap/independent-review_initial.json": "94851f45193525a7f1b34c94054125f19efb0e3a1690f0cafbcad59f1d9f3d3b",
+    "artifacts/bootstrap/initial/RESULT.json": "b53cdf1a373c1ac60aeb26600914f7d682d3a6d8d74544a5e2995e787a419181",
+    "artifacts/bootstrap/initial/SOURCE_PINS.json": "56edba39cb6639b2b1ea251ec84bbdd86c38eaf838c6318b47624671f43452f2",
+    "artifacts/bootstrap/initial/build-check.json": "2fe78d51f8bf5a6b772f4a3971d82f62238448e1df122fe0a689c2a72772c4f2",
+    "artifacts/bootstrap/initial/check_initial_source.py": "2a0b25421347c1cd8e8fbd24df655c96e33061c1dce7aee39e743e56d1fc5ae0",
+    "artifacts/bootstrap/initial/current-labels.json": "c967fee8c723a2802df052640c2a78c844928f963c544506e7583e6191e83dc6",
+    "artifacts/bootstrap/initial/fonts.txt": "aca44654d2aa22eb5c6f3080c0a366ea8646a600745846f595e85696c1070bcf",
+    "artifacts/bootstrap/initial/formal-preservation.json": "640af90903ca3b713cd2d106e2002b1099246943cc399280eae8451e753b8515",
+    "artifacts/bootstrap/initial/independent-review.json": "e1c2478691c37927209bf926c87c8168ab1af461d82d5c81e9e2cb561ac6b395",
+    "artifacts/bootstrap/initial/independent-review.md": "c4540ddb034bc2a8a75ae30cb4c2a8186f4dadc5857604c4c1ccf6c1bccfda9b",
+    "artifacts/bootstrap/initial/make-check.log": "e56e63c6c5b9657960bd1b8c0823500f42d33ed986cf0a362116deeff5114d3c",
+    "artifacts/bootstrap/initial/manuscript-review.json": "9fc10193e2c23de7acf5af1ec2fb48589129d249edcfed484150ea50d934c555",
+    "artifacts/bootstrap/initial/manuscript-review.md": "ea6032cca707fee91e4b4b28c42fb67bf96b3f99a27d9d8d0620c2f1f8fe23c6",
+    "artifacts/bootstrap/initial/proof.md": "b887e786d06b5226b9886d643c8b0e919cd49387cd5023e22b5878b0d93130ee",
+    "artifacts/bootstrap/initial/reproduced.json": "b53cdf1a373c1ac60aeb26600914f7d682d3a6d8d74544a5e2995e787a419181",
+    "artifacts/bootstrap/initial/source-export-check.json": "e3487ab5aef3acddbef7bbed41f1a3774b9a50573f0222f52d7703d1e75f44dc",
+    "artifacts/bootstrap/initial/source/crates/q-periapt-backends/src/contextbound_key.rs": "4ba0073adb2f4b03c6183aa46d3bffa139edc40476873cba103adecbbc1b153b",
+    "artifacts/bootstrap/initial/source/crates/q-periapt-backends/src/lib.rs": "d73b6b3a789c27779108dbd5c378f553cd6c3108b8d90ea9f101730d2a237313",
+    "artifacts/bootstrap/initial/source/crates/q-periapt-core/src/lib.rs": "b2879b876e37f6f9a98f065c55502a1ed90f5d248fd029fef8eaad59bf5ec390",
+    "artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/expert.rs": "4a3f2922090b2ef9d20abfcdfdde98c5edd76ee12d2df9ae2608071ea1c84323",
+    "artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/expert/replay.rs": "cc95985cd212a2c2f224dcce22bc7fba5f4f331dc190e263085a0261dd0a3713",
+    "artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/lib.rs": "38e9c524a60e6019c8a5304cd1d587006ab467ab1718a1fd8899f97823e98be6",
+    "artifacts/bootstrap/initial/source/docs/continuity/BOOTSTRAP_JOINT_ENTRY_V1.md": "02adbe2d702246545b048a9d5ac01f058a35523924d3042106ecbd4092752ed0",
+    "artifacts/bootstrap/initial/source/docs/continuity/BOOTSTRAP_REPLY_SOURCE_ADAPTER_V1.md": "87acf83c1014005d6d3dfb9d1147229d81dd193d259dc0199bd8fedf06a2dde3",
+    "artifacts/bootstrap/initial/source/docs/continuity/BOOTSTRAP_TERMINAL_AGREEMENT_V1.md": "36258bc3583790202b8750e73ae12d4c146707751a392cb02bcd5d636eea1ea8",
+    "artifacts/bootstrap/initial/source/docs/continuity/BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md": "656ce52d8b77b206ed6aef3b6c457a3d196028da2933075104bd10a6075524d3",
+    "artifacts/bootstrap/initial/source/docs/continuity/HKDF_EXPAND_TABLE_V1.md": "ebddea59df4e82c48744a52088c3f2bf49b5386ab993f6200bce8bfef8ae2d71",
+    "artifacts/bootstrap/initial/source/paper/continuity/candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+    "artifacts/bootstrap/initial/source/paper/continuity/contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+    "artifacts/bootstrap/initial/source/paper/continuity/guarded-provenance.tex": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+    "artifacts/bootstrap/initial/source/paper/continuity/joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+    "artifacts/bootstrap/initial/source/paper/continuity/multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+    "artifacts/bootstrap/initial/source/paper/continuity/opaque-rendering.tex": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+    "artifacts/bootstrap/initial/source/paper/continuity/primitive-inputs.tex": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+    "artifacts/bootstrap/initial/source/paper/continuity/reservation-signature-bridge.tex": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+    "artifacts/bootstrap/initial/source/paper/continuity/sdk-purpose-connection.tex": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+    "artifacts/bootstrap/initial/source/paper/continuity/source-attribution.tex": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs": "f72bce264806a900affe2cac33beb449e77aeaa45e6e264549eaa0f2ece7a286",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap/response_staged.rs": "3a892deab3d2a209345436ca6d3ddd08f39c549bc98a3d5e7c6026dfaeacff0a",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap/staged.rs": "f633fc0ff32c44156e194ebb6ca6c037a6df09d117d4daf8a69a861cf7d7bafc",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/contract.rs": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/crypto.rs": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable.rs": "664bc3bfad790cc4639168b54bea30fdcdb80520310454cddd80ac66a5b37c42",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/initiator.rs": "eacfbb8195b357ecdfda7a63cfd1871ba846f23a3e427d29f422d2246063f67c",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/messages.rs": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/messages/traffic.rs": "5e19c0a6719895888a7018db2583c89da50c1de029d443834c357bce342cb6e2",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/prekeys.rs": "1a0ad3a9be71e6b39c44cd24a7478a6280a822a6653b1d504677c9669c5b6c4b",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/responder.rs": "9e3dcaf9180435e1b439889a9608f4ae40ca87b1d8d4c6b025c329e730e4f30c",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/write_intent.rs": "502bbd9de26958575704edbd0207c6579c4a07e3b9ed4a57650f407f3fdb312d",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/manifest.rs": "2d6367086c1ff3957791d52184c4dde16de09ba6bd67d8308cb812366b0ef57c",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/selection.rs": "287883f353adb49016cbb9779e612cefac15dd3f74becbb630ec18a1c3f39586",
+    "artifacts/bootstrap/initial/visual-review.json": "abbaf056dc11875f367827aef2592c92cad11dc88dc9ef5586a90330ab44d28d",
     "artifacts/bootstrap/integration-proof.md": "644f2157e1727194cd9248d3b54c3bfb61c39b66f51813877686c6219d16b9e7",
     "artifacts/bootstrap/make-check.log": "06c569b0e479bcdd2804f4d657efcb473861ca92710a5da1addec1cf58c7dcb1",
     "artifacts/bootstrap/packet-review.json": "051754472f803db96931e7d17183250ecb819be52cf7261dc7ba835f9b9eae8f",
@@ -582,6 +504,9 @@
     "artifacts/editorial-review/sdk-purpose-precision/wording_precision.diff": "8b5b3f3ca87d5237f6865b4edc368a17ffb0ea1e185b60c69e4156e344edc3e6",
     "artifacts/editorial-review/sdk-purpose-precision/wording_review.json": "319549930af6945124447c0aca4f0f25808d9bc00a5431e451531ad0b29078af",
     "artifacts/editorial-review/sdk-purpose-precision/wording_review.md": "1a0a2af07a97c04337b8170d17e9d977f07a059cb81c007e586c6dc7cb982de2",
+    "artifacts/editorial-review/submission-readiness/baseline-main-results-review.md": "53afbc8a4d2513b031dc3fd5c559a0f2059e3a69bfd9df25b9c8cb31989747e2",
+    "artifacts/editorial-review/submission-readiness/frontmatter-review.json": "21a3a323decbd887a96a5b55e41cf693a1ae078cafb4a2ff3fbc56897907f495",
+    "artifacts/editorial-review/submission-readiness/primary-sources.json": "bd3327e512c20916f7d57c61b9c441de2ebe40c34a2c74938e2bc56d0696259c",
     "artifacts/guarded-provenance/check_exposure.py": "f1d099836194f17a165527d5a2296c06a7d2bd44bf187c1ab9c7456e4beeb92c",
     "artifacts/guarded-provenance/native_source_map.json": "b1bc3c19c67066ef4b27eae9755133317f45302bdb251f7fd2755342d1f84d7d",
     "artifacts/guarded-provenance/results.json": "d08af992b012f8d41498f2d1c5eefe597cb868d05d776ba96b405f4214445dfc",
@@ -696,6 +621,21 @@
     "artifacts/joint-continuation/joint_continuation.md": "8f69ae7dc88d378ea31c0a29c4578daf81047a47907dc2b3d4fa28761e2a7a15",
     "artifacts/joint-continuation/research_record.md": "1fc7391f22212b805792bcfee1abbb9fccc33c2253ad2f1bb56c98ce065161e0",
     "artifacts/joint-continuation/source_profile_review.md": "2363a4794afb3347b9bf7f918efd4c5fd361441a509c0e868b610a99a93adec7",
+    "artifacts/kem-game-bridge/README.md": "d5a955aeba6bdf61bfd0b7dceef4179d0fcbd8ac3838fcdc6ac6c8dc4544b8c5",
+    "artifacts/kem-game-bridge/author-check.md": "fb3fcb666dc89d7b49bb0d8cddec2af423e794b86af4ddaaea5d9e002a31b38a",
+    "artifacts/kem-game-bridge/bootstrap-entry.json": "3fa74c8ce32c56794f3f2b12266ac90b010fe3ad547eef8a6f2c81e74c08959b",
+    "artifacts/kem-game-bridge/bootstrap-initial.json": "b53cdf1a373c1ac60aeb26600914f7d682d3a6d8d74544a5e2995e787a419181",
+    "artifacts/kem-game-bridge/bootstrap-reply.json": "ead62bb6fdaa6fd655e7bb7b923334c914a699e3784ef478abf6033f347dae8f",
+    "artifacts/kem-game-bridge/bootstrap-terminal.json": "0bc8798af1e6c60cbf51053bd6e8795bcd7a81f068cd3d678a9583cb022bd7af",
+    "artifacts/kem-game-bridge/build-check.json": "764b928916151d3923b187b20f870f5c0ba63689e0ed546359e1a8363d7c49ca",
+    "artifacts/kem-game-bridge/current-labels.json": "a8774e63cbe658b2577e03afe1fde60426612914c2a209bef65e09305bc99cd7",
+    "artifacts/kem-game-bridge/fonts.txt": "c50992b1e76f68b9599e491fca3c3ba34270e72cd1e05931b8b188242b774ac0",
+    "artifacts/kem-game-bridge/formal-preservation.json": "a4c44b319541fcc73cfbf2dc4206b3bcb1f99fdebeaf0c3cfc7924f76bbc1f26",
+    "artifacts/kem-game-bridge/independent-review.md": "9097346b95798e4cb420cf7006316673385a80f2c91cc5a55c86c706a67847af",
+    "artifacts/kem-game-bridge/make-check.log": "5e1d13b0c104341878419a9b92d6966de0f37ad879873a0b9ab32f6a07739b8e",
+    "artifacts/kem-game-bridge/rendered-pages.json": "23bbac82cc63a11bd5c53d160f8ee3a8432498300b2a945fb495ed408d630ac0",
+    "artifacts/kem-game-bridge/source-export-check.json": "bce9e2ed132180dd9a006cf0e5158061ad1ec7dd39f205f8d683d56ae0ef355f",
+    "artifacts/kem-game-bridge/visual-review.json": "ca8ea9e4978914ca2ca7c3be406fcea4799f988f209807223e24604fc5e875ff",
     "artifacts/live-profile/PROFILE_FREEZE.json": "d20c92f71136d5a32c83da04e71fc573d9b7844be3705d51e7b5afa8938febfa",
     "artifacts/live-profile/native_kdf_encodings.json": "780fc1341648700dcb15a4c7e168251eb40fe46b53953a0e9648bdc60141fd11",
     "artifacts/live-profile/source_identity_manifest.json": "09fbfb3cf3d3bd2fb8b8bebd978e9d063dfa50f26b36ded51bf0758889297c8b",
@@ -773,11 +713,13 @@
     "artifacts/prior-integration/contextbound_connection.json": "655793a92f5cc79972bbd7492a5456c7c8141f67f1591d2aacb12b0edf7607ae",
     "artifacts/prior-integration/contribution-dependencies.json": "9db6dff881dd970eb6e7288ba6f5b8001bc9366e1cede96bbb23e4488492b39c",
     "artifacts/prior-integration/contribution-wording.json": "cf4b053e404d402476cccf713afffcab4c72a66dc62cf9efb7c9c0ee68f227af",
+    "artifacts/prior-integration/initial-source-bootstrap.json": "114f958daa401870b290c17a93cb0acd8c56210ad11df4fa2d21e56b49df0f0c",
     "artifacts/prior-integration/live-core-acceptance.json": "214be1599c769b5a664a539247f3bb58779cdbc1699df9b6eccb7be61eab7275",
     "artifacts/prior-integration/matched-comparison.json": "52cdb49806b39bd97692f504c65ddee0f53b475904ba5b5431769f245bccc791",
     "artifacts/prior-integration/multiple_root_entry.json": "c6be643b585a661d3ddf90f0447455068ffe8ab268244c426c91cd1a9f3fb72e",
     "artifacts/prior-integration/native-authentication.json": "7b21966af2604bbfe304bb6ddf98be01dd49419fa7f42378a3d8054c24d6e73d",
     "artifacts/prior-integration/native-online-chain.json": "d23a471a9c42b850e876ef40d8f63687c464743128e25eed3a240f2232742592",
+    "artifacts/prior-integration/reply-source-bootstrap.json": "8248951e83a60fc900fd55d8d6d1278de0a12a96008c9d7c3bf9ad1743fb54fc",
     "artifacts/prior-integration/retry-readiness.json": "b05cbb418102ef775bb0e60c65a87d81acf2d556bd140cb2db110fc295479bcb",
     "artifacts/prior-integration/round2_integration_record.json": "8c8dbfc017c689b3c898853f98c5015fb6d0f2eab0d61e24f809ef9e5d6c0c81",
     "artifacts/prior-integration/round3-integration-record.json": "bfb31d73d0746319e82fbdf02242c5354c4a464ee00becd75eb8dd7c2912e937",
@@ -910,73 +852,16 @@
     "export_submission.py": "fd76730d9abb02e4d0daab6c5cba654ed1385f5a3ef73516f5e9289615edfcf3",
     "figures/confirmation-cut.tex": "eaed162d2f95c1d1b043380b6a404f02f4042bc20017eb409b2cdbdee4047579",
     "figures/confirmation-cut.tikz": "1c8122292094aefe5efeb3d3d336540cbeeb429bf36de3ea97a44571b1338286",
-    "flatten_manifest.json": "84cfd2a4ee2fa1e8ef6f3f7be2f1359e53c7c7a66be42daae0a1f5e8c0378a0a",
+    "flatten_manifest.json": "e5f9504c083776c18c48c45f9a83afd2d6e08367f19dec1a321d90bc765156ab",
     "flatten_manuscript.py": "01bf82ca69991ab9fb981ff84eaa5eb38739fb19074e95fb05b7451b1693c139",
     "format/bibliography_adaptation.json": "70b5da1214422749bbab0778d0ee2602fde74fbadb5ca5af89fc519c13e8700b",
     "format/layout_decision.md": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e",
     "format/template_download_manifest.json": "11d23d7ccc7a28ac464fddd175a09b326e320e2c103fca90ef7ddd69e716c3d8",
     "format/venue_format_audit.json": "ea88173db4cfa4f02a5e28b721f02eb244f838015b350fd69a467c5772163363",
     "format/venue_format_audit.md": "da3a13e207c71d41ca1303394c2c08a0002405ce08d251c06d372a96855eba21",
-    "notes/RESEARCH_HANDOFF.md": "295be1e47c843c7d8493a4ec810a2d4ed6988e7009c1bc280d063faf253823a3",
+    "notes/RESEARCH_HANDOFF.md": "71d02d6c21c72986d14a24e42c4e749f4425a1cde7a54917cb583647a946ac68",
+    "notes/SUBMISSION_READINESS.md": "bf54733c66b4c987f10e4c7f8312a2943af0b613329610e2dc37502ccf86b844",
     "notes/WORKFLOW.md": "db80a9091241de0309b614d834d334a5de37d4952304082e7a1d484c73444de1",
-    "notes/skybridge-scope.md": "31e5e709f04d12edccb0951554a887df065ecdcf22c284cef7507f97c0aa3a0f",
-    "artifacts/bootstrap/initial/RESULT.json": "b53cdf1a373c1ac60aeb26600914f7d682d3a6d8d74544a5e2995e787a419181",
-    "artifacts/bootstrap/initial/SOURCE_PINS.json": "56edba39cb6639b2b1ea251ec84bbdd86c38eaf838c6318b47624671f43452f2",
-    "artifacts/bootstrap/initial/build-check.json": "2fe78d51f8bf5a6b772f4a3971d82f62238448e1df122fe0a689c2a72772c4f2",
-    "artifacts/bootstrap/initial/check_initial_source.py": "2a0b25421347c1cd8e8fbd24df655c96e33061c1dce7aee39e743e56d1fc5ae0",
-    "artifacts/bootstrap/initial/current-labels.json": "c967fee8c723a2802df052640c2a78c844928f963c544506e7583e6191e83dc6",
-    "artifacts/bootstrap/initial/fonts.txt": "aca44654d2aa22eb5c6f3080c0a366ea8646a600745846f595e85696c1070bcf",
-    "artifacts/bootstrap/initial/formal-preservation.json": "640af90903ca3b713cd2d106e2002b1099246943cc399280eae8451e753b8515",
-    "artifacts/bootstrap/initial/independent-review.json": "e1c2478691c37927209bf926c87c8168ab1af461d82d5c81e9e2cb561ac6b395",
-    "artifacts/bootstrap/initial/independent-review.md": "c4540ddb034bc2a8a75ae30cb4c2a8186f4dadc5857604c4c1ccf6c1bccfda9b",
-    "artifacts/bootstrap/initial/make-check.log": "e56e63c6c5b9657960bd1b8c0823500f42d33ed986cf0a362116deeff5114d3c",
-    "artifacts/bootstrap/initial/manuscript-review.json": "9fc10193e2c23de7acf5af1ec2fb48589129d249edcfed484150ea50d934c555",
-    "artifacts/bootstrap/initial/manuscript-review.md": "ea6032cca707fee91e4b4b28c42fb67bf96b3f99a27d9d8d0620c2f1f8fe23c6",
-    "artifacts/bootstrap/initial/proof.md": "b887e786d06b5226b9886d643c8b0e919cd49387cd5023e22b5878b0d93130ee",
-    "artifacts/bootstrap/initial/reproduced.json": "b53cdf1a373c1ac60aeb26600914f7d682d3a6d8d74544a5e2995e787a419181",
-    "artifacts/bootstrap/initial/source/crates/q-periapt-backends/src/contextbound_key.rs": "4ba0073adb2f4b03c6183aa46d3bffa139edc40476873cba103adecbbc1b153b",
-    "artifacts/bootstrap/initial/source/crates/q-periapt-backends/src/lib.rs": "d73b6b3a789c27779108dbd5c378f553cd6c3108b8d90ea9f101730d2a237313",
-    "artifacts/bootstrap/initial/source/crates/q-periapt-core/src/lib.rs": "b2879b876e37f6f9a98f065c55502a1ed90f5d248fd029fef8eaad59bf5ec390",
-    "artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/expert/replay.rs": "cc95985cd212a2c2f224dcce22bc7fba5f4f331dc190e263085a0261dd0a3713",
-    "artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/expert.rs": "4a3f2922090b2ef9d20abfcdfdde98c5edd76ee12d2df9ae2608071ea1c84323",
-    "artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/lib.rs": "38e9c524a60e6019c8a5304cd1d587006ab467ab1718a1fd8899f97823e98be6",
-    "artifacts/bootstrap/initial/source/docs/continuity/BOOTSTRAP_JOINT_ENTRY_V1.md": "02adbe2d702246545b048a9d5ac01f058a35523924d3042106ecbd4092752ed0",
-    "artifacts/bootstrap/initial/source/docs/continuity/BOOTSTRAP_REPLY_SOURCE_ADAPTER_V1.md": "87acf83c1014005d6d3dfb9d1147229d81dd193d259dc0199bd8fedf06a2dde3",
-    "artifacts/bootstrap/initial/source/docs/continuity/BOOTSTRAP_TERMINAL_AGREEMENT_V1.md": "36258bc3583790202b8750e73ae12d4c146707751a392cb02bcd5d636eea1ea8",
-    "artifacts/bootstrap/initial/source/docs/continuity/BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md": "656ce52d8b77b206ed6aef3b6c457a3d196028da2933075104bd10a6075524d3",
-    "artifacts/bootstrap/initial/source/docs/continuity/HKDF_EXPAND_TABLE_V1.md": "ebddea59df4e82c48744a52088c3f2bf49b5386ab993f6200bce8bfef8ae2d71",
-    "artifacts/bootstrap/initial/source/paper/continuity/candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
-    "artifacts/bootstrap/initial/source/paper/continuity/contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
-    "artifacts/bootstrap/initial/source/paper/continuity/guarded-provenance.tex": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
-    "artifacts/bootstrap/initial/source/paper/continuity/joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
-    "artifacts/bootstrap/initial/source/paper/continuity/multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
-    "artifacts/bootstrap/initial/source/paper/continuity/opaque-rendering.tex": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
-    "artifacts/bootstrap/initial/source/paper/continuity/primitive-inputs.tex": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
-    "artifacts/bootstrap/initial/source/paper/continuity/reservation-signature-bridge.tex": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
-    "artifacts/bootstrap/initial/source/paper/continuity/sdk-purpose-connection.tex": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
-    "artifacts/bootstrap/initial/source/paper/continuity/source-attribution.tex": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap/response_staged.rs": "3a892deab3d2a209345436ca6d3ddd08f39c549bc98a3d5e7c6026dfaeacff0a",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap/staged.rs": "f633fc0ff32c44156e194ebb6ca6c037a6df09d117d4daf8a69a861cf7d7bafc",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs": "f72bce264806a900affe2cac33beb449e77aeaa45e6e264549eaa0f2ece7a286",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/contract.rs": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/crypto.rs": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/initiator.rs": "eacfbb8195b357ecdfda7a63cfd1871ba846f23a3e427d29f422d2246063f67c",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/messages/traffic.rs": "5e19c0a6719895888a7018db2583c89da50c1de029d443834c357bce342cb6e2",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/messages.rs": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/prekeys.rs": "1a0ad3a9be71e6b39c44cd24a7478a6280a822a6653b1d504677c9669c5b6c4b",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/responder.rs": "9e3dcaf9180435e1b439889a9608f4ae40ca87b1d8d4c6b025c329e730e4f30c",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/write_intent.rs": "502bbd9de26958575704edbd0207c6579c4a07e3b9ed4a57650f407f3fdb312d",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable.rs": "664bc3bfad790cc4639168b54bea30fdcdb80520310454cddd80ac66a5b37c42",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/manifest.rs": "2d6367086c1ff3957791d52184c4dde16de09ba6bd67d8308cb812366b0ef57c",
-    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/selection.rs": "287883f353adb49016cbb9779e612cefac15dd3f74becbb630ec18a1c3f39586",
-    "artifacts/bootstrap/initial/source-export-check.json": "e3487ab5aef3acddbef7bbed41f1a3774b9a50573f0222f52d7703d1e75f44dc",
-    "artifacts/bootstrap/initial/visual-review.json": "abbaf056dc11875f367827aef2592c92cad11dc88dc9ef5586a90330ab44d28d",
-    "artifacts/prior-integration/reply-source-bootstrap.json": "8248951e83a60fc900fd55d8d6d1278de0a12a96008c9d7c3bf9ad1743fb54fc"
-  },
-  "editorial_revision": {
-    "scope": "Abstract, contribution narrative, roadmap and discussion connect the bootstrap result to the retained exposure/recovery development.",
-    "interface_presentation": "The admitted bootstrap/ACK surface appears once in its experiment definition; theorem hypotheses carry the corresponding source and observation conditions.",
-    "new_mathematical_results": true,
-    "review": "artifacts/bootstrap/independent-review_final.json"
+    "notes/skybridge-scope.md": "31e5e709f04d12edccb0951554a887df065ecdcf22c284cef7507f97c0aa3a0f"
   }
 }

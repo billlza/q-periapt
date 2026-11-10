@@ -58,9 +58,16 @@ retaining a separate lifecycle for each returned owner
 (Section~\ref{sec:sdk-purpose-connection}). A marked private entry supports
 the corresponding one-key application experiment.
 
-The other connection concerns the origin of an accepted allocation.
-Executed-slot registration ties it to the original KEM calls through
-retained plans and complete signed-body bindings
+At the component interface, the deferred-challenge bridge gives an
+ordinary ML-KEM IND-CCA instantiation while preserving the actual
+decapsulation prefix. Its additional cost is the prefix's intersection
+with an unused honest challenge ciphertext, bounded through uniform
+encapsulation messages and deterministic message recovery
+(Proposition~\ref{prop:kem-deferred-challenge}).
+
+Source attribution associates an accepted allocation with its original
+KEM calls through executed-slot registration, retained plans and complete
+signed-body bindings
 (Proposition~\ref{prop:executed-source-attribution}). The native signing
 adapter carries original randomizers and exact retries into a shared-XOF
 comparison, expressing the native reservation-interface bound through
