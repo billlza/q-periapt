@@ -1,0 +1,1723 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.ci_release_readback",
+  "observed_at": "2026-11-07T10:33:07Z",
+  "source": {
+    "head_commit": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+    "head_tree": "498b7efa0f9565fe910d73c8368b2a40377d5aa4",
+    "pull_request": 118,
+    "pr_merge_commit": "57d4358f4e3946e336bc7fba2b59b71875592435",
+    "pr_merge_tree": "498b7efa0f9565fe910d73c8368b2a40377d5aa4"
+  },
+  "workflows": [
+    {
+      "run_id": 42324117363,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324117363",
+      "head_sha": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "observed_workflow_status": "completed",
+      "total_materialized_jobs": 70,
+      "counts": {
+        "success": 67,
+        "failure": 2,
+        "skipped": 1
+      },
+      "jobs": [
+        {
+          "id": 128255320929,
+          "name": "windows",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:49:49Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321121,
+          "name": "Binary CT [aarch64-native]",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:04Z",
+          "completed_at": "2026-11-07T01:30:53Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321132,
+          "name": "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:34:20Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321146,
+          "name": "formal-proof",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:30:09Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321148,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, suite)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T02:04:20Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321161,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:33:26Z",
+          "completed_at": "2026-11-07T02:35:28Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321173,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, capacity)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T02:28:39Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321175,
+          "name": "abi2-windows-package-2022",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:38:01Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321176,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, release)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T02:18:49Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321193,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-transferred)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:48:59Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321203,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-other)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T02:00:34Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321208,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-next-attempt)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:30:48Z",
+          "completed_at": "2026-11-07T02:42:49Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321211,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-account-root)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:35:23Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321213,
+          "name": "rust-publish-contract",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:39:22Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321220,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, roster-capacity)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T02:01:57Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321236,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, capacity)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:39:24Z",
+          "completed_at": "2026-11-07T02:30:08Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321253,
+          "name": "bindings-swift",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:30:55Z",
+          "completed_at": "2026-11-07T02:04:14Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321264,
+          "name": "no_std",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:31:07Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321273,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-other)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:34:59Z",
+          "completed_at": "2026-11-07T02:03:31Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321279,
+          "name": "audit",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:33:08Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321283,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, release)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:41:45Z",
+          "completed_at": "2026-11-07T02:12:18Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321286,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:45Z",
+          "completed_at": "2026-11-07T01:58:51Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321291,
+          "name": "check",
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-11-07T01:39:03Z",
+          "completed_at": "2026-11-07T01:54:35Z",
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ]
+        },
+        {
+          "id": 128255321303,
+          "name": "bindings-android-aar",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:36:01Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321310,
+          "name": "Binary CT [x86_64-portable]",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:30:46Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321317,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:21:49Z",
+          "completed_at": "2026-11-07T03:23:30Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321322,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-account-root)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:31:09Z",
+          "completed_at": "2026-11-07T01:39:13Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321347,
+          "name": "bindings-kotlin",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:36:02Z",
+          "completed_at": "2026-11-07T01:46:50Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321351,
+          "name": "continuity-spqr-reference (macos-15)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:00:27Z",
+          "completed_at": "2026-11-07T02:11:54Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321365,
+          "name": "cross-compiler (beta)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:31:56Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321376,
+          "name": "msrv",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:32:26Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321377,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-next-attempt)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T02:34:08Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321379,
+          "name": "sidechannel",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:31:17Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321384,
+          "name": "x86-avx2-candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:35:23Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321400,
+          "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:28:02Z",
+          "completed_at": "2026-11-07T01:33:15Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321404,
+          "name": "cross-compiler (stable)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:34:56Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321406,
+          "name": "continuity-spqr-reference (ubuntu-24.04)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:39:00Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321407,
+          "name": "riscv64-run",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:32:07Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321411,
+          "name": "transport",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:31:27Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321441,
+          "name": "cross (x86_64-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:30:18Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321482,
+          "name": "formal-easycrypt",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:33:02Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321487,
+          "name": "feature-fence",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:39:15Z",
+          "completed_at": "2026-11-07T01:41:43Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321495,
+          "name": "pq-optional-backends",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:34:26Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321499,
+          "name": "cross-compiler (nightly)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:33:23Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321519,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, roster-capacity)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:45:35Z",
+          "completed_at": "2026-11-07T02:22:41Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321524,
+          "name": "bindings-wasm",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:40:52Z",
+          "completed_at": "2026-11-07T01:55:40Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321530,
+          "name": "fuzz",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:35:53Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321533,
+          "name": "hqc-draft-candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:34:01Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321535,
+          "name": "cross (riscv64gc-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:37:42Z",
+          "completed_at": "2026-11-07T01:41:20Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321549,
+          "name": "standard-tls-interop",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:02Z",
+          "completed_at": "2026-11-07T01:31:42Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321550,
+          "name": "cross (aarch64-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:38:38Z",
+          "completed_at": "2026-11-07T01:42:31Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321574,
+          "name": "cross (wasm32-unknown-unknown)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:35:06Z",
+          "completed_at": "2026-11-07T01:39:49Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321595,
+          "name": "tamarin-proof",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T02:09:15Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321599,
+          "name": "proverif-proof",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:03Z",
+          "completed_at": "2026-11-07T01:38:23Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321620,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, suite)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:39:28Z",
+          "completed_at": "2026-11-07T02:31:55Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255321885,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-transferred)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:46:50Z",
+          "completed_at": "2026-11-07T02:22:50Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128257895212,
+          "name": "bindings-android-runtime-16k",
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-11-07T01:46:52Z",
+          "completed_at": "2026-11-07T01:58:02Z",
+          "failed_steps": [
+            "Execute both SDK consumers against the hash-bound AAR on the selected ART runtime"
+          ]
+        },
+        {
+          "id": 128257895221,
+          "name": "bindings-android-runtime-minimum",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:54:22Z",
+          "completed_at": "2026-11-07T02:16:41Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128258837320,
+          "name": "policy-maintenance-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:40:43Z",
+          "completed_at": "2026-11-07T01:46:47Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128258837322,
+          "name": "policy-maintenance-package (macos-15, aarch64-apple-darwin)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T03:40:11Z",
+          "completed_at": "2026-11-07T03:48:06Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128258837341,
+          "name": "continuity-installed-rust",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:42:34Z",
+          "completed_at": "2026-11-07T03:51:35Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128258837378,
+          "name": "policy-maintenance-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:49:01Z",
+          "completed_at": "2026-11-07T01:53:53Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128258837402,
+          "name": "continuity-installed-kotlin-release",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T04:08:34Z",
+          "completed_at": "2026-11-07T07:31:39Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128258837440,
+          "name": "continuity-installed-android-debug",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T05:16:18Z",
+          "completed_at": "2026-11-07T08:56:05Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128258837443,
+          "name": "continuity-installed-swift-debug",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T03:48:09Z",
+          "completed_at": "2026-11-07T06:16:16Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128258837473,
+          "name": "continuity-installed-swift-release",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T06:16:20Z",
+          "completed_at": "2026-11-07T09:02:27Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128258837476,
+          "name": "continuity-installed-kotlin-debug",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T05:19:39Z",
+          "completed_at": "2026-11-07T08:42:08Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128258837503,
+          "name": "continuity-installed-android-release",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T06:18:54Z",
+          "completed_at": "2026-11-07T10:10:30Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128269047369,
+          "name": "bindings-android-runtime-replay-${{ matrix.profile }}",
+          "status": "completed",
+          "conclusion": "skipped",
+          "started_at": "2026-11-07T02:16:41Z",
+          "completed_at": "2026-11-07T02:16:41Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128374568746,
+          "name": "continuity-installed-coverage",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T10:10:33Z",
+          "completed_at": "2026-11-07T10:15:09Z",
+          "failed_steps": []
+        }
+      ]
+    },
+    {
+      "run_id": 42324128013,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324128013",
+      "head_sha": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "observed_workflow_status": "queued",
+      "total_materialized_jobs": 69,
+      "counts": {
+        "failure": 3,
+        "success": 58,
+        "in_progress": 5,
+        "queued": 2,
+        "skipped": 1
+      },
+      "jobs": [
+        {
+          "id": 128255604740,
+          "name": "check",
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-11-07T01:31:19Z",
+          "completed_at": "2026-11-07T01:41:57Z",
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ]
+        },
+        {
+          "id": 128255604865,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, capacity)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:44:04Z",
+          "completed_at": "2026-11-07T02:35:02Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604866,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:09:18Z",
+          "completed_at": "2026-11-07T03:06:29Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604869,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, release)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:31:45Z",
+          "completed_at": "2026-11-07T02:15:13Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604871,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, suite)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:48:33Z",
+          "completed_at": "2026-11-07T02:49:02Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604872,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, roster-capacity)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:35:25Z",
+          "completed_at": "2026-11-07T02:11:13Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604876,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-transferred)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:35:25Z",
+          "completed_at": "2026-11-07T01:54:58Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604894,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-next-attempt)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:53:56Z",
+          "completed_at": "2026-11-07T02:57:46Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604897,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-account-root)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:41:59Z",
+          "completed_at": "2026-11-07T01:48:31Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604902,
+          "name": "hqc-draft-candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:37:12Z",
+          "completed_at": "2026-11-07T01:41:24Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604904,
+          "name": "bindings-android-aar",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:34:28Z",
+          "completed_at": "2026-11-07T01:45:44Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604915,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, release)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:57:43Z",
+          "completed_at": "2026-11-07T02:46:04Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604925,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, suite)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:01:39Z",
+          "completed_at": "2026-11-07T03:01:02Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604934,
+          "name": "transport",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:36:03Z",
+          "completed_at": "2026-11-07T01:38:35Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604940,
+          "name": "abi2-windows-package-2022",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:31:29Z",
+          "completed_at": "2026-11-07T01:41:45Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604943,
+          "name": "no_std",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:38:13Z",
+          "completed_at": "2026-11-07T01:39:26Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604944,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-other)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:46:29Z",
+          "completed_at": "2026-11-07T02:17:33Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604945,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-account-root)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:38:03Z",
+          "completed_at": "2026-11-07T01:44:02Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604951,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-next-attempt)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:55:04Z",
+          "completed_at": "2026-11-07T02:33:54Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604959,
+          "name": "cross-compiler (beta)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:39:51Z",
+          "completed_at": "2026-11-07T01:46:23Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604967,
+          "name": "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:30:20Z",
+          "completed_at": "2026-11-07T01:35:04Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604981,
+          "name": "msrv",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:47:51Z",
+          "completed_at": "2026-11-07T01:54:19Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255604997,
+          "name": "formal-proof",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:48:39Z",
+          "completed_at": "2026-11-07T01:51:43Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605005,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T03:06:32Z",
+          "completed_at": "2026-11-07T03:37:12Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605009,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-transferred)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:01:41Z",
+          "completed_at": "2026-11-07T02:37:38Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605020,
+          "name": "cross-compiler (stable)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:41:27Z",
+          "completed_at": "2026-11-07T01:46:26Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605023,
+          "name": "cross-compiler (nightly)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:41:48Z",
+          "completed_at": "2026-11-07T01:48:37Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605041,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, roster-capacity)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:01:49Z",
+          "completed_at": "2026-11-07T02:41:11Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605070,
+          "name": "rust-publish-contract",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:52:11Z",
+          "completed_at": "2026-11-07T02:04:17Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605084,
+          "name": "x86-avx2-candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:02:00Z",
+          "completed_at": "2026-11-07T02:09:29Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605090,
+          "name": "riscv64-run",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:11:16Z",
+          "completed_at": "2026-11-07T02:17:26Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605105,
+          "name": "sidechannel",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:55:42Z",
+          "completed_at": "2026-11-07T02:00:25Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605113,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-other)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:04:23Z",
+          "completed_at": "2026-11-07T02:34:40Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605121,
+          "name": "audit",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:04:19Z",
+          "completed_at": "2026-11-07T02:11:35Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605158,
+          "name": "formal-easycrypt",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:49:52Z",
+          "completed_at": "2026-11-07T01:57:40Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605173,
+          "name": "windows",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:32:10Z",
+          "completed_at": "2026-11-07T01:55:02Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605175,
+          "name": "proverif-proof",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:03:33Z",
+          "completed_at": "2026-11-07T02:12:08Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605186,
+          "name": "bindings-kotlin",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:41:23Z",
+          "completed_at": "2026-11-07T01:52:09Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605197,
+          "name": "cross (aarch64-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:58:04Z",
+          "completed_at": "2026-11-07T02:01:47Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605206,
+          "name": "bindings-wasm",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:02:31Z",
+          "completed_at": "2026-11-07T02:17:48Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605213,
+          "name": "continuity-spqr-reference (macos-15)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T03:37:14Z",
+          "completed_at": "2026-11-07T03:49:31Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605237,
+          "name": "cross (riscv64gc-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:06:10Z",
+          "completed_at": "2026-11-07T02:09:47Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605282,
+          "name": "pq-optional-backends",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:09:49Z",
+          "completed_at": "2026-11-07T02:15:51Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605286,
+          "name": "bindings-swift",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:28:12Z",
+          "completed_at": "2026-11-07T02:05:57Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605290,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, capacity)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:01:49Z",
+          "completed_at": "2026-11-07T03:09:44Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605292,
+          "name": "Binary CT [x86_64-portable]",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:46:25Z",
+          "completed_at": "2026-11-07T01:50:52Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605311,
+          "name": "tamarin-proof",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:51:45Z",
+          "completed_at": "2026-11-07T02:27:55Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605333,
+          "name": "cross (wasm32-unknown-unknown)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:58:08Z",
+          "completed_at": "2026-11-07T02:01:46Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605346,
+          "name": "cross (x86_64-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:58:54Z",
+          "completed_at": "2026-11-07T02:01:39Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605361,
+          "name": "standard-tls-interop",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:30:12Z",
+          "completed_at": "2026-11-07T01:35:48Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605370,
+          "name": "continuity-spqr-reference (ubuntu-24.04)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:09:31Z",
+          "completed_at": "2026-11-07T02:19:33Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605388,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-11-07T02:46:50Z",
+          "completed_at": "2026-11-07T04:08:31Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605389,
+          "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:32:01Z",
+          "completed_at": "2026-11-07T01:37:09Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605400,
+          "name": "fuzz",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:55:00Z",
+          "completed_at": "2026-11-07T02:06:08Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605403,
+          "name": "feature-fence",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:00:37Z",
+          "completed_at": "2026-11-07T02:02:29Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255605681,
+          "name": "Binary CT [aarch64-native]",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:32:31Z",
+          "completed_at": "2026-11-07T01:40:49Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128260593107,
+          "name": "bindings-android-runtime-16k",
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-11-07T02:11:38Z",
+          "completed_at": "2026-11-07T02:22:18Z",
+          "failed_steps": [
+            "Execute both SDK consumers against the hash-bound AAR on the selected ART runtime"
+          ]
+        },
+        {
+          "id": 128260593152,
+          "name": "bindings-android-runtime-minimum",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:12:10Z",
+          "completed_at": "2026-11-07T02:34:07Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128265582197,
+          "name": "continuity-installed-rust",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:09:01Z",
+          "completed_at": "2026-11-07T04:19:02Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128265582209,
+          "name": "policy-maintenance-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:06:01Z",
+          "completed_at": "2026-11-07T02:08:59Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128265582227,
+          "name": "continuity-installed-kotlin-release",
+          "status": "in_progress",
+          "conclusion": null,
+          "started_at": "2026-11-07T08:56:08Z",
+          "completed_at": null,
+          "failed_steps": []
+        },
+        {
+          "id": 128265582233,
+          "name": "continuity-installed-android-debug",
+          "status": "in_progress",
+          "conclusion": null,
+          "started_at": "2026-11-07T08:42:11Z",
+          "completed_at": null,
+          "failed_steps": []
+        },
+        {
+          "id": 128265582237,
+          "name": "policy-maintenance-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:12:21Z",
+          "completed_at": "2026-11-07T02:20:03Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128265582247,
+          "name": "policy-maintenance-package (macos-15, aarch64-apple-darwin)",
+          "status": "queued",
+          "conclusion": null,
+          "started_at": "2026-11-07T02:04:17Z",
+          "completed_at": null,
+          "failed_steps": []
+        },
+        {
+          "id": 128265582251,
+          "name": "continuity-installed-kotlin-debug",
+          "status": "in_progress",
+          "conclusion": null,
+          "started_at": "2026-11-07T07:31:43Z",
+          "completed_at": null,
+          "failed_steps": []
+        },
+        {
+          "id": 128265582265,
+          "name": "continuity-installed-android-release",
+          "status": "in_progress",
+          "conclusion": null,
+          "started_at": "2026-11-07T09:02:30Z",
+          "completed_at": null,
+          "failed_steps": []
+        },
+        {
+          "id": 128265582315,
+          "name": "continuity-installed-swift-debug",
+          "status": "queued",
+          "conclusion": null,
+          "started_at": "2026-11-07T02:04:17Z",
+          "completed_at": null,
+          "failed_steps": []
+        },
+        {
+          "id": 128265582335,
+          "name": "continuity-installed-swift-release",
+          "status": "in_progress",
+          "conclusion": null,
+          "started_at": "2026-11-07T10:10:34Z",
+          "completed_at": null,
+          "failed_steps": []
+        },
+        {
+          "id": 128273751806,
+          "name": "bindings-android-runtime-replay-${{ matrix.profile }}",
+          "status": "completed",
+          "conclusion": "skipped",
+          "started_at": "2026-11-07T02:34:07Z",
+          "completed_at": "2026-11-07T02:34:07Z",
+          "failed_steps": []
+        }
+      ]
+    },
+    {
+      "run_id": 42324128069,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324128069",
+      "head_sha": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "observed_workflow_status": "completed",
+      "total_materialized_jobs": 10,
+      "counts": {
+        "success": 10
+      },
+      "jobs": [
+        {
+          "id": 128255349503,
+          "name": "account-exchange (ubuntu-24.04, x86_64)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:33:04Z",
+          "completed_at": "2026-11-07T02:01:36Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255349629,
+          "name": "root-unactivated / root (ubuntu-24.04, x86_64)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:33:10Z",
+          "completed_at": "2026-11-07T01:40:38Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255349653,
+          "name": "account-validation (ubuntu-24.04, x86_64)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:34:22Z",
+          "completed_at": "2026-11-07T01:58:05Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255349677,
+          "name": "root-winner / root (macos-15, arm64)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:04:16Z",
+          "completed_at": "2026-11-07T02:21:46Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255349679,
+          "name": "account-validation (macos-15, arm64)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T03:49:35Z",
+          "completed_at": "2026-11-07T04:27:27Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255349718,
+          "name": "root-winner / root (ubuntu-24.04, x86_64)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:35:50Z",
+          "completed_at": "2026-11-07T01:47:48Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255349741,
+          "name": "account-exchange (macos-15, arm64)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T04:27:29Z",
+          "completed_at": "2026-11-07T05:15:15Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255349764,
+          "name": "root-continuation / root (ubuntu-24.04, x86_64)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:34:04Z",
+          "completed_at": "2026-11-07T01:55:55Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255349834,
+          "name": "root-continuation / root (macos-15, arm64)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:11:57Z",
+          "completed_at": "2026-11-07T02:46:47Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255349910,
+          "name": "root-unactivated / root (macos-15, arm64)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T03:23:36Z",
+          "completed_at": "2026-11-07T03:40:08Z",
+          "failed_steps": []
+        }
+      ]
+    },
+    {
+      "run_id": 42324128011,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324128011",
+      "head_sha": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "observed_workflow_status": "completed",
+      "total_materialized_jobs": 2,
+      "counts": {
+        "success": 2
+      },
+      "jobs": [
+        {
+          "id": 128255349193,
+          "name": "continuity-evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:56Z",
+          "completed_at": "2026-11-07T01:28:26Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255349432,
+          "name": "continuity-publication",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:35:56Z",
+          "completed_at": "2026-11-07T01:37:40Z",
+          "failed_steps": []
+        }
+      ]
+    },
+    {
+      "run_id": 42324128005,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324128005",
+      "head_sha": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "observed_workflow_status": "completed",
+      "total_materialized_jobs": 8,
+      "counts": {
+        "success": 8
+      },
+      "jobs": [
+        {
+          "id": 128255349114,
+          "name": "sdk-package",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:28:01Z",
+          "completed_at": "2026-11-07T01:38:11Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128258506487,
+          "name": "prepare",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:38:25Z",
+          "completed_at": "2026-11-07T01:45:33Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128260542746,
+          "name": "native (windows-2022, debug)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:50:55Z",
+          "completed_at": "2026-11-07T02:15:53Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128260542771,
+          "name": "native (windows-2022, release)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:45:46Z",
+          "completed_at": "2026-11-07T02:16:52Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128260542815,
+          "name": "native (windows-2025, debug)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:54:37Z",
+          "completed_at": "2026-11-07T02:19:45Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128260542827,
+          "name": "native (windows-2025, release)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:55:58Z",
+          "completed_at": "2026-11-07T02:23:09Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128270847885,
+          "name": "public-readback (windows-2025)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:23:11Z",
+          "completed_at": "2026-11-07T02:26:44Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128270847920,
+          "name": "public-readback (windows-2022)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:23:12Z",
+          "completed_at": "2026-11-07T02:27:07Z",
+          "failed_steps": []
+        }
+      ]
+    },
+    {
+      "run_id": 42324127879,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324127879",
+      "head_sha": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "observed_workflow_status": "completed",
+      "total_materialized_jobs": 2,
+      "counts": {
+        "success": 2
+      },
+      "jobs": [
+        {
+          "id": 128255348953,
+          "name": "directory-format",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:27:50Z",
+          "completed_at": "2026-11-07T01:28:09Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255349041,
+          "name": "directory-behavior",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:33:18Z",
+          "completed_at": "2026-11-07T01:36:00Z",
+          "failed_steps": []
+        }
+      ]
+    },
+    {
+      "run_id": 42324117361,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324117361",
+      "head_sha": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "observed_workflow_status": "completed",
+      "total_materialized_jobs": 2,
+      "counts": {
+        "success": 2
+      },
+      "jobs": [
+        {
+          "id": 128255316619,
+          "name": "continuity-installed-android-release",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T01:28:28Z",
+          "completed_at": "2026-11-07T05:19:36Z",
+          "failed_steps": []
+        },
+        {
+          "id": 128255316798,
+          "name": "continuity-installed-android-debug",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-07T02:35:31Z",
+          "completed_at": "2026-11-07T06:17:21Z",
+          "failed_steps": []
+        }
+      ]
+    }
+  ],
+  "selected_push_artifacts": [
+    {
+      "id": 13570615477,
+      "name": "continuity-installed-android-release",
+      "size_in_bytes": 82642276,
+      "digest": "sha256:cf9cd82184a56b3973b57322cbf0899d4dc9520e0145e580a6f1255b54a61f2a",
+      "expired": false,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324117363/artifacts/13570615477"
+    },
+    {
+      "id": 13570526187,
+      "name": "continuity-installed-coverage",
+      "size_in_bytes": 1001,
+      "digest": "sha256:cf786786632bc019b1b307bb98c058632e17dc835ab8a5d35b66619b281bcc06",
+      "expired": false,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324117363/artifacts/13570526187"
+    },
+    {
+      "id": 13568361277,
+      "name": "continuity-installed-android-debug",
+      "size_in_bytes": 82489530,
+      "digest": "sha256:fba8f933e45029abc38158988e7348afd3aa6854bc075cc3207121909c09a5c2",
+      "expired": false,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324117363/artifacts/13568361277"
+    },
+    {
+      "id": 13568109613,
+      "name": "continuity-installed-swift-release",
+      "size_in_bytes": 163056724,
+      "digest": "sha256:de69fcccc41b0c6b8bb66b652b69d6d7c81730d09533a8314c4e6d5166fc2bb4",
+      "expired": false,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324117363/artifacts/13568109613"
+    },
+    {
+      "id": 13567957447,
+      "name": "continuity-installed-kotlin-debug",
+      "size_in_bytes": 136118381,
+      "digest": "sha256:4c86a10632c1e4f90e0cbb390488d6caeb16d4eeb5a259d86f0d53bc0ef2db8a",
+      "expired": false,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324117363/artifacts/13567957447"
+    },
+    {
+      "id": 13565263230,
+      "name": "continuity-installed-kotlin-release",
+      "size_in_bytes": 135019078,
+      "digest": "sha256:3a9a50f75a3eb62bb2ec899d6974b7cb94f6ddf156f5c458e6b311b8660e0e1a",
+      "expired": false,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324117363/artifacts/13565263230"
+    },
+    {
+      "id": 13564046054,
+      "name": "continuity-installed-swift-debug",
+      "size_in_bytes": 163904481,
+      "digest": "sha256:e7da4bcc8f797089d1d75401da8ecb89ba4ee4d459688b1f31e6a778ad5fde7e",
+      "expired": false,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324117363/artifacts/13564046054"
+    },
+    {
+      "id": 13559791138,
+      "name": "continuity-installed-rust",
+      "size_in_bytes": 93487469,
+      "digest": "sha256:3bba2cf47a43d31a51b259b49cae56104c15654cca11ea4b8993284de09666a0",
+      "expired": false,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324117363/artifacts/13559791138"
+    },
+    {
+      "id": 13556046151,
+      "name": "abi2-android-sdk-020-runtime-api35-16k-x86_64-failure-diagnostics",
+      "size_in_bytes": 184855,
+      "digest": "sha256:dbdf159f498fc8491696aa6a509e17d2ad6f2641a498a3ef46498593ae6e7dba",
+      "expired": false,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324117363/artifacts/13556046151"
+    },
+    {
+      "id": 13555765417,
+      "name": "artifact-tooling-checks",
+      "size_in_bytes": 114647,
+      "digest": "sha256:ff46132b7ef5afef452fcd4f8536f0feba38e3460187e15d4187090005a29634",
+      "expired": false,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42324117363/artifacts/13555765417"
+    }
+  ],
+  "coverage": {
+    "artifact_id": 13570526187,
+    "retained_file": "continuity-installed-coverage.zip",
+    "zip_bytes": 1001,
+    "zip_sha256": "cf786786632bc019b1b307bb98c058632e17dc835ab8a5d35b66619b281bcc06",
+    "member": "CONTINUITY_PROFILE_COVERAGE.json",
+    "completed": true,
+    "partitions": 6,
+    "source_commit": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+    "release_claim_eligible": false,
+    "publication_performed": false
+  },
+  "macos_pr_suite": {
+    "job_id": 128255605388,
+    "classification": "hosted-runner-communication-loss",
+    "annotation_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/128255605388/annotations?per_page=100&page=1",
+    "failure_message": "The hosted runner lost communication with the server. Anything in your workflow that terminates the runner process, starves it for CPU/Memory, or blocks its network access can cause this error.",
+    "underlying_cause": "unclassified"
+  },
+  "assessment_scope": "API job outcomes plus digest-verified aggregate profile receipt. The aggregate verifier ran against six original archives; their full scenario contents remain in the producer artifacts. This checkpoint retains ongoing PR states as observed, without promoting them to completion.",
+  "publication_performed": false,
+  "android_runtime_failures": [
+    {
+      "event": "push",
+      "job_id": 128257895212,
+      "artifact_id": 13556046151,
+      "retained_file": "push-android16k-diagnostics.zip",
+      "bytes": 184855,
+      "sha256": "dbdf159f498fc8491696aa6a509e17d2ad6f2641a498a3ef46498593ae6e7dba",
+      "classification": "repeated-adb-transport-loss-during-installed-apk-readback",
+      "primary_exit_status": 2,
+      "secondary_defect": "pure ownership-validation deadline exhaustion classified as structural failure",
+      "instrumentation_reached": false
+    },
+    {
+      "event": "pull_request",
+      "job_id": 128260593107,
+      "artifact_id": 13556511676,
+      "retained_file": "pr-android16k-diagnostics.zip",
+      "bytes": 174838,
+      "sha256": "193434556316316c29186e60cdd201a096041a7cfe927309b9b934968736e5da",
+      "classification": "instrumentation-command-failure-with-observed-system-server-crash-and-framework-restart",
+      "primary_exit_status": 1,
+      "instrumentation_reached": true,
+      "cleanup_completed": true,
+      "ultimate_crash_cause": "unestablished"
+    }
+  ],
+  "prepared_repair": {
+    "files": [
+      "artifact/android-device-smoke.sh",
+      "artifact/android_bounded_command.py",
+      "artifact/test_android_bounded_command.py"
+    ],
+    "local_python": "3.12.14",
+    "diagnostic_regression_tests": 8,
+    "installed_apk_observation_tests": 19,
+    "new_regression_methods": 5,
+    "source_ref_updated": false,
+    "workflow_rerun_performed": false,
+    "scope": "preserve primary diagnostic failures and classify pure typed observation deadline expiry; retain existing APK ownership/signature, cleanup, total deadline and transport recovery acceptance"
+  }
+}

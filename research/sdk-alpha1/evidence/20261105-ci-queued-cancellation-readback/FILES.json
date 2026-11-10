@@ -1,0 +1,30 @@
+{
+  "CLASSIFICATION.json": {
+    "bytes": 1924,
+    "sha256": "74b4966e852f2a3df40af621a1087929ff9560796ecb1e456f9c4fc71a1c5d27"
+  },
+  "capture/CHANGES.json": {
+    "bytes": 6214,
+    "sha256": "7ab9cd6c618ed561f4aaba67e6370516560499cac6b1dbe5cc3fbc6f6703131e"
+  },
+  "capture/CI_STATUS.json": {
+    "bytes": 1892688,
+    "sha256": "f10daccb434047469636cc3ccb6ae949ddc35e8bdc6a80785c43ab200c3b0409"
+  },
+  "capture/cancelled-job-log-response.json": {
+    "bytes": 948,
+    "sha256": "e0ec052cd12a82a06a740a485a74c7409c5112329d9907d9f07d41ad7af3fe64"
+  },
+  "capture/check-run-endpoint-response.json": {
+    "bytes": 401,
+    "sha256": "32f9807a1c18edaabdae37a922a9c94684927f67e0a209d2443f7b2030a895f2"
+  },
+  "capture/job-126449258004.log": {
+    "bytes": 70313,
+    "sha256": "8b3b9d31d84553d52dd55ae4e4d582413c665cc901167330a78659620a061453"
+  },
+  "capture/seal.py": {
+    "bytes": 5608,
+    "sha256": "5a94a903d60dfbe13cf8930ec3fef819c77f720a43c680f2d1196068a464f27f"
+  }
+}

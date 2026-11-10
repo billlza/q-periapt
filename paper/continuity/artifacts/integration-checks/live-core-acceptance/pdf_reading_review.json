@@ -1,0 +1,101 @@
+{
+  "decision": "PASS",
+  "checked_at_utc": "2026-11-08T01:29:18.285292+00:00",
+  "reviewer": "contextbound_adapter",
+  "scope": "Read-only visual inspection of the supplied reading-scale PNG renders; no mathematical validation is inferred from image review.",
+  "pdf": {
+    "path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/continuity.pdf",
+    "sha256": "aa119095dbf3c717e26530237effb66e0e2e4dea2a1e9dc9e094f003bb65c3a9",
+    "pages": 72,
+    "bytes": 969698
+  },
+  "actual_pages_viewed": [
+    1,
+    43,
+    45,
+    46,
+    47
+  ],
+  "images": [
+    {
+      "pdf_page": 1,
+      "visible_printed_page": 1,
+      "path": "/workspace/scratch/83c4961eae79/next_stage/pdf_review/page-01.png",
+      "sha256": "5a7a17d7ead7921f8e99791e8e59e9745673e2e1aab1fd23db9e53b84bc1aa8f",
+      "width_px": 1072,
+      "height_px": 1516,
+      "viewed_with": "view_image",
+      "outcome": "PASS",
+      "observations": [
+        "Title, one-author block, Durham affiliation and corresponding email are legible and uncut.",
+        "Abstract and keyword lines remain within the text block; no obvious glyph or link-rendering defects."
+      ]
+    },
+    {
+      "pdf_page": 43,
+      "visible_printed_page": 43,
+      "path": "/workspace/scratch/83c4961eae79/next_stage/pdf_review/page-43.png",
+      "sha256": "d88799374dd77ac4aab20d1b8f4a46e4eca8584376b232cc0e1529026e3f390c",
+      "width_px": 1072,
+      "height_px": 1516,
+      "viewed_with": "view_image",
+      "outcome": "PASS",
+      "observations": [
+        "Equations (18) and (19) fit within the text block; multi-line braces, summation indices and equation numbers are separated and readable.",
+        "Corollary 5.15 and its proof have clear font hierarchy, spacing and a visible end-of-proof symbol."
+      ]
+    },
+    {
+      "pdf_page": 45,
+      "visible_printed_page": 45,
+      "path": "/workspace/scratch/83c4961eae79/next_stage/pdf_review/page-45.png",
+      "sha256": "f6147f24bdaca3af29e310bca881a0680320dfcfa7091c6330d1db2f865e52ef",
+      "width_px": 1072,
+      "height_px": 1516,
+      "viewed_with": "view_image",
+      "outcome": "PASS",
+      "observations": [
+        "The associated-data display and equation (21) fit within the text block.",
+        "The bottom q_d display, its summation subscript and the page footer have visible separation.",
+        "The corrected native wording visibly says receive-intent digest and plaintext; the cached-return sentence is readable."
+      ]
+    },
+    {
+      "pdf_page": 46,
+      "visible_printed_page": 46,
+      "path": "/workspace/scratch/83c4961eae79/next_stage/pdf_review/page-46.png",
+      "sha256": "be17cd9bf03e125d03bb26c200c0d83761c26916c33cdc48888260e4add38364",
+      "width_px": 1072,
+      "height_px": 1516,
+      "viewed_with": "view_image",
+      "outcome": "PASS",
+      "observations": [
+        "The collision bound shows (Q+2)^3 and the published Theorem 7 reference legibly.",
+        "Proposition 5.16 and two-line bound (22) stay within the page text block, with the equation number clear.",
+        "The proof text including the first internal MAC equality stopping point is readable; continuation to the next page has no clipped line."
+      ]
+    },
+    {
+      "pdf_page": 47,
+      "visible_printed_page": 47,
+      "path": "/workspace/scratch/83c4961eae79/next_stage/pdf_review/page-47.png",
+      "sha256": "549789e99fa5864929074185b91f7af3983a261828089e343263adbe1ccb2e32",
+      "width_px": 1072,
+      "height_px": 1516,
+      "viewed_with": "view_image",
+      "outcome": "PASS",
+      "observations": [
+        "The continuation proof, integrity paragraph and end-of-proof symbol are legible.",
+        "The native accounting paragraph and Section 5.9 transition have adequate spacing.",
+        "The root-entry display and following descriptor text fit within the text block."
+      ]
+    }
+  ],
+  "blocking_visual_findings": [],
+  "manuscript_or_pdf_modified": false,
+  "limits": [
+    "Only pages 1, 43, 45, 46 and 47 were visually inspected by this reviewer.",
+    "The parent reviewer covers the 72-page contact sheets and the other new pages.",
+    "Equation (20) is outside these supplied five page images; this receipt makes no direct visual claim about it."
+  ]
+}

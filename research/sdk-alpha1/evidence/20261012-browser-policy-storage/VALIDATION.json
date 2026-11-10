@@ -1,0 +1,17 @@
+{
+  "reader_tests_passed": 14,
+  "node_package_tests": "passed",
+  "typescript": "7.0.2 strict NodeNext passed",
+  "actionlint": {
+    "baseline_commit": "04f63e395a5cf8af2e75a2db4192a6b8af032e9e",
+    "baseline_returncode": 1,
+    "current_returncode": 1,
+    "unchanged_ubuntu_26_04_label_diagnostics": 2,
+    "new_diagnostics": 0,
+    "comparison_sha256": "4d5bd58b01652f20193216cc41152078674e700e00e311df74dbef7c2c202a4f"
+  },
+  "all_manual_fixture_servers_observed_terminal": true,
+  "manual_browser_closed": true,
+  "canonical_browser_and_server_cleanup_verified": true,
+  "release_claim_eligible": false
+}

@@ -1,0 +1,106 @@
+name: Continuity focused regressions
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/continuity-regression.yml
+      - .github/workflows/continuity-windows-package.yml
+      - artifact/**
+      - research/continuity-identity-candidate/**
+      - research/continuity-reference-app/**
+      - research/sdk-alpha1/evidence/20261012-android-recovery/**
+      - crates/**
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain.toml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: continuity-regression-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: continuity-${{ matrix.check }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [evidence, publication]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .cargo
+            .github
+            artifact
+            crates
+            ctstats
+            models
+            services
+            bindings
+            LICENSES
+            research/continuity-identity-candidate
+            research/continuity-reference-app
+            research/continuity-openssl-peer
+            research/sdk-alpha1/evidence/20261012-android-recovery
+      - name: Select canonical evidence interpreter
+        if: matrix.check == 'evidence'
+        id: proof_python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Select browser-script test runtime
+        if: matrix.check == 'evidence'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24.0.0"
+      - name: Replay original evidence and reject altered current contracts
+        if: matrix.check == 'evidence'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh artifact/python-run.sh -m unittest -v \
+            test_continuity_c_account_tls \
+            test_continuity_c_account_tls_loss \
+            test_continuity_c_account_delivery \
+            test_continuity_c_witness_tls \
+            test_continuity_android_recovery \
+            test_continuity_windows_fetch \
+            test_continuity_windows_workflow \
+            test_continuity_browser_phase \
+            2>&1 | tee "$RUNNER_TEMP/continuity-evidence-regressions.log"
+          grep -Eq '^Ran [1-9][0-9]* tests? in ' "$RUNNER_TEMP/continuity-evidence-regressions.log"
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        if: matrix.check == 'publication'
+        with:
+          toolchain: 1.98.1
+      - name: Prepare native OpenSSL
+        if: matrix.check == 'publication'
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+      - name: Exercise signed policy refusal and both actual publication commands
+        if: matrix.check == 'publication'
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/continuity-regression-build
+          RUSTFLAGS: -D warnings
+        shell: bash
+        run: |
+          set -euo pipefail
+          check_tests() {
+            local label="$1"; shift
+            "$@" 2>&1 | tee "$RUNNER_TEMP/$label.log"
+            grep -Eq '^test result: ok\. [1-9][0-9]* passed; 0 failed;' "$RUNNER_TEMP/$label.log"
+          }
+          manifest=research/continuity-reference-app/Cargo.toml
+          check_tests policy cargo +1.98.1 test --locked --manifest-path "$manifest" --lib policy_publisher::tests::
+          check_tests reusable cargo +1.98.1 test --locked --manifest-path "$manifest" --test native_device actual_cli_verifies_reusable_publication_without_opening_state
+          check_tests one-time cargo +1.98.1 test --locked --manifest-path "$manifest" --test native_device actual_cli_verifies_one_time_publication_without_opening_state

@@ -1,0 +1,23 @@
+{
+  "completed": true,
+  "main_head": "956ecc85a966e1c02e58cf0aa1ca48abeab5be62",
+  "integrated": false,
+  "host_policy_roster_processes": 544,
+  "art_policy_roster_processes": 136,
+  "host_original_policy_roster_regressions": 304,
+  "accepted_one_phone_gate": true,
+  "capture_sha256": "32130182643df55a45aa42e538248b5fee1d271b89a741befdb7ed6b9e88d8ce",
+  "members": 3157,
+  "size": 3008224,
+  "native_engine_changed": false,
+  "scope": "Actual protocol P0 expiry followed by independently approved P2 and required-witness R Applied/Closed, preserving original uncertain message. Outer SDK policy and credentials remain live. Local P2 roster API, positive Android remote roster admission and integration remain open.",
+  "archive_readback_completed": true,
+  "archive_readback_sha256": "a45aa845fd91a557d4aa20082d5b7b4056954db4aaccfa997edadce27e78316a",
+  "main_base_readback": {
+    "completed": true,
+    "head": "956ecc85a966e1c02e58cf0aa1ca48abeab5be62",
+    "main_worktree_clean": true,
+    "android_base_files": 66,
+    "base_mismatches": []
+  }
+}

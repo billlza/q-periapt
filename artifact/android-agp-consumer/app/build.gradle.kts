@@ -2,6 +2,7 @@ import groovy.json.JsonOutput
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
+import java.security.MessageDigest
 
 plugins { id("com.android.application") }
 
@@ -10,6 +11,14 @@ val smokeRoot = providers.gradleProperty("qperiaptSmokeRoot").map(::file)
 val fixtureAssets = providers.gradleProperty("qperiaptFixtureAssets").map(::file)
 val inputCapture = providers.gradleProperty("qperiaptInputCapture").map(::file)
 val jvmCapture = providers.gradleProperty("qperiaptJvmCapture").map(::file)
+val sdkMaven = providers.gradleProperty("qperiaptSdkMaven").map {
+    check(it == "true") { "qperiaptSdkMaven must be absent or true" }
+    true
+}.getOrElse(false)
+val sdkWorkload = providers.gradleProperty("qperiaptSdkWorkload").map {
+    check(it == "true") { "qperiaptSdkWorkload must be absent or true" }
+    true
+}.getOrElse(sdkMaven)
 
 android {
     namespace = "dev.qperiapt.androidsmoke"
@@ -37,9 +46,9 @@ android {
     }
     sourceSets {
         getByName("main").java.directories.add(smokeRoot.get().resolve("common").path)
-        getByName("full").java.directories.add(smokeRoot.get().resolve("full").path)
+        getByName("full").java.directories.add(smokeRoot.get().resolve(if (sdkWorkload) "sdk" else "full").path)
         getByName("full").assets.directories.add(fixtureAssets.get().path)
-        getByName("minimal").java.directories.add(smokeRoot.get().resolve("minimal").path)
+        getByName("minimal").java.directories.add(smokeRoot.get().resolve(if (sdkWorkload) "sdk-minimal" else "minimal").path)
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -84,4 +93,39 @@ tasks.withType<JavaCompile>().configureEach {
     }
 }
 
-dependencies { implementation(files(exactAar)) }
+dependencies {
+    if (sdkMaven) {
+        check(!providers.gradleProperty("qperiaptAar").isPresent) { "Maven consumer cannot also select a file AAR" }
+        implementation("dev.qperiapt:q-periapt-android:0.2.0")
+    } else {
+        implementation(files(exactAar))
+    }
+}
+
+if (sdkMaven) {
+    tasks.register("captureSdkResolution") {
+        doLast {
+            val variant = providers.gradleProperty("qperiaptVariant").get()
+            check(variant in setOf("full", "minimal")) { "Unknown SDK consumer variant" }
+            val artifacts = configurations.getByName("${variant}ReleaseRuntimeClasspath").resolvedConfiguration.resolvedArtifacts
+            // AGP 9.4's built-in Kotlin adds stdlib even to this Java-only app.
+            // Keep that observed tool dependency distinct from the AAR's empty POM dependency list.
+            val expected = setOf("dev.qperiapt:q-periapt-android:0.2.0",
+                "org.jetbrains.kotlin:kotlin-stdlib:2.2.10", "org.jetbrains:annotations:13.0")
+            check(artifacts.map { it.moduleVersion.id.toString() }.toSet() == expected && artifacts.size == expected.size) {
+                "Android SDK consumer runtime dependency closure differs"
+            }
+            val selected = artifacts.single { it.moduleVersion.id.group == "dev.qperiapt" }
+            check(selected.moduleVersion.id.toString() == "dev.qperiapt:q-periapt-android:0.2.0")
+            check(selected.extension == "aar")
+            val digest = MessageDigest.getInstance("SHA-256").digest(selected.file.readBytes()).joinToString("") { "%02x".format(it) }
+            val capture = file(providers.gradleProperty("qperiaptResolutionCapture").get())
+            val runtime = artifacts.sortedBy { it.moduleVersion.id.toString() }.map {
+                mapOf("coordinate" to it.moduleVersion.id.toString(), "path" to it.file.canonicalPath,
+                    "sha256" to MessageDigest.getInstance("SHA-256").digest(it.file.readBytes()).joinToString("") { byte -> "%02x".format(byte) })
+            }
+            Files.writeString(capture.toPath(), JsonOutput.toJson(mapOf("coordinate" to selected.moduleVersion.id.toString(),
+                "path" to selected.file.canonicalPath, "sha256" to digest, "runtime_dependencies" to runtime)) + "\n", StandardOpenOption.CREATE_NEW)
+        }
+    }
+}

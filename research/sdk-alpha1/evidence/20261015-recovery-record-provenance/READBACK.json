@@ -1,0 +1,8 @@
+{
+  "capture_sha256": "28e1bf06e240b79a7591d4f50f23c032155d812ee571b9a702965faa550b4905",
+  "completed": true,
+  "independently_replayed_helper_count": 3,
+  "main_secrecy_verified": false,
+  "members": 101,
+  "private_sdk_runtime_data_selected": false
+}

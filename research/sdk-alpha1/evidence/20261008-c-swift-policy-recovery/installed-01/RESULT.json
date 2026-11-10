@@ -1,0 +1,214 @@
+{
+  "source_head": "046c0e4ccdea88b3bea619c41d771d9faf2c38c5",
+  "native_package_source_head": "1f6e9edf6fe98a5ff4c572e69c346c7e088e17e5",
+  "archive_sha256": "127078c0244ce819ff9d781f9526cf02eadd52d1f8af39b0f0d85359cc0dc93a",
+  "source_files": {
+    "bindings/swift/Sources/QPeriaptSDK/ConnectionEngine.swift": "e53bef708575bf232d14081ce24d5896b42bf42015afcfcf5ae566487bf4ca10",
+    "bindings/swift/Sources/QPeriaptSDK/NetworkTransport.swift": "f96399e24517d2c9db48142cef0310526c1c472b5e2bf70d88688c0c7543d5da",
+    "bindings/swift/Sources/QPeriaptSDK/QPeriaptConnection.swift": "0b8c9949a266d4f2d6ed8d2d5fce91f616bb985bf166575da9a1a2e2c5ab8686",
+    "bindings/swift/Sources/QPeriaptSDK/QPeriaptPersistentRuntime.swift": "b80cb944f04c0aa451034e1440d9aa082006703a81b0759e7b55b82827c9053c",
+    "bindings/swift/Sources/QPeriaptSDK/QPeriaptPolicyRecovery.swift": "c11e97df26241305bb74e3b7fa8ffd741bc4e93c2d95bcb9e8992cfaefc4077d",
+    "bindings/swift/Sources/QPeriaptSDK/QPeriaptSDK.swift": "5d6197b1f697fc9704c0fe0ef026e7dee9a25b534abab8b5ac2e75f5a177745b",
+    "bindings/swift/Sources/QPeriaptHybrid/QPeriaptHybrid.swift": "43104552ed74741a22296c6e4cc6a81f2585abc983aa3e9fec0459f9216e20bd",
+    "bindings/swift/SDKPackageREADME.md": "bba8d1c91ed0f2dbbc85439e856b0d04209efb48bdb054db96bfdf2695e44a1a",
+    "LICENSE": "ed972005262b556e78016964a8c210b2e64e341b51d3064bab951b0b86f28c3f",
+    "LICENSES/Apache-2.0.txt": "cfdff80f6bf12fb250921ea93684b84ffa97b7aa02f0ec859de0c7312a72ceb3",
+    "LICENSES/MIT.txt": "b93c8c0efb8cfe3c10b26ab6e2982b44cb2e4a1dce72dd12f23d89814553c5f6",
+    "LICENSES/Rust-1.98.1-library.html": "68129500b616d5838629e68f55ff3aed5e096dacf60ce9eb41bbe599a563afa6",
+    "crates/q-periapt-mlkem-native-sys/vendor/INVENTORY.sha256": "2da01a09d412019394a3244951541f0688203a935660c88f98c260b6fb2916df",
+    "crates/q-periapt-mlkem-native-sys/vendor/LICENSE-INVENTORY.md": "93d8e8c10e8d4a0850f47b6a36df7c1612e0a14999ef68bc199210d51d46688a",
+    "crates/q-periapt-mlkem-native-sys/vendor/LICENSE.mlkem-native": "1c730e3c2cd4f70e058519ef3e910d8bdd4ed822ae2ce689f3c63d32fc52314b",
+    "crates/q-periapt-mlkem-native-sys/vendor/PROVENANCE.md": "4f77ed41c52d4227a2eda323fd4b0bd026a35c912b1454b6eb84d1512cbbafe6",
+    "bindings/swift/SDKBinaryConsumerFixture/Sources/QPeriaptLinkProbe/main.swift": "89a517cbe893266da1dbbd933dbdb40ec00d1950a57248eab0b400c4716a2791",
+    "bindings/swift/SDKBinaryConsumerFixture/Tests/QPeriaptSDKBinaryConsumerTests/SDKTests.swift": "426bf46c4c0896c326001cab45ebc45a30c5212c07a2aff4af9724fdc8297133"
+  },
+  "scope": "macOS arm64 installed C package recovery and Swift wrapper consumer using that exact static archive. Single-host diagnostic XCFramework; not full Apple release packaging or iOS/device evidence.",
+  "runs": [
+    {
+      "label": "pkg-config-shared",
+      "command": [
+        "/opt/homebrew/bin/pkg-config",
+        "--cflags",
+        "--libs",
+        "qperiapt-abi2"
+      ],
+      "returncode": 0,
+      "seconds": 0.0058248748537153006,
+      "stdout_sha256": "af0d689acf8d1f41284f29b952973706824423ad05188a56abb42677b9f00dda",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "c-compile-shared",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/recovery_consumer.c",
+        "-I/private/tmp/qperiapt-recovery-installed-hxy84_hi/unpack/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/pkgconfig/../../include/qperiapt/abi2",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/unpack/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/pkgconfig/../../lib/libq_periapt_ffi.2.dylib",
+        "-Wl,-rpath,/private/tmp/qperiapt-recovery-installed-hxy84_hi/unpack/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/pkgconfig/../../lib",
+        "-Wl,-rpath,/private/tmp/qperiapt-recovery-installed-hxy84_hi/unpack/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib",
+        "-o",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/recovery-shared"
+      ],
+      "returncode": 0,
+      "seconds": 0.09177525015547872,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "c-link-shared",
+      "command": [
+        "/usr/bin/otool",
+        "-L",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/recovery-shared"
+      ],
+      "returncode": 0,
+      "seconds": 0.014495375100523233,
+      "stdout_sha256": "1a96f5fd9b053621347424e7b1cd9b002e29679c83fef46d1dbb155b09dc86cc",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "c-run-shared",
+      "command": [
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/recovery-shared",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/store-shared/policy.redb"
+      ],
+      "returncode": 0,
+      "seconds": 0.45927912509068847,
+      "stdout_sha256": "28eb976b457e030ccce57a9505b82139e66d7df9f1a815fc2b516c6f57260c2c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "pkg-config-static",
+      "command": [
+        "/opt/homebrew/bin/pkg-config",
+        "--cflags",
+        "--libs",
+        "qperiapt-abi2-static"
+      ],
+      "returncode": 0,
+      "seconds": 0.010938291903585196,
+      "stdout_sha256": "c6d02fe9728474d7dc84e9388a12b7c23e3b6e8ded955af33929927fd837ef76",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "c-compile-static",
+      "command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/recovery_consumer.c",
+        "-I/private/tmp/qperiapt-recovery-installed-hxy84_hi/unpack/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/pkgconfig/../../include/qperiapt/abi2",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/unpack/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/pkgconfig/../../lib/libq_periapt_ffi_abi2.a",
+        "-Wl,-rpath,/private/tmp/qperiapt-recovery-installed-hxy84_hi/unpack/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib",
+        "-o",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/recovery-static"
+      ],
+      "returncode": 0,
+      "seconds": 0.11529537499882281,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "c-link-static",
+      "command": [
+        "/usr/bin/otool",
+        "-L",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/recovery-static"
+      ],
+      "returncode": 0,
+      "seconds": 0.014180250000208616,
+      "stdout_sha256": "d443c3634be76f3aa83ea44d854fabd04ec7999ad89e47877c464795085fefa9",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "c-run-static",
+      "command": [
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/recovery-static",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/store-static/policy.redb"
+      ],
+      "returncode": 0,
+      "seconds": 0.35880000004544854,
+      "stdout_sha256": "28eb976b457e030ccce57a9505b82139e66d7df9f1a815fc2b516c6f57260c2c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "xcframework-host",
+      "command": [
+        "/usr/bin/xcrun",
+        "xcodebuild",
+        "-create-xcframework",
+        "-library",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/unpack/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin/lib/libq_periapt_ffi_abi2.a",
+        "-headers",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/headers",
+        "-output",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/QPeriapt/Binaries/CQPeriapt.xcframework"
+      ],
+      "returncode": 0,
+      "seconds": 1.5187812088988721,
+      "stdout_sha256": "d73ed758e30571ae1e07e46f0db7ce3a1b02d16d45bdd0e3e5affa783cbad84b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "swift-debug",
+      "command": [
+        "/usr/bin/xcrun",
+        "swift",
+        "test",
+        "--package-path",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/QPeriaptSDKConsumer",
+        "--scratch-path",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/build-debug",
+        "-c",
+        "debug",
+        "-Xswiftc",
+        "-strict-concurrency=complete",
+        "-Xswiftc",
+        "-warnings-as-errors"
+      ],
+      "returncode": 0,
+      "seconds": 11.928874791134149,
+      "stdout_sha256": "dcae4efae229369edb975bb3a55a5a890ec85f0e1daa82f049b7e18394d5a2f8",
+      "stderr_sha256": "127185b02fc05e357287c99d363e2d0aeab7aa0dc6b6c9cdf4a4d8a559f02609"
+    },
+    {
+      "label": "swift-release",
+      "command": [
+        "/usr/bin/xcrun",
+        "swift",
+        "test",
+        "--package-path",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/QPeriaptSDKConsumer",
+        "--scratch-path",
+        "/private/tmp/qperiapt-recovery-installed-hxy84_hi/build-release",
+        "-c",
+        "release",
+        "-Xswiftc",
+        "-strict-concurrency=complete",
+        "-Xswiftc",
+        "-warnings-as-errors"
+      ],
+      "returncode": 0,
+      "seconds": 10.411884624976665,
+      "stdout_sha256": "0846c290fb0a2e3d0bab38a62012891ff30ff024b39e63316dea90771699a13f",
+      "stderr_sha256": "f9c977d6fa5eefdac76ea9f804a392453f528834ff2eb0059d0f0442ee043d57"
+    }
+  ],
+  "native_static_sha256": "d95474c8aee38acbc7c8fa9ac2a41bfa320f8f0b6a86051f50b69aded94b7f27",
+  "native_header_sha256": "5b963dd014c65a917f884f59f43bdb0ef5556a85c9b2f0c58d0420afa6ac5c43",
+  "swift_debug_selected_archives": [
+    "build-debug/out/Products/Debug/libq_periapt_ffi_abi2.a"
+  ],
+  "swift_release_selected_archives": [
+    "build-release/out/Products/Release/libq_periapt_ffi_abi2.a"
+  ],
+  "pass": true
+}

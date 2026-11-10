@@ -1,0 +1,592 @@
+{
+  "git_commit": "f99a1100a74a10cb649a6f2a5fc61430f1174436",
+  "sources": [
+    {
+      "path": "artifact/android_device_proof.py",
+      "git_blob": "7d6eba9524d70e32d166d2c8ea0e2fe854cf3d41",
+      "sha256": "a5d794c038351a67a99680c620ffe12ee8d2ed4d4ef8aaa4e07d2871ca9f54ff",
+      "bytes": 160771,
+      "comparison_git_blob": "7d6eba9524d70e32d166d2c8ea0e2fe854cf3d41",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/android_runtime_control.py",
+      "git_blob": "a81a747949e8986d60119495866064b99187b75c",
+      "sha256": "ac450f12c393e377eb36571c5c3cb5fb5968a8b75a63ffd922eecc68be6fab68",
+      "bytes": 23790,
+      "comparison_git_blob": "a81a747949e8986d60119495866064b99187b75c",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/android_sdk_package.py",
+      "git_blob": "8a601ec9d05ff095311e9b2a7126f24adbdb5976",
+      "sha256": "faf1a9cd6176cc85b60b6f80fc75696df3fd8676286448d68680494dfb885b56",
+      "bytes": 20116,
+      "comparison_git_blob": "8a601ec9d05ff095311e9b2a7126f24adbdb5976",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/apple_sdk_profile.py",
+      "git_blob": "2d77eb92e935530b1a210957a0496af580646433",
+      "sha256": "f85c2a8f3ae7b530410c2602b906fb508da9855e276b8e131ffaf2852d8170cf",
+      "bytes": 27209,
+      "comparison_git_blob": "2d77eb92e935530b1a210957a0496af580646433",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/bounded_process.py",
+      "git_blob": "63bc8ff305c80721469e9f46f480395c8a036b76",
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+      "bytes": 51311,
+      "comparison_git_blob": "63bc8ff305c80721469e9f46f480395c8a036b76",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/c_abi_contract.py",
+      "git_blob": "3c037818f2adb33c58299ac279cada187ecd37df",
+      "sha256": "d2a7e6dab49e69038a66a436e0a7066e6e162be07920bb4dc326f823fe03e8f9",
+      "bytes": 57177,
+      "comparison_git_blob": "3c037818f2adb33c58299ac279cada187ecd37df",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/continuity_c_consumer.py",
+      "git_blob": "b3e21c9eb2cb7fa2daf648d16af2ec1c923414d3",
+      "sha256": "c8638ea7cffd34b9aeb38e3c31dd36313ca6868ed26a013d39d6798e73c9ab34",
+      "bytes": 71634,
+      "comparison_git_blob": "b3e21c9eb2cb7fa2daf648d16af2ec1c923414d3",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/continuity_c_faults.py",
+      "git_blob": "73bd2cdc646b8d3780a35a4d8481db6cb5f6bb90",
+      "sha256": "e892a369fda9d4d432b5e63ce0566af7a9603050e48fec437e8588600aa680b8",
+      "bytes": 30247,
+      "comparison_git_blob": "73bd2cdc646b8d3780a35a4d8481db6cb5f6bb90",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/continuity_kotlin_consumer.py",
+      "git_blob": "ff8e3428090426a785e3409ad9427eec4c7f0620",
+      "sha256": "e8ab63ed4b5299f8d0fe081103e9844aba381387eec30d854fec509c7e41e9a3",
+      "bytes": 62895,
+      "comparison_git_blob": "ff8e3428090426a785e3409ad9427eec4c7f0620",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/continuity_package.py",
+      "git_blob": "14d12b3a83e91512f95e83dc364c72cb8a1e7f44",
+      "sha256": "16c9f5d70522f515f1c178273af4a54513b217fac04cd3194df31262e364e944",
+      "bytes": 45117,
+      "comparison_git_blob": "14d12b3a83e91512f95e83dc364c72cb8a1e7f44",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/continuity_peer_configuration.py",
+      "git_blob": "df9882d44c9a3b20e44095ef1d956182101d926f",
+      "sha256": "24955f3465a7787e597c444107ad8b7ce744ed9b6af8abd9598029f2365b06be",
+      "bytes": 5357,
+      "comparison_git_blob": "df9882d44c9a3b20e44095ef1d956182101d926f",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/continuity_profiles.py",
+      "git_blob": "4905c265e7ba23d6e1640a1c83b8594082e3bd97",
+      "sha256": "2e3571ff63cbf6c4b69c8c328275448aee54d0132b2c2a0300a2455c6992eccf",
+      "bytes": 8352,
+      "comparison_git_blob": "4905c265e7ba23d6e1640a1c83b8594082e3bd97",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/continuity_setup_faults.py",
+      "git_blob": "7db9058f14a9dc6ec9feee293ca28faf849e52c2",
+      "sha256": "bee75187549ac4c1b064650a1c24c328e0384c2553e126efe65fd131f173c180",
+      "bytes": 21609,
+      "comparison_git_blob": "7db9058f14a9dc6ec9feee293ca28faf849e52c2",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/continuity_setup_io.py",
+      "git_blob": "4d0ace54d83fe795ad44e8570f20b46734dc910c",
+      "sha256": "da690e02cdeac2fc7b4f59c1bd94a0fe34774fd5c0c2cecceadf918903e2d95b",
+      "bytes": 20740,
+      "comparison_git_blob": "4d0ace54d83fe795ad44e8570f20b46734dc910c",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/continuity_swift_consumer.py",
+      "git_blob": "3205d54fc2d217462e314099001205a28b339e66",
+      "sha256": "1da737b486f55612c9220e5786f31fc8411e9dbb0313cecb954a05bd6187b34b",
+      "bytes": 31845,
+      "comparison_git_blob": "3205d54fc2d217462e314099001205a28b339e66",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/continuity_windows_consume.py",
+      "git_blob": "f5fbd4b3b13678a9a73578ad814d2207bb95fe94",
+      "sha256": "16ca76fadd1523bb22054461d7a6fcb6cc2bfba60c0da6dd7fb8ff63a6f68e92",
+      "bytes": 27322,
+      "comparison_git_blob": "f5fbd4b3b13678a9a73578ad814d2207bb95fe94",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/evidence_io.py",
+      "git_blob": "a0358296cc398609c048e56cbcd960ff81fe7d27",
+      "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+      "bytes": 44308,
+      "comparison_git_blob": "a0358296cc398609c048e56cbcd960ff81fe7d27",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/git_provenance.py",
+      "git_blob": "abca87c463429b8b2182b5f1fa47635272667199",
+      "sha256": "8bb64d7f43d1ffa00a39b31a174e8667d4d2cfb1f8c42a019a32627f6a065f3f",
+      "bytes": 22349,
+      "comparison_git_blob": "abca87c463429b8b2182b5f1fa47635272667199",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/platform_distribution.py",
+      "git_blob": "d3bd87b25460ef172eaf02604d510b4bfea4344f",
+      "sha256": "efccd83e58e6f356f6f9438ac0cdc30b307df5d9cc7679333738aaa2b9f9924e",
+      "bytes": 75899,
+      "comparison_git_blob": "d3bd87b25460ef172eaf02604d510b4bfea4344f",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/platform_maintenance.py",
+      "git_blob": "fa7f062c1cb3d35a56f3dba7796855bac946f86d",
+      "sha256": "c5be6d5099712fdadfe5da874e6c18c20a079ed079fb4ac81ab52da5044caed5",
+      "bytes": 2212,
+      "comparison_git_blob": "fa7f062c1cb3d35a56f3dba7796855bac946f86d",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/platform_stable_publication.py",
+      "git_blob": "54aebff0d02d710ad4e7a387160634316a7b4568",
+      "sha256": "32d095ba9dd53e8646824aee70378d5d572f41fed8228ef15b6cba3d05b50f52",
+      "bytes": 71105,
+      "comparison_git_blob": "54aebff0d02d710ad4e7a387160634316a7b4568",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/python_bootstrap.py",
+      "git_blob": "55e2d783ea31043b097804ffa2c640803eca299e",
+      "sha256": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
+      "bytes": 3068,
+      "comparison_git_blob": "55e2d783ea31043b097804ffa2c640803eca299e",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/sdk_connection_interop.py",
+      "git_blob": "04a3ce7aae9d1fa3209bbb9c391b3cd4bdeadfa2",
+      "sha256": "dfbc6f66ee0c262a4b8c405de4a787c556223d7657010a41af1a9e1f1c18eeec",
+      "bytes": 16272,
+      "comparison_git_blob": "04a3ce7aae9d1fa3209bbb9c391b3cd4bdeadfa2",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/sdk_connection_performance.py",
+      "git_blob": "ae4f4f7182b04d56f7c7a34ccce8aef524d257f4",
+      "sha256": "aea25ecc74114f5afe7869f2ff655d14e8f7d158aff7e218a86c0c5ef0f9526e",
+      "bytes": 11833,
+      "comparison_git_blob": "ae4f4f7182b04d56f7c7a34ccce8aef524d257f4",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/sdk_installed_connection.py",
+      "git_blob": "6328796b0c40ec502a44010c8b69636a915b3837",
+      "sha256": "e201d8f5bd8ba48d45d1f2813ebcd36f0c5f834c86278a1f7b9f358ad146ad71",
+      "bytes": 15647,
+      "comparison_git_blob": "6328796b0c40ec502a44010c8b69636a915b3837",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/standard_tls_interop.py",
+      "git_blob": "b131f156b1a14cc9967f2ab19b73967f3d004f92",
+      "sha256": "eb148a8b8cf45ef7a1f9e92c99165041e15a266193dd4011b005a5419c034fc0",
+      "bytes": 12089,
+      "comparison_git_blob": "b131f156b1a14cc9967f2ab19b73967f3d004f92",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/test_sdk_jni_contract.py",
+      "git_blob": "23409aad2c7ce807a5b377285e8173d4faede12e",
+      "sha256": "464e30d55dcea7700a5107e86f40a7b88bdb53fe3cf72c396c32c491d6d3a3e5",
+      "bytes": 3478,
+      "comparison_git_blob": "23409aad2c7ce807a5b377285e8173d4faede12e",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/testdata/crates_io_uploader/registry-alias-fixture.capture.py",
+      "git_blob": "cb85e02181db01c1f7d3e1d2194e2b3e079a921a",
+      "sha256": "d559c73c5d3bdb6384b4b4d7203ac30d4bc42a1b5790e41dc83f3d04ebdcf1d9",
+      "bytes": 6381,
+      "comparison_git_blob": "cb85e02181db01c1f7d3e1d2194e2b3e079a921a",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/third_party_licenses.py",
+      "git_blob": "7d6e6e0ca65e9d6c8ab0c2ba96184b259092aeae",
+      "sha256": "95e438302345d0919f117b8f6cdfe961a6c5b958a9120b7beb4549209c56b074",
+      "bytes": 26749,
+      "comparison_git_blob": "7d6e6e0ca65e9d6c8ab0c2ba96184b259092aeae",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "artifact/windows_package.py",
+      "git_blob": "9415b09477007574d86e70a43bd7d3990852cbeb",
+      "sha256": "49a7357d2b1a642020b1ad4721cd28c4ade4325cea63577df9fe79659fe91981",
+      "bytes": 109762,
+      "comparison_git_blob": "9415b09477007574d86e70a43bd7d3990852cbeb",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "bindings/c/ContinuityPackageConsumer/peer_configuration_client.c",
+      "git_blob": "3f8458bdc9a0ef53ae5cf1dbddbf9a98f4716ae9",
+      "sha256": "c61028e46b83818b3bd44b0ef866a37de4ea4b09290bef2cbb91f93edce6b24f",
+      "bytes": 5876,
+      "comparison_git_blob": "f9305517059c3d573aa44512064b3495f56cd846",
+      "identical_in_comparison_candidate": false
+    },
+    {
+      "path": "bindings/c/ContinuityPackageConsumer/setup_client.c",
+      "git_blob": "d55cf9c13251b4ba4841003a2d98181bc25ee3ca",
+      "sha256": "e49ac1b2ab423695cd5bed9c9bb095eed53dfbff707fb0d8e496610fd38c7a3b",
+      "bytes": 8977,
+      "comparison_git_blob": "d55cf9c13251b4ba4841003a2d98181bc25ee3ca",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "bindings/c/ContinuityPackageConsumer/sync_probe.c",
+      "git_blob": "11bcd7636ae9ed893a09705884ef677526d05ad1",
+      "sha256": "30b6ee6b8129c43622f16c3d28c8d2d51ba1fa9b3f80486df04bbfac16f623e7",
+      "bytes": 6434,
+      "comparison_git_blob": "11bcd7636ae9ed893a09705884ef677526d05ad1",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/continuity-openssl-peer/tests/account_authority.py",
+      "git_blob": "beafc86b8a45c71da86bd3663a4971f5e89876ea",
+      "sha256": "ec3c09376125a2d6ee62b30f371ef352b6ed161f31165b8dd1024893454384eb",
+      "bytes": 18892,
+      "comparison_git_blob": "beafc86b8a45c71da86bd3663a4971f5e89876ea",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/continuity-openssl-peer/tests/account_authority_support.py",
+      "git_blob": "683fe6157bf0c55b52d253ecc265ec17bbfe3243",
+      "sha256": "e5eb2e67d8ef491979fc214e44bd5e25acc1d74b718d75e074d9a19f0ae49afc",
+      "bytes": 6123,
+      "comparison_git_blob": "683fe6157bf0c55b52d253ecc265ec17bbfe3243",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/continuity-openssl-peer/tests/enrollment_exchange.py",
+      "git_blob": "7f0fbf5258c0df0e14714e050a4184a832906d2a",
+      "sha256": "a7a858c18d4446edc6894bf8c2ce0dde8832b737328ad5b89cfce9d963e9b546",
+      "bytes": 14247,
+      "comparison_git_blob": "7f0fbf5258c0df0e14714e050a4184a832906d2a",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/continuity-openssl-peer/tests/enrollment_extension.py",
+      "git_blob": "631e9562050ea1b805c23b94bc4d48b04dfd1726",
+      "sha256": "b06c0cfd225befa121a75b71b5ab868855fe8ef388aedd6ff98f916c70dc2cab",
+      "bytes": 21223,
+      "comparison_git_blob": "631e9562050ea1b805c23b94bc4d48b04dfd1726",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/continuity-reference-app/tests/host_account_credential.py",
+      "git_blob": "6ef7b710290bcabdab15b3a98fd1eb0eaa30560e",
+      "sha256": "ce2772eb744b702f20f8c2116d908185d408ca96f4739bd1720c7c6387ae0358",
+      "bytes": 11695,
+      "comparison_git_blob": "6ef7b710290bcabdab15b3a98fd1eb0eaa30560e",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/continuity-reference-app/tests/host_replacement.py",
+      "git_blob": "1117160e7648200c0a5b488296d1e1aa8b293f33",
+      "sha256": "57ac10354e419cbf3b8ab715bc1b218abd2d7ff24ed6dcf94d71091588e6a591",
+      "bytes": 19145,
+      "comparison_git_blob": "1117160e7648200c0a5b488296d1e1aa8b293f33",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/continuity-reference-app/tests/host_replacement_process.py",
+      "git_blob": "2d948fe567870f1792294c1a37703981e14d1286",
+      "sha256": "2923edd0bde73166f9f6ae3202a83817565e92f12eb37af1bf3cc72f2237a0b0",
+      "bytes": 12806,
+      "comparison_git_blob": "2d948fe567870f1792294c1a37703981e14d1286",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/continuity-reference-app/tests/host_roster.py",
+      "git_blob": "86abbe72436256f37642c4dddf4e6b076380fa5e",
+      "sha256": "008a98c6809ed2f5fedf11f748c50af2dd633bcb9cbd0501e6dcfd914a8115b7",
+      "bytes": 19042,
+      "comparison_git_blob": "86abbe72436256f37642c4dddf4e6b076380fa5e",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/continuity-reference-app/tests/native_exchange.py",
+      "git_blob": "15d620e2af2c8ed19b4e37a41c2f2d4221379d1a",
+      "sha256": "96eff041df61821b0f3d88882d952d7216a74fbf0ec20fd1553edb140226a258",
+      "bytes": 21348,
+      "comparison_git_blob": "15d620e2af2c8ed19b4e37a41c2f2d4221379d1a",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/continuity-reference-app/tests/witness_account_credential_cli.py",
+      "git_blob": "9fea39e104dc0f1af2c80b52aa9b274bc1287f2b",
+      "sha256": "5e465cb9e4e2be08bcda19d6badc9d8624b1618ba42cf8d4ec66af431ffae9ff",
+      "bytes": 7534,
+      "comparison_git_blob": "9fea39e104dc0f1af2c80b52aa9b274bc1287f2b",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/continuity-reference-app/tests/witness_cli_exchange.py",
+      "git_blob": "b047724af8ff6103c60a1129c539d05ec853d945",
+      "sha256": "19a1265bb910aca94b19fc052d5ab244ab4c1a67d0d052dabfa5e274b90fb9c0",
+      "bytes": 11787,
+      "comparison_git_blob": "b047724af8ff6103c60a1129c539d05ec853d945",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-enrollment-cancellation-6b7a940e/run-history-foreign.py",
+      "git_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+      "sha256": "06dcfffd1a027587ce8fe0727e496fe37bd25c5beedaf83ae4f5dcbd0cbd3154",
+      "bytes": 6352,
+      "comparison_git_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-enrollment-cancellation-6b7a940e/run-native-quality.py",
+      "git_blob": "6b6a2cbf4d87d07d825d04d79538628fce506004",
+      "sha256": "f07cf4eb845e44715759348ceedd32b82f592a46843c0791f01b53d8ba3b9227",
+      "bytes": 3768,
+      "comparison_git_blob": "6b6a2cbf4d87d07d825d04d79538628fce506004",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-foreign-cancellation-7d92d80a/run-cancellation-c-quality.py",
+      "git_blob": "b9d6ddaee339b738b4eb787c366911c06eb809de",
+      "sha256": "0ff74b33aaff0cefbb62f0f2662dc5d2d9aa65291493320cb991dba37967f457",
+      "bytes": 6021,
+      "comparison_git_blob": "b9d6ddaee339b738b4eb787c366911c06eb809de",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-foreign-cancellation-7d92d80a/run-history-foreign.py",
+      "git_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+      "sha256": "06dcfffd1a027587ce8fe0727e496fe37bd25c5beedaf83ae4f5dcbd0cbd3154",
+      "bytes": 6352,
+      "comparison_git_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-foreign-commit-error-2a1d5ada/run-commit-error-language-build.py",
+      "git_blob": "1810007751c193d58a0ca9810975f0893407c600",
+      "sha256": "688338336626a46045f4e49ebcade261da4ed03d358bbf0cda48950aa531bbe6",
+      "bytes": 6370,
+      "comparison_git_blob": "1810007751c193d58a0ca9810975f0893407c600",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-foreign-commit-error-2a1d5ada/run-commit-loss-quality.py",
+      "git_blob": "ca46e30071e30d14337d0be0433327ae03d2fa2b",
+      "sha256": "2b10e9d7175b5cfcfd646fb79320111d2a9456aa9d1c1bd7b741617d0c54c3a6",
+      "bytes": 6039,
+      "comparison_git_blob": "ca46e30071e30d14337d0be0433327ae03d2fa2b",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-foreign-commit-loss-dc1c2fd1/run-commit-loss-quality.py",
+      "git_blob": "ca46e30071e30d14337d0be0433327ae03d2fa2b",
+      "sha256": "2b10e9d7175b5cfcfd646fb79320111d2a9456aa9d1c1bd7b741617d0c54c3a6",
+      "bytes": 6039,
+      "comparison_git_blob": "ca46e30071e30d14337d0be0433327ae03d2fa2b",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-foreign-credential-renewal-4a9f8c46/run-swift.py",
+      "git_blob": "0ea3e6e65660107a6508aeedefb8b60773b99718",
+      "sha256": "a97dc16848c99f5040bf7c72319f011053f4db53767c9ff1b3524958d28b8ec9",
+      "bytes": 2603,
+      "comparison_git_blob": "0ea3e6e65660107a6508aeedefb8b60773b99718",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-grant-cancellation-bb295722/run-history-foreign.py",
+      "git_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+      "sha256": "06dcfffd1a027587ce8fe0727e496fe37bd25c5beedaf83ae4f5dcbd0cbd3154",
+      "bytes": 6352,
+      "comparison_git_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-grant-cancellation-bb295722/run-native-quality.py",
+      "git_blob": "6b6a2cbf4d87d07d825d04d79538628fce506004",
+      "sha256": "f07cf4eb845e44715759348ceedd32b82f592a46843c0791f01b53d8ba3b9227",
+      "bytes": 3768,
+      "comparison_git_blob": "6b6a2cbf4d87d07d825d04d79538628fce506004",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-historical-foreign-3eaa0fc9/run-history-foreign.py",
+      "git_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+      "sha256": "06dcfffd1a027587ce8fe0727e496fe37bd25c5beedaf83ae4f5dcbd0cbd3154",
+      "bytes": 6352,
+      "comparison_git_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-historical-foreign-3eaa0fc9/run-native-quality.py",
+      "git_blob": "6b6a2cbf4d87d07d825d04d79538628fce506004",
+      "sha256": "f07cf4eb845e44715759348ceedd32b82f592a46843c0791f01b53d8ba3b9227",
+      "bytes": 3768,
+      "comparison_git_blob": "6b6a2cbf4d87d07d825d04d79538628fce506004",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-joint-lifecycle-authorization-2d7d05b1/run-policy-joint-authorization.py",
+      "git_blob": "75c0e36f16a28fa10f6dee7b3d8a1353c190a44c",
+      "sha256": "9f73b9228d94a7f51f9a8c37d5cb64faddef70b6ac13679db6e59a96920c7b85",
+      "bytes": 2634,
+      "comparison_git_blob": "75c0e36f16a28fa10f6dee7b3d8a1353c190a44c",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-joint-lifecycle-authorization-2d7d05b1/run-policy-lifecycle-capability.py",
+      "git_blob": "c1fd40397c203f2743a119ee27f977d712619e47",
+      "sha256": "cf8983daada2c0e4521942e360875b12e6517247642846ed1b2c3334b5765dc8",
+      "bytes": 2506,
+      "comparison_git_blob": "c1fd40397c203f2743a119ee27f977d712619e47",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-joint-lifecycle-authorization-2d7d05b1/run-policy-witness-head.py",
+      "git_blob": "03e3267ae9d601b80e403368819fc5e025e3b813",
+      "sha256": "c5aea091787385a41a817afcfcbc7259716e0241b4663057cf679d944adf1e30",
+      "bytes": 2537,
+      "comparison_git_blob": "03e3267ae9d601b80e403368819fc5e025e3b813",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-joint-renewal-public-oracle-c87325c0/run-native-quality.py",
+      "git_blob": "9bfd74b5bb03229aa431400b6b8a2220f6bea5fc",
+      "sha256": "db2fc83b296cd16689065dfd7cd637510090745e64aa4291d2fc788e74c8b55b",
+      "bytes": 3607,
+      "comparison_git_blob": "9bfd74b5bb03229aa431400b6b8a2220f6bea5fc",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-local-witness-recovery-075d2f15/run-native-quality.py",
+      "git_blob": "9bfd74b5bb03229aa431400b6b8a2220f6bea5fc",
+      "sha256": "db2fc83b296cd16689065dfd7cd637510090745e64aa4291d2fc788e74c8b55b",
+      "bytes": 3607,
+      "comparison_git_blob": "9bfd74b5bb03229aa431400b6b8a2220f6bea5fc",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-policy-expiry-0411862b/run-history-foreign.py",
+      "git_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+      "sha256": "06dcfffd1a027587ce8fe0727e496fe37bd25c5beedaf83ae4f5dcbd0cbd3154",
+      "bytes": 6352,
+      "comparison_git_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-tls-cancellation-cut-a55a8c76/run-commit-loss-quality.py",
+      "git_blob": "ca46e30071e30d14337d0be0433327ae03d2fa2b",
+      "sha256": "2b10e9d7175b5cfcfd646fb79320111d2a9456aa9d1c1bd7b741617d0c54c3a6",
+      "bytes": 6039,
+      "comparison_git_blob": "ca46e30071e30d14337d0be0433327ae03d2fa2b",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-witness-authorization-prototype-af55fbf7/run-witness-authorization-experiment.py",
+      "git_blob": "ab55bb5c464a7ec05ec4832dec08af6222a12089",
+      "sha256": "ebc136235e803512d8531c55e7fdcc5c59fb18931ee37c2e0f029964410a78d0",
+      "bytes": 3817,
+      "comparison_git_blob": "ab55bb5c464a7ec05ec4832dec08af6222a12089",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261004-witness-enrollment-1a6d4911/run-native-quality.py",
+      "git_blob": "6b6a2cbf4d87d07d825d04d79538628fce506004",
+      "sha256": "f07cf4eb845e44715759348ceedd32b82f592a46843c0791f01b53d8ba3b9227",
+      "bytes": 3768,
+      "comparison_git_blob": "6b6a2cbf4d87d07d825d04d79538628fce506004",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261005-installed-foreign-ci-split-33a795cf/run-foreign-ci-preflight.py",
+      "git_blob": "176946bd5a6a7ab3043c1b973e8d5f7a23bb6529",
+      "sha256": "3b5211fc3f70be16cf5b2c8d5b0f05a4477ea39e0ffd1508b5e7b35f9b19a4b7",
+      "bytes": 2882,
+      "comparison_git_blob": "176946bd5a6a7ab3043c1b973e8d5f7a23bb6529",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261005-peer-policy-recovery-e5b271cf/run-joint-policy-check.py",
+      "git_blob": "d1bbc2476f0c77394c8a70f6b92e843c4704b5dd",
+      "sha256": "da98744609de4f4863a9893b7e07aa6aef0b4ab736c2ba8a73119348cb36e6cc",
+      "bytes": 3473,
+      "comparison_git_blob": "d1bbc2476f0c77394c8a70f6b92e843c4704b5dd",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261005-policy-continuation-a5bdbde4/run-joint-policy-check.py",
+      "git_blob": "d1bbc2476f0c77394c8a70f6b92e843c4704b5dd",
+      "sha256": "da98744609de4f4863a9893b7e07aa6aef0b4ab736c2ba8a73119348cb36e6cc",
+      "bytes": 3473,
+      "comparison_git_blob": "d1bbc2476f0c77394c8a70f6b92e843c4704b5dd",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261005-witness-legacy-upgrade-7368c34a/run-witness-legacy-upgrade.py",
+      "git_blob": "807759579fd41d2f20d1670b81088d63f753c9ca",
+      "sha256": "1d16fdcfa4aedc617182f7b820434af6a35d2cb41d411ed5b4f13fee3a99b73a",
+      "bytes": 4740,
+      "comparison_git_blob": "807759579fd41d2f20d1670b81088d63f753c9ca",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261008-c-swift-policy-recovery/drivers/run-c-current.py",
+      "git_blob": "94c06206815559d85f56968c1b387f9e33cb6207",
+      "sha256": "08ebf6961a95e0301a7ecc55b53100e5c1310dfbe559ca0b23d3bc8988f09c36",
+      "bytes": 2962,
+      "comparison_git_blob": "94c06206815559d85f56968c1b387f9e33cb6207",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261008-c-swift-policy-recovery/drivers/run-swift-current.py",
+      "git_blob": "bd2973746159792973c74c58502a5b06d32b4848",
+      "sha256": "2c4feed19a22949ba487d4981da7628317249fa76fb5669e37361cc8d994a877",
+      "bytes": 4301,
+      "comparison_git_blob": "bd2973746159792973c74c58502a5b06d32b4848",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261009-explicit-peer-configuration/run-gate.py",
+      "git_blob": "a0bcc474b56764508ca0d1ee781e0ea571653276",
+      "sha256": "88e9ff3819110b2525efe8bcb933468beb65d0953041665f9809ba1c25db3d76",
+      "bytes": 3495,
+      "comparison_git_blob": "a0bcc474b56764508ca0d1ee781e0ea571653276",
+      "identical_in_comparison_candidate": true
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261009-publication-test-isolation/repeat-admission.py",
+      "git_blob": "7ee70ff5cbd982cc9314bb3b8645102c16c5870c",
+      "sha256": "29c94477dab544ddefbbd5e482ee03ff1a979bc2353d198b4371d633f66f7f45",
+      "bytes": 1458,
+      "comparison_git_blob": "7ee70ff5cbd982cc9314bb3b8645102c16c5870c",
+      "identical_in_comparison_candidate": true
+    }
+  ],
+  "not_found": [],
+  "comparison_candidate": "93a8ce264624d2c711c894d02c04c582b0d10c63",
+  "comparison_checked_at": "2026-11-09T02:36:49.957Z"
+}

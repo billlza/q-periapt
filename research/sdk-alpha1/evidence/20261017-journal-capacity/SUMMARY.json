@@ -1,0 +1,166 @@
+{
+  "business_effects_checked": 375,
+  "cases": [
+    {
+      "build": "03",
+      "case": "local-original-reopen",
+      "effects": 125,
+      "profile": "local",
+      "resources": {
+        "aggregate-refused-owner-closed": {
+          "journal_file_bytes": 8392704,
+          "max_rss_bytes": 221265920,
+          "physical_footprint_bytes": 212091504,
+          "resident_bytes": 218693632,
+          "stage": "aggregate-refused-owner-closed"
+        },
+        "all-acknowledged": {
+          "journal_file_bytes": 626688,
+          "max_rss_bytes": 223264768,
+          "physical_footprint_bytes": 217350768,
+          "resident_bytes": 223264768,
+          "stage": "all-acknowledged"
+        },
+        "all-owners-closed": {
+          "journal_file_bytes": 593920,
+          "max_rss_bytes": 223281152,
+          "physical_footprint_bytes": 216941168,
+          "resident_bytes": 222969856,
+          "stage": "all-owners-closed"
+        },
+        "before-aggregate-refusal": {
+          "journal_file_bytes": 12455936,
+          "max_rss_bytes": 221265920,
+          "physical_footprint_bytes": 210010736,
+          "resident_bytes": 216612864,
+          "stage": "before-aggregate-refusal"
+        },
+        "established": {
+          "journal_file_bytes": 393216,
+          "max_rss_bytes": 12402688,
+          "physical_footprint_bytes": 6734256,
+          "resident_bytes": 12402688,
+          "stage": "established"
+        }
+      },
+      "total_retained_at_refusal": 124,
+      "whole_process_peak_rss_bytes": 223903744
+    },
+    {
+      "build": "03",
+      "case": "witness-original-reopen",
+      "effects": 125,
+      "profile": "witness",
+      "resources": {
+        "aggregate-refused-owner-closed": {
+          "journal_file_bytes": 8392704,
+          "max_rss_bytes": 216186880,
+          "physical_footprint_bytes": 204620400,
+          "resident_bytes": 211255296,
+          "stage": "aggregate-refused-owner-closed"
+        },
+        "all-acknowledged": {
+          "journal_file_bytes": 626688,
+          "max_rss_bytes": 223526912,
+          "physical_footprint_bytes": 218153584,
+          "resident_bytes": 214794240,
+          "stage": "all-acknowledged"
+        },
+        "all-owners-closed": {
+          "journal_file_bytes": 593920,
+          "max_rss_bytes": 223526912,
+          "physical_footprint_bytes": 220414576,
+          "resident_bytes": 218120192,
+          "stage": "all-owners-closed"
+        },
+        "before-aggregate-refusal": {
+          "journal_file_bytes": 12455936,
+          "max_rss_bytes": 216186880,
+          "physical_footprint_bytes": 202506864,
+          "resident_bytes": 209141760,
+          "stage": "before-aggregate-refusal"
+        },
+        "established": {
+          "journal_file_bytes": 393216,
+          "max_rss_bytes": 13139968,
+          "physical_footprint_bytes": 7405952,
+          "resident_bytes": 13139968,
+          "stage": "established"
+        }
+      },
+      "total_retained_at_refusal": 124,
+      "whole_process_peak_rss_bytes": 223526912
+    },
+    {
+      "build": "05",
+      "case": "local-malloc-diagnostic",
+      "effects": 125,
+      "profile": "local",
+      "resources": {
+        "aggregate-refused-owner-closed": {
+          "journal_file_bytes": 8392704,
+          "malloc_blocks_in_use": 5958,
+          "malloc_max_size_in_use_bytes": 0,
+          "malloc_size_allocated_bytes": 67108864,
+          "malloc_size_in_use_bytes": 1586240,
+          "max_rss_bytes": 213991424,
+          "physical_footprint_bytes": 202605168,
+          "resident_bytes": 209223680,
+          "stage": "aggregate-refused-owner-closed"
+        },
+        "all-acknowledged": {
+          "journal_file_bytes": 626688,
+          "malloc_blocks_in_use": 8420,
+          "malloc_max_size_in_use_bytes": 0,
+          "malloc_size_allocated_bytes": 67108864,
+          "malloc_size_in_use_bytes": 2356720,
+          "max_rss_bytes": 215711744,
+          "physical_footprint_bytes": 209076848,
+          "resident_bytes": 215711744,
+          "stage": "all-acknowledged"
+        },
+        "all-owners-closed": {
+          "journal_file_bytes": 593920,
+          "malloc_blocks_in_use": 3711,
+          "malloc_max_size_in_use_bytes": 0,
+          "malloc_size_allocated_bytes": 67108864,
+          "malloc_size_in_use_bytes": 1146096,
+          "max_rss_bytes": 215728128,
+          "physical_footprint_bytes": 208667248,
+          "resident_bytes": 215334912,
+          "stage": "all-owners-closed"
+        },
+        "before-aggregate-refusal": {
+          "journal_file_bytes": 12455936,
+          "malloc_blocks_in_use": 6483,
+          "malloc_max_size_in_use_bytes": 0,
+          "malloc_size_allocated_bytes": 67108864,
+          "malloc_size_in_use_bytes": 1664096,
+          "max_rss_bytes": 213991424,
+          "physical_footprint_bytes": 200491632,
+          "resident_bytes": 207110144,
+          "stage": "before-aggregate-refusal"
+        },
+        "established": {
+          "journal_file_bytes": 393216,
+          "malloc_blocks_in_use": 5100,
+          "malloc_max_size_in_use_bytes": 0,
+          "malloc_size_allocated_bytes": 37748736,
+          "malloc_size_in_use_bytes": 1344784,
+          "max_rss_bytes": 12468224,
+          "physical_footprint_bytes": 6783408,
+          "resident_bytes": 12451840,
+          "stage": "established"
+        }
+      },
+      "total_retained_at_refusal": 124,
+      "whole_process_peak_rss_bytes": 216268800
+    }
+  ],
+  "completed": true,
+  "failed_first_cohort_preserved": true,
+  "negative_controls_rejected": 390,
+  "release_claim_eligible": false,
+  "scope": "Two successful native aggregate-capacity cohorts and one separate malloc-statistics diagnostic. Whole-process observations, not isolated SDK memory, energy, controlled tails or a leak/root-cause proof.",
+  "source_commit": "68e05c56a195bee0a2f964e20738cbfde8446d13"
+}

@@ -1,0 +1,11 @@
+{
+  "command_scope": "AndroidBoundedCommandTests two new ordering/race tests on old implementation",
+  "returncode": 1,
+  "completed": false,
+  "tests": 2,
+  "expected_red": true,
+  "log_sha256": "4787daa243f0a31b701b156fb3d13c9223d14566b6207061cce9fed43cba758c",
+  "implementation_base": "4126bb5bc18dbe8c16c331859155b1f689b613f3",
+  "current_source_hashes": {},
+  "scope": "Local boundary/contract evidence, not repaired platform or current-head CI"
+}

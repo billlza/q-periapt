@@ -1,0 +1,258 @@
+{
+  "observed_utc": "2026-10-31T05:33:18.110015+00:00",
+  "source_commit": "4ae5f77ad6e81dce956be24511d7f5e429924bde",
+  "isolated_probe_checkout": "/Users/bhmq03@durham.ac.uk/Documents/Codex/2026-10-30/la/work/release-020/pending-write-exposure-checkout",
+  "runtime_files_modified": false,
+  "main_worktree_modified": false,
+  "source_files_checked": 18,
+  "model_changed": false,
+  "checks": [
+    {
+      "test": "durable::messages::tests::reservation_disclosure::pending_write_generation_token_predicts_future_traffic_before_state_apply",
+      "returncode": 0,
+      "elapsed_seconds": 17.489068249997217
+    },
+    {
+      "test": "durable::messages::tests::reservation_disclosure::pending_write_encapsulation_token_predicts_future_traffic_before_state_apply",
+      "returncode": 0,
+      "elapsed_seconds": 2.103657542000292
+    }
+  ],
+  "passed_native_tests": 2,
+  "failed_native_tests": 0,
+  "filtered_per_command": 1389,
+  "original_compile_failure_retained": true,
+  "recovered_future_messages": 12,
+  "current_image_contains_captured_token": false,
+  "pending_target_contains_captured_token": true,
+  "target_applied_at_capture": false,
+  "kem_result_computed_at_capture": false,
+  "exact_original_target_applied_after_recovery": true,
+  "wrong_wrapping_key_rejected": true,
+  "full_model_refinement_proved": false,
+  "computational_PQ_security_proved": false,
+  "power_loss_qualified": false,
+  "final_release_package_qualified": false,
+  "goal_complete": false,
+  "archive": {
+    "file": "Q-periapt-pending-image-exposure.zip",
+    "bytes": 713977,
+    "sha256": "619cf88b8f861f661dd38182aa5a35a651cbcd74471e55903e2f4e0c8c08febf",
+    "members": 51,
+    "all_members_read_back_equal": true
+  },
+  "report": {
+    "file": "Q-periapt-pending-image-exposure.txt",
+    "sha256": "b4d3c44edcea439767a2d8e37e5102d0ad83c68d1cfc32aeb48d655f09672243"
+  },
+  "probe_patch": {
+    "file": "ISOLATED_PROBE-formatted-v2.patch",
+    "sha256": "5a34561f0408537b9cd2123664957e70ef3f9760c3d651572374695687f90c9a"
+  },
+  "members": {
+    "COMPILE_FIX.json": {
+      "bytes": 433,
+      "sha256": "9ad3869d8a1a632141bf9c5e8e223e32937a5996e6fc5f666b5fffda8cb5a7d2"
+    },
+    "ISOLATED_PROBE-formatted-v2.patch": {
+      "bytes": 10794,
+      "sha256": "5a34561f0408537b9cd2123664957e70ef3f9760c3d651572374695687f90c9a"
+    },
+    "ISOLATED_PROBE-formatted.patch": {
+      "bytes": 10542,
+      "sha256": "e73a53d7db1f2f42f90cca79ab825a7d7c47bd34d5ef8cb21e91acfbcbf32489"
+    },
+    "ISOLATED_PROBE.patch": {
+      "bytes": 9722,
+      "sha256": "5051b6cf16fc2385c40ec34da9d9fdea0a04935dd54a0bc1b954378778619b64"
+    },
+    "MAIN_FORMULA.txt": {
+      "bytes": 1805,
+      "sha256": "5cfead230b15718f51f97e9802927b8bb6fbe5bdb434005cb3bc97c3e0e8caef"
+    },
+    "MODEL_OPERATIONAL_PREFIX.spthy.fragment": {
+      "bytes": 50863,
+      "sha256": "b7fc95a0a51552cc26cc35e64075a7297c0071ffda9f413d6342ac7334434874"
+    },
+    "PREPARATION.json": {
+      "bytes": 933,
+      "sha256": "7fb638380a2aa21d0fcf94a70cb633500f0c3d3a1c1491bfb6f10c54ecd775a6"
+    },
+    "REPORT.txt": {
+      "bytes": 13296,
+      "sha256": "b4d3c44edcea439767a2d8e37e5102d0ad83c68d1cfc32aeb48d655f09672243"
+    },
+    "SOURCE_READBACK.json": {
+      "bytes": 4142,
+      "sha256": "c56e7c6e6d543921ec023633a6a77b6ca690bd94151031370a790a43a1bb1a97"
+    },
+    "attempt-01/00.stderr": {
+      "bytes": 4449,
+      "sha256": "31aa94fe2a9bfe0704e5e205b48677e1099bc5c8172c6a600d83c19fa76c117c"
+    },
+    "attempt-01/00.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "attempt-01/CHECKS.json": {
+      "bytes": 894333,
+      "sha256": "a68bd7925ba822e52ffa8a8f55deaf1cb7ba89c40bb0967924b3c31371c90c15"
+    },
+    "attempt-01/STARTED.json": {
+      "bytes": 311,
+      "sha256": "f18b6cb8f94a9ef839b0d9bae9963ed80de063423c4a5de2fcfd41dbc716d2ab"
+    },
+    "attempt-01/format.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "attempt-01/format.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "attempt-02/00.stderr": {
+      "bytes": 746,
+      "sha256": "eb76a4adc32004f469c4dd00efbfcde14d0fa350c30d81f3a05ef6243cea45a3"
+    },
+    "attempt-02/00.stdout": {
+      "bytes": 251,
+      "sha256": "6654d20dd8aa6e230388d6878fd2416bcd0a19c4c3c99e5dd97981bbdaf6f362"
+    },
+    "attempt-02/01.stderr": {
+      "bytes": 556,
+      "sha256": "4832c165e1d884ff7e2d00349d947259273cfcd83c90791dfb7a6368d9f26c77"
+    },
+    "attempt-02/01.stdout": {
+      "bytes": 254,
+      "sha256": "27d5510e0c868d0fb1495dd712c1eb61e32e3eb61acdff188b5674ac1313c632"
+    },
+    "attempt-02/CHECKS.json": {
+      "bytes": 890754,
+      "sha256": "79ddbb5bb62c8921679f5a2808ca57d3aaec39766e7772a5c077b33dae6a427a"
+    },
+    "attempt-02/STARTED.json": {
+      "bytes": 311,
+      "sha256": "f636ee51509a3877b16bc614d94cb7e66c44fe0ec55cf908dff4032b48e40f67"
+    },
+    "attempt-02/format.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "attempt-02/format.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "baseline-reservation-disclosure.rs": {
+      "bytes": 19686,
+      "sha256": "008edcdb1b01d683e7591c6fa14d9b8043564dccb344d04236dbc8051a11bdb2"
+    },
+    "package_evidence.py": {
+      "bytes": 6653,
+      "sha256": "25507f08e47ed70dec93d4dc6abd50f6ca879a5a56745611b0ff18d732b45dd4"
+    },
+    "prepare-01.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prepare-01.stdout": {
+      "bytes": 907,
+      "sha256": "afe4c944b3d29ba9a95193764c9df661d32eb6ca846a981603867673887e3f15"
+    },
+    "prepare_probe.py": {
+      "bytes": 8085,
+      "sha256": "2644a5a7667342e15587c8a6bae11f8607b6533142d854fcb122732b8b2548cb"
+    },
+    "probe-reservation-disclosure-formatted-v2.rs": {
+      "bytes": 28480,
+      "sha256": "78b10687c605cb022dc1330f785f340a29fb7c0cdf7ffdfc374bd10db29c3ca6"
+    },
+    "probe-reservation-disclosure-formatted.rs": {
+      "bytes": 28452,
+      "sha256": "e1a845800baff4659df0fe5f65c4b783549f6034dc6b22845ab6af64c32097f4"
+    },
+    "probe-reservation-disclosure.rs": {
+      "bytes": 27679,
+      "sha256": "cf914f0ccd220fcfb13ba59cc5a5c211f6f80bd80fccc36ba1045191b1c67be9"
+    },
+    "run_probe-v2.py": {
+      "bytes": 6021,
+      "sha256": "881cd3c10df5a25fc276e78df937ca291bc15ebc28824edacda4bf4ba6286325"
+    },
+    "run_probe.py": {
+      "bytes": 6015,
+      "sha256": "3bee29f552f5228352a46157b034e1390593120af12bde91c479f1c646fbd1b9"
+    },
+    "source/crates/q-periapt-sdk/src/expert/replay.rs": {
+      "bytes": 9863,
+      "sha256": "cc95985cd212a2c2f224dcce22bc7fba5f4f331dc190e263085a0261dd0a3713"
+    },
+    "source/research/continuity-identity-candidate/src/crypto.rs": {
+      "bytes": 18183,
+      "sha256": "9fdea36f59303bd6ced76805d2b844de71483439d240063edd3f2fc04e7e5927"
+    },
+    "source/research/continuity-identity-candidate/src/durable/messages/fanout/abandonment.rs": {
+      "bytes": 17359,
+      "sha256": "630b1dac17ae9fabf3f50f46452f4d62ec813dc70d356202f128362cd8856a66"
+    },
+    "source/research/continuity-identity-candidate/src/durable/messages/fanout/codec.rs": {
+      "bytes": 18349,
+      "sha256": "f485d7ab6b201a295ca16a3be658899729af40de9470cb28ebd85019552cb575"
+    },
+    "source/research/continuity-identity-candidate/src/durable/messages/fanout.rs": {
+      "bytes": 29001,
+      "sha256": "37167f99d486e209f022fb2d142cb6662d0f6905a4dadaaf64743abde746b71a"
+    },
+    "source/research/continuity-identity-candidate/src/durable/messages/rekey/response.rs": {
+      "bytes": 15442,
+      "sha256": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59"
+    },
+    "source/research/continuity-identity-candidate/src/durable/messages/rekey.rs": {
+      "bytes": 17022,
+      "sha256": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10"
+    },
+    "source/research/continuity-identity-candidate/src/durable/messages/resolution.rs": {
+      "bytes": 15359,
+      "sha256": "6ee1743cfcfc6019ad25252209bddbff21ac7831b3153f4220347c1371d5c2f4"
+    },
+    "source/research/continuity-identity-candidate/src/durable/messages/retired.rs": {
+      "bytes": 3660,
+      "sha256": "b68c13b2db9961ce570ead831b3b4bfce236d85cb3ce871913e7e635d1d171b3"
+    },
+    "source/research/continuity-identity-candidate/src/durable/messages/tests/reservation_disclosure.rs": {
+      "bytes": 19686,
+      "sha256": "008edcdb1b01d683e7591c6fa14d9b8043564dccb344d04236dbc8051a11bdb2"
+    },
+    "source/research/continuity-identity-candidate/src/durable/messages/tests.rs": {
+      "bytes": 123377,
+      "sha256": "9f925fe143ba8842f8a9ca9c6b871fcf5f0b5fb3a4ad01d6f99f9b5fc5404e87"
+    },
+    "source/research/continuity-identity-candidate/src/durable/pending_recovery.rs": {
+      "bytes": 7748,
+      "sha256": "0e846f7eea09d0b13d672f063bb691d3d583da5f9f0ac554ecf2568ff75369f1"
+    },
+    "source/research/continuity-identity-candidate/src/durable/retired_report.rs": {
+      "bytes": 31611,
+      "sha256": "79a174735da6cb94a1ed1f3b404ce56beccde6f0ce769fd3f9d0b222167472ae"
+    },
+    "source/research/continuity-identity-candidate/src/durable/write_intent/pending_recovery.rs": {
+      "bytes": 6937,
+      "sha256": "3ac4e85df2064edda87e573afea64ce089a1aeaa5372b5ee9a38fb6716b58b8e"
+    },
+    "source/research/continuity-identity-candidate/src/durable/write_intent/retired_cleanup.rs": {
+      "bytes": 10223,
+      "sha256": "59019784cba9ddb10fd55e6ba0a5c80746944e3dbc6e314879d8bd52e2154d17"
+    },
+    "source/research/continuity-identity-candidate/src/durable/write_intent/tests.rs": {
+      "bytes": 25945,
+      "sha256": "6f25b507dcf65bde8fb34aef2b6edab869447137484e91326c02039fb15577c7"
+    },
+    "source/research/continuity-identity-candidate/src/durable/write_intent.rs": {
+      "bytes": 43319,
+      "sha256": "502bbd9de26958575704edbd0207c6579c4a07e3b9ed4a57650f407f3fdb312d"
+    },
+    "source/research/continuity-identity-candidate/src/durable.rs": {
+      "bytes": 54134,
+      "sha256": "664bc3bfad790cc4639168b54bea30fdcdb80520310454cddd80ac66a5b37c42"
+    }
+  }
+}

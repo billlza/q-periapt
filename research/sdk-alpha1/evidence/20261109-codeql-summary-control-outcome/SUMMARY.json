@@ -1,0 +1,145 @@
+{
+  "recorded_at": "2026-11-09T22:49:08.578647+00:00",
+  "repository": "billlza/q-periapt",
+  "run_id": 42634713742,
+  "run_attempt": 1,
+  "experiment_commit": "747c45bab13320d1df2ebaaa0012f183fcf4a1a0",
+  "analyzed_source": "56f191f04a57806869b8a03078ee4d27ffe900ab",
+  "arms": {
+    "heap-1536": {
+      "artifact_id": 13716727790,
+      "artifact_bytes": 24032221,
+      "artifact_sha256": "cb63a3051da91311e480f2ffe8d069a373d4285fa556e499e3562524774f4988",
+      "completed": false,
+      "evaluation": {
+        "cleanup_ambiguous": false,
+        "command": [
+          "/home/runner/work/_temp/codeql-summary-tool/codeql/codeql",
+          "execute",
+          "queries",
+          "-J-Xmx1536M",
+          "--off-heap-ram=11155",
+          "-J-XX:+PrintFlagsFinal",
+          "--threads=4",
+          "--threat-model=local",
+          "--warnings=show",
+          "--dynamic-join-order-mode=none",
+          "--no-rerun",
+          "--verbosity=progress",
+          "--evaluator-log-level=5",
+          "--common-caches=/home/runner/work/_temp/qperiapt-codeql-summary-control/cache",
+          "--logdir=/home/runner/work/_temp/qperiapt-codeql-summary-control/evidence/evaluator",
+          "--output=/home/runner/work/_temp/qperiapt-codeql-summary-control/results",
+          "--",
+          "/home/runner/work/_temp/qperiapt-codeql-summary-control/database/db-rust",
+          "path:/home/runner/work/_temp/qperiapt-codeql-summary-control/frozen.qls"
+        ],
+        "returncode": null,
+        "seconds": 18001.006627495,
+        "stopped": "timeout"
+      },
+      "configuration": {
+        "deadline_seconds": 18000,
+        "heap_mb": 1536,
+        "native_mb": 11155,
+        "requested_ram_mb": 14000,
+        "reserved_mb": 1309,
+        "threads": 4
+      },
+      "jvm_max_heap_bytes_observed": [
+        1610612736
+      ],
+      "independent_peak_rss_sample": null,
+      "query_starts": 39,
+      "query_completions": 38,
+      "remaining_queries": [
+        "queries/summary/SummaryStats"
+      ],
+      "eviction_pause_count": 83314,
+      "max_taint_stage_iterations": {
+        "1": 216,
+        "2": 671,
+        "3": 756,
+        "4": 289
+      },
+      "last_taint_predicate": "[2026-11-09 22:39:48] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9/11@i289#ed314uwp (iteration 289)",
+      "largest_fwd_flow0_delta": {
+        "rows": 194634663,
+        "event": "[2026-11-09 22:12:24] \t\t\t - TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a_delta has 194634663 rows (order for disjuncts: delta=<standard>)."
+      },
+      "source_and_tool_identity_match_independent_pins": true
+    },
+    "heap-2048": {
+      "artifact_id": 13716753216,
+      "artifact_bytes": 24168343,
+      "artifact_sha256": "f55cf043fd2ecbd74ed41d92fca1ee3e036f1cc7957a68a622710702eda3a9c9",
+      "completed": false,
+      "evaluation": {
+        "cleanup_ambiguous": false,
+        "command": [
+          "/home/runner/work/_temp/codeql-summary-tool/codeql/codeql",
+          "execute",
+          "queries",
+          "-J-Xmx2048M",
+          "--off-heap-ram=10643",
+          "-J-XX:+PrintFlagsFinal",
+          "--threads=4",
+          "--threat-model=local",
+          "--warnings=show",
+          "--dynamic-join-order-mode=none",
+          "--no-rerun",
+          "--verbosity=progress",
+          "--evaluator-log-level=5",
+          "--common-caches=/home/runner/work/_temp/qperiapt-codeql-summary-control/cache",
+          "--logdir=/home/runner/work/_temp/qperiapt-codeql-summary-control/evidence/evaluator",
+          "--output=/home/runner/work/_temp/qperiapt-codeql-summary-control/results",
+          "--",
+          "/home/runner/work/_temp/qperiapt-codeql-summary-control/database/db-rust",
+          "path:/home/runner/work/_temp/qperiapt-codeql-summary-control/frozen.qls"
+        ],
+        "returncode": null,
+        "seconds": 18001.00679493,
+        "stopped": "timeout"
+      },
+      "configuration": {
+        "deadline_seconds": 18000,
+        "heap_mb": 2048,
+        "native_mb": 10643,
+        "requested_ram_mb": 14000,
+        "reserved_mb": 1309,
+        "threads": 4
+      },
+      "jvm_max_heap_bytes_observed": [
+        2147483648
+      ],
+      "independent_peak_rss_sample": null,
+      "query_starts": 39,
+      "query_completions": 38,
+      "remaining_queries": [
+        "queries/summary/SummaryStats"
+      ],
+      "eviction_pause_count": 76024,
+      "max_taint_stage_iterations": {
+        "1": 216,
+        "2": 671,
+        "3": 756,
+        "4": 284
+      },
+      "last_taint_predicate": "[2026-11-09 22:42:12] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a/7@i284#ed3140wp (iteration 284)",
+      "largest_fwd_flow0_delta": {
+        "rows": 129268663,
+        "event": "[2026-11-09 21:57:55] \t\t\t - TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a_delta has 129268663 rows (order for disjuncts: delta=<standard>)."
+      },
+      "source_and_tool_identity_match_independent_pins": true
+    }
+  },
+  "retained_38_bqrs_and_semantic_hashes_equal": true,
+  "new_results_semantic_comparison_available": false,
+  "missing_fresh_evidence_cause": "Fresh BQRS output is outside the uploaded evidence directory; decoding and copying occur only after successful evaluator completion.",
+  "strict_local_comparison": "failed closed: fresh 39-query result census differs",
+  "hosted_aggregate_at_capture": {
+    "job_id": 129492456066,
+    "status": "queued"
+  },
+  "production_parameters_changed": false
+}

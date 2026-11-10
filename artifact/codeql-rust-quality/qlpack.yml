@@ -2,4 +2,4 @@ name: qperiapt/codeql-rust-quality
 version: 0.0.1
 library: false
 dependencies:
-  codeql/rust-all: "*"
+  codeql/rust-all: "0.2.23"

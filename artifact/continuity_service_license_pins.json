@@ -1,0 +1,145 @@
+{
+  "kind": "qperiapt.continuity_service_upstream_licenses",
+  "packages": [
+    {
+      "files": [
+        {
+          "bytes": 10847,
+          "git_blob": "16fe87b06e802f094b3fbb0894b137bca2b16ef1",
+          "path": "LICENSES/continuity-services/asn1-rs-impl-0.2.0/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "upstream_path": "LICENSE-APACHE"
+        },
+        {
+          "bytes": 1060,
+          "git_blob": "290e7b9be19d39a81c8eb24c75a6b5f1e57fea71",
+          "path": "LICENSES/continuity-services/asn1-rs-impl-0.2.0/LICENSE-MIT",
+          "sha256": "a5c61b93b6ee1d104af9920cf020ff3c7efe818e31fe562c72261847a728f513",
+          "upstream_path": "LICENSE-MIT"
+        }
+      ],
+      "license_expression": "MIT/Apache-2.0",
+      "name": "asn1-rs-impl",
+      "registry_checksum": "7b18050c2cd6fe86c3a76584ef5e0baf286d038cda203eb6223df2cc413565f7",
+      "repository": "https://github.com/rusticata/asn1-rs.git",
+      "vcs": {
+        "git": {
+          "sha1": "a20e5f7319c896737ad0f2557037817b91ad854f"
+        },
+        "path_in_vcs": "impl"
+      },
+      "version": "0.2.0"
+    },
+    {
+      "files": [
+        {
+          "bytes": 16727,
+          "git_blob": "52d135112eeb402d23eeabbcd23513d389553ddd",
+          "path": "LICENSES/continuity-services/webauthn-rs-0.5.5/LICENSE.md",
+          "sha256": "32ee9dbf6196874fc9d406c54a888a6c4cbb9aa4a7f35b46befeaff43a78fe85",
+          "upstream_path": "LICENSE.md"
+        }
+      ],
+      "license_expression": "MPL-2.0",
+      "name": "base64urlsafedata",
+      "registry_checksum": "b08e33815c87d8cadcddb1e74ac307368a3751fbe40c961538afa21a1899f21c",
+      "repository": "https://github.com/kanidm/webauthn-rs",
+      "vcs": {
+        "git": {
+          "sha1": "d2c10d53ca5ef033d37ee6462e936e9eb72ad98c"
+        },
+        "path_in_vcs": "base64urlsafedata"
+      },
+      "version": "0.5.5"
+    },
+    {
+      "files": [
+        {
+          "bytes": 16727,
+          "git_blob": "52d135112eeb402d23eeabbcd23513d389553ddd",
+          "path": "LICENSES/continuity-services/webauthn-rs-0.5.5/LICENSE.md",
+          "sha256": "32ee9dbf6196874fc9d406c54a888a6c4cbb9aa4a7f35b46befeaff43a78fe85",
+          "upstream_path": "LICENSE.md"
+        }
+      ],
+      "license_expression": "MPL-2.0",
+      "name": "webauthn-attestation-ca",
+      "registry_checksum": "6475c0bbd1a3f04afaa3e98880408c5be61680c5e6bd3c6f8c250990d5d3e18e",
+      "repository": "https://github.com/kanidm/webauthn-rs",
+      "vcs": {
+        "git": {
+          "sha1": "d2c10d53ca5ef033d37ee6462e936e9eb72ad98c"
+        },
+        "path_in_vcs": "attestation-ca"
+      },
+      "version": "0.5.5"
+    },
+    {
+      "files": [
+        {
+          "bytes": 16727,
+          "git_blob": "52d135112eeb402d23eeabbcd23513d389553ddd",
+          "path": "LICENSES/continuity-services/webauthn-rs-0.5.5/LICENSE.md",
+          "sha256": "32ee9dbf6196874fc9d406c54a888a6c4cbb9aa4a7f35b46befeaff43a78fe85",
+          "upstream_path": "LICENSE.md"
+        }
+      ],
+      "license_expression": "MPL-2.0",
+      "name": "webauthn-rs-core",
+      "registry_checksum": "296d2d501feb715d80b8e186fb88bab1073bca17f460303a1013d17b673bea6a",
+      "repository": "https://github.com/kanidm/webauthn-rs",
+      "vcs": {
+        "git": {
+          "sha1": "d2c10d53ca5ef033d37ee6462e936e9eb72ad98c"
+        },
+        "path_in_vcs": "webauthn-rs-core"
+      },
+      "version": "0.5.5"
+    },
+    {
+      "files": [
+        {
+          "bytes": 16727,
+          "git_blob": "52d135112eeb402d23eeabbcd23513d389553ddd",
+          "path": "LICENSES/continuity-services/webauthn-rs-0.5.5/LICENSE.md",
+          "sha256": "32ee9dbf6196874fc9d406c54a888a6c4cbb9aa4a7f35b46befeaff43a78fe85",
+          "upstream_path": "LICENSE.md"
+        }
+      ],
+      "license_expression": "MPL-2.0",
+      "name": "webauthn-rs-proto",
+      "registry_checksum": "c37393beac9c1ed1ca6dbb30b1e01783fb316ab3a45d90ecd48c99052dd7ef1e",
+      "repository": "https://github.com/kanidm/webauthn-rs",
+      "vcs": {
+        "git": {
+          "sha1": "d2c10d53ca5ef033d37ee6462e936e9eb72ad98c"
+        },
+        "path_in_vcs": "webauthn-rs-proto"
+      },
+      "version": "0.5.5"
+    },
+    {
+      "files": [
+        {
+          "bytes": 16727,
+          "git_blob": "52d135112eeb402d23eeabbcd23513d389553ddd",
+          "path": "LICENSES/continuity-services/webauthn-rs-0.5.5/LICENSE.md",
+          "sha256": "32ee9dbf6196874fc9d406c54a888a6c4cbb9aa4a7f35b46befeaff43a78fe85",
+          "upstream_path": "LICENSE.md"
+        }
+      ],
+      "license_expression": "MPL-2.0",
+      "name": "webauthn-rs",
+      "registry_checksum": "6c548915e0e92ee946bbf2aecf01ea21bef53d974b0793cc6732ba81a03fc422",
+      "repository": "https://github.com/kanidm/webauthn-rs",
+      "vcs": {
+        "git": {
+          "sha1": "d2c10d53ca5ef033d37ee6462e936e9eb72ad98c"
+        },
+        "path_in_vcs": "webauthn-rs"
+      },
+      "version": "0.5.5"
+    }
+  ],
+  "schema_version": 1
+}

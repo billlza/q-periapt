@@ -1,0 +1,107 @@
+{
+  "actual_candidate_tree_verified": true,
+  "actual_sdk_trees_verified": 9,
+  "archive": {
+    "bytes": 1962485,
+    "file": "q-periapt-continuity-identity-candidate-0.0.0.crate",
+    "sha256": "0730aa20794527b3947dc4734bf82d48516294c42018dc8dfd23ebc5f42fc2a6"
+  },
+  "candidate_archive_members": 769,
+  "profiles": {
+    "debug": {
+      "full_public_readback_matches": true,
+      "result_sha256": "2668cedbfad4f80a358914cf3aca979ef1992c167102ff9f3aa7966ff556e329",
+      "retired_binary_bytes_available": false,
+      "retired_binary_receipt": {
+        "bytes": 20538240,
+        "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-continuity-package-3d9puqzb/rust-build/debug/deps/owned_connection-a2981ae2dd6c5a8f",
+        "sha256": "1f9c37b665dd494cbc4882bd30d04ac429dbcae6ff19b4cd278a01d62570fa59"
+      },
+      "scope": "unpublished candidate and nine installed SDK archives; same-host Rust processes; no foreign bindings or cross-host qualification",
+      "tests_failed": 0,
+      "tests_filtered": 0,
+      "tests_ignored": 0,
+      "tests_passed": 3
+    },
+    "release": {
+      "full_public_readback_matches": true,
+      "result_sha256": "2790361489e9a30573c10c89bffe8ffc7111d0b2c0304ced97958e7118bacf63",
+      "retired_binary_bytes_available": false,
+      "retired_binary_receipt": {
+        "bytes": 8635376,
+        "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-continuity-package-3d9puqzb/rust-build/release/deps/owned_connection-db3b69be08580d45",
+        "sha256": "4ab4b9f3eed3636a70e97d730607cd4c489b5789a74c11aa518c0cc44b7ff291"
+      },
+      "scope": "unpublished candidate and nine installed SDK archives; same-host Rust processes; no foreign bindings or cross-host qualification",
+      "tests_failed": 0,
+      "tests_filtered": 0,
+      "tests_ignored": 0,
+      "tests_passed": 3
+    }
+  },
+  "python": {
+    "dont_write_bytecode": true,
+    "isolated": 1,
+    "no_site": 1,
+    "private_cache_prefix": true
+  },
+  "report_sha256": "8698d7fbd298343693aab1618126128132d8a8bc48c205f910170db0e1250bd1",
+  "scope": "Independent reread of the original current-source installed Rust package run; no native workload rerun, foreign/device qualification or release acceptance.",
+  "sdk_report_sha256": "1e40fc2ae0c7c113509ae2a5c5a858cbd73a8a6fd7f63e66203316c4c61e228d",
+  "sdk_root": "c064df108a07da40099f9c2fe8115577d54f421fea918a0fefb1810d76a42c4d",
+  "seconds": 17.211444750078954,
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "source_inputs": 1401,
+  "source_unchanged": true,
+  "successful_commands": {
+    "build-debug.json": {
+      "receipt_sha256": "475d5de5947497370873a199789891a07ad5034a171c7b207094b322a2a0ff4d",
+      "returncode": 0
+    },
+    "build-release.json": {
+      "receipt_sha256": "c8b0172024fb4450b99d3d6d2aa5c83c04b823ab6a563d0301975e8df2d3aa82",
+      "returncode": 0
+    },
+    "candidate-sources.json": {
+      "receipt_sha256": "2141a37a8500b3aa2f7dba29947c224a53848c0eb1edec55a3226486a383d386",
+      "returncode": 0
+    },
+    "consumer-clippy.json": {
+      "receipt_sha256": "1422d04609bc534d226c311c21aafd730aa8e59c2e2e15343930ba13e95644f2",
+      "returncode": 0
+    },
+    "consumer-debug.json": {
+      "receipt_sha256": "726fa509e7d6b79d722af8249f1ab1885952adac6b3f64219f28b866c7d97a77",
+      "returncode": 0
+    },
+    "consumer-metadata.json": {
+      "receipt_sha256": "0aa926999ce4a0770abb5f95eb9d346f53442468f92ef377083a0b9003e9a706",
+      "returncode": 0
+    },
+    "consumer-release.json": {
+      "receipt_sha256": "684da254d0dfb5d2cd8c7bb0bd85b2e2dd40cb08de21312c58608f4ff51961f1",
+      "returncode": 0
+    },
+    "fetch.json": {
+      "receipt_sha256": "22c4ab4c270ecd049ce97d3dec27e8669089f5a44e4b4d4506ee724d746938b8",
+      "returncode": 0
+    },
+    "package-list.json": {
+      "receipt_sha256": "b56743abecb48002bbea44bfaa7ab8feda1d940ee25d94f7df6b87ffa96d2b1f",
+      "returncode": 0
+    },
+    "package.json": {
+      "receipt_sha256": "434cfb92e68d120eb6aa946b4a12bf1e5e0ae9d5bdc4e608060a7daa02d2d9a5",
+      "returncode": 0
+    },
+    "rustc.json": {
+      "receipt_sha256": "be082f50d25f7b6bd405a7db07f37a9f7faa67aea5d4e8e09da11f6aba878430",
+      "returncode": 0
+    },
+    "workspace-metadata.json": {
+      "receipt_sha256": "e1f96869903e76c838c0c185651ba1997cf6d7f60ff03030a8f8c73b606607cd",
+      "returncode": 0
+    }
+  },
+  "verified_utc": "2026-11-05T21:09:06.595612+00:00"
+}

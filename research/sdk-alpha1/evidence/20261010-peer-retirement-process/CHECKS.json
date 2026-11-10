@@ -1,0 +1,212 @@
+{
+  "base_commit": "0ff2510ad004ffe8e35f3be9ef9ebeed0f3cd2c8",
+  "preview_commit": "8b6b41b6c190263c0fea4f2ad877e3503d6defab",
+  "source_sha256": {
+    "ARTIFACT.md": "d5344760d3bb892062bc0c0714165b35a7d3a965719d06d55c8adad36cddbeaf",
+    "artifact/codeql_rust_quality.py": "fc1cf2dbbd30bd06aeb799b69594b4c84ed4d4166de06669fde66088af7adb31",
+    "artifact/test_codeql_rust_quality.py": "c54a33d4d3123166e10274f8c22ae8f563fa78bb955cc2a12c0c7a20dc9618e3",
+    "research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md": "bbb6d2dc66d317579f2e8e74bf1e1d181c884208f3d80e844b6dcad7de120650",
+    "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement.rs": "7b6b29d95857779a50c745fb84c791b842cdb79380b1f01bc0b47482bb0b4a55",
+    "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement_process.rs": "f5f2cd1fd7d00fb1d54c793223925d9f84f3200683df129b87f111bbfbc96702"
+  },
+  "scope": "Release-mode actual sender process loss with the same durable witness retained by the parent. Test-only bounded file IPC carries real signed requests/replies; not TCP/TLS or an independent implementation.",
+  "process_result": {
+    "command": [
+      "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+      "test",
+      "--manifest-path",
+      "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+      "--all-features",
+      "--locked",
+      "--offline",
+      "-j",
+      "2",
+      "--lib",
+      "--release",
+      "peer_account_retirement_process",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "mode": "release-focused",
+    "base_head": "0ff2510ad004ffe8e35f3be9ef9ebeed0f3cd2c8",
+    "source_sha256": {
+      "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement.rs": "7b6b29d95857779a50c745fb84c791b842cdb79380b1f01bc0b47482bb0b4a55",
+      "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement_process.rs": "f5f2cd1fd7d00fb1d54c793223925d9f84f3200683df129b87f111bbfbc96702"
+    },
+    "completed": true,
+    "returncode": 0,
+    "timed_out": false,
+    "seconds": 233.97628762479872,
+    "source_unchanged": true
+  },
+  "test_entries": 2,
+  "helper_entries": 1,
+  "actual_SIGKILL_cuts": 4,
+  "cut_points": [
+    {
+      "name": "before-intent",
+      "location": "Child opened the original journal but has not invoked retirement yet.",
+      "observed": "Witness head is unchanged and old ciphertext remains releasable. No durable floor is claimed; the same original approved statement must still be adopted."
+    },
+    {
+      "name": "intent",
+      "location": "Existing write-intent hook after the original sealed target was committed and before witness advancement.",
+      "observed": "Witness head is unchanged before restart. Original reopen reconciles the retained target, then old-root operation is refused."
+    },
+    {
+      "name": "witness",
+      "location": "Actual original AnchorStore commits the advance; its signed response is retained by the parent and never delivered to the child.",
+      "observed": "Independently verified signed query observes the changed sender head. Original reopen reconciles the same retained target despite the missing reply."
+    },
+    {
+      "name": "image",
+      "location": "Existing post-commit hook after the local image and required witness checks, before retirement returns.",
+      "observed": "Sender head already changed. Original reopen preserves the floor and identical retry does not advance it again."
+    }
+  ],
+  "assertions": [
+    "Every selected boundary is reached by a live owned subprocess, no API-return marker exists, and reaped Unix exit status reports signal 9.",
+    "Each request and reply has its fixed wire size; requests go to the actual original witness store, and independently generated signed queries verify current heads.",
+    "All four recoveries retry the original proposal/receipt and preserve original peer identity plus unconfirmed delivery accounting.",
+    "Each recovered identical retry preserves the already committed sender head."
+  ],
+  "checks": {
+    "clippy": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "mode": "clippy",
+      "base_head": "0ff2510ad004ffe8e35f3be9ef9ebeed0f3cd2c8",
+      "source_sha256": {
+        "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement.rs": "7b6b29d95857779a50c745fb84c791b842cdb79380b1f01bc0b47482bb0b4a55",
+        "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement_process.rs": "f5f2cd1fd7d00fb1d54c793223925d9f84f3200683df129b87f111bbfbc96702"
+      },
+      "completed": true,
+      "returncode": 0,
+      "timed_out": false,
+      "seconds": 105.52112920815125,
+      "source_unchanged": true
+    },
+    "rust_1_90": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "check",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "mode": "msrv",
+      "base_head": "0ff2510ad004ffe8e35f3be9ef9ebeed0f3cd2c8",
+      "source_sha256": {
+        "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement.rs": "7b6b29d95857779a50c745fb84c791b842cdb79380b1f01bc0b47482bb0b4a55",
+        "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement_process.rs": "f5f2cd1fd7d00fb1d54c793223925d9f84f3200683df129b87f111bbfbc96702"
+      },
+      "completed": true,
+      "returncode": 0,
+      "timed_out": false,
+      "seconds": 103.48390112514608,
+      "source_unchanged": true
+    },
+    "source_quality": {
+      "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source",
+      "head": "8b6b41b6c190263c0fea4f2ad877e3503d6defab",
+      "source_sha256": {
+        "ARTIFACT.md": "d5344760d3bb892062bc0c0714165b35a7d3a965719d06d55c8adad36cddbeaf",
+        "artifact/codeql_rust_quality.py": "fc1cf2dbbd30bd06aeb799b69594b4c84ed4d4166de06669fde66088af7adb31",
+        "artifact/test_codeql_rust_quality.py": "c54a33d4d3123166e10274f8c22ae8f563fa78bb955cc2a12c0c7a20dc9618e3",
+        "research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md": "bbb6d2dc66d317579f2e8e74bf1e1d181c884208f3d80e844b6dcad7de120650",
+        "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement.rs": "7b6b29d95857779a50c745fb84c791b842cdb79380b1f01bc0b47482bb0b4a55",
+        "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement_process.rs": "f5f2cd1fd7d00fb1d54c793223925d9f84f3200683df129b87f111bbfbc96702"
+      },
+      "checks": [
+        {
+          "command": [
+            "sh",
+            "artifact/python-run.sh",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "artifact",
+            "-p",
+            "test_codeql_rust_quality.py"
+          ],
+          "returncode": 0,
+          "seconds": 1.044774667127058
+        },
+        {
+          "command": [
+            "sh",
+            "artifact/python-run.sh",
+            "artifact/source_results_assembler.py",
+            "ci-source-gate",
+            "--profile",
+            "sdk-020",
+            "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda",
+            "8b6b41b6c190263c0fea4f2ad877e3503d6defab"
+          ],
+          "returncode": 0,
+          "seconds": 5.193386750062928
+        }
+      ],
+      "completed": true,
+      "source_clean": true
+    }
+  },
+  "production_Rust_changed": false,
+  "production_scope": "Only a cfg(test,unix) module declaration and its new process-test source changed relative to 0ff2510a; documentation and exact CodeQL source inventory also advance. No production wire, policy, timing or error contract was weakened.",
+  "limits": [
+    "Full Release regression for the preceding production implementation remains running on frozen 3e2cf03d. These two separately executed entries do not constitute an 856-test full-suite result.",
+    "Private temporary case directories and child logs are removed by normal test cleanup after success; retained evidence is the original test source, driver, compiler/test stdout/stderr, assertions and source hashes. No claim of retained raw per-child journal snapshots is made.",
+    "This does not cover physical power loss, simultaneous witness failure, whole-witness rollback, foreign bindings or complete managed authority cutover."
+  ],
+  "release_claim_eligible": false,
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 80780,
+    "sha256": "61888df9a1357e346a2789c1dd782f5a2e68600c1813ff1ee82a26ce1b46e7bf",
+    "members": {
+      "PROCESS_TEST.patch": "c8bc5b7fe4286cbde186a99043874e07b098c38263c9d9c8b4b3789b56f39ffe",
+      "clippy-01/RESULT.json": "a8dc0ae08faf9b3e2aa24773022e8b7199925c01249b54e184d35254dc106acf",
+      "clippy-01/START.json": "1fbf3c2c7497af77fff348a76ed425caea9095b08d0e1ab9d7a49594b2ce7576",
+      "clippy-01/stderr": "b77970e38381c75ac2482bda3b2d98008a1373f296f803f6bb448887bf73fe39",
+      "clippy-01/stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "msrv-01/RESULT.json": "fb7874cd26e94bbc49361d0ce51b2940e2f6273e9757346f92583aa191a71663",
+      "msrv-01/START.json": "e0cefc45ebcec898452d062cdd74abfa81e3efa2ff56a60813c4a50662b60329",
+      "msrv-01/stderr": "ac27c63d644ee84ea7541ac002c711dbbb0f42f28adba0dc30657edeba5f2b49",
+      "msrv-01/stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "process-01/RESULT.json": "24ff7cbddfb6edd6cc5edce27b0c84b20c3639c226cd78a56dcd974b9c2dfc32",
+      "process-01/START.json": "b0310b74fc5cef6a450a9ddda0981d72834d86259b4cfae9b280ca87bd934ba1",
+      "process-01/stderr": "288a6f52554e335d337090bfbb4df3617f4bf61916389b270f7a117b1ab1b2e6",
+      "process-01/stdout": "9fc2102a00833602b8a7278593e6d3081d960b5204f8d73cbfd5d438b7167744",
+      "run-check.py": "4daf9c57851f44b18825586e113718435156bce89ae5eda251290bb5cbf56beb",
+      "source-quality/0.stderr": "257d5a452ed7478a72f3dd9418d270e3030d6a296d00fd3b1b2830ddb957105d",
+      "source-quality/0.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source-quality/1.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source-quality/1.stdout": "398e41f3d2d77f42304e371d1919533441e87df46a2b7b8ec8401290a219cd9b",
+      "source-quality/RESULT.json": "59e5f7b3c32ab7d70241231be5c376638d53e16a6bd6fe91728220d5ca486f3e",
+      "source-quality/SOURCE.json": "f92bb94ceebf7fa472d37910b52653b90530b0966e4762c6ad15938a307655ca",
+      "source/ARTIFACT.md": "d5344760d3bb892062bc0c0714165b35a7d3a965719d06d55c8adad36cddbeaf",
+      "source/artifact/codeql_rust_quality.py": "fc1cf2dbbd30bd06aeb799b69594b4c84ed4d4166de06669fde66088af7adb31",
+      "source/artifact/test_codeql_rust_quality.py": "c54a33d4d3123166e10274f8c22ae8f563fa78bb955cc2a12c0c7a20dc9618e3",
+      "source/research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md": "bbb6d2dc66d317579f2e8e74bf1e1d181c884208f3d80e844b6dcad7de120650",
+      "source/research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement.rs": "7b6b29d95857779a50c745fb84c791b842cdb79380b1f01bc0b47482bb0b4a55",
+      "source/research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement_process.rs": "f5f2cd1fd7d00fb1d54c793223925d9f84f3200683df129b87f111bbfbc96702"
+    }
+  }
+}

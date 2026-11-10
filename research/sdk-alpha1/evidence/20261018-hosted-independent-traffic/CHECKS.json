@@ -1,0 +1,91 @@
+{
+  "head": "1183ad3c0709513b69d90c7744f36a9c22c5897f",
+  "run": 39123933910,
+  "cohorts": [
+    {
+      "head": "1183ad3c0709513b69d90c7744f36a9c22c5897f",
+      "run": 39123933910,
+      "job": 117665019798,
+      "artifact": 12135223455,
+      "artifact_bytes": 1825044,
+      "artifact_sha256": "acc137321aeb7b7660d38a80091cb2fe13c39efdf893e5aeca9091c2ecf22ed8",
+      "members": 130,
+      "native_binary_sha256": "d59e86a7579aa340744bdde9f3f47d3f5010ad38e4a71abf50ab39f798908205",
+      "actual_binary_architecture": "ELF64 x86_64",
+      "peer_source_files_exact_git": 14,
+      "public_authority_and_signatures_independently_reverified": true,
+      "native_commands": 41,
+      "python_refusals": 51,
+      "traffic": {
+        "scope": "Independent volatile epoch-zero traffic versus real Rust journal; independent persistence remains unimplemented",
+        "directions": 2,
+        "fresh_messages_per_direction": 3,
+        "plaintext_sizes": [
+          0,
+          31,
+          16384
+        ],
+        "associated_data_sizes": [
+          5,
+          19,
+          1024
+        ],
+        "native_journal_reopens": 5,
+        "traffic_after_advertisement_expiry": true,
+        "contiguous_consumption_prefix": 3,
+        "actual_process_restart": false
+      },
+      "provider": {
+        "cryptography": "48.0.1",
+        "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+      },
+      "scope": "Linux independent volatile bootstrap and epoch-zero traffic versus actual Rust journal. Public identity/signature/frame/ACK fields and all native statuses rechecked; secret MAC/AEAD keys are not exported/rederived by this readback. macOS remains separate. No independent persistence, process-crash or full lifecycle claim."
+    },
+    {
+      "head": "1183ad3c0709513b69d90c7744f36a9c22c5897f",
+      "run": 39123933910,
+      "job": 117665019887,
+      "artifact": 12135233930,
+      "artifact_bytes": 1653570,
+      "artifact_sha256": "5efd4c0fbab672f60dd0fd44d69b045ffe1aebf78b61701bad6cf283475c5570",
+      "members": 130,
+      "native_binary_sha256": "d0500c8e216eea23a75c030d546012cc45c8de25cab9f7e953325d078c1209f9",
+      "actual_binary_architecture": "MachO64 ARM64",
+      "peer_source_files_exact_git": 14,
+      "public_authority_and_signatures_independently_reverified": true,
+      "native_commands": 41,
+      "python_refusals": 51,
+      "traffic": {
+        "scope": "Independent volatile epoch-zero traffic versus real Rust journal; independent persistence remains unimplemented",
+        "directions": 2,
+        "fresh_messages_per_direction": 3,
+        "plaintext_sizes": [
+          0,
+          31,
+          16384
+        ],
+        "associated_data_sizes": [
+          5,
+          19,
+          1024
+        ],
+        "native_journal_reopens": 5,
+        "traffic_after_advertisement_expiry": true,
+        "contiguous_consumption_prefix": 3,
+        "actual_process_restart": false
+      },
+      "provider": {
+        "cryptography": "48.0.1",
+        "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+      },
+      "scope": "Apple Silicon independent volatile bootstrap and epoch-zero traffic versus actual Rust journal. Public identity/signature/frame/ACK fields and all native statuses rechecked; secret MAC/AEAD keys are not exported/rederived by this readback. Linux is separately reviewed. No independent persistence, process-crash or full lifecycle claim."
+    }
+  ],
+  "scope": "Both original volatile traffic cohorts, separate from the later independent storage increment.",
+  "capture": {
+    "sha256": "2cdc2ca049fdbf3020b3c63bba7a41ac82e1f97ce63184bd9f0a732c3a4e0137",
+    "bytes": 3302936,
+    "members": 11,
+    "complete_member_readback": true
+  }
+}

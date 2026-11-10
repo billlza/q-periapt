@@ -1,0 +1,48 @@
+{
+  "conditioning": {
+    "conditional_difference": {
+      "denominator": 1,
+      "numerator": 1
+    },
+    "conditional_probabilities": [
+      {
+        "denominator": 1,
+        "numerator": 1
+      },
+      {
+        "denominator": 1,
+        "numerator": 0
+      }
+    ],
+    "epsilon": {
+      "denominator": 8,
+      "numerator": 1
+    },
+    "unconditioned_difference": {
+      "denominator": 8,
+      "numerator": 1
+    },
+    "unconditioned_probabilities": [
+      {
+        "denominator": 8,
+        "numerator": 1
+      },
+      {
+        "denominator": 1,
+        "numerator": 0
+      }
+    ]
+  },
+  "different_override_worlds": {
+    "real_matching_mass": {
+      "denominator": 1,
+      "numerator": 1
+    },
+    "sum_of_separate_override_matching_masses": {
+      "denominator": 1,
+      "numerator": 2
+    }
+  },
+  "release_claim_eligible": false,
+  "scope": "Exact rational arithmetic for two elementary invalid-proof-shortcut examples. Not protocol executions, a primitive attack, a proof of the reduction, or exhaustive verification."
+}

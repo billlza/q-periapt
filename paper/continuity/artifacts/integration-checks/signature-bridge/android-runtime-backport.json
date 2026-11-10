@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-11-08T22:00:36.953739+00:00",
+  "task": "Backport PR122 fixed API35/16KiB guest RAM at the original emulator exec boundary",
+  "source_pr": {
+    "number": 122,
+    "head": "c7a55052f28ebf9c844e13ef9d7c7e681b566595",
+    "url": "https://github.com/billlza/q-periapt/pull/122",
+    "local_source_parent": "c74b1c7ad2173353a297f965ad735639dbd3958b",
+    "local_source_blobs_verified_against_published_pr_files": true
+  },
+  "paper_base_commit": "7c5e3db4b441b3aa2aee62c48242f71ff0b2643d",
+  "patch_sha256": "1873b344c4b054d13021048adfb5d50c86626ac8d376c10afcc739a188648e52",
+  "files": {
+    "artifact/android_bounded_command.py": {
+      "before_sha256": "cb1575e4bab2b3e7f4a9fcfa69ee17a8ca337d73b99beda4b56f0574d8675459",
+      "before_git_blob": "eac2ce48a0f4f8b48c472912b8887c34e2b1e9d1",
+      "pr122_sha256": "eb42e5041203d31b516f60873e8d7c78c7dd6072899cc1285806413b1d9cc458",
+      "pr122_git_blob": "2b54f86122e624b5972481904e1da26326fed646",
+      "after_sha256": "e530dedcfc2a67d038e56aecdc6e5cecab873b1e6c86f3a6a4279c31629c3f45",
+      "after_git_blob": "798f9034f6aa6c3f0856b3c1d73afa00b290e87f"
+    },
+    "artifact/test_android_bounded_command.py": {
+      "before_sha256": "547c9704f2166d0a7d6acce3fb62da2194780f3f577c4c3fb94562708e59ae39",
+      "before_git_blob": "8adc39a88ce89d035af9c9167f2a6bb8234cb900",
+      "pr122_sha256": "b41d1f9d402485779a818f991e5398a495018c1ee665969af829c604d33548ac",
+      "pr122_git_blob": "c8377b7b7aa4bbfbe484e85770dbf53a0440673d",
+      "after_sha256": "2de9d989c56ab948078d62e8694d2e387d7bbed779771977ccec9b52e8c88f53",
+      "after_git_blob": "38402a6f5cab6b3f417df97517caa8bd5831e042"
+    }
+  },
+  "scope": {
+    "source_condition": {
+      "adb_profile": "linux-system",
+      "canonical_abi": "x86_64",
+      "canonical_avd": "QPeriapt_Release_16K_API_35_CI_V1"
+    },
+    "added_arguments": [
+      "-memory",
+      "4096"
+    ],
+    "other_paper_logic_preserved_by_exact_reverse_patch": {
+      "artifact/android_bounded_command.py": true,
+      "artifact/test_android_bounded_command.py": true
+    },
+    "exec_emulator_identical_to_pr122": true
+  },
+  "regression": {
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "-v",
+      "test_android_bounded_command.AndroidBoundedCommandTests.test_emulator_exec_advances_receipt_before_fixed_exec_and_preserves_failure",
+      "test_android_bounded_command.AndroidBoundedCommandTests.test_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary"
+    ],
+    "cwd": "/workspace/scratch/10a56274b2b6/q-periapt-paper-bridge",
+    "before": {
+      "composition": "Original paper launcher with exact PR122 test diff",
+      "returncode": 1,
+      "tests": 2,
+      "failures": 1,
+      "errors": 0,
+      "skips": 0,
+      "reason": "Linux hosted exact argv lacks -memory 4096; macOS boundary passes.",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "b7fe0ec1a9c0bb9488928b534d89a3a0f9b8b51c958287c8d7e62ee5fdd6cdd9",
+      "stderr": "test_emulator_exec_advances_receipt_before_fixed_exec_and_preserves_failure (test_android_bounded_command.AndroidBoundedCommandTests.test_emulator_exec_advances_receipt_before_fixed_exec_and_preserves_failure) ... ok\ntest_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary (test_android_bounded_command.AndroidBoundedCommandTests.test_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary) ... FAIL\n\n======================================================================\nFAIL: test_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary (test_android_bounded_command.AndroidBoundedCommandTests.test_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/workspace/scratch/10a56274b2b6/q-periapt-paper-bridge/artifact/test_android_bounded_command.py\", line 4722, in test_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary\n    self._check_emulator_exec_boundary(\n  File \"/workspace/scratch/10a56274b2b6/q-periapt-paper-bridge/artifact/test_android_bounded_command.py\", line 4816, in _check_emulator_exec_boundary\n    commands.exec_emulator(self.layout.run_id, device_abi)\n  File \"/workspace/scratch/10a56274b2b6/q-periapt-paper-bridge/artifact/android_bounded_command.py\", line 1162, in exec_emulator\n    os.execve(str(launcher), argv, emulator_environment)\n  File \"/usr/lib/python3.12/unittest/mock.py\", line 1134, in __call__\n    return self._mock_call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/unittest/mock.py\", line 1138, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/unittest/mock.py\", line 1199, in _execute_mock_call\n    result = effect(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/scratch/10a56274b2b6/q-periapt-paper-bridge/artifact/test_android_bounded_command.py\", line 4764, in reject_exec\n    self.assertEqual(\nAssertionError: Lists differ: ['/tm[313 chars]aaaaaaaaaaaaaaaaaaa', '-gpu', 'swiftshader'] != ['/tm[313 chars]aaaaaaaaaaaaaaaaaaa', '-gpu', 'swiftshader', '-memory', '4096']\n\nSecond list contains 2 additional elements.\nFirst extra element 15:\n'-memory'\n\n  ['/tmp/tmpi892rd7x/fixed-emulator',\n   '-avd',\n   'QPeriapt_Release_16K_API_35_CI_V1',\n   '-port',\n   '5584',\n   '-no-snapshot',\n   '-read-only',\n   '-no-window',\n   '-no-audio',\n   '-no-boot-anim',\n   '-no-direct-adb',\n   '-adb-path',\n   '/tmp/tmpi892rd7x/target/qperiapt-android-device-smoke-runs/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/work/adb-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',\n   '-gpu',\n-  'swiftshader']\n?               ^\n\n+  'swiftshader',\n?               ^\n\n+  '-memory',\n+  '4096']\n\n----------------------------------------------------------------------\nRan 2 tests in 0.036s\n\nFAILED (failures=1)\n"
+    },
+    "after": {
+      "composition": "Paper launcher and tests with exact PR122 two-file diff",
+      "returncode": 0,
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "745c06a904cf5ef904f37766f9ef38039646d7b415f5b86ca8c788c81a41adcb",
+      "stderr": "test_emulator_exec_advances_receipt_before_fixed_exec_and_preserves_failure (test_android_bounded_command.AndroidBoundedCommandTests.test_emulator_exec_advances_receipt_before_fixed_exec_and_preserves_failure) ... ok\ntest_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary (test_android_bounded_command.AndroidBoundedCommandTests.test_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.036s\n\nOK\n"
+    }
+  },
+  "qualification": "The two focused tests verify exact exec argv, isolation checkpoint, receipt transition, environment, and propagated exec failure. This backport did not launch an Android emulator locally."
+}

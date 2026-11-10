@@ -1,0 +1,15 @@
+{
+  "reviewed_note_version": "0.3",
+  "verdict": "approved_for_declared_finite_typed_interface",
+  "artifacts": {
+    "multi_report_theorem.md": "7416c2ccb8147a67e0fb3b1f8456970f1537aaf7985cbfbec196a502e2b19027",
+    "report-composition.tex": "c6358c7b39dba17db00e8a1f08eb226af834a253b2c04aea4504288e9d161653",
+    "native_interface_map.md": "6bccd3b423e3a1b729b229534be9e7d334006a128e35bf7cfcfb7d02012fb448",
+    "map.json": "d8eb3e433a388514fe5a9c0f7446a50a4b2d2543d1c9b6c9812f165030290e06"
+  },
+  "review_sha256": "f1797e356d03595df155d1b5c756623c39b8977d37946c1b69d06de2036e0b96",
+  "source_commit": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "new_native_experiments": false,
+  "whole_native_security_claim": false,
+  "frozen": true
+}

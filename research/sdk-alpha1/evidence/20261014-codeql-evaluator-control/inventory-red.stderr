@@ -1,0 +1,30 @@
+EE
+======================================================================
+ERROR: test_tracked_inventory_is_nonempty_and_nul_terminated (test_codeql_rust_quality.CodeQLRustQualityTests.test_tracked_inventory_is_nonempty_and_nul_terminated)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source/artifact/test_codeql_rust_quality.py", line 1414, in test_tracked_inventory_is_nonempty_and_nul_terminated
+    tracked = codeql_rust_quality.tracked_rust_paths()
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source/artifact/codeql_rust_quality.py", line 450, in tracked_rust_paths
+    raise CodeQLRustQualityError(
+    ...<2 lines>...
+    )
+codeql_rust_quality.CodeQLRustQualityError: tracked Rust source count must be 630, got 644
+
+======================================================================
+ERROR: test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources (test_codeql_rust_quality.CodeQLRustQualityTests.test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source/artifact/test_codeql_rust_quality.py", line 1629, in test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources
+    tracked = sorted(codeql_rust_quality.tracked_rust_paths())
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source/artifact/codeql_rust_quality.py", line 450, in tracked_rust_paths
+    raise CodeQLRustQualityError(
+    ...<2 lines>...
+    )
+codeql_rust_quality.CodeQLRustQualityError: tracked Rust source count must be 630, got 644
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.037s
+
+FAILED (errors=2)

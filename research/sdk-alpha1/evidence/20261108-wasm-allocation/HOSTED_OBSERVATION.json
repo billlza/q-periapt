@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "run_url": "https://github.com/billlza/q-periapt/actions/runs/42511575195",
+  "run_id": 42511575195,
+  "experiment_commit": "6ec4d7824cada30bdc4bdb6867fd00a0e34d9731",
+  "jobs": [
+    {
+      "id": 128825576502,
+      "name": "Retained 72acaacc database, baseline",
+      "status": "in_progress",
+      "conclusion": null,
+      "started_at": "2026-11-08T18:47:48Z",
+      "completed_at": null
+    },
+    {
+      "id": 128825576664,
+      "name": "Retained 72acaacc database, native-heavy",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-08T18:47:42Z",
+      "completed_at": "2026-11-08T21:54:25Z"
+    }
+  ],
+  "paired_comparison_completed": false,
+  "artifact": {
+    "id": 13635504402,
+    "bytes": 14211267,
+    "sha256": "f15e8c933c67430e4f9bb05db6d5dc5f3ae948d9bb3926a781f8e4b7c2405089"
+  }
+}

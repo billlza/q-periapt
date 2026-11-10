@@ -1,0 +1,210 @@
+make: Entering directory '/workspace/scratch/e41ac2378a11/paper-work/paper/continuity'
+python3 "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/chain-prefix/check_prefix.py"
+{
+  "schema": "qperiapt-chain-prefix-controls/1",
+  "status": "passed",
+  "all_binary_online_marking_policies": 128,
+  "binary_assignments_examined": 8192,
+  "larger_alphabet_policies": 8,
+  "larger_alphabet_assignments_examined": 32768,
+  "all_observed_selected_key_fibres_uniform": true,
+  "retrospective_marking_breaks_ideal_independence": true,
+  "source": {
+    "files": 3,
+    "anchors": {
+      "fixed_index_encoding": true,
+      "zero_salt_extract": true,
+      "two_output_blocks": true,
+      "native_index_ceiling": true,
+      "first_send_step": true,
+      "send_counter_advances_once": true,
+      "receive_skips_compute_first": true,
+      "receive_skip_key_retained": true,
+      "exact_outbox_resume": true,
+      "zero_message_nonce": true,
+      "receive_transaction_private": true,
+      "domain_present": true
+    },
+    "fixed_width_indices_checked": 6,
+    "exposed_prefix_seed_recovers_selected_key": true,
+    "reserved_index_rejected": true,
+    "exact_recomputation_matches": true
+  },
+  "origins": {
+    "alias_step_consistency": true,
+    "prior_computation_rejected": true,
+    "distinct_material_identity": true,
+    "private_encryption_calls": 1,
+    "four_commit_retry_outcomes_share_one_origin": true
+  },
+  "scope": "Exact finite ideal-distribution and interface controls, source identities and anchors; the full compression-oracle comparison is the mathematical theorem.",
+  "checker_sha256": "da95d3050d4bff8ecc132b7fdae01ac9c5cbabd0c7c74f8fcd3baa23447d5b35"
+}
+python3 "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/native-online-chain/check_native_chain.py"
+{
+  "schema": "qperiapt-native-online-chain-controls/1",
+  "status": "passed",
+  "allocation": {
+    "traces_with_mark_choices": 19440,
+    "first_call_decisions": 77760,
+    "predesignated_material_direction_targets": 3,
+    "prior_computation_mark_attempts_rejected": 1762,
+    "nonselected_material_or_direction_marks_rejected": 10368,
+    "failed_receive_rollback_counterexample": true,
+    "material_collapse_counterexample": true,
+    "receive_first_mark_and_exact_aliases": true,
+    "lifetime_and_unique_mark_controls": true
+  },
+  "localization": {
+    "temporal_assignments": 450,
+    "signed_and_boolean_partition_checks": 256,
+    "old_version_reseal_uses_original_time": true,
+    "available_successor_does_not_declassify_complete_record": true,
+    "candidate_local_stop_counterexample": true
+  },
+  "private_origins": {
+    "send_failure_histories": [
+      {
+        "reservation_persisted": false,
+        "outbox_persisted": false,
+        "original_encryptions": 0
+      },
+      {
+        "reservation_persisted": true,
+        "outbox_persisted": false,
+        "original_encryptions": 1
+      },
+      {
+        "reservation_persisted": true,
+        "outbox_persisted": true,
+        "original_encryptions": 1
+      }
+    ],
+    "receive_before_encryption_integrity_witness": true,
+    "retrospective_integrity_ledger_counterexample": true,
+    "challenge_material_origin_retained": true
+  },
+  "sources": {
+    "files": 6,
+    "anchors": {
+      "pending_plan_before_first_persist": true,
+      "first_persist_before_send_computation": true,
+      "pending_id_and_payload_binding": true,
+      "pending_check_before_step": true,
+      "step_before_encryption": true,
+      "outbox_and_counter_after_encryption": true,
+      "outbox_reuse_before_fresh_step": true,
+      "directional_role_swap": true,
+      "receiver_computes_skipped_steps": true,
+      "receiver_step_before_authentication": true,
+      "receiver_drops_error_candidate": true,
+      "receiver_reuses_retained_skipped_key": true,
+      "zero_salt_extract": true,
+      "fixed_width_chain_index": true,
+      "reserved_index_rejected": true,
+      "two_chain_output_blocks": true,
+      "zero_message_nonce": true,
+      "exact_public_resume": true
+    },
+    "current_source_commit": "a4c089570c787522210d16226219c0cc8aa9b05e",
+    "all_match_original_paper_source": true
+  },
+  "checker_sha256": "732f5149b304a315a99f591d1f38f9d37d9606dd915ac2b50c7860e1c0ca32e2",
+  "scope": "Finite source-order, alias/mark, candidate-stop, native-partition and historical-event controls. Rust, a formal verifier and native workload benchmarks are not executed by this checker; the complete result is proved in the accompanying manuscript."
+}
+python3 "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/bootstrap/entry/check_entry.py" --source-root "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/bootstrap/entry/source" --output "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/build/bootstrap-entry.json"
+{"status": "passed", "source_files_matched": 7, "short_equations": 32, "long_equations": 32, "raw_points_checked": 8192, "tagged_points_checked": 1280, "adaptive_order_fixtures": 720, "output": "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/build/bootstrap-entry.json"}
+python3 "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/bootstrap/terminal/check_connection.py" --source-root "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/bootstrap/terminal/source" --output "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/build/bootstrap-terminal.json"
+python3 "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/bootstrap/reply/check_source_adapter.py" --source-root "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/bootstrap/reply/source" --output "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/build/bootstrap-reply.json"
+python3 "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/matched-comparison/analyze_matched.py" --check
+{"status": "passed", "rows": 49, "capture_cases": 98, "mode": "check", "outputs": ["analysis.json", "matched-opportunity-tables.tex"]}
+python3 "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/matched-comparison/check_input_controls.py"
+{
+  "schema": 1,
+  "status": "passed",
+  "positive_report_rows": 49,
+  "negative_controls": 14,
+  "controls": [
+    {
+      "control": "missing schedule",
+      "status": "rejected",
+      "reason": "incomplete report inventory"
+    },
+    {
+      "control": "duplicated profile/schedule",
+      "status": "rejected",
+      "reason": "duplicate profile/schedule coordinate"
+    },
+    {
+      "control": "total instead of post-capture denominator",
+      "status": "rejected",
+      "reason": "capture denominator differs"
+    },
+    {
+      "control": "duplicate derived request",
+      "status": "rejected",
+      "reason": "unordered, repeated or pre-capture request: derived"
+    },
+    {
+      "control": "pre-capture request counted as exposed",
+      "status": "rejected",
+      "reason": "unordered, repeated or pre-capture request: derived"
+    },
+    {
+      "control": "capture owners exchanged",
+      "status": "rejected",
+      "reason": "capture owner inventory differs"
+    },
+    {
+      "control": "uncommitted demand silently removed",
+      "status": "rejected",
+      "reason": "application partition differs"
+    },
+    {
+      "control": "free retry transmission",
+      "status": "rejected",
+      "reason": "transmission opportunity budget differs"
+    },
+    {
+      "control": "boolean count accepted as integer",
+      "status": "rejected",
+      "reason": "invalid count: frame count"
+    },
+    {
+      "control": "reference physical persistence fabricated",
+      "status": "rejected",
+      "reason": "reference physical I/O fabricated"
+    },
+    {
+      "control": "reference payload envelope omitted from bytes",
+      "status": "rejected",
+      "reason": "reference full-envelope bytes differ"
+    },
+    {
+      "control": "one-way suspension relabeled as recovery",
+      "status": "rejected",
+      "reason": "one-way suspension/recovery distinction differs"
+    },
+    {
+      "control": "duplicate JSON key",
+      "status": "rejected",
+      "reason": "duplicate JSON key: rows"
+    },
+    {
+      "control": "non-finite JSON",
+      "status": "rejected",
+      "reason": "non-finite JSON constant: NaN"
+    }
+  ]
+}
+python3 "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/matched-comparison/test_audit_input_boundaries.py"
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 0.022s
+
+OK
+python3 "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/artifacts/retry-readiness/analyze_retry.py" --check
+{"fresh_baseline_rows_equal_to_retained": 14, "mode": "check", "native_executions": 28, "paired_cases": 14, "status": "passed"}
+python3 "/workspace/scratch/e41ac2378a11/paper-work/paper/continuity/check_build.py"
+{"build_inputs": {"acquisition-nonadditivity.tex": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15", "artifact-map.tex": "1e5a46bc815e126df97568ea54e95f704ca1f0dd7fc99e61d0b3a83c38ff8045", "author-metadata.json": "a4654fb096735dd2277cf4251ad37866fe00b3a8333a5e6731155308ad495ec8", "bootstrap-authentication.tex": "72c4f982bdf7229623ca790d83d3a2dc55ef0f6cb0f32cc832a61700f28e766d", "bootstrap-entry.tex": "cbd221f1b5f9ae268a4694e2256d49811106755f85991d7bfcb8fa2ee4951aaa", "candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad", "chain-prefix-continuation.tex": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31", "common-virtual-accounting.tex": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061", "computational-roadmap.tex": "08475e289fd01b7d0dc5e060b3364db7925ec367ee42c3f3bd61b661b33ab3d3", "confirmation-traffic.tex": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7", "construction.tex": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44", "contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235", "declarations.tex": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771", "discussion.tex": "2d88c5bbb840d7bd5e5b544ab2421df20769180e90cd67345964ec214bd740f4", "established-results.tex": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41", "evaluation.tex": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe", "figures/confirmation-cut.pdf": "b88e0eaa6a2f838967aae58e93ff131f2afd13a0f145347ce57e34db596ebfaf", "guarded-provenance.tex": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136", "introduction.tex": "28b5daf00ba7f427a981b0135c170191821a756889a6f8c52139c0837da1c5ca", "joc-basic.bst": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1", "joc-submission.tex": "2d7b26c01735ba37b03d0bf944780a7bf21ee8f50faf8e6b024e64168b2e8297", "joint-continuation.tex": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab", "joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb", "live-core-instantiation.tex": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805", "main.tex": "c8af976b217a099fc3efedbc8ba97ec5e256698b9e2dd4843a2108c32b473265", "matched-opportunities.tex": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726", "matched-opportunity-tables.tex": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570", "multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34", "native-authentication.tex": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170", "native-chain-composition.tex": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e", "native-correspondence.tex": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a", "opaque-rendering.tex": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298", "primitive-inputs.tex": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa", "reference-schedule-table.tex": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9", "references.bib": "063c56969e496b8cdd202d8262669bf489d72ed1e19f498e9f1423c5d54cc36e", "related-work.tex": "893342efdeac3b9d741e0295cfbe96545d621c154784b5006e3b66dc39e8f650", "report-composition.tex": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7", "reservation-signature-bridge.tex": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c", "retry-readiness-table.tex": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5", "retry-readiness.tex": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516", "sdk-purpose-connection.tex": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc", "security-model.tex": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7", "sn-basic.bst": "4b368414cc5593169907933b417aacfdb0ce905866a39bdf55d21aad65e9d46c", "sn-jnl.cls": "36d0c3273a59d48dc6a9c7b080dfa1ec50dc10229d8751568d1f2e490ffa5ecc", "source-attribution.tex": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e"}, "status": "passed", "pdf_sha256": "e575119c4858e2e37d2ea4cbe245565f4ea531428c55b969ad1b15ae691494b8", "pages": 111, "abstract_words": 246, "keywords": 7, "generated_source_sha256": "2d7b26c01735ba37b03d0bf944780a7bf21ee8f50faf8e6b024e64168b2e8297", "underfull_notices": 122, "failures": [], "scope": "Build, source identity and document metadata; not a mathematical or experimental security proof."}
+make: Leaving directory '/workspace/scratch/e41ac2378a11/paper-work/paper/continuity'

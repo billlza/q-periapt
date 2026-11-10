@@ -1,0 +1,689 @@
+{
+  "analysis_executed": false,
+  "control_artifact_bytes": 17818662,
+  "control_artifact_id": 13600568708,
+  "control_artifact_sha256": "5c0208e7dacedf018a98a650e79b0b9d7ce9aec832ac2d1a40ed13bbb482e93e",
+  "elapsed_seconds": 8.485460339999918,
+  "final_query_log": {
+    "archive_member": "qperiapt-codeql-database/rust/log/execute-queries-20261108.022855.505.log",
+    "bytes": 217438850,
+    "gzip": "raw/execute-queries-20261108.022855.505.log.gz",
+    "gzip_bytes": 10084247,
+    "sha256": "ffd82755c209a8a7813b0b9a77c5edd52d1263549923230e6cd5c6b1c905739f",
+    "summary": {
+      "cache_eviction_pauses": 513,
+      "last_line": "[2026-11-08 02:33:16] Pausing evaluation to evict 209.99MiB ARRAYS at sequence stamp o+16798712",
+      "lines": 1194213,
+      "max_taint_stage_iterations": {
+        "1": 200,
+        "2": 1005,
+        "3": 444
+      },
+      "notes": [
+        {
+          "line": 1117,
+          "text": "[2026-11-08 02:28:56] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/rand.model.yml.",
+          "text_truncated": false
+        },
+        {
+          "line": 1120,
+          "text": "[2026-11-08 02:28:56] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/reqwest.model.yml.",
+          "text_truncated": false
+        },
+        {
+          "line": 1124,
+          "text": "[2026-11-08 02:28:56] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/rust.model.yml.",
+          "text_truncated": false
+        },
+        {
+          "line": 1128,
+          "text": "[2026-11-08 02:28:56] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/serde.model.yml.",
+          "text_truncated": false
+        },
+        {
+          "line": 1131,
+          "text": "[2026-11-08 02:28:56] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/smallvec.model.yml.",
+          "text_truncated": false
+        },
+        {
+          "line": 1134,
+          "text": "[2026-11-08 02:28:56] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/rust-all/0.2.23/ext/generated/modelgenerator/tokio.model.yml.",
+          "text_truncated": false
+        },
+        {
+          "line": 1138,
+          "text": "[2026-11-08 02:28:56] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/threat-models/1.0.59/ext/supported-threat-models.model.yml.",
+          "text_truncated": false
+        },
+        {
+          "line": 1140,
+          "text": "[2026-11-08 02:28:56] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/threat-models/1.0.59/ext/threat-model-grouping.model.yml.",
+          "text_truncated": false
+        },
+        {
+          "line": 1142,
+          "text": "[2026-11-08 02:28:56] [PROGRESS] resolve extensions-by-pack> Loading data extensions in /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/util/2.0.46/ext/default-alert-filter.yml.",
+          "text_truncated": false
+        },
+        {
+          "line": 4203,
+          "text": "[2026-11-08 02:28:56] [PROGRESS] execute queries> Finished resolving data extensions.",
+          "text_truncated": false
+        },
+        {
+          "line": 4204,
+          "text": "[2026-11-08 02:28:56] [PROGRESS] execute queries> Loading data extensions.",
+          "text_truncated": false
+        },
+        {
+          "line": 4205,
+          "text": "[2026-11-08 02:28:56] [PROGRESS] execute queries> Finished loading data extensions.",
+          "text_truncated": false
+        },
+        {
+          "line": 5445,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [1/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-311/CleartextTransmission.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5447,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [2/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-918/RequestForgery.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5448,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [3/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-079/XSS.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5449,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [4/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-798/HardcodedCryptographicValue.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5451,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [5/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-022/TaintedPath.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5455,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [6/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-825/AccessInvalidPointer.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5456,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [7/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-312/CleartextStorageDatabase.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5458,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [8/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-312/CleartextLogging.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5459,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [9/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-089/SqlInjection.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5461,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [10/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-078/CommandInjection.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5464,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [11/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-327/BrokenCryptoAlgorithm.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5466,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [12/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-295/DisabledCertificateCheck.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5467,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [13/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-770/UncontrolledAllocationSize.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5471,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [14/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-319/UseOfHttp.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5472,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [15/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-614/InsecureCookie.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5473,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [16/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-327/WeakSensitiveDataHashing.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5474,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [17/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-020/RegexInjection.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5478,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [18/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/AstConsistencyCounts.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5481,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [19/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/UnextractedElements.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5483,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [20/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/TypeInferenceConsistencyCounts.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5484,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [21/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/UnresolvedMacroCalls.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5486,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [22/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractionWarnings.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5489,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [23/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-117/LogInjection.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5491,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [24/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-825/AccessAfterLifetime.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5492,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [25/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractionErrors.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5494,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [26/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractedFiles.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5497,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [27/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/telemetry/DatabaseQualityDiagnostics.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5498,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [28/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/DataFlowConsistencyCounts.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5500,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [29/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/CfgConsistencyCounts.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5501,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [30/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/SsaConsistencyCounts.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5504,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [31/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/telemetry/ExtractorInformation.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5505,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [32/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/LinesOfCode.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5508,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [33/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NumberOfFilesExtractedWithErrors.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5510,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [34/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/LinesOfUserCode.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5512,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [35/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NumberOfSuccessfullyExtractedFiles.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5513,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [36/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/QuerySinkCounts.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5514,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [37/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NodesWithTypeAtLengthLimit.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5517,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [38/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStatsReduced.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5518,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> [39/39] Loaded /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStats.qlx.",
+          "text_truncated": false
+        },
+        {
+          "line": 5695,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 5696,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 5701,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 5704,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractedFiles.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 5711,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractionErrors.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 5715,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractionWarnings.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 5719,
+          "text": "[2026-11-08 02:28:58] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 7747,
+          "text": "[2026-11-08 02:29:19] [PROGRESS] execute queries> [1/39 eval 20.5s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 8871,
+          "text": "[2026-11-08 02:29:25] [PROGRESS] execute queries> [2/39 eval 26.7s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractedFiles.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 9995,
+          "text": "[2026-11-08 02:29:28] [PROGRESS] execute queries> [3/39 eval 29.8s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionErrors.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 9999,
+          "text": "[2026-11-08 02:29:28] [PROGRESS] execute queries> [4/39 eval 29.8s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionWarnings.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 32903,
+          "text": "[2026-11-08 02:29:38] [PROGRESS] execute queries> [5/39 eval 39.8s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 33170,
+          "text": "[2026-11-08 02:29:40] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 33221,
+          "text": "[2026-11-08 02:29:41] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/UnextractedElements.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 33229,
+          "text": "[2026-11-08 02:29:41] [PROGRESS] execute queries> [6/39 eval 1ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnextractedElements.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 33230,
+          "text": "[2026-11-08 02:29:41] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 35337,
+          "text": "[2026-11-08 02:29:44] [PROGRESS] execute queries> [7/39 eval 3.2s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 37723,
+          "text": "[2026-11-08 02:29:48] [PROGRESS] execute queries> [8/39 eval 50s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 38012,
+          "text": "[2026-11-08 02:29:49] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-020/RegexInjection.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 38016,
+          "text": "[2026-11-08 02:29:49] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-022/TaintedPath.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 38079,
+          "text": "[2026-11-08 02:29:49] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-078/CommandInjection.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 38083,
+          "text": "[2026-11-08 02:29:49] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-079/XSS.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 38138,
+          "text": "[2026-11-08 02:29:49] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-089/SqlInjection.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 38165,
+          "text": "[2026-11-08 02:29:49] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-117/LogInjection.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 38196,
+          "text": "[2026-11-08 02:29:49] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 38220,
+          "text": "[2026-11-08 02:29:49] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 40320,
+          "text": "[2026-11-08 02:29:58] [PROGRESS] execute queries> [9/39 eval 59.4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 41726,
+          "text": "[2026-11-08 02:29:58] [PROGRESS] execute queries> [10/39 eval 9.1s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-020/RegexInjection.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 102969,
+          "text": "[2026-11-08 02:30:08] [PROGRESS] execute queries> [11/39 eval 19.6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-079/XSS.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 130052,
+          "text": "[2026-11-08 02:30:09] [PROGRESS] execute queries> [12/39 eval 20.5s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-089/SqlInjection.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 486607,
+          "text": "[2026-11-08 02:30:21] [PROGRESS] execute queries> [13/39 eval 32.2s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-078/CommandInjection.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 486680,
+          "text": "[2026-11-08 02:30:21] [PROGRESS] execute queries> [14/39 eval 32.1s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-117/LogInjection.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 505124,
+          "text": "[2026-11-08 02:30:22] [PROGRESS] execute queries> [15/39 eval 33.1s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 595877,
+          "text": "[2026-11-08 02:30:26] [PROGRESS] execute queries> [16/39 eval 37s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-022/TaintedPath.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 596797,
+          "text": "[2026-11-08 02:30:30] [PROGRESS] execute queries> [17/39 eval 41s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 596798,
+          "text": "[2026-11-08 02:30:30] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-312/CleartextLogging.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 596802,
+          "text": "[2026-11-08 02:30:30] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 596852,
+          "text": "[2026-11-08 02:30:30] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-319/UseOfHttp.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 597095,
+          "text": "[2026-11-08 02:30:30] [PROGRESS] execute queries> [18/39 eval 27ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 597135,
+          "text": "[2026-11-08 02:30:30] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 598703,
+          "text": "[2026-11-08 02:30:31] [PROGRESS] execute queries> [19/39 eval 1.4s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 652642,
+          "text": "[2026-11-08 02:30:36] [PROGRESS] execute queries> [20/39 eval 5.5s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 652693,
+          "text": "[2026-11-08 02:30:36] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 652695,
+          "text": "[2026-11-08 02:30:36] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-614/InsecureCookie.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 652703,
+          "text": "[2026-11-08 02:30:36] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 659267,
+          "text": "[2026-11-08 02:30:36] [PROGRESS] execute queries> [21/39 eval 218ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-614/InsecureCookie.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 692709,
+          "text": "[2026-11-08 02:30:37] [PROGRESS] execute queries> [22/39 eval 7.5s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextLogging.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 692722,
+          "text": "[2026-11-08 02:30:38] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 730594,
+          "text": "[2026-11-08 02:30:43] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 815616,
+          "text": "[2026-11-08 02:30:49] [PROGRESS] execute queries> [23/39 eval 1m9s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 815914,
+          "text": "[2026-11-08 02:30:49] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 827133,
+          "text": "[2026-11-08 02:30:50] [PROGRESS] execute queries> [24/39 eval 14.4s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 827867,
+          "text": "[2026-11-08 02:30:50] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/security/CWE-918/RequestForgery.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 831768,
+          "text": "[2026-11-08 02:30:51] [PROGRESS] execute queries> [25/39 eval 8.7s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 834070,
+          "text": "[2026-11-08 02:30:52] [PROGRESS] execute queries> [26/39 eval 1.9s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-918/RequestForgery.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 836868,
+          "text": "[2026-11-08 02:30:53] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/LinesOfCode.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 842586,
+          "text": "[2026-11-08 02:30:54] [PROGRESS] execute queries> [27/39 eval 18s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 842644,
+          "text": "[2026-11-08 02:30:54] [PROGRESS] execute queries> [28/39 eval 4.6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 843411,
+          "text": "[2026-11-08 02:30:54] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/LinesOfUserCode.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 843498,
+          "text": "[2026-11-08 02:30:54] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 843504,
+          "text": "[2026-11-08 02:30:54] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 844529,
+          "text": "[2026-11-08 02:30:56] [PROGRESS] execute queries> [29/39 eval 1.3s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 851052,
+          "text": "[2026-11-08 02:30:57] [PROGRESS] execute queries> [30/39 eval 2.6s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 883547,
+          "text": "[2026-11-08 02:31:00] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 883579,
+          "text": "[2026-11-08 02:31:00] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/QuerySinkCounts.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 883586,
+          "text": "[2026-11-08 02:31:00] [PROGRESS] execute queries> [31/39 eval 2ms] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 883587,
+          "text": "[2026-11-08 02:31:00] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/SummaryStats.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 887211,
+          "text": "[2026-11-08 02:31:00] [PROGRESS] execute queries> [32/39 eval 6.7s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfCode.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 887218,
+          "text": "[2026-11-08 02:31:00] [PROGRESS] execute queries> [33/39 eval 5.7s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfUserCode.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 1033050,
+          "text": "[2026-11-08 02:31:11] [PROGRESS] execute queries> [34/39 eval 33.5s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 1058829,
+          "text": "[2026-11-08 02:31:25] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/SummaryStatsReduced.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 1087749,
+          "text": "[2026-11-08 02:31:35] [PROGRESS] execute queries> [35/39 eval 35.8s] Evaluation done; writing results to codeql/rust-queries/queries/summary/QuerySinkCounts.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 1135367,
+          "text": "[2026-11-08 02:31:45] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 1147885,
+          "text": "[2026-11-08 02:31:56] [PROGRESS] execute queries> [36/39 eval 11.1s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 1157690,
+          "text": "[2026-11-08 02:31:57] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/telemetry/ExtractorInformation.ql.",
+          "text_truncated": false
+        },
+        {
+          "line": 1164835,
+          "text": "[2026-11-08 02:31:57] [PROGRESS] execute queries> [37/39 eval 32s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStatsReduced.bqrs.",
+          "text_truncated": false
+        },
+        {
+          "line": 1167039,
+          "text": "[2026-11-08 02:32:04] [PROGRESS] execute queries> [38/39 eval 7.4s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/ExtractorInformation.bqrs.",
+          "text_truncated": false
+        }
+      ],
+      "notes_omitted": 52,
+      "query_completions": 38,
+      "query_starts": 39
+    }
+  },
+  "gzip_bytes": 17696116,
+  "kind": "qperiapt.codeql_log_recovery_control",
+  "log_bytes": 334072945,
+  "log_files": 12,
+  "peak_rss_kib": 21392,
+  "production_artifact_id": 13609897355,
+  "production_input_recovered": false,
+  "release_claim_eligible": false,
+  "roundtrip_sha256_verified": true,
+  "sarif_published": false,
+  "schema": 1,
+  "script_sha256": "29a02a7e98a8b420c47e5194a09f93fc644481712e98a5b348547b69c9d72677",
+  "tests_sha256": "9d05af1c8c1580245b735e1bcd22b1112f6147030114af98c33417248ccd5aba",
+  "unit_tests": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 15
+  },
+  "workflow_sha256": "1f05019299e981edc2ed259a47c39fee27fb80a48357dc6075e907f0e995899f"
+}

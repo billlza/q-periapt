@@ -1,0 +1,60 @@
+{
+  "source_commit": "72acaaccde1ca9ea27e5af022da5fbce932ed4e9",
+  "source_commit_url": "https://github.com/billlza/q-periapt/tree/72acaaccde1ca9ea27e5af022da5fbce932ed4e9",
+  "prior_native_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "sources": [
+    {
+      "path": "research/continuity-identity-candidate/src/crypto.rs",
+      "sha256": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4",
+      "bytes": 18994,
+      "source_url": "https://github.com/billlza/q-periapt/blob/72acaaccde1ca9ea27e5af022da5fbce932ed4e9/research/continuity-identity-candidate/src/crypto.rs",
+      "matches_prior_native_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "prior_git_blob": "10e7693adbdb00aba318e7fe54ca73143d3335df"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+      "sha256": "f502bef3368bedec46cefd7f8955d4706550d45ab9baf2c7d6bca8ee45b4d405",
+      "bytes": 7998,
+      "source_url": "https://github.com/billlza/q-periapt/blob/72acaaccde1ca9ea27e5af022da5fbce932ed4e9/research/continuity-identity-candidate/src/crypto/persistence.rs"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+      "sha256": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10",
+      "bytes": 17022,
+      "source_url": "https://github.com/billlza/q-periapt/blob/72acaaccde1ca9ea27e5af022da5fbce932ed4e9/research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+      "matches_prior_native_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "prior_git_blob": "b529ec75f5908abc4c064deaaf4bcb87585c983b"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs",
+      "sha256": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59",
+      "bytes": 15442,
+      "source_url": "https://github.com/billlza/q-periapt/blob/72acaaccde1ca9ea27e5af022da5fbce932ed4e9/research/continuity-identity-candidate/src/durable/messages/rekey/response.rs",
+      "matches_prior_native_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "prior_git_blob": "4b3ec64baae74580f1b0d75e7d3ff3271c2ba941"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs",
+      "sha256": "d2ba085119db3cff2ebda780f4824b8b4cbd3a9f6e44531df45db48144a65c1e",
+      "bytes": 42784,
+      "source_url": "https://github.com/billlza/q-periapt/blob/72acaaccde1ca9ea27e5af022da5fbce932ed4e9/research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs",
+      "matches_prior_native_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "prior_git_blob": "0b230c7406f5d9e25c89405faaf4b3a0bdf720e3"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/classical_alias.rs",
+      "sha256": "2bdedc294d4907d5ae418722c428ade9c2b2f67da252cf76154a2eac6d881cb1",
+      "bytes": 7637,
+      "source_url": "https://github.com/billlza/q-periapt/blob/72acaaccde1ca9ea27e5af022da5fbce932ed4e9/research/continuity-identity-candidate/src/durable/messages/tests/classical_alias.rs"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/contract.rs",
+      "sha256": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
+      "bytes": 4170,
+      "source_url": "https://github.com/billlza/q-periapt/blob/72acaaccde1ca9ea27e5af022da5fbce932ed4e9/research/continuity-identity-candidate/src/contract.rs",
+      "matches_prior_native_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "prior_git_blob": "210902bb3b39fc54a9ede786b7475487c7303bb7"
+    }
+  ],
+  "scope": "Exact files inspected for the new attribution argument. Prior native-pin equality is asserted only on rows with a retained matching receipt."
+}

@@ -1,0 +1,102 @@
+{
+  "head": "29c4df42fb2ea8adddc80b79b2dd59dfe8dde7f8",
+  "run": 37219990138,
+  "job": 111489291014,
+  "artifact": 11310465247,
+  "log_sha256": "974a20fe630006382c2757a1d25e0420730dc725cc22c1217cdea412e3778577",
+  "diagnostic_zip_sha256": "359b949c6b07cb4172709927b5a5e9ae4af81ad27f7e2121a0f0619d7341329f",
+  "instrumentation": {
+    "schema": 1,
+    "status": "pass",
+    "run_id": "e5d32ea2913de0339fa0979fbbe86d72",
+    "test_count": 3,
+    "passed_tests": [
+      "sdkOwnersAndPurposeKeys",
+      "sdkExpertCancellationAndInputSnapshot",
+      "sdkSignedPolicyRevocationAndRecovery"
+    ]
+  },
+  "failed_observations": {
+    "adb-package-postinstall-attempt-2.err": {
+      "failure": "unavailable",
+      "operation": "installed-apk-path",
+      "output": "adb-e5d32ea2913de0339fa0979fbbe86d72: device offline\n",
+      "output_bytes": 53,
+      "output_sha256": "023137f67b19b0050c01f41d859926df9451b7138c482bd02da6596691a8ab5d",
+      "returncode": 1,
+      "stage": "after-copy"
+    },
+    "adb-package-cleanup-1-attempt-1.err": {
+      "failure": "unavailable",
+      "operation": "installed-apk-path",
+      "output": "adb-e5d32ea2913de0339fa0979fbbe86d72: device offline\n",
+      "output_bytes": 53,
+      "output_sha256": "023137f67b19b0050c01f41d859926df9451b7138c482bd02da6596691a8ab5d",
+      "returncode": 1,
+      "stage": "after-copy"
+    }
+  },
+  "host_adb_disconnect_lines": [
+    "10-04 17:30:20.186  4464  4869 I adb-e5d32ea2913de0339fa0979fbbe86d72: transport.cpp:1222 emulator-5584: connection terminated: read failed",
+    "10-04 17:30:48.031  4464  5936 I adb-e5d32ea2913de0339fa0979fbbe86d72: transport.cpp:1222 emulator-5584: connection terminated: read failed"
+  ],
+  "guest_adbd_before": [
+    "shell          442     1   10899524   8264 0                   0 S adbd"
+  ],
+  "guest_adbd_after_recovery": [
+    "shell          442     1   10903044   8380 0                   0 S adbd"
+  ],
+  "uninstall_log_empty": true,
+  "observations": [
+    "phase=preinstall invocation=1 attempt=1 state=absent consecutive=1",
+    "phase=preinstall invocation=1 attempt=2 state=absent consecutive=2",
+    "phase=preinstall invocation=1 attempt=3 state=absent consecutive=3",
+    "phase=postinstall invocation=1 attempt=1 state=exact path_sha256=21697823806001e482446a0473b5631a0b835103934180c1937ce57ec22f6632 consecutive=1",
+    "phase=postinstall invocation=1 attempt=2 state=retryable reason=package-unavailable consecutive=0",
+    "phase=postinstall invocation=1 attempt=2 transport-recovery=recovered",
+    "phase=postinstall invocation=1 attempt=2 recovery-observation=capture-emulator-recovery-state exit=0",
+    "phase=postinstall invocation=1 attempt=2 recovery-observation=capture-emulator-recovery-logcat exit=0",
+    "phase=postinstall invocation=1 attempt=3 state=exact path_sha256=21697823806001e482446a0473b5631a0b835103934180c1937ce57ec22f6632 consecutive=1",
+    "phase=postinstall invocation=1 attempt=4 state=exact path_sha256=21697823806001e482446a0473b5631a0b835103934180c1937ce57ec22f6632 consecutive=2",
+    "phase=cleanup invocation=1 attempt=1 state=present consecutive=0",
+    "phase=cleanup invocation=1 attempt=1 state=retryable reason=package-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=2 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=3 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=4 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=5 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=6 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=7 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=8 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=9 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=10 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=11 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=12 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=13 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=14 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=1 attempt=15 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=1 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=2 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=3 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=4 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=5 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=6 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=7 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=8 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=9 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=10 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=11 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=12 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=13 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=14 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=15 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=16 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=17 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=18 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=19 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=20 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=21 state=retryable reason=device-unavailable consecutive=0",
+    "phase=cleanup invocation=2 attempt=22 state=retryable reason=device-unavailable consecutive=0"
+  ],
+  "conclusion": "Full profile instrumentation passed. Cleanup did not establish two consecutive exact path/hash/signer observations before uninstall. Earlier after-copy offline during postinstall consumed the sole allowed owned transport recovery; another after-copy offline occurred during cleanup. Final error now remains explicit unresolved cleanup. Minimal profile not reached. Root cause of transport disconnect is not established; no OOM/adbd-kill claim. PR pipeline at the same head passed both runtime profiles and replay jobs; this does not invalidate the push counterexample.",
+  "next_discriminating_experiment": "Same pinned hosted Linux API35 16KiB image and same APK: bounded package-state-only baseline versus exact exec-out cat copy plus subsequent path query. Preserve host/guest transport lifecycle, process ownership, image/tool/APK hashes and per-step timestamps. Do not increase recovery count or relax exact/hash/signer gates."
+}

@@ -1,0 +1,370 @@
+{
+  "all_39_semantic_results_equal": true,
+  "cases": {
+    "baseline": {
+      "actual_evaluator_memory": [
+        "-J-Xmx5768M",
+        "--off-heap-ram=6870"
+      ],
+      "evaluator_invocation": "[2026-11-09 07:15:18] This is codeql execute queries -J-Xmx5768M --off-heap-ram=6870 --verbosity=progress --logdir=/workspace/scratch/084f6c1d017a/ci-memory/high-level-control/baseline/database/log --common-caches=/workspace/scratch/084f6c1d017a/ci-memory/high-level-control/baseline/cache --evaluator-log-level=5 --threads=4 --threat-model=local --warnings=show --qlconfig-file=/workspace/scratch/084f6c1d017a/qlconfig.yml --dynamic-join-order-mode=none --no-rerun --interpret-passthrough=14000,--format=sarif-latest,-o=/workspace/scratch/084f6c1d017a/ci-memory/high-level-control/baseline/results.sarif,--max-paths=4,--csv-location-format=line-column,--sarif-category=/language:rust/target:wasm,--print-diagnostics-summary,--print-metrics-summary,--threads=4,--qlconfig-file=/workspace/scratch/084f6c1d017a/qlconfig.yml,--,/workspace/scratch/084f6c1d017a/ci-memory/high-level-control/baseline/database,/workspace/scratch/084f6c1d017a/ci-memory/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/codeql-suites/rust-security-extended.qls --output=/workspace/scratch/084f6c1d017a/ci-memory/high-level-control/baseline/database/results -- /workspace/scratch/084f6c1d017a/ci-memory/high-level-control/baseline/database/db-rust /workspace/scratch/084f6c1d017a/ci-memory/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/codeql-suites/rust-security-extended.qls",
+      "options": [
+        "--ram=14000"
+      ],
+      "query_count": 39,
+      "resolved": [
+        "-J-Xmx5768M",
+        "--off-heap-ram=6870"
+      ],
+      "results": {
+        "queries/diagnostics/AstConsistencyCounts.ql": {
+          "bqrs_sha256": "d174d60a9c711a7679d2f38e03a6aaa0f758138c8bef7ded55e246306b330840",
+          "semantic_sha256": "6bb5525b1677f980d9b2488623e64bb348c332413935fb1069c09fa67f5e3376"
+        },
+        "queries/diagnostics/CfgConsistencyCounts.ql": {
+          "bqrs_sha256": "6f2b59c15115b22db1edb072f47eceb1b7c8335cfd0469e4f368954c3fb1c7a4",
+          "semantic_sha256": "dbf6ac651cf30d070dec4a1eb98c6c8b57d08ab717e7479afc72cacbbbc5b5cc"
+        },
+        "queries/diagnostics/DataFlowConsistencyCounts.ql": {
+          "bqrs_sha256": "4c8ff4231ba4a8e97189af700c9240f28ed8113c7e70a3a5555f3d0df166a651",
+          "semantic_sha256": "dfecd370b76c891343eedf4fae0733e6d48622511f9485a5524c399cd18e5941"
+        },
+        "queries/diagnostics/ExtractedFiles.ql": {
+          "bqrs_sha256": "b309f712356b4f6cc0a1e78da970cd793ed5578274e643f1dea507ecede018ea",
+          "semantic_sha256": "4b4938e2daaa05cf74d007eddfccb9899d1fb9b9b23e21cd4ed85c7de9c43488"
+        },
+        "queries/diagnostics/ExtractionErrors.ql": {
+          "bqrs_sha256": "4a35cb999450a6a63956747f4067592f793efeb256345e82d4a21e3eacc17fde",
+          "semantic_sha256": "84eff2f1825a22b01bd5299d98acddf6026fb2acc3e61f7fb31d7981c6bc3846"
+        },
+        "queries/diagnostics/ExtractionWarnings.ql": {
+          "bqrs_sha256": "93786133ce572494d8ba98c770ec121ca9f79d3e15c8bda624f64f3b2cc4f19f",
+          "semantic_sha256": "f1b9b0a85db7037951e8ba5fd085edebf14e3a2cc41bda262dc403bbdda11fbb"
+        },
+        "queries/diagnostics/SsaConsistencyCounts.ql": {
+          "bqrs_sha256": "54004a28f2ad5afc8c888271af3b69b5710fb1ee179a65b46fc1e0c5dae7db9b",
+          "semantic_sha256": "7aa0d8dbb68afc128a4d90d5f3436313a79ee11b6e30aad54571b431b4c66252"
+        },
+        "queries/diagnostics/TypeInferenceConsistencyCounts.ql": {
+          "bqrs_sha256": "1a13e4dfc25fa102c6d42106614891862ae9dede63f0b825db42c6091d8e6ef3",
+          "semantic_sha256": "6b954f0d509c6a6019c17036648c9d73d306034980d557f4f93e0f204ee78dd4"
+        },
+        "queries/diagnostics/UnextractedElements.ql": {
+          "bqrs_sha256": "fd01a11a085116264e85891295ab165572bf6c58602343d64c002315893a11b7",
+          "semantic_sha256": "0a659f12f3e1254761ce9c92d65931a25099b6ddabc323b087829d73a7e62e20"
+        },
+        "queries/diagnostics/UnresolvedMacroCalls.ql": {
+          "bqrs_sha256": "27b991b1982b6d32240d991d5e49199217dc89a1ee2933d5f2ff22e236589f94",
+          "semantic_sha256": "42ba5640bb36dbbfd3ccb2f8d39dc53ace2395bb284906591b923c7ba7d95ca9"
+        },
+        "queries/security/CWE-020/RegexInjection.ql": {
+          "bqrs_sha256": "4a175732cc9f4fe2bc97c19acfd585c0f43b0b181f6d3771c0e85011ee9c9b1c",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-022/TaintedPath.ql": {
+          "bqrs_sha256": "8555f904eaff90565f2c333f865df7cf24f98c3ddb99416326d61f458da0fa7f",
+          "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+        },
+        "queries/security/CWE-078/CommandInjection.ql": {
+          "bqrs_sha256": "4c4b8b70757d18cfce4f75576810f45358684800d24d2a50b1aae6dcd9209637",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-079/XSS.ql": {
+          "bqrs_sha256": "43cde71d2209af7c7e6caee10adc40b1430d10c0c2112f9ea914edd8cd55a9e4",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-089/SqlInjection.ql": {
+          "bqrs_sha256": "89f3cd221b0f0d7a6e758708589443a93730788e366a5082c8cba6dc25ce6124",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-117/LogInjection.ql": {
+          "bqrs_sha256": "c649604855755de286dd91e8529057c3d95547fb88591b2519865a9d38883bf4",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-295/DisabledCertificateCheck.ql": {
+          "bqrs_sha256": "2723bcfbbbf120bafa612fcf25c2c18a106cfce2035384e52b296801c9f37693",
+          "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1"
+        },
+        "queries/security/CWE-311/CleartextTransmission.ql": {
+          "bqrs_sha256": "d8b593b157d1889db86ce36a26e25709c8ea3b8c18b96a053a440ba4f8abdc6d",
+          "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97"
+        },
+        "queries/security/CWE-312/CleartextLogging.ql": {
+          "bqrs_sha256": "8a441ebe44dafff4c710a6989934d1ce50a969c87606ddb51b81e2fea87f1046",
+          "semantic_sha256": "42968a0f8326511e351b2ce062d6b4e652d146b90cd856f2cb65761eeca57594"
+        },
+        "queries/security/CWE-312/CleartextStorageDatabase.ql": {
+          "bqrs_sha256": "3eba3e764a0a9d05ebe7b022f9a9b56ec30316543d8493a9264534b84f10d97e",
+          "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97"
+        },
+        "queries/security/CWE-319/UseOfHttp.ql": {
+          "bqrs_sha256": "d38ce85de1fe7dba4be4c9738b032be4037e2d959b315730671cb75b3e9b592c",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-327/BrokenCryptoAlgorithm.ql": {
+          "bqrs_sha256": "b0452a2dfd9d6d46cfa1c685d416601230f1c7c745e08e378ace3a6c7623c74f",
+          "semantic_sha256": "b341c406238eb41a6ae36a0588b7c62b425040d7ac05ca16f2b77d5afb5a6ce9"
+        },
+        "queries/security/CWE-327/WeakSensitiveDataHashing.ql": {
+          "bqrs_sha256": "9985defe8ad16e11ac85e1e2c0bdee559176ecdfeb983f70a547472335eccd18",
+          "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+        },
+        "queries/security/CWE-614/InsecureCookie.ql": {
+          "bqrs_sha256": "9c58383dee22c2ad1996bac4b8a3ed2d7c9500de32a05017a1d7ce419c4581c5",
+          "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1"
+        },
+        "queries/security/CWE-770/UncontrolledAllocationSize.ql": {
+          "bqrs_sha256": "402c4ba1935683b4a56420c2dd31e35d44aeea8abed7bc8b09de5070692e7a72",
+          "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+        },
+        "queries/security/CWE-798/HardcodedCryptographicValue.ql": {
+          "bqrs_sha256": "0722e8eece4f3336d291c361e38c47f3c9939182c3129ec1d8ca3e9954fb143f",
+          "semantic_sha256": "a7c96772fb50173f8eba46fa804cd8999fdb2fc99cb1da9f55e6f5086e5d20aa"
+        },
+        "queries/security/CWE-825/AccessAfterLifetime.ql": {
+          "bqrs_sha256": "6956a589e127612d5c6826f3946c7aab72197099018912047c545d156eba6ca0",
+          "semantic_sha256": "f2a7960593b1718a5d42fc0b50338c0c0357b884a2791f87454f53bb9c6adefa"
+        },
+        "queries/security/CWE-825/AccessInvalidPointer.ql": {
+          "bqrs_sha256": "b72c0a4876ef7aaf1051530e12a425731710b2aaf5431cd142a44c9cc5a68f3c",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-918/RequestForgery.ql": {
+          "bqrs_sha256": "c0614ef13cb659e9c8f04ea8fb90965b1d20c1a8575afe52303071893e04a5c6",
+          "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+        },
+        "queries/summary/LinesOfCode.ql": {
+          "bqrs_sha256": "33819fde64bade746dfdbfa6edce03802de155cb5c3da77bfa758596d31feda3",
+          "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc"
+        },
+        "queries/summary/LinesOfUserCode.ql": {
+          "bqrs_sha256": "dc5cdb64a1c8d30fb7c0f344ca3b699e19ed09517c8ad3967748a6acf9eeb108",
+          "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc"
+        },
+        "queries/summary/NodesWithTypeAtLengthLimit.ql": {
+          "bqrs_sha256": "1cff2e86ecf4d723b585e9d524654d01d97639f51a88711ec9a7bfefcee63ffe",
+          "semantic_sha256": "c78753f4beaedc85d286a91c01c7b41b8316bb3f39888501f0ab75bb788db389"
+        },
+        "queries/summary/NumberOfFilesExtractedWithErrors.ql": {
+          "bqrs_sha256": "0fbd692a4929ba2e12b450893866deb3aa86bade3792262c7d549c594138cd2b",
+          "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc"
+        },
+        "queries/summary/NumberOfSuccessfullyExtractedFiles.ql": {
+          "bqrs_sha256": "8d0df366fb4d9ae4df68df40b6e3db7f6832c75182caf941ec2ef7785c28d92e",
+          "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc"
+        },
+        "queries/summary/QuerySinkCounts.ql": {
+          "bqrs_sha256": "4ce1f4562e7c7c893390d436c71ae0656462b3cd8a734c32d6dcfcdf618ae3d2",
+          "semantic_sha256": "a2ac2beb6c99e7935197c69316d90416d1dd21c941fbd1c82e114678633e2d5b"
+        },
+        "queries/summary/SummaryStats.ql": {
+          "bqrs_sha256": "e843fa2a7e582c997e5f8207a7b4e117ffdf4292856071ccfd8db2ca17851596",
+          "semantic_sha256": "b4ad30749dd2969187469187a26772e4fdb9cbea9ae7d2ce7dc97fc296d9b407"
+        },
+        "queries/summary/SummaryStatsReduced.ql": {
+          "bqrs_sha256": "ab1b88199a6e8761e59df9e57ea667175fdd8d3baf12e5c16454f0687388cf31",
+          "semantic_sha256": "487403d059426b18e23f6381532ebdd8039367f94d354ed32352e548fe92411e"
+        },
+        "queries/telemetry/DatabaseQualityDiagnostics.ql": {
+          "bqrs_sha256": "23792dd1c10e032273e44ccbfa5f6621a3ba39f3b505726e7b66e13f3751bae6",
+          "semantic_sha256": "630a5f7a583bc8fb5cc7a007c3d16650e4b93098a0718ae439cff36af3e67dd2"
+        },
+        "queries/telemetry/ExtractorInformation.ql": {
+          "bqrs_sha256": "6d6ef79091b247e2d54f496966e3b2cf7ba42e183c94c65e3939f4b5ba154a1d",
+          "semantic_sha256": "4a6ec7568f6e10e225636371fc719caf451067d0408e51c3556dbd4d4fca0a83"
+        }
+      },
+      "sarif_automation_details": {
+        "id": "/language:rust/target:wasm/"
+      },
+      "sarif_result_count": 0
+    },
+    "native-heavy": {
+      "actual_evaluator_memory": [
+        "-J-Xmx3584M",
+        "--off-heap-ram=9329"
+      ],
+      "evaluator_invocation": "[2026-11-09 07:15:33] This is codeql execute queries -J-Xmx3584M --off-heap-ram=9329 --verbosity=progress --logdir=/workspace/scratch/084f6c1d017a/ci-memory/high-level-control/native-heavy/database/log --common-caches=/workspace/scratch/084f6c1d017a/ci-memory/high-level-control/native-heavy/cache --evaluator-log-level=5 --threads=4 --threat-model=local --warnings=show --qlconfig-file=/workspace/scratch/084f6c1d017a/qlconfig.yml --dynamic-join-order-mode=none --no-rerun --interpret-passthrough=14000,--format=sarif-latest,-o=/workspace/scratch/084f6c1d017a/ci-memory/high-level-control/native-heavy/results.sarif,--max-paths=4,--csv-location-format=line-column,--sarif-category=/language:rust/target:wasm,--print-diagnostics-summary,--print-metrics-summary,--threads=4,--qlconfig-file=/workspace/scratch/084f6c1d017a/qlconfig.yml,--,/workspace/scratch/084f6c1d017a/ci-memory/high-level-control/native-heavy/database,/workspace/scratch/084f6c1d017a/ci-memory/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/codeql-suites/rust-security-extended.qls --output=/workspace/scratch/084f6c1d017a/ci-memory/high-level-control/native-heavy/database/results -- /workspace/scratch/084f6c1d017a/ci-memory/high-level-control/native-heavy/database/db-rust /workspace/scratch/084f6c1d017a/ci-memory/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/codeql-suites/rust-security-extended.qls",
+      "options": [
+        "--ram=14000",
+        "--off-heap-ram=9329"
+      ],
+      "query_count": 39,
+      "resolved": [
+        "-J-Xmx3584M",
+        "--off-heap-ram=9329"
+      ],
+      "results": {
+        "queries/diagnostics/AstConsistencyCounts.ql": {
+          "bqrs_sha256": "1d9028fabc54f9486fa0dbfe37204a7e5ae14c77220b81b344b45a7492c59cee",
+          "semantic_sha256": "6bb5525b1677f980d9b2488623e64bb348c332413935fb1069c09fa67f5e3376"
+        },
+        "queries/diagnostics/CfgConsistencyCounts.ql": {
+          "bqrs_sha256": "931c7c9b87af36b3077e491db7afa694a2b9c5b5984d181588fe52efce73cbdf",
+          "semantic_sha256": "dbf6ac651cf30d070dec4a1eb98c6c8b57d08ab717e7479afc72cacbbbc5b5cc"
+        },
+        "queries/diagnostics/DataFlowConsistencyCounts.ql": {
+          "bqrs_sha256": "848f622ad8ec1ae8c059d79c2274e9f0aac67972da60c738e7e875be5702453b",
+          "semantic_sha256": "dfecd370b76c891343eedf4fae0733e6d48622511f9485a5524c399cd18e5941"
+        },
+        "queries/diagnostics/ExtractedFiles.ql": {
+          "bqrs_sha256": "96d68d9150512a4a715c7f9e5beed6be1611bb1c6975c8dc27b70ac2feeafb5d",
+          "semantic_sha256": "4b4938e2daaa05cf74d007eddfccb9899d1fb9b9b23e21cd4ed85c7de9c43488"
+        },
+        "queries/diagnostics/ExtractionErrors.ql": {
+          "bqrs_sha256": "a03967f7695656cd5db0f41ec916f029955ef1348e07e199a519e5bf0b5ee282",
+          "semantic_sha256": "84eff2f1825a22b01bd5299d98acddf6026fb2acc3e61f7fb31d7981c6bc3846"
+        },
+        "queries/diagnostics/ExtractionWarnings.ql": {
+          "bqrs_sha256": "9203c2010fb008be9de8ef2b9b969e807f1ae33f17a5fca095e0f1824fae20c8",
+          "semantic_sha256": "f1b9b0a85db7037951e8ba5fd085edebf14e3a2cc41bda262dc403bbdda11fbb"
+        },
+        "queries/diagnostics/SsaConsistencyCounts.ql": {
+          "bqrs_sha256": "9f50752e32b5525b919770cf4d0d8813253ee63567b0a0d8334fee194a6d2b65",
+          "semantic_sha256": "7aa0d8dbb68afc128a4d90d5f3436313a79ee11b6e30aad54571b431b4c66252"
+        },
+        "queries/diagnostics/TypeInferenceConsistencyCounts.ql": {
+          "bqrs_sha256": "943ba14da4a62b40238696ca30cd05efe28336e3cd3fb56feeb4581da66420bf",
+          "semantic_sha256": "6b954f0d509c6a6019c17036648c9d73d306034980d557f4f93e0f204ee78dd4"
+        },
+        "queries/diagnostics/UnextractedElements.ql": {
+          "bqrs_sha256": "dc1a8d13f0ce7b697219a4a805ee455adf35e06b60850f43f766b9a117d8f18d",
+          "semantic_sha256": "0a659f12f3e1254761ce9c92d65931a25099b6ddabc323b087829d73a7e62e20"
+        },
+        "queries/diagnostics/UnresolvedMacroCalls.ql": {
+          "bqrs_sha256": "8500541f49d12abe446c1e946b1cd1feaa6290b9d047b50b84f97e385ce701b5",
+          "semantic_sha256": "42ba5640bb36dbbfd3ccb2f8d39dc53ace2395bb284906591b923c7ba7d95ca9"
+        },
+        "queries/security/CWE-020/RegexInjection.ql": {
+          "bqrs_sha256": "656306ea62c0eb451b324a373e97ab9b4afe0d3ced84c6d358198b24320165f8",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-022/TaintedPath.ql": {
+          "bqrs_sha256": "606861f75ae0f93f4f860a7cfd31789623103a1ba90c34e90cd9cab43c69ffb5",
+          "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+        },
+        "queries/security/CWE-078/CommandInjection.ql": {
+          "bqrs_sha256": "4bfadf3aca791b9a528d22dc44554796f34ca046da49b33a5b2e73c5a13e4844",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-079/XSS.ql": {
+          "bqrs_sha256": "2a82aeb8f7147badd6020b8b40e71a2d2dee889278ac9aadef6eb48fd69540ca",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-089/SqlInjection.ql": {
+          "bqrs_sha256": "e48f6ecff264adfd387c7c6da2ec72dbcebb52732db83e3fe13f3dd843d09f17",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-117/LogInjection.ql": {
+          "bqrs_sha256": "651fc63646765b4fcbc81e4f4d2045095829c4d33031460cf7b6498082f54560",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-295/DisabledCertificateCheck.ql": {
+          "bqrs_sha256": "870d913e965719d551c302c6b4b9c9adda3025dde57b2c2a40c8ac5dfad631f3",
+          "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1"
+        },
+        "queries/security/CWE-311/CleartextTransmission.ql": {
+          "bqrs_sha256": "492320912f2107ae8b008e76af14626ae2b1fce1c93efae07dcd2430b14ae616",
+          "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97"
+        },
+        "queries/security/CWE-312/CleartextLogging.ql": {
+          "bqrs_sha256": "68b550b59f6ef3fc3cfae29b81f330566e7ed385b011d28605e9f9cbe5d87ea6",
+          "semantic_sha256": "42968a0f8326511e351b2ce062d6b4e652d146b90cd856f2cb65761eeca57594"
+        },
+        "queries/security/CWE-312/CleartextStorageDatabase.ql": {
+          "bqrs_sha256": "19bdce80fedc2de25d2ec3247810db1030b3b207b4277b11b5c3fd3cc398d39e",
+          "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97"
+        },
+        "queries/security/CWE-319/UseOfHttp.ql": {
+          "bqrs_sha256": "0fd6d6e41822c2b8dd844219d12b817ef0a62dabdb1ba855c66f55116e1ef7ed",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-327/BrokenCryptoAlgorithm.ql": {
+          "bqrs_sha256": "1fb3c19ef1f0fc12a55a0f9760ca93eb5a0d44271d5d706c87a137f5397b13af",
+          "semantic_sha256": "b341c406238eb41a6ae36a0588b7c62b425040d7ac05ca16f2b77d5afb5a6ce9"
+        },
+        "queries/security/CWE-327/WeakSensitiveDataHashing.ql": {
+          "bqrs_sha256": "3af700bcca18c287a6f353d61b9cc3a29870efc72a6b510f72590fedefa868a7",
+          "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+        },
+        "queries/security/CWE-614/InsecureCookie.ql": {
+          "bqrs_sha256": "b9bdc5d7b3451f3436e887d507331973016de3ce411df78cfbaca9a111b79d77",
+          "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1"
+        },
+        "queries/security/CWE-770/UncontrolledAllocationSize.ql": {
+          "bqrs_sha256": "edfdcede3af945abc6d2c4a85070679dd025f19ad8d02b118d4246f532d00e36",
+          "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+        },
+        "queries/security/CWE-798/HardcodedCryptographicValue.ql": {
+          "bqrs_sha256": "698cd03115b9e019ab030e90d425fa4c8f0853f84c994a670ef03993ff2549af",
+          "semantic_sha256": "a7c96772fb50173f8eba46fa804cd8999fdb2fc99cb1da9f55e6f5086e5d20aa"
+        },
+        "queries/security/CWE-825/AccessAfterLifetime.ql": {
+          "bqrs_sha256": "f8dabd0faf5d71e53a535dedb91d58842d0d1ea8c1a6e4a8c08dde8b29e0ae32",
+          "semantic_sha256": "f2a7960593b1718a5d42fc0b50338c0c0357b884a2791f87454f53bb9c6adefa"
+        },
+        "queries/security/CWE-825/AccessInvalidPointer.ql": {
+          "bqrs_sha256": "f02b0c517055d0d70d39c1c174a3061e296e8dce74585524a66226360caf077a",
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+        },
+        "queries/security/CWE-918/RequestForgery.ql": {
+          "bqrs_sha256": "ac206ea5183dc8dd47d932c247937e0b3d6dec6a4e235bf41b4aa8781e77222d",
+          "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+        },
+        "queries/summary/LinesOfCode.ql": {
+          "bqrs_sha256": "9579bcef2cd232bff241442ac4e12bd40b49c189c59d0f8c484d78fbf31ab746",
+          "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc"
+        },
+        "queries/summary/LinesOfUserCode.ql": {
+          "bqrs_sha256": "3aa4eb21954759a642ca443b4e26784f7caca5277cbc24d9763beed10bbc258f",
+          "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc"
+        },
+        "queries/summary/NodesWithTypeAtLengthLimit.ql": {
+          "bqrs_sha256": "66b25d9e95428100ba1316cae6120ecd34bb87e1541692fbe8db8ce1dbd144e8",
+          "semantic_sha256": "c78753f4beaedc85d286a91c01c7b41b8316bb3f39888501f0ab75bb788db389"
+        },
+        "queries/summary/NumberOfFilesExtractedWithErrors.ql": {
+          "bqrs_sha256": "5cf5960b6468181097539df50101a478a2885a00d73b9e829f00e585a78b30c6",
+          "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc"
+        },
+        "queries/summary/NumberOfSuccessfullyExtractedFiles.ql": {
+          "bqrs_sha256": "e3ac2817b7be0ce665b57020a83b1590503eadab1c9f3e41e57f415d6906ac15",
+          "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc"
+        },
+        "queries/summary/QuerySinkCounts.ql": {
+          "bqrs_sha256": "d30e82dd76455d95a41deaf2a365f8601fd0d91f74990187047969c486f49cc3",
+          "semantic_sha256": "a2ac2beb6c99e7935197c69316d90416d1dd21c941fbd1c82e114678633e2d5b"
+        },
+        "queries/summary/SummaryStats.ql": {
+          "bqrs_sha256": "dca08b4dcb39c48dbd17568dc608d2b89bb010dc912529d45550fdc62fceed49",
+          "semantic_sha256": "b4ad30749dd2969187469187a26772e4fdb9cbea9ae7d2ce7dc97fc296d9b407"
+        },
+        "queries/summary/SummaryStatsReduced.ql": {
+          "bqrs_sha256": "529ebc45d03ee25b0323ba189e635e69c7e4d36ec08a89c177fa7d35a6809c77",
+          "semantic_sha256": "487403d059426b18e23f6381532ebdd8039367f94d354ed32352e548fe92411e"
+        },
+        "queries/telemetry/DatabaseQualityDiagnostics.ql": {
+          "bqrs_sha256": "f98b2e3920b09c5fa22ae28d5cb2f4d6cfbb0f31a7a669f9f07e5c5f2c73436d",
+          "semantic_sha256": "630a5f7a583bc8fb5cc7a007c3d16650e4b93098a0718ae439cff36af3e67dd2"
+        },
+        "queries/telemetry/ExtractorInformation.ql": {
+          "bqrs_sha256": "03968e922a5843652f1e172934b17e98be14d0557a69df4115df9fb5ae9fc2a5",
+          "semantic_sha256": "4a6ec7568f6e10e225636371fc719caf451067d0408e51c3556dbd4d4fca0a83"
+        }
+      },
+      "sarif_automation_details": {
+        "id": "/language:rust/target:wasm/"
+      },
+      "sarif_result_count": 0
+    }
+  },
+  "codeql_sha256": "5010324098d11f9e2d34e0fcf53bb44e40e8e3ffc8aecefe695269b54edaa413",
+  "completed": true,
+  "fixture_metadata_sha256": "e61334f7d2e2e58f7526dbfa903402b16134e663433420fe83a8273a8da39976",
+  "query_manifest_sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b",
+  "repository_extraction_qualification": false,
+  "repository_performance_measurement": false,
+  "schema": 1,
+  "scope": "Actual CodeQL 2.27.2 high-level memory propagation and interpretation on a synthetic one-file TRAP fixture.",
+  "tool_archive_bytes": 98247028,
+  "tool_archive_sha256": "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea"
+}

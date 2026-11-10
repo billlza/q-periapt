@@ -1,0 +1,76 @@
+{
+  "capture": {
+    "bytes": 3440668,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "10b9bdb91ff6d7a43f53a549f27cc580b408ad3c7d5d45cee753a84883e32349",
+    "members": 1189,
+    "sha256": "4f474bb46f6fa1dce62718a4f3612f1f34bef1588d7fb02c6e0788017401283f"
+  },
+  "case_count": 11,
+  "cases": [
+    "ack-loss",
+    "cancel",
+    "close",
+    "commit-loss",
+    "expired-required",
+    "kill-ack",
+    "kill-commit",
+    "local",
+    "no-local-fallback",
+    "required",
+    "wrong-witness"
+  ],
+  "completed": true,
+  "excluded_results": {
+    "base10": "Old exact export list missed newly added approved policy types.",
+    "controls.log": "Two inventory tests refused worktree .git indirection; rerun all 53 in real source clone.",
+    "native-gp-regressions.log": "Unmatched file-name filter; zero tests, not qualification. The 73-test run includes actual credential-composition module.",
+    "run01_run02": "Old package fails witnessed preparation at native file database open. Local case passed but is not current qualification.",
+    "wasm-clippy-01.log": "Default features did not compile Continuity.",
+    "wasm-clippy-02.log": "Needless question-mark lint repaired without suppression."
+  },
+  "package": {
+    "manifest_sha256": "99598b5f8cdf45b142de336040792ebea9da448ba17d37be982a6c74db30431a",
+    "sha256": "1514918825040a205fefce98b9eb0f5e46515f99fe3163bd65744398e1bf6ffc",
+    "source_bound": true,
+    "sources_unchanged": true
+  },
+  "real_policy_expiry": {
+    "activated_at": 1791914591,
+    "request_at": 1791914660,
+    "valid_until": 1791914659
+  },
+  "release_claim_eligible": false,
+  "scope": "Installed browser local/required independent P adoption and exact recovery; actual P0 expiry. Shared Rust engine and loopback; not browser G/P/T/roster full composition, established-session proof, independent implementation, devices, migration, performance, PCS or full release.",
+  "source": {
+    "base_commit": "c1ff19c59cf41a17c8e645db26e8cb05fff69bf1",
+    "overlay": {
+      "ARTIFACT.md": "28ae106489df054f16874588a96464aff9936bb3d0d80f1d5e9981f3a8b2b29d",
+      "artifact/codeql_rust_quality.py": "6cd8c98839b334ddc49b2265eb092d8f40de5a36a21c72eae64910c30168d47e",
+      "crates/q-periapt-sdk-wasm/PackageREADME.md": "b610019efa0cb214f62f1b6fab067f876b8c1570c56e4d2ca3594632c661f1e7",
+      "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "3141ef64d34f4f77713befeab0b4680655419c82915274f069ffd443ca58e1e8",
+      "crates/q-periapt-sdk-wasm/package/web/index.js": "408a6132ffb20334bfaf60f60c9f8f9eb954e6f138982601c093bafcaa8e2a44",
+      "crates/q-periapt-sdk-wasm/src/continuity.rs": "2d5a7b2c85475c39f76b54356771cd0e012588c5c46bfc822fd50b2df34904b1",
+      "crates/q-periapt-sdk-wasm/src/continuity/policies.rs": "7285ef738e62820869b03401ed9962c423548175f4255ee129818c33098c45d6",
+      "crates/q-periapt-sdk-wasm/src/continuity/policies/types.rs": "5725259d32d4352ef9030acb0e4caac2c2d33c10c1f24b7cdde099a88e677256",
+      "crates/q-periapt-sdk-wasm/src/continuity/policy_requests.rs": "2e04cc6d8a32ca99dc257150fbfdd9ab8a39bb7dca6d374f205dd107e9a9146b",
+      "crates/q-periapt-sdk-wasm/tests/browser-suite.mjs": "8dd2e70e5354eebfe9eba3d8862b9c969786a5d92c1667d951b9812293799b1b",
+      "research/continuity-identity-candidate/src/browser.rs": "ad1a36432932f131e79d35f8eaa6c5a626b7444b5922abd00f99a567196d288e",
+      "research/continuity-identity-candidate/src/browser/policies.rs": "3b538d3aaf99e77d9fc26e887cc682896269275bffa86baaa722da5dfa1ea45c",
+      "research/continuity-identity-candidate/src/durable/write_intent/policy_renewal.rs": "e593fe203102cee4fa92e71d740622b004b82675f77f3fc0dd544f9c4106584c",
+      "research/continuity-identity-candidate/src/enrollment.rs": "6b12626c7de9d05a35dc358ba0cbcbf3de6cfab88ef5c403f310ea2548da300b",
+      "research/continuity-identity-candidate/src/enrollment/policy_renewal/witness.rs": "70c098c45b0abcda5cebd5f9806eafe77e659a7d72c8f4a319b6d18cabbfca07"
+    },
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source"
+  },
+  "validation": {
+    "actual_worker_termination_cuts": 2,
+    "base_browser": 10,
+    "browser": "155.0.8059.40",
+    "controls": 53,
+    "format": "passed",
+    "native_policy_regressions": 73,
+    "strict_clippy_native_wasm": "passed",
+    "wasm_msrv": "1.90 passed"
+  }
+}

@@ -1,0 +1,129 @@
+\subsection{Ordinary KEM security with a deferred challenge}
+\label{sec:kem-ordinary-bridge}
+
+The original-operation adapters request their component challenge at a
+specified private computation, after a possible decapsulation prefix.
+We connect this interface to the ordinary single-challenge ML-KEM game.
+The conversion retains that prefix's real answers and accounts for its
+possible intersection with the subsequently released challenge ciphertext.
+
+In the ordinary game, an honest key pair and a fresh encapsulation
+$(c^*,K^*)$ are generated, and the adversary receives
+$(pk,c^*,K_\beta)$, where $K_0=K^*$ and $K_1$ is independent uniform.
+Its classical decapsulation oracle answers every admissible ciphertext
+except $c^*$. Write $\operatorname{Adv}^{\rm cca}(B)$ for the absolute
+difference of $B$'s output-one probabilities. All public oracles are the
+same as in the two-stage game of
+Section~\ref{sec:contextbound-connection}, with the complete preparation,
+continuation and terminal test included in the adversary's resources.
+
+ML-KEM encapsulation samples $m^*\gets\{0,1\}^{256}$ and encrypts it
+with K-PKE using the prescribed derived coins; K-PKE decryption is
+deterministic and returns a 32-byte message
+\cite[Algorithms 14--17 and 20]{fips203}. Define the message-recovery
+failure probability on this honest challenge distribution by
+\[
+ \delta_{\rm mr}
+ =\Pr[\mathsf{K\mbox{-}PKE.Dec}(sk_{\rm PKE},c^*)\ne m^*].
+\]
+This is a message-recovery event. The component adapters' shared-key
+correctness terms retain their separate definitions.
+
+\begin{proposition}[Deferred-challenge bridge]
+\label{prop:kem-deferred-challenge}
+Let $D$ be a complete two-stage component distinguisher, making at most
+$q^-$ distinct admissible selected-key decapsulation queries before its
+challenge request, or before termination if it makes no such request.
+Its challenge request may be adaptive. There is an ordinary-game
+adversary $B$ such that
+\begin{equation}
+ \operatorname{Adv}^{\rm op}(D)
+ \le \min\{1,\operatorname{Adv}^{\rm cca}(B)
+                 +\zeta_{\rm pre}(q^-)\},
+ \qquad
+ \zeta_{\rm pre}(q^-)
+ :=\min\{1,q^-2^{-256}+\delta_{\rm mr}\}.
+ \label{eq:kem-deferred-bridge}
+\end{equation}
+The reduction makes no additional decapsulation or public-oracle queries.
+It performs a ciphertext comparison for each decapsulation request and
+retains the complete computation of $D$. The statement holds for a
+quantum adversary making classical component calls and quantum queries
+to the same static public oracles.
+\end{proposition}
+\begin{proof}
+Adversary $B$ retains its challenge ciphertext and key privately, supplies
+only $pk$ to $D$, and forwards the prechallenge decapsulation requests.
+If a request equals $c^*$, it stops with output zero before submitting
+that forbidden request. At $D$'s challenge request it releases the retained
+$(c^*,K_\beta)$. Thereafter it implements the stated challenge-ciphertext
+exclusion and forwards all other requests. The challenge key is unused
+before release. If $D$ terminates without requesting a challenge, $B$
+returns that output unless it has already stopped.
+
+For the comparison, run the full, real prechallenge decapsulation process
+of $D$, including the answers following a possible hit. The hidden honest
+encapsulation can be sampled in advance without changing this process:
+fix the static public-oracle functions and key-generation coins, and
+observe that neither this prefix nor its quantum-state transformations
+uses $m^*$. Evaluating the challenger's encapsulation earlier changes no
+oracle function or adversary register. Thus the prefix's classical query
+list $\mathcal C^-$ and private quantum state remain independent of
+$m^*$ conditional on those fixed functions and key. This couples the
+ordinary game's withheld challenge to the two-stage game's freshly
+requested challenge; when there is no request, the unused sample has no
+public effect.
+
+Let $V$ be the event $c^*\in\mathcal C^-$. Outside message-recovery
+failure, this event implies
+\[
+ m^*\in
+ \{\mathsf{K\mbox{-}PKE.Dec}(sk_{\rm PKE},c):
+                                      c\in\mathcal C^-\}.
+\]
+For every fixed full prefix this set has at most $q^-$ elements. Uniformity
+of $m^*$ therefore gives
+$p:=\Pr[V]\le q^-2^{-256}+\delta_{\rm mr}$ after averaging over the
+oracles, key, and prefix. The argument uses the complete real prefix,
+not a query distribution conditioned on avoiding earlier hits.
+Adversarial timing and repeated queries do not enlarge this set bound.
+
+Until the first hit, $B$ and the two-stage game give identical responses
+and apply identical transformations to the adversary's state. On
+$\neg V$ their complete terminal bits agree. Before challenge release
+the two values of $\beta$ have the same experiment, so $\Pr[V]=p$ in
+both branches. Put
+$\gamma_\beta=\Pr[D_\beta=1\land V]$. Since $B$ returns zero on $V$,
+\[
+ \Pr[D_\beta=1]=\Pr[B_\beta=1]+\gamma_\beta,
+ \qquad 0\le\gamma_\beta\le p.
+\]
+Subtract the two identities and use
+$|\gamma_0-\gamma_1|\le p$. This proves the single
+$\zeta_{\rm pre}$ cost in~\eqref{eq:kem-deferred-bridge}.
+No earlier decapsulation answer is rewritten. The reduction tests only
+classical ciphertexts and neither measures nor reprograms a public-oracle
+query.
+\end{proof}
+
+\paragraph{Substitution in the original-source bounds.}
+For each already defined component test $D_j^\sigma$, the term
+$a_j^\sigma$ is bounded by
+$\operatorname{Adv}^{\rm cca}(B_j^\sigma)
+ +\zeta_{{\rm pre},j}^{\sigma}$ with that complete test's budget.
+The two signed-event tests consequently retain one such cost each.
+A Boolean authentication test $a_j^{\rm auth}$ or $a_j^{\rm msg}$
+receives one cost, as does each fixed $(r,j,b)$ bootstrap component test
+in either source profile. Equivalently, converting a bounded score
+$Z\in[-1,1]$ to the randomized bit $(1+Z)/2$ gives the usual factor two.
+The fixed original candidate indices and their existing lifetime sums
+are unchanged; there is no additional source or message-index guess.
+
+The adapters continue to bind the challenge to the original generation
+and encapsulation slots, cache exact retries, and stop before a selected
+unknown tape or private owner would be returned. These source and record
+conditions are supplied by their preceding correspondence arguments.
+The bridge compares their primitive interfaces without changing the
+original reservation events, raw-acquisition rules, or later selected
+message. Bootstrap's fresh honest-encapsulation and restored-owner
+validation monitor remains a separate part of that correspondence.

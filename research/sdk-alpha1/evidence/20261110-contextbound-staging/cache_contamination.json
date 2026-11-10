@@ -1,0 +1,17 @@
+{
+  "finding": "A shared target directory reused the baseline test and benchmark executable across two worktrees with equal package identities and older source mtimes.",
+  "invalid_candidate_receipts": [
+    "candidate-tests.json",
+    "candidate-bench-build.json"
+  ],
+  "superseded_candidate_receipts": [
+    "candidate-clippy.json"
+  ],
+  "evidence": {
+    "invalid_candidate_unit_tests": 64,
+    "expected_candidate_unit_tests": 68,
+    "baseline_executable_sha256": "457cc516632b525666721212b969307f1cca711b8b2c90e2eb08fc08dcfa12a4",
+    "shared_executable_sha256": "457cc516632b525666721212b969307f1cca711b8b2c90e2eb08fc08dcfa12a4"
+  },
+  "resolution": "Discard candidate pass and performance claims from the shared target. Rebuild and execute in a separate target directory dedicated to the candidate worktree, then retain source and binary hashes plus executed test inventory."
+}

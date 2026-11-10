@@ -19,10 +19,10 @@ import android_elf
 import android_runtime_state as runtime_state
 from android_agp_consumer_contract import (
     AGP_VERSION,
-    BUILD_KIND,
     GRADLE_VERSION,
     AndroidAgpConsumerError,
     require,
+    profile_spec,
 )
 from bounded_process import BoundedProcessError, capture_stdout
 
@@ -42,11 +42,11 @@ def record(path: pathlib.Path) -> dict[str, object]:
 
 
 def prepare_signing_input(
-    original_apk: pathlib.Path, prepared_apk: pathlib.Path
+    original_apk: pathlib.Path, prepared_apk: pathlib.Path, *, profile: str = "agp_full_release"
 ) -> dict[str, object]:
     """Remove only AGP's fixed non-runtime metadata from an unsigned APK copy."""
     original = consumer._bytes(original_apk, consumer.MAX_APK)
-    entries = consumer.signing_input_entries(consumer._apk_snapshot_entries(original))
+    entries = consumer.signing_input_entries(consumer._apk_snapshot_entries(original), profile=profile)
     with zipfile.ZipFile(io.BytesIO(original), "r", allowZip64=False) as archive:
         with prepared_apk.open("xb") as output:
             with zipfile.ZipFile(output, "w", allowZip64=False) as prepared:
@@ -54,7 +54,7 @@ def prepare_signing_input(
                 for info in archive.infolist():
                     if info.filename != consumer.APP_METADATA_ENTRY:
                         prepared.writestr(copy.copy(info), entries[info.filename])
-    return consumer.verify_signing_input(original_apk, prepared_apk)
+    return consumer.verify_signing_input(original_apk, prepared_apk, profile=profile)
 
 
 def normalized(data: bytes, roots: dict[str, pathlib.Path]) -> bytes:
@@ -118,10 +118,10 @@ def collector_gradle_home() -> pathlib.Path:
 
 
 def selected_gradle_jvm(
-    version_output: bytes, java_home: pathlib.Path
+    version_output: bytes, java_home: pathlib.Path, *, profile: str = "agp_full_release"
 ) -> consumer.GradleJvm:
     selected = consumer.parse_gradle_jvm(
-        version_output.decode("utf-8"), normalized=False
+        version_output.decode("utf-8"), normalized=False, profile=profile
     )
     require(
         selected.java_home == str(java_home),
@@ -135,6 +135,7 @@ def build(args: argparse.Namespace) -> None:
     gradle_home = collector_gradle_home()
     sdk = runtime_state.registered_sdk_root(args.sdk)
     consumer._profile(args.profile)
+    spec = profile_spec(args.profile)
     require(
         not runtime.source_tree_dirty(root),
         "AGP collector requires a clean source checkout",
@@ -150,7 +151,7 @@ def build(args: argparse.Namespace) -> None:
         consumer._digest(args.aar_manifest) == args.expected_aar_manifest_sha256,
         "selected exact AAR manifest hash differs",
     )
-    entries, _ = android_elf.audit_aar(args.aar)
+    entries, _ = android_elf.audit_aar(args.aar, profile=spec.aar_profile)
     android_elf.verify_manifest(
         args.aar_manifest,
         aar_path=args.aar,
@@ -160,6 +161,7 @@ def build(args: argparse.Namespace) -> None:
         require_release=True,
         forbidden_text=[str(root)],
         source_root=root,
+        profile=spec.aar_profile,
     )
     require(
         consumer._json(args.aar_manifest)["git_commit"] == commit,
@@ -188,8 +190,8 @@ def build(args: argparse.Namespace) -> None:
     )
     java_home = pathlib.Path(os.environ["JAVA_HOME"])
     distributions = list(
-        (gradle_home / f"wrapper/dists/gradle-{GRADLE_VERSION}-bin").glob(
-            f"*/gradle-{GRADLE_VERSION}/bin/gradle"
+        (gradle_home / f"wrapper/dists/gradle-{spec.gradle_version}-bin").glob(
+            f"*/gradle-{spec.gradle_version}/bin/gradle"
         )
     )
     require(
@@ -226,10 +228,10 @@ def build(args: argparse.Namespace) -> None:
     write_new(exact, consumer._bytes(args.aar, consumer.MAX_APK))
     assets = args.work / "assets"
     assets.mkdir(mode=0o700)
-    if args.profile == "agp_full_release":
+    for name in spec.fixtures:
         write_new(
-            assets / "signed-policy-vectors.json",
-            consumer._bytes(root / "bindings/signed-policy-vectors.json"),
+            assets / name,
+            consumer._bytes(root / "bindings" / name),
         )
     roots = {
         "WORK": args.work.resolve(),
@@ -259,14 +261,15 @@ def build(args: argparse.Namespace) -> None:
         roots,
         timeout=120,
     )
-    selected_jvm = selected_gradle_jvm(gradle_version, java_home)
+    selected_jvm = selected_gradle_jvm(gradle_version, java_home, profile=args.profile)
     roots["JAVA_HOME"] = pathlib.Path(selected_jvm.java_home)
     write_new(args.output / "gradle-version.txt", normalized(gradle_version, roots))
-    flavor = "Full" if args.profile == "agp_full_release" else "Minimal"
+    flavor = spec.flavor
     capture = args.work / "compilation-inputs.txt"
     jvm_capture = args.work / "build-jvm.json"
     _run(
         base
+        + (["-PqperiaptSdkWorkload=true"] if spec.aar_profile == "sdk-020" else [])
         + [
             f"-PqperiaptAar={exact}",
             f"-PqperiaptSmokeRoot={smoke}",
@@ -326,7 +329,7 @@ def build(args: argparse.Namespace) -> None:
     original_apk = args.output / "agp-unsigned.apk"
     write_new(original_apk, consumer._bytes(apk, consumer.MAX_APK))
     prepared_apk = args.output / "consumer-unsigned.apk"
-    signing_input = prepare_signing_input(original_apk, prepared_apk)
+    signing_input = prepare_signing_input(original_apk, prepared_apk, profile=args.profile)
     mapping = project / f"app/build/outputs/mapping/{variant}"
     for original, output in (
         ("mapping.txt", "mapping.txt"),
@@ -337,7 +340,7 @@ def build(args: argparse.Namespace) -> None:
         write_new(args.output / output, normalized(data, roots))
     default = (
         project
-        / f"app/build/intermediates/default_proguard_files/global/proguard-android-optimize.txt-{AGP_VERSION}"
+        / f"app/build/intermediates/default_proguard_files/global/proguard-android-optimize.txt-{spec.agp_version}"
     )
     write_new(args.output / "default-proguard.txt", consumer._bytes(default))
     # AAPT manifest roots are kept independently of Java test reachability.
@@ -356,7 +359,7 @@ def build(args: argparse.Namespace) -> None:
         if consumer.DEX_NAME.fullmatch(name)
     }
     inspection = consumer.inspect_apk_program(
-        apk, dexdump=tools / "dexdump", aapt2=tools / "aapt2"
+        apk, dexdump=tools / "dexdump", aapt2=tools / "aapt2", package_version=spec.version,
     )
     for name, raw, public in (
         ("dexdump.txt", inspection.raw_dexdump, inspection.dexdump),
@@ -397,15 +400,15 @@ def build(args: argparse.Namespace) -> None:
     }
     receipt = {
         "schema": 1,
-        "kind": BUILD_KIND,
+        "kind": spec.build_kind,
         "profile": args.profile,
         "status": "pass",
         "source_commit": commit,
         "source_tree_sha256": source_tree,
         "aar_sha256": args.expected_aar_sha256,
         "aar_manifest_sha256": args.expected_aar_manifest_sha256,
-        "agp_version": AGP_VERSION,
-        "gradle_version": GRADLE_VERSION,
+        "agp_version": spec.agp_version,
+        "gradle_version": spec.gradle_version,
         "minify_enabled": True,
         "debuggable": False,
         "app_q_keep_rules": [],

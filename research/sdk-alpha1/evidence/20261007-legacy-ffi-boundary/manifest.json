@@ -1,0 +1,176 @@
+{
+  "base_commit": "d51b2c3097e4bfd685c33bc01a85cadcc0bc5baf",
+  "product_source_sha256": {
+    "crates/q-periapt-ffi/src/lib.rs": "9ee54162eec7fff3fd1188ce4ccc1b75074eb155ef75de9c6a6575b74dbe3b4d",
+    "crates/q-periapt-ffi/src/sdk.rs": "7e6e3f9da92d39cd6012c1c1d8873b8f04de0e352f3d5a8169fce5daf666cc8f",
+    "crates/q-periapt-ffi/cbindgen.toml": "4cb1ae99c322ae543ae07510cc07c11d315d77a60396b5d6cd67da324e1894d3",
+    "crates/q-periapt-ffi/include/q_periapt.h": "32e2f7e6b943e296ffe8099cd73aa20e64f55b053dcad8d2913972cc284ddfa6",
+    "bindings/swift/Sources/CQPeriapt/q_periapt.h": "32e2f7e6b943e296ffe8099cd73aa20e64f55b053dcad8d2913972cc284ddfa6",
+    "bindings/c/smoke.c": "5ba2088d303865d2c65c824b0b1fa9c279a0f7a98bf8e75d9ae8ce456f52f20a",
+    "bindings/c/README.md": "7a1b274addc4f3c59f716e24d909d77aa10f35d1f4e17a7e0a861c9c13a79c62"
+  },
+  "checks": {
+    "red-01": {
+      "at_utc": "2026-10-07T20:20:53.646007+00:00",
+      "head": "d51b2c3097e4bfd685c33bc01a85cadcc0bc5baf",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "--offline",
+        "--locked",
+        "test",
+        "-p",
+        "q-periapt-ffi",
+        "--lib",
+        "legacy_overflowing_pointer_regions_rejected_without_reads",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "seconds": 47.435991500038654,
+      "stdout_sha256": "f0f739062e95385ae4664826a1f85ab9156233a2e91b6e6b3ba0096bca78902b",
+      "stderr_sha256": "f2b80157ed9cbba0b6cace780138a05fad65cd72c94c378cef53c58bcf81d09a"
+    },
+    "green-01": {
+      "at_utc": "2026-10-07T20:21:58.108724+00:00",
+      "head": "d51b2c3097e4bfd685c33bc01a85cadcc0bc5baf",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "--offline",
+        "--locked",
+        "test",
+        "-p",
+        "q-periapt-ffi"
+      ],
+      "returncode": 0,
+      "seconds": 3.3076650828588754,
+      "stdout_sha256": "a8eba0e4e1c562d96839bc9554f549dc423e431b3d696a34eee27efcbf1f0f69",
+      "stderr_sha256": "7648954e3f1466ec0193082848f8df12bc177a2868124fa0565184491608222b"
+    },
+    "clippy-01": {
+      "at_utc": "2026-10-07T20:25:43.352593+00:00",
+      "head": "d51b2c3097e4bfd685c33bc01a85cadcc0bc5baf",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "--offline",
+        "--locked",
+        "clippy",
+        "-p",
+        "q-periapt-ffi",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 101,
+      "seconds": 35.10163166699931,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "56ac0cf69d7984ad42e5cf8e791e4fd5b1c1324d9dab117b1b4059bf835dc197"
+    },
+    "clippy-02": {
+      "at_utc": "2026-10-07T20:26:21.848823+00:00",
+      "head": "d51b2c3097e4bfd685c33bc01a85cadcc0bc5baf",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "--offline",
+        "--locked",
+        "clippy",
+        "-p",
+        "q-periapt-ffi",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 101,
+      "seconds": 0.6469716669525951,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "dab78c890095c8bd29f08642bece888b7731706b93458f506a1f4836bfde684f"
+    },
+    "clippy-03": {
+      "at_utc": "2026-10-07T20:26:32.641032+00:00",
+      "head": "d51b2c3097e4bfd685c33bc01a85cadcc0bc5baf",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "--offline",
+        "--locked",
+        "clippy",
+        "-p",
+        "q-periapt-ffi",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0,
+      "seconds": 0.6859954160172492,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "53f4f5b03d8b3f680218f7b3dffa9e2a6fbf08014a1f3a7d403c945bc9294a98"
+    },
+    "release-tests-01": {
+      "at_utc": "2026-10-07T20:27:16.471229+00:00",
+      "head": "d51b2c3097e4bfd685c33bc01a85cadcc0bc5baf",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "--offline",
+        "--locked",
+        "test",
+        "--release",
+        "-p",
+        "q-periapt-ffi"
+      ],
+      "returncode": 0,
+      "seconds": 32.7566287079826,
+      "stdout_sha256": "b30fb5c17e58be3b8fc4ec48d3a59a7f85b7f81ab6a183bf0302386b2d3dc488",
+      "stderr_sha256": "367773c9e4b527105b72740622b74413d621618399509406758d730d8e061695"
+    },
+    "release-build-02": {
+      "at_utc": "2026-10-07T20:27:16.680610+00:00",
+      "head": "d51b2c3097e4bfd685c33bc01a85cadcc0bc5baf",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "--offline",
+        "--locked",
+        "build",
+        "--release",
+        "-p",
+        "q-periapt-ffi"
+      ],
+      "returncode": 0,
+      "seconds": 0.13169333315454423,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "765f1396d07f30f3a451cd3f9d9cad4e83c92c8e0aecf955ffc09061a6cf1e02"
+    }
+  },
+  "old_implementation_isolated_results": [
+    {
+      "case": "policy",
+      "returncode": -6
+    },
+    {
+      "case": "keypair",
+      "returncode": -11
+    },
+    {
+      "case": "encapsulate",
+      "returncode": -11
+    },
+    {
+      "case": "decapsulate",
+      "returncode": -11
+    }
+  ],
+  "new_debug_tests": 42,
+  "new_release_tests": 42,
+  "strict_clippy_passed": true,
+  "header_declarations_unchanged": true,
+  "dynamic_exports_match_all_43_contract_names": true,
+  "release_library_sha256": "ddb0c6cfccad02ac28a56c2f8d96fa93ea4fa2de5b1f13f3079a5e267459df6a",
+  "C_consumers_executed": [
+    "frozen-header legacy smoke including four overflow cases",
+    "current owner SDK smoke"
+  ],
+  "test_reporting_change": "After debug success, explicit panic in the test selector was changed to a Result error to satisfy strict Clippy. Production code and the release dylib hash stayed identical; current tests also passed in release mode. Initial and repeated lint failures retained.",
+  "scope": "Local macOS arm64 source build, Rust tests and real C consumers. No installed-archive or cross-platform qualification.",
+  "security_boundary": "The old crashes deliberately violate the old unsafe allocation-validity contract; they demonstrate reachable defensive hardening, not an authenticated remote exploit. The new guarantee rejects numeric impossibilities before references, while valid-shaped pointers remain caller-owned valid memory.",
+  "release_claim_eligible": false
+}

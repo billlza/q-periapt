@@ -1,0 +1,107 @@
+\subsection{A native live-core instantiation}
+\label{sec:live-core-instantiation}
+
+The next-rekey comparison has a concrete record cost on the authoritative
+live-session profile. Its application owns plaintext-bearing Send and
+delivery; the network interface includes exact Resume, active control and
+message processing, ACKs, status and public commitments. Storage follows
+the native immutable-image and pending-intent history through failed writes,
+process loss and reopening. Captures of old or unrelated records remain
+available. A complete post-cut target-session acquisition invokes the
+original eligibility stop. The selected successor-root and next-chain-seed
+projections use the ownership and phase checks of the joint continuation.
+The partial secret-field interface consists exactly of these two named,
+phase-checked projections; other record acquisitions return the declared
+complete objects. These observations and the private-application/Resume
+boundary define the core's complete call surface. The retained live-profile
+artifact records their source correspondence in
+Appendix~\ref{app:joint-artifacts}.
+
+This core obtains all its replies through the record, primitive and
+application interfaces already constructed. Its ordinary calls expose
+public metadata or declared available values. Consequently its charged
+projection event is empty: $B_j=\varnothing$ for each candidate and
+$\eta_{\rm proj}^{\rm nat}=0$. The report composition theorem supplies a
+separate extension for cleanup and report interfaces with their declared
+projection events.
+
+For candidate $j$, let $M_j^{\rm seal}$ bound fresh outer sealing
+invocations, including attempts whose subsequent commit fails. Let
+$d_{j,i}$ bound the distinct private image/intent digest inputs in row $i$,
+and let $Q_{j,i}$ bound the entire ordinary-$H$ computation of its derived
+distinguisher. These are deterministic bounds fixed before execution and
+cover every corresponding comparison world. Define
+\begin{equation}
+\begin{split}
+ \varepsilon_{{\rm rec},j}
+ &=\min\left\{1,
+     \sum_{i=1}^{M_j^{\rm seal}}\Phi_{192}(d_{j,i},Q_{j,i})
+       +\delta_{{\rm seal},j}\right\},\\
+ \delta_{{\rm seal},j}
+ &=\min\left\{1,\binom{M_j^{\rm seal}}{2}2^{-192}\right\}.
+\end{split}
+\label{eq:live-core-record-cost}
+\end{equation}
+The second term is the private-wire structural-equality comparison of
+Corollary~\ref{cor:real-to-opaque}; it is zero when that equality interface
+is absent. Copies and exact pending-target application retain their
+original sealing handles. Atom-free rows have $d_{j,i}=0$.
+
+\begin{corollary}[Next-rekey confidentiality on the live core]
+\label{cor:live-core-next-rekey}
+Use the native next-rekey and marked first-message interfaces of
+Theorem~\ref{thm:cb-next-rekey} with the live core above, its recorded source
+correspondence and finite whole-execution budgets. Then
+\begin{equation}
+\begin{split}
+ \operatorname{Adv}_{\rm msg}\le\min\left\{\frac12,
+ \frac12\left(\eta_{\rm attr}^{\rm nat}\right.\right.\\[-2pt]
+ \left.\left.\qquad+
+ \sum_{j\in J}\left(2\varepsilon_{{\rm rec},j}
+      +a_j^++a_j^-+2\delta_j+B_j^{\rm cont}\right)
+ \right)\right\}.
+\end{split}
+\label{eq:live-core-next-rekey}
+\end{equation}
+Here $B_j^{\rm cont}$ is the explicit ContextBound, root-initialization,
+joint-schedule and AEAD score cost in~\eqref{eq:cb-continuation-bound}.
+Attribution is evaluated in the original native experiment.
+\end{corollary}
+\begin{proof}
+The live-profile representation invariant follows the original reservation,
+saved-version and sealing handles through each native transition. On its
+stopped interface, the materialized record machine has exactly the native
+outputs and storage outcomes. Corollary~\ref{cor:real-to-opaque} and
+Appendix~\ref{app:primitive-inputs} therefore give
+$\rho_j\le2\varepsilon_{{\rm rec},j}$. The core's complete captures use
+the existing acquisition stop, and its remaining replies use the declared
+interfaces, so its charged projection event is empty. Substitute these two
+facts into~\eqref{eq:cb-native-bound}.
+\end{proof}
+
+\paragraph{Source selection and attribution.}
+The attribution term distinguishes two actual interfaces. In the general
+experiment, the selector may name any original reservation handles with
+the required session, epoch and role metadata. For example, a generation
+reservation $g_1$ may be installed in a transaction-private
+\texttt{Plan::Key} whose first persistence fails before a complete pending
+target or image becomes durable. Reopening the prior
+authoritative state permits a new reservation $g_2$, followed by an honest
+accepted exchange using $(g_2,a_2)$. Choose
+$c<\mathsf{res}(g_1)<\mathsf{res}(g_2)$ and
+$c<\mathsf{res}(a_2)$, with the target signing keys and designated entropy
+unexposed and with no acquisition of a post-cut target-session version.
+A selector naming $(g_1,a_2)$ can pass
+the reservation-event and recovery-cut checks while failing usable
+attribution. Every control signature and transcript hash in this trace is
+honest. This execution is already charged by
+$\eta_{\rm attr}^{\rm nat}$ in the general theorem.
+
+Section~\ref{sec:executed-source-attribution} defines an executed-slot
+selector that registers $g,a$ before their first private KEM computations
+return. A retained-plan induction preserves those original slots, and the
+complete signed-body and wire bindings associate an accepted allocation
+with them. Its signature experiment retains original signing randomizers
+and exact resumptions. That selector receives the explicit signature/hash
+bound in~\eqref{eq:executed-attribution-cost}; the general metadata selector
+in~\eqref{eq:live-core-next-rekey} retains its original attribution term.

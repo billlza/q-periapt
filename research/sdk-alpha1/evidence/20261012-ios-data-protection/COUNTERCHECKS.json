@@ -1,0 +1,12 @@
+{
+  "altered_captures_refused": [
+    "restored-identity",
+    "original-request",
+    "locked-code",
+    "missing-locked-proof",
+    "startup-not-admitted",
+    "missing-receipt"
+  ],
+  "original_recovers_after_each_mutation": true,
+  "fixture_sources_compared": 867
+}

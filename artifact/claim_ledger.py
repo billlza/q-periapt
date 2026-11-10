@@ -92,22 +92,40 @@ def canonical_tree_digest(
     *,
     pinned_files: Mapping[str, bytes] | None = None,
 ) -> str:
-    """Hash canonical source inputs in deterministic path order."""
+    """Hash canonical source inputs without retaining the whole source tree."""
 
     paths = sorted(set(relative_paths))
     pinned = dict(pinned_files or {})
     unused = set(pinned) - set(paths)
     if unused:
         raise LedgerError(f"pinned source inputs are absent from inventory: {sorted(unused)}")
-    inputs: dict[str, bytes] = {}
+    digest = hashlib.sha256()
     for relative in paths:
         if relative not in EXCLUDED_FROM_TREE:
             path = _inside(root, relative)
             if not path.is_file():
                 raise LedgerError(f"source-input path is missing: {relative}")
             content = pinned.get(relative)
-            inputs[relative] = content if content is not None else path.read_bytes()
-    return canonical_file_map_digest(inputs)
+            # Finish each file before reading the next one. The inventory can
+            # contain large evidence archives; their aggregate bytes need not
+            # coexist in memory to preserve the canonical framing.
+            _update_file_digest(
+                digest, relative, content if content is not None else path.read_bytes()
+            )
+    return digest.hexdigest()
+
+
+def _update_file_digest(digest, relative: str, content: bytes) -> None:
+    path = pathlib.PurePosixPath(relative)
+    if path.is_absolute() or ".." in path.parts or not path.parts:
+        raise LedgerError(f"unsafe source-input path: {relative!r}")
+    if not isinstance(content, bytes):
+        raise LedgerError(f"source-input content must be bytes: {relative}")
+    path_bytes = relative.encode("utf-8")
+    digest.update(len(path_bytes).to_bytes(8, "big"))
+    digest.update(path_bytes)
+    digest.update(len(content).to_bytes(8, "big"))
+    digest.update(content)
 
 
 def canonical_file_map_digest(files: Mapping[str, bytes]) -> str:
@@ -117,17 +135,7 @@ def canonical_file_map_digest(files: Mapping[str, bytes]) -> str:
     for relative in sorted(files):
         if relative in EXCLUDED_FROM_TREE:
             continue
-        path = pathlib.PurePosixPath(relative)
-        if path.is_absolute() or ".." in path.parts or not path.parts:
-            raise LedgerError(f"unsafe source-input path: {relative!r}")
-        content = files[relative]
-        if not isinstance(content, bytes):
-            raise LedgerError(f"source-input content must be bytes: {relative}")
-        path_bytes = relative.encode("utf-8")
-        digest.update(len(path_bytes).to_bytes(8, "big"))
-        digest.update(path_bytes)
-        digest.update(len(content).to_bytes(8, "big"))
-        digest.update(content)
+        _update_file_digest(digest, relative, files[relative])
     return digest.hexdigest()
 
 

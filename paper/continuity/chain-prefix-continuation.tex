@@ -1,0 +1,198 @@
+\subsection{Online selection within a finite message chain}
+\label{sec:chain-prefix}
+
+The same recovered direction supports selection after earlier messages
+have been processed. We retain the joint root, confirmation and traffic
+interfaces of Section~\ref{sec:joint-continuation} and give the selected
+direction a finite chain prefix. Earlier message keys may be disclosed;
+the selected message's successor seed may be disclosed after its
+derivation. The comparison tracks the seeds connecting those two
+observation boundaries.
+
+\paragraph{Prefix interface and selection.}
+At the first allocation of a fresh traffic information string, designate
+its material identity and a direction as before. Fix a deterministic
+lifetime bound $1\le L\le 2^{64}-1$. With $s_0$ the designated traffic
+seed, the prefix has the native equations
+\begin{equation}
+\begin{split}
+ I_i&=D_M\Vert\texttt{chain}\Vert\operatorname{BE64}(i),\\
+ P_i&=F(0,s_i),\qquad
+ (s_{i+1},K_i)=\operatorname{Expand}(P_i,I_i,64),
+ \quad 0\le i<L.
+\end{split}
+\label{eq:prefix-chain}
+\end{equation}
+Complete material identity, direction and index identify one original
+step. Matching endpoint copies, failed computations and resumptions
+retrieve that step's original result. Distinct traffic materials keep
+their own histories, including when their epoch and index agree.
+
+Immediately before each index's first private step computation, the
+controller either continues the prefix or marks that index. This choice
+uses its available history, including earlier disclosed message keys,
+messages, authentication outcomes and counted public-oracle computation.
+The mark is permanent and occurs at most once. Every computation at an
+alias participates in the same first-computation ledger; this includes
+transaction-private receive-side advancement through skipped indices.
+An index already computed at any such alias has passed its selection point.
+
+Before a mark, the seeds $s_i$ and Extract values $P_i$ are private
+handles with only the uses in~\eqref{eq:prefix-chain}. The message keys
+of steps passed without a mark may be returned and used arbitrarily
+within the finite counted computation. At a marked step $\ell$, $K_\ell$
+has the single-original-encryption, classical-decryption and exact-retry
+interface of Corollary~\ref{cor:joint-first-message}. Its paired successor
+$s_{\ell+1}$ becomes an available value, from which subsequent real chain
+computation and disclosure may proceed. Private persistence uses the
+same justified opaque interface. If the execution ends without a mark,
+the selected application event and score are zero.
+
+This timing separates observing earlier keys from choosing an already
+observed target. It also fixes when each protected seed can first be
+installed in a reduction. The root's other traffic entries, the opposite
+direction, real confirmation and ACK checks, and successor-root disclosure
+remain available as in the preceding joint continuation.
+
+Let $\Delta_{\rm traffic}$ denote the first three terms of
+\eqref{eq:joint-schedule-error}, capped at one, with $q_R,q_0,q_1$
+bounding the expanded controller's entire execution. They compare the joint
+root uses and the at most two traffic/confirmation PRK rows. For each
+$i<L$, let $q_{s,i}$ and $q_{M,i}$ be deterministic upper bounds on
+all ordinary compression queries in the corresponding complete
+column and row reductions. In particular, these budgets include the
+other real chain steps, known earlier keys, verification, subsequent
+chain computation, preparation and terminal testing. Define
+\begin{equation}
+\begin{split}
+ \Delta_{\rm prefix}(L)=\min\biggl\{1,\;&\Delta_{\rm traffic}
+  +\sum_{i=0}^{L-1}\Bigl(
+       \varepsilon_{\rm Hcol}(q_{s,i})\\
+ &\hspace{30mm}+\varepsilon_{\rm Hrow}(2,q_{M,i},89)
+                         \Bigr)\biggr\}.
+\end{split}
+\label{eq:prefix-error}
+\end{equation}
+The unused second traffic-row term is omitted under the same
+one-class condition as in Theorem~\ref{thm:joint-message-leaf}.
+
+\begin{theorem}[Online selected chain leaf]
+\label{thm:online-chain-leaf}
+For the prefix interface above, compare the real uniform-root schedule
+with the experiment that replaces the joint root and traffic rows by
+their preceding independent tables and gives each prefix step through
+the mark two independent cached blocks $(s_{i+1},K_i)$. Computation
+strictly after the marked step is real and starts from its available
+successor seed. Every available terminal bit has probability gap at
+most $\Delta_{\rm prefix}(L)$ between these experiments. Every common
+available score in $[-1,1]$ has expectation gap at most
+$2\Delta_{\rm prefix}(L)$.
+\end{theorem}
+\begin{proof}
+The first three comparisons of
+Theorem~\ref{thm:joint-message-leaf} retain the new controller as their
+complete continuation. Their replies suffice to compute every chain
+locally, including keys returned before the mark. They therefore cost
+$\Delta_{\rm traffic}$. Apply
+Lemma~\ref{lem:joint-expand-blocks} exactly to the traffic Expand table.
+The designated $s_0$ is an independent private block; its parent row
+has no remaining internal input containing that block.
+
+Proceed in fixed index order. Before comparison $i$, every preceding
+step reached before or at the mark has its independent block-pair
+representation. If an earlier index was marked, step $i$ is already
+in the real suffix and this comparison leaves that branch unchanged.
+Otherwise the preceding block table, or the traffic table for $i=0$,
+allocates a private uniform $s_i$. At that allocation the controller
+has already decided whether the predecessor was marked. Hence the
+column reduction can install its presampled hidden seed exactly on
+the branch that continues the private prefix. On other branches it
+uses locally sampled values. It never needs to predict the later mark.
+
+Until step $i$ is first computed, its seed has only an opaque handle.
+All available observations, including $K_{i-1}$ when $i>0$, can be
+generated without its bytes. At the first computation, give $F(0,s_i)$
+to the single-column challenger. Repeated computations use the same
+answer. Its returned $P_i$ lets the reduction perform the real Expand,
+all later steps, marking decisions and the complete public continuation.
+If the execution never reaches this call, the challenge remains unused.
+Thus this comparison costs $\varepsilon_{\rm Hcol}(q_{s,i})$ without
+conditioning a primitive bound on either reachability or selection.
+
+The fresh independent $P_i$ is then installed as the hidden key of
+the row comparison. Its two Expand messages have lengths 57 and 89
+bytes for every permitted index. The first reply supplies the input
+prefix of the second query, so the reduction can generate both outputs
+and the subsequent real continuation. This costs
+$\varepsilon_{\rm Hrow}(2,q_{M,i},89)$. Exact block-table normalization
+then removes the parent-row input containing $s_{i+1}$, giving an
+independent pair. If step $i$ was marked, its successor is locally
+available and all later steps remain real. Otherwise that successor
+is the private handle for comparison $i+1$.
+
+This construction includes skipped-key computation and failed private
+attempts: their first step results are recorded before later publication
+or commitment. All aliases reuse the same table entry. Independent
+samples may coincide numerically; the comparisons preserve known-key
+computations through the common public oracle and charge their queries.
+No distinct-value conditioning is introduced.
+
+The $2L$ comparisons use fixed worst-case budgets and recompute the
+mark and terminal test within each game. Their triangle inequality,
+together with the initial three comparisons, gives the bit bound.
+The randomized test with success probability $(Z+1)/2$ gives the
+stated score bound.
+\end{proof}
+
+\begin{corollary}[Selected message confidentiality after prefix disclosure]
+\label{cor:online-chain-message}
+Use the private-application and public-Resume boundary of
+Corollary~\ref{cor:joint-first-message}, and let $A$ be an available
+event independent of direct access to the hidden challenge bit $b$.
+Include existence of a mark in $A$, and put
+$Z=\mathbf1_A(2\mathbf1[g=b]-1)$. For the declared one-key,
+one-encryption AEAD experiment,
+\[
+ |\mathbb E Z|\le
+  2\Delta_{\rm prefix}(L)+2\varepsilon_{\rm AEAD}.
+\]
+For fresh authenticated installation under that marked message key,
+\[
+ \Pr[\mathsf{Bad}_{\rm selected\ msg}]
+ \le\min\{1,\Delta_{\rm prefix}(L)+\varepsilon_{\rm INT}\}.
+\]
+Both primitive budgets include the entire adaptive selection and
+subsequent continuation.
+\end{corollary}
+\begin{proof}
+In the independent-pair experiment, a step is marked before its pair
+is first generated. All earlier keys and marking decisions are
+therefore available without $K_\ell$. Install the AEAD challenger's
+key at that pair's message-key handle, sample its successor locally,
+and compute the real suffix from that successor. Previous message
+keys, confirmation keys and ACK keys are locally known. Exact retries
+reuse the original encryption response recorded before its durable
+outcome. The selected-key decryption interface supplies the same
+authenticated marker or real error/plaintext handling as in
+Corollary~\ref{cor:joint-first-message}.
+
+For confidentiality, return $g$ on $A$ and a fair guess otherwise;
+the centered success is the ideal experiment's $\mathbb E Z$.
+For integrity, a new selected-key inbox installation absent from
+the encryption ledger supplies the integrity experiment's winning
+decryption pair. Apply Theorem~\ref{thm:online-chain-leaf} to the
+respective score and Boolean event. This yields the two bounds.
+\end{proof}
+
+For $L=1$, the comparison has the same five primitive terms as
+the selected first-message theorem. A fixed target index $\ell$
+can use $L=\ell+1$; online selection uses a lifetime bound fixed
+before execution. The native chain source uses the stated 56-byte
+information strings, constant-width index encoding and zero AEAD
+nonce, advances a send index once, and reuses exact outbox bytes on
+Resume. Transaction-private receive advancement can compute skipped
+keys before commitment; failed-transaction resumption retains their
+first-computation identity in the proof ledger. The established native
+next-rekey results retain their first-message controller; the
+present theorem supplies the finite-chain continuation with its
+explicit selection and observation interface.

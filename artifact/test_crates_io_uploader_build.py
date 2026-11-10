@@ -31,6 +31,7 @@ from importlib.machinery import SourceFileLoader
 
 import crates_io_uploader_build as build
 import crates_io_registry_metadata as registry
+from evidence_io import EvidenceIOError
 from rust_publish_contract import RUST_PUBLISHABLE_CRATES
 
 ARTIFACT = pathlib.Path(__file__).resolve().parent
@@ -131,6 +132,7 @@ class TemplateIntegrityTests(unittest.TestCase):
 
 class GeneratorTests(unittest.TestCase):
     def _materialize(self, directory: pathlib.Path, **kwargs) -> tuple[pathlib.Path, dict]:
+        directory = directory.resolve()
         handoff = _write_cohort(directory, **kwargs)
         output = directory / "qperiapt-crates-io-uploader"
         summary = build.build(
@@ -296,7 +298,7 @@ class BindingFailureTests(unittest.TestCase):
             directory = pathlib.Path(raw)
             handoff = _write_cohort(directory)
             (directory / f"q-periapt-cli-{VERSION}.crate").unlink()
-            with self.assertRaisesRegex(build.UploaderBuildError, "packaged crate is missing"):
+            with self.assertRaises(EvidenceIOError):
                 build.build(handoff, TEMPLATE, directory / "out",
                             crate_dir=directory, cargo_version="1.0.0")
 

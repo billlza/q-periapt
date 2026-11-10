@@ -1,0 +1,59 @@
+{
+  "head": "746d83f8468b0fb36b66b4e8e8eabe18d58a1145",
+  "source_files": 26,
+  "capture": {
+    "bytes": 86961,
+    "members": 60,
+    "sha256": "700a1556a4f5fdadaf769f11c6947de460e8244c1bb1a2196d88af718cbc21e3"
+  },
+  "validation": {
+    "debug": "20lib+3binary entries passed",
+    "release": "20lib+3binary entries passed with -Dwarnings",
+    "behavioral_tests_per_profile": 22,
+    "child_dispatcher_entries_per_profile": 1,
+    "distinct_sigkill_boundaries_per_profile": 14,
+    "strict_all_target_clippy": "passed",
+    "strict_release_build": "passed",
+    "fmt_and_actionlint": "passed"
+  },
+  "runtime": "Actual native SDK request and original client reopen; controlled original signing owner checks the successor credential. Original wrapping/signing file bytes unchanged. Conflict/new-approval paths preserve the original signed request rather than provision a replacement client.",
+  "migration": {
+    "old_binary_sha256": "7700cd40dc489783ae1b2722798a7c861b38bc64e8e4762ede8b04b9590d6fa6",
+    "new_binary_sha256": "77227543ad723e113f450b0036bbcde00354aa765eed45e51b4ca991f5a70299",
+    "new_binary_bytes": 3954896,
+    "schema2_backup_sha256": "35bc6c685427f788baddc4ec4ea254941823a6702fa83a3c2ca7d843c1ead895",
+    "observations": [
+      {
+        "step": "cli-old-schema2",
+        "exit_code": 0,
+        "tcp_anonymous_status": 401,
+        "same_inode": true
+      },
+      {
+        "step": "cli-schema3-upgrade",
+        "exit_code": 0,
+        "same_inode": true
+      },
+      {
+        "step": "cli-schema3-retry",
+        "exit_code": 0,
+        "same_inode": true
+      },
+      {
+        "step": "cli-old-schema3-refusal",
+        "exit_code": 1,
+        "same_inode": true
+      },
+      {
+        "step": "cli-new-schema3",
+        "exit_code": 0,
+        "tcp_anonymous_status": 401,
+        "same_inode": true
+      }
+    ],
+    "scope": "Actual old/new release binaries against the same original empty CLI fixture: old reader accepted schema2, explicit schema3 upgrade and retry, old reader refused schema3, new reader reopened it and served realTCP401. Original inode retained, pre-upgrade bytes preserved but never restored, noinit/recreation. Real user account database untouched; user-record preservation separately covered by software-authenticator tests."
+  },
+  "initial_failure": "First test compilation omitted redb::ReadableTable for the historical fixture helper. Added the trait import; no product check weakened. This is a new API, not a claimed same-API red/green runtime repair.",
+  "expiry_scope": "Historical authorization/credential metadata and a correctly signed request at an explicitly historical test time distinguish expiry scopes. The host checks its actual current clock. These are synthetic expiry fixtures, not elapsed-time or device-expiry measurements.",
+  "scope": "Optional native reference host with explicit schema3 upgrade and independently authorized reapproval. No SDK source/wire/ABI/dependency changes. No enrollment HTTP/browser connection, installed client, deployed HTTPS, full root/device replacement or expired-unissued credential transition claim."
+}

@@ -42,11 +42,8 @@ fn validate_small_secret_coefficients(
 
     match eta {
         2 => {
-            let mut groups = packed.chunks_exact(3);
-            for group in &mut groups {
-                let [first, second, third] = group else {
-                    return Err(Error::Backend);
-                };
+            let (groups, remainder) = packed.as_chunks::<3>();
+            for [first, second, third] in groups {
                 let encoded =
                     u32::from(*first) | (u32::from(*second) << 8) | (u32::from(*third) << 16);
                 for shift in (0..24).step_by(3) {
@@ -55,7 +52,7 @@ fn validate_small_secret_coefficients(
                     }
                 }
             }
-            if !groups.remainder().is_empty() {
+            if !remainder.is_empty() {
                 return Err(Error::Backend);
             }
         }

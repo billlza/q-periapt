@@ -1,0 +1,64 @@
+{
+  "source_commit": "29ec0a37877dfdf0b1328f6886ed731e1436d440",
+  "run": 38013166199,
+  "job": 114098912029,
+  "conclusion": "cancelled",
+  "job_started": "2026-10-10T02:59:14Z",
+  "job_completed": "2026-10-10T06:30:46Z",
+  "observed_progress": "Release sync-fault close/readback and account-witness test completed near the aggregate deadline. No final Kotlin or whole-package report exists.",
+  "last_selected_runtime_test_seconds": 11.98,
+  "requested_budget_minutes": 270,
+  "previous_budget_minutes": 210,
+  "per_command_seconds_unchanged": 900,
+  "guardrails_unchanged": true,
+  "new_budget_proven_sufficient": false,
+  "reason": "Retain the complete native prerequisites, both profiles and both GC variants; extend the aggregate job budget only. This does not turn the prior cancellation into success.",
+  "zip_mtime_scope": "Two-second archive file timestamps, not controlled performance samples.",
+  "artifact": {
+    "id": 11662430300,
+    "bytes": 140988174,
+    "sha256": "c047c73916ce036a77919003c09c0f9864787a1c2562f35146df415d4a06ccb7"
+  },
+  "release_claim_eligible": false,
+  "base_head": "8b18dc36b0c0c4163f04936191fb3ba2ecf3eb4d",
+  "ci_url": "https://github.com/billlza/q-periapt/actions/runs/38013166199/job/114098912029",
+  "local_validation": {
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "artifact",
+      "-p",
+      "test_continuity_*consumer.py"
+    ],
+    "python": "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "returncode": 0,
+    "tests": 30,
+    "reported_seconds": 1.041,
+    "ignored_or_skipped": 0,
+    "observation": "Actual tool session 5081 completed with OK; command output was read from the session rather than captured as a separate raw log file."
+  },
+  "workflow_sha256": "dd189655174357ad408e4b73a7e2d61bd747e89a955d1185368fd31bd5ae6c6c",
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 24666,
+    "sha256": "0d8baacd13dc3bcaa0365b7ef8ce08d8d5bff88ac81c07a5041e258bb2e14ba3",
+    "files": {
+      "ANALYSIS.json": "445115cc370e2c2412cc0f4f468d7ebcc6033818bc865fdfad6ffeccc1ffc530",
+      "ANNOTATIONS.json": "557323348598c37d6344709c280009c310c3b20f9c2941263969334c748ebd6c",
+      "ARTIFACT.json": "41043572a0f42e670fa5b600510117753e4a0ea8941192247cc6c2186b4cefc3",
+      "JOB.json": "305b488bf10dcf40553ec28ab1a1aea50d1356aafd31846b01fad563c392deb6",
+      "KOTLIN_PROGRESS.json": "a911a91015eed1b528a78fe5601f78776aa0dfee1fe01faad0fad3c02b17dff8",
+      "LOCAL_CHECKS.json": "a8f6d0c97dad5b31687630e0df69a3d0fa5b1af19430ac535ab26576cdb302d5",
+      "NATIVE_REPORT_SUMMARY.json": "d26b81d34879b5c30a128289da53943949ee2af5777832048430a7d32d5b5130",
+      "WORKFLOW.patch": "4fb402b66fb50f85e7f168221c0a9db703210841e827fa988efed10b16637370",
+      "kotlin-account-tls-inventory-release.stdout": "292ad31a45a66600c3ff86a76c3462b532c373bac464d7fb5e7ccc0c13f9e86f",
+      "kotlin-account-witness-inventory-release.stdout": "292ad31a45a66600c3ff86a76c3462b532c373bac464d7fb5e7ccc0c13f9e86f",
+      "kotlin-account-witness-trace-release.stdout": "e458b6843c125271bfbe720d768d1ddd010c150a5d3a4182e8328e7cebc5a8c4",
+      "kotlin-fault-release-ack-9-after-closed.stdout": "822481fa21c695af3ae74415edba2f4dcd32438274b854d748f29f8cea3cc081"
+    }
+  }
+}

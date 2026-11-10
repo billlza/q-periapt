@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/Users/bill/.opam/default/bin/easycrypt",
+    "compile",
+    "-no-eco",
+    "-timeout",
+    "10",
+    "-max-provers",
+    "2",
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/easycrypt-assumption-review-current/JRejectionCountermodel.ec"
+  ],
+  "returncode": 0,
+  "seconds": 0.4494555408600718,
+  "source_sha256": "b0c29a22aebab6f7303474086534f38d4c6be406e1cbf9c1402a502de6c7bee0",
+  "tool_sha256": "5b0e73095b7f05f79e9327623551390ad369c038e10fd44f547d5fecd8c36901",
+  "scope": "Isolated proof experiment; no real ML-KEM/X-Wing attack or IND-CCA claim."
+}

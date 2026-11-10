@@ -1,5 +1,39 @@
-# Q-Periapt — TDSC paper draft (structural)
+# Q-Periapt manuscripts — Continuity draft and binding history
 
+## Current Continuity manuscript — 7 November 2026
+
+The integrated manuscript is now available as
+[Post-Compromise Security with Persistent Randomness Reservations](../paper/continuity/continuity.pdf),
+with [LaTeX source, build instructions and result status](../paper/continuity/README.md).
+The current 22-page draft contains the reservation/record/acquisition model,
+the proved alias-normalization lemma and stopping corollary, the retained joint
+multi-epoch symbolic theorem, native separating executions, the existing reference
+corpora and the proved conditional adaptive origin-pair accounting proposition.
+Its fourteen references and source/evidence appendix accompany the complete text.
+
+The agreed submission route is **Journal of Cryptology first, then ACM TOPS,
+then TIFS**. TDSC is excluded from the current route. The two concrete
+computational connections are stated in the manuscript's common-experiment
+section; the matching Continuity comparison has its explicit experimental design.
+These research tasks retain their own scope alongside the 0.2.0 product release.
+
+## Historical binding manuscript notes
+
+The following notes preserve the older binding manuscript and the initial
+Continuity outline. The integrated draft linked above supersedes their title,
+venue and writing-plan choices for the current Continuity paper.
+
+> **Manuscript scope.** These notes and `paper/q-periapt.tex` preserve the earlier
+> KEM-binding and cross-substrate assurance manuscript. They have not been rewritten
+> around the later Continuity protocol, multi-epoch recovery theorem, durable lifecycle
+> or accountable-directory results. Those results are indexed in
+> [PRODUCT_ADMISSION.md](continuity/PRODUCT_ADMISSION.md),
+> [RECOVERY_DEPENDENCIES_V1.md](continuity/RECOVERY_DEPENDENCIES_V1.md) and the two
+> pending session claims in the claim ledger. Updating their evidence does not establish
+> the broad parity or security/performance-lead claims. The existing measurements and
+> figures keep their historical source identities; this documentation correction does
+> not rerun measurements or regenerate the checked-in paper PDF.
+>
 > **Status of this file.** Authoring notes, not the current evidence authority. The paper source is
 > [`../paper/q-periapt.tex`](../paper/q-periapt.tex), and machine-readable current claim status is
 > [`../artifact/claim-ledger.json`](../artifact/claim-ledger.json). Historical numbers and checked
@@ -8,7 +42,8 @@
 > is load-bearing — do not relax it under reviewer pressure. Target venue: **IEEE TDSC** (dependable systems + security; a PhD-appropriate
 > CCF-A target). Frame as an *assurance / dependable-deployment* contribution, NOT a new
 > cryptographic primitive.
-> ABI 2 / `0.1.5` is the stable-version Rust crate source line, succeeding the
+> The current workspace declares `0.2.0`, with Continuity still an unpublished candidate.
+> The historical ABI 2 / `0.1.5` stable Rust crate line succeeded the
 > published `0.1.4` release. Its GitHub distributions are public and immutable,
 > and all ten `0.1.5` crates are published and independently verified. The complete
 > three-domain record is preserved at `v0.1.5-verified-cohort`. Its pre-publication package-ready contract alone does not prove
@@ -35,15 +70,134 @@
 > **Backend-migration history and current boundary.** The 2026-07-13 migration moved
 > the artifact from its former provider to portable `mlkem-native` v1.2.0 through
 > `q-periapt-mlkem-native-sys`, `fips204` 0.4.6, and `sha3` 0.10.9. The current
-> source now selects upstream AArch64 native arithmetic plus a fixed per-target
+> backend instead pins `mlkem-native` v2.0.0, `fips204` 0.4.6, `sha3` 0.12.0 and
+> `shake` 0.1.0. Its default feature set selects upstream AArch64 native arithmetic plus a fixed per-target
 > FIPS 202 assembly profile (Armv8.4-A SHA3 on the two Apple Silicon slices,
 > Armv8-A scalar elsewhere) on exactly five little-endian Apple/Linux/Android
-> targets and retains portable C everywhere else, including Wasm. There is no
-> runtime dispatch, and ABI 2/key/wire contracts are unchanged. Both migrations
+> targets and retains portable C on all other default targets, including Wasm.
+> This default mapping has no runtime CPU dispatch. The separately enabled
+> `linux-x86_64-avx2` candidate is restricted to `x86_64-unknown-linux-gnu`, checks
+> CPU/OS capabilities at runtime and retains the same-algorithm portable path;
+> [its qualification records](SDK_X86_CANDIDATE.md) remain separately scoped.
+> ABI 2/key/wire contracts are unchanged. These migrations
 > changed the canonical source digest. Every portable-derived package/device/
 > performance/binary-CT result below is historical evidence, not current ABI2
-> production-promotion evidence. Fresh per-target source-bound capture and independent
-> cryptographic/ABI review remain pending.
+> production-promotion evidence. Fresh per-target source-bound capture and
+> release-source contract validation remain required.
+
+---
+
+## Initial Continuity manuscript plan — 2026-11-07
+
+**Initial writing decision, now realized in the integrated draft above:** begin
+the new manuscript. The completed research results
+and installed implementation support a full draft. Submission readiness depends
+on the claims selected for that paper and their evidence, while final product
+release follows its separate contract. External product review and registry
+publication need not precede research writing. This writing focus does not remove
+any capability from the 0.2.0 release scope.
+
+The title, TDSC labels, figures and outline below belong to the earlier binding
+manuscript. A possible new title is **Q-Periapt Continuity: Durable Post-Quantum
+Sessions with Explicit Recovery Authorization**. Treat TIFS as a target to assess
+against the completed paper, not an acceptance prediction or an already submitted
+manuscript. Author identities and submission metadata have not been changed.
+
+### Central question and proposed contributions
+
+The central question is how a stateful post-quantum session can preserve exact
+pending operations through crashes, delayed replies and authorization changes
+while introducing genuinely fresh recovery material. Keeping a secret, retaining
+a durable record and holding current authorization are different conditions.
+A restored record may support reconciliation without authorizing new traffic.
+
+Organize the paper around three connected contributions:
+
+1. **Recovery conditions and a sharp boundary.** State the multi-epoch symbolic
+   theorem with its actual identity, record-acquisition and reservation-freshness
+   premises. Present the passed MAIN theorem and 24 reusable dependencies, then
+   the source-derived two-round execution and delayed-receipt disclosure trace.
+   The latter explains why later confirmation or one fresh encapsulation does not
+   make a retained pre-Cut generation reservation fresh.
+2. **A protocol and durable implementation of those distinctions.** Explain the
+   traffic-independent PQ control path, original-operation reservation and retry,
+   commit-before-release transitions, and the separation between historical
+   recovery and current communication authority. Connect these to a small set of
+   explicit invariants and implementation paths. Describe the evidence as
+   source correspondence and invariant testing at the level actually completed.
+3. **A reproducible installed-system evaluation.** Use actual SDK archives,
+   independent endpoint readers, process-failure traces and lifecycle resource
+   observations. Tie each result to its original source, binaries, workload and
+   denominator. Show what the mechanisms cost and which concrete failures their
+   controls detect.
+
+The accountable prekey directory can be a bounded supporting protocol if its
+original-operation, persistent-occupancy and public-conflict evidence serve that
+central question. If it overwhelms the narrative, describe its interface in the
+main text and retain its detailed analysis in a supplement or a separate study.
+ContextBound's mechanized binding and field-separation results remain useful
+foundations; do not present the established hash-everything binding fact as a new
+primitive or use base-KEM security as a Continuity theorem.
+
+### Evidence that is already available
+
+| Paper claim or experiment | Existing evidence and exact scope |
+| --- | --- |
+| Multi-epoch symbolic secrecy | [Joint replay](../research/sdk-alpha1/evidence/20261104-multi-epoch-replay/README.md): MAIN and all 24 reusable dependencies pass together. The full inventory remains 27 verified / 13 incomplete. |
+| Executability and reservation boundary | [Two-round execution](../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md) and [delayed-receipt disclosure](../research/sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace/README.md): finite source-derived executions checked by two semantic implementations. They provide concrete witnesses, not new Tamarin certificates. |
+| Durable original-operation and installed lifecycle behavior | [Installed Rust/C checkpoint](../research/sdk-alpha1/evidence/20261104-continuity-c-maintenance/README.md), [product-admission index](continuity/PRODUCT_ADMISSION.md), and later source-bound hosted receipts. Reuse shared evidence only with its input correspondence. |
+| Accountable prekey assignment | [Directory specification](../research/continuity-reference-app/DIRECTORY_LEASES.md) and [real CLI/independent readback](../research/sdk-alpha1/evidence/20261104-directory-cli-crosscheck/README.md). Current authorization and historical verification remain distinct. |
+| Resource and complete-interval throughput baselines | [Repeated lifecycle observations](../research/sdk-alpha1/evidence/20261106-resource-repeats/README.md) and [installed throughput](../research/sdk-alpha1/evidence/20261106-installed-throughput/README.md): sixteen predeclared cohorts, fixed installed artifacts, durable effects and complete serial workload intervals at source `5678d101`. |
+
+The existing `paper/microbench-arm64.csv`, `camera-ready-results.txt` and their
+figures retain historical identity. Regenerate selected figures from the new
+paper's actual receipts after choosing its study revision; do not relabel old
+measurements as current. The checked-in PDF has not been rebuilt by these source
+and authoring-note corrections.
+
+### Finite evaluation plan tied to the central question
+
+| Question | Necessary comparison or extension |
+| --- | --- |
+| When does confidentiality recover? | Compare the existing fixed SPQR and authenticated whole-KEM references under explicitly aligned compromise, delivery and retained-state conditions. Report the exposed-message set and recovery conditions, not only elapsed time. |
+| What does independent PQ control change? | Use idle, asymmetric and bursty application schedules, with the control schedule and network loss stated separately. Report recovery progress, control bytes and latency. No control protocol can guarantee progress when its own messages are indefinitely withheld. |
+| What happens at persistence and authority boundaries? | Retain representative commit/reply-loss, duplicate, cancellation, revocation and restart schedules. Check original IDs/results and release ordering. Use existing negative controls and finite adverse traces to explain causal differences. |
+| What does the declared workload cost? | Preserve complete interval denominators and report establishment, application delivery, rekey, recovery and required-Witness work separately. Extend load only as needed for a stated paper claim; separate serial baseline, concurrency, saturation and empirical tail statistics. |
+| Does integration require less application work? | Build comparable reference integrations under the same authentication, persistence and recovery contract. Count application-owned state, required components and failure-handling responsibilities; code size alone is not a usability result. |
+
+Current serial single-session rates are 5.816 confirmed deliveries/s locally and
+3.312/s with a required Witness for the recorded workload. Those measurements
+include PQ control and status/observer intervals; establishment and the later
+recovery/cancellation phase are outside that particular throughput denominator.
+They establish a reproducible baseline, not a saturation limit or competitor
+ranking. Mobile energy is relevant if the paper makes a mobile-energy claim;
+the existing accepted device remains sufficient for the agreed device scope.
+
+### Security statement and manuscript structure
+
+The symbolic theorem is completed in its stated model. The
+[computational recovery argument](continuity/COMPUTATIONAL_RECOVERY_V1.md) and
+its follow-ups have conditional extraction/shared-root results while retaining
+accepted-prefix, authentication and full continuation/composition obligations.
+A paper claiming complete computational continuous recovery must close the
+dependencies of that claim. A paper centered on the symbolic theorem, its
+necessary recovery conditions and a durable implementation can state those
+results precisely without representing the open composition as proved.
+Keep the failed searches, incomplete queries and finite-witness methodology.
+
+A compact structure is: problem and related work; threat/recovery model;
+protocol and durable state machine; security results and boundary executions;
+implementation correspondence; matched evaluation; limitations and conclusion.
+A focused manuscript should explain a few central invariants in depth and put
+long API inventories and platform receipts in supporting material.
+
+The [official TIFS scope](https://signalprocessingsociety.org/publications-resources/ieee-transactions-information-forensics-and-security/about-transactions)
+includes information security and system applications and encourages reproducible
+code/data. The [current author instructions](https://signalprocessingsociety.org/publications-resources/information-authors),
+checked on 2026-11-07, specify a 13-page initial regular-paper limit, a
+150–250-word abstract and single-anonymized review. The old long abstract and
+TDSC double-blind metadata therefore need a deliberate rewrite before a TIFS
+submission. No submission or acceptance is claimed here.
 
 ---
 
@@ -164,8 +318,7 @@ FIPS 202 assembly profile (Armv8.4-A SHA3 x1/x2 on the two Apple Silicon slices,
 Armv8-A scalar x1/x4 elsewhere), while every other target remains portable. Upstream HOL-Light
 evidence is limited to selected upstream assembly source/object routines, not
 downstream reassembly, this Rust/C wrapper, or the full ABI. RustSec covers the
-resolved Rust graph, not vendored C, and neither the upstream provider nor this
-integration has a completed independent audit.
+resolved Rust graph, not vendored C.
 Currentness is authoritative only through `artifact/results.json` plus live verification.
 ABI 2 is the stable-version source/Rust-crate line; package readiness is not registry
 publication. The published stable binary
@@ -174,7 +327,7 @@ targets are the Apple `v0.1.5` XCFramework and the
 their asset-verification and ten-crate registry receipts are complete in
 `v0.1.5-verified-cohort`. The older `0.1.4` cohort is recorded
 at the annotated tag `v0.1.4-verified-cohort` and not in main's results. Fresh same-source
-device/performance evidence, independent cryptographic/C-FFI/ABI review,
+device/performance evidence, internal cryptographic/C-FFI/ABI review,
 signed or transparency-backed source provenance and registry publication remain
 requirements for production promotion. Windows remains excluded until a signed
 producer/verifier and certificate/timestamp-authority gate exist.
@@ -466,7 +619,7 @@ producer/verifier and certificate/timestamp-authority gate exist.
   the superseded `fips203` run is historical failure evidence; riscv64/wasm32 have no
   current binary-CT or inherited source-CT claim.
 - Conformance ≠ certification (ACVP byte-identity is not CMVP).
-- No independent third-party audit; research-grade, do-not-deploy.
+- Research-grade artifact; this paper does not establish production deployment readiness.
 - Upstream HOL-Light evidence is scoped to the selected upstream AArch64 assembly
   source/object routines. It is not a proof of downstream reassembly, the Rust/C
   integration, the full ABI, or the final package.

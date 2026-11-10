@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "test",
+    "--offline",
+    "--locked",
+    "-p",
+    "q-periapt-cli",
+    "--lib",
+    "code_reader_rejects_growth_after_metadata_admission",
+    "--",
+    "--nocapture"
+  ],
+  "returncode": 101,
+  "seconds": 9.113426791969687,
+  "source_sha256": "59aef0965b6e3127152f49402eaa3a0a73d9ae3ce842a27dc4bfd571cba98617",
+  "source_unchanged": true,
+  "stdout_sha256": "a98d3334d4fcce471a3f764e5fd7ef496118153950b66716d8588cd7bc8cf44d",
+  "stderr_sha256": "7c1c24ec53e5852622595e85de2d224c1809caed6abdd7b671b2d33556ae9d2e"
+}

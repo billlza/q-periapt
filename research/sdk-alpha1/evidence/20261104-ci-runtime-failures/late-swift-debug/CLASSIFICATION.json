@@ -1,0 +1,32 @@
+{
+  "actual_checkout": "59bde0fd1a268de4d0e183c33bf3fc5e09c9be97",
+  "artifact_downloaded_in_this_capture": false,
+  "artifact_metadata_from_log": {
+    "bytes": 47532656,
+    "id": 13379233502,
+    "sha256": "d84f915e5747d8f78963b7911f12f67375ca1948aa12780a8d18620df670ee5d"
+  },
+  "captured_at": "2026-11-05 01:44:27 UTC",
+  "classification": "Eleventh observed P0 old-count validator failure in the macOS C/OpenSSL prerequisite.",
+  "effective_wave_open": true,
+  "emulator_failure": false,
+  "hosted_observed_count": null,
+  "job_id": 126489776864,
+  "job_name": "continuity-installed-swift-debug",
+  "job_url": "https://github.com/billlza/q-periapt/actions/runs/41791861104/job/126489776864",
+  "native_test_result_claimed": false,
+  "new_wave_started": false,
+  "old_exact_expectation": 142,
+  "push_performed": false,
+  "rerun_performed": false,
+  "run_id": 41791861104,
+  "swift_consumer_execution_claimed": false,
+  "wave_counts": {
+    "failure": 14,
+    "in_progress": 3,
+    "queued": 25,
+    "skipped": 2,
+    "success": 288
+  },
+  "workflow_cancelled": false
+}

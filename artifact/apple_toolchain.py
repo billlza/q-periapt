@@ -21,6 +21,12 @@ from dataclasses import dataclass
 from typing import Any, NoReturn, Sequence
 
 from bounded_process import BoundedProcessError, capture_stdout
+from apple_sdk_device_contract import (
+    CAPTURE_PROFILES,
+    LEGACY_PROFILE,
+    SDK_PROFILE,
+    validate_capture_profile,
+)
 from evidence_io import (
     EvidenceIOError,
     FileDigestSnapshot,
@@ -37,12 +43,21 @@ APPLICATIONS_ROOT = pathlib.Path("/Applications")
 FIXED_DEVELOPER_DIR = pathlib.Path(
     "/Applications/Xcode-27.0.app/Contents/Developer"
 )
+SDK_DEVELOPER_DIR = pathlib.Path("/Applications/Xcode.app/Contents/Developer")
 REQUIRED_ROOT_UID = 0
 EXPECTED_BUNDLE_IDENTIFIER = "com.apple.dt.Xcode"
 EXPECTED_TEAM_IDENTIFIER = "59GAB85EFG"
 EXPECTED_AUTHORITIES = (
     "Software Signing",
     "Apple Code Signing Certification Authority",
+    "Apple Root CA",
+)
+# The SDK device lane explicitly selects the Mac App Store Xcode distribution.
+# Apple documents this chain in TN3161 and this Gatekeeper source in QA1900.
+# The historical downloaded-Xcode contract remains unchanged.
+SDK_EXPECTED_AUTHORITIES = (
+    "Apple Mac OS Application Signing",
+    "Apple Worldwide Developer Relations Certification Authority",
     "Apple Root CA",
 )
 TRUST_BOUNDARY = {
@@ -224,6 +239,16 @@ def _command_environment(developer_dir: pathlib.Path) -> dict[str, str]:
     }
 
 
+def developer_dir_for_profile(capture_profile: str) -> pathlib.Path:
+    validate_capture_profile(capture_profile)
+    return SDK_DEVELOPER_DIR if capture_profile == SDK_PROFILE else FIXED_DEVELOPER_DIR
+
+
+def command_environment(capture_profile: str) -> dict[str, str]:
+    """Use a closed caller-selected profile, never a receipt-controlled path."""
+    return _command_environment(developer_dir_for_profile(capture_profile))
+
+
 def fixed_command_environment() -> dict[str, str]:
     """Return a fresh minimal environment for the fixed production toolchain."""
 
@@ -270,7 +295,19 @@ def _single_prefixed_line(lines: list[str], prefix: str, label: str) -> str:
     return values[0]
 
 
-def parse_codesign_display(text: str, app: pathlib.Path) -> dict[str, Any]:
+def _expected_authorities(capture_profile: str) -> tuple[str, ...]:
+    validate_capture_profile(capture_profile)
+    return SDK_EXPECTED_AUTHORITIES if capture_profile == SDK_PROFILE else EXPECTED_AUTHORITIES
+
+
+def _expected_gatekeeper_source(capture_profile: str) -> str:
+    validate_capture_profile(capture_profile)
+    return "Mac App Store" if capture_profile == SDK_PROFILE else "Apple System"
+
+
+def parse_codesign_display(
+    text: str, app: pathlib.Path, *, capture_profile: str = LEGACY_PROFILE,
+) -> dict[str, Any]:
     """Parse the exact Apple identity facts required by the receipt."""
 
     try:
@@ -300,7 +337,7 @@ def parse_codesign_display(text: str, app: pathlib.Path) -> dict[str, Any]:
         _fail("codesign identifier is not com.apple.dt.Xcode")
     if team != EXPECTED_TEAM_IDENTIFIER:
         _fail("codesign TeamIdentifier is not the expected Apple team")
-    if authorities != EXPECTED_AUTHORITIES:
+    if authorities != _expected_authorities(capture_profile):
         _fail("codesign authority chain is not the complete expected Apple chain")
     if hash_type != "sha256 size=32":
         _fail("codesign hash type is not SHA-256")
@@ -314,18 +351,21 @@ def parse_codesign_display(text: str, app: pathlib.Path) -> dict[str, Any]:
     }
 
 
-def parse_gatekeeper_assessment(text: str, app: pathlib.Path) -> dict[str, Any]:
+def parse_gatekeeper_assessment(
+    text: str, app: pathlib.Path, *, capture_profile: str = LEGACY_PROFILE,
+) -> dict[str, Any]:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     accepted = f"{app}: accepted"
     if lines.count(accepted) != 1:
         _fail("Gatekeeper did not accept the selected Xcode app")
     sources = [line[len("source=") :] for line in lines if line.startswith("source=")]
-    if sources != ["Apple System"]:
-        _fail("Gatekeeper source is not exactly Apple System")
-    allowed = {accepted, "source=Apple System"}
+    expected_source = _expected_gatekeeper_source(capture_profile)
+    if sources != [expected_source]:
+        _fail(f"Gatekeeper source is not exactly {expected_source}")
+    allowed = {accepted, f"source={expected_source}"}
     if any(line not in allowed for line in lines):
         _fail("Gatekeeper assessment contains unexpected output")
-    return {"accepted": True, "source": "Apple System"}
+    return {"accepted": True, "source": expected_source}
 
 
 def _parse_plist(snapshot: FileSnapshot, label: str) -> dict[str, Any]:
@@ -479,7 +519,9 @@ def _require_unchanged_snapshots(
             _fail(f"Xcode toolchain artifact changed during capture: {name}")
 
 
-def _capture_receipt_at(developer_dir: pathlib.Path) -> dict[str, Any]:
+def _capture_receipt_at(
+    developer_dir: pathlib.Path, *, capture_profile: str = LEGACY_PROFILE,
+) -> dict[str, Any]:
     """Test seam for capturing one explicitly supplied toolchain fixture."""
 
     layout = _inspect_layout(developer_dir)
@@ -516,7 +558,7 @@ def _capture_receipt_at(developer_dir: pathlib.Path) -> dict[str, Any]:
         label="Xcode codesign display",
         timeout_seconds=METADATA_COMMAND_TIMEOUT_SECONDS,
     )
-    signature = parse_codesign_display(display_output, layout.app)
+    signature = parse_codesign_display(display_output, layout.app, capture_profile=capture_profile)
     gatekeeper_output = _run_command(
         [
             "/usr/sbin/spctl",
@@ -530,7 +572,7 @@ def _capture_receipt_at(developer_dir: pathlib.Path) -> dict[str, Any]:
         label="Xcode Gatekeeper assessment",
         timeout_seconds=METADATA_COMMAND_TIMEOUT_SECONDS,
     )
-    gatekeeper = parse_gatekeeper_assessment(gatekeeper_output, layout.app)
+    gatekeeper = parse_gatekeeper_assessment(gatekeeper_output, layout.app, capture_profile=capture_profile)
     xcodebuild_output = _run_command(
         ["/usr/bin/xcodebuild", "-version"],
         developer_dir=layout.developer_dir,
@@ -571,7 +613,7 @@ def _capture_receipt_at(developer_dir: pathlib.Path) -> dict[str, Any]:
         "gatekeeper": gatekeeper,
         "artifacts": _artifact_receipt(initial_artifacts),
     }
-    _validate_receipt(receipt)
+    _validate_receipt(receipt, capture_profile=capture_profile)
     return receipt
 
 
@@ -579,6 +621,11 @@ def capture_receipt() -> dict[str, Any]:
     """Capture the fixed release-lane Xcode installation receipt."""
 
     return _capture_receipt_at(FIXED_DEVELOPER_DIR)
+
+
+def capture_sdk_receipt() -> dict[str, Any]:
+    """Capture the SDK lane's fixed Xcode.app with the same Apple trust checks."""
+    return _capture_receipt_at(SDK_DEVELOPER_DIR, capture_profile=SDK_PROFILE)
 
 
 def _validate_directory_identity(value: Any, label: str) -> None:
@@ -598,7 +645,9 @@ def _validate_directory_identity(value: Any, label: str) -> None:
         _fail(f"{label}.mode is group/world writable")
 
 
-def _validate_receipt(receipt: dict[str, Any]) -> None:
+def _validate_receipt(
+    receipt: dict[str, Any], *, capture_profile: str = LEGACY_PROFILE,
+) -> None:
     _require_exact_keys(
         receipt,
         {
@@ -629,7 +678,7 @@ def _validate_receipt(receipt: dict[str, Any]) -> None:
     )
     if developer_dir != app_path / "Contents" / "Developer":
         _fail("receipt app_path and developer_dir differ")
-    if developer_dir != FIXED_DEVELOPER_DIR:
+    if developer_dir != developer_dir_for_profile(capture_profile):
         _fail("receipt does not select the fixed Apple release toolchain")
 
     directories = receipt["directories"]
@@ -712,7 +761,7 @@ def _validate_receipt(receipt: dict[str, Any]) -> None:
     if (
         signature["identifier"] != EXPECTED_BUNDLE_IDENTIFIER
         or signature["team_identifier"] != EXPECTED_TEAM_IDENTIFIER
-        or signature["authorities"] != list(EXPECTED_AUTHORITIES)
+        or signature["authorities"] != list(_expected_authorities(capture_profile))
         or signature["deep_strict_verified"] is not True
     ):
         _fail("receipt signature identity is invalid")
@@ -722,7 +771,7 @@ def _validate_receipt(receipt: dict[str, Any]) -> None:
     )
 
     gatekeeper = receipt["gatekeeper"]
-    if gatekeeper != {"accepted": True, "source": "Apple System"}:
+    if gatekeeper != {"accepted": True, "source": _expected_gatekeeper_source(capture_profile)}:
         _fail("receipt Gatekeeper state is invalid")
 
     artifacts = receipt["artifacts"]
@@ -761,23 +810,33 @@ def _compare_exact(expected: Any, actual: Any, path: str = "receipt") -> None:
         _fail(f"{path} changed: expected={expected!r} actual={actual!r}")
 
 
-def verify_receipt(expected: dict[str, Any]) -> dict[str, Any]:
-    """Re-capture the fixed release-lane Xcode state and require equality."""
-
+def _verify_profile_receipt(expected: dict[str, Any], capture_profile: str) -> dict[str, Any]:
+    validate_capture_profile(capture_profile)
     if not isinstance(expected, dict):
         _fail("expected Apple toolchain receipt must be an object")
-    _validate_receipt(expected)
-    current = capture_receipt()
+    _validate_receipt(expected, capture_profile=capture_profile)
+    current = capture_sdk_receipt() if capture_profile == SDK_PROFILE else capture_receipt()
     _compare_exact(expected, current)
     return current
+
+
+def verify_receipt(expected: dict[str, Any]) -> dict[str, Any]:
+    """Re-capture the fixed release-lane Xcode state and require equality."""
+    return _verify_profile_receipt(expected, LEGACY_PROFILE)
+
+
+def verify_sdk_receipt(expected: dict[str, Any]) -> dict[str, Any]:
+    return _verify_profile_receipt(expected, SDK_PROFILE)
 
 
 def _json_bytes(receipt: dict[str, Any]) -> bytes:
     return (json.dumps(receipt, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
-def _write_new_private_json(path: pathlib.Path, receipt: dict[str, Any]) -> str:
-    _validate_receipt(receipt)
+def _write_new_private_json(
+    path: pathlib.Path, receipt: dict[str, Any], *, capture_profile: str = LEGACY_PROFILE,
+) -> str:
+    _validate_receipt(receipt, capture_profile=capture_profile)
     output = _canonical_absolute_path(path, "receipt output")
     parent = output.parent
     try:
@@ -887,7 +946,9 @@ def _private_receipt_metadata(metadata: os.stat_result) -> None:
         )
 
 
-def _load_private_receipt(path: pathlib.Path) -> dict[str, Any]:
+def _load_private_receipt(
+    path: pathlib.Path, *, capture_profile: str = LEGACY_PROFILE,
+) -> dict[str, Any]:
     try:
         snapshot = load_json_object_snapshot(
             path,
@@ -897,21 +958,21 @@ def _load_private_receipt(path: pathlib.Path) -> dict[str, Any]:
         )
     except EvidenceIOError as exc:
         raise AppleToolchainError(str(exc)) from exc
-    _validate_receipt(snapshot.value)
+    _validate_receipt(snapshot.value, capture_profile=capture_profile)
     return snapshot.value
 
 
 def _capture_command(args: argparse.Namespace) -> None:
-    receipt = capture_receipt()
+    receipt = capture_sdk_receipt() if args.capture_profile == SDK_PROFILE else capture_receipt()
     output = _canonical_absolute_path(args.output, "receipt output")
-    digest = _write_new_private_json(output, receipt)
+    digest = _write_new_private_json(output, receipt, capture_profile=args.capture_profile)
     print(f"APPLE_TOOLCHAIN_RECEIPT={output} sha256={digest}")
 
 
 def _verify_command(args: argparse.Namespace) -> None:
     receipt_path = _canonical_absolute_path(args.receipt, "receipt input")
-    expected = _load_private_receipt(receipt_path)
-    current = verify_receipt(expected)
+    expected = _load_private_receipt(receipt_path, capture_profile=args.capture_profile)
+    current = verify_sdk_receipt(expected) if args.capture_profile == SDK_PROFILE else verify_receipt(expected)
     digest = hashlib.sha256(_json_bytes(current)).hexdigest()
     print(f"APPLE_TOOLCHAIN_RECEIPT_PASS sha256={digest}")
 
@@ -922,10 +983,12 @@ def _parser() -> argparse.ArgumentParser:
 
     capture = subparsers.add_parser("capture")
     capture.add_argument("--output", type=pathlib.Path, required=True)
+    capture.add_argument("--capture-profile", choices=CAPTURE_PROFILES, default=LEGACY_PROFILE)
     capture.set_defaults(handler=_capture_command)
 
     verify = subparsers.add_parser("verify")
     verify.add_argument("--receipt", type=pathlib.Path, required=True)
+    verify.add_argument("--capture-profile", choices=CAPTURE_PROFILES, default=LEGACY_PROFILE)
     verify.set_defaults(handler=_verify_command)
     return parser
 

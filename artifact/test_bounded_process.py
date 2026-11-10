@@ -253,6 +253,67 @@ class BoundedProcessTests(unittest.TestCase):
         self.assertEqual(len(observed_pids), 1)
         self.assert_process_group_gone(observed_pids[0])
 
+    def test_dual_sinks_keep_nonzero_and_timeout_diagnostics(self) -> None:
+        for timeout in (False, True):
+            with self.subTest(timeout=timeout):
+                stdout, stderr = [], []
+                argv = self.python(
+                    "import os,time; os.write(1,b'out'); os.write(2,b'err'); "
+                    + ("time.sleep(5)" if timeout else "raise SystemExit(7)")
+                )
+                options = dict(timeout_seconds=1, maximum_stdout_bytes=128,
+                               maximum_stderr_bytes=128, stdout_sink=stdout.append,
+                               stderr_sink=stderr.append)
+                if timeout:
+                    with self.assertRaises(bounded_process.BoundedProcessError) as error:
+                        bounded_process.capture_output(argv, **options)
+                    self.assertEqual(error.exception.kind, "timeout")
+                    self.assertFalse(error.exception.cleanup_ambiguous)
+                else:
+                    result = bounded_process.capture_output(argv, **options)
+                    self.assertEqual((result.returncode, result.stdout, result.stderr),
+                                     (7, b"out", b"err"))
+                self.assertEqual(b"".join(stdout), b"out")
+                self.assertEqual(b"".join(stderr), b"err")
+
+    def test_dual_sink_io_failure_reaps_child(self) -> None:
+        observed_pids = []
+        failure = OSError("cannot retain diagnostic")
+
+        def reject(chunk):
+            observed_pids.append(int(chunk.strip()))
+            raise failure
+
+        with self.assertRaises(bounded_process.BoundedProcessError) as error:
+            bounded_process.capture_output(
+                self.python("import os,time; print(os.getpid(), flush=True); time.sleep(5)"),
+                timeout_seconds=10, maximum_stdout_bytes=128, maximum_stderr_bytes=128,
+                stdout_sink=reject)
+        self.assertEqual(error.exception.kind, "io")
+        self.assertIs(error.exception.__cause__, failure)
+        self.assertEqual(len(observed_pids), 1)
+        self.assert_process_group_gone(observed_pids[0])
+
+    def test_dual_sinks_do_not_bypass_output_or_argument_limits(self) -> None:
+        for name in ("stdout", "stderr"):
+            with self.subTest(stream=name):
+                chunks = []
+                with self.assertRaises(bounded_process.BoundedProcessError) as error:
+                    bounded_process.capture_output(
+                        self.python(f"import sys; sys.{name}.buffer.write(b'x' * 33)"),
+                        timeout_seconds=5, maximum_stdout_bytes=32, maximum_stderr_bytes=32,
+                        **{name + "_sink": chunks.append})
+                self.assertEqual(error.exception.kind, "output_limit")
+                self.assertLessEqual(sum(map(len, chunks)), 32)
+                with (mock.patch.object(bounded_process, "_start_process") as start,
+                      self.assertRaises(bounded_process.BoundedProcessError) as invalid):
+                    bounded_process.capture_output(
+                        self.python("raise SystemExit(0)"), timeout_seconds=5,
+                        maximum_stdout_bytes=32, maximum_stderr_bytes=32,
+                        **{name + "_sink": "not-callable"})
+                self.assertEqual(invalid.exception.kind, "arguments")
+                start.assert_not_called()
+
     def test_capture_output_bounds_and_separates_both_streams(self) -> None:
         result = bounded_process.capture_output(
             self.python(
@@ -279,6 +340,106 @@ class BoundedProcessTests(unittest.TestCase):
         self.assertEqual(9, nonzero.returncode)
         self.assertEqual(b"", nonzero.stdout)
         self.assertEqual(b"failure", nonzero.stderr)
+
+    def test_long_analysis_budget_requires_explicit_finite_policy(self) -> None:
+        with mock.patch.object(bounded_process, "_start_process") as start:
+            with self.assertRaises(bounded_process.BoundedProcessError) as raised:
+                bounded_process.capture_output(
+                    ["unused"], timeout_seconds=901,
+                    maximum_stdout_bytes=64, maximum_stderr_bytes=64,
+                )
+            self.assertEqual(raised.exception.kind, "arguments")
+            start.assert_not_called()
+        for seconds, policy in (
+            (18001, bounded_process.TimeoutPolicy.LONG_ANALYSIS),
+            (0, bounded_process.TimeoutPolicy.LONG_ANALYSIS),
+            (True, bounded_process.TimeoutPolicy.LONG_ANALYSIS),
+            (1, "LONG_ANALYSIS"),
+        ):
+            with self.subTest(seconds=seconds, policy=policy), \
+                 mock.patch.object(bounded_process, "_start_process") as start:
+                with self.assertRaises(bounded_process.BoundedProcessError) as raised:
+                    bounded_process.capture_output(
+                        ["unused"], timeout_seconds=seconds, timeout_policy=policy,
+                        maximum_stdout_bytes=64, maximum_stderr_bytes=64,
+                    )
+                self.assertEqual(raised.exception.kind, "arguments")
+                start.assert_not_called()
+        result = bounded_process.capture_output(
+            self.python("print('analysis'); raise SystemExit(7)"),
+            timeout_seconds=18000,
+            timeout_policy=bounded_process.TimeoutPolicy.LONG_ANALYSIS,
+            maximum_stdout_bytes=64, maximum_stderr_bytes=64,
+        )
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (7, b"analysis\n", b""))
+
+    def test_long_analysis_preserves_output_limits_and_timeout_cleanup(self) -> None:
+        with self.assertRaises(bounded_process.BoundedProcessError) as raised:
+            bounded_process.capture_output(
+                self.python("import sys; sys.stderr.write('x' * 33)"),
+                timeout_seconds=18000,
+                timeout_policy=bounded_process.TimeoutPolicy.LONG_ANALYSIS,
+                maximum_stdout_bytes=32, maximum_stderr_bytes=32,
+            )
+        self.assertEqual(raised.exception.kind, "output_limit")
+        pid_path = self.root / "analysis.pid"
+        with self.assertRaises(bounded_process.BoundedProcessError) as raised:
+            bounded_process.capture_output(
+                self.python("import os,pathlib,time; "
+                            f"pathlib.Path({str(pid_path)!r}).write_text(str(os.getpid())); "
+                            "time.sleep(60)"),
+                timeout_seconds=1,
+                timeout_policy=bounded_process.TimeoutPolicy.LONG_ANALYSIS,
+                maximum_stdout_bytes=64, maximum_stderr_bytes=64,
+            )
+        self.assertEqual(raised.exception.kind, "timeout")
+        self.assertFalse(raised.exception.cleanup_ambiguous)
+        self.assert_process_group_gone(int(pid_path.read_text()))
+
+    def test_merged_capture_long_analysis_is_explicit_and_preserves_status(self) -> None:
+        for seconds, policy in (
+            (901, bounded_process.TimeoutPolicy.STANDARD),
+            (18001, bounded_process.TimeoutPolicy.LONG_ANALYSIS),
+            (True, bounded_process.TimeoutPolicy.LONG_ANALYSIS),
+            (1, "LONG_ANALYSIS"),
+        ):
+            with self.subTest(seconds=seconds, policy=policy), \
+                    mock.patch.object(bounded_process, "_start_process") as start:
+                with self.assertRaises(bounded_process.BoundedProcessError) as raised:
+                    bounded_process.capture_stdout(
+                        ["unused"], timeout_seconds=seconds, timeout_policy=policy,
+                        maximum_bytes=64, stderr=subprocess.STDOUT,
+                    )
+                self.assertEqual(raised.exception.kind, "arguments")
+                start.assert_not_called()
+        result = bounded_process.capture_stdout(
+            self.python("import sys; print('out', flush=True); "
+                        "sys.stderr.write('err\\n'); raise SystemExit(7)"),
+            timeout_seconds=1800, timeout_policy=bounded_process.TimeoutPolicy.LONG_ANALYSIS,
+            maximum_bytes=64, stderr=subprocess.STDOUT,
+        )
+        self.assertEqual((result.returncode, result.stdout), (7, b"out\nerr\n"))
+
+    def test_merged_long_analysis_keeps_combined_output_limit_and_timeout_cleanup(self) -> None:
+        with self.assertRaises(bounded_process.BoundedProcessError) as raised:
+            bounded_process.capture_stdout(
+                self.python("import os; os.write(1, b'o' * 17); os.write(2, b'e' * 17)"),
+                timeout_seconds=1800, timeout_policy=bounded_process.TimeoutPolicy.LONG_ANALYSIS,
+                maximum_bytes=32, stderr=subprocess.STDOUT,
+            )
+        self.assertEqual(raised.exception.kind, "output_limit")
+        pid_path = self.root / "merged-analysis.pid"
+        with self.assertRaises(bounded_process.BoundedProcessError) as raised:
+            bounded_process.capture_stdout(
+                self.python("import os,pathlib,time; "
+                            f"pathlib.Path({str(pid_path)!r}).write_text(str(os.getpid())); "
+                            "time.sleep(60)"),
+                timeout_seconds=1, timeout_policy=bounded_process.TimeoutPolicy.LONG_ANALYSIS,
+                maximum_bytes=64, stderr=subprocess.STDOUT,
+            )
+        self.assertEqual(raised.exception.kind, "timeout")
+        self.assertFalse(raised.exception.cleanup_ambiguous)
+        self.assert_process_group_gone(int(pid_path.read_text()))
 
     def test_capture_output_rejects_either_stream_over_limit(self) -> None:
         for stream in ("stdout", "stderr"):
@@ -1204,6 +1365,48 @@ class BoundedProcessTests(unittest.TestCase):
                     self.assertEqual(raised.exception.kind, error_kind)
                 self.assertEqual(output.read_bytes(), b"original")
                 self.assertEqual(list(self.root.glob(f".{name}.bin.bounded-*")), [])
+
+    def test_diagnostic_write_keeps_failure_without_changing_status_or_bounds(self) -> None:
+        output = self.root / "diagnostic.txt"
+        output.write_bytes(b"previous")
+        output.chmod(0o600)
+        result = bounded_process.write_stdout_at(
+            self.python("import sys; sys.stderr.write('retained failure'); raise SystemExit(7)"),
+            output_directory_fd=self.output_directory_fd,
+            output_name=output.name, timeout_seconds=5, maximum_bytes=64,
+            stderr=subprocess.STDOUT, retain_nonzero=True,
+        )
+        self.assertEqual(result.returncode, 7)
+        self.assertEqual(output.read_bytes(), b"retained failure")
+        self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
+        for source, timeout, maximum, kind in (
+            ("print('x' * 65)", 5, 64, "output_limit"),
+            ("import time; print('partial', flush=True); time.sleep(60)", 1, 64, "timeout"),
+        ):
+            with self.subTest(kind=kind), self.assertRaises(bounded_process.BoundedProcessError) as caught:
+                bounded_process.write_stdout_at(
+                    self.python(source), output_directory_fd=self.output_directory_fd,
+                    output_name=output.name, timeout_seconds=timeout, maximum_bytes=maximum,
+                    stderr=subprocess.STDOUT, retain_nonzero=True,
+                )
+            self.assertEqual(caught.exception.kind, kind)
+            self.assertEqual(output.read_bytes(), b"retained failure")
+            self.assertEqual(list(self.root.glob(".diagnostic.txt.bounded-*")), [])
+
+    def test_nonboolean_diagnostic_selection_fails_before_spawn(self) -> None:
+        for value in (None, 1, "true"):
+            with (
+                self.subTest(value=value),
+                mock.patch.object(bounded_process.subprocess, "Popen") as spawn,
+                self.assertRaises(bounded_process.BoundedProcessError) as caught,
+            ):
+                bounded_process.write_stdout_at(
+                    self.python("print('unexpected')"), output_directory_fd=self.output_directory_fd,
+                    output_name="diagnostic.txt", timeout_seconds=5, maximum_bytes=64,
+                    retain_nonzero=value,
+                )
+            self.assertEqual(caught.exception.kind, "arguments")
+            spawn.assert_not_called()
 
     def test_output_cleanup_failures_do_not_mask_primary_error(self) -> None:
         output = self.root / "cleanup-primary.bin"

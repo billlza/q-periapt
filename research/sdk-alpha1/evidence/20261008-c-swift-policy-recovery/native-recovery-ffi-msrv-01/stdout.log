@@ -1,0 +1,58 @@
+
+running 48 tests
+test sdk::persistent::supported::tests::full_registry_reuses_root_slot_and_stale_update_cannot_close_successor ... ok
+test sdk::persistent::supported::tests::close_after_commit_prevents_publication_but_recovers_persisted_policy ... ok
+test sdk::connection::tests::orderly_close_is_distinct_from_truncated_input_and_returns_capacity ... ok
+test sdk::persistent::supported::recovery::tests::c_recovery_on_bounded_foreign_worker ... ok
+test sdk::persistent::supported::tests::actual_abi2_persistent_key_policy_and_restart_roundtrip ... ok
+test sdk::connection::tests::actual_abi2_tls_policy_message_roundtrip_and_revocation ... ok
+test sdk::connection::tests::connection_shape_alias_failures_are_atomic_and_endpoint_close_revokes_sessions ... ok
+test sdk::persistent::supported::recovery::tests::committed_recovery_publication_error_and_unwind_close_before_reopen ... ok
+test sdk::persistent::supported::recovery::tests::c_recovery_exhaustion_roles_capacity_replays_and_real_reopen ... ok
+test sdk::tests::constructors_reject_short_option_prefixes_before_reading_fields ... ok
+test sdk::persistent::supported::recovery::tests::c_recovery_rejects_short_options_aliases_and_unenrolled_store ... ok
+test sdk::persistent::supported::tests::input_shapes_aliases_and_call_exhaustion_do_not_write_or_commit ... ok
+test sdk::persistent::supported::tests::panic_after_commit_revokes_epochs_and_clears_output_before_foreign_return ... ok
+test sdk::tests::activation_cleanup_failure_revokes_every_owner_and_recovers_from_next_state ... ok
+test sdk::tests::activation_reuses_reserved_capacity_and_ignores_call_exhaustion_without_reusing_ids ... ok
+test sdk::tests::bounds_aliases_and_panics_do_not_publish_success_fragments ... ok
+test sdk::tests::unpublished_reservations_are_bounded_and_revocation_prevents_late_publication ... ok
+test tests::abi_constants_match_backend_lengths ... ok
+test tests::combine_matches_reference_vectors ... ok
+test tests::combine_rejects_noncanonical_compat_metadata_and_preserves_sentinel ... ok
+test tests::combine_rejects_overlapping_buffers ... ok
+test tests::compat_raw_kem_metadata_is_rejected_without_changing_sentinels ... ok
+test sdk::tests::close_waits_for_an_admitted_key_lease_and_never_reuses_its_id ... ok
+test tests::expanded_key_abi_rejects_compat_xwing_decapsulation ... ok
+test tests::ffi_hybrid_roundtrip_context_bound ... ok
+test tests::ffi_matches_shared_vector ... ok
+test tests::ffi_rejects_bad_profile_and_null ... ok
+test tests::hybrid_encapsulate_rejects_forged_suite_id ... ok
+test tests::hybrid_encapsulate_rejects_low_order_x25519_share_as_public_error ... ok
+test tests::hybrid_encapsulate_rejects_overlapping_buffers ... ok
+test tests::keypair_rejects_overlapping_buffers ... ok
+test tests::keypair_wrong_output_length_is_length_error_before_secret_copy ... ok
+test tests::legacy_overflowing_pointer_regions_rejected_without_reads ... ok
+test tests::metadata_exports_are_stable_and_c_string_terminated ... ok
+test tests::policy_bound_context_cap_accepts_boundary_and_rejects_oversize_before_crypto ... ok
+test sdk::tests::closing_parent_while_activation_waits_prevents_new_runtime_publication ... ok
+test tests::valid_length_policy_context_allocation_failure_is_internal_and_atomic ... ok
+test sdk::tests::concurrent_call_admission_keeps_the_exact_limit_and_recovers_capacity ... ok
+test tests::zeroizing_vec_wipes_and_drops_on_error_and_unwind ... ok
+test tests::xwing_seed_abi_roundtrips_compat_xwing ... ok
+test sdk::tests::expert_transfer_rejects_malformed_private_material_and_erases_failed_exports ... ok
+test sdk::tests::global_call_budget_is_bounded_and_disposal_remains_available ... ok
+test sdk::tests::malformed_previous_state_is_a_shape_error_before_output_writes ... ok
+test tests::decision_from_signed_policy_binds_suite_state_and_blocks_rollback ... ok
+test sdk::tests::purpose_key_handles_enforce_shapes_type_separation_and_runtime_revocation ... ok
+test sdk::tests::retained_abi2_old_encapsulation_interoperates_with_owned_decapsulation ... ok
+test sdk::tests::roundtrip_rejection_and_failure_outputs ... ok
+test tests::signed_policy_product_path_binds_digest_context_and_generated_keys ... ok
+
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.43s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

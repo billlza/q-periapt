@@ -1,0 +1,17 @@
+{
+  "archive_bytes": 317328,
+  "archive_sha256": "303f3021b1d2f4ea7748922b4fbee48e8e3f15632dd014ad9a6fc55889fabeef",
+  "members": 130,
+  "expanded_bytes": 3968665,
+  "manifest_sha256": "8aef3e093356fadf62545031baccd8068c21a689b239684e98e7d8cc704bde99",
+  "entry_sha256": "85b3f4f5fc2f89def1ac5fb841608059da3a543300381bee5e8c4df8583109a5",
+  "all_members_read_back_byte_equal": true,
+  "all29_queries_and_operational_prefix_unchanged": true,
+  "first_replay_unselected_subtrees_restored_byte_equal": 9,
+  "closed_stored_subtrees_retained_byte_equal": 2,
+  "closed_sources": 17,
+  "remaining_sources": 1,
+  "open_leaves": 35,
+  "independent_replay_seconds": 308.7955824170058,
+  "release_claim_eligible": false
+}

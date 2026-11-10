@@ -1,0 +1,46 @@
+{
+  "schema": "qperiapt-native-online-chain-independent-review/1",
+  "status": "passed",
+  "review_date_utc": "2026-11-09",
+  "input_sha256": {
+    "native-chain-composition.tex": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e",
+    "artifacts/native-online-chain/check_native_chain.py": "732f5149b304a315a99f591d1f38f9d37d9606dd915ac2b50c7860e1c0ca32e2",
+    "artifacts/native-online-chain/source_identity.json": "93f800eb564c8bf618bcdb206557d0628d181108c7ae93a90ec5ad2183cfb780",
+    "artifacts/native-online-chain/proof.md": "6f1970f1b01ec83ced39bbe190b19705a5c3d1f46b993daaa404d95a7d28850d",
+    "artifacts/native-online-chain/source-map.md": "775b04a399533b7cde6976727f1ade0f90609429bf8c806270f121a92fd0c194"
+  },
+  "source_commit": "a4c089570c787522210d16226219c0cc8aa9b05e",
+  "method": "Independent mathematical and native source-order review, followed by a separate execution of the finite controls.",
+  "mathematical_checks": [
+    "The root tuple is designated before its first private hash at every protected alias; traffic material and direction are designated before the first block allocation.",
+    "The marked index is selected before its first private computation across both endpoints, including skipped receive steps and failed authentication. Complete material identity, direction and original index determine cache equality.",
+    "Additional disclosures consist of pre-Mark earlier message keys and the marked pair successor. Complete session captures retain the original acquisition predicate and original saved-version times.",
+    "The original accepted logical send identifies the challenge and final selector. A missing mark or accepted send makes valid-target false.",
+    "Persisting the original SendPlan precedes the first chain step and encryption. Resume preserves its message identifier, plaintext and associated data; later persistence failure does not create a new encryption tuple.",
+    "Candidate-local free stops retain their original time certificate. Original-game score and Boolean localization precede candidate-specific comparisons, so the attribution residual is charged once.",
+    "Record, component, complete-tuple and root-entry score/event coefficients match the existing local accounting. Delta_prefix includes the traffic-prefix comparison and does not repeat Delta_init.",
+    "The chain comparison introduces no additional message-index guessing factor. Whole-execution primitive budgets can grow with the fixed lifetime L.",
+    "A successful fresh decryption before the at-most-one honest encryption remains a historical integrity witness; a later encryption does not erase the recorded event. The final qualified native event is a subset of this witness event.",
+    "The expanded continuation preserves executed-slot association through traffic installation and earlier-key disclosures, with its whole-execution signing resources."
+  ],
+  "review_corrections_completed": [
+    "Specified all-alias first-private-hash and first-block allocation boundaries.",
+    "Qualified earlier-key projections as pre-Mark and distinguished index-wise chain cost from other lifetime-dependent budgets.",
+    "Fixed the finite checker to predesignate material and direction before each trace, reject nonmatching marks and retain nonselected computations.",
+    "Reported the three reachable send persistence paths without duplicating the unreachable second-write branch.",
+    "State the observable free-stop certificate using an acquired intact version and its original save time relative to a candidate reservation, before the final compromise cut is selected."
+  ],
+  "finite_control_execution": {
+    "command": "python artifacts/native-online-chain/check_native_chain.py",
+    "status": "passed",
+    "traces_with_mark_choices": 19440,
+    "first_call_decisions": 77760,
+    "nonselected_marks_rejected": 10368,
+    "temporal_assignments": 450,
+    "signed_and_boolean_partition_checks": 256,
+    "source_files": 6,
+    "source_anchors": 18,
+    "reachable_send_histories": 3
+  },
+  "interpretation": "The source-order and finite controls support the stated correspondence obligations; the security reduction is the written mathematical argument under the manuscript interfaces and primitive assumptions."
+}

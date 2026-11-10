@@ -1,0 +1,57 @@
+{
+  "archive_example_path_verified": true,
+  "candidate_archive_sha256": "98ee41cb4047e69db79e9f235695bfef2508fbe42fa423fee96851bf7c2bf8cc",
+  "commands": [
+    {
+      "argv": [
+        "/Users/bhmq03@durham.ac.uk/.rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "build",
+        "--manifest-path",
+        "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-continuity-package-dxrddzju/consumer/Cargo.toml",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--release",
+        "--package",
+        "q-periapt-continuity-identity-candidate",
+        "--example",
+        "contract_report",
+        "--message-format=json"
+      ],
+      "completed": true,
+      "cwd": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-current-native-4c59/source",
+      "returncode": 0,
+      "seconds": 126.78444737498648,
+      "started_utc": "2026-11-06T07:38:00.662991+00:00",
+      "timeout_seconds": 900
+    },
+    {
+      "argv": [
+        "sh",
+        "artifact/python-run.sh",
+        "artifact/continuity_contract.py",
+        "--consumer",
+        "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-continuity-package-dxrddzju/descriptor-build/release/examples/contract_report",
+        "--output",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-current-native-4c59/descriptor/contract"
+      ],
+      "completed": true,
+      "cwd": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-current-native-4c59/source",
+      "returncode": 0,
+      "seconds": 0.3870966249378398,
+      "started_utc": "2026-11-06T07:40:07.453239+00:00",
+      "timeout_seconds": 900
+    }
+  ],
+  "completed": true,
+  "descriptor_binary": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-continuity-package-dxrddzju/descriptor-build/release/examples/contract_report",
+  "descriptor_bytes": 449376,
+  "descriptor_sha256": "1ece058fd255612e733a20ba6a805653423ab3b23737308dd326ab30c12e8fd5",
+  "finished_utc": "2026-11-06T07:40:08.364605+00:00",
+  "lock_unchanged": true,
+  "retained_fanout_records": 16,
+  "schema": 3,
+  "scope": "Actual installed-archive example and shared library contract. No ABI freeze, foreign platform or resource qualification.",
+  "source_commit": "4c595a2a382a052979f6ea7c174a19c5e7935315"
+}

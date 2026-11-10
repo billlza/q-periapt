@@ -19,8 +19,8 @@ JSON separators. Serialization fidelity and derivation faithfulness are proven b
 ``test_crates_io_registry_metadata`` reproducing shipped metadata byte-for-byte.
 
 The module refuses (raises :class:`RegistryMetadataError`) on any manifest
-construct it does not model exactly -- renamed dependencies, alternate
-registries, git/path sources -- rather than emit a document that would silently
+construct it does not model exactly -- alternate registries, git/path sources --
+rather than emit a document that would silently
 diverge from what cargo produces. A refusal is a signal to extend this module
 (with a fixture) for the new construct, never to guess.
 """
@@ -62,6 +62,7 @@ _VERSION_BODY = r"[0-9][0-9A-Za-z.+-]*"
 _BARE_VERSION_RE = re.compile(rf"\A{_VERSION_BODY}\Z")
 # A single comparator already in cargo's canonical, whitespace-free form.
 _OPERATOR_REQUIREMENT_RE = re.compile(rf"\A(?:\^|~|=|>=|<=|>|<){_VERSION_BODY}\Z")
+_PACKAGE_NAME_RE = re.compile(r"\A[A-Za-z0-9_][A-Za-z0-9_-]*\Z")
 
 
 def _require(condition: bool, message: str) -> None:
@@ -113,11 +114,9 @@ def _dependency(name: str, kind: str, spec: Mapping[str, Any] | str,
                 target: str | None) -> dict[str, Any]:
     if isinstance(spec, str):
         spec = {"version": spec}
-    _require(
-        "package" not in spec,
-        f"dependency {name!r} is renamed (package=); explicit_name_in_toml is "
-        "not modeled -- extend this module with a fixture before publishing it",
-    )
+    package_name = spec.get("package", name)
+    _require(isinstance(package_name, str) and bool(_PACKAGE_NAME_RE.fullmatch(package_name)),
+             f"dependency {name!r} has an unsupported package name")
     _require(
         "registry" not in spec and "registry-index" not in spec,
         f"dependency {name!r} uses an alternate registry -- unsupported",
@@ -127,15 +126,21 @@ def _dependency(name: str, kind: str, spec: Mapping[str, Any] | str,
         f"dependency {name!r} has a git/path source in the normalized manifest -- "
         "unexpected for a published crate",
     )
-    return {
+    dependency = {
         "optional": bool(spec.get("optional", False)),
         "default_features": bool(spec.get("default-features", True)),
-        "name": name,
+        "name": package_name,
         "features": [str(f) for f in spec.get("features", [])],
         "version_req": _normalize_requirement(spec, name),
         "target": target,
         "kind": kind,
     }
+    # Cargo serializes this optional field after kind (and registry, which this
+    # module refuses). An explicit package equal to the table name still emits
+    # the field; absence of package omits it entirely, rather than writing null.
+    if "package" in spec:
+        dependency["explicit_name_in_toml"] = name
+    return dependency
 
 
 def _dependencies(manifest: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -177,10 +182,11 @@ def _reject_unreproduced_optional_features(
         if value.startswith("dep:")
     }
     for dep in deps:
-        if dep["optional"] and dep["name"] not in referenced:
+        name = dep.get("explicit_name_in_toml", dep["name"])
+        if dep["optional"] and name not in referenced:
             raise RegistryMetadataError(
-                f"optional dependency {dep['name']!r} is not referenced via "
-                f"'dep:{dep['name']}' in [features]; Cargo would synthesize an "
+                f"optional dependency {name!r} is not referenced via "
+                f"'dep:{name}' in [features]; Cargo would synthesize an "
                 "implicit feature this module does not reproduce -- extend "
                 "crates_io_registry_metadata (with a fixture) before publishing it"
             )
