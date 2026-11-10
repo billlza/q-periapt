@@ -88,7 +88,7 @@ selected-challenge uses.
 
 The Initial computes its SDK short Extract, initial Expand and MAC before
 signing. The later schedule concatenates this same $S_{0,j}$ with the
-actual $S_1$ and uses the Reply core as its salt, giving
+actual $S_1$ and uses the 32-byte Reply-core digest $t_1$ as its salt, giving
 \eqref{eq:bootstrap-initial-service}. A same-body Initial signature alias
 preserves the short service while its complete wire affects later Replies.
 A Reply signature alias retains its long descriptor and its actual

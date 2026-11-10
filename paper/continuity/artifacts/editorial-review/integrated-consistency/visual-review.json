@@ -1,0 +1,32 @@
+{
+  "schema": "qperiapt/joc-visual-review/v1",
+  "status": "passed",
+  "reviewed_at_utc": "2026-11-10T16:24:36.266219Z",
+  "pdf": "continuity.pdf",
+  "pdf_sha256": "1b9769c9ac9cfc2159723e136a9252cf9dc92d1f50967321a654ee6b3e532085",
+  "pages": 119,
+  "inspected_pages": [
+    1,
+    74,
+    75,
+    76,
+    82,
+    83,
+    84,
+    119
+  ],
+  "method": "Rendered page images inspected directly at readable resolution.",
+  "findings": {
+    "bootstrap_schedule": "The explicit Reply-core digest and three KDF information strings fit within the paragraph before equation (44); labels, inline mathematics and the schedule remain legible.",
+    "initial_source_proof": "The revised 32-byte digest sentence is clear in the proof of Lemma 5.40, with the surrounding proof and succeeding association cost fitting the page.",
+    "adjacent_transitions": "The bootstrap section openings, reservation definitions, proof transitions and following displayed bounds have no clipped or overlapping content.",
+    "front_and_end": "The title, author, abstract and keywords fit page 1; the final composition statement and proof fit page 119."
+  },
+  "document_checks": {
+    "undefined_references_or_citations": 0,
+    "overfull_boxes": 0,
+    "all_fonts_embedded": true,
+    "font_count": 48
+  },
+  "scope": "Visual layout of the listed pages; source preservation and semantic correspondence are recorded separately."
+}
