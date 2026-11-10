@@ -116,5 +116,8 @@ between differently named inputs still use the shared oracle.
 Each fresh long-table entry can initialize an opaque three-label
 bootstrap PRK before its first use. Applying the downstream comparisons
 in descriptor-allocation order composes the theorem with
-Section~\ref{sec:bootstrap-authentication}. The source adapter there
-realizes the hidden-second service from the original reply KEM pair.
+Sections~\ref{sec:bootstrap-authentication}
+and~\ref{sec:bootstrap-initial-source}. The reply-source adapter realizes
+the hidden-second service from its original KEM pair. The initial-source
+adapter realizes the complete hidden-first service before localizing its
+private long table to a later parent allocation.
