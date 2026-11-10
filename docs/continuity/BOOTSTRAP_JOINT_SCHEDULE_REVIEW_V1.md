@@ -27,6 +27,11 @@ The [original reply-source adapter](BOOTSTRAP_REPLY_SOURCE_ADAPTER_V1.md),
 assessed at `68549dbc`, instantiates the reply-surviving profile with original
 reservation slots, native owner restoration, online opening certificates and
 an explicit two-endpoint immutable-record acquisition term.
+The [original initial-source adapter](BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md),
+assessed at `471900bf` on 10 November 2026, supplies the complementary
+prekey/Initial-encapsulation comparison. It retains initial confirmation
+before adaptive Reply families and localizes the later PRK-table allocation
+after the joint entry comparison.
 
 | Existing item | Result available for this assessment | Disposition |
 | --- | --- | --- |
@@ -35,9 +40,10 @@ an explicit two-endpoint immutable-record acquisition term.
 | U2 hidden ContextBound input | `lem:cb-hidden-component` treats the full effective tuple, permits the other component to be known, and preserves all tuple aliases. | Established after the selected component replacement. Bootstrap source attribution and disclosures supply its concrete invocation. |
 | U2 HMAC/HKDF composition | The shared-oracle row/column lemmas, finite root-entry theorem and exact Expand-table identity supply the required downstream operations. | Reusable results. Section 3 instantiates the bootstrap lengths and five activation blocks. |
 | U3 retained-state correspondence | `thm:guarded-normalization` and `cor:guarded-history`, instantiated by the phase and acquisition maps in section 5. | Complete for the named bootstrap records, passive acquisitions and declared key disclosures along one authoritative history. |
-| U2 bootstrap entry | The [joint entry theorem](BOOTSTRAP_JOINT_ENTRY_V1.md) compares the hidden-`S1` long Extract and the hidden-`S0` short/long service to complete-descriptor PRK tables under the common compression oracle. | Primitive services completed; section 7 records the concrete reply-source instantiation and its acquisition partition. |
+| U2 bootstrap entry | The [joint entry theorem](BOOTSTRAP_JOINT_ENTRY_V1.md) compares the hidden-`S1` long Extract and the hidden-`S0` short/long service to complete-descriptor PRK tables under the common compression oracle. | Primitive services completed; section 7 records both original-source instantiations and their acquisition partitions. |
 | U2 terminal-family connection | The [terminal schedule connection](BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md) permits online protection after opaque root allocation, charges the complete-class pad-alias event, and compares both ACK endpoint experiments to one full-table game. | Completed for the incoming source-consistent opaque PRK service; its two-sided bound supplies the exact substitution into U1. |
 | U2 original reply source | The [reply-source adapter](BOOTSTRAP_REPLY_SOURCE_ADAPTER_V1.md) binds the selected generation and response encapsulation at their original slots, retains import validation and fixes the complete tuple/PRK family before response signing. | Completed bound for its stated reply-surviving profile, including exact acquisition residuals; the marked-record acquisition-free branch instantiates the constructive renderer. |
+| U2 original initial source | The [initial-source adapter](BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md) binds the inventory PQ generation and Initial encapsulation, retains the joint short/long service and then selects an online complete-descriptor table rank. | Completed bound for its stated initial-surviving bootstrap/ACK profile; the later-family count multiplies the tail terms, while the original component and joint-entry comparisons occur once per source pair and endpoint. |
 
 The result for U3 is a source and derivability correspondence. The
 confidentiality comparison that hides an acquired ciphertext, or embeds an
@@ -244,7 +250,7 @@ when the acquisition does not also supply such a recipe.
 | Keys or recoverable reservations whose restored public components collectively match both selected responder prekeys | Public `C0` reconstructs `S0`, and `K0/MAC0` are computable. The original fresh reply contribution is a separate source. | Hidden-`S1` case: compare `F(t1,known_S0 || S1)` jointly with all later outputs and permitted histories. |
 | Only original `sk_reply`, or its generation reservation with its key | Public `C1` reconstructs `S1`. | Hidden-`S0` case: retain both `F(sigma,S0)` for `MAC0` and `F(t1,S0 || known_S1)` in one comparison. |
 | Initiator full signing identity, fixed original context | The peer's purpose-6 signature family is still distinct; `S0`, the reply private key and `S1` are separate assets. | Initiator-side KCI instantiates the protected peer-signature reduction and the chosen surviving-contribution case. Current-context admission and the original ACK recipe stop remain in force. |
-| Responder full signing identity, fixed original context | The peer's purpose-5 signature and `MAC0` remain the initial checks; identity keys and selected KEM prekeys are separate inputs. | Responder-side KCI uses the initiator signature family and the initial-confirmation branch of the same joint schedule. Newly attacker-approved contexts have their own admission premise. |
+| Responder full signing identity, fixed original context | The peer's purpose-5 signature and `MAC0` remain the initial checks; identity keys and selected KEM prekeys are separate inputs. | The [initial-source adapter](BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md) instantiates this profile with the protected initiator body ledger, known reply contributions and surviving original initial PQ source. Newly attacker-approved contexts have their own admission premise. |
 | One peer's classical signing component, preserving an issued body | Purpose-bound hybrid verification permits an alternative valid classical signature on that same issued body. The complete wire still enters `sid` and Final. | Preserve the full-wire descriptor family and use the terminal conversion. The retained alias regression already exercises this case. |
 | Signing reservation's binding and 32-byte `rnd` | These are the external ML-DSA randomizer and the exact retained command binding. The P-256 signer uses its native deterministic operation. | Use `thm:native-mldsa-reservation-bridge` and `prop:reservation-signature-components`; the randomizer bridge is a completed input. |
 | Only `R0`, after activation | `R0` is the first of five siblings. The complete `State` additionally serializes the traffic keys and other retained state. | Section 3 establishes the conditional sibling-table comparison for the narrowly named asset. |
@@ -432,7 +438,7 @@ recovery. This assessment uses those outcomes through that ledger and the new
 exact source pins. The finite calculations add reproducible checks of the
 derivations written here.
 
-## 7. Completed terminal connection and original reply-source profile
+## 7. Completed terminal connection and original source profiles
 
 The two primitive entry services are complete in the
 [joint entry theorem](BOOTSTRAP_JOINT_ENTRY_V1.md), including adaptive salts,
@@ -464,17 +470,38 @@ implying equal original messages outside the declared K-PKE correctness
 event. The resulting source, entry and tail terms substitute directly into
 the terminal theorem with their complete continuation budgets.
 
+The [original initial-source adapter](BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md)
+supplies the complementary profile: the inventory PQ prekey and original
+Initial encapsulation protect `S0`, with traditional material and actual
+reply contributions available. The initiator purpose-5 signing ledger
+supplies Initial body origin, and the responder signer may be disclosed
+within the original admitted context. The inventory restores its selected
+owner from the sealed generation seed; the separate initiator reply owner's
+expanded-key import retains its ordinary validation.
+
+Its first comparison covers `S0`'s initial `MAC0` computation and all later
+adaptive long Extracts through one complete short/long cache. The proof then
+partitions the independent long-PRK table by the descriptor's first request,
+including failed attempts and exact aliases. This yields the resource form
+`2 R alpha + sum_r eta_cap,r + 2 R G A (E + L T)`, clipped at one, where
+`E` contains the source, record, component and joint-entry terms and `T`
+contains one terminal-tail and pad-alias term. The later allocation count
+`L` consequently multiplies the tail comparison only. Its stated operation
+surface includes bootstrap admission and recovery, activation, epoch-zero
+ACKs, typed sibling observations and the declared disclosure interfaces.
+
 For immutable records containing any selected opaque value or descendant,
-the bound retains the exact two-endpoint capture residual `eta_cap,r`.
+both source bounds retain the exact two-endpoint capture residual `eta_cap,r`.
 The branch with no successful raw acquisition of those marked versions has
 zero capture residual and uses the existing constructive record renderer.
 The captured-byte extension supplies the joint journal-encryption and
-derived-wrapping-key comparison; the initial-surviving-source profile uses
-its own original prekey/Initial-encapsulation adapter and completed
-short/long entry service. These are the concrete next source constructions.
+derived-wrapping-key comparison. Additional closure or fanout observations
+over the complete serialized message state enter through their own declared
+report comparison. These inputs identify the next extension of the recorded
+bootstrap/ACK operation surface.
 
 The U3 correspondence, signature bridge, primitive entries, downstream
-derivation, terminal connection and stated reply-source bound are completed
+derivation, terminal connection and both stated original-source bounds are completed
 assessment inputs. Package, platform qualification and workload-budget
 choices retain their existing acceptance roles.
 
