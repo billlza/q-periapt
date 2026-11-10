@@ -1,6 +1,6 @@
 # External security review preparation
 
-## Added review material — 9 November 2026
+## Added review material — 10 November 2026
 
 The [bootstrap joint-schedule assessment](BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md)
 records the completed disclosure/retention correspondence for the named bootstrap
@@ -11,12 +11,24 @@ PRK to the downstream confirmation/root/activation schedule under the stated
 private-use interface and actual input lengths. The existing signature-randomizer
 bridge is retained as a completed reduction.
 
-The remaining U2 work is now localized to the bootstrap original-contribution
-adapters and the 64-byte two-contribution Extract shared with initial
-confirmation. These are the precise entry comparisons to inspect alongside the
-[terminal-agreement conversion](BOOTSTRAP_TERMINAL_AGREEMENT_V1.md). Public
-vectors, exact source/proof pins and finite closure/alias controls accompany the
-assessment; the original live execution records retain their identities.
+U2 now includes the completed
+[joint bootstrap entry comparison](BOOTSTRAP_JOINT_ENTRY_V1.md),
+[original reply-source adapter](BOOTSTRAP_REPLY_SOURCE_ADAPTER_V1.md) and
+[original initial-source adapter](BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md).
+The entry comparison supplies the 64-byte two-contribution Extract and joint
+32/64-byte services while preserving the actual initial-confirmation alias.
+The two adapters bind the component comparisons to their original computations,
+reservations and source histories, retaining both endpoints' exact record and
+acquisition terms. The initial-source composition applies the joint entry service
+before first-allocation localization of the long-PRK table; later-family
+multiplicity applies to the terminal-tail terms.
+
+The [terminal schedule connection](BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md)
+and [terminal-agreement conversion](BOOTSTRAP_TERMINAL_AGREEMENT_V1.md) connect
+these source bounds to historical responder activation of the exact signed
+transcript. The handoff reading order below links each analytical proof to its
+frozen source pins and executed encoding/accounting controls. Original execution
+records retain their source and runtime identities.
 
 The [selected supported-workload policy](SUPPORTED_WORKLOAD_BUDGETS_0_2.md)
 records joint hard-limit admission, the complete measured desktop reference
@@ -383,6 +395,17 @@ then package, process-interruption, platform and resource evidence. The material
 must expose unresolved premises and unsuccessful observations alongside passed
 checks. The current preparation is not a record that the designated reviewer
 has accepted these claims or completed their assessment.
+
+For the completed bootstrap construction inputs, use the following reading order
+alongside the [U3 source/retention correspondence](BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md)
+and [terminal-agreement invariant](BOOTSTRAP_TERMINAL_AGREEMENT_V1.md):
+
+| Construction input | Frozen proof and source packet |
+| --- | --- |
+| 1. [Joint bootstrap entry](BOOTSTRAP_JOINT_ENTRY_V1.md): both surviving-contribution services and the shared initial-confirmation input. | [Proof](../../paper/continuity/artifacts/bootstrap/entry/proof.md), [source pins](../../paper/continuity/artifacts/bootstrap/entry/SOURCE_PINS.json), [executed controls](../../paper/continuity/artifacts/bootstrap/entry/RESULT.json). |
+| 2. [Terminal schedule connection](BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md): effective descriptors, full-class reconciliation and the actual sibling schedule. | [Proof](../../paper/continuity/artifacts/bootstrap/terminal/proof.md), [source pins](../../paper/continuity/artifacts/bootstrap/terminal/SOURCE_PINS.json), [executed controls](../../paper/continuity/artifacts/bootstrap/terminal/RESULT.json). |
+| 3. [Original reply-source adapter](BOOTSTRAP_REPLY_SOURCE_ADAPTER_V1.md): original generation/encapsulation slots, source-consistent families and retained record terms. | [Proof](../../paper/continuity/artifacts/bootstrap/reply/proof.md), [source pins](../../paper/continuity/artifacts/bootstrap/reply/SOURCE_PINS.json), [executed controls](../../paper/continuity/artifacts/bootstrap/reply/RESULT.json). |
+| 4. [Original initial-source adapter](BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md): inventory prekey, original Initial encapsulation, joint entry and first-allocation localization. | [Proof](../../paper/continuity/artifacts/bootstrap/initial/proof.md), [source pins](../../paper/continuity/artifacts/bootstrap/initial/SOURCE_PINS.json), [executed controls](../../paper/continuity/artifacts/bootstrap/initial/RESULT.json). |
 
 Record the reviewer's actual assessed scope, methods, assumptions, exclusions,
 source revision, findings and subsequent fix rechecks. Retain each finding's

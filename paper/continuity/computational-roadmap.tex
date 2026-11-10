@@ -57,7 +57,8 @@ Private retained state & Real-to-opaque image and intent correspondence
 original-score localization (Lemma~\ref{lem:native-local-score}). \\
 Hybrid contribution & Original-operation component adapter and
 complete-tuple comparison; native single-root use
-(Lemma~\ref{lem:cb-native-root-use}). \\
+(Lemma~\ref{lem:cb-native-root-use}); ordinary KEM instantiation
+(Proposition~\ref{prop:kem-deferred-challenge}). \\
 Application continuation & Joint confirmation and traffic schedule
 (Theorem~\ref{thm:joint-message-leaf}); online prefix continuation
 (Theorem~\ref{thm:online-chain-leaf}). \\
@@ -82,6 +83,11 @@ whole-execution query budget. The source-attribution residual is
 localized once in the original game. The live core supplies its complete
 observation interface in Section~\ref{sec:live-core-instantiation}; the
 separate report extension carries its declared projection event.
+
+Proposition~\ref{prop:kem-deferred-challenge} bounds each operational
+component term by an ordinary ML-KEM IND-CCA advantage and an explicit
+prechallenge ciphertext-intersection cost. This substitution retains the
+real decapsulation prefix and the original source-selection accounting.
 
 Consequently the three native statements share the record and source
 connection, with the continuation selected by the terminal test:
@@ -113,6 +119,7 @@ variant is retained in Appendix~\ref{app:common-virtual}.
 \input{joint-continuation}
 \input{chain-prefix-continuation}
 \input{contextbound-connection}
+\input{kem-ordinary-bridge}
 \input{live-core-instantiation}
 \input{confirmation-traffic}
 \input{source-attribution}
