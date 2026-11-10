@@ -57,92 +57,94 @@ reservation, execution, and confirmation events have distinct operational
 boundaries. Its journal can also aggregate several sessions, making the
 distinction between a new image and an existing source directly observable.
 
-\paragraph{Contributions.}
-The paper develops an exposure condition that follows original secret sources
-through persistent execution, and a computational construction that preserves
-this condition when a reduction simulates private retained state. The resulting
-security arguments connect durable operations to the messages and
-confirmations that use their outputs.
+\paragraph{Main result.}
+Theorem~\ref{thm:native-online-message} gives confidentiality and fresh-message
+integrity for an online selected application send after the next rekey of an
+established session, under its finite interfaces and primitive assumptions.
+Each endpoint has one authoritative history with passive copies; the network
+and recovery schedule remain adversarial. The predecessor
+root and wrapping keys may be known. Earlier message keys and the declared
+successor values may be disclosed. The target step is selected before its
+first private computation at either endpoint, and the terminal selector may
+choose the recovery cut after interaction. Eligibility requires both original
+KEM reservations to follow that cut, the target signing secret keys and
+designated target-epoch entropy to remain undisclosed, and every acquired
+target-session version to have been first saved at or before the cut
+(\eqref{eq:eligibility}). The theorem bounds the unconditional eligible-message
+advantage and fresh-installation event by explicit source-attribution, record,
+KEM, shared-oracle key-schedule and AEAD terms. Its executed-slot selector
+connects attribution to ordinary hedged ML-DSA security. The first-message and
+selected-root confirmation results are established along the same proof route
+(Corollary~\ref{cor:live-core-next-rekey} and
+Theorem~\ref{thm:native-selected-authentication}).
 
-The exposure model identifies reservations by their original operations and
-records acquisition separately from later readability. Alias normalization
-preserves both the public view and the ledger of original records under copying
-and resealing (Lemma~\ref{lem:alias-normalization}). For fixed public key
-derivations, a guarded-path characterization exactly matches iterative
-decryption (Theorem~\ref{thm:guarded-normalization}). Conjunctive guards capture
-how acquired ciphertexts and disclosed keys jointly reveal a source, while
-alternative copies provide additional routes to the same source. This gives
-the computational experiment a stable exposure condition across physical
-changes to storage.
+\paragraph{Technical contributions.}
+The construction connects an original-source exposure condition to this
+native message experiment through simulatable private retained state.
+Reservations keep their original operations, and acquisition is recorded
+separately from later readability. Alias normalization preserves the public
+view and original-record ledger under copying and resealing
+(Lemma~\ref{lem:alias-normalization}). For fixed public key derivations, a
+guarded-path characterization exactly matches iterative decryption
+(Theorem~\ref{thm:guarded-normalization}). Conjunctive guards capture how
+acquired ciphertexts and disclosed keys jointly reveal a source, while
+alternative copies provide additional routes to the same source.
 
-The central reduction constructs the retained private state surrounding an
-operation whose public outputs are available but whose random tape is not.
+The central reduction constructs retained private state around an operation
+from its public outputs, while its random tape remains hidden from the simulator.
 Images and intents preserve original record identities; dependent immutable
 reports are simulated in reverse causal order. Candidate-local accounting
-preserves the original native score while allowing the compromise cut to be
-chosen after interaction.
-The original-operation adapter then carries this execution through the full
-ContextBound contribution, root initialization, confirmation and traffic
-schedule. These constructions establish confidentiality for a fresh marked
-first message after the next rekey of an established session
-(Corollary~\ref{cor:live-core-next-rekey}) and confirmation and first-message
-integrity under its selected recovered root
-(Theorem~\ref{thm:native-selected-authentication}). The bounds retain real
-verification, the declared successor-state disclosures, and explicit record,
-component, hash, key-schedule and AEAD costs.
+localizes the original native score before comparing each source pair,
+using provenance to justify permanent stops for every eventual recovery cut.
+The original-operation adapter carries the resulting execution through the
+complete ContextBound contribution, root initialization, confirmation and
+traffic schedule.
 
-The same connection supports online selection after earlier message-key
-disclosure. Successive Extract and Expand comparisons isolate the selected key
-while preserving its disclosed successor seed and real suffix computation.
-Selection precedes the step's first private computation across all endpoint
-aliases, including failed receive-side advances. The native composition
-preserves the accepted send's original sources and candidate-local record
-stops, yielding confidentiality and selected-message integrity with explicit
-lifetime and whole-execution budgets
-(Theorem~\ref{thm:native-online-message}).
+Online message selection requires an additional dependency argument.
+Successive Extract and Expand comparisons isolate the selected key while
+preserving earlier-key observations, its disclosed successor seed and real
+suffix computation. Each comparison retains the first private computation
+across endpoint aliases, including failed receive-side advances. The
+composition preserves the accepted send's original sources and candidate-local
+record stops with explicit lifetime and whole-execution budgets.
+Section~\ref{sec:computation} summarizes these allocation boundaries and the
+connections supplying the main result.
 
-Component and key-entry bridges make this construction applicable to the
-implemented interfaces. A deferred-challenge comparison connects operational
-ML-KEM security to ordinary IND-CCA security while retaining real prechallenge
-decapsulation (Proposition~\ref{prop:kem-deferred-challenge}). A shared-XOF
-comparison preserves native signing reservations through replay and failed
-publication, reducing source attribution to ordinary hedged ML-DSA
-unforgeability (Theorem~\ref{thm:native-mldsa-reservation-bridge}). Joint entry
-comparisons retain multiple uses of a contribution within one key schedule.
-Their complementary bootstrap instances protect the original inventory source
-or the original reply source and establish historical activation of the
-complete signed transcript
+Component bridges connect operational ML-KEM to ordinary IND-CCA security
+through a deferred-challenge comparison, and reserved ML-DSA randomizers to
+ordinary hedged unforgeability through a shared-XOF comparison
+(Proposition~\ref{prop:kem-deferred-challenge} and
+Theorem~\ref{thm:native-mldsa-reservation-bridge}). Joint entry comparisons
+retain the multiple uses of a contribution. Complementary bootstrap instances
+protect the original inventory source or reply source and establish historical
+activation of the complete signed transcript
 (Corollary~\ref{cor:bootstrap-initial-terminal} and
-Theorem~\ref{thm:bootstrap-terminal}).
-Finite descriptor families also give a purpose-key instance with equal-input
-aliases and separate returned-owner lifecycles
+Theorem~\ref{thm:bootstrap-terminal}). A further purpose-key instance retains
+equal-input aliases and separate returned-owner lifecycles
 (Section~\ref{sec:sdk-purpose-connection}).
 
 A mechanized symbolic theorem uses the same provenance condition for message
 secrecy across unbounded epochs (Theorem~\ref{thm:symbolic}). Its model includes
 inherited roots, shared key identities, alternating proposers and asynchronous
-confirmation. The relationship between persistent sources and asynchronous
-progress is visible in native executions: traffic is reconstructed from
-reservations captured before restart, and a delayed-receipt execution exposes
-epoch-two traffic while the peers' confirmed counters remain zero and one.
-A sibling-session write also carries an earlier target reservation into a new
-aggregate image.
+confirmation. Native executions exhibit the exposure distinctions: traffic is
+reconstructed from reservations captured before restart; a delayed-receipt
+execution exposes epoch-two traffic while the peers' confirmed counters remain
+zero and one; and a sibling-session write carries an earlier target reservation
+into a new aggregate image.
 
 \paragraph{Supporting validation.}
-Independent finite checks validate the guarded characterization against expected
-acquisition, deletion and late-disclosure outcomes. Source correspondence binds
-the record, retry, report and acquisition operations to the declared interfaces.
-Pinned SPQR and whole-KEM reference corpora measure reconstructible message sets
-across communication schedules. A further 49 native/reference executions share
-directed transmission opportunities and charge control traffic and exact
-retries to that common budget, measuring reconstructed messages jointly with
-first commitments, logical deliveries, emitted bytes and native persistence
-work. A one-way control records exhausted-budget suspension and the exposure
-of the applications actually admitted. A paired 28-run native ablation sets
-the minimum application-retry age to four public sender turns; it increases
+Independent finite checks validate the guarded characterization under
+acquisition, deletion and late disclosure. Source correspondence binds the
+native operations to the declared interfaces. Pinned SPQR and whole-KEM
+corpora measure reconstructible message sets across schedules. A further 49
+native/reference executions share directed transmission opportunities,
+charging control traffic and exact retries to the same budget and recording
+reconstructed messages, commitments, deliveries, bytes and persistence work.
+A one-way control records exhausted-budget suspension. In a paired 28-run
+native ablation, a minimum retry age of four public sender turns increases
 completed service in every measured bidirectional or resumed schedule while
-retaining the alternating current-epoch exposure counts. The accounting
-records the schedule-dependent communication cost.
+retaining the alternating current-epoch exposure counts and recording
+schedule-dependent communication costs.
 
 \paragraph{Security model and organization.}
 Crash recovery resumes retained, bound operations under the authentication,
