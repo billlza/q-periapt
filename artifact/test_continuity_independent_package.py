@@ -103,18 +103,38 @@ class IndependentPackageTests(unittest.TestCase):
         self.assertNotIn("q-periapt-rustls", after["patch"]["crates-io"])
         for name, value in after["dependencies"].items():
             if name.startswith("q-periapt"):
-                self.assertEqual(value, {"version": "=" + installed.VERSIONS[name],
-                                        "path": f"packages/{name}-{installed.VERSIONS[name]}"})
+                product = installed.package.NAME if name == installed.CONTINUITY_ALIAS else name
+                expected = {"version": "=" + installed.VERSIONS[product],
+                            "path": f"packages/{product}-{installed.VERSIONS[product]}"}
+                if name == installed.CONTINUITY_ALIAS:
+                    expected["package"] = installed.package.NAME
+                self.assertEqual(value, expected)
+        self.assertIn(installed.CONTINUITY_ALIAS, after["dependencies"])
+        self.assertNotIn(installed.package.NAME, after["dependencies"])
 
     def test_new_dependency_features_or_workspace_cannot_be_silently_dropped(self):
         original = (installed.SOURCE / "Cargo.toml").read_bytes()
         changes = [original.replace(b'[workspace]', b'[workspace]\nmembers = ["elsewhere"]'),
-                   original.replace(b'{ path = "../../continuity-identity-candidate" }',
-                                    b'{ path = "../../continuity-identity-candidate", features = ["connection-tls"] }'),
+                   original.replace(b'path = "../../continuity-identity-candidate" }',
+                                    b'path = "../../continuity-identity-candidate", features = ["connection-tls"] }'),
                    original.replace(b'publish = false', b'publish = true'),
                    original + b'\n[patch.crates-io]\nother = { path = "elsewhere" }\n']
         for changed in changes:
+            self.assertNotEqual(changed, original)
             with self.subTest(changed=changed[-100:]), self.assertRaises(ValueError):
+                installed.installed_manifest(changed)
+
+    def test_continuity_alias_cannot_select_another_package_or_version(self):
+        original = (installed.SOURCE / "Cargo.toml").read_bytes()
+        for before, after in (
+            (b'package = "q-periapt-continuity"', b'package = "unreviewed-continuity"'),
+            (b'version = "=0.2.0"', b'version = "=0.1.0"'),
+            (b'version = "=0.2.0"', b'version = "0.2.0"'),
+            (b'q-periapt-continuity-identity-candidate =', b'q-periapt-continuity ='),
+        ):
+            changed = original.replace(before, after)
+            self.assertNotEqual(changed, original)
+            with self.subTest(after=after), self.assertRaises(ValueError):
                 installed.installed_manifest(changed)
 
     def test_exact_graph_and_original_lock(self):

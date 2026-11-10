@@ -889,6 +889,88 @@ def workflow_archive_argument_lines(source: str) -> set[int]:
     return result
 
 
+def workflow_sparse_checkout_lines(source: str) -> set[int]:
+    """Recognize literal file-selection data in pinned checkout action inputs.
+
+    Block scalars are opaque outside this one admitted input, so YAML-looking
+    shell text cannot masquerade as a checkout step or hide a Python command.
+    """
+    parents: list[tuple[int, str]] = []
+    block: tuple[int, bool] | None = None
+    checkout = False
+    step_indentation: int | None = None
+    result: set[int] = set()
+    pinned_checkout = re.compile(r"actions/checkout@[0-9a-f]{40}(?:\s+#.*)?")
+    literal_path = re.compile(r"!?[A-Za-z0-9_./*-]+")
+    for number, line in enumerate(source.splitlines(), start=1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indentation = len(line) - len(line.lstrip(" "))
+        if block is not None:
+            if indentation > block[0]:
+                if block[1] and literal_path.fullmatch(line.strip()):
+                    result.add(number)
+                continue
+            block = None
+        while parents and parents[-1][0] >= indentation:
+            parents.pop()
+        ancestry = tuple(name for _, name in parents)
+        step = re.fullmatch(r" *- ([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)", line)
+        key = re.fullmatch(r" *([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)", line)
+        if step:
+            checkout = False
+            step_indentation = None
+            if len(ancestry) == 3 and ancestry[0] == "jobs" and ancestry[-1] == "steps":
+                step_indentation = indentation
+                checkout = step.group(1) == "uses" and pinned_checkout.fullmatch(step.group(2)) is not None
+            if re.fullmatch(r"[|>][-+0-9]*(?:\s+#.*)?", step.group(2)):
+                block = (indentation + 2, False)
+            continue
+        if key is None:
+            continue
+        name, value = key.groups()
+        if name == "uses" and step_indentation is not None and indentation == step_indentation + 2:
+            checkout = pinned_checkout.fullmatch(value) is not None
+        if re.fullmatch(r"[|>][-+0-9]*(?:\s+#.*)?", value):
+            admitted = (checkout and step_indentation is not None and indentation == step_indentation + 4
+                        and len(ancestry) == 4 and ancestry[0] == "jobs"
+                        and ancestry[-2:] == ("steps", "with") and name == "sparse-checkout"
+                        and re.fullmatch(r"\|[-+]?(?:\s+#.*)?", value) is not None)
+            block = (indentation, admitted)
+        parents.append((indentation, name))
+    return result
+
+
+def workflow_literal_input_lines(source: str) -> set[int]:
+    """Identify complete literal checksum inputs and an interpreter search list."""
+    lines = source.splitlines()
+    result: set[int] = set()
+    member = r'(?:\.github|artifact|bindings|research)/[A-Za-z0-9_./-]+'
+    header = re.compile(r'sha256sum ' + member + r'(?: +' + member + r')* \\')
+    argument = re.compile(member + r'(?: +' + member + r')* \\')
+    destination = re.compile(r'> "\$[A-Za-z_][A-Za-z0-9_]*/[A-Za-z0-9_.-]+\.sha256"')
+    search = re.compile(r'for [A-Za-z_][A-Za-z0-9_]* in "\$RUNNER_TOOL_CACHE"'
+                        r'/Python/[0-9]+\.[0-9]+\.\*/x64/bin/python3; do')
+    for index, line in enumerate(lines):
+        if search.fullmatch(line.strip()):
+            result.add(index + 1)
+        if not header.fullmatch(line.strip()):
+            continue
+        indentation = len(line) - len(line.lstrip(' '))
+        arguments = {index + 1}
+        for number in range(index + 1, len(lines)):
+            current = lines[number]
+            if len(current) - len(current.lstrip(' ')) <= indentation:
+                break
+            if argument.fullmatch(current.strip()):
+                arguments.add(number + 1)
+                continue
+            if destination.fullmatch(current.strip()):
+                result.update(arguments)
+            break
+    return result
+
+
 def extract_named_workflow_step(job: str, step_name: str) -> str:
     step_match = re.search(
         rf"(?ms)^      - name: {re.escape(step_name)}\n"
@@ -6463,17 +6545,21 @@ with _temporary_release_test_directories(parents):
             source = workflow.read_text(encoding="utf-8")
             path_filters = workflow_path_filter_lines(source)
             archive_arguments = workflow_archive_argument_lines(source)
+            sparse_checkout = workflow_sparse_checkout_lines(source)
+            literal_inputs = workflow_literal_input_lines(source)
             for number, line in enumerate(
                 source.splitlines(), start=1
             ):
                 if not line.strip() or line.lstrip().startswith("#"):
                     continue
-                self.assertIsNone(
-                    direct_python.search(line),
-                    f"{workflow.relative_to(ROOT)}:{number} invokes Python directly",
-                )
+                if number not in literal_inputs:
+                    self.assertIsNone(
+                        direct_python.search(line),
+                        f"{workflow.relative_to(ROOT)}:{number} invokes Python directly",
+                    )
                 if (repository_script.search(line) and number not in path_filters
-                        and number not in archive_arguments):
+                        and number not in archive_arguments and number not in sparse_checkout
+                        and number not in literal_inputs):
                     self.assertIn(
                         "sh artifact/python-run.sh",
                         line,
@@ -6545,6 +6631,77 @@ jobs:
                         path.write_text(source.replace(before, after))
                         with self.assertRaisesRegex(AssertionError, 'bypasses the one-shot runner'):
                             self.test_ci_repository_python_calls_use_one_shot_runner()
+
+    def test_python_runner_guard_distinguishes_sparse_checkout_data_and_execution(self) -> None:
+        source = ('jobs:\n  check:\n    steps:\n'
+                  '      - uses: actions/checkout@' + 'a' * 40 + '\n'
+                  '        with:\n          sparse-checkout: |\n'
+                  '            artifact/control.py\n            artifact/other.py\n'
+                  '      - run: sh artifact/python-run.sh artifact/control.py\n'
+                  '      - run: sh artifact/python-run.sh artifact/other.py\n')
+        self.assertEqual(workflow_sparse_checkout_lines(source), {7, 8})
+        named = source.replace('      - uses:', '      - name: Read selected sources\n        uses:')
+        self.assertEqual(workflow_sparse_checkout_lines(named), {8, 9})
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            workflows = root / '.github/workflows'
+            workflows.mkdir(parents=True)
+            path = workflows / 'control.yml'
+            with mock.patch(__name__ + '.ROOT', root):
+                for admitted in (source, named):
+                    path.write_text(admitted)
+                    self.test_ci_repository_python_calls_use_one_shot_runner()
+                for before, after in (
+                    ('actions/checkout@', 'unreviewed/checkout@'),
+                    ('        with:', '        env:'),
+                    ('          sparse-checkout: |', '          run: |'),
+                    ('            artifact/control.py', '            artifact/control.py; artifact/other.py'),
+                    ('run: sh artifact/python-run.sh artifact/control.py', 'run: artifact/control.py'),
+                ):
+                    with self.subTest(after=after):
+                        path.write_text(source.replace(before, after))
+                        with self.assertRaisesRegex(AssertionError, 'bypasses the one-shot runner'):
+                            self.test_ci_repository_python_calls_use_one_shot_runner()
+                disguised = ('jobs:\n  check:\n    steps:\n      - run: |\n'
+                             '          - uses: actions/checkout@' + 'a' * 40 + '\n'
+                             '            with:\n              sparse-checkout: |\n'
+                             '                artifact/control.py\n')
+                self.assertEqual(workflow_sparse_checkout_lines(disguised), set())
+
+    def test_python_runner_guard_distinguishes_checksum_inputs_and_interpreter_search(self) -> None:
+        source = ('jobs:\n  check:\n    steps:\n'
+                  '      - run: sh artifact/python-run.sh artifact/control.py\n'
+                  '      - run: sh artifact/python-run.sh artifact/other.py\n'
+                  '      - run: |\n'
+                  '          sha256sum .github/workflows/control.yml \\\n'
+                  '            artifact/control.py \\\n'
+                  '            artifact/other.py artifact/python_bootstrap.py \\\n'
+                  '            > "$output/source-files.sha256"\n'
+                  '          for candidate in "$RUNNER_TOOL_CACHE"/Python/3.11.*/x64/bin/python3; do\n'
+                  '            test -x "$candidate"\n          done\n')
+        self.assertEqual(workflow_literal_input_lines(source), {7, 8, 9, 11})
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            workflows = root / '.github/workflows'
+            workflows.mkdir(parents=True)
+            path = workflows / 'control.yml'
+            with mock.patch(__name__ + '.ROOT', root):
+                path.write_text(source)
+                self.test_ci_repository_python_calls_use_one_shot_runner()
+                for before, after in (
+                    ('sha256sum .github/workflows/control.yml', 'sh .github/workflows/control.yml'),
+                    ('artifact/control.py \\', 'artifact/control.py; artifact/other.py \\'),
+                    ('artifact/control.py \\', 'artifact/control.py'),
+                    ('> "$output/source-files.sha256"', '> "$(artifact/control.py )/source-files.sha256"'),
+                ):
+                    with self.subTest(after=after):
+                        path.write_text(source.replace(before, after))
+                        with self.assertRaisesRegex(AssertionError, 'bypasses the one-shot runner'):
+                            self.test_ci_repository_python_calls_use_one_shot_runner()
+                for executable in ('python3', '/usr/bin/python3', '"$RUNNER_TOOL_CACHE"/Python/3.11.9/x64/bin/python3'):
+                    path.write_text(source + '          ' + executable + ' artifact/control.py\n')
+                    with self.subTest(executable=executable), self.assertRaisesRegex(AssertionError, 'invokes Python directly'):
+                        self.test_ci_repository_python_calls_use_one_shot_runner()
 
 
 class CameraReadyEvidenceGateTests(unittest.TestCase):
