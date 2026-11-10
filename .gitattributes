@@ -8,3 +8,6 @@
 # Vendored reference/test vectors and reference data: byte-exact, no EOL conversion ever.
 *.json -text
 *.txt -text
+
+# Upstream service notices retain their exact licensed text, including whitespace.
+LICENSES/continuity-services/** -text -whitespace

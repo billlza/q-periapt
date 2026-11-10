@@ -96,15 +96,18 @@ its actual Java/JNI API and accepted AAR/phone evidence; its formal
 native archive retain their selected execution and artifact-digest binding in
 the final release manifest.
 
-The service source is currently the separate
+The [Linux service distribution](SERVICE_DISTRIBUTION_0_2.md) selects
+`q-periapt-continuity-services` `0.2.0` as a versioned tar archive. Its source remains the separate
 `q-periapt-continuity-reference-app` `0.0.0` package. Its actual binaries include
 `q-periapt-prekey-directory`, `q-periapt-continuity-witness`,
 `q-periapt-policy-publisher` and `q-periapt-sdk-policy-authority`, alongside the
-reference application's native device/session clients. A formal service
-distribution must bind its selected binary names, versions, configuration and
-storage contracts to actual artifacts. The reference package and the independent
-Python/OpenSSL implementation retain their current research identities until
-that distribution is selected.
+reference application's native device/session clients. The distribution includes
+the four named services and the existing native-device wrapping-key provisioner.
+Its producer binds the selected source, actual Release executable digests,
+configuration/storage documents and extracted-process readback to the release
+manifest's service row. The reference Cargo package and independent Python/OpenSSL
+implementation retain their current research identities; the outer distribution
+version identifies the selected service artifact.
 
 ## Compatibility carried by this package identity
 

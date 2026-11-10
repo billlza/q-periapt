@@ -28,7 +28,8 @@ from evidence_io import (
 SCHEMA_VERSION = 1
 KIND = "qperiapt.third_party_rust_licenses"
 ROOT_PACKAGE = "q-periapt-ffi"
-ROOT_PACKAGES = (ROOT_PACKAGE, "q-periapt-sdk-wasm", "q-periapt-continuity-c-consumer", "q-periapt-cli")
+ROOT_PACKAGES = (ROOT_PACKAGE, "q-periapt-sdk-wasm", "q-periapt-continuity-c-consumer", "q-periapt-cli",
+                 "q-periapt-continuity-reference-app")
 INVENTORY_RELATIVE = pathlib.PurePosixPath("THIRD_PARTY/rust/INVENTORY.json")
 MAX_METADATA_BYTES = 64 * 1024 * 1024
 MAX_LICENSE_BYTES = 4 * 1024 * 1024
@@ -316,8 +317,27 @@ def _license_candidates(
     return tuple(sorted(files, key=lambda item: item.name.encode("utf-8")))
 
 
+def _supplied_license_files(paths: tuple[pathlib.Path, ...], *, maximum_files: int,
+                            maximum_total_bytes: int) -> tuple[LicenseFile, ...]:
+    """Read explicit caller-authenticated notices without changing Cargo metadata."""
+    require(isinstance(paths, tuple) and 0 < len(paths) <= maximum_files,
+            "supplemental license file inventory differs")
+    result, names, total = [], set(), 0
+    for path in paths:
+        require(isinstance(path, pathlib.Path) and path.is_absolute()
+                and path.name.upper().startswith(LICENSE_PREFIXES), "supplemental license path differs")
+        require(path.name.casefold() not in names, "supplemental license filenames collide")
+        names.add(path.name.casefold())
+        value = read_regular_snapshot(path, maximum=MAX_LICENSE_BYTES, label="supplemental dependency license")
+        total += value.size
+        require(value.size > 0 and total <= maximum_total_bytes, "supplemental license text bounds differ")
+        result.append(LicenseFile(source=path, name=path.name, data=value.data, sha256=value.sha256))
+    return tuple(sorted(result, key=lambda item: item.name.encode("utf-8")))
+
+
 def collect(root: pathlib.Path, package_root: pathlib.Path, target: str, *, root_package: str = ROOT_PACKAGE,
-            resolved_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+            resolved_metadata: dict[str, Any] | None = None,
+            supplemental_licenses: dict[tuple[str, str], tuple[pathlib.Path, ...]] | None = None) -> dict[str, Any]:
     repository = _regular_directory(root, "repository root")
     output_root = _regular_directory(package_root, "binary package root")
     rust_root = output_root / "THIRD_PARTY" / "rust"
@@ -334,6 +354,10 @@ def collect(root: pathlib.Path, package_root: pathlib.Path, target: str, *, root
     external.sort(key=lambda package: (str(package.get("name")), str(package.get("version")), str(package.get("source"))))
     require(external, f"{root_package} production dependency closure has no external packages")
     require(len(external) <= MAX_LICENSE_FILES, "third-party package count exceeds limit")
+    supplemental = {} if supplemental_licenses is None else supplemental_licenses
+    require(type(supplemental) is dict
+            and set(supplemental) <= {(package["name"], package["version"]) for package in external},
+            "supplemental license does not identify a selected production dependency")
 
     inventory_packages: list[dict[str, Any]] = []
     planned_files: list[tuple[str, tuple[LicenseFile, ...]]] = []
@@ -359,11 +383,12 @@ def collect(root: pathlib.Path, package_root: pathlib.Path, target: str, *, root
             license_file_count < MAX_LICENSE_FILES,
             "third-party license file count exceeds limit",
         )
-        files = _license_candidates(
-            package,
-            maximum_files=MAX_LICENSE_FILES - license_file_count,
-            maximum_total_bytes=MAX_TOTAL_LICENSE_BYTES - total_bytes,
-        )
+        bounds = {"maximum_files": MAX_LICENSE_FILES - license_file_count,
+                  "maximum_total_bytes": MAX_TOTAL_LICENSE_BYTES - total_bytes}
+        # This is an explicit input, not an automatic fallback from missing text.
+        # Callers authenticate an upstream revision and retain its provenance.
+        files = (_supplied_license_files(supplemental[name, version], **bounds)
+                 if (name, version) in supplemental else _license_candidates(package, **bounds))
         license_file_count += len(files)
         require(
             license_file_count <= MAX_LICENSE_FILES,
