@@ -1,8 +1,8 @@
 {
-  "schema": "qperiapt-joc-integration/16",
+  "schema": "qperiapt-joc-integration/17",
   "title": "Exposure and Recovery with Persistent Randomness Reservations",
   "target_venue": "Journal of Cryptology",
-  "completed_at_utc": "2026-11-10T04:07:22Z",
+  "completed_at_utc": "2026-11-10T04:54:05.592863Z",
   "source_checkpoint": "228c944fc476e3e57d6c08063cacb19bca5b360e",
   "bootstrap_ack_source_checkpoint": "471900bfe8070d1021a1feb67481437d599d80ba",
   "author_metadata": "author-metadata.json",
@@ -17,18 +17,18 @@
     "bibliography_style_sha256": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
     "style_derivation": "sn-basic.bst; renamed derived file; all authors retained; alphabetical sorting unchanged",
     "single_tex_entry": "joc-submission.tex",
-    "single_tex_sha256": "2d7b26c01735ba37b03d0bf944780a7bf21ee8f50faf8e6b024e64168b2e8297",
+    "single_tex_sha256": "9370eaeeec7716559210ac59bf1019e7c812598c0024254b3a66b79d016d50b7",
     "layout": "single-column",
     "layout_decision": "format/layout_decision.md",
     "layout_decision_sha256": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e"
   },
-  "previous_integration_record": "artifacts/prior-integration/contribution-dependencies.json",
-  "previous_integration_record_sha256": "9db6dff881dd970eb6e7288ba6f5b8001bc9366e1cede96bbb23e4488492b39c",
-  "previous_pdf_sha256": "19f3d7e69f1094abe642d9888f694e745071ff01380f598d51618a6de0624f40",
+  "previous_integration_record": "artifacts/prior-integration/reply-source-bootstrap.json",
+  "previous_integration_record_sha256": "8248951e83a60fc900fd55d8d6d1278de0a12a96008c9d7c3bf9ad1743fb54fc",
+  "previous_pdf_sha256": "e575119c4858e2e37d2ea4cbe245565f4ea531428c55b969ad1b15ae691494b8",
   "pdf_path": "continuity.pdf",
-  "pdf_pages": 111,
-  "pdf_sha256": "e575119c4858e2e37d2ea4cbe245565f4ea531428c55b969ad1b15ae691494b8",
-  "abstract_words": 246,
+  "pdf_pages": 116,
+  "pdf_sha256": "a1738c2c2983c309bce80f364468390f80ad42612bc04e74e4abeb789c349c8c",
+  "abstract_words": 250,
   "keywords": 7,
   "bibliography_entries": 29,
   "new_results": {
@@ -36,31 +36,31 @@
       "statement_locations": {
         "sec:bootstrap-authentication": {
           "number": "5.16",
-          "page": 71
+          "page": 72
         },
         "eq:bootstrap-schedule": {
           "number": "43",
-          "page": 72
+          "page": 73
         },
         "def:bootstrap-online": {
           "number": "5.32",
-          "page": 72
+          "page": 73
         },
         "lem:bootstrap-reply-origin": {
           "number": "5.33",
-          "page": 73
+          "page": 74
         },
         "lem:bootstrap-validation": {
           "number": "5.34",
-          "page": 74
+          "page": 75
         },
         "eq:bootstrap-validation": {
           "number": "44",
-          "page": 74
+          "page": 75
         },
         "eq:bootstrap-capture": {
           "number": "45",
-          "page": 75
+          "page": 76
         },
         "lem:bootstrap-deferred": {
           "number": "5.35",
@@ -68,23 +68,23 @@
         },
         "eq:bootstrap-tail": {
           "number": "46",
-          "page": 76
+          "page": 77
         },
         "prop:bootstrap-ack-table": {
           "number": "5.36",
-          "page": 76
+          "page": 77
         },
         "thm:bootstrap-source-schedule": {
           "number": "5.37",
-          "page": 77
+          "page": 78
         },
         "eq:bootstrap-source-schedule": {
           "number": "47",
-          "page": 77
+          "page": 78
         },
         "thm:bootstrap-terminal": {
           "number": "5.38",
-          "page": 77
+          "page": 78
         },
         "eq:bootstrap-terminal": {
           "number": "48",
@@ -96,23 +96,23 @@
         },
         "app:bootstrap-artifacts": {
           "number": "A.17",
-          "page": 102
+          "page": 107
         },
         "app:bootstrap-entry": {
           "number": "D",
-          "page": 108
+          "page": 113
         },
         "eq:bootstrap-compression": {
-          "number": "55",
-          "page": 108
+          "number": "60",
+          "page": 113
         },
         "thm:bootstrap-joint-entry": {
           "number": "D.1",
-          "page": 108
+          "page": 113
         },
         "eq:bootstrap-joint-entry": {
-          "number": "56",
-          "page": 108
+          "number": "61",
+          "page": 114
         }
       },
       "proof_modules": [
@@ -139,21 +139,75 @@
         "ack_interface_census": 19
       },
       "complementary_initial_source": {
-        "status": "complete_source_level_proof_and_independent_review",
+        "status": "integrated_in_canonical_manuscript",
         "pull_request": "https://github.com/billlza/q-periapt/pull/152",
         "proof_sha256": "b887e786d06b5226b9886d643c8b0e919cd49387cd5023e22b5878b0d93130ee",
-        "publication_scope": "Integration proof packet; the present manuscript instantiates the reply-source profile and includes both primitive entry comparisons."
+        "publication_scope": "Section 5.17, Theorem 5.41 and Corollary 5.42, with both primitive entry comparisons retained in Appendix D."
       }
+    },
+    "original_initial_source_authentication": {
+      "statement_locations": {
+        "sec:bootstrap-initial-source": {
+          "number": "5.17",
+          "page": 79
+        },
+        "lem:bootstrap-initial-origin": {
+          "number": "5.39",
+          "page": 80
+        },
+        "eq:bootstrap-initial-service": {
+          "number": "50",
+          "page": 80
+        },
+        "eq:bootstrap-initial-capture": {
+          "number": "51",
+          "page": 81
+        },
+        "eq:bootstrap-initial-upstream": {
+          "number": "52",
+          "page": 82
+        },
+        "lem:bootstrap-initial-allocation": {
+          "number": "5.40",
+          "page": 82
+        },
+        "thm:bootstrap-initial-schedule": {
+          "number": "5.41",
+          "page": 83
+        },
+        "eq:bootstrap-initial-schedule": {
+          "number": "53",
+          "page": 83
+        },
+        "eq:bootstrap-initial-uniform": {
+          "number": "54",
+          "page": 83
+        },
+        "cor:bootstrap-initial-terminal": {
+          "number": "5.42",
+          "page": 83
+        }
+      },
+      "proof_module": "bootstrap-initial-source.tex",
+      "module_sha256": "d84118de7a0b90a451d47e2a1673a0da35a23e1655493502583976a08a279715",
+      "complete_source_proof": "artifacts/bootstrap/initial/proof.md",
+      "manuscript_review": "artifacts/bootstrap/initial/manuscript-review.json",
+      "profile": "Original inventory PQ source and initiator purpose-5 owner protected; responder signer, traditional material and actual second contributions available under the declared bootstrap/ACK surface.",
+      "result": "The complete source and hidden-first joint-entry comparisons precede the allocation-local parent partition; heterogeneous L_j multiplies terminal-tail costs only. The terminal corollary establishes historical activation of the exact signed transcript.",
+      "source_files": 35,
+      "source_assertions": 29,
+      "finite_endpoint_executions": 49152,
+      "native_executions_added": 0
     }
   },
   "retained_results": {
-    "record": "artifacts/prior-integration/contribution-dependencies.json",
-    "formal_preservation": "artifacts/bootstrap/formal-preservation.json",
-    "current_label_locations": "artifacts/bootstrap/current-labels.json",
-    "preceding_canonical_modules": 36,
-    "preceding_statements": 44,
-    "preceding_proofs": 40,
-    "preceding_display_groups": 140,
+    "record": "artifacts/prior-integration/reply-source-bootstrap.json",
+    "formal_preservation": "artifacts/bootstrap/initial/formal-preservation.json",
+    "current_label_locations": "artifacts/bootstrap/initial/current-labels.json",
+    "preceding_canonical_modules": 37,
+    "preceding_statements": 52,
+    "preceding_proofs": 47,
+    "preceding_display_groups": 156,
     "formal_source_identity": "All ordered statement/proof and displayed-math source bytes in preceding canonical modules are unchanged.",
     "execution_identity": "Retained native, Tamarin, reference and retry evidence keeps its original source, runtime and output identities."
   },
@@ -162,9 +216,10 @@
       "entry": "artifacts/bootstrap/entry/reproduced.json",
       "terminal": "artifacts/bootstrap/terminal/reproduced.json",
       "reply": "artifacts/bootstrap/reply/reproduced.json",
-      "all_byte_identical_to_original_results": true
+      "all_byte_identical_to_original_results": true,
+      "initial": "artifacts/bootstrap/initial/reproduced.json"
     },
-    "make_check": "artifacts/bootstrap/make-check.log",
+    "make_check": "artifacts/bootstrap/initial/make-check.log",
     "matched_auditor": {
       "boundary_tests": 10,
       "replayed_rows": 49,
@@ -178,66 +233,57 @@
   },
   "build_review": {
     "status": "passed",
-    "pdf_pages": 111,
-    "pdf_sha256": "e575119c4858e2e37d2ea4cbe245565f4ea531428c55b969ad1b15ae691494b8",
+    "pdf_pages": 116,
+    "pdf_sha256": "a1738c2c2983c309bce80f364468390f80ad42612bc04e74e4abeb789c349c8c",
     "undefined_references_or_citations": 0,
     "overfull_boxes": 0,
-    "underfull_box_notices": 122,
+    "underfull_box_notices": 127,
     "all_fonts_embedded": true,
     "fonts": 48,
     "inspected_pages": [
       1,
-      2,
       3,
       4,
       5,
-      71,
-      72,
-      73,
-      74,
-      75,
-      76,
-      77,
+      22,
+      23,
+      24,
       78,
       79,
-      88,
-      89,
-      90,
-      91,
-      92,
-      93,
+      80,
+      81,
+      82,
+      83,
+      84,
       94,
       95,
       96,
-      97,
-      98,
-      99,
-      100,
-      101,
-      102,
+      106,
+      107,
       108,
-      109,
-      110,
-      111
+      113,
+      114,
+      115,
+      116
     ],
-    "reading_review": "artifacts/bootstrap/visual-review.json",
-    "build_receipt": "artifacts/bootstrap/build-check.json",
-    "source_export_receipt": "artifacts/bootstrap/source-export-check.json",
+    "reading_review": "artifacts/bootstrap/initial/visual-review.json",
+    "build_receipt": "artifacts/bootstrap/initial/build-check.json",
+    "source_export_receipt": "artifacts/bootstrap/initial/source-export-check.json",
     "source_export": {
       "status": "passed",
       "files": 9,
-      "pages": 111,
+      "pages": 116,
       "plain_text_identical": true,
-      "plain_text_sha256": "0916466ef5a6880cb9ba40222f60e2f98a664cb02ad4c72bebfbb96f2451b75c",
+      "plain_text_sha256": "619eec18d8449b1327de6bcd542cb48b2f09db997cf0a974531ea429c8d73bcc",
       "layout_text_identical": true,
-      "layout_text_sha256": "b08e058f650ddfff66ec8342debd93083f9794ba7fb4d491c3668abeae0f9ab1",
+      "layout_text_sha256": "3eb32d59f5387460e6de082861ae92803223a03f16f529ce0299561810ff8c9b",
       "all_fonts_embedded": true,
       "font_count": 48,
       "undefined_references_or_citations": 0,
       "overfull_boxes": 0,
-      "zip_sha256": "5cb2f76a1eddbd7f505a8a3f27f3a46b08bde963c1b20c2356fd7cd6b119b3b3",
-      "pdf_sha256": "e575119c4858e2e37d2ea4cbe245565f4ea531428c55b969ad1b15ae691494b8",
-      "export_pdf_sha256": "7216d52e1a08b6b6920e555b8fad82377f137272ca65920902e508267ece7a57",
+      "zip_sha256": "b26292ef16871e086f5bdd14905b30890cc409158ef3471f490d0602c281afb5",
+      "pdf_sha256": "a1738c2c2983c309bce80f364468390f80ad42612bc04e74e4abeb789c349c8c",
+      "export_pdf_sha256": "3bbb8e271a62d3970460bd01c6e78113cded1a492af1117d5a660c7e993a9090",
       "exported_files": [
         "README.md",
         "SHA256SUMS.json",
@@ -255,43 +301,44 @@
   },
   "paper_workflow": {
     "path": "../../.github/workflows/joc-manuscript.yml",
-    "sha256": "78dd1f7815db8192f9a1b0a432a206eaa10cffdd9bd71cc374d9dfc28732355b",
+    "sha256": "ef5c7669b0b617262c34d9160b87b307c4e85d2c4c62d059950d9438122173da",
     "branch": "paper/joc-persistent-recovery",
     "base": "main",
     "pr": 119,
     "url": "https://github.com/billlza/q-periapt/pull/119",
-    "previous_head": "c724ec61be6f88c689da42aec0c1f5eacad7937b",
-    "previous_repository_tree": "c724ec61be6f88c689da42aec0c1f5eacad7937b",
+    "previous_head": "bee17822db65242adbfb3b0be7d32090fae2f752",
+    "previous_repository_tree": "e1ba831587cecd96fb69986eec291ae9b5d4b51f",
     "snapshot": "Prepublication paper, source and build identity. Hosted checks are associated with the resulting published head.",
-    "new_execution": "Three source-pinned bootstrap checkers and a fresh independent source-export build are part of the manuscript workflow."
+    "new_execution": "Four source-pinned bootstrap checks and a fresh independent source-export build are part of the manuscript workflow."
   },
-  "completed_connection": "Original reply reservations -> source association and acquisition accounting -> operational component and complete ContextBound -> joint Extract entry -> deferred root table and full activation schedule -> record-aware epoch-zero ACK authentication -> historical responder activation.",
+  "completed_connection": "Both original bootstrap source profiles -> source association and immutable two-endpoint acquisition accounting -> operational component and complete ContextBound -> joint short/long entry -> allocation-local tail and complete activation schedule -> record-aware epoch-zero ACK authentication -> historical responder activation.",
   "source_hashes": {
     "acquisition-nonadditivity.tex": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
-    "artifact-map.tex": "1e5a46bc815e126df97568ea54e95f704ca1f0dd7fc99e61d0b3a83c38ff8045",
+    "artifact-map.tex": "189067d4ee874fc8a3a2a1fb5ca9e30fc4f7a4b3060e2e9922a52470b3a69297",
     "author-metadata.json": "a4654fb096735dd2277cf4251ad37866fe00b3a8333a5e6731155308ad495ec8",
     "bootstrap-authentication.tex": "72c4f982bdf7229623ca790d83d3a2dc55ef0f6cb0f32cc832a61700f28e766d",
-    "bootstrap-entry.tex": "cbd221f1b5f9ae268a4694e2256d49811106755f85991d7bfcb8fa2ee4951aaa",
+    "bootstrap-entry.tex": "c97d14ab80160319d2d87f563f349566961e3f585ef4604417b8c87cce02af2e",
+    "bootstrap-initial-source.tex": "d84118de7a0b90a451d47e2a1673a0da35a23e1655493502583976a08a279715",
     "candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
     "chain-prefix-continuation.tex": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
     "common-virtual-accounting.tex": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
-    "computational-roadmap.tex": "08475e289fd01b7d0dc5e060b3364db7925ec367ee42c3f3bd61b661b33ab3d3",
+    "computational-roadmap.tex": "d9a028388b95366465cc12f574b9c24ed3150b0c8947f58989b4e6d3354b5319",
     "confirmation-traffic.tex": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
     "construction.tex": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
     "contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
     "declarations.tex": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
-    "discussion.tex": "2d88c5bbb840d7bd5e5b544ab2421df20769180e90cd67345964ec214bd740f4",
+    "discussion.tex": "f75016f1a47970d9bf6e7331c0121010bd8c591562c270f5a57a4be6f5bfae92",
     "established-results.tex": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
     "evaluation.tex": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe",
-    "figures/confirmation-cut.pdf": "b88e0eaa6a2f838967aae58e93ff131f2afd13a0f145347ce57e34db596ebfaf",
+    "figures/confirmation-cut.pdf": "d908bc9067b942ac082edc17adb07d35f386ffc4a26183e230bba8233de4bb90",
     "guarded-provenance.tex": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
-    "introduction.tex": "28b5daf00ba7f427a981b0135c170191821a756889a6f8c52139c0837da1c5ca",
+    "introduction.tex": "8744a6e91eb15ace60088a7e255055444bb0f7fe169ca6c4351e44d9e05e865f",
     "joc-basic.bst": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
-    "joc-submission.tex": "2d7b26c01735ba37b03d0bf944780a7bf21ee8f50faf8e6b024e64168b2e8297",
+    "joc-submission.tex": "9370eaeeec7716559210ac59bf1019e7c812598c0024254b3a66b79d016d50b7",
     "joint-continuation.tex": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
     "joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
     "live-core-instantiation.tex": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
-    "main.tex": "c8af976b217a099fc3efedbc8ba97ec5e256698b9e2dd4843a2108c32b473265",
+    "main.tex": "f46fd96f6c7da7ec9c9e431352d20b818efa40f7f8eb5b208a557f623e96737d",
     "matched-opportunities.tex": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
     "matched-opportunity-tables.tex": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
     "multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
@@ -316,9 +363,9 @@
   "current_supporting_hashes": {
     ".gitattributes": "ce31a7ca88fa6aca38587ee367ee79be2ecbbb06574954482f7ed8a0a21f41f7",
     ".gitignore": "8d1d7e93cbe39f9fe8262e453b7c34cb9a5935181da322a468e37959405226b8",
-    "Makefile": "ea3934bf6e722fe62db9bf87fad230f77a86fca97c2189c6ec9ff91ce55da6f4",
-    "README.md": "5c37a1fc5444609a547c9f5e8df394cc46a43fec6b60213dd5a29e0fed036d0a",
-    "artifacts/bootstrap/README.md": "abcbfa18600abad69f973214c946be37de732e6b198ce3d65fcfdd5d1904d1b9",
+    "Makefile": "e7b800d87fc7a4759652964272ef8ee9ce87f53780dd16dbfe4a8b5b075a8384",
+    "README.md": "4bdf05c2dc4cb24dd0d77a194c108a8387de443f30262b5c10456d5df7df6f31",
+    "artifacts/bootstrap/README.md": "172103ab4ae00ecc8a2d255cbb2f10e23f4d37e70019d179a1d04c666d979642",
     "artifacts/bootstrap/ack/SOURCE_PINS.json": "cf9c16f4dc8069717c1a40386f96290cae0aec89c356f02f824d8b3143c73eb5",
     "artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages.rs": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
     "artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/acknowledgement.rs": "632a2f2db2298719d9cd8158231dc53c5f3994045e5f1e7d817ddfb4467aab8e",
@@ -863,7 +910,7 @@
     "export_submission.py": "fd76730d9abb02e4d0daab6c5cba654ed1385f5a3ef73516f5e9289615edfcf3",
     "figures/confirmation-cut.tex": "eaed162d2f95c1d1b043380b6a404f02f4042bc20017eb409b2cdbdee4047579",
     "figures/confirmation-cut.tikz": "1c8122292094aefe5efeb3d3d336540cbeeb429bf36de3ea97a44571b1338286",
-    "flatten_manifest.json": "69e6646a5a5a366d601d2e0bdf908188944c587a0761ba43492ae9db999f7c36",
+    "flatten_manifest.json": "84cfd2a4ee2fa1e8ef6f3f7be2f1359e53c7c7a66be42daae0a1f5e8c0378a0a",
     "flatten_manuscript.py": "01bf82ca69991ab9fb981ff84eaa5eb38739fb19074e95fb05b7451b1693c139",
     "format/bibliography_adaptation.json": "70b5da1214422749bbab0778d0ee2602fde74fbadb5ca5af89fc519c13e8700b",
     "format/layout_decision.md": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e",
@@ -872,7 +919,59 @@
     "format/venue_format_audit.md": "da3a13e207c71d41ca1303394c2c08a0002405ce08d251c06d372a96855eba21",
     "notes/RESEARCH_HANDOFF.md": "295be1e47c843c7d8493a4ec810a2d4ed6988e7009c1bc280d063faf253823a3",
     "notes/WORKFLOW.md": "db80a9091241de0309b614d834d334a5de37d4952304082e7a1d484c73444de1",
-    "notes/skybridge-scope.md": "31e5e709f04d12edccb0951554a887df065ecdcf22c284cef7507f97c0aa3a0f"
+    "notes/skybridge-scope.md": "31e5e709f04d12edccb0951554a887df065ecdcf22c284cef7507f97c0aa3a0f",
+    "artifacts/bootstrap/initial/RESULT.json": "b53cdf1a373c1ac60aeb26600914f7d682d3a6d8d74544a5e2995e787a419181",
+    "artifacts/bootstrap/initial/SOURCE_PINS.json": "56edba39cb6639b2b1ea251ec84bbdd86c38eaf838c6318b47624671f43452f2",
+    "artifacts/bootstrap/initial/build-check.json": "2fe78d51f8bf5a6b772f4a3971d82f62238448e1df122fe0a689c2a72772c4f2",
+    "artifacts/bootstrap/initial/check_initial_source.py": "2a0b25421347c1cd8e8fbd24df655c96e33061c1dce7aee39e743e56d1fc5ae0",
+    "artifacts/bootstrap/initial/current-labels.json": "c967fee8c723a2802df052640c2a78c844928f963c544506e7583e6191e83dc6",
+    "artifacts/bootstrap/initial/fonts.txt": "aca44654d2aa22eb5c6f3080c0a366ea8646a600745846f595e85696c1070bcf",
+    "artifacts/bootstrap/initial/formal-preservation.json": "640af90903ca3b713cd2d106e2002b1099246943cc399280eae8451e753b8515",
+    "artifacts/bootstrap/initial/independent-review.json": "e1c2478691c37927209bf926c87c8168ab1af461d82d5c81e9e2cb561ac6b395",
+    "artifacts/bootstrap/initial/independent-review.md": "c4540ddb034bc2a8a75ae30cb4c2a8186f4dadc5857604c4c1ccf6c1bccfda9b",
+    "artifacts/bootstrap/initial/make-check.log": "e56e63c6c5b9657960bd1b8c0823500f42d33ed986cf0a362116deeff5114d3c",
+    "artifacts/bootstrap/initial/manuscript-review.json": "9fc10193e2c23de7acf5af1ec2fb48589129d249edcfed484150ea50d934c555",
+    "artifacts/bootstrap/initial/manuscript-review.md": "ea6032cca707fee91e4b4b28c42fb67bf96b3f99a27d9d8d0620c2f1f8fe23c6",
+    "artifacts/bootstrap/initial/proof.md": "b887e786d06b5226b9886d643c8b0e919cd49387cd5023e22b5878b0d93130ee",
+    "artifacts/bootstrap/initial/reproduced.json": "b53cdf1a373c1ac60aeb26600914f7d682d3a6d8d74544a5e2995e787a419181",
+    "artifacts/bootstrap/initial/source/crates/q-periapt-backends/src/contextbound_key.rs": "4ba0073adb2f4b03c6183aa46d3bffa139edc40476873cba103adecbbc1b153b",
+    "artifacts/bootstrap/initial/source/crates/q-periapt-backends/src/lib.rs": "d73b6b3a789c27779108dbd5c378f553cd6c3108b8d90ea9f101730d2a237313",
+    "artifacts/bootstrap/initial/source/crates/q-periapt-core/src/lib.rs": "b2879b876e37f6f9a98f065c55502a1ed90f5d248fd029fef8eaad59bf5ec390",
+    "artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/expert/replay.rs": "cc95985cd212a2c2f224dcce22bc7fba5f4f331dc190e263085a0261dd0a3713",
+    "artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/expert.rs": "4a3f2922090b2ef9d20abfcdfdde98c5edd76ee12d2df9ae2608071ea1c84323",
+    "artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/lib.rs": "38e9c524a60e6019c8a5304cd1d587006ab467ab1718a1fd8899f97823e98be6",
+    "artifacts/bootstrap/initial/source/docs/continuity/BOOTSTRAP_JOINT_ENTRY_V1.md": "02adbe2d702246545b048a9d5ac01f058a35523924d3042106ecbd4092752ed0",
+    "artifacts/bootstrap/initial/source/docs/continuity/BOOTSTRAP_REPLY_SOURCE_ADAPTER_V1.md": "87acf83c1014005d6d3dfb9d1147229d81dd193d259dc0199bd8fedf06a2dde3",
+    "artifacts/bootstrap/initial/source/docs/continuity/BOOTSTRAP_TERMINAL_AGREEMENT_V1.md": "36258bc3583790202b8750e73ae12d4c146707751a392cb02bcd5d636eea1ea8",
+    "artifacts/bootstrap/initial/source/docs/continuity/BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md": "656ce52d8b77b206ed6aef3b6c457a3d196028da2933075104bd10a6075524d3",
+    "artifacts/bootstrap/initial/source/docs/continuity/HKDF_EXPAND_TABLE_V1.md": "ebddea59df4e82c48744a52088c3f2bf49b5386ab993f6200bce8bfef8ae2d71",
+    "artifacts/bootstrap/initial/source/paper/continuity/candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+    "artifacts/bootstrap/initial/source/paper/continuity/contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+    "artifacts/bootstrap/initial/source/paper/continuity/guarded-provenance.tex": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+    "artifacts/bootstrap/initial/source/paper/continuity/joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+    "artifacts/bootstrap/initial/source/paper/continuity/multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+    "artifacts/bootstrap/initial/source/paper/continuity/opaque-rendering.tex": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+    "artifacts/bootstrap/initial/source/paper/continuity/primitive-inputs.tex": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+    "artifacts/bootstrap/initial/source/paper/continuity/reservation-signature-bridge.tex": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+    "artifacts/bootstrap/initial/source/paper/continuity/sdk-purpose-connection.tex": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+    "artifacts/bootstrap/initial/source/paper/continuity/source-attribution.tex": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap/response_staged.rs": "3a892deab3d2a209345436ca6d3ddd08f39c549bc98a3d5e7c6026dfaeacff0a",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap/staged.rs": "f633fc0ff32c44156e194ebb6ca6c037a6df09d117d4daf8a69a861cf7d7bafc",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs": "f72bce264806a900affe2cac33beb449e77aeaa45e6e264549eaa0f2ece7a286",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/contract.rs": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/crypto.rs": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/initiator.rs": "eacfbb8195b357ecdfda7a63cfd1871ba846f23a3e427d29f422d2246063f67c",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/messages/traffic.rs": "5e19c0a6719895888a7018db2583c89da50c1de029d443834c357bce342cb6e2",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/messages.rs": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/prekeys.rs": "1a0ad3a9be71e6b39c44cd24a7478a6280a822a6653b1d504677c9669c5b6c4b",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/responder.rs": "9e3dcaf9180435e1b439889a9608f4ae40ca87b1d8d4c6b025c329e730e4f30c",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/write_intent.rs": "502bbd9de26958575704edbd0207c6579c4a07e3b9ed4a57650f407f3fdb312d",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable.rs": "664bc3bfad790cc4639168b54bea30fdcdb80520310454cddd80ac66a5b37c42",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/manifest.rs": "2d6367086c1ff3957791d52184c4dde16de09ba6bd67d8308cb812366b0ef57c",
+    "artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/selection.rs": "287883f353adb49016cbb9779e612cefac15dd3f74becbb630ec18a1c3f39586",
+    "artifacts/bootstrap/initial/source-export-check.json": "e3487ab5aef3acddbef7bbed41f1a3774b9a50573f0222f52d7703d1e75f44dc",
+    "artifacts/bootstrap/initial/visual-review.json": "abbaf056dc11875f367827aef2592c92cad11dc88dc9ef5586a90330ab44d28d",
+    "artifacts/prior-integration/reply-source-bootstrap.json": "8248951e83a60fc900fd55d8d6d1278de0a12a96008c9d7c3bf9ad1743fb54fc"
   },
   "editorial_revision": {
     "scope": "Abstract, contribution narrative, roadmap and discussion connect the bootstrap result to the retained exposure/recovery development.",

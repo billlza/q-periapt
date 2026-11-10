@@ -125,6 +125,12 @@ historical responder-activation bound
 This profile allows disclosure of the first contribution, traditional KEM
 material and the initiator's signing identity while the reply PQ source
 and expected responder signer supply the stated surviving inputs.
+The complementary construction protects the original inventory PQ source
+and initiator signer while making the responder signing identity and actual
+reply contributions available. Its two-level comparison charges the
+component and complete joint entry once per original source pair, then
+charges the terminal tail by online long-descriptor allocation
+(Theorem~\ref{thm:bootstrap-initial-schedule}).
 
 The same provenance condition supports symbolic message secrecy when the target's original reservations
 follow the compromise cut and the stated authentication, entropy and
