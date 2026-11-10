@@ -162,10 +162,55 @@ database under the two tested warm-cache allocations. Selection of a production
 default still requires the current source's full CI analysis from its normal
 database-creation path.
 
+## Independent process resource samples
+
+The allocation receipts above record requested and accepted JVM/off-heap budgets.
+The interrupted two-arm run did not sample resident memory. The controller now
+records Linux `/proc` observations during the evaluator invocation, so a subsequent
+run can relate actual process counters to the retained fixed-point and eviction
+logs. The sampler runs identically in both arms and leaves the query command,
+query-source and compiled-plan pins, five-hour deadline, and full-suite comparator
+unchanged.
+
+`PROCESS_RESOURCES.jsonl` records each observed process's PID and start-time
+identity, parent, original query root, approximate RSS, own user/system CPU ticks,
+and available raw storage I/O counters. The controller and its pre-existing child
+subtrees are excluded. Once a descendant has been observed, its same identity
+remains in scope after reparenting; a reused PID does not inherit its membership.
+The JSON summary records maxima separately for the direct query roots and the
+observed tree, together with sample counts, missing observations, elapsed sampling
+time, sampler CPU time, and shutdown status. A run with no observed evaluator
+process retains null RSS maxima.
+
+The default interval is two seconds. Each census admits at most 8,192 process
+entries, each selected tree at most 512 live processes, and a run at most 4,096
+observed identities, 10,000 samples, and 32 MiB of sample output. Reads are bounded
+to 16 KiB per proc file. Census and selected-process work check a 0.75-second
+deadline between reads; shutdown waits at most two seconds. Reaching a bound,
+unsupported platforms, unavailable procfs, read/write failures, and incomplete
+shutdown are explicit diagnostic outcomes. An evaluator success, nonzero exit,
+or supervised timeout retains its original outcome if sampling also fails.
+
+These counters have precise interpretation. RSS from `stat` is approximate;
+summing it across processes can count shared pages multiple times. A maximum of
+non-atomic samples is a **sampled tree RSS maximum**, not the actual job memory
+high-water mark or proportional set size. Brief processes and between-sample
+peaks may be missed. CPU totals use only each identity's own user/system ticks,
+avoiding the separate waited-child CPU fields. I/O remains per process because
+those counters may incorporate waited-for children; the controller does not sum
+them into a claimed tree I/O total. The measurements are diagnostic evidence and
+do not satisfy the independent requirement for 39 complete fresh query results.
+
+The regression tests launch real allocating parent/child processes, exclude a
+real background child, exercise a real one-second supervised timeout, and check
+PID reuse, reparenting, missing procfs, sample-count and byte bounds, exclusive
+outputs, and secondary diagnostic failures. They validate the measurement path;
+they do not provide new CodeQL workload performance results.
+
 ## Execution
 
 The workflow `.github/workflows/codeql-summary-control.yml` runs on a push to
-`diagnostic/codeql-summary-cache` that changes one of its three implementation
+`diagnostic/codeql-summary-cache` that changes one of its five implementation
 files. It also has a manual dispatch entry point. Opening its PR does not trigger
 a second copy of the five-hour matrix. Each evaluator job has a six-hour hard
 limit, a five-hour supervised evaluator limit, and an always-run evidence upload.
@@ -174,7 +219,7 @@ The aggregate job always attempts to compare the two receipts.
 Local admission and failure-path checks:
 
 ```sh
-sh artifact/python-run.sh -m unittest -v test_codeql_summary_control
+sh artifact/python-run.sh -m unittest -v test_codeql_summary_control test_codeql_process_resources
 ```
 
 These tests exercise source binding, safe restoration, old-versus-fresh result
@@ -194,4 +239,8 @@ processes. The tests do not execute the hosted Rust queries.
 - [Pinned full SummaryStats](https://github.com/github/codeql/blob/codeql-cli/v2.27.2/rust/ql/src/queries/summary/SummaryStats.ql)
   retains full statistics, including the global taint-reach computation. The
   reduced query is a distinct member of the suite, not a replacement.
+- [Linux kernel procfs documentation](https://docs.kernel.org/filesystems/proc.html)
+  defines process counters, asynchronous RSS accounting, and the RSS/PSS distinction.
+- [Linux man-pages: proc_pid_io](https://man7.org/linux/man-pages/man5/proc_pid_io.5.html)
+  specifies the inclusion of waited-for children in per-process I/O accounting.
 

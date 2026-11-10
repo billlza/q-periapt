@@ -1,0 +1,58 @@
+{
+  "cleanup_ambiguous": false,
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "-c",
+    "import os,time; data=bytearray(b'x')*(8*1024**2); print(os.getpid(),flush=True); time.sleep(20)"
+  ],
+  "resource_observation": {
+    "clock_ticks_per_second": 100,
+    "controller_pid": 2,
+    "controller_start_ticks": 185878,
+    "excluded_preexisting_roots": 0,
+    "interpretation": {
+      "cpu": "sum of maximum observed own-process user/system ticks per identity",
+      "exit": "evaluator exit, deadline, query coverage and result admission are independent",
+      "io": "per-process raw counters only; may include waited-for children",
+      "omissions": "short-lived or already-reparented unseen descendants and between-sample peaks may be missed",
+      "peak": "maximum recorded non-atomic sample, not actual job peak or PSS",
+      "rss": "approximate proc stat RSS; tree sums may double-count shared pages"
+    },
+    "interval_seconds": 0.05,
+    "io_unavailable": 0,
+    "kind": "qperiapt.codeql_process_resources",
+    "limits": {
+      "census_processes": 8192,
+      "observed_identities": 4096,
+      "output_bytes": 33554432,
+      "proc_file_bytes": 16384,
+      "samples": 10000,
+      "scan_work_seconds": 0.75,
+      "selected_processes": 512,
+      "shutdown_wait_seconds": 2.0
+    },
+    "max_sample_span_seconds": 0.0003251889997955004,
+    "observed_process_cpu_seconds": 0.01,
+    "observed_process_identities": 1,
+    "observed_root_identities": 1,
+    "output_bytes": 9388,
+    "page_bytes": 4096,
+    "partial_censuses": 0,
+    "peak_sampled_roots_rss_bytes": 14942208,
+    "peak_sampled_tree_rss_bytes": 14942208,
+    "platform": "Linux",
+    "proc_read_errors": 0,
+    "sampler_cpu_seconds": 0.006575617000000001,
+    "samples": 20,
+    "samples_file": "PROCESS_RESOURCES.jsonl",
+    "samples_with_processes": 19,
+    "sampling_wall_seconds": 1.0028783579998617,
+    "schema": 1,
+    "scope": "new controller descendants observed during query evaluation",
+    "shutdown_complete": true,
+    "status": "stopped"
+  },
+  "returncode": null,
+  "seconds": 1.0031937229998675,
+  "stopped": "timeout"
+}
