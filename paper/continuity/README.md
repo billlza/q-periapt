@@ -14,7 +14,7 @@ The computational development constructs private-record and dependent-report sim
 
 The computational roadmap gives a shared dependency table and explains the signed-score and Boolean-event coefficients used by the three native results. Eligibility, accepted-send provenance and acquisition history are recomputed within each comparison world; the original-game attribution term is charged once. The contribution narrative and discussion connect these interfaces to their application consequences. The [semantic review](artifacts/editorial-review/proof-dependencies/review.md) binds that exposition to the unchanged theorem modules.
 
-The [citation audit](artifacts/editorial-review/citations/AUDIT.md) checks all 28 citation keys, the principal metadata of 27 external entries, and the named core theorem/standard locators against primary records. It confirms the current full-version proposition numbering and bibliography, with its inspected scope and source-access outcomes recorded separately.
+The [retained citation audit](artifacts/editorial-review/citations/AUDIT.md) checks the preceding 28 citation keys, the principal metadata of 27 external entries, and the named core theorem/standard locators against primary records. The bootstrap increment adds the official FIPS 203 citation and checks its encapsulation and correctness algorithm locators in [the source receipt](artifacts/bootstrap/primary-source-check.json). The bibliography now contains 29 entries.
 
 The live-core instantiation supplies the explicit native image/intent comparison cost and its complete admitted observation interface. The same joint key table also supports a confirmation and first-message authentication bound, with private origin ledgers, classical verification and quantum public-oracle queries. An executed-slot selector now registers original KEM sources before their first computations return. Its retained-plan induction and complete signed-transcript checks bound source-association failure by fresh-body signature and hash-collision events. The general metadata selector keeps its original residual and failed-reservation counterexample.
 
@@ -34,8 +34,11 @@ The matched comparison adds 49 newly executed native/reference profile--schedule
 
 A paired native scheduling experiment sets minimum application-retry age to four public sender turns. Its 28 executions include fourteen fresh reproductions of the retained immediate baseline and fourteen age-four runs. At fixed opportunity budgets, every bidirectional or resumed case delivers more applications; alternating deliveries rise to 971/999 while the reconstructed counts remain 63/127. Complete frame and persistence accounting records the schedule-dependent unit costs, the unchanged one-way service and the committed-but-undelivered requests at the observation boundary.
 
+The bootstrap extension adds a joint short/long Extract entry, exact full-wire terminal classes, deferred protection after opaque root allocation, and an original reply-source adapter. It retains native expanded-owner validation, both endpoint acquisition histories and the one-sided record-and-HMAC comparison for the 107-byte epoch-zero ACK input. The concrete profile makes the first contribution and traditional material public and permits the initiator signing identity to be disclosed. The complete proof and source-bound checks are retained under `artifacts/bootstrap/`.
+
 The proofs and independent reviews are retained by subject:
 
+- [Bootstrap source and terminal composition](artifacts/bootstrap/README.md): joint entry, original reservations, restored-owner validation, full-wire descriptors, online protected ACKs and historical responder activation.
 - [Candidate-local accounting](artifacts/candidate-local/): the stopped source/record interface and original-game score accounting.
 - [Joint continuation](artifacts/joint-continuation/README.md): the root-to-message schedule and its shared-compression primitives.
 - [Online finite-chain selection](artifacts/chain-prefix/README.md): adaptive target selection after earlier-key disclosure, with a complete prefix comparison and selected-key confidentiality/integrity corollaries.
@@ -87,7 +90,7 @@ and owner-ledger accounting. Manuscript CI runs both through the same isolated
 launcher and uploads their separate receipts. The supplement also retains
 normal/optimized Python comparisons and source-tampering controls.
 
-The build expands the modules into **`joc-submission.tex`**, compiles that source and copies its PDF to `continuity.pdf`. `flatten_manifest.json` binds the generated source to its modules. `make check` verifies references, citations, overflow, author/contact metadata and source identities. `make source` produces `build/joc-source.zip` with the single-file entry and its dependencies. The exported package is also compiled in a clean directory and its extracted text compared with the reading copy.
+The build expands the modules into **`joc-submission.tex`**, compiles that source and copies its PDF to `continuity.pdf`. `flatten_manifest.json` binds the generated source to its modules. `make check` verifies references, citations, overflow, author/contact metadata, the three bootstrap source packets and the retained research checks. `make source` produces `build/joc-source.zip` with the single-file entry and its dependencies. Manuscript CI also compiles the exported package in a clean directory and compares its complete plain and layout text with the reading copy; separate receipts retain the bootstrap and source-export results.
 
 The [update workflow](notes/WORKFLOW.md) maintains stable manuscript names, complete proof records and a connected academic narrative. The manuscript CI compiles the actual PR head, runs the retained finite-record and ContextBound checks, and uploads the PDF, source package and verification receipts.
 

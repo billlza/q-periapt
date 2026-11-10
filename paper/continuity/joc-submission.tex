@@ -41,33 +41,32 @@
 % The alternative address is retained in author-metadata.json.
 \author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
-\abstract{Protocols that retain randomness across crashes must distinguish the
-creation of a secret source from the later computation that uses it. We study
-how persistent randomness reservations affect recovery after compromise.
-Our model assigns immutable origins to operations and tracks acquisition of
-their encrypted representations and disclosure of the keys that open them.
-Alias normalization preserves those origins, and an exact guarded-path
-theorem characterizes record exposure for fixed public key derivations.
-We give constructive simulations for private records and dependent
-authentication reports, together with candidate-local accounting for an
-adaptively selected compromise cut. These results connect original-operation
-exposure to computational confidentiality and selected-root authentication
-bounds for the next rekey of an established session and a selected first
-message. The reduction follows the
-complete hybrid contribution, root extraction, confirmation and traffic
-schedule in the stated quantum random-oracle models, retaining real
-verification and successor-state disclosure. An online finite-chain
-composition extends native confidentiality and message integrity to a
-target chosen after earlier-key disclosure. A shared-XOF bridge reduces the
-native signing-reservation interface to ordinary hedged ML-DSA unforgeability
-and supplies the source-attribution bound. Finite descriptor families also
+\abstract{Protocols that retain randomness across crashes must distinguish creation of a
+secret source from the later computation that uses it. We study how persistent
+randomness reservations affect recovery after compromise. Our model assigns
+immutable origins to operations and tracks acquisition of their encrypted
+representations and disclosure of the keys that open them. Alias normalization
+preserves those origins, and a guarded-path theorem characterizes record
+exposure for fixed public key derivations. We construct simulations for private
+records and dependent authentication reports, together with candidate-local
+accounting for an adaptively selected compromise cut. These results connect
+original-operation exposure to confidentiality and selected-root authentication
+after the next rekey of an established session. The reduction follows the
+complete hybrid contribution, root extraction, confirmation and traffic schedule
+in the stated quantum random-oracle models. An online finite-chain composition
+extends native confidentiality and integrity to a message selected after
+earlier-key disclosure. A shared-XOF bridge reduces native signing reservations
+to ordinary hedged ML-DSA unforgeability and supplies source attribution.
+A joint bootstrap entry preserves initial confirmation and adaptive long
+Extracts; an original reply-source composition establishes historical responder
+activation of the complete signed transcript. Finite descriptor families also
 yield a purpose-key derivation result with exact aliases and separate owner
-lifecycles. A mechanized symbolic theorem establishes multi-epoch message
-secrecy under the provenance condition. Native executions demonstrate traffic
-reconstruction from pre-restart reservations, aggregate copies and delayed
-receipts. Independent finite checks validate the exposure semantics. Pinned reference
-workloads and 49 matched native/reference executions quantify reconstructed
-message sets jointly with admitted service, communication and persistence work.}
+lifecycles. A mechanized symbolic theorem establishes multi-epoch secrecy under
+the provenance condition. Native executions demonstrate traffic reconstruction
+from pre-restart reservations, aggregate copies and delayed receipts. Independent
+finite checks and 49 matched native/reference executions validate the exposure
+semantics and quantify reconstructed message sets alongside admitted service,
+communication and persistence work.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 
@@ -185,6 +184,20 @@ signature term in the source-attribution bound. The key-entry method also
 handles finite salt and information-string families, yielding a purpose-key
 instance with equal-input aliases and separate returned-owner lifecycles
 (Section~\ref{sec:sdk-purpose-connection}).
+
+Bootstrap supplies a further original-source instance. A joint entry theorem
+retains the first contribution's initial-confirmation use and its later
+combination with a second contribution
+(Theorem~\ref{thm:bootstrap-joint-entry}). The source adapter places the
+component challenge at the original reply generation and encapsulation,
+retains restored-owner validation, and reconciles effective root descriptors
+with complete signed-transcript classes. Online registration after opaque
+pending-root allocation then yields the exact ACK-only comparison and
+historical responder-activation bound
+(Theorems~\ref{thm:bootstrap-source-schedule} and~\ref{thm:bootstrap-terminal}).
+This profile allows disclosure of the first contribution, traditional KEM
+material and the initiator's signing identity while the reply PQ source
+and expected responder signer supply the stated surviving inputs.
 
 The same provenance condition supports symbolic message secrecy when the target's original reservations
 follow the compromise cut and the stated authentication, entropy and
@@ -1371,10 +1384,15 @@ The native online correspondence
 (Lemma~\ref{lem:native-online-chain-correspondence}) is the additional
 source-order connection for the last pair.
 
-The final two subsections develop the finite multiple-root and SDK
-purpose-key instances of the same primitive method. The
-common-virtual-game accounting variant is retained in
-Appendix~\ref{app:common-virtual}.
+The finite multiple-root and SDK purpose-key instances extend the same
+primitive method to adaptive descriptor families. The final subsection
+connects original bootstrap reservations to historical responder activation
+(Theorem~\ref{thm:bootstrap-terminal}). It preserves the first contribution's
+initial-confirmation use, full signed-wire aliases, restored-owner validation
+and online protection after pending-root retention. Its source profile and
+record-acquisition term are defined together in
+Section~\ref{sec:bootstrap-authentication}. The common-virtual-game accounting
+variant is retained in Appendix~\ref{app:common-virtual}.
 
 % BEGIN SECTION SOURCE: opaque-rendering.tex
 \subsection{An explicit renderer for private images and intents}
@@ -4598,6 +4616,481 @@ use. The durable rekey driver retains its own 97-byte pending-root
 information and established source invariant; the SDK table provides a
 separate concrete application of the finite entry proof.
 % END SECTION SOURCE: sdk-purpose-connection.tex
+
+% BEGIN SECTION SOURCE: bootstrap-authentication.tex
+\subsection{Bootstrap authentication from an original surviving source}
+\label{sec:bootstrap-authentication}
+
+The same origin model also applies before an established session exists.
+Bootstrap first combines an initiator encapsulation to the responder's
+prekeys into $S_0$, then combines the response encapsulation to the
+initiator's newly reserved reply key into $S_1$. Initial confirmation
+already uses $S_0$. The joint schedule subsequently incorporates both
+contributions, retains a pending root, and activates message state after
+Final. We connect this order to authentication of the responder's
+historical activation of the exact signed transcript.
+
+\paragraph{Transcript and schedule.}
+Let $c=(\mathit{ctx},x,y)$ contain the admitted context and the complete
+canonical signed Initial and Reply wires, including their signature
+bytes. With the source's framed SHA3 oracle $H$, define
+\[
+ \begin{split}
+ f_c&=\mathtt{QPBSF001}\Vert\mathit{ctx}
+       \Vert H_{\rm initial}(x)\Vert H_{\rm reply}(y),\\
+ s_c&=H_{\rm session}(f_c).
+ \end{split}
+\]
+The two complete-wire hashes include their distinct source domains.
+Write $F$ for HMAC under the shared SHA-256 compression oracle $h$.
+The bootstrap and message domains $D_B,D_M$ have 48 and 43 bytes.
+For the Reply core $t_1$ and the complete source information strings,
+the schedule is
+\begin{equation}
+ \begin{aligned}
+ P_B&=F(t_1,S_0\Vert S_1),\\
+ (\mathit{seed},K_R,K_I)&=
+    (F(P_B,I_s\Vert\mathtt{01}),F(P_B,I_R\Vert\mathtt{01}),
+       F(P_B,I_I\Vert\mathtt{01})),\\
+ I_B&=D_B\Vert\texttt{session-root/}\Vert\mathit{ctx},\\
+ K_B&=F(F(s_c,\mathit{seed}),I_B\Vert\mathtt{01}),\\
+ I_A&=D_M\Vert\texttt{initial/HKDF-SHA256/ChaCha20Poly1305}
+       \Vert\mathit{ctx},\\
+ (R_0,C_I,C_R,A_I,A_R)&=
+       \operatorname{Expand}(F(s_c,K_B),I_A,160).
+ \end{aligned}
+ \label{eq:bootstrap-schedule}
+\end{equation}
+The three bootstrap row inputs have lengths 63, 71 and 71 bytes.
+Here $|I_B|=93$, $|I_A|=111$, and the activation row inputs have
+lengths $112,144,144,144,144$. The responder confirms its activation
+with the direction-1 epoch-zero ACK under $A_I$; the initiator's ordinary
+ACK uses $A_R$ and direction 2. The authenticated epoch-zero string is
+\[
+ D_M\Vert\texttt{acknowledgement}\Vert\mathtt{QPCMACK1}
+       \Vert s_c\Vert\mathtt{01}\Vert\operatorname{BE64}(f),
+\]
+where $f$ is the admitted consumption floor. This string has 107 bytes;
+the transmitted prefix and 32-byte tag have 81 bytes in total.
+
+The responder compares the complete 104-byte Final prefix to its own
+$f_c$ before MAC verification and durable completion. Hence an accepted
+honest Final equates $\mathit{ctx},x,y$ in the absence of collisions
+on these framed hash inputs. A valid alternative signature on an issued
+Reply body preserves its upstream $t_1,P_B$, while its actual complete
+wire remains part of $s_c$ and the root descriptor.
+
+\begin{definition}[Online bootstrap experiment]
+\label{def:bootstrap-online}
+The admitted operations are context admission, original bootstrap
+reservation and resumption, Final, both message activations, epoch-zero
+ACK generation and verification, checkpoint restoration, and the
+specified source/key and record disclosures. The subsequent application
+interface consists of these ACK operations and the specified observations
+of the four sibling values. The controller admits concurrency, active
+delivery, exact retries and passive copies along one authoritative
+durable history for each original operation. Immediately before a class's
+first private ACK computation or use at either endpoint, a fixed online rule
+may register that complete class, provided its Reply has passed the
+initiator's signature, context and confirmation checks or has been formed
+by the authoritative responder. It rejects registration when the
+cumulative source/guard closure already reconstructs $A_I$. Repeated
+classes retain their rank; an unprotected used class stays unprotected.
+A later request that would return an ACK recipe for any registered class,
+or replace its trusted private state, stops before that return. An already
+observed terminal event remains latched. Other observations and classes
+retain their actual algorithms.
+\end{definition}
+
+The closure includes direct ACK material, $K_B$, the seed, both
+contributions, and records and wrapping keys that together recover them.
+Acquired versions survive local deletion in this history. Define
+$\mathsf{Coll}$ on the relevant context, signed-wire and session-ID
+hash inputs. The schedule comparison stops at this event and replaces
+only the exported $A_I$ of each registered class by an independent cached
+32-byte key. Both endpoints and exact retries retrieve that key.
+The actual internal block 4 still feeds Expand's block 5 before this
+export replacement; all sibling outputs, confirmations and subsequent
+verification remain those of the current experiment.
+
+\paragraph{A concrete surviving-source profile.}
+For the source instantiation below, every protected class has an honest
+authoritative Initial. The first contribution $S_0$ is publicly available
+at creation, and the traditional KEM scalars are available at their
+original sampling events. The initiator's signing identity may also be
+disclosed. The expected responder's signing owner is protected, with its
+BootstrapResponder purpose used through the authoritative response
+history. The surviving source is the reply PQ generation and response
+encapsulation pair. Its private owner retains the actual bootstrap and
+checkpoint-restoration interfaces. Fix lifetime bounds $G,A,R$ for
+reply-key reservations, response-encapsulation reservations and protected
+registrations, counting draws whose retention subsequently fails.
+
+\begin{lemma}[Original reply pair and effective family]
+\label{lem:bootstrap-reply-origin}
+On the source-correctness event and before a fresh-body responder-signature
+event, a relevant framed-hash collision, an honest Initial-nonce collision
+or the encapsulation event
+of Lemma~\ref{lem:bootstrap-validation}, a protected class identifies a
+fixed original pair $j=(g,a)\in[G]\times[A]$. At $a$'s first actual
+computation that pair fixes its complete ContextBound tuple, $S_1$,
+Reply core and bootstrap PRK family. Same-body signature aliases retain
+that family and their actual downstream full-wire descriptors.
+\end{lemma}
+\begin{proof}
+The initiator persists its reply-key reservation before its first
+generation call. Its 96-byte entropy consists of the 64-byte ML-KEM
+$d\Vert z$ and a 32-byte traditional scalar. The responder persists
+its response-encapsulation reservation before the first encapsulation;
+its 64-byte entropy contains the 32-byte ML-KEM input $m$ and its
+traditional scalar. The authenticated token binds the kind, policy,
+operation and, for encapsulation, complete peer/context input.
+Restoration consumes that same tape. Failed later writes, pending-target
+reconciliation and exact retries retain the original executed slot.
+
+Monitor a fresh accepted purpose-6 body immediately after its signature
+verification and before private decapsulation. Otherwise its honest
+signing ledger and checked complete-Initial digest identify the response
+history. Distinct honest owners publishing an equal complete Initial
+require equal independently sampled 32-byte Initial nonces. Charging
+that event identifies $g$, and the authoritative retained response
+identifies $a$. Its fixed tape, peer key, context and complete Initial
+determine both ciphertexts and component results and all ten fields of
+the ContextBound tuple. Source correctness supplies the same $S_0$ at
+the two endpoints. Thus $P_B=F(t_1,S_0\Vert S_1)$ is fixed before
+response signing. The framed initial/reply context separation and
+Lemma~\ref{lem:bootstrap-validation}'s monitor retain that selected
+challenge association at every admitted alias.
+\end{proof}
+
+For each adjacent endpoint used below, write $\alpha_{r,b}$ for this
+association cost. A valid choice is the sum, clipped at one, of the
+protected responder's purpose/body signature bound, one complete-query
+framed-hash collision bound, and $\binom G2 2^{-256}$. The ordinary
+signing-reservation bridge of
+Theorem~\ref{thm:native-mldsa-reservation-bridge} instantiates the
+appropriate surviving signer. Its budget includes the complete
+verification and continuation. The source pair requires $GA$ slots;
+the original response already identifies the relevant PRK request.
+
+\paragraph{Opening and original component embedding.}
+Let $H_k$ replace the first $k$ registered ACKs and set
+$H_{r,0}=H_{r-1}$, $H_{r,1}=H_r$. In either endpoint let $J_r$ be
+the pair of the $r$th registration, or $\bot$ if it is absent. For
+an available terminal bit $D$, the $\bot$ terms cancel: the adjacent
+machines are identical until that registration. After the association
+stop, their remaining difference is the sum of the expectations of
+$D\mathbf1[J_r=j]$ over fixed pairs $j$.
+
+Opening the selected source, $S_1$, PRK or seed before registration
+permanently excludes every future protected class of that family: the
+known $S_0$ and traditional material complete its eventual ACK recipe.
+The fixed-candidate reduction can stop with zero on this branch.
+After $J_r=j$, the global pre-return stop retains the available prefix
+and latched bit. These certificates use public bindings and immutable
+provenance, so they are executable before any unknown bytes are needed.
+
+For fixed $(r,j,b)$, use the two-stage operational ML-KEM game of
+Section~\ref{sec:contextbound-connection}. Associate its public key with
+the original generation slot $g$; retain its PQ tape as an opaque handle
+and generate the traditional leg locally. At $a$'s first private
+encapsulation, check its fixed peer binding, request the challenge once,
+and cache the ciphertext and challenge key before later persistence.
+Selected-owner decapsulations use the prechallenge oracle before that
+call. Afterwards its exact challenge ciphertext uses the cached key,
+and other ciphertexts use the permitted decapsulation oracle. Other
+owners keep their local keys. Native policy, token, body and traditional
+rejection checks remain in their actual order.
+
+\begin{lemma}[Fresh encapsulation and restored-owner validation]
+\label{lem:bootstrap-validation}
+Let $v_j$ bound all other original fresh encapsulation-input slots under
+the selected PQ public-key bytes, including unused and failed-retention
+draws and restored-owner validation draws. Let
+$\delta_{{\rm PKE},j}(v_j+1)$ bound a K-PKE correctness failure among
+these encapsulations and the selected one. The probability that another
+honest fresh encapsulation has the selected challenge ciphertext is at most
+\begin{equation}
+ \nu_{{\rm enc},j}=\min\{1,v_j2^{-256}
+                   +\delta_{{\rm PKE},j}(v_j+1)\}.
+ \label{eq:bootstrap-validation}
+\end{equation}
+\end{lemma}
+\begin{proof}
+ML-KEM encrypts the original 32-byte input $m$ using its specified
+K-PKE coins~\cite[Algorithms~14, 15, 17 and 18]{fips203}. Before a
+correctness failure, equal ciphertexts decrypt to equal original $m$.
+For each other fixed sampling slot, the later of its draw and the
+selected draw is independent uniform, giving equality probability
+$2^{-256}$. A union bound over the fixed lifetime slots proves the
+claim. A sampled but selectively unexecuted reservation remains counted.
+\end{proof}
+
+The adapter caches earlier honest fresh ciphertexts and checks them at
+challenge creation; it checks later ones before their results are used.
+This covers other response contexts and expanded-owner restoration.
+The latter performs fresh encapsulation and an expected/recovered-secret
+comparison. On a nonmatching ciphertext the ordinary decapsulation oracle
+therefore preserves the actual validation; a matching ciphertext incurs
+\eqref{eq:bootstrap-validation}. Exact replay of $a$ reuses its cached
+challenge. Write $a_{rj,b}$ for this complete component bit-comparison
+advantage, and $\delta_j$ for the source correctness cost, including the
+original Initial contribution, selected reply pair and imported/generated
+owner checks. The random component enters the complete ContextBound
+comparison, costing $\Phi_{256}(d_j,Q_{{\rm CB},rj,b})$ with $d_j=1$
+for this source-consistent interface. Its distinguished table output
+then realizes the hidden-second service of
+Theorem~\ref{thm:bootstrap-joint-entry}.
+
+\paragraph{Immutable records in the comparison.}
+Mark the conservative union of private record versions containing a
+value represented by an opaque handle at any stage of this reduction:
+the original tapes, expanded owner, component/contribution, PRK, seed,
+and retained root or activation values. Containing images, pending
+intents and later source-preserving copies inherit the mark. Public
+confirmation tags and fingerprints remain ordinary available outputs.
+A marked version stays marked after deletion or later opening.
+Let $C_j$ be successful raw-byte acquisition of any such object and put
+\begin{equation}
+ \eta_{{\rm cap},r}=\sum_{b=0}^{1}
+      \Pr_{H_{r,b}}[J_r\ne\bot\ \land\ C_{J_r}].
+ \label{eq:bootstrap-capture}
+\end{equation}
+Each endpoint uses its own history. Zeroing the candidate bit before a
+marked return changes its expectation by at most
+$\Pr_{H_{r,b}}[J_r=j\land C_j]$; summing pairs gives
+\eqref{eq:bootstrap-capture}.
+
+On the remaining branch, apply Corollary~\ref{cor:real-to-opaque}
+while real tapes are still known: first structural private-wire equality,
+then image/intent commitment replacement, and then the opaque renderer.
+Only afterwards embed the unknown component tape. A valid record cost is
+\[
+ \rho_{rj,b}=\min\left\{1,
+   \sum_{i=1}^{M_j}\Phi_{192}(d_i,Q_{i,rj,b})
+                  +\binom{M_j}{2}2^{-192}\right\},
+ \qquad d_i\le1+5K_i^{\rm hdr}.
+\]
+All fresh seals, including failed writes, enter $M_j$; exact retries
+reuse their original invocation. The nonce term is omitted when the
+interface has no private-wire equality query. The per-seal nonce remains
+private before the declared raw acquisition stop. This is the actual
+acquisition interface of the constructive record theorem.
+
+Thus the branch with no marked raw acquisition has
+$\eta_{{\rm cap},r}=0$. The general acquisition interface retains the
+explicit residual~\eqref{eq:bootstrap-capture}. Replacing it by a
+cryptographic record cost requires a joint comparison for the native
+journal key, its directly encrypted images and its derived operation
+and signer wrapping keys, preserving ciphertext-dependent commitments,
+exact copies and later openings. Guarded readability determines which
+observations reconstruct a source; the record comparison supplies the
+corresponding hidden-byte simulation.
+
+\paragraph{From effective descriptors to protected classes.}
+For an incoming independent opaque PRK family $p$, the root descriptor
+is $e=(p,\Gamma(s_c),I_B)$. Its seed's only raw uses are the root-entry
+Extracts; each PRK's raw uses are its three labelled Expand calls.
+The private-table comparisons remove the parent row interfaces before
+embedding child keys. The source retains $K_B$ in its pending state
+before activation, leaving a real interval for the online registration.
+
+\begin{lemma}[Deferred roots and full-wire classes]
+\label{lem:bootstrap-deferred}
+An independent private root-table entry accessed only through its
+identity before first raw return or activation can be sampled at that
+first exposure. At a protected first activation it supplies a fresh
+hidden challenge root. Before $\mathsf{Coll}$, two distinct complete
+classes in one PRK family sharing a root descriptor give a collision
+in the public compression oracle. With a complete query bound $Q_h$,
+that event has probability at most
+$\chi_h(Q_h)=\min\{1,C_{\rm col}(Q_h+2)^3 2^{-256}\}$.
+\end{lemma}
+\begin{proof}
+Before exposure the entry is an unused independent random register;
+all available classical and quantum computation is independent of its
+value. Its sampling commutes with that prefix. At the first exposure,
+draw a local value for a raw return or unprotected activation, or assign
+the next hidden challenge for a protected activation. Exact descriptor
+aliases retrieve the same value; independent entries may coincide.
+This argument applies after the record and full-root-table comparisons,
+which supply the value-independent handle interface.
+
+Equal $I_B$ implies equal contexts. If the distinct classes also had
+equal $s_c$, the collision-free complete-wire hashing would equate
+$x,y$. Their salts therefore differ. The injective pad map $I$ gives
+two different inputs $(I(s_c),\mathrm{IV})$ with equal $\alpha$.
+The random-function collision bound~\cite[Theorem~7]{zhandryCollision2015}
+applies to this witness with all honest work, monitoring and extraction
+in $Q_h$. One global finder suffices, without a pairwise transcript factor.
+\end{proof}
+
+Use $\Delta_{{\rm ent},p,b}$ from
+Lemma~\ref{lem:entry-information-length} with information length 93.
+For a bound $N_p$ on family $p$'s distinct root descriptors, define
+\begin{equation}
+ \begin{split}
+ D_b=\min\left\{1,\sum_p\left[
+   \varepsilon_{\rm Hrow}(3,q_{B,p,b},71)
+     +\Delta_{{\rm ent},p,b}\right.\right.\\
+ \left.\left.\hspace{12mm}
+  +\sum_{i=1}^{N_p}\bigl(
+      \varepsilon_{\rm Hjoint}(1,0,q_{A,pi,b},32)
+      +\varepsilon_{\rm Hrow}(5,q_{T,pi,b},144)\bigr)
+       \right]\right\}.
+ \end{split}
+ \label{eq:bootstrap-tail}
+\end{equation}
+Every query budget covers the complete derived experiment, including
+unprotected activations, other families, confirmations, allowed sibling
+observations and final testing, uniformly across its hybrids.
+
+\begin{proposition}[ACK-only comparison from opaque PRKs]
+\label{prop:bootstrap-ack-table}
+For the incoming opaque services and online experiment above, the
+ACK-only output-bit gap is at most
+$\min\{1,D_0+D_1+\chi_h(Q_{h,0})+\chi_h(Q_{h,1})\}$.
+\end{proposition}
+\begin{proof}
+In each endpoint stop at the descriptor-collision monitor. Replace its
+three bootstrap outputs by a private row and its root entries by their
+complete-descriptor table. By Lemma~\ref{lem:bootstrap-deferred}, a
+protected first activation now receives the next independent hidden
+root. Apply one Extract-column and one five-message-row comparison,
+then the exact prefix-consistent Expand-table identity. This yields
+five independent cached blocks per protected class at cost $D_b$;
+unprotected activations retain real computation under their current roots.
+
+In the two full-table endpoints, couple the fourth block to the independent
+replacement ACK. The other four blocks have the same joint distribution.
+The overwritten table value has no remaining internal use, because the
+Expand-table identity already removed the raw block-5 row input.
+Class aliases, registration, stops and continuation agree. The triangle
+inequality through these common-table endpoints gives the stated bound.
+\end{proof}
+
+\begin{theorem}[Original reply-source schedule connection]
+\label{thm:bootstrap-source-schedule}
+For the surviving-source profile above, set
+\[
+ \begin{split}
+ L_{rj,b}={}&\rho_{rj,b}+a_{rj,b}+\delta_j
+       +\Phi_{256}(d_j,Q_{{\rm CB},rj,b})\\
+       &+\Delta_{{\rm bs\text{-}entry},rj,b}
+        +D_{{\rm tail},rj,b}+\chi_h(Q_{h,rj,b}).
+ \end{split}
+\]
+Here $D_{{\rm tail},rj,b}$ is the appropriate one-endpoint cost
+of~\eqref{eq:bootstrap-tail}. The complete online ACK schedule satisfies
+\begin{equation}
+ \begin{split}
+ \varepsilon_{\rm bs\text{-}schedule}\le\min\left\{1,
+ \sum_{r=1}^{R}\left[
+       \alpha_{r,0}+\alpha_{r,1}+\eta_{{\rm cap},r}\right.\right.\\
+ \left.\left.\hspace{16mm}
+       +\sum_{j\in[G]\times[A]}\sum_{b=0}^{1}
+              (\nu_{{\rm enc},j}+L_{rj,b})\right]\right\}.
+ \end{split}
+ \label{eq:bootstrap-source-schedule}
+\end{equation}
+Uniform valid bounds give the resource factor $2RGA$ on
+$\nu_{\rm enc}+\rho+a+\delta+\Phi_{256}
+ +\Delta_{\rm bs\text{-}entry}+D_{\rm tail}+\chi_h$,
+plus $2R\alpha+\sum_r\eta_{{\rm cap},r}$, clipped at one.
+\end{theorem}
+\begin{proof}
+Telescope the adjacent ACK hybrids and charge their two association
+events. Cancel absent registrations and decompose each remaining
+terminal bit by its original pair. The pre-opening certificates add
+zero; marked acquisition contributes~\eqref{eq:bootstrap-capture},
+and fresh encapsulation collisions contribute
+\eqref{eq:bootstrap-validation}. In each fixed-candidate endpoint,
+replace constructible records, install the original component adapter,
+apply the complete-tuple comparison and the hidden-second entry, and
+then use the corresponding endpoint of
+Proposition~\ref{prop:bootstrap-ack-table}.
+Both resulting full-table experiments couple with the same terminal
+code $D\mathbf1[J_r=j]$, their own source ledgers and registration
+history, and the same used ACK entry. Their candidate expectations
+are equal. Summing their two costs and then the fixed pairs and ranks
+proves~\eqref{eq:bootstrap-source-schedule}.
+\end{proof}
+
+\begin{theorem}[Historical responder activation]
+\label{thm:bootstrap-terminal}
+Let $\mathsf{Bad}$ be the latched event that a registered initiator
+connection succeeds without an earlier durable activation of the same
+$c$ under its expected responder identity. If $q_v<2^{256}$ bounds
+distinct pre-activation tag guesses, then
+\begin{equation}
+ \Pr[\mathsf{Bad}]\le\min\left\{1,
+  \Pr[\mathsf{Coll}]+\varepsilon_{\rm bs\text{-}schedule}
+  +E_{\rm bs\text{-}mac}
+  +\frac{q_v}{2^{256}-q_v+1}\right\}.
+ \label{eq:bootstrap-terminal}
+\end{equation}
+In the ACK-only ideal endpoint $H_R$, mark immutable versions containing
+any registered replacement ACK key, including containing images, pending
+intents and exact copies. Marks retain their original typed provenance
+through deletion; public ACK tags are ordinary row outputs. Let
+$C_{\rm ACK}$ be raw acquisition of any marked object and
+$\eta_{\rm mac}=\Pr_{H_R}[C_{\rm ACK}]$. If $\rho_{\rm mac}$ is the
+real-to-opaque image/intent cost for this union of marked versions, then
+an explicit one-sided terminal comparison cost is
+\begin{equation}
+ E_{\rm bs\text{-}mac}=\min\left\{1,
+   \eta_{\rm mac}+\rho_{\rm mac}
+   +\sum_{r=1}^{R}\varepsilon_{\rm Hrow}(T_r,q_r,107)\right\}.
+ \label{eq:bootstrap-mac-records}
+\end{equation}
+The record cost has the displayed $\Phi_{192}$ and nonce-collision
+form, with all fresh seals counted. Each $T_r$ counts honest keyed
+and verification evaluations, including a valid tag later rejected by
+the floor check; each $q_r$ covers its complete derived experiment.
+For an interface admitting no marked raw acquisition,
+$\eta_{\rm mac}=0$.
+\end{theorem}
+\begin{proof}
+Charge the framed-hash collision, then apply
+Theorem~\ref{thm:bootstrap-source-schedule}. In $H_R$, zero the local
+terminal bit before a marked raw return; its expectation changes by at
+most $\eta_{\rm mac}$. Start with known sampled replacement keys and
+construct real records. Corollary~\ref{cor:real-to-opaque} replaces
+private-wire equality and then commitments before installing its opaque
+renderer, at cost $\rho_{\rm mac}$. The experiment's global recipe
+stop continues to preserve the latched event; the local acquisition
+comparison is charged separately.
+
+In this opaque-record experiment, replace registered uniform-key MAC rows
+in registration order using Lemma~\ref{lem:appendix-hmac-instances}.
+Each selected key is unused until its registration, and its only raw
+computation in the defined operation surface is the 107-byte ACK row.
+Other keys and their real operations remain in the complete continuation.
+Exact retries cache the same message; numerical key coincidences retain
+their ordinary shared-oracle treatment. The last experiment has opaque
+records, independent functions on the authenticated strings and its local
+capture-zero rule. This establishes the one-sided cost in
+\eqref{eq:bootstrap-mac-records}.
+
+Before the first matching responder activation, that responder has no
+admitted role-2 message state that can release the direction-1 tag.
+The initiator's ordinary direction-2 ACK has a separately designated key and
+direction string. The client checks the exact session, direction, epoch-zero
+encoding and tag before connection success. The as-yet unreleased
+ideal tag is uniform among at least $2^{256}-q_v+1$ values after
+negative feedback. A union bound over distinct guesses gives the last
+term; the local zero stop cannot introduce a successful guess. Replaying a previously authentic READY proof already supplies
+the matching historical activation. Later global recipe stops preserve the event
+observed on the earlier prefix.
+\end{proof}
+
+The conclusion follows the original transcript through restart and
+delayed delivery. Current local authority is checked at each connection
+return; the authenticated peer event is its matching earlier activation.
+The source-bound supplement records the exact schedule and durable-order
+pins, independent HMAC equations, short/long alias controls, late
+registration countermodels and both-endpoint acquisition accounting.
+% END SECTION SOURCE: bootstrap-authentication.tex
 % END SECTION SOURCE: computational-roadmap.tex
 % BEGIN SECTION SOURCE: established-results.tex
 \section{Mechanized recovery and separating executions}
@@ -5275,6 +5768,27 @@ instantiate different parts of the final bound: the key-entry argument
 supplies recovered secret material, and the signature bridge supplies
 its original-source attribution.
 
+\paragraph{From original bootstrap sources to peer activation.}
+The bootstrap connection follows a distinct source order: initial confirmation
+uses the first contribution before the response contribution exists, and the
+pending root is retained before message activation. The joint short/long
+entry preserves that cross-use. An unused private root-table value can then
+be assigned at its first activation, permitting online protection at the
+actual ACK boundary. Complete signed-wire classes are reconciled with
+effective pad descriptors by an explicit collision witness. The resulting
+comparison changes the ACK alone while retaining the actual sibling outputs.
+
+The original reply-source adapter connects this schedule to retained KEM
+tapes and restored-owner validation, with acquisition measured on immutable
+versions in both compared histories. It establishes a concrete surviving-PQ
+profile even when the first contribution and initiator signing identity
+are disclosed. Its terminal conclusion is the expected responder's historical
+activation of the exact transcript, which remains meaningful under retries
+and delayed READY delivery. A broader captured-byte simulation has the
+specific joint journal/derived-key interface described in
+Section~\ref{sec:bootstrap-authentication}; the present bound records its
+acquisition contribution explicitly.
+
 \paragraph{Exposure budgets and completed service.}
 The matched executions make the two-chain current-epoch capacity visible
 under a common communication budget. At the declared capture cut, budgets
@@ -5301,7 +5815,8 @@ record/report simulations connect an eligible native rekey to confidentiality
 and authentication of its marked message. Original-operation and shared-XOF
 reductions preserve source attribution through retained randomizers and exact
 replay. The finite key-entry comparison supplies a purpose-key instance,
-while the mechanized multi-epoch theorem and concrete executions establish
+and the bootstrap composition connects an original surviving source to
+historical peer activation. The mechanized multi-epoch theorem and concrete executions establish
 the corresponding provenance-based recovery statements. These results
 preserve the meaning of fresh randomness across durable retries, copies and
 asynchronous progress.
@@ -5807,6 +6322,31 @@ check the finite accounting and source interfaces used by that proof.
 python3 artifacts/native-online-chain/check_native_chain.py
 \end{verbatim}
 \end{quote}
+
+
+\subsection{Bootstrap source and terminal connection}
+\label{app:bootstrap-artifacts}
+
+The bootstrap supplement is retained in \path{artifacts/bootstrap/}.
+Its entry, terminal-schedule and original reply-source packets retain their
+complete proof notes, source identities, executable controls and original
+results. The source assessments are \texttt{b1cff2a0}, \texttt{360aa810}
+and \texttt{68549dbc}, respectively; full commit identities and Git-blob
+and SHA-256 checks are stored with the corresponding source snapshots.
+The manuscript integration separately binds the added ACK-row correspondence
+to \texttt{471900bf}. The mathematical statements appear in
+Section~\ref{sec:bootstrap-authentication} and
+Appendix~\ref{app:bootstrap-entry}.
+
+The controls check the actual short/long compression equations against HMAC,
+complete-descriptor aliasing, source-order and token-layout assertions,
+eager/deferred root-table distributions, the full-table ACK coupling,
+original-slot sampling budgets, and two-endpoint capture accounting.
+Countermodels distinguish pre-registration leakage, replacement feedback
+into Expand's fifth block and an executed-call budget that omits reserved
+but selectively unused samples. The integration receipt records their
+reproduction, the independent argument review and the exact source/paper
+identities. These finite checks exercise the analytical proof's interfaces.
 % END SECTION SOURCE: artifact-map.tex
 % BEGIN SECTION SOURCE: primitive-inputs.tex
 \section{Primitive inputs to the record and report bounds}
@@ -6152,6 +6692,128 @@ has $\ell(32)=2$, the traffic rows have maximum $\ell(188)=5$, and the
 selected chain row has $\ell(89)=3$. These counts include the previous
 HKDF output block where it is part of the actual HMAC message.
 % END SECTION SOURCE: joint-primitive-bounds.tex
+% BEGIN SECTION SOURCE: bootstrap-entry.tex
+\section{Joint entry from either bootstrap contribution}
+\label{app:bootstrap-entry}
+
+Bootstrap uses two 32-byte contributions, first $S_0$ and then $S_1$.
+The first also supplies initial confirmation before the second exists.
+This appendix gives the joint comparison needed when either contribution
+is the surviving hidden input. It uses the public compression oracle $h$,
+the HMAC notation $F$, and the pad maps $I,O,B,P,\Gamma$ of
+Appendix~\ref{app:joint-primitives}. Put
+\[
+ Q=\mathtt{80}\Vert0^{55}\Vert\operatorname{BE64}(1024).
+\]
+The exact short and long compression equations are
+\begin{align}
+ F(a,S)&=h\bigl(B(h(S\Vert P,\alpha(a))),\beta(a)\bigr),\nonumber\\
+ F(a,S\Vert v)&=h\bigl(B(h(Q,h(S\Vert v,\alpha(a)))),\beta(a)\bigr),
+ \label{eq:bootstrap-compression}\\
+ F(a,u\Vert S)&=h\bigl(B(h(Q,h(u\Vert S,\alpha(a)))),\beta(a)\bigr).
+ \nonumber
+\end{align}
+The encoded lengths include HMAC's consumed 64-byte key pad. As in
+Section~\ref{sec:sdk-purpose-connection}, $\sigma_{32}$ is the 32-byte
+zero extension of the SDK salt and has the same key pads as $\sigma$.
+
+Sample $S$ uniformly and independently of $h$ and the initial auxiliary
+state. The controller chooses available salts and known halves adaptively,
+uses the hidden contribution through the following classical services,
+and retains the complete downstream computation. The hidden-first service
+provides $P_0=F(\sigma_{32},S)$ and $P_B(a,v)=F(a,S\Vert v)$.
+The hidden-second service provides $P_B(a,u)=F(a,u\Vert S)$;
+initial confirmation from its known first contribution is ordinary local
+computation. Retained secret values have the declared opaque interface.
+All oracle-dependent preparation and the final test are counted.
+
+For hidden first, a raw class is $(v,\alpha(a))$. The short call belongs
+to $(P,\alpha(\sigma_{32}))$, so a long call with $v=P$ can have the
+same first private compression input. For hidden second the raw class is
+$(u,\alpha(a))$. In either orientation the complete long descriptor is
+$(\textit{known half},\alpha(a),\beta(a))$.
+Number raw classes by first allocation. Fix a lifetime bound $C$ on
+their number and per-slot bounds $A_i,B_i$ on distinct short and long
+outer-state calls. For hidden first, $A_i\le1$ and at most one short
+call occurs in an execution; for hidden second, $A_i=0$. The maxima
+hold uniformly in every derived experiment, even when a raw class
+occupies different slots in different executions.
+
+\begin{theorem}[Joint short and long bootstrap entry]
+\label{thm:bootstrap-joint-entry}
+The hidden-first service is within output-bit gap
+\begin{equation}
+ \begin{split}
+ \Delta_{\rm bs\text{-}entry}=\min\{1,\;&\Phi_{256}(C,q_{\rm raw})
+  +\sum_{i=1}^{C}\Phi_{256}(A_i+1,q_{{\rm mid},i})\\
+  &+\sum_{i=1}^{C}\Phi_{256}(B_i,q_{{\rm out},i})\}
+ \end{split}
+ \label{eq:bootstrap-joint-entry}
+\end{equation}
+of an independent uniform short PRK and a private random table of long
+PRKs indexed by the complete descriptors. The same bound applies to
+hidden second with its known-first continuation retained. Each $q$
+bounds the complete ordinary work in its reduction under the same $h$.
+The extra middle slot can be omitted for a class admitting no long call.
+\end{theorem}
+\begin{proof}
+For hidden first, the private encoding is
+$(v,s)\mapsto(S\Vert v,s)$, including the short class; for hidden
+second it is $(u,s)\mapsto(u\Vert S,s)$. Each fixed input has at most
+one preimage $S$, and distinct effective queries encode distinct points
+for every $S$. The hidden-input theorem of Don, Fehr and
+Huang~\cite[Theorem~2]{dfh2022} replaces these inputs by a private
+raw-class table at cost $\Phi_{256}(C,q_{\rm raw})$.
+
+At the $i$th allocated class, its table value $z_i$ is independent uniform.
+Its descendants are the tagged calls
+\[
+ (\mathrm{short},b)\longmapsto h(B(z_i),b),\qquad
+ \mathrm{pad}\longmapsto h(Q,z_i).
+\]
+Both encodings are injective in $z_i$. Distinct short calls preserve
+their chaining state. The short and padding ranges are disjoint: their
+message blocks end in $\operatorname{BE64}(768)$ and
+$\operatorname{BE64}(1024)$, respectively, for every $z_i$ and $b$.
+Replace classes in first-allocation order, assigning a presampled hidden
+challenge to the still unused parent-table value. The hidden-input
+bound with $A_i+1$ calls gives an independent short table and a fresh
+padding value $w_i$. A never-allocated slot changes no execution.
+
+After those comparisons, the only uses of $w_i$ are
+$b\mapsto h(B(w_i),b)$. Replace them in the same allocation order
+at cost $\Phi_{256}(B_i,q_{{\rm out},i})$. The resulting independent
+entry is indexed by the raw class and $b$, precisely the complete long
+descriptor. The sole short entry is independent of the long table.
+This proves~\eqref{eq:bootstrap-joint-entry} by the triangle inequality.
+
+All downstream confirmations and derivations are recomputed from the
+current replies. Locally known entries may numerically equal a hidden
+challenge; their real calls still use the common oracle and count toward
+the corresponding $q$. The proof therefore preserves such coincidences
+and the short/long raw-input alias without conditioning on their absence.
+\end{proof}
+
+An explicit conservative budget is available. Let $D$ bound distinct
+salt strings, including the SDK salt when present, and let $A,B$ bound
+the total distinct short and long outer calls in one execution. Here
+$A=1$ or $0$ according to the service. If $W$ bounds ordinary work
+outside the displayed entry equations, every $q$ can use
+\[
+ \bar q=W+2D+A+C+B.
+\]
+Cache classical subcalls by their available complete descriptors.
+The additional terms count salt-pad evaluations, short outer calls,
+one long padding call per raw class and long outer calls. This exact
+memoization preserves deterministic repeats; numerical coincidences
+between differently named inputs still use the shared oracle.
+
+Each fresh long-table entry can initialize an opaque three-label
+bootstrap PRK before its first use. Applying the downstream comparisons
+in descriptor-allocation order composes the theorem with
+Section~\ref{sec:bootstrap-authentication}. The source adapter there
+realizes the hidden-second service from the original reply KEM pair.
+% END SECTION SOURCE: bootstrap-entry.tex
 % BEGIN SECTION SOURCE: common-virtual-accounting.tex
 \section{Accounting through one common virtual experiment}
 \label{app:common-virtual}

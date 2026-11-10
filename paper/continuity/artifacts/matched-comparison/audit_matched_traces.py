@@ -21,6 +21,27 @@ SCENARIOS = ("alternating", "lossy", "reordered", "duplicates", "asymmetric",
 N = 2048
 
 
+def expected_manifest_paths():
+    """The complete public corpus contract, generated only from fixed labels."""
+    paths = ["matched-report.json", "reference-validation.json"]
+    for profile in PROFILES:
+        if profile.startswith("continuity-"):
+            paths.extend("native/" + profile + "-" + scenario + ".jsonl"
+                         for scenario in SCENARIOS)
+        else:
+            directory = profile if profile.startswith("spqr-") else \
+                "whole-kem/period-" + profile.rsplit("-", 1)[1]
+            paths.append(directory + "/report.json")
+            for scenario in SCENARIOS:
+                name = "ping_pong" if scenario == "alternating" else scenario
+                paths.extend(directory + "/" + name + suffix
+                             for suffix in (".jsonl", ".envelopes.jsonl", ".compromise.json"))
+    return tuple(sorted(paths))
+
+
+EXPECTED_MANIFEST_PATHS = expected_manifest_paths()
+
+
 def require(ok, message):
     if not ok:
         raise ValueError(message)
@@ -92,6 +113,26 @@ def manifest_path(directory, value):
     resolved = current.resolve(strict=True)
     require(resolved.is_relative_to(root), "manifest path escape")
     return current
+
+
+def manifest_records(manifest):
+    """Check metadata against the fixed corpus before any manifest-driven read.
+
+    Manifest text supplies expected sizes and digests, never a filesystem path.
+    Callers iterate EXPECTED_MANIFEST_PATHS and use this index only as metadata.
+    """
+    require(isinstance(manifest, dict) and manifest.get("status") == "complete"
+            and isinstance(manifest.get("files"), list), "public manifest inventory")
+    records = {}
+    for item in manifest["files"]:
+        require(isinstance(item, dict) and isinstance(item.get("path"), str),
+                "invalid manifest record")
+        name = item["path"]
+        require(name in EXPECTED_MANIFEST_PATHS, "unexpected manifest member")
+        require(name not in records, "duplicate manifest member")
+        records[name] = item
+    require(set(records) == set(EXPECTED_MANIFEST_PATHS), "public manifest inventory")
+    return records
 
 
 def sender(scenario, opportunity):
@@ -276,11 +317,10 @@ def main():
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
     evidence = args.evidence.resolve()
-    manifests = read(evidence/"manifest.json")
-    require(manifests["status"] == "complete" and len(manifests["files"]) == 126,
-            "public manifest inventory")
-    for item in manifests["files"]:
-        path = manifest_path(evidence, item["path"])
+    manifests = manifest_records(read(evidence/"manifest.json"))
+    for name in EXPECTED_MANIFEST_PATHS:
+        item = manifests[name]
+        path = manifest_path(evidence, name)
         data = read_bytes(path)
         require(len(data) == item["bytes"] and hashlib.sha256(data).hexdigest() == item["sha256"],
                 "manifest digest mismatch")

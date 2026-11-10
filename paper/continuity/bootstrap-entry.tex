@@ -1,0 +1,120 @@
+\section{Joint entry from either bootstrap contribution}
+\label{app:bootstrap-entry}
+
+Bootstrap uses two 32-byte contributions, first $S_0$ and then $S_1$.
+The first also supplies initial confirmation before the second exists.
+This appendix gives the joint comparison needed when either contribution
+is the surviving hidden input. It uses the public compression oracle $h$,
+the HMAC notation $F$, and the pad maps $I,O,B,P,\Gamma$ of
+Appendix~\ref{app:joint-primitives}. Put
+\[
+ Q=\mathtt{80}\Vert0^{55}\Vert\operatorname{BE64}(1024).
+\]
+The exact short and long compression equations are
+\begin{align}
+ F(a,S)&=h\bigl(B(h(S\Vert P,\alpha(a))),\beta(a)\bigr),\nonumber\\
+ F(a,S\Vert v)&=h\bigl(B(h(Q,h(S\Vert v,\alpha(a)))),\beta(a)\bigr),
+ \label{eq:bootstrap-compression}\\
+ F(a,u\Vert S)&=h\bigl(B(h(Q,h(u\Vert S,\alpha(a)))),\beta(a)\bigr).
+ \nonumber
+\end{align}
+The encoded lengths include HMAC's consumed 64-byte key pad. As in
+Section~\ref{sec:sdk-purpose-connection}, $\sigma_{32}$ is the 32-byte
+zero extension of the SDK salt and has the same key pads as $\sigma$.
+
+Sample $S$ uniformly and independently of $h$ and the initial auxiliary
+state. The controller chooses available salts and known halves adaptively,
+uses the hidden contribution through the following classical services,
+and retains the complete downstream computation. The hidden-first service
+provides $P_0=F(\sigma_{32},S)$ and $P_B(a,v)=F(a,S\Vert v)$.
+The hidden-second service provides $P_B(a,u)=F(a,u\Vert S)$;
+initial confirmation from its known first contribution is ordinary local
+computation. Retained secret values have the declared opaque interface.
+All oracle-dependent preparation and the final test are counted.
+
+For hidden first, a raw class is $(v,\alpha(a))$. The short call belongs
+to $(P,\alpha(\sigma_{32}))$, so a long call with $v=P$ can have the
+same first private compression input. For hidden second the raw class is
+$(u,\alpha(a))$. In either orientation the complete long descriptor is
+$(\textit{known half},\alpha(a),\beta(a))$.
+Number raw classes by first allocation. Fix a lifetime bound $C$ on
+their number and per-slot bounds $A_i,B_i$ on distinct short and long
+outer-state calls. For hidden first, $A_i\le1$ and at most one short
+call occurs in an execution; for hidden second, $A_i=0$. The maxima
+hold uniformly in every derived experiment, even when a raw class
+occupies different slots in different executions.
+
+\begin{theorem}[Joint short and long bootstrap entry]
+\label{thm:bootstrap-joint-entry}
+The hidden-first service is within output-bit gap
+\begin{equation}
+ \begin{split}
+ \Delta_{\rm bs\text{-}entry}=\min\{1,\;&\Phi_{256}(C,q_{\rm raw})
+  +\sum_{i=1}^{C}\Phi_{256}(A_i+1,q_{{\rm mid},i})\\
+  &+\sum_{i=1}^{C}\Phi_{256}(B_i,q_{{\rm out},i})\}
+ \end{split}
+ \label{eq:bootstrap-joint-entry}
+\end{equation}
+of an independent uniform short PRK and a private random table of long
+PRKs indexed by the complete descriptors. The same bound applies to
+hidden second with its known-first continuation retained. Each $q$
+bounds the complete ordinary work in its reduction under the same $h$.
+The extra middle slot can be omitted for a class admitting no long call.
+\end{theorem}
+\begin{proof}
+For hidden first, the private encoding is
+$(v,s)\mapsto(S\Vert v,s)$, including the short class; for hidden
+second it is $(u,s)\mapsto(u\Vert S,s)$. Each fixed input has at most
+one preimage $S$, and distinct effective queries encode distinct points
+for every $S$. The hidden-input theorem of Don, Fehr and
+Huang~\cite[Theorem~2]{dfh2022} replaces these inputs by a private
+raw-class table at cost $\Phi_{256}(C,q_{\rm raw})$.
+
+At the $i$th allocated class, its table value $z_i$ is independent uniform.
+Its descendants are the tagged calls
+\[
+ (\mathrm{short},b)\longmapsto h(B(z_i),b),\qquad
+ \mathrm{pad}\longmapsto h(Q,z_i).
+\]
+Both encodings are injective in $z_i$. Distinct short calls preserve
+their chaining state. The short and padding ranges are disjoint: their
+message blocks end in $\operatorname{BE64}(768)$ and
+$\operatorname{BE64}(1024)$, respectively, for every $z_i$ and $b$.
+Replace classes in first-allocation order, assigning a presampled hidden
+challenge to the still unused parent-table value. The hidden-input
+bound with $A_i+1$ calls gives an independent short table and a fresh
+padding value $w_i$. A never-allocated slot changes no execution.
+
+After those comparisons, the only uses of $w_i$ are
+$b\mapsto h(B(w_i),b)$. Replace them in the same allocation order
+at cost $\Phi_{256}(B_i,q_{{\rm out},i})$. The resulting independent
+entry is indexed by the raw class and $b$, precisely the complete long
+descriptor. The sole short entry is independent of the long table.
+This proves~\eqref{eq:bootstrap-joint-entry} by the triangle inequality.
+
+All downstream confirmations and derivations are recomputed from the
+current replies. Locally known entries may numerically equal a hidden
+challenge; their real calls still use the common oracle and count toward
+the corresponding $q$. The proof therefore preserves such coincidences
+and the short/long raw-input alias without conditioning on their absence.
+\end{proof}
+
+An explicit conservative budget is available. Let $D$ bound distinct
+salt strings, including the SDK salt when present, and let $A,B$ bound
+the total distinct short and long outer calls in one execution. Here
+$A=1$ or $0$ according to the service. If $W$ bounds ordinary work
+outside the displayed entry equations, every $q$ can use
+\[
+ \bar q=W+2D+A+C+B.
+\]
+Cache classical subcalls by their available complete descriptors.
+The additional terms count salt-pad evaluations, short outer calls,
+one long padding call per raw class and long outer calls. This exact
+memoization preserves deterministic repeats; numerical coincidences
+between differently named inputs still use the shared oracle.
+
+Each fresh long-table entry can initialize an opaque three-label
+bootstrap PRK before its first use. Applying the downstream comparisons
+in descriptor-allocation order composes the theorem with
+Section~\ref{sec:bootstrap-authentication}. The source adapter there
+realizes the hidden-second service from the original reply KEM pair.

@@ -123,8 +123,8 @@ class AuditInputBoundaryTests(unittest.TestCase):
         evidence.mkdir()
         data = b"abc"
         files = []
-        for index in range(126):
-            name = f"object-{index}.bin"
+        for name in audit.EXPECTED_MANIFEST_PATHS:
+            (evidence / name).parent.mkdir(parents=True, exist_ok=True)
             (evidence / name).write_bytes(data)
             files.append({"path": name, "bytes": len(data),
                           "sha256": hashlib.sha256(data).hexdigest()})
@@ -157,6 +157,32 @@ class AuditInputBoundaryTests(unittest.TestCase):
         self.assertEqual(report["compact_results_sha256"], hashlib.sha256(compact_bytes).hexdigest())
         self.assertNotEqual(report["compact_results_sha256"], hashlib.sha256(compact.read_bytes()).hexdigest())
         self.assertEqual(report["compact_rows_equal"], 49)
+
+    def test_fixed_inventory_matches_the_retained_public_corpus(self):
+        source = Path(__file__).resolve().parent / "sources/public-manifest.json"
+        manifest = json.loads(source.read_text())
+        admitted = audit.manifest_records(manifest)
+        self.assertEqual(len(admitted), 126)
+        self.assertEqual(tuple(sorted(admitted)), audit.EXPECTED_MANIFEST_PATHS)
+
+    def test_manifest_cannot_choose_even_a_canonical_unrelated_file(self):
+        source = Path(__file__).resolve().parent / "sources/public-manifest.json"
+        for value in ("../outside", "/outside", "C:/outside", "unrelated.json"):
+            manifest = json.loads(source.read_text())
+            manifest["files"][0]["path"] = value
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "unexpected"):
+                audit.manifest_records(manifest)
+
+    def test_manifest_rejects_duplicate_or_missing_expected_members(self):
+        source = Path(__file__).resolve().parent / "sources/public-manifest.json"
+        manifest = json.loads(source.read_text())
+        manifest["files"][-1] = dict(manifest["files"][0])
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            audit.manifest_records(manifest)
+        manifest = json.loads(source.read_text())
+        manifest["files"].pop()
+        with self.assertRaisesRegex(ValueError, "inventory"):
+            audit.manifest_records(manifest)
 
 
 if __name__ == "__main__":
