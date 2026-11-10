@@ -74,7 +74,7 @@ jobs:
           run-id: ${{ steps.sdk.outputs.sdk_run_id }}
           github-token: ${{ github.token }}
           path: target/continuity-sdk-input
-      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
         with:
           distribution: temurin
           java-version: "25"
@@ -224,7 +224,7 @@ jobs:
           run-id: ${{ steps.inputs.outputs.sdk_run_id }}
           github-token: ${{ github.token }}
           path: target/continuity-sdk-input
-      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
         with:
           distribution: temurin
           java-version: "25"

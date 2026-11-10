@@ -83,7 +83,7 @@ PINNED_CODEQL_ACTION = (
     "# v4.38.2"
 )
 PINNED_SETUP_JAVA_ACTION = (
-    "actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0"
+    "actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0"
 )
 EXPECTED_CHECKOUT_STEP = (
     f"      - uses: {PINNED_CHECKOUT_ACTION}\n"

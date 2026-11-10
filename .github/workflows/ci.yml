@@ -88,7 +88,7 @@ jobs:
       # verifiers cannot silently remain local-only because an explicit list drifted.
       # setup-java selects JAVA_HOME and prepends the same JDK's bin to PATH.
       - name: Set up Java 21 LTS
-        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: "21"
@@ -1314,7 +1314,7 @@ jobs:
           toolchain: 1.98.1
           components: llvm-tools
       - name: Set up Java 25 LTS
-        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: "25"
@@ -1415,7 +1415,7 @@ jobs:
           toolchain: 1.98.1
           targets: aarch64-linux-android,x86_64-linux-android,armv7-linux-androideabi,i686-linux-android
       - name: Set up Java 21 LTS
-        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: "21"
@@ -1533,7 +1533,7 @@ jobs:
           test "$(rustc --version)" = "rustc 1.98.1 (48a229cea 2026-09-01)"
           test "$(cargo --version)" = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
       - name: Set up Java 21 LTS
-        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: "21"
@@ -1874,7 +1874,7 @@ jobs:
           case "$QPERIAPT_PYTHON" in /*) ;; *) exit 2 ;; esac
           "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 14, 7) else 2)'
       - name: Set up Java 21 LTS
-        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: "21"
@@ -2288,7 +2288,7 @@ jobs:
           path: target/continuity-sdk-input
       - name: Set up Java 25 for installed Continuity consumers
         if: matrix.consumer != 'swift'
-        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: "25"
