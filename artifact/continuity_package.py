@@ -58,6 +58,7 @@ def source_inputs() -> dict:
         "artifact/continuity_android_roster_qualification.py", "artifact/continuity_android_retirement.py",
         "artifact/continuity_android_root.py", "artifact/continuity_apple_package.py",
         "artifact/continuity_apple_consumer.py", "artifact/apple_sdk_profile.py",
+        "artifact/continuity_native_package.py", "docs/continuity/NATIVE_DISTRIBUTION_0_2.md",
         "artifact/deterministic_archive.py"))
     files.extend((ROOT / "bindings/swift/ContinuityBinaryConsumer").rglob("*"))
     from continuity_android_jni import source_files as android_source_files
@@ -393,6 +394,10 @@ def admit_sdk_report(path: Path, expected_digest: str, current_workspace: str,
 def qualify(args: argparse.Namespace) -> dict:
     profiles = profiles_contract.validate_profiles(
         profiles_contract.PROFILES if args.build_profile is None else (args.build_profile,))
+    with_native_package = getattr(args, "with_native_package", False)
+    sdk.require(not with_native_package or (args.with_c_consumer and args.build_profile is None
+                and os.uname().sysname == "Linux" and os.uname().machine in {"x86_64", "aarch64"}),
+                "native package requires complete installed C qualification on supported Linux")
     if args.build_profile is not None:
         sdk.require(args.with_c_consumer and sum((args.with_swift_consumer, args.with_kotlin_consumer,
                     args.with_android_jni_consumer)) == 1 and args.with_apple_package == args.with_swift_consumer,
@@ -557,6 +562,10 @@ def qualify(args: argparse.Namespace) -> dict:
         if args.with_apple_package:
             from continuity_apple_package import qualify_apple
             result["apple_package"] = qualify_apple(outside, output, environment)
+        if with_native_package:
+            from continuity_native_package import qualify_native
+            result["native_package"] = qualify_native(outside, output, result["c_consumer"], cargo, environment,
+                source_commit=commit, engine_package_id=args.native_engine_package_id)
         if args.with_swift_consumer:
             from continuity_swift_consumer import qualify_swift
             result["swift_consumer"] = qualify_swift(outside, output, result["c_consumer"], environment,
@@ -617,6 +626,10 @@ def main() -> None:
                         help="also execute unpublished C client/server/cleanup, sync-interruption and signed TCP/mutual TLS witness profiles")
     parser.add_argument("--with-apple-package", action="store_true",
                         help="build and consume the macOS/iOS/arm64-simulator static Swift binary package")
+    parser.add_argument("--with-native-package", action="store_true",
+                        help="archive the qualified Linux Release C library and execute a relocated C probe")
+    parser.add_argument("--native-engine-package-id", default="continuity-engine",
+                        help="engine row ID in the coordinated release manifest (with --with-native-package)")
     parser.add_argument("--with-swift-consumer", action="store_true",
                         help="also package and execute the Swift owner with the installed C engine on macOS")
     parser.add_argument("--swift-minimum-toolchain-root", type=Path,
@@ -632,7 +645,7 @@ def main() -> None:
                         help="also require bidirectional witness TLS interoperability with this OpenSSL installation (bin/include/lib)")
     result = qualify(parser.parse_args())
     print(json.dumps({key: result[key] for key in ("completed", "partition_completed", "build_profiles", "archive", "resolution", "execution",
-                                                  "c_consumer", "swift_consumer", "apple_package", "kotlin_consumer", "android_jni_consumer", "release_claim_eligible") if key in result}, indent=2))
+                                                  "c_consumer", "swift_consumer", "apple_package", "native_package", "kotlin_consumer", "android_jni_consumer", "release_claim_eligible") if key in result}, indent=2))
 
 
 if __name__ == "__main__":

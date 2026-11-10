@@ -2166,7 +2166,7 @@ jobs:
           sh artifact/python-run.sh artifact/continuity_package.py \
             --report "$report" --report-sha256 "$report_sha256" \
             --toolchain-root "$(rustc +1.98.1 --print sysroot)" \
-            --with-c-consumer --witness-openssl-prefix /usr \
+            --with-c-consumer --with-native-package --witness-openssl-prefix /usr \
             --output target/continuity-installed-rust
       - name: Retain package and public execution evidence without private test state
         if: always()
@@ -2175,7 +2175,9 @@ jobs:
           name: continuity-installed-rust
           path: |
             target/continuity-installed-rust/*.crate
+            target/continuity-installed-rust/q-periapt-continuity-native-*.zip
             target/continuity-installed-rust/*.json
+            target/continuity-installed-rust/native-package/**
             target/continuity-installed-rust/*.stdout
             target/continuity-installed-rust/*.stderr
             target/continuity-installed-rust/*.events
