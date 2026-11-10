@@ -145,7 +145,12 @@ The measured overrun motivates a separate 900-second Metrics allowance and the l
 job bound for quality checks and diagnostic retention. Current-source CI remains required.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-1173 tracked `.rs` files to be successfully extracted. Each profile requires zero
+1241 tracked `.rs` files to be successfully extracted. This includes 1173 current
+sources and 68 retained bootstrap proof snapshots, whose exact paths and bytes
+are bound by five pinned `SOURCE_PINS.json` manifests. The
+[archive inventory](artifact/CODEQL_RUST_ARCHIVES.md) identifies every snapshot's
+source commit and role. Added, removed or changed snapshots and Cargo manifests
+inside their source packets fail the gate. Each profile requires zero
 extraction warnings, extraction errors, unextracted elements, AST/CFG/SSA/data-flow
 inconsistencies, and source format arguments without an expression or data-flow
 node, together with non-vacuous macro and format-argument sentinels. Path and type
@@ -159,6 +164,10 @@ analysis; current-source extraction, macro coverage and query results are still
 required.
 
 The full macro census preserves entity multiplicity and raw unresolved counts.
+The 68 frozen source snapshots remain in that census, with expanded and unresolved
+archive entities counted separately. They cannot appear in compiler inputs or
+supply the current-source macro sentinel. The current sources retain the same
+target-specific compilation and macro-coverage requirements.
 Each profile binds actual compiler source dependencies from the depfiles selected
 by successful Cargo JSON artifacts. An unresolved executable macro in a compiled
 source fails in that profile even if another profile expands it. An inactive source

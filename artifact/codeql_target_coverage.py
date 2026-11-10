@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 import re
 
-from codeql_rust_quality import CodeQLRustQualityError
+from codeql_rust_quality import CodeQLRustQualityError, archived_macro_paths
 
 
 @dataclass(frozen=True)
@@ -81,6 +81,12 @@ def validate_active_macro_coverage(profile: MacroProfile) -> None:
         raise CodeQLRustQualityError("macro coverage requires source byte identities")
     if not profile.compiled_sources or not profile.compiled_sources <= source.keys():
         raise CodeQLRustQualityError("compiled source inventory is empty or outside the source")
+    try:
+        archived = archived_macro_paths(source)
+    except (OSError, ValueError) as exc:
+        raise CodeQLRustQualityError(f"cannot validate macro archive identity: {exc}") from exc
+    if archived & profile.compiled_sources:
+        raise CodeQLRustQualityError("archived paper source appears in compiler inputs")
     if any(call.path not in source for call in profile.calls):
         raise CodeQLRustQualityError("macro census contains untracked source")
     if (type(profile.source_macro_count) is not int or profile.source_macro_count <= 0
@@ -89,6 +95,8 @@ def validate_active_macro_coverage(profile: MacroProfile) -> None:
     if (type(profile.unresolved_macro_count) is not int
             or sum(not call.expanded for call in profile.calls) != profile.unresolved_macro_count):
         raise CodeQLRustQualityError("unresolved macro count differs from the raw metric")
+    if not any(call.path not in archived for call in profile.calls):
+        raise CodeQLRustQualityError("current source macro sentinel must be nonzero")
     failures = [call.site for call in profile.calls if not call.expanded
                 and call.context == "code" and call.path in profile.compiled_sources]
     if failures:
@@ -106,6 +114,7 @@ def validate_macro_profiles(profiles: Sequence[MacroProfile]) -> dict[str, dict[
             raise CodeQLRustQualityError("macro profiles do not use the same source bytes")
         validate_active_macro_coverage(profile)
 
+    archived = archived_macro_paths(source)
     covered = {profile.target: {call.key for call in profile.calls
                                if call.expanded or (call.context == "export_name"
                                                     and call.path in profile.compiled_sources)}
@@ -117,8 +126,14 @@ def validate_macro_profiles(profiles: Sequence[MacroProfile]) -> dict[str, dict[
     failures = []
     for profile in profiles:
         counts: Counter[str] = Counter({"expanded": 0, "compiler_export_metadata": 0,
-                                       "inactive_with_compiled_peer": 0})
+                                       "inactive_with_compiled_peer": 0,
+                                       "archived_snapshot_expanded": 0,
+                                       "archived_snapshot_unresolved": 0})
         for call in profile.calls:
+            if call.path in archived:
+                counts["archived_snapshot_expanded" if call.expanded
+                       else "archived_snapshot_unresolved"] += 1
+                continue
             if call.expanded:
                 counts["expanded"] += 1
                 continue
