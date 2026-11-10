@@ -511,8 +511,9 @@ release artifact.
   selects whether the latest clean-tree rerun is current
   (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). The local release-index slot always requires the
   canonical arm64-v8a API 35 / 16 KiB release-mode AVD; a physical proof cannot replace it. CI runs
-  a real x86_64 API-35/16-KiB ART package-face job on every push and pull request, but that
-  architecture-specific CI evidence is not interchangeable with the canonical release AVD.
+  a real x86_64 API-35/16-KiB ART package-face job for pull requests, pushes to `main`
+  and `integration/sdk-020`, tag pushes and explicit manual runs. That architecture-specific
+  CI evidence is not interchangeable with the canonical release AVD.
   The independent `android_physical_runtime` results selection and manifest-bound gate are
   implemented. Production requires canonical and physical runtime states both equal 1 over the same
   clean source and exact AAR; without that selected real physical run, the aggregate remains

@@ -70,7 +70,7 @@ TEST_COMMIT = "a" * 40
 TEST_SOURCE_SHA256 = "b" * 64
 TEST_MANIFEST_SHA256 = "c" * 64
 PINNED_CHECKOUT_ACTION = (
-    "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0"
+    "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1"
 )
 PINNED_DOWNLOAD_ARTIFACT_ACTION = (
     "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1"
@@ -5781,7 +5781,7 @@ with _temporary_release_test_directories(parents):
             "hyphen alias": check_job + "      - uses: *-foo\n",
             "merge alias": check_job + "        <<: *checkout-settings\n",
             "second checkout": check_job
-            + "      - uses: Actions/Checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\n",
+            + "      - uses: Actions/Checkout@3d3c42e5aac5ba805825da76410c181273ba90b1\n",
         }
         for label, mutation in mutations.items():
             with self.subTest(label=label):

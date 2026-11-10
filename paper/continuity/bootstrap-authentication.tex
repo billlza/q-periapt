@@ -23,9 +23,15 @@ bytes. With the source's framed SHA3 oracle $H$, define
 \]
 The two complete-wire hashes include their distinct source domains.
 Write $F$ for HMAC under the shared SHA-256 compression oracle $h$.
-The bootstrap and message domains $D_B,D_M$ have 48 and 43 bytes.
-For the Reply core $t_1$ and the complete source information strings,
-the schedule is
+The bootstrap KDF and message domains $D_B,D_M$ have 48 and 43 bytes.
+Let $y_{\rm core}$ contain the Reply prefix and ciphertext, ending before
+its confirmation tag and outer signature, and put
+$t_1=H_{\rm reply\text{-}core}(y_{\rm core})\in\{0,1\}^{256}$ using the
+source's distinct framed SHA3 domain. Set
+$I_s=D_B\Vert\texttt{handshake-seed}$,
+$I_R=D_B\Vert\texttt{confirmation-responder}$ and
+$I_I=D_B\Vert\texttt{confirmation-initiator}$.
+The schedule is
 \begin{equation}
  \begin{aligned}
  P_B&=F(t_1,S_0\Vert S_1),\\

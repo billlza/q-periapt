@@ -55,15 +55,29 @@ layout text, with 48 embedded fonts and no unresolved references or overfull
 boxes. Source correspondence, preservation and export receipts are recorded
 in `artifacts/editorial-review/main-result-entry/`.
 
-## Focus of the final submission pass
+## Completed integrated consistency pass
 
-The remaining paper-wide read-through starts from the completed main-result
-entry and selection table. It should reconcile the notation for original
-invocation slots, material handles and chain indices across sections; follow
-the stated disclosure interfaces and whole-execution budgets into the final
-bounds; and check that cross-references guide a reader through the component
-and native arguments. This is an integrated consistency and exposition pass
-over the established results.
+The integrated read-through follows the main online selected-message result
+and both bootstrap source connections through 21 theorem-facing modules. It
+checks original invocation slots, complete material handles and chain indices;
+the acquisition and named-projection interfaces; and whole-execution budgets
+and signed-score/event-bit coefficients across the component and native
+arguments. The review confirms the original-source localization and the
+separate downstream family cost in the Initial-source profile.
+
+The concrete clarification from this pass is now integrated: the bootstrap
+salt is the 32-byte framed SHA3-256 digest of the Reply core, with the three
+complete KDF information strings stated explicitly. This matches the pinned
+implementation and the existing compression-level salt interface. All 57
+formal statement/definition/remark environments and 168 displayed-math groups
+remain byte-identical to the preceding manuscript. Of 52 proof blocks, 51 are
+byte-identical; one explanatory sentence now names the digest explicitly.
+The 119-page reading copy and independent nine-file source-export build pass
+their document checks. The source audit, focused byte calculations,
+independent integration review and preservation receipts are recorded in
+`artifacts/editorial-review/integrated-consistency/`.
+
+## Focus of the final submission pass
 
 The final author pass should confirm the closest-work distinctions against
 the retained primary-source audit and assess the title, abstract and
@@ -79,7 +93,7 @@ interfaces remain separate research opportunities.
 The existing **17–24 November 2026** submission-manuscript planning window
 applies to these remaining tasks. It is the **five to ten focused working
 days** allocated from the 10 November checkpoint, including the main-result
-entry and selection-timing work now completed. A newly identified defect in
+entry, selection-timing and integrated consistency work now completed. A newly identified defect in
 the central argument would require revising that estimate. A journal
 acceptance decision follows external review and has no fixed date in this
 assessment. SDK 0.2.0 release admission proceeds through its own platform
