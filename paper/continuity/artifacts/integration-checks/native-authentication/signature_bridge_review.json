@@ -1,0 +1,77 @@
+{
+  "date_utc": "2026-11-08",
+  "reviewed_commit": "621ae301da5f479fa2401689893c78399512548e",
+  "native_checkpoint": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+  "upstream_checkpoint": "8d456d989dce681233ef963d3c3306da8f76d7c7",
+  "outcome": "accepted_in_declared_model",
+  "scope": "Independent internal mathematical review of generic and native reservation-to-ordinary signature reductions; no external peer-review claim.",
+  "identities": [
+    {
+      "path": "paper/continuity/reservation-signature-bridge.tex",
+      "bytes": 11624,
+      "sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+      "git_blob_sha1": "a78454db982b35557bb78d673049caf449b4ba2e",
+      "matches_reviewed_worktree": true
+    },
+    {
+      "path": "paper/continuity/artifacts/signature-bridge/proof.md",
+      "bytes": 37705,
+      "sha256": "a9f3bb6ba4934c1d5cd0e20ec978ba17a07bcf427aac21c7a0042f1fea9868c2",
+      "git_blob_sha1": "8db3ae2761ca99a878d93e6f4c006efbde4eb29d",
+      "matches_reviewed_worktree": true
+    },
+    {
+      "path": "paper/continuity/artifacts/signature-bridge/check_bridge.py",
+      "bytes": 14431,
+      "sha256": "c476ee077f38e15cbb79eb39d793070cbe7a6980a730d789511d5022bfd55635",
+      "git_blob_sha1": "09647a24da22a0599fe0a630a7644d2cef91a4d3",
+      "matches_reviewed_worktree": true
+    },
+    {
+      "path": "paper/continuity/artifacts/signature-bridge/source_identity.json",
+      "bytes": 6700,
+      "sha256": "09eed0e31a48d9663c06e20a8dad0d8e832c87a1cb12d47a6646fb4660b2908c",
+      "git_blob_sha1": "3a2ba7203468845ef60d705fe149d720c9a3ec99",
+      "matches_reviewed_worktree": true
+    },
+    {
+      "path": "paper/continuity/source-attribution.tex",
+      "bytes": 12838,
+      "sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+      "git_blob_sha1": "46e83b19ada210e2f8a5dd3a5f373e388a6953c2",
+      "matches_reviewed_worktree": true
+    }
+  ],
+  "source_audit": {
+    "command": "python paper/continuity/artifacts/signature-bridge/check_bridge.py --repository /workspace/scratch/10a56274b2b6/q-periapt --crate-archive paper/continuity/artifacts/signature-bridge/sources/fips204-0.4.6.crate",
+    "exit_code": 0,
+    "status": "passed",
+    "source_metadata_license_files": 24,
+    "original_crate_authenticated": true,
+    "archive_sha256": "c9fb5a367b9846933e271a3c2a992930743f82ae5e8cb7faa780715a80fa0b15",
+    "external_checkout_checked": true
+  },
+  "material_assumptions": [
+    "Classical reservation/signing/verification interface; public SHAKE256 random XOF may be queried coherently.",
+    "SHAKE128 and other companion interfaces are independent of the modeled SHAKE256 table and retained identically across the comparison.",
+    "Fresh independently generated owner families; exact aliases retain declared lineage.",
+    "Target interface stops before key/seed/owner-file return, with no earlier secret-byte-dependent observation.",
+    "Complete target seed and hedge rewrites include reopening, retry and failed publication; every remaining sensitive-capable query is charged in the corresponding complete-experiment budget.",
+    "Fixed resource caps cover every compared hybrid; ordinary EUF receives full simulation and oracle cost."
+  ],
+  "findings": {
+    "blocking_defects": [],
+    "math_checks_passed": [
+      "Complete-pair cache and original-message ledger correctly handle visible randomizer selection/collisions, descriptor aliases and failed publication.",
+      "Hidden ordinary-challenger randomizer repetition, not visible reserve count, produces the stated birthday term.",
+      "Joint selected-point/selected-prefix XOF construction has the native keygen/oracle joint distribution.",
+      "Ideal query-register state is independent of dormant xi and K after all designated rewrites.",
+      "The disjoint 34-byte/128-byte sectors yield expected support mass at most 2^-256 for one query.",
+      "Telescoping from ideal prefixes and Jensen give 2 q_* 2^-128; event distance is at most the Euclidean pure-state distance.",
+      "Selected-owner embedding handles other-owner disclosures and adaptive creation with factor U.",
+      "Ordinary signing-query ledger is a subset of the family ledger, which is a subset of the actual-key ledger; accidental equal keys remain in the experiment.",
+      "Safe-domain native call inventory agrees with FIPS 204 Algorithms 6/7 and the fixed source."
+    ],
+    "next_task": "Review native authentication-event bit composition with its own record, component and correctness comparisons."
+  }
+}

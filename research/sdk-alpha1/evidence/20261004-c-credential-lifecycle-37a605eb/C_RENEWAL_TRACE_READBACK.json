@@ -1,0 +1,13 @@
+{
+  "completed": true,
+  "tests": [
+    "credential_renewal::c_original_registration_stages_current_root_grant_and_retains_signer_and_installation",
+    "credential_renewal::c_real_clock_expired_pending_reconciles_without_policy_or_tls_for_status_and_recovers_original_registration",
+    "credential_renewal::peer_credential_renewal::c_peer_grants_restore_original_expired_session_and_fence_cached_children"
+  ],
+  "actual_wall_clock": true,
+  "target_until": 1791100653,
+  "observed_at": 1791100653,
+  "scope": "C ABI runtime assertions with original-registration and historical peer readbacks; same native engine; no renewed TLS delivery, required-witness local renewal or independent-engine claim",
+  "release_claim_eligible": false
+}

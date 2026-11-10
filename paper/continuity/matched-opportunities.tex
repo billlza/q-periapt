@@ -1,0 +1,107 @@
+\subsection{Matched directed opportunities and admitted service}
+\label{sec:matched-opportunities}
+
+The matched experiment executes native Continuity with per-direction send
+budgets $b\in\{32,64\}$ and the five reference profiles under seven common
+schedules. Its 49 configuration--schedule pairs place exposure, admitted
+application work and communication cost on the same opportunity budget.
+The protocol source is fixed at \texttt{358b921a}; the reference SPQR revision
+and its isolated chunk-width variant retain the identities stated above.
+
+\paragraph{Workload and capture.}
+Each schedule contains 2,048 directed transmission opportunities, indexed
+0--2,047. The designated sender receives one 32-byte application request at
+each opportunity and may emit at most one frame of at most 8,192 bytes.
+Uncommitted requests remain in its FIFO queue. A response queued by receipt
+uses a later opportunity in the response direction. Protocol retries consume
+opportunities and retain their exact bytes; network duplication adds only a
+delivery. Terminal draining delivers already emitted frames.
+
+Both capture experiments use the cut after opportunity 0's scheduled
+local and network actions and its checkpoint, and before opportunity 1
+begins local computation. They separately acquire the complete current session
+state of $A$ or $B$, together with every public emission, including packets
+lost before delivery. For Continuity this is the selected session record and
+its matching wrapping key; its independently owned identity signer remains
+separate. The references authenticate through their session MAC state.
+One application has been committed before the cut in every profile, so the
+post-capture denominator is the total first-commitment count minus one.
+
+Native admission is a DeviceJournal-committed ciphertext; reference admission
+is a returned component state, with a separately executed 32-byte-payload
+AEAD audit. The native predictor derives candidate keys from the captured
+epoch-zero chain seeds and checks them against the actual ciphertext, with
+altered-seed rejection controls. Reference predictors recover component
+message keys, and the execution audits their envelopes with the actual keys
+and wrong-key controls. The displayed derived sets are the outputs of these
+specified predictors. The cryptographic recovery results use the eligibility
+and observation interfaces of Sections~\ref{sec:security-model}
+and~\ref{sec:computation}.
+
+\paragraph{Current-epoch capacity and renewed exchange.}
+At this cut, the first application has consumed one of the two directions'
+epoch-zero allocation indices, and the captured native records contain no
+pending rekey entropy. Each direction admits at most $b$ first allocations
+under that epoch. Thus at most $2b-1$ further epoch-zero allocations remain;
+exact retransmissions reuse their original allocation. Equality requires both
+directions to use their remaining epoch-zero capacity. This elementary
+allocation count supplies the exposure envelope tested by the native trace
+predictor.
+
+\input{matched-opportunity-tables}
+
+In the alternating schedule, reducing $b$ from 64 to 32 changes the derived
+set from 127 of 717 post-capture commitments to 63 of 687
+(Table~\ref{tab:matched-opportunities}). Both counts attain $2b-1$.
+The same change delivers 688 rather than 718 applications, a reduction of
+30, or 4.18\%, under the common 2,048 opportunities. Both endpoints finish
+at confirmed epoch 10 for $b=32$ and epoch 5 for $b=64$; the corresponding
+emitted-byte costs are 565,288 and 407,596. The budget therefore has a
+measured exposure--service--communication tradeoff under this workload.
+The references give their own captured-state outcomes at the same cut. For
+example, SPQR with 32-byte chunks derives 172 of 2,047 later commitments
+from capture $A$ and 85 of 2,047 from capture $B$, reflecting the different
+pending material present in the two endpoint snapshots.
+
+\paragraph{Communication policy and durability.}
+The native driver uses fair cyclic arbitration among queued control traffic,
+ACKs, exact application retries and new applications. An unacknowledged frame
+is immediately eligible for retry. Table~\ref{tab:matched-accounting} exposes
+that policy's cost: the alternating $b=32$ execution spends 604 opportunities
+on application retries and the $b=64$ execution spends 579. Independent
+trace analysis places 592 and 572 of those transmissions after the request's
+first logical delivery, accounting for 83,472 and 80,652 bytes. This uses the
+analyst's delivery history; the sender is still awaiting its ACK. The four
+frame classes partition each run's 2,048 emissions. Image-revision and
+\texttt{sync\_data} counts measure the real native journal. Each alternating
+reference execution returns component state 4,096 times; its physical
+persistence fields are \texttt{null}, recording the component-serialization
+boundary. The communication totals include all native control, ACK and retry
+frames, and the references' complete component-plus-payload envelopes.
+
+\paragraph{Transport controls.}
+The one-way schedule supplies only $A\!\to\!B$ opportunities, including for
+control traffic. Continuity commits and delivers 32 or 64 applications and
+then retains 2,016 or 1,984 offered requests in its queue. Both endpoints
+remain at confirmed epoch zero; all 31 or 63 post-capture commitments are
+derived from either captured state. The references continue committing
+2,048 requests, with 2,047 of 2,047 post-capture keys derived. This control
+identifies budget-induced admission suspension and its backlog explicitly.
+Recovery during renewed exchange is assessed through the later admitted
+allocations and their original sources.
+
+The lossy schedule drops the 205 common opportunities whose index is
+congruent to 4 modulo 10. Continuity delivers all 665 or 681 admitted
+applications, charging retransmissions to the opportunity budget. Each
+reference commits 2,048 component applications and delivers 1,843 under its
+declared workload without application retransmission. Network duplication
+leaves native first commitments, logical deliveries, emitted bytes, final
+epochs and derived sets equal to the alternating execution. Reordering, 9:1
+asymmetry and a 256-opportunity offline prefix complete the seven-schedule
+inventory; their request queues, exact derived sets and work counters are
+retained in the complete 49-row artifact.
+
+The manuscript tables are regenerated from the hash-bound executed report
+and checked against its independently recomputed public-evidence projection.
+Appendix~\ref{app:matched-comparison} identifies the source, execution and
+validation records.

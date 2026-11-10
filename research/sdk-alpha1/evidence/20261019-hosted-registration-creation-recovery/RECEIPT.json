@@ -1,0 +1,164 @@
+{
+  "source_commit": "ad3568427a0f22739b940bb17015c6d254acddce",
+  "run": 39216522760,
+  "platforms": [
+    {
+      "platform": "ubuntu-24.04",
+      "head": "ad3568427a0f22739b940bb17015c6d254acddce",
+      "run": 39216522760,
+      "job": 117941550860,
+      "artifact": 12170201538,
+      "artifact_sha256": "sha256:20bc4298827fbf604f33df43ced6807641953d5d489e80be148bfbe87c7a68c0",
+      "artifact_bytes": 149782,
+      "members": 40,
+      "independent_exchange": {
+        "wheel_sha256": "fcaf1d9f9f96e139b7d75f662c541b90a60d569832685776859b2005ad421dbd",
+        "module_count": 50,
+        "executions": {
+          "exchange": {
+            "tests": 8,
+            "provider": "48.0.1",
+            "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+          },
+          "client": {
+            "tests": 16,
+            "provider": "48.0.1",
+            "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+          }
+        },
+        "source_inputs": 67
+      },
+      "test_names": [
+        "actual_loopback_tcp_preserves_authentication_boundary",
+        "admitted_root_never_regenerates_a_missing_wrapping_key",
+        "authorization_request_binding_roster_conflicts_and_two_devices",
+        "duplicate_and_malformed_authentication_cookies_are_rejected",
+        "explicit_reapproval_refreshes_only_host_deadline_and_refuses_expired_credential_scope",
+        "explicit_upgrade_preserves_account_and_issuance_reopens_exact_original_result",
+        "extra_passkey_requires_original_live_session_at_finish",
+        "http_enrollment_rejects_cross_origin_substitution_and_malformed_or_oversized_bodies",
+        "http_enrollment_requires_host_auth_and_recovers_exact_response_after_restart",
+        "http_reapproval_preserves_original_request_and_separates_history_from_current_roster",
+        "invitation_creation_recovers_lost_operation_id_using_original_caller_identity",
+        "issuance_commit_before_and_after_kill_preserves_original_operation_and_exact_result",
+        "issuer_child",
+        "public_parent_is_rejected_before_any_account_database_is_published",
+        "real_signatures_single_use_reopen_and_logout",
+        "reapproval_is_scoped_idempotent_and_cannot_branch_retarget_or_revive_terminal_grants",
+        "reapproval_kill_reconciles_one_signer_reservation_and_exact_successor_without_client_reset",
+        "reapproval_schema_upgrade_crashes_preserve_original_records_and_explicit_admission",
+        "registration_race_cannot_replace_original_account",
+        "rejects_cross_origin_and_host_before_authentication",
+        "root_first_use_reconciles_four_real_process_kills_without_replacing_published_keys",
+        "root_suspension_fences_pending_approval_but_preserves_historical_result",
+        "roster_conflict_reapproval_preserves_original_device_request_and_signing_files",
+        "schema_upgrade_kill_keeps_original_account_and_all_or_none_enrollment_tables",
+        "unknown_account_login_is_explicit_and_does_not_create_an_account",
+        "wrong_challenge_origin_and_expired_ceremonies_fail"
+      ],
+      "web_test_names": [
+        "204 approval/cancellation is an explicit successful empty response",
+        "a retained proof cannot be replaced, including before an approval retry",
+        "a separately selected reapproval proof never overwrites the original submitted request",
+        "a stale reapproval attempt does not block a new explicit decision for the original device",
+        "authority export retains the host account and exact revision without selecting a current roster",
+        "historical issuance stays byte-exact and does not select its own current roster",
+        "malformed successful responses and oversized bodies do not become success",
+        "plain-text body rejection remains a failure with its actual status",
+        "reapproval retry retains the explicitly selected u64 predecessor and original request",
+        "recovery file merge is bounded, scope-bound and idempotent",
+        "request encodings reject noncanonical padding, trailing bits and oversized data",
+        "status does not silently follow a historical successor or create another grant",
+        "storage failure before send prevents HTTP; failed response save retains the original pending record",
+        "transport retains exact response text and sends u64 values without rounding",
+        "u64 integers remain exact through parsing, request encoding and recovery storage",
+        "unknown invitation response retains its original correlation across a new model",
+        "wrong-account responses, corrupt storage and conflicting imports never reset original records"
+      ],
+      "binary_sha256_producer_observation": "114f539efee72aad9daa3e2459e6d8d26c230e70259bd5de3746204fd96c1e06",
+      "scope": "Terminal Rust debug/release26 entries (25 behavioral and1 dispatcher), Node26.10.0 browser model/transport17 unit tests using explicit substitutes, strictClippy/build and exact source/artifact checks. ActualTCP native auth/enrollment/staticmodule routes; existing14 library SIGKILL cuts. Installed independent wheel adapter8 and client16 tests with actual CLI subprocesses and14 SIGKILL cuts. Exact initial-slot recovery, repeated recovery, corruption/truncation/scope/advanced-state refusals are covered. Missing complete original creation records remain explicit failures. Explicit test issuers. No actual host/browser authorization or operational policy publication. Does not establish real authenticated browser/device flow, installed independent livepolicy acceptance, deployed HTTPS or full lifecycle/release admission."
+    },
+    {
+      "platform": "macos-15",
+      "head": "ad3568427a0f22739b940bb17015c6d254acddce",
+      "run": 39216522760,
+      "job": 117941550450,
+      "artifact": 12170187492,
+      "artifact_sha256": "sha256:4aa459687b69ce835aad53479a42c285aa7e1d20a39c09d52a4c998bac140f29",
+      "artifact_bytes": 150139,
+      "members": 40,
+      "independent_exchange": {
+        "wheel_sha256": "fcaf1d9f9f96e139b7d75f662c541b90a60d569832685776859b2005ad421dbd",
+        "module_count": 50,
+        "executions": {
+          "exchange": {
+            "tests": 8,
+            "provider": "48.0.1",
+            "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+          },
+          "client": {
+            "tests": 16,
+            "provider": "48.0.1",
+            "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+          }
+        },
+        "source_inputs": 67
+      },
+      "test_names": [
+        "actual_loopback_tcp_preserves_authentication_boundary",
+        "admitted_root_never_regenerates_a_missing_wrapping_key",
+        "authorization_request_binding_roster_conflicts_and_two_devices",
+        "duplicate_and_malformed_authentication_cookies_are_rejected",
+        "explicit_reapproval_refreshes_only_host_deadline_and_refuses_expired_credential_scope",
+        "explicit_upgrade_preserves_account_and_issuance_reopens_exact_original_result",
+        "extra_passkey_requires_original_live_session_at_finish",
+        "http_enrollment_rejects_cross_origin_substitution_and_malformed_or_oversized_bodies",
+        "http_enrollment_requires_host_auth_and_recovers_exact_response_after_restart",
+        "http_reapproval_preserves_original_request_and_separates_history_from_current_roster",
+        "invitation_creation_recovers_lost_operation_id_using_original_caller_identity",
+        "issuance_commit_before_and_after_kill_preserves_original_operation_and_exact_result",
+        "issuer_child",
+        "public_parent_is_rejected_before_any_account_database_is_published",
+        "real_signatures_single_use_reopen_and_logout",
+        "reapproval_is_scoped_idempotent_and_cannot_branch_retarget_or_revive_terminal_grants",
+        "reapproval_kill_reconciles_one_signer_reservation_and_exact_successor_without_client_reset",
+        "reapproval_schema_upgrade_crashes_preserve_original_records_and_explicit_admission",
+        "registration_race_cannot_replace_original_account",
+        "rejects_cross_origin_and_host_before_authentication",
+        "root_first_use_reconciles_four_real_process_kills_without_replacing_published_keys",
+        "root_suspension_fences_pending_approval_but_preserves_historical_result",
+        "roster_conflict_reapproval_preserves_original_device_request_and_signing_files",
+        "schema_upgrade_kill_keeps_original_account_and_all_or_none_enrollment_tables",
+        "unknown_account_login_is_explicit_and_does_not_create_an_account",
+        "wrong_challenge_origin_and_expired_ceremonies_fail"
+      ],
+      "web_test_names": [
+        "204 approval/cancellation is an explicit successful empty response",
+        "a retained proof cannot be replaced, including before an approval retry",
+        "a separately selected reapproval proof never overwrites the original submitted request",
+        "a stale reapproval attempt does not block a new explicit decision for the original device",
+        "authority export retains the host account and exact revision without selecting a current roster",
+        "historical issuance stays byte-exact and does not select its own current roster",
+        "malformed successful responses and oversized bodies do not become success",
+        "plain-text body rejection remains a failure with its actual status",
+        "reapproval retry retains the explicitly selected u64 predecessor and original request",
+        "recovery file merge is bounded, scope-bound and idempotent",
+        "request encodings reject noncanonical padding, trailing bits and oversized data",
+        "status does not silently follow a historical successor or create another grant",
+        "storage failure before send prevents HTTP; failed response save retains the original pending record",
+        "transport retains exact response text and sends u64 values without rounding",
+        "u64 integers remain exact through parsing, request encoding and recovery storage",
+        "unknown invitation response retains its original correlation across a new model",
+        "wrong-account responses, corrupt storage and conflicting imports never reset original records"
+      ],
+      "binary_sha256_producer_observation": "83c649c1dd24881af0d1f14ce237e7ab3c3df0f39dad1076c39405918e2948f2",
+      "scope": "Terminal Rust debug/release26 entries (25 behavioral and1 dispatcher), Node26.10.0 browser model/transport17 unit tests using explicit substitutes, strictClippy/build and exact source/artifact checks. ActualTCP native auth/enrollment/staticmodule routes; existing14 library SIGKILL cuts. Installed independent wheel adapter8 and client16 tests with actual CLI subprocesses and14 SIGKILL cuts. Exact initial-slot recovery, repeated recovery, corruption/truncation/scope/advanced-state refusals are covered. Missing complete original creation records remain explicit failures. Explicit test issuers. No actual host/browser authorization or operational policy publication. Does not establish real authenticated browser/device flow, installed independent livepolicy acceptance, deployed HTTPS or full lifecycle/release admission."
+    }
+  ],
+  "capture": {
+    "bytes": 515511,
+    "members": 117,
+    "sha256": "41cad823cb66fdddf896d71d2255074ac5a9b47077b765eb4cfd5caac30f8d2c"
+  },
+  "scope": "Previously terminal reference-account CI at ad356, including installed client initial-record recovery; distinct from later native policy publisher at85a18. Exact terminal metadata, artifact hashes, source closure, Rust26, Node17, installed adapter8/client16. No new CI execution and no full lifecycle or release claim."
+}

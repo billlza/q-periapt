@@ -12,14 +12,16 @@
 #[cfg(feature = "signed-policy")]
 use q_periapt_backends::MlDsa65;
 use q_periapt_backends::{
-    MlKem768, MlKem768XWingSeed, Sha3_256Xof, DEFAULT_SUITE_ID, ML_KEM_768_CT_LEN,
-    ML_KEM_768_KEYGEN_SEED_LEN, ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
+    MlKem768, MlKem768XWingSeed, PreparedMlKem768XWingKey, Sha3_256Xof, DEFAULT_SUITE_ID,
+    ML_KEM_768_CT_LEN, ML_KEM_768_KEYGEN_SEED_LEN, ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
 };
 use q_periapt_core::{
     combine as core_combine, encode_policy_bound_context, policy_bound_context_len, secure_wipe,
-    CombineInput, Profile,
+    CombineInput, Error, Profile, ZeroizingBytes,
 };
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 #[cfg(feature = "signed-policy")]
 use q_periapt_policy::{HybridSuite, Policy, TrustedPolicyState};
 use wasm_bindgen::prelude::*;
@@ -89,11 +91,26 @@ fn bound_policy_context(
     Ok(context)
 }
 
-/// The only suite the fixed WASM hybrid API implements. The combiner binds `suite_id`, so
-/// `encapsulate`/`decapsulate` reject any other value: a caller must not bind false agility
-/// metadata (e.g. claim `ML-KEM-1024`) into a key actually derived from ML-KEM-768 + X25519.
+/// The only suite the fixed WASM hybrid API implements. ContextBound raw calls
+/// must supply this identifier; CompatXWing raw calls must supply an empty suite
+/// identifier because that profile has no suite metadata input.
 fn wasm_suite_id() -> &'static [u8] {
     DEFAULT_SUITE_ID
+}
+
+/// Validate caller-supplied raw KEM metadata without normalizing it. The fixed
+/// backend identity is checked separately from the profile's canonical metadata
+/// shape so CompatXWing can require absence instead of accepting a false claim.
+fn validate_raw_kem_metadata(
+    profile: Profile,
+    suite_id: &[u8],
+    policy_version: u32,
+    context: &[u8],
+) -> Result<(), Error> {
+    if profile == Profile::CompatXWing {
+        return profile.validate_operation_inputs(suite_id, policy_version, context);
+    }
+    Ok(())
 }
 
 /// Return the Rust crate version used to build this WASM module.
@@ -102,7 +119,8 @@ pub fn version() -> String {
     env!("CARGO_PKG_VERSION").to_owned()
 }
 
-/// Return the fixed suite id implemented by this WASM module.
+/// Return the fixed suite id implemented by this WASM module. ContextBound raw
+/// calls supply this value; CompatXWing raw calls supply an empty byte array.
 #[wasm_bindgen]
 pub fn fixed_suite_id() -> Vec<u8> {
     wasm_suite_id().to_vec()
@@ -126,13 +144,20 @@ pub fn max_application_context_bytes() -> usize {
 /// 8-byte big-endian length-prefixed (suite_id, policy_version as 4-byte BE, ss_pq,
 /// ss_trad, ct_pq, pk_pq, ct_trad, pk_trad, context); `profile_code` is 1 or 2. Uses
 /// the single `CombineInput::from_transport` decoder shared with the C ABI face.
+/// CompatXWing rejects a non-empty suite id, non-zero policy version, or
+/// non-empty context instead of discarding those caller inputs.
 #[wasm_bindgen]
 pub fn combine(profile_code: u8, input: &[u8]) -> Result<Vec<u8>, JsError> {
     let profile = profile(profile_code)?;
     let ci = CombineInput::from_transport(input)
         .ok_or_else(|| JsError::new("malformed combine input"))?;
-    let secret =
-        core_combine::<Sha3_256Xof>(profile, &ci).map_err(|_| JsError::new("combine failed"))?;
+    let secret = core_combine::<Sha3_256Xof>(profile, &ci).map_err(|error| {
+        if profile == Profile::CompatXWing && error == Error::PolicyDenied {
+            JsError::new("policy denied")
+        } else {
+            JsError::new("combine failed")
+        }
+    })?;
     Ok(secret.as_bytes().to_vec())
 }
 
@@ -260,12 +285,12 @@ impl EncapResult {
 /// Deterministically derive an ML-KEM-768 key pair from a 64-byte seed.
 #[wasm_bindgen]
 pub fn mlkem768_keypair(seed: &[u8]) -> Result<KeyPair, JsError> {
-    let s = <[u8; ML_KEM_768_KEYGEN_SEED_LEN]>::try_from(seed)
+    let s = <&[u8; ML_KEM_768_KEYGEN_SEED_LEN]>::try_from(seed)
         .map_err(|_| JsError::new("seed must be 64 bytes"))?;
-    let (sk, pk) =
-        MlKem768::generate(s).map_err(|_| JsError::new("ML-KEM key generation failed"))?;
+    let (sk, pk) = MlKem768::generate_zeroizing(s)
+        .map_err(|_| JsError::new("ML-KEM key generation failed"))?;
     Ok(KeyPair {
-        sk: sk.to_vec(),
+        sk: sk.as_bytes().to_vec(),
         pk: pk.to_vec(),
     })
 }
@@ -300,6 +325,9 @@ pub fn x25519_keypair(secret: &[u8]) -> Result<KeyPair, JsError> {
 }
 
 /// Hybrid encapsulation. `rand_pq`/`rand_trad` are 32-byte coins from the caller.
+/// ContextBound requires this module's fixed suite id and a non-empty context.
+/// CompatXWing requires canonical absent metadata: `suite_id = []`,
+/// `policy_version = 0`, and `context = []`.
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn encapsulate(
@@ -313,11 +341,13 @@ pub fn encapsulate(
     rand_trad: &[u8],
 ) -> Result<EncapResult, JsError> {
     let prof = profile(profile_code)?;
-    if suite_id != wasm_suite_id() {
+    if prof == Profile::ContextBound && suite_id != wasm_suite_id() {
         return Err(JsError::new(
             "suite_id does not match this build (ML-KEM-768+X25519)",
         ));
     }
+    validate_raw_kem_metadata(prof, suite_id, policy_version, context)
+        .map_err(|_| JsError::new("policy denied"))?;
     let mut ct_pq = vec![0u8; ML_KEM_768_CT_LEN];
     let mut ct_trad = vec![0u8; X25519_LEN];
     let secret = match prof {
@@ -361,7 +391,93 @@ pub fn encapsulate(
     })
 }
 
-/// Hybrid decapsulation. Returns the 32-byte session secret.
+/// A CompatXWing decapsulation key whose expensive expansion is done once.
+///
+/// [`decapsulate`] accepts the 32-byte X-Wing seed and re-derives the expanded
+/// ML-KEM-768 decapsulation key on every call, which is the whole ML-KEM key
+/// generation. That is the right shape for a one-shot or KAT caller, but a JS
+/// caller that reuses one key pair pays it per operation. Preparing the seed
+/// once and calling [`QPeriaptPreparedKey::decapsulate`] keeps the identical
+/// derived secret while doing the expansion a single time -- the same amortized
+/// path `q-periapt-rustls` already uses.
+///
+/// The expansion is deterministic from the seed, so a prepared owner and the
+/// seed agree by construction. The paired encapsulation key is carried with the
+/// owner rather than supplied by the caller, so it cannot disagree with the
+/// secret it belongs to.
+#[wasm_bindgen]
+pub struct QPeriaptPreparedKey {
+    prepared: PreparedMlKem768XWingKey,
+}
+
+#[wasm_bindgen]
+impl QPeriaptPreparedKey {
+    /// Expand a 32-byte X-Wing seed once for repeated decapsulation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the seed is not exactly 32 bytes or deterministic
+    /// ML-KEM key generation fails.
+    #[wasm_bindgen(constructor)]
+    pub fn new(seed: &[u8]) -> Result<QPeriaptPreparedKey, JsError> {
+        let seed: [u8; ML_KEM_768_XWING_SEED_LEN] = seed
+            .try_into()
+            .map_err(|_| JsError::new("x-wing seed must be exactly 32 bytes"))?;
+        let prepared = MlKem768XWingSeed::prepare(ZeroizingBytes::from_bytes(seed))
+            .map_err(|_| JsError::new("prepare failed"))?;
+        Ok(Self { prepared })
+    }
+
+    /// The encapsulation key paired with this prepared owner.
+    #[wasm_bindgen(js_name = encapsulationKey)]
+    #[must_use]
+    pub fn encapsulation_key(&self) -> Vec<u8> {
+        self.prepared.encapsulation_key().to_vec()
+    }
+
+    /// CompatXWing decapsulation reusing the already expanded key.
+    ///
+    /// Applies exactly the metadata validation [`decapsulate`] applies, and
+    /// yields the identical secret; only the repeated key expansion is skipped.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the policy metadata is rejected or decapsulation
+    /// fails.
+    #[wasm_bindgen]
+    #[allow(clippy::too_many_arguments)]
+    pub fn decapsulate(
+        &self,
+        suite_id: &[u8],
+        policy_version: u32,
+        ct_pq: &[u8],
+        sk_trad: &[u8],
+        ct_trad: &[u8],
+        pk_trad: &[u8],
+        context: &[u8],
+    ) -> Result<Vec<u8>, JsError> {
+        let prof = Profile::CompatXWing;
+        validate_raw_kem_metadata(prof, suite_id, policy_version, context)
+            .map_err(|_| JsError::new("policy denied"))?;
+        let (pq, trad) = (MlKem768XWingSeed, X25519);
+        let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, prof, suite_id, policy_version)
+            .map_err(|_| JsError::new("policy denied"))?;
+        let secret = kem
+            .decapsulate_prepared(
+                &self.prepared,
+                PqCiphertext::new(ct_pq),
+                TradSecretKey::new(sk_trad),
+                TradCiphertext::new(ct_trad),
+                TradPublicKey::new(pk_trad),
+                context,
+            )
+            .map_err(|_| JsError::new("decapsulate failed"))?;
+        Ok(secret.as_bytes().to_vec())
+    }
+}
+
+/// Hybrid decapsulation. Returns the 32-byte session secret. Metadata has the
+/// same strict, profile-specific canonical form as [`encapsulate`].
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn decapsulate(
@@ -377,27 +493,45 @@ pub fn decapsulate(
     context: &[u8],
 ) -> Result<Vec<u8>, JsError> {
     let prof = profile(profile_code)?;
-    if suite_id != wasm_suite_id() {
+    if prof == Profile::ContextBound && suite_id != wasm_suite_id() {
         return Err(JsError::new(
             "suite_id does not match this build (ML-KEM-768+X25519)",
         ));
     }
+    validate_raw_kem_metadata(prof, suite_id, policy_version, context)
+        .map_err(|_| JsError::new("policy denied"))?;
     let secret = match prof {
         Profile::ContextBound => {
             let (pq, trad) = (MlKem768, X25519);
             let kem =
                 HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, prof, suite_id, policy_version)
                     .map_err(|_| JsError::new("policy denied"))?;
-            kem.decapsulate(sk_pq, ct_pq, pk_pq, sk_trad, ct_trad, pk_trad, context)
-                .map_err(|_| JsError::new("decapsulate failed"))?
+            kem.decapsulate(
+                PqSecretKey::new(sk_pq),
+                PqCiphertext::new(ct_pq),
+                PqPublicKey::new(pk_pq),
+                TradSecretKey::new(sk_trad),
+                TradCiphertext::new(ct_trad),
+                TradPublicKey::new(pk_trad),
+                context,
+            )
+            .map_err(|_| JsError::new("decapsulate failed"))?
         }
         Profile::CompatXWing => {
             let (pq, trad) = (MlKem768XWingSeed, X25519);
             let kem =
                 HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, prof, suite_id, policy_version)
                     .map_err(|_| JsError::new("policy denied"))?;
-            kem.decapsulate(sk_pq, ct_pq, pk_pq, sk_trad, ct_trad, pk_trad, context)
-                .map_err(|_| JsError::new("decapsulate failed"))?
+            kem.decapsulate(
+                PqSecretKey::new(sk_pq),
+                PqCiphertext::new(ct_pq),
+                PqPublicKey::new(pk_pq),
+                TradSecretKey::new(sk_trad),
+                TradCiphertext::new(ct_trad),
+                TradPublicKey::new(pk_trad),
+                context,
+            )
+            .map_err(|_| JsError::new("decapsulate failed"))?
         }
     };
     Ok(secret.as_bytes().to_vec())
@@ -407,7 +541,7 @@ pub fn decapsulate(
 ///
 /// The exact signed-policy digest and `application_context` are canonically
 /// committed into the ContextBound KDF input. CompatXWing decisions are refused
-/// because that profile intentionally ignores context.
+/// because that profile has no context input.
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn encapsulate_with_decision(
@@ -503,6 +637,70 @@ mod tests {
             secret,
             field(j, "secret"),
             "WASM API must match the Rust core"
+        );
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn prepared_key_yields_the_same_secret_as_the_seed_path() {
+        // The prepared owner only amortizes the ML-KEM key expansion, which is
+        // deterministic from the seed, so it must agree with the seed-taking
+        // entry point byte for byte and carry the same encapsulation key.
+        let seed = [7u8; ML_KEM_768_XWING_SEED_LEN];
+        let kp_pq = mlkem768_xwing_keypair(&seed).unwrap();
+        let kp_x = x25519_keypair(&[9u8; X25519_LEN]).unwrap();
+
+        let prepared = QPeriaptPreparedKey::new(&seed).unwrap();
+        assert_eq!(
+            prepared.encapsulation_key(),
+            kp_pq.pk(),
+            "the prepared owner must carry the encapsulation key the seed derives"
+        );
+
+        let enc = encapsulate(
+            1,
+            b"",
+            0,
+            &kp_pq.pk(),
+            &kp_x.pk(),
+            b"",
+            &[3u8; 32],
+            &[5u8; 32],
+        )
+        .unwrap();
+        let via_seed = decapsulate(
+            1,
+            b"",
+            0,
+            &kp_pq.sk(),
+            &enc.ct_pq(),
+            &kp_pq.pk(),
+            &kp_x.sk(),
+            &enc.ct_trad(),
+            &kp_x.pk(),
+            b"",
+        )
+        .unwrap();
+        let via_prepared = prepared
+            .decapsulate(
+                b"",
+                0,
+                &enc.ct_pq(),
+                &kp_x.sk(),
+                &enc.ct_trad(),
+                &kp_x.pk(),
+                b"",
+            )
+            .unwrap();
+
+        assert_eq!(
+            via_seed, via_prepared,
+            "prepared path must match the seed path"
+        );
+        assert_eq!(
+            enc.secret(),
+            via_prepared,
+            "and both must match encapsulation"
         );
     }
 
@@ -620,11 +818,10 @@ mod tests {
     fn check_xwing_seed_keypair_compat_roundtrip() {
         let kp_pq = mlkem768_xwing_keypair(&[7u8; ML_KEM_768_XWING_SEED_LEN]).unwrap();
         let kp_x = x25519_keypair(&[9u8; X25519_LEN]).unwrap();
-        let suite = b"ML-KEM-768+X25519";
         let enc = encapsulate(
             1,
-            suite,
-            1,
+            b"",
+            0,
             &kp_pq.pk(),
             &kp_x.pk(),
             b"",
@@ -634,8 +831,8 @@ mod tests {
         .unwrap();
         let dec = decapsulate(
             1,
-            suite,
-            1,
+            b"",
+            0,
             &kp_pq.sk(),
             &enc.ct_pq(),
             &kp_pq.pk(),
@@ -649,6 +846,168 @@ mod tests {
             enc.secret(),
             dec,
             "WASM CompatXWing seed-dk keypair/encap/decap must agree"
+        );
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn js_error_message<T>(result: Result<T, JsError>) -> String {
+        let error = JsValue::from(result.err().unwrap());
+        js_sys::Reflect::get(&error, &JsValue::from_str("message"))
+            .unwrap()
+            .as_string()
+            .unwrap()
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn check_compat_raw_metadata_is_rejected_not_normalized() {
+        let kp_pq = mlkem768_xwing_keypair(&[27u8; ML_KEM_768_XWING_SEED_LEN]).unwrap();
+        let kp_x = x25519_keypair(&[31u8; X25519_LEN]).unwrap();
+        let enc = encapsulate(
+            1,
+            b"",
+            0,
+            &kp_pq.pk(),
+            &kp_x.pk(),
+            b"",
+            &[37u8; 32],
+            &[41u8; 32],
+        )
+        .unwrap();
+        let invalid: &[(&[u8], u32, &[u8])] = &[
+            (wasm_suite_id(), 0, b""),
+            (b"", 1, b""),
+            (b"", 0, b"unexpected-context"),
+        ];
+
+        for &(suite_id, policy_version, context) in invalid {
+            assert_eq!(
+                js_error_message(encapsulate(
+                    1,
+                    suite_id,
+                    policy_version,
+                    &kp_pq.pk(),
+                    &kp_x.pk(),
+                    context,
+                    &[37u8; 32],
+                    &[41u8; 32],
+                )),
+                "policy denied"
+            );
+            assert_eq!(
+                js_error_message(decapsulate(
+                    1,
+                    suite_id,
+                    policy_version,
+                    &kp_pq.sk(),
+                    &enc.ct_pq(),
+                    &kp_pq.pk(),
+                    &kp_x.sk(),
+                    &enc.ct_trad(),
+                    &kp_x.pk(),
+                    context,
+                )),
+                "policy denied"
+            );
+
+            let mut combine_input = Vec::new();
+            for field in [
+                suite_id,
+                &policy_version.to_be_bytes(),
+                &[0x51; 32],
+                &[0x52; 32],
+                b"",
+                b"",
+                &[0x53; 32],
+                &[0x54; 32],
+                context,
+            ] {
+                combine_input.extend_from_slice(&u64::try_from(field.len()).unwrap().to_be_bytes());
+                combine_input.extend_from_slice(field);
+            }
+            assert_eq!(
+                js_error_message(combine(Profile::CompatXWing.to_u8(), &combine_input)),
+                "policy denied"
+            );
+        }
+
+        assert_eq!(
+            js_error_message(encapsulate(
+                Profile::ContextBound.to_u8(),
+                wasm_suite_id(),
+                1,
+                &kp_pq.pk(),
+                &kp_x.pk(),
+                b"",
+                &[37u8; 32],
+                &[41u8; 32],
+            )),
+            "encapsulate failed"
+        );
+        assert_eq!(
+            js_error_message(decapsulate(
+                Profile::ContextBound.to_u8(),
+                wasm_suite_id(),
+                1,
+                &kp_pq.sk(),
+                &enc.ct_pq(),
+                &kp_pq.pk(),
+                &kp_x.sk(),
+                &enc.ct_trad(),
+                &kp_x.pk(),
+                b"",
+            )),
+            "decapsulate failed"
+        );
+
+        for operation_error in [
+            js_error_message(encapsulate(
+                Profile::ContextBound.to_u8(),
+                b"wrong-suite",
+                1,
+                &kp_pq.pk(),
+                &kp_x.pk(),
+                b"ctx",
+                &[37u8; 32],
+                &[41u8; 32],
+            )),
+            js_error_message(decapsulate(
+                Profile::ContextBound.to_u8(),
+                b"wrong-suite",
+                1,
+                &kp_pq.sk(),
+                &enc.ct_pq(),
+                &kp_pq.pk(),
+                &kp_x.sk(),
+                &enc.ct_trad(),
+                &kp_x.pk(),
+                b"ctx",
+            )),
+        ] {
+            assert_eq!(
+                operation_error,
+                "suite_id does not match this build (ML-KEM-768+X25519)"
+            );
+        }
+
+        let mut context_bound_input = Vec::new();
+        for field in [
+            wasm_suite_id(),
+            &1u32.to_be_bytes(),
+            &[0x61; 32],
+            &[0x62; 32],
+            b"",
+            b"",
+            &[0x63; 32],
+            &[0x64; 32],
+            b"",
+        ] {
+            context_bound_input
+                .extend_from_slice(&u64::try_from(field.len()).unwrap().to_be_bytes());
+            context_bound_input.extend_from_slice(field);
+        }
+        assert_eq!(
+            js_error_message(combine(Profile::ContextBound.to_u8(), &context_bound_input,)),
+            "combine failed"
         );
     }
 
@@ -725,6 +1084,26 @@ mod tests {
     #[test]
     fn xwing_seed_keypair_compat_roundtrip() {
         check_xwing_seed_keypair_compat_roundtrip();
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn raw_metadata_validation_preserves_error_classes() {
+        for &(suite_id, policy_version, context) in &[
+            (wasm_suite_id(), 0, b"" as &[u8]),
+            (b"", 1, b""),
+            (b"", 0, b"unexpected-context"),
+        ] {
+            let error =
+                validate_raw_kem_metadata(Profile::CompatXWing, suite_id, policy_version, context)
+                    .unwrap_err();
+            assert_eq!(error, Error::PolicyDenied);
+            assert_eq!(error.to_string(), "policy denied");
+        }
+        assert_eq!(
+            validate_raw_kem_metadata(Profile::ContextBound, wasm_suite_id(), 1, b""),
+            Ok(())
+        );
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -818,6 +1197,12 @@ mod tests {
     #[wasm_bindgen_test::wasm_bindgen_test]
     fn xwing_seed_keypair_compat_roundtrip_wasm() {
         check_xwing_seed_keypair_compat_roundtrip();
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn compat_raw_metadata_is_rejected_not_normalized_wasm() {
+        check_compat_raw_metadata_is_rejected_not_normalized();
     }
 
     #[cfg(target_arch = "wasm32")]

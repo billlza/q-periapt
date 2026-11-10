@@ -51,6 +51,29 @@ pub(crate) fn verify_envelope<'a>(
     Ok(body)
 }
 
+pub(crate) fn signing_key_matches_verification_key(
+    challenge: &[u8],
+    signing_key: &[u8],
+    verification_key: &[u8],
+) -> Result<bool, AuthenticationError> {
+    let randomness = ZeroizingBytes::<ML_DSA_65_SIGN_RAND_LEN>::zeroed();
+    let mut signature = [0u8; ML_DSA_65_SIG_LEN];
+    let written = MlDsa65
+        .sign(
+            signing_key,
+            challenge,
+            randomness.as_bytes(),
+            &mut signature,
+        )
+        .map_err(|_| AuthenticationError::Authentication)?;
+    if written != ML_DSA_65_SIG_LEN {
+        return Err(AuthenticationError::Authentication);
+    }
+    Ok(MlDsa65
+        .verify(verification_key, challenge, &signature)
+        .is_ok())
+}
+
 fn map_codec(_: CodecError) -> AuthenticationError {
     AuthenticationError::InvalidEnvelope
 }

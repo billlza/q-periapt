@@ -13,7 +13,8 @@ import stat
 import sys
 import unicodedata
 from dataclasses import dataclass
-from typing import Any, NoReturn
+from collections.abc import Callable
+from typing import Any, Literal, NoReturn
 
 if os.name == "nt":
     import ctypes
@@ -25,7 +26,116 @@ DEFAULT_JSON_MAX_BYTES = 16 * 1024 * 1024
 
 
 class EvidenceIOError(ValueError):
-    """An evidence file cannot be read as one stable, strict snapshot."""
+    """An evidence input or output violates its filesystem contract."""
+
+
+def fresh_output_directory(
+    path: pathlib.Path, *, within: pathlib.Path, label: str
+) -> pathlib.Path:
+    """Select the actual fresh destination inside a caller-owned directory tree.
+
+    This read-only admission returns the resolved path for all subsequent writes.
+    It is not a held directory capability: callers must retain control of the
+    workspace and use exclusive creation, including when external tools write.
+    """
+
+    requested = pathlib.Path(path).absolute()
+    boundary = pathlib.Path(within).absolute()
+    try:
+        if boundary.is_symlink() or boundary.resolve() != boundary:
+            raise EvidenceIOError(f"{label} boundary must be canonical, without symlinks")
+        if requested.is_symlink():
+            raise EvidenceIOError(f"{label} cannot be a symlink")
+        selected = requested.resolve()
+        if not selected.is_relative_to(boundary):
+            raise EvidenceIOError(f"{label} must be fresh and under {boundary}")
+        # A missing-child result does not establish a valid parent. Windows can
+        # report this for a non-directory parent or an unresolved reparse loop.
+        # Walk back to positive directory evidence, without creating anything.
+        existing = selected
+        while True:
+            try:
+                metadata = existing.lstat()
+            except FileNotFoundError:
+                parent = existing.parent
+                if parent == existing:
+                    raise EvidenceIOError(f"cannot resolve {label}: no existing directory parent")
+                existing = parent
+                continue
+            if existing == selected:
+                raise EvidenceIOError(f"{label} must be fresh and under {boundary}")
+            if (
+                not stat.S_ISDIR(metadata.st_mode)
+                or stat.S_ISLNK(metadata.st_mode)
+                or (os.name == "nt" and metadata.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+            ):
+                raise EvidenceIOError(f"cannot resolve {label}: existing parent is not a plain directory")
+            return selected
+    except (OSError, RuntimeError) as exc:
+        raise EvidenceIOError(f"cannot resolve {label}: {exc}") from exc
+
+
+_OwnedDescriptorStatus = Literal["owned", "released", "unknown"]
+
+
+@dataclass(slots=True)
+class OwnedFileDescriptorLease:
+    """One held descriptor with conservative interrupted-close ownership.
+
+    The lease is a reliability primitive, not an authenticity boundary.  It
+    calls ``close`` at most once.  An interrupted close has inherently
+    ambiguous effect, so the descriptor is released from this lease as
+    ``unknown`` and is never probed or retried: a descriptor number can be
+    reused for another open description of the same inode, which no ``fstat``
+    comparison can distinguish safely.
+    """
+
+    descriptor: int
+    label: str
+    status: _OwnedDescriptorStatus = "owned"
+
+    @classmethod
+    def acquire(
+        cls,
+        descriptor: int,
+        *,
+        label: str,
+    ) -> "OwnedFileDescriptorLease":
+        """Take cleanup ownership of an already-open descriptor."""
+
+        return cls(
+            descriptor=descriptor,
+            label=label,
+        )
+
+    @property
+    def is_owned(self) -> bool:
+        return self.status == "owned"
+
+    def _release(self, status: Literal["released", "unknown"]) -> None:
+        self.status = status
+        self.descriptor = -1
+
+    def _close_once(self) -> None:
+        """Attempt exactly one close after irrevocably yielding lease ownership."""
+
+        descriptor = self.descriptor
+        self._release("unknown")
+        try:
+            os.close(descriptor)
+        except BaseException as exc:
+            exc.add_note(
+                f"descriptor close effect is unknown for {self.label}"
+            )
+            raise
+        self.status = "released"
+
+    def close(self) -> None:
+        """Close at most once; interrupted effect remains explicitly unknown."""
+
+        if not self.is_owned:
+            return
+        self._close_once()
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +144,15 @@ class FileSnapshot:
 
     path: pathlib.Path
     data: bytes
+    size: int
+    sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class FileDigestSnapshot:
+    """Size and digest consumed from one stable open regular-file description."""
+
+    path: pathlib.Path
     size: int
     sha256: str
 
@@ -755,19 +874,37 @@ def _open_regular_no_symlinks_posix(path: pathlib.Path) -> int:
     if ".." in lexical.parts:
         raise EvidenceIOError(f"evidence path must not contain '..': {path}")
     absolute = pathlib.Path(os.path.abspath(lexical))
+    if absolute.anchor != "/":
+        raise EvidenceIOError(f"evidence path has an ambiguous POSIX root: {path}")
     # macOS exposes three fixed root aliases.  Permit only these operating-system
     # aliases; every caller-controlled component is still walked with O_NOFOLLOW.
     if sys.platform == "darwin" and len(absolute.parts) >= 2:
         alias = absolute.parts[1]
-        expected = {"etc": "private/etc", "tmp": "private/tmp", "var": "private/var"}.get(alias)
-        if expected is not None:
-            alias_path = pathlib.Path(absolute.anchor) / alias
-            try:
-                target = os.readlink(alias_path)
-            except OSError:
-                target = ""
-            if target.lstrip("/") == expected:
-                absolute = pathlib.Path("/private") / alias / pathlib.Path(*absolute.parts[2:])
+        target: str | None = None
+        expected: str | None = None
+        destination: pathlib.Path | None = None
+        try:
+            if alias == "etc":
+                target = os.readlink("/etc")
+                expected = "private/etc"
+                destination = pathlib.Path("/private/etc")
+            elif alias == "tmp":
+                target = os.readlink("/tmp")
+                expected = "private/tmp"
+                destination = pathlib.Path("/private/tmp")
+            elif alias == "var":
+                target = os.readlink("/var")
+                expected = "private/var"
+                destination = pathlib.Path("/private/var")
+        except OSError:
+            target = None
+        if (
+            target is not None
+            and expected is not None
+            and destination is not None
+            and target in {expected, f"/{expected}"}
+        ):
+            absolute = destination / pathlib.Path(*absolute.parts[2:])
     parts = absolute.parts
     if not parts or parts[0] != absolute.anchor or len(parts) < 2:
         raise EvidenceIOError(f"evidence path must name a file: {path}")
@@ -779,17 +916,38 @@ def _open_regular_no_symlinks_posix(path: pathlib.Path) -> int:
         | getattr(os, "O_NONBLOCK", 0)
         | getattr(os, "O_CLOEXEC", 0)
     )
-    directory_fd = os.open(absolute.anchor, directory_flags)
+    try:
+        directory_fd = os.open("/", directory_flags)
+    except OSError as exc:
+        raise EvidenceIOError(
+            f"cannot safely open evidence file {path}: {exc}"
+        ) from exc
+    directory_lease = OwnedFileDescriptorLease.acquire(
+        directory_fd,
+        label="evidence path directory",
+    )
     try:
         for component in parts[1:-1]:
-            next_fd = os.open(component, directory_flags, dir_fd=directory_fd)
-            os.close(directory_fd)
-            directory_fd = next_fd
-        return os.open(parts[-1], file_flags, dir_fd=directory_fd)
+            next_fd = os.open(
+                component,
+                directory_flags,
+                dir_fd=directory_lease.descriptor,
+            )
+            previous_lease = directory_lease
+            directory_lease = OwnedFileDescriptorLease.acquire(
+                next_fd,
+                label="evidence path directory",
+            )
+            previous_lease.close()
+        return os.open(
+            parts[-1],
+            file_flags,
+            dir_fd=directory_lease.descriptor,
+        )
     except OSError as exc:
         raise EvidenceIOError(f"cannot safely open evidence file {path}: {exc}") from exc
     finally:
-        os.close(directory_fd)
+        directory_lease.close()
 
 
 def _open_regular_no_symlinks(path: pathlib.Path) -> int:
@@ -820,74 +978,207 @@ def _descriptor_identity(descriptor: int, observed: os.stat_result) -> object:
     )
 
 
-def read_regular_snapshot(
+def _consume_open_regular_snapshot(
+    descriptor: int,
     path: pathlib.Path,
     *,
     maximum: int,
     label: str,
-) -> FileSnapshot:
-    """Read one bounded regular file and hash exactly the bytes returned."""
-
+    consume: Callable[[bytes], None] | None = None,
+    validate_metadata: Callable[[os.stat_result], None] | None = None,
+) -> FileDigestSnapshot:
     if type(maximum) is not int or maximum <= 0:
         raise EvidenceIOError(f"{label} maximum must be a positive integer")
-    descriptor = _open_regular_no_symlinks(path)
-    primary_error: BaseException | None = None
     try:
         before = os.fstat(descriptor)
         if not stat.S_ISREG(before.st_mode):
             raise EvidenceIOError(f"{label} is not a regular file: {path}")
         if before.st_size > maximum:
             raise EvidenceIOError(f"{label} exceeds {maximum} bytes: {path}")
+        if validate_metadata is not None:
+            validate_metadata(before)
 
         identity_before = _descriptor_identity(descriptor, before)
 
-        chunks: list[bytes] = []
+        hasher = hashlib.sha256()
+        total = 0
         remaining = maximum + 1
         while remaining:
             chunk = os.read(descriptor, min(1024 * 1024, remaining))
             if not chunk:
                 break
-            chunks.append(chunk)
+            total += len(chunk)
             remaining -= len(chunk)
-        data = b"".join(chunks)
-        if len(data) > maximum:
+            if total > maximum:
+                raise EvidenceIOError(f"{label} exceeds {maximum} bytes: {path}")
+            hasher.update(chunk)
+            if consume is not None:
+                consume(chunk)
+        if total > maximum:
             raise EvidenceIOError(f"{label} exceeds {maximum} bytes: {path}")
 
         after = os.fstat(descriptor)
         identity_after = _descriptor_identity(descriptor, after)
         if (
             identity_before != identity_after
-            or len(data) != before.st_size
-            or len(data) != after.st_size
+            or total != before.st_size
+            or total != after.st_size
         ):
             raise EvidenceIOError(f"{label} changed while it was read: {path}")
 
-        return FileSnapshot(
+        return FileDigestSnapshot(
             path=pathlib.Path(os.path.abspath(path)),
-            data=data,
-            size=len(data),
-            sha256=hashlib.sha256(data).hexdigest(),
+            size=total,
+            sha256=hasher.hexdigest(),
         )
     except OSError as exc:
-        primary_error = EvidenceIOError(f"cannot read {label} {path}: {exc}")
-        raise primary_error from exc
+        raise EvidenceIOError(f"cannot read {label} {path}: {exc}") from exc
+
+
+def _close_snapshot_descriptor(
+    descriptor: int,
+    *,
+    path: pathlib.Path,
+    label: str,
+    primary_error: BaseException | None,
+) -> None:
+    try:
+        os.close(descriptor)
+    except BaseException as cleanup_error:
+        if primary_error is not None:
+            primary_error.add_note(
+                f"closing the evidence descriptor also failed: {cleanup_error}"
+            )
+        elif isinstance(cleanup_error, Exception):
+            raise EvidenceIOError(
+                f"cannot close {label} evidence descriptor for {path}: {cleanup_error}"
+            ) from cleanup_error
+        else:
+            raise
+
+
+def consume_regular_snapshot(
+    path: pathlib.Path,
+    *,
+    maximum: int,
+    label: str,
+    consume: Callable[[bytes], None] | None = None,
+    validate_metadata: Callable[[os.stat_result], None] | None = None,
+) -> FileDigestSnapshot:
+    """Consume and hash one bounded regular file without reopening its path."""
+
+    descriptor = _open_regular_no_symlinks(path)
+    primary_error: BaseException | None = None
+    try:
+        return _consume_open_regular_snapshot(
+            descriptor,
+            path,
+            maximum=maximum,
+            label=label,
+            consume=consume,
+            validate_metadata=validate_metadata,
+        )
     except BaseException as exc:
         primary_error = exc
         raise
     finally:
-        try:
-            os.close(descriptor)
-        except BaseException as cleanup_error:
-            if primary_error is not None:
-                primary_error.add_note(
-                    f"closing the evidence descriptor also failed: {cleanup_error}"
-                )
-            elif isinstance(cleanup_error, Exception):
-                raise EvidenceIOError(
-                    f"cannot close {label} evidence descriptor for {path}: {cleanup_error}"
-                ) from cleanup_error
-            else:
-                raise
+        _close_snapshot_descriptor(
+            descriptor,
+            path=path,
+            label=label,
+            primary_error=primary_error,
+        )
+
+
+def consume_regular_snapshot_at(
+    directory_fd: int,
+    leaf: str,
+    *,
+    display_path: pathlib.Path,
+    maximum: int,
+    label: str,
+    consume: Callable[[bytes], None] | None = None,
+    validate_metadata: Callable[[os.stat_result], None] | None = None,
+) -> FileDigestSnapshot:
+    """Consume one regular leaf relative to an already-open directory."""
+
+    if os.name == "nt":
+        raise EvidenceIOError(f"{label} dirfd-relative snapshots are unavailable on Windows")
+    if (
+        type(leaf) is not str
+        or not leaf
+        or leaf in {".", ".."}
+        or "/" in leaf
+        or "\\" in leaf
+        or "\x00" in leaf
+    ):
+        raise EvidenceIOError(f"{label} leaf must be one safe basename")
+    try:
+        directory_metadata = os.fstat(directory_fd)
+        if not stat.S_ISDIR(directory_metadata.st_mode):
+            raise EvidenceIOError(f"{label} parent descriptor is not a directory")
+        descriptor = os.open(
+            leaf,
+            os.O_RDONLY
+            | os.O_NOFOLLOW
+            | getattr(os, "O_NONBLOCK", 0)
+            | getattr(os, "O_CLOEXEC", 0),
+            dir_fd=directory_fd,
+        )
+    except EvidenceIOError:
+        raise
+    except OSError as exc:
+        raise EvidenceIOError(
+            f"cannot safely open {label} {display_path}: {exc}"
+        ) from exc
+    primary_error: BaseException | None = None
+    try:
+        return _consume_open_regular_snapshot(
+            descriptor,
+            display_path,
+            maximum=maximum,
+            label=label,
+            consume=consume,
+            validate_metadata=validate_metadata,
+        )
+    except BaseException as exc:
+        primary_error = exc
+        raise
+    finally:
+        _close_snapshot_descriptor(
+            descriptor,
+            path=display_path,
+            label=label,
+            primary_error=primary_error,
+        )
+
+
+def read_regular_snapshot(
+    path: pathlib.Path,
+    *,
+    maximum: int,
+    label: str,
+    validate_metadata: Callable[[os.stat_result], None] | None = None,
+) -> FileSnapshot:
+    """Read one bounded regular file and hash exactly the bytes returned."""
+
+    chunks: list[bytes] = []
+    digest = consume_regular_snapshot(
+        path,
+        maximum=maximum,
+        label=label,
+        consume=chunks.append,
+        validate_metadata=validate_metadata,
+    )
+    data = b"".join(chunks)
+    if len(data) != digest.size:
+        raise EvidenceIOError(f"{label} consumer byte count changed unexpectedly")
+    return FileSnapshot(
+        path=digest.path,
+        data=data,
+        size=digest.size,
+        sha256=digest.sha256,
+    )
 
 
 def parse_strict_json_bytes(data: bytes, *, label: str) -> Any:
@@ -928,11 +1219,53 @@ def load_json_object_snapshot(
     *,
     maximum: int = DEFAULT_JSON_MAX_BYTES,
     label: str,
+    validate_metadata: Callable[[os.stat_result], None] | None = None,
 ) -> JsonObjectSnapshot:
     """Read, hash, and parse one JSON object without reopening its path."""
 
-    file_snapshot = read_regular_snapshot(path, maximum=maximum, label=label)
+    file_snapshot = read_regular_snapshot(
+        path,
+        maximum=maximum,
+        label=label,
+        validate_metadata=validate_metadata,
+    )
     value = parse_strict_json_bytes(file_snapshot.data, label=label)
+    if not isinstance(value, dict):
+        raise EvidenceIOError(f"{label} root must be a JSON object")
+    return JsonObjectSnapshot(file=file_snapshot, value=value)
+
+
+def load_json_object_snapshot_at(
+    directory_fd: int,
+    leaf: str,
+    *,
+    display_path: pathlib.Path,
+    maximum: int = DEFAULT_JSON_MAX_BYTES,
+    label: str,
+    validate_metadata: Callable[[os.stat_result], None] | None = None,
+) -> JsonObjectSnapshot:
+    """Read strict JSON from one leaf of an already-open directory."""
+
+    chunks: list[bytes] = []
+    digest = consume_regular_snapshot_at(
+        directory_fd,
+        leaf,
+        display_path=display_path,
+        maximum=maximum,
+        label=label,
+        consume=chunks.append,
+        validate_metadata=validate_metadata,
+    )
+    data = b"".join(chunks)
+    if len(data) != digest.size:
+        raise EvidenceIOError(f"{label} consumer byte count changed unexpectedly")
+    file_snapshot = FileSnapshot(
+        path=digest.path,
+        data=data,
+        size=digest.size,
+        sha256=digest.sha256,
+    )
+    value = parse_strict_json_bytes(data, label=label)
     if not isinstance(value, dict):
         raise EvidenceIOError(f"{label} root must be a JSON object")
     return JsonObjectSnapshot(file=file_snapshot, value=value)

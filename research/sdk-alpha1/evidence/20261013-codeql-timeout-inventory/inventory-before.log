@@ -1,0 +1,18 @@
+test_tracked_inventory_is_nonempty_and_nul_terminated (test_codeql_rust_quality.CodeQLRustQualityTests.test_tracked_inventory_is_nonempty_and_nul_terminated) ... ERROR
+
+======================================================================
+ERROR: test_tracked_inventory_is_nonempty_and_nul_terminated (test_codeql_rust_quality.CodeQLRustQualityTests.test_tracked_inventory_is_nonempty_and_nul_terminated)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/artifact/test_codeql_rust_quality.py", line 1414, in test_tracked_inventory_is_nonempty_and_nul_terminated
+    tracked = codeql_rust_quality.tracked_rust_paths()
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/artifact/codeql_rust_quality.py", line 450, in tracked_rust_paths
+    raise CodeQLRustQualityError(
+    ...<2 lines>...
+    )
+codeql_rust_quality.CodeQLRustQualityError: tracked Rust source count must be 581, got 594
+
+----------------------------------------------------------------------
+Ran 1 test in 0.018s
+
+FAILED (errors=1)

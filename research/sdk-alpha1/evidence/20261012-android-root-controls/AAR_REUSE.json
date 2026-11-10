@@ -1,0 +1,7 @@
+{
+  "AAR_sha256": "84250d41fab17b8a3f0fccf51fc5c762e30af811e19c3bb776707a084679cb5c",
+  "reused_unchanged": true,
+  "prior_package_sha256": "02982e607421016a1cff50ef91f3513ebf169b600744513ccc951754e14345e2",
+  "library_and_JNI_source_identical": true,
+  "scope": "Only APK qualification classes/driver changed; all library and native AAR bytes retained."
+}

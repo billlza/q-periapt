@@ -1,0 +1,17 @@
+{
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "profile": "debug",
+  "members": 16096,
+  "bytes": 68428550,
+  "sha256": "34d8bd3844f51a3a6b748be5911d7dd7d9e7d8a5986371ae298ff63ef39f1cf1",
+  "source_inputs": 1401,
+  "jni_harness_tests_passed": 67,
+  "public_outcome_fields_replayed": 20,
+  "all_seven_native_binary_bytes_retained": true,
+  "all_members_reread": true,
+  "whole_debug_release_aggregate": false,
+  "art_executed": false,
+  "physical_device_executed": false,
+  "release_claim_eligible": false,
+  "scope": "Current completed Debug installed host JNI partition; source, actual archive/native/JAR/test-class identities and 20 original public readbacks. The companion Release evidence is separately retained; no full foreign-profile join, native replay from capsule or Android runtime claim."
+}

@@ -1,0 +1,23 @@
+{
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "members": 556,
+  "bytes": 48778527,
+  "sha256": "d67939e4f22138c4877d43a5143857e6d4728c8ebb8d5da1edde78da65e0a47e",
+  "aar_sha256": "a21d016d0cbe69dc7bb363c488ce9d984017625ea811c17218dea4e60ab66c7e",
+  "apk": {
+    "bytes": 7874919,
+    "file": "consumer-unsigned.apk",
+    "sha256": "d94654dbd7879ddd321f706e5bbf54bbc789d5ff30a038a41e62f68da7b028f3"
+  },
+  "successful_build": "build-03",
+  "failed_builds_preserved": [
+    "build-01",
+    "build-02"
+  ],
+  "all_members_reread": true,
+  "signed": false,
+  "art_executed": false,
+  "physical_device_executed": false,
+  "release_claim_eligible": false,
+  "scope": "Actual current AAR consumed by original device instrumentation namespace through strict javac, R8 and AGP Release packaging; independent actual DEX/manifest/native-byte/ZIP alignment inspection. No runtime inputs, signed installation, ART or device execution."
+}

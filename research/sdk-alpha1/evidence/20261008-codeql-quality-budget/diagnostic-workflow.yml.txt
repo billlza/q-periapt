@@ -1,0 +1,36 @@
+name: CodeQL quality query resource control
+on:
+  push:
+    branches: [lza/codeql-quality-resource-control]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  evaluate:
+    name: Frozen database, unchanged quality queries
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - name: Check archive admission and bounded child cleanup
+        run: python3 -B -m unittest test_evaluate
+      - uses: github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+        id: codeql
+        with:
+          tools: linked
+          languages: rust
+      - name: Replay all original quality queries and assertions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODEQL_BINARY: ${{ steps.codeql.outputs.codeql-path }}
+        run: python3 -B evaluate.py --codeql "$CODEQL_BINARY" --output "$RUNNER_TEMP/codeql-quality-control"
+      - name: Retain the result, including incomplete evaluations
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-quality-resource-control
+          path: ${{ runner.temp }}/codeql-quality-control/evidence/**
+          if-no-files-found: error
+          retention-days: 14

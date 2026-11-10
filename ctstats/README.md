@@ -56,6 +56,13 @@ best-effort diagnostic. A defensible timing gate needs dedicated, quiesced hardw
   calls the public shipped `q-periapt-backends` wrappers; it does not substitute a test-only
   primitive path. No upstream formal-verification property is inherited without a separate,
   source-bound justification.
+- **Per-target FIPS 202 profiles:** the Valgrind dataflow gates run the Linux native slice, which
+  pins the Armv8-A scalar Keccak profile. The Armv8.4-A SHA3 Keccak assembly pinned by the
+  `aarch64-apple-darwin` and `aarch64-apple-ios-sim` slices therefore has no Memcheck dataflow
+  lane; its constant-time argument rests on the upstream assembly's structure (one fixed 24-round
+  counter branch, fixed-offset state addressing, sequential round-constant loads, and a data path
+  of only eor3/rax1/xar/bcax/eor/trn) plus upstream HOL-Light functional correspondence, with the
+  local dudect timing report as the empirical diagnostic on Apple hardware.
 - **ML-DSA carve-out:** signing uses rejection sampling, so its iteration count is
   secret-dependent by design. That behavior is outside this ML-KEM decapsulation probe and must
   be assessed with an algorithm-specific methodology.
@@ -122,5 +129,5 @@ current builds and claims use the dependency-free `ct_leaky_control` discriminat
 
 - Promote the local dudect timing diagnostic to a gate on dedicated, quiesced hardware.
 - Add equivalent binary-CT coverage for riscv64 and wasm32 when mature tooling exists.
-- Add an independent source-level audit of the active shipped primitive implementation.
+- Review the active shipped primitive implementation and bind findings to its source revision.
 - Extend dataflow coverage to the remaining primitive paths with algorithm-appropriate harnesses.

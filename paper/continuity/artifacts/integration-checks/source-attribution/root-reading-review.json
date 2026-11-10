@@ -1,0 +1,18 @@
+{
+  "schema": "qperiapt-joc-reading-review/1",
+  "pdf_sha256": "a3c86055403dcf5e7cbb3c7152c643523bd50b858e0a5511b3447145fe038959",
+  "pdf_pages": 77,
+  "render": "Poppler pdftoppm at140dpi",
+  "reviewed_pages": [
+    1,
+    48,
+    49,
+    50
+  ],
+  "findings": [
+    "Title, author, correspondence, abstract and keywords are complete and legible.",
+    "New stability lemma, source-association proposition, component bounds and separation statement fit the text area.",
+    "No clipped formulas, overlapping text, missing glyphs or displaced page numbers observed."
+  ],
+  "status": "passed"
+}

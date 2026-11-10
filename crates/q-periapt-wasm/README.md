@@ -3,6 +3,11 @@
 WASM bindings for the PQ/T hybrid suite (ML-KEM-768 + X25519 + SHA3) via
 `wasm-bindgen` — the same one Rust core, exposed to JavaScript/TypeScript.
 
+This package retains the **expert/conformance** interface with caller randomness
+and raw secret exports. For the new product API under 0.2.0 development,
+use [`q-periapt-sdk-wasm`](../q-periapt-sdk-wasm/README.md): signed policy,
+platform randomness, explicit object lifetimes and no private-key getter.
+
 The WASM face is the current stateless KEM/policy API, not a prekey or ratchet
 implementation. It provides no persistent session, multi-device, recovery, or
 PQ3/Signal parity claim. See
@@ -91,11 +96,14 @@ const secret = decapsulate(2, suiteId, 1, kemPq.sk, enc.ct_pq, kemPq.pk,
                            kemX.sk, enc.ct_trad, kemX.pk, context);
 
 // X-Wing construction compatibility uses the seed-dk key format; this is not an
-// independent endpoint/HPKE interoperability claim:
+// independent endpoint/HPKE interoperability claim. CompatXWing has no metadata
+// inputs, so the raw API requires an empty suite id, version 0, and empty context;
+// noncanonical values are rejected rather than discarded:
 const xwingPq = mlkem768_xwing_keypair(seed32); // sk is 32 bytes
-const xwingEnc = encapsulate(1, suiteId, 1, xwingPq.pk, kemX.pk,
+const noMetadata = new Uint8Array();
+const xwingEnc = encapsulate(1, noMetadata, 0, xwingPq.pk, kemX.pk,
                              new Uint8Array(), randPq, randTrad);
-const xwingSecret = decapsulate(1, suiteId, 1, xwingPq.sk, xwingEnc.ct_pq,
+const xwingSecret = decapsulate(1, noMetadata, 0, xwingPq.sk, xwingEnc.ct_pq,
                                 xwingPq.pk, kemX.sk, xwingEnc.ct_trad,
                                 kemX.pk, new Uint8Array());
 ```
@@ -119,6 +127,7 @@ The decapsulation logic is verified on the host against
 `bindings/shared-test-vectors.json` (`cargo test -p q-periapt-wasm`,
 `decapsulate_matches_shared_vector`) — the same oracle the C / Swift bindings use.
 The tests also cover keypair -> encapsulate -> decapsulate for both ContextBound
-expanded keys and CompatXWing seed-dk keys, plus version/fixed-suite metadata. Running
-the *actual* WASM build against the vector uses `wasm-pack test` (needs Node); the
-wasm32 build itself is gated in CI.
+expanded keys and CompatXWing seed-dk keys, including ContextBound fixed-suite
+metadata and strict CompatXWing metadata absence. Running the *actual* WASM build
+against the vector uses `wasm-pack test` (needs Node); the wasm32 build itself is
+gated in CI.

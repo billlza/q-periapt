@@ -1,0 +1,773 @@
+{
+  "baseline_commit": "c7581ebc21f5d080d90840c13b52c793bcac9317",
+  "purpose": "Source identity and label map for the independent integrated consistency audit",
+  "tex_inventory_source": "git ls-tree of the baseline commit",
+  "tex_content_and_labels_source": "git show of the baseline blobs",
+  "archived_inputs": "Workspace archive bytes verified against the baseline before use",
+  "files": [
+    {
+      "path": "paper/continuity/acquisition-nonadditivity.tex",
+      "bytes": 2722,
+      "sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "prop:acquisition-nonadditivity": 7
+      }
+    },
+    {
+      "path": "paper/continuity/artifact-map.tex",
+      "bytes": 29631,
+      "sha256": "c97c63162e301538bdb656dd81955c4be23ae2db56a761382d9d9eef9244d6fd",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "app:artifacts": 2,
+        "app:opaque-artifacts": 135,
+        "app:report-artifacts": 159,
+        "app:joint-artifacts": 191,
+        "app:contextbound-source": 216,
+        "app:source-attribution": 292,
+        "app:signature-bridge": 318,
+        "app:native-authentication": 340,
+        "app:matched-comparison": 354,
+        "app:retry-readiness": 393,
+        "app:chain-prefix": 428,
+        "app:native-online-chain": 454,
+        "app:kem-ordinary-bridge": 483,
+        "app:bootstrap-artifacts": 500
+      }
+    },
+    {
+      "path": "paper/continuity/bootstrap-authentication.tex",
+      "bytes": 24890,
+      "sha256": "72c4f982bdf7229623ca790d83d3a2dc55ef0f6cb0f32cc832a61700f28e766d",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:bootstrap-authentication": 2,
+        "eq:bootstrap-schedule": 42,
+        "def:bootstrap-online": 64,
+        "lem:bootstrap-reply-origin": 110,
+        "lem:bootstrap-validation": 186,
+        "eq:bootstrap-validation": 196,
+        "eq:bootstrap-capture": 237,
+        "lem:bootstrap-deferred": 279,
+        "eq:bootstrap-tail": 322,
+        "prop:bootstrap-ack-table": 329,
+        "thm:bootstrap-source-schedule": 353,
+        "eq:bootstrap-source-schedule": 374,
+        "thm:bootstrap-terminal": 400,
+        "eq:bootstrap-terminal": 410,
+        "eq:bootstrap-mac-records": 424
+      }
+    },
+    {
+      "path": "paper/continuity/bootstrap-entry.tex",
+      "bytes": 6346,
+      "sha256": "c97d14ab80160319d2d87f563f349566961e3f585ef4604417b8c87cce02af2e",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "app:bootstrap-entry": 2,
+        "eq:bootstrap-compression": 17,
+        "thm:bootstrap-joint-entry": 48,
+        "eq:bootstrap-joint-entry": 56
+      }
+    },
+    {
+      "path": "paper/continuity/bootstrap-initial-source.tex",
+      "bytes": 16481,
+      "sha256": "d84118de7a0b90a451d47e2a1673a0da35a23e1655493502583976a08a279715",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:bootstrap-initial-source": 2,
+        "lem:bootstrap-initial-origin": 50,
+        "eq:bootstrap-initial-service": 62,
+        "eq:bootstrap-initial-capture": 136,
+        "eq:bootstrap-initial-upstream": 191,
+        "lem:bootstrap-initial-allocation": 197,
+        "thm:bootstrap-initial-schedule": 238,
+        "eq:bootstrap-initial-schedule": 249,
+        "eq:bootstrap-initial-uniform": 258,
+        "cor:bootstrap-initial-terminal": 284
+      }
+    },
+    {
+      "path": "paper/continuity/candidate-local-accounting.tex",
+      "bytes": 8953,
+      "sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:candidate-local-accounting": 3,
+        "lem:adaptive-origin-stop": 34,
+        "lem:native-local-score": 94,
+        "eq:local-stop-identity": 101,
+        "eq:native-local-decomposition": 107,
+        "prop:native-local-accounting": 154
+      }
+    },
+    {
+      "path": "paper/continuity/chain-prefix-continuation.tex",
+      "bytes": 10384,
+      "sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:chain-prefix": 2,
+        "eq:prefix-chain": 24,
+        "eq:prefix-error": 74,
+        "thm:online-chain-leaf": 80,
+        "cor:online-chain-message": 148
+      }
+    },
+    {
+      "path": "paper/continuity/common-virtual-accounting.tex",
+      "bytes": 4589,
+      "sha256": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "app:common-virtual": 2,
+        "eq:component-hop": 47,
+        "prop:adaptive-accounting": 62,
+        "eq:accounting": 71
+      }
+    },
+    {
+      "path": "paper/continuity/computational-roadmap.tex",
+      "bytes": 7912,
+      "sha256": "26533cacec6b94b4b6cf0b83778aa538e7ba0f690c2f6b42409524dd3464db76",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:computation": 2,
+        "tab:online-selection-boundaries": 31,
+        "tab:computational-dependencies": 75
+      }
+    },
+    {
+      "path": "paper/continuity/confirmation-traffic.tex",
+      "bytes": 9959,
+      "sha256": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:confirmation-traffic": 2,
+        "eq:native-confirmation-tag": 22,
+        "eq:confirmation-row-cost": 81,
+        "prop:confirmation-message-auth": 116,
+        "eq:confirmation-message-auth": 128
+      }
+    },
+    {
+      "path": "paper/continuity/construction.tex",
+      "bytes": 5913,
+      "sha256": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:construction": 2,
+        "tab:events": 54,
+        "eq:root": 66,
+        "eq:traffic": 71,
+        "fig:delayed-receipt": 108
+      }
+    },
+    {
+      "path": "paper/continuity/contextbound-connection.tex",
+      "bytes": 16401,
+      "sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:contextbound-connection": 3,
+        "lem:cb-hidden-component": 46,
+        "eq:cb-hidden-cost": 60,
+        "lem:cb-native-root-use": 165,
+        "thm:cb-next-rekey": 240,
+        "eq:cb-continuation-bound": 255,
+        "eq:cb-native-bound": 267
+      }
+    },
+    {
+      "path": "paper/continuity/declarations.tex",
+      "bytes": 935,
+      "sha256": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
+      "content_origin": "baseline_git_object",
+      "labels": {}
+    },
+    {
+      "path": "paper/continuity/discussion.tex",
+      "bytes": 8370,
+      "sha256": "4042b5a6d3d04f28db062abad7a9022ced67c4313702402d85bfbaf06224e7ca",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:discussion": 2
+      }
+    },
+    {
+      "path": "paper/continuity/established-results.tex",
+      "bytes": 6127,
+      "sha256": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:established": 2,
+        "thm:symbolic": 23,
+        "prop:counter-separation": 87
+      }
+    },
+    {
+      "path": "paper/continuity/evaluation.tex",
+      "bytes": 10443,
+      "sha256": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:evaluation": 2,
+        "tab:validation-questions": 23,
+        "sec:guarded-checks": 47,
+        "tab:guarded-checks": 88,
+        "tab:reference": 169
+      }
+    },
+    {
+      "path": "paper/continuity/guarded-provenance.tex",
+      "bytes": 8980,
+      "sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:guarded-provenance": 3,
+        "thm:guarded-normalization": 80,
+        "cor:guarded-history": 119
+      }
+    },
+    {
+      "path": "paper/continuity/introduction.tex",
+      "bytes": 10114,
+      "sha256": "18129e1d1a935a69ea34f6239e09b59fa01b3e209dd810f396220fe67cb432a1",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:introduction": 2
+      }
+    },
+    {
+      "path": "paper/continuity/joc-submission.tex",
+      "bytes": 398772,
+      "sha256": "6235ac578095809453a33101f9304a94593fc32d045e5c3c399c04b213630206",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:introduction": 75,
+        "sec:related-work": 238,
+        "sec:construction": 397,
+        "tab:events": 449,
+        "eq:root": 461,
+        "eq:traffic": 466,
+        "fig:delayed-receipt": 503,
+        "sec:security-model": 519,
+        "tab:record-notation": 549,
+        "def:reservation-origin": 569,
+        "eq:origin-causality": 642,
+        "def:record-acquisition": 679,
+        "eq:acquired-records": 687,
+        "eq:readable-records": 692,
+        "lem:alias-normalization": 804,
+        "sec:guarded-provenance": 886,
+        "thm:guarded-normalization": 963,
+        "cor:guarded-history": 1002,
+        "prop:acquisition-nonadditivity": 1053,
+        "def:recovery-game": 1118,
+        "eq:eligibility": 1163,
+        "eq:recovery-score": 1191,
+        "cor:target-acquisition-stop": 1229,
+        "sec:computation": 1309,
+        "tab:online-selection-boundaries": 1338,
+        "tab:computational-dependencies": 1382,
+        "sec:opaque-rendering": 1449,
+        "lem:record-structural-equality": 1542,
+        "thm:opaque-rendering": 1567,
+        "cor:real-to-opaque": 1620,
+        "sec:report-composition": 1655,
+        "eq:report-protection": 1689,
+        "thm:report-reverse-composition": 1747,
+        "cor:report-exposure-residual": 1832,
+        "sec:candidate-local-accounting": 1900,
+        "lem:adaptive-origin-stop": 1931,
+        "lem:native-local-score": 1991,
+        "eq:local-stop-identity": 1998,
+        "eq:native-local-decomposition": 2004,
+        "prop:native-local-accounting": 2051,
+        "sec:native-correspondence": 2083,
+        "tab:native-report-families": 2167,
+        "sec:joint-continuation": 2186,
+        "eq:joint-root-uses": 2238,
+        "eq:joint-traffic-info": 2267,
+        "eq:joint-chain-step": 2292,
+        "lem:joint-expand-blocks": 2306,
+        "thm:joint-message-leaf": 2349,
+        "eq:joint-schedule-error": 2361,
+        "cor:joint-first-message": 2455,
+        "sec:chain-prefix": 2540,
+        "eq:prefix-chain": 2562,
+        "eq:prefix-error": 2612,
+        "thm:online-chain-leaf": 2618,
+        "cor:online-chain-message": 2686,
+        "sec:contextbound-connection": 2741,
+        "lem:cb-hidden-component": 2784,
+        "eq:cb-hidden-cost": 2798,
+        "lem:cb-native-root-use": 2903,
+        "thm:cb-next-rekey": 2978,
+        "eq:cb-continuation-bound": 2993,
+        "eq:cb-native-bound": 3005,
+        "sec:kem-ordinary-bridge": 3041,
+        "prop:kem-deferred-challenge": 3072,
+        "eq:kem-deferred-bridge": 3085,
+        "sec:live-core-instantiation": 3172,
+        "eq:live-core-record-cost": 3213,
+        "cor:live-core-next-rekey": 3221,
+        "eq:live-core-next-rekey": 3234,
+        "sec:confirmation-traffic": 3281,
+        "eq:native-confirmation-tag": 3301,
+        "eq:confirmation-row-cost": 3360,
+        "prop:confirmation-message-auth": 3395,
+        "eq:confirmation-message-auth": 3407,
+        "sec:executed-source-attribution": 3473,
+        "lem:executed-slot-stability": 3496,
+        "prop:executed-source-attribution": 3537,
+        "eq:executed-attribution-cost": 3551,
+        "prop:reservation-signature-components": 3633,
+        "prop:signature-coin-separation": 3679,
+        "sec:reservation-ordinary-bridge": 3715,
+        "prop:independent-hedging-bridge": 3752,
+        "eq:independent-hedging-bridge": 3762,
+        "thm:native-mldsa-reservation-bridge": 3829,
+        "eq:native-mldsa-reservation-bridge": 3839,
+        "eq:native-pair-ordinary-mldsa": 3920,
+        "sec:native-authentication": 3936,
+        "eq:native-auth-component": 4026,
+        "eq:native-auth-continuation": 4041,
+        "thm:native-selected-authentication": 4058,
+        "eq:native-selected-authentication": 4072,
+        "eq:native-auth-localization": 4111,
+        "sec:native-online-chain": 4188,
+        "lem:native-online-chain-correspondence": 4266,
+        "eq:native-chain-continuation": 4344,
+        "eq:native-chain-integrity-cost": 4369,
+        "thm:native-online-message": 4375,
+        "eq:native-online-confidentiality": 4387,
+        "eq:native-online-integrity": 4397,
+        "sec:multiple-root-entry": 4476,
+        "thm:multiple-root-entry": 4526,
+        "eq:multiple-root-error": 4535,
+        "eq:multiple-root-budgets": 4588,
+        "cor:multiple-root-message": 4598,
+        "eq:multiple-root-message": 4607,
+        "sec:sdk-purpose-connection": 4630,
+        "lem:entry-information-length": 4641,
+        "eq:entry-information-length": 4653,
+        "eq:sdk-purpose-info": 4690,
+        "prop:sdk-purpose-table": 4728,
+        "eq:sdk-purpose-error": 4743,
+        "sec:bootstrap-authentication": 4803,
+        "eq:bootstrap-schedule": 4843,
+        "def:bootstrap-online": 4865,
+        "lem:bootstrap-reply-origin": 4911,
+        "lem:bootstrap-validation": 4987,
+        "eq:bootstrap-validation": 4997,
+        "eq:bootstrap-capture": 5038,
+        "lem:bootstrap-deferred": 5080,
+        "eq:bootstrap-tail": 5123,
+        "prop:bootstrap-ack-table": 5130,
+        "thm:bootstrap-source-schedule": 5154,
+        "eq:bootstrap-source-schedule": 5175,
+        "thm:bootstrap-terminal": 5201,
+        "eq:bootstrap-terminal": 5211,
+        "eq:bootstrap-mac-records": 5225,
+        "sec:bootstrap-initial-source": 5277,
+        "lem:bootstrap-initial-origin": 5325,
+        "eq:bootstrap-initial-service": 5337,
+        "eq:bootstrap-initial-capture": 5411,
+        "eq:bootstrap-initial-upstream": 5466,
+        "lem:bootstrap-initial-allocation": 5472,
+        "thm:bootstrap-initial-schedule": 5513,
+        "eq:bootstrap-initial-schedule": 5524,
+        "eq:bootstrap-initial-uniform": 5533,
+        "cor:bootstrap-initial-terminal": 5559,
+        "sec:established": 5594,
+        "thm:symbolic": 5615,
+        "prop:counter-separation": 5679,
+        "sec:evaluation": 5711,
+        "tab:validation-questions": 5732,
+        "sec:guarded-checks": 5756,
+        "tab:guarded-checks": 5797,
+        "tab:reference": 5878,
+        "tab:reference-schedules": 5911,
+        "sec:matched-opportunities": 5947,
+        "tab:matched-opportunities": 6017,
+        "tab:matched-accounting": 6034,
+        "sec:retry-readiness": 6097,
+        "tab:retry-readiness": 6146,
+        "sec:discussion": 6196,
+        "app:artifacts": 6356,
+        "app:opaque-artifacts": 6489,
+        "app:report-artifacts": 6513,
+        "app:joint-artifacts": 6545,
+        "app:contextbound-source": 6570,
+        "app:source-attribution": 6646,
+        "app:signature-bridge": 6672,
+        "app:native-authentication": 6694,
+        "app:matched-comparison": 6708,
+        "app:retry-readiness": 6747,
+        "app:chain-prefix": 6782,
+        "app:native-online-chain": 6808,
+        "app:kem-ordinary-bridge": 6837,
+        "app:bootstrap-artifacts": 6854,
+        "app:primitive-inputs": 6883,
+        "app:joint-primitives": 6980,
+        "app:joint-row-column": 7005,
+        "eq:appendix-column-compression": 7027,
+        "lem:appendix-joint-hmac": 7055,
+        "eq:appendix-joint-hmac": 7064,
+        "lem:appendix-hmac-instances": 7140,
+        "eq:appendix-multirow": 7146,
+        "eq:appendix-single-column": 7150,
+        "app:joint-root-entry": 7169,
+        "eq:appendix-root-initialization": 7211,
+        "app:bootstrap-entry": 7227,
+        "eq:bootstrap-compression": 7242,
+        "thm:bootstrap-joint-entry": 7273,
+        "eq:bootstrap-joint-entry": 7281,
+        "app:common-virtual": 7352,
+        "eq:component-hop": 7397,
+        "prop:adaptive-accounting": 7412,
+        "eq:accounting": 7421
+      }
+    },
+    {
+      "path": "paper/continuity/joint-continuation.tex",
+      "bytes": 17987,
+      "sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:joint-continuation": 6,
+        "eq:joint-root-uses": 58,
+        "eq:joint-traffic-info": 87,
+        "eq:joint-chain-step": 112,
+        "lem:joint-expand-blocks": 126,
+        "thm:joint-message-leaf": 169,
+        "eq:joint-schedule-error": 181,
+        "cor:joint-first-message": 275
+      }
+    },
+    {
+      "path": "paper/continuity/joint-primitive-bounds.tex",
+      "bytes": 10663,
+      "sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "app:joint-primitives": 4,
+        "app:joint-row-column": 29,
+        "eq:appendix-column-compression": 51,
+        "lem:appendix-joint-hmac": 79,
+        "eq:appendix-joint-hmac": 88,
+        "lem:appendix-hmac-instances": 164,
+        "eq:appendix-multirow": 170,
+        "eq:appendix-single-column": 174,
+        "app:joint-root-entry": 193,
+        "eq:appendix-root-initialization": 235
+      }
+    },
+    {
+      "path": "paper/continuity/kem-ordinary-bridge.tex",
+      "bytes": 6546,
+      "sha256": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:kem-ordinary-bridge": 2,
+        "prop:kem-deferred-challenge": 33,
+        "eq:kem-deferred-bridge": 46
+      }
+    },
+    {
+      "path": "paper/continuity/live-core-instantiation.tex",
+      "bytes": 5679,
+      "sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:live-core-instantiation": 2,
+        "eq:live-core-record-cost": 43,
+        "cor:live-core-next-rekey": 51,
+        "eq:live-core-next-rekey": 64
+      }
+    },
+    {
+      "path": "paper/continuity/main.tex",
+      "bytes": 4302,
+      "sha256": "37436cf32b029d325faed36eb76211b2fbb4de829ccfb6b464a239a7a21e04b9",
+      "content_origin": "baseline_git_object",
+      "labels": {}
+    },
+    {
+      "path": "paper/continuity/matched-opportunities.tex",
+      "bytes": 6653,
+      "sha256": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:matched-opportunities": 2
+      }
+    },
+    {
+      "path": "paper/continuity/matched-opportunity-tables.tex",
+      "bytes": 1986,
+      "sha256": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "tab:matched-opportunities": 21,
+        "tab:matched-accounting": 38
+      }
+    },
+    {
+      "path": "paper/continuity/multiple-root-entry.tex",
+      "bytes": 8584,
+      "sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:multiple-root-entry": 3,
+        "thm:multiple-root-entry": 53,
+        "eq:multiple-root-error": 62,
+        "eq:multiple-root-budgets": 115,
+        "cor:multiple-root-message": 125,
+        "eq:multiple-root-message": 134
+      }
+    },
+    {
+      "path": "paper/continuity/native-authentication.tex",
+      "bytes": 13617,
+      "sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:native-authentication": 2,
+        "eq:native-auth-component": 92,
+        "eq:native-auth-continuation": 107,
+        "thm:native-selected-authentication": 124,
+        "eq:native-selected-authentication": 138,
+        "eq:native-auth-localization": 177
+      }
+    },
+    {
+      "path": "paper/continuity/native-chain-composition.tex",
+      "bytes": 15290,
+      "sha256": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:native-online-chain": 2,
+        "lem:native-online-chain-correspondence": 80,
+        "eq:native-chain-continuation": 158,
+        "eq:native-chain-integrity-cost": 183,
+        "thm:native-online-message": 189,
+        "eq:native-online-confidentiality": 201,
+        "eq:native-online-integrity": 211
+      }
+    },
+    {
+      "path": "paper/continuity/native-correspondence.tex",
+      "bytes": 5624,
+      "sha256": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:native-correspondence": 2,
+        "tab:native-report-families": 86
+      }
+    },
+    {
+      "path": "paper/continuity/opaque-rendering.tex",
+      "bytes": 11335,
+      "sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:opaque-rendering": 2,
+        "lem:record-structural-equality": 95,
+        "thm:opaque-rendering": 120,
+        "cor:real-to-opaque": 173
+      }
+    },
+    {
+      "path": "paper/continuity/primitive-inputs.tex",
+      "bytes": 4315,
+      "sha256": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "app:primitive-inputs": 2
+      }
+    },
+    {
+      "path": "paper/continuity/reference-schedule-table.tex",
+      "bytes": 1543,
+      "sha256": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "tab:reference-schedules": 30
+      }
+    },
+    {
+      "path": "paper/continuity/related-work.tex",
+      "bytes": 9820,
+      "sha256": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:related-work": 2
+      }
+    },
+    {
+      "path": "paper/continuity/report-composition.tex",
+      "bytes": 12978,
+      "sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:report-composition": 4,
+        "eq:report-protection": 38,
+        "thm:report-reverse-composition": 96,
+        "cor:report-exposure-residual": 181
+      }
+    },
+    {
+      "path": "paper/continuity/reservation-signature-bridge.tex",
+      "bytes": 11624,
+      "sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:reservation-ordinary-bridge": 3,
+        "prop:independent-hedging-bridge": 40,
+        "eq:independent-hedging-bridge": 50,
+        "thm:native-mldsa-reservation-bridge": 117,
+        "eq:native-mldsa-reservation-bridge": 127,
+        "eq:native-pair-ordinary-mldsa": 208
+      }
+    },
+    {
+      "path": "paper/continuity/retry-readiness-table.tex",
+      "bytes": 1261,
+      "sha256": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "tab:retry-readiness": 22
+      }
+    },
+    {
+      "path": "paper/continuity/retry-readiness.tex",
+      "bytes": 4390,
+      "sha256": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:retry-readiness": 2
+      }
+    },
+    {
+      "path": "paper/continuity/sdk-purpose-connection.tex",
+      "bytes": 9312,
+      "sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:sdk-purpose-connection": 3,
+        "lem:entry-information-length": 14,
+        "eq:entry-information-length": 26,
+        "eq:sdk-purpose-info": 63,
+        "prop:sdk-purpose-table": 101,
+        "eq:sdk-purpose-error": 116
+      }
+    },
+    {
+      "path": "paper/continuity/security-model.tex",
+      "bytes": 30624,
+      "sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:security-model": 7,
+        "tab:record-notation": 37,
+        "def:reservation-origin": 57,
+        "eq:origin-causality": 130,
+        "def:record-acquisition": 167,
+        "eq:acquired-records": 175,
+        "eq:readable-records": 180,
+        "lem:alias-normalization": 292,
+        "def:recovery-game": 377,
+        "eq:eligibility": 422,
+        "eq:recovery-score": 450,
+        "cor:target-acquisition-stop": 488
+      }
+    },
+    {
+      "path": "paper/continuity/source-attribution.tex",
+      "bytes": 12838,
+      "sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+      "content_origin": "baseline_git_object",
+      "labels": {
+        "sec:executed-source-attribution": 2,
+        "lem:executed-slot-stability": 25,
+        "prop:executed-source-attribution": 66,
+        "eq:executed-attribution-cost": 80,
+        "prop:reservation-signature-components": 162,
+        "prop:signature-coin-separation": 208
+      }
+    },
+    {
+      "path": "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "bytes": 74151,
+      "sha256": "f72bce264806a900affe2cac33beb449e77aeaa45e6e264549eaa0f2ece7a286",
+      "content_origin": "baseline_git_object",
+      "archived_workspace_bytes_verified": true
+    },
+    {
+      "path": "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap/staged.rs",
+      "bytes": 8236,
+      "sha256": "f633fc0ff32c44156e194ebb6ca6c037a6df09d117d4daf8a69a861cf7d7bafc",
+      "content_origin": "baseline_git_object",
+      "archived_workspace_bytes_verified": true
+    },
+    {
+      "path": "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap/response_staged.rs",
+      "bytes": 7967,
+      "sha256": "3a892deab3d2a209345436ca6d3ddd08f39c549bc98a3d5e7c6026dfaeacff0a",
+      "content_origin": "baseline_git_object",
+      "archived_workspace_bytes_verified": true
+    },
+    {
+      "path": "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/crypto.rs",
+      "bytes": 18994,
+      "sha256": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4",
+      "content_origin": "baseline_git_object",
+      "archived_workspace_bytes_verified": true
+    },
+    {
+      "path": "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/contract.rs",
+      "bytes": 4170,
+      "sha256": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
+      "content_origin": "baseline_git_object",
+      "archived_workspace_bytes_verified": true
+    },
+    {
+      "path": "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/messages.rs",
+      "bytes": 42215,
+      "sha256": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
+      "content_origin": "baseline_git_object",
+      "archived_workspace_bytes_verified": true
+    },
+    {
+      "path": "paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/lib.rs",
+      "bytes": 20167,
+      "sha256": "38e9c524a60e6019c8a5304cd1d587006ab467ab1718a1fd8899f97823e98be6",
+      "content_origin": "baseline_git_object",
+      "archived_workspace_bytes_verified": true
+    },
+    {
+      "path": "paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-backends/src/lib.rs",
+      "bytes": 67287,
+      "sha256": "d73b6b3a789c27779108dbd5c378f553cd6c3108b8d90ea9f101730d2a237313",
+      "content_origin": "baseline_git_object",
+      "archived_workspace_bytes_verified": true
+    },
+    {
+      "path": "paper/continuity/artifacts/bootstrap/initial/SOURCE_PINS.json",
+      "bytes": 8823,
+      "sha256": "56edba39cb6639b2b1ea251ec84bbdd86c38eaf838c6318b47624671f43452f2",
+      "content_origin": "baseline_git_object",
+      "archived_workspace_bytes_verified": true
+    },
+    {
+      "path": "paper/continuity/artifacts/bootstrap/reply/SOURCE_PINS.json",
+      "bytes": 8069,
+      "sha256": "ac548057d4cf4ad06620117a4e5bed966727b941e08c10c90717a2d4d614f6ae",
+      "content_origin": "baseline_git_object",
+      "archived_workspace_bytes_verified": true
+    }
+  ]
+}

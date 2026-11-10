@@ -1,0 +1,41 @@
+{
+  "run": 37778711512,
+  "job": 113320746533,
+  "branch_head": "33ca8c5cd2455c43d1d3600cf0b065353644996d",
+  "tested_merge": "6766bca4a525a395e630f4bcc2bb88549bcd2173",
+  "job_conclusion": "failure",
+  "full_run_id": "d3783d7a0854d920679ba8a45f3d66e2",
+  "full_workload_tests": 3,
+  "full_cleanup": "verified absent after uninstall",
+  "minimal_workload": {
+    "schema": 1,
+    "status": "pass",
+    "run_id": "7218612454f642175838c37114627d6c",
+    "test_count": 1,
+    "passed_tests": [
+      "runtimeVersionOnly"
+    ]
+  },
+  "minimal_cleanup": "unresolved; no uninstall admitted",
+  "apk_readback": {
+    "expected_bytes": 13702871,
+    "expected_sha256": "ed5f60ed706ecc9f50f36fd81e47a777edde00b6eaf19691b6aea85171b3a52e",
+    "failure": "bytes-mismatch",
+    "observed_bytes": 5291520,
+    "observed_sha256": "939dcf655dc4cdc46093ac682285734377209262f8044dc8d2051b1bec3d8f60",
+    "operation": "installed-apk-copy"
+  },
+  "transport": "adb server logs connection terminated: read failed at 13:01:54 and 13:02:04 UTC",
+  "root_cause": "unresolved; guest transport write failed is observed, no SDK crash or OOM cause is established",
+  "changes": "none; original source, image, bounds and byte identity guards retained",
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T14:06:40.322532+00:00",
+  "captures": {
+    "file": "CAPTURES.zip",
+    "bytes": 177390,
+    "sha256": "0a9c550eab53e8a2326113038a677247b68514a818e5bc664f4c61481b872c0c",
+    "members": 227
+  },
+  "publication_performed": false,
+  "release_claim_eligible": false
+}

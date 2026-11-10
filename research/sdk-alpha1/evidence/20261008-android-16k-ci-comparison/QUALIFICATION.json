@@ -1,0 +1,122 @@
+{
+  "push_run": 37778700773,
+  "runtime_job": 113318528229,
+  "replay_job": 113324469596,
+  "branch_head": "33ca8c5cd2455c43d1d3600cf0b065353644996d",
+  "failed_pr_run": 37778711512,
+  "failed_job": 113320746533,
+  "same_git_tree": true,
+  "same_aar_and_all_native_libraries": true,
+  "same_system_image_inputs_and_extracted_hashes": true,
+  "same_adb_and_emulator_backend": true,
+  "profiles": [
+    {
+      "profile": "agp_sdk_full_release",
+      "run_id": "47dc9ab8f7ccea0d0c8fe7a8e40986b0",
+      "aar_sha256": "8a31d195c7a9cf612a782519f8430cdec4f4201984138af6e254f6695d560a48",
+      "apk_sha256": "c8abf57c08682b9576248f0eb4a52102ae3328d21bc31b8f8eca976d10f212b1",
+      "adb_binary_sha256": "a902be8f45c6c62e76c9efaf6947a0fa747c9cabd89a2ac8e0d16ecb30b3ed01",
+      "emulator_backend_sha256": "23b788a3b87b3228558924de4cb5477e2818b3b9415d6ce27d6438cf3e462b98",
+      "aar_manifest_differences_from_pr": [
+        "generated_at",
+        "git_commit",
+        "source_date_epoch"
+      ],
+      "cleanup": "two exact ownership observations, uninstall, three absent observations"
+    },
+    {
+      "profile": "agp_sdk_minimal_release",
+      "run_id": "fe5d9a24c10d2639f9dba633ca346a12",
+      "aar_sha256": "8a31d195c7a9cf612a782519f8430cdec4f4201984138af6e254f6695d560a48",
+      "apk_sha256": "e1b25eddd3817e932c8a0defeb626370f0cc0f4ea9351390b198d561226d34f6",
+      "adb_binary_sha256": "a902be8f45c6c62e76c9efaf6947a0fa747c9cabd89a2ac8e0d16ecb30b3ed01",
+      "emulator_backend_sha256": "23b788a3b87b3228558924de4cb5477e2818b3b9415d6ce27d6438cf3e462b98",
+      "aar_manifest_differences_from_pr": [
+        "generated_at",
+        "git_commit",
+        "source_date_epoch"
+      ],
+      "cleanup": "two exact ownership observations, uninstall, three absent observations"
+    }
+  ],
+  "replay": {
+    "aar_sha256": "8a31d195c7a9cf612a782519f8430cdec4f4201984138af6e254f6695d560a48",
+    "completed": true,
+    "finished_utc": "2026-10-08T13:03:22.116692+00:00",
+    "kind": "qperiapt.android_sdk_runtime_replay",
+    "manifest_sha256": "96e115035d6407b091200525d856afc4a0e62e1f9d20e67e260a11621d4831d1",
+    "operation": "verify",
+    "profiles": [
+      {
+        "aar_manifest_sha256": "96e115035d6407b091200525d856afc4a0e62e1f9d20e67e260a11621d4831d1",
+        "aar_sha256": "8a31d195c7a9cf612a782519f8430cdec4f4201984138af6e254f6695d560a48",
+        "agp_version": "9.4.1",
+        "apk_sha256": "c8abf57c08682b9576248f0eb4a52102ae3328d21bc31b8f8eca976d10f212b1",
+        "build_receipt_sha256": "684129557bdc240c0e67ceeb3728002c845ec0539931f29badd5c3b205de5e4c",
+        "gradle_version": "9.7.1",
+        "passed_tests": [
+          "sdkOwnersAndPurposeKeys",
+          "sdkExpertCancellationAndInputSnapshot",
+          "sdkSignedPolicyRevocationAndRecovery"
+        ],
+        "profile": "agp_sdk_full_release",
+        "proof_sha256": "2e74dd8f211411ef5977c22c1c1a3f8c7adc62ba933a8e09379d411a2fdec773",
+        "result_json_sha256": "5277d47eeac02cbe6dce760ce9bb7749c62ebbf1dbe0e841d627b3fae9ef24a2",
+        "run_id": "47dc9ab8f7ccea0d0c8fe7a8e40986b0",
+        "runtime_target": {
+          "abi": "x86_64",
+          "kind": "emulator",
+          "page_size": 16384,
+          "sdk": 35
+        },
+        "source_commit": "33ca8c5cd2455c43d1d3600cf0b065353644996d",
+        "source_tree_sha256": "9f34d0e017218a1f93c72efe7cd5367313148e0f7f9055c81477440aab049af2"
+      },
+      {
+        "aar_manifest_sha256": "96e115035d6407b091200525d856afc4a0e62e1f9d20e67e260a11621d4831d1",
+        "aar_sha256": "8a31d195c7a9cf612a782519f8430cdec4f4201984138af6e254f6695d560a48",
+        "agp_version": "9.4.1",
+        "apk_sha256": "e1b25eddd3817e932c8a0defeb626370f0cc0f4ea9351390b198d561226d34f6",
+        "build_receipt_sha256": "0fc7855d50cbe16069292dec18badec999ec15423e5718bac16a1a20a0567b28",
+        "gradle_version": "9.7.1",
+        "passed_tests": [
+          "runtimeVersionOnly"
+        ],
+        "profile": "agp_sdk_minimal_release",
+        "proof_sha256": "96ed39e234d007dc742a53ab631b1c8b83b20b1dfe59b000eb71e739d882f777",
+        "result_json_sha256": "1140b4a2a5007944ddcdaa3bbe5bbfee852b216e5f1b0ff97f17e05a0dc412ee",
+        "run_id": "fe5d9a24c10d2639f9dba633ca346a12",
+        "runtime_target": {
+          "abi": "x86_64",
+          "kind": "emulator",
+          "page_size": 16384,
+          "sdk": 35
+        },
+        "source_commit": "33ca8c5cd2455c43d1d3600cf0b065353644996d",
+        "source_tree_sha256": "9f34d0e017218a1f93c72efe7cd5367313148e0f7f9055c81477440aab049af2"
+      }
+    ],
+    "release_claim_eligible": false,
+    "runtime_profile": "api35-16k",
+    "schema": 1,
+    "source_commit": "33ca8c5cd2455c43d1d3600cf0b065353644996d",
+    "started_utc": "2026-10-08T13:02:35.577689+00:00"
+  },
+  "inference": "Observed failure is intermittent under the matched recorded source/image/package/tool identities; cause remains unresolved. This is an existing parallel push run, not a retry until green.",
+  "limitations": [
+    "No new Android runtime execution was performed during local comparison.",
+    "Fresh run identifiers and signing material mean consumer APK bytes differ.",
+    "Hosted scheduler/load and unrecorded temporal conditions are not controlled.",
+    "The PR failure remains failed; one successful run does not establish stability."
+  ],
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T14:13:23.720970+00:00",
+  "captures": {
+    "file": "CAPTURES.zip",
+    "bytes": 93365,
+    "sha256": "a4a3f1f105c69a47732bc562f8df17689c6294c81d4da240486211dfe618831f",
+    "members": 89
+  },
+  "publication_performed": false,
+  "release_claim_eligible": false
+}

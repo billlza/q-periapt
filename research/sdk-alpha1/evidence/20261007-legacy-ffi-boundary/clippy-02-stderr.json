@@ -1,0 +1,4 @@
+{
+  "sha256": "dab78c890095c8bd29f08642bece888b7731706b93458f506a1f4836bfde684f",
+  "text": "    Checking q-periapt-ffi v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi)\nerror: `panic` should not be present in production code\n    --> crates/q-periapt-ffi/src/lib.rs:1641:22\n     |\n1641 |                 _ => panic!(\"unknown isolated boundary case\"),\n     |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n     |\n     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#panic\n     = note: `-D clippy::panic` implied by `-D warnings`\n     = help: to override `-D warnings` add `#[allow(clippy::panic)]`\n\nerror: could not compile `q-periapt-ffi` (lib test) due to 1 previous error\n"
+}

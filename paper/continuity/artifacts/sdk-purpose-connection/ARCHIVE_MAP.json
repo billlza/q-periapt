@@ -1,0 +1,85 @@
+{
+  "schema": "qperiapt-review-archive-map/1",
+  "files": [
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_research/native_test_excerpt.log",
+      "archived_path": "native_test_excerpt.log",
+      "sha256": "c8d7a6b30996d7ef2f329b56e11cfb837cbfb03b6fb3eec2bedf97c8b8abc188"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_research/check_native_root.py",
+      "archived_path": "check_native_root.py",
+      "sha256": "b8d424b456f54a53b06a1d7ce556241858eb250559e09955d7c55cdeed3daccf"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_research/native_test_receipt.json",
+      "archived_path": "native_test_receipt.json",
+      "sha256": "4b551fe5cffd470abe8c4bb7abe7acb2e33587e7219741d212853a59c1b5a5b6"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_research/sdk-purpose-connection.tex",
+      "archived_path": "sdk-purpose-connection.tex",
+      "sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_research/FREEZE.json",
+      "archived_path": "FREEZE.json",
+      "sha256": "d25f0bd18fc7f90b019d0b079b388de839463b73002f48c0bbbc7a1e35a83f75"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_research/validation_report.json",
+      "archived_path": "validation_report.json",
+      "sha256": "2fd0c4b8962b20dd298051eb5af559a806f16662f93f317ae46c3b4b2c61fc91"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_research/README.md",
+      "archived_path": "README.md",
+      "sha256": "b1d4a493a97a57309c70bdb96451b2949a1b4c5cfae57a6a94ae322576be8ddb"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_research/source_map.json",
+      "archived_path": "source_map.json",
+      "sha256": "30a054a08435a32816b88e53a45b6855339eb4b4f711fbc377e9971a06887e25"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_research/source_correspondence.md",
+      "archived_path": "source_correspondence.md",
+      "sha256": "8a49fd4e3a1da7d15b1de1c5cefacf12cf2cb7d42cd1cd6e0ca5f80ae1dd6b7e"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_review/independent_review.md",
+      "archived_path": "independent_review.md",
+      "sha256": "8dd4ac16fe713bcb4d79ad4f567fe0604bd958122f3f93d98407b72611f74a7b"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_review/independent_review.json",
+      "archived_path": "independent_review.json",
+      "sha256": "4c0d8a814878dc9ca4eb8553d5082c19c4e28e773924ef266eafa513636df46f"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_review/encoding_check.py",
+      "archived_path": "encoding_check.py",
+      "sha256": "36b7565c3c240fb167ee39ebc19894c6ec471c662f56bbde94410c7843b8f074"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_review/encoding_receipt.json",
+      "archived_path": "encoding_receipt.json",
+      "sha256": "e8a8247a6c743d2b0f3b84ae44dbcef7a7ff3fe3bca3e5c12158ca2aea4770d3"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_review/source_parity.json",
+      "archived_path": "source_parity.json",
+      "sha256": "c30545e40fc5c14046b472ba6f3b05707ca8d48e2fbb2702910783f1e8e11ba8"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_review/reproduced/source_map.json",
+      "archived_path": "reproduced/source_map.json",
+      "sha256": "30a054a08435a32816b88e53a45b6855339eb4b4f711fbc377e9971a06887e25"
+    },
+    {
+      "original_path": "/workspace/scratch/83c4961eae79/native_root_review/reproduced/validation_report.json",
+      "archived_path": "reproduced/validation_report.json",
+      "sha256": "2fd0c4b8962b20dd298051eb5af559a806f16662f93f317ae46c3b4b2c61fc91"
+    }
+  ]
+}

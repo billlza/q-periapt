@@ -1,0 +1,223 @@
+{
+  "observed_download_url": "https://cms-resources.apps.public.k8s.springernature.io/springer-cms/rest/v1/content/18782940/data/v12",
+  "final_url": "https://cms-resources.apps.public.k8s.springernature.io/springer-cms/rest/v1/content/18782940/data/v12",
+  "status": 200,
+  "content_type": "application/zip;charset=UTF-8",
+  "content_disposition": "inline; filename=\"Download+the+journal+article+template+package+%28December+2024+version%29.zip\"",
+  "last_modified": null,
+  "etag": "\"b902d1ee8d26fe55240b3911600d9666\"",
+  "bytes": 901814,
+  "sha256": "812e76dcaa9c28dc1bff1fb6065d51729b67d4ea140552a05088317414a3ecae",
+  "archive_file": "/workspace/scratch/646fb6c54bf4/work/joc_round3/templates/springer-nature-latex-template-dec2024-v12.zip",
+  "extracted_root": "/workspace/scratch/646fb6c54bf4/work/joc_round3/templates/official_sn_template",
+  "members": [
+    {
+      "path": "sn-article-template/bst/sn-apacite.bst",
+      "bytes": 151345,
+      "sha256": "be9346857b116ec0359319ff26ace70da573475e4c92c6fb9418f841ff7a7c75",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        12
+      ]
+    },
+    {
+      "path": "sn-article-template/bst/sn-aps.bst",
+      "bytes": 29828,
+      "sha256": "51464202b6682152fcd80583e0898c18b6abc5e8486ec98a9cbabea2004de15d",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        14
+      ]
+    },
+    {
+      "path": "sn-article-template/bst/sn-basic.bst",
+      "bytes": 35515,
+      "sha256": "4b368414cc5593169907933b417aacfdb0ce905866a39bdf55d21aad65e9d46c",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        49,
+        22
+      ]
+    },
+    {
+      "path": "sn-article-template/bst/sn-chicago.bst",
+      "bytes": 33968,
+      "sha256": "079647ab15887274acccfc3bd15b3e9928dd16adde8cfc95cf5f1bc5c98b7ba3",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        14
+      ]
+    },
+    {
+      "path": "sn-article-template/bst/sn-mathphys-ay.bst",
+      "bytes": 64023,
+      "sha256": "6a2306683997db76b5e58190acea4dac360c742044114f6a923a4380fbab9008",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        16
+      ]
+    },
+    {
+      "path": "sn-article-template/bst/sn-mathphys-num.bst",
+      "bytes": 64164,
+      "sha256": "b3a7c7fbcc1e7f9619de634fcea2f5bb7a245818a5942bc576e40ea001633332",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        16
+      ]
+    },
+    {
+      "path": "sn-article-template/bst/sn-nature.bst",
+      "bytes": 39056,
+      "sha256": "638d68f5b0e92ffb25d64d29c7334e1bac6bbf54574b602bc633af8d96e1fd9b",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        18
+      ]
+    },
+    {
+      "path": "sn-article-template/bst/sn-vancouver-ay.bst",
+      "bytes": 39951,
+      "sha256": "8f4603d045e2e24c304acc9aa9f4389dc0877811c24ff74d62de1a7dad3ebb63",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        18
+      ]
+    },
+    {
+      "path": "sn-article-template/bst/sn-vancouver-num.bst",
+      "bytes": 40758,
+      "sha256": "7fa6df12ec8e8945c86958a50fb703d181522745adcf72bf95a86f3633540e8a",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        18
+      ]
+    },
+    {
+      "path": "sn-article-template/empty.eps",
+      "bytes": 2890,
+      "sha256": "aca23a40a6a8e1bf92b417dbf15ebdceaefd2e4066e8ec98747232237facaa04",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        8
+      ]
+    },
+    {
+      "path": "sn-article-template/fig.eps",
+      "bytes": 91593,
+      "sha256": "000216a239b64210b463bb888e4be0a233410eccb24e7e4692de4f2ba940ee03",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        8
+      ]
+    },
+    {
+      "path": "sn-article-template/sn-article.pdf",
+      "bytes": 421391,
+      "sha256": "98f733c4946df6612fa8071dc864e3a43aa8be6dd7a4aacd1598cb6025216ac1",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        50,
+        34
+      ]
+    },
+    {
+      "path": "sn-article-template/sn-article.tex",
+      "bytes": 34686,
+      "sha256": "71777936dca4952ac34aef4b98f5ce543fe50597efb2c1798cbb7a97767b70a9",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        10,
+        15,
+        14
+      ]
+    },
+    {
+      "path": "sn-article-template/sn-bibliography.bib",
+      "bytes": 5123,
+      "sha256": "007a3f0da8a727b721cf43d4b5bc399831c13f5c8bb3a0728a729c67ab1c0c54",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        10
+      ]
+    },
+    {
+      "path": "sn-article-template/sn-jnl.cls",
+      "bytes": 55857,
+      "sha256": "36d0c3273a59d48dc6a9c7b080dfa1ec50dc10229d8751568d1f2e490ffa5ecc",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        10
+      ]
+    },
+    {
+      "path": "sn-article-template/user-manual.pdf",
+      "bytes": 418495,
+      "sha256": "4bb5d025c3ec64825cb3f4e1590d7ecc73b51c3c7c53e06711f59d2e840ed9e9",
+      "archive_timestamp": [
+        2024,
+        12,
+        13,
+        9,
+        31,
+        12
+      ]
+    }
+  ]
+}

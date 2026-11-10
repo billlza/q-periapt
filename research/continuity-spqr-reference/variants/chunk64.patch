@@ -1,0 +1,452 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 2374f50..5df4d14 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -0,0 +1,2 @@
++[workspace]
++
+diff --git a/examples/chunk64_regression_fixture.rs b/examples/chunk64_regression_fixture.rs
+new file mode 100644
+index 0000000..ba59a52
+--- /dev/null
++++ b/examples/chunk64_regression_fixture.rs
+@@ -0,0 +1,57 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++//! Public deterministic fixture generator for the isolated 64-byte experiment.
++use prost::Message;
++use rand::{rngs::StdRng, SeedableRng};
++use spqr::{proto::pq_ratchet as pb, ChainParams, Direction, Params, Version};
++use std::{error::Error, fs::File, io::{self, Write}, path::Path};
++
++fn main() -> Result<(), Box<dyn Error>> {
++    let output = std::env::args_os().nth(1).ok_or_else(|| io::Error::other("output directory required"))?;
++    let output = Path::new(&output);
++    if spqr::encoding::polynomial::NUM_POLYS != 32 {
++        return Err(io::Error::other("64-byte experiment required").into());
++    }
++    let initial = |direction| spqr::initial_state(Params {
++        direction, version:Version::V1, min_version:Version::V1,
++        auth_key:&[41;32], chain_params:ChainParams::default(),
++    });
++    let mut a = initial(Direction::A2B)?;
++    let mut b = initial(Direction::B2A)?;
++    let mut rng = StdRng::seed_from_u64(0x3634495353554531);
++    for _ in 0..8 {
++        let sent = spqr::send(&a,&mut rng)?;
++        a = sent.state;
++        let received = spqr::recv(&b,&sent.msg)?;
++        if sent.key != received.key { return Err(io::Error::other("A key mismatch").into()); }
++        b = received.state;
++        let sent = spqr::send(&b,&mut rng)?;
++        b = sent.state;
++        let received = spqr::recv(&a,&sent.msg)?;
++        if sent.key != received.key { return Err(io::Error::other("B key mismatch").into()); }
++        a = received.state;
++    }
++    let mut decoded = pb::PqRatchetState::decode(b.as_slice())?;
++    let Some(pb::pq_ratchet_state::Inner::V1(inner)) = decoded.inner.as_mut() else {
++        return Err(io::Error::other("missing v1 state").into());
++    };
++    let Some(pb::v1_state::InnerState::Ct1Sampled(sampled)) = inner.inner_state.as_mut() else {
++        return Err(io::Error::other("fixture is not before encapsulate2").into());
++    };
++    let es = &mut sampled.uc.as_mut().ok_or_else(|| io::Error::other("missing encapsulation state"))?.es;
++    if es.len() != 2080 { return Err(io::Error::other("encapsulation state size").into()); }
++    let errors = es.get(1536..2048).ok_or_else(|| io::Error::other("error polynomial missing"))?;
++    let errors:Vec<i16> = errors.chunks_exact(2).map(|p| i16::from_le_bytes([p[0],p[1]])).collect();
++    if !errors.iter().all(|v| (-2..=2).contains(v)) || !errors.iter().any(|v| matches!(v,1|2|-2)) {
++        return Err(io::Error::other("fixture does not distinguish the legacy byte order").into());
++    }
++    for pair in es.get_mut(..2048).ok_or_else(|| io::Error::other("encoded state missing"))?.chunks_exact_mut(2) {
++        pair.swap(0,1);
++    }
++    b = decoded.encode_to_vec();
++    for (name,bytes) in [("issue1275_chunk64_a_state.in",a),("issue1275_chunk64_b_state.in",b)] {
++        let mut file=File::create_new(output.join(name))?;
++        file.write_all(&bytes)?;
++        file.sync_all()?;
++    }
++    Ok(())
++}
+diff --git a/src/encoding.rs b/src/encoding.rs
+index c9f118a..b240449 100644
+--- a/src/encoding.rs
++++ b/src/encoding.rs
+@@ -27 +27 @@ pub struct Chunk {
+-    pub data: [u8; 32],
++    pub data: [u8; 64],
+diff --git a/src/encoding/polynomial.rs b/src/encoding/polynomial.rs
+index 03315cd..547e7a0 100644
+--- a/src/encoding/polynomial.rs
++++ b/src/encoding/polynomial.rs
+@@ -288 +288 @@ impl Poly {
+-    #[hax_lib::requires(pts.len() == 0 || pts.len() == 1 || pts.len() == 3 || pts.len() == 5
++    #[hax_lib::requires(pts.len() == 0 || pts.len() == 1 || pts.len() == 2 || pts.len() == 15 || pts.len() == 17 || pts.len() == 18 || pts.len() == 3 || pts.len() == 5
+@@ -302,0 +303,4 @@ impl Poly {
++            2 => const_polys_to_polys(&COMPLETE_POINTS_POLYS_2),
++            15 => const_polys_to_polys(&COMPLETE_POINTS_POLYS_15),
++            17 => const_polys_to_polys(&COMPLETE_POINTS_POLYS_17),
++            18 => const_polys_to_polys(&COMPLETE_POINTS_POLYS_18),
+@@ -496,0 +501,4 @@ const COMPLETE_POINTS_POLYS_1: [PolyConst<1>; 1] = lagrange_polys_for_complete_p
++const COMPLETE_POINTS_POLYS_2: [PolyConst<2>; 2] = lagrange_polys_for_complete_points::<2>();
++const COMPLETE_POINTS_POLYS_15: [PolyConst<15>; 15] = lagrange_polys_for_complete_points::<15>();
++const COMPLETE_POINTS_POLYS_17: [PolyConst<17>; 17] = lagrange_polys_for_complete_points::<17>();
++const COMPLETE_POINTS_POLYS_18: [PolyConst<18>; 18] = lagrange_polys_for_complete_points::<18>();
+@@ -504 +512 @@ const COMPLETE_POINTS_POLYS_36: [PolyConst<36>; 36] = lagrange_polys_for_complet
+-const CHUNK_SIZE: usize = 32;
++const CHUNK_SIZE: usize = 64;
+@@ -517 +525 @@ pub(crate) enum EncoderState {
+-    // For 32B chunks the outer vector has length 16.
++    // For 64B chunks the outer vector has length NUM_POLYS.
+@@ -520 +528 @@ pub(crate) enum EncoderState {
+-    // For 32B chunks this vector has length 16.
++    // For 64B chunks this vector has length NUM_POLYS.
+@@ -540,2 +548,2 @@ impl PolyEncoder {
+-            pts: Vec::with_capacity(16),
+-            polys: Vec::with_capacity(16),
++            pts: Vec::with_capacity(NUM_POLYS),
++            polys: Vec::with_capacity(NUM_POLYS),
+@@ -609 +617 @@ impl PolyEncoder {
+-    #[requires(poly < 16)]
++    #[requires(poly < NUM_POLYS)]
+@@ -613 +621 @@ impl PolyEncoder {
+-            hax_lib::assume!(pts.len() == 16);
++            hax_lib::assume!(pts.len() == NUM_POLYS);
+@@ -635,0 +644,4 @@ impl PolyEncoder {
++                        || pt_vec.len() == 2
++                        || pt_vec.len() == 15
++                        || pt_vec.len() == 17
++                        || pt_vec.len() == 18
+@@ -649 +661 @@ impl PolyEncoder {
+-            hax_lib::assume!(polys.len() == 16);
++            hax_lib::assume!(polys.len() == NUM_POLYS);
+@@ -682,7 +694,7 @@ impl PolyEncoder {
+-        let mut out = Vec::with_capacity(32);
+-        let _p = 16;
+-        for i in 0..16 {
+-            hax_lib::loop_invariant!(|i: usize| _p == 16 && out.len() == 2 * i);
+-            let total_idx = (idx as usize) * 16 + i;
+-            let poly = total_idx % 16;
+-            let poly_idx = total_idx / 16;
++        let mut out = Vec::with_capacity(CHUNK_SIZE);
++        let _p = NUM_POLYS;
++        for i in 0..NUM_POLYS {
++            hax_lib::loop_invariant!(|i: usize| _p == NUM_POLYS && out.len() == 2 * i);
++            let total_idx = (idx as usize) * NUM_POLYS + i;
++            let poly = total_idx % NUM_POLYS;
++            let poly_idx = total_idx / NUM_POLYS;
+@@ -695 +707 @@ impl PolyEncoder {
+-            data: (&out[..]).try_into().expect("should be exactly 32 bytes"),
++            data: (&out[..]).try_into().expect("should be exactly 64 bytes"),
+@@ -746 +758 @@ pub struct PolyDecoder {
+-    pts: [SortedSet<Pt>; 16],
++    pts: [SortedSet<Pt>; NUM_POLYS],
+@@ -759,2 +771,2 @@ impl PolyDecoder {
+-        let points_per_poly = self.pts_needed / 16;
+-        let points_remaining = self.pts_needed % 16;
++        let points_per_poly = self.pts_needed / NUM_POLYS;
++        let points_remaining = self.pts_needed % NUM_POLYS;
+@@ -783 +795 @@ impl PolyDecoder {
+-            polys: 16,
++            polys: 32,
+@@ -805 +817 @@ impl PolyDecoder {
+-        if pb.pts.len() != 16 {
++        if pb.pts.len() != NUM_POLYS {
+@@ -810 +822 @@ impl PolyDecoder {
+-        for i in 0..16 {
++        for i in 0..NUM_POLYS {
+@@ -847 +859 @@ impl Decoder for PolyDecoder {
+-        Self::new_with_poly_count(len_bytes, 16)
++        Self::new_with_poly_count(len_bytes, NUM_POLYS)
+@@ -854 +866 @@ impl Decoder for PolyDecoder {
+-        for i in 0usize..16 {
++        for i in 0usize..NUM_POLYS {
+@@ -856 +868 @@ impl Decoder for PolyDecoder {
+-                |_: usize| self.pts.len() == 16 && self.pts_needed == initial_pts_needed
++                |_: usize| self.pts.len() == NUM_POLYS && self.pts_needed == initial_pts_needed
+@@ -858,3 +870,3 @@ impl Decoder for PolyDecoder {
+-            let total_idx = (chunk.index as usize) * 16 + i;
+-            let poly = total_idx % 16;
+-            let poly_idx = total_idx / 16;
++            let total_idx = (chunk.index as usize) * NUM_POLYS + i;
++            let poly = total_idx % NUM_POLYS;
++            let poly_idx = total_idx / NUM_POLYS;
+@@ -904 +916 @@ impl Decoder for PolyDecoder {
+-        let mut polys: [Option<Poly>; 16] = core::array::from_fn(|_| None);
++        let mut polys: [Option<Poly>; NUM_POLYS] = core::array::from_fn(|_| None);
+@@ -908,2 +920,2 @@ impl Decoder for PolyDecoder {
+-            let poly = i % 16;
+-            let poly_idx = i / 16;
++            let poly = i % NUM_POLYS;
++            let poly_idx = i / NUM_POLYS;
+@@ -957 +969 @@ mod test {
+-        let chunks_needed = 1088 / 32 + 1;
++        let chunks_needed = 1088 / u16::try_from(CHUNK_SIZE).expect("chunk size fits u16") + 1;
+@@ -1022 +1034 @@ mod test {
+-        let chunks_needed = 1088 / 32;
++        let chunks_needed = 1088 / u16::try_from(CHUNK_SIZE).expect("chunk size fits u16");
+diff --git a/src/encoding/round_robin.rs b/src/encoding/round_robin.rs
+index 3253dd8..8efbc4f 100644
+--- a/src/encoding/round_robin.rs
++++ b/src/encoding/round_robin.rs
+@@ -13 +13 @@ impl RoundRobinEncoder {
+-        self.data.len() / 32 + if self.data.len() % 32 != 0 { 1 } else { 0 }
++        self.data.len() / 64 + if self.data.len() % 64 != 0 { 1 } else { 0 }
+@@ -18,2 +18,2 @@ impl RoundRobinEncoder {
+-        let lb = index * 32usize;
+-        let ub = lb + 32usize;
++        let lb = index * 64usize;
++        let ub = lb + 64usize;
+@@ -44 +44 @@ impl Encoder for RoundRobinEncoder {
+-type ChunkData = [u8; 32];
++type ChunkData = [u8; 64];
+@@ -58 +58 @@ impl Decoder for RoundRobinDecoder {
+-        let len_chunks = (len_bytes / 32) + if len_bytes % 32 != 0 { 1 } else { 0 };
++        let len_chunks = (len_bytes / 64) + if len_bytes % 64 != 0 { 1 } else { 0 };
+diff --git a/src/issue1275_chunk64_a_state.in b/src/issue1275_chunk64_a_state.in
+new file mode 100644
+index 0000000000000000000000000000000000000000..958d066cf3e30d1a03293f6de06897ccc07b37e4
+GIT binary patch
+literal 4789
+zcmW;Pc|4SP90%~<JTuQY*YPNcl4Be>a*HVUElW(~Y8Y3pbwo1c$}yJ3IFrK2eKYQx
+zkp@YwgpG=7RlC}$RN8H4_V4%edp+Od^E}V%K_WzLxpADFh=jTw#n&M6*`VIejm<*2
+z8i|~3Poksn-e0dmqmiUod4J^ps|elJ0!QP-xqMn=T=@6?_NWxtdntRHD}OQ8U=G@!
+zSCf*s&n#-zLuZqE{#<W-LU&L3bB{q+nJzb7*}J&i{p(9!bs##76CJ>DHwtm05L0dm
+z%g~OL*Sgf6{#{f^VAy7&u<+)H0i<}18uzVA8*N#ENVsYz3AX&4?O}Msrd0c`f9qY;
+zQ`54)yLNcrzua%U;3_V<h2US|QZ0SFVoSm*ju_v(rl@%@PHaqjzPu1~Oe)Xm%Xg)r
+zc4`B&XzqD}R+&M0K=>t9V_^xS?NYdm6T6H{JmOsF)<4;<r<kKt=e-bF%`DhUzh(a+
+zHio2=`tf4WgqJUoyrqebdD_*Rg$3H(Cpl62RS;tAY*eprQCQb{!Q`BGQ5n9s)j0Hb
+z5T9(>{5&u;*0uHZdPe&F@SOVeoSkzgszhxyuO45EIOEn=J$~6VQ|WC__b|sH?wE`6
+zD~*zQ($*-szhZLzub?;}kx|tnW^sepUR8FJZj*Y>{zy;tk?}J%ZrL^#_nnO&`ihV0
+znSHa<@O8cc&L3Uib@Gw42y-wziRw2Jit5mc+p$+a-ZXMQSS*cLuh-PE84;iEr#GTQ
+zJ)fi~-kUi>DI-5AsXk5oa^L1xfnqD|xtzzSESI8y-r;q}?#I<Zie6SHpAx#4behNx
+zF-oHNnO}9pBst8TZ#4N<`f1yB#qwxZ`N%r0$)24%+*UHG3kXK;H|1p)^zHRTMkW=u
+zmw)+Qses#wxzm2)Q-|@}zh!q5O=L<u&IXM>WIBja2TwicE)#Nkr<(FDqb;>eceb!2
+z({y?>_rA|;GckQe0#*ztjXm^I(poCdBvS9@7t+_{6dQl5LLM3G27fezTiOsS{FeJt
+z(4Yvj`kP^{ZBam9w9t71^eM2Er(FPZwKCmkSa8iJQVYJC#PvGBE8bW<-r>>Ap$X^v
+zf*;7!R|;}zj#{;X0`mQ5q_J`Qq;S9J?AaxS8*Uc@ta})dl2FI7t0Hj%<X-Mw&#V+`
+zC)XX70nN$aSgsT*2U4~6THH_c2CuBYI(_){6sZrM=o7pnbTM)|?BbArK#L4VmRIt=
+zjMnec_P>3%;9@+ADvOs_3m4xwEx@=@6FDl0E3YvtI<E!&bBMmOiu3%{%6h3rds@M5
+z{_x<%lyc7YN7H4QhrMG)>r1%J4tUI8x$`@x&7J?wTd@1H@6;V(-Cr8Zq@ZqX`kNC3
+zd;Zg!LZ^IGlXPd9N)=C{#M>C<|0rsj9}!S7Y8NB?WE>#SQEDfuk6%hDeCYJs6thzk
+zhVt_4Bwh%8VP46q<Ew1av$Gm%u{}YLuIr-355E~}B2Jw_D$lx=Ju^C``yu<-mlkhl
+za*K`7s&DOY5gOfwwbfsZx~n*UHxuO>vkkl#bdFwL;9eN}GW%<fEPYY6)i>bJY0k}e
+z9(zK+xmfB|ys*rhNf+4QlaqH`kqFAapw|ABP}(t}7+9iVZ|-rSLbGD{(@bk>x&+PJ
+zyHeroI5hj=vr<7}pqg!;^Aj=s!qVrivK{^O6tj?>!LCF8ZIT!6W?r#*ug&K^<*NAE
+zq(|7RIVJIIedwX+bHNgqwVZ4f2O!Zdo@RJ-fqXSu&g#Z=0biJfb6ekMe{S*HR*7zs
+zXAOD4Q53yw^hEI4@!g<DbxnNeuEl&c8-Ye0p~&uCwb7KQY_Fe6Q>C|!vS-snl%Il;
+zDnn004gP?;+|s7v7phZb3CRy8buD`BU-=Q?9Hqe6K&FlT;9zfRJ(VLP9#P9hI$9)?
+zR|^_LE4@+`Li7q~yNTtW4kuK`bQv8b=&k^pjNjHi%Dk6PVoY7;k>v@S$EF<WJd}Uf
+z{9euqkCTWR<gDu8CgAYU<}Lx9Zb{R-Md6QpJ3^CEU%o!_qm*R%K>vNL*S|c$YLcm+
+z+)`DVXg@5g4|-`Q)zWsoE&VJoV}28VqZE45$XSz@Vv9Rg$aj3Bg+iO^(qRl`G2cd;
+zSFro?g4V@#$G)&NReYM*GoFA|Qo}oo;_s{8XO7*_6LY@ncf20uirFn)T$JShsLl{&
+z#97zl2g-gQqwM3Q7j9MYytq+kUK`2er756RNOWoyq8S@%e5q>r2+w3dLi$yw7Wej-
+zFN{4ElybUc#hhe+Ox3T_<NtW4Hs6kqm(E;sHn;Q-@cTC5y)9nXD_&z8vY*j3BsD6S
+zI5tjl>DEYuJN!hW^b&|FO2G=Z?x~^OMmF`FAKWhwe%ox{Irdn{MB!%hWVlTK>74NI
+zm|hMOUvhZR^xP1&c+Z;d`N8uMy;v@FJbsp_do!!W>H^k2w8qKyB3UzK%?b?+DbB;s
+z9=p0L7O!g!P^tzCO0Nx@jHJm)-7bWN1qa`6sN_*Ysf}mb4s-n}lGEC$4Si`Dpk^8-
+z83+<bGdjtEc=Fa{tw5T7KGn~5&1yc0;PB?GMo~>^D)t$nN)9@g$3U$&bZs1j&}8}R
+zDU&OweMJ`<*7tqoTr$FQIro+b%wn-?t1TY8vpc=&z(d(wZ~QzSS=X%XhPi$w=|rU$
+z9!*r)F5ue_!=4xBSld#LwrwdZ;@(WotJTntAgOL!H6&h|+8H!j#CsmQ=;gi}>PX9;
+zs2Eb!5E781ea+JM7#B%?BRx1K|77&=(n2pKvokR9p+Q+x)qX|X(!C4|B01`~ctOg?
+zG+!jRxM~Zh7{#GS?A;MEJW1)f+t?!?m#8rqMEsa(IU_CZ>Sy<yQA-$CE=CKR%-zc$
+zIU^%^RnvZAvQ{5cnXNx|z-`w&VTKB)G%czR4Lm}?5y_07027X)UpgbyC3P^cMK93L
+z8rCiee0qi6YD`IR5xFDEIk#B$$EZ*Ll8Wqnjl8P-%2BJlG^w%0LcH1of>z==dxwGA
+zre3P>qBEz{8n)ieCq<{fTC@7ZEhsQLf{&IPQbg#m;`^-I^GNEtDbuB=HX-gq#EH+Y
+z!<rcsY<mi$r!T1UL-l~!Rw$7Wc!XJ!uSWXI+>D1hmVH~tk=XYB9<)^Is>X1auP3@r
+zDhsORI(tWE*7;W~nrLtMol5UCA*15n=|!&=MF>d_e5DLB;DjgMCC-q+glIi%uz7)t
+zh`E$iBmVEn_=+w+Q(pqJ&Z<PwX1{k*WdmQmTgUX*r>rW)%@A%DMfvWiEbDLvMOC^i
+zaoXZ_JURueox&b3w;wnKEEPA0&X9_$t3{kb1l(r1_IybitY_To3T!yTf%IF3XKp!`
+z%ZEJa;BK+cT<mVBBxRMi)rcQRHR6kJ`39Y~<xO&rG|3yN+EbpmeV8_C^N+x>>V2a=
+z1%3l;g1x$J44C>S{)NBd!gD2c>Q8g0M3(de1^ZP}1$=T+#v5N!j^;f-q|EP=Nlt6)
+zZTD1~()O~$3O0Tlja045S~FGUO>rfhchX3H&F_?tjB{~f5uE+tq0Z`qRZ<lavhPba
+z89A$Q9#6~W&_jhEwMvL{_O7!E5kPQ*y@&F9X$|i*V>6n<gVN-RYLNAb3Suv%DKG6q
+zL}X@(qT4KjORYa_ep1b%IMjGZYI;uUc4?|+?U3q@(4xB3*on_|{x<tudkBuoaW5xr
+z_xtLls!_oqY9WMu)(va0f;u#?Sm-)jvDiE5OG0oN@hd#umfmNUk0g#2?+ptQs<?g@
+zkfZcGLhx#u87A5)8ye~e4pDOw@v}H~gJ*J_WKAD@F9(ryXkYI(f+G(I6zql{zIypO
+zg3CqJAk3JaSU`eHx95iqm2-Jf=~?<c@{$=^iR~$;(s%2;t{}LM7H3tz3Fo`%S2Yqn
+zALUUQsKTQj<8g^UfphkZo=y{{KWvELB$FN7{zmy7cWQw<=*6Mb^@c<hkz|cQChRcK
+z7eq$sQ&@|}triG4DD>2$+}r&`<x(5Zc5Q4IypawfM$v1VIzPm{TUA2(5nN;FLz^_R
+zE9T{kD82Fcw!;S@eEWlAA2TnV>7`Z==talPScW6GO0T<wtjXO{W6uQQERpL^nrs+W
+z{)y#`P?zwc+16?i;b!I*YxWB0^h>deiwa6AO1d{ia`@}d3y&U_7MD73<_sl92o*&+
+zmLs?jJxf|~ha`VaSFl1>OKT@(l4EUY!PReI%V~`eC^_J}BOij`3RoYg74k=QS+QI9
+ztS)FnE2p=VdntC$=>^#OBh0T9mE|WL2yQo#!hgq?A?hTnhQ``|Y4H_}w$1Eh)aqxs
+z`IO`jGITh(TM%6Nr^vU_LX5Z{Q*I-nH3QUzhL*CxM8f#6c8ZP~2~G%#vd=_thZ9C<
+zp-tBH^{bnDPPUnb>-$CA4-J%yO9K0=|1y8#UFove&6-4vlzLq{et;hD{NN%v$-q}`
+zGr24ZE&TL~X0;hliSrU?LnVUiGFrY4W6FO2<K6vo%@jeROGaL8)xOCbz4gQ`>KJ5T
+zizj6vxTA!TAC$#0irRee+cm3E)@xitzas8lzA*&~%)UJ#s^d}KhTwEpN=f-P`}lTz
+zvppJgk~#MxNK5xd&Lp@*N9Z`#!<_;(;s_4dSU%9^m0pOK?i@3u1mc$ns@oYBGLj;9
+z_-Mp7gH3Cv11VObf75?2*nO)ibM3K^^DudfS!~rnBwy7O<;)FvfA0cU*yBb#f?N9-
+z>veg7=Y_MmiNdqTleJ>k5-&v^x1X3>EFwTlM9gw~@ht==^Zs8Rt&2D6Ed6gbySfXc
+zt+q_<h!;%Omi^ITRqA>v>%hr32*JrG1*@$)n%4&SO@=EL>*ssy4jQF=)W?ka@O@Te
+z)QATxowh}Aj48>~zOYE<w+Wg4buFsj?9L)S&9^eUe@VB;UH;#b#m&4)2<|e^C$}|K
+zUYhsz>6`(I?OLz8=P@K$e@sR8kyJe~z9MwSJrcpm@}#QZ(-ctRb>ZKu2Ce3S$3?H=
+zssrx%n(L;nlU;tKVv{@s7dGES6MMEo>J`WI7L+Ctl+E3Dw{UjN@~TW1WkFNl>gs_i
+z1cy!eVaXFfr`FhVm|Ponc%wHS>ZlksVJ5%QQ>&IsV2U{HDT_{WaBiUmBt(w^!0!f7
+zPyYgt%}Ic+paaZ5GywBm2G|H2wss5v6yptm_RRn~2>}?>;{c|_18mF|Tk#11C5Z*l
+zlMR4g_XL>CV*s}22iVS8wl>zWv>QMtH~~600$`SY25`?afL+aItDp}+b(jF?j2-K~
+zPXXrN900$f1FWSxTYqr`C@yaR9jydtvvUCRa0bAm^8gDau{BHtppLo#h)e@$jY5Da
+z&jax39{@Y^fvxHs0Oh?7pfv@6?x6t;#uC7Ox&ZqpmaRgf0QGSiKyB*)Eo}iX(^dd>
+zJPWYAv26Vj!qPneO)&xb<j(+u{sQ1ASAg9(##X0~0JY2n5Jd){@9+W4tr!4{9sumk
+z<7_=-3s8c?02;~#=v6AK=4k+LWC84zF1Ajq0@QFlfWC<Xv|S0nu>Ox>cm-e?MQqJ`
+z4^R~-09kwmXzm?==?nz$8CigBz0FqJuK=aUnq(3cptZIE#(EII-<tro?SG9B2dLm)
+z0L?J~+MWzBFN*+d5dg433hc9eZ2;x-1wfoX0rYq}z-X{0$!E;!mzS+UfdKUj1wafB
+zfd0i2U|8M37nlJ1q=c;!NdScz0+7rSKqoQ*CL<QWkTSp?6tMLm2B2zA0%$7^phwUE
+zbKM@mMPdN^%K%%Sz6PiWJ=P>$0h&`5U^cV?%p(D?ciyp8$`hb6ashOgm5m390E6oT
+zutN~QhCXB~#f4S#Cjco(1N133fN6aOU_=mLqaE0K`XoS!)c|PYAApwH0GRD%0C!gb
+ztgt3qAC3dmDc1I%mH_np34kFc0Qj6Rz#2`kb>|L1A>RSSQx4Gn$pACV+F&vO*Z>Q*
+zO0bginUxJ&9ahb^0p?X3fVJ8Iwt>jj)@6YDaR)%_zXEhfFu(-Y0a!i?V3h*cy7~t|
+z+4ZnGdJoX>BEWE$0=QoZV7>p}!pCla>a+n6I04WW8UT~x1K?|B04wtU**R9fo2*>@
+s4p{p=1~6T$egm!o?9u-d`ztGxK@fo6Q2?5@0x+W20gP4!SktHf0S^<`CjbBd
+
+literal 0
+HcmV?d00001
+
+diff --git a/src/issue1275_chunk64_b_state.in b/src/issue1275_chunk64_b_state.in
+new file mode 100644
+index 0000000000000000000000000000000000000000..f28c05cbae046ab774e17ebf6a346eb44ff5acf0
+GIT binary patch
+literal 5257
+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
+Zk?a${vz-7N=m&V&86YmW0I4$Te*jtF#qIzA
+
+literal 0
+HcmV?d00001
+
+diff --git a/src/lib.rs b/src/lib.rs
+index 7c3076f..e677a20 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1134 +1134 @@ mod lib_test {
+-        // EncapsState serialization prior to libcrux:pr/1276, 30 steps into a lockstep
++        // EncapsState serialization prior to libcrux:pr/1276, 8 steps into the 64-byte lockstep
+@@ -1139,2 +1139,2 @@ mod lib_test {
+-        let mut alex_pq_state = include_bytes!("issue1275_a_state.in").to_vec();
+-        let mut blake_pq_state = include_bytes!("issue1275_b_state.in").to_vec();
++        let mut alex_pq_state = include_bytes!("issue1275_chunk64_a_state.in").to_vec();
++        let mut blake_pq_state = include_bytes!("issue1275_chunk64_b_state.in").to_vec();
+@@ -1142 +1142 @@ mod lib_test {
+-        // After 20 additional steps, we should be in epoch 2 successfully.  If
++        // After 52 additional steps, both directions must have reached epoch 2. If
+@@ -1144 +1144 @@ mod lib_test {
+-        for i in 30..50 {
++        for i in 8..60 {
+@@ -1170,0 +1171,4 @@ mod lib_test {
++        for state in [alex_pq_state, blake_pq_state] {
++            let decoded = pqrpb::PqRatchetState::decode(state.as_slice()).map_err(|_| Error::StateDecode)?;
++            assert!(decoded.chain.ok_or(Error::ChainNotAvailable)?.current_epoch >= 2);
++        }
+@@ -1172,0 +1177,9 @@ mod lib_test {
++
++    #[test]
++    fn chunk64_rejects_original_chunk32_regression_states() {
++        let mut rng = OsRng.unwrap_err();
++        for state in [include_bytes!("issue1275_a_state.in").to_vec(),
++                      include_bytes!("issue1275_b_state.in").to_vec()] {
++            assert!(matches!(send(&state, &mut rng), Err(Error::StateDecode)));
++        }
++    }
+diff --git a/src/v1/chunked/states/serialize.rs b/src/v1/chunked/states/serialize.rs
+index a13738c..a4f42ab 100644
+--- a/src/v1/chunked/states/serialize.rs
++++ b/src/v1/chunked/states/serialize.rs
+@@ -187 +187 @@ fn encode_chunk(c: &Chunk, into: &mut SerializedMessage) {
+-    hax_lib::assume!(into.len() < usize::MAX - 32);
++    hax_lib::assume!(into.len() < usize::MAX - 64);
+@@ -194,2 +194,2 @@ fn decode_chunk(from: &SerializedMessage, at: &mut usize) -> Result<Chunk, Error
+-    hax_lib::assume!(*at < usize::MAX - 32);
+-    *at += 32;
++    hax_lib::assume!(*at < usize::MAX - 64);
++    *at += 64;
+@@ -220 +220 @@ impl Message {
+-    ///   [chunk_data]   - 32 bytes
++    ///   [chunk_data]   - 64 bytes

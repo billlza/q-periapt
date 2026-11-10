@@ -1,0 +1,795 @@
+{
+  "altered_observation_controls": [
+    {
+      "name": "completion",
+      "rejection": "completion/scope differs"
+    },
+    {
+      "name": "claim",
+      "rejection": "completion/scope differs"
+    },
+    {
+      "name": "layout",
+      "rejection": "owner account layout differs"
+    },
+    {
+      "name": "workload",
+      "rejection": "workload differs"
+    },
+    {
+      "name": "missing_span",
+      "rejection": "raw span stream/result differs"
+    },
+    {
+      "name": "operation_order",
+      "rejection": "operation order differs"
+    },
+    {
+      "name": "negative_time",
+      "rejection": "invalid timing counter"
+    },
+    {
+      "name": "cpu_boolean",
+      "rejection": "invalid timing counter"
+    },
+    {
+      "name": "batch_identity",
+      "rejection": "fanout ordinal differs"
+    },
+    {
+      "name": "recipient_binding",
+      "rejection": "member delivery binding differs"
+    },
+    {
+      "name": "member_order",
+      "rejection": "member delivery binding differs"
+    },
+    {
+      "name": "member_epoch",
+      "rejection": "member message epoch/index differs"
+    },
+    {
+      "name": "payload",
+      "rejection": "member delivery binding differs"
+    },
+    {
+      "name": "duplicate_effect",
+      "rejection": "ordinary member effect missing/duplicated"
+    },
+    {
+      "name": "retained_network",
+      "rejection": "retained member result differs"
+    },
+    {
+      "name": "retained_identity",
+      "rejection": "retained member result differs"
+    },
+    {
+      "name": "retired_batch",
+      "rejection": "retirement binding differs"
+    },
+    {
+      "name": "rekey",
+      "rejection": "independent PQ member control differs"
+    },
+    {
+      "name": "lost_result",
+      "rejection": "lost result did not follow one committed effect"
+    },
+    {
+      "name": "reopen",
+      "rejection": "original owner reopening differs"
+    },
+    {
+      "name": "retry_effect",
+      "rejection": "original fanout retry duplicated/lost effect"
+    },
+    {
+      "name": "second_recipient_effect",
+      "rejection": "original fanout retry duplicated/lost effect"
+    },
+    {
+      "name": "cancel",
+      "rejection": "pre-cancellation/close differs"
+    },
+    {
+      "name": "worker_open",
+      "rejection": "recipient callback/effect census differs"
+    },
+    {
+      "name": "effect_digest",
+      "rejection": "effect size/digest differs"
+    },
+    {
+      "name": "rss",
+      "rejection": "invalid resource counter"
+    },
+    {
+      "name": "database_inventory",
+      "rejection": "invalid resource counter"
+    },
+    {
+      "name": "witness_total",
+      "rejection": "Witness totals do not conserve rows"
+    },
+    {
+      "name": "witness_prefix",
+      "rejection": "snapshot differs from exact row prefix"
+    },
+    {
+      "name": "durable_business_bytes",
+      "rejection": "durable business files differ"
+    },
+    {
+      "name": "stdout_result_mismatch",
+      "rejection": "raw span stream/result differs"
+    },
+    {
+      "name": "public_owner_context",
+      "rejection": "owner account layout differs"
+    }
+  ],
+  "binary_sha256": "b7ec37b3bbab8a9e7600e987461a702442c61ea31e7908e3d10c819a68e93a70",
+  "ciphertext_scope": "The native workload compares original/reopened ciphertext bytes. Public readback validates reported digests and effect bytes; ciphertext itself is not retained here.",
+  "layout": "peer",
+  "profile": "local",
+  "result_sha256": "b810ed7c6ee82208b4b0a4c7f76ecb70d14fa766056b78fbf102d9943af414b4",
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "validation": {
+    "attributed_witness_exchanges": 0,
+    "effects": 26,
+    "operation_totals": {
+      "close_sender": {
+        "calls": 1,
+        "cpu_system_us": 1600,
+        "cpu_user_us": 828,
+        "elapsed_ns": 57408292,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "deliver_account_member/0": {
+        "calls": 12,
+        "cpu_system_us": 66963,
+        "cpu_user_us": 435554,
+        "elapsed_ns": 2031922461,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "deliver_account_member/1": {
+        "calls": 12,
+        "cpu_system_us": 62117,
+        "cpu_user_us": 363555,
+        "elapsed_ns": 1534590042,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "deliver_original_uncertain_account_member": {
+        "calls": 2,
+        "cpu_system_us": 6029,
+        "cpu_user_us": 50481,
+        "elapsed_ns": 183080166,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "establish_member": {
+        "calls": 2,
+        "cpu_system_us": 16483,
+        "cpu_user_us": 197235,
+        "elapsed_ns": 809543333,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "member_effect_committed_result_lost": {
+        "calls": 1,
+        "cpu_system_us": 4612,
+        "cpu_user_us": 19129,
+        "elapsed_ns": 112855833,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "next_account_id": {
+        "calls": 12,
+        "cpu_system_us": 66,
+        "cpu_user_us": 20047,
+        "elapsed_ns": 20098499,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "next_cancelled_account_id": {
+        "calls": 1,
+        "cpu_system_us": 9,
+        "cpu_user_us": 1709,
+        "elapsed_ns": 1716709,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "next_uncertain_account_id": {
+        "calls": 1,
+        "cpu_system_us": 1,
+        "cpu_user_us": 1719,
+        "elapsed_ns": 1719834,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "open_recipient": {
+        "calls": 2,
+        "cpu_system_us": 16993,
+        "cpu_user_us": 16419,
+        "elapsed_ns": 92922042,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "open_sender": {
+        "calls": 1,
+        "cpu_system_us": 16202,
+        "cpu_user_us": 13870,
+        "elapsed_ns": 69181125,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "pre_cancelled_account_delivery": {
+        "calls": 1,
+        "cpu_system_us": 1,
+        "cpu_user_us": 2,
+        "elapsed_ns": 1333,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "provision_three_installed_owners": {
+        "calls": 1,
+        "cpu_system_us": 315386,
+        "cpu_user_us": 155881,
+        "elapsed_ns": 2683935083,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "reopen_three_original_owners": {
+        "calls": 1,
+        "cpu_system_us": 40318,
+        "cpu_user_us": 56880,
+        "elapsed_ns": 198003917,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "retained_member_outcome": {
+        "calls": 24,
+        "cpu_system_us": 865,
+        "cpu_user_us": 84824,
+        "elapsed_ns": 85680832,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "retire_account_operation": {
+        "calls": 12,
+        "cpu_system_us": 4129,
+        "cpu_user_us": 48291,
+        "elapsed_ns": 259085877,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "retire_recovered_account_operation": {
+        "calls": 1,
+        "cpu_system_us": 259,
+        "cpu_user_us": 4406,
+        "elapsed_ns": 20529833,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      },
+      "traffic_independent_member_rekey": {
+        "calls": 2,
+        "cpu_system_us": 9099,
+        "cpu_user_us": 132624,
+        "elapsed_ns": 540764583,
+        "per_call": [
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          },
+          {
+            "framed_bytes": 0,
+            "requests": 0,
+            "tags": {}
+          }
+        ],
+        "witness_exchanges": 0,
+        "witness_framed_bytes": 0,
+        "witness_tags": {}
+      }
+    },
+    "ordinary_batches": 12,
+    "ordinary_member_deliveries": 24,
+    "outside_measured_spans": 0,
+    "performance_qualified": false,
+    "scope": "Functional measurement validation. Whole-process observations, no controlled timing, per-client memory, 32-recipient capacity, mobile energy or frozen budget.",
+    "spans": 89,
+    "total_batches": 13,
+    "witness_exchanges": 0
+  }
+}

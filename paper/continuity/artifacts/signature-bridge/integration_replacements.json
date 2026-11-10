@@ -1,0 +1,38 @@
+{
+  "base_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+  "scope": "three contribution passages and two consistency updates; reviewed theorem blocks remain unchanged",
+  "replacements": [
+    {
+      "path": "paper/continuity/main.tex",
+      "old": "An executed-slot selector bounds\nsource-association errors through a signature experiment retaining original\nsigning randomizers.",
+      "new": "An executed-slot selector bounds\nsource-association errors through ordinary signature security, with an ML-DSA\nshared-oracle reduction preserving opened signing reservations.",
+      "base_file_sha256": "4e9d11d16d2f55bcb3d43be6d0aae6ffb8edb5a201f0e37788c89720f1d6c7c1",
+      "abstract_words_before": 238,
+      "abstract_words_after": 243
+    },
+    {
+      "path": "paper/continuity/introduction.tex",
+      "old": "source-association result records existing reservation slots at their first private\ncomputation and connects accepted allocations through a signature experiment\nthat preserves signing reservations\n(Proposition~\\ref{prop:executed-source-attribution}).",
+      "new": "source-association result records existing reservation slots at their first private\ncomputation and connects accepted allocations to these original sources\n(Proposition~\\ref{prop:executed-source-attribution}). An ordinary-unforgeability\nreduction preserves their signing reservations and private computation history,\nwith a shared-oracle instantiation for native ML-DSA\n(Theorem~\\ref{thm:native-mldsa-reservation-bridge}).",
+      "base_file_sha256": "84f85ca9eb7eb7ed1475d5189bf00f5de35cf85b6284d69853d4b924da009a44"
+    },
+    {
+      "path": "paper/continuity/discussion.tex",
+      "old": "The post-quantum branch uses the specified reservation-aware\nML-DSA game; the native deterministic P-256 component supplies a classical\nordinary-signature instantiation.",
+      "new": "The post-quantum branch follows the native ML-DSA bridge to ordinary\nunforgeability while preserving those observations\n(Theorem~\\ref{thm:native-mldsa-reservation-bridge}). The deterministic P-256\ncomponent supplies the corresponding classical instantiation.",
+      "base_file_sha256": "0f1ac6673d075737f806fc9921b5da9a58f6bb8a1e2d18213e707fec498f8706"
+    },
+    {
+      "path": "paper/continuity/source-attribution.tex",
+      "old": "The reservation-aware ML-DSA advantage specifies the\npost-quantum assumption used here. The ordinary P-256 inequality gives\nthe classical instantiation.",
+      "new": "The native ML-DSA bridge in\nTheorem~\\ref{thm:native-mldsa-reservation-bridge} expresses this\nreservation-aware advantage through ordinary hedged unforgeability.\nThe ordinary P-256 inequality gives the classical instantiation.",
+      "base_file_sha256": "30c558ea3ab4f7eb79944fbeb6c437a7beeb8d49f609fb6e17c12e153d9e85e4"
+    },
+    {
+      "path": "paper/continuity/README.md",
+      "old": "The signing connection preserves original randomizers, exact replay and the declared signing-owner observation interface. It has an exact classical reduction through the native deterministic RFC 6979 P-256 component and a post-quantum branch stated in the reservation-aware ML-DSA game. A generic separation explains the additional coin-opening interface. The source-map and finite fault/alias checks accompany the independent proof review.",
+      "new": "The signing connection preserves original randomizers, exact replay and the declared signing-owner observation interface. It has an exact classical reduction through native deterministic RFC 6979 P-256 and an ordinary-unforgeability reduction for native hedged ML-DSA in the shared random-XOF model, including quantum public queries. The ML-DSA proof jointly handles key generation and the retained-randomizer hedge, with explicit oracle and hidden-draw collision terms. The complete private-invocation ledger, source map, finite controls and independent proof review accompany these results.",
+      "base_file_sha256": "51040a0b3d4534edbe0ba1a308a8d250bb85f4e14649197457a5a8683bcb13a9"
+    }
+  ]
+}

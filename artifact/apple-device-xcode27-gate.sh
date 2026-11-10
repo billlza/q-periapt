@@ -22,6 +22,11 @@ if [ -z "${QPERIAPT_DEVELOPER_DIR:-}" ]; then
 	printf 'error: QPERIAPT_DEVELOPER_DIR is required for the Xcode 27 gate\n' >&2
 	exit 2
 fi
+FIXED_DEVELOPER_DIR=/Applications/Xcode-27.0.app/Contents/Developer
+if [ "$QPERIAPT_DEVELOPER_DIR" != "$FIXED_DEVELOPER_DIR" ]; then
+	printf 'error: Xcode 27 gate requires the fixed release toolchain path\n' >&2
+	exit 2
+fi
 if [ -z "${DEVELOPMENT_TEAM:-}" ]; then
 	printf 'error: DEVELOPMENT_TEAM is required for the Xcode 27 gate\n' >&2
 	exit 2
@@ -34,12 +39,16 @@ if [ "$MATRIX_MODE" = "1" ] && [ -n "${QPERIAPT_IOS_DEVICE_ID:-}" ]; then
 	printf 'error: QPERIAPT_IOS_DEVICE_ID and matrix mode are mutually exclusive\n' >&2
 	exit 2
 fi
+if [ "$MATRIX_MODE" = "1" ] && [ -z "${QPERIAPT_IOS_DEVICE_MATRIX:-}" ]; then
+	printf 'error: QPERIAPT_IOS_DEVICE_MATRIX is required for the Xcode 27 matrix gate\n' >&2
+	exit 2
+fi
 if [ "$MATRIX_MODE" = "0" ] && [ -z "${QPERIAPT_IOS_DEVICE_ID:-}" ]; then
 	printf 'error: QPERIAPT_IOS_DEVICE_ID is required for the Xcode 27 gate\n' >&2
 	exit 2
 fi
 
-DEVELOPER_DIR=$QPERIAPT_DEVELOPER_DIR
+DEVELOPER_DIR=$FIXED_DEVELOPER_DIR
 export DEVELOPER_DIR
 
 XCODE_VERSION=$(xcodebuild -version | sed -n '1p')

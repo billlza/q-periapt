@@ -1,0 +1,79 @@
+{
+  "schema": "qperiapt-native-online-chain-packet/1",
+  "canonical_source": {
+    "path": "../../native-chain-composition.tex",
+    "sha256": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e"
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3930,
+      "sha256": "b83b1098c2e57956b35a6e56d5d53b9d19f366be187c1eeed767d73938f11c23"
+    },
+    {
+      "path": "check_native_chain.py",
+      "bytes": 14963,
+      "sha256": "732f5149b304a315a99f591d1f38f9d37d9606dd915ac2b50c7860e1c0ca32e2"
+    },
+    {
+      "path": "checks.json",
+      "bytes": 2719,
+      "sha256": "eeed74af8a166ecb2ef1b7352345ca7797e861f02e678c9491735b06907cbfdd"
+    },
+    {
+      "path": "formal-source-preservation.json",
+      "bytes": 5764,
+      "sha256": "a138789c2f634566ddc5a9cab9d6a45b84f9794e28c9eaefa225fafae4d11755"
+    },
+    {
+      "path": "independent_review.json",
+      "bytes": 4277,
+      "sha256": "df07f5d9cbc4937499a3db746c941d17ac0eff7ba0afa3ecf59f382b620cd75a"
+    },
+    {
+      "path": "proof.md",
+      "bytes": 9791,
+      "sha256": "6f1970f1b01ec83ced39bbe190b19705a5c3d1f46b993daaa404d95a7d28850d"
+    },
+    {
+      "path": "source-map.md",
+      "bytes": 2640,
+      "sha256": "775b04a399533b7cde6976727f1ade0f90609429bf8c806270f121a92fd0c194"
+    },
+    {
+      "path": "source_identity.json",
+      "bytes": 4117,
+      "sha256": "93f800eb564c8bf618bcdb206557d0628d181108c7ae93a90ec5ad2183cfb780"
+    },
+    {
+      "path": "sources/contract.rs.txt",
+      "bytes": 4170,
+      "sha256": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e"
+    },
+    {
+      "path": "sources/messages.rs.txt",
+      "bytes": 42215,
+      "sha256": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82"
+    },
+    {
+      "path": "sources/rekey-completion.rs.txt",
+      "bytes": 42784,
+      "sha256": "d2ba085119db3cff2ebda780f4824b8b4cbd3a9f6e44531df45db48144a65c1e"
+    },
+    {
+      "path": "sources/rekey-response.rs.txt",
+      "bytes": 15442,
+      "sha256": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59"
+    },
+    {
+      "path": "sources/rekey.rs.txt",
+      "bytes": 17022,
+      "sha256": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10"
+    },
+    {
+      "path": "sources/traffic.rs.txt",
+      "bytes": 21147,
+      "sha256": "5e19c0a6719895888a7018db2583c89da50c1de029d443834c357bce342cb6e2"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "completed": true,
+  "release_claim_eligible": false,
+  "base_commit": "ecabd332c76035495d2490a1b8e881c4d2867b15",
+  "source_overlay": {
+    "ARTIFACT.md": "b42cd4747f23d10a3cc503555aeada948b22565ebe7d040029e410ce597992e1",
+    "artifact/codeql_rust_quality.py": "5275427bf9cd4e27180b63e79b80db7f68004cbfc4b6e3ed54ebe014c1d29547",
+    "artifact/test_codeql_rust_quality.py": "8b30508118ecf6bda45aefbc2d67c1fdbfe358cb13ac2ed776655f7f31a0dbec",
+    "crates/q-periapt-sdk-wasm/PackageREADME.md": "354404a97b5cabe45dad0787b93da8d5c234299fb55dface9377ec577ee1c7f7",
+    "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "d072b934c81d5c1c5241fcf2dddae67582f25fdbb2f9913adbffc9871cdd29e9",
+    "crates/q-periapt-sdk-wasm/package/web/index.js": "5e1462150288f772cbc738ed625764941067f7d3e7bc82f0fb37b8fffb0fd1fc",
+    "crates/q-periapt-sdk-wasm/src/continuity.rs": "b57ff2a9adbfa4cdec68e589eb6aef526e708d3ca8752bf36ec637ad115f36f6",
+    "crates/q-periapt-sdk-wasm/src/continuity/inventory.rs": "9b01044344d9f526d8ce27b1a893bdf388eb89369ceaac49892ba10e3eaf3ba4",
+    "crates/q-periapt-sdk-wasm/tests/browser-suite.mjs": "1d6efcdfd251b08c1070d6441320c28b983a32a7d348601683e9ac7ae2973ed3",
+    "crates/q-periapt-sdk-wasm/tests/types.mts": "c3221adb619fb546930fd3cd7d1e2af81b9b99e42f611fb1c5088675f77e439b",
+    "research/continuity-identity-candidate/src/browser.rs": "7ade5eee186530e8da813d77ea6b7f87bce4aa074373c3201c16a8f6c174e344",
+    "research/continuity-identity-candidate/src/browser/inventory.rs": "b2ad012f7b44536814fe36d6e59e14ed2d03461ab389077969bf3ee19adc2ca4",
+    "research/continuity-identity-candidate/src/browser/opening.rs": "00ae25c3e405d8a4a018f5da50d92da164fdb87290c4b0aa8505cef909bde546"
+  },
+  "inventory_cases": 4,
+  "base_browser_cases": 10,
+  "artifact_unit_tests": 2831,
+  "artifact_unit_seconds": 540.094,
+  "platform_conditioned_skips": [],
+  "witness_requests": 314,
+  "archive_sha256": "e9e2a94ffaf1bece631d19a16a25b137caf1a8b5d91d0016cbacdda5b553b0f2",
+  "manifest_sha256": "6e3f0956bf6481ce229eaf0731cad260b2e8d905a4b3b82302aa5169294159d5",
+  "capture": {
+    "sha256": "b8cd20a59a1da24452d0ce9090a08a61fb9e5004ccb549da8e8775a639fdfc95",
+    "members": 1879,
+    "expanded_bytes": 8880559
+  },
+  "limitations": [
+    "Local Chrome and Node installed-package checks, not minimum-browser/compiler or deployed HTTPS coverage.",
+    "Native verification is a separate process using the same Rust engine, not an independent implementation.",
+    "Consumed/Abandoned/Reserved mappings are exhaustive; this browser run exercised Absent/Available/Retired only.",
+    "Logical retirement is not physical erasure, backup erasure or remote advertisement removal.",
+    "Hosted CI, CodeQL, full installed native qualification and the complete 0.2.0 release remain separate."
+  ]
+}

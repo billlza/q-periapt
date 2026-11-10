@@ -1,0 +1,150 @@
+{
+  "exit_code": 0,
+  "note": "Completed frozen238dd253 cohort; not current browser-session source qualification.",
+  "receipts": {
+    "RUN.json": {
+      "bytes": 2393,
+      "completed": true,
+      "scope": null,
+      "sha256": "e25ee47deec298d00b6793b220bd93d9ade667234a09e8c50bdd7e394e810fba"
+    },
+    "continuity/CONTINUITY_PACKAGE.json": {
+      "bytes": 16242504,
+      "completed": true,
+      "scope": "unpublished installed Rust/C connections and recovery, native and OpenSSL witness profiles, and bidirectional Swift/Rust endpoints with local and explicit witness profiles; same host; no independent witness engine or cross-host qualification",
+      "sha256": "f9bdcf98743c9c64738fd62d9fb06f5a51ec60fac1cbb89605da24973064d163"
+    },
+    "continuity/C_CONSUMER.json": {
+      "bytes": 7343783,
+      "completed": true,
+      "scope": "unpublished C client/server/recovery using installed shared Rust engine; same host; local and required-witness profiles with explicit signed TCP or mutual TLS witness carrier",
+      "sha256": "5af9f037a5ec1bf736626705886f05edb17c57f2b6a39ec8e8e214184f48bed4"
+    },
+    "continuity/SWIFT_CONSUMER.json": {
+      "bytes": 8167460,
+      "completed": true,
+      "scope": "unpublished installed Swift client/server/recovery and shared C/Rust engine; same-host macOS; local and explicitly witnessed original-installation profiles",
+      "sha256": "ea4395d634e451e21054c8b157a752668fcbbd7a92792784dc98accde8d3f950"
+    },
+    "sdk/RUST_SDK_PACKAGE.json": {
+      "bytes": 21664,
+      "completed": null,
+      "scope": "host Cargo archive reconstruction and external Rust consumer; platform/security/public-registry gates remain separate",
+      "sha256": "8c52b3704c612bb493e1585a50e7f8615c3cea2e58dd2a96009a1f7d1ae33b65"
+    }
+  },
+  "release_claim_eligible": false,
+  "report_fields": {
+    "continuity/CONTINUITY_PACKAGE.json": {
+      "archive": {
+        "bytes": 1406678,
+        "file": "q-periapt-continuity-identity-candidate-0.0.0.crate",
+        "sha256": "ee9b8ab418099bd2c4630672af5bd5acc416903f23746e6f43039b6a30e2d10a"
+      },
+      "completed": true,
+      "host_arch": "arm64",
+      "host_os": "Darwin",
+      "publication_performed": false,
+      "release_claim_eligible": false,
+      "requested_consumers": [
+        "Rust",
+        "C",
+        "Swift"
+      ],
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+      "scope": "unpublished installed Rust/C connections and recovery, native and OpenSSL witness profiles, and bidirectional Swift/Rust endpoints with local and explicit witness profiles; same host; no independent witness engine or cross-host qualification",
+      "source_commit": "238dd253954f0d8f6364d959b879c0fe3848c4d3",
+      "sources_unchanged": true
+    },
+    "continuity/C_CONSUMER.json": {
+      "compiler": {
+        "field_sha256": "e52795d665f586ad40a38b878ece2516a69df3cb46db09f19c16105b5b2a24e5",
+        "note": "Full field retained in the hashed report; canonical sorted compact JSON digest."
+      },
+      "completed": true,
+      "release_claim_eligible": false,
+      "scope": "unpublished C client/server/recovery using installed shared Rust engine; same host; local and required-witness profiles with explicit signed TCP or mutual TLS witness carrier"
+    },
+    "continuity/SWIFT_CONSUMER.json": {
+      "compiler": {
+        "field_sha256": "fe30cb427bf8aebe290a5c559e43099f273f5eafa25710431d8d425bef4ec17f",
+        "note": "Full field retained in the hashed report; canonical sorted compact JSON digest."
+      },
+      "completed": true,
+      "minimum_root": {
+        "field_sha256": "3462892a32f5c0f8197aae4fa137a706bddda45ad63571fff1aee97710fc17fa",
+        "note": "Full field retained in the hashed report; canonical sorted compact JSON digest."
+      },
+      "profiles": [
+        "debug",
+        "release"
+      ],
+      "release_claim_eligible": false,
+      "scope": "unpublished installed Swift client/server/recovery and shared C/Rust engine; same-host macOS; local and explicitly witnessed original-installation profiles"
+    },
+    "sdk/RUST_SDK_PACKAGE.json": {
+      "base_commit": "238dd253954f0d8f6364d959b879c0fe3848c4d3",
+      "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+      "publication_performed": false,
+      "release_claim_eligible": false,
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+      "scope": "host Cargo archive reconstruction and external Rust consumer; platform/security/public-registry gates remain separate",
+      "sources_unchanged": true
+    }
+  },
+  "run": {
+    "commands": [
+      {
+        "aggregate_timeout_seconds": 10800,
+        "argv": [
+          "sh",
+          "artifact/python-run.sh",
+          "artifact/rust_sdk_profile.py",
+          "--output",
+          "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/target/qualification-238dd253/sdk"
+        ],
+        "cwd": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source",
+        "label": "sdk-package",
+        "pid": 76759,
+        "returncode": 0
+      },
+      {
+        "aggregate_timeout_seconds": 21600,
+        "argv": [
+          "sh",
+          "artifact/python-run.sh",
+          "artifact/continuity_package.py",
+          "--output",
+          "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/target/qualification-238dd253/continuity",
+          "--report",
+          "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/target/qualification-238dd253/sdk/RUST_SDK_PACKAGE.json",
+          "--report-sha256",
+          "8c52b3704c612bb493e1585a50e7f8615c3cea2e58dd2a96009a1f7d1ae33b65",
+          "--toolchain-root",
+          "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin",
+          "--with-c-consumer",
+          "--with-swift-consumer",
+          "--swift-minimum-toolchain-root",
+          "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin"
+        ],
+        "cwd": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source",
+        "label": "continuity-package",
+        "pid": 25706,
+        "returncode": 0
+      }
+    ],
+    "completed": true,
+    "finished_utc": "2026-10-13T09:50:27.384185+00:00",
+    "live_producer": false,
+    "phase": "complete",
+    "sdk_report": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/target/qualification-238dd253/sdk/RUST_SDK_PACKAGE.json",
+    "sdk_report_sha256": "8c52b3704c612bb493e1585a50e7f8615c3cea2e58dd2a96009a1f7d1ae33b65",
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source",
+    "source_commit": "238dd253954f0d8f6364d959b879c0fe3848c4d3",
+    "started_utc": "2026-10-13T06:03:43.954307+00:00"
+  },
+  "scope": "unpublished installed Rust/C connections and recovery, native and OpenSSL witness profiles, and bidirectional Swift/Rust endpoints with local and explicit witness profiles; same host; no independent witness engine or cross-host qualification",
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source",
+  "source_commit": "238dd253954f0d8f6364d959b879c0fe3848c4d3",
+  "terminal_session": 66778
+}

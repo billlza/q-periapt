@@ -1,10 +1,11 @@
 # Q-Periapt Continuity — protocol research direction
 
-> **Status: G0 is complete and G1 is partially started. Only a non-normative,
-> public-commitment effect/journal lifecycle model plus a strict non-production
-> prekey-selection record is implemented; no Continuity protocol, wire format,
-> identity/prekey service, ratchet, production session crate,
-> or security claim exists. Evidence date: 2026-07-12.**
+> **Status: G0 is complete and G1 is partially started.** The non-normative
+> public-commitment lifecycle model and strict prekey-selection record are joined
+> by an [isolated identity/manifest candidate](../research/continuity-identity-candidate)
+> using actual ML-DSA-65 and P-256 signatures. Complete protocol/wire definitions,
+> the identity/prekey service, ratchet and production session store remain open.
+> Evidence date: 2026-09-28.
 > The implemented artifact remains the hybrid-KEM, signed-policy, bindings,
 > formal-handshake, and proof-to-byte work described in the repository claim ledger.
 > Continuity is scoped to two-party, pairwise, per-device sessions and their
@@ -44,8 +45,10 @@ The work therefore proceeds in **two non-interchangeable session lanes**:
 | **Continuity research lane** | Evaluate Q-Periapt-specific identity, context-policy, prekey-accountability, recovery, and proof-to-byte ideas | Use a distinct protocol identifier and wire version. Every delta is compared against the same-device reference lane and justified by a proof, attack, or measured Pareto improvement. |
 
 `CompatXWing` remains the byte-exact construction/control lane for hybrid-KEM work.
-It is not a runtime-selectable session profile because it intentionally ignores
-external context. `ContextBound` remains available to the research lane, but it may
+It is not a runtime-selectable session profile because the MLKEM768-X25519
+construction defines no external
+context input; q-periapt therefore rejects any non-empty Compat context rather than
+accepting and discarding caller intent. `ContextBound` remains available to the research lane, but it may
 only bind canonical bytes whose protocol meaning is independently authenticated.
 
 ## 2. The 2026 comparison baseline
@@ -75,7 +78,7 @@ still three different claims.
 | Multi-device | Pairwise per-device sessions | Sesame-style device/session records | No | Independent device sessions, monotonic roster, revocation and convergence |
 | Identity directory | IDS + Contact Key Verification | Identity keys, safety-number verification, service directory | Pinned demo server key only | Account/device certificates plus transparent or explicitly TOFU directory semantics |
 | Implementation-level proof | External game/symbolic analyses and review | ProVerif design plus hax/F* implementation checks reported in CI | Abstract EasyCrypt plus separate symbolic handshake; no refinement | State-machine proof and spec-to-Rust refinement or translation validation |
-| Deployment evidence | Global production | Large deployment/rollout | Research artifact | Pilot telemetry and independent audit; local tests cannot substitute |
+| Deployment evidence | Global production | Large deployment/rollout | Research artifact | Protocol/implementation review and pilot telemetry within the intended deployment scope |
 
 Apple's public PQ3 description says the initial exchange uses Kyber-1024 plus
 P-256, while ongoing PQ rekeys use Kyber-768 and were initially scheduled at about
@@ -343,7 +346,7 @@ trade-offs are part of the threat model, not an implicit platform promise.
   implementation fingerprinting. Proof and telemetry artifacts use synthetic or
   explicitly de-identified traces.
 
-## 5. Research hypotheses — where a real lead might exist
+## 5. Falsifiable research hypotheses and nearby work
 
 None of the following is a novelty claim yet. Each is a hypothesis with known nearby
 work and a required falsification test.
@@ -357,7 +360,7 @@ work and a required falsification test.
 | **R5 — crash- and rollback-refined ratchet** | Prove that the transactional state machine never reuses a message key/nonce and that rollback/recovery cannot silently fork a device epoch when checked against an explicit non-rollback anchor or external witness | Real implementations fail at persistence boundaries that symbolic crypto models often abstract away | Transactional outboxes and monotonic counters are established systems techniques. Cremers–Jacomme–Naska already formally expose Sesame session-handling clone attacks and propose stronger mechanisms, so clone/session convergence is not new. A wholly rolled-back local store cannot detect its own rollback. The possible contribution is the joint protocol/storage/effect/anchor refinement and exact crash evidence | Crash injection at every boundary; concurrent-send/receive model; reproduce the published clone attack and mitigations; rollback/fork traces; anchor-loss and equivocation tests; machine-checked state invariants |
 | **R6 — proof-to-state-to-byte** | Extend the evidence ledger from one handshake to the exact state transition, wire bytes, policy, binary, device run, and performance budget that implement each protocol claim | Could make a complex stateful protocol independently reproducible instead of presenting disconnected proof/test islands | Signal already reports ProVerif plus hax/F* implementation checking; current Q-Periapt proof-to-byte is not refinement. Public provenance alone is not stronger | Implementation-level refinement or translation validation; trace corpus generated from the model; external reproducibility and audit |
 | **R7 — workload-matched sparse-ratchet frontier** | Compare whole-KEM periodic rekeys, ML-KEM Braid chunk sizes, receipts, and deterministic policy floors on bytes, energy, tail latency, loss tolerance, and vulnerable-message set | The best construction depends on traffic directionality and loss, not KEM cycles alone | PQ3 and Signal already amortize PQ material. Merely changing cadence is not novel | Same-device implementations, pre-registered workloads, Pareto analysis, and a security floor that an attacker cannot tune downward |
-| **R8 — native PQ hardware/provider frontier** | Add an Apple platform adapter for current CryptoKit X-Wing/ML-KEM and [Secure Enclave ML-KEM/ML-DSA](https://developer.apple.com/documentation/cryptokit/secureenclave), then differentially compare it with the existing portable `mlkem-native`/`fips204` software provider | Non-exportable PQ keys may improve compromise containment, while platform-native code may change latency, energy, background availability, and footprint | Apple already supplies these APIs; using them is not novel and support is OS/device dependent. Apple's X-Wing documentation currently names draft-06, while local `CompatXWing` is pinned to draft-10, so CryptoKit is not assumed to be a draft-10 oracle. Current Q-Periapt keys do not automatically live in Secure Enclave, and no speed advantage is assumed | Freeze both provider/spec versions; official-vector and cross-encap/decap differential tests before comparison; physical iPad/iPhone/Mac support matrix; cold/warm latency, energy, lock/background behavior, access-control, export/restore, error, and downgrade tests |
+| **R8 — native PQ hardware/provider frontier** | Add an Apple platform adapter for current CryptoKit X-Wing/ML-KEM and [Secure Enclave ML-KEM/ML-DSA](https://developer.apple.com/documentation/cryptokit/secureenclave), then differentially compare it with the existing target-selected `mlkem-native`/`fips204` software provider | Non-exportable PQ keys may improve compromise containment, while platform-native code may change latency, energy, background availability, and footprint | Apple already supplies these APIs; using them is not novel and support is OS/device dependent. Q-Periapt's allowlisted AArch64 `mlkem-native` assembly is still ordinary software and provides no hardware key isolation. The local construction target is now CFRG `draft-irtf-cfrg-concrete-hybrid-kems-04` MLKEM768-X25519, with three X-Wing draft-10 vectors retained only as historical regression oracles. Both local and platform provider/spec revisions must still be frozen and compared independently; neither draft status nor a matching name makes CryptoKit an oracle. Current Q-Periapt keys do not automatically live in Secure Enclave, and no speed advantage is assumed | Freeze both provider/spec versions; official-vector and cross-encap/decap differential tests before comparison; physical iPad/iPhone/Mac support matrix; cold/warm latency, energy, lock/background behavior, access-control, export/restore, error, and downgrade tests |
 
 The first narrow R1 diagnostic is now concrete: `PrekeySelectionV1` canonically binds
 suite, responder account/device/epoch/credential, bundle epoch, directory checkpoint,
@@ -377,7 +380,7 @@ and the USENIX Security 2023
 The latter is especially important: a new manager model must reproduce those attacks
 and proposed mitigations before claiming stronger conversation-level PCS.
 
-The strongest plausible thesis is therefore not “another ratchet.” It is:
+The scoped thesis candidate is therefore not merely “another ratchet.” It is:
 
 > a stateful hybrid session protocol whose identity, policy, prekey quality, healing
 > progress, persistence state, exact wire bytes, formal model, implementation, and
@@ -397,16 +400,16 @@ a credible non-inferiority path:
 
 | Priority | Combined track | Plausible delta beyond the public baseline | Parity prerequisite | Stop or redirect condition |
 |---|---|---|---|---|
-| **A** | R5 + R6: crash/rollback refinement plus proof-to-state-to-byte | Publicly bind the exact effect reservation, terminal outcome, state transition, record/wire bytes, implementation, device run and budget; neither provenance alone nor a transactional outbox alone is novel | Match Signal's implementation-level checking floor and the reference session behavior; implement real authenticated WAL/receipt/anchor adapters | Stop the “lead” claim if the source-to-state/byte link remains review-only, or if kill/rollback traces expose key/nonce reuse or false release |
+| **A** | R5 + R6: crash/rollback refinement plus proof-to-state-to-byte | Publicly bind the exact effect reservation, terminal outcome, state transition, record/wire bytes, implementation, device run and budget; neither provenance alone nor a transactional outbox alone is novel | Match Signal's implementation-level checking floor and the reference session behavior; implement real authenticated WAL/receipt/anchor adapters | Withdraw the cross-layer assurance claim if the source-to-state/byte link remains review-only, or if kill/rollback traces expose key/nonce reuse or false release |
 | **A** | R1 + R3: typed policy/context continuity plus explicit active-PQ identity | A stage-typed, mutually confirmed accountable mode could close the classical-authentication boundary while keeping transferable PQ signatures off the ordinary hot path | Match offline bootstrap, KCI analysis, device identity, revocation, and confirmation semantics; maintain a separate deniable profile | Redirect if fresh PQ confirmation requires an extra blocking round trip, breaks the chosen deniability goal, or misses cached/cold mobile budgets |
-| **B** | R7 + R8: workload-matched sparse ratchet plus native provider frontier | A signed, attacker-non-tunable security floor combined with measured software/Secure-Enclave provider choices may yield a better wire/energy/healing frontier on supported devices | Reproduce whole-KEM and ML-KEM-Braid reference traces byte/state accurately on the same hardware | Reject adaptive scheduling if network behavior can lower the floor or create stable fingerprints; reject a provider path that lacks version compatibility or non-inferiority |
+| **B** | R7 + R8: workload-matched sparse ratchet plus native provider frontier | A signed, attacker-non-tunable security floor combined with measured software/Secure-Enclave provider choices may yield a distinct wire/energy/healing trade-off on supported devices | Reproduce whole-KEM and ML-KEM-Braid reference traces byte/state accurately on the same hardware | Reject adaptive scheduling if network behavior can lower the floor or create stable fingerprints; reject a provider path that lacks version compatibility or non-inferiority |
 | **B** | R2: privacy-preserving prekey accountability | Jointly detect double lease/equivocation while limiting receipt and lookup linkability | Match one-time/last-resort semantics, exhaustion behavior, replay handling and directory verification | Stop if accountability creates a larger social-graph oracle, unbounded proof traffic, or requires online recipient participation |
 | **C** | R4: measurable healing debt | Honest, schedule-relative runtime observability tied to policy and evidence may improve operations | Reproduce the baseline vulnerable-message analyses and cadence behavior | Treat as instrumentation, not novelty, if it does not tighten a proved bound or enable a safe policy decision |
 
-No track may trade away the parity floor to win a microbenchmark. A candidate advances
+No track may trade away the frozen reference security floor to improve a microbenchmark. A candidate advances
 only if it is non-inferior on the frozen reference workload's security semantics and
 meets its pre-registered wire, latency, energy, state, availability, privacy, and
-healing limits. A Pareto win on selected cells is publishable; “faster, safer and more
+healing limits. A Pareto improvement on pre-registered cells is reportable; “faster, safer and more
 stable everywhere” is not an admissible claim without an exhaustive matched matrix.
 
 ## 6. Performance strategy
@@ -611,7 +614,7 @@ Continuity therefore requires:
    The production backend migration removed the `libcrux`/hax
    `proc-macro-error2` advisory edge, and the current lockfile passes
    `cargo audit --deny warnings` with no ignore. That dependency result does not
-   satisfy the separate model-to-Rust refinement or independent audit requirement.
+   satisfy the separate model-to-Rust refinement or internal security review requirement.
 5. **Differential/reference lane:** exact state and wire comparisons against the
    published reference algorithms, plus negative controls for every security premise.
 6. **Cross-language vectors:** Swift/Kotlin/C/WASM must reproduce canonical parsing,
@@ -629,7 +632,7 @@ Continuity therefore requires:
 | **G3 — research proofs** | R1–R8 deltas each have attack/proof/benchmark justification; protocol, storage, padding/linkability, service-equivocation, and fingerprinting models pass | Scoped design-level claims |
 | **G4 — implementation refinement** | Rust transition/effect core refines the model and is panic-free; cross-language vectors and WAL/backup/crash/telemetry secret-retention fault tests pass | Scoped implementation claim |
 | **G5 — physical performance and observable surface** | Same-source iPad, iPhone, macOS, and physical Android matrix meets declared latency/wire/energy/state/padding/metadata budgets under frozen cache and traffic traces | Measured non-regression or Pareto claim for those cells |
-| **G6 — independent review and pilot** | External cryptographic/code review plus operational fault/scale telemetry | Limited deployment claim within audited scope |
+| **G6 — review and pilot** | Cryptographic/code review plus operational fault/scale telemetry | Limited deployment claim within the verified scope |
 
 No gate may be skipped by relabeling a diagnostic as release evidence.
 
@@ -682,7 +685,7 @@ Forbidden now and until independently established:
    directory fork, and rollback assumptions while measuring receipt linkability.
 6. Select the sparse-ratchet candidate only after trace-based wire/energy/healing
    experiments, not from primitive microbenchmarks.
-7. Make implementation refinement, physical-device budgets, and independent review
+7. Make implementation refinement, physical-device budgets, and protocol/code review
    release gates from the first prototype.
 
 The current `models/q-periapt-continuity-model` artifact exercises only the candidate

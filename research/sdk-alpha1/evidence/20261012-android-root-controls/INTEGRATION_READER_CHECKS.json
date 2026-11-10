@@ -1,0 +1,68 @@
+{
+  "completed": true,
+  "real_host_routes": [
+    {
+      "profile": "debug",
+      "route": "original",
+      "processes": 68,
+      "public_export_reread": true
+    },
+    {
+      "profile": "debug",
+      "route": "transition",
+      "processes": 72,
+      "public_export_reread": true
+    },
+    {
+      "profile": "debug",
+      "route": "bound-transition",
+      "processes": 74,
+      "public_export_reread": true
+    },
+    {
+      "profile": "debug",
+      "route": "adoption",
+      "processes": 66,
+      "public_export_reread": true
+    },
+    {
+      "profile": "release",
+      "route": "original",
+      "processes": 68,
+      "public_export_reread": true
+    },
+    {
+      "profile": "release",
+      "route": "transition",
+      "processes": 72,
+      "public_export_reread": true
+    },
+    {
+      "profile": "release",
+      "route": "bound-transition",
+      "processes": 74,
+      "public_export_reread": true
+    },
+    {
+      "profile": "release",
+      "route": "adoption",
+      "processes": 66,
+      "public_export_reread": true
+    },
+    {
+      "profile": "debug",
+      "route": "noncommit",
+      "processes": 82,
+      "public_export_reread": true
+    },
+    {
+      "profile": "release",
+      "route": "noncommit",
+      "processes": 82,
+      "public_export_reread": true
+    }
+  ],
+  "processes": 724,
+  "seven_negative_controls_rejected": true,
+  "exact_current_catalog": 30
+}

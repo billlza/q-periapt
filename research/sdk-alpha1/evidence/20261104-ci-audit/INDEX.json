@@ -1,0 +1,482 @@
+{
+  "schema": "q-periapt-ci-audit-v1",
+  "snapshot_completed_utc": "2026-11-04 08:35:02 UTC",
+  "repository": "billlza/q-periapt",
+  "transport": "GitHub connector GET only",
+  "scope": "PR 117/118 current head push and pull_request runs, their generated jobs, latest independent runs, and selected predecessor failures",
+  "heads": [
+    {
+      "pr": 117,
+      "head": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "branch": "feat/continuity-publication-verification",
+      "base": "ed257e10c75af6798838ee6a95e0ccc6930cf388"
+    },
+    {
+      "pr": 118,
+      "head": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "branch": "feat/accountable-prekey-directory",
+      "base": "475cd23923e45819b01b6041c91c44540ec056ec"
+    }
+  ],
+  "latest": [
+    {
+      "pr": 117,
+      "id": 41791519877,
+      "name": "ci",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "event": "pull_request",
+      "status": "queued",
+      "conclusion": null,
+      "path": ".github/workflows/ci.yml",
+      "run_attempt": 1,
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/41791519877",
+      "jobs_total": 68,
+      "jobs_fetched": 68,
+      "counts": {
+        "success": 40,
+        "queued": 16,
+        "in_progress": 12
+      },
+      "jobs_file": "run-41791519877-jobs.json"
+    },
+    {
+      "pr": 117,
+      "id": 41791520084,
+      "name": "Continuity reference account",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "event": "pull_request",
+      "status": "queued",
+      "conclusion": null,
+      "path": ".github/workflows/reference-account.yml",
+      "run_attempt": 1,
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/41791520084",
+      "jobs_total": 10,
+      "jobs_fetched": 10,
+      "counts": {
+        "success": 5,
+        "queued": 5
+      },
+      "jobs_file": "run-41791520084-jobs.json"
+    },
+    {
+      "pr": 117,
+      "id": 41791519992,
+      "name": "Continuity focused regressions",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "path": ".github/workflows/continuity-regression.yml",
+      "run_attempt": 1,
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/41791519992",
+      "jobs_total": 2,
+      "jobs_fetched": 2,
+      "counts": {
+        "success": 2
+      },
+      "jobs_file": "run-41791519992-jobs.json"
+    },
+    {
+      "pr": 117,
+      "id": 41791519911,
+      "name": "Installed Windows Continuity lifecycle",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "event": "pull_request",
+      "status": "queued",
+      "conclusion": null,
+      "path": ".github/workflows/continuity-windows-package.yml",
+      "run_attempt": 1,
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/41791519911",
+      "jobs_total": 6,
+      "jobs_fetched": 6,
+      "counts": {
+        "success": 2,
+        "queued": 4
+      },
+      "jobs_file": "run-41791519911-jobs.json"
+    },
+    {
+      "pr": 117,
+      "id": 41791511694,
+      "name": "Continuity reference account",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "path": ".github/workflows/reference-account.yml",
+      "run_attempt": 1,
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/41791511694",
+      "jobs_total": 10,
+      "jobs_fetched": 10,
+      "counts": {
+        "queued": 4,
+        "success": 5,
+        "in_progress": 1
+      },
+      "jobs_file": "run-41791511694-jobs.json"
+    },
+    {
+      "pr": 117,
+      "id": 41791511701,
+      "name": "ci",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "path": ".github/workflows/ci.yml",
+      "run_attempt": 1,
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/41791511701",
+      "jobs_total": 68,
+      "jobs_fetched": 68,
+      "counts": {
+        "success": 46,
+        "queued": 12,
+        "in_progress": 10
+      },
+      "jobs_file": "run-41791511701-jobs.json"
+    },
+    {
+      "pr": 118,
+      "id": 41791861104,
+      "name": "ci",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "event": "pull_request",
+      "status": "queued",
+      "conclusion": null,
+      "path": ".github/workflows/ci.yml",
+      "run_attempt": 1,
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/41791861104",
+      "jobs_total": 56,
+      "jobs_fetched": 56,
+      "counts": {
+        "success": 17,
+        "queued": 33,
+        "in_progress": 6
+      },
+      "jobs_file": "run-41791861104-jobs.json"
+    },
+    {
+      "pr": 118,
+      "id": 41791861473,
+      "name": "Continuity reference account",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "event": "pull_request",
+      "status": "queued",
+      "conclusion": null,
+      "path": ".github/workflows/reference-account.yml",
+      "run_attempt": 1,
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/41791861473",
+      "jobs_total": 10,
+      "jobs_fetched": 10,
+      "counts": {
+        "queued": 5,
+        "success": 5
+      },
+      "jobs_file": "run-41791861473-jobs.json"
+    },
+    {
+      "pr": 118,
+      "id": 41791861355,
+      "name": "Directory lease contract",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "path": ".github/workflows/directory-lease-contract.yml",
+      "run_attempt": 1,
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/41791861355",
+      "jobs_total": 2,
+      "jobs_fetched": 2,
+      "counts": {
+        "success": 2
+      },
+      "jobs_file": "run-41791861355-jobs.json"
+    },
+    {
+      "pr": 118,
+      "id": 41791861381,
+      "name": "Continuity focused regressions",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "path": ".github/workflows/continuity-regression.yml",
+      "run_attempt": 1,
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/41791861381",
+      "jobs_total": 2,
+      "jobs_fetched": 2,
+      "counts": {
+        "success": 2
+      },
+      "jobs_file": "run-41791861381-jobs.json"
+    },
+    {
+      "pr": 118,
+      "id": 41791854684,
+      "name": "ci",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "path": ".github/workflows/ci.yml",
+      "run_attempt": 1,
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/41791854684",
+      "jobs_total": 68,
+      "jobs_fetched": 68,
+      "counts": {
+        "success": 36,
+        "queued": 26,
+        "in_progress": 6
+      },
+      "jobs_file": "run-41791854684-jobs.json"
+    },
+    {
+      "pr": 118,
+      "id": 41791854739,
+      "name": "Continuity reference account",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "path": ".github/workflows/reference-account.yml",
+      "run_attempt": 1,
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/41791854739",
+      "jobs_total": 10,
+      "jobs_fetched": 10,
+      "counts": {
+        "queued": 5,
+        "success": 5
+      },
+      "jobs_file": "run-41791854739-jobs.json"
+    }
+  ],
+  "current_head_failed_or_cancelled_jobs": [],
+  "independent": [
+    {
+      "pr": 118,
+      "run_id": 41791763191,
+      "head_sha": "adaaeb4981f0c342c95a3d1ddcad6d7e1f82b3c6",
+      "event": "push",
+      "current_head": false,
+      "source_ubuntu": "in_progress",
+      "installed_python_ubuntu": "success",
+      "macos_source": "queued",
+      "macos_installed_python": "queued",
+      "installed_rust_counterpart": false,
+      "boundary": "Installed Python wheel uses a Rust counterpart built from source on this push run. The installed-crate path is a separate workflow_dispatch input path and did not execute.",
+      "jobs_file": "run-41791763191-jobs.json",
+      "reuse_requirement": "6084f3bf only changes directory CLI test formatting; this run remains evidence for adaaeb49 unless an explicit input-equivalence assessment is recorded."
+    },
+    {
+      "pr": 117,
+      "run_id": 41738776052,
+      "head_sha": "69ed5b42e59a648a834ed83e132e30a1ca3b7e31",
+      "event": "push",
+      "current_head": false,
+      "result": "4 success",
+      "installed_rust_counterpart": false,
+      "jobs_file": "run-41738776052-jobs.json",
+      "scope": "Prior-head independent Python source and wheel on Ubuntu and Apple Silicon; not current-head qualification."
+    }
+  ],
+  "historicalFailures": [
+    {
+      "run_id": 41739595587,
+      "job_id": 126277484189,
+      "head_sha": "27463cdf1f489236c8904b5814ef1769f4d59ea5",
+      "name": "directory-format",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41739595587/job/126277484189",
+      "failed_steps": [
+        {
+          "name": "Compare canonical Rust formatting on the submitted sources",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 4,
+          "started_at": "2026-11-04T02:56:15Z",
+          "completed_at": "2026-11-04T02:56:17Z"
+        }
+      ],
+      "log": "job-126277484189.log",
+      "classification": "Rust canonical formatting failed before subsequent behavior verification",
+      "closure": "Current 6084f3bf directory-format passes; original failed result retained."
+    },
+    {
+      "run_id": 41739595587,
+      "job_id": 126277484685,
+      "head_sha": "27463cdf1f489236c8904b5814ef1769f4d59ea5",
+      "name": "directory-behavior",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41739595587/job/126277484685",
+      "failed_steps": [
+        {
+          "name": "Execute signed assignments, persistent reconciliation and the real directory CLI",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 6,
+          "started_at": "2026-11-04T02:58:31Z",
+          "completed_at": "2026-11-04T03:01:23Z"
+        }
+      ],
+      "log": "job-126277484685.log",
+      "classification": "fixture does not satisfy protected directory contract; all eight ledger tests returned protected database inode changed",
+      "closure": "Current 6084f3bf directory-behavior and Ubuntu account-validation pass after private canonical fixture repair in adaaeb49; original failed result retained."
+    },
+    {
+      "run_id": 41739559630,
+      "job_id": 126277358236,
+      "head_sha": "27463cdf1f489236c8904b5814ef1769f4d59ea5",
+      "name": "account-validation (ubuntu-24.04, x86_64)",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41739559630/job/126277358236",
+      "failed_steps": [
+        {
+          "name": "Verify account Debug regression and lint",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 10,
+          "started_at": "2026-11-04T02:21:17Z",
+          "completed_at": "2026-11-04T02:21:17Z"
+        }
+      ],
+      "log": "job-126277358236.log",
+      "classification": "Rust canonical formatting failed before subsequent behavior verification",
+      "closure": "Current 6084f3bf Ubuntu account-validation passes; current macOS remains queued, so platform-specific rerun not yet complete."
+    },
+    {
+      "run_id": 41739559630,
+      "job_id": 126277358713,
+      "head_sha": "27463cdf1f489236c8904b5814ef1769f4d59ea5",
+      "name": "account-validation (macos-15, arm64)",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41739559630/job/126277358713",
+      "failed_steps": [
+        {
+          "name": "Verify account Debug regression and lint",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 10,
+          "started_at": "2026-11-04T03:25:43Z",
+          "completed_at": "2026-11-04T03:25:43Z"
+        }
+      ],
+      "log": "job-126277358713.log",
+      "classification": "Rust canonical formatting failed before subsequent behavior verification",
+      "closure": "Current 6084f3bf Ubuntu account-validation passes; current macOS remains queued, so platform-specific rerun not yet complete."
+    },
+    {
+      "run_id": 41739559507,
+      "job_id": 126277357828,
+      "head_sha": "27463cdf1f489236c8904b5814ef1769f4d59ea5",
+      "name": "bootstrap (ubuntu-24.04, x86_64, source)",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41739559507/job/126277357828",
+      "failed_steps": [
+        {
+          "name": "Build and lint the real Rust counterpart",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 8,
+          "started_at": "2026-11-04T02:23:35Z",
+          "completed_at": "2026-11-04T02:23:36Z"
+        }
+      ],
+      "log": "job-126277357828.log",
+      "classification": "Rust canonical formatting failed before subsequent behavior verification",
+      "closure": "Latest adaaeb49 Ubuntu source and installed Build and lint counterpart step passed; macOS queued. Latest independent run is not a 6084f3bf run."
+    },
+    {
+      "run_id": 41739559507,
+      "job_id": 126277358285,
+      "head_sha": "27463cdf1f489236c8904b5814ef1769f4d59ea5",
+      "name": "bootstrap (macos-15, arm64, source)",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41739559507/job/126277358285",
+      "failed_steps": [
+        {
+          "name": "Build and lint the real Rust counterpart",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 8,
+          "started_at": "2026-11-04T03:17:57Z",
+          "completed_at": "2026-11-04T03:17:57Z"
+        }
+      ],
+      "log": "job-126277358285.log",
+      "classification": "Rust canonical formatting failed before subsequent behavior verification",
+      "closure": "Latest adaaeb49 Ubuntu source and installed Build and lint counterpart step passed; macOS queued. Latest independent run is not a 6084f3bf run."
+    },
+    {
+      "run_id": 41739559507,
+      "job_id": 126277358294,
+      "head_sha": "27463cdf1f489236c8904b5814ef1769f4d59ea5",
+      "name": "bootstrap (ubuntu-24.04, x86_64, installed)",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41739559507/job/126277358294",
+      "failed_steps": [
+        {
+          "name": "Build and lint the real Rust counterpart",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 8,
+          "started_at": "2026-11-04T02:25:04Z",
+          "completed_at": "2026-11-04T02:25:04Z"
+        }
+      ],
+      "log": "job-126277358294.log",
+      "classification": "Rust canonical formatting failed before subsequent behavior verification",
+      "closure": "Latest adaaeb49 Ubuntu source and installed Build and lint counterpart step passed; macOS queued. Latest independent run is not a 6084f3bf run."
+    },
+    {
+      "run_id": 41739559507,
+      "job_id": 126277358401,
+      "head_sha": "27463cdf1f489236c8904b5814ef1769f4d59ea5",
+      "name": "bootstrap (macos-15, arm64, installed)",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41739559507/job/126277358401",
+      "failed_steps": [
+        {
+          "name": "Build and lint the real Rust counterpart",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 8,
+          "started_at": "2026-11-04T07:08:05Z",
+          "completed_at": "2026-11-04T07:08:06Z"
+        }
+      ],
+      "log": "job-126277358401.log",
+      "classification": "Rust canonical formatting failed before subsequent behavior verification",
+      "closure": "Latest adaaeb49 Ubuntu source and installed Build and lint counterpart step passed; macOS queued. Latest independent run is not a 6084f3bf run."
+    }
+  ],
+  "artifact": {
+    "repository": "billlza/q-periapt",
+    "run_id": 41791854684,
+    "job_id": 126446831250,
+    "job_name": "rust-publish-contract",
+    "job_conclusion": "success",
+    "id": 13304914186,
+    "node_id": "MDg6QXJ0aWZhY3QxMzMwNDkxNDE4Ng==",
+    "name": "rust-sdk-package",
+    "size_in_bytes": 5939526,
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13304914186",
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13304914186/zip",
+    "expired": false,
+    "digest": "sha256:342d7db5d8d180eb395517a76576f3be4850193758186cd5866f5c0361a44e54",
+    "created_at": "2026-11-04T08:07:30Z",
+    "updated_at": "2026-11-04T08:07:30Z",
+    "expires_at": "2027-02-02T07:22:49Z",
+    "workflow_run": {
+      "id": 41791854684,
+      "repository_id": 1279236693,
+      "head_repository_id": 1279236693,
+      "head_branch": "feat/accountable-prekey-directory",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b"
+    },
+    "download_file": "rust-sdk-package-6084f3bf.zip",
+    "download_sha256": "342d7db5d8d180eb395517a76576f3be4850193758186cd5866f5c0361a44e54",
+    "archive_members_listed": true,
+    "package_manifest_validated_by_auditor": false
+  },
+  "limits": [
+    "This is a time-bounded snapshot, not final CI qualification.",
+    "All generated jobs returned for each current-head run; future dependent jobs can still be added.",
+    "Current-head workflow lists contain six runs per PR with total_count fully covered.",
+    "Branch recent history: PR118 19/19 returned; PR117 newest 30/33 returned. Three oldest historical runs not read; latest independent run is within returned range.",
+    "Predecessor cancelled and unfinished runs are historical/superseded evidence, not passes for the current heads.",
+    "No workflow triggered, cancelled, or rerun; no code, commits, refs, PR text, or comments changed.",
+    "No assertion that a P0 count failure was observed in a CI log; current installed-rust jobs are unfinished."
+  ]
+}

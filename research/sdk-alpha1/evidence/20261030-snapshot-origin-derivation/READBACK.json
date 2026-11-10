@@ -1,0 +1,14 @@
+{
+  "all_members_read_byte_for_byte": true,
+  "archive_bytes": 800666,
+  "archive_sha256": "22d8253e76516d2862e89a156660260925c833609d8fe1f60728d3cc7ab9224e",
+  "complete_35_query_replay_returncode": 0,
+  "main_multi_epoch_secrecy_complete": false,
+  "members_verified": 146,
+  "origin_lemma_complete": false,
+  "proof_sha256": "d21fa9256a72a5b7ad7ddc159762a10d14451bb0492b727f7d0a50428351bc72",
+  "publication_performed": false,
+  "qualification_exit_code": 1,
+  "release_claim_eligible": false,
+  "uncompressed_bytes": 15676231
+}

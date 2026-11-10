@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "files": 9,
+  "pages": 111,
+  "plain_text_identical": true,
+  "plain_text_sha256": "0916466ef5a6880cb9ba40222f60e2f98a664cb02ad4c72bebfbb96f2451b75c",
+  "layout_text_identical": true,
+  "layout_text_sha256": "b08e058f650ddfff66ec8342debd93083f9794ba7fb4d491c3668abeae0f9ab1",
+  "all_fonts_embedded": true,
+  "font_count": 48,
+  "undefined_references_or_citations": 0,
+  "overfull_boxes": 0,
+  "zip_sha256": "5cb2f76a1eddbd7f505a8a3f27f3a46b08bde963c1b20c2356fd7cd6b119b3b3",
+  "pdf_sha256": "e575119c4858e2e37d2ea4cbe245565f4ea531428c55b969ad1b15ae691494b8",
+  "export_pdf_sha256": "7216d52e1a08b6b6920e555b8fad82377f137272ca65920902e508267ece7a57",
+  "exported_files": [
+    "README.md",
+    "SHA256SUMS.json",
+    "author-metadata.json",
+    "figures/confirmation-cut.pdf",
+    "joc-basic.bst",
+    "joc-submission.tex",
+    "references.bib",
+    "sn-basic.bst",
+    "sn-jnl.cls"
+  ],
+  "verification_script_sha256": "31c7ba9ae83f1d610ec60e56f1c445c63aa43766b408510f576d908b98bee3b2",
+  "method": "Exact nine-file inventory and digest verification, fresh pdfLaTeX/BibTeX build, complete plain/layout text comparison and font/log checks."
+}

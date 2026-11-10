@@ -1,0 +1,174 @@
+{
+  "created_utc": "2026-11-08T01:29:14.229188+00:00",
+  "status": "frozen_for_integration",
+  "paper_input_head": "da521d8388f5f0c64697387bf80b0b5b7837fb34",
+  "native_source_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "development_source_pin": "1c68aa666db22d36ee136be1ec712545a9e74f03",
+  "files": [
+    {
+      "path": "live-core-instantiation.tex",
+      "sha256": "396c6f686ad53d045b1e6f5721693a6ffb9d7a0f56856a02d5b2fae9766a633e",
+      "bytes": 6144
+    },
+    {
+      "path": "confirmation-traffic.tex",
+      "sha256": "a87f4b713a71e5def995ea93b9f602f0a7d8bb9cb3c5335270947c87ae17833e",
+      "bytes": 10144
+    },
+    {
+      "path": "references-addition.bib",
+      "sha256": "571d1cb201456b2ca2a69fdc7f1f24780c1492418c92ef18d065dd40b98c5647",
+      "bytes": 359
+    },
+    {
+      "path": "README.md",
+      "sha256": "e3b43e44d2eaf8adcc2dd3547096bf7f3944e2b2513421ba31fd1f12108805d9",
+      "bytes": 6173
+    },
+    {
+      "path": "source_and_proof_note.md",
+      "sha256": "f3d5375e13465d1e25e766dd6b71ac982c2ef9c16ff2a71d0aedc20e62fdf4be",
+      "bytes": 15121
+    },
+    {
+      "path": "academic_assessment.md",
+      "sha256": "e6d87ba50f2dfbdc6e1365f402373967b3d76d666ec5a0ed0d048af6e6130cc5",
+      "bytes": 10374
+    },
+    {
+      "path": "source_map.json",
+      "sha256": "d71685ca12c104f1afd83ad5c1c6a3c4221fb74c850a35b90de70f4108a450ed",
+      "bytes": 16342
+    },
+    {
+      "path": "check_interfaces.py",
+      "sha256": "eb6b7869df585ab9028523aaba9ccc2e6837af9a22db015e0e215fa455cd3811",
+      "bytes": 12994
+    },
+    {
+      "path": "interface_check_receipt.json",
+      "sha256": "73f59ba7cef677e0c6f26d38d01a7417461f60fe5e20a63e8aa9375e0777efba",
+      "bytes": 14906
+    },
+    {
+      "path": "finite_check_receipt.json",
+      "sha256": "c886719b432d78dedfe809ecc52cdc9b2f986a7d21be2239850cae303925b49b",
+      "bytes": 3891
+    },
+    {
+      "path": "independent_live_review.md",
+      "sha256": "2c08a28637784f0ca10985a2c007d88561cc6e02299e977c1501271779ec2be9",
+      "bytes": 4815
+    },
+    {
+      "path": "independent_live_review.json",
+      "sha256": "86d65ba31e5a9fddd40f53c131af7a5f0256f592de8cce0feff16fa587c169cf",
+      "bytes": 6708
+    },
+    {
+      "path": "independent_live_source_hashes.json",
+      "sha256": "30f2b6a4440f534720960bc41001b0558d56f0158c0ec897ccbe152016ab4477",
+      "bytes": 2867
+    },
+    {
+      "path": "independent_auth_review.md",
+      "sha256": "9602b5a7bf1b40611dc08f93ed22a2c9617ff83c3c013af890576690e3118ea2",
+      "bytes": 5761
+    },
+    {
+      "path": "independent_auth_review.json",
+      "sha256": "b8f4450b7654a61e2b4c0c963b7f9a10dc01c37797101ea05cccb6c31dcbed55",
+      "bytes": 8385
+    },
+    {
+      "path": "independent_auth_cross_review.md",
+      "sha256": "c71c223d1cef19ff0c18f1e78cf2c0d121828b6e73e28f72c085c861f4b84e98",
+      "bytes": 5875
+    },
+    {
+      "path": "independent_auth_cross_review.json",
+      "sha256": "ac17c9255f083b78159ded027c2cbe74af465c2c5ce3a9c4249fbec2d00fa04f",
+      "bytes": 10440
+    },
+    {
+      "path": "published_reference_review.json",
+      "sha256": "221d059aeccc53c933ba1248173759e712ed10000030c888589b89b9a6d074a2",
+      "bytes": 1136
+    },
+    {
+      "path": "primary_sources.json",
+      "sha256": "63a89cc9342c4829213d9342a1ae7e74d75a5082cb5d1e3de1e2fa96c4fbafd4",
+      "bytes": 2928
+    }
+  ],
+  "mathematical_review": {
+    "live_core": "PASS; 8 independent checks",
+    "authentication": "PASS; 20 independent checks plus 12 cross-checks",
+    "formal_proof_tool_run": false
+  },
+  "executable_evidence": {
+    "full_source_algebra_checks": {
+      "passed": 39,
+      "total": 39,
+      "source_files": 12
+    },
+    "self_contained_finite_checks": {
+      "passed": 19,
+      "total": 19
+    },
+    "strategies": 585,
+    "table_evaluations": 9360,
+    "new_native_rust_execution": false,
+    "new_remote_ci_execution": false
+  },
+  "preserved_scope": [
+    "General native eta_attr remains explicit.",
+    "eta_proj equals zero only on the exhaustive live-core observation surface.",
+    "New authentication begins at G_R; native authentication needs event-specific component and record comparisons.",
+    "Published collision bound uses Theorem 7 and C(Q+2)^3/N.",
+    "Source-resolved signing-owner/retained-record attribution remains a precise future research dependency."
+  ],
+  "excluded_historical_file": "STAGED_DELIVERY.md is an intermediate delivery note and is not required by the final artifact.",
+  "dependencies": [
+    {
+      "path": "paper/continuity/joint-continuation.tex",
+      "sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "paper_head": "da521d8388f5f0c64697387bf80b0b5b7837fb34"
+    },
+    {
+      "path": "paper/continuity/joint-primitive-bounds.tex",
+      "sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+      "paper_head": "da521d8388f5f0c64697387bf80b0b5b7837fb34"
+    },
+    {
+      "path": "paper/continuity/contextbound-connection.tex",
+      "sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "paper_head": "da521d8388f5f0c64697387bf80b0b5b7837fb34"
+    },
+    {
+      "path": "paper/continuity/candidate-local-accounting.tex",
+      "sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "paper_head": "da521d8388f5f0c64697387bf80b0b5b7837fb34"
+    },
+    {
+      "path": "paper/continuity/security-model.tex",
+      "sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "paper_head": "da521d8388f5f0c64697387bf80b0b5b7837fb34"
+    },
+    {
+      "path": "paper/continuity/opaque-rendering.tex",
+      "sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "paper_head": "da521d8388f5f0c64697387bf80b0b5b7837fb34"
+    },
+    {
+      "path": "paper/continuity/primitive-inputs.tex",
+      "sha256": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+      "paper_head": "da521d8388f5f0c64697387bf80b0b5b7837fb34"
+    },
+    {
+      "path": "paper/continuity/artifacts/live-profile/source_profile.md",
+      "sha256": "5fcd49c29be2a02f38041982da9773a6373aeefa677fecc82f780b192b3a1cba",
+      "paper_head": "da521d8388f5f0c64697387bf80b0b5b7837fb34"
+    }
+  ]
+}

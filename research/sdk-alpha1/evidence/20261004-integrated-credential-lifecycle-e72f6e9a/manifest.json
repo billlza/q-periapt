@@ -1,0 +1,13 @@
+{
+  "files": {
+    "integrated-native-regression-01.json": "e71165c43237ad1ad2e02e74a0f31ba95bd69bca766f5b57cd11d91ead1d62c0",
+    "qualification.json": "1b3433bdb9746076f3f2d14385a9ee04cfff342a66d79b62c81f57a8cbd4c639",
+    "NATIVE_LIFECYCLE_INTEGRATION_MANIFEST.json": "b03ae0d98d6f94f747ce9bc6be27e39f0d3b286cfd7dc9b7690a3efb2c834eb1",
+    "integrated-native-format-check-01.json": "461cf706b49cfe9f41546554745dc635312d85043c5285e8ce26b130a3b9d568",
+    "integrated-native-regression-01.log.gz": "99d7769a8aa2b1b60c8d45aa33f716ec2153834e4eddc7f7400e83495ae2ec58",
+    "integrated-native-clippy-01.json": "8ccfb754f9c3a238e87889d485b4e41be1142dd56795968940d4b4823c18becd",
+    "INTEGRATED_SDK_SOURCE_COMPARISON.json": "c66519821ad4220b154f1ee37fa87c224764a82d79cc6ab258b614cf5758aea1",
+    "integrated-native-format-check-01.log.gz": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+    "integrated-native-clippy-01.log.gz": "071a89e9457bec37e098bcda2406f5aac86a4f4329f0fb517ed21da98a7e4b7b"
+  }
+}

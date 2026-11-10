@@ -51,6 +51,32 @@ def _repository_root(root: pathlib.Path) -> pathlib.Path:
     return resolved
 
 
+def canonical_repository_root(root: pathlib.Path) -> pathlib.Path:
+    """Admit an explicit publication checkout without following path aliases."""
+
+    if not isinstance(root, pathlib.Path) or not root.is_absolute():
+        raise GitProvenanceError("publication repository root must be absolute")
+    supplied = os.fspath(root)
+    if ".." in root.parts or supplied != os.path.realpath(supplied):
+        raise GitProvenanceError(
+            "publication repository root must be canonical and symlink-free"
+        )
+    resolved = _repository_root(root)
+    try:
+        metadata = resolved.lstat()
+    except OSError as exc:
+        raise GitProvenanceError("cannot inspect publication repository root") from exc
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or stat.S_IMODE(metadata.st_mode) & 0o022
+    ):
+        raise GitProvenanceError(
+            "publication repository root must be an owned non-writable-by-others directory"
+        )
+    return resolved
+
+
 def _environment() -> dict[str, str]:
     # Start from an allowlist.  In particular, no caller-controlled GIT_* value,
     # HOME, executable search path, locale, or repository selector is inherited.
@@ -141,6 +167,105 @@ def require_commit_or_evidence_successor(root: pathlib.Path, proof_commit: str) 
         raise GitProvenanceError(
             "successor commit changes canonical source inputs: " + ", ".join(detail)
         )
+    return current
+
+
+def require_commit_ancestor(
+    root: pathlib.Path,
+    ancestor_commit: str,
+    descendant_commit: str,
+) -> None:
+    """Require two exact commits to have the declared ancestry relation."""
+
+    for value, label in (
+        (ancestor_commit, "ancestor"),
+        (descendant_commit, "descendant"),
+    ):
+        if COMMIT_RE.fullmatch(value) is None:
+            raise GitProvenanceError(f"{label} commit hash is malformed: {value}")
+        resolved = run_git_text(root, ["rev-parse", "--verify", f"{value}^{{commit}}"])
+        if resolved != value:
+            raise GitProvenanceError(f"{label} commit does not resolve exactly: {value}")
+    merge_base = run_git_text(
+        root, ["merge-base", ancestor_commit, descendant_commit]
+    )
+    if merge_base != ancestor_commit:
+        raise GitProvenanceError(
+            f"commit {descendant_commit} is not a descendant of {ancestor_commit}"
+        )
+
+
+def require_direct_results_only_child(
+    root: pathlib.Path,
+    source_commit: str,
+    results_commit: str,
+) -> None:
+    """Require an arbitrary commit to be the direct results-only child."""
+
+    if source_commit == results_commit:
+        raise GitProvenanceError("results-only child equals its source commit")
+    require_commit_ancestor(root, source_commit, results_commit)
+    parents = run_git_text(
+        root, ["rev-list", "--parents", "-n", "1", results_commit]
+    ).split()
+    if parents != [results_commit, source_commit]:
+        raise GitProvenanceError(
+            "results-only child must have exactly the source commit as its parent"
+        )
+    changed = _decode_nul_paths(
+        run_git_bytes(
+            root,
+            ["diff", "--name-only", "-z", source_commit, results_commit, "--"],
+        ),
+        "source-to-results commit diff",
+    )
+    if changed != ["artifact/results.json"]:
+        detail = changed[:8] if changed else ["empty diff"]
+        raise GitProvenanceError(
+            "results-only child must change exactly artifact/results.json: "
+            + ", ".join(detail)
+        )
+
+
+def require_results_only_descendant(
+    root: pathlib.Path,
+    results_commit: str,
+    descendant_commit: str,
+) -> None:
+    """Require a descendant history whose aggregate diff is results-only."""
+
+    if results_commit == descendant_commit:
+        return
+    require_commit_ancestor(root, results_commit, descendant_commit)
+    changed = _decode_nul_paths(
+        run_git_bytes(
+            root,
+            ["diff", "--name-only", "-z", results_commit, descendant_commit, "--"],
+        ),
+        "results-to-publication commit diff",
+    )
+    if changed != ["artifact/results.json"]:
+        detail = changed[:8] if changed else ["empty diff"]
+        raise GitProvenanceError(
+            "publication descendant must change exactly artifact/results.json: "
+            + ", ".join(detail)
+        )
+
+
+def require_direct_results_only_successor(
+    root: pathlib.Path,
+    source_commit: str,
+) -> str:
+    """Require HEAD to be the direct one-file results successor of source_commit."""
+
+    if COMMIT_RE.fullmatch(source_commit) is None:
+        raise GitProvenanceError(
+            f"source commit hash is malformed: {source_commit}"
+        )
+    current = git_commit(root)
+    if current == source_commit:
+        raise GitProvenanceError("results-only successor has not been committed")
+    require_direct_results_only_child(root, source_commit, current)
     return current
 
 
@@ -260,10 +385,13 @@ def _canonical_untracked_path(relative: str) -> pathlib.PurePosixPath:
     return pure
 
 
-def _is_declared_ephemeral_output(relative: str) -> bool:
-    """Apply the fixed, verifier-owned output policy without consulting Git ignores."""
+def _matches_declared_ephemeral_output(
+    pure: pathlib.PurePosixPath,
+    *,
+    directory_marker: bool,
+) -> bool:
+    """Return whether one canonical path is inside a fixed output boundary."""
 
-    pure = _canonical_untracked_path(relative)
     parts = pure.parts
     if parts[0] in {"target", "tmp"}:
         return True
@@ -284,9 +412,35 @@ def _is_declared_ephemeral_output(relative: str) -> bool:
         ".xcodeproj"
     ):
         return True
-    if parts[0] == "sbom" and (pure.suffix == ".json" or relative.endswith(".cdx.json")):
-        return True
+    if parts[0] == "sbom" and (
+        pure.suffix == ".json" or pure.as_posix().endswith(".cdx.json")
+    ):
+        return not directory_marker
     return False
+
+
+def _is_declared_ephemeral_output(relative: str) -> bool:
+    """Apply the fixed, verifier-owned output policy without consulting Git ignores.
+
+    Git represents an untracked nested repository as one directory path ending in
+    ``/``.  Admit that representation only after removing exactly that marker and
+    proving the resulting canonical path is inside a fixed ephemeral-output root.
+    A nested repository anywhere else remains a rejected noncanonical source input.
+    """
+
+    directory_marker = relative.endswith("/")
+    canonical = relative[:-1] if directory_marker else relative
+    pure = _canonical_untracked_path(canonical)
+    declared = _matches_declared_ephemeral_output(
+        pure,
+        directory_marker=directory_marker,
+    )
+    if directory_marker and not declared:
+        raise GitProvenanceError(
+            "untracked nested repository is outside declared ephemeral outputs: "
+            f"{relative}"
+        )
+    return declared
 
 
 def _is_untracked_finder_metadata_file(root: pathlib.Path, relative: str) -> bool:

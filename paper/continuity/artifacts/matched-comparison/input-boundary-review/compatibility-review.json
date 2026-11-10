@@ -1,0 +1,33 @@
+{
+  "artifact_bytes": 30369687,
+  "artifact_id": 13641008832,
+  "artifact_sha256": "b08e6675c2cb226af28b7bfa40edd888c8b5333a1ae34dd261ec5a9b0cac8d76",
+  "candidate_source_unchanged_at_review_end": true,
+  "changed_output_fields": [
+    "script_sha256"
+  ],
+  "compact_results_sha256": "588fd79e8b3fa0d1681bd56dd93162a8f64d20c86c1303e29faf58f1333a0be4",
+  "compact_rows_equal": 49,
+  "fixed_receipt_sha256": "bf2019bd7cb440911ca738d2ec3940a16117303f21968391737efe8a48e9cb16",
+  "fixed_script_sha256": "235e93ccab4e4491e97ca0c28dff586077cf0a61502a61240cc7f3930f0d1bd1",
+  "native_retry_analysis_deeply_equal": true,
+  "native_traces_recounted": 14,
+  "old_receipt_sha256": "480cb138a11476bd2cf02be0303fa2895714028f19e8dc4cfcd156ac3f4986d4",
+  "old_replay_equals_historical_receipt": true,
+  "old_script_sha256": "39fd2a8f1987229b83777510871fce75f227b56ab204a072e57dc2ca172b6d4a",
+  "public_manifest_hashes_verified": 126,
+  "reference_traces_and_envelopes_recounted": 35,
+  "schema": 1,
+  "security_review": {
+    "compact_parse_and_digest_share_bytes": true,
+    "each_read_checks_regular_file_descriptor_identity_before_and_after": true,
+    "manifest_path_checks": "canonical relative POSIX spelling; no Windows drive, backslash, traversal or symlink component; resolved containment",
+    "native_trace_parse_and_digest_share_bytes": true,
+    "scope": "Each validated read is a checked regular-file snapshot. Manifest verification and subsequent recount remain distinct reads; this is not a hostile-host atomic directory sandbox."
+  },
+  "source_corpus": "Original published complete artifact; no substituted or synthetic trace",
+  "status": "passed",
+  "uncompressed_bytes": 207282206,
+  "workflow_run": 42537214047,
+  "zip_members": 152
+}

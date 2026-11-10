@@ -1,0 +1,17 @@
+[build-system]
+requires = ["flit_core==4.1.0"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "qperiapt-continuity-reference"
+version = "0.0.0"
+description = "Unpublished independent Continuity reference implementation"
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSE-APACHE", "LICENSE-MIT"]
+classifiers = ["Private :: Do Not Upload"]
+dependencies = ["cryptography==48.0.1"]
+
+[project.urls]
+Source = "https://github.com/billlza/q-periapt"

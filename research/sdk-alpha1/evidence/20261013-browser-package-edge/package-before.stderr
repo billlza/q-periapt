@@ -1,0 +1,25 @@
+Traceback (most recent call last):
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/artifact/python_bootstrap.py", line 91, in <module>
+    dispatch(sys.argv[1:])
+    ~~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/artifact/python_bootstrap.py", line 87, in dispatch
+    runpy.run_path(str(resolved), run_name="__main__")
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 294, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/artifact/rust_sdk_profile.py", line 475, in <module>
+    main()
+    ~~~~^^
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/artifact/rust_sdk_profile.py", line 469, in main
+    report = build(args.output.absolute())
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/artifact/rust_sdk_profile.py", line 403, in build
+    packages = classify(parse_strict_json_bytes(metadata, label="workspace Cargo metadata"))
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/artifact/rust_sdk_profile.py", line 126, in classify
+    require(other in packages and dependency["req"] == requirement,
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            f"internal alpha dependency differs: {name} -> {other}")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/artifact/rust_sdk_profile.py", line 64, in require
+    raise ValueError(message)
+ValueError: internal alpha dependency differs: q-periapt-sdk-wasm -> q-periapt-continuity-identity-candidate

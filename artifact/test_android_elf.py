@@ -7,6 +7,7 @@ import copy
 import datetime as dt
 import hashlib
 import io
+import os
 import pathlib
 import stat
 import subprocess
@@ -15,6 +16,7 @@ import textwrap
 import unittest
 import warnings
 import zipfile
+from unittest import mock
 
 import android_elf
 from claim_ledger import canonical_tree_digest, repository_paths
@@ -40,6 +42,22 @@ from third_party_licenses import canonical_json as canonical_license_inventory_j
 
 
 CLASS_BYTES = b"\xca\xfe\xba\xbe\x00\x00\x00\x37"
+CLASS_ENTRIES = {
+    "dev/qperiapt/android/QPeriaptAndroid.class": CLASS_BYTES,
+    "dev/qperiapt/android/QPeriaptAndroid$QPeriaptException.class": CLASS_BYTES,
+}
+ANDROID_MANIFEST_BYTES = b"""<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="dev.qperiapt.android">
+    <uses-sdk android:minSdkVersion="23" />
+</manifest>
+"""
+CONSUMER_RULES_BYTES = b"""-keep class dev.qperiapt.android.QPeriaptAndroid {
+    native <methods>;
+}
+-keep class dev.qperiapt.android.QPeriaptAndroid$QPeriaptException {
+    public <init>(java.lang.String, int, java.lang.String);
+}
+"""
 
 
 def elf_header(abi: str) -> bytes:
@@ -51,14 +69,53 @@ def elf_header(abi: str) -> bytes:
     return bytes(header)
 
 
-def zip_bytes(entries: dict[str, bytes]) -> bytes:
+def zip_bytes(
+    entries: dict[str, bytes],
+    *,
+    entry_names: list[str] | None = None,
+    date_time: tuple[int, int, int, int, int, int] = (2000, 1, 1, 0, 0, 0),
+    create_system: int = 3,
+    external_attr: int = 0o100644 << 16,
+    compression: int = zipfile.ZIP_STORED,
+    extra: bytes = b"",
+    entry_comment: bytes = b"",
+    archive_comment: bytes = b"",
+) -> bytes:
     output = io.BytesIO()
-    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for name, data in sorted(entries.items()):
-            info = zipfile.ZipInfo(name, (2000, 1, 1, 0, 0, 0))
-            info.external_attr = 0o100644 << 16
+    with zipfile.ZipFile(output, "w") as archive:
+        names = sorted(entries) if entry_names is None else entry_names
+        for name in names:
+            info = zipfile.ZipInfo(name, date_time)
+            info.create_system = create_system
+            info.external_attr = external_attr
+            info.compress_type = compression
+            info.extra = extra
+            info.comment = entry_comment
+            data = entries[name]
             archive.writestr(info, data)
+        archive.comment = archive_comment
     return output.getvalue()
+
+
+def replace_first_zip_entry_flag_bits(data: bytes, flag_bits: int) -> bytes:
+    mutated = bytearray(data)
+    local_header = mutated.find(b"PK\x03\x04")
+    end_record = mutated.rfind(b"PK\x05\x06")
+    if local_header < 0 or end_record < 0:
+        raise AssertionError("fixture lacks required ZIP records")
+    central_header = int.from_bytes(mutated[end_record + 16 : end_record + 20], "little")
+    if mutated[central_header : central_header + 4] != b"PK\x01\x02":
+        raise AssertionError("fixture central-directory offset is malformed")
+    for header, offset in ((local_header, 6), (central_header, 8)):
+        mutated[header + offset : header + offset + 2] = flag_bits.to_bytes(2, "little")
+    return bytes(mutated)
+
+
+def zip_eocd_offset(data: bytes) -> int:
+    offset = data.rfind(b"PK\x05\x06")
+    if offset < 0 or offset + 22 > len(data):
+        raise AssertionError("fixture lacks a complete ZIP EOCD")
+    return offset
 
 
 class AndroidElfVerifierTests(unittest.TestCase):
@@ -68,6 +125,144 @@ class AndroidElfVerifierTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
+
+    def test_results_bound_aar_uses_only_manifest_selected_paths_and_hashes(
+        self,
+    ) -> None:
+        aar = self.root / "selected.aar"
+        manifest = self.root / "MANIFEST.json"
+        ndk = self.root / "ndk"
+        toolchain = ndk / "toolchains/llvm/prebuilt/host"
+        results_aar = {
+            "aar_sha256": "a" * 64,
+            "current_source_status": "current_clean_tree_package_pass",
+            "manifest_schema": 4,
+            "manifest_generated_at": "2026-08-12T00:00:00Z",
+            "proof_source_tree_sha256": "d" * 64,
+            "source_commit": "e" * 40,
+            "source_tree_dirty": False,
+            "targets": list(REQUIRED_ABIS),
+        }
+        manifest_snapshot = mock.Mock(value={"android_aar": results_aar})
+        verified_manifest = {
+            "schema_version": 4,
+            "generated_at": results_aar["manifest_generated_at"],
+            "git_commit": results_aar["source_commit"],
+            "git_dirty": False,
+            "source_tree_sha256": results_aar["proof_source_tree_sha256"],
+            "android": {"abis": list(REQUIRED_ABIS)},
+            "artifacts": {"aar_sha256": "a" * 64},
+        }
+        declarations = (
+            mock.Mock(path=aar, sha256="a" * 64),
+            mock.Mock(path=manifest, sha256="b" * 64),
+        )
+        with (
+            mock.patch.object(
+                android_elf,
+                "load_results_manifest_snapshot",
+                return_value=manifest_snapshot,
+            ) as load_results,
+            mock.patch.object(
+                android_elf,
+                "resolve_bound_file_declaration",
+                side_effect=declarations,
+            ) as resolve_binding,
+            mock.patch.object(
+                android_elf, "verify_ndk_r29", return_value="29.0.14206865"
+            ),
+            mock.patch.object(
+                android_elf, "find_ndk_toolchain", return_value=toolchain
+            ),
+            mock.patch.object(
+                android_elf, "verify_aar", return_value=verified_manifest
+            ) as verify_selected,
+        ):
+            android_elf.verify_results_bound_aar(
+                root=self.root,
+                results_manifest=self.root / "artifact/results.json",
+                expected_results_manifest_sha256="c" * 64,
+                ndk=ndk,
+            )
+        load_results.assert_called_once_with(
+            (self.root / "artifact/results.json").resolve(),
+            expected_sha256="c" * 64,
+        )
+        self.assertEqual(
+            [call.kwargs["binding"] for call in resolve_binding.call_args_list],
+            ["android_aar", "android_aar_manifest"],
+        )
+        self.assertEqual(verify_selected.call_args.args, (aar,))
+        self.assertEqual(
+            verify_selected.call_args.kwargs["expected_aar_sha256"], "a" * 64
+        )
+        self.assertEqual(
+            verify_selected.call_args.kwargs["expected_manifest_sha256"],
+            "b" * 64,
+        )
+        self.assertTrue(verify_selected.call_args.kwargs["require_release_manifest"])
+
+    def test_results_aar_projection_rejects_summary_drift(self) -> None:
+        results = {
+            "android_aar": {
+                "aar_sha256": "a" * 64,
+                "manifest_schema": 4,
+                "manifest_generated_at": "2026-08-12T00:00:00Z",
+                "proof_source_tree_sha256": "b" * 64,
+                "source_commit": "c" * 40,
+                "source_tree_dirty": False,
+                "targets": list(REQUIRED_ABIS),
+            }
+        }
+        verified = {
+            "schema_version": 4,
+            "generated_at": "2026-08-12T00:00:00Z",
+            "git_commit": "c" * 40,
+            "git_dirty": False,
+            "source_tree_sha256": "b" * 64,
+            "android": {"abis": list(REQUIRED_ABIS)},
+            "artifacts": {"aar_sha256": "a" * 64},
+        }
+        android_elf.verify_results_aar_projection(results, verified)
+        for field, bad_value in (
+            ("manifest_generated_at", "2026-08-12T00:00:01Z"),
+            ("source_commit", "d" * 40),
+            ("proof_source_tree_sha256", "e" * 64),
+            ("targets", list(reversed(REQUIRED_ABIS))),
+            ("aar_sha256", "f" * 64),
+        ):
+            with self.subTest(field=field):
+                changed = copy.deepcopy(results)
+                changed["android_aar"][field] = bad_value
+                with self.assertRaisesRegex(
+                    AndroidVerificationError,
+                    f"AAR {field} differs",
+                ):
+                    android_elf.verify_results_aar_projection(changed, verified)
+
+    def test_results_bound_aar_requires_the_exact_release_ndk(self) -> None:
+        with (
+            mock.patch.object(
+                android_elf,
+                "load_results_manifest_snapshot",
+                return_value=mock.Mock(value={}),
+            ),
+            mock.patch.object(
+                android_elf,
+                "resolve_bound_file_declaration",
+                return_value=mock.Mock(path=self.root / "file", sha256="a" * 64),
+            ),
+            mock.patch.object(android_elf, "verify_ndk_r29", return_value="29.1.0"),
+        ):
+            with self.assertRaisesRegex(
+                AndroidVerificationError, "requires NDK 29.0.14206865"
+            ):
+                android_elf.verify_results_bound_aar(
+                    root=self.root,
+                    results_manifest=self.root / "artifact/results.json",
+                    expected_results_manifest_sha256="c" * 64,
+                    ndk=self.root / "ndk",
+                )
 
     def write_tool(self, name: str, body: str) -> pathlib.Path:
         path = self.root / name
@@ -132,7 +327,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
         return path
 
     def classes_jar(self) -> bytes:
-        return zip_bytes({"dev/qperiapt/android/QPeriaptAndroid.class": CLASS_BYTES})
+        return zip_bytes(CLASS_ENTRIES)
 
     def third_party_entries(self) -> dict[str, bytes]:
         license_data = b"Dependency license text\n"
@@ -169,6 +364,10 @@ class AndroidElfVerifierTests(unittest.TestCase):
         for name in REQUIRED_AAR_ENTRIES:
             if name == "classes.jar":
                 entries[name] = self.classes_jar()
+            elif name == "AndroidManifest.xml":
+                entries[name] = ANDROID_MANIFEST_BYTES
+            elif name == "proguard.txt":
+                entries[name] = CONSUMER_RULES_BYTES
             elif name.startswith("jni/"):
                 abi = name.split("/")[1]
                 entries[name] = elf_header(abi)
@@ -178,7 +377,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
         return entries
 
     def write_aar(self) -> pathlib.Path:
-        path = self.root / "q-periapt-android-0.1.0-alpha.2.aar"
+        path = self.root / "q-periapt-android-0.1.5.aar"
         path.write_bytes(zip_bytes(self.aar_entries()))
         return path
 
@@ -226,7 +425,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
         work.mkdir(parents=True)
         self.root = work
         entries = self.aar_entries()
-        aar = work / "q-periapt-android-0.1.0-alpha.2.aar"
+        aar = work / "q-periapt-android-0.1.5.aar"
         aar.write_bytes(zip_bytes(entries))
         manifest_path = work / "MANIFEST.json"
         llvm_nm, llvm_readelf = self.fake_tools()
@@ -256,7 +455,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
             "schema_version": android_elf.MANIFEST_SCHEMA_VERSION,
             "kind": "qperiapt.android_aar_manifest",
             "package": aar.name,
-            "version": "0.1.0-alpha.2",
+            "version": "0.1.5",
             "generated_at": dt.datetime.fromtimestamp(
                 epoch, tz=dt.timezone.utc
             ).isoformat().replace("+00:00", "Z"),
@@ -470,6 +669,16 @@ class AndroidElfVerifierTests(unittest.TestCase):
                 llvm_readelf=readelf,
             )
 
+    def test_load_alignment_must_be_power_of_two(self) -> None:
+        output = "LOAD 0x0 0x0 0x0 0x100 0x100 R E 0x6000\n"
+        with self.assertRaisesRegex(AndroidVerificationError, "not a power of two"):
+            android_elf.verify_program_headers(output, pathlib.Path("fixture.so"))
+
+    def test_load_offset_and_virtual_address_must_be_congruent(self) -> None:
+        output = "LOAD 0x1000 0x2000 0x2000 0x100 0x100 R E 0x4000\n"
+        with self.assertRaisesRegex(AndroidVerificationError, "incongruent LOAD"):
+            android_elf.verify_program_headers(output, pathlib.Path("fixture.so"))
+
     def test_expected_aar_sha256_mismatch_fails_closed(self) -> None:
         nm, readelf = self.fake_tools()
         with self.assertRaisesRegex(AndroidVerificationError, r"SHA-256 mismatch"):
@@ -479,6 +688,281 @@ class AndroidElfVerifierTests(unittest.TestCase):
                 llvm_readelf=readelf,
                 expected_aar_sha256="0" * 64,
             )
+
+    def test_canonical_aar_archive_structure_is_accepted(self) -> None:
+        audit_aar(self.write_aar())
+
+    def test_producer_metadata_passes_the_independent_archive_contract(self) -> None:
+        producer = (pathlib.Path(__file__).resolve().parent / "android-aar.sh").read_text(encoding="utf-8")
+        stage = self.root / "consumer metadata with spaces"
+        stage.mkdir()
+        blocks = []
+        for filename in ("AndroidManifest.xml", "proguard.txt"):
+            marker = f'cat >"$STAGE/{filename}" <<\'EOF\'\n'
+            self.assertEqual(producer.count(marker), 1)
+            start = producer.index(marker)
+            end = producer.index("\nEOF\n", start) + len("\nEOF\n")
+            blocks.append(producer[start:end])
+        result = subprocess.run(
+            ["/bin/sh", "-c", "set -eu\n" + "\n".join(blocks)],
+            env={"PATH": os.environ["PATH"], "STAGE": str(stage)},
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr, "")
+        entries = self.aar_entries()
+        for filename in ("AndroidManifest.xml", "proguard.txt"):
+            entries[filename] = (stage / filename).read_bytes()
+        self.assertEqual(entries["AndroidManifest.xml"], ANDROID_MANIFEST_BYTES)
+        self.assertEqual(entries["proguard.txt"], CONSUMER_RULES_BYTES)
+        android_elf.audit_aar_bytes(zip_bytes(entries), label="producer consumer metadata")
+
+    def test_aar_manifest_requires_the_actual_library_package(self) -> None:
+        for bad_manifest in (
+            ANDROID_MANIFEST_BYTES.replace(b'    package="dev.qperiapt.android"', b""),
+            ANDROID_MANIFEST_BYTES.replace(b'package="dev.qperiapt.android"', b'package="dev.qperiapt.wrong"'),
+            ANDROID_MANIFEST_BYTES.replace(b'package="dev.qperiapt.android"', b'package=""'),
+            b'<application package="dev.qperiapt.android" />',
+        ):
+            with self.subTest(manifest=bad_manifest):
+                entries = self.aar_entries()
+                entries["AndroidManifest.xml"] = bad_manifest
+                with self.assertRaisesRegex(AndroidVerificationError, "must declare package=dev.qperiapt.android"):
+                    android_elf.audit_aar_bytes(zip_bytes(entries), label="wrong Android package")
+
+    def test_aar_manifest_is_bounded_utf8_xml_without_dtd(self) -> None:
+        cases = (
+            (b"<manifest", "valid UTF-8 XML"),
+            (b"\xff", "valid UTF-8 XML"),
+            (b"x" * (android_elf.MAX_CONSUMER_METADATA_BYTES + 1), "metadata limit"),
+            (b'<!DOCTYPE manifest [<!ENTITY package "dev.qperiapt.android">]>'
+             b'<manifest package="&package;" />', "DTD/entity"),
+        )
+        for payload, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic):
+                entries = self.aar_entries()
+                entries["AndroidManifest.xml"] = payload
+                with self.assertRaisesRegex(AndroidVerificationError, diagnostic):
+                    android_elf.audit_aar_bytes(zip_bytes(entries), label="invalid Android manifest")
+
+    def test_aar_consumer_rules_require_exact_native_and_callback_retention(self) -> None:
+        callback_start = CONSUMER_RULES_BYTES.index(b"-keep class dev.qperiapt.android.QPeriaptAndroid$QPeriaptException")
+        variants = (
+            CONSUMER_RULES_BYTES[:callback_start],
+            CONSUMER_RULES_BYTES[callback_start:],
+            b"# " + CONSUMER_RULES_BYTES.replace(b"\n", b"\n# "),
+            CONSUMER_RULES_BYTES.replace(b"-keep class", b"-keepclassmembers class"),
+            CONSUMER_RULES_BYTES.replace(b"-keep class", b"-keep,allowshrinking class"),
+            CONSUMER_RULES_BYTES.replace(
+                b"-keep class dev.qperiapt.android.QPeriaptAndroid {",
+                b"-keepclasseswithmembernames class dev.qperiapt.android.QPeriaptAndroid {",
+            ),
+            CONSUMER_RULES_BYTES.replace(b"String, int,", b"String, long,"),
+            CONSUMER_RULES_BYTES.replace(b"QPeriaptAndroid$QPeriaptException", b"QPeriaptAndroid$*"),
+        )
+        for rules in variants:
+            with self.subTest(rules=rules):
+                entries = self.aar_entries()
+                entries["proguard.txt"] = rules
+                with self.assertRaisesRegex(AndroidVerificationError, "exception-callback keep contract"):
+                    android_elf.audit_aar_bytes(zip_bytes(entries), label="invalid consumer rules")
+
+    def test_aar_cannot_omit_the_jni_exception_callback_class(self) -> None:
+        entries = self.aar_entries()
+        entries["classes.jar"] = zip_bytes({"dev/qperiapt/android/QPeriaptAndroid.class": CLASS_BYTES})
+        with self.assertRaisesRegex(AndroidVerificationError, r"lacks .*QPeriaptException.class"):
+            android_elf.audit_aar_bytes(zip_bytes(entries), label="missing JNI callback class")
+
+    def test_aar_prefix_bytes_are_rejected_before_extraction(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(b"hidden-prefix" + path.read_bytes())
+        with mock.patch.object(
+            android_elf.zipfile,
+            "ZipFile",
+            side_effect=AssertionError("ZIP decoder opened before raw framing passed"),
+        ):
+            with self.assertRaisesRegex(
+                AndroidVerificationError,
+                r"central directory has a gap|central record signature|prefix",
+            ):
+                android_elf.audit_aar_bytes(path.read_bytes(), label=str(path))
+
+    def test_aar_trailing_bytes_are_rejected_before_extraction(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(path.read_bytes() + b"hidden-trailer")
+        with self.assertRaisesRegex(AndroidVerificationError, r"EOCD|trailing framing"):
+            audit_aar(path)
+
+    def test_aar_local_and_central_metadata_mismatch_is_rejected(self) -> None:
+        path = self.write_aar()
+        mutated = bytearray(path.read_bytes())
+        self.assertEqual(mutated[:4], b"PK\x03\x04")
+        mutated[10:12] = (1).to_bytes(2, "little")
+        path.write_bytes(mutated)
+        with self.assertRaisesRegex(
+            AndroidVerificationError,
+            r"local and central metadata differ",
+        ):
+            audit_aar(path)
+
+    def test_aar_hidden_central_record_is_rejected(self) -> None:
+        path = self.write_aar()
+        data = path.read_bytes()
+        eocd = zip_eocd_offset(data)
+        hidden_record = b"PK\x05\x05\x00\x00"
+        mutated = bytearray(data[:eocd] + hidden_record + data[eocd:])
+        new_eocd = eocd + len(hidden_record)
+        central_size = int.from_bytes(
+            mutated[new_eocd + 12 : new_eocd + 16], "little"
+        )
+        mutated[new_eocd + 12 : new_eocd + 16] = (
+            central_size + len(hidden_record)
+        ).to_bytes(4, "little")
+        path.write_bytes(mutated)
+        with self.assertRaisesRegex(
+            AndroidVerificationError,
+            r"central directory contains hidden or trailing records",
+        ):
+            audit_aar(path)
+
+    def test_aar_multidisk_eocd_is_rejected(self) -> None:
+        path = self.write_aar()
+        mutated = bytearray(path.read_bytes())
+        eocd = zip_eocd_offset(mutated)
+        mutated[eocd + 4 : eocd + 6] = (1).to_bytes(2, "little")
+        path.write_bytes(mutated)
+        with self.assertRaisesRegex(AndroidVerificationError, r"single-disk"):
+            audit_aar(path)
+
+    def test_aar_zip64_eocd_sentinels_are_rejected(self) -> None:
+        path = self.write_aar()
+        mutated = bytearray(path.read_bytes())
+        eocd = zip_eocd_offset(mutated)
+        mutated[eocd + 8 : eocd + 12] = b"\xff\xff\xff\xff"
+        path.write_bytes(mutated)
+        with self.assertRaisesRegex(AndroidVerificationError, r"ZIP64"):
+            audit_aar(path)
+
+    def test_aar_archive_claims_are_canonical_but_not_cross_host(self) -> None:
+        repository_root = pathlib.Path(__file__).resolve().parent.parent
+        documents = (
+            repository_root / "artifact/android-aar.sh",
+            repository_root / "bindings/android/README.md",
+            repository_root / "docs/EMBEDDING_READINESS.md",
+        )
+        for path in documents:
+            with self.subTest(document=path.name):
+                normalized = " ".join(
+                    path.read_text(encoding="utf-8").replace("#", " ").split()
+                )
+                self.assertNotIn("deterministic AAR", normalized)
+                self.assertIn("canonical", normalized)
+                self.assertIn(
+                    "does not claim cross-host bit reproducibility of the compiled payload",
+                    normalized,
+                )
+        producer = documents[0].read_text(encoding="utf-8")
+        self.assertIn(
+            "Assemble built payload with canonical AAR archive structure",
+            producer,
+        )
+        self.assertIn("canonical AAR archive-structure", producer)
+        assembly_start = producer.index(
+            "Assemble built payload with canonical AAR archive structure"
+        )
+        assembly_end = producer.index('test -f "$AAR_PATH"', assembly_start)
+        assembly = producer[assembly_start:assembly_end]
+        for canonical_assignment in (
+            'compression=zipfile.ZIP_STORED',
+            'zf.comment = b""',
+            "info.create_system = 3",
+            "info.external_attr = 0o100644 << 16",
+            "info.compress_type = zipfile.ZIP_STORED",
+            "info.flag_bits = 0",
+            'info.extra = b""',
+            'info.comment = b""',
+        ):
+            with self.subTest(canonical_assignment=canonical_assignment):
+                self.assertEqual(assembly.count(canonical_assignment), 1)
+
+    def test_noncanonical_aar_entry_order_is_rejected(self) -> None:
+        entries = self.aar_entries()
+        path = self.write_aar()
+        path.write_bytes(
+            zip_bytes(entries, entry_names=list(reversed(sorted(entries))))
+        )
+        with self.assertRaisesRegex(AndroidVerificationError, r"entry order"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_entry_timestamp_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(
+            zip_bytes(self.aar_entries(), date_time=(2001, 1, 1, 0, 0, 0))
+        )
+        with self.assertRaisesRegex(AndroidVerificationError, r"timestamp"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_compression_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(
+            zip_bytes(self.aar_entries(), compression=zipfile.ZIP_DEFLATED)
+        )
+        with self.assertRaisesRegex(AndroidVerificationError, r"ZIP_STORED"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_mode_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(zip_bytes(self.aar_entries(), external_attr=0o100600 << 16))
+        with self.assertRaisesRegex(AndroidVerificationError, r"regular 0644"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_extra_field_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(zip_bytes(self.aar_entries(), extra=b"\x01\x00\x00\x00"))
+        with self.assertRaisesRegex(AndroidVerificationError, r"extra field"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_entry_comment_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(zip_bytes(self.aar_entries(), entry_comment=b"comment"))
+        with self.assertRaisesRegex(AndroidVerificationError, r"entry comment"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_archive_comment_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(zip_bytes(self.aar_entries(), archive_comment=b"comment"))
+        with self.assertRaisesRegex(AndroidVerificationError, r"archive comment"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_creator_system_is_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(zip_bytes(self.aar_entries(), create_system=0))
+        with self.assertRaisesRegex(AndroidVerificationError, r"creator system"):
+            audit_aar(path)
+
+    def test_noncanonical_aar_flag_bits_are_rejected(self) -> None:
+        path = self.write_aar()
+        path.write_bytes(replace_first_zip_entry_flag_bits(path.read_bytes(), 0x800))
+        with self.assertRaisesRegex(AndroidVerificationError, r"flag bits"):
+            audit_aar(path)
+
+    def test_classes_jar_metadata_is_not_mistaken_for_outer_aar_policy(self) -> None:
+        classes = zip_bytes(
+            CLASS_ENTRIES,
+            date_time=(2001, 1, 1, 0, 0, 0),
+            create_system=0,
+            external_attr=0o100600 << 16,
+            compression=zipfile.ZIP_DEFLATED,
+            extra=b"\x01\x00\x00\x00",
+            entry_comment=b"nested metadata",
+            archive_comment=b"nested archive metadata",
+        )
+        self.assertEqual(
+            set(audit_classes_jar(classes)),
+            set(CLASS_ENTRIES),
+        )
 
     def test_final_aar_is_audited_and_extracted_elfs_are_reverified(self) -> None:
         nm, readelf = self.fake_tools()
@@ -513,7 +997,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
     def test_nested_archive_in_classes_jar_is_rejected(self) -> None:
         data = zip_bytes(
             {
-                "dev/qperiapt/android/QPeriaptAndroid.class": CLASS_BYTES,
+                **CLASS_ENTRIES,
                 "dev/qperiapt/android/payload.jar": b"not allowed",
             }
         )

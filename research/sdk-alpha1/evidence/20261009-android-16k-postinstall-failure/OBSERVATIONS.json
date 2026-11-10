@@ -1,0 +1,50 @@
+{
+  "source_branch": "b1006eb3ce3082f13a785c283b18f9b23a1b0f5f",
+  "pr_merge": "54c5409379e9c596944253e0c8c01721143ed582",
+  "same_git_tree": "c5048d8e343f05f90cc6fb74119269f262fb435c",
+  "failed_job": 113746848451,
+  "successful_parallel_push_job": 113745724145,
+  "failure_phase": "minimal consumer post-install APK ownership admission, before Instrumentation",
+  "full_consumer_instrumentation": {
+    "schema": 1,
+    "status": "pass",
+    "run_id": "3ddf404777103c1a3a390af33ef358a8",
+    "test_count": 3,
+    "passed_tests": [
+      "sdkOwnersAndPurposeKeys",
+      "sdkExpertCancellationAndInputSnapshot",
+      "sdkSignedPolicyRevocationAndRecovery"
+    ]
+  },
+  "minimal_observed_copy_failures": [
+    {
+      "expected_bytes": 13702871,
+      "expected_sha256": "6b4a5b9d860fafed5ce0575fecdf360943bfc1c083360894d9123cab8c0f42aa",
+      "failure": "bytes-mismatch",
+      "observed_bytes": 1119744,
+      "observed_sha256": "c22d59a9d7e869118eb4ae28eeae351c794fcadbe6bd8f9d8169edc557df79f1",
+      "operation": "installed-apk-copy"
+    },
+    {
+      "expected_bytes": 13702871,
+      "expected_sha256": "6b4a5b9d860fafed5ce0575fecdf360943bfc1c083360894d9123cab8c0f42aa",
+      "failure": "bytes-mismatch",
+      "observed_bytes": 6271488,
+      "observed_sha256": "1eeb713a86f77c8961dbe7e67dc6d06308459c16281398e2750d4636a32f484f",
+      "operation": "installed-apk-copy"
+    }
+  ],
+  "transport": "adb log records connection terminated: read failed after each truncated copy; one allowed transport recovery precedes the second failure",
+  "cleanup": "unresolved; post-install ownership never converged and later diagnostics/cleanup could not establish device state",
+  "primary_exit_status": 2,
+  "source_order_check": "android-device-smoke.sh lines2622-2628 abort before run-instrumentation at2675; these source bytes are unchanged since b100",
+  "recorded_aar_sha256": "8a31d195c7a9cf612a782519f8430cdec4f4201984138af6e254f6695d560a48",
+  "recorded_adb_sha256": "a902be8f45c6c62e76c9efaf6947a0fa747c9cabd89a2ac8e0d16ecb30b3ed01",
+  "push_comparison": "Both push profiles have passing hash-matched result JSON and AAR members. Git trees, recorded AAR digest and ADB binary digest match. APKs retain distinct ephemeral identities; complete environment equivalence is not claimed.",
+  "other_observation": "Guest recovery log contains a GMS JIT SIGSEGV before the transport failure; it does not establish the disconnect cause.",
+  "root_cause": "unresolved",
+  "product_code_changed": false,
+  "acceptance_relaxed": false,
+  "new_ci_run_requested": false,
+  "release_claim_eligible": false
+}

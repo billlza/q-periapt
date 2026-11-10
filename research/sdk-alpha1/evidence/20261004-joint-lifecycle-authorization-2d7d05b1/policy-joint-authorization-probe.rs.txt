@@ -1,0 +1,271 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Isolated authorization experiment, not a durable protocol or public API.
+// Purpose 16 is inserted only into the copied candidate by the runner.
+mod policy_joint_authorization_probe {
+    use super::*;
+    use crate::{
+        HistoricalSessionPolicy, PolicyCheckpoint, PolicyPin, PolicySigningKey,
+        SessionPolicyParameters, Validity, VerifiedCredentialRenewal,
+    };
+
+    // No operational device, policy wrapper, journal mutation or witness receipt
+    // can be obtained from this experiment's result.
+    const TAG: &[u8; 8] = b"QPJLEX01";
+    const BODY_BYTES: usize = 8 + 6 * 32 + 2 * 40 + 1;
+    const DOMAIN: &[u8] = b"Q-PERIAPT-JOINT-LIFECYCLE-EXPERIMENT/v1";
+    const RETAINED_ESTABLISHED: u8 = 1;
+
+    #[derive(Clone)]
+    struct Expected {
+        operation: crate::CredentialRenewalId,
+        journal: JournalIdentity,
+        owner: [u8; 32],
+        predecessor_credential: [u8; 32],
+        predecessor_roster: RosterCheckpoint,
+        predecessor_policy: PolicyCheckpoint,
+    }
+
+    fn statement(
+        expected: &Expected,
+        grant: &VerifiedCredentialRenewal,
+        old: &HistoricalSessionPolicy,
+        next: &VerifiedSessionPolicy,
+        now: u64,
+    ) -> Result<Vec<u8>, Error> {
+        crate::codec::nonzero(expected.journal.as_bytes())?;
+        crate::codec::nonzero(&expected.owner)?;
+        if expected.operation != grant.operation()
+            || expected.owner != grant.original_storage_owner()
+            || expected.predecessor_credential != grant.previous_device().credential_digest()
+            || expected.predecessor_roster != grant.previous_device().roster().checkpoint()
+            || expected.predecessor_policy != old.checkpoint()
+            || old.checkpoint().digest() != grant.policy_digest()
+            || old.family() != next.family()
+            || old.sdk_binding() != next.sdk_binding()
+            || old.allowed_modes() != next.allowed_modes()
+            || old.anchor_requirement() != next.anchor_requirement()
+            || old.application_send_budget() != next.application_send_budget()
+            || old.validity().from() != next.validity().from()
+            || old.validity().until() >= next.validity().until()
+            || old.checkpoint().version() >= next.checkpoint().version()
+        {
+            return Err(Error::Scope);
+        }
+        next.check_mode(PrekeyQuality::OneTimeBoth, now)?;
+        next.check_device(grant.successor_device(), now)?;
+        let mut body = Vec::with_capacity(BODY_BYTES);
+        body.extend_from_slice(TAG);
+        for value in [
+            *expected.operation.as_bytes(),
+            *expected.journal.as_bytes(),
+            expected.owner,
+            grant.original_credential_digest(),
+            grant.statement_digest(),
+            grant.successor_device().authority_binding(),
+        ] {
+            body.extend_from_slice(&value);
+        }
+        for checkpoint in [old.checkpoint(), next.checkpoint()] {
+            body.extend_from_slice(&checkpoint.version().to_be_bytes());
+            body.extend_from_slice(&checkpoint.digest());
+        }
+        body.push(RETAINED_ESTABLISHED);
+        Ok(body)
+    }
+
+    // Exact same bounded statement, independently signed by both authorities.
+    // This deliberately low-level test helper also signs invalid variants so
+    // verification is tested against valid signatures on prohibited changes.
+    fn sign(
+        body: &[u8],
+        account: &RootSigningKey,
+        policy: &PolicySigningKey,
+    ) -> (Vec<u8>, Vec<u8>) {
+        let purpose = Purpose::JointLifecycleExperiment;
+        (
+            envelope(body, &account.sign(purpose, body).expect("account signature"))
+                .expect("account envelope"),
+            envelope(body, &policy.sign(purpose, body).expect("policy signature"))
+                .expect("policy envelope"),
+        )
+    }
+
+    #[derive(Clone)]
+    struct Inputs<'a> {
+        expected: &'a Expected,
+        account_pin: &'a AccountPin,
+        account_key: &'a PublicKey,
+        policy_key: &'a PublicKey,
+        old_pin: &'a PolicyPin,
+        next_pin: &'a PolicyPin,
+        old_wire: &'a [u8],
+        next_wire: &'a [u8],
+        grant_wire: &'a [u8],
+        runtime: Arc<q_periapt_sdk::Runtime>,
+    }
+    fn verify(inputs: &Inputs<'_>, pair: &(Vec<u8>, Vec<u8>), now: u64) -> Result<[u8; 32], Error> {
+        // All keys, exact pins and local expectations are independent inputs.
+        // Wire bytes cannot select an authority, clock, predecessor or scope.
+        let expected_size = 4 + BODY_BYTES + crate::crypto::SIGNATURE_BYTES;
+        if pair.0.len() != expected_size || pair.1.len() != expected_size {
+            return Err(Error::Encoding);
+        }
+        let (a, a_signature) = open_envelope(&pair.0)?;
+        let (p, p_signature) = open_envelope(&pair.1)?;
+        if a != p || a.len() != BODY_BYTES {
+            return Err(Error::Scope);
+        }
+        inputs.account_key.verify(Purpose::JointLifecycleExperiment, a, a_signature)?;
+        inputs.policy_key.verify(Purpose::JointLifecycleExperiment, p, p_signature)?;
+        let old = inputs.old_pin.verify_historical(inputs.old_wire)?;
+        let next = inputs.next_pin.verify(inputs.next_wire, Arc::clone(&inputs.runtime), now)?;
+        let grant = VerifiedCredentialRenewal::verify(
+            inputs.grant_wire, inputs.account_pin, old.checkpoint().digest(), now,
+        )?;
+        // Cross-bind the separately provided signer keys to the exact verified
+        // account and policy authorities. A signed body must not select them.
+        if &grant.successor_device().authority_key != inputs.account_key
+            || inputs.policy_key.shares_component(inputs.account_key)
+        {
+            return Err(Error::Scope);
+        }
+        let signer_pin = PolicyPin::new(next.family(), inputs.policy_key.clone(), next.checkpoint())?;
+        signer_pin.verify(inputs.next_wire, Arc::clone(&inputs.runtime), now)?;
+        if statement(inputs.expected, &grant, &old, &next, now)? != a {
+            return Err(Error::Scope);
+        }
+        Ok(digest(DOMAIN, a))
+    }
+
+    #[test]
+    fn double_expiry_requires_one_current_joint_authorization_and_exact_original_scope() {
+        let requirement = crate::AnchorRequirement::local_only();
+        let (issuer, _, _, runtime) = crate::tests::session_policy_fixture_with_anchor(
+            &[PrekeyQuality::OneTimeBoth], requirement,
+        );
+        let issue = |version, until, budget, anchor| issuer.issue_session_policy(&runtime,
+            SessionPolicyParameters::new(version, Validity::new(100, until).expect("interval"),
+                crate::AllowedPrekeyModes::new(&[PrekeyQuality::OneTimeBoth]).expect("modes"),
+                anchor, crate::ApplicationSendBudget::new(budget).expect("budget")
+            ).expect("parameters")).expect("issued policy");
+        let p0 = issue(1, 160, 1024, requirement);
+        let p1 = issue(2, 190, 1024, requirement);
+        let p2 = issue(3, 195, 1024, requirement);
+        let family = issuer.policy_family().expect("family");
+        let policy_key = issuer.public_key().expect("independent policy authority");
+        let pin = |checkpoint| PolicyPin::new(family, policy_key.clone(), checkpoint).expect("independent pin");
+        let pin0 = pin(p0.checkpoint());
+        let pin1 = pin(p1.checkpoint());
+        let pin2 = pin(p2.checkpoint());
+        let mut c = case();
+        c.intent.description.validity = Validity::new(100, 160).expect("C0 expires");
+        c.policy = pin0.verify(p0.as_bytes(), Arc::clone(&runtime), 150).expect("P0 before expiry");
+        let (mut owner, _, journal) = accepted(&c);
+        let original_image = owner.image().expect("image");
+        let original = owner.admitted(&original_image, &c.policy, 150).expect("C0");
+        owner.prepare(&c.policy, 150).expect("prepare");
+        owner.activate(&c.policy, 150, None).expect("original installation").close();
+        let grant = renewal::grant(&c, &original, &original, 2, 190);
+        let current_pin = AccountPin::new(c.root.account_id().expect("account"),
+            c.root.public_key().expect("account root"), grant.successor_device().roster().checkpoint(), family
+        ).expect("independently current account pin");
+        let account_key = c.root.public_key().expect("independent account authority");
+        let expected = Expected {
+            operation: grant.operation(), journal,
+            owner: crate::bootstrap::storage_owner(&original),
+            predecessor_credential: original.credential_digest(),
+            predecessor_roster: original.roster().checkpoint(),
+            predecessor_policy: p0.checkpoint(),
+        };
+        let inputs = Inputs {
+            expected: &expected, account_pin: &current_pin, account_key: &account_key,
+            policy_key: &policy_key, old_pin: &pin0, next_pin: &pin1,
+            old_wire: p0.as_bytes(), next_wire: p1.as_bytes(), grant_wire: grant.as_bytes(),
+            runtime: Arc::clone(&runtime),
+        };
+        assert!(original.description.validity.check(170).is_err());
+        assert!(pin0.verify(p0.as_bytes(), Arc::clone(&runtime), 170).is_err());
+        let old = pin0.verify_historical(p0.as_bytes()).expect("historical P0");
+        let next = pin1.verify(p1.as_bytes(), Arc::clone(&runtime), 170).expect("current P1");
+        let current_grant = VerifiedCredentialRenewal::verify(grant.as_bytes(), &current_pin,
+            p0.checkpoint().digest(), 170).expect("current C1 account authorization despite C0/P0 expiry");
+        let body = statement(&expected, &current_grant, &old, &next, 170).expect("exact joint statement");
+        assert_eq!(body.len(), BODY_BYTES);
+        let pair = sign(&body, &c.root, &issuer);
+        let authorized = verify(&inputs, &pair, 170).expect("both independent current approvals");
+        assert_eq!(authorized, verify(&inputs, &pair, 175).expect("same exact statement"));
+
+        let mut rejected = 0usize;
+        let mut refuse = |label: &str, result: Result<[u8; 32], Error>| {
+            assert!(result.is_err(), "prohibited case accepted: {label}");
+            rejected += 1;
+            println!("JOINT_AUTHORIZATION_REFUSAL {label}");
+        };
+        refuse("policy-alone", verify(&inputs, &(Vec::new(), pair.1.clone()), 170));
+        refuse("account-alone", verify(&inputs, &(pair.0.clone(), Vec::new()), 170));
+        refuse("target-expired", verify(&inputs, &pair, 195));
+        refuse("target-not-yet-valid", verify(&inputs, &pair, 99));
+        let p2_inputs = Inputs { next_pin: &pin2, next_wire: p2.as_bytes(), ..inputs.clone() };
+        let next2 = pin2.verify(p2.as_bytes(), Arc::clone(&runtime), 170).expect("current alternative P2");
+        let body2 = statement(&expected, &current_grant, &old, &next2, 170).expect("second legitimate target");
+        let pair2 = sign(&body2, &c.root, &issuer);
+        assert_ne!(authorized, verify(&p2_inputs, &pair2, 170).expect("independently joint-approved P2"));
+        refuse("splice-account-A-policy-B", verify(&p2_inputs, &(pair.0.clone(), pair2.1.clone()), 170));
+        refuse("valid-P2-under-approval-P1", verify(&p2_inputs, &pair, 170));
+        refuse("P1-envelope-under-independent-P2-pin", verify(&Inputs { next_pin: &pin2, ..inputs.clone() }, &pair, 170));
+        for (label, offset) in [
+            ("operation", 8), ("journal", 40), ("owner", 72),
+            ("original-credential", 104), ("credential-grant", 136),
+            ("target-account-roster", 168), ("predecessor-policy", 208),
+            ("target-policy", 248), ("retained-scope", BODY_BYTES - 1),
+        ] {
+            let mut changed = body.clone(); changed[offset] ^= 1;
+            // Both signatures are authentic: mismatch is to original expectations.
+            refuse(label, verify(&inputs, &sign(&changed, &c.root, &issuer), 170));
+        }
+        let mut other_expected = expected.clone();
+        other_expected.journal = JournalIdentity::from_trusted_state([213; 32]).expect("other journal");
+        refuse("another-local-journal", verify(&Inputs { expected: &other_expected, ..inputs.clone() }, &pair, 170));
+        other_expected = expected.clone(); other_expected.predecessor_roster = current_grant.successor_device().roster().checkpoint();
+        refuse("predecessor-already-advanced", verify(&Inputs { expected: &other_expected, ..inputs.clone() }, &pair, 170));
+        let revoked = c.root.issue_roster(3, interval(), &[]).expect("actual signed revocation");
+        let revoked_pin = AccountPin::new(c.root.account_id().expect("account"), account_key.clone(),
+            revoked.checkpoint(), family).expect("independently current revocation pin");
+        refuse("historical-roster-after-current-revocation", verify(&Inputs { account_pin: &revoked_pin, ..inputs.clone() }, &pair, 170));
+        let other_root = RootSigningKey::generate().expect("other account authority");
+        refuse("other-account-key", verify(&Inputs { account_key: &other_root.public_key().expect("key"), ..inputs.clone() }, &pair, 170));
+        let other_policy = PolicySigningKey::generate().expect("other policy authority");
+        refuse("other-policy-key", verify(&Inputs { policy_key: &other_policy.public_key().expect("key"), ..inputs.clone() }, &pair, 170));
+        let cross_purpose = envelope(&body, &c.root.sign(Purpose::CredentialRenewal, &body).expect("old purpose signature")).expect("envelope");
+        refuse("cross-protocol-signature", verify(&inputs, &(cross_purpose, pair.1.clone()), 170));
+        let mut trailing = pair.clone(); trailing.0.push(0);
+        refuse("trailing-byte", verify(&inputs, &trailing, 170));
+        let mut short = pair.clone(); short.1.pop();
+        refuse("truncated-signature", verify(&inputs, &short, 170));
+
+        // Valid issuer signatures do not make a profile change an expiry extension.
+        let changed_budget = issue(4, 199, 1025, requirement);
+        let changed_pin = pin(changed_budget.checkpoint());
+        let mut changed_body = body.clone();
+        changed_body[240..248].copy_from_slice(&changed_budget.checkpoint().version().to_be_bytes());
+        changed_body[248..280].copy_from_slice(&changed_budget.checkpoint().digest());
+        refuse("signed-budget-expansion", verify(&Inputs { next_pin: &changed_pin,
+            next_wire: changed_budget.as_bytes(), ..inputs.clone() }, &sign(&changed_body, &c.root, &issuer), 170));
+        let other_witness = crate::AnchorPin::new(crate::AnchorIdentity::generate().expect("witness id"),
+            crate::AnchorSigningKey::generate().expect("witness key").public_key().expect("witness public"));
+        let changed_witness = issue(5, 199, 1024, crate::AnchorRequirement::required(&other_witness));
+        let witness_pin = pin(changed_witness.checkpoint());
+        changed_body[240..248].copy_from_slice(&changed_witness.checkpoint().version().to_be_bytes());
+        changed_body[248..280].copy_from_slice(&changed_witness.checkpoint().digest());
+        refuse("signed-witness-replacement", verify(&Inputs { next_pin: &witness_pin,
+            next_wire: changed_witness.as_bytes(), ..inputs.clone() }, &sign(&changed_body, &c.root, &issuer), 170));
+        runtime.close();
+        refuse("closed-SDK-runtime", verify(&inputs, &pair, 170));
+        assert_eq!(rejected, 27);
+        // Verification cannot stage or activate the old installation.
+        let mut owner = open(&c);
+        assert_eq!(owner.credential_renewal_status().expect("status"), crate::CredentialRenewalStatus::Absent);
+        assert_eq!(owner.status().expect("installation status"), EnrollmentStatus::Active(journal));
+        println!("JOINT_AUTHORIZATION_RESULT double_expiry=true independent_current_authorities=2 legitimate_targets=2 refusals={rejected} durable_transition=false witness_transition=false runtime_release=false");
+    }
+}

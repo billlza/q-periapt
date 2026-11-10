@@ -14,17 +14,55 @@ ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
 . "$ROOT/artifact/python-env.sh"
 
-if [ -n "${QPERIAPT_DEVELOPER_DIR:-}" ]; then
-	DEVELOPER_DIR=$QPERIAPT_DEVELOPER_DIR
-	export DEVELOPER_DIR
+CAPTURE_PROFILE=${QPERIAPT_APPLE_CAPTURE_PROFILE:-legacy}
+case "$CAPTURE_PROFILE" in
+	legacy)
+		FIXED_DEVELOPER_DIR=/Applications/Xcode-27.0.app/Contents/Developer
+		DEVICE_SCHEME=QPeriaptDeviceRunner
+		;;
+	sdk-020)
+		FIXED_DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+		DEVICE_SCHEME=QPeriaptSDKDeviceRunner
+		;;
+	*)
+		printf 'error: QPERIAPT_APPLE_CAPTURE_PROFILE must be legacy or sdk-020\n' >&2
+		exit 2
+		;;
+esac
+SELECTED_DEVELOPER_DIR=${QPERIAPT_DEVELOPER_DIR:-${DEVELOPER_DIR:-}}
+if [ -z "$SELECTED_DEVELOPER_DIR" ]; then
+	printf 'error: QPERIAPT_DEVELOPER_DIR is required for source-bound Apple toolchain verification\n' >&2
+	exit 2
+fi
+if [ "$SELECTED_DEVELOPER_DIR" != "$FIXED_DEVELOPER_DIR" ]; then
+	printf 'error: Apple device proof requires the fixed toolchain for its capture profile\n' >&2
+	exit 2
+fi
+DEVELOPER_DIR=$FIXED_DEVELOPER_DIR
+export DEVELOPER_DIR
+
+if [ "$#" -ne 0 ]; then
+	printf 'error: positional device identifiers are not supported; set QPERIAPT_IOS_DEVICE_ID explicitly\n' >&2
+	exit 2
 fi
 
-DEVICE_ID=${QPERIAPT_IOS_DEVICE_ID:-${1:-}}
-BUNDLE_ID=${QPERIAPT_IOS_BUNDLE_ID:-dev.qperiapt.DeviceRunner}
+DEVICE_ID=${QPERIAPT_IOS_DEVICE_ID:-}
+if [ "${QPERIAPT_IOS_BUNDLE_ID+x}" = x ]; then
+	printf 'error: QPERIAPT_IOS_BUNDLE_ID is not supported; the device proof always uses a random run-owned identifier\n' >&2
+	exit 2
+fi
+BUNDLE_ID=
 CODE_SIGN_STYLE_VALUE=${QPERIAPT_CODE_SIGN_STYLE:-Automatic}
 MIN_PROFILE_VALID_DAYS=${QPERIAPT_MIN_PROFILE_VALID_DAYS:-30}
 DERIVED_DATA=${QPERIAPT_DERIVED_DATA:-"$ROOT/target/apple-device-derived"}
 RESULT_DIR=${QPERIAPT_DEVICE_RESULT_DIR:-"$ROOT/artifact/device-runs"}
+case "$RESULT_DIR" in
+	/*) ;;
+	*)
+		printf 'error: QPERIAPT_DEVICE_RESULT_DIR must be an absolute path under artifact/device-runs\n' >&2
+		exit 2
+		;;
+esac
 DEVICE_PROOF_MAX_AGE_SECONDS=${QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS:-86400}
 DEVICE_ARTIFACT_PREFIX=${QPERIAPT_DEVICE_ARTIFACT_PREFIX:-ipad}
 DEVICE_LABEL=${QPERIAPT_DEVICE_LABEL:-$DEVICE_ARTIFACT_PREFIX}
@@ -36,6 +74,8 @@ PROJECT="$PROJECT_DIR/QPeriaptAppleDevice.xcodeproj"
 APP="$DERIVED_DATA/Build/Products/Debug-iphoneos/QPeriaptDeviceRunner.app"
 ALLOW_PROVISIONING_UPDATES=${QPERIAPT_ALLOW_PROVISIONING_UPDATES:-0}
 ALLOW_PROVISIONING_DEVICE_REGISTRATION=${QPERIAPT_ALLOW_PROVISIONING_DEVICE_REGISTRATION:-0}
+DEVICECTL_TIMEOUT_SECONDS=30
+DEVICE_CLEANUP_RECONCILE_ATTEMPTS=12
 case "$ALLOW_PROVISIONING_UPDATES" in
 	0 | 1) ;;
 	*)
@@ -74,45 +114,81 @@ need() {
 	fi
 }
 
-pick_device() {
-	xcrun devicectl list devices --json-output - 2>/dev/null | python3 -c '
-import json
-import os
-import sys
-
-data = json.load(sys.stdin)
-matches = []
-expected_transport = os.environ.get("QPERIAPT_EXPECT_DEVICE_TRANSPORT", "")
-for dev in data.get("result", {}).get("devices", []):
-    props = dev.get("properties", {})
-    hardware = props.get("hardware", {})
-    state = props.get("state", {})
-    connection = props.get("connection", {})
-    if hardware.get("platform") != "iOS":
-        continue
-    if hardware.get("reality") != "physical":
-        continue
-    if hardware.get("deviceType") not in ("iPad", "iPhone"):
-        continue
-    if state.get("bootState") != "booted":
-        continue
-    if connection.get("state") != "connected":
-        continue
-    if expected_transport and connection.get("transportType") != expected_transport:
-        continue
-    udid = hardware.get("udid")
-    if udid:
-        matches.append(udid)
-if len(matches) == 1:
-    print(matches[0])
-'
-}
-
 assert_device_route() {
 	python3 artifact/apple_device_proof.py inspect-device \
+		--capture-profile "$CAPTURE_PROFILE" \
 		--device-id "$DEVICE_ID" \
 		--expected-device-type "$EXPECTED_DEVICE_TYPE" \
 		--expected-transport "$EXPECTED_DEVICE_TRANSPORT" >/dev/null
+}
+
+inspect_device_app() {
+	python3 artifact/apple_device_proof.py inspect-app \
+		--capture-profile "$CAPTURE_PROFILE" \
+		--device-id "$DEVICE_ID" \
+		--bundle-id "$BUNDLE_ID" "$@"
+}
+
+cleanup_device_app() {
+	if [ "${APPLE_APP_CLEANUP_ARMED:-0}" != "1" ]; then
+		return 0
+	fi
+	required_absent_observations=3
+	if [ "${APPLE_APP_INSTALL_CONFIRMED:-0}" != "1" ]; then
+		required_absent_observations=8
+	fi
+	attempt=0
+	absent_observations=0
+	while [ "$attempt" -lt "$DEVICE_CLEANUP_RECONCILE_ATTEMPTS" ]; do
+		if app_state=$(inspect_device_app 2>>"$CLEANUP_LOG"); then
+			printf 'attempt=%s state=%s\n' "$attempt" "$app_state" >>"$CLEANUP_LOG"
+		else
+			app_state=unknown
+			printf 'attempt=%s state=query-error\n' "$attempt" >>"$CLEANUP_LOG"
+		fi
+		case "$app_state" in
+			absent)
+				absent_observations=$((absent_observations + 1))
+				if [ "$absent_observations" -ge "$required_absent_observations" ]; then
+					APPLE_APP_CLEANUP_ARMED=0
+					return 0
+				fi
+				;;
+			present)
+				absent_observations=0
+				APPLE_APP_INSTALL_CONFIRMED=1
+				required_absent_observations=3
+				if ! xcrun devicectl device uninstall app \
+					--timeout "$DEVICECTL_TIMEOUT_SECONDS" \
+					--device "$DEVICE_ID" "$BUNDLE_ID" >>"$CLEANUP_LOG" 2>&1; then
+					printf 'attempt=%s uninstall=unknown-or-failed\n' "$attempt" >>"$CLEANUP_LOG"
+				fi
+				;;
+			unknown) absent_observations=0 ;;
+			*)
+				printf 'error: unexpected Apple app state during cleanup: %s\n' "$app_state" >&2
+				return 1
+				;;
+		esac
+		attempt=$((attempt + 1))
+		if [ "$attempt" -lt "$DEVICE_CLEANUP_RECONCILE_ATTEMPTS" ]; then
+			sleep 1
+		fi
+	done
+	printf 'error: Apple app cleanup outcome is unresolved for device sha256:%s; see %s\n' \
+		"${DEVICE_ID_SHA256_PREFIX:-unavailable}" "$CLEANUP_LOG" >&2
+	return 1
+}
+
+cleanup_exit() {
+	status=$?
+	trap - EXIT HUP INT TERM
+	cleanup_status=0
+	cleanup_device_app || cleanup_status=$?
+	if [ "$status" -eq 0 ] && [ "$cleanup_status" -ne 0 ]; then
+		status=$cleanup_status
+	fi
+	exit "$status"
 }
 
 need cargo
@@ -124,6 +200,23 @@ need otool
 need python3
 need security
 
+if ! xcodebuild -checkFirstLaunchStatus >/dev/null 2>&1; then
+	printf 'error: selected Xcode first-launch setup is incomplete; finish it before running device proof\n' >&2
+	exit 2
+fi
+
+RUN_ID=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
+BUNDLE_ID="dev.qperiapt.DeviceRunner.run$RUN_ID"
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
+	DERIVED_DATA=${QPERIAPT_DERIVED_DATA:-"$ROOT/target/apple-sdk-device-$RUN_ID"}
+	RESULT_DIR=${QPERIAPT_DEVICE_RESULT_DIR:-"$ROOT/artifact/device-runs/apple-sdk-device-$RUN_ID"}
+	APP="$DERIVED_DATA/Build/Products/Debug-iphoneos/QPeriaptDeviceRunner.app"
+	PROJECT="$DERIVED_DATA/project/QPeriaptAppleDevice.xcodeproj"
+fi
+if [ -z "$DEVICE_ID" ]; then
+	printf 'error: QPERIAPT_IOS_DEVICE_ID is required for the physical Apple-device proof lane\n' >&2
+	exit 2
+fi
 if [ -z "${DEVELOPMENT_TEAM:-}" ]; then
 	printf 'error: DEVELOPMENT_TEAM is required for the physical Apple-device proof lane\n' >&2
 	exit 2
@@ -185,9 +278,9 @@ require_under(result, result_base, "QPERIAPT_DEVICE_RESULT_DIR", allow_base=True
 if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]{2,}", bundle_id):
     raise SystemExit(f"error: invalid QPERIAPT_IOS_BUNDLE_ID: {bundle_id}")
 if device_id and not re.fullmatch(r"[A-Za-z0-9-]{8,128}", device_id):
-    raise SystemExit(f"error: invalid QPERIAPT_IOS_DEVICE_ID: {device_id}")
+    raise SystemExit("error: invalid QPERIAPT_IOS_DEVICE_ID")
 if not re.fullmatch(r"[A-Z0-9]{10}", team_id):
-    raise SystemExit(f"error: invalid DEVELOPMENT_TEAM: {team_id}")
+    raise SystemExit("error: invalid DEVELOPMENT_TEAM")
 if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,31}", device_label):
     raise SystemExit(f"error: invalid QPERIAPT_DEVICE_LABEL: {device_label}")
 if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,31}", artifact_prefix):
@@ -215,22 +308,13 @@ esac
 SOURCE_GIT_COMMIT=${SOURCE_SNAPSHOT%%:*}
 SOURCE_TREE_SHA256=${SOURCE_SNAPSHOT#*:}
 
-RUN_ID=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
-
-if [ -z "$DEVICE_ID" ]; then
-	DEVICE_ID=$(pick_device)
-fi
-if [ -z "$DEVICE_ID" ]; then
-	printf 'error: no online physical iOS/iPadOS device found; set QPERIAPT_IOS_DEVICE_ID explicitly\n' >&2
-	exit 2
-fi
 python3 - "$DEVICE_ID" <<'PY'
 import re
 import sys
 
 device_id = sys.argv[1]
 if not re.fullmatch(r"[A-Za-z0-9-]{8,128}", device_id):
-    raise SystemExit(f"error: invalid resolved iOS device id: {device_id}")
+    raise SystemExit("error: invalid resolved iOS device id")
 PY
 assert_device_route
 DEVICE_ID_SHA256_PREFIX=$(python3 - "$DEVICE_ID" <<'PY'
@@ -241,8 +325,39 @@ print(hashlib.sha256(sys.argv[1].encode("utf-8")).hexdigest()[:12])
 PY
 )
 
-mkdir -p "$RESULT_DIR"
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
+	# Fresh attempt directories preserve every failure; never clear a prior run.
+	for attempt_path in "$DERIVED_DATA" "$RESULT_DIR"; do
+		if [ -e "$attempt_path" ] || [ -L "$attempt_path" ]; then
+			printf 'error: SDK device capture requires a fresh directory: %s\n' "$attempt_path" >&2
+			exit 2
+		fi
+	done
+	mkdir -p "$(dirname "$DERIVED_DATA")" "$(dirname "$RESULT_DIR")"
+	mkdir "$DERIVED_DATA" "$RESULT_DIR"
+else
+	mkdir -p "$RESULT_DIR"
+fi
 chmod 700 "$RESULT_DIR"
+XCODE_TOOLCHAIN_RECEIPT="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-xcode-toolchain.json"
+if [ -e "$XCODE_TOOLCHAIN_RECEIPT" ] || [ -L "$XCODE_TOOLCHAIN_RECEIPT" ]; then
+	printf 'error: refusing to replace an existing Xcode toolchain receipt: %s\n' "$XCODE_TOOLCHAIN_RECEIPT" >&2
+	exit 2
+fi
+python3 artifact/apple_toolchain.py capture \
+	--capture-profile "$CAPTURE_PROFILE" \
+	--output "$XCODE_TOOLCHAIN_RECEIPT"
+CLEANUP_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-cleanup.log"
+if ! rm -f -- "$CLEANUP_LOG"; then
+	printf 'error: cannot reset Apple device cleanup log: %s\n' "$CLEANUP_LOG" >&2
+	exit 1
+fi
+APPLE_APP_CLEANUP_ARMED=0
+APPLE_APP_INSTALL_CONFIRMED=0
+trap cleanup_exit EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 printf 'Q-Periapt Apple device smoke\n'
 printf 'repo    : %s\n' "$ROOT"
@@ -258,24 +373,37 @@ printf 'run-id  : %s\n' "$RUN_ID"
 printf 'profile : min %s valid days remaining\n' "$MIN_PROFILE_VALID_DAYS"
 
 printf '\n=== macOS native Swift binding ===\n'
-cargo build -p q-periapt-ffi --release
+cargo build -p q-periapt-ffi --release --locked --target-dir "$ROOT/target"
 xcrun swift test --package-path bindings/swift -Xlinker "-L$ROOT/target/release"
 
 printf '\n=== iOS Rust staticlib ===\n'
-cargo build -p q-periapt-ffi --release --target aarch64-apple-ios
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
+	# Match the shipped SDK floor in both rustc and cc-rs native dependencies.
+	IPHONEOS_DEPLOYMENT_TARGET=16.0 cargo build -p q-periapt-ffi --release --locked --target-dir "$ROOT/target" --target aarch64-apple-ios
+else
+	cargo build -p q-periapt-ffi --release --locked --target-dir "$ROOT/target" --target aarch64-apple-ios
+fi
 test -f "$ROOT/target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a" || {
 	printf 'error: missing iOS staticlib\n' >&2
 	exit 1
 }
 
 printf '\n=== Generate Apple device project ===\n'
-(cd "$PROJECT_DIR" && xcodegen generate)
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
+	mkdir "$DERIVED_DATA/project"
+	xcodegen generate --spec "$PROJECT_DIR/project.yml" \
+		--project-root "$PROJECT_DIR" --project "$DERIVED_DATA/project"
+else
+	(cd "$PROJECT_DIR" && xcodegen generate)
+fi
 
 printf '\n=== Build device runner for physical device ===\n'
 BUILD_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-build.log"
-rm -rf "$DERIVED_DATA"
-rm -rf "$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-build.xcresult"
-rm -f "$BUILD_LOG"
+if [ "$CAPTURE_PROFILE" = "legacy" ]; then
+	rm -rf "$DERIVED_DATA"
+	rm -rf "$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-build.xcresult"
+	rm -f "$BUILD_LOG"
+fi
 set +e
 set -- xcodebuild build
 if [ "$ALLOW_PROVISIONING_UPDATES" = "1" ]; then
@@ -286,10 +414,11 @@ if [ "$ALLOW_PROVISIONING_UPDATES" = "1" ]; then
 fi
 set -- "$@" \
 	-project "$PROJECT" \
-	-scheme QPeriaptDeviceRunner \
+	-scheme "$DEVICE_SCHEME" \
 	-destination "platform=iOS,id=$DEVICE_ID" \
 	-derivedDataPath "$DERIVED_DATA" \
 	-resultBundlePath "$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-build.xcresult" \
+	QPERIAPT_SOURCE_ROOT="$ROOT" \
 	PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
 	CODE_SIGN_STYLE="$CODE_SIGN_STYLE_VALUE"
 if [ "${DEVELOPMENT_TEAM+x}" = x ]; then
@@ -371,14 +500,22 @@ FROZEN_STATICLIB_SHA256=${FROZEN_BINARY_HASHES#*:}
 printf '\n=== Install device runner ===\n'
 INSTALL_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-install.log"
 assert_device_route
-if ! xcrun devicectl device uninstall app --device "$DEVICE_ID" "$BUNDLE_ID" >"$INSTALL_LOG" 2>&1; then
-	printf 'error: device runner uninstall failed; see %s\n' "$INSTALL_LOG" >&2
+if ! inspect_device_app --expect absent >"$INSTALL_LOG" 2>&1; then
+	printf 'error: refusing to replace a pre-existing Apple app; see %s\n' "$INSTALL_LOG" >&2
 	exit 1
 fi
-if ! xcrun devicectl device install app --device "$DEVICE_ID" "$APP" >>"$INSTALL_LOG" 2>&1; then
+APPLE_APP_CLEANUP_ARMED=1
+if ! xcrun devicectl device install app \
+	--timeout "$DEVICECTL_TIMEOUT_SECONDS" \
+	--device "$DEVICE_ID" "$APP" >>"$INSTALL_LOG" 2>&1; then
 	printf 'error: device runner install failed; see %s\n' "$INSTALL_LOG" >&2
 	exit 1
 fi
+if ! inspect_device_app --expect present >>"$INSTALL_LOG" 2>&1; then
+	printf 'error: device runner installation was not observable; see %s\n' "$INSTALL_LOG" >&2
+	exit 1
+fi
+APPLE_APP_INSTALL_CONFIRMED=1
 assert_device_route
 
 printf '\n=== Launch device runner ===\n'
@@ -392,8 +529,8 @@ rm -f "$DEVICE_RESULT_COPY"
 assert_device_route
 set +e
 xcrun devicectl device process launch \
+	--timeout "$DEVICECTL_TIMEOUT_SECONDS" \
 	--device "$DEVICE_ID" \
-	--terminate-existing \
 	--console \
 	--environment-variables "{\"QPERIAPT_DEVICE_RUN_ID\":\"$RUN_ID\"}" \
 	"$BUNDLE_ID" >"$LOG" 2>&1
@@ -413,6 +550,7 @@ assert_device_route
 printf '\n=== Fetch device result marker ===\n'
 COPY_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-copy.log"
 if ! xcrun devicectl device copy from \
+	--timeout "$DEVICECTL_TIMEOUT_SECONDS" \
 	--device "$DEVICE_ID" \
 	--domain-type appDataContainer \
 	--domain-identifier "$BUNDLE_ID" \
@@ -433,26 +571,16 @@ if grep -q 'QPERIAPT_DEVICE_FAIL' "$DEVICE_RESULT"; then
 	printf 'error: device result marker is failure; see %s\n' "$DEVICE_RESULT" >&2
 	exit 1
 fi
-if PASS_COUNT=$(grep -cx "QPERIAPT_DEVICE_PASS run-id=$RUN_ID" "$DEVICE_RESULT"); then
-	:
-else
-	grep_status=$?
-	if [ "$grep_status" -eq 1 ]; then
-		PASS_COUNT=0
-	else
-		printf 'error: could not count device pass markers (grep exit %s)\n' "$grep_status" >&2
-		exit 1
-	fi
-fi
-if [ "$PASS_COUNT" -ne 1 ]; then
-	printf 'error: device result did not contain exactly one run-bound QPERIAPT_DEVICE_PASS; see %s\n' "$DEVICE_RESULT" >&2
-	exit 1
-fi
-if grep -cx 'QPERIAPT_DEVICE_PASS' "$DEVICE_RESULT" >/dev/null 2>&1; then
-	printf 'error: device result contains legacy bare QPERIAPT_DEVICE_PASS; see %s\n' "$DEVICE_RESULT" >&2
-	exit 1
-fi
+python3 artifact/apple_device_proof.py verify-marker \
+	--capture-profile "$CAPTURE_PROFILE" --run-id "$RUN_ID" --path "$DEVICE_RESULT"
+python3 artifact/apple_device_proof.py verify-marker \
+	--capture-profile "$CAPTURE_PROFILE" --run-id "$RUN_ID" --path "$LOG"
 printf 'QPERIAPT_DEVICE_RESULT_VERIFIED run-id=%s\n' "$RUN_ID"
+
+if ! cleanup_device_app; then
+	printf 'error: run-owned Apple app cleanup failed\n' >&2
+	exit 1
+fi
 
 codesign --verify --deep --strict "$APP"
 FINAL_BINARY_HASHES=$(binary_hashes)
@@ -463,6 +591,7 @@ fi
 
 printf '\n=== Validate device proof metadata ===\n'
 python3 artifact/apple_device_proof.py emit \
+		--capture-profile "$CAPTURE_PROFILE" \
 	--root "$ROOT" \
 	--app "$APP" \
 	--bundle-id "$BUNDLE_ID" \
@@ -480,6 +609,7 @@ python3 artifact/apple_device_proof.py emit \
 	--profile-plist "$PROFILE_PLIST" \
 	--entitlements-plist "$ENTITLEMENTS_PLIST" \
 	--linkage "$LINKAGE" \
+	--xcode-toolchain-receipt "$XCODE_TOOLCHAIN_RECEIPT" \
 	--output "$PROOF_JSON" \
 	--expected-git-commit "$SOURCE_GIT_COMMIT" \
 	--expected-source-tree-sha256 "$SOURCE_TREE_SHA256" \
@@ -487,6 +617,7 @@ python3 artifact/apple_device_proof.py emit \
 	--expected-staticlib-sha256 "$FROZEN_STATICLIB_SHA256"
 if [ "$ALLOW_DIRTY_APPLE_DEVICE" = "1" ]; then
 	python3 artifact/apple_device_proof.py verify \
+		--capture-profile "$CAPTURE_PROFILE" \
 		--root "$ROOT" \
 		--proof "$PROOF_JSON" \
 		--build-log "$BUILD_LOG" \
@@ -498,6 +629,7 @@ if [ "$ALLOW_DIRTY_APPLE_DEVICE" = "1" ]; then
 		--allow-dirty-proof
 else
 	python3 artifact/apple_device_proof.py verify \
+		--capture-profile "$CAPTURE_PROFILE" \
 		--root "$ROOT" \
 		--proof "$PROOF_JSON" \
 		--build-log "$BUILD_LOG" \
@@ -508,4 +640,4 @@ else
 		--max-age-seconds "$DEVICE_PROOF_MAX_AGE_SECONDS"
 fi
 
-printf '\nALL PASS: macOS native + physical iOS/iPadOS device smoke\n'
+printf '\nALL PASS: macOS native + physical iOS/iPadOS device smoke profile=%s\n' "$CAPTURE_PROFILE"

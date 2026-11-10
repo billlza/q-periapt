@@ -1,0 +1,178 @@
+{
+  "archive": {
+    "bytes": 8021749,
+    "members": 3062,
+    "path": "CAPTURE.zip",
+    "sha256": "053ced6172ad4bfcaa12fe6797b9bf09583b51f59567e35aec565134ec20f960"
+  },
+  "browser_calls": 164,
+  "cases": [
+    {
+      "calls": 19,
+      "case": "local",
+      "completed": true,
+      "run": "run01"
+    },
+    {
+      "calls": 21,
+      "case": "required",
+      "completed": true,
+      "run": "run01"
+    },
+    {
+      "calls": 23,
+      "case": "commit-loss",
+      "completed": true,
+      "run": "run02"
+    },
+    {
+      "calls": 21,
+      "case": "worker-cut",
+      "completed": true,
+      "run": "run02"
+    },
+    {
+      "calls": 11,
+      "case": "closed",
+      "completed": true,
+      "run": "run02"
+    },
+    {
+      "calls": 23,
+      "case": "no-local-fallback",
+      "completed": true,
+      "run": "run02"
+    },
+    {
+      "calls": 11,
+      "case": "local-committed",
+      "completed": true,
+      "real_expiry": {
+        "original_until": 1791959029,
+        "resumed_at": 1791959090,
+        "target_until": 1791959089,
+        "waiting_at": 1791958955
+      },
+      "run": "expiry01"
+    },
+    {
+      "calls": 12,
+      "case": "local-pending",
+      "completed": true,
+      "real_expiry": {
+        "original_until": 1791959185,
+        "resumed_at": 1791959246,
+        "target_until": 1791959245,
+        "waiting_at": 1791959109
+      },
+      "run": "expiry01"
+    },
+    {
+      "calls": 12,
+      "case": "required-committed",
+      "completed": true,
+      "real_expiry": {
+        "original_until": 1791959029,
+        "resumed_at": 1791959090,
+        "target_until": 1791959089,
+        "waiting_at": 1791958964
+      },
+      "run": "expiry02"
+    },
+    {
+      "calls": 11,
+      "case": "required-closed",
+      "completed": true,
+      "real_expiry": {
+        "original_until": 1791959185,
+        "resumed_at": 1791959246,
+        "target_until": 1791959245,
+        "waiting_at": 1791959118
+      },
+      "run": "expiry02"
+    }
+  ],
+  "completed": true,
+  "controls": {
+    "artifact_controls": {
+      "command": "QPERIAPT_PYTHON=/opt/homebrew/opt/python@3.14/bin/python3.14 PYTHONPATH=artifact sh artifact/python-run.sh -m unittest artifact.test_codeql_rust_quality artifact.test_wasm_sdk_package",
+      "cwd": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source",
+      "elapsed_seconds": 1.983,
+      "receipt": "Original command session completed; terminal output retained in task tool history",
+      "returncode": 0,
+      "session": 24633,
+      "tests": 53
+    },
+    "diff_check": "passed",
+    "format_check": "passed",
+    "overlay_unchanged": true,
+    "rust_files": [
+      "crates/q-periapt-sdk-wasm/src/continuity/credential_requests.rs",
+      "crates/q-periapt-sdk-wasm/src/continuity/credentials.rs",
+      "crates/q-periapt-sdk-wasm/src/continuity/credentials/continuation.rs",
+      "crates/q-periapt-sdk-wasm/src/continuity/credentials/types.rs",
+      "research/continuity-identity-candidate/src/browser/credentials.rs",
+      "research/continuity-identity-candidate/src/browser/credentials/continuation.rs",
+      "research/continuity-identity-candidate/src/enrollment/renewal/request.rs"
+    ],
+    "source_overlay": {
+      "base_commit": "e7b3975508babbfbdb6368637f4440d028bce6b3",
+      "overlay": {
+        "ARTIFACT.md": "dc812aa055b1c0b9d6398dbcc2595c20b490004f698b73f4e8890b9e4e9e12e0",
+        "artifact/codeql_rust_quality.py": "5dadd140d353cc82930dc878a1abcaa1833bbd1039e2b11b157e85efc98e7030",
+        "artifact/test_codeql_rust_quality.py": "9438dfb1f1f260c6f9f2e6106b08c9910784c33185ee1824cc492e1b8f7ed108",
+        "artifact/wasm_sdk_package.py": "11f38206ff221dcf4e459e546b0b602d8fedf723636f783ddcf2b1bf58978432",
+        "crates/q-periapt-sdk-wasm/PackageREADME.md": "d4ba2afb2ce79f5a2a7f5d8738e5d73f66d288cdf12a078e7eb27c71bcd0b40d",
+        "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "59a7426ede1fd4d731f5775cdfef7aa4ccb907afada0ba87e111e161e6e3e807",
+        "crates/q-periapt-sdk-wasm/package/web/index.js": "def4e070073611fd5d1f7bf2d9d849ccb6b1e2867ac6bbec597e44e06e873838",
+        "crates/q-periapt-sdk-wasm/src/continuity/credential_requests.rs": "8b6c03f670e6409b74e7b3dacbcc05fb199893400f146d2d757db6e2f3766da2",
+        "crates/q-periapt-sdk-wasm/src/continuity/credentials.rs": "ce2ad1605824a709e74d6f2b0b44c6fe128a85808cdfdc4618620121c3b071af",
+        "crates/q-periapt-sdk-wasm/src/continuity/credentials/continuation.rs": "cf8161a97ce2607bc8810f0bf41f16294284ef09336a7b942b8b19a44da27b40",
+        "crates/q-periapt-sdk-wasm/src/continuity/credentials/types.rs": "2c67f434e1d7a271c2e203afae4d3b024fdc34152775bcef0d4b5a2c0b2d8bf5",
+        "crates/q-periapt-sdk-wasm/tests/types.mts": "d337f2f956f836a9224d462d8aa4e841b0cb9b9ccabc7b310bc6170f6bd5cd7a",
+        "research/continuity-identity-candidate/src/browser/credentials.rs": "c30f164df748b49914a6c5245115f558e7df838099d5925b49a60bb97e471568",
+        "research/continuity-identity-candidate/src/browser/credentials/continuation.rs": "88c25d7ab2c8a030e3ff57ed93f4cb34b3dcc9d002df4cafaa509d92eef7bb52",
+        "research/continuity-identity-candidate/src/enrollment/renewal/request.rs": "faf9ee551485a160e90e543849ebf48620e5e2afdaabc42011f663ccc3086cc9"
+      },
+      "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source"
+    }
+  },
+  "installed_package": {
+    "manifest_sha256": "29d10ea1c9f9f40f4d85c79c000b77ff2e5d94f707a23fdb4df9329844e5d508",
+    "node_tests": "passed",
+    "sha256": "44ee7451655618f284e152cd76008447d281abda22c659ee81e7790b2705d4f1",
+    "typescript": "7.0.2 strict NodeNext passed"
+  },
+  "private_material_archived": false,
+  "release_claim_eligible": false,
+  "remaining": [
+    "Original application messages and rekey through browser G1/T1 and G2/T2",
+    "Local browser journal-commit/receipt persistence cut during historical continuation",
+    "Independent protocol implementation, other browser engines/platforms, full lifecycle and release gates",
+    "Current remote CI/CodeQL and public release remain separate"
+  ],
+  "retained_failures": [
+    "package01/02 linker could not load pinned LLVM; package03 sets existing library path after hardened shell boundary",
+    "native-build01 issuer fixture had Arc<Runtime> reference type error; build02 fixed fixture only"
+  ],
+  "schema": 1,
+  "scope": "Actual installed package in Chrome on macOS arm64; fresh cohorts, same shared native implementation in independent issuer/witness processes",
+  "source_base": "e7b3975508babbfbdb6368637f4440d028bce6b3",
+  "source_overlay": {
+    "ARTIFACT.md": "dc812aa055b1c0b9d6398dbcc2595c20b490004f698b73f4e8890b9e4e9e12e0",
+    "artifact/codeql_rust_quality.py": "5dadd140d353cc82930dc878a1abcaa1833bbd1039e2b11b157e85efc98e7030",
+    "artifact/test_codeql_rust_quality.py": "9438dfb1f1f260c6f9f2e6106b08c9910784c33185ee1824cc492e1b8f7ed108",
+    "artifact/wasm_sdk_package.py": "11f38206ff221dcf4e459e546b0b602d8fedf723636f783ddcf2b1bf58978432",
+    "crates/q-periapt-sdk-wasm/PackageREADME.md": "d4ba2afb2ce79f5a2a7f5d8738e5d73f66d288cdf12a078e7eb27c71bcd0b40d",
+    "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "59a7426ede1fd4d731f5775cdfef7aa4ccb907afada0ba87e111e161e6e3e807",
+    "crates/q-periapt-sdk-wasm/package/web/index.js": "def4e070073611fd5d1f7bf2d9d849ccb6b1e2867ac6bbec597e44e06e873838",
+    "crates/q-periapt-sdk-wasm/src/continuity/credential_requests.rs": "8b6c03f670e6409b74e7b3dacbcc05fb199893400f146d2d757db6e2f3766da2",
+    "crates/q-periapt-sdk-wasm/src/continuity/credentials.rs": "ce2ad1605824a709e74d6f2b0b44c6fe128a85808cdfdc4618620121c3b071af",
+    "crates/q-periapt-sdk-wasm/src/continuity/credentials/continuation.rs": "cf8161a97ce2607bc8810f0bf41f16294284ef09336a7b942b8b19a44da27b40",
+    "crates/q-periapt-sdk-wasm/src/continuity/credentials/types.rs": "2c67f434e1d7a271c2e203afae4d3b024fdc34152775bcef0d4b5a2c0b2d8bf5",
+    "crates/q-periapt-sdk-wasm/tests/types.mts": "d337f2f956f836a9224d462d8aa4e841b0cb9b9ccabc7b310bc6170f6bd5cd7a",
+    "research/continuity-identity-candidate/src/browser/credentials.rs": "c30f164df748b49914a6c5245115f558e7df838099d5925b49a60bb97e471568",
+    "research/continuity-identity-candidate/src/browser/credentials/continuation.rs": "88c25d7ab2c8a030e3ff57ed93f4cb34b3dcc9d002df4cafaa509d92eef7bb52",
+    "research/continuity-identity-candidate/src/enrollment/renewal/request.rs": "faf9ee551485a160e90e543849ebf48620e5e2afdaabc42011f663ccc3086cc9"
+  }
+}

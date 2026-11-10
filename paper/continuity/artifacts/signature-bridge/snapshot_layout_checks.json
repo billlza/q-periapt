@@ -1,0 +1,174 @@
+{
+  "controls": {
+    "adaptive_owner_selection": {
+      "aliases_allocate_no_new_index": true,
+      "creation_winner_profiles": 56,
+      "exact_guess_success_fraction": "1/U"
+    },
+    "all_target_seed_and_hedge_rewrites": {
+      "all_designated_target_reexpansions_removed": true,
+      "omitting_reopen_rewrite_gives_hit_probability": "1",
+      "reopen_retry_profiles": 36
+    },
+    "disjoint_secret_support_mass": {
+      "finite_control_only": true,
+      "maximum_average_mass": "1/4",
+      "rational_query_sector_mixtures": 26
+    },
+    "failed_publication_descriptor_alias": {
+      "failed_first_publication_retained": true,
+      "ordinary_queries": 1,
+      "private_invocations": 3,
+      "raw_messages_recorded": 2
+    },
+    "pair_component_ledger": {
+      "equal_component_distinct_pair_countermodel": true,
+      "implication_cases": 12
+    }
+  },
+  "scope": "finite controls and pinned-source audit; no Rust, ML-DSA, quantum execution, or formal verification",
+  "source_audit": {
+    "external_checkout_checked": false,
+    "input_lengths_bytes": {
+      "challenge_ball_H": 48,
+      "commitment_H": 832,
+      "designated_target_hedge": 128,
+      "designated_target_keygen": 34,
+      "mask_expansion_H": 66,
+      "matrix_expansion_G": 34,
+      "protocol_mu_H_minimum": 155,
+      "public_key_H": 1952,
+      "secret_expansion_H": 66
+    },
+    "manifest_sha256": "09eed0e31a48d9663c06e20a8dad0d8e832c87a1cb12d47a6646fb4660b2908c",
+    "native_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+    "original_crate_archive_authenticated": true,
+    "rust_snapshot_suffix": ".rs.txt",
+    "source_and_license_file_count": 24,
+    "source_and_license_files": [
+      {
+        "packet": "fips204-0.4.6",
+        "path": ".cargo_vcs_info.json",
+        "sha256": "bb934677d8080dcd00346edbbb1bbdfd902fab762352d3fcab63119d4884215e"
+      },
+      {
+        "packet": "fips204-0.4.6",
+        "path": "Cargo.toml.orig",
+        "sha256": "304ddd4e991fbd3accf309f2a484c12d735b4cb7b98e0eb90a6e54c14d132fd8"
+      },
+      {
+        "packet": "fips204-0.4.6",
+        "path": "src/ml_dsa.rs",
+        "sha256": "8cd47b247be255f6eb2ea5e1ab9928b1fa3b27f0fafb1b06fa364c50e96013e8"
+      },
+      {
+        "packet": "fips204-0.4.6",
+        "path": "src/traits.rs",
+        "sha256": "1d6fe99ffbc2128629b7965b106145b63cc1e013d976545f9a7f09f321a94f1d"
+      },
+      {
+        "packet": "fips204-0.4.6",
+        "path": "src/types.rs",
+        "sha256": "d811518ef64dbac77e0aead6f33edde8ae1ec89ef641334b6232d2a35bd1cb18"
+      },
+      {
+        "packet": "fips204-0.4.6",
+        "path": "src/lib.rs",
+        "sha256": "fb073c02f39284431c072b587e8f97abe930c4b53fc40e47cd33f2e4c571ea0f"
+      },
+      {
+        "packet": "fips204-0.4.6",
+        "path": "src/helpers.rs",
+        "sha256": "97bf78a6c8e360fb8b2002b27fd17d67f5dc69a2a1c4dc2e5240b0b6ec53fdb4"
+      },
+      {
+        "packet": "fips204-0.4.6",
+        "path": "src/hashing.rs",
+        "sha256": "33269eaa1d05b126cc03a8c42e616aefa4a8c001bf92ea0a4a3eeeab18bd45ce"
+      },
+      {
+        "packet": "fips204-0.4.6",
+        "path": "src/encodings.rs",
+        "sha256": "f9798a1135d75fc756a17fe1703514f72d3977d36234152faa32207c4d510b14"
+      },
+      {
+        "packet": "fips204-0.4.6",
+        "path": "LICENSE-APACHE",
+        "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"
+      },
+      {
+        "packet": "fips204-0.4.6",
+        "path": "LICENSE-MIT",
+        "sha256": "d27687b51f2874822c1530976b7e837eac4f308d94bf3dd42047011b7d437b47"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "Cargo.lock",
+        "sha256": "b3f7403faca9c95c0f77d5abb6ce732bb9b89c1a4c72ad6ba6e58f533e0af3d9"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "research/continuity-identity-candidate/Cargo.lock",
+        "sha256": "fda2e0592f7e013816b343d461da1e32346b4256603eda317d12b4ebd200c26b"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "research/continuity-identity-candidate/src/crypto.rs",
+        "sha256": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+        "sha256": "f502bef3368bedec46cefd7f8955d4706550d45ab9baf2c7d6bca8ee45b4d405"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "crates/q-periapt-backends/src/mldsa.rs",
+        "sha256": "70635d3d134e3f7e4dd046c8224d1efbca135273f45a48d493b661810672263b"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "research/continuity-identity-candidate/src/contract.rs",
+        "sha256": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "LICENSE",
+        "sha256": "ed972005262b556e78016964a8c210b2e64e341b51d3064bab951b0b86f28c3f"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "research/continuity-identity-candidate/LICENSE",
+        "sha256": "45179fef4a66e21d461cf531279d364f3ce375a6affa9b186d7d145206304d35"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "research/continuity-identity-candidate/LICENSE-MIT",
+        "sha256": "b93c8c0efb8cfe3c10b26ab6e2982b44cb2e4a1dce72dd12f23d89814553c5f6"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "research/continuity-identity-candidate/LICENSE-APACHE",
+        "sha256": "cfdff80f6bf12fb250921ea93684b84ffa97b7aa02f0ec859de0c7312a72ceb3"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "crates/q-periapt-backends/LICENSE",
+        "sha256": "45179fef4a66e21d461cf531279d364f3ce375a6affa9b186d7d145206304d35"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "crates/q-periapt-backends/LICENSE-MIT",
+        "sha256": "b93c8c0efb8cfe3c10b26ab6e2982b44cb2e4a1dce72dd12f23d89814553c5f6"
+      },
+      {
+        "packet": "q-periapt-native",
+        "path": "crates/q-periapt-backends/LICENSE-APACHE",
+        "sha256": "cfdff80f6bf12fb250921ea93684b84ffa97b7aa02f0ec859de0c7312a72ceb3"
+      }
+    ],
+    "status": "passed",
+    "upstream_commit": "8d456d989dce681233ef963d3c3306da8f76d7c7"
+  },
+  "status": "passed"
+}

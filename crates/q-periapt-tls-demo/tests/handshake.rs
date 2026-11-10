@@ -7,7 +7,7 @@
 use q_periapt_core::Profile;
 use q_periapt_tls_demo::{
     client_handshake, client_handshake_enhanced, server_handshake, server_handshake_enhanced,
-    ServerKeys,
+    server_handshake_with_profiles, AcceptedProfiles, DemoError, ServerKeys,
 };
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc;
@@ -113,6 +113,49 @@ fn handshake_enhanced_rejects_wrong_server_identity() {
         .join()
         .unwrap()
         .expect("enhanced server handshake should complete before client auth rejection");
+}
+
+/// An operator pin of `ContextBound` must reject a client that unilaterally
+/// selects `CompatXWing` — before the server sends its key shares — while the
+/// same pin still serves a `ContextBound` client.
+#[test]
+fn server_profile_pin_rejects_a_pinned_out_client_selection() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let keys = ServerKeys::from_seeds([1u8; 64], [2u8; 32], [3u8; 32]).unwrap();
+    let server_vk = keys.verifying_key();
+
+    let server = thread::spawn(move || {
+        // Scope the rejected connection so its socket is dropped (unblocking the
+        // client's read) before the second accept.
+        {
+            let (mut s, _) = listener.accept().unwrap();
+            let rejected =
+                server_handshake_with_profiles(&mut s, &keys, AcceptedProfiles::ContextBoundOnly);
+            assert!(
+                matches!(rejected, Err(DemoError::ProfileRejected)),
+                "pinned server must reject a CompatXWing client with ProfileRejected",
+            );
+        }
+
+        let (mut s, _) = listener.accept().unwrap();
+        server_handshake_with_profiles(&mut s, &keys, AcceptedProfiles::ContextBoundOnly)
+            .expect("pinned server must still serve a ContextBound client")
+    });
+
+    let mut s = TcpStream::connect(addr).unwrap();
+    let compat = client_handshake(&mut s, Profile::CompatXWing, &server_vk);
+    assert!(
+        compat.is_err(),
+        "client must fail once the pinned server drops the handshake"
+    );
+    drop(s);
+
+    let mut s = TcpStream::connect(addr).unwrap();
+    let (client_secret, _stats) =
+        client_handshake(&mut s, Profile::ContextBound, &server_vk).unwrap();
+    let (server_secret, _stats) = server.join().unwrap();
+    assert_eq!(client_secret.as_bytes(), server_secret.as_bytes());
 }
 
 #[test]

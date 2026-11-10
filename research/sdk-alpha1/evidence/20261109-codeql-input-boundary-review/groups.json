@@ -1,0 +1,1484 @@
+[
+  {
+    "group": "PY01",
+    "language": "python",
+    "result_indices": [
+      0
+    ],
+    "classification": "reviewed_explicit_execution_interface",
+    "title": "Isolated Python dispatcher",
+    "input_boundary": "Local invoker selects the interpreter's -c, stdin, module or script interface.",
+    "finding": "Executing the caller's -c text is the stated interpreter operation. The observed flow does not cross from a data-only input into unexpected execution authority.",
+    "observed_controls": [
+      "-c and stdin are explicit modes",
+      "repository script mode separately validates path and regular-file shape",
+      "isolated launch and PYTHON environment cleanup"
+    ],
+    "evidence": [
+      {
+        "path": "artifact/python_bootstrap.py",
+        "lines": [
+          36,
+          44,
+          47,
+          60,
+          91
+        ]
+      }
+    ],
+    "qualification": "This dispatcher is an interpreter, not a sandbox for untrusted Python programs.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY02",
+    "language": "python",
+    "result_indices": [
+      1205
+    ],
+    "classification": "reviewed_fixture_driver",
+    "title": "Account-authority child process cut",
+    "input_boundary": "Test CLI chooses implementation/provider roots and isolated output; operation and stage originate in the test workload.",
+    "finding": "The subprocess uses sys.executable and a fixed sibling test script. CLI roots remain separate argv entries; the child imports the explicitly selected implementation.",
+    "observed_controls": [
+      "fixed interpreter/script",
+      "scope choices development/installed",
+      "operation choices",
+      "fresh test output and private registry",
+      "SIGKILL and cut identity checked"
+    ],
+    "evidence": [
+      {
+        "path": "research/continuity-openssl-peer/tests/account_authority_support.py",
+        "lines": [
+          94,
+          96,
+          101,
+          102,
+          103
+        ]
+      },
+      {
+        "path": "research/continuity-openssl-peer/tests/account_authority.py",
+        "lines": [
+          19,
+          26,
+          43,
+          48,
+          50
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY03",
+    "language": "python",
+    "result_indices": [
+      1206,
+      1207
+    ],
+    "classification": "reviewed_explicit_execution_interface",
+    "title": "Android diagnostic tool selection",
+    "input_boundary": "The diagnostic operator supplies ANDROID_HOME and the host tool search path; the controller derives adb/emulator/avdmanager commands.",
+    "finding": "Executable selection is explicit host-tool authority. Command arrays preserve argument boundaries; guest commands are fixed experiment commands.",
+    "observed_controls": [
+      "canonical SDK path",
+      "GitHub-hosted Linux x86_64 experiment guard",
+      "isolated ADB/AVD environment",
+      "bounded run/spawn",
+      "image/version identity checks"
+    ],
+    "evidence": [
+      {
+        "path": "artifact/android_runtime_control.py",
+        "lines": [
+          57,
+          65,
+          78,
+          107,
+          197,
+          233,
+          303,
+          330,
+          422,
+          426,
+          430
+        ]
+      }
+    ],
+    "qualification": "Host environment and selected SDK tools are trusted inputs. Environment guard variables are execution-scope checks, not authentication against a malicious local invoker.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY04",
+    "language": "python",
+    "result_indices": [
+      1208
+    ],
+    "classification": "reviewed_explicit_execution_interface",
+    "title": "Bounded process wrapper and its recorded callers",
+    "input_boundary": "ANDROID_HOME, canonical JAVA_HOME, --gradle, and the Apple --host-target build selector reach a shared subprocess primitive.",
+    "finding": "The primitive deliberately executes an argv supplied by its caller. The recorded callers select SDK/Gradle/JDK tools or a fixed cargo command; the Apple host target is an allowlisted argument.",
+    "observed_controls": [
+      "explicit executable=argv[0] and shell=False",
+      "nonempty/NUL-free argv",
+      "validated timeout and environment shape",
+      "JAVA_HOME canonical absolute",
+      "Apple host-target allowlist"
+    ],
+    "evidence": [
+      {
+        "path": "artifact/bounded_process.py",
+        "lines": [
+          230,
+          274,
+          296,
+          356
+        ]
+      },
+      {
+        "path": "artifact/android_sdk_package.py",
+        "lines": [
+          182,
+          193,
+          197,
+          204,
+          206,
+          305,
+          306
+        ]
+      },
+      {
+        "path": "artifact/apple_sdk_profile.py",
+        "lines": [
+          223,
+          226,
+          255,
+          451
+        ]
+      }
+    ],
+    "qualification": "Resource bounding does not authenticate arbitrary executables; trusted callers own that choice. No generic safe-command claim is made from shell=False alone.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY05",
+    "language": "python",
+    "result_indices": [
+      1209
+    ],
+    "classification": "reviewed_explicit_execution_interface",
+    "title": "ABI inspection tool and file arguments",
+    "input_boundary": "The operator chooses library paths/platform and explicitly supplies llvm-nm for static inspection.",
+    "finding": "Dynamic library paths become absolute before fixed nm/dumpbin arguments; static input is authenticated into a temporary archive, and the selected llvm-nm must be absolute and regular.",
+    "observed_controls": [
+      "platform allowlist",
+      "exact library basename",
+      "dynamic absolute data path prevents leading-option/response syntax",
+      "absolute regular llvm-nm",
+      "authenticated static archive copy"
+    ],
+    "evidence": [
+      {
+        "path": "artifact/c_abi_contract.py",
+        "lines": [
+          652,
+          659,
+          887,
+          918,
+          932,
+          1350,
+          1362,
+          1372,
+          1396,
+          1406,
+          1415,
+          1422,
+          1468
+        ]
+      },
+      {
+        "path": "artifact/apple_sdk_profile.py",
+        "lines": [
+          106,
+          132,
+          466
+        ]
+      }
+    ],
+    "qualification": "The selected inspection executable and the same-user host remain trusted, as the source explicitly states.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY06",
+    "language": "python",
+    "result_indices": [
+      1210
+    ],
+    "classification": "reviewed_fixture_driver",
+    "title": "Installed C/Swift/Kotlin fault-matrix execution",
+    "input_boundary": "The qualification CLI chooses profile/tool installations; the harness builds or selects exact installed clients/helpers and generates its case argv.",
+    "finding": "The Popen sink runs those clients and fixed helper/test operations. The profile is validated; public fixture values used in argv have exact encoding checks.",
+    "observed_controls": [
+      "profile/language allowlists",
+      "snapshot identities for client/helper/probe/library/JVM",
+      "absolute JVM inputs",
+      "fixed native helper allowlist",
+      "QPC_TEST_/LD_/DYLD_ inherited values removed before owned injection",
+      "process group timeout and exact outcome checks"
+    ],
+    "evidence": [
+      {
+        "path": "artifact/continuity_package.py",
+        "lines": [
+          378,
+          380,
+          531,
+          542,
+          552,
+          596
+        ]
+      },
+      {
+        "path": "artifact/continuity_c_faults.py",
+        "lines": [
+          42,
+          75,
+          227,
+          241,
+          249,
+          266,
+          272,
+          281,
+          316,
+          328,
+          331,
+          436,
+          445
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY07",
+    "language": "python",
+    "result_indices": [
+      1211
+    ],
+    "classification": "reviewed_explicit_execution_interface",
+    "title": "Windows installed-package build and execution",
+    "input_boundary": "The operator supplies a package receipt/archive, an empty private fixture root and an allowlisted build profile.",
+    "finding": "The consumer's purpose includes compiling and executing the selected source archive. Generated executable paths are in the resolved private build tree; command verbs and compiler flags are fixed.",
+    "observed_controls": [
+      "Windows-only entry",
+      "archive SHA-256 matches receipt",
+      "closed unpack inventory",
+      "profile allowlist",
+      "generated absolute executable paths",
+      "exact compiler identity and expected test output"
+    ],
+    "evidence": [
+      {
+        "path": "artifact/continuity_windows_consume.py",
+        "lines": [
+          28,
+          37,
+          42,
+          47,
+          51,
+          67,
+          72,
+          94,
+          107,
+          118,
+          200,
+          221,
+          229
+        ]
+      }
+    ],
+    "qualification": "Receipt equality is an integrity check, not authorization to run arbitrary adversarial source. This is a build/qualification executor under the invoker's authority.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY08",
+    "language": "python",
+    "result_indices": [
+      1212
+    ],
+    "classification": "reviewed_fixture_driver",
+    "title": "Enrollment CLI fixture",
+    "input_boundary": "The test CLI explicitly selects a Python implementation/provider; generated fixture files carry the enrollment inputs.",
+    "finding": "The -c bootstrap code is constant. The selected implementation path is passed as a separate argument and consumed by the intended sys.path selection, not concatenated into Python code.",
+    "observed_controls": [
+      "fixed interpreter and -c program",
+      "explicit implementation/provider interface",
+      "private generated input files",
+      "exact process output and adopted-state assertions"
+    ],
+    "evidence": [
+      {
+        "path": "research/continuity-openssl-peer/tests/enrollment_extension.py",
+        "lines": [
+          269,
+          277,
+          281,
+          283,
+          285
+        ]
+      },
+      {
+        "path": "research/continuity-openssl-peer/tests/enrollment_exchange.py",
+        "lines": [
+          18,
+          23,
+          24,
+          34
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY09",
+    "language": "python",
+    "result_indices": [
+      1213
+    ],
+    "classification": "reviewed_fixed_command_with_data_arguments",
+    "title": "Fixed Git provenance command",
+    "input_boundary": "Repository paths and proof/source commit identities flow from distribution/publication CLI and checked JSON evidence.",
+    "finding": "The recorded sink uses fixed /usr/bin/git. Root paths are placed in single --git-dir/--work-tree option values, and commit arguments are constrained to exact hexadecimal identities before ancestry/diff operations.",
+    "observed_controls": [
+      "fixed Git executable and minimal environment",
+      "explicit non-symlink .git directory",
+      "fsmonitor/hooks/global/system config disabled",
+      "exact commit regex",
+      "fixed rev-parse/merge-base/diff/show verbs",
+      "diff -- terminator"
+    ],
+    "evidence": [
+      {
+        "path": "artifact/git_provenance.py",
+        "lines": [
+          37,
+          51,
+          95,
+          99,
+          117,
+          147,
+          161,
+          173,
+          199,
+          217
+        ]
+      },
+      {
+        "path": "artifact/android_device_proof.py",
+        "lines": [
+          2209,
+          2215,
+          2219
+        ]
+      },
+      {
+        "path": "artifact/platform_distribution.py",
+        "lines": [
+          256,
+          262,
+          265
+        ]
+      },
+      {
+        "path": "artifact/platform_stable_publication.py",
+        "lines": [
+          334,
+          566,
+          584,
+          704
+        ]
+      },
+      {
+        "path": "artifact/platform_maintenance.py",
+        "lines": [
+          32,
+          43,
+          46
+        ]
+      }
+    ],
+    "qualification": "Review covers the SARIF-recorded path/commit flows; it is not a full audit of every Git configuration behavior.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY10",
+    "language": "python",
+    "result_indices": [
+      1214,
+      1215,
+      1216
+    ],
+    "classification": "reviewed_fixture_driver",
+    "title": "Reference-application native test commands",
+    "input_boundary": "Local test CLI explicitly selects native-device/session/outgoing/witness/account binaries and implementation/provider roots.",
+    "finding": "Commands and native_exchange execute selected test binaries as separate argv arrays. Network/account response bytes do not choose argv[0] on the recorded flows.",
+    "observed_controls": [
+      "explicit binary CLI parameters",
+      "canonical selected binaries and recorded hashes",
+      "fixed test command verbs",
+      "isolated test accounts/private state",
+      "bounded subprocess lifetime and exact stdout/stderr/outcome checks"
+    ],
+    "evidence": [
+      {
+        "path": "research/continuity-reference-app/tests/host_replacement_process.py",
+        "lines": [
+          23,
+          26,
+          28,
+          30,
+          39,
+          42,
+          55,
+          67,
+          168
+        ]
+      },
+      {
+        "path": "research/continuity-reference-app/tests/native_exchange.py",
+        "lines": [
+          18,
+          26,
+          31,
+          53,
+          57,
+          60,
+          63,
+          88
+        ]
+      },
+      {
+        "path": "research/continuity-reference-app/tests/host_account_credential.py",
+        "lines": [
+          19,
+          34,
+          45
+        ]
+      },
+      {
+        "path": "research/continuity-reference-app/tests/host_replacement.py",
+        "lines": [
+          21,
+          38,
+          68,
+          149
+        ]
+      },
+      {
+        "path": "research/continuity-reference-app/tests/host_roster.py",
+        "lines": [
+          23,
+          46,
+          87,
+          106
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY11",
+    "language": "python",
+    "result_indices": [
+      1217,
+      1218
+    ],
+    "classification": "reviewed_fixture_driver",
+    "title": "Local Cargo registry serialization capture",
+    "input_boundary": "CLI argument REAL_TOOLCHAIN_DIRECTORY deliberately chooses the Cargo toolchain.",
+    "finding": "Both publish-capture and version sinks execute that selected Cargo. The publication attempt targets the synthetic loopback registry and is required to fail with its explicit capture rejection.",
+    "observed_controls": [
+      "resolved toolchain path",
+      "synthetic dependencies/source",
+      "isolated CARGO_HOME",
+      "dummy noncredential token",
+      "loopback server and denying proxy",
+      "fixed Cargo verbs and registry name"
+    ],
+    "evidence": [
+      {
+        "path": "artifact/testdata/crates_io_uploader/registry-alias-fixture.capture.py",
+        "lines": [
+          1,
+          12,
+          14,
+          87,
+          97,
+          98,
+          100,
+          102,
+          108,
+          117
+        ]
+      }
+    ],
+    "qualification": "The capture script trusts the explicitly selected Cargo/toolchain; it does not authenticate a hostile compiler.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY12",
+    "language": "python",
+    "result_indices": [
+      1219
+    ],
+    "classification": "reviewed_retained_experiment_driver",
+    "title": "Repeated admission test binary experiment",
+    "input_boundary": "A retained local experiment driver is invoked directly by its operator; inputs are CLI labels/modes, selected tool/source paths, or prior experiment receipts.",
+    "finding": "The CLI explicitly supplies a test binary, which is copied and executed with fixed Rust test filters. The label chooses a retained output directory; rounds chooses repetition count.",
+    "observed_controls": [
+      "source retained under dated evidence",
+      "argv list calls; no shell interpolation at the recorded sink",
+      "fixed experiment/build verbs or explicit selected test executable",
+      "per-run source/binary/log identity recording"
+    ],
+    "evidence": [
+      {
+        "path": "research/sdk-alpha1/evidence/20261009-publication-test-isolation/repeat-admission.py",
+        "lines": [
+          3,
+          6,
+          8,
+          10
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY13",
+    "language": "python",
+    "result_indices": [
+      1220
+    ],
+    "classification": "reviewed_retained_experiment_driver",
+    "title": "Historical C policy-recovery build/run",
+    "input_boundary": "A retained local experiment driver is invoked directly by its operator; inputs are CLI labels/modes, selected tool/source paths, or prior experiment receipts.",
+    "finding": "The executable is either fixed /usr/bin/clang or the output just compiled into the selected experiment directory; source/header/library arguments derive from fixed checkout locations.",
+    "observed_controls": [
+      "source retained under dated evidence",
+      "argv list calls; no shell interpolation at the recorded sink",
+      "fixed experiment/build verbs or explicit selected test executable",
+      "per-run source/binary/log identity recording"
+    ],
+    "evidence": [
+      {
+        "path": "research/sdk-alpha1/evidence/20261008-c-swift-policy-recovery/drivers/run-c-current.py",
+        "lines": [
+          3,
+          15,
+          21,
+          22,
+          23,
+          27,
+          31
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY14",
+    "language": "python",
+    "result_indices": [
+      1221,
+      1222,
+      1223,
+      1224,
+      1225,
+      1227,
+      1229,
+      1230,
+      1231,
+      1232
+    ],
+    "classification": "reviewed_retained_experiment_driver",
+    "title": "Historical foreign-language build templates",
+    "input_boundary": "A retained local experiment driver is invoked directly by its operator; inputs are CLI labels/modes, selected tool/source paths, or prior experiment receipts.",
+    "finding": "The template chooses C/Swift/Kotlin modes, hard-coded local Rust/JDK/Gradle installations and xcrun-discovered Apple tools. Each file was compared with the reviewed representative; differences are the source checkout location or C-only library-retention control.",
+    "observed_controls": [
+      "source retained under dated evidence",
+      "argv list calls; no shell interpolation at the recorded sink",
+      "fixed experiment/build verbs or explicit selected test executable",
+      "per-run source/binary/log identity recording"
+    ],
+    "evidence": [
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-foreign-cancellation-7d92d80a/run-cancellation-c-quality.py",
+        "lines": [
+          5,
+          6,
+          7,
+          12,
+          13,
+          18,
+          20
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-foreign-commit-error-2a1d5ada/run-commit-error-language-build.py",
+        "lines": [
+          5,
+          6,
+          7,
+          12,
+          13,
+          18,
+          20
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-tls-cancellation-cut-a55a8c76/run-commit-loss-quality.py",
+        "lines": [
+          5,
+          6,
+          7,
+          12,
+          13,
+          18,
+          20
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-foreign-commit-error-2a1d5ada/run-commit-loss-quality.py",
+        "lines": [
+          5,
+          6,
+          7,
+          12,
+          13,
+          18,
+          20
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-foreign-commit-loss-dc1c2fd1/run-commit-loss-quality.py",
+        "lines": [
+          5,
+          6,
+          7,
+          12,
+          13,
+          18,
+          20
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-grant-cancellation-bb295722/run-history-foreign.py",
+        "lines": [
+          5,
+          6,
+          7,
+          12,
+          13,
+          18,
+          20
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-enrollment-cancellation-6b7a940e/run-history-foreign.py",
+        "lines": [
+          5,
+          6,
+          7,
+          12,
+          13,
+          18,
+          20
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-foreign-cancellation-7d92d80a/run-history-foreign.py",
+        "lines": [
+          5,
+          6,
+          7,
+          12,
+          13,
+          18,
+          20
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-historical-foreign-3eaa0fc9/run-history-foreign.py",
+        "lines": [
+          5,
+          6,
+          7,
+          12,
+          13,
+          18,
+          20
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-policy-expiry-0411862b/run-history-foreign.py",
+        "lines": [
+          5,
+          6,
+          7,
+          12,
+          13,
+          18,
+          20
+        ]
+      }
+    ],
+    "qualification": "These historical scripts use assert for some local experiment checks. They are not hardened input-validation services and must not be repurposed to execute untrusted job descriptions.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY15",
+    "language": "python",
+    "result_indices": [
+      1226
+    ],
+    "classification": "reviewed_retained_experiment_driver",
+    "title": "Historical CI lint preflight",
+    "input_boundary": "A retained local experiment driver is invoked directly by its operator; inputs are CLI labels/modes, selected tool/source paths, or prior experiment receipts.",
+    "finding": "The tainted label selects output paths passed as data to fixed actionlint and bash -n commands. The actual unittest command is a fixed repository preflight.",
+    "observed_controls": [
+      "source retained under dated evidence",
+      "argv list calls; no shell interpolation at the recorded sink",
+      "fixed experiment/build verbs or explicit selected test executable",
+      "per-run source/binary/log identity recording"
+    ],
+    "evidence": [
+      {
+        "path": "research/sdk-alpha1/evidence/20261005-installed-foreign-ci-split-33a795cf/run-foreign-ci-preflight.py",
+        "lines": [
+          6,
+          15,
+          16,
+          17,
+          25,
+          27,
+          29,
+          34
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY16",
+    "language": "python",
+    "result_indices": [
+      1228
+    ],
+    "classification": "reviewed_retained_experiment_driver",
+    "title": "Historical explicit-peer integration experiment",
+    "input_boundary": "A retained local experiment driver is invoked directly by its operator; inputs are CLI labels/modes, selected tool/source paths, or prior experiment receipts.",
+    "finding": "The retained run builds argv through the peer-configuration qualification helpers and executes binaries selected by prior locally hash-checked receipts. It deliberately executes those selected native/Swift/Kotlin consumers.",
+    "observed_controls": [
+      "source retained under dated evidence",
+      "argv list calls; no shell interpolation at the recorded sink",
+      "fixed experiment/build verbs or explicit selected test executable",
+      "per-run source/binary/log identity recording"
+    ],
+    "evidence": [
+      {
+        "path": "research/sdk-alpha1/evidence/20261009-explicit-peer-configuration/run-gate.py",
+        "lines": [
+          3,
+          4,
+          5,
+          8,
+          10,
+          14,
+          15,
+          16,
+          19
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY17",
+    "language": "python",
+    "result_indices": [
+      1233,
+      1234
+    ],
+    "classification": "reviewed_retained_experiment_driver",
+    "title": "Historical joint-policy check/test selector",
+    "input_boundary": "A retained local experiment driver is invoked directly by its operator; inputs are CLI labels/modes, selected tool/source paths, or prior experiment receipts.",
+    "finding": "The executable is a hard-coded local Cargo. The mode selects fixed check/clippy/test/doc commands; the tests mode forwards the operator's filter as a single Cargo argument.",
+    "observed_controls": [
+      "source retained under dated evidence",
+      "argv list calls; no shell interpolation at the recorded sink",
+      "fixed experiment/build verbs or explicit selected test executable",
+      "per-run source/binary/log identity recording"
+    ],
+    "evidence": [
+      {
+        "path": "research/sdk-alpha1/evidence/20261005-peer-policy-recovery-e5b271cf/run-joint-policy-check.py",
+        "lines": [
+          3,
+          4,
+          8,
+          10,
+          11,
+          12,
+          16,
+          19
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261005-policy-continuation-a5bdbde4/run-joint-policy-check.py",
+        "lines": [
+          3,
+          4,
+          8,
+          10,
+          11,
+          12,
+          16,
+          19
+        ]
+      }
+    ],
+    "qualification": "The forwarded filter is not validated against leading-option syntax. The reviewed use is a trusted local experiment CLI; do not describe this argument as sanitized or expose it to less-trusted callers without a separate boundary design.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY18",
+    "language": "python",
+    "result_indices": [
+      1235,
+      1236,
+      1237,
+      1238,
+      1239,
+      1240
+    ],
+    "classification": "reviewed_retained_experiment_driver",
+    "title": "Historical native quality command templates",
+    "input_boundary": "A retained local experiment driver is invoked directly by its operator; inputs are CLI labels/modes, selected tool/source paths, or prior experiment receipts.",
+    "finding": "Toolchain version and checkout have explicit finite choices; command modes select fixed Cargo verbs/test filters. All template variants were inspected: two omit only the doc branch.",
+    "observed_controls": [
+      "source retained under dated evidence",
+      "argv list calls; no shell interpolation at the recorded sink",
+      "fixed experiment/build verbs or explicit selected test executable",
+      "per-run source/binary/log identity recording"
+    ],
+    "evidence": [
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-enrollment-cancellation-6b7a940e/run-native-quality.py",
+        "lines": [
+          10,
+          11,
+          13,
+          16,
+          25,
+          26,
+          31,
+          47
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-grant-cancellation-bb295722/run-native-quality.py",
+        "lines": [
+          10,
+          11,
+          13,
+          16,
+          25,
+          26,
+          31,
+          47
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-witness-enrollment-1a6d4911/run-native-quality.py",
+        "lines": [
+          10,
+          11,
+          13,
+          16,
+          25,
+          26,
+          31,
+          47
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-historical-foreign-3eaa0fc9/run-native-quality.py",
+        "lines": [
+          10,
+          11,
+          13,
+          16,
+          25,
+          26,
+          31,
+          47
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-local-witness-recovery-075d2f15/run-native-quality.py",
+        "lines": [
+          10,
+          11,
+          13,
+          16,
+          25,
+          26,
+          31,
+          47
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-joint-renewal-public-oracle-c87325c0/run-native-quality.py",
+        "lines": [
+          10,
+          11,
+          13,
+          16,
+          25,
+          26,
+          31,
+          47
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY19",
+    "language": "python",
+    "result_indices": [
+      1241,
+      1242,
+      1243
+    ],
+    "classification": "reviewed_retained_experiment_driver",
+    "title": "Historical lifecycle/witness hypothesis probes",
+    "input_boundary": "A retained local experiment driver is invoked directly by its operator; inputs are CLI labels/modes, selected tool/source paths, or prior experiment receipts.",
+    "finding": "The label chooses an isolated copy of a fixed candidate checkout. A fixed probe is appended, then a hard-coded Cargo executable runs the selected fixed test name.",
+    "observed_controls": [
+      "source retained under dated evidence",
+      "argv list calls; no shell interpolation at the recorded sink",
+      "fixed experiment/build verbs or explicit selected test executable",
+      "per-run source/binary/log identity recording"
+    ],
+    "evidence": [
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-joint-lifecycle-authorization-2d7d05b1/run-policy-joint-authorization.py",
+        "lines": [
+          3,
+          4,
+          5,
+          10,
+          11
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-joint-lifecycle-authorization-2d7d05b1/run-policy-lifecycle-capability.py",
+        "lines": [
+          3,
+          4,
+          5,
+          10,
+          11
+        ]
+      },
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-joint-lifecycle-authorization-2d7d05b1/run-policy-witness-head.py",
+        "lines": [
+          3,
+          4,
+          5,
+          10,
+          11
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY20",
+    "language": "python",
+    "result_indices": [
+      1244
+    ],
+    "classification": "reviewed_retained_experiment_driver",
+    "title": "Historical Swift policy-recovery mirror",
+    "input_boundary": "A retained local experiment driver is invoked directly by its operator; inputs are CLI labels/modes, selected tool/source paths, or prior experiment receipts.",
+    "finding": "Debug/release is checked; the label selects the mirror/output path. Native Cargo and xcrun swift commands are fixed and execute an intentionally prepared source mirror.",
+    "observed_controls": [
+      "source retained under dated evidence",
+      "argv list calls; no shell interpolation at the recorded sink",
+      "fixed experiment/build verbs or explicit selected test executable",
+      "per-run source/binary/log identity recording"
+    ],
+    "evidence": [
+      {
+        "path": "research/sdk-alpha1/evidence/20261008-c-swift-policy-recovery/drivers/run-swift-current.py",
+        "lines": [
+          5,
+          6,
+          7,
+          25,
+          37,
+          44,
+          46,
+          54,
+          59
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY21",
+    "language": "python",
+    "result_indices": [
+      1245
+    ],
+    "classification": "reviewed_retained_experiment_driver",
+    "title": "Historical Swift credential-renewal build",
+    "input_boundary": "A retained local experiment driver is invoked directly by its operator; inputs are CLI labels/modes, selected tool/source paths, or prior experiment receipts.",
+    "finding": "The operator may explicitly select a Swift package to build/test. xcrun selects the Swift executable; source/include/library paths remain separate argv values.",
+    "observed_controls": [
+      "source retained under dated evidence",
+      "argv list calls; no shell interpolation at the recorded sink",
+      "fixed experiment/build verbs or explicit selected test executable",
+      "per-run source/binary/log identity recording"
+    ],
+    "evidence": [
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-foreign-credential-renewal-4a9f8c46/run-swift.py",
+        "lines": [
+          4,
+          5,
+          10,
+          13,
+          15,
+          16,
+          18,
+          19
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY22",
+    "language": "python",
+    "result_indices": [
+      1246
+    ],
+    "classification": "reviewed_retained_experiment_driver",
+    "title": "Historical persistent-witness experiment",
+    "input_boundary": "A retained local experiment driver is invoked directly by its operator; inputs are CLI labels/modes, selected tool/source paths, or prior experiment receipts.",
+    "finding": "The experiment intentionally copies a candidate, runs fixed patchers, and invokes hard-coded Cargo with fixed test filters selected by mode.",
+    "observed_controls": [
+      "source retained under dated evidence",
+      "argv list calls; no shell interpolation at the recorded sink",
+      "fixed experiment/build verbs or explicit selected test executable",
+      "per-run source/binary/log identity recording"
+    ],
+    "evidence": [
+      {
+        "path": "research/sdk-alpha1/evidence/20261004-witness-authorization-prototype-af55fbf7/run-witness-authorization-experiment.py",
+        "lines": [
+          3,
+          4,
+          6,
+          12,
+          13,
+          14,
+          15,
+          16,
+          18
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY23",
+    "language": "python",
+    "result_indices": [
+      1247,
+      1248
+    ],
+    "classification": "reviewed_retained_experiment_driver",
+    "title": "Historical old/new witness upgrade binaries",
+    "input_boundary": "A retained local experiment driver is invoked directly by its operator; inputs are CLI labels/modes, selected tool/source paths, or prior experiment receipts.",
+    "finding": "The first sink builds isolated old/new candidate copies using a fixed Cargo. The second copies the compiler-reported test executable into the experiment directory and invokes one exact test.",
+    "observed_controls": [
+      "source retained under dated evidence",
+      "argv list calls; no shell interpolation at the recorded sink",
+      "fixed experiment/build verbs or explicit selected test executable",
+      "per-run source/binary/log identity recording"
+    ],
+    "evidence": [
+      {
+        "path": "research/sdk-alpha1/evidence/20261005-witness-legacy-upgrade-7368c34a/run-witness-legacy-upgrade.py",
+        "lines": [
+          3,
+          13,
+          14,
+          18,
+          21,
+          23,
+          27,
+          29,
+          31,
+          33,
+          38
+        ]
+      }
+    ],
+    "qualification": "The compiler and locally selected source are trusted to produce the executable; the driver is not a sandbox for adversarial compiler output.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY24",
+    "language": "python",
+    "result_indices": [
+      1249,
+      1250
+    ],
+    "classification": "reviewed_explicit_execution_interface",
+    "title": "TLS/SDK connection experiment executors",
+    "input_boundary": "Local CLI selects OpenSSL, native peers and Swift clients, or the installed qualification builds those binaries from its selected archives.",
+    "finding": "The shared Peer/run helpers intentionally execute selected tool/binary arrays. Readiness addresses are constrained to loopback host/port syntax, and network output does not select executable paths.",
+    "observed_controls": [
+      "resolved explicit executable paths",
+      "immutable peer copy / frozen boundary binaries",
+      "fixed OpenSSL operations and fixture paths",
+      "loopback-only readiness parser",
+      "per-case outcome and identity checks"
+    ],
+    "evidence": [
+      {
+        "path": "artifact/standard_tls_interop.py",
+        "lines": [
+          37,
+          44,
+          49,
+          79,
+          84,
+          103,
+          123,
+          126,
+          134,
+          147,
+          150,
+          182,
+          186
+        ]
+      },
+      {
+        "path": "artifact/sdk_connection_interop.py",
+        "lines": [
+          112,
+          124,
+          135,
+          158,
+          211,
+          263
+        ]
+      },
+      {
+        "path": "artifact/sdk_connection_performance.py",
+        "lines": [
+          64,
+          66,
+          68,
+          133
+        ]
+      },
+      {
+        "path": "artifact/sdk_installed_connection.py",
+        "lines": [
+          129,
+          132,
+          136,
+          146,
+          209,
+          219
+        ]
+      }
+    ],
+    "qualification": "",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY25",
+    "language": "python",
+    "result_indices": [
+      1251,
+      1252
+    ],
+    "classification": "reviewed_fixture_driver",
+    "title": "Java descriptor contract test",
+    "input_boundary": "The test runner selects its JDK using JAVA_HOME.",
+    "finding": "The test intentionally executes JAVA_HOME/bin/javac and javap against checked-in Java sources and a fresh temporary output directory.",
+    "observed_controls": [
+      "fixed javac release/lint flags",
+      "fixed javap target class",
+      "separate argv values",
+      "exact return/stdout/stderr and JNI descriptor comparisons"
+    ],
+    "evidence": [
+      {
+        "path": "artifact/test_sdk_jni_contract.py",
+        "lines": [
+          38,
+          40,
+          43,
+          44,
+          49,
+          50,
+          53,
+          59
+        ]
+      }
+    ],
+    "qualification": "JAVA_HOME is trusted tool selection, not authenticated by this test. The observed calls do not change cwd between selection and execution.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY26",
+    "language": "python",
+    "result_indices": [
+      1253
+    ],
+    "classification": "reviewed_explicit_execution_interface",
+    "title": "Cargo license metadata collection",
+    "input_boundary": "The operator's PATH selects Cargo; the caller supplies a target triple.",
+    "finding": "The chosen Cargo is anchored to an absolute path before execution in the selected repository. The target is restricted to a plain triple character set and passed after a fixed option.",
+    "observed_controls": [
+      "shutil.which tool selection",
+      "absolute executable anchoring before cwd change",
+      "target regex",
+      "fixed metadata --locked --format-version --filter-platform argv",
+      "selected environment"
+    ],
+    "evidence": [
+      {
+        "path": "artifact/third_party_licenses.py",
+        "lines": [
+          106,
+          115,
+          119,
+          123
+        ]
+      }
+    ],
+    "qualification": "The selected Cargo/toolchain and repository build context are trusted. The existing absolute-path fix is present in the scanned source.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "PY27",
+    "language": "python",
+    "result_indices": [
+      1254,
+      1255
+    ],
+    "classification": "reviewed_explicit_execution_interface",
+    "title": "Windows inspection/strip subprocess primitive",
+    "input_boundary": "CLI options explicitly select cl, dumpbin, llvm-strip and llvm-ar installations; source/package paths are data inputs.",
+    "finding": "Tool selection is intentional and constrained to absolute regular paths with exact executable names. Source/member paths handed to tools are absolute, and the MSVC probe is fixed and byte-checked.",
+    "observed_controls": [
+      "absolute regular non-reparse tool path",
+      "exact tool basename",
+      "fixed inspection/strip command flags",
+      "private resolved archive work directory",
+      "known MSVC probe contents checked before/after",
+      "bounded Windows job or POSIX process ownership"
+    ],
+    "evidence": [
+      {
+        "path": "artifact/windows_package.py",
+        "lines": [
+          535,
+          541,
+          545,
+          563,
+          580,
+          588,
+          591,
+          1709,
+          1751,
+          1785,
+          1795,
+          2035,
+          2046,
+          2057,
+          2098,
+          2106,
+          2131,
+          2585
+        ]
+      }
+    ],
+    "qualification": "Tool name/shape validation is not cryptographic authentication of a malicious compiler. The invocation is a trusted operator tool-selection interface.",
+    "disposition": "source review recorded; no alert dismissal or gate change"
+  },
+  {
+    "group": "C01",
+    "language": "cpp",
+    "result_indices": [
+      0
+    ],
+    "classification": "confirmed_qualification_defect_fixed",
+    "title": "Caller-buffer overwrite could be optimized away",
+    "input_boundary": "Qualification-client caller storage is overwritten after prepare and before finish to distinguish owned data from borrowed pointers.",
+    "finding": "Ordinary memset is not an observable operation when the buffer is dead. Optimized compilation can therefore erase the overwrite and weaken the intended lifetime discrimination. The actual client now performs volatile unsigned-char stores over all live caller buffers.",
+    "observed_controls": [
+      "seven overwrites replaced",
+      "actual client included in C model",
+      "owned model and each borrowed-region model compare selected bytes",
+      "30 cases at -O0/-O3",
+      "independent review and focused replay accepted"
+    ],
+    "evidence": [
+      {
+        "path": "bindings/c/ContinuityPackageConsumer/peer_configuration_client.c",
+        "lines": [
+          58
+        ]
+      }
+    ],
+    "fix_commit": "96f58b924dfd2e026e73b8adc01cad9ee4476b06",
+    "fix_pr": 128,
+    "independent_review": "c-fix-review.json",
+    "disposition": "fixed in current integration candidate; new hosted analysis still pending",
+    "qualification": "The added local control qualifies the harness semantics. Existing installed-platform qualification supplies production SDK runtime evidence."
+  },
+  {
+    "group": "C02",
+    "language": "cpp",
+    "result_indices": [
+      1
+    ],
+    "classification": "reviewed_fixture_environment_capability",
+    "title": "Qualification setup phase log append",
+    "input_boundary": "The parent harness strips inherited QPC_TEST_ variables and supplies its exact new probe receipt path. The loaded probe creates that receipt before the client phase hook runs.",
+    "finding": "This is a test-only file append capability selected by the invoking harness, not a path from network messages or SDK application data. The hook accepts any absolute same-user-owned mode-0600 singly linked regular file; this is an explicit assumption, not a log-identity authentication mechanism.",
+    "observed_controls": [
+      "QPC_TEST_SYNC_ACTION must be io",
+      "absolute path",
+      "O_NOFOLLOW leaf check",
+      "regular file/euid/0600/nlink1",
+      "fixed phase line and phase range",
+      "parent scrubs and rebuilds injection environment"
+    ],
+    "evidence": [
+      {
+        "path": "bindings/c/ContinuityPackageConsumer/setup_client.c",
+        "lines": [
+          14,
+          17,
+          20,
+          22,
+          24,
+          37,
+          46
+        ]
+      },
+      {
+        "path": "artifact/continuity_c_faults.py",
+        "lines": [
+          249,
+          272,
+          276,
+          328,
+          331
+        ]
+      },
+      {
+        "path": "artifact/continuity_setup_io.py",
+        "lines": [
+          93,
+          100,
+          118,
+          120
+        ]
+      }
+    ],
+    "disposition": "retain source-bound scope review; no automatic dismissal",
+    "qualification": "A direct local invoker can choose another file it already owns with these permissions. The actual harness owns this choice. O_NOFOLLOW does not authenticate ancestor directories or defend against a malicious same-user host."
+  },
+  {
+    "group": "C03",
+    "language": "cpp",
+    "result_indices": [
+      2,
+      3
+    ],
+    "classification": "reviewed_fixture_environment_capability",
+    "title": "Injected sync target and fresh log selection",
+    "input_boundary": "The trusted qualification harness injects a separately hashed probe only into its owned child and selects generated private fixture target/log paths.",
+    "finding": "The target is opened read-only and reduced to an exact device/inode match for interruption. The receipt is created with O_CREAT|O_EXCL, so the observed sink cannot replace an existing log. These paths are not accepted by the SDK library API.",
+    "observed_controls": [
+      "test-process-only source; not linked into SDK",
+      "inherited loader/QPC_TEST_ variables scrubbed",
+      "absolute paths and finite cut/side/action values",
+      "read-only target and regular/euid/0600/nlink1 validation",
+      "device/inode match before injected effect",
+      "fresh O_EXCL log and fixed events",
+      "unrelated inode control in harness"
+    ],
+    "evidence": [
+      {
+        "path": "bindings/c/ContinuityPackageConsumer/sync_probe.c",
+        "lines": [
+          2,
+          43,
+          73,
+          82,
+          89,
+          91,
+          93,
+          95,
+          98
+        ]
+      },
+      {
+        "path": "artifact/continuity_c_faults.py",
+        "lines": [
+          249,
+          266,
+          328,
+          331,
+          436,
+          445,
+          447,
+          450
+        ]
+      }
+    ],
+    "disposition": "retain source-bound scope review; no automatic dismissal",
+    "qualification": "O_NOFOLLOW constrains the final path component. The harness/private directory and same-user process environment are the authority boundary; the probe is not a hostile-host sandbox."
+  }
+]

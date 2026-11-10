@@ -1,0 +1,38 @@
+{
+  "source_parent": "3fd559d69bf55163c0710591e25fb9130c244681",
+  "ci_red_job": 115649009293,
+  "ci_red_log_sha256": "90923b364c0ff9ed43b0397ee9f3464fe4edf1f98cb72786bed068cc801149c6",
+  "change": "Equivalent Boolean normalization of two witness guards; same short-circuit order and admission conditions, no lint suppression.",
+  "validation": {
+    "1.90.0": {
+      "strict_clippy": [
+        "all-features",
+        "control-tls",
+        "connection-tls"
+      ],
+      "enrollment_tests": 281,
+      "seconds": 715.36
+    },
+    "1.98.1": {
+      "strict_clippy": [
+        "all-features",
+        "control-tls",
+        "connection-tls"
+      ],
+      "enrollment_tests": 281,
+      "seconds": 713.07
+    }
+  },
+  "local_host": "macOS arm64",
+  "attempt_limits": [
+    "The first 1.90 toolchain lacked cargo-clippy; an existing complete toolchain was selected, with the failed receipt retained.",
+    "The first test filter witness_policy selected one basic handshake test. It was insufficient; the final catalog-derived enrollment filter selected and completed all 281 enrollment tests on each toolchain."
+  ],
+  "capture": {
+    "file": "CAPTURE.zip",
+    "sha256": "2eab3c2bc2b74f09c7fca46ccc91e19c1a777bb949cfed1fa88d663c7f81cc6b",
+    "bytes": 124707
+  },
+  "release_claim_eligible": false,
+  "current_linux_ci_verified": false
+}

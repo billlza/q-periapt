@@ -2,22 +2,19 @@ package dev.qperiapt
 
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
-import java.lang.foreign.Linker
 import java.lang.foreign.MemorySegment
-import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_BYTE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.foreign.ValueLayout.JAVA_LONG
-import java.nio.file.Files
-import java.nio.file.Path
 
 /**
- * Kotlin product face of the PQ/T hybrid suite over the ABI-major C library, via the Foreign
- * Function & Memory API (Project Panama, JDK 22+). It reuses the Rust core but obtains
+ * Legacy byte-oriented face of the PQ/T hybrid suite over the ABI-major C library, via the Foreign
+ * Function & Memory API (Project Panama, JDK 25+). It reuses the Rust core but obtains
  * randomness inside the native ABI, so tests assert semantic parity rather than deterministic
  * byte replay — see bindings/README.md.
  *
+ * New integrations should use [QPeriaptRuntime] and its native key owners.
  * Returned secret arrays are caller-owned. Invoke [EncapsulationResult.wipeSecret]
  * or `fill(0)` on every secret/key array after use; JVM and OS copies remain outside
  * this binding's control.
@@ -34,6 +31,8 @@ object QPeriaptHybrid {
     const val TRUSTED_POLICY_STATE_LEN = 36
     const val MAX_SIGNED_POLICY_BYTES = 64 * 1024
     const val MAX_APPLICATION_CONTEXT_BYTES = 64 * 1024
+    const val POLICY_SIGNATURE_LEN = 3309
+    const val POLICY_VERIFICATION_KEY_LEN = 1952
     const val SUITE_MLKEM768_X25519: Byte = 1
     const val KEY_FORMAT_EXPANDED: Byte = 1
 
@@ -46,6 +45,9 @@ object QPeriaptHybrid {
         /** Caller-owned secret material. Wipe this array when the session no longer needs it. */
         val secret: ByteArray,
     ) {
+        override fun toString(): String =
+            "EncapsulationResult(ctPq=${ctPq.contentToString()}, ctTrad=${ctTrad.contentToString()}, secret=<redacted>)"
+
         /** Best-effort zeroization of this result's current secret array. */
         fun wipeSecret() {
             secret.fill(0)
@@ -58,6 +60,9 @@ object QPeriaptHybrid {
         val skTrad: ByteArray,
         val pkTrad: ByteArray,
     ) {
+        override fun toString(): String =
+            "KeyPairResult(skPq=<redacted>, pkPq=${pkPq.contentToString()}, skTrad=<redacted>, pkTrad=${pkTrad.contentToString()})"
+
         fun wipeSecrets() {
             skPq.fill(0)
             skTrad.fill(0)
@@ -102,19 +107,8 @@ object QPeriaptHybrid {
         ) + digest
     }
 
-    private val linker = Linker.nativeLinker()
-    // Product code must bind a specific native library path, then verify ABI/suite metadata below.
-    private val lookup: SymbolLookup = run {
-        val explicit = System.getProperty("qperiapt.lib")
-            ?: error("qperiapt.lib must be set to an absolute q-periapt native library path")
-        val path = Path.of(explicit)
-        require(path.isAbsolute) { "qperiapt.lib must be an absolute path: $explicit" }
-        require(Files.isRegularFile(path)) { "qperiapt.lib does not name a regular file: $explicit" }
-        SymbolLookup.libraryLookup(path, Arena.global())
-    }
-
     private fun handle(name: String, desc: FunctionDescriptor) =
-        linker.downcallHandle(lookup.find(name).orElseThrow { RuntimeException("missing symbol $name") }, desc)
+        QPeriaptNative.handle(name, desc)
 
     private val abiVersionFn = handle("q_periapt_abi_version", FunctionDescriptor.of(JAVA_INT))
     private val versionFn = handle("q_periapt_version", FunctionDescriptor.of(ADDRESS))
@@ -250,6 +244,9 @@ object QPeriaptHybrid {
         require(lastTrustedState.isEmpty() || lastTrustedState.size == TRUSTED_POLICY_STATE_LEN) {
             "lastTrustedState must be empty or $TRUSTED_POLICY_STATE_LEN bytes"
         }
+        if (signature.size != POLICY_SIGNATURE_LEN || verificationKey.size != POLICY_VERIFICATION_KEY_LEN) {
+            checkOk("q_periapt_decision_from_signed_policy", -3)
+        }
         val tomlSeg = a.seg(toml)
         val sigSeg = a.seg(signature)
         val vkSeg = a.seg(verificationKey)
@@ -301,6 +298,9 @@ object QPeriaptHybrid {
         require(applicationContext.size <= MAX_APPLICATION_CONTEXT_BYTES) {
             "applicationContext exceeds $MAX_APPLICATION_CONTEXT_BYTES bytes: ${applicationContext.size}"
         }
+        if (pkPq.size != MLKEM_PK_LEN || pkTrad.size != X25519_LEN) {
+            checkOk("q_periapt_encapsulate", -2)
+        }
         SecretSegments(a).use { secrets ->
             val decisionBytes = decision.encoded()
             val decisionSeg = a.seg(decisionBytes)
@@ -336,6 +336,11 @@ object QPeriaptHybrid {
     ): ByteArray = Arena.ofConfined().use { a ->
         require(applicationContext.size <= MAX_APPLICATION_CONTEXT_BYTES) {
             "applicationContext exceeds $MAX_APPLICATION_CONTEXT_BYTES bytes: ${applicationContext.size}"
+        }
+        if (skPq.size != MLKEM_SK_LEN || ctPq.size != MLKEM_CT_LEN || pkPq.size != MLKEM_PK_LEN ||
+            skTrad.size != X25519_LEN || ctTrad.size != X25519_LEN || pkTrad.size != X25519_LEN
+        ) {
+            checkOk("q_periapt_decapsulate", -2)
         }
         SecretSegments(a).use { secrets ->
             val decisionBytes = decision.encoded()

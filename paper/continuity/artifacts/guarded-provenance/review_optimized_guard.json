@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "exit_code": 1,
+  "output_created": false,
+  "stdout": "",
+  "stderr": "validation requires assertions: run without -O or PYTHONOPTIMIZE",
+  "checker_sha256": "f1d099836194f17a165527d5a2296c06a7d2bd44bf187c1ab9c7456e4beeb92c"
+}

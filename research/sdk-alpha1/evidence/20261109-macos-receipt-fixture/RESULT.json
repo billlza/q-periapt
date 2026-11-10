@@ -1,0 +1,136 @@
+{
+  "schema": "qperiapt-macos-receipt-fixture-v1",
+  "recorded_at": "2026-11-09T22:27:30.591114+00:00",
+  "base_commit": "360aa8107aa7df502108627a4dcf89f30d106594",
+  "base_tree": "05c75d9d5848814a8b6b988df5e0c1240bec081a",
+  "source_file": {
+    "path": "artifact/test_codeql_rust_profile.py",
+    "local_path": "/workspace/scratch/e41ac2378a11/ci-followthrough/candidate/artifact/test_codeql_rust_profile.py",
+    "mode": "100644",
+    "bytes": 43286,
+    "sha256": "85236f1f7a38aa5c2c6973274c9e052f14390fbfef0330427072079e468716ff",
+    "git_blob_sha1": "6a7e91bbfd320f88e33c42ec7e0d832643914512",
+    "previous_blob": "7250b4c7076a522fd6c4ec6807dffc35dc132bc4"
+  },
+  "failed_checkout_same_test_blob": true,
+  "environment": {
+    "platform": "Linux x86_64 glibc 2.39",
+    "python": "3.12.3",
+    "launcher": "sh artifact/python-run.sh",
+    "native_macos_execution": false,
+    "codeql_execution": "mocked by existing receipt unit fixtures"
+  },
+  "preflight_modules": [
+    "test_codeql_rust_quality",
+    "test_codeql_consumer_context",
+    "test_codeql_target_coverage",
+    "test_codeql_compiler_sources",
+    "test_codeql_cargo_metadata",
+    "test_codeql_rust_profile",
+    "test_codeql_rust_publication",
+    "test_codeql_rust_transfer"
+  ],
+  "results": [
+    {
+      "name": "baseline_preflight",
+      "exit_code": 0,
+      "tests": 158,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "log": "baseline-preflight.log"
+    },
+    {
+      "name": "candidate_preflight",
+      "exit_code": 0,
+      "tests": 159,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "log": "candidate-preflight.log"
+    },
+    {
+      "name": "baseline_alias_red_control",
+      "exit_code": 1,
+      "tests": 3,
+      "errors": 3,
+      "failures": 0,
+      "skipped": 0,
+      "log": "baseline-alias.log"
+    },
+    {
+      "name": "candidate_alias",
+      "exit_code": 0,
+      "tests": 3,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "log": "candidate-alias.log"
+    }
+  ],
+  "source_preparation": {
+    "downloaded_blobs_verified": 64,
+    "git_index": "exact tree metadata replay; missing source objects are not represented as present",
+    "index_reconstructed_tree": "05c75d9d5848814a8b6b988df5e0c1240bec081a",
+    "tracked_rust_paths": 1173,
+    "earlier_incomplete_setup_log": "sparse-setup-preflight.log"
+  },
+  "production_guards_changed": false,
+  "retained_files": [
+    {
+      "path": "README.md",
+      "bytes": 5271,
+      "sha256": "aa5604ba48f5f7d979a5b485c341a4eb919634fab557dd6bb663b00b365c7c96"
+    },
+    {
+      "path": "baseline-alias.log",
+      "bytes": 16473,
+      "sha256": "20592249d96c9671013145c01a505e8414623689ca4a4cd6eb70a072aa953e8b"
+    },
+    {
+      "path": "baseline-preflight.log",
+      "bytes": 27025,
+      "sha256": "66e055eabf881801d5547493f3c30f137e3a20771a3085b8e9a8f01b66b5fe7b"
+    },
+    {
+      "path": "candidate-alias.log",
+      "bytes": 878,
+      "sha256": "46b6b4acb1c40ab5ca8834e3bf17e16c65ddba5a6d49ff48c21fc1e6568772ed"
+    },
+    {
+      "path": "candidate-preflight.log",
+      "bytes": 27204,
+      "sha256": "ca95424398a2a2ef8fa420153662574a225130609147a51bcffedf0949d846aa"
+    },
+    {
+      "path": "github-macos-job.log",
+      "bytes": 85009,
+      "sha256": "6050869f596935d89e973f8f07d5727d4595e56efdf95b297be1f939fd0bffac"
+    },
+    {
+      "path": "origin.json",
+      "bytes": 3001,
+      "sha256": "612add8da1ad93bd06d73e719f018766538dff974d48a8d6300246499f26efd2"
+    },
+    {
+      "path": "patch.diff",
+      "bytes": 1623,
+      "sha256": "3cf10c6387370b958d13ebdee8e1da7130180a5dcd951f7ee939c74e00ed5653"
+    },
+    {
+      "path": "receipt-alias-repro.py",
+      "bytes": 1695,
+      "sha256": "ff83e68bb77e4b2eee777acbfc1d33abe55911336edb3586e16515a706960b73"
+    },
+    {
+      "path": "source-pins.json",
+      "bytes": 19384,
+      "sha256": "9107984655c5befcac33fb74b3d824e14c6e05fd9eb70001a5c7968f82f1bc0f"
+    },
+    {
+      "path": "sparse-setup-preflight.log",
+      "bytes": 42772,
+      "sha256": "355dbd67bf65758ac820a770d933dad5e6cec40d6a9e3661bbb4392d7d8ed773"
+    }
+  ]
+}

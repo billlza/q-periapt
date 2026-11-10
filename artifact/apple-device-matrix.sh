@@ -18,6 +18,15 @@ need date
 need python3
 need xcrun
 
+CAPTURE_PROFILE=${QPERIAPT_APPLE_CAPTURE_PROFILE:-legacy}
+case "$CAPTURE_PROFILE" in
+	legacy | sdk-020) ;;
+	*)
+		printf 'error: QPERIAPT_APPLE_CAPTURE_PROFILE must be legacy or sdk-020\n' >&2
+		exit 2
+		;;
+esac
+export QPERIAPT_APPLE_CAPTURE_PROFILE="$CAPTURE_PROFILE"
 MATRIX_SPEC=${QPERIAPT_IOS_DEVICE_MATRIX:-}
 DEVICE_PROOF_MAX_AGE_SECONDS=${QPERIAPT_DEVICE_PROOF_MAX_AGE_SECONDS:-86400}
 ALLOW_DIRTY_APPLE_DEVICE=${QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE:-0}
@@ -82,63 +91,45 @@ if not 0 < max_age <= limit:
 PY
 
 if [ -z "$MATRIX_SPEC" ]; then
-	MATRIX_SPEC=$(xcrun devicectl list devices --json-output - 2>/dev/null | PYTHONPATH=artifact python3 -c '
-import sys
-from evidence_io import parse_strict_json_bytes
-
-raw = sys.stdin.buffer.read(8 * 1024 * 1024 + 1)
-if len(raw) > 8 * 1024 * 1024:
-    raise SystemExit("error: devicectl device list JSON exceeds 8 MiB")
-data = parse_strict_json_bytes(raw, label="devicectl device list")
-if not isinstance(data, dict):
-    raise SystemExit("error: devicectl device list root is not an object")
-matches = {"ipad": [], "iphone": []}
-expected_transport = {"ipad": "wired", "iphone": "localNetwork"}
-for dev in data.get("result", {}).get("devices", []):
-    props = dev.get("properties", {})
-    hardware = props.get("hardware", {})
-    state = props.get("state", {})
-    connection = props.get("connection", {})
-    if hardware.get("platform") != "iOS" or hardware.get("reality") != "physical":
-        continue
-    if state.get("bootState") != "booted" or connection.get("state") != "connected":
-        continue
-    udid = hardware.get("udid")
-    if hardware.get("deviceType") == "iPad" and connection.get("transportType") == expected_transport["ipad"] and udid:
-        matches["ipad"].append(udid)
-    if hardware.get("deviceType") == "iPhone" and connection.get("transportType") == expected_transport["iphone"] and udid:
-        matches["iphone"].append(udid)
-if len(matches["ipad"]) != 1 or len(matches["iphone"]) != 1:
-    missing = [label for label, values in matches.items() if len(values) != 1]
-    raise SystemExit("error: auto-detect requires exactly one connected wired physical iPad and one connected localNetwork physical iPhone; set QPERIAPT_IOS_DEVICE_MATRIX explicitly. missing_or_ambiguous=" + ",".join(missing))
-print("ipad:{},iphone:{}".format(matches["ipad"][0], matches["iphone"][0]))
-')
+	printf 'error: QPERIAPT_IOS_DEVICE_MATRIX is required; automatic device selection is forbidden for the physical matrix lane\n' >&2
+	exit 2
 fi
 
-mkdir -p "$MATRIX_RESULT_DIR" "$DERIVED_BASE"
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
+	for attempt_path in "$MATRIX_RESULT_DIR" "$DERIVED_BASE"; do
+		if [ -e "$attempt_path" ] || [ -L "$attempt_path" ]; then
+			printf 'error: SDK matrix capture requires a fresh directory: %s\n' "$attempt_path" >&2
+			exit 2
+		fi
+	done
+	mkdir -p "$(dirname "$MATRIX_RESULT_DIR")" "$(dirname "$DERIVED_BASE")"
+	mkdir "$MATRIX_RESULT_DIR" "$DERIVED_BASE"
+else
+	mkdir -p "$MATRIX_RESULT_DIR" "$DERIVED_BASE"
+fi
 chmod 700 "$MATRIX_RESULT_DIR" "$DERIVED_BASE"
 
-PYTHONPATH=artifact python3 - "$MATRIX_SPEC" <<'PY'
+PYTHONPATH=artifact python3 - "$MATRIX_SPEC" "$CAPTURE_PROFILE" <<'PY'
 import re
-import subprocess
 import sys
 
-from evidence_io import parse_strict_json_bytes
+from apple_device_proof import load_device_metadata, matrix_transports
 
 matrix_spec = sys.argv[1]
 label_to_type = {"ipad": "iPad", "iphone": "iPhone"}
-label_to_transport = {"ipad": "wired", "iphone": "localNetwork"}
+capture_profile = sys.argv[2]
+label_to_transport = matrix_transports(capture_profile)
 entries = []
 seen_labels = set()
 seen_ids = set()
 for raw in matrix_spec.split(","):
     if ":" not in raw:
-        raise SystemExit(f"error: QPERIAPT_IOS_DEVICE_MATRIX entries must be label:device-id, got: {raw}")
+        raise SystemExit("error: QPERIAPT_IOS_DEVICE_MATRIX entries must be label:device-id")
     label, device_id = raw.split(":", 1)
     if label not in label_to_type:
         raise SystemExit(f"error: unsupported matrix label: {label}")
     if not re.fullmatch(r"[A-Za-z0-9-]{8,128}", device_id):
-        raise SystemExit(f"error: invalid matrix device id for {label}: {device_id}")
+        raise SystemExit(f"error: invalid matrix device id for {label}")
     if label in seen_labels:
         raise SystemExit(f"error: duplicate matrix label: {label}")
     if device_id in seen_ids:
@@ -151,40 +142,13 @@ if missing_labels:
     raise SystemExit(f"error: matrix missing required labels: {sorted(missing_labels)}")
 seen_types = set()
 for label, device_id, expected_type in entries:
-    raw_json = subprocess.check_output(
-        ["xcrun", "devicectl", "device", "info", "details", "--device", device_id, "--json-output", "-"],
-        stderr=subprocess.DEVNULL,
+    metadata = load_device_metadata(
+        device_id,
+        expected_type,
+        label_to_transport[label],
+        capture_profile,
     )
-    if len(raw_json) > 8 * 1024 * 1024:
-        raise SystemExit(f"error: devicectl detail JSON exceeds 8 MiB for {label}")
-    document = parse_strict_json_bytes(raw_json, label=f"devicectl detail for {label}")
-    if not isinstance(document, dict):
-        raise SystemExit(f"error: devicectl detail root is not an object for {label}")
-    result = document.get("result", {})
-    props = result.get("properties", {})
-    hardware = props.get("hardware", {})
-    state = props.get("state", {})
-    connection = props.get("connection", {})
-    if hardware.get("udid") != device_id:
-        raise SystemExit(f"error: devicectl returned the wrong device for {label}")
-    actual_type = hardware.get("deviceType")
-    if hardware.get("platform") != "iOS" or hardware.get("reality") != "physical":
-        raise SystemExit(f"error: matrix device {label} is not a physical iOS device")
-    if actual_type != expected_type:
-        raise SystemExit(f"error: matrix label {label} expected {expected_type}, got {actual_type}")
-    if state.get("bootState") != "booted" or connection.get("state") != "connected" or connection.get("pairingState") != "paired":
-        raise SystemExit(
-            f"error: matrix device {label} must be booted/connected/paired; "
-            f"boot={state.get('bootState')} connection={connection.get('state')} "
-            f"pairing={connection.get('pairingState')} transport={connection.get('transportType')}; "
-            "devicectl available/paired but disconnected devices are not accepted as runnable proof"
-        )
-    if connection.get("transportType") != label_to_transport[label]:
-        raise SystemExit(
-            f"error: matrix device {label} must use {label_to_transport[label]} transport, "
-            f"got {connection.get('transportType')}"
-        )
-    seen_types.add(actual_type)
+    seen_types.add(metadata["type"])
 if seen_types != {"iPad", "iPhone"}:
     raise SystemExit(f"error: matrix must contain iPad and iPhone, got: {sorted(seen_types)}")
 PY
@@ -217,12 +181,19 @@ for raw_entry in $MATRIX_SPEC; do
 	label=${raw_entry%%:*}
 	device_id=${raw_entry#*:}
 	if [ "$label" = "$raw_entry" ] || [ -z "$label" ] || [ -z "$device_id" ]; then
-		printf 'error: QPERIAPT_IOS_DEVICE_MATRIX entries must be label:device-id, got: %s\n' "$raw_entry" >&2
+		printf 'error: QPERIAPT_IOS_DEVICE_MATRIX entries must be label:device-id\n' >&2
 		exit 2
 	fi
 	case "$label" in
 		ipad) expected_type=iPad; expected_transport=wired ;;
-		iphone) expected_type=iPhone; expected_transport=localNetwork ;;
+		iphone)
+			expected_type=iPhone
+			if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
+				expected_transport=wired
+			else
+				expected_transport=localNetwork
+			fi
+			;;
 		*)
 			printf 'error: unsupported matrix label: %s (expected ipad or iphone)\n' "$label" >&2
 			exit 2
@@ -245,9 +216,12 @@ for raw_entry in $MATRIX_SPEC; do
 
 	device_result_dir="$MATRIX_RESULT_DIR/$label"
 	device_derived="$DERIVED_BASE/$label"
-	mkdir -p "$device_result_dir"
+	if [ "$CAPTURE_PROFILE" = "legacy" ]; then
+		mkdir -p "$device_result_dir"
+	fi
 	printf '\n=== Matrix device: %s (%s) ===\n' "$label" "$expected_type"
 	python3 artifact/apple_device_proof.py inspect-device \
+		--capture-profile "$CAPTURE_PROFILE" \
 		--device-id "$device_id" \
 		--expected-device-type "$expected_type" \
 		--expected-transport "$expected_transport" >/dev/null
@@ -281,6 +255,7 @@ esac
 
 if [ "$ALLOW_DIRTY_APPLE_DEVICE" = "1" ]; then
 	python3 artifact/apple_device_proof.py emit-matrix \
+		--capture-profile "$CAPTURE_PROFILE" \
 		--root "$ROOT" \
 		--matrix-root "$MATRIX_RESULT_DIR" \
 		--output "$MATRIX_PROOF" \
@@ -288,6 +263,7 @@ if [ "$ALLOW_DIRTY_APPLE_DEVICE" = "1" ]; then
 		--allow-dirty-proof \
 		"$@"
 	python3 artifact/apple_device_proof.py verify-matrix \
+		--capture-profile "$CAPTURE_PROFILE" \
 		--root "$ROOT" \
 		--matrix-root "$MATRIX_RESULT_DIR" \
 		--matrix-proof "$MATRIX_PROOF" \
@@ -295,16 +271,18 @@ if [ "$ALLOW_DIRTY_APPLE_DEVICE" = "1" ]; then
 		--allow-dirty-proof
 else
 	python3 artifact/apple_device_proof.py emit-matrix \
+		--capture-profile "$CAPTURE_PROFILE" \
 		--root "$ROOT" \
 		--matrix-root "$MATRIX_RESULT_DIR" \
 		--output "$MATRIX_PROOF" \
 		--max-age-seconds "$DEVICE_PROOF_MAX_AGE_SECONDS" \
 		"$@"
 	python3 artifact/apple_device_proof.py verify-matrix \
+		--capture-profile "$CAPTURE_PROFILE" \
 		--root "$ROOT" \
 		--matrix-root "$MATRIX_RESULT_DIR" \
 		--matrix-proof "$MATRIX_PROOF" \
 		--max-age-seconds "$DEVICE_PROOF_MAX_AGE_SECONDS"
 fi
 
-printf '\nALL PASS: wired physical iPad + localNetwork physical iPhone Apple-device matrix smoke\n'
+printf '\nALL PASS: physical iPad + iPhone Apple-device matrix smoke profile=%s\n' "$CAPTURE_PROFILE"

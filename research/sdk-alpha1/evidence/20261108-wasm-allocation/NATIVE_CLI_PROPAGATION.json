@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "completed": true,
+  "scope": "CodeQL 2.27.2 native high-level argument propagation and interpretation on a synthetic one-file TRAP fixture.",
+  "repository_extraction_qualification": false,
+  "repository_performance_measurement": false,
+  "profile": "native",
+  "arguments": [
+    "--ram=14000",
+    "--off-heap-ram=9329"
+  ],
+  "memory_receipt": {
+    "codeql_version": "2.27.2",
+    "heap_mb": 3584,
+    "off_heap_ram_mb": 9329,
+    "profile": "native",
+    "remaining_budget_mb": 1087,
+    "requested_ram_mb": 14000,
+    "resolved_arguments": [
+      "-J-Xmx3584M",
+      "--off-heap-ram=9329"
+    ],
+    "schema": 1
+  },
+  "actual_evaluator_memory": [
+    "-J-Xmx3584M",
+    "--off-heap-ram=9329"
+  ],
+  "actual_evaluator_launch": "[2026-11-09 08:41:51] This is codeql execute queries -J-Xmx3584M --off-heap-ram=9329 --verbosity=progress --logdir=/workspace/scratch/084f6c1d017a/next-ci/native-allocation/cli-native/database/log --common-caches=/workspace/scratch/084f6c1d017a/next-ci/native-allocation/cli-native/cache --evaluator-log-level=5 --threads=4 --threat-model=local --warnings=show --qlconfig-file=/workspace/scratch/084f6c1d017a/qperiapt-ci-followup/qlconfig.yml --dynamic-join-order-mode=none --no-rerun --interpret-passthrough=14000,--format=sarif-latest,-o=/workspace/scratch/084f6c1d017a/next-ci/native-allocation/cli-native/results.sarif,--max-paths=4,--csv-location-format=line-column,--sarif-category=/language:rust,--print-diagnostics-summary,--print-metrics-summary,--threads=4,--qlconfig-file=/workspace/scratch/084f6c1d017a/qperiapt-ci-followup/qlconfig.yml,--,/workspace/scratch/084f6c1d017a/next-ci/native-allocation/cli-native/database,/workspace/scratch/084f6c1d017a/ci-memory/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/codeql-suites/rust-security-extended.qls --output=/workspace/scratch/084f6c1d017a/next-ci/native-allocation/cli-native/database/results -- /workspace/scratch/084f6c1d017a/next-ci/native-allocation/cli-native/database/db-rust /workspace/scratch/084f6c1d017a/ci-memory/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/codeql-suites/rust-security-extended.qls",
+  "source_profile_sha256": "1067b022bb36d110e33a2bee4b275f16bb824fcd9c6aba61e179443a49d6b135",
+  "probe_script_sha256": "0de2584c8a071c836bbb70767d2b98487b96f6c7296a30a87a04f69a2851e204",
+  "codeql_launcher_sha256": "5010324098d11f9e2d34e0fcf53bb44e40e8e3ffc8aecefe695269b54edaa413",
+  "query_manifest_sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b",
+  "fixture_metadata_sha256": "e61334f7d2e2e58f7526dbfa903402b16134e663433420fe83a8273a8da39976",
+  "query_count": 39,
+  "query_result_sha256": {
+    "queries/diagnostics/AstConsistencyCounts.ql": "f37d00cbe5c59f5eb0ad0ae9d7f1335f536ddca3cd6bd8202c5b70ca16c894d2",
+    "queries/diagnostics/CfgConsistencyCounts.ql": "32cbd84e82a7200bf65865a2a9d12f5f277ea5c209d9092b24d39716cdc12692",
+    "queries/diagnostics/DataFlowConsistencyCounts.ql": "7c345ff518558f5dc9d14b53b1d0cd582e88765c9cba5d9d78ca5b18c72f4605",
+    "queries/diagnostics/ExtractedFiles.ql": "a167089b6d20ebf8eb2cc69b9a480c4f3a675f983034fadb3bd377194686cf38",
+    "queries/diagnostics/ExtractionErrors.ql": "b50e546655a40d574624b371460f0e7edb9ec73ab13fce04e43e55d7c9aa2343",
+    "queries/diagnostics/ExtractionWarnings.ql": "40dfb68f38971e254a416f1e02868226dc3665f32d328b98f846dbcb22b79c99",
+    "queries/diagnostics/SsaConsistencyCounts.ql": "c2365c20211ea1f30c9c28ccc953a9875ee11acf9f74237206eb66fa30382c11",
+    "queries/diagnostics/TypeInferenceConsistencyCounts.ql": "768fa0d90bef443cfe44b3aac39e645ffc5f7b8f09a3f100cf459e8f71b226c9",
+    "queries/diagnostics/UnextractedElements.ql": "d97b9e44f67bc50c544c7c38f410f87e3b914fd3fd19fec15c9fab8afdb361ae",
+    "queries/diagnostics/UnresolvedMacroCalls.ql": "01127f37ddd84dcee6b7bd0456216aa7fbd53ac5e2ecbd6eb21b260048991d0e",
+    "queries/security/CWE-020/RegexInjection.ql": "61a3f5dfa467b9bcb2a1c0f704dd619f613ccf5b7b16587d759adc740e353254",
+    "queries/security/CWE-022/TaintedPath.ql": "aac1c4468f3dfe99c0d5ae9d190ba08c0267d0254ded0c71f12891e54a080aef",
+    "queries/security/CWE-078/CommandInjection.ql": "4bb4e3e1e1f2161b32dabeca492292c84a91af30db46d690a8ee066cebc2d179",
+    "queries/security/CWE-079/XSS.ql": "8511bdfadc7576ec75055a5511bd1d6364991657926f30e493f42913f78ac371",
+    "queries/security/CWE-089/SqlInjection.ql": "e190c9a930ae1bda9bd1aa0fbc6d727b2de00f14da0299ae425b7bc0e0804cb5",
+    "queries/security/CWE-117/LogInjection.ql": "e1d19b65faf7d72d6a834df0f52aa1210857ecacf0b419c0f7eeb8a71ba43bc4",
+    "queries/security/CWE-295/DisabledCertificateCheck.ql": "85d8230e2632d10d5b39ba3e59d3cb8b52439a909566b7e003f07a2a3828511a",
+    "queries/security/CWE-311/CleartextTransmission.ql": "997157eb722c2a1e2c94670b3263f1bb7cefbe872cf9417ab1289978cc02b760",
+    "queries/security/CWE-312/CleartextLogging.ql": "af5d56d6cedc906f1bd3a122ccd949f7c27ca4e411f3af27aba3a309affacd0a",
+    "queries/security/CWE-312/CleartextStorageDatabase.ql": "7817f30f1465d02b2f88593352bec127e32a32bd63541d686f09accf2926f9a1",
+    "queries/security/CWE-319/UseOfHttp.ql": "b4dee1b08e6dca10ed03b6555a1dfe0966a29bad148c5c721fab62c5bea39f18",
+    "queries/security/CWE-327/BrokenCryptoAlgorithm.ql": "e5395448e1856f82266faaae9af9418a5a0c04f6e81e27c4fa0f4547c5ddf317",
+    "queries/security/CWE-327/WeakSensitiveDataHashing.ql": "9d83cbe4b23f6045abc58a669e52a3318c882b3da9ef31954b69829b61c78ce5",
+    "queries/security/CWE-614/InsecureCookie.ql": "61875c13a9b11a9c413023d6f8cea3109cc928d0b19bd7211db785cb8ffe7772",
+    "queries/security/CWE-770/UncontrolledAllocationSize.ql": "a1a87c31c549a094441b397ccf58a3787594365e7449e929e7254625e6f4bde8",
+    "queries/security/CWE-798/HardcodedCryptographicValue.ql": "400b77482494da5350c83a7d40c9cb62fb2f7e7d19340cf9f13add3eb242bed2",
+    "queries/security/CWE-825/AccessAfterLifetime.ql": "a9f2cdc53027c30abb90d1567bc5f2546486368994b9977bf0afd6ed9ca8c703",
+    "queries/security/CWE-825/AccessInvalidPointer.ql": "a6906987181d1fe22b2cbed7fe81a35f9ee11c6ae4e468e942a73e3ec2c95c0e",
+    "queries/security/CWE-918/RequestForgery.ql": "79c50af3fc5fa44d5ecaf09420e212c2395a611c21bde1984d05b092e3f72814",
+    "queries/summary/LinesOfCode.ql": "117801b9537109287f64d407f740e256f5b96c617642218e7db5fe6631989777",
+    "queries/summary/LinesOfUserCode.ql": "30bb477a616292f5fbb6527b1946af3ac0a1e4803dd9e71af92ed6816c76c6ae",
+    "queries/summary/NodesWithTypeAtLengthLimit.ql": "5274af8fdf10969779874239e5ee24e42515f4e9edb1e222a5ba62373810a6b8",
+    "queries/summary/NumberOfFilesExtractedWithErrors.ql": "f0da1ef509773a57880e35c970b9e9ac22887b8dea25b6e6952f743dd703cdbb",
+    "queries/summary/NumberOfSuccessfullyExtractedFiles.ql": "68f6632b8ed0356a089ea75593ff08a7433d5009b0c94d3d217080bea7070561",
+    "queries/summary/QuerySinkCounts.ql": "e31166d5b64f419af156d842bf4203eaf459677e9d0a01ba1728756a0ba142c1",
+    "queries/summary/SummaryStats.ql": "4524aa94c7f29c911fc306b52bd7fe1ae98a7e2a46809438f9a95c0e6fb3774b",
+    "queries/summary/SummaryStatsReduced.ql": "e1961657998815270efc453d20eeed6f17428ba0c0c04d78d4c9817abaaca520",
+    "queries/telemetry/DatabaseQualityDiagnostics.ql": "ec4acb644a706e536cd72f8cc29ea2d37d98c8e8eeb9c7cba751c5853147410f",
+    "queries/telemetry/ExtractorInformation.ql": "96462d6360b128f7fe3e86dd7f9508a337badaf178228b9a226d5b3c64be5c80"
+  },
+  "sarif_automation_details": {
+    "id": "/language:rust/"
+  },
+  "sarif_sha256": "79ad1363615a2f430882f840d09d4c582df83cd754b71808bebecb4694b2e270",
+  "analysis": {
+    "argv": [
+      "/workspace/scratch/084f6c1d017a/ci-memory/tool/codeql/codeql",
+      "database",
+      "analyze",
+      "/workspace/scratch/084f6c1d017a/next-ci/native-allocation/cli-native/database",
+      "/workspace/scratch/084f6c1d017a/ci-memory/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/codeql-suites/rust-security-extended.qls",
+      "--format=sarif-latest",
+      "--output=/workspace/scratch/084f6c1d017a/next-ci/native-allocation/cli-native/results.sarif",
+      "--threads=4",
+      "--ram=14000",
+      "--off-heap-ram=9329",
+      "--threat-model=local",
+      "--no-download",
+      "--common-caches=/workspace/scratch/084f6c1d017a/next-ci/native-allocation/cli-native/cache",
+      "--sarif-category=/language:rust"
+    ],
+    "cwd": "/workspace/scratch/084f6c1d017a/qperiapt-ci-followup",
+    "elapsed_seconds": 9.198037381000177,
+    "maximum_seconds": 120,
+    "returncode": 0
+  }
+}

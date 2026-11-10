@@ -1,0 +1,66 @@
+{
+  "archive_sha256": "d9c06b80f8414d240d92db174c6273945848554a38bc17b91e7a2913e479df85",
+  "members": 59,
+  "expanded_bytes": 2529476,
+  "all_members_byte_equal": true,
+  "full_tree_readback": {
+    "output_sha256": "8dfd3d7f906a562d642bdbe0d1510ba03df53d9310baafb43dab9c7e44a66069",
+    "input_sha256": "e26fe0650afe0e858bd0df6abf96de142532c0928d6854115e85769e5cd1d878",
+    "elapsed_seconds": 304.2945959589997,
+    "tamarin_exit": 0,
+    "driver_expected_exit": 1,
+    "accepted": false,
+    "origin_status": {
+      "mode": "all-traces",
+      "status": "analysis incomplete",
+      "steps": 382
+    },
+    "main_open_leaves": 42,
+    "snapshot_children_open": {
+      "Final_Commit_8": 4,
+      "Final_Reservation_7": 5,
+      "Key_Reservation_1": 0,
+      "Offer_Commit_3": 6,
+      "Offer_Signing_2": 0,
+      "Receipt_Accept_0": 3,
+      "Receipt_Commit_0": 3,
+      "Receipt_Reservation_9": 5,
+      "Response_Commit_6": 8,
+      "Response_Compute_5": 8,
+      "Response_Reservation_4": 0
+    },
+    "closed_sources": 17,
+    "source_cases": 18,
+    "closed_stored_children": [
+      "Key_Reservation_1",
+      "Offer_Signing_2",
+      "Response_Reservation_4"
+    ],
+    "other_seventeen_source_cases_byte_equal": true,
+    "all_five_unselected_full_subtrees_restored_and_rechecked_byte_equal": true,
+    "closed_three_stored_subtrees_byte_equal": true,
+    "all_29_formula_mode_attributes_identical": true,
+    "operational_prefix_sha256": "3cb837646fa2097468d1fad0a10433f50d5c31b6be5553f20085170c3eef0266",
+    "auxiliary_alltrace_verified": [
+      "application_counter_has_public_constructor",
+      "first_responder_ready_event_is_unique",
+      "generation_and_encapsulation_secrets_are_distinct",
+      "generation_and_session_identifiers_are_distinct",
+      "generation_and_signing_secrets_are_distinct",
+      "phase_position_event_is_unique",
+      "produced_counter_has_public_constructor",
+      "produced_send_root_is_initial_or_hashed",
+      "produced_state_role_and_epoch_have_public_constructors",
+      "ready_epoch_and_parent_have_public_constructors",
+      "ready_parent_has_tagged_epoch_origin",
+      "ready_root_is_initial_or_hashed",
+      "reservations_inherit_locally_confirmed_root",
+      "signed_wire_scope_has_session_and_parent_origin"
+    ],
+    "initial_traffic_witness_steps": 414,
+    "maximum_remaining_open_prefix": 11,
+    "full_multi_epoch_secrecy_and_reachability": "open",
+    "release_claim_eligible": false
+  },
+  "release_claim_eligible": false
+}
