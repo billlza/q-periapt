@@ -13,13 +13,433 @@ from unittest import mock
 import evidence_io
 from evidence_io import (
     EvidenceIOError,
+    OwnedFileDescriptorLease,
+    consume_regular_snapshot,
     load_json_object_snapshot,
+    load_json_object_snapshot_at,
     parse_strict_json_bytes,
     read_regular_snapshot,
 )
 
 
+class FreshOutputDirectoryTests(unittest.TestCase):
+    def test_missing_child_error_does_not_hide_an_invalid_existing_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            (root / "file").write_bytes(b"not a directory")
+            (root / "loop").symlink_to(root / "loop", target_is_directory=True)
+            real_lstat = pathlib.Path.lstat
+            for parent in (root / "file", root / "loop"):
+                selected = parent / "new"
+
+                def missing_child(path, *args, **kwargs):
+                    if path == selected:
+                        # These native Windows failures can appear as absence;
+                        # the existing parent's metadata remains real filesystem I/O.
+                        raise FileNotFoundError("reported missing child")
+                    return real_lstat(path, *args, **kwargs)
+
+                with self.subTest(parent=parent), mock.patch.object(pathlib.Path, "lstat", missing_child):
+                    with self.assertRaisesRegex(EvidenceIOError, "cannot resolve"):
+                        evidence_io.fresh_output_directory(selected, within=root, label="fixture output")
+            self.assertEqual((root / "file").read_bytes(), b"not a directory")
+            self.assertEqual({p.name for p in root.iterdir()}, {"file", "loop"})
+
+    def test_resolved_destination_is_used_for_actual_exclusive_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            target = root / "target"
+            (target / "parent").mkdir(parents=True)
+            selected = evidence_io.fresh_output_directory(
+                target / "parent/../new", within=target, label="fixture output"
+            )
+            self.assertEqual(selected, target / "new")
+            self.assertFalse(selected.exists())
+            selected.mkdir()
+            with (selected / "marker").open("xb") as output:
+                output.write(b"inside the admitted tree")
+            self.assertEqual((target / "new/marker").read_bytes(), b"inside the admitted tree")
+            with self.assertRaisesRegex(EvidenceIOError, "must be fresh"):
+                evidence_io.fresh_output_directory(selected, within=target, label="fixture output")
+
+    def test_boundary_aliases_and_symlink_loops_fail_without_creating_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            real = root / "real"
+            real.mkdir()
+            alias = root / "target"
+            alias.symlink_to(real, target_is_directory=True)
+            with self.assertRaisesRegex(EvidenceIOError, "boundary must be canonical"):
+                evidence_io.fresh_output_directory(alias / "new", within=alias, label="fixture output")
+            (real / "loop").symlink_to(real / "loop", target_is_directory=True)
+            with self.assertRaisesRegex(EvidenceIOError, "cannot resolve"):
+                evidence_io.fresh_output_directory(real / "loop/new", within=real, label="fixture output")
+            (real / "file").write_bytes(b"not a directory")
+            with self.assertRaisesRegex(EvidenceIOError, "cannot resolve"):
+                evidence_io.fresh_output_directory(real / "file/new", within=real, label="fixture output")
+            self.assertEqual({p.name for p in real.iterdir()}, {"loop", "file"})
+
+
 class EvidenceIOTests(unittest.TestCase):
+    def test_owned_descriptor_pre_effect_interrupt_is_not_retried(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "held.bin"
+            descriptor = os.open(
+                path,
+                os.O_RDWR | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+            lease = OwnedFileDescriptorLease.acquire(
+                descriptor,
+                label="pre-effect fixture",
+            )
+            real_close = os.close
+            close_calls = 0
+
+            def interrupt_before_effect(_target: int) -> None:
+                nonlocal close_calls
+                close_calls += 1
+                raise KeyboardInterrupt("injected pre-effect close interruption")
+
+            try:
+                with (
+                    mock.patch.object(
+                        evidence_io.os,
+                        "close",
+                        side_effect=interrupt_before_effect,
+                    ),
+                    self.assertRaises(KeyboardInterrupt) as raised,
+                ):
+                    lease.close()
+                self.assertEqual(1, close_calls)
+                self.assertEqual("unknown", lease.status)
+                self.assertEqual(-1, lease.descriptor)
+                self.assertIn(
+                    "descriptor close effect is unknown for pre-effect fixture",
+                    getattr(raised.exception, "__notes__", ()),
+                )
+                os.fstat(descriptor)
+            finally:
+                real_close(descriptor)
+
+    def test_owned_descriptor_return_interrupt_is_not_retried(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "held.bin"
+            descriptor = os.open(
+                path,
+                os.O_RDWR | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+            lease = OwnedFileDescriptorLease.acquire(
+                descriptor,
+                label="return-interrupt fixture",
+            )
+            real_close = os.close
+            close_calls = 0
+
+            def close_then_interrupt(target: int) -> None:
+                nonlocal close_calls
+                close_calls += 1
+                real_close(target)
+                raise KeyboardInterrupt("injected post-effect close interruption")
+
+            with (
+                mock.patch.object(
+                    evidence_io.os,
+                    "close",
+                    side_effect=close_then_interrupt,
+                ),
+                self.assertRaises(KeyboardInterrupt),
+            ):
+                lease.close()
+            self.assertEqual(1, close_calls)
+            self.assertEqual("unknown", lease.status)
+            self.assertEqual(-1, lease.descriptor)
+            with self.assertRaises(OSError):
+                os.fstat(descriptor)
+
+    def test_owned_descriptor_same_inode_aba_is_not_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "held.bin"
+            descriptor = os.open(
+                path,
+                os.O_RDWR | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+            replacement = os.open(path, os.O_RDWR)
+            replacement_metadata = os.fstat(replacement)
+            lease = OwnedFileDescriptorLease.acquire(
+                descriptor,
+                label="same-inode ABA fixture",
+            )
+            real_close = os.close
+            close_calls = 0
+
+            def close_and_reuse_same_inode(target: int) -> None:
+                nonlocal close_calls
+                close_calls += 1
+                real_close(target)
+                os.dup2(replacement, target)
+                raise KeyboardInterrupt("injected same-inode descriptor reuse")
+
+            try:
+                with (
+                    mock.patch.object(
+                        evidence_io.os,
+                        "close",
+                        side_effect=close_and_reuse_same_inode,
+                    ),
+                    self.assertRaises(KeyboardInterrupt),
+                ):
+                    lease.close()
+                self.assertEqual(1, close_calls)
+                self.assertEqual("unknown", lease.status)
+                self.assertEqual(-1, lease.descriptor)
+                reused_metadata = os.fstat(descriptor)
+                self.assertEqual(replacement_metadata.st_dev, reused_metadata.st_dev)
+                self.assertEqual(replacement_metadata.st_ino, reused_metadata.st_ino)
+            finally:
+                real_close(descriptor)
+                real_close(replacement)
+
+    @unittest.skipUnless(os.name == "posix", "dirfd opening requires POSIX")
+    def test_path_walk_same_inode_aba_is_not_closed_twice(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "nested" / "proof.bin"
+            path.parent.mkdir()
+            path.write_bytes(b"proof")
+            replacement = os.open(
+                pathlib.Path(path.anchor),
+                os.O_RDONLY | os.O_DIRECTORY,
+            )
+            replacement_metadata = os.fstat(replacement)
+            real_close = os.close
+            reused_descriptor: int | None = None
+            close_calls = 0
+
+            def close_and_reuse_root(target: int) -> None:
+                nonlocal close_calls, reused_descriptor
+                close_calls += 1
+                if reused_descriptor is None:
+                    real_close(target)
+                    os.dup2(replacement, target)
+                    reused_descriptor = target
+                    raise KeyboardInterrupt(
+                        "injected path-walk descriptor reuse"
+                    )
+                real_close(target)
+
+            try:
+                with (
+                    mock.patch.object(
+                        evidence_io.os,
+                        "close",
+                        side_effect=close_and_reuse_root,
+                    ),
+                    self.assertRaises(KeyboardInterrupt),
+                ):
+                    evidence_io._open_regular_no_symlinks_posix(path)
+                self.assertEqual(2, close_calls)
+                self.assertIsNotNone(reused_descriptor)
+                assert reused_descriptor is not None
+                reused_metadata = os.fstat(reused_descriptor)
+                self.assertEqual(
+                    replacement_metadata.st_dev,
+                    reused_metadata.st_dev,
+                )
+                self.assertEqual(
+                    replacement_metadata.st_ino,
+                    reused_metadata.st_ino,
+                )
+            finally:
+                if reused_descriptor is not None:
+                    real_close(reused_descriptor)
+                real_close(replacement)
+
+    @unittest.skipUnless(os.name == "posix", "dirfd opening requires POSIX")
+    def test_posix_walker_opens_literal_root_then_relative_components(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "nested" / "proof.bin"
+            path.parent.mkdir()
+            path.write_bytes(b"proof")
+            real_open = os.open
+            supported = os.supports_dir_fd
+
+            with mock.patch.object(
+                evidence_io.os,
+                "open",
+                wraps=real_open,
+            ) as observed_open:
+                with mock.patch.object(
+                    evidence_io.os,
+                    "supports_dir_fd",
+                    supported | {observed_open},
+                ):
+                    snapshot = read_regular_snapshot(
+                        path,
+                        maximum=1024,
+                        label="literal-root fixture",
+                    )
+
+            self.assertEqual(b"proof", snapshot.data)
+            first = observed_open.call_args_list[0]
+            self.assertEqual("/", first.args[0])
+            self.assertNotIn("dir_fd", first.kwargs)
+            for component_open in observed_open.call_args_list[1:]:
+                self.assertIsInstance(component_open.args[0], str)
+                self.assertNotIn("/", component_open.args[0])
+                self.assertIn("dir_fd", component_open.kwargs)
+
+    @unittest.skipUnless(os.name == "posix", "dirfd opening requires POSIX")
+    def test_posix_walker_rejects_ambiguous_double_slash_root_before_io(self) -> None:
+        opened = mock.Mock()
+        with (
+            mock.patch.object(
+                evidence_io.os.path,
+                "abspath",
+                return_value="//tmp/proof.bin",
+            ),
+            mock.patch.object(evidence_io.os, "readlink") as readlink,
+            mock.patch.object(evidence_io.os, "open", opened),
+            mock.patch.object(
+                evidence_io.os,
+                "supports_dir_fd",
+                {opened},
+            ),
+            self.assertRaisesRegex(
+                EvidenceIOError,
+                "ambiguous POSIX root",
+            ),
+        ):
+            evidence_io._open_regular_no_symlinks_posix(
+                pathlib.Path("//tmp/proof.bin")
+            )
+        readlink.assert_not_called()
+        opened.assert_not_called()
+
+    @unittest.skipUnless(os.name == "posix", "dirfd opening requires POSIX")
+    def test_darwin_aliases_use_literal_paths_and_exact_targets(self) -> None:
+        cases = (
+            ("etc", "/etc", "private/etc"),
+            ("tmp", "/tmp", "/private/tmp"),
+            ("var", "/var", "private/var"),
+        )
+        for alias, alias_path, target in cases:
+            with self.subTest(alias=alias):
+                opened = mock.Mock(side_effect=range(100, 110))
+                with (
+                    mock.patch.object(evidence_io.sys, "platform", "darwin"),
+                    mock.patch.object(
+                        evidence_io.os,
+                        "readlink",
+                        return_value=target,
+                    ) as readlink,
+                    mock.patch.object(evidence_io.os, "open", opened),
+                    mock.patch.object(
+                        evidence_io.os,
+                        "supports_dir_fd",
+                        {opened},
+                    ),
+                    mock.patch.object(evidence_io.os, "close"),
+                ):
+                    descriptor = evidence_io._open_regular_no_symlinks_posix(
+                        pathlib.Path(f"/{alias}/nested/proof.bin")
+                    )
+
+                self.assertEqual(104, descriptor)
+                readlink.assert_called_once_with(alias_path)
+                self.assertEqual(
+                    ["/", "private", alias, "nested", "proof.bin"],
+                    [call.args[0] for call in opened.call_args_list],
+                )
+
+    @unittest.skipUnless(os.name == "posix", "dirfd opening requires POSIX")
+    def test_darwin_alias_wrong_target_and_readlink_error_do_not_rewrite(self) -> None:
+        for outcome in ("unexpected/tmp", OSError("injected readlink failure")):
+            with self.subTest(outcome=outcome):
+                opened = mock.Mock(side_effect=range(200, 210))
+                readlink = mock.Mock()
+                if isinstance(outcome, OSError):
+                    readlink.side_effect = outcome
+                else:
+                    readlink.return_value = outcome
+                with (
+                    mock.patch.object(evidence_io.sys, "platform", "darwin"),
+                    mock.patch.object(evidence_io.os, "readlink", readlink),
+                    mock.patch.object(evidence_io.os, "open", opened),
+                    mock.patch.object(
+                        evidence_io.os,
+                        "supports_dir_fd",
+                        {opened},
+                    ),
+                    mock.patch.object(evidence_io.os, "close"),
+                ):
+                    descriptor = evidence_io._open_regular_no_symlinks_posix(
+                        pathlib.Path("/tmp/nested/proof.bin")
+                    )
+
+                self.assertEqual(203, descriptor)
+                readlink.assert_called_once_with("/tmp")
+                self.assertEqual(
+                    ["/", "tmp", "nested", "proof.bin"],
+                    [call.args[0] for call in opened.call_args_list],
+                )
+
+    @unittest.skipUnless(os.name == "posix", "dirfd snapshots require POSIX")
+    def test_dirfd_json_snapshot_remains_bound_across_parent_rename(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            directory = root / "owned"
+            directory.mkdir()
+            proof = directory / "proof.json"
+            proof.write_text('{"value":"FIRST"}\n', encoding="utf-8")
+            directory_fd = os.open(
+                directory,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+            )
+            try:
+                moved = root / "moved"
+                directory.rename(moved)
+                directory.mkdir()
+                (directory / "proof.json").write_text(
+                    '{"value":"SECOND"}\n',
+                    encoding="utf-8",
+                )
+                snapshot = load_json_object_snapshot_at(
+                    directory_fd,
+                    "proof.json",
+                    display_path=proof,
+                    maximum=1024,
+                    label="dirfd proof",
+                )
+            finally:
+                os.close(directory_fd)
+            self.assertEqual(snapshot.value["value"], "FIRST")
+
+    def test_streaming_snapshot_consumes_and_hashes_one_descriptor(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "payload.bin"
+            data = b"streamed evidence" * 8192
+            path.write_bytes(data)
+            chunks: list[bytes] = []
+            snapshot = consume_regular_snapshot(
+                path,
+                maximum=len(data),
+                label="streamed evidence",
+                consume=chunks.append,
+            )
+            self.assertEqual(b"".join(chunks), data)
+            self.assertEqual(snapshot.size, len(data))
+            self.assertEqual(snapshot.sha256, hashlib.sha256(data).hexdigest())
+
+            with self.assertRaisesRegex(EvidenceIOError, "exceeds"):
+                consume_regular_snapshot(
+                    path,
+                    maximum=len(data) - 1,
+                    label="streamed evidence",
+                    consume=lambda _chunk: None,
+                )
+
     def test_snapshot_hash_and_parse_use_the_same_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = pathlib.Path(temporary) / "proof.json"

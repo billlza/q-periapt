@@ -1,0 +1,108 @@
+{
+  "apple_validation_tests": 10,
+  "captured_utc": "2026-11-05T02:53:44.429709+00:00",
+  "command_receipts": 35,
+  "completed": true,
+  "component_stream_limit_bytes": 16777216,
+  "component_timeout_seconds": 900,
+  "consumer": {
+    "ios": {
+      "executable_sha256": "75b389f5311166cea8db0138e9aaffaa34ccab4913269d83a079565b63ebaa19",
+      "linkage": {
+        "architecture": "arm64",
+        "link_map_sha256": "e0f4d40b3c7f8730733ff57a28aa48c6901768a00960c9bb04b4ebb5da9bb45f",
+        "linked_archive_objects": 233,
+        "status": "pass"
+      },
+      "selected_archive_sha256": "4c56c588039adde043f0b56dfefed690cb54e478885843974ea30f39240be4c2",
+      "target": "aarch64-apple-ios"
+    },
+    "macos": {
+      "executable_sha256": "fd4c317bfb4b13dc6f36d148792d7e2ac5b079a20f9bd500113e1d937f120f0c",
+      "linkage": {
+        "architecture": "arm64",
+        "link_map_sha256": "7957132752d4ea5e40bcb357eb77ea4fe82ec6f1abe2ff06cf14814ac3a9ece5",
+        "linked_archive_objects": 232,
+        "status": "pass"
+      },
+      "native_owner_probe": true,
+      "selected_archive_sha256": "414dfe7149e170190e392e01e057256e7e7be344cce39e865ae246a3d24e1ca9",
+      "target": "aarch64-apple-darwin"
+    },
+    "simulator": {
+      "executable_sha256": "bc77f65355797e6bfd534f3fbf100736064a5b18a115c6afbbd8821dcc83db38",
+      "linkage": {
+        "architecture": "arm64",
+        "link_map_sha256": "b71188167a784d0b1e6ee548b9ced14dcadeecd73a2963a9e8113c9855826cf5",
+        "linked_archive_objects": 233,
+        "status": "pass"
+      },
+      "selected_archive_sha256": "461dc420ead5c0badd2b273990c784ff7f88bf8053f2d15626860015916bfb3e",
+      "target": "aarch64-apple-ios-sim"
+    },
+    "simulator-x86_64": {
+      "executable_sha256": "d80757786bd437cb41226eb8200a0612b51749248bcee859b6d63bae6986ed04",
+      "linkage": {
+        "architecture": "x86_64",
+        "link_map_sha256": "6306c7f77a79e15d5f83048a93dce0f80b97f30a1d6ca69a32f00625dbb35b9e",
+        "linked_archive_objects": 230,
+        "status": "pass"
+      },
+      "selected_archive_sha256": "461dc420ead5c0badd2b273990c784ff7f88bf8053f2d15626860015916bfb3e",
+      "target": "x86_64-apple-ios"
+    }
+  },
+  "corrected_contract_tests": 2,
+  "foundation_source_unchanged": true,
+  "hosted_ci_claimed": false,
+  "intel_macos_in_scope": false,
+  "ios_runtime_claimed": false,
+  "macos_runtime": "arm64 installed public owner probe",
+  "old_contract_tests": "Two tests: one failure and one error on the retained three-target baseline.",
+  "original_toolchain_unchanged": true,
+  "package_archive": {
+    "bytes": 30419262,
+    "file": "QPeriaptContinuity-Apple-candidate.zip",
+    "sha256": "99bc45143c5039b2190b293a1d2982199ce0d797af97b51f4fa2be2e1dc0dc05"
+  },
+  "package_members_read_back": 905,
+  "parent_elapsed_seconds": 562.680901832995,
+  "parent_timeout_seconds": 9000,
+  "publication_performed": false,
+  "related_tests": 50,
+  "release_claim_eligible": false,
+  "sdk_producer_commit": "f560d803c43a24fff222daa5e5e5bd623bfdf874",
+  "sdk_report_sha256": "93fbef9dace1af6550a85095f6d2392285197a8fe589838f4d6f8447ba03c4f8",
+  "slices": {
+    "ios": {
+      "bytes": 20527696,
+      "sha256": "4c56c588039adde043f0b56dfefed690cb54e478885843974ea30f39240be4c2",
+      "targets": [
+        "aarch64-apple-ios"
+      ]
+    },
+    "macos": {
+      "bytes": 20458832,
+      "sha256": "414dfe7149e170190e392e01e057256e7e7be344cce39e865ae246a3d24e1ca9",
+      "targets": [
+        "aarch64-apple-darwin"
+      ]
+    },
+    "simulator": {
+      "bytes": 42565192,
+      "sha256": "461dc420ead5c0badd2b273990c784ff7f88bf8053f2d15626860015916bfb3e",
+      "targets": [
+        "aarch64-apple-ios-sim",
+        "x86_64-apple-ios"
+      ]
+    }
+  },
+  "source_commit": "e5ceec379c502333dcaea8d0ad4790556f40cc5e",
+  "source_inputs_unchanged": true,
+  "targets": [
+    "aarch64-apple-darwin",
+    "aarch64-apple-ios",
+    "aarch64-apple-ios-sim",
+    "x86_64-apple-ios"
+  ]
+}

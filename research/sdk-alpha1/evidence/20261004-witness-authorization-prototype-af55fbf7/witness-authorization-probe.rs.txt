@@ -1,0 +1,156 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Isolated persistent exact-authorization experiment. Policy renewal and native
+// operational release are not integrated. Store-only target heads are explicit.
+mod exact_authorization_probe {
+    use super::*;
+
+    fn observe(c: &mut Case, authority: [u8; 32], statement: [u8; 32], now: u64) -> AnchorReply {
+        let rq = request(c, AnchorOperation::admit_renewal(authority, statement).expect("exact expectation"));
+        let wire = c.store.handle(rq.as_bytes(), now).expect("fresh store observation");
+        c.pin.verify_reply(&rq, &wire).expect("fresh exact signed observation")
+    }
+    fn target(c: &Case, grant: &crate::VerifiedCredentialRenewal, head: AnchorHead, marker: u8) -> AnchorCredentialRenewalProposal {
+        let next = AnchorHead::from_trusted_state(head.fence(), head.revision() + 1, [marker; 32]).expect("next store-only head");
+        AnchorCredentialRenewalProposal::from_journal(c.pin.binding(), c.genesis.subject(),
+            grant.operation(), grant.statement_digest(), head, next).expect("exact proposal")
+    }
+    fn restart(c: &mut Case) {
+        c.store.close();
+        c.store = reopen(&c.server);
+    }
+    fn persisted(c: &mut Case) -> Option<[u8; 32]> {
+        c.store.image().expect("actual durable state").entries.get(&c.genesis.subject().id(&c.pin.binding()))
+            .expect("original subject").renewal_authorization
+    }
+
+    #[test]
+    fn exact_authorization_probe_survives_ack_closed_roster_heads_and_second_apply() {
+        let mut c = credential_case();
+        let first = credential_grant_first(&c);
+        let a = first.statement_digest();
+        let r1 = first.successor_device().authority_binding();
+        let p = proposal(&c, &first, 211);
+        assert_eq!(persisted(&mut c), None);
+        assert_eq!(observe(&mut c, r1, a, 170).outcome(), AnchorOutcome::AuthorityDenied);
+        assert_eq!(prepare(&mut c, p, &first, 170), State::Prepared);
+        assert_eq!(persisted(&mut c), None, "Prepare is not Applied");
+        // Commit reply is deliberately discarded; no successful client return is
+        // used as the persistence oracle. Reopen the same independent witness.
+        let commit = request(&c, AnchorOperation::commit_credential_renewal(&p));
+        c.store.handle(commit.as_bytes(), 170).expect("commit before discarded reply");
+        restart(&mut c);
+        assert_eq!(persisted(&mut c), Some(a));
+        assert_eq!(status(&mut c, &p, 170), State::Applied);
+        let fresh = observe(&mut c, r1, a, 170);
+        assert_eq!(fresh.outcome(), AnchorOutcome::AuthorityCurrent);
+        assert_eq!(fresh.observed_head(), p.target_head());
+        assert_eq!(observe(&mut c, r1, [219; 32], 170).outcome(), AnchorOutcome::AuthorityDenied);
+        assert_eq!(ack(&mut c, &p, 170), State::Acknowledged);
+        restart(&mut c);
+        assert_eq!(persisted(&mut c), Some(a));
+        assert_eq!(status(&mut c, &p, 170), State::Unavailable);
+
+        let advance = request(&c, AnchorOperation::advance(p.target_head(), [212; 32]).expect("ordinary write"));
+        let wire = c.store.handle(advance.as_bytes(), 170).expect("advance");
+        let head = c.pin.verify_reply(&advance, &wire).expect("signed advance").applied_head().expect("head");
+        let fence = request(&c, AnchorOperation::fence_writer(head).expect("writer fence"));
+        let wire = c.store.handle(fence.as_bytes(), 170).expect("fence");
+        let head = c.pin.verify_reply(&fence, &wire).expect("signed fence").applied_head().expect("head");
+        restart(&mut c);
+        let fresh = observe(&mut c, r1, a, 170);
+        assert_eq!(fresh.outcome(), AnchorOutcome::AuthorityCurrent);
+        assert_eq!(fresh.observed_head(), head);
+        assert_ne!(head, p.target_head(), "admission cannot require the old transition head forever");
+
+        let updated = renewed_device(first.successor_device(), 3, Validity::new(100, 195).expect("roster interval"));
+        c.store.update_roster_authority(c.genesis.subject(), first.successor_device().roster().checkpoint(),
+            &updated, c.peer.responder.policy(), 170).expect("same credential current roster");
+        restart(&mut c);
+        let r2 = updated.authority_binding();
+        assert_eq!(persisted(&mut c), Some(a));
+        assert_eq!(observe(&mut c, r1, a, 170).outcome(), AnchorOutcome::AuthorityDenied);
+        let fresh = observe(&mut c, r2, a, 170);
+        assert_eq!(fresh.outcome(), AnchorOutcome::AuthorityCurrent);
+        assert_eq!(fresh.observed_head(), head, "roster update has no journal head change");
+        assert_eq!(observe(&mut c, r2, [219; 32], 170).outcome(), AnchorOutcome::AuthorityDenied);
+
+        let closed = credential_grant(&c, &updated, 4, 190);
+        let q = target(&c, &closed, head, 213);
+        assert_eq!(prepare(&mut c, q, &closed, 170), State::Prepared);
+        assert_eq!(persisted(&mut c), Some(a));
+        assert_eq!(exchange(&mut c, &q, AnchorOperation::close_credential_renewal(&q), 170), State::Closed);
+        assert_eq!(ack(&mut c, &q, 170), State::Acknowledged);
+        restart(&mut c);
+        assert_eq!(persisted(&mut c), Some(a), "later Closed ACK cannot replace the Applied authorization");
+        let fresh = observe(&mut c, r2, a, 170);
+        assert_eq!(fresh.outcome(), AnchorOutcome::AuthorityCurrent);
+        assert_eq!(fresh.observed_head(), head);
+        assert_eq!(observe(&mut c, r2, closed.statement_digest(), 170).outcome(), AnchorOutcome::AuthorityDenied);
+        assert!(matches!(c.store.prepare_credential_renewal(q, &closed, c.peer.responder.policy(), 170),
+            Err(DurableError::Protocol(Error::Retired))));
+
+        let second = credential_grant(&c, &updated, 5, 195);
+        let second_p = target(&c, &second, head, 214);
+        assert_eq!(prepare(&mut c, second_p, &second, 170), State::Prepared);
+        assert_eq!(persisted(&mut c), Some(a));
+        assert_eq!(exchange(&mut c, &second_p, AnchorOperation::commit_credential_renewal(&second_p), 170), State::Applied);
+        assert_eq!(ack(&mut c, &second_p, 170), State::Acknowledged);
+        restart(&mut c);
+        let b = second.statement_digest();
+        let r3 = second.successor_device().authority_binding();
+        assert_eq!(persisted(&mut c), Some(b));
+        assert_eq!(observe(&mut c, r3, a, 170).outcome(), AnchorOutcome::AuthorityDenied);
+        assert_eq!(observe(&mut c, r2, b, 170).outcome(), AnchorOutcome::AuthorityDenied);
+        let fresh = observe(&mut c, r3, b, 170);
+        assert_eq!(fresh.outcome(), AnchorOutcome::AuthorityCurrent);
+        assert_eq!(fresh.observed_head(), second_p.target_head());
+        assert_eq!(observe(&mut c, r3, b, 195).outcome(), AnchorOutcome::AuthorityDenied);
+        assert_eq!(persisted(&mut c), Some(b), "expiry refuses use without erasing historical identity");
+        assert!(matches!(c.store.renew_credential_authority(c.genesis.subject(), &second,
+            second.operation(), c.peer.responder.policy(), 170), Err(DurableError::Suspended)));
+
+        // Authenticate a structurally valid legacy image without the new field.
+        // This is a codec control, not an automatic migration or host rollback.
+        let mut legacy_image = c.store.image().expect("image");
+        legacy_image.entries.get_mut(&c.genesis.subject().id(&c.pin.binding())).expect("entry").renewal_authorization = None;
+        let key = JournalKey::open(&c.server.join("wrapping")).expect("witness key");
+        let legacy_wire = encode(&key, &c.pin, &legacy_image).expect("legacy encoding");
+        assert_eq!(legacy_wire.get(..8), Some(b"QPANC003".as_slice()));
+        let decoded = decode(&key, &c.pin, &legacy_wire).expect("legacy decode");
+        assert_eq!(decoded.entries.get(&c.genesis.subject().id(&c.pin.binding())).expect("entry").renewal_authorization, None,
+            "legacy ACK/floor must not be interpreted as an exact authorization");
+        println!("PERSISTENT_AUTHORIZATION_RESULT discarded_commit_reply=true reopen=true ack_preserves=true advance_fence_preserve=true roster_combined_check=true later_closed_ack_preserves=true second_apply_replaces=true expiry_refuses=true legacy_does_not_infer=true operational_policy_renewal=false");
+    }
+
+    #[test]
+    fn exact_authorization_probe_wire_and_attempt_scope_have_no_legacy_alias() {
+        let mut c = credential_case();
+        let g = credential_grant_first(&c);
+        let authority = g.successor_device().authority_binding();
+        let statement = g.statement_digest();
+        let operation = AnchorOperation::admit_renewal(authority, statement).expect("combined check");
+        let wire = operation.to_bytes();
+        assert_eq!(wire.len(), 97);
+        assert_eq!(AnchorOperation::from_trusted_state(&wire).expect("canonical round trip"), operation);
+        for length in 0..wire.len() {
+            assert!(AnchorOperation::from_trusted_state(wire.get(..length).expect("prefix")).is_err());
+        }
+        let mut trailing = wire.clone(); trailing.push(0);
+        assert!(AnchorOperation::from_trusted_state(&trailing).is_err());
+        let mut padding = wire.clone(); *padding.last_mut().expect("padding") = 1;
+        assert!(AnchorOperation::from_trusted_state(&padding).is_err());
+        assert!(AnchorOperation::admit_renewal([0; 32], statement).is_err());
+        assert!(AnchorOperation::admit_renewal(authority, [0; 32]).is_err());
+        let exact = request(&c, operation);
+        let legacy = request(&c, AnchorOperation::admit_authority(authority).expect("legacy check"));
+        assert_ne!(legacy.command_id(), exact.command_id());
+        let legacy_reply = c.store.handle(legacy.as_bytes(), 150).expect("legacy signed result");
+        assert!(c.pin.verify_reply(&exact, &legacy_reply).is_err());
+        let reply = c.store.handle(exact.as_bytes(), 150).expect("exact signed refusal");
+        assert_eq!(c.pin.verify_reply(&exact, &reply).expect("verify refusal").outcome(), AnchorOutcome::AuthorityDenied);
+        let next_attempt = request(&c, operation);
+        assert_eq!(next_attempt.command_id(), exact.command_id());
+        assert!(c.pin.verify_reply(&next_attempt, &reply).is_err());
+        println!("PERSISTENT_AUTHORIZATION_WIRE_RESULT width=97 malformed_prefixes=97 padding_and_zero_refused=true legacy_reply_alias=false replayed_attempt=false");
+    }
+}

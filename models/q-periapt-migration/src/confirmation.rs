@@ -1,4 +1,4 @@
-//! Role-separated mutual key confirmation and accepted-key derivation.
+//! Role-ordered mutual key confirmation and accepted-key derivation.
 
 use core::{fmt, marker::PhantomData};
 
@@ -14,52 +14,71 @@ pub const MIGRATION_FINISHED_DOMAIN: &[u8] = b"Q-PERIAPT-MIGRATION-FINISHED/v1";
 /// Domain for the key released only after peer confirmation and state recheck.
 pub const MIGRATION_ACCEPTED_KEY_DOMAIN: &[u8] = b"Q-PERIAPT-MIGRATION-ACCEPTED-KEY/v1";
 
-/// Public role-separated key-confirmation value.
+/// Public Finished value issued only by the protocol initiator.
 #[derive(Clone, Copy, Eq, PartialEq)]
-pub struct MigrationFinishedV1([u8; 32]);
+pub struct InitiatorFinishedV1([u8; 32]);
 
-impl MigrationFinishedV1 {
-    /// Decode an exact 32-byte peer Finished value.
+impl InitiatorFinishedV1 {
+    /// Decode an exact 32-byte initiator Finished value.
     #[must_use]
     pub const fn from_bytes(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 
-    /// Borrow the exact Finished bytes.
+    /// Borrow the exact initiator Finished bytes.
     #[must_use]
     pub const fn as_bytes(&self) -> &[u8; 32] {
         &self.0
     }
 }
 
-impl fmt::Debug for MigrationFinishedV1 {
+impl fmt::Debug for InitiatorFinishedV1 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("MigrationFinishedV1([redacted])")
+        f.write_str("InitiatorFinishedV1([redacted])")
     }
 }
 
-/// A KEM secret that has not yet emitted a local Finished or authenticated its peer.
-pub struct PendingMutualConfirmationV1<X: Xof256> {
+/// Public Finished value issued by the responder only after accepting the initiator Finished.
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub struct ResponderFinishedV1([u8; 32]);
+
+impl ResponderFinishedV1 {
+    /// Decode an exact 32-byte responder Finished value.
+    #[must_use]
+    pub const fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    /// Borrow the exact responder Finished bytes.
+    #[must_use]
+    pub const fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl fmt::Debug for ResponderFinishedV1 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ResponderFinishedV1([redacted])")
+    }
+}
+
+struct ConfirmationMaterialV1<X: Xof256> {
     secret: Secret,
-    local_role: EndpointRole,
     post_kem_digest: PostKemTranscriptDigest,
     state_revision: StateRevisionV1,
     _xof: PhantomData<X>,
 }
 
-impl<X: Xof256> fmt::Debug for PendingMutualConfirmationV1<X> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("PendingMutualConfirmationV1([redacted])")
-    }
-}
-
-impl<X: Xof256> PendingMutualConfirmationV1<X> {
-    /// Take ownership of an ABI2 secret without exposing an accepted application key.
-    pub fn new(
+impl<X: Xof256> ConfirmationMaterialV1<X> {
+    fn new(
         secret: Secret,
         context: &MigrationContextV2,
         post_kem: &PostKemTranscriptV1,
+        expected_role: EndpointRole,
     ) -> Result<Self, ConfirmationError> {
+        if context.local_role() != expected_role {
+            return Err(ConfirmationError::RoleMismatch);
+        }
         if context.component_mode() == ComponentMode::PostQuantumOnly {
             return Err(ConfirmationError::TraditionalComponentForbidden);
         }
@@ -71,78 +90,192 @@ impl<X: Xof256> PendingMutualConfirmationV1<X> {
         }
         Ok(Self {
             secret,
-            local_role: context.local_role(),
             post_kem_digest: post_kem.digest(),
             state_revision: post_kem.state_revision(),
             _xof: PhantomData,
         })
     }
 
-    /// Emit the local role-separated Finished and advance the typestate.
-    #[must_use]
-    pub fn issue_local_finished(self) -> (IssuedLocalFinishedV1<X>, MigrationFinishedV1) {
-        let finished = derive_finished::<X>(&self.secret, self.local_role, self.post_kem_digest);
-        (
-            IssuedLocalFinishedV1 {
-                secret: self.secret,
-                local_role: self.local_role,
-                post_kem_digest: self.post_kem_digest,
-                state_revision: self.state_revision,
-                local_finished: finished,
-                _xof: PhantomData,
-            },
-            finished,
-        )
-    }
-}
-
-/// Pending secret after the local Finished has been fixed but before peer confirmation.
-pub struct IssuedLocalFinishedV1<X: Xof256> {
-    secret: Secret,
-    local_role: EndpointRole,
-    post_kem_digest: PostKemTranscriptDigest,
-    state_revision: StateRevisionV1,
-    local_finished: MigrationFinishedV1,
-    _xof: PhantomData<X>,
-}
-
-impl<X: Xof256> fmt::Debug for IssuedLocalFinishedV1<X> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("IssuedLocalFinishedV1([redacted])")
-    }
-}
-
-impl<X: Xof256> IssuedLocalFinishedV1<X> {
-    /// Verify the peer Finished in constant time, recheck the exact current state, and derive K.
-    ///
-    /// Every failure consumes this value, so the pending `Secret` is wiped on return.
-    pub fn verify_peer_and_accept(
-        self,
+    fn ensure_current(
+        &self,
         state_owner: &MigrationStateMachineV1,
-        received_peer_finished: &MigrationFinishedV1,
-    ) -> Result<AcceptedSessionKeyV1, ConfirmationError> {
-        if state_owner.current_revision() != self.state_revision {
-            return Err(ConfirmationError::StaleState);
+    ) -> Result<(), ConfirmationError> {
+        if state_owner.current_revision() == self.state_revision {
+            Ok(())
+        } else {
+            Err(ConfirmationError::StaleState)
         }
-        let peer_role = opposite(self.local_role);
-        let expected = derive_finished::<X>(&self.secret, peer_role, self.post_kem_digest);
-        if ct_eq(expected.as_bytes(), received_peer_finished.as_bytes()) != 0xFF {
-            return Err(ConfirmationError::PeerFinishedMismatch);
-        }
-        let (initiator_finished, responder_finished) = match self.local_role {
-            EndpointRole::Initiator => (self.local_finished, expected),
-            EndpointRole::Responder => (expected, self.local_finished),
-        };
+    }
+
+    fn derive_initiator_finished(&self) -> InitiatorFinishedV1 {
+        InitiatorFinishedV1(derive_finished::<X>(
+            &self.secret,
+            EndpointRole::Initiator,
+            self.post_kem_digest,
+        ))
+    }
+
+    fn derive_responder_finished(&self) -> ResponderFinishedV1 {
+        ResponderFinishedV1(derive_finished::<X>(
+            &self.secret,
+            EndpointRole::Responder,
+            self.post_kem_digest,
+        ))
+    }
+
+    fn derive_accepted_key(
+        &self,
+        initiator_finished: InitiatorFinishedV1,
+        responder_finished: ResponderFinishedV1,
+    ) -> AcceptedSessionKeyV1 {
         let accepted = derive_accepted_key::<X>(
             &self.secret,
             self.post_kem_digest,
             initiator_finished,
             responder_finished,
         );
-        Ok(AcceptedSessionKeyV1 {
+        AcceptedSessionKeyV1 {
             secret: Secret::from_bytes(accepted),
             state_revision: self.state_revision,
+        }
+    }
+}
+
+impl<X: Xof256> fmt::Debug for ConfirmationMaterialV1<X> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ConfirmationMaterialV1([redacted])")
+    }
+}
+
+/// Initiator confirmation state before the initiator Finished has been issued.
+pub struct InitiatorConfirmationV1<X: Xof256> {
+    material: ConfirmationMaterialV1<X>,
+}
+
+impl<X: Xof256> fmt::Debug for InitiatorConfirmationV1<X> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("InitiatorConfirmationV1([redacted])")
+    }
+}
+
+impl<X: Xof256> InitiatorConfirmationV1<X> {
+    /// Take ownership of an initiator ABI2 secret without exposing an accepted key.
+    pub fn new(
+        secret: Secret,
+        context: &MigrationContextV2,
+        post_kem: &PostKemTranscriptV1,
+    ) -> Result<Self, ConfirmationError> {
+        Ok(Self {
+            material: ConfirmationMaterialV1::new(
+                secret,
+                context,
+                post_kem,
+                EndpointRole::Initiator,
+            )?,
         })
+    }
+
+    /// Issue the initiator Finished and advance to the responder-waiting typestate.
+    #[must_use]
+    pub fn issue_finished(self) -> (InitiatorAwaitingResponderFinishedV1<X>, InitiatorFinishedV1) {
+        let initiator_finished = self.material.derive_initiator_finished();
+        (
+            InitiatorAwaitingResponderFinishedV1 {
+                material: self.material,
+                initiator_finished,
+            },
+            initiator_finished,
+        )
+    }
+}
+
+/// Initiator state after issuing its Finished and before accepting the responder Finished.
+pub struct InitiatorAwaitingResponderFinishedV1<X: Xof256> {
+    material: ConfirmationMaterialV1<X>,
+    initiator_finished: InitiatorFinishedV1,
+}
+
+impl<X: Xof256> fmt::Debug for InitiatorAwaitingResponderFinishedV1<X> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("InitiatorAwaitingResponderFinishedV1([redacted])")
+    }
+}
+
+impl<X: Xof256> InitiatorAwaitingResponderFinishedV1<X> {
+    /// Recheck state, verify the responder Finished, and derive the accepted key.
+    ///
+    /// Every failure consumes this value, so the pending `Secret` is wiped on return.
+    pub fn verify_and_accept(
+        self,
+        state_owner: &MigrationStateMachineV1,
+        received_responder_finished: &ResponderFinishedV1,
+    ) -> Result<AcceptedSessionKeyV1, ConfirmationError> {
+        self.material.ensure_current(state_owner)?;
+        let expected_responder_finished = self.material.derive_responder_finished();
+        if ct_eq(
+            expected_responder_finished.as_bytes(),
+            received_responder_finished.as_bytes(),
+        ) != 0xFF
+        {
+            return Err(ConfirmationError::PeerFinishedMismatch);
+        }
+        Ok(self
+            .material
+            .derive_accepted_key(self.initiator_finished, expected_responder_finished))
+    }
+}
+
+/// Responder state waiting for the initiator Finished; no responder Finished exists yet.
+pub struct ResponderAwaitingInitiatorFinishedV1<X: Xof256> {
+    material: ConfirmationMaterialV1<X>,
+}
+
+impl<X: Xof256> fmt::Debug for ResponderAwaitingInitiatorFinishedV1<X> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ResponderAwaitingInitiatorFinishedV1([redacted])")
+    }
+}
+
+impl<X: Xof256> ResponderAwaitingInitiatorFinishedV1<X> {
+    /// Take ownership of a responder ABI2 secret without issuing a Finished value.
+    pub fn new(
+        secret: Secret,
+        context: &MigrationContextV2,
+        post_kem: &PostKemTranscriptV1,
+    ) -> Result<Self, ConfirmationError> {
+        Ok(Self {
+            material: ConfirmationMaterialV1::new(
+                secret,
+                context,
+                post_kem,
+                EndpointRole::Responder,
+            )?,
+        })
+    }
+
+    /// Recheck state, accept the initiator Finished, and only then issue the responder Finished.
+    ///
+    /// Every failure consumes this value, so neither a responder Finished nor an accepted key is
+    /// returned and the pending `Secret` is wiped on return.
+    pub fn verify_accept_and_issue_finished(
+        self,
+        state_owner: &MigrationStateMachineV1,
+        received_initiator_finished: &InitiatorFinishedV1,
+    ) -> Result<(AcceptedSessionKeyV1, ResponderFinishedV1), ConfirmationError> {
+        self.material.ensure_current(state_owner)?;
+        let expected_initiator_finished = self.material.derive_initiator_finished();
+        if ct_eq(
+            expected_initiator_finished.as_bytes(),
+            received_initiator_finished.as_bytes(),
+        ) != 0xFF
+        {
+            return Err(ConfirmationError::PeerFinishedMismatch);
+        }
+        let responder_finished = self.material.derive_responder_finished();
+        let accepted = self
+            .material
+            .derive_accepted_key(expected_initiator_finished, responder_finished);
+        Ok((accepted, responder_finished))
     }
 }
 
@@ -182,6 +315,8 @@ impl AcceptedSessionKeyV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ConfirmationError {
+    /// A role-specific constructor received the opposite endpoint's context.
+    RoleMismatch,
     /// Context and post-KEM transcript did not belong to one snapshot.
     TranscriptMismatch,
     /// Frozen hybrid execution is forbidden by a PQ-only state.
@@ -206,7 +341,7 @@ fn derive_finished<X: Xof256>(
     secret: &Secret,
     sender_role: EndpointRole,
     post_kem_digest: PostKemTranscriptDigest,
-) -> MigrationFinishedV1 {
+) -> [u8; 32] {
     let role = [sender_role as u8];
     let mut xof = X::new();
     let reserve = lp8_extent(MIGRATION_FINISHED_DOMAIN.len())
@@ -218,14 +353,14 @@ fn derive_finished<X: Xof256>(
     absorb_secret_lp8(&mut xof, secret.as_bytes());
     absorb_public_lp8(&mut xof, &role);
     absorb_public_lp8(&mut xof, post_kem_digest.as_bytes());
-    MigrationFinishedV1(xof.squeeze32())
+    xof.squeeze32()
 }
 
 fn derive_accepted_key<X: Xof256>(
     secret: &Secret,
     post_kem_digest: PostKemTranscriptDigest,
-    initiator_finished: MigrationFinishedV1,
-    responder_finished: MigrationFinishedV1,
+    initiator_finished: InitiatorFinishedV1,
+    responder_finished: ResponderFinishedV1,
 ) -> [u8; 32] {
     let mut xof = X::new();
     let reserve = lp8_extent(MIGRATION_ACCEPTED_KEY_DOMAIN.len())
@@ -254,11 +389,4 @@ fn absorb_secret_lp8<X: Xof256>(xof: &mut X, value: &[u8]) {
 
 const fn lp8_extent(length: usize) -> usize {
     8 + length
-}
-
-const fn opposite(role: EndpointRole) -> EndpointRole {
-    match role {
-        EndpointRole::Initiator => EndpointRole::Responder,
-        EndpointRole::Responder => EndpointRole::Initiator,
-    }
 }

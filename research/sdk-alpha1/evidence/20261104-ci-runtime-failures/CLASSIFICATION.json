@@ -1,0 +1,648 @@
+{
+  "totals": {
+    "success": 249,
+    "queued": 63,
+    "failure": 6,
+    "in_progress": 12,
+    "skipped": 2
+  },
+  "rows": [
+    {
+      "id": 41791519877,
+      "total": 70,
+      "fetched": 70,
+      "counts": {
+        "success": 57,
+        "queued": 12,
+        "failure": 1
+      }
+    },
+    {
+      "id": 41791520084,
+      "total": 10,
+      "fetched": 10,
+      "counts": {
+        "success": 5,
+        "queued": 5
+      }
+    },
+    {
+      "id": 41791519992,
+      "total": 2,
+      "fetched": 2,
+      "counts": {
+        "success": 2
+      }
+    },
+    {
+      "id": 41791519911,
+      "total": 8,
+      "fetched": 8,
+      "counts": {
+        "success": 8
+      }
+    },
+    {
+      "id": 41791511694,
+      "total": 10,
+      "fetched": 10,
+      "counts": {
+        "in_progress": 2,
+        "success": 7,
+        "queued": 1
+      }
+    },
+    {
+      "id": 41791511701,
+      "total": 70,
+      "fetched": 70,
+      "counts": {
+        "success": 57,
+        "in_progress": 1,
+        "queued": 11,
+        "failure": 1
+      }
+    },
+    {
+      "id": 41791861104,
+      "total": 69,
+      "fetched": 69,
+      "counts": {
+        "success": 49,
+        "queued": 12,
+        "in_progress": 6,
+        "failure": 1,
+        "skipped": 1
+      }
+    },
+    {
+      "id": 41791861473,
+      "total": 10,
+      "fetched": 10,
+      "counts": {
+        "queued": 5,
+        "success": 5
+      }
+    },
+    {
+      "id": 41791861355,
+      "total": 2,
+      "fetched": 2,
+      "counts": {
+        "success": 2
+      }
+    },
+    {
+      "id": 41791861381,
+      "total": 2,
+      "fetched": 2,
+      "counts": {
+        "success": 2
+      }
+    },
+    {
+      "id": 41791854684,
+      "total": 69,
+      "fetched": 69,
+      "counts": {
+        "success": 50,
+        "queued": 12,
+        "in_progress": 3,
+        "failure": 3,
+        "skipped": 1
+      }
+    },
+    {
+      "id": 41791854739,
+      "total": 10,
+      "fetched": 10,
+      "counts": {
+        "queued": 5,
+        "success": 5
+      }
+    },
+    {
+      "id": 41791763191,
+      "total": 4,
+      "fetched": 4,
+      "counts": {
+        "success": 2,
+        "queued": 2
+      }
+    }
+  ],
+  "failures": [
+    {
+      "run": 41791519877,
+      "id": 126456505939,
+      "name": "continuity-installed-rust",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "name": "Execute installed Rust and C Continuity connections and recovery",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 6,
+          "started_at": "2026-11-04T08:27:10Z",
+          "completed_at": "2026-11-04T09:31:27Z"
+        }
+      ]
+    },
+    {
+      "run": 41791511701,
+      "id": 126449257936,
+      "name": "continuity-installed-rust",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "name": "Execute installed Rust and C Continuity connections and recovery",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 6,
+          "started_at": "2026-11-04T08:20:40Z",
+          "completed_at": "2026-11-04T09:27:45Z"
+        }
+      ]
+    },
+    {
+      "run": 41791861104,
+      "id": 126480103487,
+      "name": "bindings-android-runtime-16k",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "name": "Execute both SDK consumers against the hash-bound AAR on the selected ART runtime",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 17,
+          "started_at": "2026-11-04T09:20:08Z",
+          "completed_at": "2026-11-04T09:24:47Z"
+        }
+      ]
+    },
+    {
+      "run": 41791854684,
+      "id": 126459839388,
+      "name": "bindings-android-runtime-16k",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "name": "Execute both SDK consumers against the hash-bound AAR on the selected ART runtime",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 17,
+          "started_at": "2026-11-04T09:11:28Z",
+          "completed_at": "2026-11-04T09:24:24Z"
+        }
+      ]
+    },
+    {
+      "run": 41791854684,
+      "id": 126463649638,
+      "name": "continuity-installed-rust",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "name": "Execute installed Rust and C Continuity connections and recovery",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 6,
+          "started_at": "2026-11-04T08:36:20Z",
+          "completed_at": "2026-11-04T09:38:44Z"
+        }
+      ]
+    },
+    {
+      "run": 41791854684,
+      "id": 126463649767,
+      "name": "policy-maintenance-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "name": "Run actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 5,
+          "started_at": "2026-11-04T08:43:02Z",
+          "completed_at": "2026-11-04T08:43:08Z"
+        },
+        {
+          "name": "Retain maintenance package and qualification evidence",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 7,
+          "started_at": "2026-11-04T08:43:08Z",
+          "completed_at": "2026-11-04T08:43:08Z"
+        }
+      ]
+    }
+  ],
+  "observed_at_utc": "2026-11-04 09:44:24 UTC",
+  "classifications": [
+    {
+      "job_id": 126456505939,
+      "checkout_commit": "9aa535b48b464ec4d4a8b5a4b20221049a6067b9",
+      "category": "exact-count acceptance defect",
+      "condition": "old OpenSSL server report census rejects the actual completed workload",
+      "observed_error": "ValueError: OpenSSL server exchange census differs",
+      "hosted_count_not_exported": true,
+      "local_fix_commit": "c40fdcd8",
+      "parent_branch_fix_commit": "232ace17",
+      "local_debug_release_evidence": "../20261104-openssl-witness-census/README.md",
+      "recovery": "upload the validated correction after the current wave; do not rerun unchanged failing code",
+      "hosted_fix_qualified": false
+    },
+    {
+      "job_id": 126449257936,
+      "checkout_commit": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "category": "exact-count acceptance defect",
+      "condition": "old OpenSSL server report census rejects the actual completed workload",
+      "observed_error": "ValueError: OpenSSL server exchange census differs",
+      "hosted_count_not_exported": true,
+      "local_fix_commit": "c40fdcd8",
+      "parent_branch_fix_commit": "232ace17",
+      "local_debug_release_evidence": "../20261104-openssl-witness-census/README.md",
+      "recovery": "upload the validated correction after the current wave; do not rerun unchanged failing code",
+      "hosted_fix_qualified": false
+    },
+    {
+      "job_id": 126463649638,
+      "checkout_commit": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "category": "exact-count acceptance defect",
+      "condition": "old OpenSSL server report census rejects the actual completed workload",
+      "observed_error": "ValueError: OpenSSL server exchange census differs",
+      "hosted_count_not_exported": true,
+      "local_fix_commit": "c40fdcd8",
+      "parent_branch_fix_commit": "232ace17",
+      "local_debug_release_evidence": "../20261104-openssl-witness-census/README.md",
+      "recovery": "upload the validated correction after the current wave; do not rerun unchanged failing code",
+      "hosted_fix_qualified": false
+    },
+    {
+      "job_id": 126480103487,
+      "checkout_commit": "59bde0fd1a268de4d0e183c33bf3fc5e09c9be97",
+      "artifact_id": 13310830544,
+      "artifact_sha256": "ca038d585e6ac84099e03a21d60c52084d6be13e02b0495944954368fc020313",
+      "category": "owned API 35 x86_64 emulator framework-crash",
+      "page_size": 16384,
+      "sdk_matrix_qualified": false,
+      "retry": {
+        "executed": false,
+        "maximum_job_reruns": 1,
+        "when": "current effective wave terminal",
+        "scope": "same job, inputs, runtime target, assertions and timeouts",
+        "on_repeat": "retain failure; do not loop or infer a product pass"
+      },
+      "physical_device_qualified": false,
+      "system_server_before": 549,
+      "system_server_after": 4777,
+      "kernel_boot_id_unchanged": true,
+      "observed": [
+        "system_server SIGSEGV",
+        "system_server NoSuchMethodError in GnssNative",
+        "SystemUI DeadSystemException"
+      ],
+      "instrumentation_pass_observed": false,
+      "root_cause_limit": "guest framework failure observed; underlying image/ART cause and causal role of memory pressure unproven"
+    },
+    {
+      "job_id": 126459839388,
+      "checkout_commit": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "artifact_id": 13310700754,
+      "artifact_sha256": "f11e0c828663aa2dedc8bc82c6556329bdfe916e34354373dbbe8f1c381bd682",
+      "category": "owned API 35 x86_64 emulator transport-loss",
+      "page_size": 16384,
+      "sdk_matrix_qualified": false,
+      "retry": {
+        "executed": false,
+        "maximum_job_reruns": 1,
+        "when": "current effective wave terminal",
+        "scope": "same job, inputs, runtime target, assertions and timeouts",
+        "on_repeat": "retain failure; do not loop or infer a product pass"
+      },
+      "physical_device_qualified": false,
+      "full_consumer_instrumentation": {
+        "schema": 1,
+        "status": "pass",
+        "run_id": "a5fd817377bb7759ab82364c92936594",
+        "test_count": 3,
+        "passed_tests": [
+          "sdkOwnersAndPurposeKeys",
+          "sdkExpertCancellationAndInputSnapshot",
+          "sdkSignedPolicyRevocationAndRecovery"
+        ]
+      },
+      "minimal_consumer_instrumentation_executed": false,
+      "expected_apk_bytes": 13817559,
+      "observed_copy_bytes": [
+        2952704,
+        0
+      ],
+      "owned_transport_recovery_attempts": 1,
+      "app_cleanup": "unresolved",
+      "root_cause_limit": "truncated/empty APK copies and lost owned emulator transport observed before the second workload; underlying cause unproven"
+    },
+    {
+      "job_id": 126489776539,
+      "checkout_commit": "59bde0fd1a268de4d0e183c33bf3fc5e09c9be97",
+      "category": "exact-count acceptance defect",
+      "condition": "old OpenSSL server report census rejects the actual completed workload",
+      "observed_error": "ValueError: OpenSSL server exchange census differs",
+      "hosted_count_not_exported": true,
+      "local_fix_commit": "c40fdcd8",
+      "parent_branch_fix_commit": "232ace17",
+      "local_debug_release_evidence": "../20261104-openssl-witness-census/README.md",
+      "recovery": "upload the validated correction after the current wave; do not rerun unchanged failing code",
+      "hosted_fix_qualified": false
+    }
+  ],
+  "platform_limits": "LMKD counts and MemAvailable snapshots do not establish peak usage, page-counter units or causality; no RAM/timeout/API/ABI/physical-device requirement changed.",
+  "prior_transport_failure": "policy-maintenance job 126463649767 remains failed; original ECONNRESET log is in ../20261104-ci-audit/refresh-0902/",
+  "wave_uploaded": false,
+  "release_claim_eligible": false,
+  "intermediate_observations": [
+    {
+      "observed_at_utc": "2026-11-04 10:19 UTC",
+      "totals": {
+        "success": 258,
+        "queued": 63,
+        "failure": 7,
+        "in_progress": 2,
+        "skipped": 2
+      },
+      "rows": [
+        {
+          "id": 41791519877,
+          "total": 70,
+          "fetched": 70,
+          "counts": {
+            "success": 57,
+            "queued": 12,
+            "failure": 1
+          }
+        },
+        {
+          "id": 41791520084,
+          "total": 10,
+          "fetched": 10,
+          "counts": {
+            "success": 5,
+            "queued": 5
+          }
+        },
+        {
+          "id": 41791519992,
+          "total": 2,
+          "fetched": 2,
+          "counts": {
+            "success": 2
+          }
+        },
+        {
+          "id": 41791519911,
+          "total": 8,
+          "fetched": 8,
+          "counts": {
+            "success": 8
+          }
+        },
+        {
+          "id": 41791511694,
+          "total": 10,
+          "fetched": 10,
+          "counts": {
+            "success": 9,
+            "queued": 1
+          }
+        },
+        {
+          "id": 41791511701,
+          "total": 70,
+          "fetched": 70,
+          "counts": {
+            "success": 58,
+            "queued": 11,
+            "failure": 1
+          }
+        },
+        {
+          "id": 41791861104,
+          "total": 69,
+          "fetched": 69,
+          "counts": {
+            "success": 53,
+            "queued": 12,
+            "in_progress": 1,
+            "failure": 2,
+            "skipped": 1
+          }
+        },
+        {
+          "id": 41791861473,
+          "total": 10,
+          "fetched": 10,
+          "counts": {
+            "queued": 5,
+            "success": 5
+          }
+        },
+        {
+          "id": 41791861355,
+          "total": 2,
+          "fetched": 2,
+          "counts": {
+            "success": 2
+          }
+        },
+        {
+          "id": 41791861381,
+          "total": 2,
+          "fetched": 2,
+          "counts": {
+            "success": 2
+          }
+        },
+        {
+          "id": 41791854684,
+          "total": 69,
+          "fetched": 69,
+          "counts": {
+            "success": 52,
+            "queued": 12,
+            "in_progress": 1,
+            "failure": 3,
+            "skipped": 1
+          }
+        },
+        {
+          "id": 41791854739,
+          "total": 10,
+          "fetched": 10,
+          "counts": {
+            "queued": 5,
+            "success": 5
+          }
+        },
+        {
+          "id": 41791763191,
+          "total": 4,
+          "fetched": 4,
+          "counts": {
+            "success": 2,
+            "queued": 2
+          }
+        }
+      ],
+      "pr_heads": [
+        {
+          "number": 117,
+          "head": "475cd23923e45819b01b6041c91c44540ec056ec",
+          "base": "ed257e10c75af6798838ee6a95e0ccc6930cf388"
+        },
+        {
+          "number": 118,
+          "head": "6084f3bfb09333f6b66291b38809ed512296a27b",
+          "base": "475cd23923e45819b01b6041c91c44540ec056ec"
+        }
+      ],
+      "latest_independent_head": "adaaeb4981f0c342c95a3d1ddcad6d7e1f82b3c6"
+    }
+  ],
+  "latest_observation": {
+    "observed_start_utc": "2026-11-04 10:37:14 UTC",
+    "observed_end_utc": "2026-11-04 10:37:19 UTC",
+    "totals": {
+      "success": 260,
+      "queued": 63,
+      "failure": 7,
+      "skipped": 2
+    },
+    "rows": [
+      {
+        "id": 41791519877,
+        "total": 70,
+        "fetched": 70,
+        "counts": {
+          "success": 57,
+          "queued": 12,
+          "failure": 1
+        }
+      },
+      {
+        "id": 41791520084,
+        "total": 10,
+        "fetched": 10,
+        "counts": {
+          "success": 5,
+          "queued": 5
+        }
+      },
+      {
+        "id": 41791519992,
+        "total": 2,
+        "fetched": 2,
+        "counts": {
+          "success": 2
+        }
+      },
+      {
+        "id": 41791519911,
+        "total": 8,
+        "fetched": 8,
+        "counts": {
+          "success": 8
+        }
+      },
+      {
+        "id": 41791511694,
+        "total": 10,
+        "fetched": 10,
+        "counts": {
+          "success": 9,
+          "queued": 1
+        }
+      },
+      {
+        "id": 41791511701,
+        "total": 70,
+        "fetched": 70,
+        "counts": {
+          "success": 58,
+          "queued": 11,
+          "failure": 1
+        }
+      },
+      {
+        "id": 41791861104,
+        "total": 69,
+        "fetched": 69,
+        "counts": {
+          "success": 54,
+          "queued": 12,
+          "failure": 2,
+          "skipped": 1
+        }
+      },
+      {
+        "id": 41791861473,
+        "total": 10,
+        "fetched": 10,
+        "counts": {
+          "queued": 5,
+          "success": 5
+        }
+      },
+      {
+        "id": 41791861355,
+        "total": 2,
+        "fetched": 2,
+        "counts": {
+          "success": 2
+        }
+      },
+      {
+        "id": 41791861381,
+        "total": 2,
+        "fetched": 2,
+        "counts": {
+          "success": 2
+        }
+      },
+      {
+        "id": 41791854684,
+        "total": 69,
+        "fetched": 69,
+        "counts": {
+          "success": 53,
+          "queued": 12,
+          "failure": 3,
+          "skipped": 1
+        }
+      },
+      {
+        "id": 41791854739,
+        "total": 10,
+        "fetched": 10,
+        "counts": {
+          "queued": 5,
+          "success": 5
+        }
+      },
+      {
+        "id": 41791763191,
+        "total": 4,
+        "fetched": 4,
+        "counts": {
+          "success": 2,
+          "queued": 2
+        }
+      }
+    ]
+  }
+}

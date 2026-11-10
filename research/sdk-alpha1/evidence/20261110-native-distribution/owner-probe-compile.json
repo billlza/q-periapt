@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "/usr/bin/x86_64-linux-gnu-gcc-14",
+    "-std=c11",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-Wpedantic",
+    "/workspace/scratch/5173067707b5/native-control/actual-4/installed/owner-probe.c",
+    "-I",
+    "/workspace/scratch/5173067707b5/native-control/actual-4/installed/native-current-source-control-x86_64-unknown-linux-gnu/include",
+    "-L",
+    "/workspace/scratch/5173067707b5/native-control/actual-4/installed/native-current-source-control-x86_64-unknown-linux-gnu/lib",
+    "-lq_periapt_continuity_c_consumer",
+    "-ldl",
+    "-Wl,-rpath,$ORIGIN/native-current-source-control-x86_64-unknown-linux-gnu/lib",
+    "-o",
+    "/workspace/scratch/5173067707b5/native-control/actual-4/installed/owner-probe"
+  ],
+  "cwd": "/workspace/scratch/5173067707b5/native-control/actual-4/installed",
+  "returncode": 0
+}

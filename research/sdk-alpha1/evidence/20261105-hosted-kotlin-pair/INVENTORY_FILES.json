@@ -1,0 +1,30 @@
+{
+  "INVENTORY_CURRENT_SOURCE.py.txt": {
+    "bytes": 62895,
+    "sha256": "e8ab63ed4b5299f8d0fe081103e9844aba381387eec30d854fec509c7e41e9a3"
+  },
+  "INVENTORY_READBACK.json": {
+    "bytes": 1539,
+    "sha256": "ec60d2ababbd4ddd394fd93eb664e89231561206dc4553e41fbf6ac1854704e7"
+  },
+  "inventory-tests.stderr": {
+    "bytes": 110,
+    "sha256": "bf3c3be8f1f204d0da0f205eb0689bd4b18fe0a1f20154544484fc6388b7016c"
+  },
+  "inventory-tests.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inventory-verify.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inventory-verify.stdout": {
+    "bytes": 1357,
+    "sha256": "590af6daacb4dbf67d8c67920b67c94b152235433ed145f43a1cd2961e3afaf5"
+  },
+  "inventory_verify.py.txt": {
+    "bytes": 4007,
+    "sha256": "2738454a6012c4eb1fa1be56a5646c8152fe76467ab75199437e86614e749326"
+  }
+}

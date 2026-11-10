@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "qualified_at_utc": "2026-10-04T08:00:58.656801+00:00",
+  "native_checkpoint": "37a605ebff7958afd2503491532d158bc4e26923",
+  "checks": [
+    "c-peer-build-02",
+    "c-peer-cbuild-02",
+    "c-peer-flow-02",
+    "c-renewal-original-enrollment-01",
+    "c-renewal-unit-01",
+    "c-renewal-final-format-01",
+    "c-renewal-final-clippy-01",
+    "c-renewal-collector-tests-01"
+  ],
+  "source_identity": "C source files match the successful 3-case run; native product and public-fixture sources stayed hash-identical throughout. Installed C binary and dylib match pre/post hashes.",
+  "test_counts": {
+    "credential_renewal_real_clock": 3,
+    "original_enrollment_tls_unknown_delivery": 1,
+    "owner_unit": 9,
+    "collector_parser_controls": 21
+  },
+  "C_exports": 68,
+  "binaries": {
+    "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/c-renewal-enrollment-test": {
+      "sha256": "b0b615d91f10f2541776439dba7b3a965b74c9e7599f84d2eb386a7221c49ebb",
+      "bytes": 11958456
+    },
+    "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/c-owner-installed/qpc-c-client": {
+      "sha256": "30922c304c270c772c603d31857ea657b6a4250ac5fb968877a8b86ef131937b",
+      "bytes": 127088
+    },
+    "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/c-owner-installed/libq_periapt_continuity_c_consumer.dylib": {
+      "sha256": "f3a563ea89046d4dd0ec610e8d8bd368229203d8e056665a3c873c385ad7dde6",
+      "bytes": 11147736
+    }
+  },
+  "failed_attempt": {
+    "record": "c-peer-flow-01.json",
+    "cause": "Harness expected an unchanged sentinel after next_message failure, contrary to existing next_message zero-before-admission behavior. The native stale-grant Conflict was already correct.",
+    "correction": "Require exact all-zero failed output, then reopen current grant and require unchanged next message slot plus exact original outbox readback. No product behavior or assertion strength was relaxed."
+  },
+  "scope": "macOS arm64 Rust 1.98.1 development C dylib and Clang C11 client; same native protocol engine; source dependencies, not archive-package installation",
+  "remaining": [
+    "C/Swift/Kotlin installed credential-renewal archive-package qualification",
+    "Required-witness local renewal/subject adoption",
+    "Actual post-renewal application TLS delivery and cancellation/commit faults through language owners",
+    "Current/minimum physical platform persistence, independent engine, retained-secret PQ proof, controlled performance and external release gates"
+  ],
+  "full_goal_complete": false,
+  "release_claim_eligible": false
+}

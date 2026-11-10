@@ -1,0 +1,53 @@
+{
+  "head": "f9ae04b992ae1e80dba4d1278f50a02ea86367a2",
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/publication-source",
+  "runs": [
+    {
+      "label": "source-gate",
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "artifact/source_results_assembler.py",
+        "ci-source-gate",
+        "--profile",
+        "sdk-020",
+        "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda",
+        "f9ae04b992ae1e80dba4d1278f50a02ea86367a2"
+      ],
+      "returncode": 0,
+      "seconds": 6.107574084075168
+    },
+    {
+      "label": "codeql-quality-tests",
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-c",
+        "import unittest; unittest.main(module=None,argv=[\"unittest\",\"artifact.test_codeql_rust_quality\",\"-v\"],warnings=\"error\")"
+      ],
+      "returncode": 0,
+      "seconds": 0.6682511661201715
+    },
+    {
+      "label": "artifact-tests",
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-c",
+        "import unittest; unittest.main(module=None,argv=[\"unittest\",\"discover\",\"-s\",\"artifact\",\"-p\",\"test_*.py\",\"-v\"],warnings=\"error\")"
+      ],
+      "returncode": 0,
+      "seconds": 627.0863833751064
+    }
+  ],
+  "source_clean": true,
+  "head_unchanged": true,
+  "capture": {
+    "file": "PREFLIGHT.zip",
+    "sha256": "45037d02d5c7db0edafb2df1e58d35f8016052c4aa290b8c3e51122e0a1d7854",
+    "bytes": 71383,
+    "original_local_file": "target/foreign-device-retirement-current/PREFLIGHT_F9AE04B9.zip"
+  },
+  "artifact_tests": 2667,
+  "codeql_quality_tests": 44
+}

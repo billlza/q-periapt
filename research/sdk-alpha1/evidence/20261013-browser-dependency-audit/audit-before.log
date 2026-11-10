@@ -1,0 +1,25 @@
+test_workspace_and_fuzz_lock_scopes_are_exact (test_rust_publish_contract.RustPublishContractTests.test_workspace_and_fuzz_lock_scopes_are_exact) ... ERROR
+
+======================================================================
+ERROR: test_workspace_and_fuzz_lock_scopes_are_exact (test_rust_publish_contract.RustPublishContractTests.test_workspace_and_fuzz_lock_scopes_are_exact)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/test_rust_publish_contract.py", line 1346, in test_workspace_and_fuzz_lock_scopes_are_exact
+    rust_publish_contract._parse_cargo_lock_scope(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        workspace,
+        ^^^^^^^^^^
+        scope="workspace",
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/rust_publish_contract.py", line 587, in _parse_cargo_lock_scope
+    raise RustPublishContractError(
+        f"{lock_label} contains an unexpected local package: {name}"
+    )
+rust_publish_contract.RustPublishContractError: workspace Cargo.lock contains an unexpected local package: q-periapt-continuity-identity-candidate
+
+----------------------------------------------------------------------
+Ran 1 test in 0.008s
+
+FAILED (errors=1)

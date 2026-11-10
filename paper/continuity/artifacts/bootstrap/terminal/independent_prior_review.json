@@ -1,0 +1,187 @@
+{
+  "schema": "q-periapt/independent-mathematical-review/v1",
+  "created_at_utc": "2026-11-09T22:54:49.574368+00:00",
+  "reviewer": "independent child agent /root/android_build_connection",
+  "review_kind": "Analytical review of the proof and cited interfaces; byte-identity checks. No new proof formalization or implementation execution is claimed.",
+  "publication": {
+    "pr": 146,
+    "url": "https://github.com/billlza/q-periapt/pull/146",
+    "head": "d3cd4def4ad04a38c404fcf9a3bc41e7440153f8",
+    "merge": "68549dbc3ae4491d8b5edaa708548dc60743eab7",
+    "tree": "9796ba8df6d9de000d403e21b392b06c7f159146",
+    "parent": "2d6c883d37b5486a17c98680868e8d182242a366"
+  },
+  "proof": {
+    "path": "docs/continuity/BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md",
+    "bytes": 24467,
+    "sha256": "656ce52d8b77b206ed6aef3b6c457a3d196028da2933075104bd10a6075524d3",
+    "git_blob": "60a8a4d4ba4ce182322264ea8498f641d4d85289"
+  },
+  "source_snapshot": {
+    "base_commit": "360aa8107aa7df502108627a4dcf89f30d106594",
+    "base_tree": "05c75d9d5848814a8b6b988df5e0c1240bec081a",
+    "source_pins_sha256": "52a2da009793fdb227548fafdc2caa5da33a69966e13c69169eb766e024895de",
+    "verified_input_count": 18,
+    "inputs": [
+      {
+        "path": "research/continuity-identity-candidate/src/bootstrap.rs",
+        "bytes": 74151,
+        "sha256": "f72bce264806a900affe2cac33beb449e77aeaa45e6e264549eaa0f2ece7a286",
+        "git_blob": "9eeaa880493e338dcc2276d92e23b297aaaf64fd"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/bootstrap/staged.rs",
+        "bytes": 8236,
+        "sha256": "f633fc0ff32c44156e194ebb6ca6c037a6df09d117d4daf8a69a861cf7d7bafc",
+        "git_blob": "8d43d7f7bc01eb5dce8e63c994aa47c1b4d061e1"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/bootstrap/response_staged.rs",
+        "bytes": 7967,
+        "sha256": "3a892deab3d2a209345436ca6d3ddd08f39c549bc98a3d5e7c6026dfaeacff0a",
+        "git_blob": "a87a43fa91e9c530e36d616e2c4a34d3046ae2c0"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/crypto.rs",
+        "bytes": 18994,
+        "sha256": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4",
+        "git_blob": "10e7693adbdb00aba318e7fe54ca73143d3335df"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/contract.rs",
+        "bytes": 4170,
+        "sha256": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
+        "git_blob": "210902bb3b39fc54a9ede786b7475487c7303bb7"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/durable/initiator.rs",
+        "bytes": 21061,
+        "sha256": "eacfbb8195b357ecdfda7a63cfd1871ba846f23a3e427d29f422d2246063f67c",
+        "git_blob": "553a1813b8455c9bc1016b7171bb66307d911342"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/durable/responder.rs",
+        "bytes": 11098,
+        "sha256": "9e3dcaf9180435e1b439889a9608f4ae40ca87b1d8d4c6b025c329e730e4f30c",
+        "git_blob": "bf022f4cd2ebefcc685ab76b8b2f850e5f006eb8"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/durable/messages.rs",
+        "bytes": 42215,
+        "sha256": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
+        "git_blob": "ba2229b17b2c7dd42e5d3d580501f1e00ac5a9ad"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+        "bytes": 21147,
+        "sha256": "5e19c0a6719895888a7018db2583c89da50c1de029d443834c357bce342cb6e2",
+        "git_blob": "0696a481910b6ca7c5781548edd67d814119431e"
+      },
+      {
+        "path": "docs/continuity/BOOTSTRAP_JOINT_ENTRY_V1.md",
+        "bytes": 17964,
+        "sha256": "02adbe2d702246545b048a9d5ac01f058a35523924d3042106ecbd4092752ed0",
+        "git_blob": "11efd9317315c4adb59d5a5e507b09cc863524dd"
+      },
+      {
+        "path": "docs/continuity/BOOTSTRAP_TERMINAL_AGREEMENT_V1.md",
+        "bytes": 16583,
+        "sha256": "36258bc3583790202b8750e73ae12d4c146707751a392cb02bcd5d636eea1ea8",
+        "git_blob": "5e328f1e2bd96acb873fca12d5fa4cdcadaf3ca6"
+      },
+      {
+        "path": "docs/continuity/HKDF_EXPAND_TABLE_V1.md",
+        "bytes": 7939,
+        "sha256": "ebddea59df4e82c48744a52088c3f2bf49b5386ab993f6200bce8bfef8ae2d71",
+        "git_blob": "054f1c6034e70edb47cfd490c738cf3d797f512e"
+      },
+      {
+        "path": "paper/continuity/contextbound-connection.tex",
+        "bytes": 16401,
+        "sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+        "git_blob": "602813f56a05915381430fed457df4bdd6b1007d"
+      },
+      {
+        "path": "paper/continuity/joint-primitive-bounds.tex",
+        "bytes": 10663,
+        "sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+        "git_blob": "41f3bf38fdf26607751827ca3251459c79872ff1"
+      },
+      {
+        "path": "paper/continuity/multiple-root-entry.tex",
+        "bytes": 8584,
+        "sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+        "git_blob": "5b630e3b6195a826f7e8b6f30854adb3ab8552bf"
+      },
+      {
+        "path": "paper/continuity/sdk-purpose-connection.tex",
+        "bytes": 9312,
+        "sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+        "git_blob": "389c0d99f41ae9f34577010f0eab4c0cdd873af6"
+      },
+      {
+        "path": "paper/continuity/guarded-provenance.tex",
+        "bytes": 8980,
+        "sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+        "git_blob": "5b88805dcbc686130ef58675fd2c01562fbd9117"
+      },
+      {
+        "path": "paper/continuity/confirmation-traffic.tex",
+        "bytes": 9959,
+        "sha256": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+        "git_blob": "bc4e851e2c3c12aa629f84e43c430a18c839ab6a"
+      }
+    ]
+  },
+  "principal_analytical_inputs": [
+    "docs/continuity/BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md",
+    "docs/continuity/BOOTSTRAP_TERMINAL_AGREEMENT_V1.md",
+    "docs/continuity/BOOTSTRAP_JOINT_ENTRY_V1.md",
+    "docs/continuity/HKDF_EXPAND_TABLE_V1.md",
+    "paper/continuity/joint-primitive-bounds.tex",
+    "paper/continuity/multiple-root-entry.tex",
+    "paper/continuity/guarded-provenance.tex",
+    "research/continuity-identity-candidate/src/bootstrap.rs",
+    "research/continuity-identity-candidate/src/bootstrap/response_staged.rs"
+  ],
+  "findings": [
+    {
+      "topic": "Deferred protection and first exposure",
+      "result": "The deferred allocation argument is sound under the stated opaque root interface.",
+      "reason": "After the parent-table rewrite W(e) is independent uniform and has no value-dependent use before first exposure. Sampling that register at first exposure therefore commutes with the intervening classical and quantum computation. The challenge index is the online index of first protected activation, not a later successful or surviving class. An earlier unprotected exposure permanently excludes that descriptor from this deferred protected allocation. Numeric equality between different sampled roots is preserved rather than conditioned away.",
+      "specific_scope": "The proof expressly requires the source adapter to justify all pre-exposure observations; the historical-readability predicate alone is not asserted to hide ciphertexts."
+    },
+    {
+      "topic": "Quantum shared-oracle budgets",
+      "result": "The stated budgets cover the complete derived reductions and support the successive comparisons.",
+      "reason": "Every row, column, hidden-input and alias budget includes preparation, all other real or already idealized families, unprotected uses, continuation, disclosures and the terminal test in that hybrid. Independent H and h remain shared unchanged interfaces. The deferred and exact-table rewrites introduce no oracle resampling. No stage-local budget reset or postselection on distinct numeric keys is used."
+    },
+    {
+      "topic": "Alias monitor",
+      "result": "The monitored effective-descriptor alias reduces to a collision in the same compression oracle.",
+      "reason": "Outside the existing complete-wire/session hash collision stop, two distinct classes with equal root information and equal Gamma have distinct session-id byte strings. The inner-pad encoding I(sid) is injective, so equality of alpha yields distinct 768-bit compression inputs with equal 256-bit outputs. The finder retains those inputs and counts its complete oracle work. A separate transcript-pair union bound and independence of alpha and beta are unnecessary.",
+      "bound": "chi_h(Q) = min(1, C_col * (Q+2)^3 / 2^256)"
+    },
+    {
+      "topic": "Two-sided full-table to ACK-only coupling",
+      "result": "The two full-table intermediate experiments have identical available-view distributions.",
+      "reason": "After the exact Expand table rewrite, every protected descriptor has five independent blocks and no remaining raw predecessor-row interface. Couple the normal block 4 to the replacement experiment's class value Z_c, sampled at online registration; share the other four blocks, public oracles, aliases, controller and other coins. The replacement experiment's unused internal block 4 has no surviving continuation use. Endpoints and retries use one class cache, while the alias stop excludes two distinct classes sharing a protected descriptor. This coupling is online because registration precedes the first private ACK computation. Both real-to-table directions remain charged, since the ACK-only experiment retains the actual sibling outputs.",
+      "bound": "epsilon_ACK_given_PRK <= min(1, D_0 + D_1 + chi_h(Q_h,0) + chi_h(Q_h,1))"
+    }
+  ],
+  "primary_reference_verified": {
+    "author": "Mark Zhandry",
+    "title": "A note on the quantum collision and set equality problems",
+    "publication": "Quantum Information and Computation 15 (2015), 557-567",
+    "url": "https://www.rintonpress.com/xxqic15/qic-15-78/0557-0567.pdf",
+    "location": "Theorem 7, page 562",
+    "verified_content": "For arbitrary random f:[M]->[N], a q-query quantum collision finder succeeds with probability at most C(q+2)^3/N for a universal constant C. The statement covers arbitrary M, including the compression-oracle domain size 2^768 and range size 2^256.",
+    "verification_method": "Read the primary publication theorem and its domain-size statement via web retrieval."
+  },
+  "conclusion": {
+    "status": "pass_for_the_stated_conditional_interface",
+    "text": "No concrete logical counterexample was found in these four arguments. The conditional terminal schedule connection can be retained as established at its stated interface. The original-component and record/tape realization is a separately identified source-adapter task, currently under independent review.",
+    "blocking_findings": []
+  },
+  "changes_made_to_reviewed_files": false
+}

@@ -1,0 +1,356 @@
+% Joint continuation increment, v0.4, 2026-11-07.
+% Standalone module: requires amsmath, amssymb, amsthm and the usual theorem
+% environments. It does not redefine the report-row error parameter.
+% Complete proof record: joint_continuation.md, same directory.
+\subsection{Joint continuation from an epoch root to a message}
+\label{sec:joint-continuation}
+
+A recovered root feeds confirmation, traffic derivation and the next epoch.
+We treat these uses jointly and then isolate a selected message key.
+The resulting continuation permits later contributions, successor roots and
+the next chain seed to be disclosed. The current root is an internal value:
+all outputs are regenerated in each hybrid, rather than fixed before a
+root replacement.
+
+\paragraph{Primitive experiments.}
+Let $F(k,m)$ be HMAC-SHA256 over one public quantum compression oracle
+$h:\{0,1\}^{512}\times\{0,1\}^{256}\to\{0,1\}^{256}$, in message-block,
+chaining-state order. All keys below have 32 bytes. Put
+\[
+ \Gamma(a)=\bigl(h(I(a),\mathrm{IV}),h(O(a),\mathrm{IV})\bigr),
+\]
+where $I(a)=(a\Vert0^{32})\oplus\mathtt{36}^{64}$ and
+$O(a)=(a\Vert0^{32})\oplus\mathtt{5c}^{64}$.
+Initial auxiliary state is independent of $h$ and the designated hidden
+uniform key. All oracle-dependent preparation is executed and counted,
+together with the complete continuation.
+
+Write $\varepsilon_{\rm Hjoint}(C,T,q,L)$ for an output-bit gap bound between
+\[
+ \operatorname{Col}(a)=F(a,R),\quad
+ \operatorname{Row}(m)=F(R,m)
+ \quad\hbox{and}\quad
+ V(\Gamma(a)),\ U(m),
+\]
+where $R$ is hidden uniform, $U,V$ are independent private random functions,
+there are at most $C$ classical column calls, $T$ classical row calls of
+length at most $L$, and $q$ ordinary compression queries, which may be
+quantum. Equal inputs are cached. Distinct salts with equal $\Gamma$ share
+their column reply. The ideal here is the independent-table ideal, without
+a separately imposed cross-pair repair.
+
+Write $\varepsilon_{\rm Hrow}(T,q,L)$ for the corresponding real-HMAC-row
+versus private-random-function bound for one uniform hidden key and
+\emph{multiple adaptive messages}. This differs from the immutable report
+row experiment. Finally, $\varepsilon_{\rm Hcol}(q)$ bounds one distinct
+zero-salt evaluation $F(0,S)$, for hidden uniform $S$, versus an independent
+uniform reply; exact repeats reuse it. The retained compression-QROM
+arguments give admissible bounds for these operational experiments.
+
+\paragraph{The finite continuation.}
+The initial root $R$ is sampled independently of $h$ and the initial
+auxiliary state, before any use. It may be presampled and withheld during
+counted preparation, which chooses the public session identifier $s$ and
+transcript inputs. The previous root and old wrapping keys may be known.
+The current root has only the uses
+\begin{equation}
+ P_0=F(0,R),\qquad P_s=F(s,R),\qquad P_x^+=F(R,S_x^+).
+ \label{eq:joint-root-uses}
+\end{equation}
+There are at most $t_+$ distinct 32-byte successor contributions $S_x^+$.
+They are supplied by known local computation, may be disclosed, and may
+depend on the available view. The controller may compute and disclose
+\[
+ R_x^+=\operatorname{Expand}(P_x^+,I_x^+,32)
+\]
+and run arbitrary known subsequent computation from these values with the
+same public oracle. Repeated arguments remain consistent.
+
+Let $D$ and $D_M$ denote the actual 40-byte rekey and 43-byte message domains.
+The three confirmation information strings are
+\[
+\begin{aligned}
+ I_r&=D\Vert\texttt{responder-confirmation},\\
+ I_f&=D\Vert\texttt{final-confirmation},\\
+ I_a&=D\Vert\texttt{receipt-confirmation}.
+\end{aligned}
+\]
+Their keys are $\operatorname{Expand}(P_0,I_d,32)$. The controller uses
+these keys in the real MAC, verification and signing algorithms.
+At most $M\ge1$ distinct traffic information strings have the native form
+\begin{equation}
+\begin{split}
+ I_T={}&D\Vert\texttt{epoch-traffic/HKDF-SHA256/ChaCha20Poly1305/}\\
+ &\Vert\mathit{context}_{32}\Vert\operatorname{BE64}(e)
+ \Vert\mathit{transcriptDigest}_{32}.
+\end{split}
+ \label{eq:joint-traffic-info}
+\end{equation}
+It may be chosen after the response confirmation and its signature: the
+native transcript digest hashes the complete offer and response wires.
+Every repeated complete $I_T$ reuses its entry, regardless of endpoint or
+wire representation. At the first allocation of one new string $I^*$,
+mark that entry and a direction $d^*\in\{1,2\}$ before any of its blocks
+are produced. The choice may use the available prefix; a previously
+allocated entry cannot be reclassified as fresh. Later equal-info
+aliases inherit the same protection. This is a profile for a designated
+fresh traffic allocation, without a cross-endpoint wire-uniqueness premise.
+
+The four 32-byte output blocks are
+\[
+ (s_{I,1},s_{I,2},a_{I,1},a_{I,2})
+ =\operatorname{Expand}(P_s,I,128).
+\]
+The selected seed $s^*=s_{I^*,d^*}$, designated before allocation,
+has only the selected first-step use
+\begin{equation}
+ \begin{split}
+ I_M&=D_M\Vert\texttt{chain}\Vert\operatorname{BE64}(0),\\
+ P_M&=F(0,s^*),\qquad
+ (s',K)=\operatorname{Expand}(P_M,I_M,64).
+ \end{split}
+ \label{eq:joint-chain-step}
+\end{equation}
+The opposite seed, confirmation keys, ACK keys, blocks at every distinct
+nonmarked information string and next seed $s'$ may be disclosed.
+A repeated $I^*$ remains the same protected entry.
+Real ACK computation and arbitrary candidate-ACK verification
+remain available. Subsequent chain computations use $s'$ honestly.
+The selected key $K$ has only its declared application encryption/decryption
+use. Current-root, PRK, old selected-seed and message-key bytes have no
+separate public return, comparison or hashing interface. Private persistence
+uses an already justified opaque interface; original candidate-local stops
+and projection accounting remain in force.
+
+\begin{lemma}[Adaptive information and fresh traffic blocks]
+\label{lem:joint-expand-blocks}
+Replace each PRK-class HMAC row by an independent private random function,
+available only through HKDF-Expand. The resulting interface is exactly an
+independent block table indexed by the class, complete information string
+and block index, with consistent prefixes. This holds for adaptively
+chosen information strings. In particular, the first four traffic blocks
+are fresh at installation despite the confirmation dependence of $I_T$.
+\end{lemma}
+\begin{proof}
+For one private row $W$, the inputs are
+$I\Vert1$ and $T_{I,j-1}\Vert I\Vert j$ for $j\ge2$, where each preceding
+block has exactly 32 bytes and the counter has one byte. Different counters
+separate inputs. For the same counter, deleting the counter and, when
+present, the fixed-width preceding block shows that equality requires equal
+$I$. This is true for every preceding output assignment. Equal $(I,j)$
+pairs retrieve equal inputs and replies inductively. New pairs therefore
+receive independent table blocks, even when $I$ was chosen from prior
+outputs and public-oracle computation.
+
+The confirmation information lengths are $62,58,60$ bytes and each traffic
+information length is $155$, so their table entries differ even if the
+zero and session salts share a PRK. The marked $I^*$ is also distinct from
+every earlier traffic entry. Importantly, this exact rewrite removes
+the internal parent-row inputs containing a preceding secret block.
+Because that row has no other interface, they leave no extra use of the
+selected traffic seed. Public quantum-oracle computation is unchanged.
+\end{proof}
+
+An available test uses the public view, event ledger, declared locally
+computable outputs and its independent test randomness. It cannot inspect
+the designated private roots, PRKs, seeds, message key or tables. For the
+application experiment below we can fix either challenge bit and then
+average; the test is not given a hidden primitive key.
+
+Let $G_R$ be this real schedule with uniform root. In $G_{\rm leaf}$ replace
+\eqref{eq:joint-root-uses} by $V(\Gamma(\cdot))$ and $U(\cdot)$, replace each
+column-PRK Expand interface by Lemma~\ref{lem:joint-expand-blocks}'s block
+table, and replace \eqref{eq:joint-chain-step} by two independent cached
+blocks $s',K$. Real confirmation/ACK operations and successor-root
+derivations continue from the known replies; all signatures, checks and
+later outputs are regenerated within the current game.
+
+\begin{theorem}[A selected message leaf with joint continuation]
+\label{thm:joint-message-leaf}
+Let $q_R,q_0,q_1,q_s,q_M$ bound the entire ordinary compression-query work
+of the five reductions below. Set
+\begin{equation}
+\begin{split}
+ \Delta_{\rm sched}=\min\{1,\;&
+ \varepsilon_{\rm Hjoint}(2,t_+,q_R,32)\\
+ &+\varepsilon_{\rm Hrow}(3+4M,q_0,188)
+  +\varepsilon_{\rm Hrow}(4M,q_1,188)\\
+ &+\varepsilon_{\rm Hcol}(q_s)
+  +\varepsilon_{\rm Hrow}(2,q_M,89)\}.
+\end{split}
+ \label{eq:joint-schedule-error}
+\end{equation}
+For every available terminal bit, the probability gap between $G_R$ and
+$G_{\rm leaf}$ is at most $\Delta_{\rm sched}$.
+For a common available score in $[-1,1]$, the expectation gap is at most
+$2\Delta_{\rm sched}$. The second PRK-row term is omitted when the interface
+itself rules out a second class.
+\end{theorem}
+\begin{proof}
+First give every current-root column and row call to the joint primitive
+experiment. Their replies suffice to compute all Expands, confirmations,
+signatures, traffic and successor roots. In particular, disclosed successor
+contributions and roots require no raw current root. This gives the first
+term and retains the same public oracle throughout.
+
+Next replace the at most two column-PRK rows in class-allocation order.
+Preallocate the zero-salt class privately if necessary; a second class
+exists only when $\Gamma(s)\ne\Gamma(0)$. For a designated class, install
+the row primitive's hidden uniform key as its first $V$ reply, withheld
+until allocation. The identifier is computed from known salts and $h$;
+it does not inspect the private reply. Every equal $\Gamma$ reuses this
+handle. Answer Expands by querying the challenge row on the actual
+successive messages. Their output blocks are known, so real MACs,
+verifications, signatures and continuation can all be performed.
+Other class keys are sampled locally. All their real HMAC computations,
+and all preparation and future work, count as ordinary queries.
+
+Three one-block confirmation Expands and at most $M$ four-block traffic
+Expands give input lengths $63,59,61$ and $156,188,188,188$. Thus the
+first class has at most $3+4M$ distinct row calls and a second class at most
+$4M$. A never-allocated class causes no challenge call. Their total is at
+most $3+4M$; the separate worst-case budgets avoid conditioning a
+primitive bound on the oracle-dependent class-equality event.
+
+Independent $V$ replies may coincide numerically. No inequality is assumed:
+known-key computations are performed through the same $h$, including
+accidental overlap with the challenge key, and are counted by the
+primitive experiment. An ideal row is the declared hybrid replacement.
+Intentional $\Gamma$ aliases share that row in every game.
+
+Apply Lemma~\ref{lem:joint-expand-blocks} exactly. The selected traffic seed
+is now a fresh independent block, and its parent no longer exposes an
+input containing it. Presample the single-column challenge seed and
+install it at the newly marked entry before its blocks are produced.
+There is no earlier equal-info allocation; later aliases retain this
+protected handle.
+Its only raw use is $F(0,s^*)$; every other block is sampled locally.
+The next hop therefore makes $P_M$ independently uniform at cost
+$\varepsilon_{\rm Hcol}(q_s)$.
+
+Finally install the row challenge key at that fresh $P_M$. The two actual
+Expand inputs have lengths $57$ and $89$, giving the final term.
+The same exact block-table rewrite produces independent $s',K$.
+The next seed may be disclosed and used in all later chain computation;
+the reduction has every value it needs except the key reserved to the
+application interface. These five comparisons prove the bit bound.
+Randomizing a terminal bit with probability $(Z+1)/2$ proves the score
+bound. Equivalently one may fix an independent application challenge bit,
+apply this bound, and average over that bit.
+\end{proof}
+
+The comparison installs an independent key and regenerates the complete
+continuation from it. Subsequent ciphertexts retain their dependence on that
+key, and the intermediate roots keep the joint distributions specified by
+the corresponding hybrids.
+
+\paragraph{Application confidentiality.}
+Use a one-key, one-encryption left-or-right AEAD experiment with nonce
+$0^{96}$, equal-length messages, common associated data and the same
+additional public oracle $h$. Its classical decryption interface returns
+real plaintext or failure, except that an exact challenge query returns
+an authenticated marker. Let $\varepsilon_{\rm AEAD}$ be its absolute
+guessing advantage over $1/2$. An encryption-only profile uses the
+corresponding one-use privacy experiment.
+
+The honest application creates the selected send. The network adversary
+receives ciphertext, metadata, status, ACKs and real authentication/error
+outcomes, and can request plaintext-free $\operatorname{Resume}(id)$.
+The actual payload and its retained send-intent digest are opaque
+application handles. Delivery and any payload-bearing resolution output
+are private to the honest application; the public continuation has no
+additional payload-dependent return. An exact challenge reception can
+therefore update public state using its authenticated marker and known
+metadata. Other ciphertexts use the declared decryption interface.
+
+The send-origin normalization caches the encryption reply at its first
+\emph{private computation}, even if that computation precedes durable
+commit or network release. Native crash recovery may repeat encryption,
+but always on the same original tuple; the reduction retrieves its cache.
+The cache includes the marked material's original allocation and
+authoritative owner/history, direction and index. Distinct material
+allocations are not merged merely because their epoch numbers agree.
+
+\begin{corollary}[First message of a recovered direction]
+\label{cor:joint-first-message}
+For an event $A$ computable from the available view and ledger without
+reading the hidden AEAD challenge bit $b$, let
+$Z=\mathbf1_A(2\mathbf1[g=b]-1)$.
+Under the application interface above,
+\[
+ |\mathbb E_{G_R}Z|
+ \le 2\Delta_{\rm sched}+2\varepsilon_{\rm AEAD}.
+\]
+\end{corollary}
+\begin{proof}
+Theorem~\ref{thm:joint-message-leaf}, applied for each fixed $b$ and
+averaged, changes this score by at most $2\Delta_{\rm sched}$.
+In $G_{\rm leaf}$ give the selected encryption/decryption operations
+to the AEAD challenger and sample every other block locally.
+Confirmation, ACK, successor-root and subsequent-chain computation uses
+known material and the same public oracle. Cache the first encryption
+response; exact challenge reception needs only the marker and metadata.
+At the end return $g$ when $A$ holds and a fresh fair guess otherwise.
+Its centered success is exactly $\mathbb E Z$, bounded by
+$2\varepsilon_{\rm AEAD}$.
+\end{proof}
+
+The public application boundary is substantive. For two challenge
+plaintexts with different native send-intent digests, publishing the
+result of $\operatorname{send\_message}(id,m_0,ad)$ after the challenge
+would distinguish a retained result from an intent conflict. No
+record acquisition is needed for that test. The network profile uses
+Resume while the honest application retains the plaintext-bearing API;
+original eligibility is unchanged.
+
+\paragraph{Entry from a recovered contribution.}
+The uniform value above is the epoch root \emph{after} root derivation.
+For a separately justified uniform combined contribution $S$, known
+previous root $r$ and public response core, the actual derivation is
+\[
+\begin{aligned}
+ P&=F(r,S),\qquad R=F(P,I_R\Vert\mathtt{01}),\\
+ I_R&=D\Vert\texttt{pending-root/HKDF-SHA256/}\\
+    &\quad\Vert\operatorname{hash}(\texttt{response-core},\mathit{core}).
+\end{aligned}
+\]
+Its information string has 97 bytes and its sole Expand message has 98.
+Suppose this is one original Extract/Expand, with exact repeats cached,
+and $S,P$ have no additional raw-use or disclosure channel.
+The retained root-initialization lemma applies with the entire controller
+above as continuation, at bit cost $\Delta_{\rm init}$. Its ideal reply
+can be presampled and withheld, providing precisely the joint uniform
+root initialization required here. It regenerates confirmations,
+signatures, traffic and future epochs; it does not replace a root inside
+a fixed public transcript.
+
+Let $\mathsf W_{\rm cont}^{[j]}$ denote this uniform-combined-contribution
+continuation, with the same candidate-local score code $\Psi_j$, and put
+$b_j^{\rm cont}=\mathbb E_{\mathsf W_{\rm cont}^{[j]}}\Psi_j$.
+Consequently,
+\[
+ |b_j^{\rm cont}|\le
+ 2\Delta_{{\rm init},j}
+ +2\Delta_{{\rm sched},j}
+ +2\varepsilon_{{\rm AEAD},j}.
+\]
+The native accounting term
+$b_j=\mathbb E_{\widetilde{\mathsf V}^{[j]}}\Psi_j$ belongs instead to
+the random-component game, which may still use the real ContextBound
+combiner. If its actual complete comparison to
+$\mathsf W_{\rm cont}^{[j]}$ has bit gap at most
+$\varepsilon_{{\rm CB},j}$, then
+\[
+ |b_j-b_j^{\rm cont}|\le2\varepsilon_{{\rm CB},j},
+ \qquad
+ |b_j|\le2\varepsilon_{{\rm CB},j}+|b_j^{\rm cont}|.
+\]
+This comparison retains the controller, query interfaces and score/event
+code, counts all shared-oracle preparation and continuation, and recomputes
+events within each game's execution. Its actual tuple and disclosure
+conditions must hold. The randomized test with success probability
+$(\Psi_j+1)/2$ gives the first inequality; the second is the triangle
+inequality. Native correspondence $\rho_j$, component and authentication
+terms, and original-game projection residuals remain in their established
+locations. This supplies the continuation bound for the specified profile,
+including known old roots and allowed later disclosure.

@@ -1,0 +1,59 @@
+{
+  "descriptor_owner_ledger": {
+    "actual_state_freshness_implies_lineage_freshness_cases": 15,
+    "actual_state_freshness_is_distinct_from_equal_pk_pooling": true,
+    "declared_alias_outputs": [
+      0,
+      0,
+      1
+    ],
+    "incorrect_equal_pk_merge_outputs": [
+      0,
+      0,
+      0
+    ],
+    "ordinary_query_messages_are_ledger_subset": true,
+    "raw_ledger_updates_on_cached_execution": true
+  },
+  "foreign_corruption": {
+    "distinguishing_gap": "3/8",
+    "finite_assignments": 256,
+    "ordinary_oracle_substitution_consistency": "5/8",
+    "real_reservation_consistency": "1",
+    "required_resolution": "global stop, fixed target, or guessed-family lift"
+  },
+  "hidden_input_accounting": {
+    "all_same_descriptor_and_family": "5/8",
+    "descriptor_partitioned": "1/4",
+    "family_partitioned": "1/4",
+    "hidden_draw_histories": 64
+  },
+  "pair_collision_selection": {
+    "correct_pair_cache_equality": "1",
+    "invalid_execute_only_collision_charge": "1/4",
+    "naive_discrepancy": "3/8",
+    "naive_per_slot_equality": "5/8",
+    "opened_draw_histories": 1024
+  },
+  "scope": "finite classical controls and countermodels; no native or quantum execution",
+  "shared_oracle_coupling": {
+    "coupling_assignments": 16384,
+    "fixed_address_average_difference_mass": {
+      "hedge:0": "1/2",
+      "hedge:1": "1/2",
+      "keygen:0": "1/2",
+      "keygen:1": "1/2",
+      "other:0": "0"
+    },
+    "joint_oracle_outcomes": 2048,
+    "multiplicity_per_outcome": 8,
+    "quantum_execution_claimed": false
+  },
+  "status": "passed",
+  "unequal_global_cap": {
+    "common_cap": 1,
+    "ordinary_simulation_calls": 2,
+    "reservation_calls": 1,
+    "same_cap_coupling_requires_extra_argument": true
+  }
+}

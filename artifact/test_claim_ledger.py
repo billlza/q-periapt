@@ -2,6 +2,7 @@ import json
 import pathlib
 import subprocess
 import tempfile
+import tracemalloc
 import unittest
 from unittest import mock
 
@@ -49,6 +50,46 @@ class ClaimLedgerTests(unittest.TestCase):
         self.assertEqual(first, second)
         (self.root / "evidence.txt").write_text("changed", encoding="utf-8")
         self.assertNotEqual(first, canonical_tree_digest(self.root, ["evidence.txt"]))
+
+    def test_canonical_digest_preserves_framing_and_pinned_input_bytes(self) -> None:
+        (self.root / "nested").mkdir()
+        (self.root / "alpha.bin").write_bytes(b"\x00\xffA")
+        (self.root / "empty.dat").write_bytes(b"")
+        (self.root / "nested" / "\u03b2.txt").write_bytes(b"changed on disk")
+        paths = ["nested/\u03b2.txt", "artifact/results.json", "empty.dat", "alpha.bin", "alpha.bin"]
+        expected = "951dcbff472f6e0623e1bd9b5d3a84a8fe30334049db47d18c3a9f7630e9281f"
+        self.assertEqual(
+            canonical_tree_digest(self.root, paths, pinned_files={"nested/\u03b2.txt": b"pin\x00v1"}),
+            expected,
+        )
+        self.assertEqual(
+            claim_ledger.canonical_file_map_digest(
+                {"alpha.bin": b"\x00\xffA", "empty.dat": b"", "nested/\u03b2.txt": b"pin\x00v1"}
+            ),
+            expected,
+        )
+        self.assertNotEqual(canonical_tree_digest(self.root, paths), expected)
+        with self.assertRaisesRegex(LedgerError, "absent from inventory"):
+            canonical_tree_digest(self.root, paths, pinned_files={"unused": b"value"})
+        with self.assertRaisesRegex(LedgerError, "content must be bytes"):
+            canonical_tree_digest(self.root, paths, pinned_files={"alpha.bin": "not bytes"})
+        with self.assertRaisesRegex(LedgerError, "source-input path is missing"):
+            canonical_tree_digest(self.root, ["missing"], pinned_files={"missing": b"pinned"})
+
+    def test_tree_digest_does_not_retain_all_archive_contents(self) -> None:
+        payload = b"e" * (1024 * 1024)
+        paths = [f"archive-{index}.bin" for index in range(8)]
+        for relative in paths:
+            (self.root / relative).write_bytes(payload)
+        del payload
+        tracemalloc.start()
+        try:
+            canonical_tree_digest(self.root, paths)
+            _, peak_bytes = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        # Eight 1 MiB inputs must fit comfortably within a three-file budget.
+        self.assertLess(peak_bytes, 3 * 1024 * 1024)
 
     def test_duplicate_claim_and_path_traversal_fail_closed(self) -> None:
         ledger = self.ledger()
@@ -174,6 +215,64 @@ class ClaimLedgerTests(unittest.TestCase):
                     "refinement" in claim["boundary"].lower()
                     or "correspondence" in claim["boundary"].lower()
                 )
+
+        migration_claim = claims["MIG-BIND-K-STATE-V2"]
+        migration_boundary = migration_claim["boundary"].lower()
+        for required_boundary in (
+            "one abstract h_sha3",
+            "four-field current staterevisionv1 recheck",
+            "h_accept or h_context",
+            "add h_state",
+            "post-digest-only",
+            "not finished forgery",
+            "not independently derive k_abi2",
+            "formal-to-rust",
+        ):
+            with self.subTest(required_boundary=required_boundary):
+                self.assertIn(required_boundary, migration_boundary)
+
+        migration_source = (
+            REPOSITORY_ROOT / "formal" / "easycrypt" / "MigrationBindingV2.ec"
+        ).read_text(encoding="utf-8")
+        for required_formal in (
+            "op H_sha3 : bytes -> bytes.",
+            "type state_revision = {",
+            "type accepted_session_key = {",
+            "lemma mig_bind_k_state_bad_event_decomposition",
+            "lemma mig_bind_k_revision_bad_event_decomposition",
+            "lemma honest_role_kem_direction_nonvacuous",
+            "lemma stale_current_recheck_both_roles_negative_control",
+            "lemma peer_finished_both_roles_negative_control",
+            "lemma omitted_state_end_to_end_negative_control",
+            "lemma omitted_post_ciphertext_negative_control",
+            "lemma omitted_finished_role_negative_control",
+            "lemma omitted_accept_finished_negative_control",
+        ):
+            with self.subTest(required_formal=required_formal):
+                self.assertIn(required_formal, migration_source)
+        self.assertNotIn(
+            "op migration_accepted : migration_execution -> bool.",
+            migration_source,
+        )
+
+    def test_prepublication_security_claim_does_not_invent_live_tag_facts(self) -> None:
+        ledger = load_json_object_snapshot(
+            REPOSITORY_ROOT / "artifact" / "claim-ledger.json",
+            maximum=claim_ledger.MAX_CLAIM_LEDGER_BYTES,
+            label="repository claim ledger",
+        ).value
+        claims = {claim["id"]: claim for claim in ledger["claims"]}
+        security = claims["SOURCE-SECURITY-CODE-SCANNING-ADJUDICATION"]
+        boundary = security["boundary"]
+        self.assertIn("eventual exact-R receipt", boundary)
+        self.assertIn("actual result count", boundary)
+        self.assertIn("zero unadjudicated findings", boundary)
+        self.assertNotIn("At the tagged commit", boundary)
+        self.assertNotIn("199 results", boundary)
+
+        android = claims["ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS"]["boundary"]
+        self.assertIn("not a prerequisite for stable package publication", android)
+        self.assertIn("production aggregate stays pending", android)
 
 
 if __name__ == "__main__":

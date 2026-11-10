@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "fmt",
+    "--manifest-path",
+    "bindings/c/ContinuityPackageConsumer/Cargo.toml",
+    "--all",
+    "--check"
+  ],
+  "cwd": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-lifecycle-integration",
+  "completed": false,
+  "exit": 1,
+  "seconds": 0.38403899990953505,
+  "log_sha256": "36aec57b28e0f4e0653f72854406e664648d5064e1973dde86a786e9547d11d6"
+}

@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "completed_at_utc": "2026-11-08T17:49:08.215681+00:00",
+  "files_in_source_zip": 9,
+  "clean_compile_exit_code": 0,
+  "extracted_pdf_text_equal": true,
+  "text_sha256": "5feec8843ed3935eaa192aa11bd640af1328e8d6bba182def02a5699e61014d4",
+  "source_zip_sha256": "a2af6eb990cf51a24ebccf6672374dec92b3ee4e905bc561573d22994b451b23",
+  "reading_pdf_sha256": "a3c86055403dcf5e7cbb3c7152c643523bd50b858e0a5511b3447145fe038959",
+  "exported_pdf_sha256": "b6cc61c75b8ff9cb883c3ca9ca8291ad9707e346c83f86cdff0dfef889c88bda",
+  "all_fonts_embedded": {
+    "reading": true,
+    "exported": true
+  },
+  "failures": [],
+  "build_method": "Fresh isolated compilation of the verified nine-file exported submission package."
+}

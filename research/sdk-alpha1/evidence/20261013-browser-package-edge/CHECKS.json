@@ -1,0 +1,28 @@
+{
+  "base_commit": "5f7548fa67fce424ea58943a707861a5e15d9aec",
+  "production_package_attempt_completed": false,
+  "fixed_classification_tests": 32,
+  "tests_exit_code": 0,
+  "actual_locked_offline_metadata_classified": true,
+  "metadata_sha256": "9c0db4b7a97e34da0ab83e009d5fb2d0b8ab45eff039707ff3d657ce84e6d3e4",
+  "metadata_bytes": 64310,
+  "selected_dependency": {
+    "name": "q-periapt-continuity-identity-candidate",
+    "source": null,
+    "req": "=0.0.0",
+    "kind": null,
+    "rename": null,
+    "optional": true,
+    "uses_default_features": true,
+    "features": [],
+    "target": "cfg(all(target_arch = \"wasm32\", target_os = \"unknown\"))",
+    "registry": null,
+    "path": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate"
+  },
+  "workspace_members": 18,
+  "public_cohort": 12,
+  "private_members": 6,
+  "candidate_is_workspace_member": false,
+  "release_claim_eligible": false,
+  "note": "The first aggregate unittest invocation named a nonexistent test module; its terminal log is retained under target. The corrected invocation ran both existing relevant modules and passed all 32 tests."
+}

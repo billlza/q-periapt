@@ -1,0 +1,16 @@
+warning: patch `q-periapt-rustls v0.2.0 (/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-rust-sdk-consumer-3qussbw4/packages/q-periapt-rustls-0.2.0)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling cc v1.5.1
+   Compiling q-periapt-core v0.2.0 (/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-rust-sdk-consumer-3qussbw4/packages/q-periapt-core-0.2.0)
+   Compiling q-periapt-sig v0.2.0 (/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-rust-sdk-consumer-3qussbw4/packages/q-periapt-sig-0.2.0)
+   Compiling q-periapt-policy v0.2.0 (/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-rust-sdk-consumer-3qussbw4/packages/q-periapt-policy-0.2.0)
+   Compiling q-periapt-kem v0.2.0 (/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-rust-sdk-consumer-3qussbw4/packages/q-periapt-kem-0.2.0)
+   Compiling q-periapt-mlkem-native-sys v0.2.0 (/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-rust-sdk-consumer-3qussbw4/packages/q-periapt-mlkem-native-sys-0.2.0)
+   Compiling q-periapt-backends v0.2.0 (/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-rust-sdk-consumer-3qussbw4/packages/q-periapt-backends-0.2.0)
+   Compiling q-periapt-sdk v0.2.0 (/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-rust-sdk-consumer-3qussbw4/packages/q-periapt-sdk-0.2.0)
+   Compiling q-periapt-host-store v0.2.0 (/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-rust-sdk-consumer-3qussbw4/packages/q-periapt-host-store-0.2.0)
+   Compiling policy-recovery-openssl-check v0.0.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-authority-recovery-current/openssl-interop)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.06s

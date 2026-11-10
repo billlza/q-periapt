@@ -1,0 +1,109 @@
+{
+  "accepted_conclusion": "A sender-local minimum retry age recovers completed service in all 12 measured exchange cases while preserving native cryptographic and durability interfaces; the manuscript reports the complete communication trade-offs and the unchanged one-way admission boundary.",
+  "bound_manuscript_files": [
+    {
+      "path": "retry-readiness.tex",
+      "sha256": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516"
+    },
+    {
+      "path": "retry-readiness-table.tex",
+      "sha256": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5"
+    },
+    {
+      "path": "introduction.tex",
+      "sha256": "8daaa28cbfe07ff3ff7f6911933c079b627ccf9c6e50e65f6beb678f47989f84"
+    },
+    {
+      "path": "evaluation.tex",
+      "sha256": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe"
+    },
+    {
+      "path": "discussion.tex",
+      "sha256": "47eecb59a7950780b73057dfee3a687320ea2eab873217c2efe4e65a7f52c159"
+    },
+    {
+      "path": "artifact-map.tex",
+      "sha256": "6814d320c381f4826eb4d2f38fa6c373df736989ccc420ed08eeaf09391b9762"
+    }
+  ],
+  "bound_projection_files": [
+    {
+      "path": "artifacts/retry-readiness/analyze_retry.py",
+      "sha256": "ef5f773efc34a6b095008b5498fa46ba2158b3c2b950e551b674641b51b5da83"
+    },
+    {
+      "path": "artifacts/retry-readiness/analysis.json",
+      "sha256": "0f2deb41f94f561a265cf1ccb8a3951c77cfaa8090ddcdd03229fe8aa96ad5c3"
+    },
+    {
+      "path": "artifacts/retry-readiness/README.md",
+      "sha256": "ba97fc8c2f5c69ade6b6b3372c60df28652719905edbff10a56ddce0727555c3"
+    },
+    {
+      "path": "artifacts/retry-readiness/source_identity.json",
+      "sha256": "54559dc1d6b81b91003493ca08d343362a488e433fc988219a86126294842116"
+    }
+  ],
+  "execution_evidence": {
+    "artifact_id": 13650034930,
+    "copied_review_sources_preserve_original_bytes": true,
+    "independent_audit_sha256": "68d955b7d09a1229b7d4688b7f1d9524218569e3403c7c2211c9cc4a9fa17e47",
+    "original_report_sha256": "7771c25ad23271fa2676b81dfe53b1ecfc3ec1ec2301893d4eb914fb56c738ee",
+    "provenance_review_sha256": "485569f51e55c72c542b02c1109a1b03d0b58c0ce866a81195ec8bcafb32f4d1",
+    "run_id": 42551086845
+  },
+  "layout_only_update": {
+    "change": "Wrap the existing A.13 reproduction-command quote in one samepage environment; exactly two added lines.",
+    "current_file_sha256": "6814d320c381f4826eb4d2f38fa6c373df736989ccc420ed08eeaf09391b9762",
+    "file": "artifact-map.tex",
+    "other_five_manuscript_bindings_and_four_projection_bindings_unchanged": true,
+    "previous_file_sha256": "e4b5b86d6871a6f23626121da4d6d3187c2108ec3488a45991c529d78d322de2",
+    "previous_review_receipt_sha256": "112a3764e1200dc1849058866a46c7c8cc3cf7d45a4684d84c195080f57a1a71",
+    "scientific_wording_numbers_and_math_unchanged": true,
+    "verification": "Removing precisely those two environment lines reproduces the previously reviewed file SHA-256."
+  },
+  "projection_check": {
+    "command": "python artifacts/retry-readiness/analyze_retry.py --check",
+    "exit_code": 0,
+    "fresh_baseline_rows_equal_to_retained": 14,
+    "native_executions": 28,
+    "paired_cases": 14
+  },
+  "review": "Independent scientific and numerical review of the retry-readiness manuscript increment",
+  "schema": 1,
+  "scientific_checks": {
+    "12_exchange_cases_deliver_more": true,
+    "14_fresh_baseline_rows_equal": true,
+    "3_committed_undelivered_residuals_retained": true,
+    "all_14_delivery_pairs_and_byte_ratios": true,
+    "alternating_physical_sync_totals_and_per_delivery_values": true,
+    "first_send_control_ack_and_retained_ciphertext_code_paths": true,
+    "local_2b_minus_1_allocation_envelope_not_generalized": true,
+    "offline_current_epoch_count_increments_retained": true,
+    "oldest_eligible_unacknowledged_request": true,
+    "one_way_service_epoch_zero_and_4605_byte_difference": true,
+    "per_opportunity_service_not_wall_clock_speed": true,
+    "post_capture_commitment_denominators_retained": true,
+    "public_clock_and_minimum_retry_age": true,
+    "same_opportunity_budget_and_declared_capture_cut": true
+  },
+  "scope_comparison": {
+    "changed_existing_tex": [
+      "artifact-map.tex",
+      "discussion.tex",
+      "evaluation.tex",
+      "introduction.tex"
+    ],
+    "current_top_level_tex_files": 35,
+    "new_tex": [
+      "retry-readiness-table.tex",
+      "retry-readiness.tex"
+    ],
+    "prior_root": "/workspace/scratch/f8dd1e669a70/paper-work/paper/continuity",
+    "prior_top_level_tex_files": 33,
+    "theorem_proof_and_existing_matched_sections_unchanged": true,
+    "unchanged_existing_tex_files": 29
+  },
+  "source_root": "/workspace/scratch/f8dd1e669a70/paper-retry-work/paper/continuity",
+  "status": "accepted"
+}

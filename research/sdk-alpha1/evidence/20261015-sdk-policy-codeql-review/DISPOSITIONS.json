@@ -1,0 +1,387 @@
+{
+  "analysis_id": 1930866657,
+  "analysis_merge": "760da743a40e1a5876e973308c2341d2b000eeff",
+  "analysis_results": 878,
+  "comparison_commit": "abc731a11e60c91c30bbaa362eb36095c0157c93",
+  "current_anchors": [
+    {
+      "lines": [
+        301
+      ],
+      "path": "crates/q-periapt-sdk/src/lib.rs",
+      "text": "pub fn policy_binding("
+    },
+    {
+      "lines": [
+        312
+      ],
+      "path": "crates/q-periapt-sdk/src/lib.rs",
+      "text": "pub fn is_enabled("
+    },
+    {
+      "lines": [
+        169
+      ],
+      "path": "crates/q-periapt-sdk/src/expert/replay.rs",
+      "text": "let mut wire = binding("
+    },
+    {
+      "lines": [
+        192
+      ],
+      "path": "crates/q-periapt-sdk/src/expert/replay.rs",
+      "text": "let expected = binding("
+    },
+    {
+      "lines": [
+        204,
+        260
+      ],
+      "path": "research/continuity-identity-candidate/src/session_policy.rs",
+      "text": "!runtime.is_enabled()?"
+    },
+    {
+      "lines": [
+        379,
+        386
+      ],
+      "path": "research/continuity-identity-candidate/src/session_policy.rs",
+      "text": "!self.runtime.is_enabled()?"
+    },
+    {
+      "lines": [
+        815
+      ],
+      "path": "research/continuity-identity-candidate/src/bootstrap.rs",
+      "text": "fn nonce()"
+    },
+    {
+      "lines": [
+        50
+      ],
+      "path": "research/continuity-identity-candidate/src/bootstrap/staged.rs",
+      "text": "nonce: nonce()?"
+    },
+    {
+      "lines": [
+        58
+      ],
+      "path": "research/continuity-identity-candidate/src/bootstrap/response_staged.rs",
+      "text": "let nonce = nonce()?"
+    },
+    {
+      "lines": [
+        1115,
+        1162
+      ],
+      "path": "research/continuity-identity-candidate/src/durable.rs",
+      "text": "XChaCha20Poly1305::new_from_slice(key.0.as_bytes())"
+    },
+    {
+      "lines": [
+        312
+      ],
+      "path": "research/continuity-identity-candidate/src/durable.rs",
+      "text": "pub(crate) fn prepare_file()"
+    },
+    {
+      "lines": [
+        384
+      ],
+      "path": "research/continuity-identity-candidate/src/durable.rs",
+      "text": "pub(crate) fn decode_file("
+    },
+    {
+      "lines": [
+        71
+      ],
+      "path": "bindings/c/ContinuityPackageConsumer/src/device.rs",
+      "text": "p::JournalKey::open("
+    }
+  ],
+  "dispositions": [
+    {
+      "alert": 700,
+      "classification": "false positive for hard-coded key at the two named journal cipher sinks",
+      "flow_join": "The reported path crosses policy admission, the containing service/journal owner, and its independent key field. It does not establish an assignment from the boolean to JournalKey bytes.",
+      "required_behavior": "Keep enablement/current-policy refusal checks; removing them or randomizing the boolean would not fix a key source.",
+      "sarif_index": 789,
+      "sink": "Both seal and unseal_image initialize XChaCha20Poly1305 from key.0.as_bytes() of their separately supplied JournalKey. Active retains that key, and seal_next_image borrows it. The C consumer loads wrap.key before activation and passes that owner through installation/journal constructors.",
+      "source": "Runtime::is_enabled returns Result<bool> from a Configuration variant match. PolicyPin::verify and VerifiedSessionPolicy::check_mode use it as a refusal condition and retain the original runtime/historical policy; check_mode returns Result<()> rather than key bytes."
+    },
+    {
+      "alert": 537,
+      "classification": "false positive for hard-coded nonce/key at all five named sinks",
+      "key_sinks": "The same two JournalKey-backed cipher constructors as alert700 remain separate from policy metadata. Fresh key creation fills all 32 bytes before publication; reopen/decode copies the exact retained 32-byte key payload and propagates shape/read errors.",
+      "nonce_sinks": "InitiationPlan::reserve and ResponsePlan::reserve use bootstrap::nonce(), which fills a separate 32-byte array through getrandom and propagates failure. Their private decode functions restore that distinct nonce field from the authenticated durable plan. The three reported prefix calls borrow self.nonce, not the SDK policy binding.",
+      "required_behavior": "Keep deterministic policy identity, complete overwrite, entropy-error propagation and authenticated exact replay. Rejecting zero bytes in this public metadata or regenerating nonce during recovery would change the intended contract.",
+      "sarif_index": 792,
+      "sealed_operation_boundary": "The policy binding occupies an authenticated wire header. RecoveryKey::reserve independently fills operation entropy and a 24-byte AEAD nonce; open validates the exact binding and authenticates the ciphertext before returning entropy. Neither converts the binding into a bootstrap nonce or journal key.",
+      "source": "Runtime::policy_binding initializes 68 bytes, then overwrites all 32 root-digest bytes and all 36 encoded trusted-policy-state bytes before return. It is intentionally public deterministic application-policy identity, not secret material or entropy."
+    }
+  ],
+  "limits": [
+    "Nine of the 17 supplied-flow/sink source files changed between the analyzed and current commits. Their original and current bytes are retained; no claim of whole-file equality or inherited current CodeQL acceptance is made.",
+    "The current key-source, nonce-source, policy guard and ownership transfer paths were reread; this does not review every change in those nine files.",
+    "The result contains four supplied flow threads per alert; related sink locations are checked even where no separate thread is supplied.",
+    "Stored fresh material can remain exposed after a retained-state compromise. This review does not establish post-compromise recovery, cryptographic erasure, same-UID storage isolation or global nonce uniqueness.",
+    "Only these two identified reports receive a disposition. No subtraction from unrelated or earlier inventories and no aggregate security-pass claim."
+  ],
+  "method": "Read every supplied flow location and the owning methods, each named sink, nonce generation/restoration, policy binding construction, JournalKey construction and current changed ownership paths. This is a bounded static disposition, not a new whole-program analysis.",
+  "open_pr_alerts_observed": 1761,
+  "product_modified": false,
+  "queries_or_severity_changed": false,
+  "release_claim_eligible": false,
+  "remote_dismissal_performed": false,
+  "reviewed_alert_numbers": [
+    700,
+    537
+  ],
+  "reviewed_result_indices": [
+    789,
+    792
+  ],
+  "sarif_sha256": "4bbd3dd45b8defeb137149bc61702be25a218c18aba8785ad2d854d90d6b2b5a",
+  "schema_version": 1,
+  "source_comparison": [
+    {
+      "analysis_sha256": "03f6c285bd0328ba94810d105aaa27b34abf903f91b306b9f93cfb6e8a1cc24c",
+      "current_sha256": "a579f0441a7f106bb78ae06e8969a91bd01cb894fe4d6b2c30caee4b3f87f402",
+      "path": "bindings/c/ContinuityPackageConsumer/src/device.rs",
+      "reported_lines": [
+        58,
+        90,
+        152,
+        178,
+        195
+      ],
+      "same": false
+    },
+    {
+      "analysis_sha256": "4d2b7440b82eff5286a02430a27db716e81f50e2d863dd0319e2e27e9f1d0f60",
+      "current_sha256": "4d2b7440b82eff5286a02430a27db716e81f50e2d863dd0319e2e27e9f1d0f60",
+      "path": "bindings/c/ContinuityPackageConsumer/src/owner.rs",
+      "reported_lines": [
+        101
+      ],
+      "same": true
+    },
+    {
+      "analysis_sha256": "b2879b876e37f6f9a98f065c55502a1ed90f5d248fd029fef8eaad59bf5ec390",
+      "current_sha256": "b2879b876e37f6f9a98f065c55502a1ed90f5d248fd029fef8eaad59bf5ec390",
+      "path": "crates/q-periapt-core/src/lib.rs",
+      "reported_lines": [
+        136,
+        137
+      ],
+      "same": true
+    },
+    {
+      "analysis_sha256": "cc95985cd212a2c2f224dcce22bc7fba5f4f331dc190e263085a0261dd0a3713",
+      "current_sha256": "cc95985cd212a2c2f224dcce22bc7fba5f4f331dc190e263085a0261dd0a3713",
+      "path": "crates/q-periapt-sdk/src/expert/replay.rs",
+      "reported_lines": [
+        98,
+        99,
+        145,
+        169,
+        192,
+        242
+      ],
+      "same": true
+    },
+    {
+      "analysis_sha256": "38e9c524a60e6019c8a5304cd1d587006ab467ab1718a1fd8899f97823e98be6",
+      "current_sha256": "38e9c524a60e6019c8a5304cd1d587006ab467ab1718a1fd8899f97823e98be6",
+      "path": "crates/q-periapt-sdk/src/lib.rs",
+      "reported_lines": [
+        301,
+        303,
+        307,
+        312,
+        314,
+        315
+      ],
+      "same": true
+    },
+    {
+      "analysis_sha256": "91b5c96591be2bea7d5e957e317c39bd15bf2ce8c8141edbf2e87134de9a0ad6",
+      "current_sha256": "91b5c96591be2bea7d5e957e317c39bd15bf2ce8c8141edbf2e87134de9a0ad6",
+      "path": "research/continuity-identity-candidate/src/bootstrap/response_staged.rs",
+      "reported_lines": [
+        91,
+        97,
+        98,
+        117,
+        129,
+        141
+      ],
+      "same": true
+    },
+    {
+      "analysis_sha256": "4cb8052e7113d090ec1874bede5d429ca10a9c4efeb57c9947e904164c788933",
+      "current_sha256": "4cb8052e7113d090ec1874bede5d429ca10a9c4efeb57c9947e904164c788933",
+      "path": "research/continuity-identity-candidate/src/bootstrap/staged.rs",
+      "reported_lines": [
+        43,
+        88,
+        93,
+        104,
+        115,
+        124
+      ],
+      "same": true
+    },
+    {
+      "analysis_sha256": "b981eb235b12ffec3cf6fb7ec468aec9d6298279e17528e5dfa662ffc03e084f",
+      "current_sha256": "2a059f7195b1323234044b86865790ed48cba1079a04637814043daf4875c394",
+      "path": "research/continuity-identity-candidate/src/durable.rs",
+      "reported_lines": [
+        691,
+        694,
+        701,
+        702,
+        703,
+        705,
+        774,
+        775,
+        776,
+        792,
+        797,
+        806,
+        990,
+        1045,
+        1053,
+        1054,
+        1067,
+        1092
+      ],
+      "same": false
+    },
+    {
+      "analysis_sha256": "47a3ae0d5776618b9ed896524b83148a83f90a78406d1e6c87c62b9d32fa8b4c",
+      "current_sha256": "666b349c848aeaa08187e4131c2ac4421569703e43a1b4e7ff411949a3dd93b5",
+      "path": "research/continuity-identity-candidate/src/durable/account_authority.rs",
+      "reported_lines": [
+        137,
+        140,
+        153,
+        156,
+        203,
+        206,
+        221
+      ],
+      "same": false
+    },
+    {
+      "analysis_sha256": "e3fa608055145428099c8275b34533836d82e8d6a6bd821a398a49d8012d15d7",
+      "current_sha256": "e811b825dd4f9ad0357c2d08dd89bfb16983e7b4766383a251363ea357cbfdf2",
+      "path": "research/continuity-identity-candidate/src/durable/anchoring.rs",
+      "reported_lines": [
+        286
+      ],
+      "same": false
+    },
+    {
+      "analysis_sha256": "d11b2a9bba338f29e993b5fc943fcb8173f5c9e8f7788afe6f35b620951ed3e0",
+      "current_sha256": "5957380083baf138d2f8703aabf31fd1f158078e59c353230714ccd3de575693",
+      "path": "research/continuity-identity-candidate/src/durable/initiator.rs",
+      "reported_lines": [
+        198,
+        212,
+        238
+      ],
+      "same": false
+    },
+    {
+      "analysis_sha256": "2db3d24956e4fe2fcb92979873bd8bd021978fa0e51258ba7ca0c4374e03e045",
+      "current_sha256": "756837ba80cb331cedfa41dbb59c3f1ca2c5b0e68739d199de3c569a8eab488b",
+      "path": "research/continuity-identity-candidate/src/durable/responder.rs",
+      "reported_lines": [
+        224,
+        225,
+        236
+      ],
+      "same": false
+    },
+    {
+      "analysis_sha256": "017310403af8b2eb8bf0b8b25c9da1749880637c884981e56bfd93bc25a1eb10",
+      "current_sha256": "31951e45c93fc92b4b19da97f9b1238d336c23e90881212c2060de1ce32480c0",
+      "path": "research/continuity-identity-candidate/src/durable/write_intent.rs",
+      "reported_lines": [
+        108,
+        111,
+        376,
+        386
+      ],
+      "same": false
+    },
+    {
+      "analysis_sha256": "668783188d8ab5a2f463084997ff47039276531fa593f9a3b2d11ecb5d4c839b",
+      "current_sha256": "668783188d8ab5a2f463084997ff47039276531fa593f9a3b2d11ecb5d4c839b",
+      "path": "research/continuity-identity-candidate/src/durable/write_intent/tests.rs",
+      "reported_lines": [
+        71,
+        80,
+        85,
+        540,
+        549,
+        616
+      ],
+      "same": true
+    },
+    {
+      "analysis_sha256": "8173c3f8d022fff40d49a8339021efdb7dbabe3cd522ebc0936a01de70404ed8",
+      "current_sha256": "8b0ff980f319f5265654f56a4c73422d8451db9718644e38f6a62df9ceb87316",
+      "path": "research/continuity-identity-candidate/src/installation.rs",
+      "reported_lines": [
+        514,
+        520,
+        524,
+        536,
+        537,
+        560,
+        621,
+        626,
+        628,
+        630,
+        646
+      ],
+      "same": false
+    },
+    {
+      "analysis_sha256": "4aaef8218f8d911a5c3ee892b5f81a286325dc15c30d438ffa7039984413fe92",
+      "current_sha256": "3829f2855017fdb0aa7d1d3e6ebf14daab7087e8f44507b9fbbe15e7bd939568",
+      "path": "research/continuity-identity-candidate/src/lib.rs",
+      "reported_lines": [],
+      "same": false
+    },
+    {
+      "analysis_sha256": "99a7fdc5ab00a8e43b7b93349fd63e1dc90589bd31d09471816067837feec3c1",
+      "current_sha256": "99a7fdc5ab00a8e43b7b93349fd63e1dc90589bd31d09471816067837feec3c1",
+      "path": "research/continuity-identity-candidate/src/session_policy.rs",
+      "reported_lines": [
+        257,
+        260,
+        379
+      ],
+      "same": true
+    }
+  ],
+  "supplemental_sources": [
+    {
+      "analysis_sha256": "ac82dc6f1cb43340c85a561ffb38d7a21e067573a2bbc25b11a29936dfa34155",
+      "current_sha256": "ac82dc6f1cb43340c85a561ffb38d7a21e067573a2bbc25b11a29936dfa34155",
+      "path": "research/continuity-identity-candidate/src/bootstrap.rs",
+      "same": true
+    },
+    {
+      "analysis_sha256": "9198d8738162bdef20ad07138e2850d4e770e074ac16404f7a1bfd7c549b9cab",
+      "current_sha256": "9198d8738162bdef20ad07138e2850d4e770e074ac16404f7a1bfd7c549b9cab",
+      "path": "crates/q-periapt-sdk/src/tests.rs",
+      "same": true
+    }
+  ],
+  "supplied_flow_locations": 292,
+  "supplied_flow_threads": 8
+}

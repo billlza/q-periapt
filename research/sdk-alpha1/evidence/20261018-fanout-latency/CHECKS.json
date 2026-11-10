@@ -1,0 +1,26 @@
+{
+  "baseline_head": "44528b0ef2edfc5fc933129801c0fc2633f0d8b4",
+  "candidate_head": "ca7e13fac927218e20b231804c1e93054117edfa",
+  "correctness_assertions_passed": true,
+  "blocks": 200,
+  "timed_operations": 4800,
+  "samples_per_position_per_variant": 200,
+  "p95_increased_positions": 10,
+  "positions": 12,
+  "paired_median_change_percent_range": [
+    -1.7767420308816728,
+    1.136676164397854
+  ],
+  "host_load1_range": [
+    4.8212890625,
+    17.5048828125
+  ],
+  "latency_improvement_established": false,
+  "tail_behavior_resolved": false,
+  "capture": {
+    "bytes": 594647,
+    "members": 1235,
+    "sha256": "c3aac7e18a8a84b7c9c207495828981236c4e8df071cca24af4171db030b3629"
+  },
+  "scope": "Exploratory paired native durable-send timings on one desktop host; unchanged correctness assertions. No statistical confidence, latency SLO, independent network/foreign/device/energy qualification."
+}

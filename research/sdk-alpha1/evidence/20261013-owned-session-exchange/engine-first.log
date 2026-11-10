@@ -1,0 +1,35 @@
+    Checking q-periapt-continuity-identity-candidate v0.0.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate)
+error[E0061]: this method takes 3 arguments but 2 arguments were supplied
+   --> src/session_exchange/client.rs:60:24
+    |
+ 60 |             Ok(journal.next_message_id(&session.context, session.id).await?)
+    |                        ^^^^^^^^^^^^^^^------------------------------ argument #3 of type `u64` is missing
+    |
+note: method defined here
+   --> src/durable/messages.rs:693:18
+    |
+693 |     pub async fn next_message_id(
+    |                  ^^^^^^^^^^^^^^^
+...
+697 |         now: u64,
+    |         --------
+help: provide the argument
+    |
+ 60 |             Ok(journal.next_message_id(&session.context, session.id, /* u64 */).await?)
+    |                                                                    +++++++++++
+
+error[E0599]: no method named `as_bytes` found for struct `std::vec::Vec<u8>` in the current scope
+  --> src/session_exchange/client.rs:83:83
+   |
+83 |             let request = frame(MESSAGE, &codec::pair(input.associated_data, wire.as_bytes())?)?;
+   |                                                                                   ^^^^^^^^
+   |
+help: there is a method `bytes` with a similar name
+   |
+83 -             let request = frame(MESSAGE, &codec::pair(input.associated_data, wire.as_bytes())?)?;
+83 +             let request = frame(MESSAGE, &codec::pair(input.associated_data, wire.bytes())?)?;
+   |
+
+Some errors have detailed explanations: E0061, E0599.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `q-periapt-continuity-identity-candidate` (lib) due to 2 previous errors

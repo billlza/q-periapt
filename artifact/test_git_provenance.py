@@ -91,6 +91,136 @@ class GitProvenanceTests(unittest.TestCase):
         self.assertIn("index differs from HEAD", inspection.reasons)
         self.assertTrue(any("untracked" in reason for reason in inspection.reasons))
 
+    def test_nested_git_repository_under_target_is_ephemeral_output(self) -> None:
+        nested = (
+            self.root
+            / "target"
+            / "abi2-platform-publication-worktrees"
+            / "M"
+        )
+        self._init_repo(nested, "nested-target")
+        (nested / "tracked.txt").write_text(
+            "nested checkout\n",
+            encoding="utf-8",
+        )
+        self._git(nested, "add", "tracked.txt")
+        self._git(nested, "commit", "-qm", "nested fixture")
+
+        raw = git_provenance.run_git_bytes(
+            self.root,
+            ["ls-files", "--others", "-z"],
+        )
+        self.assertIn(
+            b"target/abi2-platform-publication-worktrees/M/\0",
+            raw,
+        )
+        paths = git_provenance.repository_paths(self.root)
+        self.assertFalse(
+            any(
+                path.startswith("target/abi2-platform-publication-worktrees/")
+                for path in paths
+            ),
+            paths,
+        )
+        inspection = git_provenance.inspect_worktree(self.root)
+        self.assertFalse(inspection.dirty, inspection.reasons)
+
+    def test_nested_git_repository_outside_outputs_is_rejected(self) -> None:
+        nested = self.root / "release-checkouts" / "M"
+        self._init_repo(nested, "nested-source")
+        (nested / "tracked.txt").write_text("nested source\n", encoding="utf-8")
+        self._git(nested, "add", "tracked.txt")
+        self._git(nested, "commit", "-qm", "nested fixture")
+
+        raw = git_provenance.run_git_bytes(
+            self.root,
+            ["ls-files", "--others", "-z"],
+        )
+        self.assertIn(b"release-checkouts/M/\0", raw)
+        for operation in (
+            git_provenance.repository_paths,
+            git_provenance.inspect_worktree,
+        ):
+            with self.subTest(operation=operation.__name__):
+                with self.assertRaisesRegex(
+                    git_provenance.GitProvenanceError,
+                    "outside declared ephemeral outputs",
+                ):
+                    operation(self.root)
+
+    def test_sbom_file_exemption_does_not_admit_nested_repositories(self) -> None:
+        for leaf in ("fixture.json", "fixture.cdx.json"):
+            with self.subTest(leaf=leaf):
+                with tempfile.TemporaryDirectory() as temporary:
+                    root = pathlib.Path(temporary).resolve() / "repository"
+                    self._init_repo(root, "sbom-directory")
+                    (root / "tracked.txt").write_text(
+                        "clean\n",
+                        encoding="utf-8",
+                    )
+                    self._git(root, "add", "tracked.txt")
+                    self._git(root, "commit", "-qm", "outer fixture")
+
+                    nested = root / "sbom" / leaf
+                    self._init_repo(nested, "nested-sbom")
+                    (nested / "tracked.txt").write_text(
+                        "nested source\n",
+                        encoding="utf-8",
+                    )
+                    self._git(nested, "add", "tracked.txt")
+                    self._git(nested, "commit", "-qm", "nested fixture")
+
+                    raw = git_provenance.run_git_bytes(
+                        root,
+                        ["ls-files", "--others", "-z"],
+                    )
+                    self.assertIn(f"sbom/{leaf}/\0".encode("ascii"), raw)
+                    for operation in (
+                        git_provenance.repository_paths,
+                        git_provenance.inspect_worktree,
+                    ):
+                        with self.subTest(operation=operation.__name__):
+                            with self.assertRaisesRegex(
+                                git_provenance.GitProvenanceError,
+                                "outside declared ephemeral outputs",
+                            ):
+                                operation(root)
+
+    def test_untracked_source_symlink_is_not_a_nested_repository_marker(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as external_temporary:
+            external = pathlib.Path(external_temporary).resolve()
+            self._init_repo(external, "external-source")
+            (external / "tracked.txt").write_text(
+                "external source\n",
+                encoding="utf-8",
+            )
+            self._git(external, "add", "tracked.txt")
+            self._git(external, "commit", "-qm", "external fixture")
+            link = self.root / "release-checkout-link"
+            link.symlink_to(external, target_is_directory=True)
+
+            raw = git_provenance.run_git_bytes(
+                self.root,
+                ["ls-files", "--others", "-z"],
+            )
+            self.assertIn(b"release-checkout-link\0", raw)
+            self.assertNotIn(b"release-checkout-link/\0", raw)
+            self.assertIn(
+                "release-checkout-link",
+                git_provenance.repository_paths(self.root),
+            )
+            inspection = git_provenance.inspect_worktree(self.root)
+            self.assertTrue(inspection.dirty, inspection.reasons)
+            self.assertTrue(
+                any(
+                    "untracked source-input paths" in reason
+                    for reason in inspection.reasons
+                ),
+                inspection.reasons,
+            )
+
     def test_dirty_tracked_deletion_is_hashed_as_path_absence(self) -> None:
         self.tracked.unlink()
 
@@ -132,6 +262,130 @@ class GitProvenanceTests(unittest.TestCase):
             self.root, proof_commit
         )
         self.assertEqual(current, git_provenance.git_commit(self.root))
+
+    def test_direct_results_only_successor_is_accepted(self) -> None:
+        source_commit = self.commit
+        results = self.root / "artifact" / "results.json"
+        results.parent.mkdir()
+        results.write_text('{"proof":"source-bound"}\n', encoding="utf-8")
+        self._git(self.root, "add", "artifact/results.json")
+        self._git(self.root, "commit", "-qm", "install source results")
+
+        results_commit = git_provenance.require_direct_results_only_successor(
+            self.root,
+            source_commit,
+        )
+
+        self.assertEqual(results_commit, git_provenance.git_commit(self.root))
+
+    def test_arbitrary_results_child_and_later_results_descendant_are_accepted(
+        self,
+    ) -> None:
+        source_commit = self.commit
+        results = self.root / "artifact" / "results.json"
+        results.parent.mkdir()
+        results.write_text('{"state":"source"}\n', encoding="utf-8")
+        self._git(self.root, "add", "artifact/results.json")
+        self._git(self.root, "commit", "-qm", "install source results")
+        results_commit = git_provenance.git_commit(self.root)
+        results.write_text('{"state":"pending"}\n', encoding="utf-8")
+        self._git(self.root, "add", "artifact/results.json")
+        self._git(self.root, "commit", "-qm", "record pending receipt")
+        pending_commit = git_provenance.git_commit(self.root)
+
+        git_provenance.require_direct_results_only_child(
+            self.root, source_commit, results_commit
+        )
+        git_provenance.require_results_only_descendant(
+            self.root, results_commit, pending_commit
+        )
+
+    def test_results_descendant_rejects_source_changes_and_unrelated_history(
+        self,
+    ) -> None:
+        source_commit = self.commit
+        results = self.root / "artifact" / "results.json"
+        results.parent.mkdir()
+        results.write_text("{}\n", encoding="utf-8")
+        self._git(self.root, "add", "artifact/results.json")
+        self._git(self.root, "commit", "-qm", "install source results")
+        results_commit = git_provenance.git_commit(self.root)
+        self.tracked.write_text("changed source\n", encoding="utf-8")
+        self._git(self.root, "add", "tracked.txt")
+        self._git(self.root, "commit", "-qm", "change source")
+        changed_commit = git_provenance.git_commit(self.root)
+
+        with self.assertRaisesRegex(
+            git_provenance.GitProvenanceError,
+            "publication descendant must change exactly artifact/results.json",
+        ):
+            git_provenance.require_results_only_descendant(
+                self.root, results_commit, changed_commit
+            )
+        with self.assertRaisesRegex(
+            git_provenance.GitProvenanceError, "not a descendant"
+        ):
+            git_provenance.require_commit_ancestor(
+                self.root, changed_commit, source_commit
+            )
+
+    def test_results_only_successor_rejects_extra_or_empty_changes(self) -> None:
+        for extra_source_change in (False, True):
+            with self.subTest(
+                extra_source_change=extra_source_change
+            ), tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary).resolve()
+                self._init_repo(root, "results successor")
+                tracked = root / "tracked.txt"
+                tracked.write_text("source\n", encoding="utf-8")
+                self._git(root, "add", ".")
+                self._git(root, "commit", "-qm", "source")
+                source_commit = git_provenance.git_commit(root)
+                if extra_source_change:
+                    results = root / "artifact" / "results.json"
+                    results.parent.mkdir()
+                    results.write_text("{}\n", encoding="utf-8")
+                    tracked.write_text("changed source\n", encoding="utf-8")
+                    self._git(root, "add", ".")
+                    self._git(root, "commit", "-qm", "mixed successor")
+                else:
+                    self._git(root, "commit", "--allow-empty", "-qm", "empty successor")
+                with self.assertRaisesRegex(
+                    git_provenance.GitProvenanceError,
+                    "must change exactly artifact/results.json",
+                ):
+                    git_provenance.require_direct_results_only_successor(
+                        root,
+                        source_commit,
+                    )
+
+    def test_results_only_successor_must_be_the_direct_child(self) -> None:
+        source_commit = self.commit
+        results = self.root / "artifact" / "results.json"
+        results.parent.mkdir()
+        results.write_text("{}\n", encoding="utf-8")
+        self._git(self.root, "add", "artifact/results.json")
+        self._git(self.root, "commit", "-qm", "install source results")
+        self._git(self.root, "commit", "--allow-empty", "-qm", "extra successor")
+
+        with self.assertRaisesRegex(
+            git_provenance.GitProvenanceError,
+            "exactly the source commit as its parent",
+        ):
+            git_provenance.require_direct_results_only_successor(
+                self.root,
+                source_commit,
+            )
+
+    def test_results_only_successor_rejects_malformed_source_commit(self) -> None:
+        with self.assertRaisesRegex(
+            git_provenance.GitProvenanceError,
+            "source commit hash is malformed",
+        ):
+            git_provenance.require_direct_results_only_successor(
+                self.root,
+                "not-a-commit",
+            )
 
     def test_source_changing_successor_commit_is_rejected(self) -> None:
         proof_commit = self.commit

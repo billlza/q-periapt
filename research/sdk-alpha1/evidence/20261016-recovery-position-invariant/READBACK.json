@@ -1,0 +1,41 @@
+{
+  "actual_missing_dependency_control_rejected": true,
+  "all_member_hashes_rechecked": true,
+  "all_other_queries_remain_incomplete": true,
+  "archive_sha256": "d54cbaad482f716f5dad6572dd823b58c0189244af115569ef3cff924ac527d3",
+  "base_checkpoint_hash_checked": true,
+  "canonical_model_unchanged": true,
+  "completed": true,
+  "expanded_bytes": 24882609,
+  "fresh_prover_execution": false,
+  "member_count": 613,
+  "release_claim_eligible": false,
+  "verified_terminals": {
+    "position-composed-replay-286": {
+      "first_responder_ready_event_is_unique": {
+        "mode": "all-traces",
+        "status": "verified",
+        "steps": 285
+      },
+      "phase_position_event_is_unique": {
+        "mode": "all-traces",
+        "status": "verified",
+        "steps": 29
+      }
+    },
+    "position-induction-replay-284": {
+      "phase_position_event_is_unique": {
+        "mode": "all-traces",
+        "status": "verified",
+        "steps": 29
+      }
+    },
+    "position-induction-search-282": {
+      "phase_position_event_is_unique": {
+        "mode": "all-traces",
+        "status": "verified",
+        "steps": 29
+      }
+    }
+  }
+}

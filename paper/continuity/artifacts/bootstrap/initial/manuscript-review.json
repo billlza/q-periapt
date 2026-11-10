@@ -1,0 +1,20 @@
+{
+  "schema": "qperiapt/bootstrap-initial-manuscript-review/v1",
+  "status": "accepted",
+  "baseline_paper_commit": "bee17822db65242adbfb3b0be7d32090fae2f752",
+  "module": "bootstrap-initial-source.tex",
+  "module_sha256": "d84118de7a0b90a451d47e2a1673a0da35a23e1655493502583976a08a279715",
+  "source_proof": "artifacts/bootstrap/initial/proof.md",
+  "source_proof_sha256": "b887e786d06b5226b9886d643c8b0e919cd49387cd5023e22b5878b0d93130ee",
+  "source_assessment_commit": "471900bfe8070d1021a1feb67481437d599d80ba",
+  "source_analytical_review": "artifacts/bootstrap/initial/independent-review.json",
+  "manuscript_review": "artifacts/bootstrap/initial/manuscript-review.md",
+  "manuscript_review_sha256": "ea6032cca707fee91e4b4b28c42fb67bf96b3f99a27d9d8d0620c2f1f8fe23c6",
+  "formal_preservation": "artifacts/bootstrap/initial/formal-preservation.json",
+  "finite_reproduction_byte_identical": true,
+  "clarifications": [
+    "One-parent terminal cost explicitly specializes equation (46).",
+    "The terminal corollary states q_v < 2^256 and the distinct pre-activation guess meaning."
+  ],
+  "result": "Original initial-source authentication with adaptive reply families and source-local costs E + sum_l T_l."
+}

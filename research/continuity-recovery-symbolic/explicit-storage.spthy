@@ -1,0 +1,199 @@
+theory ContinuityRecoveryTransition
+begin
+
+/* Research projection of one authenticated exchange after an exposed old root.
+   Perfect primitives and honest signature randomness are explicit abstractions.
+   All constructors are public; no restriction removes disclosure traces. */
+builtins: hashing, signing, symmetric-encryption
+functions: kempk/1, kemct/2, decap/2
+equations: decap(x,kemct(kempk(x),y)) = y
+
+rule Setup:
+ [ Fr(~sid), Fr(~old), Fr(~wa), Fr(~wb), Fr(~sa), Fr(~sb) ]
+ --[ Setup(~sid) ]->
+ [ !Signer(~sid,'A',~sa), !Signer(~sid,'B',~sb)
+ , !Pinned(~sid,'A',pk(~sa)), !Pinned(~sid,'B',pk(~sb))
+ , !Wrap(~sid,'A',~wa), !Wrap(~sid,'B',~wb)
+ , !SignerFile(~sid,'A',senc(~sa,h(<'signer-owner',~wa>)))
+ , !SignerFile(~sid,'B',senc(~sb,h(<'signer-owner',~wb>)))
+ , OfferStart(~sid,~old), ResponseStart(~sid,~old), CutPermit(~sid)
+ , Out(<~sid,~old,pk(~sa),pk(~sb)>) ]
+
+rule Cut:
+ [ CutPermit(s), !Wrap(s,'A',wa), !Wrap(s,'B',wb) ]
+ --[ Cut(s) ]-> [ Out(<wa,wb>) ]
+
+/* Captured ciphertext can be from any retained revision, including future
+   revisions. The recovery lemma must explicitly exclude that stronger view. */
+rule Snapshot:
+ [ !Stored(s,role,phase,revision,ciphertext)[no_precomp] ]
+ --[ Snapshot(s,revision), CapturedPhase(s,role,phase) ]-> [ Out(ciphertext) ]
+
+rule Reveal_Identity:
+ [ !Signer(s,role,key) ] --[ IdentityLeak(s,role) ]-> [ Out(key) ]
+
+/* Real signer persistence derives its encryption key from the journal
+   wrapping key. Reading that file is therefore an identity-disclosure route
+   once Cut exposes the matching wrapping key. */
+rule Snapshot_Signer_File:
+ [ !SignerFile(s,role,ciphertext) ]
+ --[ IdentityLeak(s,role), SignerFileCaptured(s,role) ]-> [ Out(ciphertext) ]
+
+rule Reveal_Entropy:
+ [ !Entropy(s,kind,coins) ] --[ EntropyLeak(s,kind) ]-> [ Out(coins) ]
+
+rule Key_Reservation_1:
+ [ OfferStart(s,old), !Wrap(s,'A',wa), Fr(~key), Fr(~rev) ]
+ --[ KeyReserved(s), Saved(s,~rev,'1') ]->
+ [ Offer1(s,old,~key), !Entropy(s,'generation',~key)
+ , !Stored(s,'A','1',~rev,senc(<old,senc(~key,wa)>,wa)) ]
+
+rule Offer_Signing_2:
+ [ Offer1(s,old,key), !Wrap(s,'A',wa), Fr(~rev) ]
+ --[ Saved(s,~rev,'2') ]->
+ [ Offer2(s,old,key)
+ , !Stored(s,'A','2',~rev,senc(<old,senc(key,wa)>,wa)) ]
+
+rule Offer_Commit_3:
+ let offer = <'offer',s,kempk(key)>
+     wire = <offer,sign(offer,sa)>
+ in
+ [ Offer2(s,old,key), !Signer(s,'A',sa), !Wrap(s,'A',wa), Fr(~rev) ]
+ --[ OfferCommitted(s), Saved(s,~rev,'3') ]->
+ [ Offer3(s,old,key,wire)
+ , !Stored(s,'A','3',~rev,senc(<old,senc(key,wa),wire>,wa)), Out(wire) ]
+
+rule Response_Reservation_4:
+ let offer = <'offer',s,peer>
+     wire = <offer,sig>
+ in
+ [ ResponseStart(s,old), !Pinned(s,'A',vk), !Wrap(s,'B',wb)
+ , In(wire), Fr(~coins), Fr(~rev) ]
+ --[ Eq(verify(sig,offer,vk),true), EncapReserved(s), Saved(s,~rev,'4') ]->
+ [ Response4(s,old,wire,peer,~coins), !Entropy(s,'encapsulation',~coins)
+ , !Stored(s,'B','4',~rev,senc(<old,wire,senc(~coins,wb)>,wb)) ]
+
+rule Response_Compute_5:
+ let ct = kemct(peer,coins)
+     core = <'response',s,h(offer),ct>
+     root = h(<'pending-root',old,coins,h(core)>)
+ in
+ [ Response4(s,old,offer,peer,coins), !Wrap(s,'B',wb), Fr(~rev) ]
+ --[ Saved(s,~rev,'5') ]->
+ [ Response5(s,old,offer,core,root)
+ , !Stored(s,'B','5',~rev,senc(<old,offer,core,root>,wb)) ]
+
+rule Response_Commit_6:
+ let body = <core,h(<'response-confirmation',root,core>)>
+     wire = <body,sign(body,sb)>
+ in
+ [ Response5(s,old,offer,core,root), !Signer(s,'B',sb)
+ , !Wrap(s,'B',wb), Fr(~rev) ]
+ --[ ResponseCommitted(s), Saved(s,~rev,'6') ]->
+ [ Response6(s,old,offer,wire,root)
+ , !Stored(s,'B','6',~rev,senc(<old,offer,wire,root>,wb)), Out(wire) ]
+
+rule Final_Reservation_7:
+ let core = <'response',s,h(offer),ct>
+     root = h(<'pending-root',old,decap(key,ct),h(core)>)
+     body = <core,tag>
+     response = <body,sig>
+ in
+ [ Offer3(s,old,key,offer), !Pinned(s,'B',vk), !Wrap(s,'A',wa)
+ , In(response), Fr(~rev) ]
+ --[ Eq(verify(sig,body,vk),true), Eq(tag,h(<'response-confirmation',root,core>)), Saved(s,~rev,'7') ]->
+ [ Final7(s,old,offer,response,root)
+ , !Stored(s,'A','7',~rev,senc(<old,offer,response,root>,wa)) ]
+
+rule Final_Commit_8:
+ let body = <'final',s,h(offer),h(response),h(<'final-confirmation',root,h(offer),h(response)>)>
+     final = <body,sign(body,sa)>
+ in
+ [ Final7(s,old,offer,response,root), !Signer(s,'A',sa), !Wrap(s,'A',wa), Fr(~rev) ]
+ --[ FinalCommitted(s), Saved(s,~rev,'8') ]->
+ [ Final8(s,offer,response,root,final)
+ , !CanSend(s,'A',offer,response,root)
+ , !Stored(s,'A','8',~rev,senc(<root,offer,response,final>,wa)), Out(final) ]
+
+rule Receipt_Reservation_9:
+ let body = <'final',s,h(offer),h(response),tag>
+     final = <body,sig>
+ in
+ [ Response6(s,old,offer,response,root), !Pinned(s,'A',vk), !Wrap(s,'B',wb)
+ , In(final), Fr(~rev) ]
+ --[ Eq(verify(sig,body,vk),true), Eq(tag,h(<'final-confirmation',root,h(offer),h(response)>)), Saved(s,~rev,'9') ]->
+ [ Receipt9(s,old,offer,response,root,final)
+ , !Stored(s,'B','9',~rev,senc(<old,root,offer,response,final>,wb)) ]
+
+rule Receipt_Commit_0:
+ let body = <'receipt',s,h(offer),h(response),h(final),h(<'receipt-confirmation',root,h(final)>)>
+     receipt = <body,sign(body,sb)>
+ in
+ [ Receipt9(s,old,offer,response,root,final), !Signer(s,'B',sb)
+ , !Wrap(s,'B',wb), Fr(~rev) ]
+ --[ Confirmed(s,'B'), Saved(s,~rev,'0') ]->
+ [ !CanSend(s,'B',offer,response,root)
+ , !Stored(s,'B','0',~rev,senc(<root,offer,response,final,receipt>,wb)), Out(receipt) ]
+
+rule Receipt_Accept_0:
+ let body = <'receipt',s,h(offer),h(response),h(final),tag>
+     receipt = <body,sig>
+ in
+ [ Final8(s,offer,response,root,final), !Pinned(s,'B',vk), !Wrap(s,'A',wa)
+ , In(receipt), Fr(~rev) ]
+ --[ Eq(verify(sig,body,vk),true), Eq(tag,h(<'receipt-confirmation',root,h(final)>)), Confirmed(s,'A'), Saved(s,~rev,'0') ]->
+ [ !Stored(s,'A','0',~rev,senc(<root,offer,response,final,receipt>,wa)) ]
+
+rule Application_Message:
+ let key = h(<'traffic',s,role,root,h(<'traffic-transcript',offer,response>)>)
+ in
+ [ !CanSend(s,role,offer,response,root), Fr(~payload) ]
+ --[ Message(s,role,key,~payload) ]-> [ Out(senc(~payload,key)) ]
+
+restriction Equality:
+ "All x y #i. Eq(x,y)@i ==> x = y"
+
+lemma recovery_is_executable:
+ exists-trace
+ "Ex s role key payload #c #g #e #a #b #m.
+    Cut(s)@c & KeyReserved(s)@g & EncapReserved(s)@e
+  & Confirmed(s,'A')@a & Confirmed(s,'B')@b & Message(s,role,key,payload)@m
+  & c < g & c < e & a < m & b < m
+  & not (Ex any_session r #x. IdentityLeak(any_session,r)@x)
+  & not (Ex any_session kind #x. EntropyLeak(any_session,kind)@x)
+  & not (Ex any_session revision #x. Snapshot(any_session,revision)@x)"
+
+lemma clean_reservation_recovers_symbolic_message_secrecy:
+ "All s role key payload #c #g #e #m.
+    Cut(s)@c & KeyReserved(s)@g & EncapReserved(s)@e & Message(s,role,key,payload)@m
+  & c < g & c < e
+  & not (Ex r #x. IdentityLeak(s,r)@x)
+  & not (Ex kind #x. EntropyLeak(s,kind)@x)
+  & not (Ex revision phase #saved #seen.
+           Saved(s,revision,phase)@saved & Snapshot(s,revision)@seen & c < saved)
+  ==> not (Ex #x. K(payload)@x)"
+
+lemma pre_cut_generation_reservation_remains_exposed:
+ exists-trace
+ "Ex s role key payload #g #c #e #a #b #m #learn #snap.
+    KeyReserved(s)@g & Cut(s)@c & EncapReserved(s)@e
+  & CapturedPhase(s,'A','1')@snap
+  & Confirmed(s,'A')@a & Confirmed(s,'B')@b
+  & Message(s,role,key,payload)@m & K(payload)@learn
+  & g < snap & snap < c & c < e & a < m & b < m
+  & (All any_session revision #x. Snapshot(any_session,revision)@x ==> #x = #snap)
+  & not (Ex any_session r #x. IdentityLeak(any_session,r)@x)
+  & not (Ex any_session kind #x. EntropyLeak(any_session,kind)@x)"
+
+lemma later_storage_access_defeats_fresh_reservations:
+ exists-trace
+ "Ex s role key payload #c #g #e #m #learn #snap.
+    Cut(s)@c & KeyReserved(s)@g & EncapReserved(s)@e
+  & CapturedPhase(s,'A','8')@snap
+  & Message(s,role,key,payload)@m & K(payload)@learn
+  & c < g & c < e & m < snap
+  & (All any_session revision #x. Snapshot(any_session,revision)@x ==> #x = #snap)
+  & not (Ex any_session r #x. IdentityLeak(any_session,r)@x)
+  & not (Ex any_session kind #x. EntropyLeak(any_session,kind)@x)"
+
+end

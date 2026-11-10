@@ -27,10 +27,15 @@ import unittest
 from collections.abc import Iterator
 from unittest import mock
 
+import apple_publication_contract
+import codeql_rust_quality
+import proof_to_byte_finalizer
+import proof_to_byte_inputs
+import release_publication_contract
 from camera_ready_proof import EXPECTED_TOOLS
 from git_provenance import WorktreeInspection, git_commit
-import proof_to_byte_finalizer
-
+from test_apple_publication_contract import alpha2_receipt
+from test_release_publication_contract import frozen_baseline_manifest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PROOF_SCRIPT = ROOT / "artifact" / "proof-to-byte.sh"
@@ -47,16 +52,16 @@ ABI2_PLATFORM_CANDIDATE_WORKFLOW = (
 )
 WINDOWS_C_SMOKE_SCRIPT = ROOT / "bindings" / "c" / "build-and-run.bat"
 RUST_TOOLCHAIN_FILE = ROOT / "rust-toolchain.toml"
-CANONICAL_RUST_TOOLCHAIN = "1.96.1"
-CANONICAL_RUSTC_VERSION = "rustc 1.96.1 (31fca3adb 2026-06-26)"
-CANONICAL_CARGO_VERSION = "cargo 1.96.1 (356927216 2026-06-26)"
-WINDOWS_RELEASE_RUST_TOOLCHAIN = "1.97.0"
-WINDOWS_RELEASE_RUSTC_VERSION = "rustc 1.97.0 (2d8144b78 2026-07-07)"
-WINDOWS_RELEASE_CARGO_VERSION = "cargo 1.97.0 (c980f4866 2026-06-30)"
+CANONICAL_RUST_TOOLCHAIN = "1.98.1"
+CANONICAL_RUSTC_VERSION = "rustc 1.98.1 (48a229cea 2026-09-01)"
+CANONICAL_CARGO_VERSION = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
+WINDOWS_RELEASE_RUST_TOOLCHAIN = "1.98.1"
+WINDOWS_RELEASE_RUSTC_VERSION = "rustc 1.98.1 (48a229cea 2026-09-01)"
+WINDOWS_RELEASE_CARGO_VERSION = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
 PINNED_CANONICAL_RUST_ACTION = (
     "dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c"
 )
-RUST_PUBLISH_SCRIPT = ROOT / "artifact" / "rust-publish-dry-run.sh"
+RUST_PACKAGE_CONTRACT_SCRIPT = ROOT / "artifact" / "rust-publish-contract.sh"
 RUST_PUBLISH_CONTRACT = ROOT / "artifact" / "rust_publish_contract.py"
 RUST_PUBLISH_CONTRACT_TESTS = ROOT / "artifact" / "test_rust_publish_contract.py"
 FINALIZER_SCRIPT = ROOT / "artifact" / "proof_to_byte_finalizer.py"
@@ -65,13 +70,36 @@ TEST_COMMIT = "a" * 40
 TEST_SOURCE_SHA256 = "b" * 64
 TEST_MANIFEST_SHA256 = "c" * 64
 PINNED_CHECKOUT_ACTION = (
-    "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0"
+    "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1"
+)
+PINNED_DOWNLOAD_ARTIFACT_ACTION = (
+    "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1"
+)
+PINNED_UPLOAD_ARTIFACT_ACTION = (
+    "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1"
+)
+PINNED_CODEQL_ACTION = (
+    "github/codeql-action/{action}@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 "
+    "# v4.38.2"
+)
+PINNED_SETUP_JAVA_ACTION = (
+    "actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0"
 )
 EXPECTED_CHECKOUT_STEP = (
     f"      - uses: {PINNED_CHECKOUT_ACTION}\n"
+    "        env:\n"
+    '          GIT_CONFIG_COUNT: "1"\n'
+    "          GIT_CONFIG_KEY_0: init.defaultBranch\n"
+    "          GIT_CONFIG_VALUE_0: main\n"
     "        with:\n"
     "          persist-credentials: false\n"
     "          fetch-depth: 0\n"
+)
+EXPECTED_CHECKOUT_GIT_ENV = (
+    "        env:\n"
+    '          GIT_CONFIG_COUNT: "1"\n'
+    "          GIT_CONFIG_KEY_0: init.defaultBranch\n"
+    "          GIT_CONFIG_VALUE_0: main\n"
 )
 EXPECTED_CHECKOUT_PROVENANCE_STEP = (
     "      - name: Verify checkout provenance\n"
@@ -84,15 +112,25 @@ EXPECTED_CHECKOUT_PROVENANCE_STEP = (
     "            exit 1\n"
     "          fi\n"
 )
-EXPECTED_PROOF_TO_BYTE_STEP = (
-    "      - name: Proof-to-byte manifest and canonical source binding\n"
+EXPECTED_SDK_SOURCE_STEP = (
+    "      - name: Exact SDK source and historical evidence boundary\n"
     "        env:\n"
     "          QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}\n"
-    "        run: QPERIAPT_SKIP_SMOKE=1 sh artifact/proof-to-byte.sh\n"
+    "          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}\n"
+    "        run: |\n"
+    "          results_sha256=$(/usr/bin/sha256sum artifact/results.json | /usr/bin/cut -d' ' -f1)\n"
+    "          source_gate=$(/bin/sh artifact/python-run.sh artifact/source_results_assembler.py \\\n"
+    "            ci-source-gate --profile sdk-020 \\\n"
+    "            \"$results_sha256\" \"$QPERIAPT_EXPECTED_GIT_COMMIT\")\n"
+    "          expected_gate=\"SDK_SOURCE_READINESS_PASS profile=sdk-020 commit=$QPERIAPT_EXPECTED_GIT_COMMIT results_sha256=$results_sha256 current_proof_inputs=256 historical_proof_inputs=249 release_claim_eligible=false\"\n"
+    "          if [ \"$source_gate\" = \"$expected_gate\" ]; then\n"
+    "            printf '%s\\n' \"$source_gate\"\n"
+    "          else\n"
+    "            printf 'unexpected source CI gate result\\n' >&2\n"
+    "            exit 2\n"
+    "          fi\n"
 )
-YAML_ALIAS = re.compile(
-    r"(?m)(?:^|[ \t:\-\[,{}])\*[^\s\[\]{},]+"
-)
+YAML_ALIAS = re.compile(r"(?m)(?:^|[ \t:\-\[,{}])\*[^\s\[\]{},]+")
 
 
 _RELEASE_TEST_DIRECTORY_OPEN_FLAGS = (
@@ -344,7 +382,9 @@ def _temporary_release_test_directories(
                 try:
                     os.rmdir(child.name, dir_fd=child.parent.directory_fd)
                 except OSError as exc:
-                    exc.add_note(f"while removing test-owned release child: {child.path}")
+                    exc.add_note(
+                        f"while removing test-owned release child: {child.path}"
+                    )
                     cleanup_errors.append(exc)
             return cleanup_errors
 
@@ -482,9 +522,7 @@ def _temporary_release_test_directories(
                     )
                     parent_directories.append(parent)
                 else:
-                    parent = _ReleaseTestParentDirectory(
-                        path=parent_path, owned=True
-                    )
+                    parent = _ReleaseTestParentDirectory(path=parent_path, owned=True)
                     parent_directories.append(parent)
                     parent.identity = _release_test_directory_identity(parent_path)
                 parent.directory_fd = os.open(
@@ -611,10 +649,20 @@ MIGRATION_V2_PROOF_INPUTS = {
     "migration_agent_lib_sha256": "services/q-periapt-policy-agent/src/lib.rs",
     "migration_agent_main_sha256": "services/q-periapt-policy-agent/src/main.rs",
     "migration_agent_authentication_sha256": "services/q-periapt-policy-agent/src/authentication.rs",
+    "migration_agent_authority_sha256": "services/q-periapt-policy-agent/src/authority.rs",
+    "migration_agent_authority_codec_sha256": "services/q-periapt-policy-agent/src/authority_codec.rs",
+    "migration_agent_authority_protocol_sha256": "services/q-periapt-policy-agent/src/authority_protocol.rs",
+    "migration_agent_authority_store_sha256": "services/q-periapt-policy-agent/src/authority_store.rs",
+    "migration_agent_authority_transport_sha256": "services/q-periapt-policy-agent/src/authority_transport.rs",
     "migration_agent_codec_sha256": "services/q-periapt-policy-agent/src/codec.rs",
     "migration_agent_crypto_sha256": "services/q-periapt-policy-agent/src/crypto.rs",
-    "migration_agent_filesystem_sha256": "services/q-periapt-policy-agent/src/filesystem.rs",
-    "migration_agent_macos_acl_sha256": "services/q-periapt-policy-agent/src/macos_acl.rs",
+    "migration_agent_filesystem_sha256": "crates/q-periapt-host-store/src/filesystem.rs",
+    "migration_agent_macos_acl_sha256": "crates/q-periapt-host-store/src/macos_acl.rs",
+    "migration_agent_filesystem_adapter_sha256": "services/q-periapt-policy-agent/src/filesystem.rs",
+    "host_store_manifest_sha256": "crates/q-periapt-host-store/Cargo.toml",
+    "host_store_lib_sha256": "crates/q-periapt-host-store/src/lib.rs",
+    "host_store_policy_sha256": "crates/q-periapt-host-store/src/policy.rs",
+    "host_store_policy_tests_sha256": "crates/q-periapt-host-store/src/policy/tests.rs",
     "migration_agent_service_sha256": "services/q-periapt-policy-agent/src/service.rs",
     "migration_agent_repository_sha256": "services/q-periapt-policy-agent/src/repository.rs",
     "migration_agent_witness_sha256": "services/q-periapt-policy-agent/src/witness.rs",
@@ -639,19 +687,89 @@ APPLE_DISTRIBUTION_PROOF_INPUTS = {
     "swift_xcframework_remote_consumer_script_sha256": "artifact/swift-xcframework-remote-consumer.sh",
     "apple_distribution_verifier_sha256": "artifact/apple_distribution.py",
     "apple_distribution_tests_sha256": "artifact/test_apple_distribution.py",
+    "apple_release_verification_sha256": "artifact/apple_release_verification.py",
+    "apple_release_verification_tests_sha256": "artifact/test_apple_release_verification.py",
+    "apple_publication_contract_sha256": "artifact/apple_publication_contract.py",
+    "apple_publication_contract_tests_sha256": "artifact/test_apple_publication_contract.py",
+    "apple_stable_publication_sha256": "artifact/apple_stable_publication.py",
+    "apple_stable_publication_tests_sha256": "artifact/test_apple_stable_publication.py",
+    "github_release_observation_sha256": "artifact/github_release_observation.py",
+    "github_release_observation_tests_sha256": "artifact/test_github_release_observation.py",
+    "publication_receipt_io_sha256": "artifact/publication_receipt_io.py",
+    "publication_receipt_io_tests_sha256": "artifact/test_publication_receipt_io.py",
+    "release_publication_contract_sha256": "artifact/release_publication_contract.py",
+    "release_publication_contract_tests_sha256": "artifact/test_release_publication_contract.py",
+    "release_receipt_finalizer_sha256": "artifact/release_receipt_finalizer.py",
+    "release_receipt_finalizer_tests_sha256": "artifact/test_release_receipt_finalizer.py",
+    "apple_publication_finalizer_tests_sha256": "artifact/test_apple_publication_finalizer.py",
+    "release_publication_proof_manifest_tests_sha256": "artifact/test_release_publication_proof_manifest.py",
     "swift_binary_consumer_link_probe_sha256": "bindings/swift/BinaryConsumerFixture/Sources/QPeriaptLinkProbe/main.swift",
     "swift_binary_consumer_tests_sha256": "bindings/swift/BinaryConsumerFixture/Tests/QPeriaptHybridBinaryConsumerTests/QPeriaptHybridBinaryConsumerTests.swift",
 }
 
+APPLE_DEVICE_PROOF_INPUTS = {
+    "apple_device_smoke_script_sha256": "artifact/apple-device-smoke.sh",
+    "apple_device_matrix_script_sha256": "artifact/apple-device-matrix.sh",
+    "apple_device_xcode27_gate_script_sha256": "artifact/apple-device-xcode27-gate.sh",
+    "apple_device_proof_verifier_sha256": "artifact/apple_device_proof.py",
+    "apple_device_proof_tests_sha256": "artifact/test_apple_device_proof.py",
+    "apple_proof_contract_sha256": "artifact/apple_proof_contract.py",
+    "apple_toolchain_verifier_sha256": "artifact/apple_toolchain.py",
+    "apple_toolchain_tests_sha256": "artifact/test_apple_toolchain.py",
+}
+
+BOUNDED_PROCESS_PROOF_INPUTS = {
+    "bounded_process_sha256": "artifact/bounded_process.py",
+    "bounded_process_tests_sha256": "artifact/test_bounded_process.py",
+    "process_identity_sha256": "artifact/process_identity.py",
+    "android_emulator_control_sha256": "artifact/android_emulator_control.py",
+    "android_runtime_state_sha256": "artifact/android_runtime_state.py",
+    "android_runtime_state_tests_sha256": "artifact/test_android_runtime_state.py",
+    "android_bounded_command_sha256": "artifact/android_bounded_command.py",
+    "android_bounded_command_tests_sha256": "artifact/test_android_bounded_command.py",
+}
+
 ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "ci_workflow_sha256": ".github/workflows/ci.yml",
+    "formal_easycrypt_dockerfile_sha256": "formal/Dockerfile",
+    "formal_tool_asset_sha256": "artifact/formal_tool_asset.py",
+    "formal_tool_asset_tests_sha256": "artifact/test_formal_tool_asset.py",
+    "formal_toolchain_contract_sha256": "artifact/formal_toolchain_contract.py",
+    "formal_toolchain_contract_tests_sha256": "artifact/test_formal_toolchain_contract.py",
+    "proverif_makefile_sha256": "formal/proverif/Makefile",
     "codeql_workflow_sha256": ".github/workflows/codeql.yml",
+    "codeql_rust_quality_gate_sha256": "artifact/codeql_rust_quality.py",
+    "codeql_rust_checkout_gate_sha256": "artifact/codeql_rust_checkout.py",
+    "codeql_rust_quality_tests_sha256": "artifact/test_codeql_rust_quality.py",
+    "codeql_rust_quality_pack_sha256": "artifact/codeql-rust-quality/qlpack.yml",
+    "codeql_rust_extracted_paths_query_sha256": "artifact/codeql-rust-quality/ExtractedPaths.ql",
+    "codeql_rust_metrics_query_sha256": "artifact/codeql-rust-quality/Metrics.ql",
+    "codeql_rust_unresolved_macros_query_sha256": "artifact/codeql-rust-quality/UnresolvedMacros.ql",
     "dependabot_config_sha256": ".github/dependabot.yml",
     "abi2_platform_candidate_workflow_sha256": ".github/workflows/abi2-platform-candidate.yml",
     "abi2_platform_candidate_verifier_script_sha256": "artifact/verify-platform-candidate.sh",
     "abi2_platform_candidate_verifier_tests_sha256": "artifact/test_platform_candidate_verifier.py",
+    "platform_candidate_attestation_sha256": "artifact/platform_candidate_attestation.py",
+    "platform_candidate_attestation_tests_sha256": "artifact/test_platform_candidate_attestation.py",
+    "github_release_observation_sha256": "artifact/github_release_observation.py",
+    "github_release_observation_tests_sha256": "artifact/test_github_release_observation.py",
+    "publication_receipt_io_sha256": "artifact/publication_receipt_io.py",
+    "publication_receipt_io_tests_sha256": "artifact/test_publication_receipt_io.py",
+    "platform_stable_publication_sha256": "artifact/platform_stable_publication.py",
+    "platform_stable_publication_tests_sha256": "artifact/test_platform_stable_publication.py",
+    "release_receipt_finalizer_sha256": "artifact/release_receipt_finalizer.py",
+    "release_receipt_finalizer_tests_sha256": "artifact/test_release_receipt_finalizer.py",
     "abi2_platform_release_notes_sha256": "artifact/abi2-platform-release-notes.md",
+    "stable_release_notes_sha256": "artifact/stable-release-notes.md",
+    "workflow_artifact_extractor_sha256": "artifact/workflow_artifact.py",
+    "workflow_artifact_tests_sha256": "artifact/test_workflow_artifact.py",
     "android_aar_script_sha256": "artifact/android-aar.sh",
+    "process_identity_sha256": "artifact/process_identity.py",
+    "android_emulator_control_sha256": "artifact/android_emulator_control.py",
+    "android_runtime_state_sha256": "artifact/android_runtime_state.py",
+    "android_runtime_state_tests_sha256": "artifact/test_android_runtime_state.py",
+    "android_bounded_command_sha256": "artifact/android_bounded_command.py",
+    "android_bounded_command_tests_sha256": "artifact/test_android_bounded_command.py",
     "android_device_smoke_script_sha256": "artifact/android-device-smoke.sh",
     "android_device_proof_verifier_sha256": "artifact/android_device_proof.py",
     "android_device_proof_tests_sha256": "artifact/test_android_device_proof.py",
@@ -664,12 +782,20 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "deterministic_archive_tests_sha256": "artifact/test_deterministic_archive.py",
     "package_bom_sha256": "artifact/package_bom.py",
     "platform_distribution_verifier_sha256": "artifact/platform_distribution.py",
+    "platform_distribution_contract_sha256": "artifact/platform_distribution_contract.py",
     "platform_distribution_tests_sha256": "artifact/test_platform_distribution.py",
     "platform_release_contract_sha256": "artifact/platform_release_contract.py",
     "platform_release_contract_tests_sha256": "artifact/test_platform_release_contract.py",
+    "platform_stable_publication_contract_sha256": "artifact/platform_stable_publication_contract.py",
+    "platform_stable_publication_contract_tests_sha256": "artifact/test_platform_stable_publication_contract.py",
+    "platform_publication_contract_sha256": "artifact/platform_publication_contract.py",
+    "platform_publication_contract_tests_sha256": "artifact/test_platform_publication_contract.py",
     "proof_to_byte_release_tests_sha256": "artifact/test_proof_to_byte_release.py",
     "release_binary_scan_sha256": "artifact/release_binary_scan.py",
     "release_binary_scan_tests_sha256": "artifact/test_release_binary_scan.py",
+    "release_index_verifier_sha256": "artifact/release_index.py",
+    "release_index_tests_sha256": "artifact/test_release_index.py",
+    "local_release_consumer_smoke_script_sha256": "artifact/local-release-consumer-smoke.sh",
     "release_consumer_smoke_verifier_sha256": "artifact/release_consumer_smoke.py",
     "release_consumer_smoke_tests_sha256": "artifact/test_release_consumer_smoke.py",
     "security_policy_sha256": "SECURITY.md",
@@ -680,6 +806,23 @@ ABI2_PLATFORM_RELEASE_PROOF_INPUTS = {
     "windows_package_verifier_sha256": "artifact/windows_package.py",
     "windows_package_tests_sha256": "artifact/test_windows_package.py",
     "windows_toolchain_tests_sha256": "artifact/windows-toolchain-tests.ps1",
+}
+
+CRATES_IO_PUBLICATION_PROOF_INPUTS = {
+    "rust_package_handoff_sha256": "artifact/rust_package_handoff.py",
+    "rust_package_handoff_tests_sha256": (
+        "artifact/test_rust_package_handoff.py"
+    ),
+    "crates_io_publication_contract_sha256": (
+        "artifact/crates_io_publication_contract.py"
+    ),
+    "crates_io_publication_contract_tests_sha256": (
+        "artifact/test_crates_io_publication_contract.py"
+    ),
+    "crates_io_publication_sha256": "artifact/crates_io_publication.py",
+    "crates_io_publication_tests_sha256": (
+        "artifact/test_crates_io_publication.py"
+    ),
 }
 
 
@@ -695,6 +838,137 @@ def extract_workflow_job(workflow: str, job_name: str) -> str:
 
 def extract_ci_check_job(workflow: str) -> str:
     return extract_workflow_job(workflow, "check")
+
+
+def workflow_path_filter_lines(source: str) -> set[int]:
+    """Identify only plain trigger path-list entries, never job/env/run content."""
+    parents: list[tuple[int, str]] = []
+    result: set[int] = set()
+    for number, line in enumerate(source.splitlines(), start=1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indentation = len(line) - len(line.lstrip(" "))
+        while parents and parents[-1][0] >= indentation:
+            parents.pop()
+        key = re.fullmatch(r" *([A-Za-z_][A-Za-z0-9_-]*):(?:\s.*)?", line)
+        if key:
+            parents.append((indentation, key.group(1)))
+        elif line.lstrip().startswith("- "):
+            path = tuple(name for _, name in parents)
+            if path in {
+                ("on", event, field)
+                for event in ("push", "pull_request", "pull_request_target")
+                for field in ("paths", "paths-ignore")
+            }:
+                result.add(number)
+    return result
+
+
+def workflow_archive_argument_lines(source: str) -> set[int]:
+    """Recognize literal source members of a complete, data-only git archive."""
+    lines = source.splitlines()
+    result: set[int] = set()
+    member = r'(?:artifact/[A-Za-z0-9_.-]+\.py|research/[A-Za-z0-9_./-]+)'
+    for index, line in enumerate(lines):
+        if line.strip() != 'git archive --format=tar HEAD \\':
+            continue
+        indentation = len(line) - len(line.lstrip(' '))
+        arguments: set[int] = set()
+        for number in range(index + 1, len(lines)):
+            current = lines[number]
+            if len(current) - len(current.lstrip(' ')) <= indentation:
+                break
+            if re.fullmatch(member + r'(?: +' + member + r')* \\', current.strip()):
+                arguments.add(number + 1)
+                continue
+            if arguments and re.fullmatch(
+                r'> "\$[A-Za-z_][A-Za-z0-9_]*/[A-Za-z0-9_.-]+\.tar"', current.strip()
+            ):
+                result.update(arguments)
+            break
+    return result
+
+
+def workflow_sparse_checkout_lines(source: str) -> set[int]:
+    """Recognize literal file-selection data in pinned checkout action inputs.
+
+    Block scalars are opaque outside this one admitted input, so YAML-looking
+    shell text cannot masquerade as a checkout step or hide a Python command.
+    """
+    parents: list[tuple[int, str]] = []
+    block: tuple[int, bool] | None = None
+    checkout = False
+    step_indentation: int | None = None
+    result: set[int] = set()
+    pinned_checkout = re.compile(r"actions/checkout@[0-9a-f]{40}(?:\s+#.*)?")
+    literal_path = re.compile(r"!?[A-Za-z0-9_./*-]+")
+    for number, line in enumerate(source.splitlines(), start=1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indentation = len(line) - len(line.lstrip(" "))
+        if block is not None:
+            if indentation > block[0]:
+                if block[1] and literal_path.fullmatch(line.strip()):
+                    result.add(number)
+                continue
+            block = None
+        while parents and parents[-1][0] >= indentation:
+            parents.pop()
+        ancestry = tuple(name for _, name in parents)
+        step = re.fullmatch(r" *- ([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)", line)
+        key = re.fullmatch(r" *([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)", line)
+        if step:
+            checkout = False
+            step_indentation = None
+            if len(ancestry) == 3 and ancestry[0] == "jobs" and ancestry[-1] == "steps":
+                step_indentation = indentation
+                checkout = step.group(1) == "uses" and pinned_checkout.fullmatch(step.group(2)) is not None
+            if re.fullmatch(r"[|>][-+0-9]*(?:\s+#.*)?", step.group(2)):
+                block = (indentation + 2, False)
+            continue
+        if key is None:
+            continue
+        name, value = key.groups()
+        if name == "uses" and step_indentation is not None and indentation == step_indentation + 2:
+            checkout = pinned_checkout.fullmatch(value) is not None
+        if re.fullmatch(r"[|>][-+0-9]*(?:\s+#.*)?", value):
+            admitted = (checkout and step_indentation is not None and indentation == step_indentation + 4
+                        and len(ancestry) == 4 and ancestry[0] == "jobs"
+                        and ancestry[-2:] == ("steps", "with") and name == "sparse-checkout"
+                        and re.fullmatch(r"\|[-+]?(?:\s+#.*)?", value) is not None)
+            block = (indentation, admitted)
+        parents.append((indentation, name))
+    return result
+
+
+def workflow_literal_input_lines(source: str) -> set[int]:
+    """Identify complete literal checksum inputs and an interpreter search list."""
+    lines = source.splitlines()
+    result: set[int] = set()
+    member = r'(?:\.github|artifact|bindings|research)/[A-Za-z0-9_./-]+'
+    header = re.compile(r'sha256sum ' + member + r'(?: +' + member + r')* \\')
+    argument = re.compile(member + r'(?: +' + member + r')* \\')
+    destination = re.compile(r'> "\$[A-Za-z_][A-Za-z0-9_]*/[A-Za-z0-9_.-]+\.sha256"')
+    search = re.compile(r'for [A-Za-z_][A-Za-z0-9_]* in "\$RUNNER_TOOL_CACHE"'
+                        r'/Python/[0-9]+\.[0-9]+\.\*/x64/bin/python3; do')
+    for index, line in enumerate(lines):
+        if search.fullmatch(line.strip()):
+            result.add(index + 1)
+        if not header.fullmatch(line.strip()):
+            continue
+        indentation = len(line) - len(line.lstrip(' '))
+        arguments = {index + 1}
+        for number in range(index + 1, len(lines)):
+            current = lines[number]
+            if len(current) - len(current.lstrip(' ')) <= indentation:
+                break
+            if argument.fullmatch(current.strip()):
+                arguments.add(number + 1)
+                continue
+            if destination.fullmatch(current.strip()):
+                result.update(arguments)
+            break
+    return result
 
 
 def extract_named_workflow_step(job: str, step_name: str) -> str:
@@ -724,6 +998,50 @@ def repository_head() -> str:
     if re.fullmatch(r"[0-9a-f]{40}", commit) is None:
         raise AssertionError(f"repository HEAD is not a 40-character commit: {commit}")
     return commit
+
+
+def _git_fixture_command(root: pathlib.Path, *arguments: str) -> None:
+    # Keep every maintenance worker owned by this invocation until it exits;
+    # TemporaryDirectory must not race a detached writer inside .git/objects.
+    subprocess.run(
+        ["/usr/bin/git", "-c", "maintenance.autoDetach=false", "-C", str(root), *arguments],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
+def _git_fixture_commit(root: pathlib.Path, message: str) -> None:
+    _git_fixture_command(root, "add", "--all")
+    _git_fixture_command(
+        root,
+        "-c",
+        "user.name=Proof Test",
+        "-c",
+        "user.email=proof@example.invalid",
+        "commit",
+        "-qm",
+        message,
+    )
+
+
+def _initialize_first_parent_results_fixture(
+    root: pathlib.Path, parent_results: bytes | None
+) -> None:
+    subprocess.run(
+        ["/usr/bin/git", "init", "-q", str(root)],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if parent_results is not None:
+        artifact = root / "artifact"
+        artifact.mkdir()
+        (artifact / "results.json").write_bytes(parent_results)
+    (root / "fixture.txt").write_text("parent\n", encoding="utf-8")
+    _git_fixture_commit(root, "Record parent results")
+    (root / "fixture.txt").write_text("successor\n", encoding="utf-8")
+    _git_fixture_commit(root, "Record successor")
 
 
 def validate_ci_check_checkout(check_job: str) -> None:
@@ -769,20 +1087,28 @@ def validate_ci_check_checkout(check_job: str) -> None:
     proof_starts = [
         index
         for index, line in enumerate(lines)
-        if line
-        == "      - name: Proof-to-byte manifest and canonical source binding\n"
+        if line == "      - name: Exact SDK source and historical evidence boundary\n"
     ]
     if len(proof_starts) != 1:
-        raise ValueError("CI check job must contain one explicit proof-to-byte step")
+        raise ValueError("CI check job must contain one explicit SDK source step")
     proof_start = proof_starts[0]
     proof_step = "".join(lines[proof_start : step_end(proof_start)])
-    if proof_step != EXPECTED_PROOF_TO_BYTE_STEP:
-        raise ValueError("CI proof-to-byte step differs from the audited fail-closed form")
+    if proof_step != EXPECTED_SDK_SOURCE_STEP:
+        raise ValueError(
+            "CI SDK source step differs from the audited fail-closed form"
+        )
 
 
-def format_marker(*states: int) -> str:
+def format_marker(**overrides: int) -> str:
+    unknown = set(overrides) - set(proof_to_byte_finalizer.STATE_NAMES)
+    if unknown:
+        raise AssertionError(f"unknown finalizer state names: {sorted(unknown)}")
+    states = {
+        name: overrides.get(name, 0)
+        for name in proof_to_byte_finalizer.STATE_NAMES
+    }
     state = proof_to_byte_finalizer.AttestationState.from_values(
-        [str(value) for value in states]
+        [str(states[name]) for name in proof_to_byte_finalizer.STATE_NAMES]
     )
     return proof_to_byte_finalizer.format_attestation_marker(
         state,
@@ -795,12 +1121,55 @@ def format_marker(*states: int) -> str:
     )
 
 
+def _immutable_workflow_reference(
+    reference: str, root: pathlib.Path, tracked: set[str]
+) -> bool:
+    action_ref = re.compile(
+        r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
+        r"(?:/[A-Za-z0-9_.-]+)*@([0-9a-f]{40})"
+    )
+    if action_ref.fullmatch(reference) is not None:
+        return True
+    local = re.fullmatch(
+        r"\./(\.github/workflows/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.ya?ml)",
+        reference,
+    )
+    if local is None or local.group(1) not in tracked:
+        return False
+    # A local reusable workflow resolves to the caller's exact commit. Its
+    # syntax/inputs are checked by actionlint; this gate checks source identity.
+    target = root / local.group(1)
+    return (
+        target.is_file()
+        and not target.is_symlink()
+        and target.resolve() == root.resolve() / local.group(1)
+    )
+
+
 class BoundVerifierWiringTests(unittest.TestCase):
-    def test_every_workflow_action_is_full_sha_pinned(self) -> None:
-        action_ref = re.compile(
-            r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
-            r"(?:/[A-Za-z0-9_.-]+)*@([0-9a-f]{40})$"
+    current_proof_inputs: dict[str, str]
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.current_proof_inputs = (
+            proof_to_byte_inputs.capture_proof_input_digests(ROOT)
         )
+
+    def assert_named_proof_input(self, key: str, relative: str) -> None:
+        self.assertEqual(
+            proof_to_byte_inputs.PROOF_TO_BYTE_INPUT_PATHS.get(key),
+            relative,
+        )
+        self.assertEqual(
+            self.current_proof_inputs.get(key),
+            hashlib.sha256((ROOT / relative).read_bytes()).hexdigest(),
+        )
+
+    def test_every_workflow_action_is_full_sha_pinned(self) -> None:
+        tracked = set(subprocess.check_output(
+            ["git", "ls-files", "-z", "--", ".github/workflows"], cwd=ROOT,
+        ).decode("utf-8").split("\0"))
         workflows = sorted((ROOT / ".github" / "workflows").glob("*.y*ml"))
         self.assertTrue(workflows)
         action_count = 0
@@ -812,9 +1181,311 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 with self.subTest(
                     workflow=workflow.relative_to(ROOT), reference=reference
                 ):
-                    self.assertIsNotNone(action_ref.fullmatch(reference))
+                    self.assertTrue(_immutable_workflow_reference(reference, ROOT, tracked))
                 action_count += 1
         self.assertGreater(action_count, 20)
+
+    def test_remote_workflow_references_still_require_full_commit_hashes(self) -> None:
+        self.assertTrue(_immutable_workflow_reference("actions/checkout@" + "a" * 40, ROOT, set()))
+        for reference in ("actions/checkout@main", "actions/checkout@v7", "actions/checkout@abcdef0",
+                          "owner/repo/.github/workflows/build.yml@main", "actions/checkout"):
+            with self.subTest(reference=reference):
+                self.assertFalse(_immutable_workflow_reference(reference, ROOT, set()))
+
+    def test_local_workflow_reference_requires_canonical_tracked_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            relative = ".github/workflows/callee.yml"
+            target = root / relative
+            target.parent.mkdir(parents=True)
+            target.write_text("on:\n  workflow_call:\n", encoding="utf-8")
+            tracked = {relative}
+            self.assertTrue(_immutable_workflow_reference("./" + relative, root, tracked))
+            self.assertFalse(_immutable_workflow_reference("./" + relative, root, set()))
+            for reference in ("./.github/workflows/missing.yml", "./.github/workflows/../callee.yml",
+                              "./.github/workflows/callee.yml@main", "./.github/actions/callee.yml",
+                              "./.github/workflows/${{ inputs.workflow }}.yml"):
+                with self.subTest(reference=reference):
+                    self.assertFalse(_immutable_workflow_reference(reference, root, tracked))
+            target.unlink()
+            self.assertFalse(_immutable_workflow_reference("./" + relative, root, tracked))
+
+    def test_local_workflow_reference_rejects_symlinked_file_and_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            relative = ".github/workflows/callee.yml"
+            outside = root / "outside"
+            outside.mkdir()
+            original = outside / "callee.yml"
+            original.write_text("on:\n  workflow_call:\n", encoding="utf-8")
+            target = root / relative
+            target.parent.mkdir(parents=True)
+            target.symlink_to(original)
+            self.assertFalse(_immutable_workflow_reference("./" + relative, root, {relative}))
+            target.unlink()
+            target.parent.rmdir()
+            target.parent.symlink_to(outside, target_is_directory=True)
+            self.assertFalse(_immutable_workflow_reference("./" + relative, root, {relative}))
+
+    def test_tls_standard_baseline_and_private_groups_are_not_conflated(self) -> None:
+        authorities = {
+            "README.md": ROOT / "README.md",
+            "competitive analysis": ROOT / "docs" / "COMPETITIVE_ANALYSIS.md",
+            "paper draft": ROOT / "docs" / "PAPER_DRAFT.md",
+            "rustls integration": ROOT / "crates" / "q-periapt-rustls" / "src" / "lib.rs",
+            "TLS demo": ROOT / "crates" / "q-periapt-tls-demo" / "src" / "lib.rs",
+            "paper": PAPER_SOURCE,
+        }
+        sources = {
+            label: path.read_text(encoding="utf-8")
+            for label, path in authorities.items()
+        }
+        for label, source in sources.items():
+            with self.subTest(authority=label):
+                self.assertIn("RFC 10024", source)
+
+        combined = "\n".join(sources.values())
+        for required in (
+            "RFC 9954",
+            "RFC 9846",
+            "0x11EC",
+            "0xFE01",
+            "0xFE02",
+            "private-use",
+        ):
+            self.assertIn(required, combined)
+        for stale in (
+            "draft-ietf-tls-ecdhe-mlkem",
+            "draft-ietf-tls-hybrid-design",
+            "RFC number unassigned",
+            "RFC 8446",
+            "\\cite{rfc8446}",
+            "\\cite{tlshybrid}",
+            "\\cite{tlsmlkem}",
+        ):
+            self.assertNotIn(stale, combined)
+
+        rustls_source = sources["rustls integration"]
+        self.assertIn("NamedGroup::Unknown(0xFE01)", rustls_source)
+        self.assertIn("NamedGroup::Unknown(0xFE02)", rustls_source)
+        handshake = (
+            ROOT / "crates" / "q-periapt-rustls" / "tests" / "handshake.rs"
+        ).read_text(encoding="utf-8")
+        self.assertIn("rfc10024_x25519_mlkem768_direct_contract", handshake)
+        self.assertIn("assert_eq!(u16::from(group.name()), 0x11EC)", handshake)
+        self.assertIn("const CLIENT_SHARE_LEN: usize = 1_216", handshake)
+        self.assertIn("const SERVER_SHARE_LEN: usize = 1_120", handshake)
+        self.assertIn("const SHARED_SECRET_LEN: usize = 64", handshake)
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("- name: RFC 10024 standard baseline contract", workflow)
+        self.assertIn(
+            "cargo clippy -p q-periapt-rustls --all-targets "
+            "--features bench-baseline --locked -- -D warnings",
+            workflow,
+        )
+        self.assertIn(
+            "cargo test -p q-periapt-rustls --features bench-baseline --locked",
+            workflow,
+        )
+
+    def test_stable_runbook_names_the_current_binary_ct_protection_transition(self) -> None:
+        notes = (ROOT / "artifact" / "stable-release-notes.md").read_text(
+            encoding="utf-8"
+        )
+        for obsolete in (
+            "constant-time (ubuntu-latest)",
+            "constant-time (ubuntu-24.04-arm)",
+        ):
+            self.assertIn(f"`{obsolete}`", notes)
+        for current in (
+            "Binary CT [x86_64-portable]",
+            "Binary CT [aarch64-native]",
+        ):
+            self.assertIn(f"`{current}`", notes)
+        self.assertIn("strict branch protection", notes)
+        self.assertIn("administrator enforcement", notes)
+        self.assertIn("replace the obsolete required contexts", notes)
+
+    def test_lts_java_jobs_select_home_and_path_before_consumers(self) -> None:
+        cases = (
+            (
+                CI_WORKFLOW,
+                "check",
+                21,
+                "sh artifact/python-run.sh -m unittest discover",
+            ),
+            (
+                CI_WORKFLOW,
+                "bindings-kotlin",
+                25,
+                "gradle test --project-dir bindings/kotlin",
+            ),
+            (CI_WORKFLOW, "bindings-android-aar", 21, "sh artifact/android-aar.sh"),
+            (
+                CI_WORKFLOW,
+                "bindings-android-runtime-16k",
+                21,
+                "sh artifact/android-device-smoke.sh",
+            ),
+            (
+                ABI2_PLATFORM_CANDIDATE_WORKFLOW,
+                "android",
+                21,
+                "sh artifact/android-aar.sh",
+            ),
+            (
+                CODEQL_WORKFLOW,
+                "analyze",
+                25,
+                "gradle test --project-dir bindings/kotlin",
+            ),
+        )
+        for workflow, job_name, version, consumer in cases:
+            with self.subTest(workflow=workflow.name, job=job_name):
+                job = extract_workflow_job(
+                    workflow.read_text(encoding="utf-8"), job_name
+                )
+                condition = (
+                    "        if: matrix.language == 'java-kotlin'\n"
+                    if workflow == CODEQL_WORKFLOW
+                    else ""
+                )
+                setup_name = f"Set up Java {version} LTS"
+                setup = extract_named_workflow_step(job, setup_name)
+                self.assertEqual(
+                    setup.rstrip(),
+                    (
+                        f"      - name: {setup_name}\n"
+                        f"{condition}"
+                        f"        uses: {PINNED_SETUP_JAVA_ACTION}\n"
+                        "        with:\n"
+                        "          distribution: temurin\n"
+                        f'          java-version: "{version}"'
+                    ),
+                )
+                self.assertEqual(
+                    re.findall(r'(?m)^          java-version: "([0-9]+)"$', job),
+                    [str(version)],
+                )
+                verify_name = f"Verify Java {version} LTS"
+                verify = extract_named_workflow_step(job, verify_name)
+                self.assertEqual(
+                    verify.rstrip(),
+                    (
+                        f"      - name: {verify_name}\n"
+                        f"{condition}"
+                        "        run: |\n"
+                        '          test "$(command -v java)" = "$JAVA_HOME/bin/java"\n'
+                        '          test "$(command -v javac)" = "$JAVA_HOME/bin/javac"\n'
+                        "          java -version\n"
+                        "          javac -version"
+                    ),
+                )
+                self.assertLess(job.index(setup_name), job.index(verify_name))
+                self.assertLess(job.index(verify_name), job.index(consumer))
+                if version == 25:
+                    restored_name = "Restore and verify selected Java after Gradle setup"
+                    gradle = extract_named_workflow_step(job, restored_name)
+                    self.assertEqual(
+                        gradle.rstrip(),
+                        f"      - name: {restored_name}\n"
+                        f"{condition}"
+                        "        run: |\n"
+                        "          # A matching preinstalled Gradle can prepend its shared /usr/bin directory.\n"
+                        '          export PATH="$JAVA_HOME/bin:$PATH"\n'
+                        '          test "$(command -v java)" = "$JAVA_HOME/bin/java"\n'
+                        '          test "$(command -v javac)" = "$JAVA_HOME/bin/javac"\n'
+                        '          printf \'%s\\n\' "$JAVA_HOME/bin" >> "$GITHUB_PATH"\n'
+                        "          command -v java\n"
+                        "          command -v javac\n"
+                        "          java -version\n"
+                        "          javac -version\n"
+                        "          gradle --version",
+                    )
+                    self.assertIn('          gradle-version: "9.8.0"', job)
+                    self.assertLess(job.index(verify_name), job.index("gradle/actions/setup-gradle@"))
+                    self.assertLess(job.index("gradle/actions/setup-gradle@"), job.index(restored_name))
+                    self.assertLess(job.index(restored_name), job.index(consumer))
+
+    def test_gradle_shared_path_restoration_covers_current_and_later_steps(self) -> None:
+        # Executable markers exercise path resolution only. No marker is run as a
+        # pretend JVM; actual JDK/Gradle/package execution remains a hosted gate.
+        for workflow, job_name in ((CI_WORKFLOW, "bindings-kotlin"), (CODEQL_WORKFLOW, "analyze")):
+            with self.subTest(workflow=workflow.name), tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary)
+                selected = root / "selected jdk" / "bin"
+                shared = root / "shared-bin"
+                private = root / "gradle-only" / "bin"
+                for directory in (selected, shared, private):
+                    directory.mkdir(parents=True)
+                for directory in (selected, shared):
+                    for tool in ("java", "javac"):
+                        path = directory / tool
+                        path.touch()
+                        path.chmod(0o700)
+                job = extract_workflow_job(workflow.read_text(), job_name)
+                step = extract_named_workflow_step(job, "Restore and verify selected Java after Gradle setup")
+                body = step.split("        run: |\n", 1)[1]
+                prefix, versions = body.split("          java -version\n", 1)
+                self.assertIn("          javac -version\n", versions)
+                self.assertIn("          gradle --version", versions)
+                prefix = "\n".join(line.removeprefix("          ") for line in prefix.splitlines())
+                probe = ('import os,pathlib,shutil; p=pathlib.Path(os.environ["JAVA_HOME"])/"bin/java"; '
+                         'raise SystemExit(0 if pathlib.Path(shutil.which("java") or "").resolve()==p.resolve() else 1)')
+                env = dict(os.environ, JAVA_HOME=str(selected.parent), QPERIAPT_PYTHON=sys.executable)
+                polluted = os.pathsep.join((str(shared), str(selected), "/usr/bin", "/bin"))
+
+                def observe(path: str) -> int:
+                    result = subprocess.run(
+                        ["/bin/sh", str(ROOT / "artifact/python-run.sh"), "-c", probe],
+                        env=dict(env, PATH=path), capture_output=True, timeout=15, check=False,
+                    )
+                    self.assertIn(result.returncode, (0, 1), result.stderr)
+                    return result.returncode
+
+                self.assertEqual(observe(polluted), 1)
+                self.assertEqual(observe(os.pathsep.join((str(private), str(selected), str(shared), "/usr/bin", "/bin"))), 0)
+                for label, script, current_ok, later_ok in (
+                    ("repair", prefix, True, True),
+                    ("missing-current", prefix.replace('export PATH="$JAVA_HOME/bin:$PATH"', ""), False, False),
+                    ("missing-later", "\n".join(line for line in prefix.splitlines() if '>> "$GITHUB_PATH"' not in line), True, False),
+                ):
+                    with self.subTest(case=label):
+                        github_path = root / label
+                        result = subprocess.run(
+                            ["/bin/bash", "-eu", "-c", script],
+                            env=dict(env, PATH=polluted, GITHUB_PATH=str(github_path)),
+                            capture_output=True, timeout=15, check=False,
+                        )
+                        self.assertEqual(result.returncode, 0 if current_ok else 1, result.stderr)
+                        lines = github_path.read_text().splitlines() if github_path.exists() else []
+                        if later_ok:
+                            self.assertEqual(lines, [str(selected)])
+                        self.assertEqual(observe(os.pathsep.join([*reversed(lines), polluted])), 0 if later_ok else 1)
+
+                (selected / "javac").unlink()
+                result = subprocess.run(
+                    ["/bin/bash", "-eu", "-c", prefix],
+                    env=dict(env, PATH=polluted, GITHUB_PATH=str(root / "missing-compiler")),
+                    capture_output=True, timeout=15, check=False,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertFalse((root / "missing-compiler").exists())
+
+    def test_kotlin_lts_build_uses_the_java_25_stable_api_and_bytecode(
+        self,
+    ) -> None:
+        build = (ROOT / "bindings/kotlin/build.gradle.kts").read_text(encoding="utf-8")
+        self.assertIn('kotlin("jvm") version "2.4.20"', build)
+        self.assertEqual(
+            re.findall(r"jvmTarget\.set\(JvmTarget\.JVM_([0-9]+)\)", build), ["25"]
+        )
+        self.assertEqual(
+            re.findall(r"options\.release\.set\(([0-9]+)\)", build), ["25"]
+        )
+        self.assertEqual(re.findall(r"-Xjdk-release=([0-9]+)", build), ["25"])
+        self.assertIn('jvmArgs("--enable-native-access=ALL-UNNAMED")', build)
+        self.assertNotIn("--enable-preview", build)
 
     def test_codeql_covers_all_detected_languages_with_real_builds(self) -> None:
         source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
@@ -834,7 +1505,6 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 ("c-cpp", "none", "ubuntu-latest"),
                 ("java-kotlin", "manual", "ubuntu-latest"),
                 ("python", "none", "ubuntu-latest"),
-                ("rust", "none", "ubuntu-latest"),
                 ("swift", "manual", "macos-latest"),
             ],
         )
@@ -842,14 +1512,19 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "gradle test --project-dir bindings/kotlin --no-daemon --warning-mode fail",
             source,
         )
-        self.assertIn(
-            "swift test --package-path bindings/swift -Xlinker "
-            "-L${{ github.workspace }}/target/release",
-            source,
+        swift_common = (
+            ' --package-path bindings/swift --scratch-path "$codeql_swift_scratch"'
+            ' --triple arm64-apple-macosx13.0 -Xlinker -L${{ github.workspace }}/target/release'
         )
-        # Kotlin builds the host library once; Swift builds both Apple
-        # architectures and merges a universal static archive so the CodeQL
-        # tracer links whichever slice its SwiftPM triple selects.
+        self.assertIn('codeql_swift_scratch="$(mktemp -d "$RUNNER_TEMP/qperiapt-codeql-swift.XXXXXX")"', source)
+        self.assertIn("          swift build --build-tests" + swift_common, source)
+        self.assertIn("          /usr/bin/arch -arm64 /usr/bin/xcrun swift test --skip-build" + swift_common, source)
+        self.assertLess(source.index("          swift build --build-tests" + swift_common),
+                        source.index("          /usr/bin/arch -arm64 /usr/bin/xcrun swift test --skip-build" + swift_common))
+        self.assertIn("          debug: ${{ matrix.language == 'swift' }}", source)
+        self.assertIn("          debug-artifact-name: codeql-${{ matrix.language }}-diagnostics", source)
+        # Kotlin builds its host library; the 0.2.0 Swift tracer and static
+        # archive are both explicitly bound to Apple Silicon macOS.
         self.assertEqual(
             len(
                 re.findall(
@@ -870,14 +1545,227 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 "cargo build --locked -p q-periapt-ffi --release "
                 "--target x86_64-apple-darwin"
             ),
-            1,
+            0,
         )
-        self.assertIn("lipo -create", source)
+        self.assertIn('test "$(/usr/sbin/sysctl -n hw.optional.arm64)" = 1', source)
+        self.assertNotIn("lipo -create", source)
+        self.assertIn(
+            "cp target/aarch64-apple-darwin/release/libq_periapt_ffi_abi2.a "
+            "target/release/libq_periapt_ffi_abi2.a", source
+        )
         self.assertIn("lipo -info target/release/libq_periapt_ffi_abi2.a", source)
         self.assertIn("queries: security-extended", source)
         self.assertIn("threat-models: [local]", source)
 
-    def test_dependency_monitoring_and_private_reporting_policy_are_explicit(self) -> None:
+    def test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate(self) -> None:
+        source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
+        other_languages = extract_workflow_job(source, "analyze")
+        rust = extract_workflow_job(source, "rust")
+        macos_prepare = extract_workflow_job(source, "rust-macos-prepare")
+        macos_analysis = extract_workflow_job(source, "rust-macos-analyze")
+        publication = extract_workflow_job(source, "rust-publication")
+        action = PINNED_CODEQL_ACTION.split(" #", 1)[0]
+        self.assertEqual(other_languages.count(action.format(action="init")), 1)
+        self.assertEqual(other_languages.count(action.format(action="analyze")), 1)
+        self.assertIn("tools: linked", other_languages)
+        self.assertIn('version --format=terse)" = "2.27.1"', other_languages)
+
+        self.assertIn("runs-on: ${{ matrix.runner }}", rust)
+        for entry in ("- profile: native\n            runner: ubuntu-24.04\n            bundle: linux64",
+                      "- profile: wasm\n            runner: ubuntu-24.04\n            bundle: linux64"):
+            self.assertIn(entry, rust)
+        self.assertNotIn("- profile: macos", rust)
+        self.assertIn("runs-on: macos-26", macos_prepare)
+        self.assertIn("runs-on: ubuntu-24.04", macos_analysis)
+        self.assertIn("needs: rust-macos-prepare", macos_analysis)
+        self.assertIn("name: Analyze Rust (macos)", macos_analysis)
+        self.assertIn("fail-fast: false", rust)
+        for job in (rust, macos_prepare, macos_analysis):
+            self.assertIn("CODEQL_EXPECTED_COMMIT: ${{ github.sha }}", job)
+            self.assertIn(action.format(action="setup-codeql"), job)
+        for job in (rust, macos_prepare):
+            self.assertIn(PINNED_CANONICAL_RUST_ACTION, job)
+            self.assertIn("toolchain: 1.98.1", job)
+            self.assertIn("components: rust-src", job)
+        self.assertIn("targets: wasm32-unknown-unknown", rust)
+        self.assertIn(
+            "tools: https://github.com/github/codeql-action/releases/download/"
+            "codeql-bundle-v2.27.2/codeql-bundle-${{ matrix.bundle }}.tar.gz", rust)
+        for job, bundle in ((macos_prepare, "osx64"), (macos_analysis, "linux64")):
+            self.assertIn("codeql-bundle-v2.27.2/codeql-bundle-" + bundle + ".tar.gz", job)
+        dependencies = extract_named_workflow_step(macos_prepare, "Install macOS analysis build dependencies")
+        self.assertIn('test "$(uname -m)" = arm64', dependencies)
+        # Every independently successful target and the coverage validator
+        # must precede publication. Analysis has no upload authority.
+        for job in (rust, macos_prepare, macos_analysis):
+            self.assertNotIn("security-events:", job)
+            self.assertNotIn("upload-sarif", job)
+            self.assertNotIn(action.format(action="analyze"), job)
+        for job in (rust, macos_prepare, macos_analysis, publication):
+            self.assertNotIn("continue-on-error", job)
+            self.assertNotIn("|| true", job)
+        prepare = extract_named_workflow_step(rust, "Compile and extract the actual target")
+        analyze = extract_named_workflow_step(rust, "Run every security-extended query")
+        for step, command in ((prepare, "prepare"), (analyze, "analyze")):
+            self.assertNotIn("        if:", step)
+            self.assertIn("CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}", step)
+            self.assertIn('artifact/codeql_rust_profile.py ' + command + ' --profile "$RUST_PROFILE"', step)
+        self.assertLess(rust.index(prepare), rust.index(analyze))
+        mac_prepare = extract_named_workflow_step(macos_prepare, "Compile and extract the actual macOS target")
+        export = extract_named_workflow_step(macos_prepare, "Export the source-bound macOS database")
+        identity = extract_named_workflow_step(macos_prepare, "Bind the transfer to the preparation job")
+        imported = extract_named_workflow_step(macos_analysis, "Import the anchored macOS database")
+        mac_analyze = extract_named_workflow_step(macos_analysis, "Run every security-extended query on the macOS database")
+        for step, command in ((mac_prepare, "prepare"), (export, "export"),
+                              (imported, "import"), (mac_analyze, "analyze")):
+            self.assertNotIn("        if:", step)
+            self.assertIn("CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}", step)
+            self.assertIn('artifact/codeql_rust_profile.py ' + command + ' --profile "$RUST_PROFILE"', step)
+        self.assertIn('artifact/codeql_rust_transfer.py identity >> "$GITHUB_OUTPUT"', identity)
+        self.assertNotIn("        if:", identity)
+        self.assertLess(macos_prepare.index(mac_prepare), macos_prepare.index(export))
+        self.assertLess(macos_prepare.index(export), macos_prepare.index(identity))
+        self.assertLess(macos_analysis.index(imported), macos_analysis.index(mac_analyze))
+        self.assertNotIn("codeql_rust_profile.py prepare", macos_analysis)
+        self.assertNotIn("codeql-rust-profile-macos-", macos_prepare)
+        self.assertIn("transfer_sha256: ${{ steps.rust_transfer.outputs.transfer_sha256 }}", macos_prepare)
+        self.assertIn("origin_attempt: ${{ steps.rust_transfer.outputs.origin_attempt }}", macos_prepare)
+        self.assertIn("name: codeql-rust-macos-transfer-${{ needs.rust-macos-prepare.outputs.origin_attempt }}", macos_analysis)
+        self.assertIn("name: codeql-rust-profile-macos-${{ github.run_attempt }}", macos_analysis)
+        self.assertIn("timeout-minutes: 305", mac_analyze)
+        evidence = extract_named_workflow_step(rust, "Retain profile evidence before bundling diagnostics")
+        bundle = extract_named_workflow_step(rust, "Bundle the completed or partial database")
+        self.assertIn("if: always()", evidence)
+        self.assertIn("if-no-files-found: error", evidence)
+        self.assertLess(rust.index(evidence), rust.index(bundle))
+        self.assertIn("needs: [rust, rust-macos-prepare, rust-macos-analyze]", publication)
+        self.assertIn("security-events: write", publication)
+        self.assertIn("pattern: codeql-rust-profile-*", publication)
+        gate = extract_named_workflow_step(publication, "Require matching source, compiler coverage and complete suites")
+        self.assertIn("CODEQL_EXPECTED_COMMIT: ${{ github.sha }}", gate)
+        for job in (macos_analysis, gate):
+            self.assertIn("CODEQL_TRANSFER_SHA256: ${{ needs.rust-macos-prepare.outputs.transfer_sha256 }}", job)
+            self.assertIn("CODEQL_TRANSFER_ATTEMPT: ${{ needs.rust-macos-prepare.outputs.origin_attempt }}", job)
+        self.assertIn("artifact/codeql_rust_publication.py", gate)
+        self.assertNotIn("        if:", gate)
+        uploads = extract_action_steps(publication, action.format(action="upload-sarif"))
+        self.assertEqual(len(uploads), 3)
+        # Native continues the established main-branch analysis category;
+        # the additional targets retain their separate publication identities.
+        expected_categories = (
+            ("native", "/language:rust"),
+            ("wasm", "/language:rust/target:wasm"),
+            ("macos", "/language:rust/target:macos"),
+        )
+        for step, (target, category) in zip(uploads, expected_categories):
+            self.assertNotIn("        if:", step)
+            self.assertRegex(step, r"(?m)^\s+category: " + re.escape(category) + r"\s*$")
+            self.assertIn("sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/" + target + ".sarif", step)
+            self.assertIn("wait-for-processing: true", step)
+            self.assertLess(publication.index(gate), publication.index(step))
+
+        quality_source = (ROOT / "artifact/codeql_rust_quality.py").read_text(encoding="utf-8")
+        for name in ("CODEQL_BINARY", "CODEQL_DATABASE_LOCATIONS", "CODEQL_RUNNER_TEMP"):
+            self.assertNotIn('os.environ.get("' + name + '"', quality_source)
+        self.assertEqual(str(codeql_rust_quality.FIXED_CODEQL_BINARY),
+                         "/opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/codeql")
+        self.assertEqual(str(codeql_rust_quality.FIXED_CODEQL_DATABASE),
+                         "/home/runner/work/_temp/qperiapt-codeql-database/rust")
+        self.assertEqual(str(codeql_rust_quality.FIXED_RUNNER_TEMP), "/home/runner/work/_temp")
+
+    def test_rust_codeql_publication_rejects_wrong_target_categories(self) -> None:
+        source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
+        mutations = (
+            ("native category suffix", "/language:rust", "/language:rust/target:native"),
+            ("WASM aliases native", "/language:rust/target:wasm", "/language:rust"),
+            ("macOS aliases WASM", "/language:rust/target:macos", "/language:rust/target:wasm"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            workflow = pathlib.Path(temporary) / "codeql.yml"
+            for label, category, wrong_category in mutations:
+                with self.subTest(mutation=label):
+                    line = "          category: " + category + "\n"
+                    self.assertEqual(source.count(line), 1)
+                    workflow.write_text(
+                        source.replace(line, "          category: " + wrong_category + "\n", 1),
+                        encoding="utf-8",
+                    )
+                    with (
+                        mock.patch(__name__ + ".CODEQL_WORKFLOW", workflow),
+                        self.assertRaisesRegex(AssertionError, "Regex didn't match"),
+                    ):
+                        self.test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate()
+
+    def test_macos_transfer_workflow_rejects_unbound_or_premature_publication(self) -> None:
+        source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
+        mutations = (
+            ("publication omits macOS analysis", "needs: [rust, rust-macos-prepare, rust-macos-analyze]",
+             "needs: [rust, rust-macos-prepare]"),
+            ("analysis uses its attempt for origin download",
+             "name: codeql-rust-macos-transfer-${{ needs.rust-macos-prepare.outputs.origin_attempt }}",
+             "name: codeql-rust-macos-transfer-${{ github.run_attempt }}"),
+            ("final artifact uses origin attempt", "name: codeql-rust-profile-macos-${{ github.run_attempt }}",
+             "name: codeql-rust-profile-macos-${{ needs.rust-macos-prepare.outputs.origin_attempt }}"),
+            ("analysis loses origin anchor",
+             "\n      CODEQL_TRANSFER_SHA256: ${{ needs.rust-macos-prepare.outputs.transfer_sha256 }}",
+             "\n      CODEQL_TRANSFER_SHA256: unbound"),
+            ("publication loses origin anchor",
+             "\n          CODEQL_TRANSFER_SHA256: ${{ needs.rust-macos-prepare.outputs.transfer_sha256 }}",
+             "\n          CODEQL_TRANSFER_SHA256: unbound"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            workflow = pathlib.Path(temporary) / "codeql.yml"
+            for label, original, replacement in mutations:
+                with self.subTest(mutation=label):
+                    self.assertEqual(source.count(original), 1)
+                    workflow.write_text(source.replace(original, replacement, 1), encoding="utf-8")
+                    with mock.patch(__name__ + ".CODEQL_WORKFLOW", workflow), self.assertRaises(AssertionError):
+                        self.test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate()
+
+    def test_rust_codeql_targets_and_upload_boundary_are_documented(self) -> None:
+        guide = ARTIFACT_GUIDE.read_text(encoding="utf-8")
+        normalized = " ".join(guide.split())
+        self.assertIn("## Rust CodeQL analysis boundary", guide)
+        self.assertIn("separate native Linux, Apple Silicon macOS and `wasm32-unknown-unknown` jobs", normalized)
+        self.assertIn("CodeQL 2.27.2 bundle and Rust 1.98.1 sysroot", normalized)
+        self.assertIn("actual target with warnings denied", normalized)
+        self.assertIn(
+            f"{codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT} tracked `.rs` files",
+            normalized)
+        for boundary in (
+            "all 39 pinned security-extended queries, including full `SummaryStats`",
+            "every expected fresh BQRS result is required",
+            "A separate job verifies all three profiles before publication",
+            "a newer incomplete profile never falls back to an older result",
+            "zero extraction warnings, extraction errors, unextracted elements",
+            "complete, self-reconciling telemetry",
+            "unresolved executable macro in a compiled source fails in that profile",
+            "peer that actually compiles the same bytes",
+            "No query is removed",
+            "These controls do not establish whole-repository query completion",
+            "four threads and 14,000 MB",
+            "1800-second Metrics limit and 300-second limits for other queries and decoding",
+            "source-bound database then moves to a standard Ubuntu 24.04 query worker",
+            "The immutable origin `PROFILE.json` retains the macOS host and preparation budget",
+            "`ANALYSIS.json` records the Linux query host, actual allocation and analysis attempt separately",
+            "An origin from attempt 1 may support analysis attempt 2 in the same run and source commit",
+            "Resource failures block publication",
+            "Ubuntu 24.04 Rust jobs",
+            "Runner or hardware changes require fresh qualification",
+            "trusted-runner integrity checks",
+            "not isolation from hostile code",
+            "path-identity snapshots",
+            "remain trusted inputs used by pathname",
+            "inherited process environment and OS runtime are trusted",
+            "foreign-owned", "group/other-writable", "multiply linked",
+            "original inode", "alternate hard link", "separate account alone is insufficient",
+        ):
+            with self.subTest(boundary=boundary):
+                self.assertIn(boundary, normalized)
+
+    def test_dependency_monitoring_and_private_reporting_policy_are_explicit(
+        self,
+    ) -> None:
         dependabot = DEPENDABOT_CONFIG.read_text(encoding="utf-8")
         configured = re.findall(
             r"(?m)^  - package-ecosystem: ([a-z-]+)\n"
@@ -900,18 +1788,25 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertNotIn("ignore:", dependabot)
         self.assertNotIn("groups:", dependabot)
         policy = SECURITY_POLICY.read_text(encoding="utf-8")
-        self.assertIn("Report a vulnerability", policy)
-        self.assertIn("unsigned experimental prerelease", policy)
-        self.assertIn("do not provide Authenticode publisher identity", policy)
+        normalized_policy = " ".join(policy.split())
+        self.assertIn("Report a vulnerability", normalized_policy)
+        self.assertIn(
+            "unsigned and is excluded from the stable candidate",
+            normalized_policy,
+        )
+        self.assertIn(
+            "does not establish Windows publisher identity",
+            normalized_policy,
+        )
 
     def test_android_release_gate_binds_every_verifier_argument(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
         gate_start = source.index(
-            'if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then\n'
-            '\ttest -f "$ANDROID_PROOF"'
+            'if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then\n\ttest -f "$ANDROID_PROOF"'
         )
         gate_end = source.index(
-            '\nif [ "$REQUIRE_PERFORMANCE" = "1" ]; then', gate_start
+            '\nif [ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ]; then',
+            gate_start,
         )
         gate_lines = source[gate_start:gate_end].splitlines()
 
@@ -960,16 +1855,11 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "--expected-results-manifest-sha256",
             "$RESULTS_MANIFEST_SHA256",
         ]
-        allow_dirty = ["--allow-dirty-proof"]
         self.assertEqual(
             commands,
-            [
-                [*base, *expected_kind, *release_contract, *allow_dirty],
-                [*base, *release_contract, *allow_dirty],
-                [*base, *expected_kind, *release_contract],
-                [*base, *release_contract],
-            ],
+            [[*base, *expected_kind, *release_contract]],
         )
+        self.assertNotIn("--allow-dirty-proof", "\n".join(gate_lines))
 
         scaffold_lines = gate_lines.copy()
         for start, end in reversed(command_spans):
@@ -977,98 +1867,783 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 : len(scaffold_lines[start]) - len(scaffold_lines[start].lstrip())
             ]
             scaffold_lines[start : end + 1] = [f"{indentation}<ANDROID_VERIFY>"]
-        branch_start = scaffold_lines.index(
-            '\tif [ "$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF" = "1" ]; then'
-        )
+        verify_marker = scaffold_lines.index("\t<ANDROID_VERIFY>")
         pass_marker = scaffold_lines.index("\tANDROID_RUNTIME_PASSED=1")
         self.assertEqual(
-            scaffold_lines[branch_start:pass_marker],
+            scaffold_lines[verify_marker:pass_marker],
+            ["\t<ANDROID_VERIFY>"],
+        )
+        self.assertNotIn("ALLOW_DIRTY_ANDROID_RUNTIME_PROOF", "\n".join(gate_lines))
+
+    def test_android_physical_gate_is_one_clean_manifest_bound_command(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        gate_start = source.index(
+            'if [ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ]; then\n'
+            '\ttest -f "$ANDROID_PHYSICAL_PROOF"'
+        )
+        gate_end = source.index(
+            '\nif [ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ]; then',
+            gate_start,
+        )
+        gate_lines = source[gate_start:gate_end].splitlines()
+
+        commands: list[list[str]] = []
+        command_spans: list[tuple[int, int]] = []
+        command_prefix = "python3 artifact/android_device_proof.py verify \\"
+        for index, line in enumerate(gate_lines):
+            if line.strip() != command_prefix:
+                continue
+            fragments = [command_prefix.removesuffix(" \\")]
+            cursor = index + 1
+            while cursor < len(gate_lines):
+                fragment = gate_lines[cursor].strip()
+                continued = fragment.endswith("\\")
+                fragments.append(fragment[:-1].rstrip() if continued else fragment)
+                if not continued:
+                    break
+                cursor += 1
+            else:
+                self.fail("physical Android verifier command has no terminating argument")
+            commands.append(shlex.split(" ".join(fragments)))
+            command_spans.append((index, cursor))
+
+        self.assertEqual(
+            commands,
             [
-                '\tif [ "$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF" = "1" ]; then',
-                '\t\tif [ -n "$EXPECTED_KIND" ]; then',
-                "\t\t\t<ANDROID_VERIFY>",
-                "\t\telse",
-                "\t\t\t<ANDROID_VERIFY>",
-                "\t\tfi",
-                "\telse",
-                '\t\tif [ -n "$EXPECTED_KIND" ]; then',
-                "\t\t\t<ANDROID_VERIFY>",
-                "\t\telse",
-                "\t\t\t<ANDROID_VERIFY>",
-                "\t\tfi",
-                "\tfi",
+                [
+                    "python3",
+                    "artifact/android_device_proof.py",
+                    "verify",
+                    "--root",
+                    "$ROOT",
+                    "--proof",
+                    "$ANDROID_PHYSICAL_PROOF",
+                    "--max-age-seconds",
+                    "$ANDROID_PHYSICAL_MAX_AGE_SECONDS",
+                    "--expected-device-kind",
+                    "physical",
+                    "--results-binding",
+                    "android_physical_runtime",
+                    "--results-manifest",
+                    "$RESULTS_MANIFEST",
+                    "--expected-results-manifest-sha256",
+                    "$RESULTS_MANIFEST_SHA256",
+                ]
             ],
         )
+        self.assertEqual(source.count("--results-binding android_physical_runtime"), 1)
+        command = commands[0]
+        for forbidden in (
+            "--expected-device-abi",
+            "--expected-page-size",
+            "--expected-device-sdk",
+            "--require-release-mode",
+            "--allow-dirty-proof",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, command)
+
+        scaffold_lines = gate_lines.copy()
+        for start, end in reversed(command_spans):
+            indentation = scaffold_lines[start][
+                : len(scaffold_lines[start]) - len(scaffold_lines[start].lstrip())
+            ]
+            scaffold_lines[start : end + 1] = [f"{indentation}<PHYSICAL_VERIFY>"]
+        verify_marker = scaffold_lines.index("\t<PHYSICAL_VERIFY>")
+        pass_state = scaffold_lines.index("\tANDROID_PHYSICAL_RUNTIME_PASSED=1")
+        self.assertEqual(
+            scaffold_lines[verify_marker:pass_state],
+            ["\t<PHYSICAL_VERIFY>"],
+        )
+        self.assertEqual(
+            scaffold_lines[pass_state + 1],
+            "\tprintf 'PROOF_TO_BYTE_ANDROID_PHYSICAL_RUNTIME_PASS\\n'",
+        )
+
+    def test_android_release_gate_and_finalizer_state_wiring_are_explicit(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            'REQUIRE_ANDROID_AAR=$(bool_flag QPERIAPT_REQUIRE_ANDROID_AAR ',
+            source,
+        )
+        self.assertIn(
+            "REQUIRE_ANDROID_PHYSICAL_RUNTIME=$(bool_flag "
+            "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME ",
+            source,
+        )
+        self.assertIn(
+            "REQUIRE_LOCAL_RELEASE_CONSUMER=$(bool_flag "
+            "QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER ",
+            source,
+        )
+        self.assertIn(
+            'if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ] || \\\n'
+            '\t[ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ] || \\\n'
+            '\t[ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ]; then',
+            source,
+        )
+        self.assertIn(
+            "python3 artifact/android_elf.py verify-results-bound-aar \\",
+            source,
+        )
+        self.assertIn(
+            "python3 artifact/release_consumer_smoke.py verify-bound \\",
+            source,
+        )
+        self.assertIn(
+            'if [ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ] && '
+            '[ "$REQUIRE_ANDROID_RUNTIME" != "1" ]; then',
+            source,
+        )
+        aar_gate = source.index(
+            "python3 artifact/android_elf.py verify-results-bound-aar \\"
+        )
+        canonical_gate = source.index(
+            'if [ "$REQUIRE_ANDROID_RUNTIME" = "1" ]; then',
+            aar_gate,
+        )
+        physical_gate = source.index(
+            'if [ "$REQUIRE_ANDROID_PHYSICAL_RUNTIME" = "1" ]; then',
+            canonical_gate,
+        )
+        consumer_gate = source.index(
+            'if [ "$REQUIRE_LOCAL_RELEASE_CONSUMER" = "1" ]; then',
+            physical_gate,
+        )
+        self.assertLess(aar_gate, canonical_gate)
+        self.assertLess(canonical_gate, physical_gate)
+        self.assertLess(physical_gate, consumer_gate)
+
+        finalizer_call = source[source.index("python3 artifact/proof_to_byte_finalizer.py finalize \\") :]
+        expected_state_arguments = [
+            '"$HOST_SMOKE_PASSED"',
+            '"$FORMAL_PASSED"',
+            '"$APPLE_DEVICE_PASSED"',
+            '"$APPLE_MATRIX_PASSED"',
+            '"$ANDROID_AAR_PASSED"',
+            '"$ANDROID_RUNTIME_PASSED"',
+            '"$ANDROID_PHYSICAL_RUNTIME_PASSED"',
+            '"$LOCAL_RELEASE_CONSUMER_PASSED"',
+            '"$PERFORMANCE_PASSED"',
+            '"$CAMERA_READY_BUNDLE_PASSED"',
+            '"$REQUIRE_CAMERA_READY"',
+            '"$DEPENDENCY_AUDIT_PASSED"',
+            '"$ALLOW_DIRTY_APPLE_DEVICE_PROOF"',
+            '"$ALLOW_DIRTY_PERFORMANCE_PROOF"',
+            '"$RUST_PACKAGE_CONTRACT_PASSED"',
+        ]
+        positions = [finalizer_call.index(argument) for argument in expected_state_arguments]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn('"$ALLOW_DIRTY_ANDROID_RUNTIME_PROOF"', finalizer_call)
+
+        self.assertEqual(
+            proof_to_byte_finalizer.STATE_NAMES,
+            (
+                "host_smoke",
+                "formal",
+                "apple_device",
+                "apple_matrix",
+                "android_aar",
+                "android_runtime",
+                "android_physical_runtime",
+                "local_release_consumer",
+                "performance",
+                "camera_ready",
+                "camera_required",
+                "dependency_audit",
+                "source_tree_dirty",
+                "allow_dirty_apple",
+                "allow_dirty_performance",
+                "rust_package_contract",
+            ),
+        )
+
+    def test_rust_package_receipt_is_an_independent_manifest_bound_gate(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            'REQUIRE_RUST_PACKAGE_CONTRACT=$(bool_flag '
+            'QPERIAPT_REQUIRE_RUST_PACKAGE_CONTRACT ',
+            source,
+        )
+        gate_start = source.index(
+            'if [ "$REQUIRE_RUST_PACKAGE_CONTRACT" = "1" ]; then'
+        )
+        gate_end = source.index(
+            "sh artifact/python-run.sh artifact/migration_contract_v2.py verify",
+            gate_start,
+        )
+        gate = source[gate_start:gate_end]
+        for token in (
+            "load_current_rust_package_contract_receipt(",
+            "frozen_commit=sys.argv[4]",
+            "frozen_source_sha256=sys.argv[5]",
+            "PROOF_TO_BYTE_RUST_PACKAGE_CONTRACT_PASS upload=not-attempted",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, gate)
+        pass_position = gate.index(
+            "PROOF_TO_BYTE_RUST_PACKAGE_CONTRACT_PASS upload=not-attempted"
+        )
+        state_position = gate.index("RUST_PACKAGE_CONTRACT_PASSED=1")
+        self.assertLess(pass_position, state_position)
+        self.assertNotIn("DEPENDENCY_AUDIT_PASSED=1", gate)
+
+        audit_gate = source[
+            source.index(
+                'if [ "$REQUIRE_DEPENDENCY_AUDIT" = "1" ]; then',
+                gate_end,
+            ):
+            source.index('if [ "$SKIP_SMOKE" = "0" ]; then')
+        ]
+        self.assertIn("DEPENDENCY_AUDIT_PASSED=1", audit_gate)
+        self.assertNotIn("RUST_PACKAGE_CONTRACT_PASSED=1", audit_gate)
+
+    def test_release_candidate_requires_the_independent_rust_package_gate(self) -> None:
+        without_package = format_marker(
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            dependency_audit=1,
+        )
+        self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", without_package)
+        self.assertIn("rust_package_contract=0", without_package)
+        self.assertNotIn("PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS", without_package)
+
+        with_package = format_marker(
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            dependency_audit=1,
+            rust_package_contract=1,
+        )
+        self.assertIn("PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS", with_package)
+        self.assertIn("rust_package_contract=1", with_package)
+
+    def test_ci_android_replay_consumes_only_same_run_exports_with_producer_pins(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        producer = extract_workflow_job(workflow, "bindings-android-aar")
+        runtime = extract_workflow_job(workflow, "bindings-android-runtime-16k")
+        replay = extract_workflow_job(workflow, "bindings-android-runtime-replay")
+        for digest in ("aar_sha256", "manifest_sha256"):
+            self.assertIn(f"{digest}: ${{{{ steps.sdk_aar_identity.outputs.{digest} }}}}", producer)
+            for consumer in (runtime, replay):
+                self.assertIn(f"${{{{ needs.bindings-android-aar.outputs.{digest} }}}}", consumer)
+        self.assertIn("needs: [bindings-android-aar, bindings-android-runtime-16k]", replay)
+        self.assertIn("profile: [api23-4k, api35-16k]", replay)
+        downloads = extract_action_steps(replay, "actions/download-artifact")
+        self.assertEqual(len(downloads), 1)
+        self.assertIn("name: abi2-android-sdk-020-export-${{ matrix.profile }}-x86_64", downloads[0])
+        self.assertIn("skip-decompress: true", downloads[0])
+        self.assertIn("digest-mismatch: error", downloads[0])
+        self.assertNotIn("run-id:", replay)
+        self.assertNotIn("github-token:", replay)
+        self.assertNotIn("android-device-smoke.sh", replay)
+        self.assertNotIn("gradlew", replay)
+        self.assertNotIn("continue-on-error", replay)
+        self.assertIn('artifact/workflow_artifact.py "android-sdk-020-runtime-$ANDROID_REPLAY_PROFILE"', replay)
+        self.assertIn("artifact/android_sdk_runtime_replay.py verify", replay)
+        self.assertIn('--expected-source-commit "$GITHUB_SHA"', replay)
+        self.assertIn('--expected-aar-sha256 "$EXPECTED_AAR_SHA256"', replay)
+        self.assertIn('--expected-aar-manifest-sha256 "$EXPECTED_MANIFEST_SHA256"', replay)
+        self.assertLess(runtime.index("artifact/android_sdk_runtime_replay.py stage"),
+                        runtime.index("name: Upload the verified pair for independent Linux replay"))
+
+    def test_ci_created_avd_image_preparation_is_narrow_and_preserves_bytes(self) -> None:
+        job = extract_workflow_job(CI_WORKFLOW.read_text(), "bindings-android-runtime-16k")
+        start = 'sh artifact/python-run.sh - "$ANDROID_AVD_HOME/$avd_name.avd/userdata.img" <<\'PY\'\n'
+        source = job.split(start, 1)[1].split("          PY\n", 1)[0]
+        code = "\n".join(line.removeprefix("          ") for line in source.splitlines())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            for kind in ("regular", "private", "symlink", "hardlink", "fifo", "writable", "empty"):
+                with self.subTest(kind=kind):
+                    directory = root / kind
+                    directory.mkdir(mode=0o700)
+                    original = directory / "factory.img"
+                    original.write_bytes(b"factory image fixture")
+                    original.chmod(0o644)
+                    leaf = directory / "userdata.img"
+                    if kind == "symlink":
+                        leaf.symlink_to(original)
+                    elif kind == "hardlink":
+                        os.link(original, leaf)
+                    elif kind == "fifo":
+                        os.mkfifo(leaf, 0o600)
+                    else:
+                        leaf.write_bytes(b"" if kind == "empty" else original.read_bytes())
+                        leaf.chmod(0o664 if kind == "writable" else 0o600 if kind == "private" else 0o644)
+                    before = leaf.lstat()
+                    run = subprocess.run(
+                        ["/bin/sh", str(ROOT / "artifact/python-run.sh"), "-c", code, str(leaf)],
+                        cwd=ROOT, capture_output=True, timeout=10,
+                    )
+                    after = leaf.lstat()
+                    self.assertEqual((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns),
+                                     (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns))
+                    self.assertEqual(stat.S_IMODE(original.stat().st_mode), 0o644)
+                    if kind in {"regular", "private"}:
+                        self.assertEqual(run.returncode, 0, run.stderr)
+                        self.assertTrue(run.stdout.endswith(b"CREATED_AVD_IMAGE_PRIVATE_PASS\n"))
+                        self.assertEqual(stat.S_IMODE(after.st_mode), 0o600)
+                        self.assertEqual(leaf.read_bytes(), original.read_bytes())
+                    else:
+                        self.assertNotEqual(run.returncode, 0)
+                        self.assertNotIn(b"CREATED_AVD_IMAGE_PRIVATE_PASS", run.stdout)
+                        self.assertEqual(before.st_mode, after.st_mode)
+
+    def test_ci_android_runtime_matrix_consumes_same_run_aar_fail_closed(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        job = extract_workflow_job(workflow, "bindings-android-runtime-16k")
+
+        self.assertIn("    needs: bindings-android-aar\n", job)
+        self.assertIn("    runs-on: ubuntu-24.04\n", job)
+        self.assertIn("    timeout-minutes: 60\n", job)
+        download_steps = extract_action_steps(job, "actions/download-artifact")
+        self.assertEqual(len(download_steps), 1)
+        self.assertEqual(
+            download_steps[0],
+            f"      - uses: {PINNED_DOWNLOAD_ARTIFACT_ACTION}\n"
+            "        with:\n"
+            "          name: abi2-android-sdk-020-aar\n"
+            "          path: target/workflow-artifact/raw\n"
+            "          skip-decompress: true\n"
+            "          digest-mismatch: error\n",
+        )
+        extractor = extract_named_workflow_step(
+            job, "Strictly extract the same-run Android AAR artifact"
+        )
+        self.assertEqual(
+            extractor,
+            "      - name: Strictly extract the same-run Android AAR artifact\n"
+            "        env:\n"
+            "          QPERIAPT_PYTHON: "
+            "${{ steps.proof_python.outputs.python-path }}\n"
+            "        run: sh artifact/python-run.sh "
+            "artifact/workflow_artifact.py android-sdk-020-aar\n",
+        )
+        self.assertNotIn("merge-multiple:", download_steps[0])
+        self.assertNotIn("          run-id:", job)
+        self.assertNotIn("          github-token:", job)
+        self.assertIn("license_answers=$(printf 'y\\n%.0s' {1..64})", job)
+        self.assertIn('sdkmanager --licenses <<< "$license_answers"', job)
+        self.assertIn("unset license_answers", job)
+        self.assertNotIn("yes | sdkmanager", job)
+        self.assertNotIn("sdkmanager --licenses <<< \"$license_answers\" ||", job)
+
+        matrix = job.split("        include:\n", 1)[1].split("    env:\n", 1)[0]
+        targets = []
+        for line in matrix.splitlines():
+            if line.startswith("          - name: "):
+                targets.append({"name": line.removeprefix("          - name: ")})
+            else:
+                self.assertTrue(line.startswith("            "), line)
+                self.assertTrue(targets)
+                key, value = line.strip().split(": ", 1)
+                self.assertNotIn(key, targets[-1])
+                targets[-1][key] = value.removeprefix('"').removesuffix('"')
+        self.assertEqual(targets, [
+            {"name": "bindings-android-runtime-16k", "profile": "api35-16k", "sdk": "35",
+             "page_size": "16384", "image": "system-images;android-35;google_apis_ps16k;x86_64",
+             "avd": "QPeriapt_Release_16K_API_35_CI_V1"},
+            {"name": "bindings-android-runtime-minimum", "profile": "api23-4k", "sdk": "23",
+             "page_size": "4096", "image": "system-images;android-23;google_apis;x86_64",
+             "avd": "QPeriapt_SDK_4K_API_23_CI_V1"},
+        ])
+        self.assertEqual(job.count('"$ANDROID_RUNTIME_IMAGE"'), 2)
+        for required in (
+            'name: ${{ matrix.name }}',
+            'fail-fast: false',
+            'QPERIAPT_ANDROID_RUNTIME_PROFILE: ${{ matrix.profile }}',
+            'ANDROID_RUNTIME_IMAGE: ${{ matrix.image }}',
+            'ANDROID_RUNTIME_AVD: ${{ matrix.avd }}',
+            'QPERIAPT_ANDROID_ADB_PROFILE: linux-system',
+            'QPERIAPT_ANDROID_RELEASE_MODE: "1"',
+            'QPERIAPT_ANDROID_BOOT_AVD: "1"',
+            'QPERIAPT_ANDROID_EXPECT_DEVICE_KIND: emulator',
+            'QPERIAPT_ANDROID_EXPECT_ABI: x86_64',
+            'QPERIAPT_ANDROID_EXPECT_PAGE_SIZE: ${{ matrix.page_size }}',
+            'QPERIAPT_ANDROID_EXPECT_SDK: ${{ matrix.sdk }}',
+            'QPERIAPT_ANDROID_EXISTING_AAR="$aar"',
+            'QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST="$manifest"',
+            'QPERIAPT_ANDROID_EXPECTED_AAR_SHA256="$aar_sha256"',
+            'QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256="$manifest_sha256"',
+            'for profile in agp_sdk_full_release agp_sdk_minimal_release; do',
+            'QPERIAPT_ANDROID_CONSUMER_PROFILE="$profile"',
+            "command -v setfacl",
+            "command -v lsof",
+            "QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}",
+            'test ! -e "$HOME/.android/adbkey"',
+            'test ! -e "$HOME/.emulator_console_auth_token"',
+            "sh artifact/python-run.sh",
+            "artifact/android_bounded_command.py avd-home-path",
+            "runtime-avd-name --adb-profile linux-system --device-abi x86_64",
+            'test "$avd_name" = "$ANDROID_RUNTIME_AVD"',
+            '--runtime-profile "$QPERIAPT_ANDROID_RUNTIME_PROFILE"',
+            'test ! -e "$avd_home"',
+            'mkdir "$avd_home"',
+            'export ANDROID_AVD_HOME="$avd_home"',
+            'test ! -e "$ANDROID_AVD_HOME/$avd_name.avd"',
+            'test ! -L "$ANDROID_AVD_HOME/$avd_name.avd"',
+            'test ! -e "$ANDROID_AVD_HOME/$avd_name.ini"',
+            'test ! -L "$ANDROID_AVD_HOME/$avd_name.ini"',
+            '--name "$avd_name"',
+            "--device pixel_6 <<< 'no'",
+            'test -d "$ANDROID_AVD_HOME/$avd_name.avd"',
+            'test -f "$ANDROID_AVD_HOME/$avd_name.ini"',
+            "verify-avd-home",
+            '--avd-home "$ANDROID_AVD_HOME"',
+            "--adb-profile linux-system",
+            "--device-abi x86_64",
+            "unset ANDROID_AVD_HOME avd_home avd_name",
+            'sh artifact/android-device-smoke.sh',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, job)
+
+        for forbidden in (
+            "continue-on-error:",
+            "ADB_SERVER_PORT",
+            "ANDROID_ADB_SERVER_PORT",
+            "localhost:5037",
+            "127.0.0.1:5037",
+            "adb start-server",
+            "adb kill-server",
+            "QPERIAPT_ADB=",
+            "apt-get",
+            "--force",
+            'mkdir -p "$avd_home"',
+            'chmod -R',
+            '$HOME/.android/avd',
+            "/home/runner",
+            "ANDROID_USER_HOME",
+            "GITHUB_ENV",
+            "printf 'no\\n' | avdmanager",
+            "PYTHONPATH=artifact python3",
+            "QPERIAPT_ANDROID_AVD",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, job)
+
+        derive_home = job.index(
+            "artifact/android_bounded_command.py avd-home-path"
+        )
+        create_home = job.index('mkdir "$avd_home"', derive_home)
+        export_home = job.index(
+            'export ANDROID_AVD_HOME="$avd_home"', create_home
+        )
+        derive_name = job.index("runtime-avd-name", export_home)
+        create_avd = job.index("avdmanager create avd", derive_name)
+        verify_avd = job.index("verify-avd-home", create_avd)
+        execute_smoke = job.index("sh artifact/android-device-smoke.sh", verify_avd)
+        self.assertLess(derive_home, create_home)
+        self.assertLess(create_home, export_home)
+        self.assertLess(export_home, derive_name)
+        self.assertLess(derive_name, create_avd)
+        self.assertLess(create_avd, verify_avd)
+        self.assertLess(verify_avd, execute_smoke)
+        prepare_image = job.index("CREATED_AVD_IMAGE_PRIVATE_PASS", create_avd)
+        self.assertLess(create_avd, prepare_image)
+        self.assertLess(prepare_image, verify_avd)
+
+        diagnostic_upload = extract_named_workflow_step(
+            job, "Upload bounded Android package diagnostics after failure"
+        )
+        self.assertEqual(
+            diagnostic_upload,
+            "      - name: Upload bounded Android package diagnostics after failure\n"
+            "        if: failure() && "
+            "hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log') != ''\n"
+            f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n"
+            "        with:\n"
+            "          name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64-failure-diagnostics\n"
+            "          path: |\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-server.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-guest-logcat.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-server-start-handshake.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-install.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-device-time.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-device-time.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/logcat.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-instrumentation.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-crash-logcat.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-recovery-logcat.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/capture-emulator-recovery-*.stdout\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/capture-emulator-recovery-*.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-state-*.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-state-*.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-memory-runtime.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/emulator-memory-runtime.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-uninstall-cleanup.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-postinstall-attempt-*.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-postinstall-attempt-*.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-cleanup-*-attempt-*.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-cleanup-*-attempt-*.err\n"
+            "            target/qperiapt-android-device-smoke-runs/*/work/adb-emulator-transport-recovery-*.txt\n"
+            "            target/qperiapt-android-device-smoke-runs/*/work/adb-emulator-transport-recovery-*.err\n"
+            "          if-no-files-found: error\n",
+        )
+        for forbidden in (
+            "proof/**",
+            "work/**",
+            "*.json",
+            "adbkey",
+            ".emulator_console_auth_token",
+            "keystore",
+            "capability",
+            "owned-runtime",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, diagnostic_upload)
+
+        proof_upload = extract_named_workflow_step(job, "Retain Android SDK package and runtime evidence")
+        for leaf in ("emulator-memory-runtime.txt", "emulator-memory-runtime.err"):
+            self.assertIn(f"target/qperiapt-android-device-smoke-runs/*/proof/{leaf}\n", proof_upload)
+        self.assertIn(
+            f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n", proof_upload
+        )
+        self.assertIn("name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64\n", proof_upload)
+        self.assertIn("if: always() &&", proof_upload)
+        self.assertNotIn("if: failure()", proof_upload)
+        for retained in ("emulator-state-*.txt", "emulator-state-*.err", "emulator-app-exit-info.txt", "emulator-app-exit-info.err"):
+            self.assertIn(f"target/qperiapt-android-device-smoke-runs/*/proof/{retained}", proof_upload)
+        self.assertIn("if-no-files-found: error\n", proof_upload)
+
+        producer = (ROOT / "artifact" / "android-device-smoke.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            'ADB_PRIVATE_SERVER_SOCKET_SPEC="localfilesystem:'
+            '$ADB_PRIVATE_SERVER_SOCKET_PATH"',
+            producer,
+        )
+        self.assertIn('export ADB_SERVER_SOCKET="$ADB_PRIVATE_SERVER_SOCKET_SPEC"', producer)
+        self.assertIn("assert_default_adb_server_absent", producer)
+
+    def test_platform_candidate_download_uses_raw_strict_profile_without_merge(
+        self,
+    ) -> None:
+        workflow = ABI2_PLATFORM_CANDIDATE_WORKFLOW.read_text(encoding="utf-8")
+        job = extract_workflow_job(workflow, "attest")
+        download_steps = extract_action_steps(job, "actions/download-artifact")
+        self.assertEqual(len(download_steps), 1)
+        self.assertEqual(
+            download_steps[0],
+            f"      - uses: {PINNED_DOWNLOAD_ARTIFACT_ACTION}\n"
+            "        with:\n"
+            "          pattern: abi2-candidate-*\n"
+            "          path: target/workflow-artifact/raw\n"
+            "          merge-multiple: false\n"
+            "          skip-decompress: true\n"
+            "          digest-mismatch: error\n",
+        )
+        extractor = extract_named_workflow_step(
+            job, "Strictly extract the platform candidate artifacts"
+        )
+        self.assertEqual(
+            extractor,
+            "      - name: Strictly extract the platform candidate artifacts\n"
+            "        env:\n"
+            "          QPERIAPT_PYTHON: "
+            "${{ steps.proof_python.outputs.python-path }}\n"
+            "        run: sh artifact/python-run.sh "
+            "artifact/workflow_artifact.py platform-candidate\n",
+        )
+
+    def test_every_android_sdk_license_input_is_finite_and_fail_closed(self) -> None:
+        workflow_sources = {
+            path.relative_to(ROOT).as_posix(): path.read_text(encoding="utf-8")
+            for path in sorted((ROOT / ".github/workflows").glob("*.yml"))
+        }
+        combined = "\n".join(workflow_sources.values())
+        self.assertEqual(combined.count("sdkmanager --licenses"), 3)
+        self.assertEqual(
+            combined.count("license_answers=$(printf 'y\\n%.0s' {1..64})"),
+            3,
+        )
+        self.assertEqual(
+            combined.count('sdkmanager --licenses <<< "$license_answers"'),
+            3,
+        )
+        self.assertEqual(combined.count("unset license_answers"), 3)
+        self.assertNotIn("yes | sdkmanager", combined)
+        self.assertNotIn('sdkmanager --licenses <<< "$license_answers" ||', combined)
 
     def test_proof_to_byte_names_every_continuity_input(self) -> None:
-        source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
-        inputs = manifest["proof_to_byte_inputs"]
         for key, relative in CONTINUITY_PROOF_INPUTS.items():
             with self.subTest(key=key):
-                self.assertIn(f'"{key}": "{relative}"', source)
-                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-                self.assertEqual(inputs.get(key), actual)
+                self.assert_named_proof_input(key, relative)
 
     def test_proof_to_byte_names_every_migration_v2_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
-        inputs = manifest["proof_to_byte_inputs"]
         for key, relative in MIGRATION_V2_PROOF_INPUTS.items():
             with self.subTest(key=key):
-                self.assertIn(f'"{key}": "{relative}"', source)
-                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-                self.assertEqual(inputs.get(key), actual)
+                self.assert_named_proof_input(key, relative)
+        self.assertIn("artifact/migration_contract_v2.py verify", source)
+        self.assertIn("formal_make -C formal/easycrypt EC=easycrypt check", source)
         self.assertIn(
-            "artifact/migration_contract_v2.py verify", source
+            "formal_make -C formal/tamarin TAMARIN=tamarin-prover \\\n"
+            "\t\tDERIVCHECK_TIMEOUT=60 prove",
+            source,
         )
-        self.assertIn("make -C formal/easycrypt check", source)
-        self.assertIn("make -C formal/tamarin prove", source)
+
+    def test_proof_to_byte_verifies_the_complete_formal_toolchain_first(self) -> None:
+        source = PROOF_SCRIPT.read_text(encoding="utf-8")
+        all_tools_call = (
+            "sh artifact/python-run.sh artifact/formal_toolchain_contract.py "
+            "\\\n\t\tverify-installed --tool all"
+        )
+        easycrypt_call = (
+            "sh artifact/python-run.sh artifact/formal_toolchain_contract.py "
+            "\\\n\t\tverify-installed --tool easycrypt"
+        )
+        expected_dispatch = (
+            'if [ "$REQUIRE_FORMAL" = "1" ]; then\n'
+            f"\t{all_tools_call}\n"
+            'elif [ "$RUN_CONTINUITY_DIAGNOSTIC" = "1" ]; then\n'
+            f"\t{easycrypt_call}\n"
+            "fi\n"
+        )
+        self.assertEqual(source.count(expected_dispatch), 1)
+        all_tool_checks = [
+            match.start() for match in re.finditer(re.escape(all_tools_call), source)
+        ]
+        easycrypt_checks = [
+            match.start() for match in re.finditer(re.escape(easycrypt_call), source)
+        ]
+        self.assertEqual(len(all_tool_checks), 2)
+        self.assertEqual(len(easycrypt_checks), 2)
+        self.assertEqual(source.count("\tneed maude\n"), 1)
+        formal_make_definition = (
+            "formal_make() {\n"
+            "\tMAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' \\\n"
+            '\t\tcommand make "$@"\n'
+            "}\n"
+        )
+        self.assertEqual(source.count(formal_make_definition), 1)
+        self.assertEqual(source.count("\tformal_make "), 4)
+        for command in (
+            'RESULTS_MANIFEST="$ROOT/artifact/results.json"',
+            "PROOF_TO_BYTE_SOURCE_SNAPSHOT_PASS",
+            "formal_make -C formal/easycrypt EC=easycrypt check",
+            "EASYCRYPT=easycrypt sh formal/easycrypt/negative-controls.sh",
+            "formal_make -C formal/tamarin TAMARIN=tamarin-prover \\\n"
+            "\t\tDERIVCHECK_TIMEOUT=60 prove",
+            "formal_make -C formal/proverif PROVERIF=proverif prove",
+            "FORMAL_PASSED=1",
+            "PROOF_TO_BYTE_FORMAL_MACHINECHECK_PASS",
+        ):
+            with self.subTest(command=command):
+                self.assertLess(source.index(expected_dispatch), source.index(command))
+        self.assertLess(
+            all_tool_checks[1],
+            source.index("formal_make -C formal/easycrypt EC=easycrypt check"),
+        )
+        self.assertLess(
+            easycrypt_checks[1],
+            source.index(
+                "formal_make -C formal/easycrypt/continuity EC=easycrypt check"
+            ),
+        )
+        for bypass in (" ||", "; true", "continue"):
+            with self.subTest(bypass=bypass):
+                self.assertNotIn(all_tools_call + bypass, source)
+                self.assertNotIn(easycrypt_call + bypass, source)
+        for ambient_override in (
+            "make -C formal/easycrypt check",
+            "make -C formal/tamarin prove",
+            "make -C formal/proverif prove",
+            "EC=$(command -v easycrypt)",
+            "EASYCRYPT=$(command -v easycrypt)",
+        ):
+            with self.subTest(ambient_override=ambient_override):
+                self.assertNotIn(ambient_override, source)
 
     def test_proof_to_byte_names_every_hqc_candidate_input(self) -> None:
-        source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
-        inputs = manifest["proof_to_byte_inputs"]
         for key, relative in HQC_CANDIDATE_PROOF_INPUTS.items():
             with self.subTest(key=key):
-                self.assertIn(f'"{key}": "{relative}"', source)
-                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-                self.assertEqual(inputs.get(key), actual)
+                self.assert_named_proof_input(key, relative)
+
+    def test_formal_make_environment_cannot_dry_run_or_override_tools(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="qperiapt-formal-make-") as raw:
+            temporary = pathlib.Path(raw)
+            makefile = temporary / "Makefile"
+            injected = temporary / "injected.mk"
+            marker = temporary / "marker.txt"
+            makefile.write_text(
+                "check:\n"
+                "\t@printf '%s\\n' '$(TOOL)' > '$(MARKER)'\n",
+                encoding="utf-8",
+            )
+            injected.write_text("override TOOL := injected\n", encoding="utf-8")
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "MAKEFLAGS": "-n TOOL=flags",
+                    "GNUMAKEFLAGS": "-n",
+                    "MAKEFILES": os.fspath(injected),
+                    "TOOL": "ambient",
+                }
+            )
+            completed = subprocess.run(
+                [
+                    "/bin/sh",
+                    "-c",
+                    "MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' "
+                    'command make -f "$1" TOOL=trusted "MARKER=$2" check',
+                    "formal-make-environment-test",
+                    os.fspath(makefile),
+                    os.fspath(marker),
+                ],
+                cwd=ROOT,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(completed.stdout, "")
+            self.assertEqual(completed.stderr, "")
+            self.assertEqual(marker.read_bytes(), b"trusted\n")
 
     def test_proof_to_byte_names_every_apple_distribution_input(self) -> None:
-        source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
-        inputs = manifest["proof_to_byte_inputs"]
         for key, relative in APPLE_DISTRIBUTION_PROOF_INPUTS.items():
             with self.subTest(key=key):
-                self.assertIn(f'"{key}": "{relative}"', source)
-                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-                self.assertEqual(inputs.get(key), actual)
+                self.assert_named_proof_input(key, relative)
+
+    def test_proof_to_byte_names_every_apple_device_input(self) -> None:
+        for key, relative in APPLE_DEVICE_PROOF_INPUTS.items():
+            with self.subTest(key=key):
+                self.assert_named_proof_input(key, relative)
+
+    def test_proof_to_byte_names_every_bounded_process_input(self) -> None:
+        for key, relative in BOUNDED_PROCESS_PROOF_INPUTS.items():
+            with self.subTest(key=key):
+                self.assert_named_proof_input(key, relative)
 
     def test_proof_to_byte_names_every_abi2_platform_release_input(self) -> None:
-        source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
-        inputs = manifest["proof_to_byte_inputs"]
         for key, relative in ABI2_PLATFORM_RELEASE_PROOF_INPUTS.items():
             with self.subTest(key=key):
-                self.assertIn(f'"{key}": "{relative}"', source)
-                actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-                self.assertEqual(inputs.get(key), actual)
+                self.assert_named_proof_input(key, relative)
+
+    def test_proof_to_byte_names_every_crates_io_publication_input(self) -> None:
+        for key, relative in CRATES_IO_PUBLICATION_PROOF_INPUTS.items():
+            with self.subTest(key=key):
+                self.assert_named_proof_input(key, relative)
 
     def test_publish_contract_fences_research_and_mlkem_provider(self) -> None:
-        source = RUST_PUBLISH_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
-        expected_hash = hashlib.sha256(RUST_PUBLISH_SCRIPT.read_bytes()).hexdigest()
-        expected_contract_hash = hashlib.sha256(
-            RUST_PUBLISH_CONTRACT.read_bytes()
-        ).hexdigest()
-        expected_contract_tests_hash = hashlib.sha256(
-            RUST_PUBLISH_CONTRACT_TESTS.read_bytes()
-        ).hexdigest()
+        source = RUST_PACKAGE_CONTRACT_SCRIPT.read_text(encoding="utf-8")
         for token in (
             "pqcrypto-hqc",
             "pqcrypto-internals",
@@ -1080,10 +2655,29 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 self.assertIn(token, source)
         self.assertIn("RUST_BACKENDS_NORMALIZED_MANIFEST_PASS", source)
         self.assertIn("RUST_BACKENDS_INSPECTION_PACKAGE_PASS", source)
-        self.assertIn("cargo package $ALLOW_DIRTY_ARG --locked \\", source)
+
+        self.assertIn("cargo +1.96.1 package $ALLOW_DIRTY_ARG --locked", source)
+        self.assertIn("--registry crates-io", source)
+        self.assertEqual(source.count("run_cargo_captured"), 8)
+        self.assertIn("validate_cargo_output", source)
+        self.assertIn("validate_cargo_package_completion", source)
+        self.assertIn("RUST_PACKAGE_VERIFICATION_PASS", source)
+        self.assertIn("RUST_PACKAGE_CONTRACT_PASS", source)
+        self.assertIn("create_owned_package_directory", source)
+        self.assertIn("remove_owned_package_directory", source)
+        self.assertIn("RUST_OWNED_PACKAGE_DIRECTORY_CLEANUP_PASS", source)
+        self.assertNotIn("rm -rf", source)
         self.assertNotIn("--no-verify", source)
-        self.assertIn("qperiapt-package-inspection.XXXXXX", source)
-        self.assertIn("publishable q-periapt-backends exposes retired hqc feature", source)
+        self.assertNotIn("cargo publish", source)
+        self.assertNotIn("--dry-run", source)
+        self.assertNotIn("--quiet", source)
+        self.assertNotIn("aborting upload due to dry run", source)
+        self.assertIn(
+            "create_owned_package_target qperiapt-package-inspection.", source
+        )
+        self.assertIn(
+            "publishable q-periapt-backends exposes retired hqc feature", source
+        )
         self.assertIn(
             'python3 "$ROOT/crates/q-periapt-mlkem-native-sys/scripts/verify-vendor.py"',
             source,
@@ -1094,19 +2688,59 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("resolved_mlkem_providers", source)
         self.assertIn('"src/build_support.rs"', source)
         self.assertIn("from rust_publish_contract import", source)
-        self.assertIn("validate_mlkem_native_build_surface", source)
-        self.assertEqual(
-            manifest["proof_to_byte_inputs"].get("rust_publish_dry_run_script_sha256"),
-            expected_hash,
+        self.assertIn("validate_packaged_mlkem_native_source_contract", source)
+        self.assertIn("validate_mlkem_native_manifest_features", source)
+        self.assertIn("package_version=version", source)
+        self.assert_named_proof_input(
+            "rust_publish_contract_script_sha256",
+            "artifact/rust-publish-contract.sh",
         )
-        self.assertEqual(
-            manifest["proof_to_byte_inputs"].get("rust_publish_contract_sha256"),
-            expected_contract_hash,
+        self.assert_named_proof_input(
+            "rust_publish_contract_sha256",
+            "artifact/rust_publish_contract.py",
         )
-        self.assertEqual(
-            manifest["proof_to_byte_inputs"].get("rust_publish_contract_tests_sha256"),
-            expected_contract_tests_hash,
+        self.assert_named_proof_input(
+            "rust_publish_contract_tests_sha256",
+            "artifact/test_rust_publish_contract.py",
         )
+
+    def test_rust_package_claims_preserve_the_no_upload_boundary(self) -> None:
+        claim_paths = (
+            ROOT / "README.md",
+            ROOT / "ARTIFACT.md",
+            ROOT / "docs" / "EMBEDDING_READINESS.md",
+            ROOT / "docs" / "ROADMAP.md",
+            ROOT / "docs" / "ARCHITECTURE.md",
+            ROOT / "docs" / "PAPER_DRAFT.md",
+            ROOT / "paper" / "q-periapt.tex",
+            ROOT / "artifact" / "claim-ledger.json",
+        )
+        required_boundaries = (
+            "upload-API acceptance",
+            "crate-name ownership",
+            "publishing credentials",
+            "server-side policy acceptance",
+            "registry receipt",
+        )
+        forbidden_claims = (
+            "**Status: release-ready",
+            "release-ready research-alpha source line intended",
+            "release-ready research-alpha source/crate",
+            "release-ready `0.1.0` research-alpha source/crate",
+            "release-ready as a research-alpha source/Rust-crate",
+            "release-ready research\n   alpha",
+            "release-ready **ABI 2 research-alpha source/crate contract**",
+            "release-ready ABI 2 research alpha, not production",
+        )
+        for path in claim_paths:
+            source = path.read_text(encoding="utf-8")
+            normalized = " ".join(re.sub(r"(?m)^> ?", "", source).split())
+            with self.subTest(path=path.relative_to(ROOT)):
+                self.assertIn("pre-publication package-ready", normalized)
+                for boundary in required_boundaries:
+                    self.assertIn(boundary, normalized)
+                for claim in forbidden_claims:
+                    self.assertNotIn(" ".join(claim.split()), normalized)
 
     def test_continuity_diagnostic_is_scoped_fail_closed_and_non_release(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
@@ -1114,7 +2748,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         python_tests = "sh artifact/python-run.sh -m unittest -v"
         vectors = "sh artifact/python-run.sh artifact/continuity_context.py verify"
         prekey_vectors = "sh artifact/python-run.sh artifact/prekey_selection.py verify"
-        formal = "make -C formal/easycrypt/continuity check"
+        formal = "formal_make -C formal/easycrypt/continuity EC=easycrypt check"
         marker = (
             "PROOF_TO_BYTE_CONTINUITY_MODEL_DIAGNOSTIC_PASS "
             "boundary=non_normative_not_release"
@@ -1144,7 +2778,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
             source = path.read_text(encoding="utf-8")
             if python_token.search(source):
                 entrypoints.append(path)
-        self.assertTrue(entrypoints, "no repository Python shell entrypoints discovered")
+        self.assertTrue(
+            entrypoints, "no repository Python shell entrypoints discovered"
+        )
         for path in entrypoints:
             relative = path.relative_to(ROOT).as_posix()
             with self.subTest(entrypoint=relative):
@@ -1194,7 +2830,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
                     for number, line in executable_lines
                     if python_token.search(line)
                 ]
-                self.assertTrue(python_lines, f"{relative} has no Python invocation to protect")
+                self.assertTrue(
+                    python_lines, f"{relative} has no Python invocation to protect"
+                )
                 self.assertLess(
                     source_lines[0],
                     python_lines[0],
@@ -1211,7 +2849,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
     def test_shell_has_no_post_verification_selected_proof_reopen(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("manifest_selected_proof_binding", source)
-        self.assertGreaterEqual(source.count('--results-manifest "$RESULTS_MANIFEST"'), 6)
+        self.assertGreaterEqual(
+            source.count('--results-manifest "$RESULTS_MANIFEST"'), 6
+        )
         self.assertGreaterEqual(
             source.count(
                 '--expected-results-manifest-sha256 "$RESULTS_MANIFEST_SHA256"'
@@ -1223,15 +2863,11 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
     def test_finalizer_is_a_named_proof_input(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        manifest = json.loads((ROOT / "artifact" / "results.json").read_text(encoding="utf-8"))
-        self.assertIn(
-            '"proof_to_byte_finalizer_sha256": "artifact/proof_to_byte_finalizer.py"',
-            source,
+        self.assert_named_proof_input(
+            "proof_to_byte_finalizer_sha256",
+            "artifact/proof_to_byte_finalizer.py",
         )
-        self.assertEqual(
-            manifest["proof_to_byte_inputs"].get("proof_to_byte_finalizer_sha256"),
-            hashlib.sha256(FINALIZER_SCRIPT.read_bytes()).hexdigest(),
-        )
+        self.assertIn("from proof_to_byte_inputs import (", source)
 
     def test_finalizer_freezes_before_domains_and_rechecks_after_them(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
@@ -1270,7 +2906,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn('binding="apple_device"', apple)
         self.assertIn('binding="apple_matrix"', apple)
         self.assertIn('binding="performance"', performance)
-        self.assertIn('binding="android_runtime"', android)
+        self.assertIn("binding=args.results_binding", android)
+        self.assertIn("choices=ANDROID_RUNTIME_BINDING_CHOICES", android)
 
     def test_release_policy_cannot_be_selected_by_evidence_or_environment(self) -> None:
         matrix_script = (ROOT / "artifact" / "apple-device-matrix.sh").read_text(
@@ -1390,7 +3027,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 "release entrypoint executed a forged ignored timestamp pyc",
             )
 
-    def test_release_entrypoint_ignores_hostile_python_startup_environment(self) -> None:
+    def test_release_entrypoint_ignores_hostile_python_startup_environment(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
             artifact = root / "artifact"
@@ -1413,7 +3052,11 @@ class BoundVerifierWiringTests(unittest.TestCase):
             }
             clean_python_environment["PYTHONUSERBASE"] = str(user_base)
             site_query = subprocess.run(
-                [sys.executable, "-c", "import site; print(site.getusersitepackages())"],
+                [
+                    sys.executable,
+                    "-c",
+                    "import site; print(site.getusersitepackages())",
+                ],
                 cwd=root,
                 env=clean_python_environment,
                 text=True,
@@ -1464,7 +3107,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(pth_control.returncode, 0, pth_control.stderr)
-            self.assertTrue(pth_sentinel.is_file(), "hostile .pth control did not execute")
+            self.assertTrue(
+                pth_sentinel.is_file(), "hostile .pth control did not execute"
+            )
             pth_sentinel.unlink()
 
             control_environment = clean_python_environment.copy()
@@ -1527,7 +3172,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
             )
             self.assertEqual(guarded.returncode, 2, guarded.stderr)
             self.assertIn("QPERIAPT_SKIP_SMOKE must be 0 or 1", guarded.stderr)
-            self.assertFalse(pth_sentinel.exists(), "release entrypoint executed hostile .pth")
+            self.assertFalse(
+                pth_sentinel.exists(), "release entrypoint executed hostile .pth"
+            )
             self.assertFalse(
                 path_sentinel.exists(), "release entrypoint executed hostile PYTHONPATH"
             )
@@ -1537,7 +3184,344 @@ class BoundVerifierWiringTests(unittest.TestCase):
             )
 
 
+def _release_test_environment() -> dict[str, str]:
+    """Isolate release knobs while retaining the interpreter running the tests.
+
+    A setup-python interpreter may live outside the fixed discovery roots, so
+    dropping QPERIAPT_PYTHON must not silently select an older system Python.
+    """
+    environment = {name: value for name, value in os.environ.items()
+                   if not name.startswith("QPERIAPT_")}
+    environment["QPERIAPT_PYTHON"] = str(pathlib.Path(sys.executable).resolve())
+    return environment
+
+
 class ProofToByteReleaseMarkerTests(unittest.TestCase):
+    def test_isolated_release_environment_pins_python_without_inheriting_release_knobs(self) -> None:
+        with mock.patch.dict(os.environ, {"PATH": "/fixture/bin",
+            "QPERIAPT_PYTHON": "/untrusted/python", "QPERIAPT_ALLOW_DIRTY_APPLE_DEVICE_PROOF": "1"}, clear=True):
+            environment = _release_test_environment()
+        self.assertEqual(environment, {"PATH": "/fixture/bin",
+            "QPERIAPT_PYTHON": str(pathlib.Path(sys.executable).resolve())})
+
+    def test_embedding_android_final_mode_is_read_only_and_exits_before_producers(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            artifact = root / "artifact"
+            artifact.mkdir()
+            for name in (
+                "embedding-readiness.sh",
+                "python-env.sh",
+                "python_bootstrap.py",
+            ):
+                shutil.copy2(ROOT / "artifact" / name, artifact / name)
+            event_log = root / "bound-events.txt"
+            (artifact / "proof-to-byte.sh").write_text(
+                """#!/bin/sh
+set -eu
+printf 'proof-to-byte\\n' >> "$BOUND_EVENT_LOG"
+test "${QPERIAPT_SKIP_SMOKE:-}" = 1
+test "${QPERIAPT_REQUIRE_ANDROID_AAR:-}" = 1
+test "${QPERIAPT_REQUIRE_ANDROID_RUNTIME:-}" = 1
+test "${QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME:-}" = "${EXPECTED_PHYSICAL:-1}"
+test "${QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER:-}" = "${EXPECTED_LOCAL_CONSUMER:-1}"
+test -n "${QPERIAPT_ANDROID_DEVICE_PROOF:-}"
+if [ "${EXPECTED_PHYSICAL:-1}" = 1 ]; then
+    test -n "${QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF:-}"
+fi
+exit "${BOUND_EXIT_CODE:-0}"
+""",
+                encoding="utf-8",
+            )
+            environment = _release_test_environment()
+            environment.update(
+                {
+                    "BOUND_EVENT_LOG": str(event_log),
+                    "QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
+                    "QPERIAPT_EMBED_REQUIRE_LOCAL_RELEASE_CONSUMER": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": "canonical-proof.json",
+                    "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF": "physical-proof.json",
+                }
+            )
+
+            completed = subprocess.run(
+                ["/bin/sh", str(artifact / "embedding-readiness.sh")],
+                cwd=root,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(event_log.read_text(encoding="utf-8"), "proof-to-byte\n")
+            self.assertIn(
+                "EMBEDDING_ANDROID_BOUND_VERIFY_PASS canonical=1 physical=1 local_release_consumer=1",
+                completed.stdout,
+            )
+            self.assertNotIn("EMBEDDING_READINESS_PASS", completed.stdout)
+            self.assertFalse((root / "target").exists())
+
+            event_log.unlink()
+            canonical_environment = {
+                **environment,
+                "EXPECTED_PHYSICAL": "0",
+                "EXPECTED_LOCAL_CONSUMER": "0",
+                "QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "0",
+                "QPERIAPT_EMBED_REQUIRE_LOCAL_RELEASE_CONSUMER": "0",
+            }
+            canonical_environment.pop(
+                "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF",
+                None,
+            )
+            canonical = subprocess.run(
+                ["/bin/sh", str(artifact / "embedding-readiness.sh")],
+                cwd=root,
+                env=canonical_environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(canonical.returncode, 0, canonical.stderr)
+            self.assertIn(
+                "EMBEDDING_ANDROID_BOUND_VERIFY_PASS canonical=1 physical=0 local_release_consumer=0",
+                canonical.stdout,
+            )
+            self.assertEqual(event_log.read_text(encoding="utf-8"), "proof-to-byte\n")
+
+            failed_environment = {**environment, "BOUND_EXIT_CODE": "7"}
+            failed = subprocess.run(
+                ["/bin/sh", str(artifact / "embedding-readiness.sh")],
+                cwd=root,
+                env=failed_environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(failed.returncode, 7, failed.stderr)
+            self.assertNotIn(
+                "EMBEDDING_ANDROID_BOUND_VERIFY_PASS",
+                failed.stdout,
+            )
+            self.assertFalse((root / "target").exists())
+
+    def test_embedding_gate_scopes_verified_wasm_compiler_to_wasm_child(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            artifact = root / "artifact"
+            stub_bin = root / "bin"
+            artifact.mkdir()
+            stub_bin.mkdir()
+            shutil.copy2(ROOT / "artifact/embedding-readiness.sh", artifact)
+            shutil.copy2(ROOT / "artifact/python-env.sh", artifact)
+            shutil.copy2(ROOT / "artifact/python_bootstrap.py", artifact)
+            (artifact / "test_android_device_proof.py").write_text(
+                """import unittest
+
+
+class HarnessTest(unittest.TestCase):
+    def test_harness(self) -> None:
+        pass
+""",
+                encoding="utf-8",
+            )
+
+            def write_executable(name: str, source: str) -> pathlib.Path:
+                path = stub_bin / name
+                path.write_text(source, encoding="utf-8")
+                path.chmod(0o755)
+                return path
+
+            generic_stub = "#!/bin/sh\nexit 0\n"
+            for name in (
+                "cargo",
+                "cbindgen",
+                "cmake",
+                "cmp",
+                "git",
+                "gradle",
+                "lipo",
+                "node",
+                "pkg-config",
+                "rustup",
+                "shasum",
+                "uname",
+                "xcodebuild",
+                "zip",
+            ):
+                write_executable(name, generic_stub)
+
+            compiler = write_executable(
+                "clang",
+                """#!/bin/sh
+printf 'clang:%s\\n' "${1:-}" >> "$SCOPE_EVENT_LOG"
+case "${1:-}" in
+    --version) printf 'clang version 22.1.8\\n' ;;
+    --print-targets)
+        printf '    wasm32      - WebAssembly 32-bit\\n'
+        if [ "${FAIL_TARGET_PROBE:-0}" = 1 ]; then
+            exit 7
+        fi
+        ;;
+    *) exit 2 ;;
+esac
+""",
+            )
+            write_executable(
+                "java",
+                """#!/bin/sh
+if [ "${CC_wasm32_unknown_unknown+x}" = x ] || [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ] || [ "${compiler_targets+x}" = x ] || [ "${java_version_output+x}" = x ]; then
+    printf 'compiler selector or internal state leaked into Java preflight\\n' >&2
+    exit 89
+fi
+printf 'openjdk version "%s"\\n' "$FIXTURE_JAVA_VERSION" >&2
+if [ "${FAIL_JAVA_PROBE:-0}" = 1 ]; then
+    exit 7
+fi
+""",
+            )
+            swift_marker = root / "swift-environment-checked"
+            wasm_marker = root / "wasm-environment-checked"
+            event_log = root / "scope-events.txt"
+            write_executable(
+                "swift",
+                """#!/bin/sh
+if [ "${CC_wasm32_unknown_unknown+x}" = x ]; then
+    printf 'compiler override leaked into Swift binding tests\\n' >&2
+    exit 90
+fi
+if [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ] || [ "${compiler_targets+x}" = x ] || [ "${java_version_output+x}" = x ]; then
+    printf 'internal compiler state leaked into Swift binding tests\\n' >&2
+    exit 93
+fi
+printf 'swift-binding\\n' >> "$SCOPE_EVENT_LOG"
+printf 'Executed 2 tests, with 0 failures\\n'
+""",
+            )
+            write_executable(
+                "wasm-pack",
+                """#!/bin/sh
+if [ "${CC_wasm32_unknown_unknown:-}" != "$EXPECTED_WASM_COMPILER" ]; then
+    printf 'verified compiler was not scoped to wasm-pack\\n' >&2
+    exit 91
+fi
+if [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ] || [ "${compiler_targets+x}" = x ] || [ "${java_version_output+x}" = x ]; then
+    printf 'internal compiler state leaked into wasm-pack\\n' >&2
+    exit 94
+fi
+printf 'wasm-pack\\n' >> "$SCOPE_EVENT_LOG"
+: > "$WASM_SCOPE_MARKER"
+""",
+            )
+            write_executable(
+                "sh",
+                """#!/bin/sh
+if [ "${1:-}" = -c ]; then
+    exit 0
+fi
+if [ "${1:-}" = artifact/swift-xcframework.sh ]; then
+    if [ "${CC_wasm32_unknown_unknown+x}" = x ]; then
+        printf 'compiler override leaked into Swift XCFramework packaging\\n' >&2
+        exit 92
+    fi
+    if [ "${wasm_compiler_input+x}" = x ] || [ "${WASM_C_COMPILER+x}" = x ] || [ "${compiler+x}" = x ] || [ "${compiler_version+x}" = x ] || [ "${compiler_targets+x}" = x ] || [ "${java_version_output+x}" = x ]; then
+        printf 'internal compiler state leaked into Swift XCFramework packaging\\n' >&2
+        exit 95
+    fi
+    printf 'swift-xcframework\\n' >> "$SCOPE_EVENT_LOG"
+    : > "$SWIFT_SCOPE_MARKER"
+fi
+exit 0
+""",
+            )
+
+            environment = _release_test_environment()
+            environment.update(
+                {
+                    "CC_wasm32_unknown_unknown": str(compiler),
+                    "WASM_C_COMPILER": "attacker-exported-internal-value",
+                    "compiler": "attacker-exported-internal-value",
+                    "compiler_version": "attacker-exported-internal-value",
+                    "compiler_targets": "attacker-exported-internal-value",
+                    "EXPECTED_WASM_COMPILER": str(compiler),
+                    "FIXTURE_JAVA_VERSION": "25.0.4.1",
+                    "HOME": str(root),
+                    "PATH": f"{stub_bin}:/usr/bin:/bin:/usr/sbin:/sbin",
+                    "SCOPE_EVENT_LOG": str(event_log),
+                    "SWIFT_SCOPE_MARKER": str(swift_marker),
+                    "WASM_SCOPE_MARKER": str(wasm_marker),
+                    "wasm_compiler_input": "attacker-exported-internal-value",
+                    "java_version_output": "attacker-exported-internal-value",
+                }
+            )
+
+            for failure_environment, expected_error in (
+                ({"FAIL_JAVA_PROBE": "1"}, "Java could not report its version"),
+                (
+                    {"FAIL_TARGET_PROBE": "1"},
+                    "CC_wasm32_unknown_unknown could not report supported targets",
+                ),
+                (
+                    {"FIXTURE_JAVA_VERSION": "24.0.2"},
+                    "Kotlin/Panama binding requires JDK >= 25, got Java 24",
+                ),
+                (
+                    {"FIXTURE_JAVA_VERSION": "22.0.2"},
+                    "Kotlin/Panama binding requires JDK >= 25, got Java 22",
+                ),
+                (
+                    {"FIXTURE_JAVA_VERSION": "unknown"},
+                    "cannot parse Java version",
+                ),
+            ):
+                with self.subTest(environment=failure_environment):
+                    failed_environment = {**environment, **failure_environment}
+                    failed = subprocess.run(
+                        ["/bin/sh", str(artifact / "embedding-readiness.sh")],
+                        cwd=root,
+                        env=failed_environment,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                        timeout=30,
+                    )
+                    self.assertEqual(failed.returncode, 2, failed.stderr)
+                    self.assertIn(expected_error, failed.stderr)
+                    self.assertNotIn("EMBEDDING_READINESS_PASS", failed.stdout)
+                    self.assertFalse(swift_marker.exists())
+                    self.assertFalse(wasm_marker.exists())
+
+            event_log.unlink(missing_ok=True)
+            completed = subprocess.run(
+                ["/bin/sh", str(artifact / "embedding-readiness.sh")],
+                cwd=root,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=30,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("EMBEDDING_READINESS_PASS", completed.stdout)
+            self.assertTrue(swift_marker.is_file())
+            self.assertTrue(wasm_marker.is_file())
+            self.assertEqual(
+                event_log.read_text(encoding="utf-8").splitlines(),
+                [
+                    "clang:--version",
+                    "clang:--print-targets",
+                    "swift-binding",
+                    "swift-xcframework",
+                    "clang:--version",
+                    "clang:--print-targets",
+                    "wasm-pack",
+                ],
+            )
+
     def test_every_boolean_flag_fails_before_provenance_and_markers(self) -> None:
         flags = (
             "QPERIAPT_SKIP_SMOKE",
@@ -1545,7 +3529,10 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             "QPERIAPT_RUN_CONTINUITY_DIAGNOSTIC",
             "QPERIAPT_REQUIRE_APPLE_DEVICE",
             "QPERIAPT_REQUIRE_APPLE_DEVICE_MATRIX",
+            "QPERIAPT_REQUIRE_ANDROID_AAR",
             "QPERIAPT_REQUIRE_ANDROID_RUNTIME",
+            "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME",
+            "QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER",
             "QPERIAPT_REQUIRE_PERFORMANCE",
             "QPERIAPT_REQUIRE_CAMERA_READY",
             "QPERIAPT_REQUIRE_DEPENDENCY_AUDIT",
@@ -1555,11 +3542,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
         )
         for flag in flags:
             with self.subTest(flag=flag):
-                environment = {
-                    name: value
-                    for name, value in os.environ.items()
-                    if not name.startswith("QPERIAPT_")
-                }
+                environment = _release_test_environment()
                 environment.update(
                     {
                         flag: "yes",
@@ -1678,28 +3661,115 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 "QPERIAPT_ANDROID_DEVICE_PROOF must be under",
             ),
             (
-                "android device kind is recognized",
+                "physical android proof is explicitly required",
+                {"QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1"},
+                "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF is required",
+            ),
+            (
+                "physical android proof is contained",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF": str(outside),
+                },
+                "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF must be under",
+            ),
+            (
+                "physical android freshness is fixed",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF": str(
+                        ROOT / "target" / "android-physical" / "proof.json"
+                    ),
+                    "QPERIAPT_ANDROID_PHYSICAL_PROOF_MAX_AGE_SECONDS": "2",
+                },
+                "fixes proof freshness to 86400 seconds",
+            ),
+            (
+                "physical android freshness is numeric",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF": str(
+                        ROOT / "target" / "android-physical" / "proof.json"
+                    ),
+                    "QPERIAPT_ANDROID_PHYSICAL_PROOF_MAX_AGE_SECONDS": "tomorrow",
+                },
+                "QPERIAPT_ANDROID_PHYSICAL_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+            ),
+            (
+                "android device kind is canonical emulator",
                 {
                     "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(
+                        ROOT / "target" / "android" / "proof.json"
+                    ),
                     "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": "tablet",
                 },
-                "invalid QPERIAPT_ANDROID_EXPECT_DEVICE_KIND",
+                "requires device kind emulator",
             ),
             (
-                "android device ABI is recognized",
+                "android physical proof cannot replace the canonical emulator",
                 {
                     "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
-                    "QPERIAPT_ANDROID_EXPECT_DEVICE_ABI": "mips64",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(
+                        ROOT / "target" / "android" / "proof.json"
+                    ),
+                    "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": "physical",
                 },
-                "invalid QPERIAPT_ANDROID_EXPECT_DEVICE_ABI",
+                "requires device kind emulator",
             ),
             (
-                "android max age is bounded",
+                "android device kind cannot be explicitly empty",
                 {
                     "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
-                    "QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS": "604801",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(
+                        ROOT / "target" / "android" / "proof.json"
+                    ),
+                    "QPERIAPT_ANDROID_EXPECT_DEVICE_KIND": "",
                 },
-                "QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS must be an ASCII base-10 integer",
+                "requires device kind emulator",
+            ),
+            (
+                "android device ABI is canonical arm64",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(
+                        ROOT / "target" / "android" / "proof.json"
+                    ),
+                    "QPERIAPT_ANDROID_EXPECT_DEVICE_ABI": "x86_64",
+                },
+                "requires device ABI arm64-v8a",
+            ),
+            (
+                "android device ABI cannot be explicitly empty",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(
+                        ROOT / "target" / "android" / "proof.json"
+                    ),
+                    "QPERIAPT_ANDROID_EXPECT_DEVICE_ABI": "",
+                },
+                "requires device ABI arm64-v8a",
+            ),
+            (
+                "dirty Android proof override is forbidden",
+                {"QPERIAPT_ALLOW_DIRTY_ANDROID_RUNTIME_PROOF": "1"},
+                "does not allow dirty proofs",
+            ),
+            (
+                "local release consumer requires canonical Android runtime",
+                {"QPERIAPT_REQUIRE_LOCAL_RELEASE_CONSUMER": "1"},
+                "requires QPERIAPT_REQUIRE_ANDROID_RUNTIME=1",
+            ),
+            (
+                "canonical android freshness is fixed",
+                {
+                    "QPERIAPT_REQUIRE_ANDROID_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_DEVICE_PROOF": str(
+                        ROOT / "target" / "android" / "proof.json"
+                    ),
+                    "QPERIAPT_ANDROID_PROOF_MAX_AGE_SECONDS": "2",
+                },
+                "fixes proof freshness to 86400 seconds",
             ),
             (
                 "performance proof is contained",
@@ -1753,11 +3823,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
         )
         for label, overrides, expected_error in cases:
             with self.subTest(label=label):
-                environment = {
-                    name: value
-                    for name, value in os.environ.items()
-                    if not name.startswith("QPERIAPT_")
-                }
+                environment = _release_test_environment()
                 environment.update(
                     {
                         "QPERIAPT_SKIP_SMOKE": "1",
@@ -1805,11 +3871,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             )
             for overrides, expected_error in loop_cases:
                 with self.subTest(symlink_loop=expected_error):
-                    environment = {
-                        name: value
-                        for name, value in os.environ.items()
-                        if not name.startswith("QPERIAPT_")
-                    }
+                    environment = _release_test_environment()
                     environment.update(
                         {
                             "QPERIAPT_SKIP_SMOKE": "1",
@@ -1900,9 +3962,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             with _temporary_release_test_directories((tree_parent,)) as (child,):
                 nested = child / "nested"
                 nested.mkdir()
-                (nested / "fixture-data").write_text(
-                    "fixture data\n", encoding="utf-8"
-                )
+                (nested / "fixture-data").write_text("fixture data\n", encoding="utf-8")
                 (child / "external-link").symlink_to(
                     external_tree_target, target_is_directory=True
                 )
@@ -1949,8 +4009,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             self.assertIs(type(cleanup_error), AssertionError)
             self.assertEqual(
                 str(cleanup_error),
-                "test-owned release parent is not empty after cleanup: "
-                f"{combined[1]}",
+                f"test-owned release parent is not empty after cleanup: {combined[1]}",
             )
             self.assertFalse(os.path.lexists(combined[0]))
             self.assertEqual(
@@ -1985,8 +4044,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 self.assertIs(type(error), AssertionError)
                 self.assertEqual(
                     str(error),
-                    "test-owned release parent is not empty after cleanup: "
-                    f"{parent}",
+                    f"test-owned release parent is not empty after cleanup: {parent}",
                 )
             for foreign_file_path, parent in zip(
                 multiply_foreign_files, multiply_contaminated, strict=True
@@ -2096,9 +4154,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                     preexisting_replaced.rename(preexisting_original)
                     preexisting_external_child = preexisting_external / child.name
                     preexisting_external_child.mkdir()
-                    preexisting_payload = (
-                        preexisting_external_child / "foreign-data"
-                    )
+                    preexisting_payload = preexisting_external_child / "foreign-data"
                     preexisting_payload.write_text(
                         "must survive cleanup\n", encoding="utf-8"
                     )
@@ -2130,9 +4186,9 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             child_replacement_payload: pathlib.Path
             original_child: pathlib.Path
             with self.assertRaises(ExceptionGroup) as child_replacement_cleanup:
-                with _temporary_release_test_directories(
-                    (child_replaced_parent,)
-                ) as (child,):
+                with _temporary_release_test_directories((child_replaced_parent,)) as (
+                    child,
+                ):
                     original_child = child.with_name(f"{child.name}-original")
                     child.rename(original_child)
                     child.mkdir()
@@ -2180,9 +4236,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             child_path.rename(original_child)
             child_path.mkdir()
             replacement_payload = child_path / "foreign-data"
-            replacement_payload.write_text(
-                "must survive cleanup\n", encoding="utf-8"
-            )
+            replacement_payload.write_text("must survive cleanup\n", encoding="utf-8")
             replacement_paths.extend((original_child, replacement_payload))
             return []
 
@@ -2213,8 +4267,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             self.assertIs(type(parent_error), AssertionError)
             self.assertEqual(
                 str(parent_error),
-                "test-owned release parent is not empty after cleanup: "
-                f"{parent}",
+                f"test-owned release parent is not empty after cleanup: {parent}",
             )
             self.assertEqual(
                 replacement_payload.read_text(encoding="utf-8"),
@@ -2242,9 +4295,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
                 side_effect=RuntimeError("synthetic unexpected cleanup failure"),
             ):
                 with self.assertRaises(ExceptionGroup) as cleanup:
-                    with _temporary_release_test_directories((parent,)) as (
-                        child,
-                    ):
+                    with _temporary_release_test_directories((parent,)) as (child,):
                         raise ValueError("synthetic fixture body failure")
             descriptor_count_after = len(os.listdir(descriptor_directory))
             self.assertEqual(descriptor_count_after, descriptor_count_before)
@@ -2263,8 +4314,7 @@ class ProofToByteReleaseMarkerTests(unittest.TestCase):
             self.assertIs(type(parent_error), AssertionError)
             self.assertEqual(
                 str(parent_error),
-                "test-owned release parent is not empty after cleanup: "
-                f"{parent}",
+                f"test-owned release parent is not empty after cleanup: {parent}",
             )
             self.assertTrue(child.is_dir())
             child.rmdir()
@@ -2422,9 +4472,7 @@ with _temporary_release_test_directories(parents):
                 release[1].write_text("release\n", encoding="utf-8")
                 second_stdout, second_stderr = second.communicate(timeout=10)
                 self.assertEqual(second.returncode, 0, second_stderr or second_stdout)
-                self.assertTrue(
-                    all(not os.path.lexists(parent) for parent in parents)
-                )
+                self.assertTrue(all(not os.path.lexists(parent) for parent in parents))
             finally:
                 for marker in release:
                     marker.touch(exist_ok=True)
@@ -2434,11 +4482,7 @@ with _temporary_release_test_directories(parents):
                     process.communicate()
 
     def test_required_tools_are_checked_before_proof_markers(self) -> None:
-        environment = {
-            name: value
-            for name, value in os.environ.items()
-            if not name.startswith("QPERIAPT_")
-        }
+        environment = _release_test_environment()
         environment.update(
             {
                 "HOME": "",
@@ -2483,11 +4527,7 @@ with _temporary_release_test_directories(parents):
         )
         for overrides in cases:
             with self.subTest(overrides=overrides):
-                environment = {
-                    name: value
-                    for name, value in os.environ.items()
-                    if not name.startswith("QPERIAPT_")
-                }
+                environment = _release_test_environment()
                 environment.update(
                     {
                         "QPERIAPT_SKIP_SMOKE": "1",
@@ -2550,6 +4590,13 @@ with _temporary_release_test_directories(parents):
             ),
             (
                 {
+                    "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF": "",
+                },
+                "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF",
+            ),
+            (
+                {
                     "QPERIAPT_REQUIRE_PERFORMANCE": "1",
                     "QPERIAPT_PERFORMANCE_PROOF": "",
                 },
@@ -2568,11 +4615,7 @@ with _temporary_release_test_directories(parents):
                         name: hostile_path if value == "" else value
                         for name, value in template.items()
                     }
-                    environment = {
-                        name: value
-                        for name, value in os.environ.items()
-                        if not name.startswith("QPERIAPT_")
-                    }
+                    environment = _release_test_environment()
                     environment.update(
                         {
                             "QPERIAPT_SKIP_SMOKE": "1",
@@ -2633,6 +4676,13 @@ with _temporary_release_test_directories(parents):
             ),
             (
                 {
+                    "QPERIAPT_REQUIRE_ANDROID_PHYSICAL_RUNTIME": "1",
+                    "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF": "",
+                },
+                "QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF",
+            ),
+            (
+                {
                     "QPERIAPT_REQUIRE_PERFORMANCE": "1",
                     "QPERIAPT_PERFORMANCE_PROOF": "",
                 },
@@ -2641,11 +4691,7 @@ with _temporary_release_test_directories(parents):
         )
         for overrides, expected_label in empty_path_cases:
             with self.subTest(empty_path=expected_label):
-                environment = {
-                    name: value
-                    for name, value in os.environ.items()
-                    if not name.startswith("QPERIAPT_")
-                }
+                environment = _release_test_environment()
                 environment.update(
                     {
                         "QPERIAPT_SKIP_SMOKE": "1",
@@ -2671,29 +4717,132 @@ with _temporary_release_test_directories(parents):
                 self.assertNotIn("PROOF_TO_BYTE_", result.stdout)
 
     def test_clean_complete_state_requires_real_dependency_audit_pass(self) -> None:
-        marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0)
+        marker = format_marker(
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            dependency_audit=1,
+            rust_package_contract=1,
+        )
         self.assertEqual(
             marker,
             "PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS camera_ready_bundle=not_required"
+            " rust_package_contract=1"
+            " android_aar=0 android_runtime=0 android_physical_runtime=0"
+            " local_release_consumer=0"
             f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
             f" manifest_sha256={TEST_MANIFEST_SHA256}",
         )
 
+    def test_apple_candidate_marker_exposes_each_android_gate(self) -> None:
+        complete = {
+            "host_smoke": 1,
+            "formal": 1,
+            "apple_matrix": 1,
+            "performance": 1,
+            "dependency_audit": 1,
+            "rust_package_contract": 1,
+        }
+        baseline = format_marker(**complete)
+        for state_name in (
+            "android_aar",
+            "android_runtime",
+            "android_physical_runtime",
+            "local_release_consumer",
+        ):
+            with self.subTest(state_name=state_name):
+                changed = format_marker(**complete, **{state_name: 1})
+                self.assertNotEqual(changed, baseline)
+                self.assertIn(f" {state_name}=1", changed)
+                for other_name in {
+                    "android_aar",
+                    "android_runtime",
+                    "android_physical_runtime",
+                    "local_release_consumer",
+                } - {state_name}:
+                    self.assertIn(f" {other_name}=0", changed)
+
+    def test_android_production_marker_requires_all_four_bound_gates(self) -> None:
+        required = (
+            "android_aar",
+            "android_runtime",
+            "android_physical_runtime",
+            "local_release_consumer",
+        )
+        all_pass = {name: 1 for name in required}
+        marker = format_marker(**all_pass)
+        self.assertEqual(
+            marker,
+            "PROOF_TO_BYTE_ANDROID_LOCAL_PRODUCTION_GATE_PASS"
+            f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
+            f" manifest_sha256={TEST_MANIFEST_SHA256}",
+        )
+        for missing in required:
+            with self.subTest(missing=missing):
+                state = dict(all_pass)
+                state[missing] = 0
+                self.assertNotIn(
+                    "PROOF_TO_BYTE_ANDROID_LOCAL_PRODUCTION_GATE_PASS",
+                    format_marker(**state),
+                )
+        self.assertNotIn(
+            "PROOF_TO_BYTE_ANDROID_LOCAL_PRODUCTION_GATE_PASS",
+            format_marker(**all_pass, source_tree_dirty=1),
+        )
+        combined = format_marker(
+            **all_pass,
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            dependency_audit=1,
+            rust_package_contract=1,
+        )
+        self.assertIn("PROOF_TO_BYTE_APPLE_ANDROID_LOCAL_CANDIDATE_PASS", combined)
+
     def test_required_camera_bundle_is_part_of_release_state(self) -> None:
-        missing = format_marker(1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0)
+        missing = format_marker(
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            camera_required=1,
+            dependency_audit=1,
+            rust_package_contract=1,
+        )
         self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", missing)
         self.assertIn("camera_ready_bundle=0", missing)
-        verified = format_marker(1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0)
+        verified = format_marker(
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            camera_ready=1,
+            camera_required=1,
+            dependency_audit=1,
+            rust_package_contract=1,
+        )
         self.assertEqual(
             verified,
             "PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS camera_ready_bundle=verified"
+            " rust_package_contract=1"
+            " android_aar=0 android_runtime=0 android_physical_runtime=0"
+            " local_release_consumer=0"
             f" commit={TEST_COMMIT} source_sha256={TEST_SOURCE_SHA256}"
             f" manifest_sha256={TEST_MANIFEST_SHA256}",
         )
 
-    def test_missing_audit_is_scoped_summary_even_if_environment_claims_pass(self) -> None:
+    def test_missing_audit_is_scoped_summary_even_if_environment_claims_pass(
+        self,
+    ) -> None:
         with mock.patch.dict(os.environ, {"DEPENDENCY_AUDIT_PASSED": "1"}):
-            marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0)
+            marker = format_marker(
+                host_smoke=1,
+                formal=1,
+                apple_matrix=1,
+                performance=1,
+            )
         self.assertIn("PROOF_TO_BYTE_RUN_FINISHED", marker)
         self.assertIn("dependency_audit=0", marker)
         self.assertNotIn("PROOF_TO_BYTE_APPLE_LOCAL_CANDIDATE_PASS", marker)
@@ -2703,7 +4852,15 @@ with _temporary_release_test_directories(parents):
         self.assertNotIn("PROOF_TO_BYTE_APPLE_RELEASE_PASS", source)
 
     def test_dirty_source_tree_cannot_emit_release_pass(self) -> None:
-        marker = format_marker(1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0)
+        marker = format_marker(
+            host_smoke=1,
+            formal=1,
+            apple_matrix=1,
+            performance=1,
+            dependency_audit=1,
+            rust_package_contract=1,
+            source_tree_dirty=1,
+        )
         self.assertEqual(
             marker,
             "PROOF_TO_BYTE_RELEASE_NOT_ATTESTED reason=dirty_source_tree"
@@ -2718,18 +4875,14 @@ with _temporary_release_test_directories(parents):
                 performance_override=performance_override,
             ):
                 marker = format_marker(
-                    1,
-                    1,
-                    0,
-                    1,
-                    0,
-                    1,
-                    0,
-                    0,
-                    1,
-                    0,
-                    apple_override,
-                    performance_override,
+                    host_smoke=1,
+                    formal=1,
+                    apple_matrix=1,
+                    performance=1,
+                    dependency_audit=1,
+                    rust_package_contract=1,
+                    allow_dirty_apple=apple_override,
+                    allow_dirty_performance=performance_override,
                 )
                 self.assertEqual(
                     marker,
@@ -2743,7 +4896,55 @@ with _temporary_release_test_directories(parents):
             proof_to_byte_finalizer.FinalizerError,
             "release attestation state must be 0 or 1",
         ):
-            format_marker(1, 1, 0, 1, 0, 1, 2, 0, 1, 0, 0, 0)
+            format_marker(android_aar=2)
+
+    def test_production_state_inserts_dirty_at_its_named_position(self) -> None:
+        state = proof_to_byte_finalizer._production_state(
+            (
+                "1",  # host_smoke
+                "0",  # formal
+                "1",  # apple_device
+                "0",  # apple_matrix
+                "1",  # android_aar
+                "0",  # android_runtime
+                "1",  # android_physical_runtime
+                "0",  # local_release_consumer
+                "1",  # performance
+                "0",  # camera_ready
+                "1",  # camera_required
+                "0",  # dependency_audit
+                "1",  # allow_dirty_apple
+                "0",  # allow_dirty_performance
+                "1",  # rust_package_contract
+            ),
+            dirty=True,
+        )
+        self.assertEqual(
+            dataclasses.asdict(state),
+            {
+                "host_smoke": True,
+                "formal": False,
+                "apple_device": True,
+                "apple_matrix": False,
+                "android_aar": True,
+                "android_runtime": False,
+                "android_physical_runtime": True,
+                "local_release_consumer": False,
+                "performance": True,
+                "camera_ready": False,
+                "camera_required": True,
+                "dependency_audit": False,
+                "source_tree_dirty": True,
+                "allow_dirty_apple": True,
+                "allow_dirty_performance": False,
+                "rust_package_contract": True,
+            },
+        )
+        with self.assertRaisesRegex(
+            proof_to_byte_finalizer.FinalizerError,
+            "finalize requires exactly 15 gate state values",
+        ):
+            proof_to_byte_finalizer._production_state(("0",) * 14, dirty=False)
 
     def test_format_cli_is_not_exposed(self) -> None:
         result = subprocess.run(
@@ -2799,7 +5000,9 @@ with _temporary_release_test_directories(parents):
                 )
 
     def test_finalizer_rejects_digest_or_dirty_state_transition(self) -> None:
-        inspection = WorktreeInspection(commit=TEST_COMMIT, dirty=True, reasons=("changed",))
+        inspection = WorktreeInspection(
+            commit=TEST_COMMIT, dirty=True, reasons=("changed",)
+        )
         with (
             mock.patch.object(
                 proof_to_byte_finalizer,
@@ -2883,8 +5086,8 @@ with _temporary_release_test_directories(parents):
                 "Darwin 27.0.0 arm64,1.96.0,wasm-signed-policy,340625,332.6\n",
                 encoding="utf-8",
             )
-            expected, footprint_sha256 = proof_to_byte_finalizer._load_footprint_csv(
-                footprint
+            expected, footprint_sha256 = (
+                proof_to_byte_finalizer.load_footprint_manifest_section(footprint)
             )
             self.assertEqual(expected["platform"], "Darwin 27.0.0 arm64, rustc 1.96.0")
             self.assertEqual(
@@ -2906,6 +5109,10 @@ with _temporary_release_test_directories(parents):
                     proof_to_byte_finalizer,
                     "require_commit_or_evidence_successor",
                 ) as require_successor,
+                mock.patch.object(
+                    proof_to_byte_finalizer,
+                    "validate_release_publication_history",
+                ) as validate_publication_history,
             ):
                 self.assertEqual(
                     proof_to_byte_finalizer.validate_release_metadata(
@@ -2916,6 +5123,9 @@ with _temporary_release_test_directories(parents):
                     (TEST_COMMIT, footprint_sha256),
                 )
                 require_successor.assert_called_once_with(root, TEST_COMMIT)
+                validate_publication_history.assert_called_once_with(
+                    root, document
+                )
 
                 document["footprint_bytes"] = dict(expected)
                 document["footprint_bytes"]["wasm_lean_default"] = {
@@ -2932,6 +5142,171 @@ with _temporary_release_test_directories(parents):
                         TEST_MANIFEST_SHA256,
                     )
 
+    def test_first_parent_publication_history_is_loaded_and_enforced(self) -> None:
+        parent_manifest = frozen_baseline_manifest()
+        parent_bytes = json.dumps(
+            parent_manifest,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary) / "repository"
+            _initialize_first_parent_results_fixture(root, parent_bytes)
+            self.assertEqual(
+                proof_to_byte_finalizer._load_first_parent_results_manifest(
+                    root
+                ),
+                parent_manifest,
+            )
+            migrated_manifest = copy.deepcopy(parent_manifest)
+            migrated_manifest["release_publications"][
+                apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY
+            ] = alpha2_receipt()
+            proof_to_byte_finalizer.validate_release_publication_history(
+                root, migrated_manifest
+            )
+
+            current_without_recorded_publications = copy.deepcopy(
+                migrated_manifest
+            )
+            current_without_recorded_publications["release_publications"].pop(
+                "platform_r2"
+            )
+            with self.assertRaisesRegex(
+                proof_to_byte_finalizer.FinalizerError,
+                "first-parent transition.*changed or was removed",
+            ):
+                proof_to_byte_finalizer.validate_release_publication_history(
+                    root, current_without_recorded_publications
+                )
+
+    def test_first_parent_results_loading_fails_closed(self) -> None:
+        valid_empty = b"{}\n"
+        cases = (
+            ("missing", None, "cannot load first-parent"),
+            (
+                "duplicate-key",
+                b'{"release_publications":{},"release_publications":{}}',
+                "duplicate JSON key",
+            ),
+            (
+                "oversized",
+                b" " * (proof_to_byte_finalizer.MAX_RESULTS_MANIFEST_BYTES + 1),
+                "exceeds maximum size",
+            ),
+            ("non-object", b"[]", "root must be a JSON object"),
+        )
+        for label, parent_bytes, message in cases:
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary) / "repository"
+                _initialize_first_parent_results_fixture(root, parent_bytes)
+                with self.assertRaisesRegex(
+                    proof_to_byte_finalizer.FinalizerError, message
+                ):
+                    proof_to_byte_finalizer._load_first_parent_results_manifest(
+                        root
+                    )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary) / "root-commit-repository"
+            subprocess.run(
+                ["/usr/bin/git", "init", "-q", str(root)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            artifact = root / "artifact"
+            artifact.mkdir()
+            (artifact / "results.json").write_bytes(valid_empty)
+            _git_fixture_commit(root, "Record root results")
+            with self.assertRaisesRegex(
+                proof_to_byte_finalizer.FinalizerError,
+                "cannot load first-parent",
+            ):
+                proof_to_byte_finalizer._load_first_parent_results_manifest(
+                    root
+                )
+
+    def test_first_parent_history_does_not_read_a_merge_second_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary) / "merge-repository"
+            _initialize_first_parent_results_fixture(root, b"{}\n")
+            main_branch = subprocess.run(
+                [
+                    "/usr/bin/git",
+                    "-C",
+                    str(root),
+                    "branch",
+                    "--show-current",
+                ],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            ).stdout.strip()
+            self.assertTrue(main_branch)
+            _git_fixture_command(root, "checkout", "-qb", "publication-side")
+            (root / "artifact" / "results.json").write_text(
+                '{"second_parent":true}\n', encoding="utf-8"
+            )
+            _git_fixture_commit(root, "Record side publication data")
+            _git_fixture_command(root, "checkout", "-q", main_branch)
+            (root / "main-only.txt").write_text("main\n", encoding="utf-8")
+            _git_fixture_commit(root, "Record main data")
+            _git_fixture_command(
+                root,
+                "-c",
+                "user.name=Proof Test",
+                "-c",
+                "user.email=proof@example.invalid",
+                "merge",
+                "--no-ff",
+                "-qm",
+                "Merge publication side",
+                "publication-side",
+            )
+            self.assertEqual(
+                proof_to_byte_finalizer._load_first_parent_results_manifest(
+                    root
+                ),
+                {},
+            )
+
+    def test_first_parent_fixture_joins_each_automatic_maintenance_worker(self) -> None:
+        with tempfile.TemporaryDirectory() as evidence:
+            trace_path = pathlib.Path(evidence).resolve() / "git-trace.jsonl"
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "GIT_TRACE2_EVENT": str(trace_path),
+                    "GIT_CONFIG_COUNT": "3",
+                    "GIT_CONFIG_KEY_0": "maintenance.commit-graph.enabled",
+                    "GIT_CONFIG_VALUE_0": "true",
+                    "GIT_CONFIG_KEY_1": "maintenance.commit-graph.auto",
+                    "GIT_CONFIG_VALUE_1": "-1",
+                    "GIT_CONFIG_KEY_2": "maintenance.auto",
+                    "GIT_CONFIG_VALUE_2": "true",
+                },
+            ):
+                self.test_first_parent_history_does_not_read_a_merge_second_parent()
+            events = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()]
+            workers = [event for event in events
+                       if event["event"] == "cmd_name" and event["name"] == "maintenance"]
+            self.assertEqual(len(workers), 5)
+            for worker in workers:
+                with self.subTest(worker=worker["sid"]):
+                    owned = [event for event in events if event["sid"] == worker["sid"]]
+                    self.assertFalse(any(event["event"] == "region_enter"
+                        and event.get("category") == "maintenance" and event.get("label") == "detach"
+                        for event in owned), "fixture maintenance detached from its owning Git command")
+                    exits = [event for event in owned if event["event"] == "exit"]
+                    self.assertEqual(len(exits), 1)
+                    self.assertEqual(exits[0]["code"], 0)
+                    parent_sid = worker["sid"].rsplit("/", 1)[0]
+                    parent_exit = next(event for event in events
+                                       if event["event"] == "exit" and event["sid"] == parent_sid)
+                    self.assertLess(events.index(exits[0]), events.index(parent_exit))
+
     def test_footprint_csv_rejects_duplicate_and_inconsistent_rows(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             footprint = pathlib.Path(temporary) / "footprint.csv"
@@ -2946,7 +5321,7 @@ with _temporary_release_test_directories(parents):
                 proof_to_byte_finalizer.FinalizerError,
                 "unknown or duplicate artifact",
             ):
-                proof_to_byte_finalizer._load_footprint_csv(footprint)
+                proof_to_byte_finalizer.load_footprint_manifest_section(footprint)
 
             footprint.write_text(
                 "host,rustc,artifact,bytes,kib\n"
@@ -2959,9 +5334,11 @@ with _temporary_release_test_directories(parents):
                 proof_to_byte_finalizer.FinalizerError,
                 "share one host",
             ):
-                proof_to_byte_finalizer._load_footprint_csv(footprint)
+                proof_to_byte_finalizer.load_footprint_manifest_section(footprint)
 
-    def test_footprint_csv_numeric_failures_are_contextual_finalizer_errors(self) -> None:
+    def test_footprint_csv_numeric_failures_are_contextual_finalizer_errors(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             footprint = pathlib.Path(temporary) / "footprint.csv"
             trailing_rows = (
@@ -2992,9 +5369,13 @@ with _temporary_release_test_directories(parents):
                         proof_to_byte_finalizer.FinalizerError,
                         message,
                     ):
-                        proof_to_byte_finalizer._load_footprint_csv(footprint)
+                        proof_to_byte_finalizer.load_footprint_manifest_section(
+                            footprint
+                        )
 
-    def test_release_metadata_rejects_extra_fields_and_wrong_numeric_types(self) -> None:
+    def test_release_metadata_rejects_extra_fields_and_wrong_numeric_types(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             paper = root / "paper"
@@ -3007,7 +5388,9 @@ with _temporary_release_test_directories(parents):
                 "host,1.96.0,wasm-signed-policy,3072,3.0\n",
                 encoding="utf-8",
             )
-            expected, _ = proof_to_byte_finalizer._load_footprint_csv(footprint)
+            expected, _ = proof_to_byte_finalizer.load_footprint_manifest_section(
+                footprint
+            )
             document = {
                 "provenance": {"snapshot_commit": TEST_COMMIT},
                 "footprint_bytes": expected,
@@ -3022,6 +5405,10 @@ with _temporary_release_test_directories(parents):
                 mock.patch.object(
                     proof_to_byte_finalizer,
                     "require_commit_or_evidence_successor",
+                ),
+                mock.patch.object(
+                    proof_to_byte_finalizer,
+                    "validate_release_publication_history",
                 ),
             ):
                 invalid_cases = (
@@ -3063,19 +5450,99 @@ with _temporary_release_test_directories(parents):
     def test_audit_pass_state_is_set_only_after_warning_denied_command(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
         initial = source.index("DEPENDENCY_AUDIT_PASSED=0")
-        command = source.index("cargo audit --deny warnings")
+        gate_start = source.index(
+            'if [ "$REQUIRE_DEPENDENCY_AUDIT" = "1" ]; then',
+            initial,
+        )
+        command = source.index("verify-workspace-dependency-audit", gate_start)
         passed = source.index("DEPENDENCY_AUDIT_PASSED=1")
-        self.assertLess(initial, command)
+        self.assertLess(initial, gate_start)
+        self.assertLess(gate_start, command)
         self.assertLess(command, passed)
-        self.assertNotIn("cargo audit --deny warnings ||", source)
-        self.assertNotIn("cargo audit --deny warnings; true", source)
+        audit_gate = source[gate_start:passed]
+        self.assertIn(
+            "sh artifact/python-run.sh artifact/rust_publish_contract.py",
+            audit_gate,
+        )
+        self.assertNotIn("--root", audit_gate)
+        self.assertNotIn("--cargo-audit", audit_gate)
+        self.assertNotIn("command -v cargo-audit", source)
+        self.assertNotIn("||", audit_gate)
+        self.assertNotIn("; true", audit_gate)
         self.assertNotIn("--ignore", source)
+
+    def test_continuity_lock_audit_reuses_the_unconditional_fixed_audit_tool(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        audit_job = extract_workflow_job(workflow, "audit")
+        identity_job = extract_workflow_job(workflow, "continuity-identity-candidate")
+        gate = extract_named_workflow_step(audit_job, "Verify separate Continuity dependency lock")
+        self.assertIn(
+            '\"$GITHUB_WORKSPACE/target/qperiapt-audit-tool/bin/cargo-audit\" audit', gate
+        )
+        command = "--file research/continuity-identity-candidate/Cargo.lock --deny warnings"
+        self.assertIn(command, gate)
+        self.assertEqual(workflow.count(command), 1)
+        self.assertLess(
+            audit_job.index("Install fixed dependency-audit tool"),
+            audit_job.index("Verify separate Continuity dependency lock"),
+        )
+        self.assertNotIn("install cargo-audit", identity_job)
+        for weakening in ("if:", "continue-on-error:", "--ignore", "||", "; true"):
+            self.assertNotIn(weakening, gate)
+        self.assertNotRegex(audit_job, r"(?m)^    if:")
+        self.assertNotIn("continue-on-error:", audit_job)
+        from test_continuity_workflow_partitions import native as validate_native_partitions
+        validate_native_partitions(workflow)
+        self.assertIn('candidate_skips=(--skip "$CAPACITY_TEST")', identity_job)
+        self.assertIn('candidate_skips+=(--skip "$ROSTER_CAPACITY_TEST")', identity_job)
+        self.assertIn('test --manifest-path "$candidate_manifest" --all-features --locked -- "${candidate_skips[@]}" --nocapture', identity_job)
+        self.assertIn('test --manifest-path "$candidate_manifest" --all-features --locked --release -- --nocapture', identity_job)
+        self.assertIn("    timeout-minutes: 90\n", identity_job)
 
     def test_ci_uses_warning_denied_audit_without_suppression(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("- run: cargo audit --deny warnings", workflow)
-        self.assertNotIn("cargo audit --deny warnings ||", workflow)
-        self.assertNotIn("cargo audit --ignore", workflow)
+        guide = " ".join(ARTIFACT_GUIDE.read_text(encoding="utf-8").split())
+        audit_job = extract_workflow_job(workflow, "audit")
+        audit_step = extract_named_workflow_step(
+            audit_job,
+            "Verify workspace dependency audit",
+        )
+        self.assertEqual(audit_step.count("verify-workspace-dependency-audit"), 1)
+        self.assertEqual(
+            audit_job.count(
+                "cargo +1.98.1 install cargo-audit --version 0.22.2 "
+                "--locked \\\n"
+                "            --root target/qperiapt-audit-tool"
+            ),
+            1,
+        )
+        install_step = extract_named_workflow_step(
+            audit_job,
+            "Install fixed dependency-audit tool",
+        )
+        self.assertIn(
+            'export PATH="$GITHUB_WORKSPACE/target/qperiapt-audit-tool/bin:$PATH"',
+            install_step,
+        )
+        self.assertNotIn("--root", audit_step)
+        self.assertNotIn("--cargo-audit", audit_step)
+        self.assertNotIn("command -v cargo-audit", audit_step)
+        self.assertNotIn("GITHUB_WORKSPACE", audit_step)
+        self.assertNotIn("cargo audit --deny warnings", audit_job)
+        self.assertNotIn("cargo audit --ignore", audit_job)
+        self.assertNotIn("continue-on-error:", audit_step)
+        self.assertNotIn("|| true", audit_step)
+        self.assertIn(
+            "accepts no source-root or executable-path argument", guide
+        )
+        self.assertIn(
+            "`target/qperiapt-audit-tool/bin/cargo-audit`", guide
+        )
+        self.assertIn(
+            "path is fixed by code rather than accepted from a CLI argument "
+            "or ambient `PATH`",
+            guide,
+        )
 
     def test_ci_runs_lean_and_signed_policy_wasm_node_suites(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
@@ -3092,9 +5559,219 @@ with _temporary_release_test_directories(parents):
         )
         self.assertNotIn("continue-on-error", wasm_job)
 
+    def test_formal_tool_release_assets_use_one_bounded_verifier(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        tamarin_job = extract_workflow_job(workflow, "tamarin-proof")
+        tamarin_install = extract_named_workflow_step(
+            tamarin_job, "Install Maude + Tamarin"
+        )
+        proverif_job = extract_workflow_job(workflow, "proverif-proof")
+        proverif_install = extract_named_workflow_step(
+            proverif_job, "Install ProVerif"
+        )
+        calls = (
+            "sh artifact/python-run.sh artifact/formal_tool_asset.py "
+            "--asset maude-3.5.1",
+            "sh artifact/python-run.sh artifact/formal_tool_asset.py "
+            "--asset tamarin-1.12.0",
+            "sh artifact/python-run.sh artifact/formal_tool_asset.py "
+            "--asset opam-2.5.2",
+        )
+        combined = tamarin_install + proverif_install
+        self.assertEqual(combined.count("artifact/formal_tool_asset.py"), 3)
+        for call in calls:
+            with self.subTest(call=call):
+                self.assertEqual(combined.count(call), 1)
+        for token in (
+            "set -euo pipefail",
+            "/tmp/qperiapt-formal-tool-asset.?*",
+            'case "${asset_parent#/tmp/}" in',
+            'case "${opam_parent#/tmp/}" in',
+            'asset_suffix=${asset_parent#/tmp/qperiapt-formal-tool-asset.}',
+            'opam_suffix=${opam_parent#/tmp/qperiapt-formal-tool-asset.}',
+            "*[!0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._-]*",
+            '[ "${#asset_suffix}" -gt 64 ]',
+            '[ "${#opam_suffix}" -gt 64 ]',
+            '[ -L "$asset_parent" ]',
+            '[ ! -d "$asset_parent" ]',
+            '[ -L "$opam_parent" ]',
+            '[ ! -d "$opam_parent" ]',
+            '[ -L "$asset_path" ]',
+            'rm -- "$asset_path"',
+            'rmdir -- "$asset_parent"',
+            "trap cleanup_formal_tool_assets EXIT",
+            "trap cleanup_opam_asset EXIT",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, combined)
+        self.assertNotIn("RUNNER_TEMP", combined)
+        self.assertLess(
+            tamarin_install.index(calls[0]), tamarin_install.index("unzip -q")
+        )
+        self.assertLess(
+            tamarin_install.index(calls[1]), tamarin_install.index("tar -xzf")
+        )
+        self.assertLess(
+            proverif_install.index(calls[2]),
+            proverif_install.index('sudo install -m 0755 "$OPAM_BIN"'),
+        )
+        self.assertIn(
+            "make -C formal/tamarin TAMARIN=tamarin-prover \\\n"
+            "              DERIVCHECK_TIMEOUT=60 prove",
+            tamarin_job,
+        )
+        self.assertIn(
+            "make -C formal/proverif PROVERIF=proverif prove", proverif_job
+        )
+        for forbidden in (
+            "continue-on-error",
+            "|| true",
+            "curl ",
+            "sha256sum",
+            "github.com/maude-lang",
+            "github.com/tamarin-prover",
+            "github.com/ocaml/opam/releases",
+            "--continue-at",
+            "--insecure",
+            "--retry-all-errors",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, tamarin_job + proverif_job)
+
+    def test_ci_verifies_formal_tool_identities_before_machine_checks(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        easycrypt_job = extract_workflow_job(workflow, "formal-easycrypt")
+        easycrypt_check = extract_named_workflow_step(
+            easycrypt_job,
+            "Machine-check proof, countermodels, and dependency controls (HARD GATE)",
+        )
+        tamarin_job = extract_workflow_job(workflow, "tamarin-proof")
+        tamarin_lemma_names = extract_named_workflow_step(
+            tamarin_job, "Handshake and migration lemma names present (hard gate)"
+        )
+        tamarin_install = extract_named_workflow_step(
+            tamarin_job, "Install Maude + Tamarin"
+        )
+        tamarin_identity = extract_named_workflow_step(
+            tamarin_job, "Verify pinned Tamarin and Maude identities"
+        )
+        proverif_job = extract_workflow_job(workflow, "proverif-proof")
+        proverif_identity = extract_named_workflow_step(
+            proverif_job, "Verify pinned ProVerif identity"
+        )
+
+        easycrypt_call = (
+            "sh artifact/python-run.sh artifact/formal_toolchain_contract.py "
+            "verify-installed --tool easycrypt"
+        )
+        nested_make_environment = (
+            'MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" '
+        )
+        workflow_make_environment = "MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' "
+        self.assertEqual(easycrypt_check.count(easycrypt_call), 1)
+        self.assertEqual(easycrypt_check.count(nested_make_environment), 2)
+        self.assertIn(
+            '-v "${{ github.workspace }}/artifact:/work/artifact:ro"',
+            easycrypt_check,
+        )
+        for inline_parser in ("easycrypt config", "2>&1", "grep -c"):
+            with self.subTest(inline_parser=inline_parser):
+                self.assertNotIn(inline_parser, easycrypt_check)
+        self.assertLess(
+            easycrypt_check.index(easycrypt_call),
+            easycrypt_check.index("make EC=easycrypt check"),
+        )
+        dockerfile = (ROOT / "formal" / "Dockerfile").read_text(encoding="utf-8")
+        self.assertIn("z3 git make ca-certificates sudo python3 &&", dockerfile)
+        self.assertIn("/usr/bin/python3 -I -S -c", dockerfile)
+        self.assertIn("sys.version_info >= (3, 11)", dockerfile)
+        for command in (
+            "verify-installed \\\n#              --tool easycrypt",
+            "mkdir -p /tmp/ec",
+            "rm -f *.eco continuity/*.eco",
+            'MAKEFLAGS="" GNUMAKEFLAGS="" \\\n',
+            'MAKEFILES="" make EC=easycrypt check',
+            "make EC=easycrypt check",
+            "EASYCRYPT=easycrypt sh negative-controls.sh",
+            'MAKEFLAGS="" GNUMAKEFLAGS="" MAKEFILES="" \\\n',
+            "make -C continuity EC=easycrypt check",
+        ):
+            with self.subTest(dockerfile_command=command):
+                self.assertIn(command, dockerfile)
+
+        tamarin_call = (
+            "sh artifact/python-run.sh artifact/formal_toolchain_contract.py "
+            "verify-installed --tool tamarin"
+        )
+        proverif_call = (
+            "opam exec -- sh artifact/python-run.sh "
+            "artifact/formal_toolchain_contract.py verify-installed --tool proverif"
+        )
+        self.assertEqual(tamarin_identity.count(tamarin_call), 1)
+        self.assertEqual(proverif_identity.count(proverif_call), 1)
+        self.assertEqual(tamarin_job.count(workflow_make_environment), 2)
+        self.assertEqual(proverif_job.count(workflow_make_environment), 1)
+        self.assertEqual(
+            tamarin_lemma_names,
+            "      - name: Handshake and migration lemma names present (hard gate)\n"
+            "        run: MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' "
+            "make -C formal/tamarin check-lemma-names\n",
+        )
+        self.assertLess(
+            tamarin_job.index(tamarin_call),
+            tamarin_job.index(
+                "make -C formal/tamarin TAMARIN=tamarin-prover \\\n"
+                "              DERIVCHECK_TIMEOUT=60 prove"
+            ),
+        )
+        self.assertLess(
+            proverif_job.index(proverif_call),
+            proverif_job.index(
+                "make -C formal/proverif PROVERIF=proverif prove"
+            ),
+        )
+        for authority, ambient_override in (
+            (easycrypt_check, "EC=easycrypt make check"),
+            (easycrypt_check, "&& sh negative-controls.sh"),
+            (tamarin_job, "make -C formal/tamarin prove"),
+            (proverif_job, "make -C formal/proverif prove"),
+            (dockerfile, "EC=easycrypt make check"),
+            (dockerfile, "#              sh negative-controls.sh"),
+        ):
+            with self.subTest(ambient_override=ambient_override):
+                self.assertNotIn(ambient_override, authority)
+        self.assertNotIn('test "$(maude --version)"', tamarin_install)
+        self.assertNotIn("tamarin-prover --version", tamarin_install)
+        for step in (easycrypt_check, tamarin_identity, proverif_identity):
+            with self.subTest(step=step[:80]):
+                self.assertNotIn("continue-on-error", step)
+                self.assertNotIn("|| true", step)
+
     def test_ci_check_fetches_full_history_for_evidence_successors(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         validate_ci_check_checkout(extract_ci_check_job(workflow))
+
+    def test_checkout_git_init_configuration_is_exact_and_step_scoped(self) -> None:
+        workflows = (
+            CI_WORKFLOW,
+            CODEQL_WORKFLOW,
+            ABI2_PLATFORM_CANDIDATE_WORKFLOW,
+        )
+        for path in workflows:
+            source = path.read_text(encoding="utf-8")
+            checkout_steps = extract_action_steps(source, PINNED_CHECKOUT_ACTION)
+            self.assertTrue(checkout_steps, path.name)
+            for step in checkout_steps:
+                with self.subTest(workflow=path.name, checkout_step=step[:80]):
+                    self.assertEqual(step.count(EXPECTED_CHECKOUT_GIT_ENV), 1)
+                    self.assertEqual(step.count("        env:\n"), 1)
+            for setting in (
+                'GIT_CONFIG_COUNT: "1"',
+                "GIT_CONFIG_KEY_0: init.defaultBranch",
+                "GIT_CONFIG_VALUE_0: main",
+            ):
+                with self.subTest(workflow=path.name, setting=setting):
+                    self.assertEqual(source.count(setting), len(checkout_steps))
 
     def test_canonical_rust_toolchain_is_source_pinned_and_provisioned(self) -> None:
         document = tomllib.loads(RUST_TOOLCHAIN_FILE.read_text(encoding="utf-8"))
@@ -3110,24 +5787,25 @@ with _temporary_release_test_directories(parents):
         )
         self.assertFalse(os.path.lexists(ROOT / "rust-toolchain"))
 
-        workflows = (
-            (CI_WORKFLOW, 19, 2),
-            (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3, 1),
-        )
-        for path, expected_count, windows_count in workflows:
+        workflows = ((CI_WORKFLOW, 28), (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3))
+        self.assertEqual(WINDOWS_RELEASE_RUST_TOOLCHAIN, CANONICAL_RUST_TOOLCHAIN)
+        for path, expected_count in workflows:
             with self.subTest(workflow=path.name):
                 source = path.read_text(encoding="utf-8")
                 steps = extract_action_steps(source, PINNED_CANONICAL_RUST_ACTION)
-                self.assertEqual(len(steps), expected_count)
+                minimum = []
+                if path == CI_WORKFLOW:
+                    swift = extract_workflow_job(source, "continuity-installed-swift")
+                    minimum = [step for step in extract_action_steps(swift, PINNED_CANONICAL_RUST_ACTION)
+                               if "          toolchain: 1.90.0\n" in step]
+                    self.assertEqual(len(minimum), 1)
+                    self.assertIn("        if: matrix.consumer == 'swift'\n", minimum[0])
+                    self.assertEqual(minimum[0].count("          toolchain: 1.90.0\n"), 1)
+                    self.assertIn('--swift-minimum-toolchain-root "$(rustc +1.90.0 --print sysroot)"', swift)
+                self.assertEqual(len(steps), expected_count + len(minimum))
                 canonical = f"          toolchain: {CANONICAL_RUST_TOOLCHAIN}\n"
-                windows = f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n"
-                self.assertEqual(
-                    sum(step.count(canonical) for step in steps),
-                    expected_count - windows_count,
-                )
-                self.assertEqual(sum(step.count(windows) for step in steps), windows_count)
                 for step in steps:
-                    self.assertEqual(step.count(canonical) + step.count(windows), 1)
+                    self.assertEqual(step.count(canonical), 0 if step in minimum else 1)
                 self.assertNotIn("cargo +stable", source)
                 self.assertNotIn("toolchain: stable", source)
                 self.assertNotIn("RUSTUP_TOOLCHAIN", source)
@@ -3155,23 +5833,94 @@ with _temporary_release_test_directories(parents):
                         1,
                     )
 
+        install_jobs = (
+            (
+                CI_WORKFLOW,
+                {
+                    # Header generator and installed policy-store maintenance CLI.
+                    "check": (CANONICAL_RUST_TOOLCHAIN, CANONICAL_RUST_TOOLCHAIN),
+                    "rust-publish-contract": (CANONICAL_RUST_TOOLCHAIN,),
+                    "windows": (WINDOWS_RELEASE_RUST_TOOLCHAIN,),
+                    "abi2-windows-package-2022": (WINDOWS_RELEASE_RUST_TOOLCHAIN,),
+                    "abi2-linux-package": (CANONICAL_RUST_TOOLCHAIN,),
+                    "bindings-wasm": (CANONICAL_RUST_TOOLCHAIN,),
+                    "fuzz": ("nightly-2026-10-07",),
+                    # Header generation and the installed Rust-package audit.
+                    "bindings-swift": (CANONICAL_RUST_TOOLCHAIN, CANONICAL_RUST_TOOLCHAIN),
+                    "bindings-kotlin": (CANONICAL_RUST_TOOLCHAIN,),
+                    "bindings-android-aar": (CANONICAL_RUST_TOOLCHAIN,),
+                    "audit": (CANONICAL_RUST_TOOLCHAIN,),
+                    "hqc-draft-candidate": (CANONICAL_RUST_TOOLCHAIN,),
+                    # The unconditional audit job reuses its pinned tool for this lock.
+                    "continuity-identity-candidate": (),
+                },
+            ),
+            (
+                ABI2_PLATFORM_CANDIDATE_WORKFLOW,
+                {
+                    "linux": (CANONICAL_RUST_TOOLCHAIN,),
+                    "windows": (WINDOWS_RELEASE_RUST_TOOLCHAIN,),
+                    "android": (CANONICAL_RUST_TOOLCHAIN,),
+                },
+            ),
+        )
+        install_pattern = re.compile(r"\bcargo(?: \+(?P<selector>\S+))? install\b")
+        for path, expected_jobs in install_jobs:
+            source = path.read_text(encoding="utf-8")
+            all_installs = list(install_pattern.finditer(source))
+            self.assertEqual(len(all_installs), sum(map(len, expected_jobs.values())))
+            self.assertTrue(all(match.group("selector") for match in all_installs))
+            for job_name, expected_selectors in expected_jobs.items():
+                with self.subTest(workflow=path.name, install_job=job_name):
+                    job = extract_workflow_job(source, job_name)
+                    matches = list(install_pattern.finditer(job))
+                    self.assertEqual(
+                        tuple(match.group("selector") for match in matches), expected_selectors
+                    )
+
         ci = CI_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn(
             "cargo +${{ matrix.toolchain }} test --workspace --locked",
             extract_workflow_job(ci, "cross-compiler"),
         )
         self.assertIn(
-            "cargo +1.85 build --workspace --locked",
+            "cargo +1.90.0 build --workspace --locked",
             extract_workflow_job(ci, "msrv"),
         )
+        identity_job = extract_workflow_job(ci, "continuity-identity-candidate")
+        for selection in ("if: matrix.toolchain == '1.98.1'", "if: matrix.toolchain == '1.90.0'"):
+            self.assertIn(selection, identity_job)
+        self.assertEqual(identity_job.splitlines().count("          toolchain: 1.90.0"), 1)
+        self.assertIn("CANDIDATE_TOOLCHAIN: ${{ matrix.toolchain }}", identity_job)
+        for command in ("clippy", "test"):
+            self.assertIn(f'cargo +"$CANDIDATE_TOOLCHAIN" {command} --manifest-path', identity_job)
+        package_job = extract_workflow_job(ci, "rust-publish-contract")
+        continuity_package = extract_workflow_job(ci, "continuity-installed-rust")
+        self.assertEqual(continuity_package.count("          toolchain: 1.98.1\n"), 1)
+        self.assertIn("needs: rust-publish-contract", continuity_package)
+        self.assertIn("artifact/continuity_package.py", continuity_package)
+        self.assertIn('--toolchain-root "$(rustc +1.98.1 --print sysroot)"', continuity_package)
+        self.assertIn('report=target/continuity-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json', continuity_package)
+        self.assertNotIn("continue-on-error", continuity_package)
+        self.assertIn("artifact/rust_sdk_msrv.py", package_job)
+        self.assertIn('--toolchain-root "$(rustc +1.90.0 --print sysroot)"', package_job)
+        for job_name in ("msrv", "rust-publish-contract"):
+            selected = extract_workflow_job(ci, job_name)
+            self.assertEqual(selected.count("          toolchain: 1.90.0\n"), 1)
+            self.assertIn("dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88", selected)
+        self.assertIn('--report "$report" --report-sha256 "$report_sha256"', package_job)
+        self.assertIn("target/sdk-rust-msrv/consumer-Cargo.lock", package_job)
+        self.assertNotIn("continue-on-error:", package_job)
         fuzz = extract_workflow_job(ci, "fuzz")
-        self.assertIn("cargo +nightly fetch", fuzz)
-        self.assertIn("cargo +nightly fuzz build", fuzz)
+        self.assertIn("          toolchain: nightly-2026-10-07\n", fuzz)
+        self.assertIn("cargo +nightly-2026-10-07 fetch", fuzz)
+        self.assertIn("cargo +nightly-2026-10-07 fuzz build", fuzz)
 
     def test_pretag_windows_2022_package_gate_matches_candidate_substrate(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
         job = extract_workflow_job(workflow, "abi2-windows-package-2022")
         self.assertIn("    runs-on: windows-2022\n", job)
+        self.assertIn("    timeout-minutes: 90\n", job)
         self.assertIn("          fetch-depth: 0\n", job)
         self.assertIn(f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n", job)
         self.assertIn("          components: llvm-tools\n", job)
@@ -3200,16 +5949,20 @@ with _temporary_release_test_directories(parents):
             job, "Test Windows 2022 package trust boundary"
         )
         self.assertIn("test_windows_package", trust)
+        self.assertIn("test_windows_sdk_profile", trust)
         self.assertIn("./windows-toolchain-tests.ps1", trust)
+        self.assertIn("./windows-sdk-profile-tests.ps1", trust)
         build = extract_named_workflow_step(
             job, "Build, archive, extract, and consume the Windows 2022 SDK"
         )
         self.assertIn("QPERIAPT_EXPECTED_GIT_COMMIT: ${{ github.sha }}", build)
-        self.assertIn("run: artifact/windows-package.ps1", build)
+        self.assertIn("run: artifact/windows-package.ps1 -Profile sdk-020", build)
         verify = extract_named_workflow_step(
             job, "Reconsume only the Windows 2022 candidate archive"
         )
         self.assertIn("-Mode VerifyArchive", verify)
+        self.assertIn("-Profile sdk-020", verify)
+        self.assertIn("q-periapt-c-abi-v2-sdk-020.json", verify)
         self.assertIn("-ExpectedGitCommit $gitCommit", verify)
         self.assertIn("-ExpectedGitTree $gitTree", verify)
         self.assertNotIn("SilentlyContinue", verify)
@@ -3241,7 +5994,10 @@ with _temporary_release_test_directories(parents):
         candidate = ABI2_PLATFORM_CANDIDATE_WORKFLOW.read_text(encoding="utf-8")
         candidate_windows = extract_workflow_job(candidate, "windows")
         self.assertIn("    runs-on: windows-2022\n", candidate_windows)
-        self.assertIn(f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n", candidate_windows)
+        self.assertIn(
+            f"          toolchain: {WINDOWS_RELEASE_RUST_TOOLCHAIN}\n",
+            candidate_windows,
+        )
         self.assertIn("          components: llvm-tools\n", candidate_windows)
         self.assertIn(
             f"cargo +{WINDOWS_RELEASE_RUST_TOOLCHAIN} install cbindgen --version 0.29.4 --locked",
@@ -3280,7 +6036,7 @@ with _temporary_release_test_directories(parents):
             candidate_android, "Verify exact source and toolchain"
         )
         for token in (
-            "test \"$(rustc -vV | sed -n 's/^host: //p')\" = \"x86_64-unknown-linux-gnu\"",
+            'test "$(rustc -vV | sed -n \'s/^host: //p\')" = "x86_64-unknown-linux-gnu"',
             CANONICAL_RUSTC_VERSION,
             CANONICAL_CARGO_VERSION,
             "rustup target list --installed",
@@ -3290,7 +6046,8 @@ with _temporary_release_test_directories(parents):
         self.assertNotIn("rustc +", candidate_android_toolchain)
         self.assertNotIn("cargo +", candidate_android_toolchain)
         candidate_build = extract_named_workflow_step(
-            candidate_windows, "Build, archive, extract, and consume the Windows SDK"
+            candidate_windows,
+            "Build, archive, extract, and consume the unsupported Windows diagnostic SDK",
         )
         self.assertIn(
             "QPERIAPT_EXPECTED_GIT_COMMIT: ${{ needs.preflight.outputs.commit }}",
@@ -3298,7 +6055,8 @@ with _temporary_release_test_directories(parents):
         )
         self.assertIn("run: artifact/windows-package.ps1", candidate_build)
         candidate_verify = extract_named_workflow_step(
-            candidate_windows, "Reconsume only the Windows candidate archive"
+            candidate_windows,
+            "Reconsume only the unsupported Windows diagnostic archive",
         )
         self.assertNotIn("SilentlyContinue", candidate_verify)
         self.assertIn("-ErrorAction Stop", candidate_verify)
@@ -3307,15 +6065,43 @@ with _temporary_release_test_directories(parents):
         self.assertIn("-ExpectedGitTree $gitTree", candidate_verify)
         preflight = extract_workflow_job(candidate, "preflight")
         self.assertIn(
-            "actions/workflows/ci.yml/runs?head_sha=$commit&branch=main&event=push&status=success",
-            preflight,
+            "    tags:\n      - abi2-platforms-v0.1.5\n      - abi2-platforms-v0.1.5-r2\n      - abi2-platforms-v0.1.5-r3\n      - abi2-platforms-v0.1.5-r4\n",
+            candidate,
         )
-        self.assertIn('jq -e --arg commit "$commit"', preflight)
         self.assertIn(
-            "any(.workflow_runs[]; .head_sha == $commit and .conclusion == \"success\")",
+            "PLATFORM_RELEASE_PROFILE: ${{ github.ref == 'refs/tags/abi2-platforms-v0.1.5' && 'stable' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r2' && 'maintenance-r2' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r3' && 'maintenance-r3' || github.ref == 'refs/tags/abi2-platforms-v0.1.5-r4' && 'maintenance-r4' || 'invalid' }}",
+            candidate,
+        )
+        self.assertEqual(
+            candidate.count("platform_candidate_attestation.py"),
+            candidate.count(
+                'platform_candidate_attestation.py --profile "$PLATFORM_RELEASE_PROFILE"'
+            ),
+        )
+        self.assertIn(
+            "source_parent=$(/usr/bin/jq -er "
+            "'.provenance.snapshot_commit' artifact/results.json)",
             preflight,
         )
-        self.assertIn('<<<"$ci_runs"', preflight)
+        self.assertIn(
+            'checkout-verify-release "$commit" "$source_parent"',
+            preflight,
+        )
+        self.assertIn(
+            'platform_candidate_attestation.py --profile "$PLATFORM_RELEASE_PROFILE" \\\n            stable-source-currentness "$source_parent"',
+            preflight,
+        )
+        self.assertIn(
+            "release_publication_contract.validate_stable_source_currentness",
+            (ROOT / "artifact" / "platform_candidate_attestation.py").read_text(
+                encoding="utf-8"
+            ),
+        )
+        self.assertIn(
+            "printf 'source_parent=%s\\n' \"$source_parent\" >> \"$GITHUB_OUTPUT\"",
+            preflight,
+        )
+        self.assertNotIn("actions/workflows/ci.yml/runs?", preflight)
         for job_name in ("linux", "windows", "android"):
             with self.subTest(candidate_job=job_name):
                 self.assertIn(
@@ -3323,9 +6109,65 @@ with _temporary_release_test_directories(parents):
                     extract_workflow_job(candidate, job_name),
                 )
         self.assertIn(
-            "    needs: [preflight, linux, windows, android]\n",
-            extract_workflow_job(candidate, "attest"),
+            "    name: Windows compatibility diagnostic (not a stable release asset)\n",
+            candidate_windows,
         )
+        self.assertNotIn(PINNED_UPLOAD_ARTIFACT_ACTION, candidate_windows)
+        attest = extract_workflow_job(candidate, "attest")
+        self.assertIn("    needs: [preflight, linux, android]\n", attest)
+        self.assertNotIn("windows", attest)
+        self.assertIn("      actions: read\n", attest)
+        self.assertIn("      security-events: read\n", attest)
+        source_security_gate = extract_named_workflow_step(
+            attest, "Bind the exact-R CI and CodeQL security gates"
+        )
+        for token in (
+            'test -n "$GH_TOKEN" && test -z "${GITHUB_TOKEN:-}"',
+            'platform_candidate_attestation.py --profile "$PLATFORM_RELEASE_PROFILE" \\\n            security-gate-live',
+            "ABI2_SOURCE_SECURITY_GATE.json",
+        ):
+            self.assertIn(token, source_security_gate)
+        self.assertNotIn("/usr/bin/gh", source_security_gate)
+        candidate_attestation_source = (
+            ROOT / "artifact" / "platform_candidate_attestation.py"
+        ).read_text(encoding="utf-8")
+        for token in (
+            'WORKFLOW_GITHUB_CLI = pathlib.Path("/usr/bin/gh")',
+            'selected = max(candidates, key=lambda run: run["id"])',
+            "actions/workflows/ci.yml/runs?",
+            "actions/workflows/codeql.yml/runs?",
+            "/jobs?filter=all&per_page=100",
+            "/git/ref/heads/main",
+            "code-scanning/analyses?",
+            "tool_name=CodeQL",
+            "code-scanning/alerts?",
+            "_require_source_security_samples_stable",
+            "_workflow_github_cli_identity() == tool",
+            '"GH_CONFIG_DIR": str(directory)',
+        ):
+            self.assertIn(token, candidate_attestation_source)
+        self.assertIn(
+            "candidate/ABI2_SOURCE_SECURITY_GATE.json",
+            extract_named_workflow_step(
+                attest, "Generate GitHub build provenance attestations"
+            ),
+        )
+
+        constant_time = extract_workflow_job(workflow, "constant-time")
+        for token in (
+            "    name: Binary CT [${{ matrix.gate_identity }}]\n",
+            "gate_identity: x86_64-portable",
+            "rust_host: x86_64-unknown-linux-gnu",
+            "uname_machine: x86_64",
+            "gate_identity: aarch64-native",
+            "rust_host: aarch64-unknown-linux-gnu",
+            "uname_machine: aarch64",
+            "Verify the fixed CT architecture identity",
+            "EXPECTED_GATE_IDENTITY: ${{ matrix.gate_identity }}",
+            "x86_64-portable:x86_64-unknown-linux-gnu:x86_64",
+            "aarch64-native:aarch64-unknown-linux-gnu:aarch64",
+        ):
+            self.assertIn(token, constant_time)
 
     def test_ci_checkout_mutations_fail_closed(self) -> None:
         check_job = extract_ci_check_job(CI_WORKFLOW.read_text(encoding="utf-8"))
@@ -3357,8 +6199,7 @@ with _temporary_release_test_directories(parents):
             ),
             "non-blocking provenance check": check_job.replace(
                 EXPECTED_CHECKOUT_PROVENANCE_STEP,
-                EXPECTED_CHECKOUT_PROVENANCE_STEP
-                + "        continue-on-error: true\n",
+                EXPECTED_CHECKOUT_PROVENANCE_STEP + "        continue-on-error: true\n",
                 1,
             ),
             "post-check provenance mutation": check_job.replace(
@@ -3368,18 +6209,18 @@ with _temporary_release_test_directories(parents):
                 1,
             ),
             "non-blocking proof": check_job.replace(
-                EXPECTED_PROOF_TO_BYTE_STEP,
-                EXPECTED_PROOF_TO_BYTE_STEP + "        continue-on-error: true\n",
+                EXPECTED_SDK_SOURCE_STEP,
+                EXPECTED_SDK_SOURCE_STEP + "        continue-on-error: true\n",
                 1,
             ),
             "conditional proof": check_job.replace(
-                EXPECTED_PROOF_TO_BYTE_STEP,
-                EXPECTED_PROOF_TO_BYTE_STEP + "        if: failure()\n",
+                EXPECTED_SDK_SOURCE_STEP,
+                EXPECTED_SDK_SOURCE_STEP + "        if: failure()\n",
                 1,
             ),
             "PR head instead of tested merge commit": check_job.replace(
-                EXPECTED_PROOF_TO_BYTE_STEP,
-                EXPECTED_PROOF_TO_BYTE_STEP.replace(
+                EXPECTED_SDK_SOURCE_STEP,
+                EXPECTED_SDK_SOURCE_STEP.replace(
                     "${{ github.sha }}",
                     "${{ github.event.pull_request.head.sha }}",
                 ),
@@ -3389,7 +6230,7 @@ with _temporary_release_test_directories(parents):
             "hyphen alias": check_job + "      - uses: *-foo\n",
             "merge alias": check_job + "        <<: *checkout-settings\n",
             "second checkout": check_job
-            + "      - uses: Actions/Checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\n",
+            + "      - uses: Actions/Checkout@3d3c42e5aac5ba805825da76410c181273ba90b1\n",
         }
         for label, mutation in mutations.items():
             with self.subTest(label=label):
@@ -3444,20 +6285,14 @@ with _temporary_release_test_directories(parents):
                     TEST_MANIFEST_SHA256,
                     expected_commit=expected_commit,
                 )
-                output.assert_called_once_with(
-                    f"{TEST_COMMIT}:{TEST_SOURCE_SHA256}:0"
-                )
+                output.assert_called_once_with(f"{TEST_COMMIT}:{TEST_SOURCE_SHA256}:0")
 
     def test_proof_to_byte_validates_explicit_expected_commit(self) -> None:
         source = PROOF_SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("GITHUB_SHA", source)
 
         def run_with_expected_commit(value: str) -> subprocess.CompletedProcess[str]:
-            environment = {
-                name: current
-                for name, current in os.environ.items()
-                if not name.startswith("QPERIAPT_")
-            }
+            environment = _release_test_environment()
             environment.update(
                 {
                     "QPERIAPT_SKIP_SMOKE": "1",
@@ -3530,11 +6365,7 @@ with _temporary_release_test_directories(parents):
             )
             alternate_head = git_commit(alternate)
             self.assertNotEqual(alternate_head, repository_head())
-            environment = {
-                name: value
-                for name, value in os.environ.items()
-                if not name.startswith("QPERIAPT_")
-            }
+            environment = _release_test_environment()
             environment.update(
                 {
                     "QPERIAPT_SKIP_SMOKE": "1",
@@ -3559,28 +6390,55 @@ with _temporary_release_test_directories(parents):
             self.assertIn(f"expected {alternate_head}", spoofed.stderr)
             self.assertEqual(spoofed.stdout, "")
 
+    def test_ci_package_paths_match_explicit_alpha_profiles(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        wrong_version_probe = (
+            'if verify_archive "$archive_sha256" "$EXPECTED_TARGET" '
+            '"0.1.0-alpha.2" "$manifest_sha256" "$contract_sha256"; '
+            "then exit 1; fi"
+        )
+        self.assertEqual(workflow.count(wrong_version_probe), 1)
+        self.assertNotIn("q-periapt-c-abi2-0.1.0-alpha.2", workflow)
+        self.assertNotIn("q-periapt-android-0.1.0-alpha.2", workflow)
+        for expected in (
+            "q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip",
+            "q-periapt-c-abi2-0.2.0-$EXPECTED_TARGET",
+            "q-periapt-c-abi2-0.2.0-${{ matrix.target }}.tar.gz",
+            "q-periapt-android-0.2.0.aar",
+            "q-periapt-android-0.2.0/MANIFEST.json",
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, workflow)
+        self.assertIn("sh artifact/c-package.sh --profile sdk-020", extract_workflow_job(workflow, "abi2-linux-package"))
+        self.assertIn("sh artifact/android-aar.sh --profile sdk-020", extract_workflow_job(workflow, "bindings-android-aar"))
+        for name in ("windows", "abi2-windows-package-2022"):
+            job = extract_workflow_job(workflow, name)
+            self.assertIn("artifact/windows-package.ps1 -Profile sdk-020", job)
+            self.assertIn("artifact/windows-package.ps1 -Profile sdk-020 -Mode VerifyArchive", job)
+            self.assertIn("q-periapt-c-abi-v2-sdk-020.json", job)
+            self.assertIn("target/qperiapt-windows-sdk-020", job)
+            self.assertNotIn("q-periapt-c-abi2-0.1.5", job)
+
     def test_release_package_jobs_pin_and_bind_hardened_python(self) -> None:
         setup_action = (
-            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 "
-            "# v6.3.0"
+            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0"
         )
         binding = (
-            "          QPERIAPT_PYTHON: "
-            "${{ steps.proof_python.outputs.python-path }}\n"
+            "          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}\n"
         )
         provisioning = (
             "      - name: Provision hardened proof Python\n"
             "        id: proof_python\n"
             f"        uses: {setup_action}\n"
             "        with:\n"
-            '          python-version: "3.13.14"\n'
+            '          python-version: "3.14.7"\n'
             "          check-latest: false\n"
             "          update-environment: false\n"
         )
         exact_version_check = (
             '          "$QPERIAPT_PYTHON" -I -S -c \'import sys; '
-            "raise SystemExit(0 if sys.implementation.name == \"cpython\" and "
-            "sys.version_info[:3] == (3, 13, 14) else 2)\'\n"
+            'raise SystemExit(0 if sys.implementation.name == "cpython" and '
+            "sys.version_info[:3] == (3, 14, 7) else 2)'\n"
         )
         cases = (
             (
@@ -3602,6 +6460,7 @@ with _temporary_release_test_directories(parents):
                 ABI2_PLATFORM_CANDIDATE_WORKFLOW,
                 "linux",
                 (
+                    "Verify exact source and native host",
                     "Build and consume the native Linux package",
                     "Reconsume only the candidate archive",
                 ),
@@ -3610,7 +6469,10 @@ with _temporary_release_test_directories(parents):
             (
                 ABI2_PLATFORM_CANDIDATE_WORKFLOW,
                 "android",
-                ("Build and verify the four-ABI 16 KiB-compatible AAR",),
+                (
+                    "Verify exact source and toolchain",
+                    "Build and verify the four-ABI 16 KiB-compatible AAR",
+                ),
                 False,
             ),
         )
@@ -3635,9 +6497,7 @@ with _temporary_release_test_directories(parents):
                 self.assertNotIn("continue-on-error:", verification_step)
                 self.assertNotRegex(verification_step, r"(?m)^        if:")
                 self.assertEqual(verification_step.count(binding), 1)
-                self.assertIn(
-                    'case "$QPERIAPT_PYTHON" in /*) ;; *)', verification_step
-                )
+                self.assertIn('case "$QPERIAPT_PYTHON" in /*) ;; *)', verification_step)
                 self.assertIn(exact_version_check, verification_step)
 
                 setup_position = job.index(provisioning)
@@ -3682,16 +6542,24 @@ with _temporary_release_test_directories(parents):
         repository_script = re.compile(r"artifact/[A-Za-z0-9_.-]+\.py(?:\s|$)")
         runner_calls = 0
         for workflow in workflows:
+            source = workflow.read_text(encoding="utf-8")
+            path_filters = workflow_path_filter_lines(source)
+            archive_arguments = workflow_archive_argument_lines(source)
+            sparse_checkout = workflow_sparse_checkout_lines(source)
+            literal_inputs = workflow_literal_input_lines(source)
             for number, line in enumerate(
-                workflow.read_text(encoding="utf-8").splitlines(), start=1
+                source.splitlines(), start=1
             ):
                 if not line.strip() or line.lstrip().startswith("#"):
                     continue
-                self.assertIsNone(
-                    direct_python.search(line),
-                    f"{workflow.relative_to(ROOT)}:{number} invokes Python directly",
-                )
-                if repository_script.search(line):
+                if number not in literal_inputs:
+                    self.assertIsNone(
+                        direct_python.search(line),
+                        f"{workflow.relative_to(ROOT)}:{number} invokes Python directly",
+                    )
+                if (repository_script.search(line) and number not in path_filters
+                        and number not in archive_arguments and number not in sparse_checkout
+                        and number not in literal_inputs):
                     self.assertIn(
                         "sh artifact/python-run.sh",
                         line,
@@ -3699,6 +6567,141 @@ with _temporary_release_test_directories(parents):
                     )
                 runner_calls += line.count("sh artifact/python-run.sh")
         self.assertGreaterEqual(runner_calls, 2)
+
+    def test_python_runner_guard_distinguishes_trigger_paths_and_execution(self) -> None:
+        source = """on:
+  push:
+    paths:
+      - artifact/control.py
+jobs:
+  check:
+    steps:
+      - run: sh artifact/python-run.sh artifact/control.py
+      - run: sh artifact/python-run.sh artifact/other.py
+"""
+        self.assertEqual(workflow_path_filter_lines(source), {4})
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            path = workflows / "control.yml"
+            with mock.patch(__name__ + ".ROOT", root):
+                path.write_text(source, encoding="utf-8")
+                self.test_ci_repository_python_calls_use_one_shot_runner()
+                for replacement, message in (
+                    ("artifact/control.py", "bypasses the one-shot runner"),
+                    ("python3 artifact/control.py", "invokes Python directly"),
+                ):
+                    with self.subTest(replacement=replacement):
+                        path.write_text(source.replace(
+                            "run: sh artifact/python-run.sh artifact/control.py",
+                            "run: " + replacement), encoding="utf-8")
+                        with self.assertRaisesRegex(AssertionError, message):
+                            self.test_ci_repository_python_calls_use_one_shot_runner()
+                path.write_text(source.replace("jobs:\n", "env:\n  SCRIPT: artifact/control.py\njobs:\n"), encoding="utf-8")
+                with self.assertRaisesRegex(AssertionError, "bypasses the one-shot runner"):
+                    self.test_ci_repository_python_calls_use_one_shot_runner()
+
+    def test_python_runner_guard_distinguishes_archive_members_and_execution(self) -> None:
+        source = ('jobs:\n  check:\n    steps:\n'
+                  '      - run: sh artifact/python-run.sh artifact/control.py\n'
+                  '      - run: sh artifact/python-run.sh artifact/other.py\n'
+                  '      - run: |\n'
+                  '          git archive --format=tar HEAD \\\n'
+                  '            research/model artifact/control.py \\\n'
+                  '            artifact/other.py \\\n'
+                  '            > "$out/source-inputs.tar"\n')
+        self.assertEqual(workflow_archive_argument_lines(source), {8, 9})
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            workflows = root / '.github/workflows'
+            workflows.mkdir(parents=True)
+            path = workflows / 'control.yml'
+            with mock.patch(__name__ + '.ROOT', root):
+                path.write_text(source)
+                self.test_ci_repository_python_calls_use_one_shot_runner()
+                for before, after in (
+                    ('research/model artifact/control.py', 'sh artifact/control.py'),
+                    ('research/model artifact/control.py', 'research/model; artifact/control.py'),
+                    ('HEAD \\\n', 'HEAD\n'),
+                    ('artifact/control.py \\\n', 'artifact/control.py\n'),
+                    ('> "$out/source-inputs.tar"', '> "$(artifact/control.py )/inputs.tar"'),
+                ):
+                    with self.subTest(after=after):
+                        path.write_text(source.replace(before, after))
+                        with self.assertRaisesRegex(AssertionError, 'bypasses the one-shot runner'):
+                            self.test_ci_repository_python_calls_use_one_shot_runner()
+
+    def test_python_runner_guard_distinguishes_sparse_checkout_data_and_execution(self) -> None:
+        source = ('jobs:\n  check:\n    steps:\n'
+                  '      - uses: actions/checkout@' + 'a' * 40 + '\n'
+                  '        with:\n          sparse-checkout: |\n'
+                  '            artifact/control.py\n            artifact/other.py\n'
+                  '      - run: sh artifact/python-run.sh artifact/control.py\n'
+                  '      - run: sh artifact/python-run.sh artifact/other.py\n')
+        self.assertEqual(workflow_sparse_checkout_lines(source), {7, 8})
+        named = source.replace('      - uses:', '      - name: Read selected sources\n        uses:')
+        self.assertEqual(workflow_sparse_checkout_lines(named), {8, 9})
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            workflows = root / '.github/workflows'
+            workflows.mkdir(parents=True)
+            path = workflows / 'control.yml'
+            with mock.patch(__name__ + '.ROOT', root):
+                for admitted in (source, named):
+                    path.write_text(admitted)
+                    self.test_ci_repository_python_calls_use_one_shot_runner()
+                for before, after in (
+                    ('actions/checkout@', 'unreviewed/checkout@'),
+                    ('        with:', '        env:'),
+                    ('          sparse-checkout: |', '          run: |'),
+                    ('            artifact/control.py', '            artifact/control.py; artifact/other.py'),
+                    ('run: sh artifact/python-run.sh artifact/control.py', 'run: artifact/control.py'),
+                ):
+                    with self.subTest(after=after):
+                        path.write_text(source.replace(before, after))
+                        with self.assertRaisesRegex(AssertionError, 'bypasses the one-shot runner'):
+                            self.test_ci_repository_python_calls_use_one_shot_runner()
+                disguised = ('jobs:\n  check:\n    steps:\n      - run: |\n'
+                             '          - uses: actions/checkout@' + 'a' * 40 + '\n'
+                             '            with:\n              sparse-checkout: |\n'
+                             '                artifact/control.py\n')
+                self.assertEqual(workflow_sparse_checkout_lines(disguised), set())
+
+    def test_python_runner_guard_distinguishes_checksum_inputs_and_interpreter_search(self) -> None:
+        source = ('jobs:\n  check:\n    steps:\n'
+                  '      - run: sh artifact/python-run.sh artifact/control.py\n'
+                  '      - run: sh artifact/python-run.sh artifact/other.py\n'
+                  '      - run: |\n'
+                  '          sha256sum .github/workflows/control.yml \\\n'
+                  '            artifact/control.py \\\n'
+                  '            artifact/other.py artifact/python_bootstrap.py \\\n'
+                  '            > "$output/source-files.sha256"\n'
+                  '          for candidate in "$RUNNER_TOOL_CACHE"/Python/3.11.*/x64/bin/python3; do\n'
+                  '            test -x "$candidate"\n          done\n')
+        self.assertEqual(workflow_literal_input_lines(source), {7, 8, 9, 11})
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            workflows = root / '.github/workflows'
+            workflows.mkdir(parents=True)
+            path = workflows / 'control.yml'
+            with mock.patch(__name__ + '.ROOT', root):
+                path.write_text(source)
+                self.test_ci_repository_python_calls_use_one_shot_runner()
+                for before, after in (
+                    ('sha256sum .github/workflows/control.yml', 'sh .github/workflows/control.yml'),
+                    ('artifact/control.py \\', 'artifact/control.py; artifact/other.py \\'),
+                    ('artifact/control.py \\', 'artifact/control.py'),
+                    ('> "$output/source-files.sha256"', '> "$(artifact/control.py )/source-files.sha256"'),
+                ):
+                    with self.subTest(after=after):
+                        path.write_text(source.replace(before, after))
+                        with self.assertRaisesRegex(AssertionError, 'bypasses the one-shot runner'):
+                            self.test_ci_repository_python_calls_use_one_shot_runner()
+                for executable in ('python3', '/usr/bin/python3', '"$RUNNER_TOOL_CACHE"/Python/3.11.9/x64/bin/python3'):
+                    path.write_text(source + '          ' + executable + ' artifact/control.py\n')
+                    with self.subTest(executable=executable), self.assertRaisesRegex(AssertionError, 'invokes Python directly'):
+                        self.test_ci_repository_python_calls_use_one_shot_runner()
 
 
 class CameraReadyEvidenceGateTests(unittest.TestCase):
@@ -3744,11 +6747,17 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
         self.assertIn("--inh-caps=-all", source)
         self.assertIn("cgroup.kill", source)
         self.assertIn("QPERIAPT_FROZEN_LAUNCHER=1", source)
-        self.assertIn("dedicated runner account must have a nologin/false shell", source)
+        self.assertIn(
+            "dedicated runner account must have a nologin/false shell", source
+        )
         self.assertIn("source snapshot is not root-owned read-only", source)
         self.assertIn("cargo must be root-owned and not group/world writable", source)
-        self.assertIn("/sys/devices/system/cpu/cpufreq/policy*/scaling_governor", source)
-        self.assertNotIn("/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", source)
+        self.assertIn(
+            "/sys/devices/system/cpu/cpufreq/policy*/scaling_governor", source
+        )
+        self.assertNotIn(
+            "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", source
+        )
         self.assertIn("NETEM_HANDLE=51ab:", source)
         self.assertIn('qdisc del dev lo root handle "$NETEM_HANDLE"', source)
         self.assertIn("refusing to delete non-identical state", source)
@@ -3768,12 +6777,16 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
         early_trap = source.index("trap early_exit EXIT")
         work = source.index('WORK=$("$MKTEMP" -d "$WORK_ROOT/qperiapt-camera-ready.')
         runner = source.index("run_as_runner()")
-        first_runner_call = source.index("FROZEN_SOURCE_TREE_SHA256=$(canonical_source_digest)")
+        first_runner_call = source.index(
+            "FROZEN_SOURCE_TREE_SHA256=$(canonical_source_digest)"
+        )
         self.assertLess(launcher, early_trap)
         self.assertLess(early_trap, work)
         self.assertLess(work, runner)
         self.assertLess(runner, first_runner_call)
-        self.assertIn("executed root-owned launcher does not match the clean Git archive", source)
+        self.assertIn(
+            "executed root-owned launcher does not match the clean Git archive", source
+        )
 
     def test_runner_descendants_and_measurement_binaries_are_frozen(self) -> None:
         source = CAMERA_READY_SCRIPT.read_text(encoding="utf-8")
@@ -3786,15 +6799,15 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
             'freeze_runner_binary "$BUILT_CT_ROOT/ct_leaky_control" '
             '"$LEAKY_CONTROL_BIN"'
         )
-        ct_run = source.index(
-            'run_memcheck "$LEAKY_CONTROL_BIN" planted leaky-control'
-        )
+        ct_run = source.index('run_memcheck "$LEAKY_CONTROL_BIN" planted leaky-control')
         self.assertLess(netem_copy, netem_run)
         self.assertLess(ct_copy, ct_run)
         self.assertIn('HOME="$VALIDATION_HOME"', source)
         self.assertIn('"$CHMOD" 0550 "$binary_target"', source)
 
-    def test_runner_sandbox_is_bounded_locked_and_cleaned_before_work_removal(self) -> None:
+    def test_runner_sandbox_is_bounded_locked_and_cleaned_before_work_removal(
+        self,
+    ) -> None:
         source = CAMERA_READY_SCRIPT.read_text(encoding="utf-8")
         sandbox = CAMERA_SANDBOX_SCRIPT.read_text(encoding="utf-8")
         lock = source.index('"$FLOCK" -n 9')
@@ -3816,7 +6829,7 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
         self.assertIn("QPERIAPT_CAMERA_READY_BUNDLE", source)
         self.assertIn("must explicitly name the root-owned run-id bundle", source)
         self.assertNotIn(
-            'QPERIAPT_CAMERA_READY_BUNDLE:-$ROOT/target/camera-ready/bundle', source
+            "QPERIAPT_CAMERA_READY_BUNDLE:-$ROOT/target/camera-ready/bundle", source
         )
         self.assertIn("camera_ready_proof.py verify", source)
         self.assertIn("--bundle", source)
@@ -3827,7 +6840,9 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
 
     def test_primary_transcript_freezes_source_toolchain_and_binaries(self) -> None:
         source = CAMERA_READY_SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("camera-ready primary evidence requires a clean source tree", source)
+        self.assertIn(
+            "camera-ready primary evidence requires a clean source tree", source
+        )
         self.assertIn("build --frozen --release", source)
         self.assertIn('CARGO_TARGET_DIR="$RUNNER_ROOT/target-$build_lane"', source)
         self.assertIn("validate-cargo-seed", source)
@@ -3844,20 +6859,24 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
         self.assertIn("mlkem-ct-binary-sha256", source)
         self.assertIn("leaky-control-ct-binary-sha256", source)
         self.assertNotIn("hqc-ct-binary-sha256", source)
-        proof_source = PROOF_SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("camera_ready_sandbox_script_sha256", proof_source)
+        self.assertEqual(
+            proof_to_byte_inputs.PROOF_TO_BYTE_INPUT_PATHS.get(
+                "camera_ready_sandbox_script_sha256"
+            ),
+            "artifact/camera-ready-sandbox.sh",
+        )
 
     def test_camera_harness_and_verifier_tool_sets_match(self) -> None:
         source = CAMERA_READY_SCRIPT.read_text(encoding="utf-8")
         recorded = set(re.findall(r'"([a-z0-9-]+)\|\$[A-Z0-9_]+"', source))
         self.assertEqual(recorded, EXPECTED_TOOLS)
 
-    def test_success_marker_follows_complete_matrix_and_discriminator_assertions(self) -> None:
+    def test_success_marker_follows_complete_matrix_and_discriminator_assertions(
+        self,
+    ) -> None:
         source = CAMERA_READY_SCRIPT.read_text(encoding="utf-8")
         marker = source.index("CAMERA_READY_BARE_METAL_PASS")
-        matrix_gate = source.index(
-            '[ "$NETEM_RUNS" -eq "$EXPECTED_NETEM_RUNS" ]'
-        )
+        matrix_gate = source.index('[ "$NETEM_RUNS" -eq "$EXPECTED_NETEM_RUNS" ]')
         mlkem_gate = source.index('[ "$MLKEM_PROBE_ERRORS" -eq 0 ]')
         leaky_control_gate = source.index('[ "$LEAKY_CONTROL_ERRORS" -gt 0 ]')
         cleanup_gate = source.rindex("if ! restore; then")
@@ -3865,8 +6884,7 @@ class CameraReadyEvidenceGateTests(unittest.TestCase):
             '[ "$FINAL_SOURCE_TREE_SHA256" = "$FROZEN_SOURCE_TREE_SHA256" ]'
         )
         binary_recheck = source.index(
-            '[ "$(sha256_file "$LEAKY_CONTROL_BIN")" = '
-            '"$LEAKY_CONTROL_BIN_SHA256" ]'
+            '[ "$(sha256_file "$LEAKY_CONTROL_BIN")" = "$LEAKY_CONTROL_BIN_SHA256" ]'
         )
         self.assertLess(matrix_gate, marker)
         self.assertLess(mlkem_gate, marker)

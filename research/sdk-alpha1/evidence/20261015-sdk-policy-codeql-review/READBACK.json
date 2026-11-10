@@ -1,0 +1,12 @@
+{
+  "capture_sha256": "6c329672587800f89da62a7178d4b57718c5547c24b6054e18ad7ea24fca9abf",
+  "completed": true,
+  "members": 70,
+  "raw_results": 878,
+  "remote_alerts_changed": false,
+  "reported_flow_locations": 292,
+  "reported_flow_threads": 8,
+  "selected_results": 2,
+  "source_pairs": 19,
+  "tests": 5
+}

@@ -1,0 +1,5 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/continuity-codeql-9c65-terminal-20261016/cli-scanner-build-349/cargo-target/aarch64-apple-darwin/debug/deps/q_periapt_cli-8004e9d8cfa8b2bf)
+     Running unittests src/main.rs (target/continuity-codeql-9c65-terminal-20261016/cli-scanner-build-349/cargo-target/aarch64-apple-darwin/debug/deps/qperiapt-01806eeaa899a7dc)
+     Running tests/cbom_inventory.rs (target/continuity-codeql-9c65-terminal-20261016/cli-scanner-build-349/cargo-target/aarch64-apple-darwin/debug/deps/cbom_inventory-d26cff40d741fd3a)
+   Doc-tests q_periapt_cli

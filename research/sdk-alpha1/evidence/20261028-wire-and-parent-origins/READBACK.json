@@ -1,0 +1,16 @@
+{
+  "archive_bytes": 467674,
+  "archive_sha256": "60ec078cf090c36e96c54d73761768ab03f04f59c91025a82ed1cccf320cf188",
+  "members": 226,
+  "expanded_bytes": 5494995,
+  "manifest_sha256": "7330cad0e4a2e17d4dce15bb8360e101e4ca02e3cf0ab3461d766d34b149f3d4",
+  "entry_sha256": "121d2751b4fc076aa5b84138d7c20afc0b7867cab98c34dad37c0e2315a1948e",
+  "all_members_read_back_byte_equal": true,
+  "all29_queries_and_operational_prefix_unchanged": true,
+  "full_snapshot_subtree_restored": true,
+  "closed_sources": 16,
+  "remaining_sources": 2,
+  "open_leaves": 37,
+  "independent_replay_seconds": 316.2055075829994,
+  "release_claim_eligible": false
+}

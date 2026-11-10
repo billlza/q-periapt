@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "base_paper_commit": "9a9bb4bf3d5adea9a70e487e30cbe888fbb18f7a",
+  "base_paper_tree": "828df85c299e21c0f57c8222d153f17c5a48729b",
+  "previous_pdf_sha256": "869cafaa87a54e6d8b29d1ce60bab2377cb292ff8b3e3d562bf4cb9948cf1fc0",
+  "current_pdf_sha256": "e46c5f2d6beec71641a946b4cd404228817919cbd8cf2ef4132c8f5dbdcc0a18",
+  "changed_modular_tex_files": [
+    "acquisition-nonadditivity.tex",
+    "report-composition.tex"
+  ],
+  "unchanged_modular_tex_files": {
+    "artifact-map.tex": "064276150353cea640d9034f00bfdd333d60020be99c24934345d4081e763e4d",
+    "candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+    "common-virtual-accounting.tex": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
+    "computational-roadmap.tex": "0fb0fcf8c4a18a16147f972bf3111ba1f89586c128989d79f4c698589ebc069a",
+    "confirmation-traffic.tex": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+    "construction.tex": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+    "contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+    "declarations.tex": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
+    "discussion.tex": "da44f4ae60ae57bbe35a9902b356897d91f85f9171b5c031578d9b7e95b01680",
+    "established-results.tex": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
+    "evaluation.tex": "f9b1735b4ea73460744eb12a7dd2848e5a3d57ec5289d6195911574bd6a14d68",
+    "guarded-provenance.tex": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+    "introduction.tex": "1c8a7d82a94e9394932d5d989f041d899a72b461ebdf83f379831314add2b211",
+    "joint-continuation.tex": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+    "joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+    "live-core-instantiation.tex": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+    "main.tex": "52e395482e12f522aa198b1b833a7e4d3ad958eaf71a7997612002a343d7445a",
+    "matched-opportunities.tex": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
+    "matched-opportunity-tables.tex": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
+    "multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+    "native-authentication.tex": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+    "native-correspondence.tex": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+    "opaque-rendering.tex": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+    "primitive-inputs.tex": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+    "reference-schedule-table.tex": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
+    "related-work.tex": "893342efdeac3b9d741e0295cfbe96545d621c154784b5006e3b66dc39e8f650",
+    "reservation-signature-bridge.tex": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+    "sdk-purpose-connection.tex": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+    "security-model.tex": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+    "source-attribution.tex": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e"
+  },
+  "formal_invariance": [
+    {
+      "path": "acquisition-nonadditivity.tex",
+      "before_sha256": "50cd83948e5e03329eacfbc380af9f7a99b63abab3cc6e3e75f0edf7f3dcd297",
+      "after_sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+      "unchanged_blocks": {
+        "statement_and_proof": {
+          "count": 2,
+          "block_sha256": [
+            "892ce7313df9b612bfb32ca70dbb4e4dd903b392d3717ce5aaf39f4611c0170a",
+            "f95d34485190ca6f6e036957783b39c9e0bc2162fbec55bed416ae52ee5caee9"
+          ]
+        },
+        "numbered_math": {
+          "count": 0,
+          "block_sha256": []
+        },
+        "display_math": {
+          "count": 5,
+          "block_sha256": [
+            "5d300f6bee727d86269a1a9ab6f9a359e789094da04e6ca39afae362a6739768",
+            "356bd48c4a28772feb7cb894d9d49bf7e250617a10d4ca625c40f05e1bca8cdf",
+            "cf63904038728c242217cbb1f208f6c08d396e10ef8f825aecc006847c44e81c",
+            "822f541db4f5d503baebe53350c69bb75d142f151ea256cb925d25b8ac72f6a9",
+            "84720d992e81962fb2bca907b1e58a8b8c146d252687a56b0d9f6acdf04815da"
+          ]
+        }
+      }
+    },
+    {
+      "path": "report-composition.tex",
+      "before_sha256": "b5c46a2c69bcb7d9dee8d460cdc55bf8ec8b691d612e8d33ccef1679408b45d3",
+      "after_sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+      "unchanged_blocks": {
+        "statement_and_proof": {
+          "count": 4,
+          "block_sha256": [
+            "a28e237cdee6f8b3859b6655f2ba925e5338c2abcf216fcbded3b4b68030f072",
+            "3a485f56c60172ce70cc4f8f864bfde8e4c722819d6c85670800229ebac8603e",
+            "fb9c8264e2fc2a0c83d7305583708656415f97322c674e030bf8cb7ce06dbb54",
+            "e8646404bc8bc784f8ca4be5e9f67ffab1d3ad81e936b56ee56f4241a948d4fe"
+          ]
+        },
+        "numbered_math": {
+          "count": 1,
+          "block_sha256": [
+            "386555c7e15bdc95a12a30d20ec55ddc39b185937392dca290206d5819eb0228"
+          ]
+        },
+        "display_math": {
+          "count": 7,
+          "block_sha256": [
+            "f2ab33903a915340e525b2d4f57b78f33cbea9782c4891b393050d06a6cebe46",
+            "80dc447a27d313c6f1cb9b74111e2f57910c7698c66e3e9a4ab62dd517182c27",
+            "f8e313afc4319851363756e519d742eeff24d55a915dc0caf0e3d48a49fcac19",
+            "918db846273b1e92b5e841cf040de0040bc8fc5f9774ff33af1719b964268f55",
+            "9d650806f8444eee55e6c3e53469e08d400c4cd345912c38ddd9f0f71c939d59",
+            "ca2a379e2827533a667b50b937e1236fe7f2bb93a7d15ad19e859a5c811e92e3",
+            "12b2118924621c78a6c3cb79bad8510f0d688f0c21a94b83b1a3a5c8d233d378"
+          ]
+        }
+      }
+    }
+  ],
+  "retained_artifact_files_byte_unchanged": 312,
+  "matched_review_bindings_current": 12,
+  "author_metadata_byte_unchanged": true,
+  "abstract_introduction_evaluation_matched_tables_discussion_byte_unchanged": true,
+  "previous_delivery_record": "artifacts/prior-integration/matched-comparison.json",
+  "review": "independent-review.json"
+}

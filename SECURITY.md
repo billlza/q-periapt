@@ -1,20 +1,46 @@
 # Security Policy
 
+## Development SDK candidates
+
+The `0.2.0` owned-key SDK in this development tree is a release candidate
+under qualification. ABI major 2 compatibility does not make
+an SDK wrapper compatible with the released nine-export library: the new
+SDK wrappers require the matching 51-export SDK profile and package version.
+
+Use the [integration guide](docs/SDK_GETTING_STARTED.md) for package selection
+and the [readiness ledger](docs/SDK_0_2_RELEASE_READINESS.md) for the source-bound
+validation scope. A successful build, local installation or declared minimum OS
+does not establish support on another target or qualify a production release.
+Current-source platform/device execution, hosted quality checks, security review
+and the final release transaction remain required. Preview candidates do not
+inherit the stable publication receipts or support status below. Report preview
+vulnerabilities through the same private reporting channel described here.
+
 ## Supported releases
 
-Q-Periapt is currently an alpha prerelease. Security fixes are provided for the
-latest ABI 2 publication set while it remains current:
+Q-Periapt 0.1.5 is the stable SemVer source line, succeeding the fully published
+0.1.4 release. Security fixes are provided for
+the latest ABI 2 publication set only while its verified receipt selects it as
+current:
 
 | Publication | Scope | Supported |
 | --- | --- | --- |
-| `v0.1.0-alpha.2-r1` | Apple XCFramework | Yes |
-| `abi2-platforms-v0.1.0-alpha.2-r2` | Android, GNU/Linux, unsigned experimental Windows | Yes |
-| `v0.1.0-alpha.2` and older publications | Superseded artifacts | No |
+| `0.1.5` source line | Rust source/crates and ABI 2 contract | Yes |
+| `v0.1.5`, `abi2-platforms-v0.1.5` | Published Apple, Android and GNU/Linux assets plus all ten crates.io packages; complete verified record at [`v0.1.5-verified-cohort`](https://github.com/billlza/q-periapt/tree/v0.1.5-verified-cohort) | Yes, current package set |
+| `v0.1.4`, `abi2-platforms-v0.1.4` | Published 2026-08-30; immutable history recorded at `v0.1.4-verified-cohort`. Superseded by the verified 0.1.5 cohort; downstream builds should upgrade | No |
+| `v0.1.3`, `abi2-platforms-v0.1.3` | Published 2026-08-25: immutable GitHub releases (Apple XCFramework; Android and GNU/Linux), plus the ten `0.1.3` crates on crates.io. Superseded by the published 0.1.4 set; its frozen verified receipts remain the recorded selection in `main`'s trusted results | No |
+| `v0.1.2`, `abi2-platforms-v0.1.2` | Tagged on 2026-08-23 but never published: the tag-triggered platform release run built a candidate that verified and produced the platform assembly plus both pending receipts, but the first end-to-end coordinated GitHub-release publication run against real GitHub could not finalize because of several first-real-publish defects in the stable release publication and observation paths (since fixed on this source line); no GitHub release, crates.io publication, or signed Apple distribution exists for 0.1.2; superseded by the published 0.1.3 releases | No |
+| `v0.1.1`, `abi2-platforms-v0.1.1` | Tagged on 2026-08-22 but never published: the tag-triggered platform release run built a candidate that verified, but the coordinated GitHub-release publication could not finalize because of a publication receipt IO staging bug (since fixed on this source line); no GitHub release, crates.io publication, or signed Apple distribution exists for 0.1.1; superseded by the 0.1.2 tags | No |
+| `v0.1.0`, `abi2-platforms-v0.1.0` | Tagged on 2026-08-21 but never published: no GitHub release, crates.io publication, or signed Apple distribution exists for 0.1.0; superseded by the 0.1.1 tags | No |
+| Unsigned Windows x64 diagnostic | CI-only, unsupported, not a stable release asset | No |
+| `v0.1.0-alpha.2-r1`, `abi2-platforms-v0.1.0-alpha.2-r2` | Published prerelease predecessors, superseded by the verified 0.1.3 stable receipts | No |
+| Older publications | Superseded historical artifacts | No |
 
-The Windows r2 archive is intentionally an unsigned experimental prerelease. A
-GitHub attestation and published SHA-256 digests establish provenance and byte
-integrity, but they do not provide Authenticode publisher identity or SmartScreen
-reputation.
+The Windows package remains useful for CI diagnostics, but it is unsigned and is
+excluded from the stable candidate, manifest, release assets, attestation, and
+receipt. Supporting it requires a real Authenticode producer/verifier plus
+certificate and timestamp-authority gates; SHA-256 or a GitHub build attestation
+alone does not establish Windows publisher identity or SmartScreen reputation.
 
 ## Reporting a vulnerability
 

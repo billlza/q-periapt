@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Isolated capability observation. Existing substitution refusals are required
+// safeguards, not bugs to remove. No authenticated transition is implemented.
+#[test]
+fn policy_lifecycle_capability_probe_retains_original_state_and_refuses_substitution() {
+    use redb::ReadableTable;
+    fn rows(path: &Path, name: &'static str) -> Vec<(String, Vec<u8>)> {
+        let db = open_private_database(path).expect("existing protected database");
+        let tx = db.begin_read().expect("read transaction");
+        let table = tx.open_table(TableDefinition::<&str, &[u8]>::new(name)).expect("existing application table");
+        table.iter().expect("rows").map(|row| { let (key,value)=row.expect("entry"); (key.value().to_owned(),value.value().to_vec()) }).collect()
+    }
+    for anchored in [false, true] {
+        let witness_dir = directory();
+        let witness_root = witness_dir.path().canonicalize().expect("witness path");
+        let store = crate::AnchorStore::provision(
+            &witness_root.join("witness.redb"),
+            JournalKey::provision(&witness_root.join("witness.key")).expect("witness key"),
+            crate::AnchorSigningKey::generate().expect("witness signer"),
+            crate::AnchorIdentity::generate().expect("witness identity"),
+        ).expect("witness store");
+        let witness_pin = store.pin().expect("witness pin");
+        let store = Arc::new(std::sync::Mutex::new(store));
+        let requirement = if anchored { crate::AnchorRequirement::required(&witness_pin) }
+                          else { crate::AnchorRequirement::local_only() };
+        let (issuer, _, _, runtime) = crate::tests::session_policy_fixture_with_anchor(
+            &[PrekeyQuality::OneTimeBoth], requirement);
+        let issue = |version, until| issuer.issue_session_policy(&runtime,
+            crate::SessionPolicyParameters::new(version, crate::Validity::new(100, until).expect("validity"),
+                crate::AllowedPrekeyModes::new(&[PrekeyQuality::OneTimeBoth]).expect("modes"),
+                requirement, crate::ApplicationSendBudget::new(1024).expect("budget")
+            ).expect("parameters")).expect("signed policy");
+        let p0 = issue(1, 160);
+        let p1 = issue(2, 190);
+        // Both exact pins arrive from the independently controlled issuer. A
+        // valid replacement policy alone is not an old-to-new continuation grant.
+        let pin0 = crate::PolicyPin::new(issuer.policy_family().expect("family"),
+            issuer.public_key().expect("policy root"), p0.checkpoint()).expect("pin0");
+        let pin1 = crate::PolicyPin::new(issuer.policy_family().expect("family"),
+            issuer.public_key().expect("policy root"), p1.checkpoint()).expect("pin1");
+        let mut c = case_with_anchor(requirement);
+        c.policy = pin0.verify(p0.as_bytes(), Arc::clone(&runtime), 150).expect("P0 current");
+        let next = pin1.verify(p1.as_bytes(), Arc::clone(&runtime), 150).expect("P1 independently verified");
+        assert_eq!(next.family(), c.policy.family());
+        assert_ne!(next.checkpoint().digest(), c.policy.checkpoint().digest());
+        assert_eq!(next.anchor_requirement(), c.policy.anchor_requirement());
+        let (mut owner, request, id) = accepted(&c);
+        let image = owner.image().expect("accepted image");
+        let original = owner.admitted(&image, &c.policy, 150).expect("original device");
+        assert!(original.description.validity.until() > 190);
+        let signer_id = owner.identity().expect("original signing identity");
+        let prepared = owner.prepare(&c.policy, 150).expect("prepare original installation");
+        let anchor = if anchored {
+            let genesis = match prepared {
+                InstallationPreparation::RequiresEnrollment(value) => value,
+                _ => panic!("required witness preparation expected"),
+            };
+            assert_eq!(genesis.subject().to_bytes().get(..32), Some(id.as_bytes().as_slice()));
+            store.lock().expect("witness store").enroll(&genesis, &original, &c.policy, 150).expect("independent genesis enrollment");
+            Some(owner.anchor_client(&c.policy, 150, witness_pin.clone(),
+                Box::new(NativeWitness(Arc::clone(&store))), Duration::from_secs(3)).expect("original witness client"))
+        } else { None };
+        let mut active = owner.activate(&c.policy, 150, anchor).expect("original active owner");
+        let snapshot = active.parts().expect("parts").0.stores().expect("stores").0.test_snapshot();
+        assert_eq!(snapshot.id, *id.as_bytes());
+        assert_eq!(snapshot.owner, crate::bootstrap::storage_owner(&original));
+        active.close();
+        let mut files = vec![c.paths.wrapping.clone(), c.paths.signer.clone(), c.paths.configuration.clone()];
+        files.extend(c.paths.installation.files().into_iter().map(Path::to_path_buf));
+        let tables = ["continuity_enrollment_v1", "continuity_installation_v1", "continuity_device_candidate_v21"];
+        let application_before = files.iter().skip(2).take(3).zip(tables).map(|(path,name)| rows(path,name)).collect::<Vec<_>>();
+        let before_control = files.iter().map(|p| fs::read(p).expect("original private file")).collect::<Vec<_>>();
+        // A no-operation open/close control separates database container
+        // bookkeeping from application-state mutation by rejected calls.
+        let mut control = open(&c); control.close();
+        let before = files.iter().map(|p| fs::read(p).expect("private file after open control")).collect::<Vec<_>>();
+        let control_changed = before_control.iter().zip(before.iter()).enumerate().filter_map(|(index,(a,b))| (a != b).then_some(index)).collect::<Vec<_>>();
+        println!("POLICY_CONTAINER_OPEN_CONTROL anchored={anchored} changed_file_indices={control_changed:?}");
+        assert!(matches!(open(&c).activate(&next, 150, None), Err(DurableError::Conflict)));
+        let (cert, roster, account) = response(&c, &request);
+        let mut owner = open(&c);
+        assert!(matches!(owner.refresh_roster(original.roster().checkpoint(), roster.as_bytes(), &account, &next, 150), Err(DurableError::Conflict)));
+        let mut owner = open(&c);
+        assert!(matches!(owner.accept(&cert, roster.as_bytes(), &account, &next, 150), Err(DurableError::Conflict)));
+        let key = JournalKey::open(&c.paths.wrapping).expect("original key");
+        assert!(matches!(DeviceInstallation::open(c.paths.installation.clone(), &key, &original, &next, 150), Err(DurableError::Conflict)));
+        let grant = renewal::grant(&c, &original, &original, 2, 250);
+        let mut owner = open(&c);
+        assert!(matches!(owner.stage_credential_renewal(&grant, grant.operation(), &next, 150), Err(DurableError::Conflict)));
+        if anchored {
+            let mut owner = open(&c);
+            assert!(matches!(owner.anchor_client(&next, 150, witness_pin.clone(),
+                Box::new(NativeWitness(Arc::clone(&store))), Duration::from_secs(3)), Err(DurableError::Conflict)));
+        }
+        // Trusted-time input is explicit and synthetic; this is not a real-clock
+        // expiry or foreign-package execution test.
+        assert!(runtime.is_enabled().expect("SDK remains enabled"));
+        assert!(pin0.verify(p0.as_bytes(), Arc::clone(&runtime), 170).is_err());
+        pin0.verify_historical(p0.as_bytes()).expect("historical P0 authentic");
+        let next_at_170 = pin1.verify(p1.as_bytes(), Arc::clone(&runtime), 170).expect("P1 current after P0 expires");
+        assert!(matches!(open(&c).activate(&c.policy, 170, None), Err(DurableError::Protocol(Error::Validity))));
+        assert!(matches!(open(&c).activate(&next_at_170, 170, None), Err(DurableError::Conflict)));
+        let mut owner = open(&c);
+        assert_eq!(owner.identity().expect("retained identity"), signer_id);
+        assert_eq!(owner.status().expect("historical registration status"), EnrollmentStatus::Active(id));
+        assert_eq!(owner.credential_renewal_status().expect("no renewal created"), crate::CredentialRenewalStatus::Absent);
+        owner.close();
+        let after = files.iter().map(|p| fs::read(p).expect("retained private file")).collect::<Vec<_>>();
+        let changed = before.iter().zip(after.iter()).enumerate().filter_map(|(index,(a,b))| (a != b).then_some(index)).collect::<Vec<_>>();
+        println!("POLICY_CONTAINER_AFTER_REFUSALS anchored={anchored} changed_file_indices={changed:?}");
+        for (index,(a,b)) in before.iter().zip(after.iter()).enumerate() {
+            if index < 2 || index == 5 { assert!(a == b, "original wrapping key, signer or untouched archives changed"); }
+        }
+        for ((path,name),expected) in files.iter().skip(2).take(3).zip(tables).zip(application_before.iter()) {
+            assert!(rows(path,name) == *expected, "rejected policy substitution changed an original application record");
+        }
+        println!("POLICY_LIFECYCLE_CAPABILITY anchored={anchored} same_policy_root=true p0_until=160 p1_until=190 credential_until=200 trusted_time=170 p1_signature_valid=true p1_activation=Conflict p0_activation=Validity original_keys_and_archive_bytes_unchanged=true original_application_rows_unchanged=true original_identity_retained=true policy_transition_implemented=false");
+    }
+}

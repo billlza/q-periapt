@@ -1,0 +1,54 @@
+{
+  "schema": "qperiapt.workload_source_mapping/1",
+  "measured_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "measured_tree": "4012e88774fbc12fb23bc5c2e9928c27eb51acf6",
+  "current_commit": "6a2ee33af2d67bb982d339cbeb49f2310c7e7032",
+  "current_tree": "3df69e936a13213f8b381661a443ea09f82bc32b",
+  "native_src_files_in_union": 618,
+  "byte_identical_native_src_files": 612,
+  "changed_native_src_files": [
+    {
+      "path": "research/continuity-identity-candidate/src/contract.rs",
+      "measured_blob": "10f06b90b6e97f987806b980c4a54c9ae5130fbe",
+      "current_blob": "210902bb3b39fc54a9ede786b7475487c7303bb7",
+      "classification": "same runtime limit: extract existing 16-record fanout constant into shared contract"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/fanout.rs",
+      "measured_blob": "8aedd8f2837336a3e1bf8545387b1cddf2c33013",
+      "current_blob": "30629b838622fe516fd34b311682eb216a7cb74e",
+      "classification": "same runtime limit: extract existing 16-record fanout constant into shared contract"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/closure.rs",
+      "measured_blob": "6e8de0f547ed433e53a7ac8aa1feb61151429104",
+      "current_blob": "9f958e8af8f9d419a69cbd8635e903d8940583bc",
+      "classification": "test source"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/fanout.rs",
+      "measured_blob": "e9143d3055e21abc90990d1d454dc7f1585b7474",
+      "current_blob": "ee95122a39362796dddefd5ae88919dd59b09ee9",
+      "classification": "test source"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/witness_pending_write_recovery_tests.rs",
+      "measured_blob": "d353ca20b066bee4cde55314034652d30300ffb2",
+      "current_blob": "094616eb3f0b5c37e51a5bf7d02d4d71b9d38db8",
+      "classification": "test source"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/enrollment/witness_recovery_renewal_tests.rs",
+      "measured_blob": "013c21ebf4aeed5803d95f1b9ec9e36f0a595906",
+      "current_blob": "100e233c0be526371388db2df9bacda7a5fb5b65",
+      "classification": "test source"
+    }
+  ],
+  "runtime_review": "The complete fanout admission and decoder predicates are unchanged after replacing MAX_FANOUTS=16 with its shared 16-valued constant. Other native src changes are test sources. The two changed host-store production files are Windows-only modules; macOS runtime module selectors are unchanged. Package identities/build artifacts retain their own recorded executions.",
+  "host_store_windows_only_modules": [
+    "crates/q-periapt-host-store/src/filesystem/windows_native.rs",
+    "crates/q-periapt-host-store/src/windows_acl.rs"
+  ],
+  "current_source_input_manifest": "SOURCE_INPUTS.json",
+  "historical_run_identity_preserved": true
+}

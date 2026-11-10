@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "files": 9,
+  "pages": 96,
+  "plain_text_identical": true,
+  "layout_text_identical": true,
+  "all_fonts_embedded": true,
+  "font_count": 47,
+  "zip_sha256": "03040653071963443a85d12c6090ce0f089071064e7e55af9ed685173e8fb468",
+  "pdf_sha256": "123057b5f2ac1d8270be0663ab90740ae287e18a02cdc7009b40424fc14a5d83"
+}

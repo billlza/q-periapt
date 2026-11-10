@@ -1,0 +1,20 @@
+{
+  "source_parent": "3fd559d69bf55163c0710591e25fb9130c244681",
+  "completed": true,
+  "threads": 4,
+  "native_test_seconds": 730.15,
+  "controller_seconds": 732.2584363339993,
+  "tests": 8,
+  "foreign_processes": 364,
+  "original_and_target_expiry_preserved": true,
+  "eight_distinct_journals_witnesses_operations_verified": true,
+  "producer_inputs_unchanged": true,
+  "scope": "Fresh host JNI batch over retained packaged Java/JNI/C engine; no product Java/JNI/protocol change and no new ART qualification",
+  "capture": {
+    "file": "CAPTURE.zip",
+    "sha256": "46a206d8f293a2a4864cab586d15c134e9692c1c1f74675f5cf127061039465f",
+    "bytes": 1535284,
+    "members": 1482
+  },
+  "release_claim_eligible": false
+}

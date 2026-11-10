@@ -1,0 +1,430 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Included only in an isolated native test-source copy by the matched runner.
+use super::*;
+use std::collections::VecDeque;
+use std::io::Write as _;
+use std::sync::atomic::AtomicUsize;
+
+const N: usize = 2048;
+const MIN_RETRY_SENDER_TURNS: usize = 4;
+const AD: &[u8] = b"matched-application-v1";
+const SCENARIOS: [&str; 7] = ["alternating", "lossy", "reordered", "duplicates", "asymmetric", "offline_then_exchange", "one_way"];
+
+fn hx(bytes: &[u8]) -> String { bytes.iter().map(|v| format!("{v:02x}")).collect() }
+fn sender(name: &str, i: usize) -> usize {
+    match name {
+        "one_way" => 0,
+        "asymmetric" => usize::from(i % 10 == 9),
+        "offline_then_exchange" if i < 256 => 0,
+        _ => i % 2,
+    }
+}
+fn payload(request: usize, owner: usize) -> [u8; 32] {
+    let mut bytes = [0x51; 32];
+    bytes.get_mut(..8).expect("request bytes").copy_from_slice(&(request as u64).to_be_bytes());
+    *bytes.get_mut(8).expect("owner byte") = owner as u8;
+    bytes
+}
+fn local(p: &mut Pair, owner: usize) -> State {
+    if owner == 0 { state(&mut p.ji, &p.session) } else { state(&mut p.jr, &p.session) }
+}
+fn progress(p: &mut Pair, owner: usize) -> RekeyProgress {
+    if owner == 0 { p.ji.rekey_progress(&p.f.initiator, p.session) }
+    else { p.jr.rekey_progress(&p.f.responder, p.session) }.expect("local rekey progress")
+}
+fn budget_progress(p: &mut Pair, owner: usize) -> SendProgress {
+    if owner == 0 { p.ji.application_send_progress(&p.f.initiator, p.session) }
+    else { p.jr.application_send_progress(&p.f.responder, p.session) }.expect("local send progress")
+}
+fn advance(p: &mut Pair, owner: usize, target: u64) -> Result<RekeyControlStep, DurableError> {
+    if owner == 0 { p.ji.advance_rekey_control(&p.f.initiator, p.session, target, &p.f.signer_i, 150) }
+    else { p.jr.advance_rekey_control(&p.f.responder, p.session, target, &p.f.signer_r, 150) }
+}
+fn receive_control(p: &mut Pair, owner: usize, wire: &[u8]) -> Result<RekeyControlStep, DurableError> {
+    if owner == 0 { p.ji.receive_rekey_control(&p.f.initiator, p.session, wire, &p.f.signer_i, 150) }
+    else { p.jr.receive_rekey_control(&p.f.responder, p.session, wire, &p.f.signer_r, 150) }
+}
+fn next_id(p: &mut Pair, owner: usize) -> Result<MessageId, DurableError> {
+    if owner == 0 { p.ji.next_message_id(&p.f.initiator, p.session, 150) }
+    else { p.jr.next_message_id(&p.f.responder, p.session, 150) }
+}
+fn send_new(p: &mut Pair, owner: usize, id: MessageId, clear: &[u8]) -> Result<Vec<u8>, DurableError> {
+    if owner == 0 { p.ji.send_message(&p.f.initiator, p.session, id, clear, AD, 150) }
+    else { p.jr.send_message(&p.f.responder, p.session, id, clear, AD, 150) }
+}
+fn resume(p: &mut Pair, owner: usize, id: MessageId) -> Vec<u8> {
+    if owner == 0 { p.ji.resume_message(&p.f.initiator, p.session, id, 150) }
+    else { p.jr.resume_message(&p.f.responder, p.session, id, 150) }.expect("exact admitted retry")
+}
+fn receive_data(p: &mut Pair, owner: usize, wire: &[u8]) -> Result<CommittedPlaintext, DurableError> {
+    if owner == 0 { p.ji.receive_message(&p.f.initiator, p.session, wire, AD, 150) }
+    else { p.jr.receive_message(&p.f.responder, p.session, wire, AD, 150) }
+}
+fn consume(p: &mut Pair, owner: usize, id: MessageId) {
+    if owner == 0 { p.ji.consume_message(&p.f.initiator, p.session, id, 150) }
+    else { p.jr.consume_message(&p.f.responder, p.session, id, 150) }.expect("real application consumption");
+}
+fn ack(p: &mut Pair, owner: usize, epoch: u64) -> Result<Vec<u8>, DurableError> {
+    if owner == 0 { p.ji.message_acknowledgement_for_epoch(&p.f.initiator, p.session, epoch, 150) }
+    else { p.jr.message_acknowledgement_for_epoch(&p.f.responder, p.session, epoch, 150) }
+}
+fn accept_ack(p: &mut Pair, owner: usize, wire: &[u8]) -> Result<u64, DurableError> {
+    if owner == 0 { p.ji.accept_message_acknowledgement(&p.f.initiator, p.session, wire, 150) }
+    else { p.jr.accept_message_acknowledgement(&p.f.responder, p.session, wire, 150) }
+}
+
+// This predictor owns only its fixed captured record and derived values. It has
+// no reference to Pair, DeviceJournal, Fixture, signer owners or future RNG.
+struct Snapshot {
+    _captured_record: Zeroizing<Vec<u8>>,
+    owner: usize,
+    session: [u8; 32],
+    seeds: [[u8; 32]; 2],
+    wrong: [[u8; 32]; 2],
+    counters: [u64; 2],
+}
+fn hmac(key: &[u8], data: &[u8]) -> [u8; 32] {
+    let mut mac = <hmac::Hmac<sha2::Sha256> as hmac::KeyInit>::new_from_slice(key).expect("HMAC key");
+    hmac::Mac::update(&mut mac, data);
+    hmac::Mac::finalize(mac).into_bytes().into()
+}
+fn independent_step(seed: &[u8; 32], index: u64) -> ([u8; 32], [u8; 32]) {
+    let prk = hmac(&[0; 32], seed);
+    let mut info = crate::contract::MESSAGE_DOMAIN.to_vec();
+    info.extend_from_slice(b"chain");
+    info.extend_from_slice(&index.to_be_bytes());
+    let first = hmac(&prk, &[info.as_slice(), &[1]].concat());
+    let second = hmac(&prk, &[first.as_slice(), info.as_slice(), &[2]].concat());
+    (first, second)
+}
+impl Snapshot {
+    fn capture(owner: usize, record: Zeroizing<Vec<u8>>) -> Self {
+        let captured = State::decode(&record).expect("complete captured session record");
+        assert_eq!(captured.role, owner as u8 + 1);
+        assert_eq!(captured.send_epoch, 0);
+        assert_eq!(captured.receive_epoch, 0);
+        assert!(!captured.control.has_pending(), "fixed initial cut precedes new private rekey work");
+        assert_eq!(captured.epochs.len(), 1);
+        let t = captured.traffic(0).expect("initial epoch");
+        let send: [u8; 32] = t.send.as_bytes().to_owned();
+        let receive: [u8; 32] = t.receive.as_bytes().to_owned();
+        let (seeds, counters) = if owner == 0 { ([send, receive], [t.sent, t.received]) }
+                               else { ([receive, send], [t.received, t.sent]) };
+        let mut wrong = seeds;
+        for item in &mut wrong { *item.first_mut().expect("seed byte") ^= 1; }
+        Self { _captured_record: record, owner, session: captured.session, seeds, wrong, counters }
+    }
+    fn predict(&mut self, wire: &[u8]) -> Option<([u8; 32], [u8; 32])> {
+        let h = Header::decode(wire).expect("public application header");
+        assert_eq!(h.session, self.session);
+        if h.epoch != 0 { return None; }
+        let direction = usize::from(h.role - 1);
+        let index = self.counters.get_mut(direction).expect("direction");
+        assert!(*index <= h.index, "only first new commits reach predictor");
+        let seed = self.seeds.get_mut(direction).expect("seed direction");
+        let wrong = self.wrong.get_mut(direction).expect("control direction");
+        loop {
+            let (next, candidate) = independent_step(seed, *index);
+            let (bad_next, bad_candidate) = independent_step(wrong, *index);
+            *seed = next;
+            *wrong = bad_next;
+            let this = *index;
+            *index += 1;
+            if this == h.index { return Some((candidate, bad_candidate)); }
+        }
+    }
+}
+
+fn decrypt_candidate(key: &[u8; 32], wire: &[u8]) -> Result<Zeroizing<Vec<u8>>, Error> {
+    let h = Header::decode(wire)?;
+    let mut clear = Zeroizing::new(wire.get(MESSAGE_HEADER..MESSAGE_HEADER + h.length)
+        .ok_or(Error::Encoding)?.to_vec());
+    let tag = Tag::from(<[u8; 16]>::try_from(wire.get(MESSAGE_HEADER + h.length..)
+        .ok_or(Error::Encoding)?).map_err(|_| Error::Encoding)?);
+    ChaCha20Poly1305::new_from_slice(key).map_err(|_| Error::Provider)?
+        .decrypt_inout_detached(&Nonce::from([0; 12]),
+            &associated(wire.get(..MESSAGE_HEADER).ok_or(Error::Encoding)?, AD),
+            clear.as_mut_slice().into(), &tag).map_err(|_| Error::Authentication)?;
+    Ok(clear)
+}
+
+#[derive(Clone, Copy)]
+enum Kind { Control, Ack(u64), Data { request: usize, id: MessageId, retry: bool } }
+#[derive(Clone)]
+struct Frame { owner: usize, kind: Kind, logical: String, wire: Vec<u8> }
+impl Frame {
+    fn kind_name(&self) -> &'static str {
+        match self.kind { Kind::Control => "control", Kind::Ack(_) => "ack",
+            Kind::Data { retry: true, .. } => "retry", Kind::Data { retry: false, .. } => "application" }
+    }
+}
+#[derive(Default)]
+struct Queues {
+    controls: VecDeque<Frame>,
+    acknowledgements: BTreeMap<u64, Frame>,
+    unacked: BTreeMap<usize, Frame>,
+    requests: VecDeque<usize>,
+    delivered: BTreeMap<usize, Vec<u8>>,
+    cursor: usize,
+    sender_turn: usize,
+    last_data_turn: BTreeMap<usize, usize>,
+}
+struct Experiment {
+    p: Pair,
+    queues: [Queues; 2],
+    snapshots: Option<[Snapshot; 2]>,
+    issued_controls: BTreeMap<(usize, u64, Vec<u8>), Vec<u8>>,
+    unique_keys: BTreeSet<Vec<u8>>,
+    log: fs::File,
+    sync: [Arc<AtomicUsize>; 2],
+    start_revision: [u64; 2],
+}
+impl Experiment {
+    fn queue_control(&mut self, owner: usize, result: RekeyControlStep) {
+        if let RekeyControlStep::Output(message) = result {
+            let wire = message.as_bytes().to_vec();
+            let (body, _) = crate::crypto::open_envelope(&wire).expect("actual control envelope");
+            let tag = body.get(..8).expect("control type").to_vec();
+            let identity = (owner, message.target_epoch(), tag.clone());
+            if let Some(old) = self.issued_controls.insert(identity, wire.clone()) {
+                assert_eq!(old, wire, "same control origin preserves exact bytes");
+            }
+            let q = &mut self.queues.get_mut(owner).expect("owner").controls;
+            if !q.iter().any(|old| old.wire == wire) {
+                q.push_back(Frame { owner, kind: Kind::Control,
+                    logical: format!("control-{owner}-{}-{}", message.target_epoch(), hx(&tag)), wire });
+            }
+            assert!(q.len() <= 32, "bounded control queue");
+        }
+    }
+    fn plan_control(&mut self, owner: usize) {
+        let rp = progress(&mut self.p, owner);
+        let bp = budget_progress(&mut self.p, owner);
+        let target = rp.pending_epoch.or_else(|| (bp.remaining == 0).then_some(rp.confirmed_epoch + 1));
+        if let Some(target) = target {
+            match advance(&mut self.p, owner, target) {
+                Ok(result) => self.queue_control(owner, result),
+                Err(DurableError::Suspended) => {},
+                Err(error) => { Err::<(), _>(error).expect("control preparation"); }
+            }
+        }
+    }
+    fn capture(&mut self) {
+        let left = local(&mut self.p, 0).encode().expect("complete captured left record");
+        let right = local(&mut self.p, 1).encode().expect("complete captured right record");
+        writeln!(self.log, "{{\"event\":\"capture\",\"before_opportunity\":1,\"record_bytes\":[{},{}],\"pending_entropy\":[false,false]}}", left.len(), right.len()).expect("capture record");
+        self.snapshots = Some([Snapshot::capture(0, left), Snapshot::capture(1, right)]);
+    }
+    fn create_application(&mut self, owner: usize, opportunity: usize) -> Option<Frame> {
+        let request = self.queues.get(owner).expect("owner").requests.front().copied()?;
+        let id = match next_id(&mut self.p, owner) {
+            Ok(id) => id,
+            Err(DurableError::Suspended) => {
+                writeln!(self.log, "{{\"event\":\"admission_blocked\",\"opportunity\":{opportunity},\"owner\":{owner},\"request\":{request},\"reason\":\"Suspended\"}}").expect("blocked admission");
+                return None;
+            },
+            Err(DurableError::Protocol(Error::RekeyRequired)) => {
+                writeln!(self.log, "{{\"event\":\"admission_blocked\",\"opportunity\":{opportunity},\"owner\":{owner},\"request\":{request},\"reason\":\"RekeyRequired\"}}").expect("blocked admission");
+                return None;
+            },
+            Err(error) => return Err::<Option<Frame>, _>(error).expect("new application admission"),
+        };
+        let before = local(&mut self.p, owner);
+        let t = before.traffic(id.epoch().expect("epoch")).expect("actual sender epoch");
+        let (_, truth) = step(&t.send, t.sent).expect("actual next message key for observer");
+        assert!(self.unique_keys.insert(truth.as_bytes().to_vec()), "fresh committed message key");
+        let clear = payload(request, owner);
+        let wire = send_new(&mut self.p, owner, id, &clear).expect("durable real application send");
+        assert_eq!(self.queues.get_mut(owner).expect("owner").requests.pop_front(), Some(request));
+        let header = Header::decode(&wire).expect("sender header");
+        let mut known = [false; 2];
+        if let Some(snapshots) = &mut self.snapshots {
+            for oracle in snapshots {
+                if let Some((candidate, bad)) = oracle.predict(&wire) {
+                    assert!(candidate.as_slice() == truth.as_bytes(), "captured-only predictor matches actual sender key");
+                    assert!(bad.as_slice() != truth.as_bytes(), "altered captured chain seed rejects prediction");
+                    assert_eq!(decrypt_candidate(&candidate, &wire).expect("snapshot plaintext recovery").as_slice(), clear);
+                    assert!(matches!(decrypt_candidate(&bad, &wire), Err(Error::Authentication)), "wrong seed fails actual AEAD");
+                    *known.get_mut(oracle.owner).expect("snapshot owner") = true;
+                }
+            }
+        }
+        writeln!(self.log, "{{\"event\":\"commit\",\"opportunity\":{opportunity},\"owner\":{owner},\"request\":{request},\"epoch\":{},\"index\":{},\"known\":[{},{}],\"snapshot_active\":{}}}", header.epoch, header.index, known.first().expect("A"), known.get(1).expect("B"), self.snapshots.is_some()).expect("commit record");
+        let frame = Frame { owner, kind: Kind::Data { request, id, retry: false }, logical: format!("application-{owner}-{request}"), wire };
+        self.queues.get_mut(owner).expect("owner").unacked.insert(request, frame.clone());
+        Some(frame)
+    }
+    fn choose(&mut self, owner: usize, opportunity: usize) -> Option<Frame> {
+        let turn = {
+            let q = self.queues.get_mut(owner).expect("owner");
+            q.sender_turn = q.sender_turn.checked_add(1).expect("sender turn bound");
+            q.sender_turn
+        };
+        self.plan_control(owner);
+        let start = self.queues.get(owner).expect("owner").cursor;
+        for delta in 0..4 {
+            let choice = (start + delta) % 4;
+            let selected = match choice {
+                0 => self.queues.get_mut(owner).expect("owner").controls.pop_front(),
+                1 => self.queues.get_mut(owner).expect("owner").acknowledgements.pop_first().map(|(_, f)| f),
+                2 => self.queues.get(owner).expect("owner").unacked.iter().find(|(request, _)| {
+                    let last = self.queues.get(owner).expect("owner").last_data_turn
+                        .get(*request).expect("unacknowledged frame has emission turn");
+                    turn.checked_sub(*last).expect("monotone sender turns") >= MIN_RETRY_SENDER_TURNS
+                }).map(|(_, f)| f.clone()).map(|mut f| {
+                    if let Kind::Data { id, request, .. } = f.kind {
+                        assert_eq!(resume(&mut self.p, owner, id), f.wire, "exact retry uses retained ciphertext");
+                        f.kind = Kind::Data { request, id, retry: true };
+                    }
+                    f
+                }),
+                3 => self.create_application(owner, opportunity),
+                _ => None,
+            };
+            if let Some(frame) = selected {
+                let q = self.queues.get_mut(owner).expect("owner");
+                if let Kind::Data { request, .. } = frame.kind {
+                    q.last_data_turn.insert(request, turn);
+                }
+                q.cursor = (choice + 1) % 4;
+                return Some(frame);
+            }
+        }
+        None
+    }
+    fn deliver(&mut self, opportunity: usize, source: usize, frame: &Frame) {
+        let owner = 1 - frame.owner;
+        let outcome = match frame.kind {
+            Kind::Control => {
+                let target = RekeyControlMessage::inspect_target(&frame.wire).expect("public target");
+                match receive_control(&mut self.p, owner, &frame.wire) {
+                    Ok(result) => { self.queue_control(owner, result); "accepted" },
+                    Err(DurableError::Protocol(Error::Retired)) if target < progress(&mut self.p, owner).confirmed_epoch => "retired",
+                    Err(DurableError::Suspended) => "suspended",
+                    Err(error) => Err::<&str, _>(error).expect("control receive"),
+                }
+            },
+            Kind::Ack(epoch) => {
+                match accept_ack(&mut self.p, owner, &frame.wire) {
+                    Ok(floor) => {
+                        self.queues.get_mut(owner).expect("owner").unacked.retain(|_, f| {
+                            if let Kind::Data { id, .. } = f.kind {
+                                id.epoch().expect("epoch") != epoch || id.index().expect("index") >= floor
+                            } else { true }
+                        });
+                        "accepted"
+                    },
+                    Err(DurableError::Protocol(Error::Retired)) if !local(&mut self.p, owner).epochs.contains_key(&epoch) => "retired",
+                    Err(error) => Err::<&str, _>(error).expect("ACK receive"),
+                }
+            },
+            Kind::Data { request, id, .. } => {
+                let already = self.queues.get(owner).expect("owner").delivered.get(&request);
+                if let Some(old) = already { assert_eq!(old, &frame.wire, "logical delivery identity"); }
+                let duplicate = already.is_some();
+                match receive_data(&mut self.p, owner, &frame.wire) {
+                    Ok(result) => {
+                        assert_eq!(result.message_id(), id);
+                        assert_eq!(result.as_bytes(), payload(request, frame.owner));
+                        assert!(!duplicate, "consumed delivery must remain consumed");
+                        consume(&mut self.p, owner, id);
+                        self.queues.get_mut(owner).expect("owner").delivered.insert(request, frame.wire.clone());
+                        let epoch = id.epoch().expect("data epoch");
+                        let wire = ack(&mut self.p, owner, epoch).expect("consumption ACK");
+                        let logical = format!("ack-{owner}-{epoch}-{}", hx(&wire));
+                        self.queues.get_mut(owner).expect("owner").acknowledgements.insert(epoch,
+                            Frame { owner, kind: Kind::Ack(epoch), logical, wire });
+                        "delivered"
+                    },
+                    Err(DurableError::Protocol(Error::Retired)) if duplicate => {
+                        let epoch = id.epoch().expect("duplicate epoch");
+                        if local(&mut self.p, owner).epochs.contains_key(&epoch) {
+                            let wire = ack(&mut self.p, owner, epoch).expect("repeat cumulative ACK");
+                            let logical = format!("ack-{owner}-{epoch}-{}", hx(&wire));
+                            self.queues.get_mut(owner).expect("owner").acknowledgements.insert(epoch,
+                                Frame { owner, kind: Kind::Ack(epoch), logical, wire });
+                        }
+                        "duplicate_consumed"
+                    },
+                    Err(DurableError::Suspended) => "suspended",
+                    Err(error) => Err::<&str, _>(error).expect("application receive"),
+                }
+            },
+        };
+        writeln!(self.log, "{{\"event\":\"receive\",\"opportunity\":{opportunity},\"source_opportunity\":{source},\"owner\":{owner},\"kind\":\"{}\",\"logical\":\"{}\",\"outcome\":\"{outcome}\",\"wire\":\"{}\"}}", frame.kind_name(), frame.logical, hx(&frame.wire)).expect("receive record");
+    }
+    fn checkpoint(&mut self, opportunity: usize) {
+        let a = self.p.ji.image().expect("A image").revision;
+        let b = self.p.jr.image().expect("B image").revision;
+        let pa = progress(&mut self.p, 0);
+        let pb = progress(&mut self.p, 1);
+        writeln!(self.log, "{{\"event\":\"checkpoint\",\"opportunity\":{opportunity},\"revisions\":[{a},{b}],\"sync_data\":[{},{}],\"confirmed_epochs\":[{},{}],\"sending_epochs\":[{},{}]}}", self.sync.first().expect("A").load(Ordering::SeqCst), self.sync.get(1).expect("B").load(Ordering::SeqCst), pa.confirmed_epoch, pb.confirmed_epoch, pa.sending_epoch, pb.sending_epoch).expect("checkpoint record");
+    }
+}
+
+fn run(name: &str, budget: u16, output: &std::path::Path) {
+    let mut p = Pair::with_fixture(crate::bootstrap::tests::fixture_with_send_budget(
+        PrekeyQuality::OneTimeBoth, crate::ApplicationSendBudget::new(budget).expect("policy budget")));
+    p.activate();
+    p.ji.close(); p.jr.close();
+    let (ji, _, left, _) = fault_store(&p.pi, p.f.initiator_device(), false);
+    let (jr, _, right, _) = fault_store(&p.pr, p.f.local_device(), false);
+    p.ji = ji; p.jr = jr;
+    let start_revision = [p.ji.image().expect("A initial").revision, p.jr.image().expect("B initial").revision];
+    let mut x = Experiment { p, queues: [Queues { cursor: 3, ..Queues::default() }, Queues { cursor: 3, ..Queues::default() }], snapshots: None,
+        issued_controls: BTreeMap::new(), unique_keys: BTreeSet::new(),
+        log: fs::File::create_new(output.join(format!("continuity-{budget}-{name}.jsonl"))).expect("new trace"),
+        sync: [left, right], start_revision };
+    writeln!(x.log, "{{\"event\":\"configuration\",\"schema\":1,\"scenario\":\"{name}\",\"profile\":\"continuity-{budget}\",\"opportunities\":{N},\"frame_cap\":8192,\"capture_before_opportunity\":1,\"payload_bytes\":32,\"initial_revisions\":[{},{}]}}", x.start_revision.first().expect("A"), x.start_revision.get(1).expect("B")).expect("configuration");
+    let mut transport = VecDeque::<(usize, Frame)>::new();
+    for i in 0..N {
+        if i == 1 { x.capture(); }
+        let owner = sender(name, i);
+        x.queues.get_mut(owner).expect("owner").requests.push_back(i);
+        writeln!(x.log, "{{\"event\":\"opportunity\",\"opportunity\":{i},\"owner\":{owner},\"request\":{i}}}").expect("offered request");
+        let current = x.choose(owner, i);
+        if let Some(frame) = &current {
+            assert_eq!(frame.owner, owner);
+            assert!(!frame.wire.is_empty() && frame.wire.len() <= 8192);
+            writeln!(x.log, "{{\"event\":\"emit\",\"opportunity\":{i},\"owner\":{owner},\"kind\":\"{}\",\"logical\":\"{}\",\"wire\":\"{}\"}}", frame.kind_name(), frame.logical, hx(&frame.wire)).expect("charged emission");
+        }
+        if name == "lossy" && i % 10 == 4 {
+            // The public observer already saw the emission. Peer delivery is lost.
+        } else if name == "reordered" {
+            if let Some(frame) = current { transport.push_back((i, frame)); }
+            if i % 7 == 6 {
+                while let Some((source, frame)) = transport.pop_back() { x.deliver(i, source, &frame); }
+            }
+        } else if name == "offline_then_exchange" && i < 256 {
+            if let Some(frame) = current { transport.push_back((i, frame)); }
+        } else {
+            if name == "offline_then_exchange" && i == 256 {
+                while let Some((source, frame)) = transport.pop_front() { x.deliver(i, source, &frame); }
+            }
+            if let Some(frame) = current {
+                x.deliver(i, i, &frame);
+                if name == "duplicates" && i % 13 == 0 { x.deliver(i, i, &frame); }
+            }
+        }
+        x.checkpoint(i);
+    }
+    while let Some((source, frame)) = transport.pop_front() { x.deliver(N, source, &frame); }
+    x.checkpoint(N);
+    if name == "one_way" {
+        assert_eq!(progress(&mut x.p, 0).confirmed_epoch, 0);
+        assert_eq!(progress(&mut x.p, 1).confirmed_epoch, 0);
+        assert_eq!(local(&mut x.p, 0).send_epoch, 0);
+    }
+    let offered_a = (0..N).filter(|i| sender(name, *i) == 0).count();
+    let a = x.queues.first().expect("A");
+    let b = x.queues.get(1).expect("B");
+    writeln!(x.log, "{{\"event\":\"completed\",\"offered\":[{},{}],\"uncommitted\":[{},{}],\"delivered\":[{},{}],\"distinct_new_keys\":{},\"status\":\"passed\"}}", offered_a, N - offered_a, a.requests.len(), b.requests.len(), a.delivered.len(), b.delivered.len(), x.unique_keys.len()).expect("completed receipt");
+    x.log.sync_all().expect("retain complete observer report");
+}
+
+#[test]
+fn matched_directed_opportunities_native() {
+    let output = std::path::PathBuf::from(std::env::var_os("QPERIAPT_MATCHED_OUTPUT").expect("explicit experiment output"));
+    assert!(output.is_dir());
+    for budget in [32u16, 64u16] { for name in SCENARIOS { run(name, budget, &output); } }
+}

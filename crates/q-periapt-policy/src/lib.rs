@@ -321,6 +321,12 @@ impl core::fmt::Display for PolicyResolutionError {
 /// NIST claimed security level (1/2/3/5) for a known algorithm id, or `None` if
 /// the id is not a leveled post-quantum algorithm (e.g. a traditional partner
 /// like `X25519`, or an unknown id).
+///
+/// This is a **strength** table only, shared by KEMs and signatures: both
+/// `ML-KEM-1024` and `ML-DSA-87` report level 5. It therefore never establishes
+/// that an identifier may serve a given *role* — use [`is_kem`] or
+/// [`is_signature`] for that, and treat strength and role as independent
+/// checks.
 #[must_use]
 pub fn nist_level(id: &str) -> Option<u8> {
     Some(match id {
@@ -338,6 +344,36 @@ pub fn nist_level(id: &str) -> Option<u8> {
 #[must_use]
 pub fn is_traditional(id: &str) -> bool {
     matches!(id, "X25519" | "X448" | "P-256" | "P-384")
+}
+
+/// Whether `id` names a key-establishment algorithm: a post-quantum KEM or a
+/// traditional hybrid partner.
+///
+/// [`nist_level`] is a *strength* table shared by KEMs and signatures, so it
+/// cannot decide role. Both a KEM and a signature can clear the same floor,
+/// which would let a strength-only check accept `ML-DSA-87` as a KEM. Role and
+/// strength are therefore validated separately.
+#[must_use]
+pub fn is_kem(id: &str) -> bool {
+    matches!(id, "ML-KEM-512" | "ML-KEM-768" | "ML-KEM-1024") || is_traditional(id)
+}
+
+/// Whether `id` names a digital signature algorithm.
+///
+/// The counterpart to [`is_kem`]: no identifier is both, and an identifier that
+/// is neither (an unknown or retired id such as a pre-standard HQC candidate)
+/// is refused for either role.
+#[must_use]
+pub fn is_signature(id: &str) -> bool {
+    matches!(
+        id,
+        "ML-DSA-44"
+            | "ML-DSA-65"
+            | "ML-DSA-87"
+            | "SLH-DSA-SHA2-128s"
+            | "SLH-DSA-SHA2-192s"
+            | "SLH-DSA-SHA2-256s"
+    )
 }
 
 /// Whether a (post-quantum) KEM is ciphertext-second-preimage-resistant (C2PRI)
@@ -409,17 +445,26 @@ impl Policy {
         {
             return Err(PolicyError::DuplicateAlgorithm);
         }
-        if allowed_kems
-            .iter()
-            .any(|id| nist_level(id).is_none() && !is_traditional(id))
-            || allowed_sigs
-                .iter()
-                .any(|id| nist_level(id).is_none() || is_traditional(id))
-            || deprecated
-                .iter()
-                .any(|id| nist_level(id).is_none() && !is_traditional(id))
+        // An identifier this build does not recognize at all is reported
+        // separately from one that is known but listed in the wrong role, so an
+        // operator is never told that `ML-DSA-87` is an "unknown algorithm".
+        // `deprecated` is a cross-cutting denylist and accepts either role.
+        let known = |id: &String| is_kem(id) || is_signature(id);
+        if !allowed_kems.iter().all(known)
+            || !allowed_sigs.iter().all(known)
+            || !deprecated.iter().all(known)
         {
             return Err(PolicyError::UnknownAlgorithm);
+        }
+        // Role, not just strength. `nist_level` is shared by KEMs and
+        // signatures, so a floor-clearing signature id (e.g. ML-DSA-87 at L5)
+        // would otherwise be accepted as a KEM, and a KEM id in `allowed_sigs`
+        // would satisfy the has-a-signature check below while authorizing no
+        // real signature algorithm.
+        if !allowed_kems.iter().all(|id| is_kem(id))
+            || !allowed_sigs.iter().all(|id| is_signature(id))
+        {
+            return Err(PolicyError::RoleMismatch);
         }
 
         let policy = Self {
@@ -509,19 +554,28 @@ impl Policy {
         }
     }
 
-    /// True iff `id` is an allowed KEM: listed, not deprecated, **and** it meets
-    /// the downgrade floor. (The floor check is what was missing before — a
-    /// below-floor KEM placed in `allowed_kems` is now correctly rejected.)
+    /// True iff `id` is an allowed KEM: a key-establishment algorithm, listed,
+    /// not deprecated, **and** meeting the downgrade floor.
+    ///
+    /// The [`is_kem`] role check is independent of the floor: a signature
+    /// identifier can clear the same NIST level as a KEM, so strength alone
+    /// must never authorize a role.
     #[must_use]
     pub fn kem_allowed(&self, id: &str) -> bool {
-        !self.is_deprecated(id) && self.allowed_kems.iter().any(|k| k == id) && self.meets_floor(id)
+        is_kem(id)
+            && !self.is_deprecated(id)
+            && self.allowed_kems.iter().any(|k| k == id)
+            && self.meets_floor(id)
     }
 
-    /// True iff `id` is an allowed signature algorithm (listed, not deprecated,
-    /// meets floor).
+    /// True iff `id` is an allowed signature algorithm: a signature algorithm,
+    /// listed, not deprecated, and meeting the downgrade floor.
     #[must_use]
     pub fn sig_allowed(&self, id: &str) -> bool {
-        !self.is_deprecated(id) && self.allowed_sigs.iter().any(|s| s == id) && self.meets_floor(id)
+        is_signature(id)
+            && !self.is_deprecated(id)
+            && self.allowed_sigs.iter().any(|s| s == id)
+            && self.meets_floor(id)
     }
 
     /// Whether any allowed PQ KEM lacks a locally mapped C2PRI capability, which
@@ -613,6 +667,12 @@ pub enum PolicyError {
     InvalidFloor,
     /// An allow-list or deprecation entry names an algorithm this build does not know.
     UnknownAlgorithm,
+    /// A known algorithm is listed in the wrong role: a signature in `allowed_kems`,
+    /// or a KEM (or traditional key-establishment partner) in `allowed_sigs`.
+    /// Role is checked separately from strength, because the NIST level table is
+    /// shared — `ML-DSA-87` and `ML-KEM-1024` are both level 5, so a floor check
+    /// alone cannot tell them apart.
+    RoleMismatch,
     /// An allow-list or deprecation list contains the same identifier more than once.
     DuplicateAlgorithm,
     /// After floor/deprecation checks the policy has no complete hybrid suite or
@@ -646,6 +706,10 @@ impl core::fmt::Display for PolicyError {
             PolicyError::InvalidVersion => "policy_version must be non-zero",
             PolicyError::InvalidFloor => "min_nist_level must be 1, 2, 3, or 5",
             PolicyError::UnknownAlgorithm => "policy contains an unknown algorithm identifier",
+            PolicyError::RoleMismatch => {
+                "policy lists an algorithm in the wrong role (a signature in allowed_kems, \
+                 or a KEM in allowed_sigs)"
+            }
             PolicyError::DuplicateAlgorithm => "policy contains a duplicate algorithm identifier",
             PolicyError::Unsatisfiable => {
                 "policy cannot authorize a complete hybrid suite and signature"
@@ -1112,5 +1176,129 @@ mod load_tests {
         );
 
         assert_eq!(TrustedPolicyState::decode(&same.encode()).unwrap(), same);
+    }
+
+    #[test]
+    fn algorithm_role_is_separated_from_strength() {
+        // The NIST level table is shared by KEMs and signatures, so strength
+        // alone must never decide whether an identifier may serve a role.
+        assert!(is_kem("ML-KEM-768") && !is_signature("ML-KEM-768"));
+        assert!(is_signature("ML-DSA-87") && !is_kem("ML-DSA-87"));
+        assert!(is_signature("SLH-DSA-SHA2-256s") && !is_kem("SLH-DSA-SHA2-256s"));
+        // Traditional hybrid partners are KEX/KEM-side only, never signatures.
+        assert!(is_kem("X25519") && !is_signature("X25519"));
+        assert!(!is_kem("HQC-256") && !is_signature("HQC-256"));
+    }
+
+    #[test]
+    fn role_predicates_agree_with_the_typed_algorithm_enums() {
+        // The authentication path is typed (`Verifier::algorithm() -> SigAlg`),
+        // while policy allow-lists are strings. These must not drift apart: a
+        // SigAlg that `is_signature` did not recognize would be unusable in a
+        // policy, and a strength disagreement would make the WeakSigner floor
+        // check compare two different scales.
+        // (`SigAlg` is #[non_exhaustive], so a future variant cannot be caught
+        // at compile time here; it is caught the first time it is used.)
+        for alg in [
+            q_periapt_sig::SigAlg::MlDsa44,
+            q_periapt_sig::SigAlg::MlDsa65,
+            q_periapt_sig::SigAlg::MlDsa87,
+            q_periapt_sig::SigAlg::SlhDsaSha2_128s,
+            q_periapt_sig::SigAlg::SlhDsaSha2_192s,
+            q_periapt_sig::SigAlg::SlhDsaSha2_256s,
+        ] {
+            let id = alg.id();
+            assert!(is_signature(id), "{id} is a SigAlg but not is_signature");
+            assert!(!is_kem(id), "{id} is a SigAlg and must never be a KEM");
+            assert_eq!(
+                nist_level(id),
+                Some(alg.nist_level()),
+                "policy strength table disagrees with SigAlg::nist_level for {id}"
+            );
+        }
+
+        // Every component of every hybrid suite must be a KEM and never a
+        // signature, with matching strength for the post-quantum half.
+        for suite in [HybridSuite::MlKem768X25519, HybridSuite::MlKem1024X25519] {
+            for id in [suite.pq_kem(), suite.traditional_kem()] {
+                assert!(is_kem(id), "{id} is a suite component but not is_kem");
+                assert!(!is_signature(id), "{id} must never be a signature");
+            }
+            assert_eq!(nist_level(suite.pq_kem()), Some(suite.nist_level()));
+        }
+    }
+
+    #[test]
+    fn signature_algorithm_in_kem_list_is_rejected() {
+        // ML-DSA-87 is NIST level 5, so a strength-only check accepts it as a
+        // KEM. Role validation must reject it even though it clears the floor.
+        assert_eq!(
+            Policy::try_new(
+                1,
+                3,
+                Profile::ContextBound,
+                vec!["ML-KEM-768".into(), "X25519".into(), "ML-DSA-87".into()],
+                vec!["ML-DSA-65".into()],
+                Vec::new(),
+            )
+            .unwrap_err(),
+            PolicyError::RoleMismatch,
+            "a signature identifier must not be accepted as an allowed KEM"
+        );
+    }
+
+    #[test]
+    fn kem_in_signature_list_is_rejected() {
+        // ML-KEM-1024 clears the floor and is not traditional, so it satisfied
+        // the previous has_signature check; a policy could authorize zero real
+        // signature algorithms while appearing satisfiable.
+        assert_eq!(
+            Policy::try_new(
+                1,
+                3,
+                Profile::ContextBound,
+                vec!["ML-KEM-768".into(), "X25519".into()],
+                vec!["ML-KEM-1024".into()],
+                Vec::new(),
+            )
+            .unwrap_err(),
+            PolicyError::RoleMismatch,
+            "a KEM identifier must not be accepted as an allowed signature"
+        );
+        assert_eq!(
+            Policy::from_toml(
+                "schema_version = 1\n\
+                 policy_version = 1\n\
+                 min_nist_level = 3\n\
+                 default_profile = \"ContextBound\"\n\
+                 allowed_kems = [\"ML-KEM-768\", \"X25519\"]\n\
+                 allowed_sigs = [\"ML-KEM-1024\"]\n\
+                 deprecated = []\n"
+            )
+            .unwrap_err(),
+            PolicyError::RoleMismatch,
+            "the TOML path used by FFI/wasm/rustls must reject the same misconfiguration"
+        );
+    }
+
+    #[test]
+    fn role_predicates_reject_cross_category_queries() {
+        // Defense in depth: even for a policy value built by other means, the
+        // accessors must not confirm an identifier in the wrong role.
+        let mut p = Policy::default();
+        p.allowed_kems.push("ML-DSA-87".into());
+        p.allowed_sigs.push("ML-KEM-1024".into());
+        assert!(
+            !p.kem_allowed("ML-DSA-87"),
+            "signature identifier must never be reported as an allowed KEM"
+        );
+        assert!(
+            !p.sig_allowed("ML-KEM-1024"),
+            "KEM identifier must never be reported as an allowed signature"
+        );
+        assert!(
+            !p.sig_allowed("X25519"),
+            "traditional KEX must never be reported as an allowed signature"
+        );
     }
 }

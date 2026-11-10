@@ -1,0 +1,344 @@
+﻿2026-11-09T17:42:34.1268713Z Current runner version: '2.338.2'
+2026-11-09T17:42:34.1289185Z ##[group]Runner Image Provisioner
+2026-11-09T17:42:34.1289957Z Hosted Compute Agent
+2026-11-09T17:42:34.1290503Z Version: 20261028.624
+2026-11-09T17:42:34.1291130Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-09T17:42:34.1291930Z Build Date: 2026-10-28T21:51:42Z
+2026-11-09T17:42:34.1292532Z Worker ID: {8c90888a-6a31-4995-af64-914d64d49bec}
+2026-11-09T17:42:34.1293146Z Region: westus3
+2026-11-09T17:42:34.1293691Z Cloud: Azure
+2026-11-09T17:42:34.1294455Z ##[endgroup]
+2026-11-09T17:42:34.1295623Z ##[group]Operating System
+2026-11-09T17:42:34.1296158Z Ubuntu
+2026-11-09T17:42:34.1296692Z 24.04.5
+2026-11-09T17:42:34.1297181Z LTS
+2026-11-09T17:42:34.1297722Z ##[endgroup]
+2026-11-09T17:42:34.1298210Z ##[group]Runner Image
+2026-11-09T17:42:34.1298711Z Image: ubuntu-24.04
+2026-11-09T17:42:34.1299284Z Version: 20261101.360.1
+2026-11-09T17:42:34.1300329Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-09T17:42:34.1301808Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+2026-11-09T17:42:34.1302622Z ##[endgroup]
+2026-11-09T17:42:34.1303716Z ##[group]GITHUB_TOKEN Permissions
+2026-11-09T17:42:34.1305516Z Actions: read
+2026-11-09T17:42:34.1306114Z Contents: read
+2026-11-09T17:42:34.1306609Z Metadata: read
+2026-11-09T17:42:34.1307115Z ##[endgroup]
+2026-11-09T17:42:34.1309124Z Secret source: Actions
+2026-11-09T17:42:34.1310120Z Cache mode: write
+2026-11-09T17:42:34.1310727Z Prepare workflow directory
+2026-11-09T17:42:34.1570308Z Prepare all required actions
+2026-11-09T17:42:34.1610785Z Getting action download info
+2026-11-09T17:42:34.4640011Z Download action repository 'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0' (SHA:9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0)
+2026-11-09T17:42:34.5723572Z Download action repository 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-11-09T17:42:34.7779323Z Complete job name: Retained 56f191f0 macOS database, heap-1536
+2026-11-09T17:42:34.8463805Z ##[group]Run actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+2026-11-09T17:42:34.8464627Z with:
+2026-11-09T17:42:34.8464996Z   persist-credentials: false
+2026-11-09T17:42:34.8465443Z   sparse-checkout-cone-mode: false
+2026-11-09T17:42:34.8467004Z   sparse-checkout: artifact/codeql_summary_control.py
+artifact/test_codeql_summary_control.py
+artifact/codeql_log_recovery.py
+artifact/codeql_rust_queries.json
+artifact/bounded_process.py
+artifact/evidence_io.py
+artifact/python-run.sh
+artifact/python-env.sh
+artifact/python_bootstrap.py
+
+2026-11-09T17:42:34.8468575Z   repository: billlza/q-periapt
+2026-11-09T17:42:34.8471649Z   token: ***
+2026-11-09T17:42:34.8472017Z   ssh-strict: true
+2026-11-09T17:42:34.8472376Z   ssh-user: git
+2026-11-09T17:42:34.8472725Z   clean: true
+2026-11-09T17:42:34.8473075Z   fetch-depth: 1
+2026-11-09T17:42:34.8473431Z   fetch-tags: false
+2026-11-09T17:42:34.8473820Z   show-progress: true
+2026-11-09T17:42:34.8474185Z   lfs: false
+2026-11-09T17:42:34.8474562Z   submodules: false
+2026-11-09T17:42:34.8474934Z   set-safe-directory: true
+2026-11-09T17:42:34.8475345Z   allow-unsafe-pr-checkout: false
+2026-11-09T17:42:34.8475924Z ##[endgroup]
+2026-11-09T17:42:35.0543467Z Syncing repository: billlza/q-periapt
+2026-11-09T17:42:35.0544920Z ##[group]Getting Git version info
+2026-11-09T17:42:35.0545497Z Working directory is '/home/runner/work/q-periapt/q-periapt'
+2026-11-09T17:42:35.0546312Z [command]/usr/bin/git version
+2026-11-09T17:42:35.0630339Z git version 2.56.0
+2026-11-09T17:42:35.0647309Z ##[endgroup]
+2026-11-09T17:42:35.0656920Z Temporarily overriding HOME='/home/runner/work/_temp/4a63a0ec-e6bd-49df-ab82-2c337aa56c02' before making global git config changes
+2026-11-09T17:42:35.0658360Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-09T17:42:35.0662919Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-09T17:42:35.0708142Z Deleting the contents of '/home/runner/work/q-periapt/q-periapt'
+2026-11-09T17:42:35.0710756Z ##[group]Determining repository object format
+2026-11-09T17:42:35.0713292Z ##[endgroup]
+2026-11-09T17:42:35.0714042Z ##[group]Initializing the repository
+2026-11-09T17:42:35.0716314Z [command]/usr/bin/git init /home/runner/work/q-periapt/q-periapt
+2026-11-09T17:42:35.0788672Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-09T17:42:35.0790008Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-09T17:42:35.0791184Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-09T17:42:35.0792227Z hint: call:
+2026-11-09T17:42:35.0792712Z hint:
+2026-11-09T17:42:35.0793323Z hint: 	git config --global init.defaultBranch <name>
+2026-11-09T17:42:35.0794079Z hint:
+2026-11-09T17:42:35.0794781Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-09T17:42:35.0795991Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-09T17:42:35.0796903Z hint:
+2026-11-09T17:42:35.0797391Z hint: 	git branch -m <name>
+2026-11-09T17:42:35.0797955Z hint:
+2026-11-09T17:42:35.0798710Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-09T17:42:35.0799976Z Initialized empty Git repository in /home/runner/work/q-periapt/q-periapt/.git/
+2026-11-09T17:42:35.0805200Z [command]/usr/bin/git remote add origin https://github.com/billlza/q-periapt
+2026-11-09T17:42:35.0846327Z ##[endgroup]
+2026-11-09T17:42:35.0846979Z ##[group]Disabling automatic garbage collection
+2026-11-09T17:42:35.0849768Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-09T17:42:35.0879052Z ##[endgroup]
+2026-11-09T17:42:35.0880072Z ##[group]Setting up auth
+2026-11-09T17:42:35.0880511Z Removing SSH command configuration
+2026-11-09T17:42:35.0885517Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-09T17:42:35.0917334Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-09T17:42:35.1231947Z Removing HTTP extra header
+2026-11-09T17:42:35.1240744Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-09T17:42:35.1275863Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-09T17:42:35.1485719Z Removing includeIf entries pointing to credentials config files
+2026-11-09T17:42:35.1496722Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-09T17:42:35.1533875Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-09T17:42:35.1738887Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-09T17:42:35.1785814Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config
+2026-11-09T17:42:35.1826679Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config
+2026-11-09T17:42:35.1868687Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config
+2026-11-09T17:42:35.1910414Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config
+2026-11-09T17:42:35.1949598Z ##[endgroup]
+2026-11-09T17:42:35.1950290Z ##[group]Fetching the repository
+2026-11-09T17:42:35.1956891Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --filter=blob:none --depth=1 origin +747c45bab13320d1df2ebaaa0012f183fcf4a1a0:refs/remotes/origin/diagnostic/codeql-summary-cache
+2026-11-09T17:42:35.8266816Z From https://github.com/billlza/q-periapt
+2026-11-09T17:42:35.8268339Z  * [new ref]         747c45bab13320d1df2ebaaa0012f183fcf4a1a0 -> origin/diagnostic/codeql-summary-cache
+2026-11-09T17:42:35.8272650Z [command]/usr/bin/git branch --list --remote origin/diagnostic/codeql-summary-cache
+2026-11-09T17:42:35.8306938Z   origin/diagnostic/codeql-summary-cache
+2026-11-09T17:42:35.8314288Z [command]/usr/bin/git rev-parse refs/remotes/origin/diagnostic/codeql-summary-cache
+2026-11-09T17:42:35.8345785Z 747c45bab13320d1df2ebaaa0012f183fcf4a1a0
+2026-11-09T17:42:35.8349769Z ##[endgroup]
+2026-11-09T17:42:35.8350665Z ##[group]Determining the checkout info
+2026-11-09T17:42:35.8351875Z ##[endgroup]
+2026-11-09T17:42:35.8352804Z ##[group]Setting up sparse checkout
+2026-11-09T17:42:35.8354670Z [command]/usr/bin/git config core.sparseCheckout true
+2026-11-09T17:42:35.8395507Z [command]/usr/bin/git rev-parse --git-path info/sparse-checkout
+2026-11-09T17:42:35.8424870Z .git/info/sparse-checkout
+2026-11-09T17:42:35.8431195Z ##[endgroup]
+2026-11-09T17:42:35.8432374Z ##[group]Checking out the ref
+2026-11-09T17:42:35.8436239Z [command]/usr/bin/git checkout --progress --force -B diagnostic/codeql-summary-cache refs/remotes/origin/diagnostic/codeql-summary-cache
+2026-11-09T17:42:36.7776577Z Switched to a new branch 'diagnostic/codeql-summary-cache'
+2026-11-09T17:42:36.7781261Z branch 'diagnostic/codeql-summary-cache' set up to track 'origin/diagnostic/codeql-summary-cache'.
+2026-11-09T17:42:36.7789093Z ##[endgroup]
+2026-11-09T17:42:36.7836477Z [command]/usr/bin/git log -1 --format=%H
+2026-11-09T17:42:36.7867714Z 747c45bab13320d1df2ebaaa0012f183fcf4a1a0
+2026-11-09T17:42:36.7876187Z ##[group]Removing auth
+2026-11-09T17:42:36.7877157Z Removing SSH command configuration
+2026-11-09T17:42:36.7879813Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-09T17:42:36.7918905Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-09T17:42:36.8135876Z Removing HTTP extra header
+2026-11-09T17:42:36.8138355Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-09T17:42:36.8177032Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-09T17:42:36.8387349Z Removing includeIf entries pointing to credentials config files
+2026-11-09T17:42:36.8390375Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-09T17:42:36.8429283Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-09T17:42:36.8430432Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-09T17:42:36.8432201Z includeif.gitdir:/github/workspace/.git.path
+2026-11-09T17:42:36.8433212Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-09T17:42:36.8436892Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-09T17:42:36.8468333Z /home/runner/work/_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config
+2026-11-09T17:42:36.8483155Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config
+2026-11-09T17:42:36.8525262Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-09T17:42:36.8554255Z /home/runner/work/_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config
+2026-11-09T17:42:36.8561094Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config
+2026-11-09T17:42:36.8661127Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-09T17:42:36.8691565Z /github/runner_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config
+2026-11-09T17:42:36.8697910Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config
+2026-11-09T17:42:36.8735025Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-09T17:42:36.8763649Z /github/runner_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config
+2026-11-09T17:42:36.8769744Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config
+2026-11-09T17:42:36.8807858Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-09T17:42:36.9025016Z Removing credentials config '/home/runner/work/_temp/git-credentials-2deeb3a7-ad12-4925-8338-a3ba5ce31841.config'
+2026-11-09T17:42:36.9028352Z ##[endgroup]
+2026-11-09T17:42:36.9217709Z ##[group]Run sh artifact/python-run.sh -m unittest -v test_codeql_summary_control
+2026-11-09T17:42:36.9218770Z [36;1msh artifact/python-run.sh -m unittest -v test_codeql_summary_control[0m
+2026-11-09T17:42:36.9240061Z shell: /usr/bin/bash -e {0}
+2026-11-09T17:42:36.9240717Z ##[endgroup]
+2026-11-09T17:42:37.5018100Z test_any_root_in_progress_key_rejects_regardless_of_value_or_quoting (test_codeql_summary_control.DatabaseRestorationTests.test_any_root_in_progress_key_rejects_regardless_of_value_or_quoting) ... ok
+2026-11-09T17:42:37.5022586Z test_archive_count_and_total_size_bounds_are_enforced (test_codeql_summary_control.DatabaseRestorationTests.test_archive_count_and_total_size_bounds_are_enforced) ... ok
+2026-11-09T17:42:37.5034691Z test_archive_receipt_is_bounded_and_records_actual_metadata_paths (test_codeql_summary_control.DatabaseRestorationTests.test_archive_receipt_is_bounded_and_records_actual_metadata_paths) ... ok
+2026-11-09T17:42:37.5076962Z test_changed_cache_bytes_change_both_cache_and_database_identity (test_codeql_summary_control.DatabaseRestorationTests.test_changed_cache_bytes_change_both_cache_and_database_identity) ... ok
+2026-11-09T17:42:37.5100002Z test_completed_database_without_legacy_finalised_field_is_admitted (test_codeql_summary_control.DatabaseRestorationTests.test_completed_database_without_legacy_finalised_field_is_admitted) ... ok
+2026-11-09T17:42:37.5108745Z test_directory_metadata_and_wrong_dataset_location_are_rejected (test_codeql_summary_control.DatabaseRestorationTests.test_directory_metadata_and_wrong_dataset_location_are_rejected) ... ok
+2026-11-09T17:42:37.5113608Z test_duplicate_members_are_rejected (test_codeql_summary_control.DatabaseRestorationTests.test_duplicate_members_are_rejected) ... ok
+2026-11-09T17:42:37.5115337Z test_empty_archive_is_not_a_database (test_codeql_summary_control.DatabaseRestorationTests.test_empty_archive_is_not_a_database) ... ok
+2026-11-09T17:42:37.5147015Z test_legacy_finalised_must_be_explicit_boolean_true_when_present (test_codeql_summary_control.DatabaseRestorationTests.test_legacy_finalised_must_be_explicit_boolean_true_when_present) ... ok
+2026-11-09T17:42:37.5187851Z test_matching_scalar_quotes_keep_exact_metadata_identities (test_codeql_summary_control.DatabaseRestorationTests.test_matching_scalar_quotes_keep_exact_metadata_identities) ... ok
+2026-11-09T17:42:37.5203680Z test_member_outside_selected_metadata_root_is_rejected (test_codeql_summary_control.DatabaseRestorationTests.test_member_outside_selected_metadata_root_is_rejected) ... ok
+2026-11-09T17:42:37.5215744Z test_multiple_or_nested_metadata_roots_are_rejected (test_codeql_summary_control.DatabaseRestorationTests.test_multiple_or_nested_metadata_roots_are_rejected) ... ok
+2026-11-09T17:42:37.5224126Z test_non_regular_archive_members_are_rejected (test_codeql_summary_control.DatabaseRestorationTests.test_non_regular_archive_members_are_rejected) ... ok
+2026-11-09T17:42:37.5229562Z test_normal_bundle_members_are_admitted (test_codeql_summary_control.DatabaseRestorationTests.test_normal_bundle_members_are_admitted) ... ok
+2026-11-09T17:42:37.5241605Z test_normalized_duplicates_and_file_ancestor_conflicts_are_rejected (test_codeql_summary_control.DatabaseRestorationTests.test_normalized_duplicates_and_file_ancestor_conflicts_are_rejected) ... ok
+2026-11-09T17:42:37.5245127Z test_nul_truncated_zip_names_are_rejected (test_codeql_summary_control.DatabaseRestorationTests.test_nul_truncated_zip_names_are_rejected) ... ok
+2026-11-09T17:42:37.5249835Z test_oversized_member_is_rejected_before_read (test_codeql_summary_control.DatabaseRestorationTests.test_oversized_member_is_rejected_before_read) ... ok
+2026-11-09T17:42:37.5291107Z test_prefix_without_explicit_directory_entry_retains_all_file_identities (test_codeql_summary_control.DatabaseRestorationTests.test_prefix_without_explicit_directory_entry_retains_all_file_identities) ... ok
+2026-11-09T17:42:37.5312390Z test_prepare_retains_archive_receipt_before_metadata_rejection (test_codeql_summary_control.DatabaseRestorationTests.test_prepare_retains_archive_receipt_before_metadata_rejection) ... ok
+2026-11-09T17:42:37.5317392Z test_restore_refuses_existing_destination_without_overwriting (test_codeql_summary_control.DatabaseRestorationTests.test_restore_refuses_existing_destination_without_overwriting) ... ok
+2026-11-09T17:42:37.5341219Z test_single_prefix_is_normalized_and_root_metadata_is_preserved (test_codeql_summary_control.DatabaseRestorationTests.test_single_prefix_is_normalized_and_root_metadata_is_preserved) ... ok
+2026-11-09T17:42:37.5391032Z test_two_restorations_have_equal_relative_inventory_bytes_and_times (test_codeql_summary_control.DatabaseRestorationTests.test_two_restorations_have_equal_relative_inventory_bytes_and_times) ... ok
+2026-11-09T17:42:37.5402786Z test_unsafe_paths_are_rejected_before_restoration (test_codeql_summary_control.DatabaseRestorationTests.test_unsafe_paths_are_rejected_before_restoration) ... ok
+2026-11-09T17:42:37.5460736Z test_wrong_or_ambiguous_metadata_and_missing_cache_remain_rejected (test_codeql_summary_control.DatabaseRestorationTests.test_wrong_or_ambiguous_metadata_and_missing_cache_remain_rejected) ... ok
+2026-11-09T17:42:37.5468168Z test_wrong_outer_artifact_is_rejected_before_zip_extraction (test_codeql_summary_control.DatabaseRestorationTests.test_wrong_outer_artifact_is_rejected_before_zip_extraction) ... ok
+2026-11-09T17:42:37.5508404Z test_zip_order_does_not_change_the_restored_inventory (test_codeql_summary_control.DatabaseRestorationTests.test_zip_order_does_not_change_the_restored_inventory) ... ok
+2026-11-09T17:42:37.5509735Z test_empty_results_are_not_completed (test_codeql_summary_control.EvaluationEvidenceTests.test_empty_results_are_not_completed) ... ok
+2026-11-09T17:42:37.5531866Z test_evaluator_environment_excludes_download_credentials (test_codeql_summary_control.EvaluationEvidenceTests.test_evaluator_environment_excludes_download_credentials) ... ok
+2026-11-09T17:42:37.5679762Z test_nonzero_exit_and_both_output_streams_are_retained (test_codeql_summary_control.EvaluationEvidenceTests.test_nonzero_exit_and_both_output_streams_are_retained) ... ok
+2026-11-09T17:42:37.5720895Z test_old_bqrs_cannot_satisfy_fresh_output_admission (test_codeql_summary_control.EvaluationEvidenceTests.test_old_bqrs_cannot_satisfy_fresh_output_admission) ... ok
+2026-11-09T17:42:38.5748838Z test_timeout_is_failure_with_partial_output_and_receipt (test_codeql_summary_control.EvaluationEvidenceTests.test_timeout_is_failure_with_partial_output_and_receipt) ... ok
+2026-11-09T17:42:38.5815523Z test_transfer_failure_receipt_excludes_exception_credentials (test_codeql_summary_control.EvaluationEvidenceTests.test_transfer_failure_receipt_excludes_exception_credentials) ... ok
+2026-11-09T17:42:38.5820844Z test_early_partial_logs_remain_observable_but_do_not_claim_actual_allocation (test_codeql_summary_control.EvaluatorLogObservationTests.test_early_partial_logs_remain_observable_but_do_not_claim_actual_allocation) ... ok
+2026-11-09T17:42:38.5839455Z test_observation_rejects_unbounded_or_redirected_log_input (test_codeql_summary_control.EvaluatorLogObservationTests.test_observation_rejects_unbounded_or_redirected_log_input) ... ok
+2026-11-09T17:42:38.5841532Z test_raw_logs_and_actual_jvm_allocation_produce_bounded_observations (test_codeql_summary_control.EvaluatorLogObservationTests.test_raw_logs_and_actual_jvm_allocation_produce_bounded_observations) ... ok
+2026-11-09T17:42:38.5843094Z test_exact_plaintext_inventory_is_accepted (test_codeql_summary_control.FixedConfigurationTests.test_exact_plaintext_inventory_is_accepted) ... ok
+2026-11-09T17:42:38.5844524Z test_omission_or_replacement_cannot_pass_the_query_census (test_codeql_summary_control.FixedConfigurationTests.test_omission_or_replacement_cannot_pass_the_query_census) ... ok
+2026-11-09T17:42:38.5846060Z test_only_two_memory_arguments_change_between_profiles (test_codeql_summary_control.FixedConfigurationTests.test_only_two_memory_arguments_change_between_profiles) ... ok
+2026-11-09T17:42:38.5847702Z test_plaintext_hash_substitution_is_rejected (test_codeql_summary_control.FixedConfigurationTests.test_plaintext_hash_substitution_is_rejected) ... ok
+2026-11-09T17:42:38.5849198Z test_selected_versions_and_all_query_identities_are_retained (test_codeql_summary_control.FixedConfigurationTests.test_selected_versions_and_all_query_identities_are_retained) ... ok
+2026-11-09T17:42:38.5955260Z test_all_39_fresh_results_are_decoded_with_binary_and_semantic_hashes (test_codeql_summary_control.FreshResultDecodingTests.test_all_39_fresh_results_are_decoded_with_binary_and_semantic_hashes) ... ok
+2026-11-09T17:42:38.6068885Z test_duplicate_keys_and_nonfinite_json_cannot_be_decoded_as_evidence (test_codeql_summary_control.FreshResultDecodingTests.test_duplicate_keys_and_nonfinite_json_cannot_be_decoded_as_evidence) ... ok
+2026-11-09T17:42:38.6181691Z test_malformed_result_tables_are_rejected (test_codeql_summary_control.FreshResultDecodingTests.test_malformed_result_tables_are_rejected) ... ok
+2026-11-09T17:42:38.6239349Z test_missing_full_summary_does_not_pass_with_the_other_38_results (test_codeql_summary_control.FreshResultDecodingTests.test_missing_full_summary_does_not_pass_with_the_other_38_results) ... ok
+2026-11-09T17:42:38.6694734Z test_tuple_order_does_not_change_semantics_but_content_and_multiplicity_do (test_codeql_summary_control.FreshResultDecodingTests.test_tuple_order_does_not_change_semantics_but_content_and_multiplicity_do) ... ok
+2026-11-09T17:42:38.6711854Z test_additional_memory_options_cannot_hide_behind_expected_arguments (test_codeql_summary_control.PairedComparisonTests.test_additional_memory_options_cannot_hide_behind_expected_arguments) ... ok
+2026-11-09T17:42:38.6721333Z test_bqrs_container_bytes_need_not_match_when_semantics_match (test_codeql_summary_control.PairedComparisonTests.test_bqrs_container_bytes_need_not_match_when_semantics_match) ... ok
+2026-11-09T17:42:38.6730531Z test_changed_semantic_result_is_rejected (test_codeql_summary_control.PairedComparisonTests.test_changed_semantic_result_is_rejected) ... ok
+2026-11-09T17:42:38.6750985Z test_command_changes_outside_the_memory_pair_are_rejected (test_codeql_summary_control.PairedComparisonTests.test_command_changes_outside_the_memory_pair_are_rejected) ... ok
+2026-11-09T17:42:38.6760360Z test_complete_equal_results_are_comparable (test_codeql_summary_control.PairedComparisonTests.test_complete_equal_results_are_comparable) ... ok
+2026-11-09T17:42:38.6792480Z test_database_zip_size_requires_a_positive_bounded_integer (test_codeql_summary_control.PairedComparisonTests.test_database_zip_size_requires_a_positive_bounded_integer) ... ok
+2026-11-09T17:42:38.6800288Z test_diagnostic_reports_cannot_claim_release_or_publication (test_codeql_summary_control.PairedComparisonTests.test_diagnostic_reports_cannot_claim_release_or_publication) ... ok
+2026-11-09T17:42:38.6804682Z test_empty_input_identity_is_rejected_even_when_both_arms_agree (test_codeql_summary_control.PairedComparisonTests.test_empty_input_identity_is_rejected_even_when_both_arms_agree) ... ok
+2026-11-09T17:42:38.6854250Z test_equal_changes_to_fixed_arguments_are_rejected (test_codeql_summary_control.PairedComparisonTests.test_equal_changes_to_fixed_arguments_are_rejected) ... ok
+2026-11-09T17:42:38.6896785Z test_equal_extra_or_missing_arguments_are_rejected (test_codeql_summary_control.PairedComparisonTests.test_equal_extra_or_missing_arguments_are_rejected) ... ok
+2026-11-09T17:42:38.6916588Z test_equal_unpinned_source_or_tool_identity_is_not_admitted (test_codeql_summary_control.PairedComparisonTests.test_equal_unpinned_source_or_tool_identity_is_not_admitted) ... ok
+2026-11-09T17:42:38.6939417Z test_experiment_commit_must_be_the_same_full_identity (test_codeql_summary_control.PairedComparisonTests.test_experiment_commit_must_be_the_same_full_identity) ... ok
+2026-11-09T17:42:38.6967437Z test_failed_cli_comparison_leaves_an_incomplete_diagnostic_receipt (test_codeql_summary_control.PairedComparisonTests.test_failed_cli_comparison_leaves_an_incomplete_diagnostic_receipt) ... ok
+2026-11-09T17:42:38.6974039Z test_missing_compiled_identity_is_rejected_even_when_both_arms_omit_it (test_codeql_summary_control.PairedComparisonTests.test_missing_compiled_identity_is_rejected_even_when_both_arms_omit_it) ... ok
+2026-11-09T17:42:38.6982278Z test_missing_full_summary_result_is_rejected_despite_success_flags (test_codeql_summary_control.PairedComparisonTests.test_missing_full_summary_result_is_rejected_despite_success_flags) ... ok
+2026-11-09T17:42:38.7177237Z test_missing_or_malformed_digests_are_rejected_in_each_receipt_group (test_codeql_summary_control.PairedComparisonTests.test_missing_or_malformed_digests_are_rejected_in_each_receipt_group) ... ok
+2026-11-09T17:42:38.7202307Z test_noncompletion_timeout_and_nonzero_exit_are_rejected (test_codeql_summary_control.PairedComparisonTests.test_noncompletion_timeout_and_nonzero_exit_are_rejected) ... ok
+2026-11-09T17:42:38.7218372Z test_null_or_empty_semantic_digest_is_rejected_even_when_both_arms_agree (test_codeql_summary_control.PairedComparisonTests.test_null_or_empty_semantic_digest_is_rejected_even_when_both_arms_agree) ... ok
+2026-11-09T17:42:38.7244904Z test_ram_resolution_and_execution_budget_changes_are_rejected (test_codeql_summary_control.PairedComparisonTests.test_ram_resolution_and_execution_budget_changes_are_rejected) ... ok
+2026-11-09T17:42:38.7248823Z test_same_profile_twice_is_not_a_paired_experiment (test_codeql_summary_control.PairedComparisonTests.test_same_profile_twice_is_not_a_paired_experiment) ... ok
+2026-11-09T17:42:38.7293184Z test_source_input_tool_and_query_identity_mismatches_are_rejected (test_codeql_summary_control.PairedComparisonTests.test_source_input_tool_and_query_identity_mismatches_are_rejected) ... ok
+2026-11-09T17:42:38.7349013Z test_in_place_mutation_during_snapshot_is_rejected (test_codeql_summary_control.SnapshotBindingTests.test_in_place_mutation_during_snapshot_is_rejected) ... ok
+2026-11-09T17:42:38.7355000Z test_replaced_outer_path_cannot_change_the_bytes_parsed_after_admission (test_codeql_summary_control.SnapshotBindingTests.test_replaced_outer_path_cannot_change_the_bytes_parsed_after_admission) ... ok
+2026-11-09T17:42:38.7366928Z test_result_decoder_reads_and_publishes_the_same_snapshot_as_its_digest (test_codeql_summary_control.SnapshotBindingTests.test_result_decoder_reads_and_publishes_the_same_snapshot_as_its_digest) ... ok
+2026-11-09T17:42:38.7371511Z test_wrong_digest_and_symlink_cannot_be_admitted (test_codeql_summary_control.SnapshotBindingTests.test_wrong_digest_and_symlink_cannot_be_admitted) ... ok
+2026-11-09T17:42:38.7376353Z test_a_claim_of_cold_cache_start_cannot_pass (test_codeql_summary_control.SummaryAllocationEvidenceTests.test_a_claim_of_cold_cache_start_cannot_pass) ... ok
+2026-11-09T17:42:38.7438505Z test_actual_heap_and_offheap_are_required_in_addition_to_requested_arguments (test_codeql_summary_control.SummaryAllocationEvidenceTests.test_actual_heap_and_offheap_are_required_in_addition_to_requested_arguments) ... ok
+2026-11-09T17:42:38.7443258Z test_bundle_jvm_probe_fails_before_long_queries_for_ignored_or_bad_flags (test_codeql_summary_control.SummaryAllocationEvidenceTests.test_bundle_jvm_probe_fails_before_long_queries_for_ignored_or_bad_flags) ... ok
+2026-11-09T17:42:38.7472816Z test_equal_forged_cache_input_cannot_pass_pair_comparison (test_codeql_summary_control.SummaryAllocationEvidenceTests.test_equal_forged_cache_input_cannot_pass_pair_comparison) ... ok
+2026-11-09T17:42:38.7481648Z test_missing_database_creation_sha_is_rejected (test_codeql_summary_control.SummaryAllocationEvidenceTests.test_missing_database_creation_sha_is_rejected) ... ok
+2026-11-09T17:42:38.7482958Z test_neither_arm_reruns_the_known_failed_allocation (test_codeql_summary_control.SummaryAllocationEvidenceTests.test_neither_arm_reruns_the_known_failed_allocation) ... ok
+2026-11-09T17:42:38.7492633Z test_old_and_fresh_binary_encodings_may_differ_when_all_semantics_match (test_codeql_summary_control.SummaryAllocationEvidenceTests.test_old_and_fresh_binary_encodings_may_differ_when_all_semantics_match) ... ok
+2026-11-09T17:42:38.7500378Z test_retained_bqrs_semantics_are_checked_even_when_new_arms_agree (test_codeql_summary_control.SummaryAllocationEvidenceTests.test_retained_bqrs_semantics_are_checked_even_when_new_arms_agree) ... ok
+2026-11-09T17:42:38.7501662Z test_retained_source_is_the_failed_macos_database_not_a_new_package_identity (test_codeql_summary_control.SummaryAllocationEvidenceTests.test_retained_source_is_the_failed_macos_database_not_a_new_package_identity) ... ok
+2026-11-09T17:42:38.7549791Z test_success_receipt_must_bind_the_executed_command_and_finite_elapsed_time (test_codeql_summary_control.SummaryAllocationEvidenceTests.test_success_receipt_must_bind_the_executed_command_and_finite_elapsed_time) ... ok
+2026-11-09T17:42:38.7550588Z 
+2026-11-09T17:42:38.7550716Z ----------------------------------------------------------------------
+2026-11-09T17:42:38.7551052Z Ran 80 tests in 1.279s
+2026-11-09T17:42:38.7551171Z 
+2026-11-09T17:42:38.7551244Z OK
+2026-11-09T17:42:38.7742219Z ##[group]Run set -eu
+2026-11-09T17:42:38.7742447Z [36;1mset -eu[0m
+2026-11-09T17:42:38.7742712Z [36;1mCODEQL_ARCHIVE="$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst"[0m
+2026-11-09T17:42:38.7743101Z [36;1mcurl --fail --location --proto '=https' --proto-redir '=https' \[0m
+2026-11-09T17:42:38.7743473Z [36;1m  --connect-timeout 30 --max-time 600 --max-filesize 98247028 \[0m
+2026-11-09T17:42:38.7743789Z [36;1m  --output "$CODEQL_ARCHIVE" \[0m
+2026-11-09T17:42:38.7744284Z [36;1m  'https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.2/codeql-bundle-rust-linux64.tar.zst'[0m
+2026-11-09T17:42:38.7744809Z [36;1mtest "$(stat --format='%s' "$CODEQL_ARCHIVE")" = 98247028[0m
+2026-11-09T17:42:38.7745083Z [36;1mprintf '%s  %s\n' \[0m
+2026-11-09T17:42:38.7745386Z [36;1m  'acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea' \[0m
+2026-11-09T17:42:38.7745737Z [36;1m  "$CODEQL_ARCHIVE" | sha256sum --check --strict[0m
+2026-11-09T17:42:38.7746051Z [36;1mmkdir -m 700 "$RUNNER_TEMP/codeql-summary-tool"[0m
+2026-11-09T17:42:38.7746348Z [36;1mtar --zstd --extract --file "$CODEQL_ARCHIVE" \[0m
+2026-11-09T17:42:38.7746636Z [36;1m  --directory "$RUNNER_TEMP/codeql-summary-tool"[0m
+2026-11-09T17:42:38.7764687Z shell: /usr/bin/bash -e {0}
+2026-11-09T17:42:38.7764892Z ##[endgroup]
+2026-11-09T17:42:38.7862209Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+2026-11-09T17:42:38.7862707Z                                  Dload  Upload   Total   Spent    Left  Speed
+2026-11-09T17:42:38.7863281Z 
+2026-11-09T17:42:39.0469919Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+2026-11-09T17:42:39.0470446Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+2026-11-09T17:42:39.0470818Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+2026-11-09T17:42:40.0066681Z 
+2026-11-09T17:42:40.0158096Z  96 93.6M   96 90.0M    0     0  73.7M      0  0:00:01  0:00:01 --:--:-- 73.7M
+2026-11-09T17:42:40.0158610Z 100 93.6M  100 93.6M    0     0  76.1M      0  0:00:01  0:00:01 --:--:--  403M
+2026-11-09T17:42:40.0872389Z /home/runner/work/_temp/codeql-bundle-rust-linux64.tar.zst: OK
+2026-11-09T17:42:40.4649825Z ##[group]Run sh artifact/python-run.sh artifact/codeql_summary_control.py run \
+2026-11-09T17:42:40.4650278Z [36;1msh artifact/python-run.sh artifact/codeql_summary_control.py run \[0m
+2026-11-09T17:42:40.4650655Z [36;1m  --codeql "$RUNNER_TEMP/codeql-summary-tool/codeql/codeql" \[0m
+2026-11-09T17:42:40.4651052Z [36;1m  --tool-archive "$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst" \[0m
+2026-11-09T17:42:40.4651361Z [36;1m  --profile "$CASE_PROFILE" \[0m
+2026-11-09T17:42:40.4651945Z [36;1m  --output "$RUNNER_TEMP/qperiapt-codeql-summary-control"[0m
+2026-11-09T17:42:40.4669608Z shell: /usr/bin/bash -e {0}
+2026-11-09T17:42:40.4669810Z env:
+2026-11-09T17:42:40.4671920Z   GH_TOKEN: ***
+2026-11-09T17:42:40.4672114Z   CASE_PROFILE: heap-1536
+2026-11-09T17:42:40.4672310Z ##[endgroup]
+2026-11-09T22:43:17.1426255Z Traceback (most recent call last):
+2026-11-09T22:43:17.1426962Z   File "/home/runner/work/q-periapt/q-periapt/artifact/python_bootstrap.py", line 91, in <module>
+2026-11-09T22:43:17.1429150Z     dispatch(sys.argv[1:])
+2026-11-09T22:43:17.1435958Z   File "/home/runner/work/q-periapt/q-periapt/artifact/python_bootstrap.py", line 87, in dispatch
+2026-11-09T22:43:17.1436574Z     runpy.run_path(str(resolved), run_name="__main__")
+2026-11-09T22:43:17.1437632Z   File "<frozen runpy>", line 286, in run_path
+2026-11-09T22:43:17.1440496Z   File "<frozen runpy>", line 98, in _run_module_code
+2026-11-09T22:43:17.1440751Z   File "<frozen runpy>", line 88, in _run_code
+2026-11-09T22:43:17.1441140Z   File "/home/runner/work/q-periapt/q-periapt/artifact/codeql_summary_control.py", line 786, in <module>
+2026-11-09T22:43:17.1444617Z     main()
+2026-11-09T22:43:17.1447568Z   File "/home/runner/work/q-periapt/q-periapt/artifact/codeql_summary_control.py", line 771, in main
+2026-11-09T22:43:17.1448532Z     evaluate(args.codeql, args.tool_archive, args.output, args.profile)
+2026-11-09T22:43:17.1455275Z   File "/home/runner/work/q-periapt/q-periapt/artifact/codeql_summary_control.py", line 752, in evaluate
+2026-11-09T22:43:17.1456343Z     raise RuntimeError("Retained SummaryStats control failed; inspect evidence/RESULT.json") from None
+2026-11-09T22:43:17.1458004Z RuntimeError: Retained SummaryStats control failed; inspect evidence/RESULT.json
+2026-11-09T22:43:17.3099590Z ##[error]Process completed with exit code 1.
+2026-11-09T22:43:17.3579606Z ##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+2026-11-09T22:43:17.3579956Z with:
+2026-11-09T22:43:17.3580144Z   name: codeql-summary-control-heap-1536
+2026-11-09T22:43:17.3580503Z   path: /home/runner/work/_temp/qperiapt-codeql-summary-control/evidence/**
+2026-11-09T22:43:17.3580823Z   if-no-files-found: error
+2026-11-09T22:43:17.3581086Z   retention-days: 14
+2026-11-09T22:43:17.3581354Z   compression-level: 6
+2026-11-09T22:43:17.3581762Z   overwrite: false
+2026-11-09T22:43:17.3582017Z   include-hidden-files: false
+2026-11-09T22:43:17.3582304Z   archive: true
+2026-11-09T22:43:17.3582546Z ##[endgroup]
+2026-11-09T22:43:17.5686202Z With the provided path, there will be 172 files uploaded
+2026-11-09T22:43:17.5691710Z Artifact name is valid!
+2026-11-09T22:43:17.5692279Z Root directory input is valid!
+2026-11-09T22:43:17.9351238Z Uploading artifact: codeql-summary-control-heap-1536.zip
+2026-11-09T22:43:17.9383496Z Beginning upload of artifact content to blob storage
+2026-11-09T22:43:19.6762064Z Uploaded bytes 8388608
+2026-11-09T22:43:20.3889739Z Uploaded bytes 16777216
+2026-11-09T22:43:21.4555157Z Uploaded bytes 24032221
+2026-11-09T22:43:21.5103092Z Finished uploading artifact content to blob storage!
+2026-11-09T22:43:21.5105791Z SHA256 digest of uploaded artifact is cb63a3051da91311e480f2ffe8d069a373d4285fa556e499e3562524774f4988
+2026-11-09T22:43:21.5107698Z Finalizing artifact upload
+2026-11-09T22:43:22.0040757Z Artifact codeql-summary-control-heap-1536 successfully finalized. Artifact ID 13716727790
+2026-11-09T22:43:22.0041735Z Artifact codeql-summary-control-heap-1536 has been successfully uploaded! Final size is 24032221 bytes. Artifact ID is 13716727790
+2026-11-09T22:43:22.0045671Z Artifact download URL: https://github.com/billlza/q-periapt/actions/runs/42634713742/artifacts/13716727790
+2026-11-09T22:43:22.0344032Z Post job cleanup.
+2026-11-09T22:43:22.1060271Z [command]/usr/bin/git version
+2026-11-09T22:43:22.1117498Z git version 2.56.0
+2026-11-09T22:43:22.1147661Z Temporarily overriding HOME='/home/runner/work/_temp/8e15d1e9-3ccd-48ea-948d-a4e05216cacf' before making global git config changes
+2026-11-09T22:43:22.1148401Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-09T22:43:22.1151673Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-09T22:43:22.1190870Z Removing SSH command configuration
+2026-11-09T22:43:22.1192450Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-09T22:43:22.1229766Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-09T22:43:22.1497471Z Removing HTTP extra header
+2026-11-09T22:43:22.1502437Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-09T22:43:22.1539703Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-09T22:43:22.1777003Z Removing includeIf entries pointing to credentials config files
+2026-11-09T22:43:22.1785341Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-09T22:43:22.1856576Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-09T22:43:22.2237937Z Cleaning up orphan processes

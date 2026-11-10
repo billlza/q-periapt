@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "metadata",
+    "--locked",
+    "--offline",
+    "--format-version",
+    "1",
+    "--filter-platform",
+    "aarch64-apple-darwin"
+  ],
+  "exit": 0,
+  "seconds": 0.6389403329230845
+}

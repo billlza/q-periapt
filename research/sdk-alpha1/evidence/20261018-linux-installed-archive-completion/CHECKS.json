@@ -1,0 +1,39 @@
+{
+  "head": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+  "run": 39129232908,
+  "job": 117682462608,
+  "job_conclusion": "success",
+  "artifact_id": 12139878770,
+  "artifact_bytes": 92282597,
+  "artifact_sha256": "d4b0f8d780ec02d4fd05843821d87bcc84e673cff7911456300b2686ba76c960",
+  "artifact_members": 35089,
+  "source_files_verified_against_Git": 1132,
+  "source_before_after_equal": true,
+  "installed_dependency_graph_replayed": true,
+  "additional_reader_sources_verified_against_Git": {
+    "artifact/sdk_abi2_spec.py": "16a3828eaefed3892a0b7e03c2009032a3d58c106ac44334476b96a93cb2214e",
+    "artifact/c_abi_contract.py": "39f86831d743df8594b03c8505324ebcdb57023166cccc66fb036ad9fb2434bd",
+    "artifact/package_bom.py": "cec214359e543cdac4156acf46a90e5243359c249ed579f9e45a063a633977c6",
+    "artifact/release_binary_scan.py": "4d14fc9adc6508733a9b9c511935883292f6b2acf87a13ab92aa11bdb3152fd2"
+  },
+  "candidate_archive": {
+    "file": "q-periapt-continuity-identity-candidate-0.0.0.crate",
+    "bytes": 1513668,
+    "sha256": "02f1093562c3c45727367e8dabe25fd017ca8cd4c08b013a2e868aa2690f4397"
+  },
+  "original_final_archive_guard_passed": true,
+  "C11_profiles_replayed": 2,
+  "Rust_public_lifecycle_replays": 10,
+  "C_account_public_contract_replays": 14,
+  "scope": "Complete terminal installed job; local original-reader replay of source/dependency/archive identity, strict C11 and selected public lifecycle contracts. Other C runtime checks retain producer observations; not a local replay of every C contract. Same engine and host; no complete workflow, hardware power-loss, independent protocol or release claim.",
+  "full_artifact": "Exact 92,282,597-byte ZIP remains at target/unix-installed-2328-01/installed.zip and GitHub artifact 12139878770. Complete original public replay needs that artifact.",
+  "reader_corrections": [
+    "Canonicalize the selected Linux /tmp consumer root on macOS before the original path verifier.",
+    "Verify four additional locally loaded reader modules directly against pinned Git; they are outside the producer source inventory."
+  ],
+  "capture": {
+    "bytes": 3595384,
+    "members": 37,
+    "sha256": "e961a250a23de23b79a97d36bf1b7757370eaf4364095f2e6399d2af8f496596"
+  }
+}

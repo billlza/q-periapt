@@ -1,0 +1,353 @@
+{
+  "local_linux": {
+    "archive": "q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu.tar.gz",
+    "archive_sha256": "f46abb90548ceee9064f20dab9e0047d1db402f2ff4a9da1e771dbcc496a2857",
+    "binary_sha256": "b8968de71bcdd0dc9485a7eeb8eaea26d4024075527b29afbff6695d69dab787",
+    "builder_commit": "33ca8c5cd2455c43d1d3600cf0b065353644996d",
+    "completed": true,
+    "installed": "/tmp/qperiapt-policy-maintenance-e32v7obl/installed/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu",
+    "kind": "qperiapt.policy_maintenance_package",
+    "license_packages": 81,
+    "manifest_sha256": "41269d8dcadc7a32cdf4d7e1daece1fb7c34d9f9c71daf215dd8dcde6b1e2314",
+    "publication_performed": false,
+    "release_claim_eligible": false,
+    "runtime": {
+      "minimum_os_execution_qualified": false,
+      "producer_libc": [
+        "glibc",
+        "2.36"
+      ],
+      "tested_machine": "aarch64",
+      "tested_release": "6.8.0-117-generic",
+      "tested_system": "Linux"
+    },
+    "schema_version": 1,
+    "source_commit": "de2c49e9e572972165a05411d2a11777f06e31b2",
+    "sources_unchanged": true,
+    "target": "aarch64-unknown-linux-gnu"
+  },
+  "hosted": [
+    {
+      "download": {
+        "id": 11551810817,
+        "job": 113319596512,
+        "sha256": "fb4b0a4071ad71691fc47281c11689bab092ec1804a8c3b4fcee1e4a5f2a5825",
+        "bytes": 1315871,
+        "head": "33ca8c5cd2455c43d1d3600cf0b065353644996d"
+      },
+      "result": {
+        "archive": "q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu.tar.gz",
+        "archive_sha256": "425c89b147a993ab5c76708c751c77b82b5310489549a3d31742b10c7eee5913",
+        "binary_sha256": "86c7459970ff100067eade9a8e251c23c5a9cc9a62b20289f85069c6cf14f5cb",
+        "builder_commit": "6766bca4a525a395e630f4bcc2bb88549bcd2173",
+        "completed": true,
+        "installed": "/tmp/qperiapt-policy-maintenance-9o55tg67/installed/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu",
+        "kind": "qperiapt.policy_maintenance_package",
+        "license_packages": 81,
+        "manifest_sha256": "d83148b979b791dc8af540d1a27f0beedf7f39c7a3a2828d629d3da076396b5c",
+        "publication_performed": false,
+        "release_claim_eligible": false,
+        "runtime": {
+          "minimum_os_execution_qualified": false,
+          "producer_libc": [
+            "glibc",
+            "2.35"
+          ],
+          "tested_machine": "aarch64",
+          "tested_release": "6.8.0-1064-azure",
+          "tested_system": "Linux"
+        },
+        "schema_version": 1,
+        "source_commit": "6766bca4a525a395e630f4bcc2bb88549bcd2173",
+        "sources_unchanged": true,
+        "target": "aarch64-unknown-linux-gnu"
+      },
+      "installed_cases": {
+        "schema": "q-periapt-policy-store-migration-installed/1",
+        "binary": "/tmp/qperiapt-policy-maintenance-9o55tg67/installed/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu/bin/qperiapt",
+        "binary_sha256": "86c7459970ff100067eade9a8e251c23c5a9cc9a62b20289f85069c6cf14f5cb",
+        "fixture_producer": "redb 2.6.3",
+        "fixture_sha256": "5c3f3551281e2d1fe83d123601c93db428d291202fec9668bce5eedbf7cdc95f",
+        "attempts": [
+          {
+            "case": "legacy-conversion",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-9o55tg67/installed/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/policy.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/state.bin"
+            ],
+            "returncode": 0,
+            "stdout_sha256": "548035964aec2e0bb5210c6289637156971aef2ec8bae6facebdff8b3455b37c",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "case": "already-current-retry",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-9o55tg67/installed/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/policy.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/state.bin"
+            ],
+            "returncode": 0,
+            "stdout_sha256": "888c2b4f13549b807e3a33abb681c7d836b4f52e7c7f25121ebbcd376c3bde97",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "case": "oversized-independent-state",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-9o55tg67/installed/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/policy.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/state.bin"
+            ],
+            "returncode": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "96d5d1b6d38506bf89c866621c9e1965b06c1cfe84ffab2856ef9a7363391c54"
+          },
+          {
+            "case": "missing-store",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-9o55tg67/installed/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/missing.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/state.bin"
+            ],
+            "returncode": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "b1b98572b5e4008aac2d31cb32d658a4e5cbd7049c110bb4c235b9370289637e"
+          },
+          {
+            "case": "corrupt-slot-64",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-9o55tg67/installed/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/corrupt-64.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/state.bin"
+            ],
+            "returncode": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "aa12c49e077a7ced11f64f47254a200aee6003380e8671047b5b4b1feaca1d94"
+          },
+          {
+            "case": "corrupt-slot-192",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-9o55tg67/installed/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/corrupt-192.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/state.bin"
+            ],
+            "returncode": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "aa12c49e077a7ced11f64f47254a200aee6003380e8671047b5b4b1feaca1d94"
+          },
+          {
+            "case": "final-current-retry",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-9o55tg67/installed/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/policy.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-nvoel1h_/state.bin"
+            ],
+            "returncode": 0,
+            "stdout_sha256": "888c2b4f13549b807e3a33abb681c7d836b4f52e7c7f25121ebbcd376c3bde97",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "scope": "Actual installed executable outside checkout; public policy fixture; no Continuity or power-loss claim"
+      }
+    },
+    {
+      "download": {
+        "id": 11550934473,
+        "job": 113319596680,
+        "sha256": "79aadbc64b3e1921e7f5e851a20340a30fbf0f5232290a943b9b7e4629f52cf3",
+        "bytes": 1385695,
+        "head": "33ca8c5cd2455c43d1d3600cf0b065353644996d"
+      },
+      "result": {
+        "archive": "q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+        "archive_sha256": "ee8ee8c6b8f635e19cc915db021b96330de1597b6d3c3c177239cdc08049f7bf",
+        "binary_sha256": "cb3043e002dd0f958e79bf2a7ab64a2c99b2f462620ab50230efd24b5ab37d75",
+        "builder_commit": "6766bca4a525a395e630f4bcc2bb88549bcd2173",
+        "completed": true,
+        "installed": "/tmp/qperiapt-policy-maintenance-tq3e12my/installed/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu",
+        "kind": "qperiapt.policy_maintenance_package",
+        "license_packages": 82,
+        "manifest_sha256": "7c2ad73806a72f8958c56432c174611f9158d2ecac889c28e3c2313b4c09ce55",
+        "publication_performed": false,
+        "release_claim_eligible": false,
+        "runtime": {
+          "minimum_os_execution_qualified": false,
+          "producer_libc": [
+            "glibc",
+            "2.35"
+          ],
+          "tested_machine": "x86_64",
+          "tested_release": "6.8.0-1064-azure",
+          "tested_system": "Linux"
+        },
+        "schema_version": 1,
+        "source_commit": "6766bca4a525a395e630f4bcc2bb88549bcd2173",
+        "sources_unchanged": true,
+        "target": "x86_64-unknown-linux-gnu"
+      },
+      "installed_cases": {
+        "schema": "q-periapt-policy-store-migration-installed/1",
+        "binary": "/tmp/qperiapt-policy-maintenance-tq3e12my/installed/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu/bin/qperiapt",
+        "binary_sha256": "cb3043e002dd0f958e79bf2a7ab64a2c99b2f462620ab50230efd24b5ab37d75",
+        "fixture_producer": "redb 2.6.3",
+        "fixture_sha256": "5c3f3551281e2d1fe83d123601c93db428d291202fec9668bce5eedbf7cdc95f",
+        "attempts": [
+          {
+            "case": "legacy-conversion",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-tq3e12my/installed/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/policy.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/state.bin"
+            ],
+            "returncode": 0,
+            "stdout_sha256": "548035964aec2e0bb5210c6289637156971aef2ec8bae6facebdff8b3455b37c",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "case": "already-current-retry",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-tq3e12my/installed/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/policy.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/state.bin"
+            ],
+            "returncode": 0,
+            "stdout_sha256": "888c2b4f13549b807e3a33abb681c7d836b4f52e7c7f25121ebbcd376c3bde97",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "case": "oversized-independent-state",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-tq3e12my/installed/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/policy.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/state.bin"
+            ],
+            "returncode": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "96d5d1b6d38506bf89c866621c9e1965b06c1cfe84ffab2856ef9a7363391c54"
+          },
+          {
+            "case": "missing-store",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-tq3e12my/installed/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/missing.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/state.bin"
+            ],
+            "returncode": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "b1b98572b5e4008aac2d31cb32d658a4e5cbd7049c110bb4c235b9370289637e"
+          },
+          {
+            "case": "corrupt-slot-64",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-tq3e12my/installed/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/corrupt-64.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/state.bin"
+            ],
+            "returncode": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "aa12c49e077a7ced11f64f47254a200aee6003380e8671047b5b4b1feaca1d94"
+          },
+          {
+            "case": "corrupt-slot-192",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-tq3e12my/installed/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/corrupt-192.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/state.bin"
+            ],
+            "returncode": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "aa12c49e077a7ced11f64f47254a200aee6003380e8671047b5b4b1feaca1d94"
+          },
+          {
+            "case": "final-current-retry",
+            "command": [
+              "/tmp/qperiapt-policy-maintenance-tq3e12my/installed/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu/bin/qperiapt",
+              "policy-store-upgrade",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/policy.redb",
+              "--root",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/root.bin",
+              "--expected-state",
+              "/tmp/qperiapt-installed-migration-lghxsxlg/state.bin"
+            ],
+            "returncode": 0,
+            "stdout_sha256": "888c2b4f13549b807e3a33abb681c7d836b4f52e7c7f25121ebbcd376c3bde97",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "scope": "Actual installed executable outside checkout; public policy fixture; no Continuity or power-loss claim"
+      }
+    }
+  ],
+  "source_identity": {
+    "tested_commit": "6766bca4a525a395e630f4bcc2bb88549bcd2173",
+    "tested_tree": "b045c1bb9e6197a5d5bc88d97dfa904ed104dd75",
+    "branch_head": "33ca8c5cd2455c43d1d3600cf0b065353644996d",
+    "branch_tree": "b045c1bb9e6197a5d5bc88d97dfa904ed104dd75",
+    "parents": [
+      "7ed1f96a7ec33732f02a989dd5a4669cdcce39ad",
+      "33ca8c5cd2455c43d1d3600cf0b065353644996d"
+    ]
+  },
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T14:06:40.322532+00:00",
+  "captures": {
+    "file": "CAPTURES.zip",
+    "bytes": 165980,
+    "sha256": "10030e9b9af96bc44ff4a739f502633cb3f3def275c209ea6720df5f702605ea",
+    "members": 133
+  },
+  "publication_performed": false,
+  "release_claim_eligible": false
+}

@@ -90,6 +90,11 @@ make prove      # prove all six queries and match every expected RESULT individu
 make check      # syntax/typing check only (fast, `-test`)
 ```
 
+These bare commands are developer conveniences. The release hard gate first verifies
+the pinned ProVerif identity, clears inherited make-control variables, and passes
+`PROVERIF=proverif` as a make command-line variable so the proof cannot use an ambient
+tool override.
+
 Install the CI-pinned ProVerif via OPAM (`opam install proverif.2.05`). On macOS the optional GUI dependency
 needs system libs first: `brew install gtk+ expat && opam install --assume-depexts
 proverif.2.05`. The CLI verifier (`proverif`) is all that `make prove` needs.

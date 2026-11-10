@@ -1,0 +1,7 @@
+test_emulator_exec_advances_receipt_before_fixed_exec_and_preserves_failure (test_android_bounded_command.AndroidBoundedCommandTests.test_emulator_exec_advances_receipt_before_fixed_exec_and_preserves_failure) ... ok
+test_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary (test_android_bounded_command.AndroidBoundedCommandTests.test_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.047s
+
+OK

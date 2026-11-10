@@ -1,0 +1,19 @@
+test_baseline_accepts_its_original_immediate_rule (test_run.RetryAgeTests.test_baseline_accepts_its_original_immediate_rule) ... ok
+test_each_identity_has_own_age (test_run.RetryAgeTests.test_each_identity_has_own_age) ... ok
+test_every_retry_resets_age (test_run.RetryAgeTests.test_every_retry_resets_age) ... ok
+test_exact_age_is_eligible (test_run.RetryAgeTests.test_exact_age_is_eligible) ... ok
+test_invalid_owner_rejected (test_run.RetryAgeTests.test_invalid_owner_rejected) ... ok
+test_no_retry_is_an_explicit_null_range (test_run.RetryAgeTests.test_no_retry_is_an_explicit_null_range) ... ok
+test_other_sender_turns_do_not_mature_retry (test_run.RetryAgeTests.test_other_sender_turns_do_not_mature_retry) ... ok
+test_rejects_immediate_retry (test_run.RetryAgeTests.test_rejects_immediate_retry) ... ok
+test_rejects_second_first_emission (test_run.RetryAgeTests.test_rejects_second_first_emission) ... ok
+test_rejects_unknown_retry (test_run.RetryAgeTests.test_rejects_unknown_retry) ... ok
+test_only_declared_regions_change (test_run.SourceDerivativeTests.test_only_declared_regions_change) ... ok
+test_original_file_unchanged (test_run.SourceDerivativeTests.test_original_file_unchanged) ... ok
+test_rejects_noninteger_or_unbounded_age (test_run.SourceDerivativeTests.test_rejects_noninteger_or_unbounded_age) ... ok
+test_source_anchor_failure_stops_preparation (test_run.SourceDerivativeTests.test_source_anchor_failure_stops_preparation) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.002s
+
+OK

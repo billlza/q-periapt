@@ -1,0 +1,17 @@
+{
+  "baseline": {
+    "tests": 1,
+    "errors": 1,
+    "failures": 0,
+    "passed": false,
+    "log_sha256": "b993774c191e8601bbcdbbb94dd84093cc6899dc73fa94bc455c5ccc82711401"
+  },
+  "current": {
+    "tests": 1,
+    "errors": 0,
+    "failures": 0,
+    "passed": true,
+    "log_sha256": "3de93671538575bd2601e4cbb1cda58b1c0aa0da1bf563525a0b49f28684a467"
+  },
+  "scope": "Same deterministic post-query clock-expiry regression against actual6053 implementation and current code; no real emulator disconnect repair claimed"
+}

@@ -1,5 +1,39 @@
-# Q-Periapt — TDSC paper draft (structural)
+# Q-Periapt manuscripts — Continuity draft and binding history
 
+## Current Continuity manuscript — 7 November 2026
+
+The integrated manuscript is now available as
+[Post-Compromise Security with Persistent Randomness Reservations](../paper/continuity/continuity.pdf),
+with [LaTeX source, build instructions and result status](../paper/continuity/README.md).
+The current 22-page draft contains the reservation/record/acquisition model,
+the proved alias-normalization lemma and stopping corollary, the retained joint
+multi-epoch symbolic theorem, native separating executions, the existing reference
+corpora and the proved conditional adaptive origin-pair accounting proposition.
+Its fourteen references and source/evidence appendix accompany the complete text.
+
+The agreed submission route is **Journal of Cryptology first, then ACM TOPS,
+then TIFS**. TDSC is excluded from the current route. The two concrete
+computational connections are stated in the manuscript's common-experiment
+section; the matching Continuity comparison has its explicit experimental design.
+These research tasks retain their own scope alongside the 0.2.0 product release.
+
+## Historical binding manuscript notes
+
+The following notes preserve the older binding manuscript and the initial
+Continuity outline. The integrated draft linked above supersedes their title,
+venue and writing-plan choices for the current Continuity paper.
+
+> **Manuscript scope.** These notes and `paper/q-periapt.tex` preserve the earlier
+> KEM-binding and cross-substrate assurance manuscript. They have not been rewritten
+> around the later Continuity protocol, multi-epoch recovery theorem, durable lifecycle
+> or accountable-directory results. Those results are indexed in
+> [PRODUCT_ADMISSION.md](continuity/PRODUCT_ADMISSION.md),
+> [RECOVERY_DEPENDENCIES_V1.md](continuity/RECOVERY_DEPENDENCIES_V1.md) and the two
+> pending session claims in the claim ledger. Updating their evidence does not establish
+> the broad parity or security/performance-lead claims. The existing measurements and
+> figures keep their historical source identities; this documentation correction does
+> not rerun measurements or regenerate the checked-in paper PDF.
+>
 > **Status of this file.** Authoring notes, not the current evidence authority. The paper source is
 > [`../paper/q-periapt.tex`](../paper/q-periapt.tex), and machine-readable current claim status is
 > [`../artifact/claim-ledger.json`](../artifact/claim-ledger.json). Historical numbers and checked
@@ -8,22 +42,162 @@
 > is load-bearing — do not relax it under reviewer pressure. Target venue: **IEEE TDSC** (dependable systems + security; a PhD-appropriate
 > CCF-A target). Frame as an *assurance / dependable-deployment* contribution, NOT a new
 > cryptographic primitive.
-> ABI 2 / `0.1.0-alpha.2` is a release-ready research-alpha source line intended
-> for coordinated Rust-crate publication (not yet on crates.io), with two published immutable
-> GitHub research prereleases: the Apple XCFramework `v0.1.0-alpha.2-r1` (Rust 1.96.1;
-> the earlier `v0.1.0-alpha.2` on 1.96.0 is superseded) and the
-> `abi2-platforms-v0.1.0-alpha.2-r2` platform distribution (Android AAR + API 35 / 16 KiB-page
-> emulator runtime evidence; Linux x86_64+aarch64 SDKs; unsigned experimental Windows x64 MSVC SDK
-> on Rust 1.97.0). Tag-scoped receipts live in `artifact/results.json`. These are attested research
-> prereleases, not a production claim, and they do not promote historical measurements below.
+> The current workspace declares `0.2.0`, with Continuity still an unpublished candidate.
+> The historical ABI 2 / `0.1.5` stable Rust crate line succeeded the
+> published `0.1.4` release. Its GitHub distributions are public and immutable,
+> and all ten `0.1.5` crates are published and independently verified. The complete
+> three-domain record is preserved at `v0.1.5-verified-cohort`. Its pre-publication package-ready contract alone does not prove
+> crates.io upload-API acceptance, crate-name ownership, publishing credentials or
+> authorization, server-side policy acceptance, or a registry receipt. The two immutable
+> GitHub stable targets are the Apple XCFramework `v0.1.5` (Rust 1.96.1;
+> the predecessor `v0.1.3` is published and immutable but superseded, the earlier `v0.1.0-alpha.2`
+> on 1.96.0 is superseded, and the `v0.1.0`, `v0.1.1`, and
+> `v0.1.2` tags were never published) and the
+> `abi2-platforms-v0.1.5` platform distribution (Android AAR + API 35 / 16 KiB-page
+> emulator runtime evidence and Linux x86_64+aarch64 SDKs); both went live on 2026-09-05
+> and have separate asset-verification receipts. The older `0.1.4` GitHub releases
+> and all ten `0.1.4` crates remain immutable published history. The unsigned Windows
+> package remains an unsupported CI diagnostic outside the formal stable asset set.
+> Tag-scoped receipts live in `artifact/results.json`; only a verified receipt may
+> promote either target to public/current with `prerelease=false`. The `0.1.4` verified cohort is
+> recorded at the annotated tag `v0.1.4-verified-cohort`, not on main: reopening the source line
+> returned `artifact/results.json` to its 190-key initial baseline, so main's trusted results
+> record no `0.1.4` publication and still name `apple_v0_1_3` as the active Apple selector. That
+> states where the evidence lives, not whether `0.1.4` shipped; the published GitHub and
+> crates.io records are immutable and unaffected. Stable publication is not a production-readiness claim,
+> and they do not promote historical measurements below.
 >
-> **Backend-migration note (2026-07-13).** The living artifact now uses portable
-> `mlkem-native` v1.2.0 through `q-periapt-mlkem-native-sys`, `fips204` 0.4.6,
-> and `sha3` 0.10.9. Every former-provider package/device/
-> performance/binary-CT result below is historical predecessor evidence: the source
-> digest changed, so none is current ABI2 production-promotion evidence. Fresh same-source capture
-> and independent cryptographic/ABI review remain pending; no replacement result is
-> asserted in this authoring note.
+> **Backend-migration history and current boundary.** The 2026-07-13 migration moved
+> the artifact from its former provider to portable `mlkem-native` v1.2.0 through
+> `q-periapt-mlkem-native-sys`, `fips204` 0.4.6, and `sha3` 0.10.9. The current
+> backend instead pins `mlkem-native` v2.0.0, `fips204` 0.4.6, `sha3` 0.12.0 and
+> `shake` 0.1.0. Its default feature set selects upstream AArch64 native arithmetic plus a fixed per-target
+> FIPS 202 assembly profile (Armv8.4-A SHA3 on the two Apple Silicon slices,
+> Armv8-A scalar elsewhere) on exactly five little-endian Apple/Linux/Android
+> targets and retains portable C on all other default targets, including Wasm.
+> This default mapping has no runtime CPU dispatch. The separately enabled
+> `linux-x86_64-avx2` candidate is restricted to `x86_64-unknown-linux-gnu`, checks
+> CPU/OS capabilities at runtime and retains the same-algorithm portable path;
+> [its qualification records](SDK_X86_CANDIDATE.md) remain separately scoped.
+> ABI 2/key/wire contracts are unchanged. These migrations
+> changed the canonical source digest. Every portable-derived package/device/
+> performance/binary-CT result below is historical evidence, not current ABI2
+> production-promotion evidence. Fresh per-target source-bound capture and
+> release-source contract validation remain required.
+
+---
+
+## Initial Continuity manuscript plan — 2026-11-07
+
+**Initial writing decision, now realized in the integrated draft above:** begin
+the new manuscript. The completed research results
+and installed implementation support a full draft. Submission readiness depends
+on the claims selected for that paper and their evidence, while final product
+release follows its separate contract. External product review and registry
+publication need not precede research writing. This writing focus does not remove
+any capability from the 0.2.0 release scope.
+
+The title, TDSC labels, figures and outline below belong to the earlier binding
+manuscript. A possible new title is **Q-Periapt Continuity: Durable Post-Quantum
+Sessions with Explicit Recovery Authorization**. Treat TIFS as a target to assess
+against the completed paper, not an acceptance prediction or an already submitted
+manuscript. Author identities and submission metadata have not been changed.
+
+### Central question and proposed contributions
+
+The central question is how a stateful post-quantum session can preserve exact
+pending operations through crashes, delayed replies and authorization changes
+while introducing genuinely fresh recovery material. Keeping a secret, retaining
+a durable record and holding current authorization are different conditions.
+A restored record may support reconciliation without authorizing new traffic.
+
+Organize the paper around three connected contributions:
+
+1. **Recovery conditions and a sharp boundary.** State the multi-epoch symbolic
+   theorem with its actual identity, record-acquisition and reservation-freshness
+   premises. Present the passed MAIN theorem and 24 reusable dependencies, then
+   the source-derived two-round execution and delayed-receipt disclosure trace.
+   The latter explains why later confirmation or one fresh encapsulation does not
+   make a retained pre-Cut generation reservation fresh.
+2. **A protocol and durable implementation of those distinctions.** Explain the
+   traffic-independent PQ control path, original-operation reservation and retry,
+   commit-before-release transitions, and the separation between historical
+   recovery and current communication authority. Connect these to a small set of
+   explicit invariants and implementation paths. Describe the evidence as
+   source correspondence and invariant testing at the level actually completed.
+3. **A reproducible installed-system evaluation.** Use actual SDK archives,
+   independent endpoint readers, process-failure traces and lifecycle resource
+   observations. Tie each result to its original source, binaries, workload and
+   denominator. Show what the mechanisms cost and which concrete failures their
+   controls detect.
+
+The accountable prekey directory can be a bounded supporting protocol if its
+original-operation, persistent-occupancy and public-conflict evidence serve that
+central question. If it overwhelms the narrative, describe its interface in the
+main text and retain its detailed analysis in a supplement or a separate study.
+ContextBound's mechanized binding and field-separation results remain useful
+foundations; do not present the established hash-everything binding fact as a new
+primitive or use base-KEM security as a Continuity theorem.
+
+### Evidence that is already available
+
+| Paper claim or experiment | Existing evidence and exact scope |
+| --- | --- |
+| Multi-epoch symbolic secrecy | [Joint replay](../research/sdk-alpha1/evidence/20261104-multi-epoch-replay/README.md): MAIN and all 24 reusable dependencies pass together. The full inventory remains 27 verified / 13 incomplete. |
+| Executability and reservation boundary | [Two-round execution](../research/sdk-alpha1/evidence/20261105-two-round-ground-trace/README.md) and [delayed-receipt disclosure](../research/sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace/README.md): finite source-derived executions checked by two semantic implementations. They provide concrete witnesses, not new Tamarin certificates. |
+| Durable original-operation and installed lifecycle behavior | [Installed Rust/C checkpoint](../research/sdk-alpha1/evidence/20261104-continuity-c-maintenance/README.md), [product-admission index](continuity/PRODUCT_ADMISSION.md), and later source-bound hosted receipts. Reuse shared evidence only with its input correspondence. |
+| Accountable prekey assignment | [Directory specification](../research/continuity-reference-app/DIRECTORY_LEASES.md) and [real CLI/independent readback](../research/sdk-alpha1/evidence/20261104-directory-cli-crosscheck/README.md). Current authorization and historical verification remain distinct. |
+| Resource and complete-interval throughput baselines | [Repeated lifecycle observations](../research/sdk-alpha1/evidence/20261106-resource-repeats/README.md) and [installed throughput](../research/sdk-alpha1/evidence/20261106-installed-throughput/README.md): sixteen predeclared cohorts, fixed installed artifacts, durable effects and complete serial workload intervals at source `5678d101`. |
+
+The existing `paper/microbench-arm64.csv`, `camera-ready-results.txt` and their
+figures retain historical identity. Regenerate selected figures from the new
+paper's actual receipts after choosing its study revision; do not relabel old
+measurements as current. The checked-in PDF has not been rebuilt by these source
+and authoring-note corrections.
+
+### Finite evaluation plan tied to the central question
+
+| Question | Necessary comparison or extension |
+| --- | --- |
+| When does confidentiality recover? | Compare the existing fixed SPQR and authenticated whole-KEM references under explicitly aligned compromise, delivery and retained-state conditions. Report the exposed-message set and recovery conditions, not only elapsed time. |
+| What does independent PQ control change? | Use idle, asymmetric and bursty application schedules, with the control schedule and network loss stated separately. Report recovery progress, control bytes and latency. No control protocol can guarantee progress when its own messages are indefinitely withheld. |
+| What happens at persistence and authority boundaries? | Retain representative commit/reply-loss, duplicate, cancellation, revocation and restart schedules. Check original IDs/results and release ordering. Use existing negative controls and finite adverse traces to explain causal differences. |
+| What does the declared workload cost? | Preserve complete interval denominators and report establishment, application delivery, rekey, recovery and required-Witness work separately. Extend load only as needed for a stated paper claim; separate serial baseline, concurrency, saturation and empirical tail statistics. |
+| Does integration require less application work? | Build comparable reference integrations under the same authentication, persistence and recovery contract. Count application-owned state, required components and failure-handling responsibilities; code size alone is not a usability result. |
+
+Current serial single-session rates are 5.816 confirmed deliveries/s locally and
+3.312/s with a required Witness for the recorded workload. Those measurements
+include PQ control and status/observer intervals; establishment and the later
+recovery/cancellation phase are outside that particular throughput denominator.
+They establish a reproducible baseline, not a saturation limit or competitor
+ranking. Mobile energy is relevant if the paper makes a mobile-energy claim;
+the existing accepted device remains sufficient for the agreed device scope.
+
+### Security statement and manuscript structure
+
+The symbolic theorem is completed in its stated model. The
+[computational recovery argument](continuity/COMPUTATIONAL_RECOVERY_V1.md) and
+its follow-ups have conditional extraction/shared-root results while retaining
+accepted-prefix, authentication and full continuation/composition obligations.
+A paper claiming complete computational continuous recovery must close the
+dependencies of that claim. A paper centered on the symbolic theorem, its
+necessary recovery conditions and a durable implementation can state those
+results precisely without representing the open composition as proved.
+Keep the failed searches, incomplete queries and finite-witness methodology.
+
+A compact structure is: problem and related work; threat/recovery model;
+protocol and durable state machine; security results and boundary executions;
+implementation correspondence; matched evaluation; limitations and conclusion.
+A focused manuscript should explain a few central invariants in depth and put
+long API inventories and platform receipts in supporting material.
+
+The [official TIFS scope](https://signalprocessingsociety.org/publications-resources/ieee-transactions-information-forensics-and-security/about-transactions)
+includes information security and system applications and encourages reproducible
+code/data. The [current author instructions](https://signalprocessingsociety.org/publications-resources/information-authors),
+checked on 2026-11-07, specify a 13-page initial regular-paper limit, a
+150–250-word abstract and single-anonymized review. The old long abstract and
+TDSC double-blind metadata therefore need a deliberate rewrite before a TIFS
+submission. No submission or acceptance is claimed here.
 
 ---
 
@@ -36,7 +210,7 @@
 | `fig_kernel.pdf` | §3 | reduction tower: standard MAL-BIND-K-{CT,PK} plus the separately labeled syntactic K-CTX extension → CR(SHA3) via proved `encode_inj`; honest scope boxed |
 | `tbl_verif.pdf` | §4 (Table) | the six orthogonal verification methods (oracle / independence / what it catches) |
 | `tbl_substrate.pdf` | §5 (Table) | cross-substrate coverage: (a) ISA targets (byte-id `K`, binary-CT), (b) faces × OS |
-| `fig_ct.pdf` | §5 | historical older-source `libcrux` ML-KEM 0 vs PQClean-HQC 193 contrast; the intervening `fips203` gate failed on both ISAs, while the portable-`mlkem-native` gate retains a synthetic planted leak but has no fresh release-source capture yet |
+| `fig_ct.pdf` | §5 | historical older-source `libcrux` ML-KEM 0 vs PQClean-HQC 193 contrast; the intervening `fips203` gate failed on both ISAs, while pre-selection portable-`mlkem-native` results are historical and fresh x86_64-portable/aarch64-native release-source captures remain pending |
 | `fig_netem.pdf` | §6 | historical netem result; fixed local cost becomes small relative to RTT, but it is not current production/device parity |
 | `fig_wire.pdf` | §6 | handshake wire budget (+2.27 KB ML-KEM keyshare) |
 
@@ -83,10 +257,12 @@ Cross-Substrate, CI-Gated Assurance Suite for Post-Quantum Hybrid Key Exchange."
 > those cells can be claimed. The artifact uses a
 > six-method conformance matrix and a CI-gated, self-validating
 > source→binary constant-time probe whose migrated hard gate requires zero for every real
-> portable-`mlkem-native` ML-KEM-512/768/1024 secret path and a positive result for each synthetic planted secret-indexed
-> leak. The former `libcrux` zero result and older-source PQClean-HQC positive counts are
-> historical; a fresh two-ISA capture for the current source is pending. A production-stack TLS 1.3
-> rustls demo/integration path (a `CryptoProvider`) exists; its recorded `tc netem` evaluation is
+> target-selected `mlkem-native` ML-KEM-512/768/1024 secret path and a positive result for each synthetic planted secret-indexed
+> leak. The former `libcrux` zero result, older-source PQClean-HQC positive counts,
+> and pre-selection portable `mlkem-native` captures are historical; fresh
+> x86_64-portable and aarch64-native captures for the current source are pending. A private-use
+> research TLS 1.3 integration against the production rustls library (a `CryptoProvider`) exists;
+> its recorded `tc netem` evaluation is
 > historical predecessor-source evidence. We are explicit
 > about what is and is not novel: the binding *fact* is a known consequence of recent results
 > (CDM; Chempat); our contribution is the *conjunction* — an assumption-minimal, machine-checked
@@ -105,36 +281,56 @@ ranges from every live inline/heap copy and fails closed to whole-buffer erasure
 input or invalid metadata. This is a candidate implementation optimization with a local
 secret-hygiene property and a controlled-host matched-backend non-regression diagnostic.
 `artifact/results.json` selects the time-varying proof and the live domain verifier checks its
-source, artifacts, budget, host contract, and freshness. A selected passing proof is not a speed,
-energy, or optimized-production parity claim. This is not a new reduction or a full-runtime
-zeroization guarantee.
+source, artifacts, budget, host contract, and freshness. A selected raw-schema-v5 /
+proof-schema-v8 / budget-schema-v10 proof authorizes only its separately measured,
+O3/codegen-matched native-over-portable ContextBound `hybrid_core` implementation
+improvement over one generated `expanded_fips203_2400` keypair supplied to both
+implementations; it excludes FFI and OS RNG and is not a
+ContextBound-over-X-Wing speed, energy, cross-platform, or optimized-production
+parity claim. This is not a new reduction or a full-runtime zeroization guarantee.
+
+A local dirty native/portable diagnostic indicated material ML-KEM-768 primitive and
+hybrid-core improvement. It has no checked-in canonical-source/toolchain-bound raw
+and analysis bundle, so it is not formal release evidence, a device result, or a
+cross-platform performance claim. Exact quantitative results require a fresh
+raw-schema-v5/proof-schema-v8 run under budget schema v10.
 
 The PQClean-HQC dependency/runtime path has since been removed; numeric suite code `3`
 is a permanent tombstone. `research/hqc-fips207-candidate` is a standalone
 `publish = false` RustCrypto `hqc-kem 0.1.0-rc.0` HQC-v5/FIPS-207-draft shadow with no ABI or
 product-suite identity. Upstream says it tracks an IPD, but as of 2026-07-12 NIST
 still says FIPS 207 is coming soon and no official IPD is retrievable; freezing the
-eventual official text is a promotion gate. The later production migration to
+eventual official text is a promotion gate. The earlier provider migration to
 portable `mlkem-native` v1.2.0 through `q-periapt-mlkem-native-sys`, pinned
 `fips204` 0.4.6, and `sha3` 0.10.9 removed both the intervening `fips203` path
 that failed the binary-CT gate and the earlier `libcrux`/hax/unsuppressed
 `proc-macro-error2` advisory path; `cargo audit --deny warnings`
-now passes without an ignore. It also changed the canonical source digest, making all
-recorded package, Apple, Android, matched-performance, and binary-CT proofs historical.
+now passes without an ignore. The subsequent fixed target-selection migration makes
+all portable-derived package, Apple, Android, matched-performance, and binary-CT
+proofs historical for the current source.
 The vendored ML-KEM trust anchors are upstream commit
 `0ba906cb14b1c241476134d7403a811b382ca498` and immutable GitHub commit archive SHA-256
-`f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`;
-the build enables only the portable C provider. RustSec covers the resolved Rust graph,
-not vendored C, and neither the upstream provider nor this Rust/C integration has a
-completed independent audit.
+`f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
+Exactly the little-endian targets `aarch64-apple-darwin`, `aarch64-apple-ios`,
+`aarch64-apple-ios-sim`, `aarch64-unknown-linux-gnu`, and
+`aarch64-linux-android` build upstream native arithmetic with a fixed per-target
+FIPS 202 assembly profile (Armv8.4-A SHA3 x1/x2 on the two Apple Silicon slices,
+Armv8-A scalar x1/x4 elsewhere), while every other target remains portable. Upstream HOL-Light
+evidence is limited to selected upstream assembly source/object routines, not
+downstream reassembly, this Rust/C wrapper, or the full ABI. RustSec covers the
+resolved Rust graph, not vendored C.
 Currentness is authoritative only through `artifact/results.json` plus live verification.
-ABI 2 is release-ready as a research-alpha source/Rust-crate line intended for coordinated
-registry publication (not yet on crates.io). Its published binary surface is two immutable,
-attested GitHub research prereleases: the Apple `v0.1.0-alpha.2-r1` XCFramework and the
-`abi2-platforms-v0.1.0-alpha.2-r2` Android/Linux/Windows packages. Fresh same-source
-device/performance evidence, independent cryptographic/C-FFI/ABI review,
-signed or transparency-backed source provenance, registry publication, and Windows
-Authenticode remain requirements for production promotion.
+ABI 2 is the stable-version source/Rust-crate line; package readiness is not registry
+publication. The published stable binary
+targets are the Apple `v0.1.5` XCFramework and the
+`abi2-platforms-v0.1.5` Android/Linux packages, published immutable on 2026-09-05;
+their asset-verification and ten-crate registry receipts are complete in
+`v0.1.5-verified-cohort`. The older `0.1.4` cohort is recorded
+at the annotated tag `v0.1.4-verified-cohort` and not in main's results. Fresh same-source
+device/performance evidence, internal cryptographic/C-FFI/ABI review,
+signed or transparency-backed source provenance and registry publication remain
+requirements for production promotion. Windows remains excluded until a signed
+producer/verifier and certificate/timestamp-authority gate exist.
 
 ---
 
@@ -154,14 +350,17 @@ Authenticode remain requirements for production promotion.
   intentionally tested by semantic product invariants rather than replaying caller-selected
   randomness. The predecessor evidence executed four ISA targets and only cross-compiled
   thumbv7em; it was not a face × OS × ISA Cartesian-product claim. The harness set comprises
-  a six-method conformance matrix (fixed KATs incl. X-Wing + RFC 7748; NIST ACVP; independent
+  a six-method conformance matrix (fixed KATs incl. the current CFRG
+  concrete-hybrid-kems-04 Appendix B.2 MLKEM768-X25519 vector (stored as the
+  repository vector-0 fixture), three retained
+  X-Wing draft-10 vectors, and RFC 7748; NIST ACVP; independent
   multi-backend differential; the EasyCrypt proof; cross-platform byte-identity; generative
   property tests). *(This is the structural answer to the prior "only Apple" rejection.)*
 - **C3 — CI-gated assurance that catches the deployment-failure classes.** (a) A **self-validating
-  source→binary constant-time probe** that runs real portable-`mlkem-native`
+  source→binary constant-time probe** that runs real target-selected `mlkem-native`
   ML-KEM-512/768/1024 decapsulation under Memcheck, marking only each genuine secret
   and hard-gating zero against a positive synthetic planted-leak control. No fresh
-  migrated-backend capture is claimed yet; the intervening `fips203` provider failed
+  target-selected capture is claimed yet; the intervening `fips203` provider failed
   on both ISAs, while the former `libcrux` zero result and
   retired PQClean-HQC lane's 193/22,849 counts are historical corroboration, not a current-source
   gate. (b) An **executable demonstration**
@@ -171,16 +370,25 @@ Authenticode remain requirements for production promotion.
   — configured as fail-closed CI gates; current local execution and a fresh remote run must be
   reported separately. *(`ctstats/`, `crates/q-periapt-backends/tests/binding_keyformat_separation.rs`,
   `formal/{tamarin,proverif}`.)*
-- **C4 — Production-stack integration demo + real-link evaluation.** A rustls TLS 1.3 CryptoProvider running the
-  combiner (handshake passes), evaluated for tail latency under real `tc netem`.
-  *(`crates/q-periapt-rustls`; commit 778aeec.)*
+- **C4 — Production-library research integration + real-link evaluation.** A rustls TLS 1.3
+  `CryptoProvider` runs the combiner under private-use `0xFE01`/`0xFE02` groups (the
+  handshake passes). Its Compat client expands the stable 32-byte seed exactly once
+  per in-flight handshake, retains the 2,400-byte expanded key in a non-Clone
+  zeroizing prepared owner, and reuses that owner for completion; there is no global
+  secret-key cache or C-ABI prepared-key surface. Historical predecessor-source
+  `tc netem` data remains supporting evidence only. This is
+  not the RFC 10024 `0x11EC` group or independent standards-interoperability evidence.
+  *(`crates/q-periapt-rustls`.)*
 - **C5 — Policy-to-byte fail closure.** A domain-separated signed policy with persisted
   `(version,digest)` state resolves to one private-field `ResolvedSuite`; fixed L3 faces reject L5
   documents, and decision-controlled ContextBound APIs commit the policy digest plus application
   context. The native ABI 2 product surface exposes no raw hybrid, deterministic key-generation,
   X-Wing, or combine operation; its 40-byte decision descriptor and WASM's raw/conformance APIs
   remain forgeable trusted-caller values, not authorization capabilities, and are outside this
-  claim. A hostile
+  claim. Its first dynamically allocated Rust-owned policy-bound-context copy has one
+  RAII owner that reserves before writing and wipes on normal return, error, or unwind;
+  caller/marshalling copies, registers, paging, and abort remain outside that local
+  guarantee. A hostile
   local caller requires an external service/process that owns the pinned verification key and
   monotonic state.
 
@@ -242,11 +450,21 @@ Authenticode remain requirements for production promotion.
 - **Do NOT** claim a live exploited exposure in any deployed stack — the ecosystem has converged
   on seed-dk; the key-format hazard is a *latent design coupling we surface*, not a CVE.
 - **Do NOT** claim any X-BIND-CT-* notion (structurally unachievable for implicitly-rejecting KEMs).
-- **Do NOT** claim a speed edge or overall parity: ContextBound hashes more bytes than X-Wing.
-  The matched Mac core gate accepts only a controlled proof bound to the live canonical source;
-  its budget-schema-v5 producer pins the exact rustup toolchain name plus Cargo/Rustc executable
-  identity and uses a configuration-rejecting,
-  fresh-target build, but still trusts the mutable Cargo registry/Rust sysroot/OS and collector.
+- **Do NOT** claim a ContextBound-over-X-Wing speed edge or overall parity:
+  ContextBound hashes more bytes than X-Wing. The matched Mac core gate accepts only
+  a controlled current-source raw-schema-v5/proof-schema-v8 proof under budget
+  schema v10. Its profile estimand is non-regression with strict ContextBound fixed
+  inputs and CompatXWing canonical `[]`/`0`/`[]`, while its distinct same-process
+  ABBA/BAAB implementation estimand uses one generated `expanded_fips203_2400`
+  keypair as the common input to O3/codegen-matched native/portable ContextBound
+  `hybrid_core` encapsulation and decapsulation, requiring byte-equivalent per-case
+  outputs with p50/p95 upper ratios at most
+  0.95 and p99 at most 1.0. It excludes FFI and OS RNG. The proof binds the final binary, evidence-only portable
+  archive/source, rustup toolchain and target, and macOS SDK identity, plus Cargo,
+  Rustc, Xcode Clang, and Xcode `ar` executable paths and hashes. The producer uses
+  a configuration-rejecting fresh-target build, but still trusts the mutable Cargo
+  registry/Rust sysroot/OS and collector. Each estimand/operation is warmed
+  independently immediately before its collection under the raw/budget contract.
   iPad/iPhone energy, clean baseline history, rustls end-to-end, and optimized production
   comparison remain pending.
 
@@ -281,14 +499,18 @@ Authenticode remain requirements for production promotion.
 
 ### §4 Proof-to-byte cross-substrate realization (C2)  ← the Apple-only answer
 - The single-core / multi-face architecture (`docs/ARCHITECTURE.md`).
-- The **six-method verification matrix** (Table): fixed KATs (X-Wing draft + RFC 7748) · NIST ACVP
+- The **six-method verification matrix** (Table): fixed KATs (current CFRG
+  concrete-hybrid-kems-04 Appendix B.2 MLKEM768-X25519 vector (stored as the
+  repository vector-0 fixture), three historical X-Wing
+  draft-10 vectors, and RFC 7748) · NIST ACVP
   (full FIPS family: ML-KEM-512/768/1024, ML-DSA-44/65/87, SLH-DSA) · independent multi-backend
   differential (RustCrypto ml-kem/ml-dsa, orion X25519) · EasyCrypt proof · cross-platform
   byte-identity · generative property tests.
 - The substrate matrix (Table): deterministic conformance and native product-workflow cells across
   the reported OS/ISA targets, with **per-cell honesty** (what is
   verified locally vs. in CI; Windows-MSVC evidence is historical; binary-CT tooling targets
-  x86-64/aarch64, but the migrated backend needs a fresh release-source capture;
+  x86-64/aarch64, but the target-selected backend needs fresh x86_64-portable and
+  aarch64-native release-source captures;
   riscv64/wasm32 have no current binary-CT or inherited source-CT claim). Reproducible build
   attestations remain pending. The artifact now also
   has a separate Apple physical-device proof lane capable of source/artifact-bound iPad+iPhone
@@ -299,19 +521,20 @@ Authenticode remain requirements for production promotion.
 
 ### §5 CI-gated assurance against the failure classes (C3)
 - **Binary-CT source→binary gap probe** (`ctstats/ct_decaps_gap`): marks only each
-  parameter set's ŝ+z and runs real portable-`mlkem-native` decapsulation under
+  parameter set's ŝ+z and runs real target-selected `mlkem-native` decapsulation under
   Memcheck, with a planted-leak positive control;
   embedded-public-key and whole-dk observations are diagnostic because an expanded dk embeds
   public `ek` and `H(ek)`. The former `libcrux` aarch64 zero/`ek`-5696 capture is historical
   and does not transfer. `fips203` 0.4.3 then failed with 34,306 errors / 100 contexts
   on x86-64 and 30,464 / 70 on aarch64 in
   [CI run 29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107);
-  those are historical failure counts, not current-provider evidence. A fresh
-  x86-64+aarch64 release-source pass is pending. The old
+  those are historical failure counts, not current-provider evidence. Pre-selection
+  portable `mlkem-native` captures are historical too. Fresh x86_64-portable and
+  aarch64-native release-source passes are pending. The old
   `ct_hqc_gap` result (193 on
   aarch64; 22,849 on x86-64) is retained only as historical evidence from the removed
   PQClean-HQC graph, not as a current CI/release result.
-- **Binding key-format coupling demo** (`binding_keyformat_separation.rs`): release-graph portable `mlkem-native`; lean
+- **Binding key-format coupling demo** (`binding_keyformat_separation.rs`): target-selected release-graph `mlkem-native`; lean
   X-Wing-shaped combiner over expanded-dk loses MAL-BIND-K-PK (Schmieg z-substitution), ContextBound
   does not. Framed strictly as combiner robustness (see §4 boundary).
 - **Multi-prover symbolic** (Tamarin: 5 lemmas; ProVerif: 6 exact queries): authenticated context
@@ -344,8 +567,11 @@ Authenticode remain requirements for production promotion.
   without another round-trip. The ContextBound/CompatXWing ordering was not stable enough here for a
   parity claim. The later bare-metal capture is also predecessor-source supporting data, not
   current release evidence. The matched Mac core gate records live canonical-source-input
-  freshness in the machine-readable manifest; a fresh migrated-backend capture, iPad/iPhone
-  energy, and optimized/end-to-end baselines remain pending.
+  freshness in the machine-readable manifest. The separate local dirty native/portable
+  diagnostic indicated material improvement but lacks a checked-in raw and analysis
+  bundle bound to the source and toolchain and is not formal release evidence. A fresh
+  target-selected capture, iPad/iPhone energy, and optimized/end-to-end
+  baselines remain pending.
 - Optional: ML-DSA-dominated wire-budget table (L3 5758 B vs L5 7940 B) from the demo `p99_bench`.
 
 ### §7 Related work
@@ -356,7 +582,9 @@ Authenticode remain requirements for production promotion.
 - Side-channel: KyberSlash (TCHES'25); ctgrind/TIMECOP/dudect; the predecessor
   `libcrux`/HACL* + `libcrux-secrets`/hax assurance as historical related work,
   not an inherited property of `mlkem-native`.
-- Hybrids in deployment: X-Wing (draft-connolly-cfrg-xwing-kem); TLS
+- Hybrids in deployment: the MLKEM768-X25519 construction in CFRG
+  `draft-irtf-cfrg-concrete-hybrid-kems-04` (identical to X-Wing and still not an
+  RFC), with draft-10 retained only as historical KAT provenance; TLS
   X25519MLKEM768; Signal PQXDH **plus its 2025 SPQR/ML-KEM-Braid Triple Ratchet**;
   Sesame multi-device session management; Apple PQ3. Do not repeat the obsolete
   comparison that Signal has only initial PQ protection.
@@ -385,12 +613,16 @@ Authenticode remain requirements for production promotion.
   labeled K-CTX syntactic extension using the same rejection skeleton, but over **abstract
   Decaps** — no FIPS-203 linkage, ss fields inert in the binding argument (proves nothing *about*
   ML-KEM's decaps); CR(SHA3) assumed; IND-CCA2 on paper; no spec↔impl linkage.
-- Binary-CT: only x86-64 + aarch64 have configured tooling, and the migrated
-  portable-`mlkem-native` path still needs a fresh release-source capture;
+- Binary-CT: only x86-64 + aarch64 have configured tooling, and the target-selected
+  `mlkem-native` paths still need fresh x86_64-portable and aarch64-native
+  release-source captures;
   the superseded `fips203` run is historical failure evidence; riscv64/wasm32 have no
   current binary-CT or inherited source-CT claim.
 - Conformance ≠ certification (ACVP byte-identity is not CMVP).
-- No independent third-party audit; research-grade, do-not-deploy.
+- Research-grade artifact; this paper does not establish production deployment readiness.
+- Upstream HOL-Light evidence is scoped to the selected upstream AArch64 assembly
+  source/object routines. It is not a proof of downstream reassembly, the Rust/C
+  integration, the full ABI, or the final package.
 - The rustls `SupportedKxGroup` path has a fixed protocol-domain label, not per-session K-CTX. Its
   `provider_with_policy` API consumes an already parsed, unauthenticated `Policy`, supports both
   resolved profiles, and is excluded from the signed-policy authenticity/digest claim.
@@ -399,18 +631,24 @@ Authenticode remain requirements for production promotion.
   reduce accidental mixing and do not authorize hostile same-process code. An opaque
   in-process handle is also insufficient; a trusted service/process must own the key and state.
 - A clean-tree schema-3 matrix passed on one physical iPad and one distinct physical
-  iPhone for predecessor source; the backend migration made it stale. The manifest-bound
+  iPhone for predecessor source; the target-selection migration made it stale. The manifest-bound
   verifier, not this prose, determines currentness. The matched-backend Mac gate accepts
-  only controlled canonical-source-input proofs, but a fresh migrated-backend proof,
+  only controlled canonical-source-input proofs, but a fresh target-selected proof,
   device energy, rustls end-to-end, clean baseline history, and optimized-production
   parity remain unproved.
 - CI: the repo's gates are *configured*; report which have actually executed (note the no-remote
   history honestly, now that it is public on GitHub).
-- Distribution: the published artifacts are immutable GitHub *research prereleases* only
-  (Apple XCFramework r1; Android/Linux/Windows platform packages r2, Windows unsigned
-  experimental). No crates.io/Maven/deb/rpm/MSIX registry publication, Authenticode,
-  physical-Android coverage, or store distribution is claimed; do not let the artifact
-  paragraph imply otherwise.
+- Distribution: three stable lines have published as immutable GitHub releases with
+  `prerelease=false` — `v0.1.3`/`abi2-platforms-v0.1.3` (2026-08-25) and
+  `v0.1.4`/`abi2-platforms-v0.1.4` (2026-08-30), and
+  `v0.1.5`/`abi2-platforms-v0.1.5` (2026-09-05) — alongside the earlier immutable
+  GitHub *research prereleases* (Apple XCFramework r1; Android/Linux/Windows platform
+  packages r2, Windows unsigned experimental). The ten `0.1.3` crates and the ten
+  `0.1.4` crates are published on crates.io. All ten `0.1.5` crates are published
+  and independently verified; `v0.1.5-verified-cohort` records their complete cohort. No Maven/deb/rpm/MSIX registry publication, Authenticode,
+  physical-Android coverage, or store distribution is claimed for any line; do not let
+  the artifact paragraph imply otherwise, and do not let the published 0.1.3/0.1.4
+  crate sets stand in as evidence for `0.1.5`.
 - The artifact is not an asynchronous messaging protocol: no identity directory,
   prekeys, ongoing ratchet, multi-device state, recovery, or key transparency. Apple
   PQ3 and Signal's public PQXDH/SPQR/Triple-Ratchet components plus Sesame manager remain ahead on
@@ -442,11 +680,11 @@ Authenticode remain requirements for production promotion.
 | C1a | Standard MAL-BIND-K-{CT,PK} ≤ CR(SHA3); encode_inj proved; **full CDM Figure 6** game (implicit + explicit rejection), over abstract Decaps | `formal/easycrypt/BindingViaCR.ec` (`malbind_kct_*`, `malbind_kpk_*`); explicit `K != bottom` countermodel; proof-dependency controls | Machine-checked; no spec↔Rust refinement |
 | C1b | Self-defined context-parameterized K-CTX syntactic extension ≤ CR(SHA3); not a CDM lattice node or monotonicity corollary | `formal/easycrypt/BindingViaCR.ec` (`malbind_kctx_*`, `omit_ctx_kctx_broken`); Tamarin/ProVerif authenticated-context models | Machine-checked at hash/game level; protocol meaning depends on authenticated context and trusted host |
 | C2a | 6-method conformance | KATs/ACVP/differential/proof/cross-platform/proptests in `crates/q-periapt-backends/*` | Harnesses present; report current-source live results separately, because predecessor runs are historical |
-| C2b | byte-identical in reported deterministic conformance cells plus semantic invariants in native product cells; four ISA executions + one cross-build | shared-vector Rust/WASM tests; exact-nine dynamic `q_periapt_*` C ABI contract (static archives constrain that public namespace but retain unsupported hidden bridge symbols); `artifact/embedding-readiness.sh`; separate device harnesses; published release receipts in `artifact/results.json` | ABI2 surface implemented; static embedding is a trusted same-process boundary. Published attested prereleases now cover Apple XCFramework (r1), Android AAR + emulator runtime evidence, Linux-SONAME SDKs, and Windows-PE SDK (r2, unsigned experimental). Current-source (post-tag) device/performance reruns, physical-device coverage, and signed production-promotion evidence remain pending |
-| C3a | source→binary CT: portable `mlkem-native` ML-KEM-512/768/1024 zero / synthetic-positive discriminator | `ctstats/ct_decaps_gap`; `ct-gap-probe.sh`; historical `camera-ready-results.txt` | Gate migrated; `fips203` failed historically, former `libcrux` zero and PQClean-HQC 193 rows are predecessor evidence, and fresh x86-64+aarch64 capture is pending |
-| C3b | lean-combiner MAL-BIND-K-PK contingent on dk format | `binding_keyformat_separation.rs` (release-graph portable `mlkem-native`) | Adapter migrated; report the live current-source result separately; predecessor commit result is historical |
+| C2b | byte-identical in reported deterministic conformance cells plus semantic invariants in native product cells; four ISA executions + one cross-build | shared-vector Rust/WASM tests; exact-nine dynamic `q_periapt_*` C ABI contract (static archives constrain that public namespace but retain unsupported hidden bridge symbols); `artifact/embedding-readiness.sh`; separate device harnesses; release receipts in `artifact/results.json` | ABI2 surface implemented; static embedding is a trusted same-process boundary. Existing prerelease receipts cover their exact historical portable-derived Apple/Android/Linux/Windows artifacts, not the current target-selected source. Fresh target-specific package/device/performance/CT evidence and a verified publication transaction remain pending. |
+| C3a | source→binary CT: target-selected `mlkem-native` ML-KEM-512/768/1024 zero / synthetic-positive discriminator | `ctstats/ct_decaps_gap`; `ct-gap-probe.sh`; historical `camera-ready-results.txt` | Gate migrated; `fips203`, former `libcrux`, PQClean-HQC, and pre-selection portable rows are historical, and fresh x86_64-portable/aarch64-native capture is pending |
+| C3b | lean-combiner MAL-BIND-K-PK contingent on dk format | `binding_keyformat_separation.rs` (target-selected release-graph `mlkem-native`) | Adapter migrated; report the live current-source result separately; predecessor commit result is historical |
 | C3c | Tamarin 5 lemmas + ProVerif 6 exact queries + EasyCrypt computational proof | `formal/{tamarin,proverif,easycrypt}` | Proof artifacts present; report fresh local and remote execution separately |
-| C4a | rustls TLS 1.3 handshake over the combiner | `crates/q-periapt-rustls/tests/handshake.rs` | ✔ (778aeec) |
+| C4a | rustls TLS 1.3 handshake over the combiner; Compat prepares one process-local key owner per in-flight handshake | `crates/q-periapt-rustls/tests/handshake.rs` plus exact-once preparation and concurrent-owner tests | Implemented; stable private bytes remain the 32-byte seed, each active Compat owner holds 2,400 secret bytes, and no global secret-key cache or C-ABI prepared-key surface is claimed |
 | C4b | historical netem measurements and repaired benchmark harness | `crates/q-periapt-rustls/examples/netem_bench.rs`, `paper/camera-ready-results.txt` | Supporting host data only; optimized-baseline/device parity pending |
 | C5 | signed policy → closed decision → policy/application-context bytes | `q-periapt-policy`, decision-controlled native/WASM tests | Native ABI2 raw crypto bypass removed; decision descriptor and WASM raw surface remain trusted-caller inputs |
 
@@ -471,13 +709,20 @@ Authenticode remain requirements for production promotion.
   65f4328).
 - ~~Add local netem baselines~~ — **historical supporting data present** for classical X25519,
   IANA `X25519MLKEM768`, CompatXWing, and ContextBound.
-- ~~Add matched backend/input Mac p50/p95/p99 budget~~ — **DONE diagnostically** with 20,480 paired
-  seed-dk ML-KEM-768 + X25519 samples, batched raw timing, corpus-balanced time blocks, and a
-  same-estimand moving-block-bootstrap upper bound under a published fail-closed budget. Budget
-  schema v5 preserves the v4 statistical contract: it requires 1,024-pair primary estimate blocks
-  and at least 10 nearest-rank p99 tail
-  observations per block, then rechecks the same numeric limits with the former 256-pair
-  estimator as a regression guard; separately parameterized stability windows preserve the 5%
-  CV limit. The
+- ~~Add matched backend/input Mac p50/p95/p99 budget~~ — **DONE as a gate; the
+  quantitative claim is published only while `artifact/results.json` selects a
+  fresh controlled proof.** Raw schema v5 carries two separately named
+  estimands in one same-process ABBA/BAAB slot: profile non-regression and
+  output-equivalent native/portable ContextBound implementation improvement.
+  Its nested `profile_inputs` fixes the distinct canonical metadata inputs for both
+  profiles. The implementation estimand feeds one generated
+  `expanded_fips203_2400` keypair, coins, and corpus to O3/codegen-matched native and
+  portable `hybrid_core` encap/decap paths, excluding FFI and OS RNG. Proof schema v8
+  and budget schema v10 retain 1,024-pair primary estimate
+  blocks,
+  at least 10 nearest-rank p99 tail observations per block, the former 256-pair
+  profile regression guard, and separately parameterized 5% CV stability windows.
+  They additionally bind the SDK/toolchain, final harness binary, portable archive,
+  and source identity. The
   remaining decision is iPad+iPhone energy coverage plus rustls/optimized-production end-to-end
   comparison.

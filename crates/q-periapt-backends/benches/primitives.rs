@@ -2,17 +2,20 @@
 //! Primitive + hybrid KEM micro-benchmarks: keygen / encapsulate / decapsulate across the
 //! ML-KEM family and X25519, plus the full ContextBound / CompatXWing hybrid. Real numbers for
 //! the paper's performance table. `cargo bench -p q-periapt-backends --bench primitives`.
+use std::hint::black_box;
 use std::time::Duration;
 
 use criterion::{
-    black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
 use q_periapt_backends::{
     MlKem1024, MlKem512, MlKem768, MlKem768XWingSeed, Sha3_256Xof, ML_KEM_1024_CT_LEN,
     ML_KEM_512_CT_LEN, ML_KEM_768_CT_LEN, X25519, X25519_LEN,
 };
 use q_periapt_core::{Kem, Profile};
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 
 macro_rules! bench_mlkem {
     ($g:expr, $tag:literal, $T:ty, $ct:expr) => {{
@@ -125,8 +128,16 @@ fn bench_hybrid_case<P: Kem>(g: &mut BenchmarkGroup<'_, WallTime>, case: HybridB
     g.bench_function(format!("{tag}/decaps"), |b| {
         b.iter(|| {
             black_box(
-                kem.decapsulate(sk_pq, &ct_pq, pk_pq, &sk_tr, &ct_tr, &pk_tr, context)
-                    .unwrap(),
+                kem.decapsulate(
+                    PqSecretKey::new(sk_pq),
+                    PqCiphertext::new(&ct_pq),
+                    PqPublicKey::new(pk_pq),
+                    TradSecretKey::new(&sk_tr),
+                    TradCiphertext::new(&ct_tr),
+                    TradPublicKey::new(&pk_tr),
+                    context,
+                )
+                .unwrap(),
             )
         })
     });

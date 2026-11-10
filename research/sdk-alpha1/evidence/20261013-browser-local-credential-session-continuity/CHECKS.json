@@ -1,0 +1,153 @@
+{
+  "android_ci": {
+    "conclusion": "failure",
+    "full_consumer": "qualified pass",
+    "job": 115377130350,
+    "minimal_cleanup": "unresolved; truncated APK copies then device unavailable",
+    "minimal_instrumentation": {
+      "passed_tests": [
+        "runtimeVersionOnly"
+      ],
+      "run_id": "c199104eb3b6bae1fce047d4ba407840",
+      "schema": 1,
+      "status": "pass",
+      "test_count": 1
+    },
+    "root_cause": "not established; no SDK assertion failure observed",
+    "run": 38419890920,
+    "source_commit": "8b15054f9f014ccca9cc92f3507e5027b268860d"
+  },
+  "capture": {
+    "bytes": 15954895,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "9afc9e5e0243e266b081b69735f14a297361d32baf6501f73b586f5818379b1b",
+    "members": 4920,
+    "sha256": "61b144f0e83da1c8dd7f2ac3b84871fb53a74a59dfd3bef0eebe3d92f817dd40"
+  },
+  "case_count": 9,
+  "cases": [
+    "cancel",
+    "close-after-commit",
+    "drop-ack",
+    "drop-commit",
+    "expired-both",
+    "expired-local",
+    "kill-after-ack",
+    "kill-after-commit",
+    "live"
+  ],
+  "completed": true,
+  "engine": {
+    "engine_commit": "8b15054f9f014ccca9cc92f3507e5027b268860d",
+    "package": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source/target/peer-credential-package-01",
+    "product_code_changed": false
+  },
+  "package": {
+    "manifest_sha256": "02e8edcb9b8d12c8e365ff45ec071e6f5af2383afe155db30cf22dcebc9d5c76",
+    "sha256": "e21d117986435309d01fc636f61ec56b694f1cb64ef67ba6eb5ba57e8b8bff0f",
+    "source_bound": true,
+    "sources_unchanged": true
+  },
+  "real_expiry": {
+    "expired-both": {
+      "browser_until": 1791905787,
+      "peer_until": 1791905787,
+      "pending_at": 1791905663,
+      "renew_at": 1791905789
+    },
+    "expired-local": {
+      "browser_until": 1791905552,
+      "peer_until": 1791908972,
+      "pending_at": 1791905429,
+      "renew_at": 1791905554
+    }
+  },
+  "release_claim_eligible": false,
+  "scope": "Original established browser sessions across local and bilateral same-key G, witness loss/cancellation and real Worker termination. Same Rust implementation over loopback. Not whole-browser/OS crash, power loss, independent implementation, cross-host/device, performance, PCS or full-release qualification.",
+  "worker_termination": {
+    "kill-after-ack": {
+      "command": [
+        238,
+        3,
+        24,
+        194,
+        54,
+        89,
+        224,
+        251,
+        145,
+        134,
+        153,
+        72,
+        156,
+        180,
+        43,
+        133,
+        251,
+        176,
+        237,
+        2,
+        205,
+        15,
+        151,
+        69,
+        243,
+        47,
+        51,
+        86,
+        23,
+        186,
+        204,
+        100
+      ],
+      "elapsedBeforeKillMs": 539.8149999976158,
+      "heldBeforeKill": true,
+      "nativeLeaseReleased": true,
+      "sdkCloseRequested": false,
+      "witnessChanged": false,
+      "workerTerminated": true
+    },
+    "kill-after-commit": {
+      "command": [
+        56,
+        163,
+        75,
+        35,
+        227,
+        245,
+        152,
+        43,
+        126,
+        171,
+        128,
+        38,
+        248,
+        129,
+        29,
+        23,
+        191,
+        40,
+        216,
+        229,
+        176,
+        115,
+        244,
+        175,
+        116,
+        147,
+        211,
+        105,
+        249,
+        151,
+        2,
+        49
+      ],
+      "elapsedBeforeKillMs": 266.02500000596046,
+      "heldBeforeKill": true,
+      "nativeLeaseReleased": true,
+      "sdkCloseRequested": false,
+      "witnessChanged": true,
+      "workerTerminated": true
+    }
+  }
+}

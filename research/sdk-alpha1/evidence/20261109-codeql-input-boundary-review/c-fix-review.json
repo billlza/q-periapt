@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "status": "accepted",
+  "reviewed_at": "2026-11-09T02:26:26.322681+00:00",
+  "scope": "Independent source review and focused replay of the qualification-client lifetime controls",
+  "sources_sha256": {
+    "bindings/c/ContinuityPackageConsumer/peer_configuration_client.c": "ef61a6802eb53ecf6f0d949f5ee8f3968dfbc2f67f0dae58ef75c633cf64cd57",
+    "artifact/testdata/peer_configuration_lifetime.c": "2dcacc8b3054bb7223b6b8edc99e4dd8d89aa0c1d19b8bbd9eaf731e4d0b01a7",
+    "artifact/test_peer_configuration_lifetime.py": "05f5f21c17a833737e38cfc6a30fa4acd0f2bf4a14079080f501610fec9adc1b"
+  },
+  "findings_resolved": [
+    {
+      "topic": "Mode-derived negative result",
+      "resolution": "The model now selects the actual caller or owned-copy bytes for each region and derives error 777 from memcmp; the mode flag no longer directly determines the return code."
+    },
+    {
+      "topic": "Object representation aliasing",
+      "resolution": "The overwrite helper uses volatile unsigned char stores over each live caller region."
+    }
+  ],
+  "accepted_properties": [
+    "Every overwrite completes after prepare returns and before finish is invoked. All caller allocations remain live during the readback.",
+    "The actual qualification client is included by the C control, preserving the exercised call sequence.",
+    "The fixture verifies all observed caller bytes are zero at finish, then compares selected owned/borrowed bytes to the original copies.",
+    "The Python control covers 30 combinations: two optimization levels, open/reopen, each individual borrowed region and the owned case.",
+    "Compiler diagnostics and runtime stdout/stderr/exit results are checked exactly.",
+    "The guard-page routine remains exercised in every case."
+  ],
+  "verification": {
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "-v",
+      "test_peer_configuration_lifetime",
+      "test_continuity_peer_configuration"
+    ],
+    "returncode": 0,
+    "tests_run": 5,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "optimized_c_subcases": 30,
+    "compiler_optimizations": [
+      "-O0",
+      "-O3"
+    ],
+    "host": "Linux"
+  },
+  "claim_boundary": "This additional control validates the qualification harness and its owned/borrowed models. It is not a new execution of the production SDK, and the explicit Windows skip is not counted as Windows platform evidence. Existing installed platform qualification remains the runtime evidence.",
+  "material_defects": []
+}

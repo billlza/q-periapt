@@ -1,0 +1,146 @@
+{
+  "certificate_algorithms": [
+    {
+      "asset": "ECDSA-P256-SHA-256",
+      "public_key_algorithm_der": "06072a8648ce3d020106082a8648ce3d030107",
+      "signature_algorithm_der": "06082a8648ce3d040302"
+    },
+    {
+      "asset": "ECDSA-P256-SHA-384",
+      "public_key_algorithm_der": "06072a8648ce3d020106082a8648ce3d030107",
+      "signature_algorithm_der": "06082a8648ce3d040303"
+    },
+    {
+      "asset": "ECDSA-P256-SHA-512",
+      "public_key_algorithm_der": "06072a8648ce3d020106082a8648ce3d030107",
+      "signature_algorithm_der": "06082a8648ce3d040304"
+    },
+    {
+      "asset": "ECDSA-P384-SHA-256",
+      "public_key_algorithm_der": "06072a8648ce3d020106052b81040022",
+      "signature_algorithm_der": "06082a8648ce3d040302"
+    },
+    {
+      "asset": "ECDSA-P384-SHA-384",
+      "public_key_algorithm_der": "06072a8648ce3d020106052b81040022",
+      "signature_algorithm_der": "06082a8648ce3d040303"
+    },
+    {
+      "asset": "ECDSA-P384-SHA-512",
+      "public_key_algorithm_der": "06072a8648ce3d020106052b81040022",
+      "signature_algorithm_der": "06082a8648ce3d040304"
+    },
+    {
+      "asset": "ECDSA-P521-SHA-256",
+      "public_key_algorithm_der": "06072a8648ce3d020106052b81040023",
+      "signature_algorithm_der": "06082a8648ce3d040302"
+    },
+    {
+      "asset": "ECDSA-P521-SHA-384",
+      "public_key_algorithm_der": "06072a8648ce3d020106052b81040023",
+      "signature_algorithm_der": "06082a8648ce3d040303"
+    },
+    {
+      "asset": "ECDSA-P521-SHA-512",
+      "public_key_algorithm_der": "06072a8648ce3d020106052b81040023",
+      "signature_algorithm_der": "06082a8648ce3d040304"
+    },
+    {
+      "asset": "Ed25519",
+      "public_key_algorithm_der": "06032b6570",
+      "signature_algorithm_der": "06032b6570"
+    },
+    {
+      "asset": "RSA-PSS-SHA-256",
+      "public_key_algorithm_der": "06092a864886f70d0101010500",
+      "signature_algorithm_der": "06092a864886f70d01010a3034a00f300d06096086480165030402010500a11c301a06092a864886f70d010108300d06096086480165030402010500a203020120"
+    },
+    {
+      "asset": "RSA-PSS-SHA-384",
+      "public_key_algorithm_der": "06092a864886f70d0101010500",
+      "signature_algorithm_der": "06092a864886f70d01010a3034a00f300d06096086480165030402020500a11c301a06092a864886f70d010108300d06096086480165030402020500a203020130"
+    },
+    {
+      "asset": "RSA-PSS-SHA-512",
+      "public_key_algorithm_der": "06092a864886f70d0101010500",
+      "signature_algorithm_der": "06092a864886f70d01010a3034a00f300d06096086480165030402030500a11c301a06092a864886f70d010108300d06096086480165030402030500a203020140"
+    },
+    {
+      "asset": "RSA-PKCS1v1.5-SHA-256",
+      "public_key_algorithm_der": "06092a864886f70d0101010500",
+      "signature_algorithm_der": "06092a864886f70d01010b0500"
+    },
+    {
+      "asset": "RSA-PKCS1v1.5-SHA-384",
+      "public_key_algorithm_der": "06092a864886f70d0101010500",
+      "signature_algorithm_der": "06092a864886f70d01010c0500"
+    },
+    {
+      "asset": "RSA-PKCS1v1.5-SHA-512",
+      "public_key_algorithm_der": "06092a864886f70d0101010500",
+      "signature_algorithm_der": "06092a864886f70d01010d0500"
+    },
+    {
+      "asset": "RSA-PKCS1v1.5-SHA-256",
+      "public_key_algorithm_der": "06092a864886f70d0101010500",
+      "signature_algorithm_der": "06092a864886f70d01010b"
+    },
+    {
+      "asset": "RSA-PKCS1v1.5-SHA-384",
+      "public_key_algorithm_der": "06092a864886f70d0101010500",
+      "signature_algorithm_der": "06092a864886f70d01010c"
+    },
+    {
+      "asset": "RSA-PKCS1v1.5-SHA-512",
+      "public_key_algorithm_der": "06092a864886f70d0101010500",
+      "signature_algorithm_der": "06092a864886f70d01010d"
+    },
+    {
+      "asset": "ML-DSA-44",
+      "public_key_algorithm_der": "0609608648016503040311",
+      "signature_algorithm_der": "0609608648016503040311"
+    },
+    {
+      "asset": "ML-DSA-65",
+      "public_key_algorithm_der": "0609608648016503040312",
+      "signature_algorithm_der": "0609608648016503040312"
+    },
+    {
+      "asset": "ML-DSA-87",
+      "public_key_algorithm_der": "0609608648016503040313",
+      "signature_algorithm_der": "0609608648016503040313"
+    }
+  ],
+  "cipher_suites": [
+    [
+      4866,
+      "SHA384"
+    ],
+    [
+      4865,
+      "SHA256"
+    ],
+    [
+      4867,
+      "SHA256"
+    ]
+  ],
+  "groups": [
+    4588
+  ],
+  "signature_schemes": [
+    1283,
+    1027,
+    1539,
+    2055,
+    2054,
+    2053,
+    2052,
+    1537,
+    1281,
+    1025,
+    2308,
+    2309,
+    2310
+  ]
+}
