@@ -76,18 +76,25 @@ the separate `anchor-tls` feature selects the encrypted witness carrier.
 | Surface | Identity in current source | Preserved interface |
 | --- | --- | --- |
 | Rust engine | `q-periapt-continuity` `0.2.0`, Cargo source archive | Existing library target and public owner/state API |
-| C companion | ABI snapshot package version `0.2.0` | `qpc-owner/1`: 158 functions, 70 records, one callback, 112 constants |
+| C companion | `q-periapt-continuity-native-0.2.0-<target>.zip` Linux producer and ABI snapshot package version `0.2.0` | `qpc-owner/1`: 158 functions, 70 records, one callback, 112 constants |
 | Swift | `QPeriaptContinuity-Apple-0.2.0.zip`; product `QPeriaptContinuity` | Module `CQPCOwner`, macOS arm64, iOS arm64, arm64 and x86_64 iOS simulators |
 | Kotlin/JVM | `dev.qperiapt:q-periapt-continuity-kotlin:0.2.0` | Module `dev.qperiapt.continuity`, `qpc-owner/1` |
 | Browser | Existing `q-periapt-sdk-wasm@0.2.0` `/web` surface | Existing `QPeriaptContinuity…` exports |
 
 SDK C ABI **2** remains a separate namespace from Continuity **`qpc-owner/1`**.
 The C consumer crate is an unpublished qualification harness; its own `0.0.0`
-version is not the companion's distribution version. The Android adapter keeps
+version is not the companion's distribution version. The
+[Linux native producer](NATIVE_DISTRIBUTION_0_2.md) packages the exact qualified
+Release library, independently reopens the archive and executes a relocated C
+probe. Its distribution record and package row bind the actual source, engine
+dependency, original C qualification and archive digest. The selected hosted
+execution supplies that artifact for coordinated admission.
+
+The Android adapter keeps
 its actual Java/JNI API and accepted AAR/phone evidence; its formal
 `dev.qperiapt:q-periapt-continuity-android:0.2.0` AAR identity and the selected
-native archive still need their distribution records and selected artifact
-digests. These are packaging dependencies of the final release manifest.
+native archive retain their selected execution and artifact-digest binding in
+the final release manifest.
 
 The service source is currently the separate
 `q-periapt-continuity-reference-app` `0.0.0` package. Its actual binaries include

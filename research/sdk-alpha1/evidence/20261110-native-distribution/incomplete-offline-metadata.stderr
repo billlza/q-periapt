@@ -1,0 +1,4 @@
+error: failed to download `asn1-rs v0.7.2`
+
+Caused by:
+  attempting to make an HTTP request, but --offline was specified

@@ -25,6 +25,14 @@ construction assessment, and the coordinated specification lock remain in the
 execution sequence below. Historical qualification keeps its original source
 and artifact identities.
 
+The [Linux native companion producer](NATIVE_DISTRIBUTION_0_2.md) now packages
+the exact Release C owner after the complete installed Debug/Release
+qualification. It checks the retained header, ABI, ELF target and full system
+runtime dependency inventory, carries the dependency/compiler notices, and
+independently reopens and loads the extracted archive. Its manifest-compatible
+distribution and package records retain source/engine/C-execution identities.
+The actual hosted artifact remains an input to the final selected cohort.
+
 ## Construction, workload and compatibility decisions — 10 November 2026
 
 The [joint-schedule and retained-state assessment](BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md)
