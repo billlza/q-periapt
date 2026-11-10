@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import unittest
 
-from codeql_rust_quality import CodeQLRustQualityError
+from codeql_rust_quality import ARCHIVE_ROOT, CodeQLRustQualityError, pinned_archive_sources
 from codeql_target_coverage import MacroCall, MacroProfile, parse_macro_calls, validate_macro_profiles
 
 
@@ -31,7 +31,74 @@ class TargetMacroCoverageTests(unittest.TestCase):
         result = validate_macro_profiles(valid_pair())
         for target in ("native", "wasm"):
             self.assertEqual(result[target], {"expanded": 1, "compiler_export_metadata": 0,
-                                               "inactive_with_compiled_peer": 1})
+                                               "inactive_with_compiled_peer": 1,
+                                               "archived_snapshot_expanded": 0,
+                                               "archived_snapshot_unresolved": 0})
+
+    def _archived_pair(self) -> tuple[list[MacroProfile], str]:
+        sources = {path: pinned.sha256 for path, pinned in pinned_archive_sources().items()}
+        archived = sorted(sources)[0]
+        sources.update(SOURCES)
+        pair = []
+        for current in valid_pair():
+            calls = (*current.calls, call(archived, False), call(archived, False),
+                     call(archived, True, line=4))
+            pair.append(dataclasses.replace(current, source_sha256=dict(sources), calls=calls,
+                                           source_macro_count=len(calls), unresolved_macro_count=3))
+        return pair, archived
+
+    def test_frozen_snapshots_retain_raw_macro_multiplicity_and_separate_counts(self) -> None:
+        pair, _ = self._archived_pair()
+        result = validate_macro_profiles(pair)
+        for target in ("native", "wasm"):
+            self.assertEqual(result[target], {"expanded": 1, "compiler_export_metadata": 0,
+                                               "inactive_with_compiled_peer": 1,
+                                               "archived_snapshot_expanded": 1,
+                                               "archived_snapshot_unresolved": 2})
+            self.assertEqual(sum(result[target].values()), 5)
+
+    def test_snapshot_macros_cannot_hide_current_source_failures(self) -> None:
+        pair, _ = self._archived_pair()
+        pair[0] = dataclasses.replace(pair[0], calls=(call("src/native.rs", False), *pair[0].calls[1:]),
+                                      unresolved_macro_count=4)
+        with self.assertRaisesRegex(CodeQLRustQualityError, "active macro has no expansion"):
+            validate_macro_profiles(pair)
+        pair, _ = self._archived_pair()
+        pair[1] = dataclasses.replace(pair[1], compiled_sources=frozenset({"src/native.rs"}))
+        with self.assertRaisesRegex(CodeQLRustQualityError, "active macro has no expansion|no compiled peer"):
+            validate_macro_profiles(pair)
+
+    def test_archive_classification_requires_all_pinned_paths_and_bytes(self) -> None:
+        pair, archived = self._archived_pair()
+        for mode in ("changed", "missing", "unreviewed"):
+            changed = dict(pair[0].source_sha256)
+            if mode == "changed":
+                changed[archived] = "0" * 64
+            elif mode == "missing":
+                del changed[archived]
+            else:
+                changed[ARCHIVE_ROOT + "/unreviewed/source/new.rs"] = "0" * 64
+            with self.subTest(mode=mode), self.assertRaisesRegex(CodeQLRustQualityError, "archive.*differ"):
+                validate_macro_profiles([dataclasses.replace(item, source_sha256=changed) for item in pair])
+
+    def test_archived_sources_cannot_be_claimed_as_current_compiler_inputs(self) -> None:
+        pair, archived = self._archived_pair()
+        pair[0] = dataclasses.replace(pair[0], compiled_sources=pair[0].compiled_sources | {archived})
+        with self.assertRaisesRegex(CodeQLRustQualityError, "archived paper source appears in compiler inputs"):
+            validate_macro_profiles(pair)
+
+    def test_archives_cannot_supply_the_current_source_macro_sentinel(self) -> None:
+        pair, _ = self._archived_pair()
+        pair = [dataclasses.replace(item, calls=item.calls[2:], source_macro_count=3,
+                                    unresolved_macro_count=2) for item in pair]
+        with self.assertRaisesRegex(CodeQLRustQualityError, "current source macro sentinel"):
+            validate_macro_profiles(pair)
+
+    def test_archive_unresolved_entities_remain_in_the_raw_metric(self) -> None:
+        pair, _ = self._archived_pair()
+        pair[0] = dataclasses.replace(pair[0], unresolved_macro_count=1)
+        with self.assertRaisesRegex(CodeQLRustQualityError, "unresolved macro count differs"):
+            validate_macro_profiles(pair)
 
     def test_active_failure_is_not_hidden_by_successful_peer(self) -> None:
         # Both targets compile the same source; the second target expands it.

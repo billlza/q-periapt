@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import os
 import pathlib
+import re
 import stat
 import subprocess
 import sys
@@ -14,7 +16,7 @@ import tempfile
 from collections.abc import Mapping, Sequence
 
 from bounded_process import BoundedProcessError, TimeoutPolicy, capture_stdout
-from evidence_io import EvidenceIOError, parse_strict_json_bytes
+from evidence_io import EvidenceIOError, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import GitProvenanceError, inspect_worktree, run_git_bytes
 
 
@@ -31,8 +33,11 @@ FIXED_CODEQL_DATABASE = pathlib.Path(
     "/home/runner/work/_temp/qperiapt-codeql-database/rust"
 )
 FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
-# Exact tracked Rust inventory, including native, C and browser lifecycle sources.
-EXPECTED_TRACKED_RUST_SOURCE_COUNT = 1173
+# Keep current compiler inputs and pinned paper snapshots in the full extraction.
+EXPECTED_CURRENT_RUST_SOURCE_COUNT = 1173
+EXPECTED_ARCHIVED_RUST_SOURCE_COUNT = 68
+ARCHIVE_ROOT = "paper/continuity/artifacts/bootstrap"
+EXPECTED_TRACKED_RUST_SOURCE_COUNT = EXPECTED_CURRENT_RUST_SOURCE_COUNT + EXPECTED_ARCHIVED_RUST_SOURCE_COUNT
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
 # The whole-program Metrics query exceeded 900 seconds on hosted Apple Silicon;
 # its frozen database completed locally in 670 seconds with the same 2-thread,
@@ -98,6 +103,118 @@ ZERO_METRICS = EXPECTED_METRICS - TELEMETRY_METRICS - {
 
 class CodeQLRustQualityError(ValueError):
     """The CodeQL database cannot support a complete Rust analysis claim."""
+
+
+@dataclasses.dataclass(frozen=True)
+class SourcePacket:
+    source_commit: str
+    pins_sha256: str
+    rust_sources: int
+
+
+# The pinned manifests enumerate each source path, byte length, SHA-256 and Git
+# blob identity. CODEQL_RUST_ARCHIVES.md records the role of all 68 retained paths.
+PAPER_ARCHIVE_PACKETS = {
+    "ack": SourcePacket("471900bfe8070d1021a1feb67481437d599d80ba",
+                        "cf9c16f4dc8069717c1a40386f96290cae0aec89c356f02f824d8b3143c73eb5", 19),
+    "entry": SourcePacket("b1cff2a045d23aecf75aef12122e5080a8419676",
+                          "f988feb7b4755624f1c1b03f436cdc47c4736dc911a3746d534d158157529447", 2),
+    "initial": SourcePacket("471900bfe8070d1021a1feb67481437d599d80ba",
+                            "56edba39cb6639b2b1ea251ec84bbdd86c38eaf838c6318b47624671f43452f2", 20),
+    "reply": SourcePacket("68549dbc3ae4491d8b5edaa708548dc60743eab7",
+                          "ac548057d4cf4ad06620117a4e5bed966727b941e08c10c90717a2d4d614f6ae", 18),
+    "terminal": SourcePacket("360aa8107aa7df502108627a4dcf89f30d106594",
+                             "52a2da009793fdb227548fafdc2caa5da33a69966e13c69169eb766e024895de", 9),
+}
+
+
+@dataclasses.dataclass(frozen=True)
+class ArchivedRustSource:
+    source_commit: str
+    source_path: str
+    size: int
+    sha256: str
+    git_blob: str
+
+
+def pinned_archive_sources(root: pathlib.Path = REPOSITORY_ROOT) -> dict[str, ArchivedRustSource]:
+    """Read the exact reviewed manifests, without accepting changed pin bytes."""
+    sources = {}
+    for name, packet in PAPER_ARCHIVE_PACKETS.items():
+        directory = f"{ARCHIVE_ROOT}/{name}"
+        pins = read_regular_snapshot(root / directory / "SOURCE_PINS.json",
+                                     maximum=256 * 1024, label="paper Rust source pins")
+        if pins.sha256 != packet.pins_sha256:
+            raise ValueError(f"paper Rust source pin manifest differs: {name}")
+        value = parse_strict_json_bytes(pins.data, label="paper Rust source pins")
+        if (not isinstance(value, dict)
+                or value.get("source_commit", value.get("base_commit")) != packet.source_commit
+                or not isinstance(value.get("files"), list)):
+            raise ValueError(f"paper Rust source pin identity differs: {name}")
+        count = 0
+        for record in value["files"]:
+            if not isinstance(record, dict) or not isinstance(record.get("path"), str):
+                raise ValueError(f"paper Rust source pin is malformed: {name}")
+            relative = record["path"]
+            path = pathlib.PurePosixPath(relative)
+            if path.is_absolute() or ".." in path.parts or path.as_posix() != relative:
+                raise ValueError(f"paper Rust source path is not canonical: {relative}")
+            if path.suffix != ".rs":
+                continue
+            size, digest = record.get("bytes"), record.get("sha256")
+            blob = record.get("git_blob", record.get("git_blob_sha1"))
+            if (type(size) is not int or size <= 0
+                    or not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                    or not isinstance(blob, str) or re.fullmatch(r"[0-9a-f]{40}", blob) is None):
+                raise ValueError(f"paper Rust source byte identity is malformed: {relative}")
+            archived = f"{directory}/source/{relative}"
+            if archived in sources:
+                raise ValueError(f"paper Rust source pin is duplicated: {archived}")
+            sources[archived] = ArchivedRustSource(packet.source_commit, relative, size, digest, blob)
+            count += 1
+        if count != packet.rust_sources:
+            raise ValueError(f"paper Rust source packet count differs: {name}")
+    if len(sources) != EXPECTED_ARCHIVED_RUST_SOURCE_COUNT:
+        raise ValueError("paper Rust source inventory count differs")
+    return sources
+
+
+def validate_archive_inventory(root: pathlib.Path, tracked: frozenset[str]) -> frozenset[str]:
+    """Keep every frozen source extracted and reject executable archive roots."""
+    sources = pinned_archive_sources(root)
+    observed = {path for path in tracked if path.startswith(ARCHIVE_ROOT + "/")}
+    if observed != sources.keys():
+        raise ValueError("paper Rust source path inventory differs")
+    directories = {pathlib.PurePosixPath(ARCHIVE_ROOT)}
+    for relative, expected in sources.items():
+        snapshot = read_regular_snapshot(root / relative, maximum=5 * 1024**2,
+                                         label="archived paper Rust source")
+        blob = hashlib.sha1(b"blob " + str(snapshot.size).encode("ascii") + b"\0" + snapshot.data).hexdigest()
+        if (snapshot.size != expected.size or snapshot.sha256 != expected.sha256
+                or blob != expected.git_blob):
+            raise ValueError(f"archived paper Rust source bytes differ: {relative}")
+        parent = pathlib.PurePosixPath(relative).parent
+        while parent.as_posix() != ARCHIVE_ROOT:
+            directories.add(parent)
+            parent = parent.parent
+    for relative in sorted(directories):
+        manifest = root / relative / "Cargo.toml"
+        if manifest.exists() or manifest.is_symlink():
+            raise ValueError(f"archived paper Rust source has a Cargo manifest: {relative}")
+    return frozenset(sources)
+
+
+def archived_macro_paths(source_sha256: Mapping[str, str]) -> frozenset[str]:
+    """Recognize frozen snapshots from exact paths and bytes in a macro profile."""
+    observed = {path for path in source_sha256 if path.startswith(ARCHIVE_ROOT + "/")}
+    if not observed:
+        return frozenset()
+    sources = pinned_archive_sources()
+    if observed != sources.keys():
+        raise ValueError("macro profile paper archive path inventory differs")
+    if any(source_sha256[path] != expected.sha256 for path, expected in sources.items()):
+        raise ValueError("macro profile paper archive source bytes differ")
+    return frozenset(sources)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -487,6 +604,12 @@ def tracked_rust_paths(root: pathlib.Path = REPOSITORY_ROOT) -> frozenset[str]:
             "tracked Rust source count must be "
             f"{EXPECTED_TRACKED_RUST_SOURCE_COUNT}, got {len(rust_paths)}"
         )
+    try:
+        archived = validate_archive_inventory(root, rust_paths)
+    except (OSError, ValueError) as exc:
+        raise CodeQLRustQualityError(f"cannot validate archived Rust sources: {exc}") from exc
+    if len(rust_paths - archived) != EXPECTED_CURRENT_RUST_SOURCE_COUNT:
+        raise CodeQLRustQualityError("current Rust source inventory count differs")
     return rust_paths
 
 
