@@ -37,9 +37,11 @@ class ProofManifestTests(unittest.TestCase):
             proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
             performance_gate.PROOF_SCHEMA_VERSION,
         )
-        self.assertEqual(
-            proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
-            release_publication_contract._STABLE_PERFORMANCE_PROOF_SCHEMA,
+        self.assertFalse(
+            hasattr(
+                release_publication_contract,
+                "_STABLE_PERFORMANCE_PROOF_SCHEMA",
+            )
         )
 
     def test_rust_package_schema_constants_match_the_live_contract(self) -> None:
@@ -958,7 +960,7 @@ class ProofManifestTests(unittest.TestCase):
             ),
             "generated_at": "2026-08-12T00:04:00Z",
             "index_path": (
-                "target/qperiapt-local-release/release/0.1.2/"
+                "target/qperiapt-local-release/release/0.1.5/"
                 f"{commit}/index.json"
             ),
             "index_schema": 5,

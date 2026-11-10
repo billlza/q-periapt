@@ -1,0 +1,38 @@
+test_candidate_has_a_separate_unpublished_workspace_and_lock (test_continuity_identity_candidate.ContinuityIdentityIsolationTests.test_candidate_has_a_separate_unpublished_workspace_and_lock) ... ok
+test_sdk_members_cannot_acquire_candidate_authority (test_continuity_identity_candidate.ContinuityIdentityIsolationTests.test_sdk_members_cannot_acquire_candidate_authority) ... FAIL
+test_candidate_feature_cannot_become_default_or_gain_an_alias (test_mlkem_source_profiles.MlKemSourceProfilesTests.test_candidate_feature_cannot_become_default_or_gain_an_alias) ... ok
+test_each_source_version_accepts_only_its_own_complete_bytes (test_mlkem_source_profiles.MlKemSourceProfilesTests.test_each_source_version_accepts_only_its_own_complete_bytes) ... ok
+test_every_sdk_source_byte_is_closed_including_tests_and_cpu_guard (test_mlkem_source_profiles.MlKemSourceProfilesTests.test_every_sdk_source_byte_is_closed_including_tests_and_cpu_guard) ... ok
+test_extra_sources_shadow_headers_and_non_bytes_are_rejected (test_mlkem_source_profiles.MlKemSourceProfilesTests.test_extra_sources_shadow_headers_and_non_bytes_are_rejected) ... ok
+test_removing_an_isa_requirement_is_not_an_accepted_candidate (test_mlkem_source_profiles.MlKemSourceProfilesTests.test_removing_an_isa_requirement_is_not_an_accepted_candidate) ... ok
+test_unknown_profiles_do_not_inherit_sdk_or_historical_trust (test_mlkem_source_profiles.MlKemSourceProfilesTests.test_unknown_profiles_do_not_inherit_sdk_or_historical_trust) ... ok
+test_workspace_members_and_internal_pins_move_as_one_sdk_release (test_mlkem_source_profiles.MlKemSourceProfilesTests.test_workspace_members_and_internal_pins_move_as_one_sdk_release) ... 
+  test_workspace_members_and_internal_pins_move_as_one_sdk_release (test_mlkem_source_profiles.MlKemSourceProfilesTests.test_workspace_members_and_internal_pins_move_as_one_sdk_release) (member='crates/q-periapt-sdk-wasm') ... FAIL
+
+======================================================================
+FAIL: test_sdk_members_cannot_acquire_candidate_authority (test_continuity_identity_candidate.ContinuityIdentityIsolationTests.test_sdk_members_cannot_acquire_candidate_authority)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/test_continuity_identity_candidate.py", line 49, in test_sdk_members_cannot_acquire_candidate_authority
+    self.assertNotEqual(dependency["name"], NAME)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'q-periapt-continuity-identity-candidate' == 'q-periapt-continuity-identity-candidate'
+
+======================================================================
+FAIL: test_workspace_members_and_internal_pins_move_as_one_sdk_release (test_mlkem_source_profiles.MlKemSourceProfilesTests.test_workspace_members_and_internal_pins_move_as_one_sdk_release) (member='crates/q-periapt-sdk-wasm')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/test_mlkem_source_profiles.py", line 132, in test_workspace_members_and_internal_pins_move_as_one_sdk_release
+    self.assertEqual(dependency["version"], "=" + SDK_VERSION)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '=0.0.0' != '=0.2.0'
+- =0.0.0
+?    ^
++ =0.2.0
+?    ^
+
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.091s
+
+FAILED (failures=2)

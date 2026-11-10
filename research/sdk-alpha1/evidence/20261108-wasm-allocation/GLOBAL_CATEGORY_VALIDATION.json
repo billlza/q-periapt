@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.global_category_wiring_regression",
+  "base_commit": "4854acd800f51955de4a4b9a6dbb12ff1acf6247",
+  "original_hosted_failures": [
+    128889392861,
+    128889442583
+  ],
+  "original_hosted_tests_per_job": 3494,
+  "original_hosted_failures_per_job": 1,
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_proof_to_byte_release.BoundVerifierWiringTests.test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate",
+    "test_proof_to_byte_release.BoundVerifierWiringTests.test_rust_codeql_publication_rejects_wrong_target_categories"
+  ],
+  "returncode": 0,
+  "tests": 2,
+  "negative_mutations": 3,
+  "skipped": 0,
+  "successful": true,
+  "wall_seconds": 1.0864877339990926,
+  "source_files": {
+    "artifact/test_proof_to_byte_release.py": {
+      "bytes": 307644,
+      "sha256": "781b38f5dfc97c3f04a1df191cbce6af7a79639db78daecefb868d6e4bcf2012"
+    },
+    ".github/workflows/codeql.yml": {
+      "bytes": 14053,
+      "sha256": "04c57aba0a2df1b86dcf8b74026222af89de437ef18c7289cf47962c3f61fa07"
+    },
+    "artifact/codeql_rust_profile.py": {
+      "bytes": 23677,
+      "sha256": "8a068e6bf8b4a687bf43b042714055523e5cbfae41a9faffc7ddbfb3618fc6c1"
+    },
+    "artifact/codeql_rust_publication.py": {
+      "bytes": 9257,
+      "sha256": "680632ba39148e1e4aa738536eeacb658524cfaf24510783bb38dca85cbf1d90"
+    }
+  },
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "697c1047e3a89ec284735b1ca40b1d2ae37788e581e8bbc744b3d4660f1b6afd",
+  "production_files_changed": false,
+  "guard": "Explicit three-profile category mapping with full-line matches; all compiler, coverage, complete-suite and publication-order checks remain active."
+}

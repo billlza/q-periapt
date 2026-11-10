@@ -1,0 +1,68 @@
+   Compiling jobserver v0.1.35
+   Compiling rustls-pki-types v1.15.1
+   Compiling cc v1.5.1
+   Compiling log v0.4.34
+   Compiling cmake v0.1.58
+   Compiling aws-lc-sys v0.45.0
+   Compiling ring v0.17.14
+   Compiling q-periapt-mlkem-native-sys v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-mlkem-native-sys)
+   Compiling q-periapt-backends v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-backends)
+   Compiling q-periapt-sdk v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-sdk)
+   Compiling q-periapt-host-store v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-host-store)
+   Compiling rcgen v0.14.10
+   Compiling aws-lc-rs v1.18.1
+   Compiling rustls v0.23.45
+   Compiling rustls-webpki v0.103.15
+   Compiling q-periapt-rustls v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-rustls)
+   Compiling q-periapt-continuity-identity-candidate v0.0.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 36s
+     Running unittests src/lib.rs (target/continuity-browser-creation/rust-target/debug/deps/q_periapt_continuity_identity_candidate-8b6e9a923fe7d5a5)
+
+running 11 tests
+test durable::messages::tests::connection_tls::connection_tls_peer_child ... ok
+test durable::messages::tests::connection_tls::archives::connection_tls_archive_cleanup_child ... ok
+test durable::messages::tests::connection_tls::connection_tls_invalid_limits_cancel_and_clock_failure_leave_initial_work_absent ... ok
+CONNECTION_TLS_REFERENCE bootstrap_network_exchanges=2 one_time_keys_consumed=2 actual_application_readback=true authenticated_consumption=true
+CONNECTION_TLS_PROCESS_RECOVERY cut=reply same_request_and_input=true
+test durable::messages::tests::connection_tls::connection_tls_empty_journals_establish_and_confirm_real_application_consumption ... ok
+CONNECTION_TLS_ARCHIVE_BOUNDARY mode=cancel-server-archive archive_committed=true activated_before_retry=false
+test durable::messages::tests::connection_tls::connection_tls_out_of_order_consumption_remains_pending_until_the_real_prefix_closes ... ok
+CONNECTION_TLS_ARCHIVE_DATA_GATE missing=false client_mutation_before_repair=false server_inbox_before_repair=false same_message_recovered=true
+CONNECTION_TLS_INDEXED_CLEANUP endpoints=2 original_contexts_in_child=0 durable_host_reports=2 terminal_readbacks=2
+CONNECTION_TLS_CLIENT_ARCHIVE_CUT real_process_kill=true before_both_activations=true exact_restart=true
+test durable::messages::tests::connection_tls::archives::connection_tls_client_archive_commit_cut_precedes_both_activations_and_recovers ... ok
+CONNECTION_TLS_PROCESS_RECOVERY cut=server-archive same_request_and_input=true
+CONNECTION_TLS_ARCHIVE_DATA_GATE missing=true client_mutation_before_repair=false server_inbox_before_repair=false same_message_recovered=true
+test durable::messages::tests::connection_tls::archives::connection_tls_missing_or_modified_archives_block_data_before_delivery ... ok
+CONNECTION_TLS_PROCESS_RECOVERY cut=activation same_request_and_input=true
+test durable::messages::tests::connection_tls::failures::connection_tls_application_failure_and_post_commit_cancellation_never_invent_consumption ... ok
+CONNECTION_TLS_PROCESS_RECOVERY cut=inbox same_request_and_input=true
+CONNECTION_TLS_ARCHIVE_SYNC server=false barriers=2 before_after_faults=4
+CONNECTION_TLS_PROCESS_RECOVERY cut=application same_request_and_input=true
+CONNECTION_TLS_PROCESS_RECOVERY cut=ack same_request_and_input=true
+test durable::messages::tests::connection_tls::failures::connection_tls_process_cuts_preserve_prekeys_inbox_external_effect_and_exact_ack ... ok
+CONNECTION_TLS_ARCHIVE_SYNC server=true barriers=2 before_after_faults=4
+test durable::messages::tests::connection_tls::archives::connection_tls_archive_sync_failures_cannot_activate_either_native_endpoint ... ok
+CONNECTION_TLS_ARCHIVE_BOUNDARY mode=deadline-server-archive archive_committed=true activated_before_retry=false
+test durable::messages::tests::connection_tls::archives::connection_tls_archive_commit_cancellation_and_deadline_never_report_activation ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 927 filtered out; finished in 27.34s
+
+     Running tests/credential_request.rs (target/continuity-browser-creation/rust-target/debug/deps/credential_request-aaa71cbbadf20932)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/historical_identity.rs (target/continuity-browser-creation/rust-target/debug/deps/historical_identity-46465f79067e9363)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/owned_connection.rs (target/continuity-browser-creation/rust-target/debug/deps/owned_connection-8aab367405d7d09b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+

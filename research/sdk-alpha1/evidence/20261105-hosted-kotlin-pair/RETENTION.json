@@ -1,0 +1,364 @@
+{
+  "profiles": {
+    "debug": {
+      "negative_controls": {
+        "RawAccountAuthorityProbe": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityAccountAuthority(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityAccountAuthority",
+          "returncode": 1,
+          "stderr_sha256": "8843d2407e64516533e015d0d10136dc1a1f79d024ab517dbf4fd0444028f24f"
+        },
+        "RawConfigurationKeyProbe": {
+          "expected_rejection": "compiler.err.cant.resolve.location.args: kindname.method, withKey$q_periapt_continuity_kotlin",
+          "returncode": 1,
+          "stderr_sha256": "08f3e51905e4ae76ecac937cdf0225157a39124c4d7cf763eafbe9a86b008b49"
+        },
+        "RawConfigurationProbe": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityConfiguration(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityConfiguration",
+          "returncode": 1,
+          "stderr_sha256": "57a4aa1544c9aaf47893eb189704666412e61a72d78edbd2ec4edb4e46cd9d32"
+        },
+        "denied-native-access": {
+          "expected_rejection": "IllegalCallerException",
+          "returncode": 1,
+          "stderr_sha256": "210bf2ce4016db1e76ebca8906198f440279fdb370963f4b23e12aacb7de46f4"
+        },
+        "directory-library": {
+          "expected_rejection": "absolute regular file",
+          "returncode": 1,
+          "stderr_sha256": "08739cf71c2478009aa04ca43cd5310eca6c8e89945a225ab80f0048cecd85ec"
+        },
+        "missing-library": {
+          "expected_rejection": "absolute regular file",
+          "returncode": 1,
+          "stderr_sha256": "08739cf71c2478009aa04ca43cd5310eca6c8e89945a225ab80f0048cecd85ec"
+        },
+        "missing-property": {
+          "expected_rejection": "qperiapt.continuity.lib must select",
+          "returncode": 1,
+          "stderr_sha256": "a8ca30ef6a4f3ce16a07e75082487359f5d29a58855581b5733e76aa728ae454"
+        },
+        "missing-symbol": {
+          "expected_rejection": "NoSuchElementException",
+          "returncode": 1,
+          "stderr_sha256": "ac0d56d9342f57fe2c652e79eb19dc5fcfc753fb0537dd126a3005d8a8bc76e0"
+        },
+        "raw-device": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityDevice(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityDevice",
+          "returncode": 1,
+          "stderr_sha256": "e188cb3a19cfeccb18d736f8193295afa18d80b450226b17ee6eba402aa2627e"
+        },
+        "raw-enrollment": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityEnrollment(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityEnrollment",
+          "returncode": 1,
+          "stderr_sha256": "a4a32a7435cd7d3449fe85c006a2bbaaa48f8b9cf5fc6b2ef8cba5191006fe4b"
+        },
+        "raw-native-owner": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.NativeOwner(long,dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.NativeOwner",
+          "returncode": 1,
+          "stderr_sha256": "907e7c7b724043e41b20281cae767b8e7d1c3a11921deb9a6b6ce75b09f426cf"
+        },
+        "raw-owner": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityOwner(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityOwner",
+          "returncode": 1,
+          "stderr_sha256": "1a19c7ac00ca00c03a577c9810037e3c20f2917ab0b47aee0a67fb0d24a70f82"
+        },
+        "raw-retired": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityRetiredEnrollment(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityRetiredEnrollment",
+          "returncode": 1,
+          "stderr_sha256": "367f9423cfcd7c08b45e23748c20c563b427b484cbe25a973e1b5c155535367b"
+        },
+        "raw-setup": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuitySetup(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuitySetup",
+          "returncode": 1,
+          "stderr_sha256": "93ac415132b0e683b9241bee348fc0aa270630093bd23fa0f8a71f08ecb1a513"
+        },
+        "relative-path": {
+          "expected_rejection": "absolute regular file",
+          "returncode": 1,
+          "stderr_sha256": "08739cf71c2478009aa04ca43cd5310eca6c8e89945a225ab80f0048cecd85ec"
+        }
+      },
+      "publication_export_gap": {
+        "G1": {
+          "directory_present": false,
+          "expected_readbacks": 85,
+          "missing_content": {
+            "enrolled/enrollment-accept.stdout": "e8e2ed8144ae784a134313d9cd4ee4a449fce6d48d35f2b1166b2527c86d4be4",
+            "enrolled/enrollment-activate-current.stdout": "e2c5d4d24a80a58ab8fcf43d80dcaf71553563a173b6d5ecbb3dc22ffb2e3600",
+            "enrolled/enrollment-active.stdout": "a674524aea1ca18cb2f1370273ba17d6730423c3a2863d1be60d880cacde7876",
+            "enrolled/enrollment-after-missing-registration.stdout": "a674524aea1ca18cb2f1370273ba17d6730423c3a2863d1be60d880cacde7876",
+            "enrolled/enrollment-after-reject.stdout": "8a62d3f9fcde3431fcf3d0d895e942a7f1e637297989b72261b0f84015d6b98e",
+            "enrolled/enrollment-connect.stdout": "7984d4bbba128b11d7c1f44c5b190ada338c608a121abe9a5c9bfc22667e1e70",
+            "enrolled/enrollment-create.stdout": "6948eada692b969a13d6be77599d5558e0715c793f8f82e8e8d115276fc1a357",
+            "enrolled/enrollment-final-status.stdout": "a674524aea1ca18cb2f1370273ba17d6730423c3a2863d1be60d880cacde7876",
+            "enrolled/enrollment-held.stdout": "e2c5d4d24a80a58ab8fcf43d80dcaf71553563a173b6d5ecbb3dc22ffb2e3600",
+            "enrolled/enrollment-intent": "b0c25891c7fe3767a9fe6db6319495d25b0c5f676621f71c33f0916902b77909",
+            "enrolled/enrollment-lease-observation": "6e4d45482ad8bc66690bdb6772b6c1477dacb985bc90b0ce513cecece3f05b2a",
+            "enrolled/enrollment-next.stdout": "fef18bba940536a0d23c84b25f8db8eb9eeb3a786f0f27fb705311961864e096",
+            "enrolled/enrollment-publication-absent.stdout": "6a525c424c974129e7077a94b66dfbbee76ffea7fd84972cab9c9fedecb9713e",
+            "enrolled/enrollment-publication-cancel.stdout": "4dbe5da215309fe6d75b49abcb6cdbb296fb3623e2fbc5d9588a8f99b142522f",
+            "enrolled/enrollment-publication-next-2.stdout": "ea01396b244fd147c0dbb2d0fdd4c14419ce203201ac23a0b025a84ab7bda988",
+            "enrolled/enrollment-publication-next-retained.stdout": "ea01396b244fd147c0dbb2d0fdd4c14419ce203201ac23a0b025a84ab7bda988",
+            "enrolled/enrollment-publication-next.stdout": "6f0f7d52315538d070ea70ba61d6451f805d0cf436c75d029a3f4d7678d3c180",
+            "enrolled/enrollment-publication-prepare.stdout": "4cf6582732f5c540f648a4709f5dff77f0a6e00268479871f038f1f63a460995",
+            "enrolled/enrollment-publication-retire.stdout": "52b9fc1b32e8415478c34915f101026a0effd852bccfdd4eb3e96ecc0d6ab9c9",
+            "enrolled/enrollment-publication-retry.stdout": "4cf6582732f5c540f648a4709f5dff77f0a6e00268479871f038f1f63a460995",
+            "enrolled/enrollment-refresh.stdout": "8f9e32b4ddaaa306ab6331bc34d346351b70388f5ab44297e9902714334dfdf6",
+            "enrolled/enrollment-reopened-request": "16dc5f18cca79ac29ca710bcd965458ac7f5aada84b6d0f8d488cdc3fe4a1cc1",
+            "enrolled/enrollment-request": "16dc5f18cca79ac29ca710bcd965458ac7f5aada84b6d0f8d488cdc3fe4a1cc1",
+            "enrolled/enrollment-request-retry.stdout": "8a62d3f9fcde3431fcf3d0d895e942a7f1e637297989b72261b0f84015d6b98e",
+            "enrolled/enrollment-request.stdout": "8a62d3f9fcde3431fcf3d0d895e942a7f1e637297989b72261b0f84015d6b98e",
+            "enrolled/enrollment-root": "de65ef425b1b81e4c7b8099e3432fd809a06e8a8d0d58a2eb7a53c217e7d37e4",
+            "enrolled/enrollment-storage.stdout": "e8e2ed8144ae784a134313d9cd4ee4a449fce6d48d35f2b1166b2527c86d4be4",
+            "enrolled/family": "8ae15c9951cb5203cef72582b2a1c37c9c002611239a1466a1768033bbd8cdd3",
+            "enrolled/grant-certificate": "6f1d763ac4ef7ff0ccafe50a9696dd1f66cc9b7db18602a6ea9210359da0103a",
+            "enrolled/grant-roster": "368c86012377b58f2790cc951a785b985d1777fbcd5672bb8b642277c35389c7",
+            "enrolled/publication-artifact": "5e799f81ae8316c6e37f455bf48e6a97d8528358b01118a102d389f8183e31d5",
+            "enrolled/publication-id": "928f075627e0b65cf96ca14100f024a646c9eba17bce1f6ea6310e4735ddd9ba",
+            "enrolled/publication-plan": "c2debe57a2eea916426ce0f0425b1a7def4915ffbbcedd0348ea246ae5eb0728",
+            "enrolled/publication-retry": "5e799f81ae8316c6e37f455bf48e6a97d8528358b01118a102d389f8183e31d5",
+            "enrolled/renewal-digest": "79635df503226cda3f390c4015a2b815fc31cd1d5739e9aa2812f82a00749a91",
+            "enrolled/renewal-roster": "0fc2fdc17558b93d878b30cabecfe34d526d9ef5d4aea98f3f7329f44d6f1a6e",
+            "enrolled/trusted-account": "d8218c55ef167d0242fa72ef7336221d806a0c8739025a0ab0bbe6ff6c5e7a1c",
+            "enrolled/trusted-roster-digest": "acc7d28e08e73516dcbee2a2e23c727c46d08819f2df1e36554fe13bece11e30",
+            "responder/application-0000000000000000000000000000000043f420df5a881267f92aee9452f54f42": "1fac647d105e1edca63a35a0361eca0e57902083aa512998175ee31e905f3373",
+            "responder/session": "c8afdda68be211990894620bcc5ccf20e2f3491bd93b8ce33eb89504377006c8"
+          },
+          "missing_content_count": 40,
+          "recorded_execution_completed": true
+        },
+        "Serial": {
+          "directory_present": false,
+          "expected_readbacks": 85,
+          "missing_content": {
+            "enrolled/enrollment-accept.stdout": "14bf06954c64072a55188d95fba2070d3fe1bb90bccc7dbb0c54b39d7d605d7d",
+            "enrolled/enrollment-activate-current.stdout": "6587ab0d495a8d7955d4eed239bb5942a22b06a5be2d83ac13e08ac265f076ed",
+            "enrolled/enrollment-active.stdout": "e346ffc4d7f9699a4cfc8ae9fc477065ebea9afa414c8a4a740f91f03ec1d244",
+            "enrolled/enrollment-after-missing-registration.stdout": "e346ffc4d7f9699a4cfc8ae9fc477065ebea9afa414c8a4a740f91f03ec1d244",
+            "enrolled/enrollment-after-reject.stdout": "1006ed0c215fa85aed4900ac15e535576f9e73058380e501e878455f966c1c3f",
+            "enrolled/enrollment-connect.stdout": "2c0812d5958af92be7e6b36cb6a637592916c79f5d83868d0e139807ecf5a99a",
+            "enrolled/enrollment-create.stdout": "124b38d02408f198fe0da5ece31dcbd7f174cee57c726e55d5391a739f9bfd9e",
+            "enrolled/enrollment-final-status.stdout": "e346ffc4d7f9699a4cfc8ae9fc477065ebea9afa414c8a4a740f91f03ec1d244",
+            "enrolled/enrollment-held.stdout": "6587ab0d495a8d7955d4eed239bb5942a22b06a5be2d83ac13e08ac265f076ed",
+            "enrolled/enrollment-intent": "12552c2bc315690d6bee869229184a93c98be92097a965b5acb9f036e61d0135",
+            "enrolled/enrollment-lease-observation": "de12ad8a04aab65f51e581c86144acd53768cfe85e593721c5697018eae61eed",
+            "enrolled/enrollment-next.stdout": "0a5622df50032af7afe84dd59669769c5cb071ccd8c0176e51469de1786b9595",
+            "enrolled/enrollment-publication-absent.stdout": "6a525c424c974129e7077a94b66dfbbee76ffea7fd84972cab9c9fedecb9713e",
+            "enrolled/enrollment-publication-cancel.stdout": "4dbe5da215309fe6d75b49abcb6cdbb296fb3623e2fbc5d9588a8f99b142522f",
+            "enrolled/enrollment-publication-next-2.stdout": "17ffb3cc8221f587969a97028a1d4d42e4fe366f2e86c650b64cd564f67e01d7",
+            "enrolled/enrollment-publication-next-retained.stdout": "17ffb3cc8221f587969a97028a1d4d42e4fe366f2e86c650b64cd564f67e01d7",
+            "enrolled/enrollment-publication-next.stdout": "e3c6908810ed7c1a146e9065249bb0e6c483c667212b48999b06081ba4837609",
+            "enrolled/enrollment-publication-prepare.stdout": "b2d28b11e4bfa97e6b6b2b56a156b411c91e0a65f06bd25793a3d00f25af8dad",
+            "enrolled/enrollment-publication-retire.stdout": "52b9fc1b32e8415478c34915f101026a0effd852bccfdd4eb3e96ecc0d6ab9c9",
+            "enrolled/enrollment-publication-retry.stdout": "b2d28b11e4bfa97e6b6b2b56a156b411c91e0a65f06bd25793a3d00f25af8dad",
+            "enrolled/enrollment-refresh.stdout": "84661d8d9425871f31b634b6c3a2f993533ea8a6fafa9178d16726714790cae5",
+            "enrolled/enrollment-reopened-request": "14d34fbd451dfecadbe7a00531f3bbd0ee2d333faf72bf3a496d29b6e338a882",
+            "enrolled/enrollment-request": "14d34fbd451dfecadbe7a00531f3bbd0ee2d333faf72bf3a496d29b6e338a882",
+            "enrolled/enrollment-request-retry.stdout": "1006ed0c215fa85aed4900ac15e535576f9e73058380e501e878455f966c1c3f",
+            "enrolled/enrollment-request.stdout": "1006ed0c215fa85aed4900ac15e535576f9e73058380e501e878455f966c1c3f",
+            "enrolled/enrollment-root": "f5633cf655bea2ee50375d32132f34bef22c69cccbefde6f6df79cdabbbbf340",
+            "enrolled/enrollment-storage.stdout": "14bf06954c64072a55188d95fba2070d3fe1bb90bccc7dbb0c54b39d7d605d7d",
+            "enrolled/family": "37b01e9fb10428ad4c547671dc2fd3aa604238b02738831d5f058ac0be2aafee",
+            "enrolled/grant-certificate": "f5a277cfdef26753d039ff486c08d62101b89857b9f523e6cea2f66cde830dc1",
+            "enrolled/grant-roster": "a405469866b02cd544d3414c60fcbd49e7db32046a9ce66f44302cf6aa873d2d",
+            "enrolled/publication-artifact": "2cdd461312f6ef4b7ac6e4d57dff8b672b05cb1cc307e0b173e454a64b3a3051",
+            "enrolled/publication-id": "e7402e8fa5d51231dce8f869b2fdd6fd1763b3c90c9aed27aa83cca7832b6990",
+            "enrolled/publication-plan": "6cc883e1b15ebde2315338ddd3f76e05e57bfb6add62a84b3b5755c8d5e03a8a",
+            "enrolled/publication-retry": "2cdd461312f6ef4b7ac6e4d57dff8b672b05cb1cc307e0b173e454a64b3a3051",
+            "enrolled/renewal-digest": "b8ad6fe8bae9a7f60f64799e8bc59670b7b8e5b958dab00fba67d26a879bdb51",
+            "enrolled/renewal-roster": "60da74a44b98ffd6b5e242d76ad071c7a6d8a502b54784f97abe36e31d7720e3",
+            "enrolled/trusted-account": "2a84477bb909e60e5550eb1ecf58524baaf1339e6b63973711ce538c7d11c580",
+            "enrolled/trusted-roster-digest": "5957ef6253e69751b549bb1795f20be7f7c2de6c684cf682ba6a582d5cd94f79",
+            "responder/application-00000000000000000000000000000000f72bfa5117a401ccd7452edfc658291e": "4c732d1a1e2461854139f0bea75bae4da3ee06a0e0e02c2257b41579fe1e1921",
+            "responder/session": "e5f66ecedbcb6fda00e7796ce0054b3703706af7ab6fedf3ed6191ad73f678a6"
+          },
+          "missing_content_count": 40,
+          "recorded_execution_completed": true
+        }
+      },
+      "search_scope": "Every original outer member, every installed Kotlin package member, and every candidate crate member; original archives retained."
+    },
+    "release": {
+      "negative_controls": {
+        "RawAccountAuthorityProbe": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityAccountAuthority(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityAccountAuthority",
+          "returncode": 1,
+          "stderr_sha256": "8843d2407e64516533e015d0d10136dc1a1f79d024ab517dbf4fd0444028f24f"
+        },
+        "RawConfigurationKeyProbe": {
+          "expected_rejection": "compiler.err.cant.resolve.location.args: kindname.method, withKey$q_periapt_continuity_kotlin",
+          "returncode": 1,
+          "stderr_sha256": "08f3e51905e4ae76ecac937cdf0225157a39124c4d7cf763eafbe9a86b008b49"
+        },
+        "RawConfigurationProbe": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityConfiguration(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityConfiguration",
+          "returncode": 1,
+          "stderr_sha256": "57a4aa1544c9aaf47893eb189704666412e61a72d78edbd2ec4edb4e46cd9d32"
+        },
+        "denied-native-access": {
+          "expected_rejection": "IllegalCallerException",
+          "returncode": 1,
+          "stderr_sha256": "5ca6c2c953059e3453c0986e623cbbcb996e8891594610a56503756dccb4962f"
+        },
+        "directory-library": {
+          "expected_rejection": "absolute regular file",
+          "returncode": 1,
+          "stderr_sha256": "08739cf71c2478009aa04ca43cd5310eca6c8e89945a225ab80f0048cecd85ec"
+        },
+        "missing-library": {
+          "expected_rejection": "absolute regular file",
+          "returncode": 1,
+          "stderr_sha256": "08739cf71c2478009aa04ca43cd5310eca6c8e89945a225ab80f0048cecd85ec"
+        },
+        "missing-property": {
+          "expected_rejection": "qperiapt.continuity.lib must select",
+          "returncode": 1,
+          "stderr_sha256": "a8ca30ef6a4f3ce16a07e75082487359f5d29a58855581b5733e76aa728ae454"
+        },
+        "missing-symbol": {
+          "expected_rejection": "NoSuchElementException",
+          "returncode": 1,
+          "stderr_sha256": "ac0d56d9342f57fe2c652e79eb19dc5fcfc753fb0537dd126a3005d8a8bc76e0"
+        },
+        "raw-device": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityDevice(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityDevice",
+          "returncode": 1,
+          "stderr_sha256": "e188cb3a19cfeccb18d736f8193295afa18d80b450226b17ee6eba402aa2627e"
+        },
+        "raw-enrollment": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityEnrollment(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityEnrollment",
+          "returncode": 1,
+          "stderr_sha256": "a4a32a7435cd7d3449fe85c006a2bbaaa48f8b9cf5fc6b2ef8cba5191006fe4b"
+        },
+        "raw-native-owner": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.NativeOwner(long,dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.NativeOwner",
+          "returncode": 1,
+          "stderr_sha256": "907e7c7b724043e41b20281cae767b8e7d1c3a11921deb9a6b6ce75b09f426cf"
+        },
+        "raw-owner": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityOwner(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityOwner",
+          "returncode": 1,
+          "stderr_sha256": "1a19c7ac00ca00c03a577c9810037e3c20f2917ab0b47aee0a67fb0d24a70f82"
+        },
+        "raw-retired": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuityRetiredEnrollment(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuityRetiredEnrollment",
+          "returncode": 1,
+          "stderr_sha256": "367f9423cfcd7c08b45e23748c20c563b427b484cbe25a973e1b5c155535367b"
+        },
+        "raw-setup": {
+          "expected_rejection": "compiler.err.report.access: dev.qperiapt.continuity.ContinuitySetup(dev.qperiapt.continuity.NativeOwner), private, dev.qperiapt.continuity.ContinuitySetup",
+          "returncode": 1,
+          "stderr_sha256": "93ac415132b0e683b9241bee348fc0aa270630093bd23fa0f8a71f08ecb1a513"
+        },
+        "relative-path": {
+          "expected_rejection": "absolute regular file",
+          "returncode": 1,
+          "stderr_sha256": "08739cf71c2478009aa04ca43cd5310eca6c8e89945a225ab80f0048cecd85ec"
+        }
+      },
+      "publication_export_gap": {
+        "G1": {
+          "directory_present": false,
+          "expected_readbacks": 85,
+          "missing_content": {
+            "enrolled/enrollment-accept.stdout": "85abe55b31ca343b18040d8ef777422c56439bc8f0700d24625b47655bcd995c",
+            "enrolled/enrollment-activate-current.stdout": "8406c45cbe1096e895df78a103b92a6f2f4af267f36e6b196910c2e8219d7cf0",
+            "enrolled/enrollment-active.stdout": "6793c33b13525eff93a532f1cdc0809fd005cf8b55d4e40526e7d4d96d0c7b13",
+            "enrolled/enrollment-after-missing-registration.stdout": "6793c33b13525eff93a532f1cdc0809fd005cf8b55d4e40526e7d4d96d0c7b13",
+            "enrolled/enrollment-after-reject.stdout": "b84c37bd47681b7edcf08fa3eeae12c1d5d483acfdd674c79ff604a1757fc455",
+            "enrolled/enrollment-connect.stdout": "1b6ee7c6370fdbb6a012e7d833f633d27d9914efa0acbeeeac1b1deb5508a421",
+            "enrolled/enrollment-create.stdout": "36d20b2bf37bea6ff9a11a2f2e5fc92a32ee92a8a0ca3607181fc0068e81a9c4",
+            "enrolled/enrollment-final-status.stdout": "6793c33b13525eff93a532f1cdc0809fd005cf8b55d4e40526e7d4d96d0c7b13",
+            "enrolled/enrollment-held.stdout": "8406c45cbe1096e895df78a103b92a6f2f4af267f36e6b196910c2e8219d7cf0",
+            "enrolled/enrollment-intent": "ab1ea90045dd47ffd80efc8a35820ebb14e68a42e7c175cff3a1aea538ba13e6",
+            "enrolled/enrollment-lease-observation": "96f01b0835d9e8ef5c846fe737dc13a8444ae3f80f8d8527fa0e9abf89ecba2f",
+            "enrolled/enrollment-next.stdout": "60db895e61edc5b2db77260dfe2f35f2140a31b19cc4287fc4411ae50fed3197",
+            "enrolled/enrollment-publication-absent.stdout": "6a525c424c974129e7077a94b66dfbbee76ffea7fd84972cab9c9fedecb9713e",
+            "enrolled/enrollment-publication-cancel.stdout": "4dbe5da215309fe6d75b49abcb6cdbb296fb3623e2fbc5d9588a8f99b142522f",
+            "enrolled/enrollment-publication-next-2.stdout": "46c44d48cfe5249e75f8bd4db815cd21a2892486f8647a652eee22605b96dd26",
+            "enrolled/enrollment-publication-next-retained.stdout": "46c44d48cfe5249e75f8bd4db815cd21a2892486f8647a652eee22605b96dd26",
+            "enrolled/enrollment-publication-next.stdout": "0ed3b3c5a1897c6a24ac2af3c4b493e3e60c5f248b79a98ff00afefecfa7f8e2",
+            "enrolled/enrollment-publication-prepare.stdout": "411d1e20fc6331494b696e29f24961f775e53189576442fabcc4d01238d5b338",
+            "enrolled/enrollment-publication-retire.stdout": "52b9fc1b32e8415478c34915f101026a0effd852bccfdd4eb3e96ecc0d6ab9c9",
+            "enrolled/enrollment-publication-retry.stdout": "411d1e20fc6331494b696e29f24961f775e53189576442fabcc4d01238d5b338",
+            "enrolled/enrollment-refresh.stdout": "0a5669a5319253def2e9c5a2a0118baf398386bf31b3108cc738ad891755f5e2",
+            "enrolled/enrollment-reopened-request": "6ce52eec99a1b9d64880c3938b51632eeba96a57a225fb6991a6e5cd20e298da",
+            "enrolled/enrollment-request": "6ce52eec99a1b9d64880c3938b51632eeba96a57a225fb6991a6e5cd20e298da",
+            "enrolled/enrollment-request-retry.stdout": "b84c37bd47681b7edcf08fa3eeae12c1d5d483acfdd674c79ff604a1757fc455",
+            "enrolled/enrollment-request.stdout": "b84c37bd47681b7edcf08fa3eeae12c1d5d483acfdd674c79ff604a1757fc455",
+            "enrolled/enrollment-root": "4f99f3e8ec027fd51463cd2f624e65b3985fcc64c9be60c3ec8d213925d16a8d",
+            "enrolled/enrollment-storage.stdout": "85abe55b31ca343b18040d8ef777422c56439bc8f0700d24625b47655bcd995c",
+            "enrolled/family": "77ee78e57d45c2a138659c8a59eeb27d3b4cb6284cb6f86dc492d08159cc09e4",
+            "enrolled/grant-certificate": "d760959ae42fd2389ae165480ede7a631b6e5edb1a46ed7fd6eb777e70103afc",
+            "enrolled/grant-roster": "acb3b1eb18cc26a78c18c1ed04dfb1f2889cbc112cc7b2e093215b24e1ab6a1e",
+            "enrolled/publication-artifact": "6b223cc44c0fe5f1beb0118530e4b5d756293ae7709182b86bf955e8aec2d4ce",
+            "enrolled/publication-id": "af2719600c52fe4b0588c6f2f5a08f196bbf679e1f2ec708660c85244a9099c5",
+            "enrolled/publication-plan": "32d65faa69f3479e76ef1a270166ec2a8a7cc207aaa71100c3f3f2735224093d",
+            "enrolled/publication-retry": "6b223cc44c0fe5f1beb0118530e4b5d756293ae7709182b86bf955e8aec2d4ce",
+            "enrolled/renewal-digest": "b527385b01e802fc68500b9cbf9021e73e6f6d7059c9338e9b8f0afbc2b26d92",
+            "enrolled/renewal-roster": "80f9ff894d93135ecd0b81017b74cf4c103b113ac9f8e4d548ed50b587866832",
+            "enrolled/trusted-account": "3803d57fba24e74613f0dec6f6d0a20cc8ff4623209a1850e79539967ea4bc08",
+            "enrolled/trusted-roster-digest": "f3d1f83ace6a68dc1ae6ab1e9ce543d7d09d344b77cfb5f5b4faf5592eac8ae9",
+            "responder/application-00000000000000000000000000000000ff6d439079daabc319dd34c7bab4e2fb": "724ca6682d111833d225ea7e66155fb076ecc60aab2c3d947e5c897c52ed4836",
+            "responder/session": "a3549321c87a8147bf52b9615f6675d60567e8e53aba8ae2df36f4de71ad41a2"
+          },
+          "missing_content_count": 40,
+          "recorded_execution_completed": true
+        },
+        "Serial": {
+          "directory_present": false,
+          "expected_readbacks": 85,
+          "missing_content": {
+            "enrolled/enrollment-accept.stdout": "fd88a92cb67e6d2e4e1dd9067d80fd77edf5146d7ce3190135fbe8a2bbb3ba5a",
+            "enrolled/enrollment-activate-current.stdout": "a2bdba2f4dd12ca4daaec100f71cdd421dc15a18200839e59cfa66223746ca85",
+            "enrolled/enrollment-active.stdout": "95420b193dc04766c4a5439c3664c35e562eaa2afac3c90ab1473dd10d6ec68f",
+            "enrolled/enrollment-after-missing-registration.stdout": "95420b193dc04766c4a5439c3664c35e562eaa2afac3c90ab1473dd10d6ec68f",
+            "enrolled/enrollment-after-reject.stdout": "365a976d3224cae0d732b9b1dcf2b409222b9cec0b58d268d587a49d662c0e26",
+            "enrolled/enrollment-connect.stdout": "c9b0188c6e297c2e889100fd1b14ddb924d35d3ab6e9b1d0625d22bba4deece1",
+            "enrolled/enrollment-create.stdout": "39ecbb12e5953271a4d3af0e04e42795087ebf37cfa4d33ce981ec806cabab85",
+            "enrolled/enrollment-final-status.stdout": "95420b193dc04766c4a5439c3664c35e562eaa2afac3c90ab1473dd10d6ec68f",
+            "enrolled/enrollment-held.stdout": "a2bdba2f4dd12ca4daaec100f71cdd421dc15a18200839e59cfa66223746ca85",
+            "enrolled/enrollment-intent": "bf1c573e6bded517774d09f5be9bdda3524d34960ae1e577b96c830f08f50365",
+            "enrolled/enrollment-lease-observation": "9015e7ad2dc9247bb3e9838691c09ee907b71d7c60bfc15c632f7e1c8e41ab38",
+            "enrolled/enrollment-next.stdout": "46a3d2695ba4b4f6c69afd4ed1e5a03f59da4f67aaae08bd5844229aa34bbd86",
+            "enrolled/enrollment-publication-absent.stdout": "6a525c424c974129e7077a94b66dfbbee76ffea7fd84972cab9c9fedecb9713e",
+            "enrolled/enrollment-publication-cancel.stdout": "4dbe5da215309fe6d75b49abcb6cdbb296fb3623e2fbc5d9588a8f99b142522f",
+            "enrolled/enrollment-publication-next-2.stdout": "f11192935dd354a1304d92798f50cee78c6bceb68c9bce785d22a405a21311ef",
+            "enrolled/enrollment-publication-next-retained.stdout": "f11192935dd354a1304d92798f50cee78c6bceb68c9bce785d22a405a21311ef",
+            "enrolled/enrollment-publication-next.stdout": "676cb0361c23988de875c215b173db07b2129a0c37a0d49b7678f6c514f75c0f",
+            "enrolled/enrollment-publication-prepare.stdout": "32bd6b603116a66c6cf2cd3fc391df5edd7f2bc2bc12621227a937afe5693ff5",
+            "enrolled/enrollment-publication-retire.stdout": "52b9fc1b32e8415478c34915f101026a0effd852bccfdd4eb3e96ecc0d6ab9c9",
+            "enrolled/enrollment-publication-retry.stdout": "32bd6b603116a66c6cf2cd3fc391df5edd7f2bc2bc12621227a937afe5693ff5",
+            "enrolled/enrollment-refresh.stdout": "b6490430307eb7f041804fb0bfd2ba5a325e475256058c3e58d050ac88dbdbbb",
+            "enrolled/enrollment-reopened-request": "ca25a50ec8cb2854dcda49345b5766e51286ccea9e59a612655e230aac062b02",
+            "enrolled/enrollment-request": "ca25a50ec8cb2854dcda49345b5766e51286ccea9e59a612655e230aac062b02",
+            "enrolled/enrollment-request-retry.stdout": "365a976d3224cae0d732b9b1dcf2b409222b9cec0b58d268d587a49d662c0e26",
+            "enrolled/enrollment-request.stdout": "365a976d3224cae0d732b9b1dcf2b409222b9cec0b58d268d587a49d662c0e26",
+            "enrolled/enrollment-root": "722adf982b2db1a191f0ed58d0882e6aa83d4de9301bdc4cf47d8c780fe18814",
+            "enrolled/enrollment-storage.stdout": "fd88a92cb67e6d2e4e1dd9067d80fd77edf5146d7ce3190135fbe8a2bbb3ba5a",
+            "enrolled/family": "93457b8db7e85a0cbe8193ce6a19c17066de8d8d143655e12377957d3a9591dc",
+            "enrolled/grant-certificate": "ae5a5e80a8d51e13e6f6c34dfa94c5ad88f393985695fa1ea2e58cc49844b22f",
+            "enrolled/grant-roster": "f7d829051492a4e1e871d0a9e5c0f0b021d4e4b902391054b5e338e235557b2f",
+            "enrolled/publication-artifact": "bed57947401dee87a01516252bb738ebc5d89bec5ef4dab35058216081894a82",
+            "enrolled/publication-id": "59bf7d773e3611e802e5bac43c949c430108899341945527b7a85afdf8ca97fc",
+            "enrolled/publication-plan": "daa031a1322abe22d11be5a2c694d3a3579911c7fbc2cd335a28e5b5b24f41f2",
+            "enrolled/publication-retry": "bed57947401dee87a01516252bb738ebc5d89bec5ef4dab35058216081894a82",
+            "enrolled/renewal-digest": "dba30d7b37e349698da8434af58f8a9348154be2b877eeab826ae99a9c6d4e0b",
+            "enrolled/renewal-roster": "72f7916ae971b4bdaba844c1dbf636bfe4c405b90152700efb5b816c536bac0c",
+            "enrolled/trusted-account": "e4645790454e2115adbe7e3bb5f3557517d5236ef03f7f4223fa10c4751cb88a",
+            "enrolled/trusted-roster-digest": "3d6b7410ccfd92845c4030f28e14ce05712caee9203f93b083ea7abd6abb7a00",
+            "responder/application-00000000000000000000000000000000d846fbca511402d26dcab3346197a494": "a3578ab8adf442d55e7d1913305d1fe3c9ff8d1f13b239ad8f68d43be0cae1dd",
+            "responder/session": "ab753db361894c5c7ebcaa6a00fbaa22b5f0f89dc0302b7d4268baab73e2ad20"
+          },
+          "missing_content_count": 40,
+          "recorded_execution_completed": true
+        }
+      },
+      "search_scope": "Every original outer member, every installed Kotlin package member, and every candidate crate member; original archives retained."
+    }
+  },
+  "release_claim_eligible": false,
+  "scope": "Historical negative-control receipts and missing publication content; no native rerun or new publication runtime failure.",
+  "source_commit": "232ace17915407596d66f3a5fd7c7765251a38cc",
+  "verified_utc": "2026-11-05T23:13:56.670210+00:00"
+}

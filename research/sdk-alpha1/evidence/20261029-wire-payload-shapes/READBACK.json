@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "archive_sha256": "7e6b8fac1d56b34f0b5660e844d504338dd6e2e712442d471e03d494a7be009b",
+  "manifest_sha256": "d3c8d2a013527819aeaf4bd74865524998b483abf3d043912fa45ee69a5accfc",
+  "file_members": 32,
+  "expanded_bytes": 3242523,
+  "all_members_read_back_and_byte_compared": true,
+  "proofs": {
+    "schema_version": 1,
+    "source_commit": "093555683948976f095c20e30e73e5d4ae87af12",
+    "operational_prefix_sha256": "3cb837646fa2097468d1fad0a10433f50d5c31b6be5553f20085170c3eef0266",
+    "original_29_queries_unchanged": true,
+    "independent_shapes": {
+      "signed_offer_payload_has_key_constructor": {
+        "mode": "all-traces",
+        "status": "verified",
+        "steps": 3
+      },
+      "signed_response_payload_has_public_constructors": {
+        "mode": "all-traces",
+        "status": "verified",
+        "steps": 4
+      }
+    },
+    "existing_reuse_lemmas_hidden": [
+      "phase_position_event_is_unique",
+      "first_responder_ready_event_is_unique",
+      "ready_root_is_initial_or_hashed",
+      "produced_state_role_and_epoch_have_public_constructors",
+      "produced_counter_has_public_constructor",
+      "application_counter_has_public_constructor",
+      "produced_send_root_is_initial_or_hashed",
+      "ready_epoch_and_parent_have_public_constructors",
+      "generation_and_signing_secrets_are_distinct",
+      "generation_and_encapsulation_secrets_are_distinct",
+      "ready_parent_has_tagged_epoch_origin",
+      "generation_and_session_identifiers_are_distinct",
+      "signed_wire_scope_has_session_and_parent_origin"
+    ],
+    "new_shapes_not_reuse_during_independent_proof": true,
+    "original_origin": {
+      "steps": 382,
+      "branches": {
+        "source_open_leaves": {
+          "Application_Message": 0,
+          "Cut_case_1": 0,
+          "Cut_case_2": 0,
+          "Final_Commit_8": 0,
+          "Offer_Commit_3_case_1": 0,
+          "Offer_Commit_3_case_2": 0,
+          "Receipt_Commit_0": 0,
+          "Response_Commit_6": 0,
+          "Reveal_Entropy": 0,
+          "Reveal_Identity": 0,
+          "Snapshot_Signer_File_case_1": 0,
+          "Snapshot_Signer_File_case_2": 0,
+          "Snapshot_Signer_File_case_3": 0,
+          "Snapshot_case_1": 0,
+          "Snapshot_case_2": 0,
+          "Snapshot_case_3": 0,
+          "Snapshot_case_4": 0,
+          "Snapshot_case_5": 42
+        },
+        "stored_open_leaves": {
+          "Final_Commit_8": 4,
+          "Final_Reservation_7": 5,
+          "Key_Reservation_1": 0,
+          "Offer_Commit_3": 6,
+          "Offer_Signing_2": 0,
+          "Receipt_Accept_0": 3,
+          "Receipt_Commit_0": 3,
+          "Receipt_Reservation_9": 5,
+          "Response_Commit_6": 8,
+          "Response_Compute_5": 8,
+          "Response_Reservation_4": 0
+        },
+        "stored_proof_sha256": {
+          "Final_Commit_8": "41f1e5bf3f81983bf08ee1bfdd5b54ae059337ecd25688e2bf9cabaca2d82610",
+          "Final_Reservation_7": "8a978cb81466c0d114d25d98d368994b8578b7a5b18a2fbfedeff9fd9921b38e",
+          "Key_Reservation_1": "6cdcc41220ffa4efd739ea69d8b65783b9b72c4905b52c2d7ce14766cc6e1d01",
+          "Offer_Commit_3": "7a4f34821d2b5699b213921e7a2b61461c8c0482e7188a01dc914b89fa78a655",
+          "Offer_Signing_2": "974caecb0b2cb425bbc3fec0f44254af5749643a36bbca41f9f79a0a8aaabb4d",
+          "Receipt_Accept_0": "ed994f72e8ded1cca949871ec9b96df6eefa553d810de2cf07a8eb5d4f9dc8c1",
+          "Receipt_Commit_0": "3d4895020abbda69c2f4a39ccf2d6fab35bc82689bdf085417adfb97f7abe9ae",
+          "Receipt_Reservation_9": "9e97a3cf569a5b7cb47b6a2a49075998c96ed1b76d22929a290a00ee406e7de1",
+          "Response_Commit_6": "7df8ae9e7adba254ed24f8dde1e9e5e4bf8d94af3d09fc76132e9a247012e780",
+          "Response_Compute_5": "1abfdb0b89e00147b4e41085518079747ec500d343e01cc2d08ced0a305112ce",
+          "Response_Reservation_4": "10198fe044723ae9b5555391e825c359d6100e38cb182419432b31824d592095"
+        }
+      }
+    },
+    "with_proven_shapes": {
+      "steps": 389,
+      "branches": {
+        "source_open_leaves": {
+          "Application_Message": 0,
+          "Cut_case_1": 0,
+          "Cut_case_2": 0,
+          "Final_Commit_8": 0,
+          "Offer_Commit_3_case_1": 0,
+          "Offer_Commit_3_case_2": 0,
+          "Receipt_Commit_0": 0,
+          "Response_Commit_6": 0,
+          "Reveal_Entropy": 0,
+          "Reveal_Identity": 0,
+          "Snapshot_Signer_File_case_1": 0,
+          "Snapshot_Signer_File_case_2": 0,
+          "Snapshot_Signer_File_case_3": 0,
+          "Snapshot_case_1": 0,
+          "Snapshot_case_2": 0,
+          "Snapshot_case_3": 0,
+          "Snapshot_case_4": 0,
+          "Snapshot_case_5": 42
+        },
+        "stored_open_leaves": {
+          "Final_Commit_8": 4,
+          "Final_Reservation_7": 5,
+          "Key_Reservation_1": 0,
+          "Offer_Commit_3": 6,
+          "Offer_Signing_2": 0,
+          "Receipt_Accept_0": 3,
+          "Receipt_Commit_0": 3,
+          "Receipt_Reservation_9": 5,
+          "Response_Commit_6": 8,
+          "Response_Compute_5": 8,
+          "Response_Reservation_4": 0
+        },
+        "stored_proof_sha256": {
+          "Final_Commit_8": "41f1e5bf3f81983bf08ee1bfdd5b54ae059337ecd25688e2bf9cabaca2d82610",
+          "Final_Reservation_7": "8a978cb81466c0d114d25d98d368994b8578b7a5b18a2fbfedeff9fd9921b38e",
+          "Key_Reservation_1": "6cdcc41220ffa4efd739ea69d8b65783b9b72c4905b52c2d7ce14766cc6e1d01",
+          "Offer_Commit_3": "7a4f34821d2b5699b213921e7a2b61461c8c0482e7188a01dc914b89fa78a655",
+          "Offer_Signing_2": "974caecb0b2cb425bbc3fec0f44254af5749643a36bbca41f9f79a0a8aaabb4d",
+          "Receipt_Accept_0": "ed994f72e8ded1cca949871ec9b96df6eefa553d810de2cf07a8eb5d4f9dc8c1",
+          "Receipt_Commit_0": "3d4895020abbda69c2f4a39ccf2d6fab35bc82689bdf085417adfb97f7abe9ae",
+          "Receipt_Reservation_9": "8a1f0946caf5387bbe73966ab2fa2164f898c3506a323a2c74e11ab6146dfb47",
+          "Response_Commit_6": "73ab825ba3e2935c4b511be071d735ca153f4728b69f67f1e32013af97be0840",
+          "Response_Compute_5": "1abfdb0b89e00147b4e41085518079747ec500d343e01cc2d08ced0a305112ce",
+          "Response_Reservation_4": "10198fe044723ae9b5555391e825c359d6100e38cb182419432b31824d592095"
+        }
+      }
+    },
+    "additional_closed_source_or_stored_branches": 0,
+    "fresh_search_steps": 46,
+    "fresh_search_not_comparable_to_complete_retained_tree": true,
+    "auxiliary_all_trace_verified": 16,
+    "initial_epoch_traffic_witness": {
+      "mode": "exists-trace",
+      "status": "verified",
+      "steps": 414
+    },
+    "main_multi_epoch_secrecy": "analysis incomplete",
+    "release_claim_eligible": false,
+    "observed_driver_exits": {
+      "independent": 0,
+      "fresh-search": 1,
+      "full-replay": 1
+    },
+    "elapsed_seconds": {
+      "independent": 304.5962127500097,
+      "fresh-search": 310.26187675000983,
+      "full-replay": 325.16524270801165
+    },
+    "interpretation": "The two public-packet shapes are proved, but they do not close any of the 42 retained Snapshot plaintext branches. Neither increased step count nor independently proved auxiliaries establish the generation-origin or multi-epoch secrecy statement.",
+    "next_discriminating_step": "Trace retained root and payload components through phase producers. Existing phase markers do not carry the full payload. If an extra trace event is needed to express a structural invariant, require an exact erasure/projection check to the unchanged operational rules, no new restriction or adversary limitation, and independent proof before reuse. Do not repeat the same packet-shape search.",
+    "method_reference": "https://tamarin-prover.com/manual/master/book/007_property-specification.html#reuse"
+  },
+  "entire_goal_complete": false
+}

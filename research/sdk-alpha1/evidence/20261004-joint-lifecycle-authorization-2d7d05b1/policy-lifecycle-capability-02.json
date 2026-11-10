@@ -1,0 +1,23 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "test",
+    "--offline",
+    "--manifest-path",
+    "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/policy-lifecycle-capability-02/candidate/Cargo.toml",
+    "--all-features",
+    "--lib",
+    "policy_lifecycle_capability_probe_retains_original_state_and_refuses_substitution",
+    "--",
+    "--nocapture"
+  ],
+  "returncode": 0,
+  "completed": true,
+  "source_commit": "4126bb5bc18dbe8c16c331859155b1f689b613f3",
+  "seconds": 20.353448707959615,
+  "log_sha256": "560138f6998db12fd8f9aa69e7414191cb518e3e56d0046b12b85a535df1ac85",
+  "probe_sha256": "9c19eb030d976b95f3e584535c0d24fece3ff78d2835ac997e4331dfe578bf17",
+  "modified_test_sha256": "b9b99361746b09770a97e168cabffc14a49f725aa21f59eb95f6578b0f02cf26",
+  "scope": "Isolated native capability observation with explicit synthetic trusted-time values. No policy transition, foreign archive, retained-session, or release claim.",
+  "release_claim_eligible": false
+}

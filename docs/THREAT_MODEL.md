@@ -5,10 +5,10 @@
 > Historical Apple/Android/Linux/Windows research-prerelease receipts bind only their exact
 > portable-derived artifacts; the current target-selected source has no fresh attested
 > multi-platform binary bundle.
-> No third-party audit. The target-selected `q-periapt-mlkem-native-sys` integration
-> over vendored `mlkem-native` v1.2.0, pinned `fips204` 0.4.6,
-> `sha3` 0.10.9, x25519-dalek, and optional fips205 integrations are unaudited
-> as this suite and ABI. This document is the
+> The target-selected `q-periapt-mlkem-native-sys` integration
+> over vendored `mlkem-native` v2.0.0, pinned `fips204` 0.4.6,
+> `sha3` 0.10.9, x25519-dalek, and optional fips205 is scoped to the source,
+> build and target identified by each verification record. This document is the
 > authoritative statement of *what the design defends against and — equally
 > important — what it does not.* Every guarantee below is tagged as **ENFORCED**
 > (a CI gate or a compile-time/type-level invariant fails the build on regression),
@@ -83,7 +83,7 @@ corresponding guarantee fails:
   constant-time claim is limited to the backend/ISA evidence actually checked.**
   The vendored target-selected `mlkem-native` ML-KEM, `fips204` ML-DSA, RustCrypto SHA3, x25519-dalek, and
   fips205 SLH-DSA integrations are
-  third-party implementations and remain **unaudited for this use**. The known-leaky,
+  third-party implementations. The known-leaky,
   unmaintained `pqcrypto-hqc` adapter was removed from the publishable/runtime graph.
   The standalone RustCrypto HQC-v5/FIPS-207-draft RC shadow has only its explicitly tested
   research correctness/format boundary and no constant-time or production-suitability claim.
@@ -231,8 +231,17 @@ Three linked mechanisms, all fail-closed at the signed-policy execution boundary
 
 - **Validated floor and closed suites.** `Policy::try_new` / `from_toml` reject zero
   versions, invalid NIST floors, unknown/duplicate identifiers, unknown TOML fields,
-  and unsatisfiable documents. `meets_floor`, `kem_allowed`, and `sig_allowed` reject
-  below-floor or deprecated algorithms. `resolve_suite` then intersects the policy
+  and unsatisfiable documents. Role is validated separately from strength: the NIST
+  level table is shared by KEMs and signatures (`ML-KEM-1024` and `ML-DSA-87` are both
+  level 5), so `is_kem` / `is_signature` reject a signature listed in `allowed_kems`
+  or a KEM listed in `allowed_sigs` (`PolicyError::RoleMismatch`) even when the entry
+  clears the floor. `meets_floor`, `kem_allowed`, and `sig_allowed` reject below-floor
+  or deprecated algorithms. Note the enforcement asymmetry: `kem_allowed` gates the
+  runtime key-establishment decision through `resolve_suite`, whereas the signature
+  allow-list is a load-time validation input — the signature algorithm actually
+  accepted at runtime is fixed by the caller's injected `q_periapt_sig::Verifier`
+  (a typed `SigAlg`, so a KEM can never be substituted there), not selected from
+  `allowed_sigs`. `resolve_suite` then intersects the policy
   with concrete locally implemented [`HybridSuite`](../crates/q-periapt-policy/src/lib.rs)
   variants and returns one private-field `ResolvedSuite` containing suite, profile,
   key format, and policy version. If no complete local suite satisfies the document,
@@ -442,23 +451,23 @@ guarantee. Known carve-out: **ML-DSA signing uses rejection sampling, so its
 iteration count is secret-dependent by design** — an auditable, documented exception,
 not a covert leak.
 
-### 5.3 No third-party audit
+### 5.3 Evidence scope
 
-Nobody outside this project has reviewed the design or the code. The mechanized
-proof is a strong internal artifact, not an external attestation.
+The mechanized proof applies to its stated abstract model and assumptions.
+Source review, compiled-binary checks and runtime qualification each retain
+their own scope; none automatically establishes the others.
 
-### 5.4 Pre-1.0 / unaudited backends
+### 5.4 Pinned backend integration
 
-The cryptographic primitives come from external pre-1.0 sources and remain unaudited
-for this integration. The `0.1.2` stable-version source path uses target-selected `mlkem-native` v1.2.0,
+The cryptographic primitives come from pinned third-party sources, including
+pre-1.0 dependencies. The `0.1.5` stable-version source path uses target-selected `mlkem-native` v1.2.0,
 `fips204` 0.4.6, and `sha3` 0.10.9, removing both the failed `fips203` path and the
 earlier `libcrux`/hax/`proc-macro-error2` advisory edge. The vendored ML-KEM trust
 anchors are commit `0ba906cb14b1c241476134d7403a811b382ca498` and immutable GitHub
 commit archive SHA-256 `f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
 `cargo audit --deny warnings` passes while `.cargo/audit.toml` retains `ignore = []`.
 RustSec does not inspect vendored C, its compiler output, provenance, licenses or side
-channels. This is a warning-clean Rust dependency scan, not an independent
-cryptographic, C/FFI, side-channel, implementation, or ABI audit.
+channels. This result applies to Rust dependency advisory checking.
 
 ### 5.5 ACVP conformance, not CMVP certification
 

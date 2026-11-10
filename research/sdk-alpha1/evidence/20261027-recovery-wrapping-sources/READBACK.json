@@ -1,0 +1,16 @@
+{
+  "verified": true,
+  "archive_sha256": "b7c6fedd23e86f5dc90dd36744aaf867960bcfb9271570caae5339261feabfd5",
+  "members": 217,
+  "expanded_bytes": 3186512,
+  "manifest_sha256": "1e27d2c8909122cfef2a2b867a340d84338e2ecd13544e769459d52237c31912",
+  "experiment_receipt_sha256": "b43739cdf59139db935ea4ab5b7a802f176c3b31070283b97f3fd85db6988745",
+  "source_cases_checked": [
+    "Application_Message",
+    "Cut_case_1",
+    "Cut_case_2",
+    "Offer_Commit_3_case_2"
+  ],
+  "whole_origin_complete": false,
+  "release_claim_eligible": false
+}

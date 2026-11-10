@@ -2,7 +2,7 @@
 # Build, install, and run the Android AAR/JNI smoke on an adb device/emulator.
 #
 # This is a runtime proof gate, not a package-only gate. It installs a temporary
-# debuggable APK that consumes the generated AAR, runs the Android Java facade on
+# APK that consumes the selected AAR, runs the Android Java facade on
 # ART, and accepts only a run-bound PASS marker copied back from the app-private
 # files directory.
 set -eu
@@ -42,6 +42,59 @@ need cargo
 need javac
 need keytool
 need python3
+
+ANDROID_CONSUMER_PROFILE=${QPERIAPT_ANDROID_CONSUMER_PROFILE:-legacy_full}
+ANDROID_RUNTIME_PROFILE=${QPERIAPT_ANDROID_RUNTIME_PROFILE:-api35-16k}
+case "$ANDROID_CONSUMER_PROFILE" in
+	legacy_full) ;;
+	agp_full_release | agp_minimal_release | agp_sdk_full_release | agp_sdk_minimal_release)
+		if [ "${QPERIAPT_ANDROID_RELEASE_MODE:-0}" != "1" ] || \
+			[ "${QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE:-0}" != "0" ]; then
+			printf 'error: AGP consumers require clean release mode\n' >&2
+			exit 2
+		fi
+		;;
+	*)
+		printf 'error: unknown QPERIAPT_ANDROID_CONSUMER_PROFILE\n' >&2
+		exit 2
+		;;
+esac
+
+ANDROID_PROFILE_SELECTION=$(python3 - "$ANDROID_CONSUMER_PROFILE" "${QPERIAPT_ANDROID_EXPECT_ABI:-}" "$ANDROID_RUNTIME_PROFILE" \
+    "${QPERIAPT_ANDROID_EXPECT_DEVICE_KIND:-any}" "${QPERIAPT_ANDROID_BOOT_AVD:-0}" \
+    "${QPERIAPT_ANDROID_EXPECT_SDK:-}" "${QPERIAPT_ANDROID_EXPECT_PAGE_SIZE:-}" <<'PY'
+import sys
+from android_agp_consumer_contract import AndroidAgpConsumerError, profile_spec, runtime_target
+from android_runtime_profile import DEFAULT_RUNTIME_PROFILE, capture_runtime_profile
+try:
+    selected = capture_runtime_profile(sys.argv[3])
+    if sys.argv[1] == "legacy_full":
+        if sys.argv[3] != DEFAULT_RUNTIME_PROFILE:
+            raise ValueError("legacy Android capture must retain its runtime profile")
+        aar_profile = "legacy"
+    else:
+        target = runtime_target(sys.argv[1], sys.argv[2] or None, sys.argv[3])
+        if sys.argv[4] != target["kind"]:
+            raise ValueError("AGP capture kind differs from the explicitly selected runtime target")
+        if sys.argv[5] != ("1" if target["kind"] == "emulator" else "0"):
+            raise ValueError("AGP runtime target and owned-emulator selection differ")
+        if sys.argv[6:8] != [str(target["sdk"]), str(target["page_size"])]:
+            raise ValueError("AGP capture requires exact expected SDK and page size")
+        aar_profile = profile_spec(sys.argv[1]).aar_profile
+    print(f"{aar_profile}:{selected.sdk}:{selected.page_size}:"
+          f"{selected.page_size_operation}:{selected.clock_operation}")
+except (AndroidAgpConsumerError, ValueError) as error:
+    raise SystemExit(f"error: {error}") from error
+PY
+)
+ANDROID_AAR_PROFILE=${ANDROID_PROFILE_SELECTION%%:*}
+ANDROID_RUNTIME_SHAPE=${ANDROID_PROFILE_SELECTION#*:}
+ANDROID_RUNTIME_SDK=${ANDROID_RUNTIME_SHAPE%%:*}
+ANDROID_RUNTIME_SHAPE=${ANDROID_RUNTIME_SHAPE#*:}
+ANDROID_RUNTIME_PAGE_SIZE=${ANDROID_RUNTIME_SHAPE%%:*}
+ANDROID_RUNTIME_PROBES=${ANDROID_RUNTIME_SHAPE#*:}
+ANDROID_PAGE_SIZE_OPERATION=${ANDROID_RUNTIME_PROBES%:*}
+ANDROID_CLOCK_OPERATION=${ANDROID_RUNTIME_PROBES#*:}
 
 # Hold one host/account-scoped open-file-description lock for the whole lane.
 # The stable private file serializes every checkout that can reach the same
@@ -211,17 +264,16 @@ if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
 		printf 'error: Android release mode cannot allow a dirty source tree\n' >&2
 		exit 2
 	fi
-	# The canonical release profile pins the emulator's exact device shape;
-	# a physical release capture keeps the collection discipline while the
-	# hardware supplies its own page size and SDK.
+	# Emulator profiles pin their shape here. SDK physical selection was pinned
+	# before lane acquisition; legacy physical capture retains caller expectations.
 	case "$EXPECTED_DEVICE_KIND" in
 		emulator)
-			if [ "$EXPECTED_PAGE_SIZE" != "16384" ]; then
-				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=16384\n' >&2
+			if [ "$EXPECTED_PAGE_SIZE" != "$ANDROID_RUNTIME_PAGE_SIZE" ]; then
+				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_PAGE_SIZE=%s\n' "$ANDROID_RUNTIME_PAGE_SIZE" >&2
 				exit 2
 			fi
-			if [ "$EXPECTED_DEVICE_SDK" != "35" ]; then
-				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_SDK=35\n' >&2
+			if [ "$EXPECTED_DEVICE_SDK" != "$ANDROID_RUNTIME_SDK" ]; then
+				printf 'error: Android release emulator proof requires QPERIAPT_ANDROID_EXPECT_SDK=%s\n' "$ANDROID_RUNTIME_SDK" >&2
 				exit 2
 			fi
 			if [ "$ANDROID_BOOT_AVD" != "1" ]; then
@@ -416,16 +468,22 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 	ANDROID_AVD_NAME=$(PYTHONPATH=artifact python3 \
 		artifact/android_bounded_command.py runtime-avd-name \
 		--adb-profile "$ADB_PROFILE" \
+		--runtime-profile "$ANDROID_RUNTIME_PROFILE" \
 		--device-abi "$EXPECTED_DEVICE_ABI")
 	python3 artifact/android_device_proof.py verify-avd-home \
 		--avd-home "$ANDROID_AVD_HOME" \
 		--adb-profile "$ADB_PROFILE" \
+		--runtime-profile "$ANDROID_RUNTIME_PROFILE" \
 		--device-abi "$EXPECTED_DEVICE_ABI" >/dev/null
 fi
 
 android_command() {
 	operation=$1
 	shift
+	case "$operation" in
+		page-size) operation=$ANDROID_PAGE_SIZE_OPERATION ;;
+		device-time) operation=$ANDROID_CLOCK_OPERATION ;;
+	esac
 	PYTHONPATH=artifact python3 artifact/android_bounded_command.py invoke \
 		"$operation" --run-id "$RUN_ID" "$@"
 }
@@ -610,8 +668,14 @@ for package in metadata["packages"]:
 else:
     raise SystemExit("error: q-periapt-ffi package not found in cargo metadata")
 ')
-if [ "$VERSION" != "0.1.2" ]; then
-	printf 'error: Android ABI2 device-smoke version mismatch: got %s, expected 0.1.2\n' "$VERSION" >&2
+EXPECTED_VERSION=$(python3 - "$ANDROID_AAR_PROFILE" <<'PY'
+import sys
+from android_elf import package_profile
+print(package_profile(sys.argv[1]).version)
+PY
+)
+if [ "$VERSION" != "$EXPECTED_VERSION" ]; then
+	printf 'error: Android ABI2 device-smoke version mismatch: got %s, expected %s\n' "$VERSION" "$EXPECTED_VERSION" >&2
 	exit 1
 fi
 
@@ -678,6 +742,7 @@ if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
 	set -- "$@" --require-release-manifest
 fi
 PYTHONPATH=artifact python3 artifact/android_elf.py verify-aar \
+	--profile "$ANDROID_AAR_PROFILE" \
 	--aar "$AAR_PATH" \
 	--llvm-nm "$LLVM_NM" \
 	--llvm-readelf "$LLVM_READELF" \
@@ -731,410 +796,9 @@ cat >"$WORK/AndroidManifest.xml" <<'EOF'
 </manifest>
 EOF
 
-cat >"$SRC/dev/qperiapt/androidsmoke/QPeriaptSmokeActivity.java" <<'EOF'
-package dev.qperiapt.androidsmoke;
-
-import android.app.Activity;
-import android.os.Bundle;
-import android.util.Log;
-import dev.qperiapt.android.QPeriaptAndroid;
-import java.io.ByteArrayOutputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import org.json.JSONObject;
-
-public final class QPeriaptSmokeActivity extends Activity {
-    private static final String TAG = "QPeriaptSmoke";
-    private static final String RESULT_TXT = "qperiapt-android-device-result.txt";
-    private static final String RESULT_JSON = "qperiapt-android-device-result.json";
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        String runId = getIntent().getStringExtra("qperiapt_run_id");
-        if (runId == null || !runId.matches("[0-9a-f]{32}")) {
-            runId = "invalid-run-id";
-        }
-        List<String> passed = new ArrayList<String>();
-        try {
-            runtimeMetadataMatches(passed);
-            signedPolicyDecisionIsExactAndFailClosed(passed);
-            osRandomPolicyRoundtripAndWipes(passed);
-            writeResult(runId, true, passed, null);
-            Log.i(TAG, "QPERIAPT_ANDROID_DEVICE_PASS run-id=" + runId + " tests=" + passed.size());
-        } catch (Throwable t) {
-            try {
-                writeResult(runId, false, passed, t);
-            } catch (Throwable ignored) {
-                Log.e(TAG, "failed to write result", ignored);
-            }
-            Log.e(TAG, "QPERIAPT_ANDROID_DEVICE_FAIL run-id=" + runId, t);
-        } finally {
-            finish();
-        }
-    }
-
-    private void runtimeMetadataMatches(List<String> passed) {
-        expect(QPeriaptAndroid.runtimeAbiVersion() == QPeriaptAndroid.ABI_VERSION, "ABI mismatch");
-        expect("0.1.2".equals(QPeriaptAndroid.runtimeVersion()), "version mismatch");
-        assertBytes("ML-KEM-768+X25519".getBytes(StandardCharsets.UTF_8), QPeriaptAndroid.fixedSuiteId(), "suite id");
-        expect(QPeriaptAndroid.fixedSuiteIdLen() == "ML-KEM-768+X25519".length(), "suite len");
-        expect(QPeriaptAndroid.MAX_SIGNED_POLICY_BYTES == 65536, "signed policy limit");
-        expect(QPeriaptAndroid.MAX_APPLICATION_CONTEXT_BYTES == 65536, "application context limit");
-        expect("ERR_POLICY".equals(QPeriaptAndroid.statusName(-3)), "status -3");
-        expect("UNKNOWN_STATUS".equals(QPeriaptAndroid.statusName(12345)), "unknown status");
-        passed.add("runtimeMetadataMatches");
-    }
-
-    private void signedPolicyDecisionIsExactAndFailClosed(List<String> passed) throws Exception {
-        String json = asset("signed-policy-vectors.json");
-        byte[] policyToml = stringField(json, "policy_toml").getBytes(StandardCharsets.UTF_8);
-        byte[] signature = hex(field(json, "signature"));
-        byte[] verificationKey = hex(field(json, "verification_key"));
-        byte expected = (byte) intField(json, "selected_profile_code");
-        QPeriaptAndroid.PolicyDecision decision = QPeriaptAndroid.decisionFromSignedPolicy(
-                policyToml,
-                signature,
-                verificationKey
-        );
-        expect(decision.profile() == expected, "signed policy selected profile mismatch");
-        expect(decision.suiteCode() == QPeriaptAndroid.SUITE_MLKEM768_X25519,
-                "signed policy selected suite mismatch");
-        expect(decision.policyVersion() == intField(json, "policy_version"),
-                "signed policy selected version mismatch");
-        assertBytes(hex(field(json, "policy_digest")), decision.policyDigest(),
-                "exact signed policy digest");
-        QPeriaptAndroid.PolicyDecision reapplied = QPeriaptAndroid.decisionFromSignedPolicy(
-                policyToml,
-                signature,
-                verificationKey,
-                decision.trustedState()
-        );
-        assertBytes(decision.policyDigest(), reapplied.policyDigest(), "reapplied policy digest");
-        try {
-            QPeriaptAndroid.decisionFromSignedPolicy(
-                    policyToml, signature, verificationKey, new byte[] {0, 0, 0, 2});
-            throw new AssertionError("legacy ABI1 version-only state was accepted");
-        } catch (IllegalArgumentException expectedLegacyStateFailure) {
-            // ABI1 has no exact policy digest and therefore cannot be migrated automatically.
-        }
-        try {
-            QPeriaptAndroid.decisionFromSignedPolicy(
-                    new byte[QPeriaptAndroid.MAX_SIGNED_POLICY_BYTES], signature, verificationKey);
-            throw new AssertionError("maximum-size invalid policy unexpectedly verified");
-        } catch (QPeriaptAndroid.QPeriaptException expectedPolicyFailure) {
-            // The exact boundary reached native verification rather than the facade size guard.
-        }
-        try {
-            QPeriaptAndroid.decisionFromSignedPolicy(
-                    new byte[QPeriaptAndroid.MAX_SIGNED_POLICY_BYTES + 1], signature, verificationKey);
-            throw new AssertionError("oversized policy reached native verification");
-        } catch (IllegalArgumentException expectedSizeFailure) {
-            // The Java facade rejects before JNI copies the policy.
-        }
-        byte[] newerState = decision.trustedState();
-        newerState[0] = 0;
-        newerState[1] = 0;
-        newerState[2] = 0;
-        newerState[3] = (byte) intField(json, "last_trusted_version_reject");
-        try {
-            QPeriaptAndroid.decisionFromSignedPolicy(
-                    policyToml,
-                    signature,
-                    verificationKey,
-                    newerState
-            );
-            throw new AssertionError("rollback policy was accepted");
-        } catch (QPeriaptAndroid.QPeriaptException err) {
-            expect(err.code() == -3, "rollback rc=" + err.code());
-        }
-        byte[] tampered = signature.clone();
-        int tamperByte = (int) intField(json, "tamper_signature_byte");
-        tampered[tamperByte] = (byte) (tampered[tamperByte] ^ 1);
-        try {
-            QPeriaptAndroid.decisionFromSignedPolicy(policyToml, tampered, verificationKey);
-            throw new AssertionError("tampered policy signature was accepted");
-        } catch (QPeriaptAndroid.QPeriaptException err) {
-            expect(err.code() == -3, "tamper rc=" + err.code());
-        }
-        passed.add("signedPolicyDecisionIsExactAndFailClosed");
-    }
-
-    private void osRandomPolicyRoundtripAndWipes(List<String> passed) throws Exception {
-        String json = asset("signed-policy-vectors.json");
-        QPeriaptAndroid.PolicyDecision decision = QPeriaptAndroid.decisionFromSignedPolicy(
-                stringField(json, "policy_toml").getBytes(StandardCharsets.UTF_8),
-                hex(field(json, "signature")),
-                hex(field(json, "verification_key")));
-        byte[] applicationContext = "android-device-policy-context".getBytes(StandardCharsets.UTF_8);
-
-        QPeriaptAndroid.KeyPairResult keys = QPeriaptAndroid.generateKeypair(decision);
-        try (keys) {
-            byte[] skPq = keys.skPq();
-            byte[] skTrad = keys.skTrad();
-            byte[] encapsulatedSecret = null;
-            byte[] decapsulatedSecret = null;
-            byte[] wrongContextSecret = null;
-            try {
-                try (QPeriaptAndroid.EncapsulationResult maximumContext =
-                                QPeriaptAndroid.encapsulate(
-                                        decision,
-                                        keys.pkPq(),
-                                        keys.pkTrad(),
-                                        fill(QPeriaptAndroid.MAX_APPLICATION_CONTEXT_BYTES, 1))) {
-                    byte[] maximumSecret = maximumContext.takeSecret();
-                    QPeriaptAndroid.wipe(maximumSecret);
-                    assertWiped(maximumSecret, "maximum application-context secret");
-                }
-                try {
-                    QPeriaptAndroid.encapsulate(
-                            decision,
-                            keys.pkPq(),
-                            keys.pkTrad(),
-                            new byte[QPeriaptAndroid.MAX_APPLICATION_CONTEXT_BYTES + 1]);
-                    throw new AssertionError("oversized application context reached JNI");
-                } catch (IllegalArgumentException expectedSizeFailure) {
-                    // The Java facade rejects before JNI copies the context.
-                }
-                try (QPeriaptAndroid.EncapsulationResult encapsulation =
-                                QPeriaptAndroid.encapsulate(
-                                        decision, keys.pkPq(), keys.pkTrad(), applicationContext)) {
-                    encapsulatedSecret = encapsulation.takeSecret();
-                    try {
-                        encapsulation.secret();
-                        throw new AssertionError("transferred encapsulation secret remained readable");
-                    } catch (IllegalStateException expectedClosedResult) {
-                        // takeSecret transfers the sole binding-owned secret and closes the result.
-                    }
-                    decapsulatedSecret = QPeriaptAndroid.decapsulate(
-                            decision,
-                            skPq,
-                            encapsulation.ctPq(),
-                            keys.pkPq(),
-                            skTrad,
-                            encapsulation.ctTrad(),
-                            keys.pkTrad(),
-                            applicationContext);
-                    assertBytes(encapsulatedSecret, decapsulatedSecret,
-                            "OS-random policy-bound roundtrip");
-                    wrongContextSecret = QPeriaptAndroid.decapsulate(
-                            decision,
-                            skPq,
-                            encapsulation.ctPq(),
-                            keys.pkPq(),
-                            skTrad,
-                            encapsulation.ctTrad(),
-                            keys.pkTrad(),
-                            "wrong-context".getBytes(StandardCharsets.UTF_8));
-                    expect(!bytesEqual(decapsulatedSecret, wrongContextSecret),
-                            "application context was not committed");
-                }
-            } finally {
-                QPeriaptAndroid.wipe(skPq);
-                QPeriaptAndroid.wipe(skTrad);
-                if (encapsulatedSecret != null) {
-                    QPeriaptAndroid.wipe(encapsulatedSecret);
-                }
-                if (decapsulatedSecret != null) {
-                    QPeriaptAndroid.wipe(decapsulatedSecret);
-                }
-                if (wrongContextSecret != null) {
-                    QPeriaptAndroid.wipe(wrongContextSecret);
-                }
-            }
-            assertWiped(skPq, "ML-KEM secret key");
-            assertWiped(skTrad, "X25519 secret key");
-            if (encapsulatedSecret != null) {
-                assertWiped(encapsulatedSecret, "encapsulated secret");
-            }
-            if (decapsulatedSecret != null) {
-                assertWiped(decapsulatedSecret, "decapsulated secret");
-            }
-            if (wrongContextSecret != null) {
-                assertWiped(wrongContextSecret, "wrong-context secret");
-            }
-        }
-        try {
-            keys.skPq();
-            throw new AssertionError("closed key-pair secrets remained readable");
-        } catch (IllegalStateException expectedClosedKeys) {
-            // close wipes the binding-owned key buffers and seals their accessors.
-        }
-
-        try {
-            QPeriaptAndroid.decisionFromSignedPolicy(
-                    new byte[0], new byte[0], new byte[0], new byte[1]);
-            throw new AssertionError("malformed lastTrustedState was accepted");
-        } catch (IllegalArgumentException expectedMalformedState) {
-            // Malformed state never reaches native verification.
-        }
-        passed.add("osRandomPolicyRoundtripAndWipes");
-    }
-
-    private void writeResult(String runId, boolean ok, List<String> passed, Throwable failure) throws Exception {
-        String marker = (ok ? "QPERIAPT_ANDROID_DEVICE_PASS" : "QPERIAPT_ANDROID_DEVICE_FAIL")
-                + " run-id=" + runId + " tests=" + passed.size() + "\n";
-        FileOutputStream txt = openFileOutput(RESULT_TXT, MODE_PRIVATE);
-        try {
-            txt.write(marker.getBytes(StandardCharsets.UTF_8));
-        } finally {
-            txt.close();
-        }
-        StringBuilder json = new StringBuilder();
-        json.append("{\n");
-        json.append("  \"schema\": 1,\n");
-        json.append("  \"status\": \"").append(ok ? "pass" : "fail").append("\",\n");
-        json.append("  \"run_id\": \"").append(escape(runId)).append("\",\n");
-        json.append("  \"test_count\": ").append(passed.size()).append(",\n");
-        json.append("  \"passed_tests\": [");
-        for (int i = 0; i < passed.size(); i++) {
-            if (i > 0) {
-                json.append(", ");
-            }
-            json.append("\"").append(escape(passed.get(i))).append("\"");
-        }
-        json.append("]");
-        if (failure != null) {
-            json.append(",\n  \"failure\": \"").append(escape(failure.getClass().getName() + ": " + failure.getMessage())).append("\"");
-        }
-        json.append("\n}\n");
-        FileOutputStream out = openFileOutput(RESULT_JSON, MODE_PRIVATE);
-        try {
-            out.write(json.toString().getBytes(StandardCharsets.UTF_8));
-        } finally {
-            out.close();
-        }
-    }
-
-    private String asset(String name) throws Exception {
-        InputStream in = getAssets().open(name);
-        try {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buf = new byte[4096];
-            while (true) {
-                int n = in.read(buf);
-                if (n < 0) {
-                    break;
-                }
-                out.write(buf, 0, n);
-            }
-            return new String(out.toByteArray(), StandardCharsets.UTF_8);
-        } finally {
-            in.close();
-        }
-    }
-
-    private static byte[] hex(String text) {
-        if ((text.length() & 1) != 0) {
-            throw new IllegalArgumentException("odd hex length");
-        }
-        byte[] out = new byte[text.length() / 2];
-        for (int i = 0; i < out.length; i++) {
-            int hi = Character.digit(text.charAt(i * 2), 16);
-            int lo = Character.digit(text.charAt(i * 2 + 1), 16);
-            if (hi < 0 || lo < 0) {
-                throw new IllegalArgumentException("invalid hex");
-            }
-            out[i] = (byte) ((hi << 4) | lo);
-        }
-        return out;
-    }
-
-    private static String field(String json, String name) throws Exception {
-        return new JSONObject(json).getString(name);
-    }
-
-    private static long intField(String json, String name) throws Exception {
-        return new JSONObject(json).getLong(name);
-    }
-
-    private static String stringField(String json, String name) throws Exception {
-        return new JSONObject(json).getString(name);
-    }
-
-    private static byte[] fill(int len, int value) {
-        byte[] out = new byte[len];
-        for (int i = 0; i < out.length; i++) {
-            out[i] = (byte) value;
-        }
-        return out;
-    }
-
-    private static void assertBytes(byte[] expected, byte[] got, String label) {
-        if (expected.length != got.length) {
-            throw new AssertionError(label + " length mismatch");
-        }
-        for (int i = 0; i < expected.length; i++) {
-            if (expected[i] != got[i]) {
-                throw new AssertionError(label + " mismatch at byte " + i);
-            }
-        }
-    }
-
-    private static void assertWiped(byte[] value, String label) {
-        for (int i = 0; i < value.length; i++) {
-            if (value[i] != 0) {
-                throw new AssertionError(label + " was not wiped at byte " + i);
-            }
-        }
-    }
-
-    private static boolean bytesEqual(byte[] left, byte[] right) {
-        if (left.length != right.length) {
-            return false;
-        }
-        int difference = 0;
-        for (int i = 0; i < left.length; i++) {
-            difference |= left[i] ^ right[i];
-        }
-        return difference == 0;
-    }
-
-    private static void expect(boolean condition, String label) {
-        if (!condition) {
-            throw new AssertionError(label);
-        }
-    }
-
-    private static String escape(String text) {
-        if (text == null) {
-            return "";
-        }
-        StringBuilder out = new StringBuilder();
-        for (int i = 0; i < text.length(); i++) {
-            char ch = text.charAt(i);
-            switch (ch) {
-                case '\\':
-                    out.append("\\\\");
-                    break;
-                case '"':
-                    out.append("\\\"");
-                    break;
-                case '\n':
-                    out.append("\\n");
-                    break;
-                case '\r':
-                    out.append("\\r");
-                    break;
-                case '\t':
-                    out.append("\\t");
-                    break;
-                default:
-                    if (ch < 0x20) {
-                        out.append(String.format("\\u%04x", (int) ch));
-                    } else {
-                        out.append(ch);
-                    }
-                    break;
-            }
-        }
-        return out.toString();
-    }
-}
-EOF
+# Shared checked-in workload: the AGP full consumer compiles these exact files too.
+cp bindings/android/smoke/common/dev/qperiapt/androidsmoke/*.java "$SRC/dev/qperiapt/androidsmoke/"
+cp bindings/android/smoke/full/dev/qperiapt/androidsmoke/*.java "$SRC/dev/qperiapt/androidsmoke/"
 
 APP_SOURCES="$WORK/app-sources.txt"
 APP_CLASSES_JAR="$WORK/app-classes.jar"
@@ -1143,7 +807,15 @@ UNSIGNED_APK="$WORK/unsigned.apk"
 ALIGNED_APK="$WORK/aligned.apk"
 SIGNED_APK="$DIST/qperiapt-android-smoke.apk"
 KEYSTORE="$WORK/qperiapt-android-smoke.p12"
-EXPECTED_MARKER="QPERIAPT_ANDROID_DEVICE_PASS run-id=$RUN_ID tests=3"
+EXPECTED_MARKER=$(PYTHONPATH=artifact python3 - "$RUN_ID" "$ANDROID_CONSUMER_PROFILE" <<'PY_MARKER'
+import sys
+from android_device_proof import RuntimeResultProfile, expected_marker
+print(expected_marker(sys.argv[1], RuntimeResultProfile(sys.argv[2])))
+PY_MARKER
+)
+AGP_BUILD="$DIST/agp-build"
+AGP_RAW_BUILD="$DIST/agp-build-raw"
+
 
 emulator_process_active() {
 	if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
@@ -1478,6 +1150,20 @@ verify_observed_installed_apk_signer() {
 	fi
 }
 
+report_android_failure_diagnostic() {
+	# Optional evidence must not replace the original failure or contact adb.
+	if [ "${DEVICE_KIND:-}" != "emulator" ]; then
+		return 0
+	fi
+	if PYTHONPATH=artifact python3 artifact/android_bounded_command.py \
+		report-failure-diagnostic --run-id "$RUN_ID" --leaf "$1" 2>/dev/null; then
+		:
+	else
+		printf 'ANDROID_FAILURE_DIAGNOSTIC_UNAVAILABLE\n' >&2 || return 1
+	fi
+	return 0
+}
+
 observe_installed_package_sample() {
 	ownership_timeout=$1
 	ownership_phase=$2
@@ -1512,6 +1198,7 @@ observe_installed_package_sample() {
 		remove_installed_apk_copy || return 2
 		printf 'error: Android package ownership observation failed structurally; see %s\n' \
 			"$ownership_error" >&2
+		report_android_failure_diagnostic "${ownership_error##*/}" || return 2
 		return 2
 	fi
 	if ! ownership_result=$(/bin/cat -- "$ownership_output"); then
@@ -1550,7 +1237,7 @@ observe_installed_package_sample() {
 		retryable:*)
 			ownership_reason=${ownership_result#retryable:}
 			case "$ownership_reason" in
-				package-unavailable | pull-failed | path-changed | bytes-mismatch | deadline-exhausted) ;;
+				package-unavailable | transport-absent | pull-failed | path-changed | bytes-mismatch | deadline-exhausted) ;;
 				*)
 					printf 'error: Android package ownership observation returned a malformed retry reason\n' >&2
 					remove_installed_apk_copy || return 2
@@ -1611,12 +1298,15 @@ observe_owned_installed_package() {
 				ownership_transport_recovery_eligible=0
 				if [ "$ownership_phase" = "postinstall" ] && \
 					[ "$ownership_invocation" = "1" ] && \
-					[ "$OWNERSHIP_SAMPLE_RETRY_REASON" = "package-unavailable" ] && \
-					[ "$ownership_consecutive_exact" -eq 1 ] && \
 					[ "$ANDROID_BOOT_AVD" = "1" ] && [ "$DEVICE_KIND" = "emulator" ] && \
 					[ "$EMULATOR_STARTED" = "1" ] && \
 					[ "$ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED" = "0" ]; then
-					ownership_transport_recovery_eligible=1
+					case "$OWNERSHIP_SAMPLE_RETRY_REASON:$ownership_consecutive_exact" in
+						# A missing transport is independently observed in the private
+						# ADB table; package-unavailable alone is not that evidence.
+						transport-absent:* | package-unavailable:1)
+							ownership_transport_recovery_eligible=1 ;;
+					esac
 				fi
 				ownership_consecutive_exact=0
 				ownership_previous_path_sha256=
@@ -1627,7 +1317,7 @@ observe_owned_installed_package() {
 					recovery_timeout=$(remaining_bounded_timeout "$ownership_deadline" 15); then
 					ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=1
 					if attempt_owned_emulator_transport_recovery postinstall \
-						"$recovery_timeout" "$ownership_invocation" "$ownership_attempt"; then
+						"$recovery_timeout" "$ownership_invocation" "$ownership_attempt" "$ownership_deadline"; then
 						continue
 					else
 						ownership_recovery_status=$?
@@ -1655,11 +1345,39 @@ observe_owned_installed_package() {
 	return 1
 }
 
+capture_recovered_emulator_evidence() {
+	# One-shot recovery creates a short observation window. These captures use
+	# its caller's existing absolute deadline and never authorize uninstall.
+	for recovery_observation_operation in capture-emulator-recovery-state capture-emulator-recovery-logcat; do
+		if ! recovery_observation_timeout=$(remaining_bounded_timeout "$recovery_deadline" 5); then
+			printf 'phase=%s invocation=%s attempt=%s recovery-observation=deadline-exhausted\n' \
+				"$recovery_phase" "$recovery_invocation" "$recovery_attempt" >>"$PACKAGE_OBSERVATION_LOG"
+			return 1
+		fi
+		if android_command "$recovery_observation_operation" --timeout-seconds "$recovery_observation_timeout" \
+			>"$DIST/$recovery_observation_operation.stdout" 2>"$DIST/$recovery_observation_operation.err"; then
+			recovery_observation_status=0
+		else
+			recovery_observation_status=$?
+		fi
+		printf 'phase=%s invocation=%s attempt=%s recovery-observation=%s exit=%s\n' \
+			"$recovery_phase" "$recovery_invocation" "$recovery_attempt" \
+			"$recovery_observation_operation" "$recovery_observation_status" >>"$PACKAGE_OBSERVATION_LOG"
+		case "$recovery_observation_status" in
+			0) ;;
+			129 | 130 | 143) return "$recovery_observation_status" ;;
+			*) return 1 ;;
+		esac
+	done
+	return 0
+}
+
 attempt_owned_emulator_transport_recovery() {
 	recovery_phase=$1
 	recovery_timeout=$2
 	recovery_invocation=$3
 	recovery_attempt=$4
+	recovery_deadline=$5
 	recovery_phase_valid=0
 	case "$recovery_phase" in
 		postinstall)
@@ -1740,7 +1458,8 @@ attempt_owned_emulator_transport_recovery() {
 			printf 'phase=%s invocation=%s attempt=%s transport-recovery=%s\n' \
 				"$recovery_phase" "$recovery_invocation" "$recovery_attempt" "$recovery_result" \
 				>>"$PACKAGE_OBSERVATION_LOG"
-			return 0
+			capture_recovered_emulator_evidence
+			return "$?"
 			;;
 		retryable:transport-inconclusive | retryable:registration-failed | retryable:post-state-unavailable)
 			recovery_reason=${recovery_result#retryable:}
@@ -1824,6 +1543,12 @@ cleanup_android_app() {
 					fi
 					case "$OWNERSHIP_SAMPLE_STATE" in
 						exact)
+							if [ -n "$ANDROID_APP_UNINSTALL_PATH_SHA256" ] && \
+								[ "$OWNERSHIP_SAMPLE_PATH_SHA256" != "$ANDROID_APP_UNINSTALL_PATH_SHA256" ]; then
+								printf 'error: Android cleanup package path changed after an uninstall request; refusing to uninstall it\n' >&2
+								remove_installed_apk_copy || return 2
+								return 2
+							fi
 							if [ "$OWNERSHIP_SAMPLE_PATH_SHA256" = \
 								"$cleanup_ownership_previous_path_sha256" ]; then
 								cleanup_ownership_consecutive_exact=$((cleanup_ownership_consecutive_exact + 1))
@@ -1866,16 +1591,26 @@ cleanup_android_app() {
 							printf 'error: Android cleanup deadline expired before owned uninstall\n' >&2
 							return 1
 						fi
-						if ! android_command uninstall-app \
+						ANDROID_APP_UNINSTALL_PATH_SHA256=$OWNERSHIP_SAMPLE_PATH_SHA256
+						ANDROID_APP_UNINSTALL_REQUESTED=1
+						if android_command uninstall-app \
 							--timeout-seconds "$uninstall_timeout" \
 							>>"$DIST/adb-uninstall-cleanup.log" 2>&1; then
-							printf 'phase=cleanup invocation=%s attempt=%s uninstall=unknown-or-failed\n' \
-								"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
-						else
 							printf 'phase=cleanup invocation=%s attempt=%s uninstall=request-returned-zero\n' \
 								"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
+						else
+							uninstall_status=$?
+							printf 'phase=cleanup invocation=%s attempt=%s uninstall=unknown-or-failed\n' \
+								"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
+							case "$uninstall_status" in
+								2 | 129 | 130 | 143) return "$uninstall_status" ;;
+							esac
+							ANDROID_APP_UNINSTALL_REQUESTED=0
+							# A failed request needs two fresh observations and a
+							# signer check of this same path before another request.
+							cleanup_ownership_consecutive_exact=0
+							cleanup_ownership_previous_path_sha256=
 						fi
-						ANDROID_APP_UNINSTALL_REQUESTED=1
 					fi
 				fi
 				;;
@@ -1892,7 +1627,7 @@ cleanup_android_app() {
 					recovery_timeout=$(remaining_bounded_timeout "$cleanup_deadline" 15); then
 					ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=1
 					if attempt_owned_emulator_transport_recovery cleanup \
-						"$recovery_timeout" "$cleanup_invocation" "$attempt"; then
+						"$recovery_timeout" "$cleanup_invocation" "$attempt" "$cleanup_deadline"; then
 						absent_observations=0
 						cleanup_ownership_consecutive_exact=0
 						cleanup_ownership_previous_path_sha256=
@@ -1935,6 +1670,7 @@ cleanup_android_app() {
 	remove_installed_apk_copy || return 2
 	printf 'error: Android app cleanup outcome is unresolved for device sha256:%s; see %s\n' \
 		"${SERIAL_SHA256_PREFIX:-unavailable}" "$PACKAGE_OBSERVATION_LOG" >&2
+	report_android_failure_diagnostic "adb-package-state-observation.log" || return 1
 	return 1
 }
 
@@ -2089,6 +1825,7 @@ ANDROID_APP_CLEANUP_ARMED=0
 ANDROID_APP_INSTALL_CONFIRMED=0
 ANDROID_APP_CLEANUP_INVOCATION=0
 ANDROID_APP_UNINSTALL_REQUESTED=0
+ANDROID_APP_UNINSTALL_PATH_SHA256=
 ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=0
 ADB_PRIVATE_SERVER_CLEANUP_ARMED=0
 ADB_PRIVATE_SERVER_DIRECTORY=
@@ -2121,6 +1858,7 @@ PY
 )
 
 printf '\n=== Build temporary Android smoke APK ===\n'
+if [ "$ANDROID_CONSUMER_PROFILE" = "legacy_full" ]; then
 find "$SRC" -name '*.java' -print | LC_ALL=C sort >"$APP_SOURCES"
 test -s "$APP_SOURCES" || {
 	printf 'error: no Android smoke Java sources generated\n' >&2
@@ -2235,6 +1973,23 @@ legacy = sorted(
 if legacy:
     raise SystemExit("error: smoke APK contains legacy ABI1 native names: " + ", ".join(legacy))
 PY
+else
+	AGP_SOURCE_COMMIT=$(PYTHONPATH=artifact python3 - "$ROOT" <<'PY_COMMIT'
+import pathlib
+import sys
+from git_provenance import git_commit
+print(git_commit(pathlib.Path(sys.argv[1])))
+PY_COMMIT
+)
+	PYTHONPATH=artifact python3 artifact/android_agp_build.py \
+		--root "$ROOT" --work "$WORK/agp" --output "$AGP_BUILD" --raw-output "$AGP_RAW_BUILD" \
+		--profile "$ANDROID_CONSUMER_PROFILE" --sdk "$ANDROID_SDK" \
+		--aar "$AAR_PATH" --aar-manifest "$AAR_MANIFEST" \
+		--expected-aar-sha256 "$EXPECTED_AAR_SHA256" \
+		--expected-aar-manifest-sha256 "$EXPECTED_AAR_MANIFEST_SHA256" \
+		--expected-source-commit "$AGP_SOURCE_COMMIT"
+	cp "$AGP_BUILD/consumer-unsigned.apk" "$UNSIGNED_APK"
+fi
 "$ZIPALIGN" -f -P 16 4 "$UNSIGNED_APK" "$ALIGNED_APK"
 keytool -genkeypair \
 	-storetype PKCS12 \
@@ -2337,6 +2092,40 @@ for line in text.splitlines():
     if line.startswith("--------- beginning of ") or needle in line:
         print(line)
 PY
+}
+
+capture_emulator_failure_logs() {
+	if [ "$DEVICE_KIND" = "emulator" ]; then
+		# Capture the original process's exit record before app removal can clear it.
+		# Missing/unsupported diagnostics never change the primary runtime failure.
+		if android_command capture-emulator-app-exit-info 2>"$DIST/emulator-app-exit-info.err"; then
+			:
+		else
+			printf 'error: owned emulator app exit-info capture also failed\n' >&2
+		fi
+		if android_command capture-emulator-failure-state 2>"$DIST/emulator-state-failure.err"; then
+			:
+		else
+			printf 'error: owned emulator state capture also failed\n' >&2
+		fi
+		if android_command capture-emulator-diagnostics; then
+			:
+		else
+			printf 'error: owned emulator crash-log capture also failed\n' >&2
+		fi
+	fi
+}
+
+fail_runtime_with_logs() {
+	# Keep the original failure authoritative even if its device has disappeared.
+	# Physical-device diagnostics remain restricted to the run's smoke tag.
+	if capture_app_logcat >"$DIST/logcat.txt"; then
+		:
+	else
+		printf 'error: failed Android runtime smoke-log capture also failed\n' >&2
+	fi
+	capture_emulator_failure_logs
+	exit "$1"
 }
 
 select_serial_or_empty() {
@@ -2587,6 +2376,7 @@ if [ "$ANDROID_BOOT_AVD" = "1" ]; then
 		"$QPERIAPT_PYTHON_BOOTSTRAP" artifact/android_bounded_command.py \
 		emulator-nodaemon \
 		--run-id "$RUN_ID" \
+		--runtime-profile "$ANDROID_RUNTIME_PROFILE" \
 		--device-abi "$EXPECTED_DEVICE_ABI" \
 		>"$DIST/emulator.log" 2>&1 &
 	EMULATOR_PID=$!
@@ -2693,6 +2483,8 @@ print(hashlib.sha256(sys.argv[1].encode("utf-8")).hexdigest()[:12])
 PY
 )
 
+# The bounded query requires the full framework after any FDE transition;
+# sys.boot_completed alone can describe the temporary encryption framework.
 BOOT_COMPLETION_DEADLINE=$(monotonic_deadline 120)
 booted=
 while boot_attempt_timeout=$(remaining_bounded_timeout "$BOOT_COMPLETION_DEADLINE" 15); do
@@ -2706,7 +2498,7 @@ while boot_attempt_timeout=$(remaining_bounded_timeout "$BOOT_COMPLETION_DEADLIN
 	fi
 done
 if [ "$booted" != "1" ]; then
-	printf 'error: Android device did not complete boot within 120 seconds: sha256:%s\n' "$SERIAL_SHA256_PREFIX" >&2
+	printf 'error: Android device did not complete full-framework boot within 120 seconds: sha256:%s\n' "$SERIAL_SHA256_PREFIX" >&2
 	exit 1
 fi
 qemu=$(android_command qemu-kind | tr -d '\r')
@@ -2811,21 +2603,8 @@ else
 	preinstall_observation_status=$?
 	exit "$preinstall_observation_status"
 fi
-ANDROID_APP_CLEANUP_ARMED=1
-if ! android_command install-apk >"$DIST/adb-install.log"; then
-	printf 'error: Android smoke APK installation failed\n' >&2
-	exit 1
-fi
-POSTINSTALL_OWNERSHIP_DEADLINE=$(monotonic_deadline 45)
-if observe_owned_installed_package "$POSTINSTALL_OWNERSHIP_DEADLINE" postinstall 1; then
-	:
-else
-	postinstall_ownership_status=$?
-	printf 'error: installed Android smoke package ownership did not converge (exit=%s)\n' \
-		"$postinstall_ownership_status" >&2
-	exit "$postinstall_ownership_status"
-fi
-ANDROID_APP_INSTALL_CONFIRMED=1
+# Start the bounded diagnostic window before installation: the package may be
+# committed even when its service fails before replying to the install command.
 if android_command device-time 2>"$DIST/adb-device-time.err"; then
 	:
 else
@@ -2834,30 +2613,65 @@ else
 		"$device_time_status" "$DIST/adb-device-time.err" >&2
 	exit 1
 fi
-LOGCAT_START_EPOCH=$(tr -d '\r\n ' <"$DIST/adb-device-time.txt")
-python3 - "$LOGCAT_START_EPOCH" <<'PY'
-import re
+LOGCAT_START_TIME=$(tr -d '\r\n' <"$DIST/adb-device-time.txt")
+python3 - "$LOGCAT_START_TIME" <<'PY'
 import sys
+from android_bounded_command import AndroidCommandError, canonical_logcat_start_time
+from android_runtime_state import AndroidRuntimeStateError
 
-value = sys.argv[1]
-if re.fullmatch(r"[1-9][0-9]{9,12}\.[0-9]{3}", value) is None:
-    raise SystemExit(f"error: Android device returned a non-canonical logcat start time: {value}")
+try:
+    canonical_logcat_start_time(sys.argv[1])
+except (AndroidCommandError, AndroidRuntimeStateError) as error:
+    raise SystemExit(f"error: Android device returned an invalid logcat start time: {error}") from error
 PY
-if android_command force-stop >"$DIST/adb-force-stop.log" 2>&1; then
+if [ "$DEVICE_KIND" = "emulator" ]; then
+	if [ "$ANDROID_RUNTIME_PROFILE" = "api35-16k" ]; then
+		if android_command capture-emulator-memory-runtime 2>"$DIST/emulator-memory-runtime.err"; then
+			:
+		else
+			emulator_memory_runtime_status=$?
+			printf 'error: owned emulator memory-runtime capture failed (exit=%s); see %s and retained output %s\n' \
+				"$emulator_memory_runtime_status" "$DIST/emulator-memory-runtime.err" "$DIST/emulator-memory-runtime.txt" >&2
+			capture_emulator_failure_logs
+			exit "$emulator_memory_runtime_status"
+		fi
+	fi
+	if android_command capture-emulator-baseline 2>"$DIST/emulator-state-before.err"; then
+		:
+	else
+		emulator_baseline_status=$?
+		printf 'error: owned emulator baseline capture failed (exit=%s); see %s\n' \
+			"$emulator_baseline_status" "$DIST/emulator-state-before.err" >&2
+		capture_emulator_failure_logs
+		exit "$emulator_baseline_status"
+	fi
+fi
+ANDROID_APP_CLEANUP_ARMED=1
+if ! android_command install-apk >"$DIST/adb-install.log" 2>&1; then
+	printf 'error: Android smoke APK installation failed; see %s\n' "$DIST/adb-install.log" >&2
+	fail_runtime_with_logs 1
+fi
+POSTINSTALL_OWNERSHIP_DEADLINE=$(monotonic_deadline 45)
+if observe_owned_installed_package "$POSTINSTALL_OWNERSHIP_DEADLINE" postinstall 1; then
 	:
 else
-	force_stop_status=$?
-	printf 'error: Android runtime force-stop failed (exit=%s); see %s\n' \
-		"$force_stop_status" "$DIST/adb-force-stop.log" >&2
-	exit 1
+	postinstall_ownership_status=$?
+	printf 'error: installed Android smoke package ownership did not converge (exit=%s)\n' \
+		"$postinstall_ownership_status" >&2
+	fail_runtime_with_logs "$postinstall_ownership_status"
 fi
+ANDROID_APP_INSTALL_CONFIRMED=1
+# This is a newly installed package: absence and exact APK ownership were
+# already established above. Its only component is this explicit activity, and
+# the result must match the fresh run ID. No pre-launch force-stop is needed.
+if [ "$ANDROID_CONSUMER_PROFILE" = "legacy_full" ]; then
 if android_command start-app >"$DIST/adb-start.log" 2>&1; then
 	:
 else
 	start_app_status=$?
 	printf 'error: Android runtime activity start failed (exit=%s); see %s\n' \
 		"$start_app_status" "$DIST/adb-start.log" >&2
-	exit 1
+	fail_runtime_with_logs 1
 fi
 RUNTIME_RESULT_DEADLINE=$(monotonic_deadline 90)
 while result_attempt_timeout=$(remaining_bounded_timeout "$RUNTIME_RESULT_DEADLINE" 15); do
@@ -2890,6 +2704,20 @@ test -f "$RESULT_TXT" || {
 	exit 1
 }
 android_command read-result-json
+else
+	if ! android_command run-instrumentation; then
+		printf 'error: AGP Release Instrumentation command failed; see %s\n' "$DIST/adb-instrumentation.txt" >&2
+		fail_runtime_with_logs 1
+	fi
+	if PYTHONPATH=artifact python3 artifact/android_agp_consumer.py decode-instrumentation \
+		--input "$DIST/adb-instrumentation.txt" --run-id "$RUN_ID" \
+		--text-output "$RESULT_TXT" --json-output "$RESULT_JSON"; then
+		:
+	else
+		instrumentation_status=$?
+		fail_runtime_with_logs "$instrumentation_status"
+	fi
+fi
 capture_app_logcat >"$DIST/logcat.txt"
 if grep -E 'QPERIAPT_ANDROID_DEVICE_FAIL|FATAL EXCEPTION|JNI DETECTED ERROR|UnsatisfiedLinkError|NoSuchMethodError|NoClassDefFoundError|SIGSEGV|signal 11' "$DIST/logcat.txt" >/dev/null 2>&1; then
 	printf 'error: Android logcat contains a runtime failure marker; see %s\n' "$DIST/logcat.txt" >&2
@@ -2900,10 +2728,13 @@ if cleanup_android_app; then
 else
 	app_cleanup_status=$?
 	printf 'error: run-owned Android smoke app cleanup failed\n' >&2
+	# Preserve the completed workload's app log; collect the system failure
+	# before the EXIT trap retries cleanup and retires the owned emulator.
+	capture_emulator_failure_logs
 	exit "$app_cleanup_status"
 fi
 
-PYTHONPATH=artifact python3 - "$RESULT_TXT" "$RESULT_JSON" "$RUN_ID" <<'PY'
+PYTHONPATH=artifact python3 - "$RESULT_TXT" "$RESULT_JSON" "$RUN_ID" "$ANDROID_CONSUMER_PROFILE" <<'PY'
 import pathlib
 import sys
 
@@ -2914,11 +2745,8 @@ payload = load_json_object_snapshot(
     pathlib.Path(sys.argv[2]), label="Android device result"
 ).value
 run_id = sys.argv[3]
-expected_tests = [
-    "runtimeMetadataMatches",
-    "signedPolicyDecisionIsExactAndFailClosed",
-    "osRandomPolicyRoundtripAndWipes",
-]
+from android_device_proof import RuntimeResultProfile, result_tests
+expected_tests = result_tests(RuntimeResultProfile(sys.argv[4]))
 expected_marker = f"QPERIAPT_ANDROID_DEVICE_PASS run-id={run_id} tests={len(expected_tests)}\n"
 if txt != expected_marker:
     raise SystemExit(f"error: unexpected Android result marker: {txt!r}")
@@ -2948,7 +2776,7 @@ DEVICE_RELEASE=$(android_command device-release | tr -d '\r')
 DEVICE_FINGERPRINT=$(android_command device-fingerprint | tr -d '\r')
 ADB_VERSION=$(android_command adb-version | sed -n '1p' | tr -d '\r')
 emit_android_runtime_proof() {
-python3 - "$ROOT" "$RUN_ID" "$SERIAL" "$DEVICE_KIND" "$AAR_PATH" "$AAR_MANIFEST" "$SIGNED_APK" "$RESULT_TXT" "$RESULT_JSON" "$DIST/logcat.txt" "$PROOF_STAGING" "$PROOF_JSON" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$safe_unzip_dir" "$SOURCE_TREE_SHA256" "$DEVICE_ABI" "$PAGE_SIZE" "$DEVICE_SDK" "$NDK_REVISION" "$ANDROID_RELEASE_MODE" "$APKSIGNER" "$ZIPALIGN" "$FINAL_DEVICE_ABI" "$FINAL_PAGE_SIZE" "$FINAL_DEVICE_SDK" "$DEVICE_MANUFACTURER" "$DEVICE_MODEL" "$DEVICE_RELEASE" "$DEVICE_FINGERPRINT" "$ADB_VERSION" "$EMULATOR_BACKEND" "${ANDROID_EMULATOR_PORT:-}" "$EMULATOR_PROCESS_IDENTITY" "$ADB_LISTENER_IDENTITY" "$DIST/emulator-listeners.txt" "$DIST/adb-emulator-registration.txt" "${ADB_SERVER_STATUS_REGISTERED:-}" "${ADB_LISTENER_REGISTERED:-}" "$EMULATOR_BACKEND_DEVICE" "$EMULATOR_BACKEND_INODE" "$EMULATOR_BACKEND_SHA256" <<'PY'
+python3 - "$ROOT" "$RUN_ID" "$SERIAL" "$DEVICE_KIND" "$AAR_PATH" "$AAR_MANIFEST" "$SIGNED_APK" "$RESULT_TXT" "$RESULT_JSON" "$DIST/logcat.txt" "$PROOF_STAGING" "$PROOF_JSON" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$safe_unzip_dir" "$SOURCE_TREE_SHA256" "$DEVICE_ABI" "$PAGE_SIZE" "$DEVICE_SDK" "$NDK_REVISION" "$ANDROID_RELEASE_MODE" "$APKSIGNER" "$ZIPALIGN" "$FINAL_DEVICE_ABI" "$FINAL_PAGE_SIZE" "$FINAL_DEVICE_SDK" "$DEVICE_MANUFACTURER" "$DEVICE_MODEL" "$DEVICE_RELEASE" "$DEVICE_FINGERPRINT" "$ADB_VERSION" "$EMULATOR_BACKEND" "${ANDROID_EMULATOR_PORT:-}" "$EMULATOR_PROCESS_IDENTITY" "$ADB_LISTENER_IDENTITY" "$DIST/emulator-listeners.txt" "$DIST/adb-emulator-registration.txt" "${ADB_SERVER_STATUS_REGISTERED:-}" "${ADB_LISTENER_REGISTERED:-}" "$EMULATOR_BACKEND_DEVICE" "$EMULATOR_BACKEND_INODE" "$EMULATOR_BACKEND_SHA256" "$ANDROID_CONSUMER_PROFILE" "$AGP_BUILD/receipt.json" "$DIST/adb-instrumentation.txt" <<'PY'
 import datetime as dt
 import hashlib
 import json
@@ -3121,28 +2949,12 @@ if current_source_tree_sha256 != source_tree_sha256:
         "error: canonical execution-input tree changed while Android runtime proof was running: "
         f"got {current_source_tree_sha256}, expected {source_tree_sha256}"
     )
-source_paths = {
-    "bounded_process": root / "artifact/bounded_process.py",
-    "android_emulator_control": root / "artifact/android_emulator_control.py",
-    "process_identity": root / "artifact/process_identity.py",
-    "android_runtime_state": root / "artifact/android_runtime_state.py",
-    "android_runtime_state_tests": root / "artifact/test_android_runtime_state.py",
-    "android_bounded_command": root / "artifact/android_bounded_command.py",
-    "android_bounded_command_tests": root / "artifact/test_android_bounded_command.py",
-    "android_device_smoke_script": root / "artifact/android-device-smoke.sh",
-    "android_device_proof": root / "artifact/android_device_proof.py",
-    "proof_to_byte": root / "artifact/proof-to-byte.sh",
-    "android_aar_script": root / "artifact/android-aar.sh",
-    "android_elf_verifier": root / "artifact/android_elf.py",
-    "release_binary_scan": root / "artifact/release_binary_scan.py",
-    "third_party_license_collector": root / "artifact/third_party_licenses.py",
-    "deterministic_archive": root / "artifact/deterministic_archive.py",
-    "platform_release_contract": root / "artifact/platform_release_contract.py",
-    "android_facade": root / "bindings/android/src/main/java/dev/qperiapt/android/QPeriaptAndroid.java",
-    "android_jni_adapter": root / "bindings/android/jni/qperiapt_jni.c",
-    "c_abi_contract": root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
-    "signed_policy_vectors": root / "bindings/signed-policy-vectors.json",
-}
+from android_device_proof import RuntimeResultProfile, source_inputs, result_package_profile
+from android_elf import package_profile
+consumer_profile = sys.argv[43]
+result_profile = RuntimeResultProfile(consumer_profile)
+source_paths = {name: root / path for name, path in source_inputs(result_profile).items()}
+abi_contract = package_profile(result_package_profile(result_profile)).contract
 
 def rel(path: pathlib.Path) -> str:
     return path.resolve().relative_to(root.resolve()).as_posix()
@@ -3228,8 +3040,8 @@ payload = {
     },
     "abi": {
         "major": 2,
-        "contract_path": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json",
-        "contract_sha256": sha256(root / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"),
+        "contract_path": abi_contract,
+        "contract_sha256": sha256(root / abi_contract),
         "runtime_library": "libq_periapt_ffi_abi2.so",
         "jni_library": "libqperiapt_jni_abi2.so",
         "legacy_library_names_present": False,
@@ -3256,6 +3068,24 @@ payload = {
     },
     "source_hashes": {name + "_sha256": sha256(path) for name, path in source_paths.items()},
 }
+if consumer_profile != "legacy_full":
+    from android_agp_consumer_contract import profile_spec
+    from android_agp_consumer import INSTRUMENTATION
+    consumer_spec = profile_spec(consumer_profile)
+    build_receipt = pathlib.Path(sys.argv[44])
+    instrumentation_output = pathlib.Path(sys.argv[45])
+    def evidence_record(path):
+        data = path.read_bytes()
+        return {"path": rel(path), "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
+    payload["schema"] = 1
+    payload["kind"] = consumer_spec.proof_kind
+    payload["consumer"] = {
+        "profile": consumer_profile,
+        "build_receipt": evidence_record(build_receipt),
+        "instrumentation_output": evidence_record(instrumentation_output),
+        "instrumentation": INSTRUMENTATION,
+    }
+
 encoded_proof = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
 flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW
 descriptor = os.open(proof, flags, 0o600)
@@ -3323,6 +3153,7 @@ set -- "$@" --expected-device-abi "$DEVICE_ABI" --expected-page-size "$PAGE_SIZE
 if [ "$ANDROID_RELEASE_MODE" = "1" ]; then
 	set -- "$@" --require-release-mode
 fi
+if [ "$ANDROID_CONSUMER_PROFILE" = "legacy_full" ]; then
 PYTHONPATH=artifact python3 artifact/android_device_proof.py verify \
 	--root "$ROOT" \
 	--proof "$PROOF_JSON" \
@@ -3339,11 +3170,28 @@ PYTHONPATH=artifact python3 artifact/android_device_proof.py create-bundle \
 	--forbid-text "$SERIAL" \
 	--expected-device-kind "$DEVICE_KIND" \
 	"$@"
+else
+	set --
+	if [ "$ANDROID_AAR_PROFILE" = "sdk-020" ]; then
+		set -- --export-to "$DIST/agp-evidence"
+	fi
+	PYTHONPATH=artifact python3 artifact/android_agp_consumer.py verify \
+		--root "$ROOT" --proof "$PROOF_JSON" --profile "$ANDROID_CONSUMER_PROFILE" --sdk "$ANDROID_SDK" \
+		--expected-aar-sha256 "$EXPECTED_AAR_SHA256" \
+		--expected-aar-manifest-sha256 "$EXPECTED_AAR_MANIFEST_SHA256" \
+		--expected-source-commit "$AGP_SOURCE_COMMIT" \
+		--expected-runtime-profile "$ANDROID_RUNTIME_PROFILE" \
+		--expected-device-abi "$EXPECTED_DEVICE_ABI" "$@"
+fi
 if [ "$ANDROID_RUNTIME_CLEANUP_COMPLETED" != "1" ]; then
 	printf 'error: refusing to confirm Android evidence before runtime cleanup\n' >&2
 	exit 1
 fi
 ANDROID_PROOF_EVIDENCE_CONFIRMED=1
 printf 'Proof    : %s\n' "$PROOF_JSON"
-printf 'Bundle   : %s\n' "$EVIDENCE_BUNDLE"
-printf '\nANDROID_DEVICE_RUNTIME_PASS proof=%s bundle=%s\n' "$PROOF_JSON" "$EVIDENCE_BUNDLE"
+if [ "$ANDROID_CONSUMER_PROFILE" = "legacy_full" ]; then
+	printf 'Bundle   : %s\n' "$EVIDENCE_BUNDLE"
+	printf '\nANDROID_DEVICE_RUNTIME_PASS proof=%s bundle=%s\n' "$PROOF_JSON" "$EVIDENCE_BUNDLE"
+else
+	printf '\nANDROID_AGP_RUNTIME_PASS profile=%s proof=%s\n' "$ANDROID_CONSUMER_PROFILE" "$PROOF_JSON"
+fi

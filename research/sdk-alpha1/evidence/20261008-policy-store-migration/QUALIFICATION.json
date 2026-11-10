@@ -1,0 +1,503 @@
+{
+  "implementation": "de965d6e737897331a73ed97b70191c238ffb048",
+  "source_identity": {
+    "Cargo.lock": "121ede6e74a3c430b1d9e22187e5334758d14c8227f4f4e5b4a6f1f4afc00ad5",
+    "crates/q-periapt-cli/Cargo.toml": "51c8d537ebde296cca2f12b3fefff1fffb4f73acf56919162669d184a4117f54",
+    "crates/q-periapt-cli/src/main.rs": "4e158a5630f1667bf30d457fb31c44c2338f92148d701c8a02fe485405d091b1",
+    "crates/q-periapt-cli/src/policy_store_upgrade.rs": "736a62aec78123c7c115243ca41d47a22f53303adce977e9bcb7c3e872299b8f",
+    "crates/q-periapt-cli/src/policy_store_upgrade/tests.rs": "da39c2cd26198e52db14c848e3671e78057adb0224562db8302ad88370395caa",
+    "artifact/policy_store_migration_installed.py": "9e0e35c42f781ebbb45f1d4b303f3dda89abe2b8e56c25b418b8c7081bc3a52f",
+    ".github/workflows/ci.yml": "8168f2045bd460e810274da4207b0eb871a3b5ce325b42090f3a82a04f2ef82f",
+    ".github/workflows/codeql.yml": "9b837a4394013ac51b379ba99888aa4c8e3b5bf70d32d88b1c8ba722e4ddeabf",
+    "artifact/codeql_rust_quality.py": "16208e17ed866262b3809478bf2179c33f6c955d3a3771de44982bcf77e00e48"
+  },
+  "platform": "macOS ARM64",
+  "release_claim_eligible": false,
+  "records": {
+    "check-01": {
+      "capture_member": "check-01/RESULT.json",
+      "sha256": "0fcd1a7fa2de2f567f16afa3c1b94a1db4e58dc0e24ae79d5b631856f0c0bea1",
+      "returncode": 0,
+      "seconds": 2.9660097921732813,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "check",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--all-targets"
+      ]
+    },
+    "tests-01": {
+      "capture_member": "tests-01/RESULT.json",
+      "sha256": "4aa013a6f196e9495550ef830c6ea3c7fc6ae6f335a4afd4607cd1e10cf1a748",
+      "returncode": 101,
+      "seconds": 41.48222112492658,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--bin",
+        "qperiapt",
+        "policy_store_upgrade",
+        "--",
+        "--nocapture"
+      ],
+      "sources_unchanged": true
+    },
+    "focused-02": {
+      "capture_member": "focused-02/RESULT.json",
+      "sha256": "f413ebaa607e7152560410c7c8248f11ebcfc29915b69488d7d14b9c05c22e1a",
+      "head": "aa0cc94905c023f68a967313d626b46eb9b7db3f",
+      "returncode": 101,
+      "seconds": 3.4575987909920514,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--bin",
+        "qperiapt",
+        "io_errors_across_both_providers",
+        "--",
+        "--nocapture"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    },
+    "focused-03": {
+      "capture_member": "focused-03/RESULT.json",
+      "sha256": "e7e6e900a1c01a1770e8e8c906267a880b13057af1994756a2bfeb0ead228c9d",
+      "head": "aa0cc94905c023f68a967313d626b46eb9b7db3f",
+      "returncode": 0,
+      "seconds": 58.03047200012952,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--bin",
+        "qperiapt",
+        "io_errors_across_both_providers",
+        "--",
+        "--nocapture"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    },
+    "tests-02": {
+      "capture_member": "tests-02/RESULT.json",
+      "sha256": "693ebb82316379477c47dac8ce36dd26cbb6caeace3aeba88eb296203f47a436",
+      "head": "aa0cc94905c023f68a967313d626b46eb9b7db3f",
+      "returncode": 0,
+      "seconds": 85.45838187495247,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--",
+        "--nocapture"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    },
+    "clippy-01": {
+      "capture_member": "clippy-01/RESULT.json",
+      "sha256": "8d94de2ea887b3cf77a8ab950736c9faf8e4fccfd714cca1f03599f1371be2b1",
+      "head": "aa0cc94905c023f68a967313d626b46eb9b7db3f",
+      "returncode": 0,
+      "seconds": 4.238822832936421,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    },
+    "msrv-01": {
+      "capture_member": "msrv-01/RESULT.json",
+      "sha256": "bae9932ee72f384cf43a9c75526a85fb7841a8c64f1f913582ed1866c466425c",
+      "head": "aa0cc94905c023f68a967313d626b46eb9b7db3f",
+      "returncode": 0,
+      "seconds": 92.9625142919831,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--",
+        "--nocapture"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    },
+    "install-01": {
+      "capture_member": "install-01/RESULT.json",
+      "sha256": "a31b94955942756d1e24ad37bee9afb68e55eeeeeef755b904516cfae05b4bc7",
+      "commands": [
+        {
+          "command": [
+            "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+            "install",
+            "--offline",
+            "--locked",
+            "--path",
+            "crates/q-periapt-cli",
+            "--features",
+            "policy-store-migration",
+            "--root",
+            "/Users/bill/Documents/Codex/sdk-020-policy-store-upgrade-installed-20261008-01"
+          ],
+          "returncode": 0,
+          "seconds": 32.87331175012514
+        },
+        {
+          "command": [
+            "sh",
+            "artifact/python-run.sh",
+            "artifact/policy_store_migration_installed.py",
+            "--binary",
+            "/Users/bill/Documents/Codex/sdk-020-policy-store-upgrade-installed-20261008-01/bin/qperiapt",
+            "--output",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-store-migration-current/install-01/consumer"
+          ],
+          "returncode": 0,
+          "seconds": 0.7658918332308531
+        }
+      ],
+      "sources_unchanged": true,
+      "binary_sha256": "cb23a631f86ad9320e24c2ab4ac57c075550a10f3a941229aa7b493f00b94a66"
+    },
+    "release-01": {
+      "capture_member": "release-01/RESULT.json",
+      "sha256": "73cb75ef121c67d22fda9d7bfae5faa62a5e9cac2c9883a5481430513c2f1b7a",
+      "head": "22d01d715511920dee74aea3ccbadd9be75a53ab",
+      "returncode": 0,
+      "seconds": 78.0449020001106,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--release",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--",
+        "--nocapture"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    },
+    "msrv-clippy-01": {
+      "capture_member": "msrv-clippy-01/RESULT.json",
+      "sha256": "5801b6b3de912dc1254f65da9b8deb8632bfa552ff18d456ae4ec66d96693b9e",
+      "head": "22d01d715511920dee74aea3ccbadd9be75a53ab",
+      "returncode": 0,
+      "seconds": 3.341739875031635,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    },
+    "default-01": {
+      "capture_member": "default-01/RESULT.json",
+      "sha256": "a53ea6ceff99a294ab39664ef2671e68b9ec783aa5b1d9209111aa696ad3d332",
+      "head": "19baab2e6e17b594e77611376a94f128f0711b86",
+      "returncode": 0,
+      "seconds": 9.556238957913592,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    },
+    "dependencies-01": {
+      "capture_member": "dependencies-01/RESULT.json",
+      "sha256": "e31d822631bd620dc9d1778816de5ab48d6901f57ebfaf69c73892914c849efe"
+    },
+    "lease-tests-03": {
+      "capture_member": "lease-tests-03/RESULT.json",
+      "sha256": "eb99a317262bc542482f2a06386d7f6de5b0a462a14bc50806e06b4b2134a72e",
+      "head": "19baab2e6e17b594e77611376a94f128f0711b86",
+      "returncode": 0,
+      "seconds": 84.74935175012797,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--",
+        "--nocapture"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    },
+    "lease-msrv-clippy-02": {
+      "capture_member": "lease-msrv-clippy-02/RESULT.json",
+      "sha256": "4b96c84bccb3d829dd17bbdfb7bd670f51f723664011cf4a2fde02762d4ae2ec",
+      "head": "19baab2e6e17b594e77611376a94f128f0711b86",
+      "returncode": 0,
+      "seconds": 1.1478570410981774,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    },
+    "install-02": {
+      "capture_member": "install-02/RESULT.json",
+      "sha256": "ffe8b85a7fa91816a8f8236dcadd00931ab6f34ea808457718264cd49c894335",
+      "head": "de965d6e737897331a73ed97b70191c238ffb048",
+      "commands": [
+        {
+          "command": [
+            "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+            "install",
+            "--offline",
+            "--locked",
+            "--path",
+            "crates/q-periapt-cli",
+            "--features",
+            "policy-store-migration",
+            "--root",
+            "/Users/bill/Documents/Codex/sdk-020-policy-store-upgrade-installed-20261008-02"
+          ],
+          "returncode": 0,
+          "seconds": 13.168231082847342
+        },
+        {
+          "command": [
+            "sh",
+            "artifact/python-run.sh",
+            "artifact/policy_store_migration_installed.py",
+            "--binary",
+            "/Users/bill/Documents/Codex/sdk-020-policy-store-upgrade-installed-20261008-02/bin/qperiapt",
+            "--output",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-store-migration-current/install-02/consumer"
+          ],
+          "returncode": 0,
+          "seconds": 1.042115833144635
+        }
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true,
+      "binary_sha256": "de2fe95a22570f675d3577dbdf03804051de2c459142577676b0fb0b093e92e2"
+    },
+    "final-msrv-02": {
+      "capture_member": "final-msrv-02/RESULT.json",
+      "sha256": "fab8f4c02c092057c9104865f01beb0a4795a9129591d53037dc024839808f10",
+      "head": "de965d6e737897331a73ed97b70191c238ffb048",
+      "returncode": 0,
+      "seconds": 87.06873629218899,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--",
+        "--nocapture"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    },
+    "source-gate-01": {
+      "capture_member": "source-gate-01/RESULT.json",
+      "sha256": "f360af364b11cff937bbde7195d8f3c031c2bf97041696288e760e648e1a8593",
+      "head": "de965d6e737897331a73ed97b70191c238ffb048",
+      "commands": [
+        {
+          "command": [
+            "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+            "fmt",
+            "--all",
+            "--check"
+          ],
+          "returncode": 0,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "command": [
+            "sh",
+            "artifact/python-run.sh",
+            "-m",
+            "unittest",
+            "-v",
+            "artifact.test_codeql_rust_quality.CodeQLRustQualityTests.test_artifact_guide_states_the_enforced_tracked_source_count"
+          ],
+          "returncode": 0,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "ca590d535c8a969650a80ebe333e7e2d6f70bad338f20df10c2f5a704e506e40"
+        },
+        {
+          "command": [
+            "sh",
+            "artifact/python-run.sh",
+            "artifact/source_results_assembler.py",
+            "ci-source-gate",
+            "--profile",
+            "sdk-020",
+            "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda",
+            "de965d6e737897331a73ed97b70191c238ffb048"
+          ],
+          "returncode": 0,
+          "stdout_sha256": "8643f6e3fd565ac02f17c6e20f03f026926eed81ddcd17dd412e4fbde4230195",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "clean_after": true
+    },
+    "final-release-02": {
+      "capture_member": "final-release-02/RESULT.json",
+      "sha256": "226b8f17eec9d52e8a8522ff9a6919ff96dfcb8d3b60a1d58e5c597f5f4999d4",
+      "head": "de965d6e737897331a73ed97b70191c238ffb048",
+      "returncode": 0,
+      "seconds": 76.59416841599159,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--release",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--",
+        "--nocapture"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    },
+    "final-clippy-02": {
+      "capture_member": "final-clippy-02/RESULT.json",
+      "sha256": "917678660a09c1970b2b1ab2011aa322f9591dd164a6567dee135bc4a0563eee",
+      "head": "de965d6e737897331a73ed97b70191c238ffb048",
+      "returncode": 0,
+      "seconds": 1.4825832080096006,
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "-p",
+        "q-periapt-cli",
+        "--features",
+        "policy-store-migration",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "sources_unchanged": true,
+      "head_unchanged": true
+    }
+  },
+  "per_full_run": {
+    "total_tests": 28,
+    "typed_io_faults": 232,
+    "io_boundaries": 116,
+    "process_cuts": 126,
+    "cut_boundaries": 63,
+    "partial_write_failures": 37,
+    "independent_lock_refusals": 48
+  },
+  "installed_commands": 7,
+  "final_installed_binary_sha256": "de2fe95a22570f675d3577dbdf03804051de2c459142577676b0fb0b093e92e2",
+  "artifact_tests": {
+    "source": "22d01d715511920dee74aea3ccbadd9be75a53ab",
+    "passed": 189,
+    "failed": 1,
+    "failure": "ARTIFACT.md still said423;expected425",
+    "repair": "19baab2e6e17b594e77611376a94f128f0711b86",
+    "targeted_recheck": "source-gate-01/1.stderr"
+  },
+  "captures": {
+    "path": "CAPTURES.zip",
+    "bytes": 164369,
+    "sha256": "7082fe61b99cd74c1b8a6958539c4cca9c27723ccb179ca60c271aa8c441bfd6",
+    "members": 105,
+    "manifest_member": "MEMBERS.json",
+    "manifest_sha256": "2006af88592edc52cdcfe167380521729be18bc13ea221fde67a4254b223e827"
+  },
+  "open": [
+    "actual Linux dual-lock and conversion qualification",
+    "prebuilt maintenance distribution",
+    "physical minimum OS and power loss",
+    "generic malformed database robustness",
+    "future application schemas",
+    "Continuity journal/witness migration",
+    "full0.2.0release"
+  ]
+}

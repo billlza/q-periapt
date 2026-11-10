@@ -73,7 +73,7 @@ class CPackageManifestTests(unittest.TestCase):
             )
 
     def _package(self, root: pathlib.Path, target: str = "x86_64-unknown-linux-gnu") -> pathlib.Path:
-        package = root / f"q-periapt-c-abi2-0.1.2-{target}"
+        package = root / f"q-periapt-c-abi2-0.1.5-{target}"
         contract_source = self.repository / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json"
         contract = json.loads(contract_source.read_text(encoding="utf-8"))
         runtime = contract["package"]["platforms"]["linux"]
@@ -141,6 +141,8 @@ class CPackageManifestTests(unittest.TestCase):
 
         entries = []
         for path in sorted(item for item in package.rglob("*") if item.is_file()):
+            # A valid package must realize the manifest's mode under any caller umask.
+            path.chmod(0o644)
             relative = path.relative_to(package).as_posix()
             data = path.read_bytes()
             entries.append(
@@ -169,7 +171,7 @@ class CPackageManifestTests(unittest.TestCase):
         manifest = {
             "schema_version": c_package_manifest.SCHEMA_VERSION,
             "package": package.name,
-            "version": "0.1.2",
+            "version": "0.1.5",
             "host": target,
             "generated_at": dt.datetime.fromtimestamp(epoch, dt.timezone.utc).isoformat().replace("+00:00", "Z"),
             "source_date_epoch": epoch,
@@ -211,11 +213,13 @@ class CPackageManifestTests(unittest.TestCase):
         }
         manifest_path = package / "MANIFEST.json"
         manifest_path.write_bytes(c_package_manifest.canonical_json(manifest))
+        manifest_path.chmod(0o644)
         sums = [*entries, {"path": "MANIFEST.json", "sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest()}]
         (package / "SHA256SUMS").write_text(
             "".join(f"{entry['sha256']}  {entry['path']}\n" for entry in sorted(sums, key=lambda item: item["path"])),
             encoding="ascii",
         )
+        (package / "SHA256SUMS").chmod(0o644)
         return package
 
     def test_complete_package_verifies(self) -> None:

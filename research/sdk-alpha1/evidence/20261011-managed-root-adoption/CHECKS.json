@@ -1,0 +1,518 @@
+{
+  "schema": 1,
+  "implementation_commit": "9b757e88d070caec4e7a55a0a08e8115c7a86b0e",
+  "release_claim_eligible": false,
+  "scope": "Native managed adoption of an independently approved competing committed account-root replacement.",
+  "behavior": [
+    "Prepared plans and adopted exact proposals are distinct owner states; adopted history does not fabricate a local plan.",
+    "Original non-commit and exact approved retirement are independently authenticated before owner mutation.",
+    "Original closure precedes native prospective registry validation; cross-application root reuse is refused before the parent changes.",
+    "Parent/journal transition and retained retirement precede registry selection.",
+    "Original retry reconciles every partial commit, preserves the original operation and selects revision 2 once.",
+    "Current target, credential/policy, witness admission and owner lifetime remain mandatory; historical adoption cannot extend credential validity."
+  ],
+  "validation": [
+    {
+      "label": "root-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::account_root::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 314.4527283748612,
+      "tests": 43,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "registry-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "account_authority::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 0.36497412505559623,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "preparation-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "account_preparation",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 99.58118004188873,
+      "tests": 14,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "msrv-root-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::account_root::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 350.09634633315727,
+      "tests": 43,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "msrv-registry-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "account_authority::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 0.3122025839984417,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "msrv-preparation-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "account_preparation",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 89.67680704197846,
+      "tests": 14,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "clippy-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "seconds": 10.290812167106196,
+      "tests": null,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "msrv-clippy-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "seconds": 13.084619583096355,
+      "tests": null,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "release-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "--release",
+        "managed_root_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 253.72757687489502,
+      "tests": 22,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    }
+  ],
+  "tests_per_debug_compiler": 58,
+  "adoption_process_cuts": {
+    "false": [
+      "managed-adoption-closure-after",
+      "intent-before",
+      "intent-after",
+      "managed-adoption-parent-after",
+      "receipt-before",
+      "receipt-after",
+      "managed-adoption-retirement-after",
+      "managed-adoption-registry-after"
+    ],
+    "true": [
+      "managed-adoption-closure-after",
+      "handoff-before",
+      "handoff-after",
+      "child-handoff-before",
+      "child-handoff-after",
+      "managed-adoption-parent-after",
+      "receipt-before",
+      "receipt-after",
+      "managed-adoption-retirement-after",
+      "managed-adoption-registry-after"
+    ]
+  },
+  "process_scope": "18 actual new kill-before-return cuts per Debug/current, Debug/minimum and Release/current profile, alongside all 14 alternate-target and 7 initial root cuts. Exact checkpoint bytes and on-disk registry states are checked.",
+  "negative_cases": [
+    "Changed retirement signature, different approved winner and wrong-purpose receipt substitution are refused.",
+    "A target already associated with another application is refused before changing original parent rows; original non-commit may already be durable.",
+    "A committed winner with a credential expired at fixture time 170 cannot activate, while the original historical result remains recoverable.",
+    "Adopted state has no preparation; preparation-only operations refuse without fabricating one.",
+    "Closing the controller revokes the returned successor owner."
+  ],
+  "inventory": {
+    "tracked_rust_sources": 525,
+    "tests": 44,
+    "source_gate_pass": true,
+    "release_claim_eligible": false
+  },
+  "maintenance": {
+    "operation_module_lines": 56,
+    "adoption_module_lines": 133,
+    "shared_native_commit_and_prospective_adoption_validation": true,
+    "shared_parent_transition_engine": true,
+    "new_storage_format": false,
+    "changed_product_C_ABI": false,
+    "performance_claim": false
+  },
+  "limitations": [
+    "Controlled fixture times 150/170, real signatures and disk transactions on one macOS arm64 host, same native engine.",
+    "New workflow implementation, not a claimed red/green fix of a previously shipped managed-adoption API.",
+    "Deployed authority transport, foreign adapters, independent implementation and physical/current/minimum OS qualification are separate.",
+    "Retired-message accounting/erasure, witness-key handoff and the other full 0.2.0 release requirements remain open.",
+    "Ordered commits are not a cross-database atomic transaction, whole-host rollback protection or physical erasure."
+  ],
+  "archive": {
+    "path": "CAPTURE.zip",
+    "bytes": 281043,
+    "sha256": "dc3434d76c8e9639c365e7b12b159b26acd1fe1ae900a0b3a15f4bee40c6c947",
+    "members": [
+      {
+        "path": "COMPILERS.json",
+        "bytes": 433,
+        "sha256": "943fe03694b8644e205a630a3d835cca1bde4a5fb6b307509dc919af64ffa293"
+      },
+      {
+        "path": "FORMAT.json",
+        "bytes": 766,
+        "sha256": "f6e837142a23a06f62f143f593aa7f15e8c238aa3a5bafa0fad512dadd56276b"
+      },
+      {
+        "path": "TEST_INVENTORY.txt",
+        "bytes": 112809,
+        "sha256": "19358bad61c6edaeb2828b72b2e9f950ad3a7054aa8c00721c8ef571aab6ed56"
+      },
+      {
+        "path": "candidate-fmt.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "candidate-fmt.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "clippy-final/RESULT.json",
+        "bytes": 43537,
+        "sha256": "5f56ff6aa58f982eec38d1f9a0015813e718b5a8859d7db4e244129ac3dcdb55"
+      },
+      {
+        "path": "clippy-final/START.json",
+        "bytes": 43458,
+        "sha256": "aca5343b61f7e7b2835a2735a8b267759914455b49c2481bbeb06ff7bfc29483"
+      },
+      {
+        "path": "clippy-final/stderr",
+        "bytes": 284,
+        "sha256": "1011457686c51012d3dbc6fe156a87815aec6d8137af09b88383add29a6d192e"
+      },
+      {
+        "path": "clippy-final/stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "inventory-final.stderr",
+        "bytes": 143,
+        "sha256": "93e88849e3e5e15f7d851a1e1efd8f829f5d0eb45468b7954b5e0499ad692626"
+      },
+      {
+        "path": "inventory-final.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "msrv-clippy-final/RESULT.json",
+        "bytes": 43542,
+        "sha256": "17a13b3e630f6913f244285a5923dc0cc8bf3a63ff22919ac5f83c719e3cd004"
+      },
+      {
+        "path": "msrv-clippy-final/START.json",
+        "bytes": 43463,
+        "sha256": "71ec4f565c7e2c56fd35f0bfc863c2f919c3d28fe5f10524daa9b5108d980e27"
+      },
+      {
+        "path": "msrv-clippy-final/stderr",
+        "bytes": 284,
+        "sha256": "184229892c4e34df6d08753e87d704c362eb5508635f07d2664381051317b849"
+      },
+      {
+        "path": "msrv-clippy-final/stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "msrv-preparation-final/RESULT.json",
+        "bytes": 43612,
+        "sha256": "2414650c68f14117740b7693638dc796423b54169a888c8589c676282be964a7"
+      },
+      {
+        "path": "msrv-preparation-final/START.json",
+        "bytes": 43534,
+        "sha256": "86edcb694be204dbdf971ca1bffb04d5f0699bc22692d29ba2fcce6f4540cb00"
+      },
+      {
+        "path": "msrv-preparation-final/stderr",
+        "bytes": 975,
+        "sha256": "a682b5307e74dfb744011a54813e67917ce6e1c0d11ab90b121ac7664dc4b61d"
+      },
+      {
+        "path": "msrv-preparation-final/stdout",
+        "bytes": 2471,
+        "sha256": "99481f5ae7b673eacf4c894d504d6149e4a16f67ccca4b9d661a7ebc1db1af48"
+      },
+      {
+        "path": "msrv-registry-final/RESULT.json",
+        "bytes": 43618,
+        "sha256": "ad106b268a6d4c87930e916037f4c883abc71f7cebb17cb408f49abcb0dedb8e"
+      },
+      {
+        "path": "msrv-registry-final/START.json",
+        "bytes": 43539,
+        "sha256": "d00f5f5d0b698b0d0d7d83d3e9ae23ee5c204c16d016fdfdd27f6145e90a0158"
+      },
+      {
+        "path": "msrv-registry-final/stderr",
+        "bytes": 235,
+        "sha256": "bbfa4368dde9096981bc9a7c6bd8d5676d1a13d44be29ac3bb88412c869bf18e"
+      },
+      {
+        "path": "msrv-registry-final/stdout",
+        "bytes": 209,
+        "sha256": "298bb8603e4bafa8c9b49f12c2e87b2d9577892b3a692ae4cea918e22e56a329"
+      },
+      {
+        "path": "msrv-root-final/RESULT.json",
+        "bytes": 43622,
+        "sha256": "290cc51669d0e495768e17e914b47692e0d82ef50c38d80b600ba8ad4556d274"
+      },
+      {
+        "path": "msrv-root-final/START.json",
+        "bytes": 43543,
+        "sha256": "b61356816b62d5d0d6fc2d421a5f629376225aa6edeabe55477af827c30676e9"
+      },
+      {
+        "path": "msrv-root-final/stderr",
+        "bytes": 7432,
+        "sha256": "34074ec46b0d819964c386cf7ea53e2ddb4d39b2c4fd0cadbca000c45065dec9"
+      },
+      {
+        "path": "msrv-root-final/stdout",
+        "bytes": 5958,
+        "sha256": "bed402f984365bea81ca9579e387cb40645fa58f0daeaf3a6001867dbf33210b"
+      },
+      {
+        "path": "preparation-final/RESULT.json",
+        "bytes": 43607,
+        "sha256": "13c13af021535302b4192e606adf1de0d92b09920e4ff371d6b1e7a35b6e206e"
+      },
+      {
+        "path": "preparation-final/START.json",
+        "bytes": 43529,
+        "sha256": "bd7fc7175476961da0d73d91ed2b1091c00fc53110237b1e3e6d2a1aae1f153a"
+      },
+      {
+        "path": "preparation-final/stderr",
+        "bytes": 970,
+        "sha256": "ad668cbb32f2afd4a87a1ad79406c50bd121aec50706a8024911591d4bcf5b07"
+      },
+      {
+        "path": "preparation-final/stdout",
+        "bytes": 2471,
+        "sha256": "2a1132bcc31a6fc7bbb9b02645447de677c480f654f18795a9e49af38bacec4a"
+      },
+      {
+        "path": "registry-final/RESULT.json",
+        "bytes": 43614,
+        "sha256": "18919f1e2fd696ec409a93a565834a89c58692b32d1fab1461b810c5db298fb3"
+      },
+      {
+        "path": "registry-final/START.json",
+        "bytes": 43534,
+        "sha256": "a2f4b873f2cf6c9434257f66b90ceb4691d075ef1efe3f30c77656ec4cb5c36a"
+      },
+      {
+        "path": "registry-final/stderr",
+        "bytes": 230,
+        "sha256": "a4dd6c433815e7bccc5945c344742e991328fed38bd6ce05a5845336b4795e7b"
+      },
+      {
+        "path": "registry-final/stdout",
+        "bytes": 209,
+        "sha256": "6e17b0bbdbb6bca373ba6a3a6f38f753b1667a22449e4fb6e4ceb10731b3acf8"
+      },
+      {
+        "path": "release-final/RESULT.json",
+        "bytes": 43619,
+        "sha256": "0750811fa9881d71048aa6f548335e2757abafde31d4cd2c6c0b3351374e2908"
+      },
+      {
+        "path": "release-final/START.json",
+        "bytes": 43540,
+        "sha256": "5b48f1d804fc40d7b510eb77e6486998c94f7c976e3c9a977840490b871585c8"
+      },
+      {
+        "path": "release-final/stderr",
+        "bytes": 6793,
+        "sha256": "7b08fe8ec7437597e649e25f5b2b753b82ee7943552b6932a7c7b8a428f15dd7"
+      },
+      {
+        "path": "release-final/stdout",
+        "bytes": 2998,
+        "sha256": "39d25f3e43f52866d012bbd9c7935638b31d9a07d0f86705082efad767b967c0"
+      },
+      {
+        "path": "root-final/RESULT.json",
+        "bytes": 43616,
+        "sha256": "7026c028dbd9eab6e6fe8ba28fb2fb9d326a4b73becfa03b82718c2f6ac1fe10"
+      },
+      {
+        "path": "root-final/START.json",
+        "bytes": 43538,
+        "sha256": "fae9e79d96da6fffb99441aa058cd6d110482053b66d04e1e41659088000040f"
+      },
+      {
+        "path": "root-final/stderr",
+        "bytes": 7267,
+        "sha256": "bfc6c6856972572150ff18a2b07b54c57bd6dacabeee59ce6d6d8460ee0dd773"
+      },
+      {
+        "path": "root-final/stdout",
+        "bytes": 5958,
+        "sha256": "fc4ba08fb4e539209cef444ea9f7b893e40f1274fee72d20d3e07ea4cb988022"
+      },
+      {
+        "path": "run.py",
+        "bytes": 2697,
+        "sha256": "e7b4d6ee68f5b8cbf3fa6ac00bf35dd8e790d02892fe4936f70e8a055020387e"
+      },
+      {
+        "path": "source-gate.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "source-gate.stdout",
+        "bytes": 252,
+        "sha256": "4e95af6bde99a943727180c9948ff6013879ddd2dd102de6bc1e2bd8fe43d998"
+      },
+      {
+        "path": "workspace-fmt.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "workspace-fmt.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  }
+}

@@ -1,0 +1,159 @@
+{
+  "schema": "q-periapt.codeql-critical-delta-review.v1",
+  "repository": "billlza/q-periapt",
+  "comparison": {
+    "old_python_critical_count": 52,
+    "new_python_critical_count": 53,
+    "old_rule_counts": {
+      "py/code-injection": 1,
+      "py/command-line-injection": 51
+    },
+    "new_rule_counts": {
+      "py/code-injection": 1,
+      "py/command-line-injection": 52
+    },
+    "comparison_counts": {
+      "unchanged_exact_rule_sink_and_full_chains": 52,
+      "new_sink": 1
+    },
+    "removed_results": []
+  },
+  "matching_method": "Exact rule ID, sink path and full region; SHA256 of canonical JSON {rule,sink,chain}, preserving every ordered path/region point and column. Existing chain hashes were independently recomputed, and complete per-result chain sets compared.",
+  "prior_review": {
+    "run_id": 42507570881,
+    "head_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+    "checkout_commit": "f99a1100a74a10cb649a6f2a5fc61430f1174436",
+    "reviewed_results": {
+      "path": "/workspace/scratch/f8dd1e669a70/security-review/submit/reviewed-results.jsonl",
+      "sha256": "60843ae9364832c4644e8c52731eed934bd69a76af0b7eecaf6401e3a5529123",
+      "bytes": 60446
+    },
+    "full_review_index": {
+      "path": "/workspace/scratch/f8dd1e669a70/security-review/reviewed-results.json",
+      "sha256": "fa1b117556bdddb87f4730a2d6b803dca458a72e0a695980ea6db3eb5670da05",
+      "bytes": 599446
+    },
+    "sarif_sha256": "a6905b88136c1368a3a8e1a97d0a1669a555a369b367640d74b87ee8fb86596a"
+  },
+  "new_scan": {
+    "run_id": 42554273879,
+    "job_id": 128956398108,
+    "head_commit": "3254c81066af26cd23a2881198010fb616ce6b7a",
+    "checkout_commit": "56f191f04a57806869b8a03078ee4d27ffe900ab",
+    "checkout_tree": "2acf7f26bfb2e332361f618cc019ed33b6cb2cfe",
+    "artifact_id": 13654276807,
+    "artifact_sha256": "826c53352c27bcc877b45a93c4b1561acf427c78a3ea5512e6827435da3d48b1",
+    "sarif_sha256": "cd5d6bf8a4f0b5a75e85b6ce99355c71117cd6f188d8a2e36d35dac39aae6abb",
+    "codeql_version": "2.27.1",
+    "suite": "security-extended",
+    "default_queries_disabled": false,
+    "local_sarif_matches_zip_member": true
+  },
+  "current_source": {
+    "reviewed_at_commit": "db2ff7918e74d336e6c9fd12639eab70065158b6",
+    "run_source_matches_scanned_commit": true,
+    "run_git_blob": "62fb9a6735cb045ded966ca36b6579db3eb5fc7b",
+    "run_sha256": "0af65ca924d53514fd30a979e406adb1a8930c33aad87fa4e239f787a9eb4baf",
+    "original_reviewed_python_sources": 70,
+    "identical_original_python_git_blobs": 70,
+    "source_comparison": {
+      "path": "/workspace/scratch/f8dd1e669a70/security-review/critical-delta-20261109/existing-python-source-comparison.json",
+      "sha256": "36550a3ef51650a9c74209842c000e8f2ec1c68e219097cdfe57aabb69120b47",
+      "bytes": 15682
+    }
+  },
+  "new_result": {
+    "index": 1253,
+    "rule": "py/command-line-injection",
+    "security_score": 9.8,
+    "sink": {
+      "path": "research/continuity-matched-comparison/run.py",
+      "region": {
+        "startLine": 48,
+        "startColumn": 33,
+        "endColumn": 37
+      }
+    },
+    "raw_thread_flows": 4,
+    "unique_full_source_flows": 4,
+    "classification": "reviewed_derived_execution_target_with_environment_key_overwritten",
+    "assessment": "The executed reference path is derived from the invocation's newly created output directory and fixed binary names. The inherited CARGO_TARGET_DIR value is overwritten on every variant path; this reported flow therefore does not cross an unintended command-execution boundary.",
+    "source": "os.environ copied at line195; not argparse.parse_args",
+    "execution_boundary": [
+      "run is invoked by the research operator or the dedicated workflow, with repository/output CLI paths",
+      "successful prepare creates a new output directory and exports the explicitly pinned source baseline",
+      "env[CARGO_TARGET_DIR] is overwritten with output/build before the variants list",
+      "the chunk64 variant separately overwrites CARGO_TARGET_DIR with output/build-chunk64",
+      "the executable filename is chosen from two fixed literals, and the corresponding cargo build must succeed first",
+      "command receives a list, executes subprocess.run without shell=True, checks success, and logs the result",
+      "the invoker retains ordinary authority over PATH/toolchains and output location; this source does not expose a remote request-to-command service"
+    ],
+    "validation": {
+      "source_sha256": "0af65ca924d53514fd30a979e406adb1a8930c33aad87fa4e239f787a9eb4baf",
+      "environment_target_selection": {
+        "passed": true,
+        "actual_run_function_executed": true,
+        "builds_and_source_preparation_stubbed": true,
+        "operator_output_included_spaces_and_shell_metacharacters": true,
+        "inherited_cargo_target_dir_selected": false,
+        "reference_invocations": [
+          {
+            "executable": "build/release/q-periapt-spqr-reference",
+            "argument_count": 2,
+            "build_target": "build"
+          },
+          {
+            "executable": "build-chunk64/release/q-periapt-spqr-reference",
+            "argument_count": 2,
+            "build_target": "build-chunk64"
+          },
+          {
+            "executable": "build/release/q-periapt-whole-kem-reference",
+            "argument_count": 2,
+            "build_target": "build"
+          }
+        ]
+      },
+      "subprocess_dispatch": {
+        "passed": true,
+        "actual_command_function_executed": true,
+        "subprocess_mocked": true,
+        "argument_vector_preserved": true,
+        "shell_enabled": false
+      },
+      "cleanup_ownership_counterexample": {
+        "confirmed": true,
+        "actual_main_and_finally_executed": true,
+        "source_git_check_stubbed_to_fail_before_output_creation": true,
+        "preexisting_private_pattern_file_deleted": true,
+        "ordinary_file_preserved": true,
+        "classification": "cleanup ownership defect, separate from the reported command-line-injection flow"
+      }
+    },
+    "full_flow_receipt": {
+      "path": "/workspace/scratch/f8dd1e669a70/security-review/critical-delta-20261109/new-flow.json",
+      "sha256": "c90754c57b4f4b6cf23de0b8238443c9884272091abfb0df2f0829e2a76f51b6",
+      "bytes": 9450
+    }
+  },
+  "separate_confirmed_defect": {
+    "kind": "cleanup ownership/data loss",
+    "scope": "matched main finally, not the reported command-line-injection sink",
+    "counterexample": "A preexisting output directory loses .private-unrelated.keys when the earliest source git validation fails, before this invocation creates an output/source directory.",
+    "candidate_fix": "cleanup-ownership-fix: move private-feed cleanup into matched.run after successful prepare, covering both execution success and failure; retry main has no analogous cleanup path and only needs its exact matched-run pin updated.",
+    "candidate_matched_sha256": "0d089a5913adfa47e14a2ac85eb74771e505cde67ff18385a163bc533624547e",
+    "validation": "44 targeted tests passed and an independent review accepted the same frozen four-file candidate, including another 44 tests and real-git before/after controls for both CLI modes.",
+    "independent_review": {
+      "path": "/workspace/scratch/f8dd1e669a70/research-review/cleanup-ownership-independent-review.json",
+      "sha256": "a2da5d1f99e4bef318fc7489b11457b12b0b3518739b64b88fb7c8d001aa4f5e"
+    }
+  },
+  "scope": "One additional raw critical SARIF result is reviewed. The original 52 are matched exactly and source identities verified. Other high results receive no new blanket classification from this review.",
+  "actions": {
+    "alerts_dismissed": false,
+    "alert_dismissal_attempted": false,
+    "queries_changed": false,
+    "thresholds_changed": false,
+    "remote_mutations": false
+  }
+}

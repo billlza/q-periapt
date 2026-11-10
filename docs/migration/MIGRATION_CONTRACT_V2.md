@@ -346,7 +346,27 @@ key-use operation first renews the lease against the authority's trusted
 clock, so a fenced, expired, or superseded instance is rejected before it can
 touch a pending or accepted secret; the fenced instance erases every
 in-process pending and accepted secret first and permanently refuses
-lease-guarded operations. The client's fence view is deliberately RAM-only —
+lease-guarded operations. The renew authorizes the start of the
+operation; because its receipt carries no expiry, a successful renew is
+followed by one snapshot that establishes how long the lease is provably still
+held, anchored to an instant taken before that request is sent so it can only
+understate. The operation re-checks that coverage immediately before it
+reserves a pending session or retains an accepted key, and refuses both if it
+has elapsed, releasing any durable reservation it already holds. The guarantee
+is therefore that no session secret is retained or returned outside the window
+this instance could prove it held the lease.
+
+A renew rejected as expired is not by itself evidence that another instance
+took the lease, and the two are not conflated: the agent re-acquires at its own
+lease generation, which the authority admits only while that counter is
+unchanged, and the counter advances on acquire alone. Success is therefore a
+proof that no other instance ever held key-use authority in between, and the
+agent recovers with every secret erased rather than retiring permanently. Any
+successor — including one that has already released — moves the counter, fails
+that re-acquire, and fences the instance exactly as before. It is not that key use has
+stopped: the KEM runs before the check, a successor's acquire is gated on
+wall-clock expiry alone with no interaction with the incumbent, and the
+long-term executor keys are outside this mechanism. The client's fence view is deliberately RAM-only —
 a restored clone of this host cannot replay the live fence, and a process
 restart always starts a new acquire cycle. Graceful shutdown releases the
 lease idempotently so a successor can acquire without waiting out the

@@ -2,6 +2,7 @@
 
 use core::fmt;
 use std::path::Path;
+use std::time::Duration;
 
 use q_periapt_backends::{MlDsa65, ML_DSA_65_VK_LEN};
 use q_periapt_migration::{
@@ -9,10 +10,13 @@ use q_periapt_migration::{
     PendingMigrationCommitKind, PendingMigrationCommitV1, SignedMigrationResetV1,
     SignedMigrationStateV1, StateRevisionV1, UninitializedMigrationStateV1,
 };
+use redb::ReadableDatabase;
 use redb::{Database, Durability, ReadableTable, ReadableTableMetadata, TableDefinition};
 
+use crate::authority::OperationIdV2;
+use crate::authority_codec::{decode_operation_id, encode_operation_id};
 use crate::codec::{encode_domain, require_domain, CodecError, Decoder, Encoder, MAX_FRAME_BYTES};
-use crate::filesystem::open_private_file;
+use crate::filesystem::{open_private_file, provision_private_file, refuse_unclean_foreign_redb};
 use crate::types::{
     FenceToken, OperationId, SessionId, StateAdvance, StateHead, StateRevision, TransitionKind,
 };
@@ -24,6 +28,43 @@ const REPOSITORY_SCHEMA: [u8; 2] = REPOSITORY_SCHEMA_VERSION.to_be_bytes();
 const MAX_HISTORY_ENTRIES: u64 = 4096;
 const MAX_DURABLE_SESSIONS: u64 = 1024;
 const MAX_USED_CAPABILITIES: u64 = 4096;
+/// Bound on the lease-intent journal: one row per lease operation this
+/// instance has journaled and not yet settled with the authority.
+///
+/// The service's in-memory acknowledgement queue has the same bound, and the
+/// journal is what makes that queue safe to lose: every queued receipt has a
+/// row here, so the journal always fills first and refuses before the queue
+/// could overflow.
+pub(crate) const MAX_JOURNALED_LEASE_INTENTS: u64 = 64;
+/// Wall time a deadline reserves for one `durable_write` commit --
+/// `Durability::Immediate` plus two-phase commit, two fsyncs -- where that
+/// commit stands between an admission and the port call it authorizes.
+///
+/// There are exactly two such places, and both write an intent that the call
+/// after them is the whole point of: the lease-intent journal before every
+/// lease mutation (`service::lease::lease_exchange`), and the prepared
+/// transition before a witness compare-and-swap
+/// (`PolicyAgent::apply_advance_until`). A port bound counted from the
+/// dispatch alone does not cover them: the commit runs first, so the call it
+/// precedes can end after the caller's deadline. Admitting the reserve
+/// together with the bound is what closes that.
+///
+/// One second. A durable session cancellation -- the same shape, a handful of
+/// small keys in one transaction -- measured about 9 ms on APFS/SSD with the
+/// pinned redb, so this is roughly a hundred times the measured cost: the
+/// headroom a contended store's fsync tail needs, while staying well inside
+/// the five-second port bounds every reserve is built from.
+///
+/// It is a modelled bound and not an enforced one. Nothing here can bound an
+/// fsync, redb exposes no write timeout, and a commit cannot be cancelled, so
+/// a store slower than this dispatches anyway and the operation ends late --
+/// exactly as an authority clock that gains more than
+/// `LEASE_CLOCK_DIVERGENCE_BUDGET_MILLIS` within one round trip is out of
+/// model. Durable work with no port call behind it is charged to no deadline
+/// at all rather than to this: the stop's erase is up to 1024 such commits,
+/// none of them skippable, and the service manager's stop timeout is what
+/// carries it.
+pub(crate) const DURABLE_COMMIT_RESERVE: Duration = Duration::from_secs(1);
 
 const META_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("agent_meta_v1");
 const HISTORY_TABLE: TableDefinition<u64, &[u8]> = TableDefinition::new("agent_state_history_v1");
@@ -31,6 +72,15 @@ const SESSION_TABLE: TableDefinition<&[u8], &[u8]> =
     TableDefinition::new("agent_session_reservations_v1");
 const CAPABILITY_TABLE: TableDefinition<&[u8], &[u8]> =
     TableDefinition::new("agent_used_capabilities_v1");
+/// Lease intents journaled before dispatch, so that the acknowledgement each
+/// receipt is owed survives a crash. Key: the canonical operation id bytes;
+/// value: the one-byte `Prepared` tag.
+///
+/// Additive: a store provisioned before this table existed opens without it,
+/// and the first journal write creates it.
+const ACK_JOURNAL_TABLE: TableDefinition<&[u8], &[u8]> =
+    TableDefinition::new("agent_authority_ack_journal_v1");
+const ACK_JOURNAL_PREPARED: [u8; 1] = [1];
 const META_SCHEMA: &str = "schema";
 const META_HEAD: &str = "head";
 const META_PENDING: &str = "pending_transition";
@@ -82,7 +132,9 @@ impl MigrationTrustRoots {
 pub enum RepositoryError {
     /// The database path was missing, a symlink, or outside an owner-only directory.
     InsecureOrMissingStore,
-    /// The database was corrupt, repaired, incomplete, or had an unknown schema.
+    /// The database was corrupt (a corrupted two-phase primary included), left
+    /// unclean by a writer that did not commit two-phase, incomplete, or had an
+    /// unknown schema.
     CorruptStore,
     /// A signed state/reset envelope was malformed, non-canonical, or unauthenticated.
     InvalidCertificate,
@@ -156,6 +208,39 @@ struct PreparedTransition {
     envelope: Vec<u8>,
 }
 
+/// One certificate this repository has authenticated and reserved nothing
+/// for.
+///
+/// Holding one costs nothing and commits to nothing: the state machine
+/// absorbs its token only at `commit`, so dropping this leaves the repository
+/// exactly as it was. `StateRepository::persist_transition` is what turns it
+/// into the durable intent a witness CAS may then be dispatched for.
+pub struct AuthenticatedTransition {
+    kind: JournalKind,
+    envelope: Vec<u8>,
+    token: PendingMigrationCommitV1,
+    /// The trust roots this transition was authenticated under.
+    /// `persist_transition` refuses any transition prepared under a different
+    /// repository's roots, so a token authenticated against one repository can
+    /// never be reserved into another that shares a genesis but pins different
+    /// roots -- which would journal an envelope that repository's own replay
+    /// then rejects, bricking it on the next open.
+    roots: MigrationTrustRoots,
+}
+
+impl fmt::Debug for AuthenticatedTransition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("AuthenticatedTransition([redacted])")
+    }
+}
+
+impl AuthenticatedTransition {
+    /// The state a witness CAS for this transition would move the lineage to.
+    pub(crate) fn next_state(&self) -> q_periapt_migration::MigrationStateV1 {
+        self.token.next_state()
+    }
+}
+
 /// Transactional local state. All methods require exclusive access from the service linearizer.
 pub struct StateRepository {
     database: Database,
@@ -163,6 +248,24 @@ pub struct StateRepository {
     roots: MigrationTrustRoots,
     pending: Option<PreparedTransition>,
     restart_rejections: u64,
+    /// Test-only: sleep this long after the next durable session reserve or
+    /// release commits, standing in for a slow fsync. The lease-coverage check
+    /// that runs after those writes is only meaningful if the write can
+    /// outlive the coverage, and nothing in a test can make a real fsync do
+    /// that on demand.
+    #[cfg(all(test, unix))]
+    delay_after_next_durable_write: std::sync::Mutex<Option<std::time::Duration>>,
+    /// Test-only: sleep this long after every session cancellation commits,
+    /// standing in for a store whose fsyncs are slow. The stop erases one
+    /// session per durable commit and no deadline bounds that, which a test
+    /// can only exercise if the erase can be made to outlast a budget.
+    #[cfg(all(test, unix))]
+    delay_after_each_session_cancel: std::sync::Mutex<Option<std::time::Duration>>,
+    /// Test-only: fail the next lease-journal write the way a corrupt store
+    /// would, before anything is committed, so a test can see what a lease
+    /// operation does when its intent cannot be journaled for storage reasons.
+    #[cfg(all(test, unix))]
+    fail_next_lease_journal_write: std::sync::Mutex<bool>,
 }
 
 impl fmt::Debug for StateRepository {
@@ -200,55 +303,79 @@ impl StateRepository {
             project_revision(machine.current_revision())?,
             FenceToken::generate().map_err(|_| RepositoryError::EntropyUnavailable)?,
         );
-        let file =
-            open_private_file(path, true).map_err(|_| RepositoryError::InsecureOrMissingStore)?;
-        let database = Database::builder()
-            .create_file(file)
-            .map_err(|_| RepositoryError::CorruptStore)?;
-        let transaction = durable_write(&database)?;
-        {
-            let mut meta = transaction
-                .open_table(META_TABLE)
-                .map_err(|_| RepositoryError::CorruptStore)?;
-            let mut history = transaction
-                .open_table(HISTORY_TABLE)
-                .map_err(|_| RepositoryError::CorruptStore)?;
-            transaction
-                .open_table(SESSION_TABLE)
-                .map_err(|_| RepositoryError::CorruptStore)?;
-            transaction
-                .open_table(CAPABILITY_TABLE)
-                .map_err(|_| RepositoryError::CorruptStore)?;
-            meta.insert(META_SCHEMA, REPOSITORY_SCHEMA.as_slice())
-                .map_err(|_| RepositoryError::CorruptStore)?;
-            meta.insert(META_HEAD, head.to_bytes().as_slice())
-                .map_err(|_| RepositoryError::CorruptStore)?;
-            let entry = encode_journal_entry(JournalKind::Genesis, canonical_genesis)?;
-            history
-                .insert(&1, entry.as_slice())
-                .map_err(|_| RepositoryError::CorruptStore)?;
-        }
-        transaction
-            .commit()
-            .map_err(|_| RepositoryError::CorruptStore)?;
-        Ok((
-            Self {
-                database,
-                machine,
-                roots,
-                pending: None,
-                restart_rejections: 0,
+        provision_private_file(
+            path,
+            |_| RepositoryError::InsecureOrMissingStore,
+            |file| {
+                let database = Database::builder()
+                    .create_file(file)
+                    .map_err(|_| RepositoryError::CorruptStore)?;
+                let transaction = durable_write(&database)?;
+                {
+                    let mut meta = transaction
+                        .open_table(META_TABLE)
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    let mut history = transaction
+                        .open_table(HISTORY_TABLE)
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    transaction
+                        .open_table(SESSION_TABLE)
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    transaction
+                        .open_table(CAPABILITY_TABLE)
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    transaction
+                        .open_table(ACK_JOURNAL_TABLE)
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    meta.insert(META_SCHEMA, REPOSITORY_SCHEMA.as_slice())
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    meta.insert(META_HEAD, head.to_bytes().as_slice())
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                    let entry = encode_journal_entry(JournalKind::Genesis, canonical_genesis)?;
+                    history
+                        .insert(&1, entry.as_slice())
+                        .map_err(|_| RepositoryError::CorruptStore)?;
+                }
+                transaction
+                    .commit()
+                    .map_err(|_| RepositoryError::CorruptStore)?;
+                Ok((
+                    Self {
+                        database,
+                        machine,
+                        roots,
+                        pending: None,
+                        restart_rejections: 0,
+                        #[cfg(all(test, unix))]
+                        delay_after_next_durable_write: std::sync::Mutex::new(None),
+                        #[cfg(all(test, unix))]
+                        delay_after_each_session_cancel: std::sync::Mutex::new(None),
+                        #[cfg(all(test, unix))]
+                        fail_next_lease_journal_write: std::sync::Mutex::new(false),
+                    },
+                    head,
+                ))
             },
-            head,
-        ))
+        )
     }
 
     /// Open and fully replay an existing store. Missing/corrupt state never becomes genesis.
+    ///
+    /// redb is allowed to finish crash recovery first. Every commit here is
+    /// two-phase, so after an unclean shutdown that recovery only reconstructs
+    /// the free-page allocator from the committed tree; a corrupted two-phase
+    /// primary is refused outright rather than rolled back, and committed data
+    /// is never altered. The canonical history is then decoded and reverified
+    /// in full below, and the head is compared against the witness on every
+    /// agent start, so what this store replays is what was committed.
     pub fn open_existing(path: &Path, roots: MigrationTrustRoots) -> Result<Self, RepositoryError> {
         let file =
             open_private_file(path, false).map_err(|_| RepositoryError::InsecureOrMissingStore)?;
+        let backend = q_periapt_host_store::filesystem::LockedFileBackend::new(file)
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        refuse_unclean_foreign_redb(&backend).map_err(|_| RepositoryError::CorruptStore)?;
         let mut database = Database::builder()
-            .create_file(file)
+            .create_with_backend(backend)
             .map_err(|_| RepositoryError::CorruptStore)?;
         if !database
             .check_integrity()
@@ -269,6 +396,7 @@ impl StateRepository {
             return Err(RepositoryError::InvalidHistory);
         }
         validate_used_capabilities(&database, durable_head)?;
+        validate_ack_journal(&database)?;
         let restart_rejections = reject_restart_sessions(&database)?;
         Ok(Self {
             database,
@@ -276,7 +404,103 @@ impl StateRepository {
             roots,
             pending,
             restart_rejections,
+            #[cfg(all(test, unix))]
+            delay_after_next_durable_write: std::sync::Mutex::new(None),
+            #[cfg(all(test, unix))]
+            delay_after_each_session_cancel: std::sync::Mutex::new(None),
+            #[cfg(all(test, unix))]
+            fail_next_lease_journal_write: std::sync::Mutex::new(false),
         })
+    }
+
+    /// Test-only: make the next durable session reserve or release take this
+    /// long after it commits, the way a slow fsync would.
+    #[cfg(all(test, unix))]
+    pub(crate) fn delay_after_next_durable_write_for_test(&self, delay: std::time::Duration) {
+        *self
+            .delay_after_next_durable_write
+            .lock()
+            .expect("repository test hook poisoned") = Some(delay);
+    }
+
+    /// Test-only: whether the delay above is still armed. It is taken only by
+    /// a durable session write that actually committed, so this doubles as
+    /// "no durable session reserve or release has run since it was armed".
+    #[cfg(all(test, unix))]
+    pub(crate) fn durable_write_delay_armed_for_test(&self) -> bool {
+        self.delay_after_next_durable_write
+            .lock()
+            .expect("repository test hook poisoned")
+            .is_some()
+    }
+
+    /// Test-only: make every session cancellation take this long after it
+    /// commits, the way a store with slow fsyncs would.
+    #[cfg(all(test, unix))]
+    pub(crate) fn delay_after_each_session_cancel_for_test(&self, delay: std::time::Duration) {
+        *self
+            .delay_after_each_session_cancel
+            .lock()
+            .expect("repository test hook poisoned") = Some(delay);
+    }
+
+    /// Test-only: fail the next lease-journal write as a corrupt store would.
+    #[cfg(all(test, unix))]
+    pub(crate) fn fail_next_lease_journal_write_for_test(&self) {
+        *self
+            .fail_next_lease_journal_write
+            .lock()
+            .expect("repository test hook poisoned") = true;
+    }
+
+    #[cfg(all(test, unix))]
+    fn refuse_lease_journal_write_if_armed_for_test(&self) -> Result<(), RepositoryError> {
+        let armed = std::mem::take(
+            &mut *self
+                .fail_next_lease_journal_write
+                .lock()
+                .expect("repository test hook poisoned"),
+        );
+        if armed {
+            return Err(RepositoryError::CorruptStore);
+        }
+        Ok(())
+    }
+
+    #[cfg(all(test, unix))]
+    fn sleep_after_durable_write_for_test(&self) {
+        let pending = self
+            .delay_after_next_durable_write
+            .lock()
+            .expect("repository test hook poisoned")
+            .take();
+        if let Some(delay) = pending {
+            std::thread::sleep(delay);
+        }
+    }
+
+    #[cfg(all(test, unix))]
+    fn sleep_after_session_cancel_for_test(&self) {
+        let pending = *self
+            .delay_after_each_session_cancel
+            .lock()
+            .expect("repository test hook poisoned");
+        if let Some(delay) = pending {
+            std::thread::sleep(delay);
+        }
+    }
+
+    /// Test-only: number of durable session reservations currently held.
+    #[cfg(all(test, unix))]
+    pub(crate) fn durable_session_count_for_test(&self) -> Result<u64, RepositoryError> {
+        let transaction = self
+            .database
+            .begin_read()
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        let sessions = transaction
+            .open_table(SESSION_TABLE)
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        sessions.len().map_err(|_| RepositoryError::CorruptStore)
     }
 
     /// Return the exact durable head.
@@ -313,10 +537,30 @@ impl StateRepository {
     }
 
     /// Authenticate and durably reserve one normal state certificate before witness CAS.
+    ///
+    /// The two halves are also available separately, and the service uses
+    /// them that way on purpose: authentication has no durable and no
+    /// external effect, so paying for it before the admission that guards the
+    /// commit keeps the un-admitted stretch to the commit alone, and keeps an
+    /// executor that cannot be built from stranding an intent already on
+    /// disk. A caller with no deadline to honour can use this pair.
     pub fn prepare_advance(
         &mut self,
         canonical_certificate: &[u8],
     ) -> Result<WitnessIntent, RepositoryError> {
+        let prepared = self.authenticate_advance(canonical_certificate)?;
+        self.persist_transition(prepared)
+    }
+
+    /// Authenticate one normal state certificate, durably reserving nothing.
+    ///
+    /// Takes `&self`: the state machine absorbs the token only at `commit`,
+    /// so the result can be held across the `&mut` borrow `persist_transition`
+    /// needs.
+    pub fn authenticate_advance(
+        &self,
+        canonical_certificate: &[u8],
+    ) -> Result<AuthenticatedTransition, RepositoryError> {
         if self.pending.is_some() {
             return Err(RepositoryError::TransitionPending);
         }
@@ -332,14 +576,31 @@ impl StateRepository {
                 &self.roots.authority_verification_key,
             )
             .map_err(|_| RepositoryError::InvalidCertificate)?;
-        self.persist_prepared(JournalKind::Advance, canonical_certificate, token)
+        Ok(AuthenticatedTransition {
+            kind: JournalKind::Advance,
+            envelope: canonical_certificate.to_vec(),
+            token,
+            roots: self.roots.clone(),
+        })
     }
 
-    /// Authenticate and durably reserve one separately authorized reset before witness CAS.
+    /// Authenticate and durably reserve one separately authorized reset before
+    /// witness CAS. See [`Self::prepare_advance`] for why the service uses the
+    /// two halves separately.
     pub fn prepare_reset(
         &mut self,
         canonical_certificate: &[u8],
     ) -> Result<WitnessIntent, RepositoryError> {
+        let prepared = self.authenticate_reset(canonical_certificate)?;
+        self.persist_transition(prepared)
+    }
+
+    /// Authenticate one separately authorized reset, durably reserving
+    /// nothing; see [`Self::authenticate_advance`].
+    pub fn authenticate_reset(
+        &self,
+        canonical_certificate: &[u8],
+    ) -> Result<AuthenticatedTransition, RepositoryError> {
         if self.pending.is_some() {
             return Err(RepositoryError::TransitionPending);
         }
@@ -356,7 +617,40 @@ impl StateRepository {
         if token.next_state().authority_key_id() != self.roots.authority_key_id {
             return Err(RepositoryError::UnprovisionedAuthority);
         }
-        self.persist_prepared(JournalKind::Reset, canonical_certificate, token)
+        Ok(AuthenticatedTransition {
+            kind: JournalKind::Reset,
+            envelope: canonical_certificate.to_vec(),
+            token,
+            roots: self.roots.clone(),
+        })
+    }
+
+    /// Durably reserve one already authenticated transition before witness
+    /// CAS.
+    ///
+    /// This is the one durable commit a transition cannot take back, so its
+    /// caller must have admitted the commit and the CAS that follows it
+    /// together: a refusal after this point would strand a pending transition
+    /// that only Reconcile clears.
+    pub fn persist_transition(
+        &mut self,
+        prepared: AuthenticatedTransition,
+    ) -> Result<WitnessIntent, RepositoryError> {
+        // Only a transition authenticated under this repository's own roots may
+        // be reserved here. Authentication and reservation are exposed as two
+        // halves, so without this a transition authenticated against another
+        // repository -- one sharing this genesis but pinning a different
+        // recovery or authority root -- could be reserved and committed here;
+        // its envelope would then fail this repository's own replay on the next
+        // open (`replay_history`, `reconstruct_pending`) and brick it. The
+        // binding is checked rather than re-authenticated because the roots
+        // differ precisely when re-authenticating the envelope here would have
+        // rejected it, and re-authenticating would repeat the ML-DSA work the
+        // split exists to hoist ahead of the CAS admission.
+        if prepared.roots != self.roots {
+            return Err(RepositoryError::InvalidCertificate);
+        }
+        self.persist_prepared(prepared.kind, &prepared.envelope, prepared.token)
     }
 
     /// Finish the local transaction only for the exact authenticated applied receipt.
@@ -512,7 +806,10 @@ impl StateRepository {
         }
         transaction
             .commit()
-            .map_err(|_| RepositoryError::CorruptStore)
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        #[cfg(all(test, unix))]
+        self.sleep_after_durable_write_for_test();
+        Ok(())
     }
 
     /// Release a session only if both its reservation and repository head remain exact.
@@ -555,7 +852,10 @@ impl StateRepository {
         }
         transaction
             .commit()
-            .map_err(|_| RepositoryError::CorruptStore)
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        #[cfg(all(test, unix))]
+        self.sleep_after_durable_write_for_test();
+        Ok(())
     }
 
     /// Cancel and erase a durable reservation, including one made stale by a transition.
@@ -571,6 +871,149 @@ impl StateRepository {
                 .is_none()
             {
                 return Err(RepositoryError::SessionNotFound);
+            }
+        }
+        transaction
+            .commit()
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        #[cfg(all(test, unix))]
+        self.sleep_after_session_cancel_for_test();
+        Ok(())
+    }
+
+    /// Durably journal one lease intent before it is dispatched, and in the
+    /// same transaction forget the journaled intents this process has since
+    /// settled with the authority.
+    ///
+    /// The row is what lets a successor process discharge the acknowledgement
+    /// this operation's receipt will be owed: after a crash it queries every
+    /// journaled id, acknowledges the receipt it finds, and forgets the row.
+    /// Folding the deletions into the same commit keeps the steady-state cost
+    /// at one durable transaction per lease operation.
+    ///
+    /// Refuses with [`RepositoryError::CapacityExceeded`] when the journal
+    /// would hold more than [`MAX_JOURNALED_LEASE_INTENTS`] rows after the
+    /// deletions. Nothing is committed on refusal, the deletions included, so
+    /// the caller's settled list stays accurate.
+    pub(crate) fn journal_lease_intent(
+        &self,
+        intent: OperationIdV2,
+        forget: &[OperationIdV2],
+    ) -> Result<(), RepositoryError> {
+        #[cfg(all(test, unix))]
+        self.refuse_lease_journal_write_if_armed_for_test()?;
+        let transaction = durable_write(&self.database)?;
+        {
+            let mut journal = transaction
+                .open_table(ACK_JOURNAL_TABLE)
+                .map_err(|_| RepositoryError::CorruptStore)?;
+            for id in forget {
+                journal
+                    .remove(encode_operation_id(*id).as_slice())
+                    .map_err(|_| RepositoryError::CorruptStore)?;
+            }
+            if journal.len().map_err(|_| RepositoryError::CorruptStore)?
+                >= MAX_JOURNALED_LEASE_INTENTS
+            {
+                return Err(RepositoryError::CapacityExceeded);
+            }
+            journal
+                .insert(
+                    encode_operation_id(intent).as_slice(),
+                    ACK_JOURNAL_PREPARED.as_slice(),
+                )
+                .map_err(|_| RepositoryError::CorruptStore)?;
+        }
+        transaction
+            .commit()
+            .map_err(|_| RepositoryError::CorruptStore)
+    }
+
+    /// Every journaled lease intent, in key order.
+    ///
+    /// Empty for a store provisioned before the journal existed: the table is
+    /// created by the first journal write, not at open.
+    pub(crate) fn journaled_lease_intents(&self) -> Result<Vec<OperationIdV2>, RepositoryError> {
+        let transaction = self
+            .database
+            .begin_read()
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        let journal = match transaction.open_table(ACK_JOURNAL_TABLE) {
+            Ok(journal) => journal,
+            Err(redb::TableError::TableDoesNotExist(_)) => return Ok(Vec::new()),
+            Err(_) => return Err(RepositoryError::CorruptStore),
+        };
+        decode_ack_journal(&journal)
+    }
+
+    /// Durably forget journaled lease intents whose outcome is settled: their
+    /// receipts are acknowledged, or the authority never saw them.
+    pub(crate) fn forget_lease_intents(
+        &self,
+        ids: &[OperationIdV2],
+    ) -> Result<(), RepositoryError> {
+        if ids.is_empty() {
+            return Ok(());
+        }
+        let transaction = durable_write(&self.database)?;
+        {
+            let mut journal = transaction
+                .open_table(ACK_JOURNAL_TABLE)
+                .map_err(|_| RepositoryError::CorruptStore)?;
+            for id in ids {
+                journal
+                    .remove(encode_operation_id(*id).as_slice())
+                    .map_err(|_| RepositoryError::CorruptStore)?;
+            }
+        }
+        transaction
+            .commit()
+            .map_err(|_| RepositoryError::CorruptStore)
+    }
+
+    /// Test-only: remove the lease-intent journal table, leaving the store as
+    /// one provisioned before the journal existed.
+    #[cfg(all(test, unix))]
+    pub(crate) fn drop_lease_journal_table_for_test(&self) -> Result<(), RepositoryError> {
+        let transaction = durable_write(&self.database)?;
+        transaction
+            .delete_table(ACK_JOURNAL_TABLE)
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        transaction
+            .commit()
+            .map_err(|_| RepositoryError::CorruptStore)
+    }
+
+    /// Test-only: whether the lease-intent journal table exists.
+    #[cfg(all(test, unix))]
+    pub(crate) fn lease_journal_table_exists_for_test(&self) -> Result<bool, RepositoryError> {
+        let transaction = self
+            .database
+            .begin_read()
+            .map_err(|_| RepositoryError::CorruptStore)?;
+        match transaction.open_table(ACK_JOURNAL_TABLE) {
+            Ok(_) => Ok(true),
+            Err(redb::TableError::TableDoesNotExist(_)) => Ok(false),
+            Err(_) => Err(RepositoryError::CorruptStore),
+        }
+    }
+
+    /// Test-only: write raw rows into the lease-intent journal, bypassing
+    /// every check the production writer makes.
+    #[cfg(all(test, unix))]
+    pub(crate) fn write_raw_lease_journal_rows_for_test(
+        &self,
+        rows: &[(&[u8], &[u8])],
+    ) -> Result<(), RepositoryError> {
+        let transaction = durable_write(&self.database)?;
+        {
+            let mut journal = transaction
+                .open_table(ACK_JOURNAL_TABLE)
+                .map_err(|_| RepositoryError::CorruptStore)?;
+            for (key, value) in rows {
+                journal
+                    .insert(*key, *value)
+                    .map_err(|_| RepositoryError::CorruptStore)?;
             }
         }
         transaction
@@ -649,7 +1092,9 @@ fn durable_write(database: &Database) -> Result<redb::WriteTransaction, Reposito
     let mut transaction = database
         .begin_write()
         .map_err(|_| RepositoryError::CorruptStore)?;
-    transaction.set_durability(Durability::Immediate);
+    transaction
+        .set_durability(Durability::Immediate)
+        .map_err(|_| RepositoryError::CorruptStore)?;
     transaction.set_two_phase_commit(true);
     Ok(transaction)
 }
@@ -939,6 +1384,43 @@ fn validate_used_capabilities(
         }
     }
     Ok(())
+}
+
+/// Refuse a journal whose rows do not decode or that exceeds its bound. A
+/// store provisioned before the journal existed simply has no table yet.
+fn validate_ack_journal(database: &Database) -> Result<(), RepositoryError> {
+    let transaction = database
+        .begin_read()
+        .map_err(|_| RepositoryError::CorruptStore)?;
+    let journal = match transaction.open_table(ACK_JOURNAL_TABLE) {
+        Ok(journal) => journal,
+        Err(redb::TableError::TableDoesNotExist(_)) => return Ok(()),
+        Err(_) => return Err(RepositoryError::CorruptStore),
+    };
+    decode_ack_journal(&journal).map(drop)
+}
+
+fn decode_ack_journal(
+    journal: &impl ReadableTable<&'static [u8], &'static [u8]>,
+) -> Result<Vec<OperationIdV2>, RepositoryError> {
+    let count = journal.len().map_err(|_| RepositoryError::CorruptStore)?;
+    if count > MAX_JOURNALED_LEASE_INTENTS {
+        return Err(RepositoryError::CorruptStore);
+    }
+    let mut ids = Vec::new();
+    ids.try_reserve(usize::try_from(count).map_err(|_| RepositoryError::CorruptStore)?)
+        .map_err(|_| RepositoryError::CorruptStore)?;
+    for entry in journal
+        .range::<&[u8]>(..)
+        .map_err(|_| RepositoryError::CorruptStore)?
+    {
+        let (key, value) = entry.map_err(|_| RepositoryError::CorruptStore)?;
+        if value.value() != ACK_JOURNAL_PREPARED {
+            return Err(RepositoryError::CorruptStore);
+        }
+        ids.push(decode_operation_id(key.value()).map_err(|_| RepositoryError::CorruptStore)?);
+    }
+    Ok(ids)
 }
 
 fn encode_journal_entry(kind: JournalKind, envelope: &[u8]) -> Result<Vec<u8>, RepositoryError> {

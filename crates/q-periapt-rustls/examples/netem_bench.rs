@@ -84,7 +84,7 @@ fn self_signed() -> (CertificateDer<'static>, PrivateKeyDer<'static>) {
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".to_string()]).unwrap();
     (
         cert.cert.der().clone(),
-        PrivateKeyDer::Pkcs8(cert.key_pair.serialize_der().into()),
+        PrivateKeyDer::Pkcs8(cert.signing_key.serialize_der().into()),
     )
 }
 

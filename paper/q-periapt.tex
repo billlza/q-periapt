@@ -80,20 +80,25 @@ not proof-selected. Repository provenance ignores local Git excludes, rejects ig
 bytecode, and dispatches verifier source under isolated/no-site CPython with a fresh private cache
 prefix; this is canonical source-input consistency after fixed generated-prefix exclusions, not a
 hermetic build-input, interpreter, or host attestation. Specification-to-
-implementation refinement, a current clean two-device Apple matrix, and cross-device/end-to-end
-performance parity remain explicitly pending. The current research-alpha release graph uses
-target-selected \code{mlkem-native}~v1.2.0 through a dedicated Rust/C boundary,
-plus pinned \code{fips204}~0.4.6 and \code{sha3}~0.10.9. Exactly five
-little-endian AArch64 Apple/Linux/Android targets use upstream native arithmetic
-plus a fixed Armv8-A FIPS~202 assembly profile; every other target, including Wasm,
-remains portable C. There is no runtime dispatch or Armv8.4-A SHA3 path, and ABI~2,
-key, and wire contracts are unchanged. That migration changed the canonical source
+implementation refinement and cross-device/end-to-end performance parity remain
+explicitly pending; the historical device observations below retain their original scope. The current research-alpha release graph uses
+target-selected \code{mlkem-native}~v2.0.0 through a dedicated Rust/C boundary,
+plus pinned \code{fips204}~0.4.6, \code{sha3}~0.12.0 and \code{shake}~0.1.0. Exactly five
+little-endian AArch64 Apple/Linux/Android targets use upstream native arithmetic.
+The arm64 macOS and arm64 iOS-simulator slices select an Armv8.4-A SHA3 FIPS~202
+assembly profile; the iOS-device, Linux and Android slices retain Armv8-A scalar
+FIPS~202 assembly. Under the default feature set, every other target, including
+Wasm, uses portable C; this default mapping has no runtime CPU dispatch.
+A separately enabled GNU/Linux x86-64 native candidate dispatches after CPU/OS
+capability checks and has independent qualification records. ABI~2, key and wire
+contracts are unchanged. That migration changed the canonical source
 digest, so all portable-derived package, device, performance, and binary-CT results
 are historical evidence; no clean source-bound replacement timing, device, or
-binary-CT measurement is claimed here. The current-source local footprint capture reported below
-is a platform/toolchain-specific diagnostic, not release provenance.
-ABI~2 / \code{0.1.2} is the stable-version, pre-publication package-ready
-Rust-crate line. Its package contract
+binary-CT measurement is claimed here. The historical working-tree footprint capture reported below
+is a platform/toolchain-specific diagnostic for its recorded cohort, not current release provenance.
+The current Rust workspace declares \code{0.2.0}; Continuity remains an unpublished
+candidate. The historical \code{v0.1.5} Apple XCFramework GitHub release was published
+on 2026-09-05. A pre-publication package-ready contract
 alone does not prove crates.io upload-API acceptance,
 crate-name ownership, publishing credentials or authorization, server-side policy acceptance,
 or a registry receipt. Receipt-gated, attestation-bound stable GitHub targets cover
@@ -476,16 +481,20 @@ The combiner and its encoding live in a single dependency-free Rust \code{no\_st
 component primitives are \emph{injected} through narrow traits (a \code{Kem} trait for ML-KEM and
 X25519, an extendable-output \code{Xof} trait for the hash), so the implementation under
 conformance test---the encoding and combiner---is the same code regardless of which third-party
-backend (target-selected \code{mlkem-native}~v1.2.0 for ML-KEM, x25519-dalek, and \code{sha3}~0.10.9) is
+backend (target-selected \code{mlkem-native}~v2.0.0 for ML-KEM, x25519-dalek, and \code{sha3}~0.12.0) is
 plugged in; ML-DSA uses \code{fips204}~0.4.6. Backend correctness,
 audit, and constant-time posture remain per implementation and ISA. The ML-KEM source is
-commit- and archive-hash-pinned, but RustSec does not inspect vendored C and neither the
-provider nor this Rust/C integration has completed an independent audit. Exactly the
+commit- and archive-hash-pinned, but RustSec does not inspect vendored C. Exactly the
 little-endian targets \code{aarch64-apple-darwin}, \code{aarch64-apple-ios},
 \code{aarch64-apple-ios-sim}, \code{aarch64-unknown-linux-gnu}, and
-\code{aarch64-linux-android} use upstream native arithmetic and fixed Armv8-A scalar
-x1/scalar-Neon x4 FIPS~202 assembly, while all other targets use portable C. The
-selection is compile-time only, with no runtime dispatch or v8.4-A SHA3 path.
+\code{aarch64-linux-android} use upstream native arithmetic. The macOS and
+iOS-simulator targets select Armv8.4-A SHA3 FIPS~202 assembly; the iOS-device,
+Linux and Android targets retain Armv8-A scalar x1/scalar-Neon x4 FIPS~202 assembly.
+All other default targets use portable C; this default mapping has no runtime
+CPU dispatch. A separately enabled \code{linux-x86\_64-avx2} candidate is restricted
+to \code{x86\_64-unknown-linux-gnu}, checks CPU/OS capabilities at runtime, and
+retains a portable implementation of the same algorithm. Its source, execution,
+binary-CT and performance qualification are tracked separately.
 Upstream HOL-Light evidence covers only selected upstream assembly
 source/object routines, not downstream reassembly, this wrapper, or the full ABI.
 This trait boundary is also where \emph{crypto-agility} lives:
@@ -598,21 +607,26 @@ Kotlin (JVM/FFM) & n/a & historical & n/a & n/a \\
 Android/JNI & n/a & n/a & n/a & emulator$^{\mathsection}$ \\
 \bottomrule
 \multicolumn{5}{@{}p{\columnwidth}@{}}{\footnotesize $^{\mathsection}$\,``released'' denotes the
-immutable, attestation-bound GitHub \emph{research prereleases}: the Apple XCFramework revision
+immutable, attestation-bound GitHub artifacts: the Apple XCFramework revision
 and the Android AAR (with API~35 / 16\,KiB-page emulator runtime evidence) plus Linux
 x86\_64/aarch64 and unsigned experimental Windows x64 MSVC SDK archives, each validated by
-attested candidate-CI native consumers and bound to machine-checked release receipts. A clean-tree
-schema-v3 physical iPad+iPhone matrix passed for predecessor source only; the
+attested candidate-CI native consumers and bound to machine-checked release receipts. These
+span the earlier \emph{research prereleases} and historical stable lines
+(0.1.3 on 2026-08-25 and 0.1.4 on 2026-08-30).
+The later \code{v0.1.5} Apple GitHub release was published on 2026-09-05; that
+publication does not promote this table's earlier measurements to current source.
+A clean-tree schema-v3 physical iPad+iPhone matrix passed for predecessor source only; the
 target-selection migration made it stale, and both physical lanes still require
 same-source native reruns. All ``released'' cells are exact pre-selection historical
-artifacts; their receipts do not attest a target-selected rebuild. No registry
-publication or physical-Android coverage is claimed.}\\
+artifacts; their receipts do not attest a target-selected rebuild. The ten 0.1.3 and ten
+0.1.4 crates are published on crates.io. These historical rows do not qualify the
+current \code{0.2.0} source or establish current physical-Android coverage.}\\
 \end{tabular}
 \end{table}
 
 \section{CI-Gated Assurance}\label{sec:assurance}
 \subsection{A source\texorpdfstring{$\to$}{-to-}binary constant-time \emph{discriminator}}
-The release-graph ML-KEM backend is now target-selected \code{mlkem-native}~v1.2.0 behind a
+The release-graph ML-KEM backend is now target-selected \code{mlkem-native}~v2.0.0 behind a
 dedicated safe Rust/C boundary. No source-level secret-independence result from a replaced
 provider transfers to this backend.
 The binary-level question---does the compiled path branch or index on the genuine secret?---is
@@ -872,7 +886,7 @@ artifacts, and freshness. This source text cannot self-promote a stale run. A pa
 closes only a single-host matched-core diagnostic for those bytes, not device energy, rustls
 end-to-end, or optimized production-X-Wing parity.
 The migrated harness's canonical source and locked dependency inputs select
-\code{mlkem-native}~v1.2.0, \code{sha3}~0.10.9, and
+\code{mlkem-native}~v2.0.0, \code{sha3}~0.12.0, and
 \code{x25519-dalek}~3.0.0. The emitted backend identifier names the component families,
 while the proof binds the complete source/lock identity; every previously recorded paired proof
 has a different source/backend identity and must be recollected.
@@ -1141,8 +1155,7 @@ run is historical, and riscv64 and wasm32 have no current binary-CT
 or inherited source-CT claim. ACVP byte-identity is conformance, not CMVP
 certification. Upstream HOL-Light evidence covers only selected upstream AArch64
 assembly source/object routines, not downstream reassembly or the full ABI. The suite
-is research-grade and has not had an independent third-party audit. The
-historical netem latency numbers (\cref{tab:baremetal}) are from a quiesced bare-metal host; the
+is research-grade. The historical netem latency numbers (\cref{tab:baremetal}) are from a quiesced bare-metal host; the
 earlier virtualized-host run (\cref{fig:netem}) and the jitter/loss study (\cref{tab:loss}) are
 retained as supporting context and labeled as such. The matched-backend host gate accepts only a
 controlled proof whose digest matches the live canonical source tree; its machine-readable manifest
@@ -1158,13 +1171,13 @@ Apple matrix and controlled-host matched-backend proof results, but the release-
 changed the source digest again; all recorded package, device, performance, and binary-CT evidence
 is therefore historical and must be regenerated. The migration removed the
 \code{libcrux}/hax \code{proc-macro-error2} edge, and \code{cargo audit --deny warnings} now passes
-without an ignore. This dependency scan is not an independent cryptographic or ABI audit.
+without an ignore. This dependency scan covers the resolved Rust dependency graph.
 ABI~2 is the stable-version source/Rust-crate line; package readiness is not registry
 publication. Its stable binary targets are immutable, attestation-bound GitHub releases:
 an Apple Developer~ID-signed XCFramework
 revision and a platform distribution carrying the Android AAR with API~35 / 16\,KiB-page emulator
 runtime evidence and Linux x86\_64/aarch64 SDK archives. The unsigned Windows SDK
-remains an unsupported CI diagnostic outside the formal release. Production promotion still requires such review, fresh
+remains an unsupported CI diagnostic outside the formal release. Production promotion still requires internal cryptographic/ABI review, fresh
 release-bound two-ISA CT, same-source device/performance evidence, clean
 signed or transparency-backed source provenance and registry publication. The rustls integration uses a fixed protocol-domain context and an already parsed,
 unauthenticated policy input; it therefore neither carries arbitrary per-session K-CTX nor belongs to
@@ -1227,8 +1240,15 @@ XCFramework revision, and one platform distribution containing the four-ABI Andr
 API~35 / 16\,KiB-page emulator runtime-evidence bundle and GNU/Linux x86\_64 and aarch64 SDK
 archives. The unsigned Windows SDK remains an unsupported CI diagnostic and is excluded
 from the stable manifest, assets, attestation, and receipt. Machine-checked publication
-receipts are recorded in the repository evidence manifest and enforced by a fail-closed release
-contract. Stable publication is not a production-readiness claim: no unverified registry
+receipts are enforced by a fail-closed release contract. Where they are recorded is worth
+stating precisely: the 0.1.4 verified cohort lives at the annotated tag
+\code{v0.1.4-verified-cohort}, not on the default branch, because reopening the source line for
+the successor version returns the evidence manifest to its initial baseline and the finalizer's
+release proof requires a results-only descendant of the 0.1.4 release commit. The default
+branch's manifest therefore records the 0.1.3 cohort as its active selection and carries no 0.1.4
+receipt. This concerns only where the evidence is committed: the published GitHub releases and
+the ten published 0.1.4 crates are immutable and unaffected.
+Stable publication is not a production-readiness claim: no unverified registry
 (crates.io, Maven Central, deb/rpm/MSIX) publication, physical-Android coverage, independent
 certification, or FIPS validation is claimed.
 

@@ -9,6 +9,7 @@ if (-not $IsWindows) {
 }
 
 $Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+$Profile = "legacy"
 $Python = (Get-Command python -ErrorAction Stop).Source
 $ProductionScript = Join-Path $PSScriptRoot "windows-package.ps1"
 $tokens = $null
@@ -232,6 +233,10 @@ try {
         "RANLIB_x86_64-pc-windows-msvc",
         "CC_x86_64-pc-windows-msvc",
         "CARGO_PROFILE_RELEASE_LTO",
+        "AWS_LC_SYS_STATIC",
+        "AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc",
+        "AWS_LC_SYS_USE_SYSTEM_x86_64_pc_windows_msvc",
+        "AWS_LC_SYS_DISABLE_CPU_JITTER_ENTROPY",
         "CMAKE_C_COMPILER_LAUNCHER",
         "CMAKE_C_LINKER_LAUNCHER",
         "CMAKE_CROSSCOMPILING_EMULATOR",

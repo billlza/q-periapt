@@ -1,0 +1,698 @@
+"""Exact profile, R8 input, portable evidence, and result-transport regressions."""
+
+from __future__ import annotations
+
+import base64
+import hashlib
+import pathlib
+import stat
+import subprocess
+import sys
+import tempfile
+import unittest
+import zipfile
+
+import android_agp_build as build
+import android_agp_consumer as consumer
+import android_agp_consumer_contract as contract
+import android_bounded_command as bounded
+import android_device_proof as runtime
+import android_elf
+from test_android_minimal_consumer import class_dump, complete_dump
+from test_android_elf import zip_bytes
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+RUN_ID = "a" * 32
+
+
+def projection(profile: str = "agp_full_release") -> dict[str, object]:
+    value: dict[str, object] = {
+        name: "b" * 64
+        for name in contract.PROJECTION_FIELDS
+        if name.endswith("_sha256")
+    }
+    value.update(
+        profile=profile,
+        run_id=RUN_ID,
+        source_commit="c" * 40,
+        passed_tests=list(contract.PROFILE_TESTS[profile]),
+        agp_version=contract.profile_spec(profile).agp_version,
+        gradle_version=contract.profile_spec(profile).gradle_version,
+    )
+    return value
+
+
+def validate(value: object, profile: str = "agp_full_release") -> dict[str, object]:
+    return contract.validate_profile_projection(
+        value,
+        expected_profile=profile,
+        expected_aar_sha256="b" * 64,
+        expected_aar_manifest_sha256="b" * 64,
+        expected_source_commit="c" * 40,
+    )
+
+
+def response(text: bytes = b"marker\n", data: bytes = b"{}\n") -> bytes:
+    return (
+        f"INSTRUMENTATION_RESULT: qperiapt_run_id={RUN_ID}\n"
+        f"INSTRUMENTATION_RESULT: qperiapt_result_text_base64={base64.b64encode(text).decode()}\n"
+        f"INSTRUMENTATION_RESULT: qperiapt_result_json_base64={base64.b64encode(data).decode()}\n"
+        "INSTRUMENTATION_CODE: -1\n"
+    ).encode()
+
+
+def section(origin: str, body: str) -> str:
+    return (
+        f"# The proguard configuration file for the following section is {origin}\n"
+        f"{body}\n# End of content from {origin}\n"
+    )
+
+
+DEFAULT = "-keepclasseswithmembernames,includedescriptorclasses class * {\n    native <methods>;\n}\n"
+MANIFEST_RULES = (
+    "-keep class dev.qperiapt.androidsmoke.QPeriaptSmokeActivity { <init>(); }\n"
+    "-keep class dev.qperiapt.androidsmoke.QPeriaptResultInstrumentation { <init>(); }\n"
+)
+
+
+def configuration(aar: str) -> str:
+    return (
+        section(
+            "Android Gradle plugin 9.4.0 (extracted file: ${WORK}/project/app/build/intermediates/default_proguard_files/global/proguard-android-optimize.txt-9.4.0)",
+            DEFAULT,
+        )
+        + section(
+            "${GRADLE_HOME}/caches/9.7.1/transforms/test/transformed/q-periapt-android-0.1.5/proguard.txt",
+            aar,
+        )
+        + section("<unknown>", "")
+    )
+
+
+class AgpProjectionTests(unittest.TestCase):
+    def test_profiles_have_exact_independent_workloads_and_legacy_stays_full(
+        self,
+    ) -> None:
+        for profile in contract.PROFILES:
+            self.assertEqual(
+                validate(projection(profile), profile), projection(profile)
+            )
+        self.assertEqual(
+            runtime.EXPECTED_TESTS, list(contract.PROFILE_TESTS["agp_full_release"])
+        )
+        self.assertEqual(
+            runtime.expected_marker(RUN_ID),
+            f"QPERIAPT_ANDROID_DEVICE_PASS run-id={RUN_ID} tests=3",
+        )
+        self.assertEqual(
+            runtime.expected_marker(
+                RUN_ID, runtime.RuntimeResultProfile.AGP_MINIMAL_RELEASE
+            ),
+            f"QPERIAPT_ANDROID_DEVICE_PASS run-id={RUN_ID} tests=1",
+        )
+        with self.assertRaises(contract.AndroidAgpConsumerError):
+            validate(projection("agp_minimal_release"))
+
+    def test_fields_types_hashes_toolchain_and_expected_bindings_are_strict(
+        self,
+    ) -> None:
+        mutations = {
+            "run_id": [True, "A" * 32],
+            "source_commit": ["d" * 40, True],
+            "aar_sha256": ["e" * 64, "bad"],
+            "aar_manifest_sha256": ["e" * 64],
+            "passed_tests": [
+                [],
+                ["runtimeVersionOnly"],
+                tuple(contract.PROFILE_TESTS["agp_full_release"]),
+            ],
+            "agp_version": ["9.3.0"],
+            "gradle_version": ["9.7"],
+            "proof_sha256": [False, "z" * 64],
+        }
+        for key, values in mutations.items():
+            for replacement in values:
+                with self.subTest(key=key, replacement=replacement):
+                    value = projection()
+                    value[key] = replacement
+                    with self.assertRaises(contract.AndroidAgpConsumerError):
+                        validate(value)
+        for value in (
+            None,
+            [],
+            {**projection(), "extra": True},
+            {
+                key: value
+                for key, value in projection().items()
+                if key != "proof_sha256"
+            },
+        ):
+            with self.assertRaises(contract.AndroidAgpConsumerError):
+                validate(value)
+
+    def test_minimal_result_schema_and_count_are_exact_integers(self) -> None:
+        import json
+
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            paths = {
+                name: directory / name
+                for name in ("result_txt", "result_json", "logcat")
+            }
+            marker = runtime.expected_marker(
+                RUN_ID, runtime.RuntimeResultProfile.AGP_MINIMAL_RELEASE
+            )
+            paths["result_txt"].write_text(marker + "\n")
+            paths["logcat"].write_text("I/QPeriaptSmoke: " + marker + "\n")
+            for field in ("schema", "test_count"):
+                for replacement in (True, 1.0):
+                    result = {
+                        "schema": 1,
+                        "status": "pass",
+                        "run_id": RUN_ID,
+                        "test_count": 1,
+                        "passed_tests": ["runtimeVersionOnly"],
+                    }
+                    result[field] = replacement
+                    paths["result_json"].write_text(json.dumps(result))
+                    with self.assertRaises(SystemExit):
+                        runtime.verify_result_files(
+                            paths,
+                            RUN_ID,
+                            runtime.RuntimeResultProfile.AGP_MINIMAL_RELEASE,
+                        )
+
+    def test_pure_contract_import_does_not_load_io_or_publication_modules(self) -> None:
+        code = (
+            "import sys; sys.path.insert(0,sys.argv[1]); import android_agp_consumer_contract; "
+            "assert not any(n in sys.modules for n in ('android_device_proof','android_agp_consumer','proof_manifest','release_publication_contract'))"
+        )
+        result = subprocess.run(
+            [sys.executable, "-B", "-c", code, str(ROOT / "artifact")],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+
+
+class AgpTransportTests(unittest.TestCase):
+    def test_system_crash_decode_keeps_failure_and_captures_scoped_logs(self) -> None:
+        source = (ROOT / "artifact/android-device-smoke.sh").read_text()
+        function_start = source.index("capture_emulator_failure_logs() {\n")
+        function_end = source.index("\nselect_serial_or_empty()", function_start)
+        block_start = source.index("\tif ! android_command run-instrumentation; then")
+        block_end = source.index("\nfi\ncapture_app_logcat", block_start)
+        script = r'''
+set -eu
+test_root=$1
+test_python=$2
+DIST=$3
+DEVICE_KIND=$4
+log_status=$5
+RUN_ID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+RESULT_TXT="$DIST/result.txt"
+RESULT_JSON="$DIST/result.json"
+capture_app_logcat() {
+    printf 'scoped smoke log\n'
+    return "$log_status"
+}
+android_command() {
+    printf '%s\n' "$1" >> "$DIST/calls.txt"
+    case "$1" in
+        run-instrumentation) return 0 ;;
+        capture-emulator-app-exit-info|capture-emulator-diagnostics|capture-emulator-failure-state) return "$log_status" ;;
+        *) return 99 ;;
+    esac
+}
+python3() {
+    QPERIAPT_PYTHON="$test_python" sh "$test_root/artifact/python-run.sh" "$@"
+}
+'''
+        script += source[function_start:function_end] + source[block_start:block_end]
+        script += "\nprintf 'incorrect continuation\\n'\n"
+        for kind in ("emulator", "physical"):
+            for log_status in (0, 29):
+                with self.subTest(kind=kind, log_status=log_status), tempfile.TemporaryDirectory() as temporary:
+                    folder = pathlib.Path(temporary)
+                    (folder / "adb-instrumentation.txt").write_text(
+                        "INSTRUMENTATION_ABORTED: System has crashed.\n"
+                    )
+                    result = subprocess.run(
+                        ["sh", "-c", script, "instrumentation-failure", str(ROOT),
+                         sys.executable, str(folder), kind, str(log_status)],
+                        cwd=ROOT, capture_output=True, text=True, timeout=15,
+                    )
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertNotIn("incorrect continuation", result.stdout)
+                    self.assertIn("instrumentation did not complete successfully exactly once", result.stderr)
+                    self.assertEqual((folder / "logcat.txt").read_text(), "scoped smoke log\n")
+                    expected = ["run-instrumentation"]
+                    if kind == "emulator":
+                        expected.extend(("capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"))
+                    self.assertEqual((folder / "calls.txt").read_text().splitlines(), expected)
+                    self.assertFalse((folder / "result.txt").exists())
+                    self.assertFalse((folder / "result.json").exists())
+                    if log_status:
+                        self.assertIn("smoke-log capture also failed", result.stderr)
+
+    def test_cleanup_failure_captures_owned_system_logs_and_preserves_workload(self) -> None:
+        source = (ROOT / "artifact/android-device-smoke.sh").read_text()
+        helper_start = source.index("capture_emulator_failure_logs() {\n")
+        helper_end = source.index("\n}\n", helper_start) + 3
+        block_start = source.index("if cleanup_android_app; then\n", source.index("capture_app_logcat()"))
+        block_end = source.index("\nfi\n", block_start) + 4
+        script = r'''
+set -eu
+DIST=$1
+DEVICE_KIND=$2
+log_status=$3
+cleanup_android_app() { return 23; }
+capture_app_logcat() { printf 'unexpected replacement\n'; return 0; }
+android_command() {
+    case "$1" in capture-emulator-app-exit-info|capture-emulator-diagnostics|capture-emulator-failure-state) ;; *) return 99 ;; esac
+    printf '%s\n' "$1" >> "$DIST/calls.txt"
+    return "$log_status"
+}
+'''
+        script += source[helper_start:helper_end] + source[block_start:block_end]
+        script += "\nprintf 'incorrect continuation\\n'\n"
+        for kind in ("emulator", "physical"):
+            for log_status in (0, 29):
+                with self.subTest(kind=kind, log_status=log_status), tempfile.TemporaryDirectory() as temporary:
+                    folder = pathlib.Path(temporary)
+                    (folder / "logcat.txt").write_text("completed workload log\n")
+                    (folder / "calls.txt").write_text("")
+                    result = subprocess.run(
+                        ["sh", "-c", script, "cleanup-failure", str(folder), kind, str(log_status)],
+                        cwd=ROOT, capture_output=True, text=True, timeout=10,
+                    )
+                    self.assertEqual(result.returncode, 23, result.stderr)
+                    self.assertIn("run-owned Android smoke app cleanup failed", result.stderr)
+                    self.assertNotIn("incorrect continuation", result.stdout)
+                    self.assertEqual((folder / "logcat.txt").read_text(), "completed workload log\n")
+                    expected = ["capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"] if kind == "emulator" else []
+                    self.assertEqual((folder / "calls.txt").read_text().splitlines(), expected)
+                    if kind == "emulator" and log_status:
+                        self.assertIn("crash-log capture also failed", result.stderr)
+
+    def test_one_successful_nonce_bound_bundle_decodes_exact_bytes(self) -> None:
+        self.assertEqual(
+            consumer.decode_instrumentation_output(response(), RUN_ID),
+            (b"marker\n", b"{}\n"),
+        )
+
+    def test_failure_ambiguity_missing_fields_and_unexpected_diagnostics_are_rejected(
+        self,
+    ) -> None:
+        raw = response()
+        variants = [
+            raw.replace(b"CODE: -1", b"CODE: 0"),
+            raw + b"INSTRUMENTATION_CODE: -1\n",
+            raw + b"INSTRUMENTATION_RESULT: qperiapt_run_id=" + RUN_ID.encode() + b"\n",
+            raw.replace(RUN_ID.encode(), b"f" * 32),
+            raw.replace(b"bWFya2VyCg==", b"!!"),
+            raw.replace(
+                b"INSTRUMENTATION_RESULT: qperiapt_run_id=",
+                b"INSTRUMENTATION_RESULT: wrong=",
+            ),
+            raw + b"WARNING: runtime failure\n",
+            raw + b"INSTRUMENTATION_FAILED: crashed\n",
+            b"\xff",
+        ]
+        for data in variants:
+            with self.subTest(data=data):
+                with self.assertRaises(contract.AndroidAgpConsumerError):
+                    consumer.decode_instrumentation_output(data, RUN_ID)
+
+    def test_bounded_operation_uses_fixed_component_nonce_and_deadline(self) -> None:
+        spec = bounded.OPERATION_SPECS[bounded.AndroidOperation.RUN_INSTRUMENTATION]
+        self.assertEqual(
+            (spec.mode, spec.timeout_seconds, spec.timeout_maximum), ("write", 110, 110)
+        )
+        self.assertEqual(spec.output.leaf, "adb-instrumentation.txt")
+        self.assertLessEqual(spec.output.maximum_bytes, 16 * 1024 * 1024)
+        self.assertTrue(spec.stderr_to_stdout)
+
+    def test_reader_has_no_q_reference_and_no_completed_json_retry(self) -> None:
+        source = (ROOT / consumer.INSTRUMENTATION_SOURCE).read_text()
+        self.assertNotIn("dev.qperiapt.android.", source)
+        self.assertNotIn("QPeriaptAndroid", source)
+        self.assertNotIn("catch (JSONException", source)
+        self.assertIn('json.getString("run_id")', source)
+        self.assertIn("finish(Activity.RESULT_CANCELED, result)", source)
+
+
+class AgpR8AndInputTests(unittest.TestCase):
+    def test_r8_sources_are_exact_and_app_keep_or_unknown_directive_is_rejected(
+        self,
+    ) -> None:
+        aar = android_elf.ANDROID_CONSUMER_RULES.decode()
+        valid = configuration(aar)
+        consumer.verify_r8_configuration(
+            valid, default=DEFAULT, manifest=MANIFEST_RULES, aar_rules=aar
+        )
+        invalid = [
+            valid + "-keep class dev.qperiapt.android.** { *; }\n",
+            valid + section("app/proguard-rules.pro", aar),
+            valid.replace(aar.strip(), aar.strip() + "\n-keep class ** { *; }"),
+            valid.replace(
+                section("<unknown>", ""), section("<unknown>", "-dontshrink")
+            ),
+            valid.replace("q-periapt-android-0.1.5", "another-library"),
+            valid.replace("${GRADLE_HOME}", "/Users/private/.gradle"),
+        ]
+        for text in invalid:
+            with self.subTest(text=text):
+                with self.assertRaises(contract.AndroidAgpConsumerError):
+                    consumer.verify_r8_configuration(
+                        text, default=DEFAULT, manifest=MANIFEST_RULES, aar_rules=aar
+                    )
+        with self.assertRaises(contract.AndroidAgpConsumerError):
+            consumer.verify_r8_configuration(
+                valid,
+                default=DEFAULT,
+                manifest=MANIFEST_RULES + "-keep class ** { *; }\n",
+                aar_rules=aar,
+            )
+
+    def test_profile_input_sets_are_closed_and_minimal_calls_only_runtime_version(
+        self,
+    ) -> None:
+        full = consumer.compiled_sources("agp_full_release")
+        minimal = consumer.compiled_sources("agp_minimal_release")
+        self.assertEqual((len(full), len(minimal)), (4, 3))
+        self.assertFalse(any("/full/" in name for name in minimal))
+        self.assertTrue(all((ROOT / name).is_file() for name in full + minimal))
+        entry = (
+            ROOT
+            / next(
+                name for name in minimal if name.endswith("QPeriaptSmokeActivity.java")
+            )
+        ).read_text()
+        import re
+
+        self.assertEqual(
+            re.findall(r"QPeriaptAndroid\.(\w+)\(", entry), ["runtimeVersion"]
+        )
+        template = (ROOT / consumer.TEMPLATE_ROOT / "app/build.gradle.kts").read_text()
+        self.assertIn("source.files.map", template)
+        self.assertIn("isMinifyEnabled = true", template)
+        self.assertIn("isDebuggable = false", template)
+        self.assertNotIn("proguard-rules.pro", template)
+        self.assertNotIn("testImplementation", template)
+
+    def test_multidex_definitions_are_parsed_and_instrumentation_strings_do_not_count(
+        self,
+    ) -> None:
+        raw = complete_dump() + class_dump(0, consumer.INSTRUMENTATION_DESCRIPTOR, ())
+        android_elf.verify_minimal_consumer_dump(raw)
+        self.assertIn(
+            consumer.INSTRUMENTATION_DESCRIPTOR,
+            android_elf.parse_consumer_dex_classes(raw),
+        )
+        self.assertNotIn(
+            consumer.INSTRUMENTATION_DESCRIPTOR,
+            android_elf.parse_consumer_dex_classes(
+                complete_dump() + consumer.INSTRUMENTATION_DESCRIPTOR
+            ),
+        )
+        with self.assertRaises(android_elf.AndroidVerificationError):
+            android_elf.parse_consumer_dex_classes(
+                raw + class_dump(1, consumer.INSTRUMENTATION_DESCRIPTOR, ())
+            )
+        for name in ("classes.dex", "classes2.dex", "classes10.dex", "classes101.dex"):
+            self.assertIsNotNone(consumer.DEX_NAME.fullmatch(name))
+        for name in ("classes1.dex", "classes01.dex", "folder/classes.dex"):
+            self.assertIsNone(consumer.DEX_NAME.fullmatch(name))
+
+    def test_instrumentation_requires_real_concrete_methods(self) -> None:
+        methods = (
+            ("<init>", "()V", "PUBLIC CONSTRUCTOR"),
+            ("onCreate", "(Landroid/os/Bundle;)V", "PUBLIC"),
+            ("onStart", "()V", "PUBLIC"),
+        )
+        consumer.verify_agp_dex_dump(
+            complete_dump()
+            + class_dump(0, consumer.INSTRUMENTATION_DESCRIPTOR, methods)
+        )
+        for index in range(len(methods)):
+            with self.assertRaises(contract.AndroidAgpConsumerError):
+                consumer.verify_agp_dex_dump(
+                    complete_dump()
+                    + class_dump(
+                        0,
+                        consumer.INSTRUMENTATION_DESCRIPTOR,
+                        methods[:index] + methods[index + 1 :],
+                    )
+                )
+
+    def test_actual_release_manifest_shape_rejects_debuggable_and_wrong_instrumentation(
+        self,
+    ) -> None:
+        valid = (
+            "E: manifest (line=1)\n"
+            "  E: application (line=2)\n    A: android:debuggable(0x0101000f)=(type 0x12)0x0\n"
+            "  E: instrumentation (line=4)\n"
+            '    A: android:name(0x01010003)="dev.qperiapt.androidsmoke.QPeriaptResultInstrumentation" (Raw: "instrumentation")\n'
+            '    A: android:targetPackage(0x01010021)="dev.qperiapt.androidsmoke" (Raw: "package")\n'
+        )
+        consumer.verify_release_manifest_dump(valid)
+        for changed in (
+            valid.replace("(type 0x12)0x0", "(type 0x12)0xffffffff"),
+            valid.replace("QPeriaptResultInstrumentation", "AnotherInstrumentation"),
+            valid.replace(
+                'targetPackage(0x01010021)="dev.qperiapt.androidsmoke"',
+                'targetPackage(0x01010021)="another.package"',
+            ),
+            valid + "  E: instrumentation (line=9)\n",
+        ):
+            with self.assertRaises(contract.AndroidAgpConsumerError):
+                consumer.verify_release_manifest_dump(changed)
+
+    def test_incomplete_local_and_exported_proofs_never_return_success(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            proof = directory / "proof.json"
+            proof.write_text('{"device":{"kind":"emulator"}}')
+            constraints = dict(
+                expected_profile="agp_minimal_release",
+                expected_aar_sha256="b" * 64,
+                expected_aar_manifest_sha256="b" * 64,
+                expected_source_commit="c" * 40,
+            )
+            with self.assertRaises(contract.AndroidAgpConsumerError):
+                consumer.validate_completed_profile(ROOT, proof, **constraints)
+            with self.assertRaises(contract.AndroidAgpConsumerError):
+                consumer.verify_exported_profile(ROOT, directory, **constraints)
+            with self.assertRaises(contract.AndroidAgpConsumerError):
+                consumer.profile_evidence_files(ROOT, proof)
+            linked = directory / "linked"
+            linked.symlink_to(directory, target_is_directory=True)
+            with self.assertRaises(contract.AndroidAgpConsumerError):
+                consumer.verify_exported_profile(ROOT, linked, **constraints)
+
+    def test_normalization_is_explicit_path_replacement_and_keeps_warning_lines(
+        self,
+    ) -> None:
+        original = b"WARNING: issue /Users/example/project/a.java\n-keep class Example { *; }\n"
+        result = build.normalized(
+            original, {"SOURCE": pathlib.Path("/Users/example/project")}
+        )
+        self.assertEqual(
+            result, b"WARNING: issue ${SOURCE}/a.java\n-keep class Example { *; }\n"
+        )
+        with self.assertRaises(contract.AndroidAgpConsumerError):
+            build.normalized(original, {})
+
+    def test_special_apk_entries_and_noncanonical_paths_are_rejected(self) -> None:
+        for path in ("../a", "/a", "a/../b", "a//b", "a\\b"):
+            with self.assertRaises(contract.AndroidAgpConsumerError):
+                consumer._relative(path, "fixture")
+        with tempfile.TemporaryDirectory() as temp:
+            apk = pathlib.Path(temp) / "consumer.apk"
+            for mode in (stat.S_IFLNK, stat.S_IFIFO, stat.S_IFSOCK):
+                with zipfile.ZipFile(apk, "w") as archive:
+                    entry = zipfile.ZipInfo("classes.dex")
+                    entry.external_attr = (mode | 0o600) << 16
+                    archive.writestr(entry, b"payload")
+                with self.assertRaises(contract.AndroidAgpConsumerError):
+                    consumer._apk_entries(apk)
+
+
+class AgpSigningInputTests(unittest.TestCase):
+    def original_entries(self) -> dict[str, bytes]:
+        return {
+            "AndroidManifest.xml": b"binary manifest fixture",
+            "classes.dex": b"dex\n039\x00fixture",
+            "resources.arsc": b"resource table fixture",
+            consumer.APP_METADATA_ENTRY: consumer.APP_METADATA_CONTENT,
+        }
+
+    def test_preparation_preserves_original_and_every_remaining_entry_content(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            for compression in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
+                original = directory / f"agp-{compression}.apk"
+                prepared = directory / f"prepared-{compression}.apk"
+                entries = {**self.original_entries(), "empty/": b""}
+                with zipfile.ZipFile(original, "w") as archive:
+                    archive.comment = b"original archive comment"
+                    for name, data in entries.items():
+                        entry = zipfile.ZipInfo(name)
+                        kind = stat.S_IFDIR if name.endswith("/") else stat.S_IFREG
+                        entry.external_attr = (kind | 0o700) << 16
+                        entry.compress_type = compression
+                        archive.writestr(entry, data)
+                original_bytes = original.read_bytes()
+                result = build.prepare_signing_input(original, prepared)
+                self.assertEqual(original.read_bytes(), original_bytes)
+                self.assertEqual(
+                    consumer._apk_entries(prepared),
+                    {
+                        name: data
+                        for name, data in entries.items()
+                        if name != consumer.APP_METADATA_ENTRY
+                    },
+                )
+                self.assertEqual(
+                    result,
+                    {
+                        "policy": consumer.SIGNING_INPUT_POLICY,
+                        "removed": {
+                            consumer.APP_METADATA_ENTRY: {
+                                "bytes": 56,
+                                "sha256": hashlib.sha256(
+                                    consumer.APP_METADATA_CONTENT
+                                ).hexdigest(),
+                            }
+                        },
+                    },
+                )
+                with zipfile.ZipFile(prepared) as archive:
+                    self.assertEqual(archive.comment, b"original archive comment")
+                self.assertEqual(
+                    consumer.verify_signing_input(original, prepared), result
+                )
+                prepared_bytes = prepared.read_bytes()
+                with self.assertRaises(FileExistsError):
+                    build.prepare_signing_input(original, prepared)
+                self.assertEqual(prepared.read_bytes(), prepared_bytes)
+
+    def test_preparation_rejects_wrong_missing_vcs_or_already_signed_metadata(self):
+        cases = (
+            {
+                key: value
+                for key, value in self.original_entries().items()
+                if key != consumer.APP_METADATA_ENTRY
+            },
+            {**self.original_entries(), consumer.APP_METADATA_ENTRY: b"unexpected"},
+            {**self.original_entries(), consumer.VCS_METADATA_ENTRY: b"vcs"},
+            {**self.original_entries(), "META-INF/unknown.properties": b"unknown"},
+            *(
+                {**self.original_entries(), name: b"signature"}
+                for name in consumer.V1_SIGNATURE_ENTRIES
+            ),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            for index, entries in enumerate(cases):
+                with self.subTest(index=index):
+                    original = directory / f"original-{index}.apk"
+                    prepared = directory / f"prepared-{index}.apk"
+                    original.write_bytes(zip_bytes(entries))
+                    before = original.read_bytes()
+                    with self.assertRaises(consumer.AndroidAgpConsumerError):
+                        build.prepare_signing_input(original, prepared)
+                    self.assertFalse(prepared.exists())
+                    self.assertEqual(original.read_bytes(), before)
+            original = directory / "metadata-directory.apk"
+            entries = self.original_entries()
+            del entries[consumer.APP_METADATA_ENTRY]
+            original.write_bytes(zip_bytes(entries))
+            with zipfile.ZipFile(original, "a") as archive:
+                entry = zipfile.ZipInfo(consumer.APP_METADATA_ENTRY + "/")
+                entry.external_attr = (stat.S_IFDIR | 0o700) << 16
+                archive.writestr(entry, b"")
+            prepared = directory / "metadata-directory-prepared.apk"
+            with self.assertRaisesRegex(
+                consumer.AndroidAgpConsumerError, "missing or differs from the pinned"
+            ):
+                build.prepare_signing_input(original, prepared)
+            self.assertFalse(prepared.exists())
+
+    def test_preparation_rejects_duplicate_unsafe_and_corrupt_zip_before_output(self):
+        entries = self.original_entries()
+        duplicate = zip_bytes({**entries, "classes.dax": entries["classes.dex"]})
+        duplicate = duplicate.replace(b"classes.dax", b"classes.dex")
+        payloads = (
+            duplicate,
+            zip_bytes({**entries, "../outside": b"unsafe"}),
+            zip_bytes(entries).replace(
+                b"resource table fixture", b"modified table fixture"
+            ),
+            b"not a ZIP archive",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            for index, payload in enumerate(payloads):
+                original = directory / f"original-{index}.apk"
+                prepared = directory / f"prepared-{index}.apk"
+                original.write_bytes(payload)
+                with (
+                    self.subTest(index=index),
+                    self.assertRaises(consumer.AndroidAgpConsumerError),
+                ):
+                    build.prepare_signing_input(original, prepared)
+                self.assertFalse(prepared.exists())
+            self.assertFalse((directory / "outside").exists())
+
+    def test_reverification_rejects_added_removed_changed_and_directory_entries(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            original = directory / "original.apk"
+            original.write_bytes(zip_bytes(self.original_entries()))
+            expected = consumer.signing_input_entries(self.original_entries())
+            variants = (
+                {**expected, "extra.bin": b"extra"},
+                {
+                    name: value
+                    for name, value in expected.items()
+                    if name != "resources.arsc"
+                },
+                {**expected, "resources.arsc": b"different"},
+                {
+                    **expected,
+                    consumer.APP_METADATA_ENTRY: consumer.APP_METADATA_CONTENT,
+                },
+            )
+            for index, entries in enumerate(variants):
+                prepared = directory / f"prepared-{index}.apk"
+                prepared.write_bytes(zip_bytes(entries))
+                with self.assertRaisesRegex(
+                    consumer.AndroidAgpConsumerError, "beyond the fixed"
+                ):
+                    consumer.verify_signing_input(original, prepared)
+            prepared = directory / "directory-extra.apk"
+            prepared.write_bytes(zip_bytes(expected))
+            with zipfile.ZipFile(prepared, "a") as archive:
+                entry = zipfile.ZipInfo("extra/")
+                entry.external_attr = (stat.S_IFDIR | 0o700) << 16
+                archive.writestr(entry, b"")
+            with self.assertRaisesRegex(
+                consumer.AndroidAgpConsumerError, "beyond the fixed"
+            ):
+                consumer.verify_signing_input(original, prepared)
+            original_with_directory = directory / "original-directory.apk"
+            original_with_directory.write_bytes(original.read_bytes())
+            with zipfile.ZipFile(original_with_directory, "a") as archive:
+                archive.writestr(entry, b"")
+            prepared.write_bytes(zip_bytes(expected))
+            with self.assertRaisesRegex(
+                consumer.AndroidAgpConsumerError, "beyond the fixed"
+            ):
+                consumer.verify_signing_input(original_with_directory, prepared)
+
+
+if __name__ == "__main__":
+    unittest.main()

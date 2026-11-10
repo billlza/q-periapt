@@ -1,0 +1,223 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Two separate native binaries operate on the same original private paths.
+// Only fixture authorities are deterministic; original device/wrapping keys
+// are actually provisioned and must remain unchanged across the upgrade.
+mod legacy_exact_authorization_probe {
+    use super::*;
+    use redb::ReadableTable;
+    use std::os::unix::fs::DirBuilderExt;
+
+    fn checkpoint(root: &Path, name: &str) -> RosterCheckpoint {
+        let bytes = fs::read(root.join(name)).expect("independent checkpoint");
+        let mut d = Decoder::new(&bytes);
+        let result = RosterCheckpoint::from_trusted_state(d.u64().expect("version"), d.array().expect("digest")).expect("checkpoint");
+        d.finish().expect("exact checkpoint"); result
+    }
+    fn save_checkpoint(root: &Path, name: &str, checkpoint: RosterCheckpoint) {
+        let mut bytes = checkpoint.version().to_be_bytes().to_vec();
+        bytes.extend_from_slice(&checkpoint.digest());
+        fs::write(root.join(name), bytes).expect("retain public checkpoint");
+    }
+    fn rows(path: &Path, name: &'static str) -> Vec<(String, Vec<u8>)> {
+        let db = open_private_database(path).expect("existing private database");
+        let tx = db.begin_read().expect("read transaction");
+        let table = tx.open_table(TableDefinition::<&str, &[u8]>::new(name)).expect("application table");
+        table.iter().expect("rows").map(|row| { let (k,v)=row.expect("row"); (k.value().to_owned(),v.value().to_vec()) }).collect()
+    }
+    fn witness_tag(root: &Path) -> Vec<u8> {
+        let values = rows(&root.join("witness/witness.redb"), "continuity_anchor_candidate_v1");
+        let (_, image) = values.iter().find(|(k,_)| k=="image").expect("witness image");
+        image.get(..8).expect("schema").to_vec()
+    }
+    fn fixture_at(root: &Path, creating: bool) -> Fixture {
+        let server = root.join("witness"); let local = root.join("client");
+        if creating {
+            fs::DirBuilder::new().mode(0o700).create(&server).expect("new witness directory");
+            fs::DirBuilder::new().mode(0o700).create(&local).expect("new client directory");
+        }
+        let signer = crate::AnchorSigningKey::deterministic([226; 32], [227; 32]).expect("independent fixture witness signer");
+        let store = if creating {
+            let identity = crate::AnchorIdentity::generate().expect("original witness identity");
+            fs::write(root.join("witness.identity"), identity.as_bytes()).expect("independent witness pin");
+            AnchorStore::provision(&server.join("witness.redb"), JournalKey::provision(&server.join("witness.key")).expect("original witness key"), signer, identity).expect("original witness store")
+        } else {
+            let identity = crate::AnchorIdentity::from_trusted_state(fs::read(root.join("witness.identity")).expect("retained witness identity").try_into().expect("identity width")).expect("identity");
+            AnchorStore::open(&server.join("witness.redb"), JournalKey::open(&server.join("witness.key")).expect("original witness key"), signer, identity).expect("old witness state, never provision")
+        };
+        let pin = store.pin().expect("original witness pin");
+        let requirement = crate::AnchorRequirement::required(&pin);
+        let (_, issued, policy_pin, runtime) = crate::tests::session_policy_fixture_with_anchor(&[PrekeyQuality::OneTimeBoth], requirement);
+        let policy = policy_pin.verify(issued.as_bytes(), runtime, 150).expect("same live P0");
+        let authority = RootSigningKey::deterministic([221;32], [222;32]).expect("independent account authority");
+        let local_paths = paths(&local);
+        if creating { JournalKey::provision(&local_paths.wrapping).expect("original client wrapping key"); }
+        let intent = EnrollmentIntent::new(authority.public_key().expect("account root"),
+            DeviceDescription::new([7;16],1,policy.family(),Validity::new(100,160).expect("C0 validity")).expect("original metadata"));
+        let c = Case { _directory: directory(), paths: local_paths, intent, root: authority, policy };
+        let carrier = Carrier { store: Arc::new(Mutex::new(store)), clock: Arc::new(AtomicU64::new(150)),
+            cut: Arc::new(Mutex::new(None)), requests: Arc::new(Mutex::new(Vec::new())) };
+        let (original, id) = if creating {
+            let (mut owner, _, id) = accepted(&c);
+            let image = owner.image().expect("accepted state");
+            let original = owner.admitted(&image, &c.policy, 150).expect("original C0");
+            let Phase::Accepted { admission, .. } = image.phase else { unreachable!("accepted fixture"); };
+            fs::write(root.join("original.credential"), admission.certificate).expect("original signed certificate");
+            fs::write(root.join("original.roster"), admission.roster).expect("original signed roster");
+            save_checkpoint(root,"original.checkpoint",admission.checkpoint);
+            fs::write(root.join("original.journal"),id.as_bytes()).expect("original journal identity");
+            fs::write(root.join("original.signer"),owner.identity().expect("original signer").as_bytes()).expect("original signing identity");
+            fs::write(root.join("original.policy"),c.policy.checkpoint().digest()).expect("independent policy digest");
+            let genesis = match owner.prepare(&c.policy,150).expect("prepare") {
+                InstallationPreparation::RequiresEnrollment(g) => g,
+                _ => unreachable!("required witness fixture"),
+            };
+            carrier.store.lock().expect("witness").enroll(&genesis,&original,&c.policy,150).expect("independent original enrollment");
+            let anchor = owner.anchor_client(&c.policy,150,pin.clone(),Box::new(carrier.clone()),Duration::from_secs(3)).expect("original client");
+            owner.activate(&c.policy,150,Some(anchor)).expect("original owner").close();
+            (original,id)
+        } else {
+            assert_eq!(c.policy.checkpoint().digest().as_slice(),fs::read(root.join("original.policy")).expect("exact P0"));
+            let account = AccountPin::new(c.root.account_id().expect("account"),c.root.public_key().expect("root"),
+                checkpoint(root,"original.checkpoint"),c.policy.family()).expect("original independent historical pin");
+            let original = account.verify_device(&fs::read(root.join("original.credential")).expect("original certificate"),
+                &fs::read(root.join("original.roster")).expect("original roster"),150).expect("historical original identity only");
+            let id = JournalIdentity::from_trusted_state(fs::read(root.join("original.journal")).expect("journal id").try_into().expect("journal id width")).expect("journal id");
+            (original,id)
+        };
+        Fixture { _witness_dir: directory(),c,pin,carrier,original,id }
+    }
+    fn commit(f: &Fixture, g: &crate::VerifiedCredentialRenewal, at: u64) {
+        let mut owner = open(&f.c); let mut anchor = client(f,&mut owner,at);
+        assert_eq!(owner.commit_witnessed_credential_renewal(g.operation(),g.statement_digest(),&f.c.policy,at,&mut anchor).expect("exact original commit and coordination"),renewal::committed(g));
+        owner.close();
+    }
+    fn new_grant(f: &Fixture, previous: &VerifiedDevice, version: u64, until: u64, at: u64) -> crate::VerifiedCredentialRenewal {
+        let origin = f.c.root.issue_device(f.original.description.clone(),f.original.key.clone()).expect("same original body");
+        let predecessor = f.c.root.issue_device(previous.description.clone(),previous.key.clone()).expect("same C1 body");
+        let mut description = previous.description.clone(); description.validity=Validity::new(100,until).expect("new credential validity");
+        let successor = f.c.root.issue_device(description,previous.key.clone()).expect("independent new C2 authorization");
+        let roster = f.c.root.issue_roster(version,interval(),&[f.c.root.roster_entry(&successor).expect("current membership")]).expect("new independent roster");
+        let pin=AccountPin::new(f.c.root.account_id().expect("account"),f.c.root.public_key().expect("root"),roster.checkpoint(),f.c.policy.family()).expect("independent current pin");
+        let authorization = crate::CredentialRenewalAuthorization { operation: crate::CredentialRenewalId::generate().expect("one new retained operation"), previous:previous.roster().checkpoint(),policy_digest:f.c.policy.checkpoint().digest() };
+        let issued=f.c.root.issue_credential_renewal(crate::CredentialRenewalMaterials { original_credential:&origin,previous_credential:&predecessor,
+            successor_credential:&successor,previous_roster:previous.roster().as_bytes(),successor_roster:roster.as_bytes() },&authorization,&pin,at).expect("current independent root approval");
+        crate::VerifiedCredentialRenewal::verify(issued.as_bytes(),&pin,f.c.policy.checkpoint().digest(),at).expect("new currently valid grant")
+    }
+
+    #[test]
+    fn actual_old_new_native_upgrade_preserves_original_state_and_requires_new_authorization() {
+        let root=PathBuf::from(std::env::var_os("QPERIAPT_EXACT_UPGRADE_ROOT").expect("owned experiment root"));
+        let phase=std::env::var("QPERIAPT_EXACT_UPGRADE_PHASE").expect("explicit experiment phase");
+        assert!(matches!(phase.as_str(),"produce"|"consume"));
+        for (profile,mut at) in [("live",175),("expired",191),("lost_expired_target",191)] {
+            let root=root.join(profile);
+            if phase=="produce" { fs::DirBuilder::new().mode(0o700).create(&root).expect("fresh profile directory"); }
+            let f=fixture_at(&root,phase=="produce");
+            let prekey=crate::PrekeyId::from_trusted_state([225;32]).expect("retained inventory operation");
+            if phase=="produce" {
+                let g=grant(&f,&f.original,2,190);
+                fs::write(root.join("first.grant"),g.as_bytes()).expect("retain exact first grant");
+                save_checkpoint(&root,"first.checkpoint",g.successor_device().roster().checkpoint());
+                let p=prepare(&f,&g,170); commit(&f,&g,170);
+                let mut active=activate(&f,170).expect("old binary current C1 owner");
+                let (service,_,current)=active.parts().expect("owners");
+                let leaf=service.stores().expect("stores").0.generate_prekey(&f.c.policy,current,prekey,LeafKind::OneTimePq,Validity::new(170,185).expect("prekey interval"),170).expect("actual pre-upgrade SDK key generation");
+                fs::write(root.join("retained-prekey.public"),leaf.public_key()).expect("public key readback");
+                active.close();
+                let mut owner=open(&f.c); let mut anchor=client(&f,&mut owner,170);
+                assert_eq!(anchor.exchange(p.subject(),crate::AnchorOperation::credential_renewal_status(&p)).expect("fresh retired status").outcome(),crate::AnchorOutcome::CredentialUnavailable);
+                assert_eq!(owner.credential_renewal_status().expect("durable complete"),renewal::committed(&g)); owner.close();
+                assert!(disk(&f).1.is_none(),"old target is fully retired");
+                f.carrier.store.lock().expect("store").close();
+                assert_eq!(witness_tag(&root),b"QPANC003");
+                println!("LEGACY_UPGRADE_PRODUCED profile={profile} schema=QPANC003 first=Committed ACK=retired retained_prekey=true original_paths=true");
+                continue;
+            }
+            f.carrier.clock.store(at,Ordering::SeqCst);
+            let account=AccountPin::new(f.c.root.account_id().expect("account"),f.c.root.public_key().expect("root"),checkpoint(&root,"first.checkpoint"),f.c.policy.family()).expect("retained first target pin");
+            let first_bytes=fs::read(root.join("first.grant")).expect("original grant, never re-sign");
+            let first=crate::HistoricalCredentialRenewal::verify(&first_bytes,&account,f.c.policy.checkpoint().digest()).expect("historical C1 relationship, not current permission");
+            let keys=[f.c.paths.wrapping.clone(),f.c.paths.signer.clone(),root.join("witness/witness.key")];
+            let key_bytes=keys.iter().map(|p|fs::read(p).expect("original key file")).collect::<Vec<_>>();
+            let before=disk(&f);
+            let configuration=rows(&f.c.paths.configuration,"continuity_enrollment_v1");
+            let installation=rows(f.c.paths.installation.files().first().copied().expect("installation configuration"),"continuity_installation_v1");
+            let refused=activate(&f,at);
+            if profile=="live" {
+                assert!(matches!(refused,Err(DurableError::Anchor(e)) if matches!(*e,crate::AnchorClientError::AuthorityDenied)),"live C1/P0 must fail specifically on missing exact witness authorization");
+            } else { assert!(matches!(refused,Err(DurableError::Protocol(Error::Validity))),"expired C1 still refuses independently"); }
+            assert_eq!(disk(&f),before);
+            assert_eq!(rows(&f.c.paths.configuration,"continuity_enrollment_v1"),configuration);
+            assert_eq!(rows(f.c.paths.installation.files().first().copied().expect("installation configuration"),"continuity_installation_v1"),installation);
+
+            let mut g=new_grant(&f,first.successor_device(),3,195,at);
+            assert_ne!(g.operation(),first.operation());
+            fs::write(root.join("second.grant"),g.as_bytes()).expect("retain original new grant before submission");
+            let mut p=prepare(&f,&g,at);
+            fs::write(root.join("second.proposal"),p.to_bytes()).expect("retain original exact proposal");
+            let second_wire=g.as_bytes().to_vec(); let second_proposal=p.to_bytes();
+            if profile=="lost_expired_target" {
+                let pending=disk(&f);
+                *f.carrier.cut.lock().expect("cut")=Some((5,true));
+                let mut owner=open(&f.c); let mut anchor=client(&f,&mut owner,at);
+                let error=owner.commit_witnessed_credential_renewal(g.operation(),g.statement_digest(),&f.c.policy,at,&mut anchor);
+                assert!(matches!(error,Err(DurableError::Anchor(e)) if matches!(*e,crate::AnchorClientError::Transport(ref io) if io.kind()==io::ErrorKind::UnexpectedEof)));
+                assert!(owner.active.is_none());
+                assert_eq!(disk(&f),pending,"lost Commit reply cannot publish target locally");
+                let mut owner=open(&f.c); let mut anchor=client(&f,&mut owner,at);
+                assert_eq!(owner.credential_renewal_status().expect("original pending"),renewal::pending(&g));
+                let signed=anchor.exchange(p.subject(),crate::AnchorOperation::credential_renewal_status(&p)).expect("independent fresh Applied evidence");
+                assert_eq!(signed.credential_renewal_state(&p).expect("exact operation and target"),crate::AnchorCredentialRenewalState::Applied);
+                owner.close();
+                at=196; f.carrier.clock.store(at,Ordering::SeqCst);
+                let mut owner=open(&f.c); let mut anchor=client(&f,&mut owner,at);
+                assert_eq!(owner.reconcile_witnessed_credential_renewal(g.operation(),g.statement_digest(),f.c.policy.historical(),at,&mut anchor).expect("historical cleanup after C2 expiry"),renewal::committed(&g));
+                owner.close();
+                assert!(matches!(activate(&f,at),Err(DurableError::Protocol(Error::Validity))),"historical cleanup cannot release expired C2");
+                assert_eq!(fs::read(root.join("second.grant")).expect("original G2"),second_wire);
+                assert_eq!(fs::read(root.join("second.proposal")).expect("original target"),second_proposal);
+                let third=new_grant(&f,g.successor_device(),4,199,at);
+                assert_ne!(third.operation(),g.operation());
+                fs::write(root.join("third.grant"),third.as_bytes()).expect("independent third grant");
+                p=prepare(&f,&third,at);
+                fs::write(root.join("third.proposal"),p.to_bytes()).expect("retained third target");
+                g=third;
+            }
+            commit(&f,&g,at);
+            let mut active=activate(&f,at).expect("new independent authorization releases same original installation");
+            let (service,signer,current)=active.parts().expect("controlled owners");
+            signer.check_device(current).expect("original full signing key");
+            assert_eq!(current.credential_digest(),g.successor_device().credential_digest());
+            let journal=service.stores().expect("stores").0;
+            let snapshot=journal.test_snapshot();
+            assert_eq!(snapshot.id,*f.id.as_bytes()); assert_eq!(snapshot.owner,crate::bootstrap::storage_owner(&f.original));
+            assert_eq!(journal.prekey_status(&f.c.policy,current,prekey).expect("retained historical inventory"),crate::PrekeyStatus::Available);
+            if profile=="live" {
+                assert_eq!(journal.prekey_leaf(&f.c.policy,current,prekey,at).expect("same live old public key").public_key(),fs::read(root.join("retained-prekey.public")).expect("original public bytes"));
+            } else { assert!(matches!(journal.prekey_leaf(&f.c.policy,current,prekey,at),Err(DurableError::Protocol(Error::Validity)))); }
+            journal.generate_prekey(&f.c.policy,current,crate::PrekeyId::from_trusted_state([229;32]).expect("fresh operation"),LeafKind::OneTimePq,Validity::new(at,at+2).expect("current key interval"),at).expect("actual SDK work after upgrade");
+            active.close();
+            let mut owner=open(&f.c); assert_eq!(owner.credential_renewal_status().expect("completed"),renewal::committed(&g));
+            assert_eq!(owner.identity().expect("same signer identity").as_bytes().as_slice(),fs::read(root.join("original.signer")).expect("original signer identity"));
+            let mut anchor=client(&f,&mut owner,at);
+            assert_eq!(owner.reconcile_witnessed_credential_renewal(g.operation(),g.statement_digest(),f.c.policy.historical(),at,&mut anchor).expect("exact retry after completion"),renewal::committed(&g));
+            owner.close();
+            assert_eq!(fs::read(root.join("second.grant")).expect("same grant bytes"),second_wire);
+            assert_eq!(fs::read(root.join("second.proposal")).expect("same proposal bytes"),second_proposal);
+            if profile=="lost_expired_target" {
+                assert_eq!(fs::read(root.join("third.grant")).expect("same G3 bytes"),g.as_bytes());
+                assert_eq!(fs::read(root.join("third.proposal")).expect("same third proposal"),p.to_bytes());
+            }
+            let commands=f.carrier.requests.lock().expect("recorded original requests");
+            let expected=if profile=="lost_expired_target" { 2 } else { 1 };
+            assert_eq!(commands.iter().filter(|op|**op==5).count(),expected,"one Commit per independently authorized operation");
+            assert_eq!(commands.iter().filter(|op|**op==8).count(),expected,"one ACK per completed operation");
+            drop(commands);
+            for (path,bytes) in keys.iter().zip(key_bytes.iter()) { assert_eq!(fs::read(path).expect("same private key"),*bytes); }
+            assert!(disk(&f).1.is_none());
+            f.carrier.store.lock().expect("store").close();
+            assert_eq!(witness_tag(&root),b"QPANC005");
+            println!("LEGACY_UPGRADE_CONSUMED profile={profile} old_state_refused_without_mutation=true independent_C2_approval=true same_identity_keys_journal_owner=true original_grant_and_proposal=true retained_inventory=true fresh_SDK_prekey=true schema=QPANC005 policy_renewal=false");
+        }
+    }
+}

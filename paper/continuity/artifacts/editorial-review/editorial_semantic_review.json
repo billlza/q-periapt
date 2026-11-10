@@ -1,0 +1,270 @@
+{
+  "schema": "q-periapt.editorial-semantic-review.v1",
+  "review_date": "2026-11-07",
+  "status": "PASS",
+  "scope": "Semantic addendum for the exact seven-file editorial diff; mathematical conditions, quantifiers, interfaces, budgets, and the abstract/introduction/discussion result descriptions.",
+  "reviewer": "Independent mathematical reviewer, separate from the editorial author",
+  "conclusion": "The final prose preserves the reviewed mathematical results and their applicability. It accurately includes the new finite multiple-root entry theorem and first-message connection. No further correction is required within this diff.",
+  "checks": [
+    {
+      "id": "E01",
+      "subject": "ContextBound component choice",
+      "status": "PASS",
+      "reason": "ML-KEM remains the declared real-versus-uniform component; X25519 retains its native output and rejection interface."
+    },
+    {
+      "id": "E02",
+      "subject": "Counted setup",
+      "status": "PASS",
+      "reason": "All oracle-dependent preparation, including the established starting state, remains part of the complete charged reduction."
+    },
+    {
+      "id": "E03",
+      "subject": "Complete hash input and provenance",
+      "status": "PASS",
+      "reason": "The ten-field input remains exhaustive, the offer contributes through C_app, and separate original-operation metadata remains in the provenance ledger."
+    },
+    {
+      "id": "E04",
+      "subject": "Unconditional hidden-input comparison",
+      "status": "PASS",
+      "reason": "The positive formulation explicitly includes collisions and executions ending without acceptance; it preserves the whole-experiment comparison."
+    },
+    {
+      "id": "E05",
+      "subject": "Two-stage component game and prior history",
+      "status": "PASS",
+      "reason": "The operational prechallenge/challenge/postchallenge timing is unchanged; earlier decapsulation answers persist, and the stated costs refer expressly to that two-stage game."
+    },
+    {
+      "id": "E06",
+      "subject": "Original bindings and stops",
+      "status": "PASS",
+      "reason": "Attribution still follows the immutable original binding; missing or unaccepted operations keep native execution unless an established stop applies."
+    },
+    {
+      "id": "E07",
+      "subject": "Correctness and projection cost placement",
+      "status": "PASS",
+      "reason": "The final two-sentence wording retains a_j^+, a_j^- and delta_j and separately keeps correctness/projection costs at their established comparisons. The initial grouping ambiguity was corrected."
+    },
+    {
+      "id": "E08",
+      "subject": "Adjacent KEM/hash simulations",
+      "status": "PASS",
+      "reason": "Locally generated tapes still implement the adjacent comparison; designated substitutions, ordinary SHA3 accounting, opaque records and stopping interfaces are unchanged."
+    },
+    {
+      "id": "E09",
+      "subject": "Native call surface",
+      "status": "PASS",
+      "reason": "Exclusive use through the declared call surface and passive read-only copies retain the established profile; its crash/reopen calls and original eligibility predicate remain explicit."
+    },
+    {
+      "id": "E10",
+      "subject": "Fresh PRK installation",
+      "status": "PASS",
+      "reason": "The unvisited table entry, fresh independent PRK and withheld presampling preserve the same joint distribution with the executed prefix."
+    },
+    {
+      "id": "E11",
+      "subject": "Whole interactive continuation",
+      "status": "PASS",
+      "reason": "The initialization continues to supply the entire interactive controller, with all later confirmations, signatures, traffic and successors recomputed."
+    },
+    {
+      "id": "E12",
+      "subject": "Primitive bounds and regimes",
+      "status": "PASS",
+      "reason": "Displayed bounds and budgets are unchanged; the published asymptotic constants and parameter regimes remain the declared inputs."
+    },
+    {
+      "id": "E13",
+      "subject": "Joint key-installation semantics",
+      "status": "PASS",
+      "reason": "The new wording retains independent installation and regenerated future computation, including ciphertext dependence and the intermediate roots' stated joint distributions."
+    },
+    {
+      "id": "E14",
+      "subject": "Abstract",
+      "status": "PASS",
+      "reason": "The abstract accurately separates the next-rekey native connection, finite available root descriptors with a fresh target in an existing class, and multi-epoch symbolic secrecy."
+    },
+    {
+      "id": "E15",
+      "subject": "Introduction",
+      "status": "PASS",
+      "reason": "Connected contribution paragraphs preserve the origin/exposure results, conditional computational connection, fresh-allocation profile and finite multiple-root extension. The organization still distinguishes finite computational interfaces from unbounded symbolic epochs."
+    },
+    {
+      "id": "E16",
+      "subject": "Discussion",
+      "status": "PASS",
+      "reason": "The new multiple-root paragraph describes exact pad-state aliases, successive row comparisons, fresh targets, the shared schedule handle and complete budgets, with concrete source use tied to the declared available-data controller."
+    },
+    {
+      "id": "E17",
+      "subject": "Artifact map and attribution",
+      "status": "PASS",
+      "reason": "The artifact map identifies the new theorem/proof/review and the prose correspondence record. Prior primitive results and SkyBridge's admission/release perspective retain their distinct roles; the new persistence and computational connection remain attributed to this paper."
+    }
+  ],
+  "resolved_issue": "The initial component-cost sentence grouped permitted-projection costs ambiguously; the final text uses two sentences and retains their established comparison locations.",
+  "unresolved_issues": [],
+  "text_identity_checks": {
+    "files_in_exact_diff": 7,
+    "old_snapshots_match_diff_bases": true,
+    "current_files_match_diff_targets": true,
+    "formal_statement_blocks": [
+      {
+        "file": "contextbound-connection.tex",
+        "unchanged_formal_statement_count": 3,
+        "byte_identical": true
+      },
+      {
+        "file": "joint-continuation.tex",
+        "unchanged_formal_statement_count": 3,
+        "byte_identical": true
+      },
+      {
+        "file": "joint-primitive-bounds.tex",
+        "unchanged_formal_statement_count": 2,
+        "byte_identical": true
+      }
+    ],
+    "unchanged_formal_statement_total": 8
+  },
+  "final_diff": {
+    "absolute_path": "/workspace/scratch/83c4961eae79/editorial_revision/final_editorial.diff",
+    "bytes": 33276,
+    "sha256": "1ea1888eb54c49e89d93ad08c20ccb33d52790afac698fa3e90529ee47b257b2"
+  },
+  "files": [
+    {
+      "file": "artifact-map.tex",
+      "old_snapshot": {
+        "absolute_path": "/workspace/scratch/83c4961eae79/editorial_revision/source_snapshot/artifact-map.tex",
+        "bytes": 14006,
+        "sha256": "409d35b1dd8803496cf06592d81e89af6e0bcd14beb164b39bcf9ff12f17715c",
+        "matches_diff_base": true,
+        "diff_blob_prefix": "a54ad20"
+      },
+      "current": {
+        "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/artifact-map.tex",
+        "bytes": 15056,
+        "sha256": "c7d034e2c70b75d78abc42190e3f3ecf16a9d1024a137285e4361f1632016ac2",
+        "matches_diff_target": true,
+        "diff_blob_prefix": "8e0825d"
+      }
+    },
+    {
+      "file": "contextbound-connection.tex",
+      "old_snapshot": {
+        "absolute_path": "/workspace/scratch/83c4961eae79/editorial_revision/source_snapshot/contextbound-connection.tex",
+        "bytes": 16725,
+        "sha256": "97758cda00a7159839b80f6bcc66e78ca4a0d8702ec5d12a687fa64f67ade0a1",
+        "matches_diff_base": true,
+        "diff_blob_prefix": "fa69d3a"
+      },
+      "current": {
+        "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/contextbound-connection.tex",
+        "bytes": 16401,
+        "sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+        "matches_diff_target": true,
+        "diff_blob_prefix": "602813f"
+      }
+    },
+    {
+      "file": "discussion.tex",
+      "old_snapshot": {
+        "absolute_path": "/workspace/scratch/83c4961eae79/editorial_revision/source_snapshot/discussion.tex",
+        "bytes": 3932,
+        "sha256": "d2d343000995aff72f4b478add058cac1b3cd1c7baa3b2b7bcd55fdc2257dde1",
+        "matches_diff_base": true,
+        "diff_blob_prefix": "7ed9770"
+      },
+      "current": {
+        "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/discussion.tex",
+        "bytes": 4550,
+        "sha256": "058ff6bcd955475cb2c75327e7b677980f4fd38211e8fcfabc79214450a002bb",
+        "matches_diff_target": true,
+        "diff_blob_prefix": "e2cbb6a"
+      }
+    },
+    {
+      "file": "introduction.tex",
+      "old_snapshot": {
+        "absolute_path": "/workspace/scratch/83c4961eae79/editorial_revision/source_snapshot/introduction.tex",
+        "bytes": 9625,
+        "sha256": "e17772bb631a83a9eaaa193045073eb3eca5eefd0c705bbd5b23a27d00735cef",
+        "matches_diff_base": true,
+        "diff_blob_prefix": "a172205"
+      },
+      "current": {
+        "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/introduction.tex",
+        "bytes": 8274,
+        "sha256": "85251596494e2d364a2b920bfae242189985ed27f841ff48b47cb0e7719c00fc",
+        "matches_diff_target": true,
+        "diff_blob_prefix": "5a76ca9"
+      }
+    },
+    {
+      "file": "joint-continuation.tex",
+      "old_snapshot": {
+        "absolute_path": "/workspace/scratch/83c4961eae79/editorial_revision/source_snapshot/joint-continuation.tex",
+        "bytes": 18023,
+        "sha256": "865b128155662d8916ef648a7852a9973e9d24f22287d29c9ec59ca191fee989",
+        "matches_diff_base": true,
+        "diff_blob_prefix": "9aaf509"
+      },
+      "current": {
+        "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/joint-continuation.tex",
+        "bytes": 17988,
+        "sha256": "d6c980912918b309c33f4c9f8116d6835dd521be639d5c866b198496a9dd3bcb",
+        "matches_diff_target": true,
+        "diff_blob_prefix": "9719bc6"
+      }
+    },
+    {
+      "file": "joint-primitive-bounds.tex",
+      "old_snapshot": {
+        "absolute_path": "/workspace/scratch/83c4961eae79/editorial_revision/source_snapshot/joint-primitive-bounds.tex",
+        "bytes": 10706,
+        "sha256": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d",
+        "matches_diff_base": true,
+        "diff_blob_prefix": "3914c99"
+      },
+      "current": {
+        "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/joint-primitive-bounds.tex",
+        "bytes": 10654,
+        "sha256": "728694d237734b071496d355c13c359825aef219d918ed54810f97d2457e9dbd",
+        "matches_diff_target": true,
+        "diff_blob_prefix": "54cfbad"
+      }
+    },
+    {
+      "file": "main.tex",
+      "old_snapshot": {
+        "absolute_path": "/workspace/scratch/83c4961eae79/editorial_revision/source_snapshot/main.tex",
+        "bytes": 4285,
+        "sha256": "17019866670f09c9570b63385ac1207bfe8bd5764c5a7dc57f0f80982ec5039d",
+        "matches_diff_base": true,
+        "diff_blob_prefix": "9369151"
+      },
+      "current": {
+        "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/main.tex",
+        "bytes": 4268,
+        "sha256": "034f7b8ea467dd89b1b8248bcaac18af4fc2e73f3f96d17044c3957078118e18",
+        "matches_diff_target": true,
+        "diff_blob_prefix": "0b54c2f"
+      }
+    }
+  ],
+  "unchanged_new_module": {
+    "absolute_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/multiple-root-entry.tex",
+    "sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+    "matches_frozen_mathematical_review": true
+  },
+  "review_method": "Read the complete exact diff and old/new semantic edits; checked the mathematical meaning in the retained definitions; verified diff base/target identities and formal-statement byte equality. No repository files were modified.",
+  "excluded_from_this_addendum": "No new mathematical research, execution tests, benchmark campaign, build or visual audit. Those independent activities retain their own records."
+}

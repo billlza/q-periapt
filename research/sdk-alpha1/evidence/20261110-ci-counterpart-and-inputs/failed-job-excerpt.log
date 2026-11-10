@@ -1,0 +1,53 @@
+2026-11-10T00:14:51.0514433Z ERROR: test_archive_edges_preserve_source_build_and_lint_settings (test_continuity_independent_package.IndependentPackageTests.test_archive_edges_preserve_source_build_and_lint_settings)
+2026-11-10T00:14:51.0515109Z ----------------------------------------------------------------------
+2026-11-10T00:14:51.0515411Z Traceback (most recent call last):
+2026-11-10T00:14:51.0524356Z   File "/home/runner/work/q-periapt/q-periapt/artifact/test_continuity_independent_package.py", line 95, in test_archive_edges_preserve_source_build_and_lint_settings
+2026-11-10T00:14:51.0525346Z     after = tomllib.loads(installed.installed_manifest(original).decode())
+2026-11-10T00:14:51.0525807Z                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+2026-11-10T00:14:51.0526510Z   File "/home/runner/work/q-periapt/q-periapt/artifact/continuity_independent_package.py", line 69, in installed_manifest
+2026-11-10T00:14:51.0527322Z     sdk.require({name for name in dependencies if name.startswith("q-periapt")} == expected,
+2026-11-10T00:14:51.0527858Z     ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-10T00:14:51.0528287Z                 "counterpart product dependencies differ")
+2026-11-10T00:14:51.0528881Z                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-10T00:14:51.0529435Z   File "/home/runner/work/q-periapt/q-periapt/artifact/rust_sdk_profile.py", line 66, in require
+2026-11-10T00:14:51.0529963Z     raise ValueError(message)
+2026-11-10T00:14:51.0530284Z ValueError: counterpart product dependencies differ
+2026-11-10T00:14:51.0530544Z 
+2026-11-10T00:14:51.0530674Z ======================================================================
+2026-11-10T00:14:51.0531709Z ERROR: test_complete_counterpart_setup_retains_lock_and_refuses_existing_state (test_continuity_independent_package.IndependentPackageTests.test_complete_counterpart_setup_retains_lock_and_refuses_existing_state)
+2026-11-10T00:14:51.0532766Z ----------------------------------------------------------------------
+2026-11-10T00:14:51.0533356Z Traceback (most recent call last):
+2026-11-10T00:14:51.0534291Z   File "/home/runner/work/q-periapt/q-periapt/artifact/test_continuity_independent_package.py", line 80, in test_complete_counterpart_setup_retains_lock_and_refuses_existing_state
+2026-11-10T00:14:51.0535192Z     original = installed.prepare_counterpart(consumer)
+2026-11-10T00:14:51.0535899Z   File "/home/runner/work/q-periapt/q-periapt/artifact/continuity_independent_package.py", line 124, in prepare_counterpart
+2026-11-10T00:14:51.0536657Z     manifest = installed_manifest(sdk.snapshot(consumer / "Cargo.toml").data)
+2026-11-10T00:14:51.0537429Z   File "/home/runner/work/q-periapt/q-periapt/artifact/continuity_independent_package.py", line 69, in installed_manifest
+2026-11-10T00:14:51.0538208Z     sdk.require({name for name in dependencies if name.startswith("q-periapt")} == expected,
+2026-11-10T00:14:51.0538737Z     ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-10T00:14:51.0539147Z                 "counterpart product dependencies differ")
+2026-11-10T00:14:51.0539508Z                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-10T00:14:51.0540032Z   File "/home/runner/work/q-periapt/q-periapt/artifact/rust_sdk_profile.py", line 66, in require
+2026-11-10T00:14:51.0540710Z     raise ValueError(message)
+2026-11-10T00:14:51.0541046Z ValueError: counterpart product dependencies differ
+2026-11-10T00:14:51.0541301Z 
+2026-11-10T00:14:51.0541425Z ======================================================================
+2026-11-10T00:14:51.0542259Z FAIL: test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner)
+2026-11-10T00:14:51.0543374Z ----------------------------------------------------------------------
+2026-11-10T00:14:51.0543755Z Traceback (most recent call last):
+2026-11-10T00:14:51.0544494Z   File "/home/runner/work/q-periapt/q-periapt/artifact/test_proof_to_byte_release.py", line 6477, in test_ci_repository_python_calls_use_one_shot_runner
+2026-11-10T00:14:51.0545189Z     self.assertIn(
+2026-11-10T00:14:51.0545414Z     ~~~~~~~~~~~~~^
+2026-11-10T00:14:51.0545658Z         "sh artifact/python-run.sh",
+2026-11-10T00:14:51.0545941Z         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-10T00:14:51.0546205Z         line,
+2026-11-10T00:14:51.0546420Z         ^^^^^
+2026-11-10T00:14:51.0546755Z         f"{workflow.relative_to(ROOT)}:{number} bypasses the one-shot runner",
+2026-11-10T00:14:51.0547201Z         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-10T00:14:51.0547525Z     )
+2026-11-10T00:14:51.0547716Z     ^
+2026-11-10T00:14:51.0548441Z AssertionError: 'sh artifact/python-run.sh' not found in '            artifact/codeql_summary_control.py' : .github/workflows/codeql-summary-control.yml:37 bypasses the one-shot runner
+2026-11-10T00:14:51.0549165Z 
+2026-11-10T00:14:51.0549331Z ----------------------------------------------------------------------
+2026-11-10T00:14:51.0549704Z Ran 3644 tests in 415.534s
+2026-11-10T00:14:51.0549865Z 
+2026-11-10T00:14:51.0549995Z FAILED (failures=1, errors=2, skipped=3)

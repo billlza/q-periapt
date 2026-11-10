@@ -16,9 +16,14 @@ import pwd
 import re
 import stat
 import sys
+import time
 from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Literal, NoReturn
+
+from android_runtime_profile import (
+    DEFAULT_RUNTIME_PROFILE, RUNTIME_PROFILES, owned_avd_profile, runtime_profile,
+)
 
 from android_emulator_control import (
     ADB_ISOLATION_CHECKPOINT_LEAVES,
@@ -81,8 +86,13 @@ ACCOUNT_STATE_LEAF = "dev.qperiapt.android-device-smoke"
 LANE_LOCK_LEAF = "lane.lock"
 OWNED_RUNTIME_RECEIPT_LEAF = "owned-runtime.json"
 OWNED_RUNTIME_RECEIPT_KIND = "qperiapt.android_owned_runtime"
-OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 5
+OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 6
+# Version 5 is read only to finish its original recovery/retirement lifecycle.
+# Its writes retain that exact format; the next newly prepared run writes version 6.
+LEGACY_OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION = 5
+PRIVATE_ADB_LISTEN_BACKLOG = 128
 MAX_OWNED_RUNTIME_RECEIPT_BYTES = 16 * 1024
+RUNTIME_RECEIPT_LOCK_SECONDS = 1.0
 AVD_HOME_LEAF = "avd-home"
 MAX_AVD_INI_BYTES = 64 * 1024
 MAX_AVD_TREE_ENTRIES = 8_192
@@ -133,7 +143,7 @@ CAPABILITY_FIELDS = frozenset(
     }
 )
 
-OWNED_RUNTIME_RECEIPT_FIELDS = frozenset(
+LEGACY_OWNED_RUNTIME_RECEIPT_FIELDS = frozenset(
     {
         "schema_version",
         "kind",
@@ -183,6 +193,9 @@ OWNED_RUNTIME_RECEIPT_FIELDS = frozenset(
         "backend_sha256",
     }
 )
+OWNED_RUNTIME_RECEIPT_FIELDS = LEGACY_OWNED_RUNTIME_RECEIPT_FIELDS | {
+    "adb_listener_activation"
+}
 
 ACCOUNT_HOME = pathlib.Path(pwd.getpwuid(os.geteuid()).pw_dir)
 ADB_PROFILE_PATHS: Mapping[str, pathlib.Path] = MappingProxyType(
@@ -193,12 +206,7 @@ ADB_PROFILE_PATHS: Mapping[str, pathlib.Path] = MappingProxyType(
         "linux-opt": pathlib.Path("/opt/android-sdk/platform-tools/adb"),
     }
 )
-RUNTIME_AVD_NAMES: Mapping[tuple[str, str], str] = MappingProxyType(
-    {
-        ("macos-account", "arm64-v8a"): "QPeriapt_Release_16K_API_35_V1",
-        ("linux-system", "x86_64"): "QPeriapt_Release_16K_API_35_CI_V1",
-    }
-)
+RUNTIME_AVD_NAMES = RUNTIME_PROFILES[DEFAULT_RUNTIME_PROFILE].avds
 
 
 class AndroidRuntimeStateError(RuntimeError):
@@ -210,6 +218,7 @@ class RuntimePhase(str, enum.Enum):
 
     PREPARED = "prepared"
     ADB_CHILD_REGISTERED = "adb_child_registered"
+    ADB_LISTENER_READY = "adb_listener_ready"
     ADB_SEALING = "adb_sealing"
     ADB_SEALED = "adb_sealed"
     EMULATOR_CHILD_REGISTERED = "emulator_child_registered"
@@ -225,6 +234,14 @@ class ConsoleAuthTokenIdentity:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
+class AdbListenerActivation:
+    """One descriptor reserved for the macOS private listener before exec."""
+
+    descriptor: int
+    backlog: int = PRIVATE_ADB_LISTEN_BACKLOG
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
 class AdbChildRegistration:
     """Adapter-validated identity required to durably register the adb child."""
 
@@ -233,6 +250,7 @@ class AdbChildRegistration:
     initial_executable_inode: int
     adb_snapshot_device: int
     adb_snapshot_inode: int
+    listener_activation: AdbListenerActivation | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -366,6 +384,8 @@ class OwnedRuntimeReceipt:
     backend_inode: int | None
     backend_sha256: str | None
     snapshot_sha256: str
+    schema_version: int = LEGACY_OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION
+    adb_listener_activation: AdbListenerActivation | None = None
 
     @property
     def adb_server_started(self) -> bool:
@@ -602,6 +622,32 @@ def owned_unix_listener_dialect(adb_profile: str) -> OwnedUnixListenerDialect:
 
 def resolve_adb_profile(profile: object) -> pathlib.Path:
     return ADB_PROFILE_PATHS[canonical_adb_profile(profile)]
+
+
+def collector_repository_root(requested: pathlib.Path) -> pathlib.Path:
+    """Bind a release collector's declared source to its executing checkout."""
+
+    _require(
+        requested.absolute() == REPOSITORY_ROOT,
+        "Android release collector requires the executing repository root",
+    )
+    return REPOSITORY_ROOT
+
+
+def registered_sdk_root(requested: pathlib.Path | str) -> pathlib.Path:
+    """Select SDK configuration without probing adb or acquiring device state.
+
+    A supplied path is an assertion about an existing registered SDK profile.
+    Only the registered value may reach filesystem or executable operations.
+    """
+
+    for adb in ADB_PROFILE_PATHS.values():
+        root = adb.parent.parent
+        if str(requested) == str(root):
+            return root
+    raise AndroidRuntimeStateError(
+        "Android release SDK must use an existing registered SDK root"
+    )
 
 
 def _open_private_directory(path: pathlib.Path, label: str) -> int:
@@ -1790,12 +1836,19 @@ def canonical_runtime_emulator_abi(
     return _canonical_emulator_abi(value)
 
 
-def runtime_avd_name(adb_profile: object, device_abi: object) -> str:
+def runtime_avd_name(
+    adb_profile: object, device_abi: object,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
+) -> str:
     """Derive the only admitted AVD name from code-owned runtime identities."""
 
     canonical_profile = _canonical_concrete_adb_profile(adb_profile)
     canonical_abi = _canonical_emulator_abi(device_abi)
-    selected = RUNTIME_AVD_NAMES.get((canonical_profile, canonical_abi))
+    try:
+        spec = runtime_profile(expected_runtime_profile)
+    except ValueError as error:
+        raise AndroidRuntimeStateError(str(error)) from error
+    selected = spec.avds.get((canonical_profile, canonical_abi))
     _require(
         selected is not None,
         "Android runtime adb profile and emulator ABI have no fixed AVD selection",
@@ -2280,13 +2333,266 @@ def _validate_default_avd_fallback_absence(avd_name: str) -> None:
 def validate_runtime_avd_selection(
     adb_profile: object,
     device_abi: object,
+    expected_runtime_profile: str = DEFAULT_RUNTIME_PROFILE,
 ) -> AvdSelection:
     """Validate the fixed AVD and prove every same-name fallback is absent."""
 
-    avd_name = runtime_avd_name(adb_profile, device_abi)
+    avd_name = runtime_avd_name(adb_profile, device_abi, expected_runtime_profile)
     selection = _validate_avd_home_selection(avd_name)
     _validate_default_avd_fallback_absence(selection.name)
     return selection
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _RetainedPstoreFile:
+    metadata: os.stat_result
+    snapshot: FileDigestSnapshot
+
+
+def _avd_scratch_identity(metadata: os.stat_result) -> tuple[int, ...]:
+    # Reading can advance atime. Content, ownership and all other sampled
+    # metadata remain bound across permission restoration.
+    return (
+        metadata.st_dev, metadata.st_ino, metadata.st_uid, metadata.st_gid,
+        metadata.st_mode, metadata.st_nlink, metadata.st_size,
+        metadata.st_mtime_ns, metadata.st_ctime_ns,
+    )
+
+
+def _inspect_pstore_contents(directory_fd: int) -> _RetainedPstoreFile | None:
+    """Admit only empty scratch or the SDK's private 64 KiB persistent RAM.
+
+    Goldfish saves pstore.bin at device teardown; the file is not evidence of
+    a crash by itself. Preserve its identity and bytes. Unknown names, links,
+    partial files and unsafe metadata remain errors, with bounded diagnostics.
+    """
+    records: list[dict[str, object]] = []
+    truncated = False
+    retained: _RetainedPstoreFile | None = None
+    # scandir(fd) can share the descriptor's directory offset. Reopen the same
+    # directory so repeated inspections cannot silently start at end-of-stream.
+    scan_fd = os.open(
+        ".", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0),
+        dir_fd=directory_fd,
+    )
+    primary: BaseException | None = None
+    try:
+        with os.scandir(scan_fd) as entries:
+            for entry in entries:
+                if len(records) == 8:
+                    truncated = True
+                    break
+                metadata = os.stat(entry.name, dir_fd=directory_fd, follow_symlinks=False)
+                regular = stat.S_ISREG(metadata.st_mode)
+                record = {
+                    "name": "pstore.bin" if entry.name == "pstore.bin" else "unrecognized",
+                    "name_sha256": hashlib.sha256(os.fsencode(entry.name)).hexdigest(),
+                    "type": "regular" if regular else "other",
+                    "bytes": metadata.st_size,
+                    "mode": stat.S_IMODE(metadata.st_mode),
+                    "current_owner": metadata.st_uid == os.geteuid(),
+                    "links": metadata.st_nlink,
+                }
+                if (entry.name == "pstore.bin" and regular
+                        and metadata.st_uid == os.geteuid() and metadata.st_nlink == 1
+                        and stat.S_IMODE(metadata.st_mode) == 0o600
+                        and 0 <= metadata.st_size <= 1024 * 1024):
+                    def same_private_file(
+                        observed: os.stat_result, expected: os.stat_result = metadata,
+                    ) -> None:
+                        private_file_metadata(observed)
+                        _require(_avd_scratch_identity(observed) == _avd_scratch_identity(expected),
+                                 "owned pstore entry changed before reading")
+
+                    snapshot = consume_regular_snapshot_at(
+                        directory_fd, "pstore.bin", display_path=pathlib.Path("pstore.bin"),
+                        maximum=1024 * 1024, label="owned emulator pstore",
+                        validate_metadata=same_private_file,
+                    )
+                    record["sha256"] = snapshot.sha256
+                    if snapshot.size == 0x10000:
+                        retained = _RetainedPstoreFile(metadata, snapshot)
+                records.append(record)
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        _close_owned_descriptor(scan_fd, label="pstore inspection directory", primary=primary)
+    if not records:
+        return None
+    if len(records) == 1 and not truncated and retained is not None:
+        return retained
+    summary = json.dumps({"entries": records, "truncated": truncated}, sort_keys=True, separators=(",", ":"))
+    raise AndroidRuntimeStateError("AVD pstore is not empty or the fixed private RAM file: " + summary)
+
+
+def restore_owned_avd_pstore_permissions(receipt: OwnedRuntimeReceipt) -> None:
+    """Restore SDK scratch privacy while preserving its persistent RAM file.
+
+    The emulator explicitly chmods this directory to 0777. Keep admission
+    read-only and strict: this mutation belongs solely to owned retirement.
+    """
+
+    validate_lane_lock_descriptor()
+    if not receipt.emulator_started:
+        return
+    current = load_owned_runtime_receipt()
+    _require(
+        current is not None and current.snapshot_sha256 == receipt.snapshot_sha256,
+        "AVD scratch retirement receipt changed",
+    )
+    try:
+        selected_profile = owned_avd_profile(receipt.adb_profile, receipt.device_abi, receipt.avd_name)
+    except ValueError as error:
+        raise AndroidRuntimeStateError(f"AVD scratch receipt selection differs: {error}") from error
+    name = runtime_avd_name(receipt.adb_profile, receipt.device_abi, selected_profile)
+    home = avd_home_directory()
+    selected = home / f"{name}.avd"
+    descriptors: list[tuple[int, str]] = []
+    bindings: list[tuple[int, str, int, os.stat_result]] = []
+    primary: BaseException | None = None
+
+    def identity(metadata: os.stat_result) -> tuple[int, ...]:
+        return _avd_scratch_identity(metadata)
+
+    def recheck_bindings() -> None:
+        for parent, leaf, descriptor, expected in bindings:
+            named = os.stat(leaf, dir_fd=parent, follow_symlinks=False)
+            _require(
+                identity(os.fstat(descriptor)) == identity(expected) == identity(named),
+                f"AVD scratch entry identity changed: {leaf}",
+            )
+
+    try:
+        parent = _open_account_state()
+        descriptors.append((parent, "AVD scratch account state"))
+        display = account_state_directory()
+        optional_missing = False
+        for leaf, optional in (
+            (AVD_HOME_LEAF, False),
+            (selected.name, False),
+            ("data", True),
+            ("misc", True),
+        ):
+            display = display / leaf
+            try:
+                observed = os.stat(leaf, dir_fd=parent, follow_symlinks=False)
+            except FileNotFoundError:
+                if not optional:
+                    raise
+                optional_missing = True
+                break
+            descriptor = _open_private_directory_at(
+                parent,
+                leaf,
+                display_path=display,
+                label="AVD scratch ancestor",
+            )
+            descriptors.append((descriptor, "AVD scratch ancestor"))
+            opened = os.fstat(descriptor)
+            _require(
+                identity(observed) == identity(opened),
+                "AVD scratch ancestor changed while opening",
+            )
+            bindings.append((parent, leaf, descriptor, opened))
+            parent = descriptor
+            if leaf == AVD_HOME_LEAF:
+                ini = home / f"{name}.ini"
+                _parse_selected_avd_ini(
+                    _read_selected_avd_ini(parent, leaf=ini.name, display_path=ini),
+                    expected_path=selected,
+                )
+        if not optional_missing:
+            try:
+                observed = os.stat("pstore", dir_fd=parent, follow_symlinks=False)
+            except FileNotFoundError:
+                observed = None
+            if observed is not None:
+                _require(
+                    stat.S_ISDIR(observed.st_mode)
+                    and observed.st_uid == os.geteuid()
+                    and stat.S_IMODE(observed.st_mode) in {0o700, 0o777},
+                    "AVD pstore must be a current-user-owned 0700 or 0777 directory",
+                )
+                descriptor = os.open(
+                    "pstore",
+                    os.O_RDONLY
+                    | os.O_DIRECTORY
+                    | os.O_NOFOLLOW
+                    | getattr(os, "O_CLOEXEC", 0),
+                    dir_fd=parent,
+                )
+                descriptors.append((descriptor, "AVD pstore"))
+                opened = os.fstat(descriptor)
+                _require(
+                    identity(observed) == identity(opened),
+                    "AVD pstore changed while opening",
+                )
+                _reject_macos_allow_acl(descriptor, "AVD pstore")
+                bindings.append((parent, "pstore", descriptor, opened))
+                pstore_binding = len(bindings) - 1
+                retained = _inspect_pstore_contents(descriptor)
+                if retained is not None:
+                    file_descriptor = os.open(
+                        "pstore.bin", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+                        | getattr(os, "O_CLOEXEC", 0), dir_fd=descriptor,
+                    )
+                    descriptors.append((file_descriptor, "retained pstore RAM"))
+                    _require(identity(os.fstat(file_descriptor)) == identity(retained.metadata),
+                             "retained pstore RAM changed while opening")
+                    _reject_macos_allow_acl(file_descriptor, "retained pstore RAM")
+                    bindings.append((descriptor, "pstore.bin", file_descriptor, retained.metadata))
+                recheck_bindings()
+                if stat.S_IMODE(opened.st_mode) == 0o777:
+                    os.fchmod(descriptor, 0o700)
+                    restored = os.fstat(descriptor)
+                    _require(
+                        restored.st_dev == opened.st_dev
+                        and restored.st_ino == opened.st_ino
+                        and restored.st_uid == opened.st_uid
+                        and restored.st_gid == opened.st_gid
+                        and restored.st_mode == (stat.S_IFDIR | 0o700)
+                        and restored.st_nlink == opened.st_nlink
+                        and restored.st_size == opened.st_size
+                        and restored.st_mtime_ns == opened.st_mtime_ns,
+                        "AVD pstore identity changed while restoring permissions",
+                    )
+                    bindings[pstore_binding] = (parent, "pstore", descriptor, restored)
+                after = _inspect_pstore_contents(descriptor)
+                _require(
+                    (retained is None and after is None)
+                    or (retained is not None and after is not None
+                        and after.snapshot == retained.snapshot
+                        and identity(after.metadata) == identity(retained.metadata)),
+                    "AVD pstore changed after inspection",
+                )
+        recheck_bindings()
+        validate_runtime_avd_selection(receipt.adb_profile, receipt.device_abi, selected_profile)
+        recheck_bindings()
+    except OSError as exc:
+        primary = AndroidRuntimeStateError(f"cannot restore owned AVD pstore: {exc}")
+        raise primary from exc
+    except BaseException as exc:
+        primary = exc
+        raise
+    finally:
+        closing_failure: BaseException | None = None
+        for descriptor, label in reversed(descriptors):
+            try:
+                _close_owned_descriptor(
+                    descriptor,
+                    label=label,
+                    primary=primary if primary is not None else closing_failure,
+                )
+            except BaseException as exc:
+                if primary is not None:
+                    primary.add_note(f"closing {label} also failed: {exc}")
+                elif closing_failure is None:
+                    closing_failure = exc
+                else:
+                    closing_failure.add_note(f"closing {label} also failed: {exc}")
+        if primary is None and closing_failure is not None:
+            raise closing_failure
 
 
 def _canonical_emulator_abi(value: object) -> Literal["arm64-v8a", "x86_64"]:
@@ -2377,6 +2683,7 @@ def _runtime_recovery_payload(
         "adb_snapshot_device": None,
         "adb_snapshot_inode": None,
         "adb_listener_descriptor": None,
+        "adb_listener_activation": None,
         "adb_socket_directory_device": socket_directory_metadata.st_dev,
         "adb_socket_directory_inode": socket_directory_metadata.st_ino,
         "avd_name": None,
@@ -2397,10 +2704,10 @@ def _runtime_recovery_payload(
 
 
 def _runtime_receipt_payload(receipt: OwnedRuntimeReceipt) -> dict[str, object]:
-    """Serialize one already-validated runtime receipt without its file digest."""
+    """Preserve a validated recovery format until retirement; never upgrade on read."""
 
-    return {
-        "schema_version": OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION,
+    payload = {
+        "schema_version": receipt.schema_version,
         "kind": OWNED_RUNTIME_RECEIPT_KIND,
         "phase": receipt.phase.value,
         "run_id": receipt.run_id,
@@ -2459,6 +2766,18 @@ def _runtime_receipt_payload(receipt: OwnedRuntimeReceipt) -> dict[str, object]:
         "backend_inode": receipt.backend_inode,
         "backend_sha256": receipt.backend_sha256,
     }
+    if receipt.schema_version == OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION:
+        activation = receipt.adb_listener_activation
+        payload["adb_listener_activation"] = (
+            {
+                "kind": "inherited_unix",
+                "descriptor": activation.descriptor,
+                "backlog": activation.backlog,
+            }
+            if activation is not None
+            else None
+        )
+    return payload
 
 
 def _cleanup_owned_runtime_receipt_staging_files() -> None:
@@ -3058,6 +3377,7 @@ def _write_owned_runtime_receipt(payload: Mapping[str, object]) -> str:
     published = False
     primary: BaseException | None = None
     try:
+        _lock_account_state_for_receipt_mutation(state_fd)
         encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
         _require(
             len(encoded) <= MAX_OWNED_RUNTIME_RECEIPT_BYTES,
@@ -3142,6 +3462,7 @@ def _replace_owned_runtime_receipt(
     state_fd = _open_account_state()
     temporary_leaf = f".{OWNED_RUNTIME_RECEIPT_LEAF}.replace-{os.getpid()}"
     descriptor = -1
+    temporary_created = False
     receipt_fd = -1
     primary: BaseException | None = None
     try:
@@ -3178,6 +3499,7 @@ def _replace_owned_runtime_receipt(
             0o600,
             dir_fd=state_fd,
         )
+        temporary_created = True
         os.fchmod(descriptor, 0o600)
         _write_all(descriptor, encoded, label="owned runtime receipt replacement")
         os.fsync(descriptor)
@@ -3189,6 +3511,7 @@ def _replace_owned_runtime_receipt(
             src_dir_fd=state_fd,
             dst_dir_fd=state_fd,
         )
+        temporary_created = False
         os.fsync(state_fd)
         return next_receipt
     except BaseException as exc:
@@ -3199,14 +3522,16 @@ def _replace_owned_runtime_receipt(
                 label="the owned runtime receipt replacement",
                 primary=primary,
             )
-        try:
-            os.unlink(temporary_leaf, dir_fd=state_fd)
-        except FileNotFoundError:
-            pass
-        except BaseException as cleanup_error:
-            primary.add_note(
-                f"removing the receipt replacement staging file also failed: {cleanup_error}"
-            )
+        if temporary_created:
+            try:
+                os.unlink(temporary_leaf, dir_fd=state_fd)
+                os.fsync(state_fd)
+            except FileNotFoundError:
+                pass
+            except BaseException as cleanup_error:
+                primary.add_note(
+                    f"removing the receipt replacement staging file also failed: {cleanup_error}"
+                )
         raise
     finally:
         if receipt_fd >= 0:
@@ -3252,14 +3577,36 @@ def _open_owned_runtime_receipt_for_mutation(state_fd: int) -> int:
 def _lock_account_state_for_receipt_mutation(state_fd: int) -> None:
     """Serialize receipt mutation on the stable account-state directory inode."""
 
-    try:
-        fcntl.flock(state_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        _fail("owned runtime receipt has a concurrent lifecycle mutation")
-    except OSError as exc:
-        raise AndroidRuntimeStateError(
-            f"cannot lock Android account state for lifecycle mutation: {exc}"
-        ) from exc
+    _lock_account_state_for_receipt_access(state_fd, exclusive=True)
+
+
+def _lock_account_state_for_receipt_access(state_fd: int, *, exclusive: bool) -> None:
+    """Bound lock acquisition; never retry a read, write, or lifecycle action.
+
+    Atomic replacement unlinks the old inode and changes its ctime. Readers
+    must hold the same stable-directory lock as writers across the complete
+    strict snapshot. Writers then revalidate their exact prior under that lock,
+    so serialization never turns stale CAS input into permission to mutate.
+    """
+
+    deadline = time.monotonic() + RUNTIME_RECEIPT_LOCK_SECONDS
+    mode = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+    action = "lifecycle mutation" if exclusive else "snapshot read"
+    while True:
+        try:
+            fcntl.flock(state_fd, mode | fcntl.LOCK_NB)
+            if time.monotonic() > deadline:
+                _fail(f"owned runtime receipt lock deadline exhausted during {action}")
+            return
+        except BlockingIOError:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                _fail(f"owned runtime receipt lock deadline exhausted during {action}")
+            time.sleep(min(0.005, remaining))
+        except OSError as exc:
+            raise AndroidRuntimeStateError(
+                f"cannot lock Android account state for {action}: {exc}"
+            ) from exc
 
 
 def _require_locked_receipt_is_current(
@@ -3317,7 +3664,19 @@ def register_adb_child(
         and registration.adb_snapshot_inode > 0,
         "adb child registration identity is invalid",
     )
-    payload = _runtime_receipt_payload(receipt)
+    activation = registration.listener_activation
+    _require(
+        activation is None
+        or (
+            isinstance(activation, AdbListenerActivation)
+            and receipt.schema_version == OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION
+            and receipt.adb_profile == "macos-account"
+        ),
+        "adb listener activation is not admitted by this receipt",
+    )
+    payload = _runtime_receipt_payload(
+        dataclasses.replace(receipt, adb_listener_activation=activation)
+    )
     payload.update(
         {
             "phase": RuntimePhase.ADB_CHILD_REGISTERED.value,
@@ -3335,6 +3694,46 @@ def register_adb_child(
     return _replace_owned_runtime_receipt(receipt, payload)
 
 
+def complete_adb_listener_activation(
+    receipt: OwnedRuntimeReceipt,
+) -> OwnedRuntimeReceipt:
+    """Record a successfully bound/listening bootstrap FD before adb exec."""
+
+    validate_lane_lock_descriptor()
+    activation = receipt.adb_listener_activation
+    _require(
+        receipt.phase is RuntimePhase.ADB_CHILD_REGISTERED
+        and activation is not None,
+        "runtime recovery receipt is not awaiting listener activation",
+    )
+    payload = _runtime_receipt_payload(receipt)
+    payload["phase"] = RuntimePhase.ADB_LISTENER_READY.value
+    payload["adb_listener_descriptor"] = activation.descriptor
+    return _replace_owned_runtime_receipt(receipt, payload)
+
+
+def refresh_adb_listener_activation(
+    receipt: OwnedRuntimeReceipt,
+) -> OwnedRuntimeReceipt:
+    """Accept only the registered child's exact intent-to-ready transition."""
+
+    activation = receipt.adb_listener_activation
+    if activation is None or receipt.phase is not RuntimePhase.ADB_CHILD_REGISTERED:
+        return receipt
+    current = load_owned_runtime_receipt()
+    _require(current is not None, "listener activation receipt disappeared")
+    if current.snapshot_sha256 == receipt.snapshot_sha256:
+        return receipt
+    expected = _runtime_receipt_payload(receipt)
+    expected["phase"] = RuntimePhase.ADB_LISTENER_READY.value
+    expected["adb_listener_descriptor"] = activation.descriptor
+    _require(
+        _runtime_receipt_payload(current) == expected,
+        "listener activation receipt changed outside its ready transition",
+    )
+    return current
+
+
 def begin_adb_seal(
     receipt: OwnedRuntimeReceipt,
     listener_descriptor: int,
@@ -3343,7 +3742,15 @@ def begin_adb_seal(
 
     validate_lane_lock_descriptor()
     _require(
-        receipt.phase is RuntimePhase.ADB_CHILD_REGISTERED,
+        (
+            receipt.phase is RuntimePhase.ADB_CHILD_REGISTERED
+            and receipt.adb_listener_activation is None
+        )
+        or (
+            receipt.phase is RuntimePhase.ADB_LISTENER_READY
+            and receipt.adb_listener_activation is not None
+            and listener_descriptor == receipt.adb_listener_activation.descriptor
+        ),
         "runtime recovery receipt is not awaiting adb sealing",
     )
     _require(
@@ -3459,14 +3866,24 @@ def _absolute_receipt_path(value: object, label: str) -> pathlib.Path:
 
 def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeReceipt:
     value = snapshot.value
+    schema_version = value.get("schema_version")
     _require(
-        set(value) == OWNED_RUNTIME_RECEIPT_FIELDS,
-        "owned runtime receipt fields changed",
+        type(schema_version) is int
+        and schema_version
+        in {
+            LEGACY_OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION,
+            OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION,
+        },
+        "owned runtime receipt schema changed",
     )
     _require(
-        value.get("schema_version") == OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION
-        and type(value.get("schema_version")) is int,
-        "owned runtime receipt schema changed",
+        set(value)
+        == (
+            LEGACY_OWNED_RUNTIME_RECEIPT_FIELDS
+            if schema_version == LEGACY_OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION
+            else OWNED_RUNTIME_RECEIPT_FIELDS
+        ),
+        "owned runtime receipt fields changed",
     )
     _require(
         value.get("kind") == OWNED_RUNTIME_RECEIPT_KIND,
@@ -3478,6 +3895,11 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
         raise AndroidRuntimeStateError(
             "owned runtime receipt phase is invalid"
         ) from exc
+    _require(
+        schema_version == OWNED_RUNTIME_RECEIPT_SCHEMA_VERSION
+        or phase is not RuntimePhase.ADB_LISTENER_READY,
+        "legacy runtime receipt contains a listener activation phase",
+    )
     run_id = _canonical_run_id(value.get("run_id"))
     host_identity = value.get("host_identity")
     boot_identity = value.get("boot_identity")
@@ -3499,6 +3921,32 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
     run_root_inode = _positive_int(value.get("run_root_inode"), "run root inode")
     uid = _positive_int(value.get("uid"), "uid", allow_zero=True)
     adb_profile = _canonical_concrete_adb_profile(value.get("adb_profile"))
+    activation_payload = value.get("adb_listener_activation")
+    activation = None
+    if activation_payload is not None:
+        _require(
+            type(activation_payload) is dict
+            and set(activation_payload) == {"kind", "descriptor", "backlog"}
+            and activation_payload.get("kind") == "inherited_unix"
+            and adb_profile == "macos-account"
+            and phase is not RuntimePhase.PREPARED,
+            "owned runtime listener activation is invalid",
+        )
+        descriptor = activation_payload.get("descriptor")
+        backlog = activation_payload.get("backlog")
+        _require(
+            type(descriptor) is int
+            and 3 <= descriptor <= MAX_OWNED_LISTENER_DESCRIPTOR
+            and descriptor != LANE_LOCK_FD
+            and type(backlog) is int
+            and backlog == PRIVATE_ADB_LISTEN_BACKLOG,
+            "owned runtime listener activation descriptor or backlog is invalid",
+        )
+        activation = AdbListenerActivation(descriptor, backlog)
+    _require(
+        phase is not RuntimePhase.ADB_LISTENER_READY or activation is not None,
+        "runtime listener-ready phase lacks its activation intent",
+    )
     adb_size = _positive_int(value.get("adb_size"), "adb size")
     _require(adb_size <= MAX_TOOL_BYTES, "owned runtime receipt adb size changed")
     adb_sha256 = value.get("adb_sha256")
@@ -3618,6 +4066,11 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
         _require(
             adb_listener_descriptor <= MAX_OWNED_LISTENER_DESCRIPTOR,
             "owned runtime receipt adb listener descriptor is invalid",
+        )
+        _require(
+            activation is None
+            or adb_listener_descriptor == activation.descriptor,
+            "owned runtime bound listener differs from its activation intent",
         )
 
     emulator_fields = (
@@ -3775,6 +4228,8 @@ def _owned_runtime_from_snapshot(snapshot: JsonObjectSnapshot) -> OwnedRuntimeRe
         backend_inode=backend_inode,
         backend_sha256=backend_sha256,
         snapshot_sha256=snapshot.file.sha256,
+        schema_version=schema_version,
+        adb_listener_activation=activation,
     )
 
 
@@ -3785,6 +4240,9 @@ def load_owned_runtime_receipt(
     receipt_fd = -1
     primary: BaseException | None = None
     try:
+        # Acquire before opening either descriptor: a publication that finishes
+        # while we wait must be read from the current name, not a cached inode.
+        _lock_account_state_for_receipt_access(state_fd, exclusive=False)
         try:
             receipt_fd = os.open(
                 OWNED_RUNTIME_RECEIPT_LEAF,

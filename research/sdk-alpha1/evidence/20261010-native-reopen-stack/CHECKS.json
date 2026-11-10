@@ -1,0 +1,279 @@
+{
+  "base_head": "4d25db50be568a2b79c13e3f39713116d45e8e07",
+  "original_installed_head": "8218da58560b4485d162ebcd6c836ec7757c015f",
+  "scope": "macOS arm64 native operational-owner reopen stack regression",
+  "controlled_runs": [
+    {
+      "label": "original-sequential-01",
+      "returncode": 101,
+      "seconds": 8.247729874914512,
+      "identities_unchanged": true
+    },
+    {
+      "label": "pair-rebuilt-original-01",
+      "returncode": 101,
+      "seconds": 11.6351433750242,
+      "identities_unchanged": true
+    },
+    {
+      "label": "pair-original-diagnostic-01",
+      "returncode": 101,
+      "seconds": 12.174416708061472,
+      "identities_unchanged": true
+    },
+    {
+      "label": "pair-original-uninstrumented-01",
+      "returncode": 101,
+      "seconds": 82.79367566714063,
+      "identities_unchanged": true
+    },
+    {
+      "label": "pair-original-noincremental-01",
+      "returncode": 101,
+      "seconds": 11.558180500054732,
+      "identities_unchanged": true
+    },
+    {
+      "label": "pair-original-noincremental-diagnostic-01",
+      "returncode": 101,
+      "seconds": 10.264320541871712,
+      "identities_unchanged": true
+    },
+    {
+      "label": "pair-original-noincremental-split-01",
+      "returncode": 0,
+      "seconds": 89.52574204094708,
+      "identities_unchanged": true
+    },
+    {
+      "label": "pair-original-noincremental-pressure-01",
+      "returncode": 101,
+      "seconds": 11.523756416980177,
+      "identities_unchanged": true
+    }
+  ],
+  "negative_controls": {
+    "baseline": "original installed Swift/native fails with SIGBUS before readiness",
+    "incremental": "unmodified source rebuilt with default incremental crosses first delivery, so logging is not a fix",
+    "matched_flags": "unmodified source rebuilt CARGO_INCREMENTAL=0 fails again",
+    "phase_logs": "matched nonincremental logging stops inside DeviceInstallation::reopen_session",
+    "stack_pressure": "keeping split construction but adding retained 44352-byte stack array fails again before readiness",
+    "native_C_counterexample": "original library on a default C pthread completes first delivery; the defect is specific to cumulative caller path, not every default worker"
+  },
+  "unchanged_contracts": [
+    "no thread stack override",
+    "no build optimization or incremental setting change",
+    "no authorization/policy relaxation",
+    "no timeout/retry change",
+    "no wire/storage/API/export changes",
+    "no suppression of child stderr"
+  ],
+  "diagnostic_limitations": [
+    "Static frame sizes are not total stack, RSS, latency or throughput",
+    "Observation wrapper is unsuitable for process-kill tests; late Busy from that wrapper is excluded. Exec-based and direct binary tests preserve process identity",
+    "Direct C smoke attempts 01/02 failed in test setup due explicit C language override and non-private output directory; third run uses canonical unset C language selection and a newly-created private output directory"
+  ],
+  "release_claim_eligible": false,
+  "full_package_pipeline_completed": false,
+  "created_at": "2026-10-09T23:10:52.890305+00:00",
+  "validation": {
+    "integrated-native-debug-01": {
+      "command": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "rustc",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--",
+        "-C",
+        "link-arg=-Wl,-install_name,@rpath/libq_periapt_continuity_c_consumer.dylib"
+      ],
+      "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/consumer",
+      "returncode": 0,
+      "seconds": 2.361987000098452,
+      "source_unchanged": true
+    },
+    "integrated-native-release-01": {
+      "command": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "rustc",
+        "--locked",
+        "--offline",
+        "--release",
+        "--lib",
+        "--",
+        "-C",
+        "link-arg=-Wl,-install_name,@rpath/libq_periapt_continuity_c_consumer.dylib"
+      ],
+      "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/consumer",
+      "returncode": 0,
+      "seconds": 118.21476495801471,
+      "source_unchanged": true
+    },
+    "integrated-clippy-01": {
+      "command": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/consumer",
+      "returncode": 0,
+      "seconds": 65.3976188749075,
+      "source_unchanged": true
+    },
+    "integrated-msrv-01": {
+      "command": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "--all-targets"
+      ],
+      "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/consumer",
+      "returncode": 0,
+      "seconds": 91.83598641608842,
+      "source_unchanged": true
+    },
+    "integrated-swift-debug-01": {
+      "command": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift",
+        "test",
+        "--package-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed",
+        "--configuration",
+        "debug",
+        "--scratch-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed-build-debug",
+        "--cache-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed-cache",
+        "-j",
+        "2",
+        "-Xswiftc",
+        "-warnings-as-errors",
+        "-Xcc",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed/native/include",
+        "-Xlinker",
+        "-L/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed/native/debug",
+        "-Xlinker",
+        "-rpath",
+        "-Xlinker",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed/native/debug"
+      ],
+      "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed",
+      "returncode": 0,
+      "seconds": 23.287136416183785
+    },
+    "integrated-swift-release-01": {
+      "command": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift",
+        "test",
+        "--package-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed",
+        "--configuration",
+        "release",
+        "--scratch-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed-build-release",
+        "--cache-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed-cache",
+        "-j",
+        "2",
+        "-Xswiftc",
+        "-warnings-as-errors",
+        "-Xcc",
+        "-I/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed/native/include",
+        "-Xlinker",
+        "-L/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed/native/release",
+        "-Xlinker",
+        "-rpath",
+        "-Xlinker",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed/native/release"
+      ],
+      "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/installed-account-readiness-current/swift-fixed",
+      "returncode": 0,
+      "seconds": 23.49867825000547
+    },
+    "integrated-swift-account-01": {
+      "mode": "Swift",
+      "scope": "Focused regression using installed original harness and matching source dependencies; corrected native bridge; no loader override; not a full package qualification",
+      "native_sha256": "060d9bf6c892a5a5a74ef25c37f4cfad1cd0be7fe7cf475dd72e16cfe4b4f2a3",
+      "completed": true,
+      "seconds": 112.32038595806807,
+      "native_unchanged": true
+    },
+    "integrated-swift-account-release-01": {
+      "mode": "Swift",
+      "scope": "Focused regression using installed original harness and matching source dependencies; corrected native bridge; no loader override; not a full package qualification",
+      "native_sha256": "7b13b7624cb429439624b3d0544bad73c77cb1598cb19fd523f1f3c57d724691",
+      "completed": true,
+      "seconds": 110.61532966583036,
+      "native_unchanged": true
+    },
+    "integrated-c-owner-03": {
+      "mode": "C",
+      "scope": "Focused regression using installed original harness and matching source dependencies; corrected native bridge; no loader override; not a full package qualification",
+      "native_sha256": "060d9bf6c892a5a5a74ef25c37f4cfad1cd0be7fe7cf475dd72e16cfe4b4f2a3",
+      "completed": true,
+      "seconds": 10.525918415980414,
+      "native_unchanged": true
+    },
+    "Swift_unit_tests_per_profile": 62,
+    "Swift_account_tests_per_profile": 3,
+    "Swift_account_scenarios_per_profile": 9
+  },
+  "integration": {
+    "exports": 132,
+    "expected_exports_match": true,
+    "native_sha256": "060d9bf6c892a5a5a74ef25c37f4cfad1cd0be7fe7cf475dd72e16cfe4b4f2a3",
+    "source_owner_sha256": "be5eb3808cc5fed32ff515d4c8923bb10a4767aeadac9785b56f5a25a1e5e3f2",
+    "isolated_source_matches_main": true
+  },
+  "source_comparison": {
+    "changed_files": [
+      "src/owner.rs",
+      "tests/common/receiver_process.rs"
+    ],
+    "native_packages_unchanged": true,
+    "source_head_before_fix": "4d25db50be568a2b79c13e3f39713116d45e8e07"
+  },
+  "remaining": [
+    "full Rust/C/Swift/Kotlin package qualification on corrected commit",
+    "corrected-commit remote CI",
+    "other 0.2.0 release gates remain open; no release/publication claim"
+  ],
+  "source_sha256": {
+    "bindings/c/ContinuityPackageConsumer/src/owner.rs": "be5eb3808cc5fed32ff515d4c8923bb10a4767aeadac9785b56f5a25a1e5e3f2",
+    "bindings/c/ContinuityPackageConsumer/tests/common/receiver_process.rs": "54dbc2c94143e8daeb0de7f47fbd35fe8d55939f614a7da37063b156697b0ec8"
+  },
+  "capture": {
+    "file": "PUBLIC_CAPTURE.zip",
+    "sha256": "f1e5f2cb72b030a1876753521a15fe597f4b95d356210e5bdb1c1f4ba12c3f91",
+    "bytes": 925130,
+    "members": 151,
+    "selection": "Explicit diagnostic/test logs, public metadata, source patches and analysis only; no runtime directories, private stores or binary process memory"
+  },
+  "control_builds": [
+    "diagnostic-native-01",
+    "uninstrumented-native-01",
+    "noincremental-native-01",
+    "noincremental-diagnostic-native-01",
+    "activation-split-native-01",
+    "restored-stack-pressure-native-01"
+  ]
+}

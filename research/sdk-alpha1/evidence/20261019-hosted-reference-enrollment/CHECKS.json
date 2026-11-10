@@ -1,0 +1,77 @@
+{
+  "head": "0bc368155447b8c94f5c4151577824abdd91788a",
+  "run": 39196969740,
+  "source_files": 22,
+  "readbacks": [
+    {
+      "platform": "ubuntu-24.04",
+      "head": "0bc368155447b8c94f5c4151577824abdd91788a",
+      "run": 39196969740,
+      "job": 117881718387,
+      "artifact": 12162208642,
+      "artifact_sha256": "sha256:2345d4c32dce473165f81be10df837695256c49e182828d1d804587b05504c45",
+      "artifact_bytes": 25562,
+      "members": 14,
+      "test_names": [
+        "actual_loopback_tcp_preserves_authentication_boundary",
+        "admitted_root_never_regenerates_a_missing_wrapping_key",
+        "authorization_request_binding_roster_conflicts_and_two_devices",
+        "duplicate_and_malformed_authentication_cookies_are_rejected",
+        "explicit_upgrade_preserves_account_and_issuance_reopens_exact_original_result",
+        "extra_passkey_requires_original_live_session_at_finish",
+        "invitation_creation_recovers_lost_operation_id_using_original_caller_identity",
+        "issuance_commit_before_and_after_kill_preserves_original_operation_and_exact_result",
+        "issuer_child",
+        "public_parent_is_rejected_before_any_account_database_is_published",
+        "real_signatures_single_use_reopen_and_logout",
+        "registration_race_cannot_replace_original_account",
+        "rejects_cross_origin_and_host_before_authentication",
+        "root_first_use_reconciles_four_real_process_kills_without_replacing_published_keys",
+        "root_suspension_fences_pending_approval_but_preserves_historical_result",
+        "schema_upgrade_kill_keeps_original_account_and_all_or_none_enrollment_tables",
+        "unknown_account_login_is_explicit_and_does_not_create_an_account",
+        "wrong_challenge_origin_and_expired_ceremonies_fail"
+      ],
+      "binary_sha256_producer_observation": "d47f8c8d5b05a7899efffbc701f9fb0e68a40ca77e0a4a85aa284719cc4580e6",
+      "scope": "Terminal fmt, 18 test entries (one child dispatcher), strict all-target clippy and release build. The exact source tests check ten real SIGKILL boundaries, native SDK requests and rosters, and actual TCP. Child marker/private files and executables are not exported or replayed here. No hardware, deployed HTTPS, enrollment HTTP or installed-client qualification."
+    },
+    {
+      "platform": "macos-15",
+      "head": "0bc368155447b8c94f5c4151577824abdd91788a",
+      "run": 39196969740,
+      "job": 117881718587,
+      "artifact": 12162114354,
+      "artifact_sha256": "sha256:c886557f3a94b70d8195b74f78f110c0e8474f00fd27b214f886c7e48d6e1704",
+      "artifact_bytes": 25567,
+      "members": 14,
+      "test_names": [
+        "actual_loopback_tcp_preserves_authentication_boundary",
+        "admitted_root_never_regenerates_a_missing_wrapping_key",
+        "authorization_request_binding_roster_conflicts_and_two_devices",
+        "duplicate_and_malformed_authentication_cookies_are_rejected",
+        "explicit_upgrade_preserves_account_and_issuance_reopens_exact_original_result",
+        "extra_passkey_requires_original_live_session_at_finish",
+        "invitation_creation_recovers_lost_operation_id_using_original_caller_identity",
+        "issuance_commit_before_and_after_kill_preserves_original_operation_and_exact_result",
+        "issuer_child",
+        "public_parent_is_rejected_before_any_account_database_is_published",
+        "real_signatures_single_use_reopen_and_logout",
+        "registration_race_cannot_replace_original_account",
+        "rejects_cross_origin_and_host_before_authentication",
+        "root_first_use_reconciles_four_real_process_kills_without_replacing_published_keys",
+        "root_suspension_fences_pending_approval_but_preserves_historical_result",
+        "schema_upgrade_kill_keeps_original_account_and_all_or_none_enrollment_tables",
+        "unknown_account_login_is_explicit_and_does_not_create_an_account",
+        "wrong_challenge_origin_and_expired_ceremonies_fail"
+      ],
+      "binary_sha256_producer_observation": "dbacbcb3cdad8e97f27c69cd9faf3b2de8d4496ce41dee487fdff5c1c02a94be",
+      "scope": "Terminal fmt, 18 test entries (one child dispatcher), strict all-target clippy and release build. The exact source tests check ten real SIGKILL boundaries, native SDK requests and rosters, and actual TCP. Child marker/private files and executables are not exported or replayed here. No hardware, deployed HTTPS, enrollment HTTP or installed-client qualification."
+    }
+  ],
+  "capture": {
+    "bytes": 200984,
+    "members": 83,
+    "sha256": "7526e3ce7091d39eae5055ded68ca3ec3bd28caafd29fc4decd31b267989f59c"
+  },
+  "scope": "Both terminal hosted test/build jobs and exact artifact digests read back. Each has18 test entries including1 dispatcher; ten distinct SIGKILL boundaries are asserted by the frozen producer tests. No executable or child private/marker state was exported. Not installed-client, enrollment HTTP, deployed HTTPS, revocation/full replacement or release admission."
+}

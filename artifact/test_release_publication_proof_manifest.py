@@ -4,8 +4,6 @@
 from __future__ import annotations
 
 import copy
-import json
-import pathlib
 import unittest
 
 import apple_publication_contract as apple_contract
@@ -25,24 +23,23 @@ from test_platform_stable_publication_contract import (
 from test_release_publication_contract import (
     _rebind_crates,
     _rebind_platform,
-    neutral_selector_fixture,
+    frozen_baseline_manifest,
+    frozen_v0_1_3_selector_fixture,
     source_manifest_fixture,
 )
 
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-
-
 def _source_manifest() -> dict[str, object]:
-    legacy = json.loads(
-        (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-    )
+    legacy = frozen_baseline_manifest()
     source_manifest = source_manifest_fixture(legacy)
     source = stable_pending_receipt()["source"]
     return {
         "android_aar": copy.deepcopy(source_manifest["android_aar"]),
-        "android_physical_runtime": copy.deepcopy(
-            source_manifest["android_physical_runtime"]
+        "android_device_runtime": copy.deepcopy(
+            source_manifest["android_device_runtime"]
+        ),
+        "local_release_index": copy.deepcopy(
+            source_manifest["local_release_index"]
         ),
         "performance": copy.deepcopy(source_manifest["performance"]),
         "proof_source_tree_sha256": source[
@@ -53,7 +50,7 @@ def _source_manifest() -> dict[str, object]:
             legacy["release_publications"]
         ),
         "rust_publish": copy.deepcopy(source_manifest["rust_publish"]),
-        "swift_xcframework": neutral_selector_fixture(legacy),
+        "swift_xcframework": frozen_v0_1_3_selector_fixture(legacy),
     }
 
 
@@ -62,10 +59,10 @@ def _pending_manifest() -> dict[str, object]:
     apple = stable_pending_receipt()
     source = apple["source"]
     manifest["release_publications"][
-        apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+        apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
     ] = apple
     manifest["release_publications"][
-        platform_contract.PLATFORM_V0_1_2_PUBLICATION_KEY
+        platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY
     ] = _rebind_platform(platform_pending_receipt(), source)
     return manifest
 
@@ -75,15 +72,15 @@ def _verified_manifest() -> dict[str, object]:
     apple = stable_verified_receipt()
     source = apple["source"]
     publications = manifest["release_publications"]
-    publications[apple_contract.APPLE_V0_1_2_PUBLICATION_KEY] = apple
-    publications[platform_contract.PLATFORM_V0_1_2_PUBLICATION_KEY] = (
+    publications[apple_contract.APPLE_V0_1_5_PUBLICATION_KEY] = apple
+    publications[platform_contract.PLATFORM_V0_1_5_PUBLICATION_KEY] = (
         _rebind_platform(platform_verified_receipt(), source)
     )
     publications[crates_contract.CRATES_IO_PUBLICATION_KEY] = _rebind_crates(
         crates_receipt(10), source, manifest["rust_publish"]
     )
     manifest["swift_xcframework"]["active_publication_key"] = (
-        apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+        apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
     )
     manifest["swift_xcframework"]["distribution"] = copy.deepcopy(
         apple["distribution"]
@@ -112,11 +109,11 @@ class ReleasePublicationProofManifestTests(unittest.TestCase):
     def test_proof_manifest_rejects_pending_activation_and_source_drift(self) -> None:
         pending = _pending_manifest()
         pending["swift_xcframework"]["active_publication_key"] = (
-            apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
         )
         pending["swift_xcframework"]["distribution"] = copy.deepcopy(
             pending["release_publications"][
-                apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+                apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
             ]["distribution"]
         )
         with self.assertRaises(proof_manifest.ProofManifestError):
@@ -139,7 +136,7 @@ class ReleasePublicationProofManifestTests(unittest.TestCase):
         )
         mixed = _pending_manifest()
         mixed["release_publications"][
-            apple_contract.APPLE_V0_1_2_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
         ] = stable_verified_receipt()
         for label, manifest in (("partial", partial), ("mixed", mixed)):
             with self.subTest(label=label), self.assertRaises(

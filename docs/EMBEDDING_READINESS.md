@@ -3,6 +3,18 @@
 This note is the current integration contract for downstream projects such as SkyBridge. It is
 deliberately stricter than a README quickstart and narrower than a product release promise.
 
+Publication completion (2026-09-06): the `v0.1.5` Apple and
+`abi2-platforms-v0.1.5` Android/Linux distributions are public and immutable.
+Apple remote-consumer and platform asset verification have produced domain receipts.
+All ten 0.1.5 crates.io packages and the complete three-domain cohort are verified.
+The authoritative published record is
+[`v0.1.5-verified-cohort`](https://github.com/billlza/q-periapt/tree/v0.1.5-verified-cohort);
+its results-only commit is `cc21bc1cadac5148aadfd98f1c6b0e4acbbb0c06`.
+See the [release checkpoint](../artifact/stable-release-notes.md) for exact
+release identities. Package publication does not close the physical-device or
+controlled-performance requirements below; those requirements do not require
+recreating the existing 0.1.5 GitHub releases.
+
 It covers the implemented KEM/policy/binding faces only. It does not establish
 identity-directory, prekey, ratchet, multi-device, recovery, or key-transparency
 readiness. The future Q-Periapt Continuity plan is separate
@@ -88,7 +100,8 @@ The gate fails closed and checks:
   and path-safety checks for the built payload, Java facade `javac -Werror`, D8 conversion,
   and an isolated Java consumer compile. Canonical archive structure does not claim cross-host
   bit reproducibility of the compiled payload;
-- Kotlin/Panama FFM tests on JDK 22 or newer, loading a specific native library path;
+- Kotlin/Panama FFM tests on JDK 25 LTS, targeting the stable JDK 25 API and bytecode
+  and loading a specific native library path;
 - WASM Node tests, including runtime suite metadata;
 - `artifact/proof-to-byte.sh` manifest validation.
 
@@ -114,8 +127,8 @@ run it on the AVD before creating any release index:
 set -eu
 sh artifact/android-aar.sh
 
-aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.2/q-periapt-android-0.1.2.aar"
-aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.2/MANIFEST.json"
+aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.5/q-periapt-android-0.1.5.aar"
+aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.5/MANIFEST.json"
 avd_home=$(sh artifact/python-run.sh artifact/android_bounded_command.py avd-home-path)
 avd_name=$(sh artifact/python-run.sh artifact/android_bounded_command.py runtime-avd-name \
   --adb-profile macos-account --device-abi arm64-v8a)
@@ -166,18 +179,19 @@ immutable run id, finish the release transaction in
 this order, without a source-changing edit between steps:
 
 ```sh
+QPERIAPT_RELEASE_INDEX_CHANNEL=release \
+QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=0 \
+QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=0 \
 QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1 \
 QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id> \
 sh artifact/local-release-index.sh
 sh artifact/local-release-consumer-smoke.sh
 
-# After one evidence-only artifact/results.json successor selects the exact AAR,
-# AVD run, first index, emitted receipt, and (for production) physical proof:
+# After the stable-publication artifact/results.json successor selects the exact
+# AAR, AVD run, first index, and emitted receipt:
 QPERIAPT_EMBED_REQUIRE_ANDROID_RUNTIME=1 \
-QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1 \
 QPERIAPT_EMBED_REQUIRE_LOCAL_RELEASE_CONSUMER=1 \
 QPERIAPT_ANDROID_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<run-id>/proof/qperiapt-android-device-proof.json \
-QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF=target/qperiapt-android-device-smoke-runs/<physical-run-id>/proof/qperiapt-android-device-proof.json \
 sh artifact/embedding-readiness.sh
 ```
 
@@ -187,11 +201,12 @@ repairs that receipt. Its Android options enter a distinct read-only final mode 
 producer or build tool runs. The script makes one bound `proof-to-byte` verification with the AAR,
 canonical AVD, and local index/receipt requirements enabled against one pinned
 `artifact/results.json` digest, prints `EMBEDDING_ANDROID_BOUND_VERIFY_PASS` with explicit
-`canonical`, `physical`, and `local_release_consumer` bits, and exits. This
+`canonical`, `physical=0`, and `local_release_consumer` bits, and exits. This
 ordering is mandatory: running `android-aar.sh` after the evidence-only successor would overwrite
 the fixed target AAR with successor-commit bytes and invalidate its selected source binding. For
-the production aggregate, also set `QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1` and
-`QPERIAPT_ANDROID_PHYSICAL_DEVICE_PROOF=<selected-physical-proof>` in the same invocation.
+the production aggregate, a later explicitly reviewed product-readiness evidence transition must
+first select the physical proof. Only then may the same read-only verifier enable
+`QPERIAPT_EMBED_REQUIRE_ANDROID_PHYSICAL_RUNTIME=1` with the selected proof path.
 
 The same harness also supports an explicitly selected physical device. A clean proof over the same
 source and exact AAR is an additional production-promotion requirement; it is not the canonical
@@ -206,9 +221,11 @@ Dirty runs may set
 `QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` for diagnosis, but a dirty Android proof can never be
 selected by manifest-bound `proof-to-byte`.
 
-For production, complete the real physical run before the results successor and have that same
-successor select the proof under `android_physical_runtime`. The Android production aggregate must
-then require both independent runtime gates in the same pinned-manifest invocation:
+For production, complete the real physical run against the same source and AAR, then use a
+separately reviewed product-readiness evidence transition to select it under
+`android_physical_runtime`. Stable package publication does not perform that transition. Once it
+exists, the Android production aggregate must require both independent runtime gates in the same
+pinned-manifest invocation:
 
 ```sh
 QPERIAPT_REQUIRE_ANDROID_AAR=1 \
@@ -292,13 +309,16 @@ separate account or isolated runner with a read-only checkout.
 
 ## Local Release Index
 
-After the package gates have produced their artifacts, build a local hash-bound index:
+After the package gates have produced their artifacts, build a package-only diagnostic index for
+inspection without occupying the one immutable release-channel path:
 
 ```sh
+QPERIAPT_RELEASE_INDEX_CHANNEL=diagnostic \
 sh artifact/local-release-index.sh
 ```
 
-Release mode requires a clean tree and rejects dirty package manifests. For local diagnostics on an
+The stable release transaction instead uses the fully pinned release-channel command above. Release
+mode requires a clean tree and rejects dirty package manifests. For richer local diagnostics on an
 in-progress tree:
 
 ```sh
@@ -371,12 +391,12 @@ formats, and combiner wire bytes remain unchanged.
 
 | Face | Status | Boundary |
 |---|---|---|
-| Rust | The coordinated ten-crate set forms the pre-publication package-ready `0.1.2` stable-version source/crate line; **no crate has been uploaded to crates.io yet**. Source build and workspace tests pass under locked dependencies; `artifact/rust-publish-contract.sh` checks the crates.io allow/deny list, every downstream local patch, package file lists, and registry-bound `cargo package` plus rebuilt-archive verification while rejecting every Cargo warning and never invoking an upload command. It independently verifies the sys `.crate` fixed 124-entry upstream inventory and exact packaged 118-code-file hash subset (six upstream README files excluded), pinned license/provenance, forbidden paths and the fixed target-selected native/portable build surface, then audits the normalized backend graph with the sys crate patched in. | The no-upload contract does not prove crates.io upload-API acceptance, crate-name ownership, publishing credentials or authorization, server-side policy acceptance, or a registry receipt. Registry publication would still not establish independent signed provenance, audit the vendored C/assembly provider, or promote the crates to production. Those remain separate requirements. |
+| Rust | The coordinated ten-crate set forms the `0.1.5` stable-version source/crate line, succeeding the published `0.1.4` release; **all ten `0.1.5` crates are published and verified, with the complete cohort recorded at `v0.1.5-verified-cohort`**. The Apple and Android/Linux GitHub distributions are already public and immutable with separate asset-verification receipts. That `0.1.4` cohort is recorded at the annotated tag `v0.1.4-verified-cohort` rather than on `main`, whose trusted `artifact/results.json` records no `0.1.4` registry receipt; the crates.io records themselves are immutable and unaffected. Source build and workspace tests pass under locked dependencies; `artifact/rust-publish-contract.sh` checks the crates.io allow/deny list, every downstream local patch, package file lists, and registry-bound `cargo package` plus rebuilt-archive verification while rejecting every Cargo warning and never invoking an upload command. It independently verifies the sys `.crate` fixed 124-entry upstream inventory and exact packaged 118-code-file hash subset (six upstream README files excluded), pinned license/provenance, forbidden paths and the fixed target-selected native/portable build surface, then audits the normalized backend graph with the sys crate patched in. | The no-upload contract does not prove crates.io upload-API acceptance, crate-name ownership, publishing credentials or authorization, server-side policy acceptance, or a registry receipt. Registry publication would still not establish independent signed provenance, validate the downstream C/assembly binaries, or promote the crates to production. Those remain separate requirements. |
 | rustls (direct Rust) | The Compat client keeps the stable serialized private key as a 32-byte seed, expands it exactly once per in-flight handshake into a non-Clone zeroizing 2,400-byte prepared owner, and reuses that owner for completion. Concurrent handshakes have independent key owners. | This is process-local Rust integration only. The process-global group registry holds a stateless preparer, not secret keys; there is no global/shared secret-key cache, persistence-format change, or C-ABI prepared-key entry point. Each active handshake owns about 2.4 KiB of expanded secret-key storage until completion or abandonment. |
-| C ABI | The stable-version C ABI source contract for `0.1.2` has a frozen machine-readable ABI2 authority: nine exact dynamic `q_periapt_*` exports, the same exact reserved public namespace for static archives, status/constants, 40/36-byte layouts, forbidden raw/deterministic public symbols, ABI-major header guard and platform identities. The first dynamically allocated Rust-owned policy-bound-context copy is reserved before sensitive bytes are written and wiped by one RAII owner on normal return, error, or unwind. Static archives retain unsupported hidden `qpn_*` bridge link symbols, so hidden visibility is not access control and the embedding process is trusted. Target-selected ML-KEM remains below this boundary and does not change ABI 2, keys, or wire bytes. The host smoke harness covers signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | The RAII guarantee does not cover caller buffers, host-language/FFI marshalling copies, registers, paging, process abort, or full-runtime erasure. Historical `abi2-platforms-v0.1.0-alpha.2-r2` receipts describe their exact portable-derived Linux/Windows artifacts, not a current target-selected rebuild. The stable tag-bound candidate pipeline must rebuild and validate the formally supported target-specific native consumers and attested provenance and bind them to `PLATFORM_DISTRIBUTION.json`/`SHA256SUMS`; public/current status requires a fresh verified receipt. Windows remains an unsupported CI diagnostic and is excluded from this stable asset set until an Authenticode producer/verifier and external certificate/TSA gates exist. Production promotion still needs independent review and clean signed or transparency-backed source provenance; deb/rpm/MSIX registry packaging remains separate. |
+| C ABI | The stable-version C ABI source contract for `0.1.5` has a frozen machine-readable ABI2 authority: nine exact dynamic `q_periapt_*` exports, the same exact reserved public namespace for static archives, status/constants, 40/36-byte layouts, forbidden raw/deterministic public symbols, ABI-major header guard and platform identities. The first dynamically allocated Rust-owned policy-bound-context copy is reserved before sensitive bytes are written and wiped by one RAII owner on normal return, error, or unwind. Static archives retain unsupported hidden `qpn_*` bridge link symbols, so hidden visibility is not access control and the embedding process is trusted. Target-selected ML-KEM remains below this boundary and does not change ABI 2, keys, or wire bytes. The host smoke harness covers signed policy, exact digest, ABI1 hard cut, OS-random key/encapsulation, context binding and atomic failure outputs. | The RAII guarantee does not cover caller buffers, host-language/FFI marshalling copies, registers, paging, process abort, or full-runtime erasure. Historical `abi2-platforms-v0.1.0-alpha.2-r2` receipts describe their exact portable-derived Linux/Windows artifacts, not a current target-selected rebuild. The stable tag-bound candidate pipeline must rebuild and validate the formally supported target-specific native consumers and attested provenance and bind them to `PLATFORM_DISTRIBUTION.json`/`SHA256SUMS`; public/current status requires a fresh verified receipt. Windows remains an unsupported CI diagnostic and is excluded from this stable asset set until an Authenticode producer/verifier and external certificate/TSA gates exist. Production promotion still needs internal contract review and clean signed or transparency-backed source provenance; deb/rpm/MSIX registry packaging remains separate. |
 | Swift | The SwiftPM ABI2 product harness, five-slice XCFramework isolated consumer, credentialed Developer ID static-SDK lane, and physical matrix verifier are implemented. The wrapper exposes only signed-policy decision, OS-random atomic keys/encapsulation and decapsulation, with explicit secret wipes. | `artifact/results.json` binds historical signed XCFramework receipts to their exact artifacts. Target selection changed the source and the three little-endian AArch64 Apple slices now use the native backend, so previous package/device proof is stale for the current build. A fresh target-specific XCFramework transaction and iPad+iPhone evidence are required. The static SDK remains non-notarizable `binaryTarget` material rather than a complete Git-URL Swift package; consuming apps retain signing/provisioning and macOS notarization duties. |
 | Android | The four-ABI AAR harness uses ABI-major FFI/JNI names and the same nine-symbol native product workflow, with export/SONAME/DT_NEEDED, Java/JNI warnings-as-errors, dex, signing, and isolated-consumer checks. In the current source, arm64-v8a selects the fixed native AArch64 backend while armeabi-v7a/x86/x86_64 remain portable. | The previously recorded AAR/runtime receipt is historical after target selection. Live-tree release currentness requires a newly rebuilt source-bound AAR, clean arm64-v8a/API-35/16-KiB release-mode AVD, first index, consumer receipt, results successor, and read-only bound gate (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). An independent results-selected physical gate is implemented and cannot replace the canonical AVD; production requires both. Maven Central publication and downstream SkyBridge harnesses remain unclaimed. |
-| Kotlin | Panama FFM is migrated to ABI2, requires an absolute ABI-major library path, and passes the current JDK 22 warning-failing CI lane. | This is host JVM evidence only and remains separate from Android runtime. |
+| Kotlin | Panama FFM is migrated to ABI2, requires an absolute ABI-major library path, and requires the JDK 25 LTS warning-failing CI lane with JVM bytecode, stable JDK API and minimum runtime level 25. | This is host JVM evidence only and remains separate from Android runtime. |
 | WASM | Both the lean default and signed-policy feature execute their deterministic conformance tests on Node/WASM. | WASM is a separately scoped caller-randomness conformance surface, not covered by the native ABI2 package contract; browser/package hardening remains open. |
 
 The retired PQClean-HQC adapter is absent from every package above. Numeric suite code
@@ -413,16 +433,16 @@ or competitor-performance result. Exact results require a fresh current-source p
 `artifact/results.json`.
 `cargo audit --deny warnings` passes without an ignore for the Rust graph; it does
 not inspect vendored C. ABI 2 is the stable-version source/Rust-crate line; registry
-publication remains separately receipt-gated. The local package contract does
+publication remains separately receipt-gated. The local pre-publication package-ready contract does
 not prove crates.io upload-API acceptance, crate-name ownership, publishing credentials
 or authorization, server-side policy acceptance, or a registry receipt. Its
-stable binary targets are the Apple `v0.1.2` XCFramework and the
-`abi2-platforms-v0.1.2` Android/Linux packages; only their
+stable binary targets are the Apple `v0.1.5` XCFramework and the
+`abi2-platforms-v0.1.5` Android/Linux packages; only their
 verified receipts may assert public, immutable and current status
 (see `artifact/stable-release-notes.md` for scope, verification, and explicit
 non-goals). Fresh same-source device/performance evidence, independent cryptographic,
 C/FFI and ABI review, clean signed or transparency-backed source provenance,
-registry publication (crates.io/Maven/deb/rpm/MSIX), and a future signed Windows lane
+publication through each supported distribution channel, and a future signed Windows lane
 remain hard requirements for production promotion.
 
 ## Apple Device Matrix
@@ -463,8 +483,9 @@ release artifact.
 
 - Rust crate pre-publication package surface: retain the coordinated dependency order for every
   subsequent version — `q-periapt-mlkem-native-sys`, core, KEM/signature traits,
-  backends, policy, then the FFI/WASM/rustls leaves; the dependency-free CLI remains
-  version-coordinated. A dirty diagnostic run is not release proof, and registry
+  backends, policy, then the FFI/WASM/rustls leaves, and the CLI last: it depends on
+  core, signature traits, policy and backends, so it must upload after all four and
+  remains version-coordinated. A dirty diagnostic run is not release proof, and registry
   packages still need independently verifiable signed or transparency-backed
   provenance before production promotion.
 - C ABI product surface: rebuild the `.so.2` Linux x86_64-portable/aarch64-native
@@ -483,7 +504,7 @@ release artifact.
   promotion; the final macOS product's notarization does not replace device execution evidence.
 - Android product surface: rebuild the target-selected AAR (native arm64-v8a,
   portable armeabi-v7a/x86/x86_64) for the
-  `abi2-platforms-v0.1.2` target with an API 35 / 16 KiB-page emulator
+  `abi2-platforms-v0.1.5` target with an API 35 / 16 KiB-page emulator
   runtime-evidence bundle executed on the exact AAR; public/current status requires the
   verified receipt. The ABI2 ART smoke must be
   rerun against the live source tree whenever it advances; `artifact/results.json`

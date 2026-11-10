@@ -16,10 +16,18 @@ from collections.abc import Callable
 from typing import Any, cast
 from unittest import mock
 
+import apple_publication_contract
+import crates_io_publication_contract
+import platform_publication_contract
+import release_publication_contract as publication_contract
 import source_results_assembler as assembler
 import rust_package_handoff
 from git_provenance import GitProvenanceError
-from test_release_publication_contract import LEGACY_ALPHA2_SWIFT_FIELDS
+from test_release_publication_contract import (
+    frozen_baseline_manifest,
+    pending_manifest_fixture,
+    verified_manifest_fixture,
+)
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -28,7 +36,6 @@ RESULTS_COMMIT = "b" * 40
 SOURCE_DIGEST = "c" * 64
 RESULTS_DIGEST = "d" * 64
 ANDROID_RUN = "1" * 32
-PHYSICAL_RUN = "2" * 32
 CONSUMER_RUN = "3" * 32
 RUST_HANDOFF_PATH = (
     "target/qperiapt-rust-package-handoffs/"
@@ -57,14 +64,30 @@ def _proof_inputs(*, installed: bool) -> dict[str, str]:
 
 
 def _initial_baseline() -> dict[str, Any]:
-    baseline = _live_results()
+    baseline = frozen_baseline_manifest()
     baseline["proof_to_byte_inputs"] = _proof_inputs(installed=False)
     baseline.pop("android_physical_runtime", None)
-    baseline["swift_xcframework"].pop("active_publication_key", None)
-    # Restore the exact frozen legacy field bytes so the one-time neutral
-    # selector migration keeps being exercised over its true input.
-    baseline["swift_xcframework"].update(
-        copy.deepcopy(LEGACY_ALPHA2_SWIFT_FIELDS)
+    # Restore the frozen 0.1.5-opening publication state: exactly the
+    # five frozen historical leaves (dropping any active v0.1.5 cohort
+    # state) with the selector activated on the frozen published
+    # apple_v0_1_3 receipt.
+    publications = baseline["release_publications"]
+    baseline["release_publications"] = {
+        key: publications[key]
+        for key in (
+            apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
+            platform_publication_contract.PLATFORM_R2_PUBLICATION_KEY,
+            apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+            platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
+            crates_io_publication_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
+        )
+    }
+    swift = baseline["swift_xcframework"]
+    swift["active_publication_key"] = (
+        apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
+    )
+    swift["distribution"] = (
+        apple_publication_contract.frozen_v0_1_3_distribution()
     )
     return baseline
 
@@ -86,9 +109,10 @@ def _plan_current(previous: dict[str, Any]) -> dict[str, Any]:
         assembler.ANDROID_RUNTIME_SECTION_FIELDS,
         "android",
     )
-    current["apple_device"] = _exact_section(
-        assembler.APPLE_SECTION_FIELDS,
-        "apple",
+    current["apple_device"] = assembler._stale_optional_section(
+        previous,
+        "apple_device",
+        ("current_source_status", "matrix_source_status"),
     )
     current["local_release_index"] = _exact_section(
         assembler.LOCAL_INDEX_SECTION_FIELDS,
@@ -98,19 +122,14 @@ def _plan_current(previous: dict[str, Any]) -> dict[str, Any]:
         assembler.RUST_PACKAGE_CURRENT_SECTION_FIELDS,
         "rust",
     )
-    current["android_physical_runtime"] = _exact_section(
-        assembler.ANDROID_RUNTIME_SECTION_FIELDS,
-        "physical",
-    )
-    current["android_physical_runtime"]["current_source_status"] = (
-        "current_clean_tree_physical_pass"
-    )
-    current["performance"] = _exact_section(
-        assembler.PERFORMANCE_SECTION_FIELDS,
+    current["performance"] = assembler._stale_optional_section(
+        previous,
         "performance",
+        ("current_source_status",),
     )
-    current["performance"]["current_source_status"] = "current_controlled_pass"
-    current["swift_xcframework"] = assembler.neutral_swift_selector(previous)
+    # The retired one-time selector migration has no successor: assembly
+    # carries the previous selector byte-for-byte.
+    current["swift_xcframework"] = copy.deepcopy(previous["swift_xcframework"])
     return current
 
 
@@ -121,29 +140,21 @@ def _domain_projection_fixture() -> tuple[
         "rust_publish": {"domain": "rust"},
         "android_aar": {"domain": "aar"},
         "android_device_runtime": {"domain": "android"},
-        "apple_device": {"domain": "apple"},
         "local_release_index": {"domain": "index"},
     }
-    physical = mock.Mock(section={"domain": "physical"})
-    performance = {"domain": "performance"}
-    current["android_physical_runtime"] = copy.deepcopy(physical.section)
-    current["performance"] = copy.deepcopy(performance)
     verified = assembler.VerifiedSourceDomains(
         rust_section=copy.deepcopy(current["rust_publish"]),
         rust_handoff=mock.Mock(),
         aar_section=copy.deepcopy(current["android_aar"]),
         android=mock.Mock(section=copy.deepcopy(current["android_device_runtime"])),
-        apple=mock.Mock(section=copy.deepcopy(current["apple_device"])),
         index=mock.Mock(section=copy.deepcopy(current["local_release_index"])),
-        physical=physical,
-        performance_section=performance,
         pins=(),
     )
     return current, verified
 
 
 class SourceResultsAssemblerTests(unittest.TestCase):
-    def test_finalize_cli_requires_every_external_evidence_selector(self) -> None:
+    def test_finalize_cli_requires_the_core_publication_selectors(self) -> None:
         command = [
             "finalize",
             "a" * 64,
@@ -153,28 +164,19 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             RUST_HANDOFF_SHA256,
             "--android-runtime-run",
             ANDROID_RUN,
-            "--apple-matrix-run",
-            "matrix-1",
             "--consumer-run",
             CONSUMER_RUN,
-            "--android-physical-run",
-            PHYSICAL_RUN,
-            "--performance-proof",
-            "paired-proof.json",
         ]
         arguments = assembler._parser().parse_args(command)
         self.assertEqual(RUST_HANDOFF_PATH, arguments.rust_handoff_manifest)
         self.assertEqual(RUST_HANDOFF_SHA256, arguments.rust_handoff_sha256)
-        self.assertEqual(PHYSICAL_RUN, arguments.android_physical_run)
-        self.assertEqual("paired-proof.json", arguments.performance_proof)
+        self.assertEqual(ANDROID_RUN, arguments.android_runtime_run)
+        self.assertEqual(CONSUMER_RUN, arguments.consumer_run)
         required_flags = (
             "--rust-handoff-manifest",
             "--rust-handoff-sha256",
             "--android-runtime-run",
-            "--apple-matrix-run",
             "--consumer-run",
-            "--android-physical-run",
-            "--performance-proof",
         )
         for omitted in required_flags:
             incomplete = list(command)
@@ -187,11 +189,15 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             ):
                 assembler._parser().parse_args(incomplete)
 
-    def test_internal_apis_require_physical_and_performance_selectors(self) -> None:
+    def test_internal_apis_exclude_product_readiness_selectors(self) -> None:
         selector_fields = assembler.SourceEvidenceSelectors.__dataclass_fields__
-        for name in ("android_physical_run", "performance_proof"):
+        for name in (
+            "apple_matrix_run",
+            "android_physical_run",
+            "performance_proof",
+        ):
             with self.subTest(dataclass_field=name):
-                self.assertIs(dataclasses.MISSING, selector_fields[name].default)
+                self.assertNotIn(name, selector_fields)
 
         for function in (
             assembler._assemble_source_results,
@@ -199,33 +205,66 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             assembler.finalize_source_results,
         ):
             parameters = inspect.signature(function).parameters
-            for name in ("android_physical_run", "performance_proof"):
-                with self.subTest(function=function.__name__, parameter=name):
-                    self.assertIs(inspect.Parameter.empty, parameters[name].default)
-
-    def test_short_selectors_accept_only_canonical_bounded_leaves(self) -> None:
-        for value in ("run-1", "A_1.2", "z" * 128):
-            with self.subTest(valid=value):
-                self.assertEqual(value, assembler._short_selector(value, "selector"))
-
-        invalid: tuple[object, ...] = (
-            "",
-            ".",
-            "..",
-            "-leading",
-            "contains/slash",
-            "contains\\backslash",
-            "contains space",
-            "全角",
-            "z" * 129,
-            7,
-        )
-        for value in invalid:
-            with self.subTest(invalid=value), self.assertRaisesRegex(
-                assembler.SourceResultsAssemblerError,
-                "safe short selector",
+            for name in (
+                "apple_matrix_run",
+                "android_physical_run",
+                "performance_proof",
             ):
-                assembler._short_selector(cast(str, value), "selector")
+                with self.subTest(function=function.__name__, parameter=name):
+                    self.assertNotIn(name, parameters)
+
+    def test_runbooks_keep_product_readiness_outside_the_core_successor(self) -> None:
+        documents = {
+            "artifact": (ROOT / "ARTIFACT.md").read_text(encoding="utf-8"),
+            "stable notes": (
+                ROOT / "artifact" / "stable-release-notes.md"
+            ).read_text(encoding="utf-8"),
+            "embedding": (
+                ROOT / "docs" / "EMBEDDING_READINESS.md"
+            ).read_text(encoding="utf-8"),
+            "android": (
+                ROOT / "bindings" / "android" / "README.md"
+            ).read_text(encoding="utf-8"),
+        }
+        normalized = {
+            label: " ".join(value.split()) for label, value in documents.items()
+        }
+        combined = " ".join(normalized.values())
+        for obsolete in (
+            "--apple-matrix-run",
+            "--android-physical-run",
+            "--performance-proof",
+            "selected by the same evidence successor",
+            "select it under `android_physical_runtime` in that successor",
+        ):
+            with self.subTest(obsolete=obsolete):
+                self.assertNotIn(obsolete, combined)
+        self.assertIn(
+            "The stable package-publication assembler does not select that proof",
+            normalized["artifact"],
+        )
+        self.assertIn(
+            "separate product-readiness selectors",
+            normalized["stable notes"],
+        )
+        self.assertIn(
+            "separately reviewed product-readiness evidence transition",
+            normalized["embedding"],
+        )
+        self.assertIn(
+            "Stable package publication leaves this selector absent",
+            normalized["android"],
+        )
+        stable_index_pins = (
+            "QPERIAPT_RELEASE_INDEX_CHANNEL=release",
+            "QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=0",
+            "QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=0",
+            "QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1",
+        )
+        for label in ("artifact", "embedding", "android"):
+            for pin in stable_index_pins:
+                with self.subTest(document=label, index_pin=pin):
+                    self.assertIn(pin, normalized[label])
 
     def test_run_ids_require_exact_lowercase_hex(self) -> None:
         valid = "0123456789abcdef" * 2
@@ -244,14 +283,14 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             ):
                 assembler._run_id(cast(str, value), "run")
 
-    def test_physical_android_projection_requires_arm64_release_mode(self) -> None:
+    def test_android_projection_requires_canonical_release_emulator(self) -> None:
         proof = {
             "android": {"build_tools": "36.0.0"},
             "device": {
                 "abi": "arm64-v8a",
-                "kind": "physical",
-                "page_size": 4_096,
-                "sdk": 36,
+                "kind": "emulator",
+                "page_size": 16_384,
+                "sdk": 35,
             },
             "generated_at": "2026-08-15T00:00:00Z",
             "git_commit": SOURCE_COMMIT,
@@ -295,9 +334,8 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             ) as verify_contents,
         ):
             projection = assembler._android_projection(
-                PHYSICAL_RUN,
+                ANDROID_RUN,
                 assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST),
-                physical=True,
             )
 
         self.assertEqual("arm64-v8a", projection.section["device_abi"])
@@ -306,23 +344,133 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             assembler.REPOSITORY_ROOT,
             proof,
             proof_paths,
-            expected_device_kind="physical",
+            expected_device_kind="emulator",
             expected_device_abi="arm64-v8a",
-            expected_page_size=None,
-            expected_device_sdk=None,
+            expected_page_size=16_384,
+            expected_device_sdk=35,
             require_release_mode=True,
             allow_dirty_proof=False,
         )
+
+    def test_core_index_accepts_only_the_android_runtime_summary(self) -> None:
+        source = assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST)
+        android_sha256 = "6" * 64
+        aar_sha256 = "7" * 64
+        index_sha256 = "8" * 64
+        receipt_sha256 = "9" * 64
+        android = assembler.AndroidProjection(
+            snapshot=mock.Mock(file=mock.Mock(sha256=android_sha256)),
+            section={"run_id": ANDROID_RUN},
+        )
+        index_value = {
+            "channel": "release",
+            "diagnostic_only": False,
+            "generated_at": "2026-08-25T00:00:00Z",
+            "git": {"commit": SOURCE_COMMIT, "source_tree_dirty": False},
+            "proof_summaries": {
+                "android_runtime": {"sha256": android_sha256}
+            },
+            "schema_version": assembler.LOCAL_RELEASE_INDEX_SCHEMA_VERSION,
+        }
+        verified = mock.Mock(
+            path=assembler._index_path(source),
+            sha256=index_sha256,
+            value=index_value,
+        )
+        receipt = mock.Mock(
+            value={"generated_at": "2026-08-25T00:01:00Z", "status": "pass"},
+            file=mock.Mock(sha256=receipt_sha256),
+        )
+        archive = mock.Mock()
+        with (
+            mock.patch.object(
+                assembler.release_index,
+                "verify_release_index_snapshot",
+                return_value=verified,
+            ),
+            mock.patch.object(
+                assembler,
+                "read_regular_snapshot",
+                return_value=mock.Mock(sha256=index_sha256),
+            ),
+            mock.patch.object(
+                assembler.release_consumer_smoke,
+                "android_runtime_summary_identity",
+                return_value=(ANDROID_RUN, android_sha256),
+            ),
+            mock.patch.object(
+                assembler.release_consumer_smoke,
+                "indexed_android_aar_sha256",
+                return_value=aar_sha256,
+            ),
+            mock.patch.object(
+                assembler.release_consumer_smoke,
+                "load_private_consumer_receipt",
+                return_value=receipt,
+            ),
+            mock.patch.object(
+                assembler.release_consumer_smoke,
+                "c_archive_entries",
+                return_value=[archive],
+            ),
+            mock.patch.object(
+                assembler.release_consumer_smoke,
+                "validate_consumer_receipt",
+            ) as validate_receipt,
+        ):
+            projection = assembler._index_projection(
+                source,
+                CONSUMER_RUN,
+                android,
+                {"aar_sha256": aar_sha256},
+            )
+
+        self.assertEqual(index_sha256, projection.section["index_sha256"])
+        self.assertEqual(receipt_sha256, projection.section["consumer_receipt_sha256"])
+        validate_receipt.assert_called_once()
+
+        with (
+            mock.patch.object(
+                assembler.release_index,
+                "verify_release_index_snapshot",
+                return_value=mock.Mock(
+                    path=verified.path,
+                    sha256=index_sha256,
+                    value={
+                        **index_value,
+                        "proof_summaries": {
+                            **index_value["proof_summaries"],
+                            "apple_matrix": {"sha256": "a" * 64},
+                        },
+                    },
+                ),
+            ),
+            mock.patch.object(
+                assembler,
+                "read_regular_snapshot",
+                return_value=mock.Mock(sha256=index_sha256),
+            ),
+            self.assertRaisesRegex(
+                assembler.SourceResultsAssemblerError,
+                "exactly the Android runtime summary",
+            ),
+        ):
+            assembler._index_projection(
+                source,
+                CONSUMER_RUN,
+                android,
+                {"aar_sha256": aar_sha256},
+            )
 
     def test_initial_and_installed_proof_maps_are_exactly_distinct(self) -> None:
         initial = _initial_baseline()
         installed = copy.deepcopy(initial)
         installed["proof_to_byte_inputs"] = _proof_inputs(installed=True)
 
-        self.assertEqual(237, len(assembler.PROOF_TO_BYTE_INPUT_PATHS))
-        self.assertEqual(47, len(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS))
+        self.assertEqual(256, len(assembler.PROOF_TO_BYTE_INPUT_PATHS))
+        self.assertEqual(66, len(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS))
         self.assertEqual(190, len(initial["proof_to_byte_inputs"]))
-        self.assertEqual(237, len(installed["proof_to_byte_inputs"]))
+        self.assertEqual(256, len(installed["proof_to_byte_inputs"]))
         self.assertEqual(
             set(assembler.INITIAL_BASELINE_MISSING_PROOF_INPUT_KEYS),
             set(installed["proof_to_byte_inputs"])
@@ -369,24 +517,119 @@ class SourceResultsAssemblerTests(unittest.TestCase):
 
         if set(inputs) == current_keys:
             # Installed successor state (source_ci_gate's installed dispatch).
-            self.assertEqual(237, len(inputs))
+            self.assertEqual(256, len(inputs))
             self.assertNotEqual(assembler.INITIAL_RESULTS_SHA256, live_sha256)
-            assembler._validate_baseline_document_shape(
-                baseline,
-                require_initial=False,
-            )
-            assembler.validate_declared_currentness(baseline)
-            with self.assertRaisesRegex(
-                assembler.SourceResultsAssemblerError,
-                "one-time proof-input migration",
+            for key, digest in inputs.items():
+                self.assertTrue(key.endswith("_sha256"), key)
+                self.assertIsNotNone(
+                    assembler.SHA256_RE.fullmatch(digest), key
+                )
+            state = publication_contract.publication_state(baseline)
+            publications = baseline["release_publications"]
+            # The frozen five-leaf historical floor is permanent in every
+            # committed manifest on the 0.1.5 line.
+            for key in (
+                apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
+                platform_publication_contract.PLATFORM_R2_PUBLICATION_KEY,
+                apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+                platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
+                crates_io_publication_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
             ):
+                self.assertIn(key, publications)
+            if state == publication_contract.PUBLICATION_STATE_SOURCE:
+                # Live source manifest: exactly the five frozen leaves
+                # with the apple_v0_1_3 selector active — the assembler's
+                # own installed baseline shape (this holds for the current
+                # live bytes, whose selector activated on the published
+                # 0.1.3 line and whose v0.1.5 cohort has not recorded).
+                self.assertEqual(
+                    apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+                    baseline["swift_xcframework"]["active_publication_key"],
+                )
                 assembler._validate_baseline_document_shape(
                     baseline,
-                    require_initial=True,
+                    require_initial=False,
                 )
+                with self.assertRaisesRegex(
+                    assembler.SourceResultsAssemblerError,
+                    "one-time proof-input migration",
+                ):
+                    assembler._validate_baseline_document_shape(
+                        baseline,
+                        require_initial=True,
+                    )
+                if (
+                    baseline["android_aar"]["aar_path"]
+                    == assembler.ANDROID_AAR_PATH
+                ):
+                    # Fresh 0.1.5-line installed successor: its declared
+                    # package currentness holds against the 0.1.5 path
+                    # authorities.
+                    assembler.validate_declared_currentness(baseline)
+                else:
+                    # The 0.1.3-line verified manifest is still installed
+                    # ahead of the stage-5 baseline swap: its sections
+                    # declare the previous line's currentness, which the
+                    # 0.1.5 path authorities reject wholesale (the crafted
+                    # initial baseline deliberately skips this validator).
+                    with self.assertRaises(assembler.ProofManifestError):
+                        assembler.validate_declared_currentness(baseline)
+                return
+            # Receipt-finalized stable manifest: the recorded v0.1.5
+            # cohort state is not the assembler's five-leaf baseline, so
+            # both shape modes must fail closed.
+            self.assertIn(
+                state,
+                (
+                    publication_contract.PUBLICATION_STATE_PENDING,
+                    publication_contract.PUBLICATION_STATE_VERIFIED,
+                ),
+            )
+            assembler.validate_declared_currentness(baseline)
+            publication_contract.validate_stable_source_currentness(baseline)
+            expected_active = (
+                apple_publication_contract.APPLE_V0_1_5_PUBLICATION_KEY
+                if state == publication_contract.PUBLICATION_STATE_VERIFIED
+                else apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY
+            )
+            self.assertEqual(
+                expected_active,
+                baseline["swift_xcframework"]["active_publication_key"],
+            )
+            for require_initial in (True, False):
+                with self.subTest(
+                    require_initial=require_initial
+                ), self.assertRaisesRegex(
+                    assembler.SourceResultsAssemblerError,
+                    "five frozen historical leaves",
+                ):
+                    assembler._validate_baseline_document_shape(
+                        baseline,
+                        require_initial=require_initial,
+                    )
             return
 
-        # Frozen initial baseline state (source_ci_gate's initial dispatch).
+        # The immutable 0.1.5 installed record has the previous 249-key map.
+        # The shared host store and scanner add seven inputs; the old receipt must
+        # remain byte-identical and must not qualify as either current mode.
+        sdk_new_inputs = {
+            "qperiapt_cli_scanner_sha256", "qperiapt_cli_scanner_tests_sha256",
+            "migration_agent_filesystem_adapter_sha256", "host_store_manifest_sha256",
+            "host_store_lib_sha256", "host_store_policy_sha256", "host_store_policy_tests_sha256",
+        }
+        if set(inputs) == current_keys - sdk_new_inputs:
+            self.assertEqual(249, len(inputs))
+            self.assertEqual("9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda", live_sha256)
+            for require_initial in (True, False):
+                with self.subTest(require_initial=require_initial), self.assertRaises(
+                    assembler.SourceResultsAssemblerError
+                ):
+                    assembler._validate_baseline_document_shape(baseline, require_initial=require_initial)
+            return
+
+        # Frozen initial baseline state (source_ci_gate's initial dispatch;
+        # this branch selects only after the stage-5 opening installs the
+        # crafted 190-key baseline and repins INITIAL_RESULTS_SHA256).
         self.assertEqual(assembler.INITIAL_RESULTS_SHA256, live_sha256)
         self.assertEqual(190, len(inputs))
         self.assertEqual(
@@ -607,12 +850,14 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         for mode, expected_marker in (
             ("initial", "SOURCE_TRANSITION_READINESS_PASS mode=initial"),
             ("installed", "SOURCE_CI_GATE_MODE mode=installed"),
+            ("sdk-020", "SDK_SOURCE_READINESS_PASS profile=sdk-020"),
         ):
             output = io.StringIO()
             args = mock.Mock(
                 command="ci-source-gate",
                 expected_results_sha256=RESULTS_DIGEST,
                 expected_commit=SOURCE_COMMIT,
+                profile="sdk-020" if mode == "sdk-020" else "legacy",
             )
             with (
                 mock.patch.object(
@@ -626,6 +871,60 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             self.assertTrue(output.getvalue().startswith(expected_marker))
             if mode == "installed":
                 self.assertNotIn("READINESS_PASS", output.getvalue())
+            if mode == "sdk-020":
+                self.assertIn("release_claim_eligible=false", output.getvalue())
+                self.assertIn("historical_proof_inputs=249", output.getvalue())
+
+    def test_sdk_source_profile_preserves_history_and_requires_explicit_selection(self) -> None:
+        historical = json.loads((ROOT / "artifact/results.json").read_bytes())
+        source = assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST)
+        authority = _proof_inputs(installed=True)
+        with (
+            mock.patch.object(assembler, "_load_pinned_baseline", return_value=historical),
+            mock.patch.object(assembler, "_source_identity", return_value=source),
+            mock.patch.object(assembler, "capture_proof_input_digests", return_value=authority),
+        ):
+            self.assertEqual(assembler.source_ci_gate(
+                assembler.SDK_HISTORICAL_RESULTS_SHA256, SOURCE_COMMIT, profile="sdk-020"
+            ), ("sdk-020", source))
+            # The legacy finalizer still refuses this SDK transition's shape.
+            with self.assertRaisesRegex(assembler.SourceResultsAssemblerError, "neither exact"):
+                assembler.source_ci_gate(assembler.SDK_HISTORICAL_RESULTS_SHA256, SOURCE_COMMIT)
+            for profile in ("sdk", "latest", None, []):
+                with self.subTest(profile=profile), self.assertRaises(assembler.SourceResultsAssemblerError):
+                    assembler.source_ci_gate(assembler.SDK_HISTORICAL_RESULTS_SHA256,
+                                             SOURCE_COMMIT, profile=profile)
+            with self.assertRaisesRegex(assembler.SourceResultsAssemblerError, "frozen 0.1.5"):
+                assembler.source_ci_gate(RESULTS_DIGEST, SOURCE_COMMIT, profile="sdk-020")
+
+    def test_sdk_source_profile_rejects_contract_substitution_and_races(self) -> None:
+        historical = json.loads((ROOT / "artifact/results.json").read_bytes())
+        source = assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST)
+        authority = _proof_inputs(installed=True)
+        changed_authority = dict(authority)
+        changed_authority[next(iter(changed_authority))] = "f" * 64
+        changed_history = copy.deepcopy(historical)
+        changed_history["proof_to_byte_inputs"].pop(next(iter(changed_history["proof_to_byte_inputs"])))
+        legacy = assembler.c_abi_contract.load_contract(ROOT / "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2.json")
+        changes = (
+            mock.patch.object(assembler, "_load_pinned_baseline", return_value=changed_history),
+            mock.patch.object(assembler, "_source_identity", return_value=assembler.SourceIdentity(RESULTS_COMMIT, SOURCE_DIGEST)),
+            mock.patch.object(assembler, "_source_identity", side_effect=[source, assembler.SourceIdentity(SOURCE_COMMIT, "e" * 64)]),
+            mock.patch.object(assembler, "capture_proof_input_digests", side_effect=[authority, changed_authority]),
+            mock.patch.object(assembler, "read_regular_snapshot", return_value=mock.Mock(data=b'[workspace.package]\nversion = "0.1.5"\n')),
+            mock.patch.object(assembler, "read_regular_snapshot", return_value=mock.Mock(data=b'workspace = "invalid"\n')),
+            mock.patch.object(assembler.c_abi_contract, "load_contract", return_value=legacy),
+        )
+        for change in changes:
+            with (
+                mock.patch.object(assembler, "_load_pinned_baseline", return_value=historical),
+                mock.patch.object(assembler, "_source_identity", return_value=source),
+                mock.patch.object(assembler, "capture_proof_input_digests", return_value=authority),
+                change,
+                self.assertRaises(assembler.SourceResultsAssemblerError),
+            ):
+                assembler.source_ci_gate(assembler.SDK_HISTORICAL_RESULTS_SHA256,
+                                         SOURCE_COMMIT, profile="sdk-020")
 
     def test_validate_baseline_pins_worktree_bytes_to_head_and_mode(self) -> None:
         for require_initial in (True, False):
@@ -776,12 +1075,6 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                     assembler._android_proof_path(ANDROID_RUN)
                 ),
             },
-            "apple_device": {
-                "matrix_proof_path": (
-                    "artifact/device-runs/matrix-1/"
-                    "apple-device-matrix-proof.json"
-                )
-            },
             "local_release_index": {
                 "consumer_receipt_run_id": CONSUMER_RUN,
                 "consumer_receipt_path": assembler._relative(
@@ -790,27 +1083,13 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                     / assembler.release_consumer_smoke.CONSUMER_RECEIPT_LEAF
                 ),
             },
-            "android_physical_runtime": {
-                "current_source_status": "current_clean_tree_physical_pass",
-                "run_id": PHYSICAL_RUN,
-                "proof_path": assembler._relative(
-                    assembler._android_proof_path(PHYSICAL_RUN)
-                ),
-            },
-            "performance": {
-                "current_source_status": "current_controlled_pass",
-                "proof_path": "target/performance/paired-proof.json",
-            },
         }
         self.assertEqual(
             assembler.SourceEvidenceSelectors(
                 rust_handoff_manifest=RUST_HANDOFF_PATH,
                 rust_handoff_sha256=RUST_HANDOFF_SHA256,
                 android_runtime_run=ANDROID_RUN,
-                apple_matrix_run="matrix-1",
                 consumer_run=CONSUMER_RUN,
-                android_physical_run=PHYSICAL_RUN,
-                performance_proof="paired-proof.json",
             ),
             assembler._installed_selectors(current),
         )
@@ -823,22 +1102,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         ):
             assembler._installed_selectors(mismatched)
 
-        for section, message in (
-            (
-                "android_physical_runtime",
-                "require current physical Android evidence",
-            ),
-            ("performance", "require current performance evidence"),
-        ):
-            stale = copy.deepcopy(current)
-            stale[section]["current_source_status"] = "stale_requires_rerun"
-            with self.subTest(stale_section=section), self.assertRaisesRegex(
-                assembler.SourceResultsAssemblerError,
-                message,
-            ):
-                assembler._installed_selectors(stale)
-
-    def test_assemble_document_requires_current_physical_and_performance(self) -> None:
+    def test_assemble_document_marks_optional_evidence_stale(self) -> None:
         previous = _initial_baseline()
         original = copy.deepcopy(previous)
         source = assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST)
@@ -847,17 +1111,6 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         rust = _exact_section(assembler.RUST_PACKAGE_CURRENT_SECTION_FIELDS, "rust")
         aar = _exact_section(assembler.ANDROID_AAR_SECTION_FIELDS, "aar")
         android = _exact_section(assembler.ANDROID_RUNTIME_SECTION_FIELDS, "android")
-        physical = _exact_section(
-            assembler.ANDROID_RUNTIME_SECTION_FIELDS,
-            "physical",
-        )
-        physical["current_source_status"] = "current_clean_tree_physical_pass"
-        performance = _exact_section(
-            assembler.PERFORMANCE_SECTION_FIELDS,
-            "performance",
-        )
-        performance["current_source_status"] = "current_controlled_pass"
-        apple = _exact_section(assembler.APPLE_SECTION_FIELDS, "apple")
         index = _exact_section(assembler.LOCAL_INDEX_SECTION_FIELDS, "index")
         with (
             mock.patch.object(assembler, "validate_declared_currentness"),
@@ -876,10 +1129,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                 rust_section=rust,
                 aar_section=aar,
                 android_section=android,
-                apple_section=apple,
                 index_section=index,
-                physical_section=physical,
-                performance_section=performance,
             )
 
         stable_currentness.assert_called_once_with(current)
@@ -887,21 +1137,22 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         self.assertEqual(original, previous)
         self.assertEqual(SOURCE_COMMIT, current["provenance"]["snapshot_commit"])
         self.assertEqual(SOURCE_DIGEST, current["proof_source_tree_sha256"])
-        self.assertEqual(physical, current["android_physical_runtime"])
-        self.assertEqual(performance, current["performance"])
+        self.assertNotIn("android_physical_runtime", current)
+        self.assertEqual(
+            "stale_requires_rerun",
+            current["apple_device"]["current_source_status"],
+        )
+        self.assertEqual(
+            "stale_requires_rerun",
+            current["apple_device"]["matrix_source_status"],
+        )
+        self.assertEqual(
+            "stale_requires_rerun",
+            current["performance"]["current_source_status"],
+        )
 
         aar["aar_sha256"] = "mutated after assembly"
-        physical["proof_sha256"] = "mutated after assembly"
-        performance["proof_sha256"] = "mutated after assembly"
         self.assertNotEqual("mutated after assembly", current["android_aar"]["aar_sha256"])
-        self.assertNotEqual(
-            "mutated after assembly",
-            current["android_physical_runtime"]["proof_sha256"],
-        )
-        self.assertNotEqual(
-            "mutated after assembly",
-            current["performance"]["proof_sha256"],
-        )
 
     def test_mutation_plan_rejects_top_level_and_provenance_drift(self) -> None:
         previous = _initial_baseline()
@@ -940,25 +1191,47 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                 ):
                     assembler.plan_authorized_mutations(previous, candidate)
 
-    def test_mutation_plan_rejects_stale_required_domains(self) -> None:
+    def test_mutation_plan_rejects_optional_evidence_promotion(self) -> None:
         previous = _initial_baseline()
         current = _plan_current(previous)
         assembler.plan_authorized_mutations(previous, current)
 
-        for section, message in (
+        cases = (
             (
-                "android_physical_runtime",
-                "require current physical Android evidence",
+                "apple device",
+                lambda value: value["apple_device"].__setitem__(
+                    "current_source_status", "current_clean_tree_physical_pass"
+                ),
+                "Apple evidence is not the deterministic stale projection",
             ),
-            ("performance", "require current performance evidence"),
-        ):
-            stale = copy.deepcopy(current)
-            stale[section]["current_source_status"] = "stale_requires_rerun"
-            with self.subTest(stale_section=section), self.assertRaisesRegex(
+            (
+                "apple matrix",
+                lambda value: value["apple_device"].__setitem__(
+                    "matrix_source_status", "current_clean_tree_physical_pass"
+                ),
+                "Apple evidence is not the deterministic stale projection",
+            ),
+            (
+                "performance",
+                lambda value: value["performance"].__setitem__(
+                    "current_source_status", "current_controlled_pass"
+                ),
+                "performance evidence is not the deterministic stale projection",
+            ),
+            (
+                "physical Android",
+                lambda value: value.__setitem__("android_physical_runtime", {}),
+                "added or removed an unauthorized top-level section",
+            ),
+        )
+        for label, mutate, message in cases:
+            promoted = copy.deepcopy(current)
+            mutate(promoted)
+            with self.subTest(optional_domain=label), self.assertRaisesRegex(
                 assembler.SourceResultsAssemblerError,
                 message,
             ):
-                assembler.plan_authorized_mutations(previous, stale)
+                assembler.plan_authorized_mutations(previous, promoted)
 
     def test_verified_domain_projections_match_all_sections(self) -> None:
         previous = {"fixture": "previous"}
@@ -973,7 +1246,6 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             previous,
             current,
             android=verified.android,
-            physical=verified.physical,
         )
 
     def test_verified_domain_projection_mismatches_fail_closed(self) -> None:
@@ -983,10 +1255,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             ("rust_publish", "Rust package projection"),
             ("android_aar", "Android AAR projection"),
             ("android_device_runtime", "canonical Android projection"),
-            ("apple_device", "Apple matrix projection"),
             ("local_release_index", "local release index projection"),
-            ("android_physical_runtime", "physical Android projection"),
-            ("performance", "performance projection"),
         )
         for key, message in cases:
             with self.subTest(section=key):
@@ -1012,10 +1281,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             rust_handoff_manifest=RUST_HANDOFF_PATH,
             rust_handoff_sha256=RUST_HANDOFF_SHA256,
             android_runtime_run=ANDROID_RUN,
-            apple_matrix_run="matrix-1",
             consumer_run=CONSUMER_RUN,
-            android_physical_run=PHYSICAL_RUN,
-            performance_proof="paired-proof.json",
         )
         source = assembler.SourceIdentity(SOURCE_COMMIT, SOURCE_DIGEST)
         with (
@@ -1067,7 +1333,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             sha256="7" * 64,
         )
         crate_file = assembler.FileSnapshot(
-            path=manifest.path.parent / "q-periapt-core-0.1.2.crate",
+            path=manifest.path.parent / "q-periapt-core-0.1.5.crate",
             data=b"crate\n",
             size=6,
             sha256="8" * 64,
@@ -1084,7 +1350,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             crates=(
                 rust_package_handoff.RustPackageHandoffCrateSnapshot(
                     name="q-periapt-core",
-                    version="0.1.2",
+                    version="0.1.5",
                     dependencies=(),
                     file=crate_file,
                 ),
@@ -1176,10 +1442,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
                 rust_handoff_manifest=RUST_HANDOFF_PATH,
                 rust_handoff_sha256=RUST_HANDOFF_SHA256,
                 android_runtime_run=ANDROID_RUN,
-                apple_matrix_run="matrix-1",
                 consumer_run=CONSUMER_RUN,
-                android_physical_run=PHYSICAL_RUN,
-                performance_proof="paired-proof.json",
             )
 
         self.assertEqual(candidate, raised.exception.path)
@@ -1312,10 +1575,7 @@ class SourceResultsAssemblerTests(unittest.TestCase):
             rust_handoff_manifest=RUST_HANDOFF_PATH,
             rust_handoff_sha256=RUST_HANDOFF_SHA256,
             android_runtime_run=ANDROID_RUN,
-            apple_matrix_run="matrix-1",
             consumer_run=CONSUMER_RUN,
-            android_physical_run=PHYSICAL_RUN,
-            performance_proof="paired-proof.json",
         )
         expected_results_sha256 = "e" * 64
         previous_bytes = assembler.canonical_json_bytes(previous)
@@ -1420,6 +1680,87 @@ class SourceResultsAssemblerTests(unittest.TestCase):
         ):
             assembler.verify_installed_source_successor("e" * 64)
         self.assertIs(failure, raised.exception.__cause__)
+
+
+class ReopenSourceTests(unittest.TestCase):
+    """Cover the current-to-current reopen reverse transform.
+
+    Inputs are the real coordinated publication fixtures (a valid pending or
+    verified installed manifest), expanded to the 256-key proof-input set. The
+    transform must reduce a valid pending installed manifest to the exact
+    190-key/five-frozen-leaf initial baseline, and refuse fail-closed a
+    non-installed input, dropping a verified (published-immutable) leaf, or an
+    installed manifest whose publication leaves do not validate.
+    """
+
+    def _installed_237(self, manifest: dict[str, Any]) -> dict[str, Any]:
+        installed = copy.deepcopy(manifest)
+        installed["proof_to_byte_inputs"] = {
+            key: "a" * 64 for key in assembler.PROOF_TO_BYTE_INPUT_PATHS
+        }
+        return installed
+
+    def _current_digests(self) -> dict[str, str]:
+        return {key: "b" * 64 for key in assembler.PROOF_TO_BYTE_INPUT_PATHS}
+
+    def test_reopen_reverses_pending_installed_to_initial(self) -> None:
+        installed = self._installed_237(
+            pending_manifest_fixture(frozen_baseline_manifest())
+        )
+        candidate = assembler._build_reopen_candidate(
+            installed, self._current_digests()
+        )
+        # 256 -> 190 proof inputs, 7 -> the five frozen historical leaves.
+        self.assertEqual(len(candidate["proof_to_byte_inputs"]), 190)
+        self.assertEqual(
+            set(candidate["release_publications"]),
+            {
+                apple_publication_contract.APPLE_ALPHA2_R1_PUBLICATION_KEY,
+                platform_publication_contract.PLATFORM_R2_PUBLICATION_KEY,
+                apple_publication_contract.APPLE_V0_1_3_PUBLICATION_KEY,
+                platform_publication_contract.PLATFORM_V0_1_3_PUBLICATION_KEY,
+                crates_io_publication_contract.CRATES_IO_V0_1_3_PUBLICATION_KEY,
+            },
+        )
+        # Source identity is carried over from the installed manifest, unchanged.
+        self.assertEqual(
+            candidate["proof_source_tree_sha256"],
+            installed["proof_source_tree_sha256"],
+        )
+        # The result is an exact valid initial baseline (no exception).
+        assembler._validate_baseline_document_shape(candidate, require_initial=True)
+
+    def test_reopen_requires_a_fully_installed_249_key_input(self) -> None:
+        # A valid pending fixture carries only the 190-key baseline.
+        installed = pending_manifest_fixture(frozen_baseline_manifest())
+        with self.assertRaisesRegex(
+            assembler.SourceResultsAssemblerError, "256-key"
+        ):
+            assembler._build_reopen_candidate(installed, self._current_digests())
+
+    def test_reopen_refuses_dropping_a_verified_leaf(self) -> None:
+        # A fully verified cohort's v0.1.5 leaves are published-immutable, not
+        # in-flight candidates: the reopen must refuse to drop them.
+        installed = self._installed_237(
+            verified_manifest_fixture(frozen_baseline_manifest())
+        )
+        with self.assertRaisesRegex(
+            assembler.SourceResultsAssemblerError,
+            "refusing to drop non-pending publication leaf",
+        ):
+            assembler._build_reopen_candidate(installed, self._current_digests())
+
+    def test_reopen_validates_leaves_before_dropping(self) -> None:
+        # A pending leaf with a corrupted schema must be rejected, not silently
+        # discarded (validated fail-closed before any leaf is removed).
+        installed = self._installed_237(
+            pending_manifest_fixture(frozen_baseline_manifest())
+        )
+        installed["release_publications"][
+            apple_publication_contract.APPLE_V0_1_5_PUBLICATION_KEY
+        ]["unexpected_forged_key"] = "tampered"
+        with self.assertRaises(assembler.SourceResultsAssemblerError):
+            assembler._build_reopen_candidate(installed, self._current_digests())
 
 
 if __name__ == "__main__":

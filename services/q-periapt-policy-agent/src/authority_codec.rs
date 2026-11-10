@@ -1,21 +1,1040 @@
-//! Canonical codecs for Witness V2 authority values.
+//! Witness V2 authority value types and their canonical codecs.
 //!
-//! This module is the single byte-level definition shared by durable Store V2
-//! records and the authenticated Authority Wire V2 protocol. Protocol modules
-//! may restrict which domain values they admit, but must not define a parallel
+//! This module defines the typed authority values consumed by the pure
+//! `authority` state machine (which re-exports them unchanged) and is the
+//! single byte-level definition shared by durable Store V2 records and the
+//! authenticated Authority Wire V2 protocol. Protocol modules may restrict
+//! which domain values they admit, but must not define a parallel
 //! representation for those values.
 
 use core::fmt;
 
-use crate::authority::{
-    AcceptedKeyIdV2, AcceptedKeyRecordV2, AcceptedKeyStatusV2, AuthorityDispositionV2,
-    AuthorityIntentV2, AuthorityLimitsV2, AuthorityMutationV2, AuthorityReceiptV2,
-    AuthorityRejectionV2, AuthorityRestoreErrorV2, AuthoritySnapshotV2, CapabilityIdV2,
-    CapabilityRecordV2, ConfigAdvanceV2, DeploymentConfigRevisionV2, InstanceFenceV2,
-    InstanceLeaseV2, OperationIdV2, ProcessInstanceIdV2, ReceiptLocatorV2, StateAdvanceV2,
-    StateFenceV2, StateHeadV2, StateRevisionV2, StateTransitionKindV2,
-};
+use crate::authority::AuthoritySnapshotV2;
 use crate::codec::{encode_domain, require_domain, CodecError, Decoder, Encoder, MAX_FRAME_BYTES};
+
+pub(crate) const HARD_MAX_RECEIPTS: usize = 4096;
+pub(crate) const HARD_MAX_CAPABILITIES: usize = 4096;
+pub(crate) const HARD_MAX_KEYS: usize = 1024;
+pub(crate) const HARD_MIN_LEASE_TTL_MILLIS: u64 = 10_000;
+pub(crate) const HARD_MAX_LEASE_TTL_MILLIS: u64 = 5 * 60 * 1000;
+
+fn nonzero(bytes: &[u8]) -> bool {
+    bytes.iter().any(|byte| *byte != 0)
+}
+
+macro_rules! authority_identifier {
+    ($name:ident, $doc:literal) => {
+        #[doc = $doc]
+        #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+        pub struct $name([u8; 32]);
+
+        impl $name {
+            /// Construct an identifier from exact nonzero bytes.
+            pub fn from_bytes(bytes: [u8; 32]) -> Result<Self, AuthorityValueErrorV2> {
+                nonzero(&bytes)
+                    .then_some(Self(bytes))
+                    .ok_or(AuthorityValueErrorV2::InvalidIdentifier)
+            }
+
+            /// Borrow the exact opaque bytes.
+            #[must_use]
+            pub const fn as_bytes(&self) -> &[u8; 32] {
+                &self.0
+            }
+        }
+
+        impl fmt::Debug for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str(concat!(stringify!($name), "([redacted])"))
+            }
+        }
+    };
+}
+
+authority_identifier!(
+    ProcessInstanceIdV2,
+    "An ephemeral process identity that must never be restored from disk."
+);
+authority_identifier!(
+    AuthorityEpochV2,
+    "A fresh identity for one explicitly provisioned authority-store epoch."
+);
+authority_identifier!(
+    StateFenceV2,
+    "An unpredictable fence changed by every migration-state transition."
+);
+authority_identifier!(
+    CapabilityIdV2,
+    "A current-state-scoped authenticated capability-session replay identifier."
+);
+
+/// Version-scoped idempotent authority-operation identifier.
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct OperationIdV2 {
+    expected_authority_version: u64,
+    random_id: [u8; 32],
+}
+
+impl OperationIdV2 {
+    /// Construct an operation identifier for one exact nonzero predecessor version.
+    pub fn new(
+        expected_authority_version: u64,
+        random_id: [u8; 32],
+    ) -> Result<Self, AuthorityValueErrorV2> {
+        if expected_authority_version == 0 {
+            return Err(AuthorityValueErrorV2::InvalidCounter);
+        }
+        if !nonzero(&random_id) {
+            return Err(AuthorityValueErrorV2::InvalidIdentifier);
+        }
+        Ok(Self {
+            expected_authority_version,
+            random_id,
+        })
+    }
+
+    /// Return the exact predecessor authority version in this identifier.
+    #[must_use]
+    pub const fn expected_authority_version(self) -> u64 {
+        self.expected_authority_version
+    }
+
+    /// Borrow the opaque random component needed by a typed persistence codec.
+    #[must_use]
+    pub const fn random_id(&self) -> &[u8; 32] {
+        &self.random_id
+    }
+}
+
+impl fmt::Debug for OperationIdV2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("OperationIdV2")
+            .field(
+                "expected_authority_version",
+                &self.expected_authority_version,
+            )
+            .field("random_id", &"[redacted]")
+            .finish()
+    }
+}
+
+/// State-and-lease-scoped accepted-key identifier that cannot alias after fencing.
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct AcceptedKeyIdV2 {
+    state_global_generation: u64,
+    lease_generation: u64,
+    random_id: [u8; 32],
+}
+
+impl AcceptedKeyIdV2 {
+    /// Construct an accepted-key identifier for one exact state and lease generation.
+    pub fn new(
+        state_global_generation: u64,
+        lease_generation: u64,
+        random_id: [u8; 32],
+    ) -> Result<Self, AuthorityValueErrorV2> {
+        if state_global_generation == 0
+            || state_global_generation == u64::MAX
+            || lease_generation == 0
+        {
+            return Err(AuthorityValueErrorV2::InvalidCounter);
+        }
+        if !nonzero(&random_id) {
+            return Err(AuthorityValueErrorV2::InvalidIdentifier);
+        }
+        Ok(Self {
+            state_global_generation,
+            lease_generation,
+            random_id,
+        })
+    }
+
+    /// Return the exact migration-state global generation that owns this identifier.
+    #[must_use]
+    pub const fn state_global_generation(self) -> u64 {
+        self.state_global_generation
+    }
+
+    /// Return the exact lease generation that owns this key identifier.
+    #[must_use]
+    pub const fn lease_generation(self) -> u64 {
+        self.lease_generation
+    }
+
+    /// Borrow the opaque random component needed by a typed persistence codec.
+    #[must_use]
+    pub const fn random_id(&self) -> &[u8; 32] {
+        &self.random_id
+    }
+}
+
+impl fmt::Debug for AcceptedKeyIdV2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AcceptedKeyIdV2")
+            .field("state_global_generation", &self.state_global_generation)
+            .field("lease_generation", &self.lease_generation)
+            .field("random_id", &"[redacted]")
+            .finish()
+    }
+}
+
+/// Invalid pure authority value.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum AuthorityValueErrorV2 {
+    /// A required identifier was all zero.
+    InvalidIdentifier,
+    /// A counter used a reserved value.
+    InvalidCounter,
+    /// A digest was all zero.
+    InvalidDigest,
+    /// A transition was not the exact legal successor.
+    InvalidTransition,
+    /// A configured bound or lease lifetime was invalid.
+    InvalidLimit,
+}
+
+impl fmt::Display for AuthorityValueErrorV2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::InvalidIdentifier => "authority identifier must be nonzero",
+            Self::InvalidCounter => "authority counter uses a reserved value",
+            Self::InvalidDigest => "authority digest must be nonzero",
+            Self::InvalidTransition => "authority transition is not an exact successor",
+            Self::InvalidLimit => "authority resource or lease limit is invalid",
+        })
+    }
+}
+
+impl std::error::Error for AuthorityValueErrorV2 {}
+
+/// Exact four-field migration-state identity used by Witness V2.
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub struct StateRevisionV2 {
+    global_generation: u64,
+    chain_id: [u8; 32],
+    epoch: u64,
+    digest: [u8; 32],
+}
+
+impl StateRevisionV2 {
+    /// Construct an exact non-sentinel migration revision.
+    pub fn new(
+        global_generation: u64,
+        chain_id: [u8; 32],
+        epoch: u64,
+        digest: [u8; 32],
+    ) -> Result<Self, AuthorityValueErrorV2> {
+        if global_generation == 0
+            || global_generation == u64::MAX
+            || epoch == 0
+            || epoch == u64::MAX
+        {
+            return Err(AuthorityValueErrorV2::InvalidCounter);
+        }
+        if !nonzero(&chain_id) {
+            return Err(AuthorityValueErrorV2::InvalidIdentifier);
+        }
+        if !nonzero(&digest) {
+            return Err(AuthorityValueErrorV2::InvalidDigest);
+        }
+        Ok(Self {
+            global_generation,
+            chain_id,
+            epoch,
+            digest,
+        })
+    }
+
+    /// Return the never-reset global generation.
+    #[must_use]
+    pub const fn global_generation(self) -> u64 {
+        self.global_generation
+    }
+
+    /// Borrow the migration lineage identifier.
+    #[must_use]
+    pub const fn chain_id(&self) -> &[u8; 32] {
+        &self.chain_id
+    }
+
+    /// Return the lineage-local epoch.
+    #[must_use]
+    pub const fn epoch(self) -> u64 {
+        self.epoch
+    }
+
+    /// Borrow the exact migration-state digest.
+    #[must_use]
+    pub const fn digest(&self) -> &[u8; 32] {
+        &self.digest
+    }
+}
+
+impl fmt::Debug for StateRevisionV2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("StateRevisionV2")
+            .field("global_generation", &self.global_generation)
+            .field("chain_id", &"[redacted]")
+            .field("epoch", &self.epoch)
+            .field("digest", &"[redacted]")
+            .finish()
+    }
+}
+
+/// Exact migration revision and its writer fence.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StateHeadV2 {
+    revision: StateRevisionV2,
+    fence: StateFenceV2,
+}
+
+impl StateHeadV2 {
+    /// Pair an exact migration revision with a nonzero fence.
+    #[must_use]
+    pub const fn new(revision: StateRevisionV2, fence: StateFenceV2) -> Self {
+        Self { revision, fence }
+    }
+
+    /// Return the exact migration revision.
+    #[must_use]
+    pub const fn revision(self) -> StateRevisionV2 {
+        self.revision
+    }
+
+    /// Return the state writer fence.
+    #[must_use]
+    pub const fn fence(self) -> StateFenceV2 {
+        self.fence
+    }
+}
+
+/// Exact deployment-configuration generation and digest.
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub struct DeploymentConfigRevisionV2 {
+    generation: u64,
+    digest: [u8; 32],
+}
+
+impl DeploymentConfigRevisionV2 {
+    /// Construct a non-sentinel configuration revision.
+    pub fn new(generation: u64, digest: [u8; 32]) -> Result<Self, AuthorityValueErrorV2> {
+        if generation == 0 || generation == u64::MAX {
+            return Err(AuthorityValueErrorV2::InvalidCounter);
+        }
+        if !nonzero(&digest) {
+            return Err(AuthorityValueErrorV2::InvalidDigest);
+        }
+        Ok(Self { generation, digest })
+    }
+
+    /// Return the monotonic configuration generation.
+    #[must_use]
+    pub const fn generation(self) -> u64 {
+        self.generation
+    }
+
+    /// Borrow the exact canonical configuration digest.
+    #[must_use]
+    pub const fn digest(&self) -> &[u8; 32] {
+        &self.digest
+    }
+}
+
+impl fmt::Debug for DeploymentConfigRevisionV2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DeploymentConfigRevisionV2")
+            .field("generation", &self.generation)
+            .field("digest", &"[redacted]")
+            .finish()
+    }
+}
+
+/// Explicit resource and lease bounds for the pure authority state.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AuthorityLimitsV2 {
+    max_receipts: usize,
+    max_capabilities: usize,
+    max_keys: usize,
+    lease_ttl_millis: u64,
+}
+
+impl AuthorityLimitsV2 {
+    /// Construct nonzero bounds no larger than the reviewed hard maxima.
+    pub fn new(
+        max_receipts: usize,
+        max_capabilities: usize,
+        max_keys: usize,
+        lease_ttl_millis: u64,
+    ) -> Result<Self, AuthorityValueErrorV2> {
+        if max_receipts == 0
+            || max_receipts > HARD_MAX_RECEIPTS
+            || max_capabilities == 0
+            || max_capabilities > HARD_MAX_CAPABILITIES
+            || max_keys == 0
+            || max_keys > HARD_MAX_KEYS
+            || !(HARD_MIN_LEASE_TTL_MILLIS..=HARD_MAX_LEASE_TTL_MILLIS).contains(&lease_ttl_millis)
+        {
+            return Err(AuthorityValueErrorV2::InvalidLimit);
+        }
+        Ok(Self {
+            max_receipts,
+            max_capabilities,
+            max_keys,
+            lease_ttl_millis,
+        })
+    }
+
+    pub(crate) const fn max_receipts(self) -> usize {
+        self.max_receipts
+    }
+
+    pub(crate) const fn max_capabilities(self) -> usize {
+        self.max_capabilities
+    }
+
+    pub(crate) const fn max_keys(self) -> usize {
+        self.max_keys
+    }
+
+    pub(crate) const fn lease_ttl_millis(self) -> u64 {
+        self.lease_ttl_millis
+    }
+}
+
+/// Failure to read the external witness's trusted time source.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct TrustedClockErrorV2;
+
+impl fmt::Display for TrustedClockErrorV2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("trusted witness clock unavailable")
+    }
+}
+
+impl std::error::Error for TrustedClockErrorV2 {}
+
+/// Injected trusted-clock boundary used by the pure authority transition model.
+pub trait TrustedClockV2 {
+    /// Return current witness time as nondecreasing-compatible Unix milliseconds.
+    fn now_millis(&self) -> Result<u64, TrustedClockErrorV2>;
+}
+
+/// Exact process-instance generation and ephemeral identity.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct InstanceFenceV2 {
+    generation: u64,
+    instance_id: ProcessInstanceIdV2,
+}
+
+impl InstanceFenceV2 {
+    /// Construct a nonzero lease generation for one process identity.
+    pub fn new(
+        generation: u64,
+        instance_id: ProcessInstanceIdV2,
+    ) -> Result<Self, AuthorityValueErrorV2> {
+        if generation == 0 {
+            return Err(AuthorityValueErrorV2::InvalidCounter);
+        }
+        Ok(Self {
+            generation,
+            instance_id,
+        })
+    }
+
+    /// Return the lease generation.
+    #[must_use]
+    pub const fn generation(self) -> u64 {
+        self.generation
+    }
+
+    /// Return the ephemeral process identity.
+    #[must_use]
+    pub const fn instance_id(self) -> ProcessInstanceIdV2 {
+        self.instance_id
+    }
+}
+
+/// One witness-clock-bounded exclusive instance lease.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct InstanceLeaseV2 {
+    fence: InstanceFenceV2,
+    expires_at_millis: u64,
+}
+
+impl InstanceLeaseV2 {
+    pub(crate) const fn restore(fence: InstanceFenceV2, expires_at_millis: u64) -> Self {
+        Self {
+            fence,
+            expires_at_millis,
+        }
+    }
+
+    /// Return the exact instance fence.
+    #[must_use]
+    pub const fn fence(self) -> InstanceFenceV2 {
+        self.fence
+    }
+
+    /// Return the exclusive upper bound of the lease interval.
+    #[must_use]
+    pub const fn expires_at_millis(self) -> u64 {
+        self.expires_at_millis
+    }
+}
+
+/// Closed migration-state transition category.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StateTransitionKindV2 {
+    /// Advance within the current lineage.
+    Advance,
+    /// Enter a new explicitly authorized lineage at epoch one.
+    AuthorizedReset,
+}
+
+/// Exact predecessor and successor migration heads.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StateAdvanceV2 {
+    kind: StateTransitionKindV2,
+    expected: StateHeadV2,
+    next: StateHeadV2,
+}
+
+impl StateAdvanceV2 {
+    /// Validate a normal advance or authorized-reset successor.
+    pub fn new(
+        kind: StateTransitionKindV2,
+        expected: StateHeadV2,
+        next: StateHeadV2,
+    ) -> Result<Self, AuthorityValueErrorV2> {
+        let expected_revision = expected.revision;
+        let next_revision = next.revision;
+        let common = expected_revision.global_generation.checked_add(1)
+            == Some(next_revision.global_generation)
+            && expected_revision.digest != next_revision.digest
+            && expected.fence != next.fence;
+        let kind_valid = match kind {
+            StateTransitionKindV2::Advance => {
+                expected_revision.chain_id == next_revision.chain_id
+                    && expected_revision.epoch.checked_add(1) == Some(next_revision.epoch)
+            }
+            StateTransitionKindV2::AuthorizedReset => {
+                expected_revision.chain_id != next_revision.chain_id && next_revision.epoch == 1
+            }
+        };
+        if !common || !kind_valid {
+            return Err(AuthorityValueErrorV2::InvalidTransition);
+        }
+        Ok(Self {
+            kind,
+            expected,
+            next,
+        })
+    }
+
+    /// Return the closed transition kind.
+    #[must_use]
+    pub const fn kind(self) -> StateTransitionKindV2 {
+        self.kind
+    }
+
+    /// Return the required predecessor head.
+    #[must_use]
+    pub const fn expected(self) -> StateHeadV2 {
+        self.expected
+    }
+
+    /// Return the exact successor head.
+    #[must_use]
+    pub const fn next(self) -> StateHeadV2 {
+        self.next
+    }
+}
+
+/// Exact predecessor and successor deployment revisions.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ConfigAdvanceV2 {
+    expected: DeploymentConfigRevisionV2,
+    next: DeploymentConfigRevisionV2,
+}
+
+impl ConfigAdvanceV2 {
+    /// Validate an exact non-equivocating configuration successor.
+    pub fn new(
+        expected: DeploymentConfigRevisionV2,
+        next: DeploymentConfigRevisionV2,
+    ) -> Result<Self, AuthorityValueErrorV2> {
+        if expected.generation.checked_add(1) != Some(next.generation)
+            || expected.digest == next.digest
+        {
+            return Err(AuthorityValueErrorV2::InvalidTransition);
+        }
+        Ok(Self { expected, next })
+    }
+
+    /// Return the required predecessor revision.
+    #[must_use]
+    pub const fn expected(self) -> DeploymentConfigRevisionV2 {
+        self.expected
+    }
+
+    /// Return the exact successor revision.
+    #[must_use]
+    pub const fn next(self) -> DeploymentConfigRevisionV2 {
+        self.next
+    }
+}
+
+/// Closed set of security-authority mutations modeled by Stage 1.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AuthorityMutationV2 {
+    /// Acquire the sole process lease at the exact prior lease generation.
+    AcquireLease {
+        /// Lease generation observed before this acquisition.
+        expected_lease_generation: u64,
+        /// Fresh process identity generated after every process start.
+        instance_id: ProcessInstanceIdV2,
+    },
+    /// Extend the current exact process lease.
+    RenewLease {
+        /// Exact current process fence.
+        fence: InstanceFenceV2,
+    },
+    /// Relinquish the current exact process lease.
+    ReleaseLease {
+        /// Exact current process fence.
+        fence: InstanceFenceV2,
+    },
+    /// Advance the migration state and invalidate state-scoped runtime records.
+    AdvanceState {
+        /// Exact current process fence.
+        fence: InstanceFenceV2,
+        /// Validated exact migration-state transition.
+        advance: StateAdvanceV2,
+    },
+    /// Advance deployment configuration and fence the old configured process.
+    AdvanceConfig {
+        /// Exact current process fence.
+        fence: InstanceFenceV2,
+        /// Validated exact configuration transition.
+        advance: ConfigAdvanceV2,
+    },
+    /// Consume one authenticated capability identifier once in the current state.
+    ///
+    /// Before invoking this mutation, a Stage 2 adapter must verify that the typed capability
+    /// envelope commits to the exact current state head and deployment configuration.
+    ConsumeCapability {
+        /// Exact current process fence.
+        fence: InstanceFenceV2,
+        /// Capability identifier to consume.
+        capability_id: CapabilityIdV2,
+    },
+    /// Register one accepted-key handle against its consumed capability.
+    RegisterKey {
+        /// Exact current process fence.
+        fence: InstanceFenceV2,
+        /// Previously consumed capability identifier.
+        capability_id: CapabilityIdV2,
+        /// Fresh opaque accepted-key identifier.
+        key_id: AcceptedKeyIdV2,
+    },
+    /// Revoke one registered accepted-key handle.
+    RevokeKey {
+        /// Exact current process fence.
+        fence: InstanceFenceV2,
+        /// Accepted-key identifier to revoke.
+        key_id: AcceptedKeyIdV2,
+    },
+}
+
+/// One exact authority intent before deterministic evaluation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AuthorityIntentV2 {
+    operation_id: OperationIdV2,
+    expected_authority_version: u64,
+    expected_config: DeploymentConfigRevisionV2,
+    mutation: AuthorityMutationV2,
+}
+
+impl AuthorityIntentV2 {
+    /// Bind one operation ID to exact authority, configuration, and mutation inputs.
+    pub fn new(
+        operation_id: OperationIdV2,
+        expected_authority_version: u64,
+        expected_config: DeploymentConfigRevisionV2,
+        mutation: AuthorityMutationV2,
+    ) -> Result<Self, AuthorityValueErrorV2> {
+        if expected_authority_version == 0 {
+            return Err(AuthorityValueErrorV2::InvalidCounter);
+        }
+        if operation_id.expected_authority_version != expected_authority_version {
+            return Err(AuthorityValueErrorV2::InvalidTransition);
+        }
+        Ok(Self {
+            operation_id,
+            expected_authority_version,
+            expected_config,
+            mutation,
+        })
+    }
+
+    /// Return the exact idempotency identifier.
+    #[must_use]
+    pub const fn operation_id(self) -> OperationIdV2 {
+        self.operation_id
+    }
+
+    /// Return the required predecessor authority version.
+    #[must_use]
+    pub const fn expected_authority_version(self) -> u64 {
+        self.expected_authority_version
+    }
+
+    /// Return the exact deployment configuration required by this operation.
+    #[must_use]
+    pub const fn expected_config(self) -> DeploymentConfigRevisionV2 {
+        self.expected_config
+    }
+
+    /// Return the closed mutation.
+    #[must_use]
+    pub const fn mutation(self) -> AuthorityMutationV2 {
+        self.mutation
+    }
+}
+
+/// Stable semantic rejection recorded for an exact authority operation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AuthorityRejectionV2 {
+    /// The configured deployment revision did not match.
+    ConfigurationMismatch,
+    /// A non-expired process lease already exists.
+    LeaseHeld,
+    /// The expected lease generation was stale or from the future.
+    LeaseGenerationMismatch,
+    /// No process lease exists.
+    LeaseAbsent,
+    /// The process lease reached its witness-clock expiry.
+    LeaseExpired,
+    /// The process identity or lease generation did not match.
+    FenceMismatch,
+    /// A renewal did not strictly extend the current lease.
+    LeaseRenewalNotExtended,
+    /// A mutation-specific monotonic counter or trusted-time sum overflowed.
+    MutationOverflow,
+    /// The expected migration-state head did not match.
+    StateMismatch,
+    /// The expected configuration predecessor did not match.
+    ConfigTransitionMismatch,
+    /// The authenticated capability identifier was already consumed in the current state.
+    CapabilityReplay,
+    /// The referenced capability identifier was never consumed.
+    CapabilityUnknown,
+    /// The capability belongs to a retired state, configuration, or lease.
+    CapabilityStale,
+    /// The capability has already been bound to an accepted key.
+    CapabilityAlreadyBound,
+    /// The accepted-key identifier was already registered.
+    KeyAlreadyRegistered,
+    /// The accepted-key identifier belongs to a different migration-state generation.
+    KeyStateGenerationMismatch,
+    /// The accepted-key identifier belongs to a different lease generation.
+    KeyLeaseGenerationMismatch,
+    /// The accepted-key identifier was not registered.
+    KeyUnknown,
+    /// The accepted-key identifier was already revoked.
+    KeyRevoked,
+    /// The capability table reached its explicit bound.
+    CapabilityCapacityExceeded,
+    /// The accepted-key table reached its explicit bound.
+    KeyCapacityExceeded,
+}
+
+/// Applied or rejected disposition stored in an exact receipt.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AuthorityDispositionV2 {
+    /// The closed mutation was atomically applied.
+    Applied,
+    /// The mutation was rejected without a partial domain-state change.
+    Rejected(AuthorityRejectionV2),
+}
+
+/// Immutable receipt for one exact authority intent.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AuthorityReceiptV2 {
+    intent: AuthorityIntentV2,
+    disposition: AuthorityDispositionV2,
+    resulting_authority_version: u64,
+}
+
+impl AuthorityReceiptV2 {
+    pub(crate) fn restore(
+        intent: AuthorityIntentV2,
+        disposition: AuthorityDispositionV2,
+        resulting_authority_version: u64,
+    ) -> Result<Self, AuthorityRestoreErrorV2> {
+        if intent.expected_authority_version.checked_add(1) != Some(resulting_authority_version) {
+            return Err(AuthorityRestoreErrorV2::Invalid);
+        }
+        Ok(Self {
+            intent,
+            disposition,
+            resulting_authority_version,
+        })
+    }
+
+    /// Return the complete stored intent.
+    #[must_use]
+    pub const fn intent(self) -> AuthorityIntentV2 {
+        self.intent
+    }
+
+    /// Return the stable applied or rejected result.
+    #[must_use]
+    pub const fn disposition(self) -> AuthorityDispositionV2 {
+        self.disposition
+    }
+
+    /// Return the authority version consumed by this receipt.
+    #[must_use]
+    pub const fn resulting_authority_version(self) -> u64 {
+        self.resulting_authority_version
+    }
+
+    /// Return the exact locator required to acknowledge this stored result.
+    #[must_use]
+    pub const fn locator(self) -> ReceiptLocatorV2 {
+        ReceiptLocatorV2 {
+            operation_id: self.intent.operation_id,
+            resulting_authority_version: self.resulting_authority_version,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum LeaseMutationKindV2 {
+    Acquire,
+    Renew,
+    Release,
+}
+
+pub(crate) fn reachable_lease_receipt_kind(
+    receipt: &AuthorityReceiptV2,
+) -> Option<LeaseMutationKindV2> {
+    let intent = receipt.intent();
+    let expected_version = intent.expected_authority_version();
+    match (intent.mutation(), receipt.disposition()) {
+        (
+            AuthorityMutationV2::AcquireLease {
+                expected_lease_generation,
+                ..
+            },
+            AuthorityDispositionV2::Applied
+            | AuthorityDispositionV2::Rejected(AuthorityRejectionV2::MutationOverflow),
+        ) if expected_lease_generation < expected_version => Some(LeaseMutationKindV2::Acquire),
+        (
+            AuthorityMutationV2::AcquireLease { .. },
+            AuthorityDispositionV2::Rejected(AuthorityRejectionV2::LeaseHeld),
+        ) if expected_version >= 2 => Some(LeaseMutationKindV2::Acquire),
+        (
+            AuthorityMutationV2::AcquireLease { .. },
+            AuthorityDispositionV2::Rejected(AuthorityRejectionV2::LeaseGenerationMismatch),
+        ) => Some(LeaseMutationKindV2::Acquire),
+        (
+            AuthorityMutationV2::RenewLease { fence },
+            AuthorityDispositionV2::Applied
+            | AuthorityDispositionV2::Rejected(
+                AuthorityRejectionV2::LeaseRenewalNotExtended
+                | AuthorityRejectionV2::MutationOverflow,
+            ),
+        ) if fence.generation() < expected_version => Some(LeaseMutationKindV2::Renew),
+        (
+            AuthorityMutationV2::RenewLease { .. },
+            AuthorityDispositionV2::Rejected(AuthorityRejectionV2::LeaseAbsent),
+        ) => Some(LeaseMutationKindV2::Renew),
+        (
+            AuthorityMutationV2::RenewLease { .. },
+            AuthorityDispositionV2::Rejected(
+                AuthorityRejectionV2::LeaseExpired | AuthorityRejectionV2::FenceMismatch,
+            ),
+        ) if expected_version >= 2 => Some(LeaseMutationKindV2::Renew),
+        (AuthorityMutationV2::ReleaseLease { fence }, AuthorityDispositionV2::Applied)
+            if fence.generation() < expected_version =>
+        {
+            Some(LeaseMutationKindV2::Release)
+        }
+        (
+            AuthorityMutationV2::ReleaseLease { .. },
+            AuthorityDispositionV2::Rejected(AuthorityRejectionV2::LeaseAbsent),
+        ) => Some(LeaseMutationKindV2::Release),
+        (
+            AuthorityMutationV2::ReleaseLease { .. },
+            AuthorityDispositionV2::Rejected(
+                AuthorityRejectionV2::LeaseExpired | AuthorityRejectionV2::FenceMismatch,
+            ),
+        ) if expected_version >= 2 => Some(LeaseMutationKindV2::Release),
+        _ => None,
+    }
+}
+
+/// Exact operation and resulting-version locator for bounded receipt acknowledgement.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ReceiptLocatorV2 {
+    operation_id: OperationIdV2,
+    resulting_authority_version: u64,
+}
+
+impl ReceiptLocatorV2 {
+    /// Construct a locator for one nonzero resulting authority version.
+    pub fn new(
+        operation_id: OperationIdV2,
+        resulting_authority_version: u64,
+    ) -> Result<Self, AuthorityValueErrorV2> {
+        if resulting_authority_version == 0 {
+            return Err(AuthorityValueErrorV2::InvalidCounter);
+        }
+        Ok(Self {
+            operation_id,
+            resulting_authority_version,
+        })
+    }
+
+    /// Return the exact acknowledged operation identifier.
+    #[must_use]
+    pub const fn operation_id(self) -> OperationIdV2 {
+        self.operation_id
+    }
+
+    /// Return the exact acknowledged resulting authority version.
+    #[must_use]
+    pub const fn resulting_authority_version(self) -> u64 {
+        self.resulting_authority_version
+    }
+}
+
+/// Idempotent outcome of acknowledging a historical receipt.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReceiptAckDispositionV2 {
+    /// The exact retained receipt was removed.
+    Removed,
+    /// No receipt remains for that operation identifier.
+    AlreadyAbsent,
+}
+
+/// Exact receipt acknowledgement failed without changing authority state.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReceiptAckErrorV2 {
+    /// The operation exists but its resulting authority version did not match.
+    ResultingVersionMismatch,
+}
+
+impl fmt::Display for ReceiptAckErrorV2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ResultingVersionMismatch => {
+                f.write_str("receipt resulting authority version mismatch")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ReceiptAckErrorV2 {}
+
+/// Admission, trusted-clock, allocation, or invariant failure without a receipt.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum AuthorityErrorV2 {
+    /// The trusted witness time source was unavailable.
+    ClockUnavailable,
+    /// An operation ID was reused for a different intent.
+    OperationConflict,
+    /// The requested predecessor authority version was not current.
+    AuthorityVersionMismatch,
+    /// The monotonic authority version cannot advance further.
+    AuthorityVersionExhausted,
+    /// The receipt table is full; no semantic mutation was evaluated.
+    ReceiptCapacityExceeded,
+    /// A bounded allocation could not be reserved before mutation.
+    AllocationFailed,
+    /// The in-memory state violated an internal single-writer invariant.
+    InternalInvariant,
+}
+
+impl fmt::Display for AuthorityErrorV2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::ClockUnavailable => "trusted witness clock unavailable",
+            Self::OperationConflict => "authority operation identifier conflicts",
+            Self::AuthorityVersionMismatch => "authority predecessor version mismatch",
+            Self::AuthorityVersionExhausted => "authority version exhausted",
+            Self::ReceiptCapacityExceeded => "authority receipt capacity exceeded",
+            Self::AllocationFailed => "authority bounded allocation failed",
+            Self::InternalInvariant => "authority single-writer invariant failed",
+        })
+    }
+}
+
+impl std::error::Error for AuthorityErrorV2 {}
+
+/// Closed receipt-query result at one exact committed authority version.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AuthorityQueryResultV2 {
+    /// The exact retained operation receipt exists.
+    Found(Box<AuthorityReceiptV2>),
+    /// No receipt exists, observed at this exact current authority version.
+    AbsentAtVersion {
+        /// Committed authority version at which absence was observed.
+        authority_version: u64,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AcceptedKeyStatusV2 {
+    Registered,
+    Revoked,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct CapabilityRecordV2 {
+    pub(crate) state_head: StateHeadV2,
+    pub(crate) config: DeploymentConfigRevisionV2,
+    pub(crate) consumed_by: InstanceFenceV2,
+    pub(crate) key_id: Option<AcceptedKeyIdV2>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct AcceptedKeyRecordV2 {
+    pub(crate) capability_id: CapabilityIdV2,
+    pub(crate) state_head: StateHeadV2,
+    pub(crate) config: DeploymentConfigRevisionV2,
+    pub(crate) registered_by: InstanceFenceV2,
+    pub(crate) status: AcceptedKeyStatusV2,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct AuthorityPersistentMetaV2 {
+    pub(crate) authority_version: u64,
+    pub(crate) clock_floor_millis: u64,
+    pub(crate) config: DeploymentConfigRevisionV2,
+    pub(crate) state_head: StateHeadV2,
+    pub(crate) lease_generation: u64,
+    pub(crate) lease: Option<InstanceLeaseV2>,
+    pub(crate) limits: AuthorityLimitsV2,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct AuthorityRestoreV2 {
+    pub(crate) meta: AuthorityPersistentMetaV2,
+    pub(crate) receipts: Vec<(OperationIdV2, AuthorityReceiptV2)>,
+    pub(crate) capabilities: Vec<(CapabilityIdV2, CapabilityRecordV2)>,
+    pub(crate) keys: Vec<(AcceptedKeyIdV2, AcceptedKeyRecordV2)>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AuthorityRestoreErrorV2 {
+    Allocation,
+    Invalid,
+}
 
 pub(crate) const STORE_SCHEMA_VERSION: u16 = 2;
 pub(crate) const RECEIPT_DOMAIN: &[u8] = b"Q-PERIAPT-AUTHORITY-RECEIPT/v2";

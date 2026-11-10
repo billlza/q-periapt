@@ -1,0 +1,101 @@
+{
+  "schema": "qperiapt-openssl-witness-census/1",
+  "completed": true,
+  "source_base": "6084f3bfb09333f6b66291b38809ed512296a27b",
+  "source_patch_sha256": "4838e515b4c9c052ede9d935c0fc049b1bd7d916fa9884ab101198cff66d3323",
+  "scope": "same-host Apple Silicon installed archives and C owners; independent OpenSSL TLS carrier; shared native witness engine; Debug/Release selected tests only",
+  "release_claim_eligible": false,
+  "full_package_qualified": false,
+  "host": "macOS Apple Silicon",
+  "sdk_input": {
+    "run": 41791854684,
+    "job": 126446831250,
+    "artifact": 13304914186,
+    "archive_sha256": "342d7db5d8d180eb395517a76576f3be4850193758186cd5866f5c0361a44e54",
+    "source_commit": "6084f3bfb09333f6b66291b38809ed512296a27b"
+  },
+  "regression_tests": {
+    "passed": 24,
+    "ignored": 0,
+    "red_retained": true
+  },
+  "execution": {
+    "debug": {
+      "server": {
+        "completed": true,
+        "witness_exchanges": 146
+      },
+      "client": {
+        "completed": true,
+        "exchanges": 2,
+        "outcomes": [
+          1,
+          2
+        ]
+      },
+      "rejections": {
+        "completed": true,
+        "cases": [
+          "wrong-subject",
+          "trailing-data",
+          "missing-end",
+          "wrong-protocol"
+        ],
+        "store_calls": 0
+      },
+      "native_tls": {
+        "completed": true,
+        "witness_exchanges": 146
+      },
+      "old_verifier_rejected_same_server_bytes": {
+        "reason": "OpenSSL server exchange census differs",
+        "rejected": true
+      }
+    },
+    "release": {
+      "server": {
+        "completed": true,
+        "witness_exchanges": 146
+      },
+      "client": {
+        "completed": true,
+        "exchanges": 2,
+        "outcomes": [
+          1,
+          2
+        ]
+      },
+      "rejections": {
+        "completed": true,
+        "cases": [
+          "wrong-subject",
+          "trailing-data",
+          "missing-end",
+          "wrong-protocol"
+        ],
+        "store_calls": 0
+      },
+      "native_tls": {
+        "completed": true,
+        "witness_exchanges": 146
+      },
+      "old_verifier_rejected_same_server_bytes": {
+        "reason": "OpenSSL server exchange census differs",
+        "rejected": true
+      }
+    }
+  },
+  "failed_attempts_retained": [
+    "Python entrypoint without explicit interpreter refused before tests",
+    "original verifier red regression: correct 146 rejected and old 142 accepted",
+    "isolated diagnostic 01: exclusive result writer used twice; no product test executed",
+    "isolated diagnostic 02: three Debug OpenSSL tests passed; native TLS then rejected explicit C language environment"
+  ],
+  "continuation": "03 rechecks exact prepared inputs and Debug public exports; uses default C environment; completes Debug native TLS and all Release scenarios",
+  "capture": {
+    "sha256": "70a5be24bc724386081e95c662dfd492c47239f74bdeb68ff90ced9fa3d00df8",
+    "bytes": 5187371,
+    "members": 304,
+    "all_members_read_back": true
+  }
+}

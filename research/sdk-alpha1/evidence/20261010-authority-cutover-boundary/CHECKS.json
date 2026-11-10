@@ -1,0 +1,80 @@
+{
+  "source_commit": "af184b9b3c07ef7226546549205eaec9f85b1b60",
+  "source_copy": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/authority-cutover-current/source",
+  "scope": "Actual-signature authorization boundaries and a real MAC-authenticated witness database composition counterexample; no production protocol/API modification.",
+  "observations": [
+    "A new root changes AccountId despite an unchanged device key/id/generation. Pairing the old account with the new root is refused.",
+    "New-root admission and closure of the old root signer do not revoke an independently retained old pin or the original serialized roster. The roster decoder probe is not a full device-journal restart.",
+    "The immutable storage owner changes and crossed root/roster scopes refuse. Neither old-root nor new-root issuance can use same-key credential renewal to bridge these roots.",
+    "Changing a witness key changes AnchorPin binding even under the same witness instance ID. This is a binding test, not a key-handoff protocol.",
+    "In an actual required-witness store, retiring an old device and then enrolling a new-root account still allows trusted-control-plane enrollment of a previously unseen device under the old root. The old device stays retired while both other subjects remain Current after store close/reopen."
+  ],
+  "interpretation": "The existing per-device replacement and pin verification behavior is correct for its documented scope. Composing it with a fresh new-root enrollment does not retire the old root; account-wide durable retirement and independently authenticated application-account continuity need an explicit construction. This is not an unauthorized data-plane enrollment exploit.",
+  "validation": {
+    "first_probe_cases": 5,
+    "existing_pinned_root_negative_control": 1,
+    "combined_probe_cases": 6,
+    "failed": 0,
+    "ignored": 0,
+    "other_native_tests_filtered": 816,
+    "first_compile_and_run_seconds": 204.06912691681646,
+    "combined_compile_and_run_seconds": 131.07984254183248,
+    "production_code_unchanged": true,
+    "only_isolated_test_files_changed": [
+      "research/continuity-identity-candidate/src/anchor/store/replacement_tests.rs",
+      "research/continuity-identity-candidate/src/tests.rs"
+    ]
+  },
+  "production_source_sha256": {
+    "research/continuity-identity-candidate/src/identity.rs": "d79fb3bdf63a310a06cde8c91f22c6f62a1f7df1374e89db8e3c1a2419eada69",
+    "research/continuity-identity-candidate/src/identity/renewal.rs": "25b11f1c7e387a0b0c8e23657aaddb7514ad5911a23e518cc17a2a085adcd112",
+    "research/continuity-identity-candidate/src/bootstrap.rs": "ac82dc6f1cb43340c85a561ffb38d7a21e067573a2bbc25b11a29936dfa34155",
+    "research/continuity-identity-candidate/src/anchor.rs": "dffb0a69ab75e89ef99cacd5d7932c89f74d21a4924a341b348ff339f3632ebd",
+    "research/continuity-identity-candidate/src/anchor/store.rs": "a7aed907309678b0076ae704c9e624a637fd2b7cbfe4bb758bc637911d562ce7",
+    "research/continuity-identity-candidate/src/anchor/store/replacement.rs": "8d79413ec5f1c8cd0832d0decb04e0f25ae7c4af7fc200c103cffd0f35c9c6ff",
+    "research/continuity-identity-candidate/Cargo.toml": "8c9ce4ff4feb841b685f4d1b4beb2d3d41a17ef67b7fd2cf3943c3d84d535a4d",
+    "research/continuity-identity-candidate/Cargo.lock": "dbdea099cc5a996d76cc8223844ba27a61b0fecdc4d94f6913718ee2a7ce9aab"
+  },
+  "executed_test_binary": {
+    "path": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/authority-cutover-current/build/release/deps/q_periapt_continuity_identity_candidate-7365893094ee24ee",
+    "bytes": 16435328,
+    "sha256": "c4ef33efcbf340613ed658ce22a9c243ec001984977de840123b853ef5f278b3"
+  },
+  "limits": [
+    "Synthetic trusted time 150 and test fixtures, including deterministic signing seeds; not real-time expiry or root-compromise detection.",
+    "The witness case performs explicit trusted-control-plane enrollments. Incoming network bytes cannot invoke those operations.",
+    "Witness state is exercised through the real local MAC-authenticated witness store and signed replies on macOS arm64 in one process; no process-crash, power-loss, network, foreign-binding, device or platform qualification.",
+    "No root-cutover transaction, managed account-trust owner, root-retirement floor or witness-key handoff has been implemented by these probes.",
+    "No computational proof or post-compromise secrecy claim follows from finite acceptance/refusal observations."
+  ],
+  "release_claim_eligible": false,
+  "capture": {
+    "file": "CAPTURE.zip",
+    "sha256": "fab75666f18435d28203b6ee2c20df1e35cdf596a9a8863df0dc017798ffd17a",
+    "bytes": 15133,
+    "files": {
+      "ISOLATED_TESTS.patch": "91684abdfe7f468ea3d7d0bf4584e1de30c5f65ea7b9e1d4365f3e60e6102fc5",
+      "PROBE.rs": "8a3ea7a564798752e98c47518ca035c5889afa2f0d0cdc2eb54869de246e3eee",
+      "REPRODUCE.json": "83dd7111c5ac8fbb9a0663a5333bbcbfb37b0beec1e2f50acafc8f638cce3fae",
+      "START.json": "09d9d0740d70798bf5381edcca1ea6353906c05a6a184d14799f97f61e52c479",
+      "WITNESS_PROBE.rs": "1317afde8184fb872aabe232f96687dc7ce757f70bcd9f47587a0ef808902369",
+      "probe-01/RESULT.json": "3f7ce6b86cf1d689d62a7a54b735719ee255a6a12d7d7b47b8b07bbb50fcd88b",
+      "probe-01/START.json": "9807a1312949630f9c0b9dacdfd89ab3b1384877f0d828054a6498384d24338b",
+      "probe-01/authority-boundaries.stderr": "c3e9ce53f2aa9b2e28930beeb9d40293c88bb1d05453db17f8f22601d088289c",
+      "probe-01/authority-boundaries.stdout": "e983a92c16e3b784888b858056b5b374db544dd59d210ad511cf357b1b825a1b",
+      "probe-01/pinned-root-control.stderr": "9904945500bcbc1438ceb2fa471dd9020943d1ebc4e68dd4a8cbbb51bf8bc7ca",
+      "probe-01/pinned-root-control.stdout": "401b7b898eea52a1f1baa2a5f80abef833121637b0d62d44238b11d2316fff43",
+      "run-probe.py": "db2f1bd867e75e3955c1c3d3e0cc84f3559c684805b0d72ce809ec20975b06a6",
+      "witness-probe-01/RESULT.json": "0ada5b26f2100d86a04f2a8d13881202f9ca5a4b281b421e82193900a3e7c203",
+      "witness-probe-01/START.json": "45e024a70fc8fe4f7274b0689313fd652415ccf1031c06ed44f1cd3fa114412c",
+      "witness-probe-01/stderr": "2361dd5ab3a8e9b9b65db2f445041a48b804bda24e3cc0a69061f8a4c9528914",
+      "witness-probe-01/stdout": "d6f0ab0568f240bbc3a7a474c00953c04b51e16586f53c514046336a412d4bab"
+    }
+  },
+  "description_correction": {
+    "prior_commit": "479e48df5b62d1c2bd4c57837df26e5825345801",
+    "correction": "The witness image is HMAC-authenticated public state, not encrypted state. The device journal and protected signing-key files are encrypted separately.",
+    "raw_capture_changed": false,
+    "evidence": "src/anchor/store.rs encode/authenticator and decode/auth.verify_slice; same source recorded by production_source_sha256."
+  }
+}

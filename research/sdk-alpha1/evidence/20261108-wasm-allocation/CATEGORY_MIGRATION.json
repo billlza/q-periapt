@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.rust_category_migration",
+  "base_commit": "d42e7f64d5e5556e90bafc5236243cbd29bc4564",
+  "original_check": {
+    "pull_request": 121,
+    "id": 128817368077,
+    "url": "https://github.com/billlza/q-periapt/runs/128817368077",
+    "head_sha": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+    "status": "completed",
+    "conclusion": "failure",
+    "completed_at": "2026-11-08T18:13:15Z",
+    "title": "1 configuration not found",
+    "missing_workflow": "codeql.yml",
+    "missing_category": "/language:rust",
+    "output_statement": "1 configuration present on refs/heads/main was not found",
+    "snapshot_source": "Read-only GitHub snapshot captured 2026-11-08 22:45:45\u201322:46:50 UTC"
+  },
+  "source_comparison": {
+    "main": {
+      "commit": "c74b1c7ad2173353a297f965ad735639dbd3958b",
+      "workflow_path": ".github/workflows/codeql.yml",
+      "workflow_blob": "6ab1d441456b3151457f4f97530fdd9ed1b44b72",
+      "rust_in_language_matrix": true,
+      "analyze_and_upload_category_template": "/language:${{ matrix.language }}",
+      "rust_category": "/language:rust",
+      "upload_step": "Upload quality-gated Rust CodeQL results"
+    },
+    "integration": {
+      "commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+      "workflow_path": ".github/workflows/codeql.yml",
+      "workflow_blob": "4f0efa926a2ca2392419137381c2b0ea6d2e273e",
+      "rust_in_language_matrix": false,
+      "rust_profiles": [
+        "native",
+        "wasm",
+        "macos"
+      ],
+      "publication_job": "rust-publication",
+      "publication_needs": "rust",
+      "published_categories": [
+        "/language:rust/target:native",
+        "/language:rust/target:wasm",
+        "/language:rust/target:macos"
+      ],
+      "legacy_rust_category_uploaded": false,
+      "profile_path": "artifact/codeql_rust_profile.py",
+      "profile_blob": "49ab15c3885c15541d560e94518f7c8c94140bca",
+      "analyzer_category_template": "/language:rust/target:<profile>",
+      "validated_automation_id_template": "/language:rust/target:<profile>/"
+    },
+    "snapshot_execution": {
+      "rust_profiles": "all three in_progress",
+      "publication_job": "depends on successful Rust jobs; no target-profile SARIF upload observed yet"
+    }
+  },
+  "repair": {
+    "category_by_profile": {
+      "native": "/language:rust",
+      "wasm": "/language:rust/target:wasm",
+      "macos": "/language:rust/target:macos"
+    },
+    "native_role": "Continuation of the existing Ubuntu native Rust analysis, with x86_64-unknown-linux-gnu explicitly bound in PROFILE.json.",
+    "binding": "One category function for analyzer and strict SARIF validation; workflow uploads each matching profile file once.",
+    "preserved": [
+      "typed profile and target identity",
+      "compiler host and source identity",
+      "compiled-source and macro coverage",
+      "all 39 pinned security-extended queries including both summary queries",
+      "successful SARIF invocation and digest binding",
+      "three-profile publication qualification",
+      "WASM allocation policy and bound resolver receipt"
+    ],
+    "original_failure_preserved": true
+  },
+  "source_files": {
+    ".github/workflows/codeql.yml": {
+      "bytes": 14053,
+      "sha256": "04c57aba0a2df1b86dcf8b74026222af89de437ef18c7289cf47962c3f61fa07"
+    },
+    "artifact/codeql_rust_profile.py": {
+      "bytes": 23677,
+      "sha256": "8a068e6bf8b4a687bf43b042714055523e5cbfae41a9faffc7ddbfb3618fc6c1"
+    },
+    "artifact/codeql_rust_publication.py": {
+      "bytes": 9257,
+      "sha256": "680632ba39148e1e4aa738536eeacb658524cfaf24510783bb38dca85cbf1d90"
+    },
+    "artifact/test_codeql_rust_profile.py": {
+      "bytes": 29796,
+      "sha256": "5bf0e63a2925c6eaceb6cb1393b09f93e266a0bdc43a78863f9ca5cd92fd939f"
+    },
+    "artifact/test_codeql_rust_publication.py": {
+      "bytes": 14524,
+      "sha256": "00a0c7b365f9e554e39ca533479d334df15e6d28a52df9dc07b80b7e082847a3"
+    }
+  },
+  "validation_receipt": "CATEGORY_VALIDATION.json",
+  "github_documentation": "https://docs.github.com/en/code-security/reference/code-scanning/workflow-configuration-options#analysis-category",
+  "hosted_result": "This source repair has not yet produced a completed hosted three-profile publication. Existing running integration and diagnostic inputs remain unchanged."
+}

@@ -1,0 +1,669 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.recovery_wire_scope_origin_checkpoint",
+  "archive": "CAPTURE.zip",
+  "archive_sha256": "b6a5b72504b4116ac1cdbcf9ae83ce10ea86855cba73e6487342e49c64e5ddf4",
+  "archive_bytes": 354820,
+  "members": [
+    {
+      "path": "baseline/wrapping-source-proof.spthy",
+      "source": "target/p0-static-key-source-replay-703/static-key-replay-proof.spthy",
+      "bytes": 360237,
+      "sha256": "259264abd13b7cc76d9a1d946beeeed7f4cda9f025b510d861e09c809ba9fc80"
+    },
+    {
+      "path": "checkpoint/EXPERIMENTS.json",
+      "source": "target/p0-wire-scope-checkpoint-704/EXPERIMENTS.json",
+      "bytes": 55192,
+      "sha256": "0c90c1ba6349f85314d8e429e25059568cd212b5d202e8606091d672f8f0eb7f"
+    },
+    {
+      "path": "checkpoint/readback.py",
+      "source": "target/p0-wire-scope-checkpoint-704/readback.py",
+      "bytes": 7621,
+      "sha256": "cd7972c9201c1c1218f8dad825108080a1c03e206aac96e02b4162faa866b644"
+    },
+    {
+      "path": "p0-reservation-origin-704/PREPARED.json",
+      "source": "target/p0-reservation-origin-704/PREPARED.json",
+      "bytes": 1045,
+      "sha256": "fcdbbdd9a680cdfce575bd9c1c415b683318ae461c6ebf7ba810c07a2faf5a29"
+    },
+    {
+      "path": "p0-reservation-origin-704/model.spthy",
+      "source": "target/p0-reservation-origin-704/model.spthy",
+      "bytes": 361068,
+      "sha256": "495569dce7de2f5b08373919c648b26dd0b3b22037878ce2cb68a11f53e78615"
+    },
+    {
+      "path": "p0-reservation-origin-704/reservation-origin-STARTED.json",
+      "source": "target/p0-reservation-origin-704/reservation-origin-STARTED.json",
+      "bytes": 1719,
+      "sha256": "2fc72372bb0d7129bac8a838a9307151a1d32e936839e0a8662fbaf67ceed71d"
+    },
+    {
+      "path": "p0-reservation-origin-704/reservation-origin-TERMINAL.json",
+      "source": "target/p0-reservation-origin-704/reservation-origin-TERMINAL.json",
+      "bytes": 5946,
+      "sha256": "b91f13a61818cd54b46e4fc605eb5cda91aeadce51af67a6e6e00ad05d9798b2"
+    },
+    {
+      "path": "p0-reservation-origin-704/reservation-origin-proof.spthy",
+      "source": "target/p0-reservation-origin-704/reservation-origin-proof.spthy",
+      "bytes": 363356,
+      "sha256": "4f83d3a4f77024184be958860a5e9c724104af542fae14dd91184b2e683cb7d8"
+    },
+    {
+      "path": "p0-reservation-origin-704/reservation-origin.stderr",
+      "source": "target/p0-reservation-origin-704/reservation-origin.stderr",
+      "bytes": 1595,
+      "sha256": "33f2d43057bcae96b4cee6f0b55b6449ad2f692e12d7d741636d14039fb8a15e"
+    },
+    {
+      "path": "p0-reservation-origin-704/reservation-origin.stdout",
+      "source": "target/p0-reservation-origin-704/reservation-origin.stdout",
+      "bytes": 2972,
+      "sha256": "cce600dc6eda8b3a1737d85433f5619855ed143d3560a1838f1e01cf0d4be427"
+    },
+    {
+      "path": "p0-reservation-origin-704/run.py",
+      "source": "target/p0-reservation-origin-704/run.py",
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-02/PREPARED.json",
+      "source": "target/p0-wire-scope-origin-704-02/PREPARED.json",
+      "bytes": 781,
+      "sha256": "3143f8be23a52384dcd0811b6f1a3aef3f43937c2808dfd5e68ec1b1340619aa"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-02/model.spthy",
+      "source": "target/p0-wire-scope-origin-704-02/model.spthy",
+      "bytes": 364754,
+      "sha256": "06b6ae4ef8561fa0de188e30f683f8cf40cd5004d3454b8102e161afa95ab827"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-02/run.py",
+      "source": "target/p0-wire-scope-origin-704-02/run.py",
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-02/wire-scope-origin-STARTED.json",
+      "source": "target/p0-wire-scope-origin-704-02/wire-scope-origin-STARTED.json",
+      "bytes": 1667,
+      "sha256": "93b7ce887257a4e034d05b92413152bae3faf9e55086b5a9e374cb8b0a6f9a50"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-02/wire-scope-origin-TERMINAL.json",
+      "source": "target/p0-wire-scope-origin-704-02/wire-scope-origin-TERMINAL.json",
+      "bytes": 6043,
+      "sha256": "5b5bc026318e2062944c3e11e35535f15feedd090313ef7c9db2c3139e9f2615"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-02/wire-scope-origin-proof.spthy",
+      "source": "target/p0-wire-scope-origin-704-02/wire-scope-origin-proof.spthy",
+      "bytes": 379539,
+      "sha256": "a0f84fb8da93f684687184da4dce26a85051b8a88de1cc672e31279068979bb9"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-02/wire-scope-origin.stderr",
+      "source": "target/p0-wire-scope-origin-704-02/wire-scope-origin.stderr",
+      "bytes": 1595,
+      "sha256": "451a2283eb63919ce9f95e03155fee137bb9e80eda0b43400b535f0b6cf1fbc9"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-02/wire-scope-origin.stdout",
+      "source": "target/p0-wire-scope-origin-704-02/wire-scope-origin.stdout",
+      "bytes": 3070,
+      "sha256": "b8969ef0cf969a32f9d418e8ae847090874f049d365ee0847e798fd7738de1ce"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/PREPARED.json",
+      "source": "target/p0-wire-scope-origin-704-03/PREPARED.json",
+      "bytes": 684,
+      "sha256": "2873eed86e4f95df52d0ab14c2a2835f2f8a8de4d21021e82293ac5b7c0ae97e"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0000.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0000.json",
+      "bytes": 407,
+      "sha256": "7388a873a5e7e69957c30d69274d6790e85ccab83227bc8053adec8b7cd11379"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0001.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0001.json",
+      "bytes": 1191,
+      "sha256": "a1e2a461651ae6c9d9b47b63e7eedf67c215ea2bc8cbc7281a2ad6c6255b6582"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0002.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0002.json",
+      "bytes": 458,
+      "sha256": "5c14491e6a2a8c75e337293e4584be4ecef97ff417c4c13bb4a3da57a6b4b3b0"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0003.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0003.json",
+      "bytes": 480,
+      "sha256": "d115529043a89b38759770263657a4457e6d236f866bfaa6e63222a435ce0dbb"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0004.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0004.json",
+      "bytes": 476,
+      "sha256": "d6d478e95adcd22fbfb1e5458ddd37707f1aec260589241dfa9f1b9d57b60cb9"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0005.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0005.json",
+      "bytes": 480,
+      "sha256": "7b09b6ded1d236fd8a5d0b21d467f84b37289c933aa094cb61bebeb3dba4e88f"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0006.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0006.json",
+      "bytes": 474,
+      "sha256": "6f3a88564a124c745799acd4870775acba3e4dcecb34a3b17974231bc51c8f68"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0007.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0007.json",
+      "bytes": 458,
+      "sha256": "5c14491e6a2a8c75e337293e4584be4ecef97ff417c4c13bb4a3da57a6b4b3b0"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0008.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0008.json",
+      "bytes": 480,
+      "sha256": "d115529043a89b38759770263657a4457e6d236f866bfaa6e63222a435ce0dbb"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0009.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0009.json",
+      "bytes": 476,
+      "sha256": "5801199ef20ce50706a83e31baaeb4a7f10f8fbda44b7050662fb9715b2e9716"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0010.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0010.json",
+      "bytes": 619,
+      "sha256": "e30084dc09cc5fae4cd89effbf7725f851ec82f5b9a3320c2f59e78dbabc5081"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0011.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0011.json",
+      "bytes": 530,
+      "sha256": "555ef1270cc03921fc1b3d7f6e25e65fb6337b017e45367bc4792b03b3efbc14"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0012.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0012.json",
+      "bytes": 527,
+      "sha256": "804d2380a18376887633e9f7d5f539266f7ce501497368b7dee877fa4f803a8d"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0013.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0013.json",
+      "bytes": 522,
+      "sha256": "77509981033d37fbea61cc0b791468617accf3bfa25c0261ce11583cce9527d4"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0014.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0014.json",
+      "bytes": 612,
+      "sha256": "ae9503e971c92437a2364d25ebdfa551d29f3c8cd7b73e4fec260c90540d83be"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0015.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0015.json",
+      "bytes": 528,
+      "sha256": "c9d1518ddade0502ab319e62b4bcfb7e3af301f3ca17050f997a1247344b1812"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0016.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0016.json",
+      "bytes": 522,
+      "sha256": "f317c292f76c3e9cdd6736ed8868ca44729bc7af76a75122feaf0f70a0b019ff"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0017.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0017.json",
+      "bytes": 605,
+      "sha256": "4db5d624768b34362207765c4e3b39b7b4b88e08454894261c5d593e6dd584b7"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0018.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0018.json",
+      "bytes": 522,
+      "sha256": "e6a608b2fd1bcde64f4371d31a9eb81f26e4f3da4dd8d1a0f458cae4e62f0052"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0019.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0019.json",
+      "bytes": 605,
+      "sha256": "cfc286f55572d50964335d48cfabcd5bd47bf8fbca210478ec90ef0a4de3fdee"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0020.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0020.json",
+      "bytes": 522,
+      "sha256": "eabe32fb7130c26e5284d03580b2e9405f47f970062b6f51ab4e6b4c09edb45b"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0021.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0021.json",
+      "bytes": 604,
+      "sha256": "4a7bcc7e663ed8fba0b1d997e7fb6cf6b61e8b788f01d2a52d41d8ccbf849f73"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0022.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0022.json",
+      "bytes": 476,
+      "sha256": "1936c9136c76295149e4d285db592d1e59d064fa7cee79098714814d2d743b3a"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0023.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0023.json",
+      "bytes": 476,
+      "sha256": "d6d478e95adcd22fbfb1e5458ddd37707f1aec260589241dfa9f1b9d57b60cb9"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0024.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0024.json",
+      "bytes": 480,
+      "sha256": "7b09b6ded1d236fd8a5d0b21d467f84b37289c933aa094cb61bebeb3dba4e88f"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle-frames/0025.json",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle-frames/0025.json",
+      "bytes": 474,
+      "sha256": "6f3a88564a124c745799acd4870775acba3e4dcecb34a3b17974231bc51c8f68"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle.py",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle.py",
+      "bytes": 6656,
+      "sha256": "14fb0ff8d783e2feca93dd138a81bdca44d66d50c9263c1f609acb2c08ded8ba"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/initial-send-oracle.sh",
+      "source": "target/p0-wire-scope-origin-704-03/initial-send-oracle.sh",
+      "bytes": 317,
+      "sha256": "c7f4c4e8d26501bd78a33f2c26d1c8324fb5f4fbacfe21bd20853515e66f7089"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/model.spthy",
+      "source": "target/p0-wire-scope-origin-704-03/model.spthy",
+      "bytes": 364754,
+      "sha256": "06b6ae4ef8561fa0de188e30f683f8cf40cd5004d3454b8102e161afa95ab827"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/run.py",
+      "source": "target/p0-wire-scope-origin-704-03/run.py",
+      "bytes": 5793,
+      "sha256": "330df8bb5d975037c880e3dbde412156ed31d003f9809f8f380ed8a138584f74"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/wire-scope-origin-STARTED.json",
+      "source": "target/p0-wire-scope-origin-704-03/wire-scope-origin-STARTED.json",
+      "bytes": 2006,
+      "sha256": "9c82b1bd108d0b5b49b8814d0efbb035030cac4d7b6ec315faea4060aaabe145"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/wire-scope-origin-TERMINAL.json",
+      "source": "target/p0-wire-scope-origin-704-03/wire-scope-origin-TERMINAL.json",
+      "bytes": 6382,
+      "sha256": "e12d5c9df5816adad6dd216ecff91357eb52c2fa4b1b18b81efcff8280322e25"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/wire-scope-origin-proof.spthy",
+      "source": "target/p0-wire-scope-origin-704-03/wire-scope-origin-proof.spthy",
+      "bytes": 371125,
+      "sha256": "813cad87f8300d246109eaf568ba74dfdacbf86a2732a6ee0321ca13c89beaa1"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/wire-scope-origin.stderr",
+      "source": "target/p0-wire-scope-origin-704-03/wire-scope-origin.stderr",
+      "bytes": 35955,
+      "sha256": "d9ae0777ee20b55582bb409f65ee25032781cc4eed0c1b2f23395be2685b7b42"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-03/wire-scope-origin.stdout",
+      "source": "target/p0-wire-scope-origin-704-03/wire-scope-origin.stdout",
+      "bytes": 3070,
+      "sha256": "d06ce275d35926047d8dbc68b6790e766cf13ca302d44df054d738773e322511"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/PREPARED.json",
+      "source": "target/p0-wire-scope-origin-704-04/PREPARED.json",
+      "bytes": 627,
+      "sha256": "cf47f507f1fa4f1d6bff531dd04f625d9241541fbd5b3bb67e2d5664769d9f39"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0000.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0000.json",
+      "bytes": 407,
+      "sha256": "7388a873a5e7e69957c30d69274d6790e85ccab83227bc8053adec8b7cd11379"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0001.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0001.json",
+      "bytes": 1191,
+      "sha256": "a1e2a461651ae6c9d9b47b63e7eedf67c215ea2bc8cbc7281a2ad6c6255b6582"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0002.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0002.json",
+      "bytes": 458,
+      "sha256": "5c14491e6a2a8c75e337293e4584be4ecef97ff417c4c13bb4a3da57a6b4b3b0"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0003.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0003.json",
+      "bytes": 629,
+      "sha256": "8e8d2e26630996e7daf2d09566e47bc29a4386c806d4db2260ea6d15db9bf16c"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0004.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0004.json",
+      "bytes": 571,
+      "sha256": "6b9327807f26ce30fb14849ac4a4c29730b292fcb7602087c9e8a0727289b19a"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0005.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0005.json",
+      "bytes": 575,
+      "sha256": "ecbdbf70a799b9b108a1889840e38757427701ff1cdd0ab7ad8bda2124b30bc4"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0006.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0006.json",
+      "bytes": 583,
+      "sha256": "b8eb9f029da2ffcfed2d6fadf33040715b95ce47740b7b3d66a6549ea9569bbc"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0007.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0007.json",
+      "bytes": 669,
+      "sha256": "3791d146f4b35c95537785ca286f4f8dd4ee741d2134f1b43f7f7a41d6523a58"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0008.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0008.json",
+      "bytes": 638,
+      "sha256": "d98a1367a0597dadbfbe4418695b35551b2160263f03e49531c90b52196b0401"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0009.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0009.json",
+      "bytes": 585,
+      "sha256": "82c8959b5fe59fb8c20d56f9b9168ab3ab1274ebcdb886f707c53b1978da62e7"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0010.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0010.json",
+      "bytes": 458,
+      "sha256": "5c14491e6a2a8c75e337293e4584be4ecef97ff417c4c13bb4a3da57a6b4b3b0"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0011.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0011.json",
+      "bytes": 629,
+      "sha256": "8e8d2e26630996e7daf2d09566e47bc29a4386c806d4db2260ea6d15db9bf16c"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0012.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0012.json",
+      "bytes": 649,
+      "sha256": "384d9dcef9f0404057a8c0da2cb534ed73fdc4f6b7d3184e2de7a873647b5a6f"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0013.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0013.json",
+      "bytes": 660,
+      "sha256": "e57438ec171cacf9e550418c117f422cced8532e08fa0654662e54219a4121ba"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0014.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0014.json",
+      "bytes": 668,
+      "sha256": "2d2345285843cf65b6a633e8db45e4c1a7f809e0bf2d8483a4e6c919c5fdadb6"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0015.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0015.json",
+      "bytes": 676,
+      "sha256": "4bdaffe760d7cff90a8bfe30be4efca9cfc16593c1414a3fca99a5254a9f29ed"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0016.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0016.json",
+      "bytes": 571,
+      "sha256": "6b9327807f26ce30fb14849ac4a4c29730b292fcb7602087c9e8a0727289b19a"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0017.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0017.json",
+      "bytes": 575,
+      "sha256": "ecbdbf70a799b9b108a1889840e38757427701ff1cdd0ab7ad8bda2124b30bc4"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0018.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0018.json",
+      "bytes": 583,
+      "sha256": "b8eb9f029da2ffcfed2d6fadf33040715b95ce47740b7b3d66a6549ea9569bbc"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0019.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0019.json",
+      "bytes": 638,
+      "sha256": "d98a1367a0597dadbfbe4418695b35551b2160263f03e49531c90b52196b0401"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0020.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0020.json",
+      "bytes": 658,
+      "sha256": "b629d8e551d908bce421aa869aa93725b124c915029b185b5ecd007f185aaf7b"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0021.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0021.json",
+      "bytes": 672,
+      "sha256": "28ad329b49f312a2b00fb97b317b5e71ab159f3d60318277f0be79713002c9e9"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0022.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0022.json",
+      "bytes": 681,
+      "sha256": "4fe6c6deadee18a269cbddfc68c1873d7db4d2a0e7882340023ebea25031b429"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0023.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0023.json",
+      "bytes": 691,
+      "sha256": "65413dc76c0f10f174984300cf43a21ac4327d5e8890c8a27857c389c82701b6"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0024.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0024.json",
+      "bytes": 585,
+      "sha256": "82c8959b5fe59fb8c20d56f9b9168ab3ab1274ebcdb886f707c53b1978da62e7"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0025.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0025.json",
+      "bytes": 593,
+      "sha256": "b0b655ee6ff4864ff238ed1f0c035fb3724d9d4c477950a8cd9bf84a61c94303"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle-frames/0026.json",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle-frames/0026.json",
+      "bytes": 601,
+      "sha256": "7429a38ff56b3ab9afed5329d99ee141df7719e726a5d7088614f37a3f039cd2"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle.py",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle.py",
+      "bytes": 6657,
+      "sha256": "3632741b26ae799af1d0ad07a99292f757db704f71f32d03d6cd313294a14aea"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/initial-send-oracle.sh",
+      "source": "target/p0-wire-scope-origin-704-04/initial-send-oracle.sh",
+      "bytes": 317,
+      "sha256": "fbfe01dc1c88c58dbdbe5d0fe6aaca3dbdeb29e09f8a363abb994aed9997deab"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/model.spthy",
+      "source": "target/p0-wire-scope-origin-704-04/model.spthy",
+      "bytes": 364754,
+      "sha256": "06b6ae4ef8561fa0de188e30f683f8cf40cd5004d3454b8102e161afa95ab827"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/run.py",
+      "source": "target/p0-wire-scope-origin-704-04/run.py",
+      "bytes": 5793,
+      "sha256": "330df8bb5d975037c880e3dbde412156ed31d003f9809f8f380ed8a138584f74"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/wire-scope-origin-STARTED.json",
+      "source": "target/p0-wire-scope-origin-704-04/wire-scope-origin-STARTED.json",
+      "bytes": 2006,
+      "sha256": "25ad4066e1ab4a8528ebe677ef45834e861031c012825a82829d8e2108b45f5f"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/wire-scope-origin-TERMINAL.json",
+      "source": "target/p0-wire-scope-origin-704-04/wire-scope-origin-TERMINAL.json",
+      "bytes": 6370,
+      "sha256": "4bad4e57c3c88a6025c05a52d81c37258e98b28a1809a5d6d3062cf79dc16b1b"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/wire-scope-origin-proof.spthy",
+      "source": "target/p0-wire-scope-origin-704-04/wire-scope-origin-proof.spthy",
+      "bytes": 375181,
+      "sha256": "ffb56bab7510e268a13fd2e04bbf19ce04564e44dd1267b3f77c49927e4ab573"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/wire-scope-origin.stderr",
+      "source": "target/p0-wire-scope-origin-704-04/wire-scope-origin.stderr",
+      "bytes": 47750,
+      "sha256": "9c698a0efcee5ec72293512dc243084fd4d30b0405a0845ed0429f102fca8c3b"
+    },
+    {
+      "path": "p0-wire-scope-origin-704-04/wire-scope-origin.stdout",
+      "source": "target/p0-wire-scope-origin-704-04/wire-scope-origin.stdout",
+      "bytes": 3059,
+      "sha256": "53cc82ef728047bcbfe500aa1fed2abb54e056b816167c00fc2077d5e5f47f5d"
+    },
+    {
+      "path": "p0-wire-scope-origin-704/PREPARED.json",
+      "source": "target/p0-wire-scope-origin-704/PREPARED.json",
+      "bytes": 967,
+      "sha256": "f51c1cf6f5d8ddd68fe9edd6dfc2bc3e4c81a83f2f17918337bdd9b9104d3b39"
+    },
+    {
+      "path": "p0-wire-scope-origin-704/model.spthy",
+      "source": "target/p0-wire-scope-origin-704/model.spthy",
+      "bytes": 364687,
+      "sha256": "ae846c254639b676d557bbe6f5eef718945b4e8e000b2a5d97a661c15d9871a6"
+    },
+    {
+      "path": "p0-wire-scope-origin-704/run.py",
+      "source": "target/p0-wire-scope-origin-704/run.py",
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    {
+      "path": "p0-wire-scope-origin-704/wire-scope-origin-STARTED.json",
+      "source": "target/p0-wire-scope-origin-704/wire-scope-origin-STARTED.json",
+      "bytes": 1661,
+      "sha256": "9717b6e4baa34f34035b3419ad9dbf8b589986540ae44259d09464c9ede4001b"
+    },
+    {
+      "path": "p0-wire-scope-origin-704/wire-scope-origin-TERMINAL.json",
+      "source": "target/p0-wire-scope-origin-704/wire-scope-origin-TERMINAL.json",
+      "bytes": 1826,
+      "sha256": "81f025824c725c29bd5b17f716ba5dc95921999842efe2e24fa6ea8401273a27"
+    },
+    {
+      "path": "p0-wire-scope-origin-704/wire-scope-origin.stderr",
+      "source": "target/p0-wire-scope-origin-704/wire-scope-origin.stderr",
+      "bytes": 1563,
+      "sha256": "1a854d759f560479369d1b3420cc64e5a23da30bda4085d999baf7bb7eeaa91e"
+    },
+    {
+      "path": "p0-wire-scope-origin-704/wire-scope-origin.stdout",
+      "source": "target/p0-wire-scope-origin-704/wire-scope-origin.stdout",
+      "bytes": 2068,
+      "sha256": "58af4df4ed86d1f0be2e205ed160c7109cf094acdc4b23a16a21efb3996f2a01"
+    },
+    {
+      "path": "p0-wire-scope-replay-704/PREPARED.json",
+      "source": "target/p0-wire-scope-replay-704/PREPARED.json",
+      "bytes": 386,
+      "sha256": "2e59395349a31bafc2d3930f8718c0fd05fa67bd0542de3974efd1c16b63c62a"
+    },
+    {
+      "path": "p0-wire-scope-replay-704/model.spthy",
+      "source": "target/p0-wire-scope-replay-704/model.spthy",
+      "bytes": 375181,
+      "sha256": "ffb56bab7510e268a13fd2e04bbf19ce04564e44dd1267b3f77c49927e4ab573"
+    },
+    {
+      "path": "p0-wire-scope-replay-704/run.py",
+      "source": "target/p0-wire-scope-replay-704/run.py",
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    {
+      "path": "p0-wire-scope-replay-704/wire-scope-replay-STARTED.json",
+      "source": "target/p0-wire-scope-replay-704/wire-scope-replay-STARTED.json",
+      "bytes": 1602,
+      "sha256": "943cba7d38374db9064420b279d8f58b61a205fce8ddef397fb662a43d1dc8f6"
+    },
+    {
+      "path": "p0-wire-scope-replay-704/wire-scope-replay-TERMINAL.json",
+      "source": "target/p0-wire-scope-replay-704/wire-scope-replay-TERMINAL.json",
+      "bytes": 5967,
+      "sha256": "1228516b3ef91e8fa85449c9e8dc354bcb56aaaeac0a67e9134079760322d61e"
+    },
+    {
+      "path": "p0-wire-scope-replay-704/wire-scope-replay-proof.spthy",
+      "source": "target/p0-wire-scope-replay-704/wire-scope-replay-proof.spthy",
+      "bytes": 374781,
+      "sha256": "6050a834043bf8ec765712973042be2432847ea751960a2afac9ea312a81cef2"
+    },
+    {
+      "path": "p0-wire-scope-replay-704/wire-scope-replay.stderr",
+      "source": "target/p0-wire-scope-replay-704/wire-scope-replay.stderr",
+      "bytes": 1595,
+      "sha256": "2882b20db5400999e0b813eb05c07269b27e162a7f3734fde3cbcdf157f482c9"
+    },
+    {
+      "path": "p0-wire-scope-replay-704/wire-scope-replay.stdout",
+      "source": "target/p0-wire-scope-replay-704/wire-scope-replay.stdout",
+      "bytes": 3053,
+      "sha256": "45cce199df17fdef42a60bd9ede384cc6bb41f555a639fab316f02bbb4a4ada8"
+    },
+    {
+      "path": "toolchain/IDENTITY.json",
+      "source": "target/witness-renewal-01/P0_PINNED_PROVER_IDENTITY_01.json",
+      "bytes": 974,
+      "sha256": "f6e18705fdaf213d556237ca67fcab123e1b6f3ee4eca05aa69c5e70e7329459"
+    }
+  ],
+  "operational_prefix_sha256": "3cb837646fa2097468d1fad0a10433f50d5c31b6be5553f20085170c3eef0266",
+  "original_queries_and_attributes_unchanged": 27,
+  "final_query_count": 29,
+  "verified_obligations": {
+    "reservations_inherit_locally_confirmed_root": 14,
+    "generation_and_session_identifiers_are_distinct": 1,
+    "signed_wire_scope_has_session_and_parent_origin": 47
+  },
+  "independent_certificate_sha256": "6050a834043bf8ec765712973042be2432847ea751960a2afac9ea312a81cef2",
+  "main_origin_complete": false,
+  "multi_epoch_secrecy_complete": false,
+  "release_claim_eligible": false
+}

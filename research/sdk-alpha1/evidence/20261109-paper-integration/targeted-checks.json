@@ -1,0 +1,158 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "integration_head": "93a8ce264624d2c711c894d02c04c582b0d10c63",
+  "scope": "Existing integration regression cases and exact CodeQL lock-inventory admission executed against pinned copies; no runtime edits.",
+  "android_boundary_tests": {
+    "tests_run": 3,
+    "tests": [
+      "test_emulator_exec_advances_receipt_before_fixed_exec_and_preserves_failure",
+      "test_hosted_16k_emulator_has_explicit_ram_at_the_original_exec_boundary",
+      "test_minimum_api_emulator_retains_its_configured_ram"
+    ],
+    "failures": 0,
+    "errors": 0
+  },
+  "memory_predicate_equivalence_on_all_admitted_avds": [
+    {
+      "runtime_profile": "api35-16k",
+      "adb_profile": "macos-account",
+      "abi": "arm64-v8a",
+      "avd": "QPeriapt_Release_16K_API_35_V1",
+      "paper_4gib": false,
+      "integration_4gib": false
+    },
+    {
+      "runtime_profile": "api35-16k",
+      "adb_profile": "linux-system",
+      "abi": "x86_64",
+      "avd": "QPeriapt_Release_16K_API_35_CI_V1",
+      "paper_4gib": true,
+      "integration_4gib": true
+    },
+    {
+      "runtime_profile": "api23-4k",
+      "adb_profile": "linux-system",
+      "abi": "x86_64",
+      "avd": "QPeriapt_SDK_4K_API_23_CI_V1",
+      "paper_4gib": false,
+      "integration_4gib": false
+    }
+  ],
+  "codeql_tracked_lockfiles": {
+    "status": "passed",
+    "tracked_locks": 10,
+    "fetch_roots": [
+      "Cargo.lock",
+      "fuzz/Cargo.lock",
+      "research/continuity-identity-candidate/Cargo.lock",
+      "research/continuity-openssl-peer/native/Cargo.lock",
+      "research/continuity-reference-app/Cargo.lock",
+      "research/continuity-spqr-reference/Cargo.lock",
+      "research/continuity-whole-kem-reference/Cargo.lock",
+      "research/hqc-fips207-candidate/Cargo.lock"
+    ],
+    "archive_pins": {
+      "paper/continuity/artifacts/signature-bridge/sources/q-periapt-native/Cargo.lock": "b3f7403faca9c95c0f77d5abb6ce732bb9b89c1a4c72ad6ba6e58f533e0af3d9",
+      "paper/continuity/artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/Cargo.lock": "fda2e0592f7e013816b343d461da1e32346b4256603eda317d12b4ebd200c26b"
+    }
+  },
+  "loaded_integration_python_sources": [
+    {
+      "path": "artifact/android_bounded_command.py",
+      "sha": "ca650a19ed1817cab687094648d883da473198aa"
+    },
+    {
+      "path": "artifact/android_emulator_control.py",
+      "sha": "f76a7cdc37f41e81284537df7bb425ae22b1d982"
+    },
+    {
+      "path": "artifact/android_runtime_profile.py",
+      "sha": "7f54f80a9375514a68e669fd28aa56a956f0ba2d"
+    },
+    {
+      "path": "artifact/android_runtime_state.py",
+      "sha": "d13b3debf1c252618743fa750d4c020b9db24bdb"
+    },
+    {
+      "path": "artifact/bounded_process.py",
+      "sha": "63bc8ff305c80721469e9f46f480395c8a036b76"
+    },
+    {
+      "path": "artifact/c_abi_contract.py",
+      "sha": "3c037818f2adb33c58299ac279cada187ecd37df"
+    },
+    {
+      "path": "artifact/c_package_manifest.py",
+      "sha": "6f33fabc52025f452117f8e4fc51bedeb5472e53"
+    },
+    {
+      "path": "artifact/codeql_compiler_sources.py",
+      "sha": "ffc394bd4daacb8946c2eea035a49d00760d0f07"
+    },
+    {
+      "path": "artifact/codeql_consumer_context.py",
+      "sha": "90ddac0ddbf4d449815f6c0076bb12734e005b3e"
+    },
+    {
+      "path": "artifact/codeql_rust_profile.py",
+      "sha": "bc1cfaa9ef8b38c6484c16442690ef001554c5bf"
+    },
+    {
+      "path": "artifact/codeql_rust_quality.py",
+      "sha": "0757ba851709198333c4245fa525552dc0ecda32"
+    },
+    {
+      "path": "artifact/codeql_target_coverage.py",
+      "sha": "ed63f279ace1b93e87c939a427053f86a8596e56"
+    },
+    {
+      "path": "artifact/crates_io_registry_metadata.py",
+      "sha": "72e7d0b9e88cacd8d4c9ceb2923d9765b9fb315d"
+    },
+    {
+      "path": "artifact/evidence_io.py",
+      "sha": "a0358296cc398609c048e56cbcd960ff81fe7d27"
+    },
+    {
+      "path": "artifact/git_provenance.py",
+      "sha": "abca87c463429b8b2182b5f1fa47635272667199"
+    },
+    {
+      "path": "artifact/installed_rust_graph.py",
+      "sha": "fbcbcd4d26545c1e7f4406d02d83d3deb63c1abe"
+    },
+    {
+      "path": "artifact/package_bom.py",
+      "sha": "adb261e97a57234a7214a44ba91bca887c850153"
+    },
+    {
+      "path": "artifact/process_identity.py",
+      "sha": "53f098b9a0bc7e7bbd28df63069eb0334b7b27db"
+    },
+    {
+      "path": "artifact/release_binary_scan.py",
+      "sha": "da9ada9bedd7934b0ba4681bb56e32aa607edb14"
+    },
+    {
+      "path": "artifact/rust_publish_contract.py",
+      "sha": "23451dc244a188165ff15bc3669f39a361d92174"
+    },
+    {
+      "path": "artifact/rust_sdk_profile.py",
+      "sha": "be01cd638297be44cd078d9a624ac275a72afec7"
+    },
+    {
+      "path": "artifact/sdk_abi2_spec.py",
+      "sha": "be536f9ba33c0c2ceab575ae926232749b8e989f"
+    },
+    {
+      "path": "artifact/test_android_bounded_command.py",
+      "sha": "0876531d48ac25182e14f7dd677c9cfb06cd8843"
+    },
+    {
+      "path": "artifact/third_party_licenses.py",
+      "sha": "7d6e6e0ca65e9d6c8ab0c2ba96184b259092aeae"
+    }
+  ]
+}

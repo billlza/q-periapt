@@ -1,0 +1,82 @@
+{
+  "head": "b626bf923d045f0cf1a25c7d6c61159f87e76e0e",
+  "at_utc": "2026-10-08T02:38:14.573885+00:00",
+  "source_sha256": "68ec9012fe9cc04652ee14848483cc2ed6ab6fe13e014c30d151be2e77e655c5",
+  "source_unchanged": true,
+  "commands": [
+    {
+      "label": "1.98.1-tests",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "--offline",
+        "--locked",
+        "test",
+        "-p",
+        "q-periapt-cli",
+        "--all-features"
+      ],
+      "returncode": 0,
+      "seconds": 37.142385041108355,
+      "stdout_sha256": "1b5d7c16938de06573963f762b80773aaa0651f5356403fa386e52da6d5bbc3e",
+      "stderr_sha256": "0014eda1f9bc0a8a0a7cb1b517ffd0d71d3df7cd6576ed25afbf699ba0e87251"
+    },
+    {
+      "label": "1.98.1-clippy",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "--offline",
+        "--locked",
+        "clippy",
+        "-p",
+        "q-periapt-cli",
+        "--all-features",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0,
+      "seconds": 5.90272141690366,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "190ba266d1a5627ee17a898e22d33bcc879cf35033f536c4bc2495b91081d979"
+    },
+    {
+      "label": "1.90.0-tests",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "--offline",
+        "--locked",
+        "test",
+        "-p",
+        "q-periapt-cli",
+        "--all-features"
+      ],
+      "returncode": 0,
+      "seconds": 43.10576737509109,
+      "stdout_sha256": "08f1b7eb369535ef847357bc91aa92ad3a0445325a1cd3635436b3342454b776",
+      "stderr_sha256": "5843061b634eb8c1fc95f7b40ea6264c26ccf31b245c0f35a7d30e0f7194b3e7"
+    },
+    {
+      "label": "1.90.0-clippy",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "--offline",
+        "--locked",
+        "clippy",
+        "-p",
+        "q-periapt-cli",
+        "--all-features",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0,
+      "seconds": 7.149495583027601,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "677173c9611d4b8b1273ab9c1a601ace9ed482c369256c8a48cb4a899838bf8d"
+    }
+  ],
+  "passed": true,
+  "full_local_record_sha256": "135edf3948e1140f1dc869776e035bfd795d156929f104a2a0641f3ff1f4d3e9"
+}

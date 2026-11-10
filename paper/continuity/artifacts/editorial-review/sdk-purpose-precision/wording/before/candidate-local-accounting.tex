@@ -1,0 +1,181 @@
+% Independent manuscript fragment. Requires amsmath, amssymb, amsthm.
+\subsection{Candidate-local simulation in the native experiment}
+\label{sec:candidate-local-accounting}
+
+A guessed origin pair can determine which records are opaque, which report
+rows are protected, and where the reduction stops.  We therefore localize
+the score in one native experiment before comparing its candidate-specific
+continuations.  This formulation preserves the original target eligibility
+and does not require the local real-component games to coincide.
+
+Let $\mathsf G_{\rm nat}$ be the full native experiment and
+$J=[G]\times[C]$ its fixed reservation-slot budget.  Write $E$ for original
+eligibility, $A$ for usable unique attribution, and $I\in J$ for the attributed
+pair on $A$.  These variables describe the actual accepted logical challenge
+send; selection does not transfer its test bit to another send.  For a bounded
+application score $S\in[-1,1]$, set
+\[
+ Z=\mathbf1_E S,\qquad
+ Z_j=\mathbf1_{E\land A\land(I=j)}S.
+\]
+
+For each $j$, let $U_j$ and $B_j$ be efficient, cumulative prefix events
+computed from the available classical provenance ledger.  They are
+noninterfering monitors: before stopping they change no native response or
+protocol transition and do not inspect an unknown tape or a quantum query.
+A \emph{free stop} $U_j$ permanently falsifies $E\land A\land(I=j)$ for every
+continuation.  A \emph{charged stop} $B_j$ may instead be a permitted
+protected-report-key projection.  Define $\mathsf G_{\rm nat}^{[j]}$ to run
+the native code until the first such event, then enter a stopped state with
+candidate score zero before returning the monitored bytes.  An event for one
+candidate does not stop the original game or another candidate's reduction.
+
+\begin{lemma}[Origin-anchored adaptive stopping]
+\label{lem:adaptive-origin-stop}
+Fix candidate $j$ and one of its original reservation slots $o$ which has
+occurred.  Suppose a successful capture supplies an intact version $v$ with
+\[
+ \mathsf{subject}(v)=\mathsf{session}(o),\qquad
+ \mathsf{res}(o)\le\mathsf{save}(v).
+\]
+Assume usable attribution to $j$ assigns its member origins to the selected
+session, and eligibility places the cut before both reservations.  Then this
+capture is a free $U_j$ event, even if the other reservation or challenge send
+has not occurred and the final cut has not been selected.
+\end{lemma}
+\begin{proof}
+In any continuation with $E\land A\land(I=j)$, the selected session is
+$s=\mathsf{session}(o)$ and the selected cut satisfies
+$c<\mathsf{res}(o)\le\mathsf{save}(v)$.  Acquisition has already inserted
+$v$ into the cumulative archive.  Thus the continuation has acquired a version
+of $s$ saved after $c$, contradicting the original acquisition conjunct.
+Copies, resealing, deletion, and recovery preserve this contradiction because
+the subject, original save event, and acquisition are immutable.  If the other
+reservation or challenge send never occurs, the attributed eligible event is
+already false.  Decryption and a final cut value are unnecessary for this
+certificate.
+\end{proof}
+
+Actual retention of $o$ in $v$ supplies the time inequality by reservation/save
+causality; an independently recorded later save of the same session also
+suffices.  More generally, let $L_s$ be the largest original save time of an
+acquired intact version of session $s$, with $L_s=-\infty$ for an empty set.
+For an existing pair $(g,a)$, the original temporal eligibility conditions are
+exactly
+\[
+       L_s\le c<\min\{\mathsf{res}(g),\mathsf{res}(a)\}.
+\]
+The remaining eligibility conditions retain their own tests.  This statistic
+uses original version times, not the enclosing image's latest sealing time.
+A batch-only key fragment or a public commitment supplies no intact-session
+witness merely because a report depends on that session.
+
+\paragraph{One native residual.}
+In the full native run let $B_I$ denote the charged event for its final
+attributed pair, used only on $A$, and define
+\[
+ \eta_{\rm attr}^{\rm nat}=\Pr_{\mathsf G_{\rm nat}}[E\land\neg A],
+ \qquad
+ \eta_{\rm proj}^{\rm nat}=\Pr_{\mathsf G_{\rm nat}}[E\land A\land B_I].
+\]
+These are disjoint events in one game.  In particular,
+\[
+ \eta_{\rm proj}^{\rm nat}
+ =\sum_{j\in J}\Pr_{\mathsf G_{\rm nat}}
+       [E\land A\land(I=j)\land B_j].
+\]
+A projection affecting only another candidate is not charged to the selected
+one.  For the report construction, $B_j$ is the actual protected-key
+projection event for the closure induced by that candidate's source family.
+Its probability is retained explicitly; the theorem does not declare it
+negligible or turn the fragment into a session snapshot.
+
+\begin{lemma}[Native score localization with local stops]
+\label{lem:native-local-score}
+Let $\Psi_j$ be the same terminal code for
+$\mathbf1_{E\land A\land(I=j)}S$ in each experiment, with value zero in its
+stopped state.  Then
+\begin{align}
+ \mathbb E_{\mathsf G_{\rm nat}^{[j]}}\Psi_j
+   &=\mathbb E_{\mathsf G_{\rm nat}}
+           [Z_j\mathbf1_{\neg B_j}], \label{eq:local-stop-identity}\\
+ \mathbb E_{\mathsf G_{\rm nat}}Z
+   &=\mathbb E_{\mathsf G_{\rm nat}}[Z\mathbf1_{\neg A}]
+     +\mathbb E_{\mathsf G_{\rm nat}}[Z\mathbf1_{A\land B_I}]
+     +\sum_{j\in J}
+       \mathbb E_{\mathsf G_{\rm nat}^{[j]}}\Psi_j.
+       \label{eq:native-local-decomposition}
+\end{align}
+\end{lemma}
+\begin{proof}
+Until its first local stop, the stopped machine has the native prefix
+distribution.  On a run with $B_j$, its candidate score is zero.  On a run
+with $U_j$, every native continuation already has $Z_j=0$, whether or not
+$B_j$ later occurs.  On all other runs the executions and candidate scores
+agree.  This proves~\eqref{eq:local-stop-identity}.  Partition the one native
+score by attribution and its unique index; pointwise,
+$\sum_j Z_j\mathbf1_{B_j}=Z\mathbf1_{A\land B_I}$.  Substitution proves
+\eqref{eq:native-local-decomposition}.  The final index is used in this
+identity, not predicted by the online monitor.  For a quantum adversary the
+argument compares identical classical-prefix instruments and their stopped
+continuations; it neither clones a state nor measures an oracle query.
+\end{proof}
+
+\paragraph{Local cryptographic comparisons.}
+For each $j$, let $\mathsf V^{[j]}$ be its specified real-component
+continuation after the local source/record/report replacements, and let
+$\widetilde{\mathsf V}^{[j]}$ be its corresponding random-component game.
+All terminal events are recomputed in their own game by the same score code;
+no event from a native transcript is transferred to an altered transcript.
+Suppose the actual stopped-interface correspondence gives
+\[
+ \left|\mathbb E_{\mathsf G_{\rm nat}^{[j]}}\Psi_j
+       -\mathbb E_{\mathsf V^{[j]}}\Psi_j\right|\le\rho_j.
+\]
+This is a local score bound, including its native source correspondence.
+A binary record or report bound contributes twice its value to this score
+comparison.  The stopping certificate does not itself establish the
+correspondence for permitted partial projections.
+
+For the remaining component step, specialize to $S\in\{-1,+1\}$, so that
+$\Psi_j\in\{-1,0,+1\}$.  Suppose its actual fixed-pair adapter satisfies,
+for $\sigma\in\{-1,+1\}$,
+\[
+ \left|\Pr_{\mathsf V^{[j]}}[\Psi_j=\sigma]
+       -\Pr_{\widetilde{\mathsf V}^{[j]}}[\Psi_j=\sigma]\right|
+ \le a_j^\sigma+\delta_j.
+\]
+Here $a_j^\sigma$ includes the complete derived distinguisher and its shared
+oracle work; $\delta_j$ is the selected pair's correctness term.  Write
+$b_j=\mathbb E_{\widetilde{\mathsf V}^{[j]}}\Psi_j$.
+
+\begin{proposition}[Candidate-local native accounting]
+\label{prop:native-local-accounting}
+Under the stated local comparisons, the native message-guessing advantage
+satisfies
+\[
+ \operatorname{Adv}_{\rm msg}
+ \le\min\!\left\{\frac12,\frac12\!\left(
+ \eta_{\rm attr}^{\rm nat}+\eta_{\rm proj}^{\rm nat}
+ +\sum_{j\in J}
+    \bigl(\rho_j+a_j^++a_j^-+2\delta_j+|b_j|\bigr)
+ \right)\right\}.
+\]
+\end{proposition}
+\begin{proof}
+The first two terms of~\eqref{eq:native-local-decomposition} have magnitudes
+at most the two native residuals.  The local correspondence costs $\rho_j$.
+Subtracting the positive- and negative-event comparisons bounds the local
+component score change by $a_j^++a_j^-+2\delta_j$.  Sum the candidate terms,
+apply the triangle inequality, and use $|Z|\le1$.  Completing invalid runs
+by an independent fair guess gives
+$\operatorname{Adv}_{\rm msg}=\tfrac12|\mathbb E_{\mathsf G_{\rm nat}}Z|$.
+\end{proof}
+
+The ideal continuations may have different adaptive selectors.  The terms
+$|b_j|$ therefore remain separate; they are not probabilities from one
+partitioned ideal world.  If a genuine common intermediate game and a global
+comparison have separately been established, that shared error can instead be
+charged once before the common-game accounting.  The proposition above
+covers the candidate-local constructions without asserting such a global
+identification.

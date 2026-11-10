@@ -1,0 +1,164 @@
+{
+  "artifacts_downloaded_locally": false,
+  "captured_utc": "2026-11-05T05:22:23.437316+00:00",
+  "corrected_step_order_hosted_execution_claimed": false,
+  "effective_wave_open": true,
+  "installed_coverage": {
+    "actual_checkout": "59bde0fd1a268de4d0e183c33bf3fc5e09c9be97",
+    "classification": "Second observed dependent coverage gate; not another runtime P0 occurrence.",
+    "coverage_report_written": false,
+    "coverage_upload_skipped": true,
+    "exact_failed_conjunct_established": false,
+    "failure": "First parsed partition fails the compound completion/claim predicate.",
+    "first_partition_from_pinned_source": "continuity-installed-swift-debug",
+    "hosted_artifact_downloads": 6,
+    "job_id": 127060936059,
+    "strict_join_changed": false
+  },
+  "job_total": 334,
+  "logs": {
+    "126445737664": {
+      "bytes": 566300,
+      "sha256": "91097e36210fcb2b03e5b85ae56066ba233e95948c3ba6727cdad3ac12cad4c7",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41791511701/job/126445737664"
+    },
+    "126445737915": {
+      "bytes": 606346,
+      "sha256": "d4d49e21ad4c78d6367decc2edb9f9669d5da41bd85aac82cedf7329d3867995",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41791511701/job/126445737915"
+    },
+    "126446853524": {
+      "bytes": 565808,
+      "sha256": "8937e6ece838c8dfa6b56fa94b03cac8bfa815be8fbfcc899edfcbb022efaf78",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41791861104/job/126446853524"
+    },
+    "126489776973": {
+      "bytes": 77094,
+      "sha256": "0d2e776ba7ddb1a03fe04d2720577af38b9a56a8a23ad815c3d2b68d49ff9fed",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41791861104/job/126489776973"
+    },
+    "127060936059": {
+      "bytes": 30340,
+      "sha256": "3157f329ad498353240b4d1d62ef749bdb9113bcd1564d8649274328b3a8420e",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/41791861104/job/127060936059"
+    }
+  },
+  "native_successes": {
+    "126445737664": {
+      "actual_checkout": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "candidate_library_cases": 1451,
+      "candidate_other_cases": 32,
+      "current_local_source_qualified": false,
+      "independent_public_verification_executed": false,
+      "sdk_cases": 31,
+      "test_summaries": [
+        "ok. 1451 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2652.93s",
+        "ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.96s",
+        "ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.61s",
+        "ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s",
+        "ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s"
+      ]
+    },
+    "126445737915": {
+      "actual_checkout": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "candidate_library_cases": 1450,
+      "candidate_other_cases": 32,
+      "current_local_source_qualified": false,
+      "independent_public_verification_executed": true,
+      "sdk_cases": 31,
+      "test_summaries": [
+        "ok. 1450 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 2221.26s",
+        "ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.38s",
+        "ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.12s",
+        "ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.79s",
+        "ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s",
+        "ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s"
+      ]
+    },
+    "126446853524": {
+      "actual_checkout": "59bde0fd1a268de4d0e183c33bf3fc5e09c9be97",
+      "candidate_library_cases": 1456,
+      "candidate_other_cases": 32,
+      "current_local_source_qualified": false,
+      "independent_public_verification_executed": false,
+      "sdk_cases": 31,
+      "test_summaries": [
+        "ok. 1456 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2599.19s",
+        "ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s",
+        "ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.69s",
+        "ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.92s",
+        "ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s"
+      ]
+    }
+  },
+  "original_debug_upload_failure_reclassified": false,
+  "push_performed": false,
+  "release_claim_eligible": false,
+  "reported_artifacts": {
+    "126445737664": [
+      {
+        "bytes": 62154,
+        "id": 13390180147,
+        "name": "continuity-native-checks-macos-15-1.98.1-release",
+        "sha256": "372a82a9c3af6e086703358ad98b16d055ee444d0ace7cc5a9ec89d72eca78ff"
+      }
+    ],
+    "126445737915": [
+      {
+        "bytes": 95751,
+        "id": 13390382257,
+        "name": "continuity-native-checks-macos-15-1.98.1-suite",
+        "sha256": "fc19e068e322dee8c71e6f6b922249268d0c871c3d9b1bfca2351bb3d3d44902"
+      },
+      {
+        "bytes": 1936586,
+        "id": 13390072763,
+        "name": "continuity-public-vectors-475cd23923e45819b01b6041c91c44540ec056ec",
+        "sha256": "ff09a883a56af0c6dc0c6b19d85c0a64e49c7f77ccdbe953138186705dc8d4b8"
+      }
+    ],
+    "126446853524": [
+      {
+        "bytes": 62291,
+        "id": 13390885147,
+        "name": "continuity-native-checks-macos-15-1.98.1-release",
+        "sha256": "74b31d534ad046008601524c938690213667222af493af01914650362ed5c379"
+      }
+    ],
+    "126489776973": [
+      {
+        "bytes": 47591726,
+        "id": 13389851439,
+        "name": "continuity-installed-swift-release",
+        "sha256": "e46e0502133d04da5715723d906b34914cf6808851b821f9f14d3eea27163c61"
+      }
+    ],
+    "127060936059": []
+  },
+  "rerun_performed": false,
+  "snapshot_observed_at": "2026-11-05 05:18:37 UTC",
+  "swift_release": {
+    "actual_checkout": "59bde0fd1a268de4d0e183c33bf3fc5e09c9be97",
+    "failure": "Old exact 142 C/OpenSSL prerequisite; stops in qualify_c.",
+    "hosted_server_count_disclosed": false,
+    "job_id": 126489776973,
+    "observed_p0_failure_ordinal": 16,
+    "swift_execution_established": false
+  },
+  "wave_counts": {
+    "failure": 22,
+    "in_progress": 4,
+    "queued": 11,
+    "skipped": 2,
+    "success": 295
+  },
+  "workflow_cancelled": false
+}

@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T12:00:46.477171+00:00",
+  "builder_commit": "2e5e01e0fa70e66d3b27432acab4c28a6d22ced2",
+  "crate_source_commit": "de2c49e9e572972165a05411d2a11777f06e31b2",
+  "artifact_tests": {
+    "count": 2657,
+    "failures": 0,
+    "skipped": 0,
+    "source_clean_and_unchanged": true
+  },
+  "native_package": {
+    "archive": "q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz",
+    "archive_sha256": "a80fe1900dcd1ae926250ec99aaafa2f4d25b4010bee4fcfe20fffa6e263d929",
+    "binary_sha256": "b5f34977117502142b7375875fb436feb1ee0803d2291517db406a2f719c6d50",
+    "builder_commit": "2e5e01e0fa70e66d3b27432acab4c28a6d22ced2",
+    "completed": true,
+    "installed": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-policy-maintenance-odlddtgo/installed/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin",
+    "kind": "qperiapt.policy_maintenance_package",
+    "license_packages": 80,
+    "manifest_sha256": "5f97167c2facfb883bd779aab92a23cb2b691106f07a3e22d464291573dc36be",
+    "publication_performed": false,
+    "release_claim_eligible": false,
+    "runtime": {
+      "declared_macos_deployment_target": "13.0",
+      "minimum_os_execution_qualified": false,
+      "tested_machine": "arm64",
+      "tested_release": "27.0.0",
+      "tested_system": "Darwin"
+    },
+    "schema_version": 1,
+    "source_commit": "de2c49e9e572972165a05411d2a11777f06e31b2",
+    "sources_unchanged": true,
+    "target": "aarch64-apple-darwin"
+  },
+  "archive_bytes": 1211410,
+  "archive_path": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source/target/policy-maintenance-macos-02/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz",
+  "system_tar": {
+    "builder_commit": "2e5e01e0fa70e66d3b27432acab4c28a6d22ced2",
+    "source_commit": "de2c49e9e572972165a05411d2a11777f06e31b2",
+    "archive_sha256": "a80fe1900dcd1ae926250ec99aaafa2f4d25b4010bee4fcfe20fffa6e263d929",
+    "binary_sha256": "b5f34977117502142b7375875fb436feb1ee0803d2291517db406a2f719c6d50",
+    "installed": "/Users/bill/Documents/Codex/sdk-020-policy-maintenance-installed-20261008-01/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt",
+    "commands": [
+      [
+        "/usr/bin/tar",
+        "-xzf",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source/target/policy-maintenance-macos-02/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz",
+        "-C",
+        "/Users/bill/Documents/Codex/sdk-020-policy-maintenance-installed-20261008-01"
+      ],
+      [
+        "sh",
+        "artifact/python-run.sh",
+        "artifact/policy_store_migration_installed.py",
+        "--binary",
+        "/Users/bill/Documents/Codex/sdk-020-policy-maintenance-installed-20261008-01/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin/bin/qperiapt",
+        "--output",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-maintenance-current/system-tar-01/cases"
+      ]
+    ],
+    "seconds": 0.7119190418161452,
+    "result": "pass",
+    "cases": 7,
+    "archive_and_payload_unchanged": true,
+    "release_claim_eligible": false
+  },
+  "mode_regression": {
+    "prior_archive_binary_mode": "0o644",
+    "current_archive_binary_mode": "0o755"
+  },
+  "ci": {
+    "matrix": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-apple-darwin"
+    ],
+    "new_jobs_not_run": true,
+    "push_deferred_for_rust_codeql_job": 113272915154
+  },
+  "actionlint": {
+    "tool": "actionlint 1.7.12 (Homebrew)",
+    "baseline_commit": "9d110e6e38e1aa7952dc20cb7cdcab05d96f288a",
+    "candidate_commit": "2e5e01e0fa70e66d3b27432acab4c28a6d22ced2",
+    "baseline_exit": 1,
+    "candidate_exit": 1,
+    "diagnostics_each": 2,
+    "diagnostic_kind": "runner-label",
+    "reported_label": "ubuntu-26.04",
+    "changed_workflow_introduced_diagnostics": 0,
+    "official_reference": "https://docs.github.com/en/actions/reference/runners/github-hosted-runners",
+    "verification": "Official table lists ubuntu-26.04; actual selected jobs using that label completed successfully. No actionlint suppression added.",
+    "recorded_at": "2026-10-08T11:55:22.991698+00:00"
+  },
+  "captures": {
+    "file": "CAPTURES.zip",
+    "bytes": 85980,
+    "sha256": "55e5754ae119cab492ba31771a1e82590e369669f50b306a5b56405d930f3667",
+    "members": 81
+  },
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "remaining": [
+    "Native Linux package qualification in CI",
+    "macOS signing/notarization and minimum OS execution",
+    "Fresh CI for builder commit",
+    "Full SDK/Continuity release gates"
+  ]
+}

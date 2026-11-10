@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.public_authority_history_fixture",
+  "writer_product_source_commit": "b019628acdf4412a6b7e9cd234304f4a14e157b0",
+  "reader_source_commit": "b019628acdf4412a6b7e9cd234304f4a14e157b0",
+  "writer_modules_match_committed_source": 101,
+  "source_fixture": "root-transition-plan-04",
+  "producer_receipt_sha256": "2d102c67d5bb93b9f0774aa0b55ad316d8f13a35e5112cf0f0304a3f0fea0b89",
+  "image_sha256": "2dbf599bf976abaf2eb087cfeb459f77ad6aa286803606ab683a1f5f8f18f946",
+  "pins_sha256": "b5a92aca269e4915d39aba90c6201f0f50fb16cfb5115679158378baed0ae510",
+  "original_store_unchanged": true,
+  "scope": "Actual QPRFAA01 payload emitted by the old installed independent writer. Extracted through the same frozen product reader from settled original test storage; no private keys included. Contains original, closed and committed operation history. Not whole-host rollback protection or device migration."
+}

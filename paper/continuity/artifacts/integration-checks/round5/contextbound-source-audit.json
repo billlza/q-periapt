@@ -1,0 +1,391 @@
+{
+  "schema": "q-periapt.contextbound-source-audit.v1",
+  "status": "passed",
+  "source_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "comparison_revision": "1c68aa666db22d36ee136be1ec712545a9e74f03",
+  "source_count": 14,
+  "static_check_count": 12,
+  "source_map": [
+    {
+      "id": "C01",
+      "path": "crates/q-periapt-core/src/lib.rs",
+      "ranges": [
+        {
+          "start": 34,
+          "end": 43
+        },
+        {
+          "start": 457,
+          "end": 473
+        },
+        {
+          "start": 480,
+          "end": 529
+        },
+        {
+          "start": 561,
+          "end": 650
+        }
+      ],
+      "manual_source_finding": "Ten LP8 fields; canonical nested policy context; component secrets are two separate fields.",
+      "bytes": 45762,
+      "sha256": "b2879b876e37f6f9a98f065c55502a1ed90f5d248fd029fef8eaad59bf5ec390",
+      "git_blob_sha1": "1cb074ff3d66c5d3c61dc0593f11495d4fa36ca7",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-core/src/lib.rs"
+    },
+    {
+      "id": "C02",
+      "path": "crates/q-periapt-sdk/src/lib.rs",
+      "ranges": [
+        {
+          "start": 175,
+          "end": 214
+        },
+        {
+          "start": 296,
+          "end": 308
+        },
+        {
+          "start": 328,
+          "end": 403
+        },
+        {
+          "start": 439,
+          "end": 462
+        },
+        {
+          "start": 480,
+          "end": 528
+        }
+      ],
+      "manual_source_finding": "Admitted policy-bound runtime; 64+32-byte key generation and 32+32-byte encapsulation tapes; actual paired key and fixed ciphertext widths.",
+      "bytes": 20167,
+      "sha256": "38e9c524a60e6019c8a5304cd1d587006ab467ab1718a1fd8899f97823e98be6",
+      "git_blob_sha1": "a4c659dfb546c18c82aa7ef122dbe5eae13e3948",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-sdk/src/lib.rs"
+    },
+    {
+      "id": "C03",
+      "path": "crates/q-periapt-sdk/src/expert/replay.rs",
+      "ranges": [
+        {
+          "start": 21,
+          "end": 58
+        },
+        {
+          "start": 94,
+          "end": 154
+        },
+        {
+          "start": 157,
+          "end": 256
+        }
+      ],
+      "manual_source_finding": "Original sealed reservation, exact policy/operation/input binding, platform-random tape before execution, and authenticated deterministic replay.",
+      "bytes": 9863,
+      "sha256": "cc95985cd212a2c2f224dcce22bc7fba5f4f331dc190e263085a0261dd0a3713",
+      "git_blob_sha1": "3f793136fd8c508d1e1ace4a3386581e393ea023",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-sdk/src/expert/replay.rs"
+    },
+    {
+      "id": "C04",
+      "path": "crates/q-periapt-kem/src/lib.rs",
+      "ranges": [
+        {
+          "start": 156,
+          "end": 187
+        },
+        {
+          "start": 206,
+          "end": 238
+        },
+        {
+          "start": 260,
+          "end": 312
+        },
+        {
+          "start": 321,
+          "end": 347
+        }
+      ],
+      "manual_source_finding": "PQ primitive precedes X25519 and both precede ContextBound; prepared decapsulation supplies its paired public key.",
+      "bytes": 26889,
+      "sha256": "bc88fa9d4a4bbb9f8419ff13cdf30b26697027a65af6f81daa05d2014b822aea",
+      "git_blob_sha1": "183823acd5e3332fea47f43135a979d05187b095",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-kem/src/lib.rs"
+    },
+    {
+      "id": "C05",
+      "path": "crates/q-periapt-backends/src/streaming_sha3.rs",
+      "ranges": [
+        {
+          "start": 3,
+          "end": 39
+        }
+      ],
+      "manual_source_finding": "Native streaming ContextBound backend is SHA3-256, separately from HMAC-SHA256.",
+      "bytes": 1845,
+      "sha256": "75b9110b04f796c6b88cac1fd5fcc07fa68a138cf05f6ac05184701acef670af",
+      "git_blob_sha1": "12f66dc077e4f73546c92ea456ba40adbd7a2e8a",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-backends/src/streaming_sha3.rs"
+    },
+    {
+      "id": "C06",
+      "path": "crates/q-periapt-backends/src/lib.rs",
+      "ranges": [
+        {
+          "start": 102,
+          "end": 108
+        },
+        {
+          "start": 595,
+          "end": 653
+        }
+      ],
+      "manual_source_finding": "Fixed suite bytes; X25519 contributes its raw DH output after the contributory check, without a prior uniform-key KDF.",
+      "bytes": 67287,
+      "sha256": "d73b6b3a789c27779108dbd5c378f553cd6c3108b8d90ea9f101730d2a237313",
+      "git_blob_sha1": "fdbdc4e99b626f1e87747bce43460ac7b5c00582",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-backends/src/lib.rs"
+    },
+    {
+      "id": "C07",
+      "path": "research/continuity-identity-candidate/src/crypto.rs",
+      "ranges": [
+        {
+          "start": 202,
+          "end": 225
+        }
+      ],
+      "manual_source_finding": "SHA3 domain hashing uses LP8(domain) followed by LP8(payload).",
+      "bytes": 18994,
+      "sha256": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4",
+      "git_blob_sha1": "10e7693adbdb00aba318e7fe54ca73143d3335df",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/src/crypto.rs"
+    },
+    {
+      "id": "C08",
+      "path": "research/continuity-identity-candidate/src/contract.rs",
+      "ranges": [
+        {
+          "start": 14,
+          "end": 25
+        }
+      ],
+      "manual_source_finding": "Exact rekey domain and fixed profile descriptor.",
+      "bytes": 4170,
+      "sha256": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
+      "git_blob_sha1": "210902bb3b39fc54a9ede786b7475487c7303bb7",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/src/contract.rs"
+    },
+    {
+      "id": "C09",
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+      "ranges": [
+        {
+          "start": 23,
+          "end": 92
+        },
+        {
+          "start": 124,
+          "end": 163
+        },
+        {
+          "start": 284,
+          "end": 297
+        },
+        {
+          "start": 317,
+          "end": 452
+        }
+      ],
+      "manual_source_finding": "Generation slot and immutable original signed offer; exact body equality and retained token; scope uses authoritative journal, session and control prefix.",
+      "bytes": 17022,
+      "sha256": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10",
+      "git_blob_sha1": "b529ec75f5908abc4c064deaaf4bcb87585c983b",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/src/durable/messages/rekey.rs"
+    },
+    {
+      "id": "C10",
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs",
+      "ranges": [
+        {
+          "start": 13,
+          "end": 107
+        },
+        {
+          "start": 111,
+          "end": 177
+        },
+        {
+          "start": 183,
+          "end": 375
+        }
+      ],
+      "manual_source_finding": "Response retains the complete offer; changed offer conflicts; complete offer hash enters ContextBound; root uses fixed response core; stage transition discards the encapsulation token.",
+      "bytes": 15442,
+      "sha256": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59",
+      "git_blob_sha1": "4b3ec64baae74580f1b0d75e7d3ff3271c2ba941",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/src/durable/messages/rekey/response.rs"
+    },
+    {
+      "id": "C11",
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs",
+      "ranges": [
+        {
+          "start": 701,
+          "end": 709
+        },
+        {
+          "start": 761,
+          "end": 931
+        },
+        {
+          "start": 963,
+          "end": 1092
+        }
+      ],
+      "manual_source_finding": "Proposer decapsulates only against its retained original offer and checks its regenerated paired public key; root installation replaces pending state; responder installs the saved root.",
+      "bytes": 42784,
+      "sha256": "d2ba085119db3cff2ebda780f4824b8b4cbd3a9f6e44531df45db48144a65c1e",
+      "git_blob_sha1": "0b230c7406f5d9e25c89405faaf4b3a0bdf720e3",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs"
+    },
+    {
+      "id": "C12",
+      "path": "crates/q-periapt-sdk/src/expert.rs",
+      "ranges": [
+        {
+          "start": 75,
+          "end": 117
+        },
+        {
+          "start": 120,
+          "end": 156
+        }
+      ],
+      "manual_source_finding": "Broader expert operations exist; the declared native profile does not expose arbitrary selected-key component mixing or private export.",
+      "bytes": 8430,
+      "sha256": "4a3f2922090b2ef9d20abfcdfdde98c5edd76ee12d2df9ae2608071ea1c84323",
+      "git_blob_sha1": "5c8b8231cdebeed6f33659e1cd431f2f78a3b88a",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-sdk/src/expert.rs"
+    },
+    {
+      "id": "C13",
+      "path": "crates/q-periapt-sdk/src/tests.rs",
+      "ranges": [
+        {
+          "start": 59,
+          "end": 163
+        },
+        {
+          "start": 966,
+          "end": 1008
+        }
+      ],
+      "manual_source_finding": "Existing sealed-operation tests and original-versus-streaming policy-context test were read, not rerun in this audit.",
+      "bytes": 43772,
+      "sha256": "9198d8738162bdef20ad07138e2850d4e770e074ac16404f7a1bfd7c549b9cab",
+      "git_blob_sha1": "8b52bb43a9255e51eff8f1872b2de41a5688d48e",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-sdk/src/tests.rs"
+    },
+    {
+      "id": "C14",
+      "path": "crates/q-periapt-backends/src/contextbound_kat.rs",
+      "ranges": [
+        {
+          "start": 87,
+          "end": 214
+        }
+      ],
+      "manual_source_finding": "Six source KAT values independently recomputed by the self-contained Python checker.",
+      "bytes": 7486,
+      "sha256": "649428cc9ee6b55e0c73d3e1b52761e03df949720c72958ef93c7b75f2825bfa",
+      "git_blob_sha1": "8771d015e0b8f7ef1032800cc253604c48798e93",
+      "comparison_equal": true,
+      "worktree_equal": true,
+      "url": "https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-backends/src/contextbound_kat.rs"
+    }
+  ],
+  "static_checks": [
+    {
+      "name": "actual-core-field-order",
+      "passed": true
+    },
+    {
+      "name": "nested-policy-context",
+      "passed": true
+    },
+    {
+      "name": "runtime-policy-bound-streaming-SHA3",
+      "passed": true
+    },
+    {
+      "name": "actual-streaming-SHA3-backend",
+      "passed": true
+    },
+    {
+      "name": "sealed-operation-tape-lengths",
+      "passed": true
+    },
+    {
+      "name": "sealed-input-binding-uses-SHA256",
+      "passed": true
+    },
+    {
+      "name": "full-offer-kem-context",
+      "passed": true
+    },
+    {
+      "name": "response-retains-and-compares-exact-offer",
+      "passed": true
+    },
+    {
+      "name": "proposer-retained-key-public-correspondence",
+      "passed": true
+    },
+    {
+      "name": "exactly-two-live-rekey-root-assignments",
+      "passed": true
+    },
+    {
+      "name": "X25519-is-raw-DH-not-a-prior-KDF",
+      "passed": true
+    },
+    {
+      "name": "all-six-independent-checker-KATs-match-source",
+      "passed": true
+    }
+  ],
+  "verification_type": "exact source identity and named static assertions; manual semantic audit in source_audit.md",
+  "native_rust_execution": false,
+  "independent_model_checker": "check_contextbound_adapter.py",
+  "audit_script_sha256": "2afbb47b4e5c251c47977aa5c2096df7458d95b1a555da6b5feb87916387f437",
+  "fixture_sha256": "1a3dc4f032ac31904ba5eaa3f690be8a11b34a6b0b4612d16618a808a9f2e462"
+}

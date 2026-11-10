@@ -1,0 +1,26 @@
+{
+  "completed": true,
+  "error": null,
+  "records": [
+    {
+      "command": [
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/continuity-c-enrollment/debug/deps/enrollment_witness-8e65a00f20d7238d",
+        "--exact",
+        "witness_policy_expiry::original_foreign_owner_recovers_after_real_signed_policy_expiry",
+        "--nocapture"
+      ],
+      "exit": 0
+    }
+  ],
+  "seconds": 130.36679045890924,
+  "scope": "Shared collector component exercised with current development binaries; no archive provenance or release claim",
+  "source_hashes": {
+    "artifact/continuity_witnessed_policy_expiry.py": "f2f9c9073c0055e72bac7394fc53124d94214af1f44d77a1a74a439dccb2b05d",
+    "artifact/continuity_witnessed_renewal.py": "b1d9daf3f386bf84ab6b652e2394eb2ec7e697b337b9bbc60db589e31abe0865",
+    "artifact/continuity_c_enrollment.py": "fedbc788bc579742aee343291fb1121cb1e798ce3b1dc4f9847a23eb5a926170",
+    "artifact/continuity_c_consumer.py": "d0d762cbd40b35f97c7add589ddc2dc9e07381bb8e471cec4ee5388041cfb825"
+  },
+  "release_claim_eligible": false,
+  "public_files": 300,
+  "log_sha256": "28b4071a9c831b48469c4843f1711cc6df2234aea768cf5efa418bb3f26ecafe"
+}

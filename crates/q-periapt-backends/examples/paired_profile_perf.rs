@@ -25,7 +25,9 @@ use q_periapt_backends::{
 #[cfg(qperiapt_performance_evidence)]
 use q_periapt_core::SHARED_SECRET_LEN;
 use q_periapt_core::{combine, CombineInput, Kem, Profile, Xof256, ZeroizingBytes};
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 use serde::Serialize;
 #[cfg(qperiapt_performance_evidence)]
 use sha3::{Digest, Sha3_256};
@@ -39,10 +41,10 @@ const IMPLEMENTATION_IMPROVEMENT: &str = "implementation_improvement";
 const RELEASE_EVIDENCE_MODE: &str = "release_evidence";
 const PROFILE_DIAGNOSTIC_MODE: &str = "profile_diagnostic";
 #[cfg(qperiapt_performance_evidence)]
-const NATIVE_IMPLEMENTATION_ID: &str = "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a";
+const NATIVE_IMPLEMENTATION_ID: &str = "mlkem-native-2.0.0/aarch64-native-arith+fips202-v84a";
 #[cfg(qperiapt_performance_evidence)]
 const PORTABLE_REFERENCE_IMPLEMENTATION_ID: &str =
-    "mlkem-native-1.2.0/portable-c/evidence-only-reference";
+    "mlkem-native-2.0.0/portable-c/evidence-only-reference";
 #[cfg(qperiapt_performance_evidence)]
 const PORTABLE_REFERENCE_SCOPE: &str = "evidence_only_non_product_reference";
 #[cfg(qperiapt_performance_evidence)]
@@ -336,7 +338,7 @@ fn parse_args() -> Result<Args, BenchError> {
             _ => return Err(BenchError(format!("unknown argument: {flag}"))),
         }
     }
-    if samples % 2 != 0 {
+    if !samples.is_multiple_of(2) {
         return Err(BenchError(
             "samples must be even so ABBA/BAAB yields equal paired counts".into(),
         ));
@@ -544,12 +546,12 @@ fn run_profile_once(
         Operation::Decapsulate => {
             black_box(
                 kem.decapsulate(
-                    black_box(fixture.sk_pq.as_bytes()),
-                    &entry.ct_pq,
-                    &fixture.pk_pq,
-                    fixture.sk_trad.as_bytes(),
-                    &entry.ct_trad,
-                    &fixture.pk_trad,
+                    black_box(PqSecretKey::new(fixture.sk_pq.as_bytes())),
+                    PqCiphertext::new(&entry.ct_pq),
+                    PqPublicKey::new(&fixture.pk_pq),
+                    TradSecretKey::new(fixture.sk_trad.as_bytes()),
+                    TradCiphertext::new(&entry.ct_trad),
+                    TradPublicKey::new(&fixture.pk_trad),
                     inputs.application_context,
                 )
                 .map_err(|error| kem_error("decapsulation measurement", error))?,
@@ -661,13 +663,13 @@ mod portable_reference {
     use q_periapt_core::{Error, Kem, ZeroizingBytes, SHARED_SECRET_LEN};
 
     unsafe extern "C" {
-        fn qpn_mlkem_evidence_portable_v1_2_0_768_encapsulate_derand(
+        fn qpn_mlkem_evidence_portable_v2_0_0_768_encapsulate_derand(
             ciphertext: *mut u8,
             shared_secret: *mut u8,
             public_key: *const u8,
             seed: *const u8,
         ) -> i32;
-        fn qpn_mlkem_evidence_portable_v1_2_0_768_decapsulate(
+        fn qpn_mlkem_evidence_portable_v2_0_0_768_decapsulate(
             shared_secret: *mut u8,
             ciphertext: *const u8,
             decapsulation_key: *const u8,
@@ -715,7 +717,7 @@ mod portable_reference {
             let mut output_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
             // SAFETY: the four exact-size arrays are live and non-overlapping.
             let status = unsafe {
-                qpn_mlkem_evidence_portable_v1_2_0_768_encapsulate_derand(
+                qpn_mlkem_evidence_portable_v2_0_0_768_encapsulate_derand(
                     output_ciphertext.as_mut_ptr(),
                     output_secret.as_mut_bytes().as_mut_ptr(),
                     public_key.as_ptr(),
@@ -746,7 +748,7 @@ mod portable_reference {
             let mut output_secret = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
             // SAFETY: all pointers name exact-size, non-overlapping live arrays.
             let status = unsafe {
-                qpn_mlkem_evidence_portable_v1_2_0_768_decapsulate(
+                qpn_mlkem_evidence_portable_v2_0_0_768_decapsulate(
                     output_secret.as_mut_bytes().as_mut_ptr(),
                     ciphertext.as_ptr(),
                     expanded_key_owner.as_bytes().as_ptr(),
@@ -936,23 +938,23 @@ fn verify_implementation_equivalence(
 
         let native_decapsulated = native
             .decapsulate(
-                fixture.sk_pq.as_bytes(),
-                &entry.ct_pq,
-                &fixture.pk_pq,
-                fixture.sk_trad.as_bytes(),
-                &entry.ct_trad,
-                &fixture.pk_trad,
+                PqSecretKey::new(fixture.sk_pq.as_bytes()),
+                PqCiphertext::new(&entry.ct_pq),
+                PqPublicKey::new(&fixture.pk_pq),
+                TradSecretKey::new(fixture.sk_trad.as_bytes()),
+                TradCiphertext::new(&entry.ct_trad),
+                TradPublicKey::new(&fixture.pk_trad),
                 application_context,
             )
             .map_err(|error| kem_error("native equivalence decapsulation", error))?;
         let portable_decapsulated = portable
             .decapsulate(
-                fixture.sk_pq.as_bytes(),
-                &entry.ct_pq,
-                &fixture.pk_pq,
-                fixture.sk_trad.as_bytes(),
-                &entry.ct_trad,
-                &fixture.pk_trad,
+                PqSecretKey::new(fixture.sk_pq.as_bytes()),
+                PqCiphertext::new(&entry.ct_pq),
+                PqPublicKey::new(&fixture.pk_pq),
+                TradSecretKey::new(fixture.sk_trad.as_bytes()),
+                TradCiphertext::new(&entry.ct_trad),
+                TradPublicKey::new(&fixture.pk_trad),
                 application_context,
             )
             .map_err(|error| kem_error("portable equivalence decapsulation", error))?;
@@ -1044,12 +1046,12 @@ fn run_implementation_once(
                 MeasuredImplementation::Native => black_box(
                     native
                         .decapsulate(
-                            black_box(fixture.sk_pq.as_bytes()),
-                            &entry.ct_pq,
-                            &fixture.pk_pq,
-                            fixture.sk_trad.as_bytes(),
-                            &entry.ct_trad,
-                            &fixture.pk_trad,
+                            black_box(PqSecretKey::new(fixture.sk_pq.as_bytes())),
+                            PqCiphertext::new(&entry.ct_pq),
+                            PqPublicKey::new(&fixture.pk_pq),
+                            TradSecretKey::new(fixture.sk_trad.as_bytes()),
+                            TradCiphertext::new(&entry.ct_trad),
+                            TradPublicKey::new(&fixture.pk_trad),
                             application_context,
                         )
                         .map_err(|error| kem_error("native decapsulation measurement", error))?,
@@ -1057,12 +1059,12 @@ fn run_implementation_once(
                 MeasuredImplementation::Portable => black_box(
                     portable
                         .decapsulate(
-                            black_box(fixture.sk_pq.as_bytes()),
-                            &entry.ct_pq,
-                            &fixture.pk_pq,
-                            fixture.sk_trad.as_bytes(),
-                            &entry.ct_trad,
-                            &fixture.pk_trad,
+                            black_box(PqSecretKey::new(fixture.sk_pq.as_bytes())),
+                            PqCiphertext::new(&entry.ct_pq),
+                            PqPublicKey::new(&fixture.pk_pq),
+                            TradSecretKey::new(fixture.sk_trad.as_bytes()),
+                            TradCiphertext::new(&entry.ct_trad),
+                            TradPublicKey::new(&fixture.pk_trad),
                             application_context,
                         )
                         .map_err(|error| kem_error("portable decapsulation measurement", error))?,

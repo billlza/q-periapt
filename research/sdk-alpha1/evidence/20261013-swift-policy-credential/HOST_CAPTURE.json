@@ -1,0 +1,106 @@
+{
+  "archive_bytes": 1737822,
+  "archive_sha256": "10163960793c8d1520647769c83fa0235e40a6cdf0573ec376a8da9ab159c35a",
+  "completed": true,
+  "members": 1071,
+  "release_claim_eligible": false,
+  "routes": {
+    "c/signed-fixed": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "9d10c0da5a995194fa548b8137d68a3a055aa261e1b212066918818fe77b9832",
+      "language": "C",
+      "original_message": "000000000000000000000000000000002fa629c84f4688059784cbb04e584cc8",
+      "original_request_sha256": "09ff4eb1baf3539fbca8cb76b586da8f6b29b2ff46bf318ec9db92cfff8ee359",
+      "original_session": "87383fd8779b87b918d06cf912325d2fab323da6395bd61e41e4e0d314e3b3f4",
+      "policy_operation": "839e2f8bf8a1b83f80bec1779d8a1b672ac8b474c417caa53e57e1f1dee9f536",
+      "release_claim_eligible": false,
+      "route": "signed-fixed"
+    },
+    "c/signed-recoverable": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "2c01a079541251cfcf391bba606e957bb9eadb6e6eb6a287ce32768030374e55",
+      "language": "C",
+      "original_message": "00000000000000000000000000000000804ba2159caa7d67451fcaef9d84fc51",
+      "original_request_sha256": "ca83911a68f166588bcf861695bed003f3a5ea75ed646957035363af075ce393",
+      "original_session": "65e8868811176c2dafc0eaf04be4dcf9846934c3797f0240f535b26a9dae877f",
+      "policy_operation": "eb926bd1026d322f368c799183d9be0f6554a11c1043ff82f4af3929d70f767e",
+      "release_claim_eligible": false,
+      "route": "signed-recoverable"
+    },
+    "c/tls-fixed": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "98fd814e8fc1a7b8d9804a6bf67d9a2b84ca6b9f7c1ecd4c8fd8d98e91a36caf",
+      "language": "C",
+      "original_message": "000000000000000000000000000000004ab0a96372e2579a273cca872c20a7b6",
+      "original_request_sha256": "cb0816bdb183faad1c71c2d6566409b70d89b95530f67756ea7e2a489d0e9fa3",
+      "original_session": "f46d88c947407bc494fcad1957c5d0dde8b1c6f0a61e694065d3df68cde67c1d",
+      "policy_operation": "bf18b7b972f84d216a7d647f2ba73f7d2c9e41bd2d659e37faf5e0c996011453",
+      "release_claim_eligible": false,
+      "route": "tls-fixed"
+    },
+    "c/tls-recoverable": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "5becd346b5a3831fa0c350782f3a1dd6620e7f3f3a6e6e8a0b87f50f5e329de4",
+      "language": "C",
+      "original_message": "0000000000000000000000000000000069ebe89d2e988f15656769a67111f703",
+      "original_request_sha256": "7c8ce6bf54e1e15bbb320d8935f4ceddd41fc7ad4ac881b74c6bf3644c4253a4",
+      "original_session": "d8d1d3c3b660fcc6cdfea83517281e46890c0cae70b78ee2f3f00a96040ffde0",
+      "policy_operation": "816e8cb201f2f4c383dc9642271b087230e8225d82503b7a52b6f63b9be53c29",
+      "release_claim_eligible": false,
+      "route": "tls-recoverable"
+    },
+    "swift/signed-fixed": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "bfa3bae141ec0e1713ecd467199c5b650adf22243b2320e5b20d3f0c1a3f54fe",
+      "language": "Swift",
+      "original_message": "0000000000000000000000000000000059382a45696c58ed27551022de9a1fd9",
+      "original_request_sha256": "b50a2cf0eeca1b8d3fa44a9b6f9c7f17ded315850de5d7f299d8053f3491737e",
+      "original_session": "8f46fae5138b42f990318b7709818a37da2765d661c62b39e14f7ce502a3e986",
+      "policy_operation": "5ce191eabc83ee496b81f7326fbc7a03a6be58f82981e62548598a39dd56f363",
+      "release_claim_eligible": false,
+      "route": "signed-fixed"
+    },
+    "swift/signed-recoverable": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "cf759fddf32cb5ac21777ea1b682d8cfff42d40cb5f530435dee3af6eae0910a",
+      "language": "Swift",
+      "original_message": "00000000000000000000000000000000f5587f7f9f2763fb582c218a717e5807",
+      "original_request_sha256": "c23e9f0bf2eb5942ef9efcb3033a6361aa0a896fd666fbf7a6082fb5386781bf",
+      "original_session": "4d071b59738e8552e5281fa16b71333b1879b21770664851aedc236d24197de7",
+      "policy_operation": "4906e69026802f8eabb92fa05dd81716b2811df5a9ea8959fab4936cbfa9f2b3",
+      "release_claim_eligible": false,
+      "route": "signed-recoverable"
+    },
+    "swift/tls-fixed": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "8760b0b121d37ba270791765c29f0eb88cbce51e26d810fb2db5e16add5f7141",
+      "language": "Swift",
+      "original_message": "0000000000000000000000000000000007da080ddea3226210a00bc5edac4b14",
+      "original_request_sha256": "c962e295e5569b5a5ea47609e39ffb1fe6099da252836d862a90190953414687",
+      "original_session": "25c32a638cb6b4522cc7faacc45f604f612625a07942d86f0ace2d294c8c7a88",
+      "policy_operation": "fc9287219c720254fc46f71602840f32dae763ff9eb0dbc91f6694905d22c50e",
+      "release_claim_eligible": false,
+      "route": "tls-fixed"
+    },
+    "swift/tls-recoverable": {
+      "business_effects": 1,
+      "completed": true,
+      "credential_operation": "5a97fea44ee19295099cb3df0d6ed7d1e1b6c15ef346790b5008cab3b3c1fd7b",
+      "language": "Swift",
+      "original_message": "000000000000000000000000000000004fc6b811fa7e035c1dde483f66c250cc",
+      "original_request_sha256": "369bc71955ac5237278a26a81336dd6ee7fadaf958b84b3434f44d791e6ed10f",
+      "original_session": "4d3a3a338e188ee6e6bc2e9d565ccec1b95a0a8920fa89ccd63ffe78c3d9fa1c",
+      "policy_operation": "f006ec2a766b2b7c156a67ca987e307978b2d01cb9d9d275bb22aa73562c7fc0",
+      "release_claim_eligible": false,
+      "route": "tls-recoverable"
+    }
+  },
+  "scope": "Fresh source-linked C/Swift processes and actual issuer/witness; installed Apple archive and device workflows are separate"
+}

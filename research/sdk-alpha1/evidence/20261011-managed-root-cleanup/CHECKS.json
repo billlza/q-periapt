@@ -1,0 +1,1279 @@
+{
+  "schema": 1,
+  "implementation_commit": "3539694a01000d4beb1ad7fa2c1ea864449534f2",
+  "release_claim_eligible": false,
+  "scope": "Native managed account-root cleanup ownership, historical recovery and successor lifetime. No installed foreign root-lifecycle or full release claim.",
+  "behavior": [
+    "One private Original variant owns preparing enrollment, fenced root recovery or retired enrollment; each successful cleanup step retains the same registry.",
+    "Native historical cleanup remains bound to the original paths, intent, witness and committed proposal/checkpoint. Successful old-signer erasure reopens only that original historical parent.",
+    "Ordinary preparation, alternate-target and committed-winner adoption resume after journal/signer erasure. Retries preserve revision 2, old-root fencing and independent current successor admission.",
+    "Preparing/Pending refuse the callback. Missing originals are not recreated. Callback/storage errors close the controller and revoke cached successor access.",
+    "Operation scope owns the controller until success. Callback unwind drops it and revokes delegated owners while propagating the original panic.",
+    "Expired successor credentials still refuse activation; independently authorized historical accounting/erasure remains available."
+  ],
+  "validation": [
+    {
+      "label": "current-root",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::account_root::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 423.24574587494135,
+      "tests": 58,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-retired",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "retired",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 102.98753858404234,
+      "tests": 36,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-clippy",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "seconds": 8.914899708004668,
+      "tests": null,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-release",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "--release",
+        "managed_root_cleanup",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 182.39872833318077,
+      "tests": 10,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-msrv-root",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::account_root::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 428.0543300418649,
+      "tests": 58,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-msrv-clippy",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "seconds": 11.143273832974955,
+      "tests": null,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-00",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::acceptance_and_activation_sync_faults_reconcile_the_original_journal_and_stage",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 8.365681166993454,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-01",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::acceptance_checks_live_policy_and_exact_authority_approved_description",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 0.2940446250140667,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-02",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::acceptance_refuses_another_key_metadata_roster_or_policy_without_creating_children",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 0.35008204099722207,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-03",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::active_enrollment_never_recreates_missing_original_installation_or_children",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 1.4728708339389414,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-04",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::authenticated_enrollment_rejects_wrong_scope_key_and_modified_state_without_reset",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 0.40005320799537003,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-05",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::enrollment_process_cut_child",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 0.129926250083372,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-06",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::every_request_commit_sync_fault_withholds_output_and_recovers_original_key_and_request",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 0.8874099580571055,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-07",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::original_enrollment_restarts_through_request_acceptance_activation_and_real_prekey",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 0.7777753330301493,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-08",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::partial_or_replaced_signer_never_triggers_replacement_generation",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 0.3398859170265496,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-09",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::policy_closed_at_final_enrollment_commit_withholds_service_but_retains_active_state",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 0.6113839580211788,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-10",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::process_cuts_after_each_enrollment_commit_resume_the_original_operation",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 1.5833258340135217,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-11",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::proof_of_possession_binds_intent_purpose_and_both_signatures",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 0.306144833099097,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-12",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::registered_publication_owns_signer_and_reopens_exact_public_artifact",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 0.9322097499389201,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-13",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::required_witness_enrollment_uses_original_genesis_and_never_falls_back",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 0.7231609590817243,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-14",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::signer_publication_cuts_resume_the_original_preparing_enrollment",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 1.0952171660028398,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    },
+    {
+      "label": "current-enrollment-15",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-account-retirement-process-current/source/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::tests::unpublished_initial_enrollment_configuration_resumes_explicit_first_use",
+        "--",
+        "--nocapture",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "seconds": 1.0505981668829918,
+      "tests": 1,
+      "completed": true,
+      "source_matches_implementation_commit": true
+    }
+  ],
+  "artifact_checks": [
+    {
+      "label": "codeql-inventory",
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "-B",
+        "-m",
+        "unittest",
+        "test_codeql_rust_quality"
+      ],
+      "head": "3539694a01000d4beb1ad7fa2c1ea864449534f2",
+      "returncode": 0,
+      "seconds": 0.495033249957487
+    },
+    {
+      "label": "source-gate",
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "artifact/source_results_assembler.py",
+        "ci-source-gate",
+        "--profile",
+        "sdk-020",
+        "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda",
+        "3539694a01000d4beb1ad7fa2c1ea864449534f2"
+      ],
+      "head": "3539694a01000d4beb1ad7fa2c1ea864449534f2",
+      "returncode": 0,
+      "seconds": 5.271620166953653
+    }
+  ],
+  "source_gate": "SDK_SOURCE_READINESS_PASS profile=sdk-020 commit=3539694a01000d4beb1ad7fa2c1ea864449534f2 results_sha256=9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda current_proof_inputs=254 historical_proof_inputs=249 release_claim_eligible=false",
+  "tracked_rust_sources": 534,
+  "new_process_loss_cuts": [
+    "inventory/cleanup-parent-before",
+    "inventory/cleanup-parent-after",
+    "inventory/managed-cleanup-parent-after",
+    "inventory/managed-cleanup-return-after",
+    "journal/journal-before",
+    "journal/journal-after",
+    "signer/managed-cleanup-owner-closed-after",
+    "signer/managed-cleanup-return-after"
+  ],
+  "process_profiles": "Each of current Debug, minimum Debug and current Release executes all eight new owned-process termination cuts. Existing root/adoption/transition cuts remain in the full root suites.",
+  "red_green": {
+    "case": "managed_root_cleanup_callback_unwind_revokes_controller_and_cached_successor",
+    "red_observation": "The new callback prototype retained state=Ok(Committed) and successor_released=true after the host caught an unwind.",
+    "cause": "The shared operation helper borrowed the live controller rather than owning it for the operation scope.",
+    "green": "Take the controller into local ownership and restore it only on Ok. Err/unwind drops its registry and old parent. Panic is not swallowed or converted to success.",
+    "scope": "Observed on the new callback prototype; not a claim that every older transport panic path was independently reproduced."
+  },
+  "maintainability": {
+    "production_rust_added": 357,
+    "production_rust_removed": 163,
+    "test_rust_added": 538,
+    "test_rust_removed": 3,
+    "notes": "Reuse the native cleanup engine, model mutually exclusive original owners explicitly, and share original-file admission without granting ordinary access. No new storage format or product C ABI; no throughput, stack-size or energy claim."
+  },
+  "iterations_retained": [
+    "The first process-test attempt referenced a nonexistent JournalAccountAuthority checkpoint getter. It was replaced with the existing authenticated idempotent receipt result, without adding a product API for a test.",
+    "The callback unwind test failed on the actual prototype, then passed after scoped controller ownership was implemented."
+  ],
+  "limits": [
+    "Fresh same-host macOS arm64 fixtures and controlled logical times, not deployed control-plane transport, independent protocol implementation or physical/minimum-device qualification.",
+    "958 native library tests exist in this source; this record covers the selected suites, not a new full-library run. Counts include subprocess helpers.",
+    "16 direct ordinary enrollment tests were individually selected with --exact; nested renewal suites were not rerun in full. Historical retirement tests cover the reused cleanup path.",
+    "The 2719 artifact tests passed on prior 69a807ef; this change reruns the relevant 44 inventory tests and current source gate, not that complete artifact suite.",
+    "Installed C/Swift/Kotlin root lifecycle still needs consuming ownership/admission integration and actual package qualification.",
+    "Logical erasure excludes retained pages, backups, wrapping keys and previously copied signing owners.",
+    "The remote 3b654771 CodeQL run is observed separately. Local validation is not current-head CI or a completed external security review."
+  ],
+  "archive": {
+    "path": "CAPTURE.zip",
+    "bytes": 897176,
+    "sha256": "19b695f077a458c6057621bf20742ef9176b3d3b0ff11ef76171e732c253cebc",
+    "members": [
+      {
+        "path": "ARTIFACT_CHECKS.json",
+        "bytes": 752,
+        "sha256": "d4536ec23c150d3f228f2af5562529a34acbe8703633a343c00ea9b1f44b2c0b"
+      },
+      {
+        "path": "CHANGE.patch",
+        "bytes": 63175,
+        "sha256": "6e67a2d466961ea3f0db50793c256b7150071c893f6df85a4751c8b839d0a266"
+      },
+      {
+        "path": "DIRECT_ENROLLMENT_SELECTION.json",
+        "bytes": 1707,
+        "sha256": "590993f03521f38f8a62cba93aafe5fa35e7c6609d5f960f56bbdcc80d00cd1b"
+      },
+      {
+        "path": "ENVIRONMENT.json",
+        "bytes": 1127,
+        "sha256": "d619b0ff7e30be861a4a991300c4efcbed4d1dbc094f02934567cdfac9240c11"
+      },
+      {
+        "path": "callback-unwind-green/RESULT.json",
+        "bytes": 45138,
+        "sha256": "ae3472e57904d26adaa363a8b0db89aaa7740ba5d24f1f1d0d8276d3b27a1c83"
+      },
+      {
+        "path": "callback-unwind-green/START.json",
+        "bytes": 45060,
+        "sha256": "c0e2db54bf264a396a5abb3e64431c462609a45d7bd58355d8588d6b0e909d0d"
+      },
+      {
+        "path": "callback-unwind-green/stderr",
+        "bytes": 502,
+        "sha256": "748eb310dc2e3fb34c7b536cfcbdee9361512c6e8e521a2e8796b93c43012b0b"
+      },
+      {
+        "path": "callback-unwind-green/stdout",
+        "bytes": 254,
+        "sha256": "078f2a68218ceb82cd36a55410183e454af6a34e26273a43608795ec729962fc"
+      },
+      {
+        "path": "callback-unwind-red/RESULT.json",
+        "bytes": 45142,
+        "sha256": "1982efca01ae649931def965741813e130f1fe44e7a4e9b853ee53af521bac72"
+      },
+      {
+        "path": "callback-unwind-red/START.json",
+        "bytes": 45060,
+        "sha256": "c194d73c3d01ed1d550b17d9f58c6ad8245002c0ae1720503aac8253e9229843"
+      },
+      {
+        "path": "callback-unwind-red/stderr",
+        "bytes": 948,
+        "sha256": "7d23b558bd12fe160203a65fb68d207b0923e2d80296c89eefd1ee7470f05556"
+      },
+      {
+        "path": "callback-unwind-red/stdout",
+        "bytes": 416,
+        "sha256": "722084307709fcc8d4cbd7f9fd8380ab3e5e74f3850ab8cfc96168969cfe8587"
+      },
+      {
+        "path": "cleanup-clippy/RESULT.json",
+        "bytes": 45053,
+        "sha256": "69ba6c79a8aee07662a4759ea123ce05ca1f86943740e8d0a35bfc89a5e38476"
+      },
+      {
+        "path": "cleanup-clippy/START.json",
+        "bytes": 44975,
+        "sha256": "43b26f7540c433d7e292caa184dce7c0e6405fe26175d6476f96390f85654848"
+      },
+      {
+        "path": "cleanup-clippy/stderr",
+        "bytes": 285,
+        "sha256": "64443f46305d615e1799690fb4ceef3ebc855eb4821b06d1371ece457d878265"
+      },
+      {
+        "path": "cleanup-clippy/stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "cleanup-cuts/RESULT.json",
+        "bytes": 45121,
+        "sha256": "e253f3303daa008890412d83bc43729b80d7f6079800d3d42bb684e8a1ef1212"
+      },
+      {
+        "path": "cleanup-cuts/START.json",
+        "bytes": 45044,
+        "sha256": "0f41d9ae1c5a0f5a3851c9b1b6ea344857a8d1be5ad4ab56b95f077d61d18521"
+      },
+      {
+        "path": "cleanup-cuts/stderr",
+        "bytes": 1670,
+        "sha256": "90b5b0d37b948791afc85c5a2af686e65e9df23744e03aab1cc8a7a36f6d9576"
+      },
+      {
+        "path": "cleanup-cuts/stdout",
+        "bytes": 1290,
+        "sha256": "f0d610f211d4521e6aecc6e28ab530ac0dbfa9d9580b1c2be2ffba38444bad9d"
+      },
+      {
+        "path": "cleanup-process/RESULT.json",
+        "bytes": 45124,
+        "sha256": "b1d8eb9363e41995d92e1e7737006f8d3aad1c1b812cdf8e01afee106efb099c"
+      },
+      {
+        "path": "cleanup-process/START.json",
+        "bytes": 45044,
+        "sha256": "f8b8c5c5552f7aa37a14ee34a86f53585a0959cf44f25254c2142c75a530a3f2"
+      },
+      {
+        "path": "cleanup-process/stderr",
+        "bytes": 1329,
+        "sha256": "c8c8f4f4813dd777bfb2f21e580f88bdcdb6afd729b082303a52bd9550e18c1d"
+      },
+      {
+        "path": "cleanup-process/stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "codeql-inventory.log",
+        "bytes": 143,
+        "sha256": "f408b0c8ff1fa7eaa37ad612a8627f3b7e9eea2aaa40d5fe2efa060052385371"
+      },
+      {
+        "path": "codeql-last-observation.json",
+        "bytes": 688,
+        "sha256": "2714ec648b00170df81f2bf17cd0899ffe664a95a241cac8d7c66fa22e5d7fe3"
+      },
+      {
+        "path": "current-clippy/RESULT.json",
+        "bytes": 45053,
+        "sha256": "a397e2155f99ca2526454843a86d70e3b73f02e8e140a252da4c87784d2bf3a0"
+      },
+      {
+        "path": "current-clippy/START.json",
+        "bytes": 44975,
+        "sha256": "388d35f20cd9882d1759f0de71a8005bbdb41c94183affc189d89f1c8b6b4daa"
+      },
+      {
+        "path": "current-clippy/stderr",
+        "bytes": 285,
+        "sha256": "4b2f6e071d4314cfe27b8619ec3e0e92e286a2320c99da6a2174f9add24895c3"
+      },
+      {
+        "path": "current-clippy/stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "current-enrollment-00/RESULT.json",
+        "bytes": 45217,
+        "sha256": "5bec3c434e1115665c5fb629d3eaf97ee79601fe12e6308a7c344bb2acc5d991"
+      },
+      {
+        "path": "current-enrollment-00/START.json",
+        "bytes": 45139,
+        "sha256": "cfba87cc808abd6bd98166796c122102542bb6dd0a409cd5527d7374944f1901"
+      },
+      {
+        "path": "current-enrollment-00/stderr",
+        "bytes": 403,
+        "sha256": "eb8f720c96afcf49ed1d1808c1138a9023c690f0315712f4c17f28090e306b25"
+      },
+      {
+        "path": "current-enrollment-00/stdout",
+        "bytes": 224,
+        "sha256": "0d8249cc755fc391ac10849c94e8a75b92b41c2340a6796779ae4539a5c78801"
+      },
+      {
+        "path": "current-enrollment-01/RESULT.json",
+        "bytes": 45210,
+        "sha256": "ad2fe0fc363b1d01d426c145daca05399206e830b9e5686baa5dd760d809c25e"
+      },
+      {
+        "path": "current-enrollment-01/START.json",
+        "bytes": 45131,
+        "sha256": "8fae6d3698ff86719e500c4ea7c41902fcb87872d6aed0871607bd3c37267a65"
+      },
+      {
+        "path": "current-enrollment-01/stderr",
+        "bytes": 288,
+        "sha256": "7fc6669be340f4fc24905a741f29368a913ed961b157d72181a4af66438c3d21"
+      },
+      {
+        "path": "current-enrollment-01/stdout",
+        "bytes": 216,
+        "sha256": "09d03b1ec99454b11d2f7b11f6f4df1f5045f10148dc632e6f89990e61ba93e8"
+      },
+      {
+        "path": "current-enrollment-02/RESULT.json",
+        "bytes": 45223,
+        "sha256": "b62dbcfbbbe2f34cdffb7722cb73b8cba2c9df50c57b004941e5d4c4f785e236"
+      },
+      {
+        "path": "current-enrollment-02/START.json",
+        "bytes": 45143,
+        "sha256": "361b42050bd91e103531005357df5efe966c39723696be063e654d119a06c9ad"
+      },
+      {
+        "path": "current-enrollment-02/stderr",
+        "bytes": 288,
+        "sha256": "7fc6669be340f4fc24905a741f29368a913ed961b157d72181a4af66438c3d21"
+      },
+      {
+        "path": "current-enrollment-02/stdout",
+        "bytes": 228,
+        "sha256": "8d24ace33c81d3978454150f707c638086e8d641e5481d981aa15807c8258177"
+      },
+      {
+        "path": "current-enrollment-03/RESULT.json",
+        "bytes": 45215,
+        "sha256": "21b9bfb77eca580563ba9abb15339f60310f03952846873fd789d51502aba5d9"
+      },
+      {
+        "path": "current-enrollment-03/START.json",
+        "bytes": 45136,
+        "sha256": "ea7910794fc2e5b07a313c3017c3a2c563aee2bfb49b4a58755d46dec3c186a8"
+      },
+      {
+        "path": "current-enrollment-03/stderr",
+        "bytes": 288,
+        "sha256": "7fc6669be340f4fc24905a741f29368a913ed961b157d72181a4af66438c3d21"
+      },
+      {
+        "path": "current-enrollment-03/stdout",
+        "bytes": 221,
+        "sha256": "c76650b242d39ad3b072d5cedc78fe2d56c48533c7ace75105bf0d7e8844ae3e"
+      },
+      {
+        "path": "current-enrollment-04/RESULT.json",
+        "bytes": 45222,
+        "sha256": "164cb90921c5494cddbb030c300719f7771b69fae8c2f2f301e22cee95c3e060"
+      },
+      {
+        "path": "current-enrollment-04/START.json",
+        "bytes": 45142,
+        "sha256": "df22eb71c37c14de28559d966e997111cef277cf069670e6daee1c83b08fb653"
+      },
+      {
+        "path": "current-enrollment-04/stderr",
+        "bytes": 288,
+        "sha256": "7fc6669be340f4fc24905a741f29368a913ed961b157d72181a4af66438c3d21"
+      },
+      {
+        "path": "current-enrollment-04/stdout",
+        "bytes": 227,
+        "sha256": "e66575ea867f2cd09536389c20762bbc36f18f1483ada7a8dc06cf0eedbe75ee"
+      },
+      {
+        "path": "current-enrollment-05/RESULT.json",
+        "bytes": 45167,
+        "sha256": "da5e8abd3c853c8144c296f0b902db8fa014a4483125fce27b56e303184259b7"
+      },
+      {
+        "path": "current-enrollment-05/START.json",
+        "bytes": 45089,
+        "sha256": "f639cd632b3461856e4f09b7b0d265f0ed9a92ead8cbe865e7bd14eff3d538e8"
+      },
+      {
+        "path": "current-enrollment-05/stderr",
+        "bytes": 288,
+        "sha256": "7fc6669be340f4fc24905a741f29368a913ed961b157d72181a4af66438c3d21"
+      },
+      {
+        "path": "current-enrollment-05/stdout",
+        "bytes": 174,
+        "sha256": "2543866000fe86461a240b710fef1acb4b8948000773aee843f969dedf8063e5"
+      },
+      {
+        "path": "current-enrollment-06/RESULT.json",
+        "bytes": 45226,
+        "sha256": "de1ff82c01d24049f4f581d23a475bdfe1022c07054ddf4dea79913b01a0a107"
+      },
+      {
+        "path": "current-enrollment-06/START.json",
+        "bytes": 45147,
+        "sha256": "6b4e13ecf32fba1378b04071b6dd5217c9e11841aa40607e72d4a0fb8528c67b"
+      },
+      {
+        "path": "current-enrollment-06/stderr",
+        "bytes": 337,
+        "sha256": "a899a658d0ce288b7cd88dd6d55c6bd3bf510f10d69f2933b0183d237d4e6a9f"
+      },
+      {
+        "path": "current-enrollment-06/stdout",
+        "bytes": 232,
+        "sha256": "21473846ed5b4bb450352e60fa1e479f216f9fd6c0166f0ac1a0ebc9903476c4"
+      },
+      {
+        "path": "current-enrollment-07/RESULT.json",
+        "bytes": 45222,
+        "sha256": "d0c7dd84d327d79c38bcabbf132d673c24ab1f60a3091db9362c333ec8b16b3e"
+      },
+      {
+        "path": "current-enrollment-07/START.json",
+        "bytes": 45143,
+        "sha256": "dfbb36e871f799fa506989aa70a71de5a7799a224f59ca2c4aeeb374a04979f4"
+      },
+      {
+        "path": "current-enrollment-07/stderr",
+        "bytes": 288,
+        "sha256": "7fc6669be340f4fc24905a741f29368a913ed961b157d72181a4af66438c3d21"
+      },
+      {
+        "path": "current-enrollment-07/stdout",
+        "bytes": 228,
+        "sha256": "0a247edb72faf61736512e85f05a570d4c0105811393697ef5c9ee89f48a2b66"
+      },
+      {
+        "path": "current-enrollment-08/RESULT.json",
+        "bytes": 45204,
+        "sha256": "94edd5e086bc18d99e41749c157b22add7bb4da8e4f817ed0f022a37f136fc41"
+      },
+      {
+        "path": "current-enrollment-08/START.json",
+        "bytes": 45125,
+        "sha256": "c50e9083e2e0f016a7e6a491525f72fe56db89d0ac97b391651c1e7c7636d344"
+      },
+      {
+        "path": "current-enrollment-08/stderr",
+        "bytes": 288,
+        "sha256": "7fc6669be340f4fc24905a741f29368a913ed961b157d72181a4af66438c3d21"
+      },
+      {
+        "path": "current-enrollment-08/stdout",
+        "bytes": 210,
+        "sha256": "aa08d84ec707b87be7afa546f5cc2c6022dbea9e6ef1e2bb20364705294c8153"
+      },
+      {
+        "path": "current-enrollment-09/RESULT.json",
+        "bytes": 45223,
+        "sha256": "cf443f6d831ac6cc593f5a5ab2339413207bc79ded2d3bdab241a915fd303773"
+      },
+      {
+        "path": "current-enrollment-09/START.json",
+        "bytes": 45144,
+        "sha256": "f7cea42fbda5e39e38c13bcbe778150d492bbe1fdd6a7ff0396dbfdeec49505a"
+      },
+      {
+        "path": "current-enrollment-09/stderr",
+        "bytes": 288,
+        "sha256": "7fc6669be340f4fc24905a741f29368a913ed961b157d72181a4af66438c3d21"
+      },
+      {
+        "path": "current-enrollment-09/stdout",
+        "bytes": 229,
+        "sha256": "3f23dffbe7329bce4193e4a4953c71dd7a409df5a7f35e3c4f8f64e6a07361a0"
+      },
+      {
+        "path": "current-enrollment-10/RESULT.json",
+        "bytes": 45211,
+        "sha256": "1d3cb212a610b111d090d850cc8f6c507d184880bcd023c5b74d94192504fe66"
+      },
+      {
+        "path": "current-enrollment-10/START.json",
+        "bytes": 45132,
+        "sha256": "f5f48bfe2630511dfa0430e4c9701e1f243604adbeceb9a9b3fa0a5203e9f30a"
+      },
+      {
+        "path": "current-enrollment-10/stderr",
+        "bytes": 730,
+        "sha256": "409e24b3142e180391e0c0d8b99a3ba7439e463aa32de3d2d8db88a19078ac9a"
+      },
+      {
+        "path": "current-enrollment-10/stdout",
+        "bytes": 217,
+        "sha256": "07f23b1c03181a0d9dae7862c504ec43b21ddd5e326f82f1d713085f0b7419e4"
+      },
+      {
+        "path": "current-enrollment-11/RESULT.json",
+        "bytes": 45199,
+        "sha256": "663af8fdee703926a4c54da28019d2e4536f6225fc00f10e7f262585ac5958cf"
+      },
+      {
+        "path": "current-enrollment-11/START.json",
+        "bytes": 45121,
+        "sha256": "18432b7e608b6d8ed9f0359b78881f67bcab7b2c65f133fa61cebb6cd248954a"
+      },
+      {
+        "path": "current-enrollment-11/stderr",
+        "bytes": 288,
+        "sha256": "1fe0b08a6a447695f179d0d3ec82c1a25ad1c668aca39d7e186d36f66fd1bf57"
+      },
+      {
+        "path": "current-enrollment-11/stdout",
+        "bytes": 206,
+        "sha256": "72c4e27a4506572610c304cccc6ea3128ef780af329073ee6836190da719147d"
+      },
+      {
+        "path": "current-enrollment-12/RESULT.json",
+        "bytes": 45208,
+        "sha256": "143cb5b4fcdb1e816711043cd6d3056c513505e58676e723d2621a4eb6d71284"
+      },
+      {
+        "path": "current-enrollment-12/START.json",
+        "bytes": 45129,
+        "sha256": "95651d3c3f7f8abe39b5fc875deb3ed72c73b32a45105d2e046233d6338eabde"
+      },
+      {
+        "path": "current-enrollment-12/stderr",
+        "bytes": 288,
+        "sha256": "7fc6669be340f4fc24905a741f29368a913ed961b157d72181a4af66438c3d21"
+      },
+      {
+        "path": "current-enrollment-12/stdout",
+        "bytes": 214,
+        "sha256": "2f1fb19b5821b3c5ca9aeab856a4c70f91a0ff19b968065ad2f709a714399faa"
+      },
+      {
+        "path": "current-enrollment-13/RESULT.json",
+        "bytes": 45210,
+        "sha256": "203e737461c9a01eb1604f016b5fc29bb3e5daf54790cb9f5f05d29e1618a9f4"
+      },
+      {
+        "path": "current-enrollment-13/START.json",
+        "bytes": 45131,
+        "sha256": "22e15e1e535ca12d3e9b88afefb7f91be3b02b07700b9acb50d33a33990da55b"
+      },
+      {
+        "path": "current-enrollment-13/stderr",
+        "bytes": 288,
+        "sha256": "7fc6669be340f4fc24905a741f29368a913ed961b157d72181a4af66438c3d21"
+      },
+      {
+        "path": "current-enrollment-13/stdout",
+        "bytes": 216,
+        "sha256": "6fb5b87f2a318292cf25a3ba917488012bce71f394cec6cd16f036b174654cee"
+      },
+      {
+        "path": "current-enrollment-14/RESULT.json",
+        "bytes": 45204,
+        "sha256": "ee1a2df7bb41f822cc1dcc38944f3e957218945210cd26a1f699316a7b921c1f"
+      },
+      {
+        "path": "current-enrollment-14/START.json",
+        "bytes": 45125,
+        "sha256": "3964538b492b8f1d165069fda8ddbb232b0359e0d21acb6d9f49bab86fcdeadd"
+      },
+      {
+        "path": "current-enrollment-14/stderr",
+        "bytes": 487,
+        "sha256": "920c40d0f88ce120fe1899895e1b561c8a90f8569e7b07bc895638b93c378a6a"
+      },
+      {
+        "path": "current-enrollment-14/stdout",
+        "bytes": 210,
+        "sha256": "8c378ee46a79a3832e7af5a33be30bd3c3b5c89a52ebf8f3538dd1e60f1e219d"
+      },
+      {
+        "path": "current-enrollment-15/RESULT.json",
+        "bytes": 45211,
+        "sha256": "183de6c2ec17acc1d63561db464289866d33ac05db5542f85790656d16a2259d"
+      },
+      {
+        "path": "current-enrollment-15/START.json",
+        "bytes": 45132,
+        "sha256": "b245ae79ee356a2d21f28c38a306367909b093f37cd99ad3e7e0e9f052ac2aaf"
+      },
+      {
+        "path": "current-enrollment-15/stderr",
+        "bytes": 517,
+        "sha256": "c0a78ff2396cd90a007292d74040a114d1cf926d0990bae0fb868d45d5d2a300"
+      },
+      {
+        "path": "current-enrollment-15/stdout",
+        "bytes": 217,
+        "sha256": "fe59d6ce2f2ea6eb41cc047932d6a270a39b507b0f13c9df297ce537d7c68593"
+      },
+      {
+        "path": "current-msrv-clippy/RESULT.json",
+        "bytes": 45059,
+        "sha256": "4f9b43c57bf7ef9b1d163d26a472a7f6d1eb180ea83d645d017118de67c71137"
+      },
+      {
+        "path": "current-msrv-clippy/START.json",
+        "bytes": 44980,
+        "sha256": "ee3dd3033dc294c16304d403e98c5684c0903896f3d5d9e8cc56f3fce7d883f3"
+      },
+      {
+        "path": "current-msrv-clippy/stderr",
+        "bytes": 286,
+        "sha256": "a0682fd84a651dd9f4d86dbdf4761a7eb100283c82629d121ae3fa9cf2ad261b"
+      },
+      {
+        "path": "current-msrv-clippy/stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "current-msrv-root/RESULT.json",
+        "bytes": 45138,
+        "sha256": "323f27866c0035d909c73db393530f15b74d2128a624afb75c0106798ba94534"
+      },
+      {
+        "path": "current-msrv-root/START.json",
+        "bytes": 45060,
+        "sha256": "18cda1fbaf2402e9035de993e8764670fc250bbdea7153e903195af7d44e092a"
+      },
+      {
+        "path": "current-msrv-root/stderr",
+        "bytes": 8764,
+        "sha256": "5372201b3ed27d8a31317adcf3edf22bcb97e3603779bc02c60c96ed1d2e18af"
+      },
+      {
+        "path": "current-msrv-root/stdout",
+        "bytes": 8069,
+        "sha256": "98eb897aec67f963891bc24c29520a9293b100eaebf2c302531eef77e25856ba"
+      },
+      {
+        "path": "current-release/RESULT.json",
+        "bytes": 45143,
+        "sha256": "2ea8905dabc4f099290fafd0006f5dccdfd0d4bbbd8c64df46ddaf58177cf109"
+      },
+      {
+        "path": "current-release/START.json",
+        "bytes": 45064,
+        "sha256": "a83a5449ad70ae771a3cfe680fe9aa20ac4a10d06d0e1f4aa70785ac20e7c2c6"
+      },
+      {
+        "path": "current-release/stderr",
+        "bytes": 1661,
+        "sha256": "532535bf75c1272a3cbe3f579fc6a922bb45eef23bfe912b755788c6dbb92bdb"
+      },
+      {
+        "path": "current-release/stdout",
+        "bytes": 1573,
+        "sha256": "5b09e29f1722d1ce63134b30656ba6891ee82b0454b39471a27d623c47eeb6e1"
+      },
+      {
+        "path": "current-retired/RESULT.json",
+        "bytes": 45113,
+        "sha256": "7cf9120dd5464b339c2a0acbb07afbf7255db78f4aad0cbcb99fd83f2124dac9"
+      },
+      {
+        "path": "current-retired/START.json",
+        "bytes": 45034,
+        "sha256": "f0e2e25e1ee099f829cc5bb316325bf68fa9d0dd17744e06b3775aa37518e0cf"
+      },
+      {
+        "path": "current-retired/stderr",
+        "bytes": 3242,
+        "sha256": "38a3dacdfcfea860750a21492e7b74b280269bb43e5707b3480d62afad48ea1a"
+      },
+      {
+        "path": "current-retired/stdout",
+        "bytes": 4544,
+        "sha256": "63d033b05ec300c1a5471d1bc27ee3883e77fbe9b0fd7179c2a06d226ea6a1ea"
+      },
+      {
+        "path": "current-root/RESULT.json",
+        "bytes": 45134,
+        "sha256": "78980a569331fbf73fde0656f022b36f65e0f74de8f8f37501dd51b47c89e9fd"
+      },
+      {
+        "path": "current-root/START.json",
+        "bytes": 45055,
+        "sha256": "9dc60997d8cc65518755699b902be1fb4c976d0a635e07e5c286b58ac944712a"
+      },
+      {
+        "path": "current-root/stderr",
+        "bytes": 8759,
+        "sha256": "426afedfee2243d2fedbbfe9bd1161638a07c9825a257d2569639f5ebf6540fc"
+      },
+      {
+        "path": "current-root/stdout",
+        "bytes": 8069,
+        "sha256": "8d04d1aee74d77891339029925cbdb4db87eff940dd306b0895a60c3d6ce4a8c"
+      },
+      {
+        "path": "diff-check.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "direct-enrollment-pipeline.log",
+        "bytes": 20355,
+        "sha256": "0d7b7f52d49abd965ae6536c22d87dfa68d32035ade683af879d9136a011e245"
+      },
+      {
+        "path": "direct_enrollment.py",
+        "bytes": 901,
+        "sha256": "f4523077c17dfa7f0b567eef98c338cd94027f6f22feb920186b49ac0c821486"
+      },
+      {
+        "path": "expiry/RESULT.json",
+        "bytes": 45142,
+        "sha256": "e165c6414bf32df0a85cbf904fae620b471f819d78f0e8dcc448e0fe96d0f0d2"
+      },
+      {
+        "path": "expiry/START.json",
+        "bytes": 45063,
+        "sha256": "438b766e69fe49d82db0ba150eba85d16ead0c70704e064cd3eeae231d0906ff"
+      },
+      {
+        "path": "expiry/stderr",
+        "bytes": 288,
+        "sha256": "7fc6669be340f4fc24905a741f29368a913ed961b157d72181a4af66438c3d21"
+      },
+      {
+        "path": "expiry/stdout",
+        "bytes": 255,
+        "sha256": "7d3eaf149882da42230bed67d8a56048f3223e982921948e24f54b830f8a87ab"
+      },
+      {
+        "path": "first-cleanup/RESULT.json",
+        "bytes": 44947,
+        "sha256": "62e7befe3d8232a2c1b4d900af3501144946797b9468232a766e6d513f2e6fc2"
+      },
+      {
+        "path": "first-cleanup/START.json",
+        "bytes": 44869,
+        "sha256": "bea010fbeb9ea0adad511d95d2c8e6d22d4aaefd5ea39f535b7c9d075af73f5c"
+      },
+      {
+        "path": "first-cleanup/stderr",
+        "bytes": 502,
+        "sha256": "570f149bb49924a0177c56fb90b8724b6d0ad54165a0eb21b81ef8bb5cdb969c"
+      },
+      {
+        "path": "first-cleanup/stdout",
+        "bytes": 987,
+        "sha256": "7c8731bae09363a5d57cbd727aa1088907468d3b11535aa3af09fc525b4d6330"
+      },
+      {
+        "path": "format-native.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "format-workspace.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "initial-clippy/RESULT.json",
+        "bytes": 44710,
+        "sha256": "170540678ee9e8e2b1999486a4474415b167b0a179681e5bdb211583e782575a"
+      },
+      {
+        "path": "initial-clippy/START.json",
+        "bytes": 44633,
+        "sha256": "1da2861f341e52e14601f4ec62b224a35af41ee7a0fb882431bf0030791d5373"
+      },
+      {
+        "path": "initial-clippy/stderr",
+        "bytes": 285,
+        "sha256": "7c59f825412f280dd59f670b07e1be3ce9c0c194465ab05696bdf0faa65e4a94"
+      },
+      {
+        "path": "initial-clippy/stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "run.py",
+        "bytes": 2934,
+        "sha256": "db7e4a35268d1b2ec9c9190d8ec716221adfce3b24d9627733d09546f8cbebe8"
+      },
+      {
+        "path": "seal.py",
+        "bytes": 7264,
+        "sha256": "17302dc4aeae5bcb45a38b23d4a8baa957fbb3841445e5700c62b6855c9888b4"
+      },
+      {
+        "path": "source-gate.log",
+        "bytes": 252,
+        "sha256": "879f72c2ad39bd53989ae87df73254bbe1b1754b5106a9a1c93a87c36a13e97a"
+      }
+    ]
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "schema": "qperiapt-chain-prefix-controls/1",
+  "status": "passed",
+  "all_binary_online_marking_policies": 128,
+  "binary_assignments_examined": 8192,
+  "larger_alphabet_policies": 8,
+  "larger_alphabet_assignments_examined": 32768,
+  "all_observed_selected_key_fibres_uniform": true,
+  "retrospective_marking_breaks_ideal_independence": true,
+  "source": {
+    "files": 3,
+    "anchors": {
+      "fixed_index_encoding": true,
+      "zero_salt_extract": true,
+      "two_output_blocks": true,
+      "native_index_ceiling": true,
+      "first_send_step": true,
+      "send_counter_advances_once": true,
+      "receive_skips_compute_first": true,
+      "receive_skip_key_retained": true,
+      "exact_outbox_resume": true,
+      "zero_message_nonce": true,
+      "receive_transaction_private": true,
+      "domain_present": true
+    },
+    "fixed_width_indices_checked": 6,
+    "exposed_prefix_seed_recovers_selected_key": true,
+    "reserved_index_rejected": true,
+    "exact_recomputation_matches": true
+  },
+  "origins": {
+    "alias_step_consistency": true,
+    "prior_computation_rejected": true,
+    "distinct_material_identity": true,
+    "private_encryption_calls": 1,
+    "four_commit_retry_outcomes_share_one_origin": true
+  },
+  "scope": "Exact finite ideal-distribution and interface controls, source identities and anchors; the full compression-oracle comparison is the mathematical theorem.",
+  "checker_sha256": "da95d3050d4bff8ecc132b7fdae01ac9c5cbabd0c7c74f8fcd3baa23447d5b35"
+}

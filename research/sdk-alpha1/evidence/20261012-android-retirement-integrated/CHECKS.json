@@ -1,0 +1,27 @@
+{
+  "completed": true,
+  "profile_processes": {
+    "debug": 1785,
+    "release": 1785
+  },
+  "lifecycle_processes_per_profile": {
+    "debug": 1784,
+    "release": 1784
+  },
+  "JNI_boundary_processes_per_profile": 1,
+  "total_host_Java_processes": 3570,
+  "retirement_export_routes": 4,
+  "retirement_host_processes": 128,
+  "retirement_process_cuts": 12,
+  "roster_export_routes": 44,
+  "roster_export_host_processes": 1960,
+  "archive_members": 13407,
+  "capture_sha256": "7695a9fcdcc3b3d2cd34226dc355b40638b0092d17455068772cfd274886315f",
+  "source_before_after_equal": true,
+  "all_archive_member_hashes_verified": true,
+  "all_roster_public_exports_reread": true,
+  "all_retirement_public_exports_reread": true,
+  "private_keys_or_journals_archived": false,
+  "agreed_phone_gate": "already passed; recorded separately",
+  "release_claim_eligible": false
+}

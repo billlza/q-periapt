@@ -1,0 +1,329 @@
+{
+  "all_seven_native_binary_bytes_verified": true,
+  "art_executed": false,
+  "boundary_checks": true,
+  "candidate_archive_sha256": "0730aa20794527b3947dc4734bf82d48516294c42018dc8dfd23ebc5f42fc2a6",
+  "candidate_members": 769,
+  "final_report_sha256": "bc76af0dcba94be8c86e903b3d40ab49e3da1fa52f5264fba26a62a5fbcec3ac",
+  "full_debug_release_aggregate": false,
+  "identity_readback_passed": true,
+  "installed_graphs": {
+    "c-consumer": {
+      "candidate_crates": 1,
+      "external_packages": 171,
+      "lockfile_sha256": "9d75cf9de3d857d2220252fcc9189d2dbdb0ed9fe4ed2a08dc08f9265697d10c",
+      "product_crates": 9
+    },
+    "consumer": {
+      "candidate_crates": 1,
+      "external_packages": 171,
+      "lockfile_sha256": "348486a901d919de987c417df6b6894cac973425a621aafd38bb63f074fd402a",
+      "product_crates": 9
+    }
+  },
+  "installed_sdk_trees_per_consumer": 9,
+  "jar_classes": 131,
+  "jar_sha256": "4d4c77e63975a693155e3693e6c76349e8df54c930af3a807b31529800126d0a",
+  "jni_harness_invocations": [
+    {
+      "command": "android-jni-release-account.json",
+      "tests": [
+        "android_account::original_account_delivery"
+      ]
+    },
+    {
+      "command": "android-jni-release-authority.json",
+      "tests": [
+        "android_witness::managed_first_registration"
+      ]
+    },
+    {
+      "command": "android-jni-release-credential.json",
+      "tests": [
+        "android_witness::managed_credential_renewal"
+      ]
+    },
+    {
+      "command": "android-jni-release-execution.json",
+      "tests": [
+        "android_lifecycle"
+      ]
+    },
+    {
+      "command": "android-jni-release-joint-cycle.json",
+      "tests": [
+        "android_policy_renewal::joint::cycle::local_recoverable",
+        "android_policy_renewal::joint::cycle::local_fixed",
+        "android_policy_renewal::joint::cycle::signed_recoverable",
+        "android_policy_renewal::joint::cycle::tls_recoverable",
+        "android_policy_renewal::joint::cycle::signed_fixed",
+        "android_policy_renewal::joint::cycle::tls_fixed"
+      ]
+    },
+    {
+      "command": "android-jni-release-joint-policy-fixed-applied.json",
+      "tests": [
+        "android_policy_renewal::joint::fixed_applied"
+      ]
+    },
+    {
+      "command": "android-jni-release-joint-policy-fixed-pending.json",
+      "tests": [
+        "android_policy_renewal::joint::fixed_pending"
+      ]
+    },
+    {
+      "command": "android-jni-release-joint-policy-recoverable-applied.json",
+      "tests": [
+        "android_policy_renewal::joint::recoverable_applied"
+      ]
+    },
+    {
+      "command": "android-jni-release-joint-policy-recoverable-pending.json",
+      "tests": [
+        "android_policy_renewal::joint::recoverable_pending"
+      ]
+    },
+    {
+      "command": "android-jni-release-pending-continuation.json",
+      "tests": [
+        "android_pending_continuation::signed_fixed_unapplied",
+        "android_pending_continuation::tls_recoverable_applied"
+      ]
+    },
+    {
+      "command": "android-jni-release-pending-process.json",
+      "tests": [
+        "android_pending_process::tls_recoverable_applied",
+        "android_pending_process::signed_fixed_unapplied"
+      ]
+    },
+    {
+      "command": "android-jni-release-pending-query.json",
+      "tests": [
+        "android_pending_query::tls_recoverable_applied",
+        "android_pending_query::signed_fixed_unapplied"
+      ]
+    },
+    {
+      "command": "android-jni-release-pending-write.json",
+      "tests": [
+        "android_pending_write::signed_fixed_applied",
+        "android_pending_write::signed_fixed_unapplied",
+        "android_pending_write::signed_recoverable_applied",
+        "android_pending_write::signed_recoverable_unapplied",
+        "android_pending_write::tls_fixed_applied",
+        "android_pending_write::tls_fixed_unapplied",
+        "android_pending_write::tls_recoverable_applied",
+        "android_pending_write::tls_recoverable_unapplied"
+      ]
+    },
+    {
+      "command": "android-jni-release-policy-credential-local-fixed.json",
+      "tests": [
+        "android_policy_renewal::credential_local_fixed"
+      ]
+    },
+    {
+      "command": "android-jni-release-policy-credential-local-recoverable.json",
+      "tests": [
+        "android_policy_renewal::credential_local_recoverable"
+      ]
+    },
+    {
+      "command": "android-jni-release-policy-credential-signed-fixed.json",
+      "tests": [
+        "android_policy_renewal::credential_signed_fixed"
+      ]
+    },
+    {
+      "command": "android-jni-release-policy-credential-signed-recoverable.json",
+      "tests": [
+        "android_policy_renewal::credential_signed_recoverable"
+      ]
+    },
+    {
+      "command": "android-jni-release-policy-credential-tls-fixed.json",
+      "tests": [
+        "android_policy_renewal::credential_tls_fixed"
+      ]
+    },
+    {
+      "command": "android-jni-release-policy-credential-tls-recoverable.json",
+      "tests": [
+        "android_policy_renewal::credential_tls_recoverable"
+      ]
+    },
+    {
+      "command": "android-jni-release-policy-expiry-fixed.json",
+      "tests": [
+        "android_policy_expiry::fixed"
+      ]
+    },
+    {
+      "command": "android-jni-release-policy-expiry-recoverable.json",
+      "tests": [
+        "android_policy_expiry::recoverable"
+      ]
+    },
+    {
+      "command": "android-jni-release-policy-renewal-fixed.json",
+      "tests": [
+        "android_policy_renewal::fixed"
+      ]
+    },
+    {
+      "command": "android-jni-release-policy-renewal-recoverable.json",
+      "tests": [
+        "android_policy_renewal::recoverable"
+      ]
+    },
+    {
+      "command": "android-jni-release-policy-roster.json",
+      "tests": [
+        "android_policy_renewal::roster_local_fixed",
+        "android_policy_renewal::roster_local_recoverable",
+        "android_policy_renewal::roster_signed_fixed_applied",
+        "android_policy_renewal::roster_signed_fixed_closed",
+        "android_policy_renewal::roster_signed_recoverable_applied",
+        "android_policy_renewal::roster_signed_recoverable_closed",
+        "android_policy_renewal::roster_tls_fixed_applied",
+        "android_policy_renewal::roster_tls_fixed_closed",
+        "android_policy_renewal::roster_tls_recoverable_applied",
+        "android_policy_renewal::roster_tls_recoverable_closed"
+      ]
+    },
+    {
+      "command": "android-jni-release-recovery-first-use.json",
+      "tests": [
+        "android_account::recovery::first_use"
+      ]
+    },
+    {
+      "command": "android-jni-release-retirement.json",
+      "tests": [
+        "android_retirement::original_android_retirement"
+      ]
+    },
+    {
+      "command": "android-jni-release-root-adoption.json",
+      "tests": [
+        "android_root_owned::adoption_account_root_replacement"
+      ]
+    },
+    {
+      "command": "android-jni-release-root-bound-transition.json",
+      "tests": [
+        "android_root_owned::bound_transition_account_root_replacement"
+      ]
+    },
+    {
+      "command": "android-jni-release-root-noncommit.json",
+      "tests": [
+        "android_root_owned::noncommit_account_root_replacement"
+      ]
+    },
+    {
+      "command": "android-jni-release-root-original.json",
+      "tests": [
+        "android_root_owned::original_account_root_replacement"
+      ]
+    },
+    {
+      "command": "android-jni-release-root-transition.json",
+      "tests": [
+        "android_root_owned::transition_account_root_replacement"
+      ]
+    },
+    {
+      "command": "android-jni-release-roster-local.json",
+      "tests": [
+        "android_roster_local::original_roster_advance"
+      ]
+    },
+    {
+      "command": "android-jni-release-roster-peer.json",
+      "tests": [
+        "android_roster_local::remote_roster_advance"
+      ]
+    },
+    {
+      "command": "android-jni-release-roster-witness.json",
+      "tests": [
+        "android_roster_witness::original_terminal_recovery"
+      ]
+    },
+    {
+      "command": "android-jni-release-witness-joint.json",
+      "tests": [
+        "android_policy_renewal::joint::witness::signed_fixed_closed",
+        "android_policy_renewal::joint::witness::signed_recoverable_closed",
+        "android_policy_renewal::joint::witness::signed_fixed_applied",
+        "android_policy_renewal::joint::witness::signed_recoverable_applied",
+        "android_policy_renewal::joint::witness::tls_fixed_closed",
+        "android_policy_renewal::joint::witness::tls_recoverable_applied",
+        "android_policy_renewal::joint::witness::tls_fixed_applied",
+        "android_policy_renewal::joint::witness::tls_recoverable_closed"
+      ]
+    },
+    {
+      "command": "android-jni-release-witness.json",
+      "tests": [
+        "android_witness::required_witness_registration"
+      ]
+    }
+  ],
+  "jni_harness_tests_passed": 67,
+  "jni_report_sha256": "d174e4b41fe20babd1a0fa9a1771560fe1d7ea431e55988371a3f092e13c06e4",
+  "jni_source_files": 146,
+  "native_binaries": {
+    "account_witness": {
+      "bytes": 9122576,
+      "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-continuity-package-imuqjgxq/build/release/deps/account_witness-ac624456d82952c2",
+      "sha256": "aa67888b2f61107fbafb0c126ff0016d66856fab3f713b6d9a88c00019d69cda"
+    },
+    "bridge": {
+      "bytes": 100064,
+      "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-continuity-package-imuqjgxq/android-jni-ln12bwz8/release/libqperiapt_continuity_jni.dylib",
+      "sha256": "9779e78133a011ab467f689fe0e78465f1c8f208f7a3f0707afa6096384b56a7"
+    },
+    "enrollment": {
+      "bytes": 9661504,
+      "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-continuity-package-imuqjgxq/build/release/deps/enrollment-c797248004bbd2d1",
+      "sha256": "aaf74d9754c3d8e18095e140b27af5db690eb9d266ed9e7eab40941b2448fb13"
+    },
+    "native": {
+      "bytes": 8545248,
+      "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-continuity-package-imuqjgxq/android-jni-ln12bwz8/release/libq_periapt_continuity_c_consumer.dylib",
+      "sha256": "cd9e1c8ed330f8127284a126fcd5061660675a8fb2039165ab09398541c89d85"
+    },
+    "policy_target_client": {
+      "bytes": 56552,
+      "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-continuity-package-imuqjgxq/android-jni-ln12bwz8/release/qpc-configuration-client",
+      "sha256": "74eab1c544eb616c7616934c4d147b436ded5a36f2111d55daa7a958c9158fc9"
+    },
+    "receiver": {
+      "bytes": 213760,
+      "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-continuity-package-imuqjgxq/android-jni-ln12bwz8/release/qpc-c-client",
+      "sha256": "d6a36032f5fb344f1c9c9c53d75908c19a9ca8d1b0548200db4f6119e6284f8e"
+    },
+    "test": {
+      "bytes": 10086832,
+      "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-continuity-package-imuqjgxq/build/release/deps/android-8d84a8b3ce0d3d92",
+      "sha256": "f6aa64087faf4d4bf7ac3169e152219c68034d45aaa29b4f45efeca491789bf2"
+    }
+  },
+  "physical_device_executed": false,
+  "profile": "release",
+  "release_claim_eligible": false,
+  "scope": "Current completed installed host JNI profile source/package/graph/JAR/native-byte identity and exact test census; distinct from independent public replay, another profile and Android runtime/device.",
+  "sdk_report_sha256": "1e40fc2ae0c7c113509ae2a5c5a858cbd73a8a6fd7f63e66203316c4c61e228d",
+  "shared_fixture_tests_excluded_from_jni_census": [
+    "fixture::owned_services_connect_restart_rekey_and_reconcile_unknown_delivery",
+    "fixture::reopen::public_session_reopen_after_expiry_reconciles_unknown_commit_over_real_tls",
+    "fixture::service_peer_process"
+  ],
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "source_input_files": 1401,
+  "test_class_files": 51
+}

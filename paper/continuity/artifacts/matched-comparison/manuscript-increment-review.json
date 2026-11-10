@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "reviewed_utc": "2026-11-09T02:28:06.586706+00:00",
+  "scope": "Matched directed-opportunity manuscript section, two generated tables, linked result claims, current-epoch allocation argument and retained analysis tools. The existing cryptographic proofs are outside this incremental review.",
+  "source_execution": {
+    "protocol_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+    "research_head": "fec8472060728cc1bb35cf15042c117dda00e336",
+    "run_id": 42537214047,
+    "artifact_id": 13641008832
+  },
+  "checks": {
+    "independently_recounted_native_traces": 14,
+    "independently_recounted_reference_traces_and_envelopes": 35,
+    "compact_rows_equal": 49,
+    "public_manifest_hashes_verified": 126,
+    "manuscript_projection_check": "passed",
+    "incorrect_input_controls_rejected": 14,
+    "local_allocation_argument": "Per-direction monotone first allocation, fixed budget, and one pre-capture A allocation give remaining capacity (b-1)+b. Retries preserve allocation identity. The result concerns the captured epoch and the specified predictor.",
+    "retry_cost": "592/572 observed application retries follow prior logical delivery; 83,472/80,652 bytes. Sender ACK knowledge is explicitly distinct from the analyst delivery history.",
+    "one_way_control": "Native confirmed epochs remain zero; every post-capture admitted allocation is reconstructed, with excess requests retained in FIFO."
+  },
+  "resolved_findings": [
+    {
+      "topic": "capture micro-order",
+      "resolution": "Scheduled local/network actions replace an assertion of delivery at opportunity 0; delayed and offline-prefix schedules may retain that frame in the network queue."
+    },
+    {
+      "topic": "reference observation boundary",
+      "resolution": "The returned component state and separately executed payload AEAD audit are stated distinctly."
+    }
+  ],
+  "reviewed_files": [
+    {
+      "path": "matched-opportunities.tex",
+      "sha256": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
+      "bytes": 6653
+    },
+    {
+      "path": "matched-opportunity-tables.tex",
+      "sha256": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
+      "bytes": 1986
+    },
+    {
+      "path": "evaluation.tex",
+      "sha256": "f9b1735b4ea73460744eb12a7dd2848e5a3d57ec5289d6195911574bd6a14d68",
+      "bytes": 10282
+    },
+    {
+      "path": "discussion.tex",
+      "sha256": "da44f4ae60ae57bbe35a9902b356897d91f85f9171b5c031578d9b7e95b01680",
+      "bytes": 6596
+    },
+    {
+      "path": "main.tex",
+      "sha256": "52e395482e12f522aa198b1b833a7e4d3ad958eaf71a7997612002a343d7445a",
+      "bytes": 4199
+    },
+    {
+      "path": "introduction.tex",
+      "sha256": "1c8a7d82a94e9394932d5d989f041d899a72b461ebdf83f379831314add2b211",
+      "bytes": 9101
+    },
+    {
+      "path": "artifacts/matched-comparison/analyze_matched.py",
+      "sha256": "e41b7ef10cc7bb3a2cabca72d15cdb31b2da7503c82489b5ec0377ca10e59a6d",
+      "bytes": 16723
+    },
+    {
+      "path": "artifacts/matched-comparison/check_input_controls.py",
+      "sha256": "25a133edc88fa128eeda76f4ff51e4400832360858273673b72443944d182a2e",
+      "bytes": 3294
+    },
+    {
+      "path": "artifacts/matched-comparison/README.md",
+      "sha256": "cd38e70e82c3f8fb716bc9ba9357b97d884ae0a3f205ce123640e400e02707fd",
+      "bytes": 5759
+    },
+    {
+      "path": "artifacts/matched-comparison/analysis.json",
+      "sha256": "02b86436e8ff1e2c964dbf3c293a2895613a918922967d26bbf5219c2ab4dea7",
+      "bytes": 36819
+    },
+    {
+      "path": "artifacts/matched-comparison/independent-review.json",
+      "sha256": "480cb138a11476bd2cf02be0303fa2895714028f19e8dc4cfcd156ac3f4986d4",
+      "bytes": 59120
+    },
+    {
+      "path": "artifacts/matched-comparison/audit_matched_traces.py",
+      "sha256": "39fd2a8f1987229b83777510871fce75f227b56ab204a072e57dc2ca172b6d4a",
+      "bytes": 14650
+    }
+  ]
+}

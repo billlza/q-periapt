@@ -1,0 +1,487 @@
+diff --git a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/anchor/store/renewal.rs b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/anchor/store/renewal.rs
+index 2070263f..4713f4bd 100644
+--- a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/anchor/store/renewal.rs
++++ b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/anchor/store/renewal.rs
+@@ -190,6 +190,12 @@ impl From<&AnchorCredentialRenewalCancellation> for RenewalScope {
+ 
+ impl Entry {
+     pub(super) fn check_renewal_state(&self, pin: &AnchorPin) -> Result<(), DurableError> {
++        if let Some(statement) = self.renewal_authorization {
++            nonzero(&statement)?;
++            if self.renewal_floor < 2 {
++                return Err(DurableError::Corrupt);
++            }
++        }
+         if self.renewal_floor == 1
+             || self.renewal_floor == u64::MAX
+             || (self.renewal_ack.is_some() && self.renewal_floor == 0)
+@@ -232,7 +238,8 @@ impl Entry {
+                         && record.version == self.renewal_floor
+                         && self.credential_owner != record.owner => {}
+                 Phase::Applied
+-                    if self.head == proposal.target
++                    if !self.renewal_authorization.is_some_and(|s| s != proposal.statement())
++                        && self.head == proposal.target
+                         && record.version == self.renewal_floor
+                         && self.credential_owner == record.owner
+                         && self.authority == record.authority
+@@ -288,6 +295,7 @@ impl Entry {
+                         return Err(Error::Conflict);
+                     }
+                     self.head = record.proposal.target;
++                    self.renewal_authorization = Some(record.proposal.statement());
+                     self.credential_owner = record.owner;
+                     self.authority = record.authority;
+                     self.validity = record.validity;
+diff --git a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/anchor/store/renewal_tests.rs b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/anchor/store/renewal_tests.rs
+index 30511199..6768156a 100644
+--- a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/anchor/store/renewal_tests.rs
++++ b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/anchor/store/renewal_tests.rs
+@@ -1458,3 +1458,160 @@ fn every_grant_cancellation_and_ack_sync_cut_preserves_original_head_and_exact_r
+     assert!(faults >= 8);
+     eprintln!("GRANT_CANCELLATION_SYNC_FAULTS={faults}");
+ }
++
++// SPDX-License-Identifier: Apache-2.0 OR MIT
++// Isolated persistent exact-authorization experiment. Policy renewal and native
++// operational release are not integrated. Store-only target heads are explicit.
++mod exact_authorization_probe {
++    use super::*;
++
++    fn observe(c: &mut Case, authority: [u8; 32], statement: [u8; 32], now: u64) -> AnchorReply {
++        let rq = request(c, AnchorOperation::admit_renewal(authority, statement).expect("exact expectation"));
++        let wire = c.store.handle(rq.as_bytes(), now).expect("fresh store observation");
++        c.pin.verify_reply(&rq, &wire).expect("fresh exact signed observation")
++    }
++    fn target(c: &Case, grant: &crate::VerifiedCredentialRenewal, head: AnchorHead, marker: u8) -> AnchorCredentialRenewalProposal {
++        let next = AnchorHead::from_trusted_state(head.fence(), head.revision() + 1, [marker; 32]).expect("next store-only head");
++        AnchorCredentialRenewalProposal::from_journal(c.pin.binding(), c.genesis.subject(),
++            grant.operation(), grant.statement_digest(), head, next).expect("exact proposal")
++    }
++    fn restart(c: &mut Case) {
++        c.store.close();
++        c.store = reopen(&c.server);
++    }
++    fn persisted(c: &mut Case) -> Option<[u8; 32]> {
++        c.store.image().expect("actual durable state").entries.get(&c.genesis.subject().id(&c.pin.binding()))
++            .expect("original subject").renewal_authorization
++    }
++
++    #[test]
++    fn exact_authorization_probe_survives_ack_closed_roster_heads_and_second_apply() {
++        let mut c = credential_case();
++        let first = credential_grant_first(&c);
++        let a = first.statement_digest();
++        let r1 = first.successor_device().authority_binding();
++        let p = proposal(&c, &first, 211);
++        assert_eq!(persisted(&mut c), None);
++        assert_eq!(observe(&mut c, r1, a, 170).outcome(), AnchorOutcome::AuthorityDenied);
++        assert_eq!(prepare(&mut c, p, &first, 170), State::Prepared);
++        assert_eq!(persisted(&mut c), None, "Prepare is not Applied");
++        // Commit reply is deliberately discarded; no successful client return is
++        // used as the persistence oracle. Reopen the same independent witness.
++        let commit = request(&c, AnchorOperation::commit_credential_renewal(&p));
++        c.store.handle(commit.as_bytes(), 170).expect("commit before discarded reply");
++        restart(&mut c);
++        assert_eq!(persisted(&mut c), Some(a));
++        assert_eq!(status(&mut c, &p, 170), State::Applied);
++        let fresh = observe(&mut c, r1, a, 170);
++        assert_eq!(fresh.outcome(), AnchorOutcome::AuthorityCurrent);
++        assert_eq!(fresh.observed_head(), p.target_head());
++        assert_eq!(observe(&mut c, r1, [219; 32], 170).outcome(), AnchorOutcome::AuthorityDenied);
++        assert_eq!(ack(&mut c, &p, 170), State::Acknowledged);
++        restart(&mut c);
++        assert_eq!(persisted(&mut c), Some(a));
++        assert_eq!(status(&mut c, &p, 170), State::Unavailable);
++
++        let advance = request(&c, AnchorOperation::advance(p.target_head(), [212; 32]).expect("ordinary write"));
++        let wire = c.store.handle(advance.as_bytes(), 170).expect("advance");
++        let head = c.pin.verify_reply(&advance, &wire).expect("signed advance").applied_head().expect("head");
++        let fence = request(&c, AnchorOperation::fence_writer(head).expect("writer fence"));
++        let wire = c.store.handle(fence.as_bytes(), 170).expect("fence");
++        let head = c.pin.verify_reply(&fence, &wire).expect("signed fence").applied_head().expect("head");
++        restart(&mut c);
++        let fresh = observe(&mut c, r1, a, 170);
++        assert_eq!(fresh.outcome(), AnchorOutcome::AuthorityCurrent);
++        assert_eq!(fresh.observed_head(), head);
++        assert_ne!(head, p.target_head(), "admission cannot require the old transition head forever");
++
++        let updated = renewed_device(first.successor_device(), 3, Validity::new(100, 195).expect("roster interval"));
++        c.store.update_roster_authority(c.genesis.subject(), first.successor_device().roster().checkpoint(),
++            &updated, c.peer.responder.policy(), 170).expect("same credential current roster");
++        restart(&mut c);
++        let r2 = updated.authority_binding();
++        assert_eq!(persisted(&mut c), Some(a));
++        assert_eq!(observe(&mut c, r1, a, 170).outcome(), AnchorOutcome::AuthorityDenied);
++        let fresh = observe(&mut c, r2, a, 170);
++        assert_eq!(fresh.outcome(), AnchorOutcome::AuthorityCurrent);
++        assert_eq!(fresh.observed_head(), head, "roster update has no journal head change");
++        assert_eq!(observe(&mut c, r2, [219; 32], 170).outcome(), AnchorOutcome::AuthorityDenied);
++
++        let closed = credential_grant(&c, &updated, 4, 190);
++        let q = target(&c, &closed, head, 213);
++        assert_eq!(prepare(&mut c, q, &closed, 170), State::Prepared);
++        assert_eq!(persisted(&mut c), Some(a));
++        assert_eq!(exchange(&mut c, &q, AnchorOperation::close_credential_renewal(&q), 170), State::Closed);
++        assert_eq!(ack(&mut c, &q, 170), State::Acknowledged);
++        restart(&mut c);
++        assert_eq!(persisted(&mut c), Some(a), "later Closed ACK cannot replace the Applied authorization");
++        let fresh = observe(&mut c, r2, a, 170);
++        assert_eq!(fresh.outcome(), AnchorOutcome::AuthorityCurrent);
++        assert_eq!(fresh.observed_head(), head);
++        assert_eq!(observe(&mut c, r2, closed.statement_digest(), 170).outcome(), AnchorOutcome::AuthorityDenied);
++        assert!(matches!(c.store.prepare_credential_renewal(q, &closed, c.peer.responder.policy(), 170),
++            Err(DurableError::Protocol(Error::Retired))));
++
++        let second = credential_grant(&c, &updated, 5, 195);
++        let second_p = target(&c, &second, head, 214);
++        assert_eq!(prepare(&mut c, second_p, &second, 170), State::Prepared);
++        assert_eq!(persisted(&mut c), Some(a));
++        assert_eq!(exchange(&mut c, &second_p, AnchorOperation::commit_credential_renewal(&second_p), 170), State::Applied);
++        assert_eq!(ack(&mut c, &second_p, 170), State::Acknowledged);
++        restart(&mut c);
++        let b = second.statement_digest();
++        let r3 = second.successor_device().authority_binding();
++        assert_eq!(persisted(&mut c), Some(b));
++        assert_eq!(observe(&mut c, r3, a, 170).outcome(), AnchorOutcome::AuthorityDenied);
++        assert_eq!(observe(&mut c, r2, b, 170).outcome(), AnchorOutcome::AuthorityDenied);
++        let fresh = observe(&mut c, r3, b, 170);
++        assert_eq!(fresh.outcome(), AnchorOutcome::AuthorityCurrent);
++        assert_eq!(fresh.observed_head(), second_p.target_head());
++        assert_eq!(observe(&mut c, r3, b, 195).outcome(), AnchorOutcome::AuthorityDenied);
++        assert_eq!(persisted(&mut c), Some(b), "expiry refuses use without erasing historical identity");
++        assert!(matches!(c.store.renew_credential_authority(c.genesis.subject(), &second,
++            second.operation(), c.peer.responder.policy(), 170), Err(DurableError::Suspended)));
++
++        // Authenticate a structurally valid legacy image without the new field.
++        // This is a codec control, not an automatic migration or host rollback.
++        let mut legacy_image = c.store.image().expect("image");
++        legacy_image.entries.get_mut(&c.genesis.subject().id(&c.pin.binding())).expect("entry").renewal_authorization = None;
++        let key = JournalKey::open(&c.server.join("wrapping")).expect("witness key");
++        let legacy_wire = encode(&key, &c.pin, &legacy_image).expect("legacy encoding");
++        assert_eq!(legacy_wire.get(..8), Some(b"QPANC003".as_slice()));
++        let decoded = decode(&key, &c.pin, &legacy_wire).expect("legacy decode");
++        assert_eq!(decoded.entries.get(&c.genesis.subject().id(&c.pin.binding())).expect("entry").renewal_authorization, None,
++            "legacy ACK/floor must not be interpreted as an exact authorization");
++        println!("PERSISTENT_AUTHORIZATION_RESULT discarded_commit_reply=true reopen=true ack_preserves=true advance_fence_preserve=true roster_combined_check=true later_closed_ack_preserves=true second_apply_replaces=true expiry_refuses=true legacy_does_not_infer=true operational_policy_renewal=false");
++    }
++
++    #[test]
++    fn exact_authorization_probe_wire_and_attempt_scope_have_no_legacy_alias() {
++        let mut c = credential_case();
++        let g = credential_grant_first(&c);
++        let authority = g.successor_device().authority_binding();
++        let statement = g.statement_digest();
++        let operation = AnchorOperation::admit_renewal(authority, statement).expect("combined check");
++        let wire = operation.to_bytes();
++        assert_eq!(wire.len(), 97);
++        assert_eq!(AnchorOperation::from_trusted_state(&wire).expect("canonical round trip"), operation);
++        for length in 0..wire.len() {
++            assert!(AnchorOperation::from_trusted_state(wire.get(..length).expect("prefix")).is_err());
++        }
++        let mut trailing = wire.clone(); trailing.push(0);
++        assert!(AnchorOperation::from_trusted_state(&trailing).is_err());
++        let mut padding = wire.clone(); *padding.last_mut().expect("padding") = 1;
++        assert!(AnchorOperation::from_trusted_state(&padding).is_err());
++        assert!(AnchorOperation::admit_renewal([0; 32], statement).is_err());
++        assert!(AnchorOperation::admit_renewal(authority, [0; 32]).is_err());
++        let exact = request(&c, operation);
++        let legacy = request(&c, AnchorOperation::admit_authority(authority).expect("legacy check"));
++        assert_ne!(legacy.command_id(), exact.command_id());
++        let legacy_reply = c.store.handle(legacy.as_bytes(), 150).expect("legacy signed result");
++        assert!(c.pin.verify_reply(&exact, &legacy_reply).is_err());
++        let reply = c.store.handle(exact.as_bytes(), 150).expect("exact signed refusal");
++        assert_eq!(c.pin.verify_reply(&exact, &reply).expect("verify refusal").outcome(), AnchorOutcome::AuthorityDenied);
++        let next_attempt = request(&c, operation);
++        assert_eq!(next_attempt.command_id(), exact.command_id());
++        assert!(c.pin.verify_reply(&next_attempt, &reply).is_err());
++        println!("PERSISTENT_AUTHORIZATION_WIRE_RESULT width=97 malformed_prefixes=97 padding_and_zero_refused=true legacy_reply_alias=false replayed_attempt=false");
++    }
++}
+diff --git a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/anchor/store.rs b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/anchor/store.rs
+index fb7e32a7..4a47972c 100644
+--- a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/anchor/store.rs
++++ b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/anchor/store.rs
+@@ -30,6 +30,7 @@ struct Entry {
+     genesis: [u8; 32],
+     head: AnchorHead,
+     last: Option<[u8; 32]>,
++    renewal_authorization: Option<[u8; 32]>,
+     renewal_floor: u64,
+     renewal_ack: Option<[u8; 32]>,
+     renewal: Option<CredentialRenewalRecord>,
+@@ -171,6 +172,7 @@ impl AnchorStore {
+                 genesis,
+                 head,
+                 last: None,
++                renewal_authorization: None,
+                 renewal_floor: 0,
+                 renewal_ack: None,
+                 renewal: None,
+@@ -366,7 +368,22 @@ impl AnchorStore {
+                     Err(Error::Validity) => false,
+                     Err(error) => return Err(error.into()),
+                 };
+-                if entry.authority == expected && live {
++                if entry.renewal_authorization.is_none() && entry.authority == expected && live {
++                    AnchorOutcome::AuthorityCurrent
++                } else {
++                    AnchorOutcome::AuthorityDenied
++                }
++            }
++            Command::AdmitRenewal(authority, statement) => {
++                let live = match entry.validity.check(now) {
++                    Ok(()) => true,
++                    Err(Error::Validity) => false,
++                    Err(error) => return Err(error.into()),
++                };
++                if entry.authority == authority
++                    && entry.renewal_authorization == Some(statement)
++                    && live
++                {
+                     AnchorOutcome::AuthorityCurrent
+                 } else {
+                     AnchorOutcome::AuthorityDenied
+@@ -499,7 +516,10 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
+             .as_ref()
+             .is_some_and(CredentialRenewalRecord::is_cancellation)
+     });
+-    let mut bytes = if cancellation {
++    let exact_authorization = image.entries.values().any(|entry| entry.renewal_authorization.is_some());
++    let mut bytes = if exact_authorization {
++        b"QPANC005".to_vec()
++    } else if cancellation {
+         b"QPANC004".to_vec()
+     } else if joint {
+         b"QPANC003".to_vec()
+@@ -520,7 +540,7 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
+         bytes.extend_from_slice(&entry.genesis);
+         entry.head.encode(&mut bytes);
+         encode_last(entry.last, &mut bytes);
+-        if joint {
++        if joint || exact_authorization {
+             bytes.extend_from_slice(&entry.renewal_floor.to_be_bytes());
+             bytes.push(u8::from(entry.renewal_ack.is_some()));
+             bytes.extend_from_slice(&entry.renewal_ack.unwrap_or([0; 32]));
+@@ -530,6 +550,10 @@ fn encode(key: &JournalKey, pin: &AnchorPin, image: &Image) -> Result<Vec<u8>, D
+                 bytes.push(0);
+             }
+         }
++        if exact_authorization {
++            bytes.push(u8::from(entry.renewal_authorization.is_some()));
++            bytes.extend_from_slice(&entry.renewal_authorization.unwrap_or([0; 32]));
++        }
+     }
+     if bytes.len() + 32 > MAX_IMAGE {
+         return Err(DurableError::Capacity);
+@@ -551,7 +575,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
+             .map_err(|_| DurableError::Authentication)?;
+         let mut d = Decoder::new(body);
+         let version = d.array::<8>()?;
+-        if ![*b"QPANC001", *b"QPANC002", *b"QPANC003", *b"QPANC004"].contains(&version)
++        if ![*b"QPANC001", *b"QPANC002", *b"QPANC003", *b"QPANC004", *b"QPANC005"].contains(&version)
+             || d.array::<32>()? != pin.binding
+         {
+             return Err(DurableError::Conflict);
+@@ -588,7 +612,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
+             let head = AnchorHead::decode(&mut d)?;
+             let last = decode_last(&mut d, head)?;
+             let (renewal_floor, renewal_ack, renewal) =
+-                if version == *b"QPANC003" || version == *b"QPANC004" {
++                if [*b"QPANC003", *b"QPANC004", *b"QPANC005"].contains(&version) {
+                     let floor = d.u64()?;
+                     let [present] = d.array()?;
+                     let binding = d.array()?;
+@@ -603,11 +627,20 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
+                     (
+                         floor,
+                         ack,
+-                        CredentialRenewalRecord::decode(&mut d, version == *b"QPANC004")?,
++                        CredentialRenewalRecord::decode(&mut d, version == *b"QPANC004" || version == *b"QPANC005")?,
+                     )
+                 } else {
+                     (0, None, None)
+                 };
++            let renewal_authorization = if version == *b"QPANC005" {
++                let [present] = d.array()?;
++                let statement = d.array()?;
++                match present {
++                    0 if statement == [0; 32] => None,
++                    1 => { nonzero(&statement)?; Some(statement) }
++                    _ => return Err(DurableError::Corrupt),
++                }
++            } else { None };
+             if id != subject.id(&pin.binding)
+                 || device.shares_component(&pin.key)
+                 || !owners.insert(subject.owner)
+@@ -624,6 +657,7 @@ fn decode(key: &JournalKey, pin: &AnchorPin, bytes: &[u8]) -> Result<Image, Dura
+                 genesis,
+                 head,
+                 last,
++                renewal_authorization,
+                 renewal_floor,
+                 renewal_ack,
+                 renewal,
+diff --git a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/anchor.rs b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/anchor.rs
+index a3167f75..7b631fcc 100644
+--- a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/anchor.rs
++++ b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/anchor.rs
+@@ -349,6 +349,7 @@ impl AnchorCredentialRenewalCancellation {
+ enum Command {
+     Query,
+     AdmitAuthority([u8; 32]),
++    AdmitRenewal([u8; 32], [u8; 32]),
+     CredentialCommit([u8; 32]),
+     CredentialStatus([u8; 32]),
+     CredentialClose([u8; 32]),
+@@ -386,6 +387,13 @@ impl AnchorOperation {
+         nonzero(&expected)?;
+         Ok(Self(Command::AdmitAuthority(expected)))
+     }
++    /// Experimental single-observation check of account and renewal authority.
++    /// No local owner release or policy-renewal semantics are implied.
++    pub fn admit_renewal(authority: [u8; 32], statement: [u8; 32]) -> Result<Self, Error> {
++        nonzero(&authority)?;
++        nonzero(&statement)?;
++        Ok(Self(Command::AdmitRenewal(authority, statement)))
++    }
+     /// Apply only the independently prepared exact joint head/credential target.
+     pub fn commit_credential_renewal(proposal: &AnchorCredentialRenewalProposal) -> Self {
+         Self(Command::CredentialCommit(proposal.binding()))
+@@ -471,6 +479,12 @@ impl AnchorOperation {
+                 out.extend_from_slice(&expected);
+                 out.extend_from_slice(&[0; 64]);
+             }
++            Command::AdmitRenewal(authority, statement) => {
++                out.push(9);
++                out.extend_from_slice(&authority);
++                out.extend_from_slice(&statement);
++                out.extend_from_slice(&[0; 32]);
++            }
+             Command::Advance(before, after) | Command::Fence(before, after) => {
+                 out.push(if matches!(self.0, Command::Advance(..)) {
+                     2
+@@ -490,6 +504,14 @@ impl AnchorOperation {
+             }
+             return Ok(Self::query());
+         }
++        if kind == 9 {
++            let authority = d.array()?;
++            let statement = d.array()?;
++            if d.take(32)?.iter().any(|byte| *byte != 0) {
++                return Err(Error::Encoding);
++            }
++            return Self::admit_renewal(authority, statement);
++        }
+         if (4..=8).contains(&kind) {
+             let expected = d.array()?;
+             nonzero(&expected)?;
+@@ -521,6 +543,7 @@ impl AnchorOperation {
+         match self.0 {
+             Command::Query
+             | Command::AdmitAuthority(_)
++            | Command::AdmitRenewal(..)
+             | Command::CredentialCommit(_)
+             | Command::CredentialStatus(_)
+             | Command::CredentialClose(_)
+@@ -607,7 +630,7 @@ impl AnchorPin {
+         match (request.operation.0, outcome) {
+             (Command::Query, AnchorOutcome::Current) => {}
+             (
+-                Command::AdmitAuthority(_),
++                Command::AdmitAuthority(_) | Command::AdmitRenewal(..),
+                 AnchorOutcome::AuthorityCurrent | AnchorOutcome::AuthorityDenied,
+             ) => {}
+             (
+diff --git a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/durable/anchoring.rs b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/durable/anchoring.rs
+index 3559178a..c1ef90ba 100644
+--- a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/durable/anchoring.rs
++++ b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/durable/anchoring.rs
+@@ -347,10 +347,11 @@ impl DeviceJournal {
+             if active.protection != Protection::Local {
+                 let expected = active.protection.head(image.revision, image.digest)?;
+                 let anchor = active.anchor.as_mut().ok_or(DurableError::AnchorRequired)?;
+-                let reply = anchor.client.exchange(
+-                    anchor.subject,
+-                    AnchorOperation::admit_authority(device.authority_binding())?,
+-                )?;
++                let operation = match rosters::local_renewal_authorization(&image, device, policy)? {
++                    Some(statement) => AnchorOperation::admit_renewal(device.authority_binding(), statement)?,
++                    None => AnchorOperation::admit_authority(device.authority_binding())?,
++                };
++                let reply = anchor.client.exchange(anchor.subject, operation)?;
+                 if reply.observed_head() != expected {
+                     return Err(AnchorClientError::Conflict.into());
+                 }
+diff --git a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/durable/rosters.rs b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/durable/rosters.rs
+index 81e5d1ff..82a175bd 100644
+--- a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/durable/rosters.rs
++++ b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/durable/rosters.rs
+@@ -434,6 +434,23 @@ pub(super) fn check_local_device_scope(
+     grant.resolve_established(device, policy.checkpoint().digest())?;
+     Ok(())
+ }
++// Experimental current exact credential-renewal authority, resolved from the
++// authenticated image after current roster admission. None means original owner,
++// never an expired/missing proof substitute. The witness refuses a legacy request
++// if its independently retained current authorization is present.
++pub(super) fn local_renewal_authorization(
++    image: &Image,
++    device: &VerifiedDevice,
++    policy: &crate::VerifiedSessionPolicy,
++) -> Result<Option<[u8; 32]>, DurableError> {
++    check_local_device_scope(image, device, policy)?;
++    if bootstrap::storage_owner(device) == image.owner {
++        return Ok(None);
++    }
++    let saved = get(image, &image.local_account)?;
++    let grant = saved.renewals.get(&device.device_id()).ok_or(DurableError::Conflict)?;
++    Ok(Some(grant.statement_digest()))
++}
+ pub(super) fn authorize_local_device(
+     image: &Image,
+     device: &VerifiedDevice,
+diff --git a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/enrollment/witness_renewal_tests.rs b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/enrollment/witness_renewal_tests.rs
+index a99db05e..cc2390ec 100644
+--- a/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/enrollment/witness_renewal_tests.rs
++++ b/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/witness-authorization-release-02/candidate/src/enrollment/witness_renewal_tests.rs
+@@ -1379,8 +1379,18 @@ fn opaque_witness_target_never_replaces_the_exact_renewal_receipt() {
+         AnchorOperation::admit_authority(b.successor_device().authority_binding())
+             .expect("authority"),
+     );
+-    assert_eq!(admitted.outcome(), AnchorOutcome::AuthorityCurrent);
++    assert_eq!(admitted.outcome(), AnchorOutcome::AuthorityDenied);
+     assert_eq!(admitted.observed_head(), proposal_b.target_head());
++    for (statement, expected) in [
++        (a.statement_digest(), AnchorOutcome::AuthorityCurrent),
++        (b.statement_digest(), AnchorOutcome::AuthorityDenied),
++    ] {
++        let exact = exchange(AnchorOperation::admit_renewal(
++            b.successor_device().authority_binding(), statement).expect("exact authorization"));
++        assert_eq!(exact.outcome(), expected);
++        assert_eq!(exact.observed_head(), proposal_b.target_head());
++    }
++
+ 
+     // Existing exact intent recovery does not equate that projection with B's
+     // own transaction receipt. Preserve this negative result in the experiment.
+@@ -1401,8 +1411,18 @@ fn opaque_witness_target_never_replaces_the_exact_renewal_receipt() {
+         AnchorOperation::admit_authority(b.successor_device().authority_binding())
+             .expect("authority"),
+     );
+-    assert_eq!(admitted.outcome(), AnchorOutcome::AuthorityCurrent);
++    assert_eq!(admitted.outcome(), AnchorOutcome::AuthorityDenied);
+     assert_eq!(admitted.observed_head(), proposal_b.target_head());
++    for (statement, expected) in [
++        (a.statement_digest(), AnchorOutcome::AuthorityCurrent),
++        (b.statement_digest(), AnchorOutcome::AuthorityDenied),
++    ] {
++        let exact = exchange(AnchorOperation::admit_renewal(
++            b.successor_device().authority_binding(), statement).expect("exact authorization"));
++        assert_eq!(exact.outcome(), expected);
++        assert_eq!(exact.observed_head(), proposal_b.target_head());
++    }
++
+     assert_eq!(
+         exchange(AnchorOperation::credential_renewal_status(&proposal_b)).outcome(),
+         AnchorOutcome::CredentialUnavailable

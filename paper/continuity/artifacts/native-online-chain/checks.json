@@ -1,0 +1,71 @@
+{
+  "schema": "qperiapt-native-online-chain-controls/1",
+  "status": "passed",
+  "allocation": {
+    "traces_with_mark_choices": 19440,
+    "first_call_decisions": 77760,
+    "predesignated_material_direction_targets": 3,
+    "prior_computation_mark_attempts_rejected": 1762,
+    "nonselected_material_or_direction_marks_rejected": 10368,
+    "failed_receive_rollback_counterexample": true,
+    "material_collapse_counterexample": true,
+    "receive_first_mark_and_exact_aliases": true,
+    "lifetime_and_unique_mark_controls": true
+  },
+  "localization": {
+    "temporal_assignments": 450,
+    "signed_and_boolean_partition_checks": 256,
+    "old_version_reseal_uses_original_time": true,
+    "available_successor_does_not_declassify_complete_record": true,
+    "candidate_local_stop_counterexample": true
+  },
+  "private_origins": {
+    "send_failure_histories": [
+      {
+        "reservation_persisted": false,
+        "outbox_persisted": false,
+        "original_encryptions": 0
+      },
+      {
+        "reservation_persisted": true,
+        "outbox_persisted": false,
+        "original_encryptions": 1
+      },
+      {
+        "reservation_persisted": true,
+        "outbox_persisted": true,
+        "original_encryptions": 1
+      }
+    ],
+    "receive_before_encryption_integrity_witness": true,
+    "retrospective_integrity_ledger_counterexample": true,
+    "challenge_material_origin_retained": true
+  },
+  "sources": {
+    "files": 6,
+    "anchors": {
+      "pending_plan_before_first_persist": true,
+      "first_persist_before_send_computation": true,
+      "pending_id_and_payload_binding": true,
+      "pending_check_before_step": true,
+      "step_before_encryption": true,
+      "outbox_and_counter_after_encryption": true,
+      "outbox_reuse_before_fresh_step": true,
+      "directional_role_swap": true,
+      "receiver_computes_skipped_steps": true,
+      "receiver_step_before_authentication": true,
+      "receiver_drops_error_candidate": true,
+      "receiver_reuses_retained_skipped_key": true,
+      "zero_salt_extract": true,
+      "fixed_width_chain_index": true,
+      "reserved_index_rejected": true,
+      "two_chain_output_blocks": true,
+      "zero_message_nonce": true,
+      "exact_public_resume": true
+    },
+    "current_source_commit": "a4c089570c787522210d16226219c0cc8aa9b05e",
+    "all_match_original_paper_source": true
+  },
+  "checker_sha256": "732f5149b304a315a99f591d1f38f9d37d9606dd915ac2b50c7860e1c0ca32e2",
+  "scope": "Finite source-order, alias/mark, candidate-stop, native-partition and historical-event controls. Rust, a formal verifier and native workload benchmarks are not executed by this checker; the complete result is proved in the accompanying manuscript."
+}

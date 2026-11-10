@@ -1,0 +1,9 @@
+{
+  "files": {
+    "/opt/homebrew/Cellar/openssl@3/3.6.4_1/bin/openssl": "e3266a589bd010d97580421a72c7872008419f29beebc39ce31dad66a43f6ef6",
+    "/opt/homebrew/Cellar/openssl@3/3.6.4_1/lib/libcrypto.3.dylib": "5374070a6a7f86668a76c69b3ae2edbd37433a835c3f7748a58bef49c41e5f53"
+  },
+  "openssl_version": "OpenSSL 3.6.4 25 Aug 2026 (Library: OpenSSL 3.6.4 25 Aug 2026)",
+  "source_commit": "8d835c634a20a8d45e5f2a2ff62a74ec43e8d963",
+  "private_material_scope": "Fresh OpenSSL private key files existed only in the controller temporary directory and are not retained in evidence. Initial Rust genesis uses the deliberately public fixture seed91; no physical erasure claim."
+}

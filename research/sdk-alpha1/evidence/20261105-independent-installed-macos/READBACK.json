@@ -1,0 +1,74 @@
+{
+  "artifact": 13421798027,
+  "artifact_bytes": 319046817,
+  "artifact_members": 65935,
+  "artifact_sha256": "2f30d0b4a76fd7ab74be0a855152a1d76ce6e08b4b6b1bb797fb44dd7c72cd9c",
+  "capacity_public_trace_replayed": false,
+  "capacity_report_profiles": [
+    {
+      "members": 32,
+      "process_kills": 7,
+      "witnessed": false,
+      "workers": 36
+    },
+    {
+      "members": 32,
+      "process_kills": 8,
+      "witnessed": true,
+      "workers": 39
+    }
+  ],
+  "captured_utc": "2026-11-05T15:16:29.132367+00:00",
+  "completed_installed_report": true,
+  "composition_profiles": [
+    {
+      "members": 3,
+      "native_commands": 36,
+      "process_kills": 15,
+      "witness_attempts": 0,
+      "witnessed": false,
+      "workers": 81
+    },
+    {
+      "members": 3,
+      "native_commands": 373,
+      "process_kills": 15,
+      "witness_attempts": 317,
+      "witnessed": true,
+      "workers": 91
+    },
+    {
+      "members": 32,
+      "native_commands": 36,
+      "process_kills": 15,
+      "witness_attempts": 0,
+      "witnessed": false,
+      "workers": 81
+    },
+    {
+      "members": 32,
+      "native_commands": 373,
+      "process_kills": 15,
+      "witness_attempts": 317,
+      "witnessed": true,
+      "workers": 91
+    }
+  ],
+  "composition_public_trace_replayed": true,
+  "current_modified_source_qualified": false,
+  "failed_source_job_reclassified": false,
+  "installed_package_modules_checked": 105,
+  "job": 127182900587,
+  "job_conclusion": "success",
+  "native_sha256": "faa384a23d5cc82412a46aac5ed28c577780b603dfb091616c85abdaab821023",
+  "private_state_included": false,
+  "release_claim_eligible": false,
+  "run": 42008994078,
+  "rust_boundary": "Source-built Rust counterpart. This does not substitute for a truly installed Rust crate/SDK endpoint.",
+  "same_225_source_inputs_as_failed_source_lane": true,
+  "same_native_as_failed_source_lane": true,
+  "same_provider_as_failed_source_lane": true,
+  "scope": "Retained successful installed-wheel lane on ff072, with exact source/binary/provider comparison and complete four-profile composition transcript readback. Original source-lane timeout remains failed and causally unresolved; this is not a rerun or qualification of later local changes.",
+  "source_commit": "ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20",
+  "wheel_sha256": "e810471cba3a2814c04be8ac24305d295ea3ce2bdb9481bb0f83f3e3295c4923"
+}

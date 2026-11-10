@@ -5,7 +5,9 @@ use q_periapt_hqc_fips207_candidate::{
     Hqc128Fips207DraftCandidate, Hqc192Fips207DraftCandidate, Hqc256Fips207DraftCandidate,
     SHARED_SECRET_LEN,
 };
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 
 const TOY_LEN: usize = 32;
 
@@ -232,12 +234,12 @@ fn exercise_candidate<K: Kem + Copy>(
         .expect("ContextBound hybrid encapsulation");
     let combined_dec = context_bound
         .decapsulate(
-            &sk,
-            &hybrid_ct_pq,
-            &pk,
-            &traditional_key,
-            &hybrid_ct_trad,
-            &traditional_key,
+            PqSecretKey::new(&sk),
+            PqCiphertext::new(&hybrid_ct_pq),
+            PqPublicKey::new(&pk),
+            TradSecretKey::new(&traditional_key),
+            TradCiphertext::new(&hybrid_ct_trad),
+            TradPublicKey::new(&traditional_key),
             b"candidate-profile-contract",
         )
         .expect("ContextBound hybrid decapsulation");
