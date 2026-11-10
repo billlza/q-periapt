@@ -31,6 +31,14 @@ qualification. It checks the retained header, ABI, ELF target and full system
 runtime dependency inventory, carries the dependency/compiler notices, and
 independently reopens and loads the extracted archive. Its manifest-compatible
 distribution and package records retain source/engine/C-execution identities.
+
+The [Linux service producer](SERVICE_DISTRIBUTION_0_2.md) selects the existing
+directory, witness and policy-authority executables as the
+`q-periapt-continuity-services` `0.2.0` distribution. Its deterministic tar archive
+binds the unchanged reference crate identity, executable digests, configuration
+documents and installed-process readback to a typed service package row. The
+selected hosted run supplies the corresponding release artifact; account and
+directory protocol qualification retain their own execution receipts.
 The actual hosted artifact remains an input to the final selected cohort.
 
 ## Construction, workload and compatibility decisions — 10 November 2026

@@ -145,6 +145,33 @@ class ThirdPartyLicenseTests(unittest.TestCase):
         with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "root package differs"):
             third_party_licenses.verify(self.package_root, expected_target="aarch64-apple-darwin")
 
+    def test_reference_service_license_root_keeps_source_package_identity(self) -> None:
+        metadata = self.metadata()
+        metadata["packages"][0].update(name="q-periapt-continuity-reference-app", version="0.0.0")
+        (self.root / "Cargo.lock").write_text(
+            f'version = 4\n[[package]]\nname = "dep"\nversion = "1.2.3"\n'
+            f'source = "{self.source}"\nchecksum = "{self.checksum}"\n', encoding="utf-8")
+        collected = third_party_licenses.collect(self.root, self.package_root, "x86_64-unknown-linux-gnu",
+            root_package="q-periapt-continuity-reference-app", resolved_metadata=metadata)
+        self.assertEqual(collected, third_party_licenses.verify(self.package_root,
+            expected_target="x86_64-unknown-linux-gnu", root_package="q-periapt-continuity-reference-app"))
+
+    def test_explicit_notice_input_preserves_registry_identity_and_rejects_unselected_package(self) -> None:
+        metadata = self.metadata()
+        (self.dependency_root / "LICENSE-MIT").unlink()
+        notice = self.root / "LICENSE-UPSTREAM"
+        notice.write_bytes(b"Explicit synthetic upstream notice.\n")
+        with mock.patch.object(third_party_licenses, "_lock_checksums",
+                return_value={("dep", "1.2.3", self.source): self.checksum}):
+            with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "selected production dependency"):
+                third_party_licenses.collect(self.root, self.package_root, "x86_64-unknown-linux-gnu",
+                    resolved_metadata=metadata, supplemental_licenses={("unselected", "1.2.3"): (notice,)})
+            collected = third_party_licenses.collect(self.root, self.package_root, "x86_64-unknown-linux-gnu",
+                resolved_metadata=metadata, supplemental_licenses={("dep", "1.2.3"): (notice,)})
+        self.assertEqual(collected["packages"][0]["source"], self.source)
+        self.assertEqual(collected["packages"][0]["checksum"], self.checksum)
+        self.assertEqual(collected, third_party_licenses.verify(self.package_root, expected_target="x86_64-unknown-linux-gnu"))
+
     def test_dev_only_dependency_is_not_treated_as_shipped(self) -> None:
         with self.assertRaisesRegex(
             third_party_licenses.ThirdPartyLicenseError,
