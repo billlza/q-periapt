@@ -228,8 +228,9 @@ misuse resistance from deterministic conformance:
   with an API 35 / 16 KiB-page emulator runtime-evidence bundle once its verified
   receipt records publication. CI
   `bindings-android-runtime-16k` consumes the package job's exact AAR and executes it
-  on real x86_64 API-35 `google_apis_ps16k` ART for every push and pull request. That
-  is an every-change package-face gate, not the canonical release selector. Release
+  on real x86_64 API-35 `google_apis_ps16k` ART for pull requests, pushes to `main`
+  and `integration/sdk-020`, tag pushes and explicit manual runs. This package-face
+  gate is separate from the canonical release selector. Release
   currentness requires the clean arm64-v8a/API-35/16-KiB release-mode AVD transaction
   selected by `artifact/results.json`, and goes stale after each source-changing
   commit (`ANDROID-RUNTIME-DIAGNOSTIC-CURRENTNESS`). A clean same-source physical
@@ -498,8 +499,9 @@ These milestones qualify broader production use beyond the research claims above
    not contain a notarizable executable/bundle; final consuming products retain their platform
    signing, provisioning, and macOS notarization duties. Android's stable AAR is
    source-bound with emulator runtime evidence. CI executes the package job's exact AAR on real
-   x86_64 API-35/16-KiB ART on every push and pull request, while live-tree release currentness is
-   separately selected by `artifact/results.json` and requires the clean canonical arm64-v8a AVD
+   x86_64 API-35/16-KiB ART for pull requests, pushes to `main` and `integration/sdk-020`,
+   tag pushes and explicit manual runs. Live-tree release currentness is separately
+   selected by `artifact/results.json` and requires the clean canonical arm64-v8a AVD
    transaction. Production promotion additionally requires clean physical-device evidence over the
    same source and AAR; neither x86_64 CI nor physical evidence substitutes for that AVD. The
    independent physical results selection and bound verifier are implemented; the aggregate remains
