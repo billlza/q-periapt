@@ -1,5 +1,33 @@
 # QPeriaptHybrid (Swift)
 
+For unpublished 0.2.0 source, use the `QPeriaptSDK` package product and
+`QPeriaptRuntime` / `QPeriaptKey` owners. ABI major remains 2. The current host
+tests include [explicit expert key transfer](../../docs/SDK_KEY_TRANSFER.md) and
+[policy preparation, persistence and activation](../../docs/SDK_POLICY_UPDATES.md).
+On macOS, `QPeriaptPersistentRuntime` supplies
+[durable signed-policy storage](../../docs/SDK_HOST_STORE.md), with explicit
+provision/open/update and asynchronous cleanup. Other Apple platforms return
+`ERR_UNSUPPORTED_PLATFORM` for this storage API. `isEnabled()` distinguishes a
+valid policy that disables the fixed suite. [Ownership rules](../../docs/SDK_OWNERSHIP.md)
+cover close, concurrency, cancellation and foreign byte copies.
+
+The [standalone Swift SDK package profile](../../docs/SDK_SWIFT_PACKAGE.md)
+includes both Swift products, static XCFramework slices and notices/BOMs.
+Its unsigned alpha.1 builder passed all five architecture link gates and
+public API tests after extraction outside the checkout. Signing, physical-device
+and minimum-OS runtime gates remain open; the source-development `Package.swift`
+below is a separate integration path.
+
+`QPeriaptClient` / `QPeriaptConnection` now provide a standard hybrid TLS connection
+with explicit peer certificate pinning and application policy/context confirmation.
+See [the connection contract and local TCP diagnostic](../../docs/SDK_CONNECTION.md).
+Both peers now recover durable policy state in the local TCP diagnostic.
+This remains source-level integration; installed Swift/macOS-to-Rust/Linux
+qualification is pending. Cancellation can follow a successful disk commit:
+reopen with the latest requested signed policy, never infer rollback from cancellation.
+
+The following `QPeriaptHybrid` examples describe the retained compatibility API.
+
 Swift face of the PQ/T hybrid suite over the `q-periapt-ffi` C ABI.
 
 This is a stateless KEM/policy binding. It has no prekey directory, ratchet state,
@@ -85,17 +113,24 @@ The gate requires a clean worktree for release proof; use
 Credentialed Apple distribution is intentionally separate from that CI path:
 
 ```sh
-QPERIAPT_APPLE_RELEASE_CONFIRM=v0.1.0 \
+QPERIAPT_APPLE_RELEASE_CONFIRM=v0.1.5 \
 QPERIAPT_APPLE_RELEASE_SOURCE_COMMIT="$(git rev-parse --verify 'HEAD^{commit}')" \
 sh artifact/swift-xcframework-release.sh
 ```
+
+The confirmation token must match the version in the selected source tree. The
+`0.1.5` lane has completed: `v0.1.5` was published as an immutable stable release
+on 2026-09-05, and its remote-consumer verification has a separate domain receipt.
+The command above documents the producer step; do not rebuild or replace that
+release. Exact source, tag, asset, and verifier identities are in
+[`../../artifact/stable-release-notes.md`](../../artifact/stable-release-notes.md).
 
 It builds in a detached worktree pinned to one source commit, Developer ID-signs only the outer
 static XCFramework, verifies that signing did not alter the three `.a` slices, exercises an exact
 ZIP extraction through the isolated consumer, and requires a fixed 22-entry static-only archive:
 three static-library slices, their headers and metadata, plus the outer code-signature resources.
 Any extra executable, dynamic library, app, framework, bundle, script, symlink, special file, or
-unexpected mode is rejected. `APPLE_DISTRIBUTION.json` binds the `v0.1.0` release
+unexpected mode is rejected. `APPLE_DISTRIBUTION.json` binds the confirmed release
 identity, source commit, ZIP and SwiftPM hashes, certificate and signature resources, and all
 slice hashes; `MANIFEST.json` additionally binds the exact Rust/Cargo, Swift, Xcode, and host
 toolchain identities. Because this SDK payload
@@ -123,14 +158,19 @@ The Developer ID signature covers SDK origin and integrity. This exact static-on
 no notarizable executable or bundle and is explicitly `notarized=false` and `stapled=false`.
 Consuming iOS apps still require their own signing and provisioning, while consuming macOS apps
 require their own distribution signing and notarization. Published stable assets are immutable:
-a post-publication URL-consumer failure
-invalidates that release and requires a new version; it must never be repaired by replacing the
-asset under the same tag.
+a confirmed defect in the published payload requires a new version; it must never be repaired
+by replacing the asset under the same tag. A transport or verifier failure blocks acceptance
+until its cause is resolved and the unchanged public bytes pass independent verification.
 
-The stable Apple target is `v0.1.0` (Rust 1.96.1), requires
-`prerelease=false`, and becomes
-public/current only through its verified receipt. The earlier `v0.1.0-alpha.2-r1`
-patched-toolchain build and `v0.1.0-alpha.2` Rust 1.96.0 build remain immutable
-published evidence. The non-Apple stable assets (Android AAR and Linux C SDKs)
-target the separate `abi2-platforms-v0.1.0` transaction; unsigned Windows output
-remains an unsupported CI diagnostic outside that release.
+The current published stable Apple release is `v0.1.5` (Rust 1.96.1),
+non-prerelease and immutable. Its remote consumer passed, and the complete Apple,
+Android/Linux and ten-crate registry cohort is recorded at
+[`v0.1.5-verified-cohort`](https://github.com/billlza/q-periapt/tree/v0.1.5-verified-cohort).
+Use the exact signed asset and checksum from that record. A development baseline's
+historical selector does not authorize substituting an older dependency.
+
+The `v0.1.3` and `v0.1.4` releases remain immutable history and are superseded for
+new downstream builds. Earlier prerelease artifacts also remain historical; the
+`v0.1.0`, `v0.1.1`, and `v0.1.2` tags were never published. The non-Apple stable
+assets are published in `abi2-platforms-v0.1.5`. Unsigned Windows output remains
+an unsupported CI diagnostic outside that release.

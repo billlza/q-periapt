@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "baseline_commit": "f16ad64034d3b0e784e20797aa19f046d22c91aa",
+  "recorded_utc": "2026-11-09T02:26:24.756598+00:00",
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_peer_configuration_lifetime",
+    "test_continuity_peer_configuration",
+    "test_continuity_c_faults",
+    "test_continuity_setup_io"
+  ],
+  "returncode": 0,
+  "elapsed_seconds": 4.403232194999873,
+  "host": "Linux-6.18.57-x86_64-with-glibc2.39",
+  "compiler": "cc (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "source_sha256": {
+    "bindings/c/ContinuityPackageConsumer/peer_configuration_client.c": "ef61a6802eb53ecf6f0d949f5ee8f3968dfbc2f67f0dae58ef75c633cf64cd57",
+    "artifact/test_peer_configuration_lifetime.py": "05f5f21c17a833737e38cfc6a30fa4acd0f2bf4a14079080f501610fec9adc1b",
+    "artifact/testdata/peer_configuration_lifetime.c": "2dcacc8b3054bb7223b6b8edc99e4dd8d89aa0c1d19b8bbd9eaf731e4d0b01a7",
+    "bindings/c/ContinuityPackageConsumer/qpc_owner.h": "3afebb297275ba85ae1089d18a51a828adbe8e70823c8a544e2e5db3258771b7",
+    "artifact/continuity_c_faults.py": "e892a369fda9d4d432b5e63ce0566af7a9603050e48fec437e8588600aa680b8",
+    "artifact/continuity_c_consumer.py": "c8638ea7cffd34b9aeb38e3c31dd36313ca6868ed26a013d39d6798e73c9ab34",
+    "bindings/c/ContinuityPackageConsumer/setup_client.c": "e49ac1b2ab423695cd5bed9c9bb095eed53dfbff707fb0d8e496610fd38c7a3b",
+    "bindings/c/ContinuityPackageConsumer/sync_probe.c": "30b6ee6b8129c43622f16c3d28c8d2d51ba1fa9b3f80486df04bbfac16f623e7"
+  },
+  "tests": 20,
+  "optimized_lifetime_subcases": 30,
+  "optimization_levels": [
+    "-O0",
+    "-O3"
+  ],
+  "borrowed_inputs_per_constructor": {
+    "open": 6,
+    "reopen": 7
+  },
+  "logs": {
+    "regressions.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "regressions.stderr": "47fe3491eb3af426696931ce6ddb0d1e6c35d54e7078a71bc8378062cc32d5ce"
+  }
+}

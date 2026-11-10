@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Direct state, projection, and remote-receipt tests for Apple 0.1.0."""
+"""Direct state, projection, and remote-receipt tests for Apple 0.1.5."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ import json
 import os
 import pathlib
 import stat
+import sys
 import tempfile
 import unittest
 from types import SimpleNamespace
@@ -22,6 +23,7 @@ import apple_release_verification as verification
 import apple_stable_publication as publication
 import apple_distribution
 import apple_publication_contract as apple_contract
+import crates_io_publication_contract as crates_contract
 import platform_publication_contract
 import publication_receipt_io as receipt_io
 import release_publication_contract
@@ -34,6 +36,7 @@ from test_release_publication_contract import (
 
 SOURCE_COMMIT = "1" * 40
 VERIFIER_COMMIT = "2" * 40
+PENDING_COMMIT = "7" * 40
 TAG_OBJECT = "3" * 40
 TAG_COMMIT = "4" * 40
 TAG_TREE = "5" * 40
@@ -117,9 +120,18 @@ class AppleStablePublicationTests(unittest.TestCase):
             "origin_signature_identity_class": "Developer ID Application",
             "origin_signature_team_id": publication.APPLE_EXPECTED_TEAM_ID,
             "public_release": False,
-            "release_revision": apple_distribution.RELEASE_REVISION,
-            "release_tag": apple_distribution.RELEASE_TAG,
-            "release_url": apple_distribution.RELEASE_URL,
+            # The receipt's distribution cross-links to the active
+            # apple_v0_1_5 contract identity, which the producer
+            # literals in apple_distribution stamp as well.
+            "release_revision": apple_contract.APPLE_V0_1_5_IDENTITY[
+                "distribution_revision"
+            ],
+            "release_tag": apple_contract.APPLE_V0_1_5_IDENTITY[
+                "release_tag"
+            ],
+            "release_url": apple_contract.APPLE_V0_1_5_IDENTITY[
+                "release_url"
+            ],
             "remote_consumer_verified": False,
             "remote_verification": {
                 "log_sha256": None,
@@ -131,12 +143,14 @@ class AppleStablePublicationTests(unittest.TestCase):
             "swiftpm_checksum": self.asset_hashes[
                 apple_distribution.XCFRAMEWORK_ZIP_NAME
             ],
-            "version": apple_distribution.PRODUCT_VERSION,
+            "version": apple_contract.APPLE_V0_1_5_IDENTITY[
+                "product_version"
+            ],
         }
         self.pending = {
-            "boundary": apple_contract.APPLE_V0_1_0_BOUNDARY,
+            "boundary": apple_contract.APPLE_V0_1_5_BOUNDARY,
             "distribution": copy.deepcopy(self.distribution),
-            "identity": copy.deepcopy(apple_contract.APPLE_V0_1_0_IDENTITY),
+            "identity": copy.deepcopy(apple_contract.APPLE_V0_1_5_IDENTITY),
             "kind": apple_contract.APPLE_PUBLICATION_KIND,
             "schema_version": apple_contract.APPLE_PUBLICATION_SCHEMA_VERSION,
             "source": {
@@ -179,7 +193,7 @@ class AppleStablePublicationTests(unittest.TestCase):
         for attribute, value in patches:
             patcher = mock.patch.object(publication, attribute, value)
             patcher.start()
-        self.addCleanup(patcher.stop)
+            self.addCleanup(patcher.stop)
 
     def test_runtime_derivation_uses_scanner_visible_guard(self) -> None:
         tree = ast.parse(
@@ -252,10 +266,28 @@ class AppleStablePublicationTests(unittest.TestCase):
             source_digest=SOURCE_DIGEST,
         )
         manifest["release_publications"][
-            apple_contract.APPLE_V0_1_0_PUBLICATION_KEY
+            apple_contract.APPLE_V0_1_5_PUBLICATION_KEY
         ] = copy.deepcopy(self.pending)
+        # The committed results.json is state-selected: the five frozen
+        # historical leaves are permanent, and the active v0.1.5 cohort
+        # may be absent, pending, or verified (the verified state
+        # additionally records the crates.io leaf and activates the
+        # v0.1.5 Swift selection). This fixture models the PENDING v0.1.5
+        # cohort, so reconstruct that exact projection regardless of
+        # which state is installed: drop the crates.io leaf (the pending
+        # cohort records none) and rebind the selector to the frozen
+        # published apple_v0_1_3 receipt from the contract's own frozen
+        # distribution bytes.
+        manifest["release_publications"].pop(
+            crates_contract.CRATES_IO_PUBLICATION_KEY, None
+        )
+        swift = manifest["swift_xcframework"]
+        swift["active_publication_key"] = (
+            apple_contract.APPLE_V0_1_3_PUBLICATION_KEY
+        )
+        swift["distribution"] = apple_contract.frozen_v0_1_3_distribution()
         platform = manifest["release_publications"][
-            platform_publication_contract.PLATFORM_V0_1_0_PUBLICATION_KEY
+            platform_publication_contract.PLATFORM_V0_1_5_PUBLICATION_KEY
         ]
         platform_source = platform["observation"]["source"]
         platform_source.update(
@@ -328,9 +360,17 @@ class AppleStablePublicationTests(unittest.TestCase):
             path.write_bytes(data)
             os.chmod(path, 0o600)
         log = run / publication.REMOTE_CONSUMER_LOG_NAME
+        # Realistic XCTest output: the passing grand-total line is printed once
+        # per suite level (test-class, bundle, and outer "All tests"), so it
+        # legitimately appears more than once for a clean three-test run.
         log.write_text(
             "/Users/private/RAW_PII_SENTINEL\n"
-            "Executed 3 tests, with 0 failures\n",
+            "Test Suite 'CQPeriaptTests' passed.\n"
+            "\t Executed 3 tests, with 0 failures (0 unexpected) in 0.004 seconds\n"
+            "Test Suite 'CQPeriaptPackageTests.xctest' passed.\n"
+            "\t Executed 3 tests, with 0 failures (0 unexpected) in 0.004 seconds\n"
+            "Test Suite 'All tests' passed.\n"
+            "\t Executed 3 tests, with 0 failures (0 unexpected) in 0.004 seconds\n",
             encoding="utf-8",
         )
         os.chmod(log, 0o600)
@@ -344,9 +384,13 @@ class AppleStablePublicationTests(unittest.TestCase):
     ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
         release_id = 355_500_000
         expectation = verification.ReleaseExpectation(
-            product_version=apple_distribution.PRODUCT_VERSION,
-            revision=apple_distribution.RELEASE_REVISION,
-            tag=apple_distribution.RELEASE_TAG,
+            product_version=apple_contract.APPLE_V0_1_5_IDENTITY[
+                "product_version"
+            ],
+            revision=apple_contract.APPLE_V0_1_5_IDENTITY[
+                "distribution_revision"
+            ],
+            tag=apple_contract.APPLE_V0_1_5_IDENTITY["release_tag"],
             source_parent_commit=SOURCE_COMMIT,
             tag_commit=TAG_COMMIT,
             asset_sha256=self.asset_hashes,
@@ -372,7 +416,8 @@ class AppleStablePublicationTests(unittest.TestCase):
                     "updatedAt": "2026-08-14T09:59:00Z",
                     "url": (
                         f"{verification.RELEASE_DOWNLOAD_PREFIX}"
-                        f"{apple_distribution.RELEASE_TAG}/{name}"
+                        f"{apple_contract.APPLE_V0_1_5_IDENTITY['release_tag']}"
+                        f"/{name}"
                     ),
                 }
                 for index, name in enumerate(
@@ -385,9 +430,9 @@ class AppleStablePublicationTests(unittest.TestCase):
             "isImmutable": True,
             "isPrerelease": False,
             "publishedAt": "2026-08-14T10:00:00Z",
-            "tagName": apple_distribution.RELEASE_TAG,
+            "tagName": apple_contract.APPLE_V0_1_5_IDENTITY["release_tag"],
             "targetCommitish": "main",
-            "url": apple_distribution.RELEASE_URL,
+            "url": apple_contract.APPLE_V0_1_5_IDENTITY["release_url"],
         }
         parsed = verification._parse_release_view(
             _json_bytes(release_view),
@@ -525,6 +570,7 @@ class AppleStablePublicationTests(unittest.TestCase):
             runtime_repository_root=self.root,
             run_directory_name=run.name,
             startup_results_sha256=startup,
+            recovery=None,
         )
 
         with (
@@ -537,6 +583,280 @@ class AppleStablePublicationTests(unittest.TestCase):
             )
             self.assertEqual(2, status)
             emitter.assert_not_called()
+
+    def test_normal_verifier_provenance_keeps_the_strict_source_gate(self) -> None:
+        with (
+            mock.patch.object(
+                publication,
+                "require_commit_or_evidence_successor",
+                return_value=VERIFIER_COMMIT,
+            ) as strict_gate,
+            mock.patch.object(
+                publication,
+                "validate_apple_verifier_recovery_lineage",
+            ) as recovery_gate,
+        ):
+            verifier_commit = publication._publication_verifier_commit(
+                self.root,
+                self.pending,
+                "a" * 64,
+                None,
+            )
+
+        self.assertEqual(VERIFIER_COMMIT, verifier_commit)
+        strict_gate.assert_called_once_with(self.root, SOURCE_COMMIT)
+        recovery_gate.assert_not_called()
+
+    def test_recovery_verifier_provenance_uses_exact_pending_and_head_pins(
+        self,
+    ) -> None:
+        recovery = publication.VerifierRecoveryPins(
+            pending_commit=PENDING_COMMIT,
+            verifier_commit=VERIFIER_COMMIT,
+        )
+        with (
+            mock.patch.object(
+                publication,
+                "require_commit_or_evidence_successor",
+            ) as strict_gate,
+            mock.patch.object(
+                publication,
+                "validate_apple_verifier_recovery_lineage",
+                return_value=SimpleNamespace(verifier_commit=VERIFIER_COMMIT),
+            ) as recovery_gate,
+        ):
+            verifier_commit = publication._publication_verifier_commit(
+                self.root,
+                self.pending,
+                "a" * 64,
+                recovery,
+            )
+
+        self.assertEqual(VERIFIER_COMMIT, verifier_commit)
+        strict_gate.assert_not_called()
+        recovery_gate.assert_called_once_with(
+            self.root,
+            source_commit=SOURCE_COMMIT,
+            tag_commit=TAG_COMMIT,
+            pending_commit=PENDING_COMMIT,
+            expected_pending_results_sha256="a" * 64,
+            expected_verifier_commit=VERIFIER_COMMIT,
+        )
+
+    def test_remote_cli_threads_explicit_recovery_pins_to_the_emitter(
+        self,
+    ) -> None:
+        run = self._new_remote_run()
+        _results, startup = self._runtime_remote_inputs(run)
+        verifier_source = run / "verifier-inputs"
+        expected_path = run / publication.REMOTE_CONSUMER_RECEIPT_NAME
+        with (
+            mock.patch.object(publication, "REPOSITORY_ROOT", verifier_source),
+            mock.patch.object(
+                publication,
+                "emit_remote_consumer_receipt",
+                return_value=(expected_path, "a" * 64),
+            ) as emitter,
+            mock.patch("builtins.print"),
+        ):
+            status = publication._main(
+                [
+                    "emit-remote-consumer",
+                    run.name,
+                    startup,
+                    "--verifier-recovery",
+                    PENDING_COMMIT,
+                    VERIFIER_COMMIT,
+                ]
+            )
+
+        self.assertEqual(0, status)
+        emitter.assert_called_once_with(
+            runtime_repository_root=self.root,
+            run_directory_name=run.name,
+            startup_results_sha256=startup,
+            recovery=publication.VerifierRecoveryPins(
+                pending_commit=PENDING_COMMIT,
+                verifier_commit=VERIFIER_COMMIT,
+            ),
+        )
+
+    def _capture_diagnostic_operation(
+        self, *, runtime_repository_root: pathlib.Path, run_directory_name: str,
+        log_name: str, timeout_seconds: int, maximum_bytes: int, argv: list[str],
+    ) -> tuple[int, str]:
+        # These I/O regressions execute real children. Operation admission has
+        # separate tests against the actual code-owned command inventory.
+        with mock.patch.object(
+            publication, "_remote_consumer_gate_command", return_value=tuple(argv),
+        ):
+            return publication.capture_remote_consumer_gate_log(
+                runtime_repository_root=runtime_repository_root, run_directory_name=run_directory_name,
+                log_name=log_name, timeout_seconds=timeout_seconds, maximum_bytes=maximum_bytes, argv=argv,
+            )
+
+    def test_bounded_gate_log_does_not_limit_child_artifacts(self) -> None:
+        run = self._new_remote_run()
+        artifact = run / "large-child-artifact.bin"
+        process_status, digest = self._capture_diagnostic_operation(
+            runtime_repository_root=self.root,
+            run_directory_name=run.name,
+            log_name="ditto-extract.log",
+            timeout_seconds=30,
+            maximum_bytes=1024,
+            argv=[
+                sys.executable,
+                "-I",
+                "-c",
+                (
+                    "import pathlib, sys; "
+                    "pathlib.Path(sys.argv[1]).write_bytes(b'x' * (2 * 1024 * 1024)); "
+                    "print('extract complete')"
+                ),
+                os.fspath(artifact),
+            ],
+        )
+        log = run / "ditto-extract.log"
+        self.assertEqual(0, process_status)
+        self.assertEqual(2 * 1024 * 1024, artifact.stat().st_size)
+        self.assertEqual(b"extract complete\n", log.read_bytes())
+        self.assertEqual(hashlib.sha256(log.read_bytes()).hexdigest(), digest)
+        self.assertEqual(0o600, stat.S_IMODE(log.stat().st_mode))
+        self.assertEqual(1, log.stat().st_nlink)
+
+    def test_bounded_gate_log_preserves_nonzero_child_diagnostics(self) -> None:
+        run = self._new_remote_run()
+        process_status, digest = self._capture_diagnostic_operation(
+            runtime_repository_root=self.root,
+            run_directory_name=run.name,
+            log_name="consumer-check.log",
+            timeout_seconds=30,
+            maximum_bytes=1024,
+            argv=[
+                sys.executable,
+                "-I",
+                "-c",
+                "import sys; print('private diagnostic'); raise SystemExit(7)",
+            ],
+        )
+        log = run / "consumer-check.log"
+        self.assertEqual(7, process_status)
+        self.assertEqual(b"private diagnostic\n", log.read_bytes())
+        self.assertEqual(hashlib.sha256(log.read_bytes()).hexdigest(), digest)
+
+    def test_bounded_gate_log_refuses_overwrite_before_starting_child(self) -> None:
+        run = self._new_remote_run()
+        log = run / "codesign-post-extract.log"
+        log.write_bytes(b"existing evidence\n")
+        os.chmod(log, 0o600)
+        with (
+            mock.patch.object(publication, "capture_stdout") as capture,
+            self.assertRaisesRegex(
+                publication.AppleStablePublicationError,
+                "already exists",
+            ),
+        ):
+            self._capture_diagnostic_operation(
+                runtime_repository_root=self.root,
+                run_directory_name=run.name,
+                log_name=log.name,
+                timeout_seconds=30,
+                maximum_bytes=1024,
+                argv=[sys.executable, "-I", "-c", "print('replacement')"],
+            )
+        capture.assert_not_called()
+        self.assertEqual(b"existing evidence\n", log.read_bytes())
+
+    def test_bounded_gate_log_refuses_racing_child_log_creation(self) -> None:
+        run = self._new_remote_run()
+        log = run / "release-assets-post-extract.log"
+
+        def create_racing_log(*_args: object, **_kwargs: object) -> object:
+            log.write_bytes(b"racing evidence\n")
+            os.chmod(log, 0o600)
+            return SimpleNamespace(returncode=0, stdout=b"captured output\n")
+
+        with (
+            mock.patch.object(
+                publication,
+                "capture_stdout",
+                side_effect=create_racing_log,
+            ),
+            self.assertRaises(publication.AppleStablePublicationError),
+        ):
+            self._capture_diagnostic_operation(
+                runtime_repository_root=self.root,
+                run_directory_name=run.name,
+                log_name=log.name,
+                timeout_seconds=30,
+                maximum_bytes=1024,
+                argv=[sys.executable, "-I", "-c", "print('replacement')"],
+            )
+        self.assertEqual(b"racing evidence\n", log.read_bytes())
+
+    def test_bounded_gate_log_fails_closed_on_output_overflow(self) -> None:
+        run = self._new_remote_run()
+        with self.assertRaises(publication.BoundedProcessError) as raised:
+            self._capture_diagnostic_operation(
+                runtime_repository_root=self.root,
+                run_directory_name=run.name,
+                log_name="codesign-pre-receipt.log",
+                timeout_seconds=30,
+                maximum_bytes=128,
+                argv=[
+                    sys.executable,
+                    "-I",
+                    "-c",
+                    "import sys; sys.stdout.write('x' * 129)",
+                ],
+            )
+        self.assertEqual("output_limit", raised.exception.kind)
+        self.assertFalse((run / "codesign-pre-receipt.log").exists())
+        failure = run / "codesign-pre-receipt.log.failure.json"
+        self.assertEqual(
+            {
+                "cleanup_ambiguous": False,
+                "complete": False,
+                "kind": "output_limit",
+                "log_name": "codesign-pre-receipt.log",
+                "schema_version": 1,
+            },
+            json.loads(failure.read_bytes()),
+        )
+        self.assertEqual(0o600, stat.S_IMODE(failure.stat().st_mode))
+        self.assertEqual(1, failure.stat().st_nlink)
+
+    def test_bounded_gate_log_fails_closed_on_timeout(self) -> None:
+        run = self._new_remote_run()
+        with self.assertRaises(publication.BoundedProcessError) as raised:
+            self._capture_diagnostic_operation(
+                runtime_repository_root=self.root,
+                run_directory_name=run.name,
+                log_name="swiftpm-checksum.log",
+                timeout_seconds=1,
+                maximum_bytes=1024,
+                argv=[
+                    sys.executable,
+                    "-I",
+                    "-c",
+                    "import time; time.sleep(5)",
+                ],
+            )
+        self.assertEqual("timeout", raised.exception.kind)
+        self.assertFalse((run / "swiftpm-checksum.log").exists())
+        failure = run / "swiftpm-checksum.log.failure.json"
+        self.assertEqual(
+            {
+                "cleanup_ambiguous": False,
+                "complete": False,
+                "kind": "timeout",
+                "log_name": "swiftpm-checksum.log",
+                "schema_version": 1,
+            },
+            json.loads(failure.read_bytes()),
+        )
+        self.assertEqual(0o600, stat.S_IMODE(failure.stat().st_mode))
+        self.assertEqual(1, failure.stat().st_nlink)
 
     def test_pending_cli_requires_the_pinned_results_digest(self) -> None:
         with (
@@ -628,7 +948,7 @@ class AppleStablePublicationTests(unittest.TestCase):
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: receipt
+                    apple_contract.APPLE_V0_1_5_PUBLICATION_KEY: receipt
                 }
             }
         )
@@ -769,6 +1089,67 @@ class AppleStablePublicationTests(unittest.TestCase):
         self.assertNotIn("path", json.dumps(receipt).lower())
         self.assertEqual(0o600, stat.S_IMODE(path.stat().st_mode))
         self.assertEqual(1, path.stat().st_nlink)
+
+    def test_remote_recovery_revalidates_exact_lineage_before_commit(
+        self,
+    ) -> None:
+        run = self._new_remote_run()
+        _results, startup = self._runtime_remote_inputs(run)
+        recovery = publication.VerifierRecoveryPins(
+            pending_commit=PENDING_COMMIT,
+            verifier_commit=VERIFIER_COMMIT,
+        )
+        expected_recovery_call = mock.call(
+            self.root,
+            source_commit=SOURCE_COMMIT,
+            tag_commit=TAG_COMMIT,
+            pending_commit=PENDING_COMMIT,
+            expected_pending_results_sha256=startup,
+            expected_verifier_commit=VERIFIER_COMMIT,
+        )
+        with (
+            mock.patch.object(
+                publication.apple_distribution,
+                "project_trusted_results_candidate_distribution",
+                return_value=copy.deepcopy(self.distribution),
+            ),
+            mock.patch.object(
+                publication,
+                "inspect_worktree",
+                return_value=SimpleNamespace(
+                    commit=VERIFIER_COMMIT,
+                    dirty=False,
+                ),
+            ),
+            mock.patch.object(
+                publication,
+                "require_commit_or_evidence_successor",
+            ) as strict_gate,
+            mock.patch.object(
+                publication,
+                "validate_apple_verifier_recovery_lineage",
+                return_value=SimpleNamespace(verifier_commit=VERIFIER_COMMIT),
+            ) as recovery_gate,
+            mock.patch.object(
+                publication,
+                "capture_stdout",
+                return_value=SimpleNamespace(returncode=0),
+            ),
+        ):
+            path, _digest = publication.emit_remote_consumer_receipt(
+                runtime_repository_root=self.root,
+                run_directory_name=run.name,
+                startup_results_sha256=startup,
+                recovery=recovery,
+            )
+
+        strict_gate.assert_not_called()
+        self.assertEqual(
+            [expected_recovery_call, expected_recovery_call],
+            recovery_gate.call_args_list,
+        )
+        receipt = json.loads(path.read_text(encoding="ascii"))
+        self.assertEqual(VERIFIER_COMMIT, receipt["verifier_commit"])
 
     def test_run_parent_sync_and_codesign_precede_receipt_commit(self) -> None:
         run = self._new_remote_run()
@@ -1311,14 +1692,66 @@ class AppleStablePublicationTests(unittest.TestCase):
         apple_contract.validate_apple_publication_transition(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: self.pending
+                    apple_contract.APPLE_V0_1_5_PUBLICATION_KEY: self.pending
                 }
             },
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: verified
+                    apple_contract.APPLE_V0_1_5_PUBLICATION_KEY: verified
                 }
             },
+        )
+
+    def test_recovery_promotion_revalidates_exact_pending_and_head_pins(
+        self,
+    ) -> None:
+        results_sha256 = self._write_current_results()
+        remote_path = self._emit_remote()
+        projection_path = self._write_projection("2026-08-14T12:00:00Z")
+        recovery = publication.VerifierRecoveryPins(
+            pending_commit=PENDING_COMMIT,
+            verifier_commit=VERIFIER_COMMIT,
+        )
+        with (
+            mock.patch.object(
+                publication,
+                "_read_results_snapshot",
+                side_effect=self._read_results_fixture,
+            ),
+            mock.patch.object(
+                publication,
+                "inspect_worktree",
+                return_value=SimpleNamespace(
+                    commit=VERIFIER_COMMIT,
+                    dirty=False,
+                ),
+            ),
+            mock.patch.object(
+                publication,
+                "require_commit_or_evidence_successor",
+            ) as strict_gate,
+            mock.patch.object(
+                publication,
+                "validate_apple_verifier_recovery_lineage",
+                return_value=SimpleNamespace(verifier_commit=VERIFIER_COMMIT),
+            ) as recovery_gate,
+        ):
+            verified = publication.promote_receipt(
+                results_sha256,
+                projection_path,
+                remote_path,
+                recovery=recovery,
+            )
+
+        self.assertEqual(apple_contract.APPLE_STATUS_VERIFIED, verified["status"])
+        strict_gate.assert_not_called()
+        recovery_gate.assert_called_once_with(
+            self.root,
+            source_commit=SOURCE_COMMIT,
+            tag_commit=TAG_COMMIT,
+            pending_commit=PENDING_COMMIT,
+            expected_pending_results_sha256=results_sha256,
+            expected_verifier_commit=VERIFIER_COMMIT,
         )
 
     def test_promotion_rejects_wrong_asset_source_and_timestamps(self) -> None:

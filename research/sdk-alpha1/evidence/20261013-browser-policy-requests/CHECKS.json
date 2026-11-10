@@ -1,0 +1,62 @@
+{
+  "capture": {
+    "bytes": 2377233,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "2d3a18469eacd048c9754c1b8ebb75416ec601351d9c9680676f8a5b818ad590",
+    "members": 747,
+    "sha256": "9a1d49418ec7c52d10e8499c9fc3723258082d66b282409db68e8b259ede9337"
+  },
+  "case_count": 9,
+  "completed": true,
+  "issuer_cases": [
+    "cancel",
+    "expired-required",
+    "local",
+    "no-local-fallback",
+    "read-loss",
+    "required",
+    "wrong-witness"
+  ],
+  "package": {
+    "manifest_sha256": "0c7e093db40b7d847abe9ba04256938114fa239332b27bc0cf6741a74ccc4ebe",
+    "sha256": "6709c0d1286aacd86f5b2868ab065b262c07c1ab8c18ec54e36e2ded2aab5395",
+    "source_bound": true,
+    "sources_unchanged": true
+  },
+  "post_g_cases": {
+    "local": "actual successor metadata",
+    "required": "Conflict before witness dispatch; original G remains active"
+  },
+  "real_policy_expiry": {
+    "activated_at": 1791907113,
+    "request_at": 1791907187,
+    "valid_until": 1791907185
+  },
+  "release_claim_eligible": false,
+  "scope": "Original installed browser public P issuer requests, independently held native account/policy approvals and exact predecessor checks. Same Rust engine and loopback. Required P after G explicitly unsupported; browser P adoption/activation/cleanup, independent implementation, devices/performance/PCS and full release remain open.",
+  "source": {
+    "base_commit": "0dabeb7411cea486ff11b3e2370b88bdea55b54d",
+    "overlay": {
+      "ARTIFACT.md": "dfab872e9eda7e19080e6ba7453f1c1643791591d7c270c2b9f9c95e1d1c08d1",
+      "artifact/codeql_rust_quality.py": "c14971c43716337e1ed4b93a358253c50be3ffbcbb84d78e7a2fec980cde52d3",
+      "crates/q-periapt-sdk-wasm/PackageREADME.md": "25d03c2f6c5830b01e2a680f5f0d81e9ea9f080e3c8e404d3d386821ca7353f9",
+      "crates/q-periapt-sdk-wasm/package/web/index.js": "e6c745e2f92bf5ef23a682aa41d1adee6a3a9f30729dc259251c14ee3abee26f",
+      "crates/q-periapt-sdk-wasm/src/continuity.rs": "81e40650cc1ea926236bd31c110e28b8ee346a2f0e78b26407591b006caada6a",
+      "crates/q-periapt-sdk-wasm/src/continuity/policy_requests.rs": "618f3c39ea6a192238372a05ba65705c582beb463aa717e71f3695a2b380554e",
+      "crates/q-periapt-sdk-wasm/tests/browser-suite.mjs": "5943e4868f57bce6a16c397f6bd734e62b78c0cc0f2f871a79e245c14980ccdd",
+      "research/continuity-identity-candidate/src/browser.rs": "1ee91e6507efd633d6bb86acbf76e9654e2fc93ea1670c7811582bafc7ca05c2",
+      "research/continuity-identity-candidate/src/browser/policy_requests.rs": "86b1ad947d4bf57ad7288a4e9c52ca8900fd9cc2ebd4bc80f3836f423a94ccd9"
+    },
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source"
+  },
+  "validation": {
+    "artifact_controls": 53,
+    "base_browser": 10,
+    "browser": "155.0.8059.40",
+    "format": "passed",
+    "native_independent_policy": 67,
+    "native_policy_request": 7,
+    "wasm_clippy": "-D warnings passed",
+    "wasm_msrv": "1.90 passed"
+  }
+}

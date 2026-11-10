@@ -1,0 +1,10 @@
+   Compiling q-periapt-backends v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-backends)
+   Compiling q-periapt-sdk v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-sdk)
+   Compiling q-periapt-host-store v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-host-store)
+   Compiling q-periapt-rustls v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-rustls)
+   Compiling q-periapt-ffi v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.60s
+     Running unittests src/lib.rs (target/native-stack-debug/build/debug/deps/q_periapt_ffi_abi2-e7fe92d2fc64e246)
+     Running unittests src/lib.rs (target/native-stack-debug/build/debug/deps/q_periapt_host_store-6a4e828859a831a5)
+   Doc-tests q_periapt_ffi_abi2
+   Doc-tests q_periapt_host_store

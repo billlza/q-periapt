@@ -1,0 +1,3 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+import dev.qperiapt.continuity.*;
+public final class RawConfigurationKeyProbe { public static Object export(LocalTlsIdentity key) { return key.withKey$q_periapt_continuity_kotlin(null); } }

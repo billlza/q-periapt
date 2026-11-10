@@ -1,7 +1,27 @@
 # Language bindings
 
-One Rust core (`q-periapt-ffi`, the C ABI), current runtime-tested faces **C**,
-**WASM**, **Swift**, and **Kotlin/JVM** (JDK 22),
+For the unpublished **0.2.0 source**, start with the
+[installation and language guide](../docs/SDK_GETTING_STARTED.md) and
+[owned SDK API and lifecycle contract](../docs/SDK_OWNERSHIP.md). Rust, C, Swift,
+Kotlin/JVM, Android/JNI and WASM now expose native/linear-memory key owners.
+ABI major and native library names remain **2**. The current extension has
+50 exact C exports; the historical 0.1.5 contract has nine and is retained
+separately. Current host checks do not replace package or device qualification;
+see the [release-readiness ledger](../docs/SDK_0_2_RELEASE_READINESS.md).
+
+For JavaScript/TypeScript, start with the
+[product npm package quickstart](../crates/q-periapt-sdk-wasm/PackageREADME.md).
+The local alpha candidate has outside-checkout Node CJS/ESM and Chrome evidence;
+browser engines and bundlers beyond those checked remain unqualified.
+
+Rust consumers use the [SDK package gate](../docs/SDK_RUST_PACKAGE.md) and
+its [external public-API fixture](rust/SDKPackageConsumer/src/lib.rs). The
+candidate archives remain separate from the historical public registry cohort.
+
+The following package/status records describe the retained 0.1.5 surface.
+
+One Rust core (`q-periapt-ffi`, the C ABI), shared by **C**,
+**WASM**, **Swift**, and **Kotlin/JVM** (JDK 25+),
 plus a package-tested **Android AAR/JNI** surface.
 The native ABI 2 product property is *one policy-controlled implementation across
 platforms*: C, Swift, and Kotlin consume the same exact-nine dynamic
@@ -52,21 +72,31 @@ cross-language behavior without freezing a policy-bypass conformance API.
 | **C ABI** (`q-periapt-ffi`) | ✅ host product smoke + contract verified | `bindings/c/smoke.c`; `artifact/c_abi_contract.py` |
 | **Swift** (`swift/`) | ✅ host + XCFramework product package verified | `swift test`; physical device evidence is a separate source-bound gate |
 | **WASM** (`q-periapt-wasm`) | ✅ lean and signed-policy faces execute on Node/WASM | `wasm-pack test --node` for default and `--features signed-policy`; CI also builds `wasm32` |
-| **Kotlin** (`kotlin/`) | ✅ current-source JDK 22 host verification | `gradle test --warning-mode fail` (Panama FFM; separate from Android runtime) |
-| **Android** (`android/`) | 🟡 ABI2 four-ABI AAR release transaction `abi2-platforms-v0.1.0` with API 35 / 16 KiB-page emulator runtime evidence; live-tree ART-rerun currentness tracked in `artifact/results.json` | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
+| **Kotlin** (`kotlin/`) | JDK 25 LTS host verification gate; JVM/API floor 25 | `gradle test --warning-mode fail` (Panama FFM; separate from Android runtime) |
+| **Android** (`android/`) | 🟡 ABI2 four-ABI AAR published in `abi2-platforms-v0.1.5` with API 35 / 16 KiB-page emulator runtime evidence; live-tree ART-rerun currentness tracked in `artifact/results.json` | `artifact/android-aar.sh`; `artifact/android-device-smoke.sh` |
 
-Kotlin uses a JDK ≥22 (stable FFM); the same warning-failing command is a CI gate:
+Kotlin consumers need JDK ≥25. CI builds and tests on JDK 25 LTS with Kotlin
+2.4.10, targeting JVM bytecode and the stable JDK API level 25:
 
 ```sh
 cargo build -p q-periapt-ffi --release
-JAVA_HOME=/path/to/jdk22+ gradle -p bindings/kotlin test
+(
+  export JAVA_HOME=/path/to/jdk25
+  export PATH="$JAVA_HOME/bin:$PATH"
+  gradle -p bindings/kotlin test --no-daemon --warning-mode fail
+)
 ```
 
-Android AAR/JNI packaging needs an Android SDK/NDK and Rust Android targets:
+Android AAR/JNI release packaging uses JDK 21 LTS, an Android SDK/NDK and Rust
+Android targets:
 
 ```sh
 rustup target add aarch64-linux-android x86_64-linux-android armv7-linux-androideabi i686-linux-android
-sh artifact/android-aar.sh
+(
+  export JAVA_HOME=/path/to/jdk21
+  export PATH="$JAVA_HOME/bin:$PATH"
+  sh artifact/android-aar.sh
+)
 ```
 
 This proves package shape, Android ELF slices, JNI symbols, dex conversion, and an
@@ -75,14 +105,30 @@ or physical device runs instrumentation against the AAR.
 
 ## Stable binary publication transactions
 
-The stable prebuilt targets are the Apple XCFramework in
-`v0.1.0` and the
-Android AAR plus Linux C SDK archives in `abi2-platforms-v0.1.0`.
+The `0.1.5` stable prebuilt targets are the Apple XCFramework in `v0.1.5` and the
+Android AAR plus Linux C SDK archives in `abi2-platforms-v0.1.5`, both published on
+2026-09-05 and immutable. Remote asset verification and the ten-crate registry
+receipt are complete; `v0.1.5-verified-cohort` preserves the verified cohort.
+The previous `v0.1.4` and `abi2-platforms-v0.1.4` releases were published on
+2026-08-30 and remain immutable. The
+predecessor `v0.1.3` and `abi2-platforms-v0.1.3` releases are published and
+immutable; the earlier
+`v0.1.0`, `v0.1.1`, `v0.1.2`, `abi2-platforms-v0.1.0`, `abi2-platforms-v0.1.1`, and
+`abi2-platforms-v0.1.2` tags
+exist but were never published.
 They require `prerelease=false` and are public, immutable, and current only when
-their verified receipts record that state. The unsigned Windows SDK remains an
+their verified receipts record that state. The `0.1.4` verified cohort is recorded at
+the annotated tag `v0.1.4-verified-cohort` rather than on `main`: reopening the source
+line returned `artifact/results.json` to its initial baseline, so `main`'s trusted
+results record no `0.1.4` publication and still carry `apple_v0_1_3` as the active
+Apple selector. That states where the evidence lives, not whether `0.1.4` shipped; the
+published GitHub and crates.io records are immutable and unaffected.
+The unsigned Windows SDK remains an
 unsupported CI diagnostic outside the stable asset set.
-Verify tags and assets with `gh release verify` / `gh release verify-asset` and check
-`SHA256SUMS` plus the `APPLE_DISTRIBUTION.json`/`PLATFORM_DISTRIBUTION.json`
-manifests; scope and explicit non-goals (no unverified registry claims, no
+Use the release runbook's receipt collectors to verify tags, release attestations,
+and exact assets against `SHA256SUMS` and the
+`APPLE_DISTRIBUTION.json`/`PLATFORM_DISTRIBUTION.json` manifests. Ambient
+`gh release verify` / `gh release verify-asset` commands are diagnostics and do not
+replace those collectors. Scope and explicit non-goals (no unverified registry claims, no
 Windows support, no physical-device claim) are in
 [`../artifact/stable-release-notes.md`](../artifact/stable-release-notes.md).

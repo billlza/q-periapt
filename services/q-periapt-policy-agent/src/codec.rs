@@ -1,6 +1,10 @@
 //! Bounded canonical codecs shared by repository, witness, and IPC boundaries.
 
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
+use std::net::TcpStream;
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+use std::time::{Duration, Instant};
 
 use q_periapt_backends::Sha3_256Xof;
 use q_periapt_core::Xof256;
@@ -143,6 +147,10 @@ pub(crate) fn hash_fields(domain: &[u8], fields: &[&[u8]]) -> Result<[u8; 32], C
     Ok(hash.squeeze32())
 }
 
+// Unbounded framing: retained for tests only. Every production socket path uses
+// the deadline-bounded `*_until` helpers, because a per-syscall timeout does not
+// bound an operation against a peer that drips bytes.
+#[cfg(all(test, unix))]
 pub(crate) fn write_frame<W: Write>(writer: &mut W, payload: &[u8]) -> Result<(), CodecError> {
     if payload.is_empty() || payload.len() > MAX_FRAME_BYTES {
         return Err(CodecError::Oversized);
@@ -155,6 +163,7 @@ pub(crate) fn write_frame<W: Write>(writer: &mut W, payload: &[u8]) -> Result<()
         .map_err(|_| CodecError::Io)
 }
 
+#[cfg(all(test, unix))]
 pub(crate) fn read_frame<R: Read>(reader: &mut R) -> Result<Vec<u8>, CodecError> {
     let mut length = [0u8; 4];
     reader.read_exact(&mut length).map_err(|_| CodecError::Io)?;
@@ -171,6 +180,161 @@ pub(crate) fn read_frame<R: Read>(reader: &mut R) -> Result<Vec<u8>, CodecError>
         .read_exact(&mut payload)
         .map_err(|_| CodecError::Io)?;
     Ok(payload)
+}
+
+/// Stream whose per-syscall timeouts can be rebound so every read and write
+/// derives its remaining budget from one absolute per-connection deadline.
+pub(crate) trait DeadlineStream: Read + Write {
+    fn set_read_deadline_timeout(&self, timeout: Option<Duration>) -> io::Result<()>;
+    fn set_write_deadline_timeout(&self, timeout: Option<Duration>) -> io::Result<()>;
+}
+
+impl DeadlineStream for TcpStream {
+    fn set_read_deadline_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
+        self.set_read_timeout(timeout)
+    }
+
+    fn set_write_deadline_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
+        self.set_write_timeout(timeout)
+    }
+}
+
+#[cfg(unix)]
+impl DeadlineStream for UnixStream {
+    fn set_read_deadline_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
+        self.set_read_timeout(timeout)
+    }
+
+    fn set_write_deadline_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
+        self.set_write_timeout(timeout)
+    }
+}
+
+/// Whether an `accept()` failure is transient, so a long-lived listener should
+/// keep serving rather than terminate.
+///
+/// These daemons are the only thing that ever stops them: a fatal return
+/// propagates to `std::process::exit(1)`. They must not die permanently because
+/// the process momentarily hit its descriptor limit, was interrupted by a
+/// signal, or because a peer reset between the handshake and `accept()`. Only
+/// states that make the listener itself unusable (EBADF, EINVAL, ENOTSOCK) are
+/// fatal, and those fall through to `false`.
+pub(crate) fn accept_error_is_transient(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::WouldBlock
+            | io::ErrorKind::Interrupted
+            | io::ErrorKind::ConnectionAborted
+            | io::ErrorKind::OutOfMemory
+    ) || transient_accept_errno(error)
+}
+
+/// EMFILE/ENFILE/ENOBUFS carry no stable [`io::ErrorKind`] on this toolchain,
+/// so they are matched by code. These are unix errno values and `rustix` is a
+/// unix-only dependency of this crate, so the lookup exists only there.
+#[cfg(unix)]
+fn transient_accept_errno(error: &io::Error) -> bool {
+    use rustix::io::Errno;
+
+    match error.raw_os_error() {
+        Some(code) => {
+            code == Errno::MFILE.raw_os_error()
+                || code == Errno::NFILE.raw_os_error()
+                || code == Errno::NOBUFS.raw_os_error()
+        }
+        None => false,
+    }
+}
+
+#[cfg(not(unix))]
+fn transient_accept_errno(_error: &io::Error) -> bool {
+    false
+}
+
+fn remaining_budget(deadline: Instant) -> Result<Duration, CodecError> {
+    deadline
+        .checked_duration_since(Instant::now())
+        .filter(|duration| !duration.is_zero())
+        .ok_or(CodecError::Io)
+}
+
+pub(crate) fn write_frame_until<S: DeadlineStream>(
+    stream: &mut S,
+    payload: &[u8],
+    deadline: Instant,
+) -> Result<(), CodecError> {
+    if payload.is_empty() || payload.len() > MAX_FRAME_BYTES {
+        return Err(CodecError::Oversized);
+    }
+    let length = u32::try_from(payload.len())
+        .map_err(|_| CodecError::Oversized)?
+        .to_be_bytes();
+    for bytes in [length.as_slice(), payload] {
+        let mut offset = 0usize;
+        while offset < bytes.len() {
+            let timeout = remaining_budget(deadline)?;
+            stream
+                .set_write_deadline_timeout(Some(timeout))
+                .map_err(|_| CodecError::Io)?;
+            let pending = bytes.get(offset..).ok_or(CodecError::Io)?;
+            match stream.write(pending) {
+                Ok(0) => return Err(CodecError::Io),
+                Ok(written) => {
+                    offset = offset.checked_add(written).ok_or(CodecError::Io)?;
+                }
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                Err(_) => return Err(CodecError::Io),
+            }
+        }
+    }
+    let timeout = remaining_budget(deadline)?;
+    stream
+        .set_write_deadline_timeout(Some(timeout))
+        .and_then(|()| stream.flush())
+        .map_err(|_| CodecError::Io)
+}
+
+pub(crate) fn read_frame_until<S: DeadlineStream>(
+    stream: &mut S,
+    deadline: Instant,
+) -> Result<Vec<u8>, CodecError> {
+    let mut length = [0u8; 4];
+    read_exact_until(stream, &mut length, deadline)?;
+    let length = usize::try_from(u32::from_be_bytes(length)).map_err(|_| CodecError::Oversized)?;
+    if length == 0 || length > MAX_FRAME_BYTES {
+        return Err(CodecError::Oversized);
+    }
+    let mut payload = Vec::new();
+    payload
+        .try_reserve_exact(length)
+        .map_err(|_| CodecError::Allocation)?;
+    payload.resize(length, 0);
+    read_exact_until(stream, &mut payload, deadline)?;
+    Ok(payload)
+}
+
+fn read_exact_until<S: DeadlineStream>(
+    stream: &mut S,
+    bytes: &mut [u8],
+    deadline: Instant,
+) -> Result<(), CodecError> {
+    let mut offset = 0usize;
+    while offset < bytes.len() {
+        let timeout = remaining_budget(deadline)?;
+        stream
+            .set_read_deadline_timeout(Some(timeout))
+            .map_err(|_| CodecError::Io)?;
+        let pending = bytes.get_mut(offset..).ok_or(CodecError::Truncated)?;
+        match stream.read(pending) {
+            Ok(0) => return Err(CodecError::Io),
+            Ok(read) => {
+                offset = offset.checked_add(read).ok_or(CodecError::Io)?;
+            }
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(_) => return Err(CodecError::Io),
+        }
+    }
+    remaining_budget(deadline).map(|_| ())
 }
 
 pub(crate) fn require_domain(

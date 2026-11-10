@@ -1,0 +1,30 @@
+{
+  "head": "fd42b3700f306e01f5528b2c3d84904ffcf1cbb6",
+  "run": 39119367383,
+  "job": 117653451578,
+  "artifact": 12136726947,
+  "artifact_bytes": 92246926,
+  "artifact_sha256": "7cd6e5e2696cad397d67c5b9bc262eda16154f4dc8d74572d5e817b780ba6c7f",
+  "original_completed": false,
+  "original_failure": "name 'filename' is not defined",
+  "C11_runtime_profiles_reverified": [
+    "debug",
+    "release"
+  ],
+  "original_guard_reproduced": true,
+  "new_actual_callsite_passed_on_original_archive": true,
+  "candidate_archive": {
+    "file": "q-periapt-continuity-identity-candidate-0.0.0.crate",
+    "sha256": "02f1093562c3c45727367e8dabe25fd017ca8cd4c08b013a2e868aa2690f4397",
+    "bytes": 1513668
+  },
+  "focused_tests": 30,
+  "new_full_installed_run": "not yet run",
+  "scope": "Final archive guard and strict C11 runtime readback only. The old failed qualification remains failed; this does not replace a new complete installed run.",
+  "capture": {
+    "sha256": "8c75b286830471ec18babfbff8f3e6bde0d8803ff59436ed424f853f778cfc94",
+    "bytes": 3517066,
+    "members": 35,
+    "complete_member_readback": true
+  }
+}

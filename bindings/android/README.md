@@ -1,7 +1,78 @@
 # Q-Periapt Android AAR/JNI
 
+The unpublished 0.2.0 source adds `QPeriaptSDK.Runtime`, `Key` and `Secret`
+owners. Private keys remain in Rust unless transferred through `QPeriaptSDK.Expert`;
+use try-with-resources and explicit close.
+ABI major stays 2 and both native library names are unchanged. The same
+`QPeriaptAndroid` loader now registers 26 JNI methods (the original nine plus
+seventeen owner extensions). See the [ownership contract](../../docs/SDK_OWNERSHIP.md),
+[explicit private-key transfer](../../docs/SDK_KEY_TRANSFER.md) and
+[prepare/persist/activate policy updates](../../docs/SDK_POLICY_UPDATES.md).
+The `sdk-020` packaging profile builds all four native ABI slices, checks the
+closed 51-export/26-JNI surface and retains the same library identities. Local
+host JNI execution, Android cross-compilation and APK assembly remain distinct
+from ART/device qualification. The packaging history and nine-method records
+below the SDK section apply to the retained 0.1.5 releases.
+
+## 0.2.0 SDK candidate
+
+The fixed Maven coordinate is `dev.qperiapt:q-periapt-android:0.2.0`.
+See [the packaged installation and lifecycle instructions](PackageREADME.md).
+The producer has an explicit profile so legacy 0.1.5 verification still requires
+nine exports, nine JNI methods and manifest schema 4. The SDK profile requires
+51/26, non-preview Java 11 classes, all owner types, minSdk 23, native/Rust notices
+and its separately typed schema-5 manifest. A manifest cannot choose its own
+verification profile. Old runtime/release receipts do not qualify this AAR.
+
+The [SDK runtime qualification guide](../../docs/SDK_ANDROID_RUNTIME.md) defines
+`agp_sdk_full_release` and `agp_sdk_minimal_release`, with explicit arm64/x86_64
+API-35/16-KiB targets and portable evidence replay. CI now selects these SDK
+profiles. Local minified APK builds and verifier regressions are recorded in
+the readiness ledger; current SDK ART and hosted-CI passes are still pending.
+
+Build the native AAR, using a fresh output directory:
+
+```sh
+QPERIAPT_ANDROID_AAR_OUT_DIR="$PWD/target/sdk-android-aar" \
+  sh artifact/android-aar.sh --profile sdk-020
+```
+
+The existing clean-source, NDK r29, Rust 1.96.1, ELF dependency/exports/16 KiB
+alignment, stripped-binary, Java/JNI descriptor, license and R8 gates remain.
+The SDK profile refuses an existing output and does not erase old candidates.
+Local dirty diagnostics require the existing explicit
+`QPERIAPT_ALLOW_DIRTY_ANDROID_AAR=1` opt-in and remain marked diagnostic-only.
+
+With the inspected AAR/manifest hashes, select canonical JDK 21 through
+`JAVA_HOME` and `PATH`, then stage and consume the Maven candidate:
+
+```sh
+sh artifact/python-run.sh artifact/android_sdk_package.py \
+  --output target/sdk-android-package \
+  --aar /absolute/path/to/q-periapt-android-0.2.0.aar \
+  --manifest /absolute/path/to/MANIFEST.json \
+  --aar-sha256 "$AAR_SHA256" --manifest-sha256 "$AAR_MANIFEST_SHA256" \
+  --sdk /absolute/path/to/android-sdk --gradle /absolute/path/to/gradle-9.7.1/bin/gradle
+```
+
+Use `--offline` only with the required Gradle/AGP dependencies already cached.
+The publisher uses a file Maven repository, pins the original AAR bytes and
+adds a sources JAR and licenses. The SDK consumer uses AGP 9.4.1
+template with an explicit SDK/Maven mode. Its full variant uses the owner API;
+its minimal variant calls only `runtimeVersion()`. Actual compiler inputs,
+resolved coordinate/hash, compile JVM, merged R8 rules, all 26 DEX native methods,
+exception callback, eight unchanged packaged native libraries and APK ZIP
+alignment are checked. Existing legacy file-AAR consumers remain the default.
+
+The helper emits an archive plus `INSTALLED_CONSUMERS.json`; "installed" here
+means resolved into an independent Android build project. Both produced Release
+APKs are unsigned and no device is started or contacted. The APK workloads use
+in-memory policy state and are not persistent-store or ART execution evidence.
+Public Maven upload, signing, SDK runtime proof profiles and current-device
+qualification remain separate gates.
+
 This binding is the Android product surface for `q-periapt-ffi`. It is deliberately
-separate from `bindings/kotlin`, which is a JVM/Panama FFM binding for JDK 22+ and
+separate from `bindings/kotlin`, which is a JVM/Panama FFM binding for JDK 25+ and
 does not run on Android ART.
 
 The AAR and runtime smoke expose the ABI2 signed-policy/OS-random KEM surface, not an identity,
@@ -21,21 +92,88 @@ The Android binding keeps the Rust C ABI as the only cryptographic implementatio
   arrays into the existing `q_periapt_*` C ABI.
 - `artifact/android-aar.sh` cross-builds the Rust Android `.so` slices, builds the
   JNI shim, assembles the built payload with canonical AAR archive structure,
-  independently audits that structure, and compiles an isolated consumer against
-  the AAR's `classes.jar`. Canonical archive structure does not claim cross-host
-  bit reproducibility of the compiled payload.
+  independently audits that structure, compiles an isolated consumer against
+  the AAR's `classes.jar`, and checks a minimal R8 consumer's DEX. Canonical
+  archive structure does not claim cross-host bit reproducibility of the compiled
+  payload.
 
-Run from the repository root:
+Fixed-size KEM inputs, policy decisions, detached policy signatures and pinned
+verification keys are checked before JNI allocates or copies their arrays. KEM
+length failures retain the same `QPeriaptException` operation and
+`-2/ERR_LENGTH`; signature/key shape failures retain `-3/ERR_POLICY`. Existing
+facade null, context/TOML limit and trusted-state checks keep their precedence.
+The native adapter also keeps output checks ahead of context/input checks,
+checks all input nulls before fixed shapes, and rejects a KEM key/ciphertext
+shape before an invalid policy-decision shape. Zero-length trusted state remains
+the explicitly provisioned first-enrollment form. Native temporary wiping is
+unchanged, including copy/allocation failures.
+
+`artifact/test_android_jni_input_shapes.py` executes the actual C adapter with
+bounded public fixtures and records copies, allocations, exception mapping and
+zeroization before free. It covers every fixed input/output shape, combined
+invalid-input precedence and failure paths. This host test does not replace ART
+or package/runtime qualification. The policy signature/key length constants are
+additions to the existing ABI2 header contract; the nine dynamic functions and
+their signatures are unchanged.
+
+Release collectors and CI use JDK 21 LTS. Select the same JDK for `JAVA_HOME`
+and `PATH`, then run from the repository root:
 
 ```sh
-sh artifact/android-aar.sh
+(
+  export JAVA_HOME=/path/to/jdk21
+  export PATH="$JAVA_HOME/bin:$PATH"
+  sh artifact/android-aar.sh
+)
 ```
 
 Local in-progress diagnostics can set `QPERIAPT_ALLOW_DIRTY_ANDROID_AAR=1`; that is
 not release provenance. This gate is package-only: it proves AAR shape, Android ELF
 ABI slices, `JNI_OnLoad`/`RegisterNatives` export shape, Java facade compilation,
-dex conversion, and an isolated consumer compile. Runtime proof is tracked by the
-separate device/emulator smoke below, not by this package-only gate.
+dex conversion, an isolated consumer compile, and minimal R8 native/callback
+retention. Runtime proof is tracked by the separate device/emulator smoke below,
+not by this package-only gate.
+
+The development producer declares `package="dev.qperiapt.android"` in the AAR
+manifest so AGP can derive the library's resource namespace. Its `proguard.txt`
+retains every native method registered by `JNI_OnLoad`, including methods unused
+by a particular consumer, and the exact
+`QPeriaptAndroid$QPeriaptException(String, int, String)` constructor invoked by JNI.
+The independent archive audit requires this package, callback class and exact
+consumer-rule contract; the producer also checks the compiled constructor with
+`javap`. Unused non-native Java methods and unrelated classes remain eligible for
+shrinking. A names-only keep rule is insufficient because `RegisterNatives`
+registers the whole method table even when the app calls only `runtimeVersion()`.
+The published **0.1.5 AAR lacks these manifest and keep-rule corrections**. Ordinary
+AGP and minified consumers need an explicit consumer-side correction: identify any
+manifest-corrected AAR as a derived artifact, retain the original release checksum,
+and apply both exact JNI keep rules emitted by
+[`android-aar.sh`](../../artifact/android-aar.sh). Do not relabel the derived bytes
+as the published release. The official AAR, its checksums, receipts and tags remain
+immutable. These Android archive-consumer defects do not alter the previously
+verified Rust, C or Apple artifact bytes or expand what their receipts prove.
+
+The package gate now runs SDK R8 using `classes.jar` and `proguard.txt` read from
+the actual AAR. Its only application root calls `runtimeVersion()`; the full-API
+compile-only consumer is excluded from R8 inputs. The existing SDK `dexdump`
+checks all nine native names/descriptors and the public exception constructor.
+This does not execute JNI or AGP's AAR transforms. The r2 consumer gate must
+build a minified Release app from the exact AAR through AGP, without supplying
+extra Q-Periapt keep rules in the app, then execute the existing
+`QPeriaptSmokeActivity` workload from
+`artifact/android-device-smoke.sh` and the same `signed-policy-vectors.json`.
+That workload already asserts native policy errors as `QPeriaptException`, policy
+rollback/signature rejection, KEM round trips, context binding and secret wiping.
+AGP/ART acceptance is a separate required consumer result; archive, `javap` or
+standalone R8 success does not establish it. A separate minimal-entry variant
+that calls only `runtimeVersion()` must also initialize JNI successfully and retain every native
+name/descriptor plus the exception callback in its shrunk DEX. The complete
+workload alone cannot detect removal of unused native methods. The r2 source and
+gate are candidates until the independent `abi2-platforms-v0.1.5-r2-verified` tag
+and maintenance receipt confirm the exact public assets. Once verified, select
+`abi2-platforms-v0.1.5-r2` for Android and Linux while retaining library SemVer
+`0.1.5`; the corrected AAR needs neither manifest conversion nor application-side
+Q-Periapt keep rules.
 
 The canonical Android release proof runs the exact package-gate AAR on a script-owned,
 cold-boot arm64-v8a Android 15 / API 35 `google_apis_ps16k` AVD with 16 KiB pages,
@@ -46,8 +184,8 @@ build-tools 36.0.0, and release mode:
 set -eu
 sh artifact/android-aar.sh
 
-aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0/q-periapt-android-0.1.0.aar"
-aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0/MANIFEST.json"
+aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.5/q-periapt-android-0.1.5.aar"
+aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.5/MANIFEST.json"
 avd_home=$(sh artifact/python-run.sh artifact/android_bounded_command.py avd-home-path)
 avd_name=$(sh artifact/python-run.sh artifact/android_bounded_command.py runtime-avd-name \
   --adb-profile macos-account --device-abi arm64-v8a)
@@ -94,8 +232,8 @@ requires an exact serial and must reuse the same clean-source AAR and manifest; 
 canonical AVD in `artifact/results.json`, the release index, or manifest-bound `proof-to-byte`:
 
 ```sh
-aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0/q-periapt-android-0.1.0.aar"
-aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.0/MANIFEST.json"
+aar="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.5/q-periapt-android-0.1.5.aar"
+aar_manifest="$PWD/target/qperiapt-android-aar/q-periapt-android-0.1.5/MANIFEST.json"
 QPERIAPT_ANDROID_SERIAL=<adb-serial> \
 QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=physical \
 QPERIAPT_ANDROID_EXPECT_ABI=arm64-v8a \
@@ -112,8 +250,9 @@ The page-size and SDK values in that physical example are the observed Samsung A
 profile and must be changed to the explicitly intended device's real values. The physical add-on
 does not inherit the canonical AVD's SDK-35/16-KiB/release-mode constraints; its invariant is a
 clean source snapshot, the exact same AAR and manifest bytes, one explicit physical serial, and
-truthful device expectations. Results select it independently under `android_physical_runtime` with
-`current_clean_tree_physical_pass`; it can never occupy the canonical
+truthful device expectations. A separately reviewed product-readiness evidence transition may
+select it independently under `android_physical_runtime` with
+`current_clean_tree_physical_pass`; the stable package-publication assembler does not. It can never occupy the canonical
 `android_device_runtime` section.
 
 The script-owned emulator uses `-no-snapshot -read-only`; runtime writes are discarded
@@ -215,6 +354,9 @@ one evidence-only `artifact/results.json` successor, then the bound verifier. Pr
 receipt before the successor:
 
 ```sh
+QPERIAPT_RELEASE_INDEX_CHANNEL=release \
+QPERIAPT_ALLOW_DIRTY_RELEASE_INDEX=0 \
+QPERIAPT_RELEASE_INDEX_INCLUDE_APPLE_MATRIX=0 \
 QPERIAPT_RELEASE_INDEX_INCLUDE_ANDROID_RUNTIME=1 \
 QPERIAPT_ANDROID_RUNTIME_RUN=<32-hex-run-id> \
 sh artifact/local-release-index.sh
@@ -228,9 +370,11 @@ generates one. `QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE=1` is limited to producing d
 diagnostics. A dirty proof may be inspected only with the direct verifier's explicit dirty option;
 it cannot be selected in `artifact/results.json` or passed to manifest-bound `proof-to-byte`.
 
-Complete the real physical run before the evidence successor and have that same successor select its
-exact path/hash under `android_physical_runtime`. Then verify the complete Android local production
-transaction with both non-interchangeable runtime gates enabled:
+Complete the real physical run against the same source and AAR, then use a separately reviewed
+product-readiness evidence transition to select its exact path/hash under
+`android_physical_runtime`. Stable package publication leaves this selector absent. Only after that
+separate transition may the complete Android local production transaction enable both
+non-interchangeable runtime gates:
 
 ```sh
 QPERIAPT_REQUIRE_ANDROID_AAR=1 \
@@ -250,26 +394,132 @@ gate, not a Maven/public-provenance claim. The independent selection mechanism d
 a source physical-ready: a fresh real-device run must be selected, and only the bound marker records
 that current state.
 
-CI job `bindings-android-runtime-16k` consumes the exact AAR artifact produced by
-`bindings-android-aar` and executes it on real x86_64 API-35 `google_apis_ps16k` ART for every push
-and pull request. This is an independent package-face gate. It is neither the canonical arm64-v8a
-release proof nor physical-device production evidence.
+The 0.1.5 CI lane used the exact AAR artifact for an independent x86_64
+API-35/16-KiB runtime gate. The SDK source selects the separately typed
+SDK profiles described above. Neither architecture substitutes for canonical
+arm64-v8a release evidence or physical-device qualification.
+
+## Exact-AAR minified AGP Release consumers
+
+The optional `agp_full_release` and `agp_minimal_release` profiles use the pinned
+AGP 9.4.0 / Gradle 9.7.1 application template with `minifyEnabled=true` and
+`debuggable=false`. The default `legacy_full` profile retains its original
+three-test runtime proof and bundle contract. These new profiles produce a separate
+`qperiapt.android_agp_consumer_proof` schema-1 proof and never stand in for that
+legacy evidence or claim Maven/publication status.
+
+Select a clean source checkout and its exact prebuilt AAR/manifest, then run each
+profile in sequence through the existing owned, bounded AVD/ADB lane:
+
+```sh
+# Set JAVA_HOME to the approved JDK's canonical home and the four exact-AAR selectors first:
+# QPERIAPT_ANDROID_EXISTING_AAR, QPERIAPT_ANDROID_EXISTING_AAR_MANIFEST,
+# QPERIAPT_ANDROID_EXPECTED_AAR_SHA256, QPERIAPT_ANDROID_EXPECTED_AAR_MANIFEST_SHA256.
+QPERIAPT_ANDROID_CONSUMER_PROFILE=agp_full_release \
+QPERIAPT_ANDROID_RELEASE_MODE=1 QPERIAPT_ANDROID_BOOT_AVD=1 \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
+sh artifact/android-device-smoke.sh
+
+QPERIAPT_ANDROID_CONSUMER_PROFILE=agp_minimal_release \
+QPERIAPT_ANDROID_RELEASE_MODE=1 QPERIAPT_ANDROID_BOOT_AVD=1 \
+QPERIAPT_ANDROID_EXPECT_DEVICE_KIND=emulator \
+sh artifact/android-device-smoke.sh
+```
+
+These internal release collector CLIs require `--root` to identify the checkout
+that executes the collector. To select another source checkout, run that checkout's
+own script. CLI SDK paths are assertions against the existing registered Android
+SDK profiles (`macos-account`, `linux-account`, `linux-system`, `linux-opt`);
+the commands use the registered paths. Read-only SDK verification does not require
+ADB to be installed or a device to be available. The Python read-only verification
+APIs retain explicit `root` and `sdk` inputs for independently selected source and
+evidence directories.
+Formal CLI proof paths must use the existing immutable run layout under that
+checkout's `target/qperiapt-android-device-smoke-runs`; the run ID and fixed proof
+filename are admitted before any proof is read. An external path, traversal or
+different filename is rejected before it is resolved or opened.
+
+The internal collector uses the current account's `.gradle` cache, determined
+from the account database. If `GRADLE_USER_HOME` is set, it must name that exact
+directory; another cache root is rejected before collection. Global Gradle init
+scripts remain forbidden. This is a release collector configuration constraint,
+not a restriction on applications that use Gradle. `JAVA_HOME` must already name
+the canonical home reported by the selected Gradle JVM. A mismatch preserves the
+raw Gradle version output and stops before `assemble`; JDK path aliases are not
+resolved by the collector.
+
+The full profile compiles the same checked-in three workload groups as the legacy
+producer, including the original signed-policy vectors and cryptographic/wipe
+assertions. The minimal profile's only facade call is `runtimeVersion()`; full
+workload sources and fixtures are absent from its build inputs. Neither application
+adds Q keep rules. Both use the AAR's consumer rules, and actual JavaCompile inputs,
+merged R8 rule sources, shrunk DEX native declarations, callback constructor, and
+Instrumentation entrypoints are checked before runtime acceptance. The SDK default
+optimized rules are pinned separately so an additional app keep rule cannot be
+hidden in a substituted default file.
+
+The nondebuggable APK contains its own narrow framework Instrumentation. It starts
+the Activity by a fixed string and returns the run-bound result bytes through a
+Bundle; it has no Q references and introduces no test APK that could preserve
+otherwise unused JNI members. Results commit complete JSON first, then atomically
+rename the closed text marker. A completed malformed result fails immediately.
+Actual ART execution, exact installed APK ownership, and cleanup must all pass;
+Java compilation, a standalone R8 dump, or an APK build alone is insufficient.
+
+Each run retains `agp-build/receipt.json`, the unsigned/signed APKs, the
+Instrumentation response, and existing device/control evidence. Public diagnostic
+files use the explicit `known-path-roots-v1` normalization policy: only recorded
+local path roots are replaced, while rule bodies and every warning/error line are
+preserved. Original diagnostic bytes remain private under `agp-build-raw/`; their
+digests are labeled `raw_private_sha256`, distinct from the hashed
+`normalized_public` closure. An unrecognized private path is rejected.
+`gradle-version.txt` records the real Gradle Launcher/Daemon JVM selection.
+`build-jvm.json` is written once by the actual JavaCompile task and records its
+JVM properties, selected compiler home and disabled compiler forking. The verifier
+matches the task JVM and compiler selection to Gradle's reported JVM and requires
+successful JavaCompile/R8 execution. Runtime vendor/version and VM vendor/version
+remain distinct fields. This is actual build JVM evidence, not a separate
+`java -version` probe. The original r1 proof and archive schemas are unchanged.
+`profile_evidence_files` supplies the fixed export map and `verify_exported_profile`
+rechecks that same closure after safe extraction, with `proof.json` at its root.
+The validator also independently replays apksigner, 16 KiB zipalign, and SDK DEX/manifest
+inspection against each selected signed APK. Supply `sdk` to the Python validation APIs
+as an explicit SDK root containing `build-tools/36.0.0`, or select a registered
+root with the CLI's `--sdk` assertion;
+all four tools must belong to that directory and match their recorded hashes.
+No verifier starts Gradle or a device; SDK and Git replay is read-only.
 
 ## Stable AAR publication transaction
 
-The stable transaction targets a prebuilt AAR in `abi2-platforms-v0.1.0`, which
-requires `prerelease=false` and becomes immutable only after publication:
-one AAR containing `arm64-v8a`,
-`armeabi-v7a`, `x86`, and `x86_64` JNI libraries built with stable NDK r29 and
-Rust 1.96.1. Every ELF has 16 KiB load alignment, the exact nine-symbol ABI 2
-export surface, RELRO/NOW/NX, no text relocations, and no RPATH/RUNPATH. The
-verified release also binds a runtime-evidence bundle that executed the exact public AAR on
-the official Android 15 / API 35 `google_apis_ps16k` `arm64-v8a` emulator with
-16 KiB pages. Public/current status requires the stable verified receipt; the historical published receipt remains schema v3
-for alpha.2, while current source-tree runs require schema v6
-and do not retroactively change an immutable release. Verify the AAR and its manifest with `gh release verify-asset`
-against `PLATFORM_DISTRIBUTION.json` and `SHA256SUMS`; see
-[`../../artifact/stable-release-notes.md`](../../artifact/stable-release-notes.md).
+The original `abi2-platforms-v0.1.5` release is public and immutable. Its
+verified three-domain record is preserved at `v0.1.5-verified-cohort`; this
+open development tree does not replace that frozen record. The published AAR
+has the manifest and consumer keep-rule defects described above.
+
+The alpha.2 historical published receipt remains schema v3, while current
+canonical source-tree runs require proof schema v6. Neither is migrated in place.
+The r2 ZIP envelope uses bundle schema 3 at a different layer and contains the
+unchanged canonical bundle schema 2 plus the two separately typed AGP proofs.
+
+The separate `abi2-platforms-v0.1.5-r2` maintenance distribution is a **source
+candidate, not a published or verified replacement**. It keeps product version
+`0.1.5` and ABI 2, rebuilds the four-ABI AAR and both Linux packages from one new
+source identity, and requires its own exact assets and public verification.
+It must include the canonical API-35 arm64-v8a / 16 KiB runtime evidence and
+both full and minimal AGP Release consumer evidence for the exact corrected AAR.
+The independent completed record, once produced, is named
+`abi2-platforms-v0.1.5-r2-verified`; it is not a new three-domain crate cohort.
+The original release, Q and all ten published crate bytes remain unchanged.
+
+Until the r2 distribution has a verified public receipt, a consumer correction
+is a derived artifact and must retain that distinction. Do not label an APK,
+a local rebuild, or the r2 source candidate as the corrected public AAR.
+See [`platform-maintenance-release-notes.md`](../../artifact/platform-maintenance-release-notes.md)
+for the explicit candidate and publication contract. Verify the selected public
+AAR and its manifest against that exact tag's `PLATFORM_DISTRIBUTION.json`,
+`SHA256SUMS` and immutable release attestation. An old r1 receipt cannot verify
+new r2 bytes.
+
 Maven Central publication and a current same-source physical-device production proof are explicitly
 not claimed, and published emulator evidence does not replace the clean-tree runtime proof
 required for a source tree that has advanced past the release tag.

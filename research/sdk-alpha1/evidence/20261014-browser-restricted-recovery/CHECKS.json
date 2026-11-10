@@ -1,0 +1,131 @@
+{
+  "archive": {
+    "bytes": 20512908,
+    "members": 9099,
+    "path": "CAPTURE.zip",
+    "sha256": "76b0046836619558ff8864621444138f5258538c9e332f5f60fdc22d97ae69fb"
+  },
+  "artifact_controls": 53,
+  "browser_calls": 118,
+  "cases": [
+    {
+      "authority": null,
+      "calls": 30,
+      "case": "local",
+      "cleanup_complete": true,
+      "expiry": {
+        "after": 1791976331,
+        "held": {
+          "heldAt": 1791976172,
+          "runtimeCreated": true,
+          "until": 1791976330
+        }
+      },
+      "reports": 2,
+      "run": "run01"
+    },
+    {
+      "authority": {
+        "local_runtime_closed_at": 1791978192,
+        "witness_valid_until": 1791981739
+      },
+      "calls": 34,
+      "case": "required-live",
+      "cleanup_complete": true,
+      "expiry": null,
+      "reports": 2,
+      "run": "run04"
+    },
+    {
+      "authority": {
+        "local_runtime_closed_at": 1791978281,
+        "witness_valid_until": 1791981830
+      },
+      "calls": 26,
+      "case": "reserved-live",
+      "cleanup_complete": true,
+      "expiry": null,
+      "reports": 1,
+      "run": "run04"
+    },
+    {
+      "authority": null,
+      "calls": 14,
+      "case": "expired-refusal",
+      "cleanup_complete": false,
+      "expiry": {
+        "host_after": 1791978552,
+        "until": 1791978551
+      },
+      "reports": 0,
+      "run": "run05"
+    },
+    {
+      "authority": null,
+      "calls": 14,
+      "case": "expired-applied",
+      "cleanup_complete": false,
+      "expiry": {
+        "host_after": 1791978750,
+        "until": 1791978749
+      },
+      "reports": 1,
+      "run": "run05"
+    }
+  ],
+  "completed": true,
+  "documentation": {
+    "docs/continuity/PRODUCT_ADMISSION.md": "db8600debebaf5abdaa0c2bb3458972cf64054a0fe575a08b1732d436ab9aa63"
+  },
+  "failures_preserved": [
+    "Native negative fixture originally compared identical deterministic policies; now independently asserts differing checkpoint.",
+    "run02 incorrectly expected fresh cleanup after witness expiry; native Rejected(Validity) is the correct contract.",
+    "run03 used credential-commit tags for generic advances; no fault fired and the gate failed. Separate fixture now verifies Advance/Advanced(2/2).",
+    "Pre-run py_compile was rejected by hardened launcher cache guard; validation changed to AST parsing without changing the guard."
+  ],
+  "manifest_sha256": "34d0b4814c2fa9cd225067c82bcf56f82359e502437c22f9ca7e1b0caa2dce50",
+  "native_regressions": {
+    "closure": 15,
+    "fanout": 61,
+    "installation": 3,
+    "portable": 14
+  },
+  "package_sha256": "1f0b7ed850fa4fdb59a82a7167eb385a9382dc326749b975236267da087a7e1b",
+  "private_material_archived": false,
+  "release_claim_eligible": false,
+  "remaining": [
+    "Composition with independently renewed witness authorization or permanent device/account retirement",
+    "Additional local reservation/commit cuts, cancellation/concurrent close and nonempty inbox/skipped-report workloads",
+    "Independent implementation/hosts, complete platform lifecycle, PCS, performance, CI and final release admission"
+  ],
+  "runtime_equivalence": "All packaged files except README and its manifest are byte-identical, including JS/WASM/types. Existing local runtime qualification transfers across this documentation-only correction; new current-witness scenarios consume package02.",
+  "schema": 1,
+  "scope": "Actual installed Chrome package and native witness/receivers sharing one engine on macOS arm64. Local real-expiry cleanup; current-witness cleanup with closed local runtime; expired-witness reads/exact confirmation and deliberate fresh-write denial.",
+  "source_base": "b9d4c954f999609a96bd0fa9dc4978479f500267",
+  "source_overlay": {
+    "ARTIFACT.md": "4874ab5b73939d9c0ba2d90042f791f6341d67dc43d27584a21844edb023693a",
+    "artifact/codeql_rust_quality.py": "4469916ef2b85e6a09e6c67edfc8de544167aea45047a5c6f8cb7cfc2aedffb3",
+    "artifact/test_codeql_rust_quality.py": "ee501e6f450ed8d3ab39ab5170af9baea3c41b90ee4444e4c7e741f5b51e5258",
+    "crates/q-periapt-sdk-wasm/PackageREADME.md": "9e7b9a9eb9232dca986f844cc7f15b8650e1695ac5986c85cfa95f67567f2c56",
+    "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "ec7369d8d91a9d0b77376d7b6db7ed9eaeafe029c4ae452e483d5f8ad784f32d",
+    "crates/q-periapt-sdk-wasm/package/web/index.js": "7007b9546e1012c911e1102f10fe1b4def898fa5314968f50a9a163420124d0d",
+    "crates/q-periapt-sdk-wasm/src/continuity.rs": "a8bd6a7b9fa05bd273a26bae86510e6f96338028e7fcc2f62a7e191f49a2786f",
+    "crates/q-periapt-sdk-wasm/src/continuity/account.rs": "fc68f7aaebe54e0b8148432b1ca7981313e7f853da2206768fd19714d4c3213c",
+    "crates/q-periapt-sdk-wasm/src/continuity/recovery.rs": "ff0a3eb9aee7bbf2f0b802539e220dd35602921bf62d90f3622830e790878d38",
+    "crates/q-periapt-sdk-wasm/src/continuity/recovery/reports.rs": "6941956627229ed9e3aeb6c00216f0af63ba6a28ef4ab9fda1f2c7a09686a333",
+    "crates/q-periapt-sdk-wasm/tests/types.mts": "b3c1e774639f1a106fb11cd18aebc8590ba59c82f44f83000792763bcc752462",
+    "research/continuity-identity-candidate/src/browser.rs": "470e8d016db1e3e71b7fef28c96575e7f2c27bb3054daf91dee9934dfe8290c2",
+    "research/continuity-identity-candidate/src/browser/credentials.rs": "ff6f09f537ccac0cc73f3faf5c4384ea413da08e9a72d3d1e26a98bcc61f927d",
+    "research/continuity-identity-candidate/src/browser/policies.rs": "0679d798bb0491febe54befad2da7af3b697e975eb838e19fd40e50ed572a67b",
+    "research/continuity-identity-candidate/src/browser/recovery.rs": "f420ba668b34d8587026a5a3ef6fdc2e42f22bff434ac104bfbe16489681a277",
+    "research/continuity-identity-candidate/src/browser/roster.rs": "de4c5d8088e629b894755c018bce7c9e7826ce41a4d80c547747cd4e159ada94",
+    "research/continuity-identity-candidate/src/durable/messages/closure/archive.rs": "ea14c5ca76450d3a330c8a6a7b835c0f6f79be9805320f7488a433a0c8e8f12a",
+    "research/continuity-identity-candidate/src/durable/messages/fanout/archive.rs": "9d89163b6fa1ec61ebe6b030c9d1789a200421226292852de711564d5a1c83f9",
+    "research/continuity-identity-candidate/src/enrollment.rs": "4e13489b1c9b7990f8c097e7ca340191bd23b5823aa12bcaea79f6949d3749ca",
+    "research/continuity-identity-candidate/src/enrollment/recovery.rs": "4271c8121af3aade67f426a7bea8e85753d41b97b9d088cb23d31523f4707372",
+    "research/continuity-identity-candidate/src/installation/recovery.rs": "ac1787b0eedb5ab2085ab51b6c83bb7e70a9e22ebe40698e782561da03ff143a",
+    "research/continuity-identity-candidate/src/lib.rs": "22bedb88edab6afa25a2adf8b1e3ea7c38b44a800b6002c7ec543721eaf154da",
+    "research/continuity-identity-candidate/src/session_exchange/tests/account.rs": "db76b558cc46d5731f183c25dc98699a3b70939df1c1f1d31e6554f4b242b895",
+    "research/continuity-identity-candidate/src/session_exchange/tests/account/recovery.rs": "2837b7ba33fedcac74ad3d0e2ea9a260334a44453637fb29c1f411ac9a64e41c"
+  }
+}

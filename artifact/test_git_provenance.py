@@ -91,6 +91,136 @@ class GitProvenanceTests(unittest.TestCase):
         self.assertIn("index differs from HEAD", inspection.reasons)
         self.assertTrue(any("untracked" in reason for reason in inspection.reasons))
 
+    def test_nested_git_repository_under_target_is_ephemeral_output(self) -> None:
+        nested = (
+            self.root
+            / "target"
+            / "abi2-platform-publication-worktrees"
+            / "M"
+        )
+        self._init_repo(nested, "nested-target")
+        (nested / "tracked.txt").write_text(
+            "nested checkout\n",
+            encoding="utf-8",
+        )
+        self._git(nested, "add", "tracked.txt")
+        self._git(nested, "commit", "-qm", "nested fixture")
+
+        raw = git_provenance.run_git_bytes(
+            self.root,
+            ["ls-files", "--others", "-z"],
+        )
+        self.assertIn(
+            b"target/abi2-platform-publication-worktrees/M/\0",
+            raw,
+        )
+        paths = git_provenance.repository_paths(self.root)
+        self.assertFalse(
+            any(
+                path.startswith("target/abi2-platform-publication-worktrees/")
+                for path in paths
+            ),
+            paths,
+        )
+        inspection = git_provenance.inspect_worktree(self.root)
+        self.assertFalse(inspection.dirty, inspection.reasons)
+
+    def test_nested_git_repository_outside_outputs_is_rejected(self) -> None:
+        nested = self.root / "release-checkouts" / "M"
+        self._init_repo(nested, "nested-source")
+        (nested / "tracked.txt").write_text("nested source\n", encoding="utf-8")
+        self._git(nested, "add", "tracked.txt")
+        self._git(nested, "commit", "-qm", "nested fixture")
+
+        raw = git_provenance.run_git_bytes(
+            self.root,
+            ["ls-files", "--others", "-z"],
+        )
+        self.assertIn(b"release-checkouts/M/\0", raw)
+        for operation in (
+            git_provenance.repository_paths,
+            git_provenance.inspect_worktree,
+        ):
+            with self.subTest(operation=operation.__name__):
+                with self.assertRaisesRegex(
+                    git_provenance.GitProvenanceError,
+                    "outside declared ephemeral outputs",
+                ):
+                    operation(self.root)
+
+    def test_sbom_file_exemption_does_not_admit_nested_repositories(self) -> None:
+        for leaf in ("fixture.json", "fixture.cdx.json"):
+            with self.subTest(leaf=leaf):
+                with tempfile.TemporaryDirectory() as temporary:
+                    root = pathlib.Path(temporary).resolve() / "repository"
+                    self._init_repo(root, "sbom-directory")
+                    (root / "tracked.txt").write_text(
+                        "clean\n",
+                        encoding="utf-8",
+                    )
+                    self._git(root, "add", "tracked.txt")
+                    self._git(root, "commit", "-qm", "outer fixture")
+
+                    nested = root / "sbom" / leaf
+                    self._init_repo(nested, "nested-sbom")
+                    (nested / "tracked.txt").write_text(
+                        "nested source\n",
+                        encoding="utf-8",
+                    )
+                    self._git(nested, "add", "tracked.txt")
+                    self._git(nested, "commit", "-qm", "nested fixture")
+
+                    raw = git_provenance.run_git_bytes(
+                        root,
+                        ["ls-files", "--others", "-z"],
+                    )
+                    self.assertIn(f"sbom/{leaf}/\0".encode("ascii"), raw)
+                    for operation in (
+                        git_provenance.repository_paths,
+                        git_provenance.inspect_worktree,
+                    ):
+                        with self.subTest(operation=operation.__name__):
+                            with self.assertRaisesRegex(
+                                git_provenance.GitProvenanceError,
+                                "outside declared ephemeral outputs",
+                            ):
+                                operation(root)
+
+    def test_untracked_source_symlink_is_not_a_nested_repository_marker(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as external_temporary:
+            external = pathlib.Path(external_temporary).resolve()
+            self._init_repo(external, "external-source")
+            (external / "tracked.txt").write_text(
+                "external source\n",
+                encoding="utf-8",
+            )
+            self._git(external, "add", "tracked.txt")
+            self._git(external, "commit", "-qm", "external fixture")
+            link = self.root / "release-checkout-link"
+            link.symlink_to(external, target_is_directory=True)
+
+            raw = git_provenance.run_git_bytes(
+                self.root,
+                ["ls-files", "--others", "-z"],
+            )
+            self.assertIn(b"release-checkout-link\0", raw)
+            self.assertNotIn(b"release-checkout-link/\0", raw)
+            self.assertIn(
+                "release-checkout-link",
+                git_provenance.repository_paths(self.root),
+            )
+            inspection = git_provenance.inspect_worktree(self.root)
+            self.assertTrue(inspection.dirty, inspection.reasons)
+            self.assertTrue(
+                any(
+                    "untracked source-input paths" in reason
+                    for reason in inspection.reasons
+                ),
+                inspection.reasons,
+            )
+
     def test_dirty_tracked_deletion_is_hashed_as_path_absence(self) -> None:
         self.tracked.unlink()
 

@@ -9,6 +9,8 @@ transaction ordering, private raw bytes, and domain receipt construction.
 
 from __future__ import annotations
 
+from platform_distribution_contract import PlatformReleaseProfile
+
 import dataclasses
 import datetime as dt
 import hashlib
@@ -17,12 +19,11 @@ import os
 import pathlib
 import re
 import stat
-import subprocess
 import sys
 import tempfile
 import urllib.parse
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any, Never
+from typing import IO, Any, Never
 
 from bounded_process import (
     BoundedProcessError,
@@ -36,6 +37,7 @@ from evidence_io import (
     consume_regular_snapshot,
     parse_strict_json_bytes,
 )
+from http_connect_proxy import HttpConnectProxyError, validate_http_connect_proxy
 
 try:
     import pwd
@@ -100,6 +102,11 @@ RELEASE_LIST_FIELDS = (
     "tagName",
 )
 RELEASE_LIST_KEYS = frozenset(RELEASE_LIST_FIELDS)
+# ``gh release list`` (GraphQL) serializes an unpublished draft's ``publishedAt``
+# as Go's zero-time value, while ``gh release view`` returns ``null`` for the same
+# draft. The list/detail cross-check compares the two, so the list summary must be
+# normalized to match the detail view's invariant that a draft has no publish time.
+GITHUB_DRAFT_PUBLISHED_AT_SENTINEL = "0001-01-01T00:00:00Z"
 VERIFICATION_RESULT_MEDIA_TYPE = (
     "application/vnd.dev.sigstore.verificationresult+json;version=0.1"
 )
@@ -121,8 +128,29 @@ GITHUB_CLI_TEMP_ROOT = pathlib.Path("/tmp")
 GITHUB_CREDENTIAL_ENVIRONMENT = ("GH_TOKEN", "GITHUB_TOKEN")
 GITHUB_REPOSITORY = "billlza/q-periapt"
 STABLE_TAG_REFS = (
+    "refs/tags/v0.1.5",
+    "refs/tags/abi2-platforms-v0.1.5",
+)
+# Ruleset protection must keep every stable release tag immutable, not only the
+# current one: the earlier stable tags remain permanent history — the 0.1.0
+# through 0.1.2 pairs as tagged-unpublished history, and the v0.1.3 and v0.1.4
+# pairs as the two fully published stable lines — so their update/deletion
+# protection must never silently lapse. State observation
+# (absent/apple_only/exact transitions) uses only the current STABLE_TAG_REFS
+# above, but the protection observer checks this full set.
+PROTECTED_STABLE_TAG_REFS = (
     "refs/tags/v0.1.0",
     "refs/tags/abi2-platforms-v0.1.0",
+    "refs/tags/v0.1.1",
+    "refs/tags/abi2-platforms-v0.1.1",
+    "refs/tags/v0.1.2",
+    "refs/tags/abi2-platforms-v0.1.2",
+    "refs/tags/v0.1.3",
+    "refs/tags/abi2-platforms-v0.1.3",
+    "refs/tags/v0.1.4",
+    "refs/tags/abi2-platforms-v0.1.4",
+    "refs/tags/v0.1.5",
+    "refs/tags/abi2-platforms-v0.1.5",
 )
 MAX_TAG_RULESETS = 32
 MAX_STABLE_TAG_MATCHES = 64
@@ -132,6 +160,9 @@ MAX_STABLE_TAG_REFERENCE_BYTES = 4 * 1024 * 1024
 MAX_STABLE_TAG_OBJECT_BYTES = 4 * 1024 * 1024
 MAX_STABLE_COMMIT_OBJECT_BYTES = 4 * 1024 * 1024
 GITHUB_API_VERSION = "2026-03-10"
+MAX_GITHUB_CLI_STDERR_BYTES = 64 * 1024
+MAX_GITHUB_CLI_STDERR_TAIL_CHARS = 500
+GITHUB_CLI_STDERR_REDACTION = "[redacted]"
 DANGEROUS_GITHUB_ENVIRONMENT = frozenset(
     {
         "ALL_PROXY",
@@ -181,10 +212,15 @@ class GitHubCliExecutionError(GitHubReleaseObservationError):
         *,
         error_kind: str | None,
         returncode: int | None,
+        stderr_tail: str | None = None,
     ) -> None:
         self.error_kind = error_kind
         self.returncode = returncode
-        super().__init__(f"{label} failed safely")
+        self.stderr_tail = stderr_tail
+        message = f"{label} failed safely"
+        if stderr_tail:
+            message = f"{message}: {stderr_tail}"
+        super().__init__(message)
 
 
 class GitHubLocalIntegrityError(GitHubReleaseObservationError):
@@ -597,9 +633,18 @@ def resample_github_cli(expected: GitHubCliIdentity) -> None:
         )
 
 
-def github_cli_environment(source: Mapping[str, str]) -> dict[str, str]:
+def github_cli_environment(
+    source: Mapping[str, str],
+    *,
+    http_connect_proxy: str | None = None,
+) -> dict[str, str]:
     """Build the only credential-bearing environment admitted for ``gh``."""
 
+    if http_connect_proxy is not None:
+        try:
+            http_connect_proxy = validate_http_connect_proxy(http_connect_proxy)
+        except HttpConnectProxyError as exc:
+            raise GitHubReleaseObservationError(str(exc)) from exc
     overridden = sorted(
         name
         for name in source
@@ -647,6 +692,8 @@ def github_cli_environment(source: Mapping[str, str]) -> dict[str, str]:
         "PATH": "/usr/bin:/bin",
         "TERM": "dumb",
     }
+    if http_connect_proxy is not None:
+        environment["HTTPS_PROXY"] = http_connect_proxy
     return _validated_github_cli_environment(environment)
 
 
@@ -702,6 +749,15 @@ def _validated_github_cli_environment(
         "PATH": "/usr/bin:/bin",
         "TERM": "dumb",
     }
+    if "HTTPS_PROXY" in environment:
+        try:
+            static["HTTPS_PROXY"] = validate_http_connect_proxy(
+                environment["HTTPS_PROXY"]
+            )
+        except HttpConnectProxyError as exc:
+            raise GitHubReleaseObservationError(
+                "GitHub command environment differs from the fixed minimal policy"
+            ) from exc
     _require(
         isinstance(credential_value, str)
         and 0 < len(credential_value) <= 4_096
@@ -728,6 +784,103 @@ def git_observation_environment() -> dict[str, str]:
     }
 
 
+class _GitHubCliStderrSink:
+    """Bounded, credential-scrubbed stderr capture for one ``gh`` command.
+
+    The sink is an unlinked private temporary file, so stderr bytes never
+    persist on disk, and only a capped prefix is ever read back.  The scrubbed
+    tail exists purely so ``GitHubCliExecutionError`` can carry diagnostics
+    without exposing the admitted GitHub credential.
+    """
+
+    def __init__(self, environment: Mapping[str, str]) -> None:
+        secrets = []
+        for name in GITHUB_CREDENTIAL_ENVIRONMENT:
+            value = environment.get(name)
+            if isinstance(value, str) and value:
+                secrets.append(value.encode("utf-8"))
+        self._secrets = tuple(secrets)
+        self._file: IO[bytes] | None = None
+
+    def __enter__(self) -> _GitHubCliStderrSink:
+        try:
+            sink = tempfile.TemporaryFile(dir=GITHUB_CLI_TEMP_ROOT)
+            metadata = os.fstat(sink.fileno())
+        except OSError as exc:
+            raise GitHubCliEnvironmentIntegrityError(
+                "cannot create the bounded GitHub CLI stderr sink"
+            ) from exc
+        try:
+            _require(
+                stat.S_ISREG(metadata.st_mode)
+                and metadata.st_uid == os.geteuid()
+                and stat.S_IMODE(metadata.st_mode) & 0o077 == 0
+                and metadata.st_nlink == 0
+                and metadata.st_size == 0,
+                "GitHub CLI stderr sink must be one empty unlinked private file",
+            )
+        except GitHubReleaseObservationError:
+            sink.close()
+            raise
+        self._file = sink
+        return self
+
+    def __exit__(
+        self,
+        exception_type: object,
+        exception: object,
+        traceback: object,
+    ) -> bool:
+        del exception_type, exception, traceback
+        sink = self._file
+        self._file = None
+        if sink is not None:
+            try:
+                sink.close()
+            except OSError:
+                # The sink is unlinked scratch space; a close failure must not
+                # mask the command outcome it was capturing diagnostics for.
+                pass
+        return False
+
+    @property
+    def descriptor(self) -> int:
+        _require(self._file is not None, "GitHub CLI stderr sink is closed")
+        return self._file.fileno()
+
+    def scrubbed_tail(self) -> str:
+        """Return a bounded printable stderr tail with credentials removed."""
+
+        if self._file is None:
+            return ""
+        try:
+            data = os.pread(
+                self._file.fileno(), MAX_GITHUB_CLI_STDERR_BYTES + 1, 0
+            )
+        except (OSError, ValueError):
+            return ""
+        truncated = len(data) > MAX_GITHUB_CLI_STDERR_BYTES
+        data = data[:MAX_GITHUB_CLI_STDERR_BYTES]
+        redaction = GITHUB_CLI_STDERR_REDACTION.encode("ascii")
+        for secret in self._secrets:
+            data = data.replace(secret, redaction)
+            if truncated:
+                # The byte cap can split a credential, leaving a bare prefix
+                # at the cut that plain replacement cannot match.
+                for length in range(len(secret) - 1, 0, -1):
+                    if data.endswith(secret[:length]):
+                        data = data[:-length] + redaction
+                        break
+        if any(secret in data for secret in self._secrets):
+            return "[stderr withheld: credential material detected]"
+        text = data.decode("utf-8", errors="replace")
+        printable = "".join(
+            character if character.isprintable() else " " for character in text
+        )
+        collapsed = " ".join(printable.split())
+        return collapsed[-MAX_GITHUB_CLI_STDERR_TAIL_CHARS:]
+
+
 def capture_github_cli(
     tool: GitHubCliIdentity,
     arguments: Sequence[str],
@@ -741,17 +894,21 @@ def capture_github_cli(
     """Run one bounded ``gh`` command between exact tool resamples."""
 
     argv = _github_cli_argv(tool, arguments)
-    with _isolated_github_cli_environment(environment) as selected_environment:
+    with (
+        _isolated_github_cli_environment(environment) as selected_environment,
+        _GitHubCliStderrSink(selected_environment) as stderr_sink,
+    ):
         result = _execute_github_cli(
             tool,
             lambda: runner(
                 argv,
                 timeout_seconds=timeout_seconds,
                 maximum_bytes=maximum_bytes,
-                stderr=subprocess.DEVNULL,
+                stderr=stderr_sink.descriptor,
                 environment=selected_environment,
             ),
             label=label,
+            stderr_tail=stderr_sink.scrubbed_tail,
         )
     _require(
         isinstance(result.stdout, bytes) and bool(result.stdout),
@@ -775,7 +932,10 @@ def write_github_cli_stdout_at(
     """Stream bounded ``gh`` stdout atomically between tool resamples."""
 
     argv = _github_cli_argv(tool, arguments)
-    with _isolated_github_cli_environment(environment) as selected_environment:
+    with (
+        _isolated_github_cli_environment(environment) as selected_environment,
+        _GitHubCliStderrSink(selected_environment) as stderr_sink,
+    ):
         return _execute_github_cli(
             tool,
             lambda: runner(
@@ -784,10 +944,11 @@ def write_github_cli_stdout_at(
                 output_name=output_name,
                 timeout_seconds=timeout_seconds,
                 maximum_bytes=maximum_bytes,
-                stderr=subprocess.DEVNULL,
+                stderr=stderr_sink.descriptor,
                 environment=selected_environment,
             ),
             label=label,
+            stderr_tail=stderr_sink.scrubbed_tail,
         )
 
 
@@ -881,7 +1042,10 @@ def _execute_github_api_input(
     result: BoundedResult | None = None
     primary_error: BaseException | None = None
     try:
-        with _isolated_github_cli_environment(environment) as selected_environment:
+        with (
+            _isolated_github_cli_environment(environment) as selected_environment,
+            _GitHubCliStderrSink(selected_environment) as stderr_sink,
+        ):
             result = _execute_github_cli(
                 tool,
                 lambda: runner(
@@ -889,10 +1053,11 @@ def _execute_github_api_input(
                     timeout_seconds=timeout_seconds,
                     maximum_bytes=maximum_bytes,
                     stdin_fd=input_fd,
-                    stderr=subprocess.DEVNULL,
+                    stderr=stderr_sink.descriptor,
                     environment=selected_environment,
                 ),
                 label=label,
+                stderr_tail=stderr_sink.scrubbed_tail,
             )
     except BaseException as exc:
         primary_error = exc
@@ -1343,9 +1508,23 @@ def _capture_github_api_get(
 def parse_stable_tag_rulesets(
     ruleset_list_raw: bytes,
     ruleset_details_raw: Mapping[int, bytes],
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> StableTagProtectionObservation:
     """Require active, no-bypass update+delete rules for both stable tags."""
 
+    _require(
+        type(profile) is PlatformReleaseProfile, "tag protection profile is invalid"
+    )
+    protected_tag_refs = PROTECTED_STABLE_TAG_REFS + (
+        (
+            profile.release_ref,
+            "refs/tags/v0.1.5-verified-cohort",
+            f"refs/tags/{profile.verification_tag}",
+        )
+        if profile.is_maintenance
+        else ()
+    )
     ordered_ids = _parse_stable_tag_ruleset_ids(ruleset_list_raw)
     _require(
         set(ruleset_details_raw) == set(ordered_ids)
@@ -1357,7 +1536,7 @@ def parse_stable_tag_rulesets(
     )
 
     required_rules = frozenset({"update", "deletion"})
-    coverage = {tag_ref: set() for tag_ref in STABLE_TAG_REFS}
+    coverage = {tag_ref: set() for tag_ref in protected_tag_refs}
     authoritative_ids: set[int] = set()
     for ruleset_id in ordered_ids:
         try:
@@ -1407,7 +1586,7 @@ def parse_stable_tag_rulesets(
             and len(excludes) == len(set(excludes)),
             "GitHub tag ruleset ref conditions are malformed",
         )
-        explicit_stable_refs = set(includes) & set(STABLE_TAG_REFS)
+        explicit_stable_refs = set(includes) & set(protected_tag_refs)
         if not explicit_stable_refs:
             continue
         _require(
@@ -1486,18 +1665,18 @@ def parse_stable_tag_rulesets(
                 coverage[tag_ref].update(protected_rules)
 
     _require(
-        all(coverage[tag_ref] == required_rules for tag_ref in STABLE_TAG_REFS),
+        all(coverage[tag_ref] == required_rules for tag_ref in protected_tag_refs),
         "GitHub stable tags lack active no-bypass update and deletion protection",
     )
     projection = {
         "repository": GITHUB_REPOSITORY,
         "ruleset_ids": sorted(authoritative_ids),
-        "tag_refs": list(STABLE_TAG_REFS),
+        "tag_refs": list(protected_tag_refs),
     }
     return StableTagProtectionObservation(
         repository=GITHUB_REPOSITORY,
         ruleset_ids=tuple(sorted(authoritative_ids)),
-        tag_refs=STABLE_TAG_REFS,
+        tag_refs=protected_tag_refs,
         observation_sha256=hashlib.sha256(canonical_json(projection)).hexdigest(),
     )
 
@@ -1536,12 +1715,15 @@ def _parse_stable_tag_ruleset_ids(ruleset_list_raw: bytes) -> tuple[int, ...]:
 def sample_stable_tag_protection_once(
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> StableTagProtectionObservation:
     """Take one complete exact stable-tag ruleset sample."""
 
     environment = github_cli_environment(
-        os.environ if source_environment is None else source_environment
+        os.environ if source_environment is None else source_environment,
+        http_connect_proxy=http_connect_proxy,
     )
     tool = select_github_cli()
     list_endpoint = (
@@ -1572,21 +1754,26 @@ def sample_stable_tag_protection_once(
             label="GitHub stable tag ruleset detail",
             runner=runner,
         )
-    return parse_stable_tag_rulesets(list_raw, detail_raw)
+    return parse_stable_tag_rulesets(list_raw, detail_raw, profile=profile)
 
 
 def observe_stable_tag_protection(
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> StableTagProtectionObservation:
     """Sample exact stable-tag rules twice through the pinned read-only CLI."""
 
     before = sample_stable_tag_protection_once(
-        source_environment=source_environment, runner=runner
+        source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
+        runner=runner,
     )
     after = sample_stable_tag_protection_once(
-        source_environment=source_environment, runner=runner
+        source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
+        runner=runner,
     )
     _require(
         before == after,
@@ -1827,6 +2014,8 @@ def _stable_tag_state_expectation(
 def _parse_matching_stable_tag_reference(
     raw: bytes,
     expected_reference: str,
+    *,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> str | None:
     try:
         value = parse_strict_json_bytes(raw, label="GitHub stable tag references")
@@ -1835,7 +2024,15 @@ def _parse_matching_stable_tag_reference(
             "GitHub stable tag references are not strict JSON"
         ) from exc
     _require(
-        expected_reference in STABLE_TAG_REFS and isinstance(value, list),
+        type(profile) is PlatformReleaseProfile, "tag reference profile is invalid"
+    )
+    allowed_refs = (
+        STABLE_TAG_REFS
+        if profile is PlatformReleaseProfile.STABLE
+        else (profile.release_ref,)
+    )
+    _require(
+        expected_reference in allowed_refs and isinstance(value, list),
         "GitHub stable tag reference response is malformed",
     )
     _require(
@@ -1969,6 +2166,7 @@ def sample_stable_tag_state_once(
     expected_tree: str | None = None,
     expected_tag_objects: Sequence[str] | None = None,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> StableTagStateObservation:
     """Take one complete sample of both exact stable refs and objects."""
@@ -1979,7 +2177,8 @@ def sample_stable_tag_state_once(
         expected_tag_objects,
     )
     environment = github_cli_environment(
-        os.environ if source_environment is None else source_environment
+        os.environ if source_environment is None else source_environment,
+        http_connect_proxy=http_connect_proxy,
     )
     tool = select_github_cli()
 
@@ -2034,12 +2233,139 @@ def sample_stable_tag_state_once(
     )
 
 
+def parse_platform_maintenance_tag_state(
+    reference_raw: bytes,
+    tag_raw: bytes,
+    commit_raw: bytes,
+    *,
+    expected_tag_object: str,
+    expected_commit: str,
+    expected_tree: str,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.MAINTENANCE_R2,
+) -> StableTagStateObservation:
+    """Validate only the explicitly selected annotated platform revision tag."""
+
+    _require(
+        type(profile) is PlatformReleaseProfile and profile.is_maintenance,
+        "maintenance tag profile is invalid",
+    )
+    reference = profile.release_ref
+    _require(
+        all(
+            isinstance(value, str) and HEX_40.fullmatch(value) is not None
+            for value in (expected_tag_object, expected_commit, expected_tree)
+        )
+        and expected_tag_object != expected_commit,
+        "maintenance tag expectation is malformed",
+    )
+    observed_object = _parse_matching_stable_tag_reference(
+        reference_raw, reference, profile=profile
+    )
+    _require(
+        observed_object == expected_tag_object, "maintenance tag reference differs"
+    )
+    _parse_stable_annotated_tag(
+        tag_raw,
+        reference=reference,
+        expected_tag_object=expected_tag_object,
+        expected_commit=expected_commit,
+    )
+    _parse_stable_commit(
+        commit_raw, expected_commit=expected_commit, expected_tree=expected_tree
+    )
+    projection = {
+        "repository": GITHUB_REPOSITORY,
+        "state": "exact",
+        "tag_refs": [reference],
+        "tag_objects": [expected_tag_object],
+        "commit": expected_commit,
+        "tree": expected_tree,
+    }
+    return StableTagStateObservation(
+        repository=GITHUB_REPOSITORY,
+        state="exact",
+        tag_refs=(reference,),
+        tag_objects=(expected_tag_object,),
+        commit=expected_commit,
+        tree=expected_tree,
+        observation_sha256=hashlib.sha256(canonical_json(projection)).hexdigest(),
+    )
+
+
+def sample_platform_maintenance_tag_state_once(
+    *,
+    expected_tag_object: str,
+    expected_commit: str,
+    expected_tree: str,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.MAINTENANCE_R2,
+    source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
+    runner: GitHubCommandRunner = capture_stdout,
+) -> StableTagStateObservation:
+    """Reuse the bounded observation boundary for one revision, never a tag write."""
+
+    _require(
+        type(profile) is PlatformReleaseProfile and profile.is_maintenance,
+        "maintenance tag profile is invalid",
+    )
+    _require(
+        all(
+            isinstance(value, str) and HEX_40.fullmatch(value) is not None
+            for value in (expected_tag_object, expected_commit, expected_tree)
+        )
+        and expected_tag_object != expected_commit,
+        "maintenance tag expectation is malformed",
+    )
+    reference = profile.release_ref
+    environment = github_cli_environment(
+        os.environ if source_environment is None else source_environment,
+        http_connect_proxy=http_connect_proxy,
+    )
+    tool = select_github_cli()
+    raw = tuple(
+        _capture_github_api_get(
+            tool,
+            f"repos/{GITHUB_REPOSITORY}/git/{suffix}",
+            timeout_seconds=120,
+            maximum_bytes=maximum,
+            environment=environment,
+            label=label,
+            runner=runner,
+        )
+        for suffix, maximum, label in (
+            (
+                f"matching-refs/{reference.removeprefix('refs/')}?per_page=100&page=1",
+                MAX_STABLE_TAG_REFERENCE_BYTES,
+                "maintenance tag reference",
+            ),
+            (
+                f"tags/{expected_tag_object}",
+                MAX_STABLE_TAG_OBJECT_BYTES,
+                "maintenance tag object",
+            ),
+            (
+                f"commits/{expected_commit}",
+                MAX_STABLE_COMMIT_OBJECT_BYTES,
+                "maintenance tag commit",
+            ),
+        )
+    )
+    return parse_platform_maintenance_tag_state(
+        *raw,
+        expected_tag_object=expected_tag_object,
+        expected_commit=expected_commit,
+        expected_tree=expected_tree,
+        profile=profile,
+    )
+
+
 def observe_stable_tag_state(
     *,
     expected_commit: str | None = None,
     expected_tree: str | None = None,
     expected_tag_objects: Sequence[str] | None = None,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> StableTagStateObservation:
     """Sample both exact stable refs and their immutable objects twice."""
@@ -2049,6 +2375,7 @@ def observe_stable_tag_state(
         expected_tree=expected_tree,
         expected_tag_objects=expected_tag_objects,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     after = sample_stable_tag_state_once(
@@ -2056,6 +2383,7 @@ def observe_stable_tag_state(
         expected_tree=expected_tree,
         expected_tag_objects=expected_tag_objects,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     _require(before == after, "GitHub stable tag state changed during observation")
@@ -2068,6 +2396,7 @@ def observe_stable_tag_recovery_state(
     expected_tag_objects: Sequence[str],
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> StableTagStateObservation:
     """Double-sample the only safe states after an uncertain ordered push."""
@@ -2080,7 +2409,8 @@ def observe_stable_tag_recovery_state(
     if commit is None or tree is None or tag_objects is None:
         _fail("GitHub stable tag recovery expectation is incomplete")
     environment = github_cli_environment(
-        os.environ if source_environment is None else source_environment
+        os.environ if source_environment is None else source_environment,
+        http_connect_proxy=http_connect_proxy,
     )
     tool = select_github_cli()
 
@@ -2224,6 +2554,7 @@ def _execute_github_cli(
     invoke: Callable[[], BoundedResult],
     *,
     label: str,
+    stderr_tail: Callable[[], str] | None = None,
 ) -> BoundedResult:
     resample_github_cli(tool)
     result: BoundedResult | None = None
@@ -2239,6 +2570,7 @@ def _execute_github_cli(
                 label,
                 error_kind=None,
                 returncode=result.returncode,
+                stderr_tail=None if stderr_tail is None else stderr_tail(),
             )
     except BoundedProcessError as exc:
         if exc.cleanup_ambiguous:
@@ -2252,13 +2584,16 @@ def _execute_github_cli(
                 label,
                 error_kind=exc.kind,
                 returncode=None,
+                stderr_tail=None if stderr_tail is None else stderr_tail(),
             )
+        execution_error.__cause__ = exc
     except GitHubReleaseObservationError as exc:
         execution_error = exc
-    except Exception:
+    except Exception as exc:
         execution_error = GitHubReleaseObservationError(
             f"{label} failed safely"
         )
+        execution_error.__cause__ = exc
     except BaseException as exc:
         execution_error = exc
     try:
@@ -2351,6 +2686,10 @@ def _validate_policy(policy: ReleasePolicy) -> None:
     _require(
         type(policy.expected_prerelease) is bool,
         "GitHub release prerelease policy is not boolean",
+    )
+    _require(
+        type(policy.require_asset_order) is bool,
+        "GitHub release asset-order policy is not boolean",
     )
     _require(
         policy.repository_url == f"https://github.com/{policy.repository}",
@@ -2614,9 +2953,13 @@ def parse_release_list(
             f"{label} item {index} fields are malformed",
         )
         parse_utc_timestamp(item["createdAt"], f"{label} item {index} createdAt")
-        if item["publishedAt"] is not None:
+        published_at = item["publishedAt"]
+        if item["isDraft"] and published_at == GITHUB_DRAFT_PUBLISHED_AT_SENTINEL:
+            # Normalize the draft zero-time sentinel to the detail view's ``null``.
+            published_at = None
+        if published_at is not None:
             parse_utc_timestamp(
-                item["publishedAt"], f"{label} item {index} publishedAt"
+                published_at, f"{label} item {index} publishedAt"
             )
         tag = item["tagName"]
         if item["isLatest"]:
@@ -2634,7 +2977,7 @@ def parse_release_list(
                 immutable=item["isImmutable"],
                 latest=item["isLatest"],
                 prerelease=item["isPrerelease"],
-                published_at=item["publishedAt"],
+                published_at=published_at,
             )
     _require(
         len(latest_tags) <= 1,
@@ -2726,9 +3069,31 @@ def parse_mutable_release_view(
         f"{label} identity or text differs",
     )
     repository_url = f"https://github.com/{policy.repository}"
+    # A draft release is not yet keyed to its tag ref: GitHub reports the release
+    # html url -- and every asset browser_download_url -- under a synthetic
+    # "untagged-<hex>" slug, flipping to the tag form only once the release is
+    # published. Derive the effective download slug from the observed release url
+    # so the release and its assets are validated against the same GitHub keying;
+    # the strict tag form is required for the published (non-draft) shape.
+    observed_release_url = view["url"]
+    if view["isDraft"]:
+        draft_url_match = re.fullmatch(
+            rf"{re.escape(repository_url)}/releases/tag/(untagged-[0-9a-f]+)",
+            observed_release_url if isinstance(observed_release_url, str) else "",
+        )
+        _require(
+            draft_url_match is not None,
+            f"{label} draft release URL differs",
+        )
+        download_slug = draft_url_match.group(1)
+    else:
+        _require(
+            observed_release_url == f"{repository_url}/releases/tag/{policy.tag}",
+            f"{label} release URL differs",
+        )
+        download_slug = policy.tag
     _require(
-        view["url"] == f"{repository_url}/releases/tag/{policy.tag}"
-        and view["apiUrl"]
+        view["apiUrl"]
         == f"https://api.github.com/repos/{policy.repository}/releases/{release_id}"
         and view["uploadUrl"]
         == (
@@ -2808,7 +3173,7 @@ def parse_mutable_release_view(
         _require(
             asset["label"] == ""
             and asset["url"]
-            == f"{repository_url}/releases/download/{policy.tag}/{name}"
+            == f"{repository_url}/releases/download/{download_slug}/{name}"
             and isinstance(api_url, str)
             and re.fullmatch(
                 rf"https://api\.github\.com/repos/{re.escape(policy.repository)}/"
@@ -2906,6 +3271,7 @@ def _observe_mutable_release_transaction_once(
     policies: tuple[MutableReleasePolicy, MutableReleasePolicy],
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> MutableReleaseTransactionObservation:
     """Observe the two target releases, immutable setting, and latest tag."""
@@ -2917,7 +3283,8 @@ def _observe_mutable_release_transaction_once(
     for policy in policies:
         _validate_mutable_release_policy(policy)
     environment = github_cli_environment(
-        os.environ if source_environment is None else source_environment
+        os.environ if source_environment is None else source_environment,
+        http_connect_proxy=http_connect_proxy,
     )
     tool = select_github_cli()
     list_arguments = (
@@ -3179,6 +3546,7 @@ def observe_mutable_release_transaction(
     policies: tuple[MutableReleasePolicy, MutableReleasePolicy],
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> MutableReleaseTransactionObservation:
     """Return two byte-identical complete remote release samples."""
@@ -3186,11 +3554,13 @@ def observe_mutable_release_transaction(
     before = _observe_mutable_release_transaction_once(
         policies,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     after = _observe_mutable_release_transaction_once(
         policies,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
     _require(
@@ -3204,6 +3574,7 @@ def sample_mutable_release_transaction_once(
     policies: tuple[MutableReleasePolicy, MutableReleasePolicy],
     *,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
 ) -> MutableReleaseTransactionObservation:
     """Expose one complete sample for a higher-level composite sampler."""
@@ -3211,6 +3582,7 @@ def sample_mutable_release_transaction_once(
     return _observe_mutable_release_transaction_once(
         policies,
         source_environment=source_environment,
+        http_connect_proxy=http_connect_proxy,
         runner=runner,
     )
 
@@ -3237,6 +3609,34 @@ def expected_subjects(policy: ReleasePolicy) -> list[dict[str, object]]:
             for name in policy.asset_names
         ],
     ]
+
+
+def _validate_release_subjects(
+    value: object,
+    *,
+    policy: ReleasePolicy,
+    label: str,
+) -> list[dict[str, object]]:
+    """Validate the exact tag subject and release asset subject multiset."""
+
+    expected = expected_subjects(policy)
+    if not isinstance(value, list):
+        _fail(f"{label} subjects differ")
+    _require(
+        len(value) == len(expected),
+        f"{label} subjects differ",
+    )
+    _require(value[0] == expected[0], f"{label} tag subject differs")
+    if policy.require_asset_order:
+        _require(value == expected, f"{label} subjects differ")
+    else:
+        observed_assets = sorted(canonical_json(subject) for subject in value[1:])
+        expected_assets = sorted(canonical_json(subject) for subject in expected[1:])
+        _require(
+            observed_assets == expected_assets,
+            f"{label} asset subjects differ",
+        )
+    return expected
 
 
 def parse_release_verification(
@@ -3348,8 +3748,11 @@ def parse_release_verification(
         statement["predicateType"] == RELEASE_PREDICATE_TYPE,
         f"{label} predicate type differs",
     )
-    subjects = expected_subjects(policy)
-    _require(statement["subject"] == subjects, f"{label} subjects differ")
+    subjects = _validate_release_subjects(
+        statement["subject"],
+        policy=policy,
+        label=label,
+    )
     predicate = _object(statement["predicate"], f"{label} predicate")
     _exact_keys(
         predicate,

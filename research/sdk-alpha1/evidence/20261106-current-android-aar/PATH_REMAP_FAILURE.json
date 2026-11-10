@@ -1,0 +1,8 @@
+{
+  "binary_sha256": "ce8eec1dcf4ad3e444e700e4bab8e8a86c3e9f9b57476acf45a7fdd1e1b8b196",
+  "offset": 220013,
+  "source_category": "Cargo registry dependency source",
+  "redacted_path": "<cargo-cache>/registry/src/index.crates.io-1949cf8c6b5b557f/rustls-0.23.46/src/server/hs.rs",
+  "source_bytes_modified": false,
+  "next_action": "Add the account-root remapping already required by the Android release producer; retain first archive and rebuild under unchanged source, dependency and tool pins."
+}

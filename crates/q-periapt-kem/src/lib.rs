@@ -24,9 +24,77 @@
 
 use core::marker::PhantomData;
 use q_periapt_core::{
-    combine, CombineInput, Error, Kem, PreparedKem, Profile, Secret, Xof256, ZeroizingBytes,
-    SHARED_SECRET_LEN,
+    combine, combine_policy_bound, policy_bound_context_len, CombineInput, Error, Kem, PreparedKem,
+    Profile, Secret, Xof256, ZeroizingBytes, SHARED_SECRET_LEN,
 };
+
+/// Define a borrowed, role-typed wrapper over serialized decapsulation bytes.
+///
+/// [`HybridKem::decapsulate`] mixes two secret keys and four public values; as
+/// bare `&[u8]` parameters, a transposition (e.g. `sk_trad`/`pk_trad`) compiles
+/// cleanly and stages a long-term secret into a public-classified combiner
+/// field. Each role is therefore a distinct type: a swapped argument is a type
+/// error instead of a silent misuse. The wrappers are zero-cost borrows —
+/// construct them with [`new`](PqSecretKey::new) or `From`, and read them back
+/// with [`as_bytes`](PqSecretKey::as_bytes).
+macro_rules! decapsulation_role {
+    ($(#[$doc:meta])* $name:ident) => {
+        $(#[$doc])*
+        #[derive(Clone, Copy)]
+        pub struct $name<'a>(&'a [u8]);
+
+        impl<'a> $name<'a> {
+            /// Wrap the serialized bytes for this decapsulation role.
+            #[must_use]
+            pub fn new(bytes: &'a [u8]) -> Self {
+                Self(bytes)
+            }
+
+            /// The wrapped serialized bytes.
+            #[must_use]
+            pub fn as_bytes(self) -> &'a [u8] {
+                self.0
+            }
+        }
+
+        impl<'a> From<&'a [u8]> for $name<'a> {
+            fn from(bytes: &'a [u8]) -> Self {
+                Self(bytes)
+            }
+        }
+
+        impl<'a, const N: usize> From<&'a [u8; N]> for $name<'a> {
+            fn from(bytes: &'a [u8; N]) -> Self {
+                Self(bytes)
+            }
+        }
+    };
+}
+
+decapsulation_role!(
+    /// The post-quantum component's serialized decapsulation (secret) key.
+    PqSecretKey
+);
+decapsulation_role!(
+    /// The post-quantum component's ciphertext.
+    PqCiphertext
+);
+decapsulation_role!(
+    /// The post-quantum component's serialized encapsulation (public) key.
+    PqPublicKey
+);
+decapsulation_role!(
+    /// The traditional component's serialized secret key.
+    TradSecretKey
+);
+decapsulation_role!(
+    /// The traditional component's ciphertext.
+    TradCiphertext
+);
+decapsulation_role!(
+    /// The traditional component's serialized public key.
+    TradPublicKey
+);
 
 /// A PQ/T hybrid KEM binding a post-quantum and a traditional component.
 ///
@@ -41,6 +109,7 @@ pub struct HybridKem<'a, P: Kem, T: Kem, X: Xof256> {
     profile: Profile,
     suite_id: &'a [u8],
     policy_version: u32,
+    policy_digest: Option<&'a [u8; SHARED_SECRET_LEN]>,
     _xof: PhantomData<X>,
 }
 
@@ -79,8 +148,41 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
             profile,
             suite_id,
             policy_version,
+            policy_digest: None,
             _xof: PhantomData,
         })
+    }
+
+    /// Construct a ContextBound KEM with the canonical signed-policy wrapper.
+    /// The caller must supply an authenticated digest; this low-level factory
+    /// does not verify a policy. Operations take the unwrapped application context.
+    pub fn new_policy_bound(
+        pq: &'a P,
+        trad: &'a T,
+        suite_id: &'a [u8],
+        policy_version: u32,
+        policy_digest: &'a [u8; SHARED_SECRET_LEN],
+    ) -> Result<Self, Error> {
+        let mut kem = Self::new(pq, trad, Profile::ContextBound, suite_id, policy_version)?;
+        kem.policy_digest = Some(policy_digest);
+        Ok(kem)
+    }
+
+    fn validate_context(&self, context: &[u8]) -> Result<(), Error> {
+        if self.policy_digest.is_some() {
+            policy_bound_context_len(context.len()).ok_or(Error::InvalidLength)?;
+            Ok(())
+        } else {
+            self.profile
+                .validate_operation_inputs(self.suite_id, self.policy_version, context)
+        }
+    }
+
+    fn combine(&self, input: &CombineInput<'_>) -> Result<Secret, Error> {
+        match self.policy_digest {
+            Some(digest) => combine_policy_bound::<X>(input, digest),
+            None => combine::<X>(self.profile, input),
+        }
     }
 
     /// The post-quantum component's algorithm id (e.g. `"ML-KEM-768"`).
@@ -112,8 +214,7 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         ct_pq: &mut [u8],
         ct_trad: &mut [u8],
     ) -> Result<Secret, Error> {
-        self.profile
-            .validate_operation_inputs(self.suite_id, self.policy_version, context)?;
+        self.validate_context(context)?;
         let mut ss_pq = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
         let mut ss_trad = ZeroizingBytes::<SHARED_SECRET_LEN>::zeroed();
         // Drop-based ownership wipes both component secrets on success, Result
@@ -123,20 +224,17 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
             .encapsulate(pk_pq, rand_pq, ct_pq, ss_pq.as_mut_bytes())?;
         self.trad
             .encapsulate(pk_trad, rand_trad, ct_trad, ss_trad.as_mut_bytes())?;
-        combine::<X>(
-            self.profile,
-            &CombineInput {
-                suite_id: self.suite_id,
-                policy_version: self.policy_version,
-                ss_pq: ss_pq.as_bytes(),
-                ss_trad: ss_trad.as_bytes(),
-                ct_pq,
-                pk_pq,
-                ct_trad,
-                pk_trad,
-                context,
-            },
-        )
+        self.combine(&CombineInput {
+            suite_id: self.suite_id,
+            policy_version: self.policy_version,
+            ss_pq: ss_pq.as_bytes(),
+            ss_trad: ss_trad.as_bytes(),
+            ct_pq,
+            pk_pq,
+            ct_trad,
+            pk_trad,
+            context,
+        })
     }
 
     /// Decapsulate both ciphertexts and recompute the combined hybrid secret.
@@ -149,29 +247,36 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     /// ([`Error::InvalidKeyShare`]). A fixed-length but malformed caller-supplied local expanded
     /// ML-KEM key may instead produce opaque [`Error::Backend`]; that represents a local
     /// key-storage/provider failure, not peer behavior or ciphertext validity.
+    ///
+    /// Every key/ciphertext parameter is a role-typed wrapper ([`PqSecretKey`],
+    /// [`PqCiphertext`], …) over the serialized bytes, so transposed arguments —
+    /// which would stage a long-term secret into a public-classified combiner
+    /// field — fail to compile instead of silently mis-deriving.
     #[allow(clippy::too_many_arguments)]
     pub fn decapsulate(
         &self,
-        sk_pq: &[u8],
-        ct_pq: &[u8],
-        pk_pq: &[u8],
-        sk_trad: &[u8],
-        ct_trad: &[u8],
-        pk_trad: &[u8],
+        sk_pq: PqSecretKey<'_>,
+        ct_pq: PqCiphertext<'_>,
+        pk_pq: PqPublicKey<'_>,
+        sk_trad: TradSecretKey<'_>,
+        ct_trad: TradCiphertext<'_>,
+        pk_trad: TradPublicKey<'_>,
         context: &[u8],
     ) -> Result<Secret, Error> {
-        self.profile
-            .validate_operation_inputs(self.suite_id, self.policy_version, context)?;
+        self.validate_context(context)?;
         self.decapsulate_validated(
             DecapsulationInput {
-                ct_pq,
-                pk_pq,
-                sk_trad,
-                ct_trad,
-                pk_trad,
+                ct_pq: ct_pq.as_bytes(),
+                pk_pq: pk_pq.as_bytes(),
+                sk_trad: sk_trad.as_bytes(),
+                ct_trad: ct_trad.as_bytes(),
+                pk_trad: pk_trad.as_bytes(),
                 context,
             },
-            |ss_pq| self.pq.decapsulate(sk_pq, ct_pq, ss_pq),
+            |ss_pq| {
+                self.pq
+                    .decapsulate(sk_pq.as_bytes(), ct_pq.as_bytes(), ss_pq)
+            },
         )
     }
 
@@ -191,24 +296,21 @@ impl<'a, P: Kem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
         decapsulate_pq(ss_pq.as_mut_bytes())?;
         self.trad
             .decapsulate(input.sk_trad, input.ct_trad, ss_trad.as_mut_bytes())?;
-        combine::<X>(
-            self.profile,
-            &CombineInput {
-                suite_id: self.suite_id,
-                policy_version: self.policy_version,
-                ss_pq: ss_pq.as_bytes(),
-                ss_trad: ss_trad.as_bytes(),
-                ct_pq: input.ct_pq,
-                pk_pq: input.pk_pq,
-                ct_trad: input.ct_trad,
-                pk_trad: input.pk_trad,
-                context: input.context,
-            },
-        )
+        self.combine(&CombineInput {
+            suite_id: self.suite_id,
+            policy_version: self.policy_version,
+            ss_pq: ss_pq.as_bytes(),
+            ss_trad: ss_trad.as_bytes(),
+            ct_pq: input.ct_pq,
+            pk_pq: input.pk_pq,
+            ct_trad: input.ct_trad,
+            pk_trad: input.pk_trad,
+            context: input.context,
+        })
     }
 }
 
-impl<'a, P: PreparedKem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
+impl<P: PreparedKem, T: Kem, X: Xof256> HybridKem<'_, P, T, X> {
     /// Decapsulate with a process-local prepared PQ key and the serialized
     /// traditional key.
     ///
@@ -216,29 +318,31 @@ impl<'a, P: PreparedKem, T: Kem, X: Xof256> HybridKem<'a, P, T, X> {
     /// accidentally combine an unrelated PQ public key. Profile validation runs
     /// before either component backend. After that guard, this method reuses the
     /// exact traditional decapsulation and combiner path used by
-    /// [`HybridKem::decapsulate`].
+    /// [`HybridKem::decapsulate`], including its role-typed byte parameters.
     pub fn decapsulate_prepared(
         &self,
         prepared_pq: &P::PreparedKey,
-        ct_pq: &[u8],
-        sk_trad: &[u8],
-        ct_trad: &[u8],
-        pk_trad: &[u8],
+        ct_pq: PqCiphertext<'_>,
+        sk_trad: TradSecretKey<'_>,
+        ct_trad: TradCiphertext<'_>,
+        pk_trad: TradPublicKey<'_>,
         context: &[u8],
     ) -> Result<Secret, Error> {
-        self.profile
-            .validate_operation_inputs(self.suite_id, self.policy_version, context)?;
+        self.validate_context(context)?;
         let pk_pq = self.pq.prepared_encapsulation_key(prepared_pq);
         self.decapsulate_validated(
             DecapsulationInput {
-                ct_pq,
+                ct_pq: ct_pq.as_bytes(),
                 pk_pq,
-                sk_trad,
-                ct_trad,
-                pk_trad,
+                sk_trad: sk_trad.as_bytes(),
+                ct_trad: ct_trad.as_bytes(),
+                pk_trad: pk_trad.as_bytes(),
                 context,
             },
-            |ss_pq| self.pq.decapsulate_prepared(prepared_pq, ct_pq, ss_pq),
+            |ss_pq| {
+                self.pq
+                    .decapsulate_prepared(prepared_pq, ct_pq.as_bytes(), ss_pq)
+            },
         )
     }
 }
@@ -406,10 +510,31 @@ mod tests {
             .unwrap();
 
         let dec = kem
-            .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_trad, &ct_trad, &pk_trad, ctx)
+            .decapsulate(
+                PqSecretKey::new(&sk_pq),
+                PqCiphertext::new(&ct_pq),
+                PqPublicKey::new(&pk_pq),
+                TradSecretKey::new(&sk_trad),
+                TradCiphertext::new(&ct_trad),
+                TradPublicKey::new(&pk_trad),
+                ctx,
+            )
             .unwrap();
 
         assert_eq!(enc.as_bytes(), dec.as_bytes(), "encap/decap must agree");
+    }
+
+    #[test]
+    fn decapsulation_role_wrappers_are_transparent_over_slices_and_arrays() {
+        let array = [5u8; 32];
+        let slice: &[u8] = &array;
+        assert_eq!(PqSecretKey::new(slice).as_bytes(), slice);
+        assert_eq!(PqSecretKey::from(slice).as_bytes(), slice);
+        assert_eq!(PqCiphertext::from(&array).as_bytes(), slice);
+        assert_eq!(PqPublicKey::new(&array).as_bytes(), slice);
+        assert_eq!(TradSecretKey::from(slice).as_bytes(), slice);
+        assert_eq!(TradCiphertext::from(&array).as_bytes(), slice);
+        assert_eq!(TradPublicKey::new(slice).as_bytes(), slice);
     }
 
     /// A backend that always fails — used to drive the path where the FIRST component
@@ -458,7 +583,13 @@ mod tests {
         );
         assert!(enc.is_err(), "second-backend error must propagate (encap)");
         let dec = kem.decapsulate(
-            &[0u8; 32], &ct_pq, &[9u8; 32], &[0u8; 32], &ct_trad, &[7u8; 32], b"ctx",
+            PqSecretKey::new(&[0u8; 32]),
+            PqCiphertext::new(&ct_pq),
+            PqPublicKey::new(&[9u8; 32]),
+            TradSecretKey::new(&[0u8; 32]),
+            TradCiphertext::new(&ct_trad),
+            TradPublicKey::new(&[7u8; 32]),
+            b"ctx",
         );
         assert!(dec.is_err(), "second-backend error must propagate (decap)");
     }
@@ -553,12 +684,12 @@ mod tests {
         );
 
         let decapsulation = kem.decapsulate(
-            &[0x50u8; 32],
-            &ct_pq,
-            &[0x10u8; 32],
-            &[0x60u8; 32],
-            &ct_trad,
-            &[0x20u8; 32],
+            PqSecretKey::new(&[0x50u8; 32]),
+            PqCiphertext::new(&ct_pq),
+            PqPublicKey::new(&[0x10u8; 32]),
+            TradSecretKey::new(&[0x60u8; 32]),
+            TradCiphertext::new(&ct_trad),
+            TradPublicKey::new(&[0x20u8; 32]),
             b"forbidden-context",
         );
         assert_eq!(decapsulation.err(), Some(Error::PolicyDenied));
@@ -567,10 +698,10 @@ mod tests {
 
         let prepared_decapsulation = kem.decapsulate_prepared(
             &[0x50u8; 32],
-            &ct_pq,
-            &[0x60u8; 32],
-            &ct_trad,
-            &[0x20u8; 32],
+            PqCiphertext::new(&ct_pq),
+            TradSecretKey::new(&[0x60u8; 32]),
+            TradCiphertext::new(&ct_trad),
+            TradPublicKey::new(&[0x20u8; 32]),
             b"forbidden-context",
         );
         assert_eq!(prepared_decapsulation.err(), Some(Error::PolicyDenied));
@@ -597,10 +728,10 @@ mod tests {
 
         let result = kem.decapsulate_prepared(
             &[0x11; 32],
-            &[0x22; 1],
-            &[0x33; 1],
-            &[0x44; 1],
-            &[0x55; 1],
+            PqCiphertext::new(&[0x22; 1]),
+            TradSecretKey::new(&[0x33; 1]),
+            TradCiphertext::new(&[0x44; 1]),
+            TradPublicKey::new(&[0x55; 1]),
             b"",
         );
         assert_eq!(result.err(), Some(Error::InvalidLength));

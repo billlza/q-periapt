@@ -1,0 +1,641 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T21:39:46.844669+00:00",
+  "source_commit": "e4d743f2cc29d0c9a374d320002b474b25ad1567",
+  "native_source_commit": "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef",
+  "native_source_equivalence": {
+    "foreign_language": "Kotlin",
+    "foreign_source_commit": "e4d743f2cc29d0c9a374d320002b474b25ad1567",
+    "identical_git_objects": {
+      "Cargo.lock": "37e6d39c851c2d622a226191537d50e9d7d8ba8a",
+      "Cargo.toml": "a21dc7fc647f3b41d75cce3f37ece48350d75f82",
+      "bindings/c/ContinuityPackageConsumer/Cargo.toml": "ec0529292bc01fbb6c7c042eeb2800a0e99b8fec",
+      "bindings/c/ContinuityPackageConsumer/src": "4ac10beb9fe56f7eaf11d1ce9c6fbad13495d032",
+      "crates": "ab41f1cb28b6e0cea913b7feac705d1097e9c908",
+      "research/continuity-identity-candidate": "4bfab691b65d6b2e5d9b673a6c1e95da6f56b28d"
+    },
+    "native_source_commit": "ce70bf83a6f131b6727b67e9c9a4b8266abe72ef",
+    "preprocessed_header_sha256": "f5e430be0a52eb65f5e11e14fd362791b43c5492160cc538f8154aca334102ab",
+    "previous_equivalence_sha256": "4f97f546dbc5e8c816468cdbd58b9dbff3939c5d6af480f87c247ca6d8970ee8",
+    "scope": "Library source and complete candidate/SDK dependency source trees are byte-identical. Header differences are comments; Clang preprocessing is identical. Newer C consumer negative-control tests and artifact readers are distinct qualification code, not part of the linked native engine. Native installed producer must complete before Swift package qualification.",
+    "swift_source_commit": "15819e5146710a47f063f7403b77bbdd3f6c69ac",
+    "swift_sources_and_header_unchanged_from": "a8e97f676b7b738f863a2b1c2bc416d1e85693d9"
+  },
+  "native_report_sha256": "f98598c1e77096785a3b5c7fc3e868cc642740c0d06329f9d503c658a57bf1a2",
+  "kotlin_report_sha256": "b6977d2e5e1311bdebc7b62f776e430fa09817cd1226c3bc30e1ccd07ef0acd2",
+  "producer": {
+    "returncode": 0,
+    "seconds": 7452.929218624951,
+    "head": "e4d743f2cc29d0c9a374d320002b474b25ad1567",
+    "source_clean": true,
+    "head_unchanged": true
+  },
+  "tests_per_profile": 54,
+  "collectors": [
+    "Serial",
+    "G1"
+  ],
+  "archives": {
+    "debug": {
+      "file": "q-periapt-continuity-kotlin-0.0.0-aarch64-apple-darwin-debug.zip",
+      "sha256": "a3035c364201e5ba6b551a87dbc9cc87a1d55a2fc1357e3ac49e07b6d8f3a941",
+      "bytes": 16357843,
+      "members": 267,
+      "native_library_sha256": "758a1086477bd45fbd777159af9cabad24e4ed91f364027aed1d95543b3f0518"
+    },
+    "release": {
+      "file": "q-periapt-continuity-kotlin-0.0.0-aarch64-apple-darwin-release.zip",
+      "sha256": "b0912ac68ce45441177a11112f93310e5e40394bad87e1c0f5bc1906c79dad74",
+      "bytes": 10874603,
+      "members": 267,
+      "native_library_sha256": "8a7fa618f092d4f6b3beca8b291d6a8724850cbdcd1f0b1262a2f356228969d1"
+    }
+  },
+  "independent_retirement_readback": {
+    "debug-serial": {
+      "completed": true,
+      "scope": "Native Rust public enrollment and required-witness generation replacement; original complete report, durable host accounting, independent purpose21 ACK and logical journal/signer erasure through eight recovery processes; fresh-generation TLS traffic. Native APIs verify signatures/private MAC; this reader checks public framing and bindings. Same host/implementation, signed TCP witness, no physical erasure or foreign-device claim.",
+      "outcomes": {
+        "old_session": "1cc830e7f188e2371b840fe9f283a3478b6a6f59c81984aa8418cc773cc3dd53",
+        "old_message": "000000000000000000000000000000006e60c37492a2da4a35db2c74330dab40",
+        "new_session": "62cbdc0c450d487241c60b65734a9471fc826231a6c7220df165177042c1f805",
+        "new_message": "0000000000000000000000000000000031a5658900fb59572532817cef97609d",
+        "report_id": "bc78550647d468d96eaa3610cc615ae750cbf398e5f26abd93eb22471a7bd711",
+        "report_sessions": 1,
+        "unconsumed_deliveries": 1,
+        "consumed_before": 0,
+        "host_effects": 1,
+        "recovery_processes": 8,
+        "uncertain_process_exits": 3,
+        "required_witness": true,
+        "old_authority_refused": true,
+        "original_report_reopened": true,
+        "journal_erased": true,
+        "signer_erased": true
+      },
+      "recovery_process_ids": [
+        5274,
+        5306,
+        5322,
+        5353,
+        5369,
+        5389,
+        5413,
+        5429
+      ],
+      "witness_requests": 274,
+      "public_readbacks": {
+        "result.json": {
+          "sha256": "e47e13947004b7121b37f3522b4163c4d424a1758b02fe1f859739e308bdad88",
+          "bytes": 667
+        },
+        "witness-request-count": {
+          "sha256": "87b57123aa9098828a66996f9f985c88925f302463077b578fd386d0a680715b",
+          "bytes": 8
+        },
+        "witness-id": {
+          "sha256": "f33a5c6299411e933242ce781ce94b20d4ad1b2b426bc1312c115a77bf33a597",
+          "bytes": 32
+        },
+        "witness-public": {
+          "sha256": "222a6f26126ebc62db993dedb8727389952fb369ced3ea3277b57a2a9044c325",
+          "bytes": 1985
+        },
+        "witness-subject": {
+          "sha256": "2b81698664dc6c7d7950b21dd614ffc66328782285877bf57f2982fe5530648d",
+          "bytes": 96
+        },
+        "retirement-proposal": {
+          "sha256": "3f57eb171dc9ee03e4bd5741d3151604f4223ff03a29b9499af367c638113dfd",
+          "bytes": 674
+        },
+        "retirement-receipt": {
+          "sha256": "5bc55d6815857746cf5371e0b88d20a4215fd37eb6a88aaa9fa99dbc40c76b36",
+          "bytes": 3754
+        },
+        "retirement-inventory": {
+          "sha256": "5cfa36ac7387cd14bf608a8e60dcba66374feace1eda44cb6d71b220544bc55c",
+          "bytes": 313
+        },
+        "retirement-inventory-receipt": {
+          "sha256": "9abdd1877990e1a5b6678e4e346f7723b6ac9aed9702fe99a0ad37eeb75af437",
+          "bytes": 3690
+        },
+        "retirement-report-proposal": {
+          "sha256": "0c6bb28aaa540d0b4c8ec61bf5a7e16a72ac7c2f3a63508288cb0e9512b29ee3",
+          "bytes": 353
+        },
+        "retirement-report-receipt": {
+          "sha256": "4a2da1b77e7ac61ac8c297556cb7203a62f844aad6a9ee454ebd030b940d1f50",
+          "bytes": 3730
+        },
+        "retirement-ack": {
+          "sha256": "bf4ef487ed238d251d309cc0f8309caa02f9d8e4a80707c8b38896bd16a49cdf",
+          "bytes": 3730
+        },
+        "retirement-host-report": {
+          "sha256": "062f961d67afa3d67ea983f93279f56af7580a30fbd9ce271b05527839021f44",
+          "bytes": 13907
+        },
+        "retirement-host-report-verified": {
+          "sha256": "062f961d67afa3d67ea983f93279f56af7580a30fbd9ce271b05527839021f44",
+          "bytes": 13907
+        },
+        "retirement-report-reopened": {
+          "sha256": "0504df448ba4b2c91b6177b7081974c18da2459497394b126604e7d7abb72033",
+          "bytes": 32
+        },
+        "retirement-verified": {
+          "sha256": "0504df448ba4b2c91b6177b7081974c18da2459497394b126604e7d7abb72033",
+          "bytes": 32
+        },
+        "retirement-process-inventory": {
+          "sha256": "3d020355a9a6703308c8e272ed46885f028dbc4135ba80db835fa6caf1a322a3",
+          "bytes": 8
+        },
+        "retirement-process-prepare-report": {
+          "sha256": "36b6b047382edb3b59669ea88cef2bea69a5f16823bf7b75b283eff5efbe06f7",
+          "bytes": 8
+        },
+        "retirement-process-report": {
+          "sha256": "b9da5a7c87e40edaacdf0b248254bfe3a53ed85797b8f4cf75a4322649e34dd2",
+          "bytes": 8
+        },
+        "retirement-process-report-reopen": {
+          "sha256": "85a59b616362b2aea8c64c330da5a89352a4ef2201a4d97ec569e28c708fb0ec",
+          "bytes": 8
+        },
+        "retirement-process-prepare-ack": {
+          "sha256": "7c81d9b024c10dc39df4c4f63c0d31315d6d51b6aae509bef0e9812e6dd1415c",
+          "bytes": 8
+        },
+        "retirement-process-erase-journal": {
+          "sha256": "83ab54913d51b8fda27ed30d44dd5b076215dc1f02212a6033083766bd4446ed",
+          "bytes": 8
+        },
+        "retirement-process-erase-signer": {
+          "sha256": "66dfa5bd716a448f3ee1096025abe470b4819d50c29f5011c65ff30506351822",
+          "bytes": 8
+        },
+        "retirement-process-verify": {
+          "sha256": "baaee40e6cbac4064f3e86a8daf1fae237b82b5e9030a083684f526a41cb9ed9",
+          "bytes": 8
+        },
+        "old-effect": {
+          "sha256": "0b9d898afb9482d6f1c98be38b7b6ecfaeaa5b04b0f9c79980541d574b184f7a",
+          "bytes": 113
+        },
+        "new-effect": {
+          "sha256": "0175860260dfc1a5e73489699c45d8f4df6ea5d765b1a65d2e5edc688abb3099",
+          "bytes": 98
+        },
+        "signer-terminal": {
+          "sha256": "adcb8374c13acb3c22ee19bcfb48ac4753c5d68494b3d083d5a487da183dcf72",
+          "bytes": 8
+        }
+      },
+      "release_claim_eligible": false
+    },
+    "debug-g1": {
+      "completed": true,
+      "scope": "Native Rust public enrollment and required-witness generation replacement; original complete report, durable host accounting, independent purpose21 ACK and logical journal/signer erasure through eight recovery processes; fresh-generation TLS traffic. Native APIs verify signatures/private MAC; this reader checks public framing and bindings. Same host/implementation, signed TCP witness, no physical erasure or foreign-device claim.",
+      "outcomes": {
+        "old_session": "66edef0861f8875e3f808cdd1a059882e943f7c83b37074332cb3a97022ad220",
+        "old_message": "0000000000000000000000000000000035bab18bd2c7081dd29fa3411b890cab",
+        "new_session": "55b4b747e75ef3654648c8daf76685efdaad2191c720cd2534f3857396790835",
+        "new_message": "00000000000000000000000000000000c790113eeab82305dc2f6baadb2a1116",
+        "report_id": "e822012cd7ff243dc0ab1562ada47e2bdcbd859757107c4670834dac2ee15475",
+        "report_sessions": 1,
+        "unconsumed_deliveries": 1,
+        "consumed_before": 0,
+        "host_effects": 1,
+        "recovery_processes": 8,
+        "uncertain_process_exits": 3,
+        "required_witness": true,
+        "old_authority_refused": true,
+        "original_report_reopened": true,
+        "journal_erased": true,
+        "signer_erased": true
+      },
+      "recovery_process_ids": [
+        61659,
+        61674,
+        61675,
+        61676,
+        61701,
+        61718,
+        61727,
+        61729
+      ],
+      "witness_requests": 274,
+      "public_readbacks": {
+        "result.json": {
+          "sha256": "ca274056918dc1f477384f4664dbdace41db1a78d5e35a5ecfd64cba2a2a0c27",
+          "bytes": 667
+        },
+        "witness-request-count": {
+          "sha256": "87b57123aa9098828a66996f9f985c88925f302463077b578fd386d0a680715b",
+          "bytes": 8
+        },
+        "witness-id": {
+          "sha256": "f8a1bae25660aec9b306c76b2a9b25b7bde7133df483f9ca42585457350e135f",
+          "bytes": 32
+        },
+        "witness-public": {
+          "sha256": "5bdd42216ff95b8d4c81a21d17dfb46c5e1b158b3c3720484dced02f8b8a1209",
+          "bytes": 1985
+        },
+        "witness-subject": {
+          "sha256": "f08fe0583f133e9f9ab98447b412dc49bc6f422b883c8e4e340fe457d4145e98",
+          "bytes": 96
+        },
+        "retirement-proposal": {
+          "sha256": "2daf4d90b8e5c0c7c2716ceb2e8e5ad41956911194a05d533a5d80c6f142dd61",
+          "bytes": 674
+        },
+        "retirement-receipt": {
+          "sha256": "b7b32190301805226d92ea60354b50fa4d866df070f88fdccd8ab98bfec565bd",
+          "bytes": 3754
+        },
+        "retirement-inventory": {
+          "sha256": "8cdb50aebc9117ecd7bca088035351a59dd77e59852d9aca5822ec504e79cd9a",
+          "bytes": 313
+        },
+        "retirement-inventory-receipt": {
+          "sha256": "138ac3443d585c97071de13df909378bd52184e2a96e0e89d8631a1266f86bbf",
+          "bytes": 3690
+        },
+        "retirement-report-proposal": {
+          "sha256": "9751eb8fc95747334a9f08a1f43a5228425646ebd66b64737cb3743349a2b40c",
+          "bytes": 353
+        },
+        "retirement-report-receipt": {
+          "sha256": "328c7421a9531a060872c8d5f45d58a139a2e5c44ec867827e4187ceb3bb86a5",
+          "bytes": 3730
+        },
+        "retirement-ack": {
+          "sha256": "825fea07dac9fdd8727f8a70814dca4485dbc5d14e0bad8ca9fd3a232b56a7d4",
+          "bytes": 3730
+        },
+        "retirement-host-report": {
+          "sha256": "e5a6d54684c83bf7c675e873e551782f7bc375d54a17415db26f194c4e7c45b3",
+          "bytes": 13907
+        },
+        "retirement-host-report-verified": {
+          "sha256": "e5a6d54684c83bf7c675e873e551782f7bc375d54a17415db26f194c4e7c45b3",
+          "bytes": 13907
+        },
+        "retirement-report-reopened": {
+          "sha256": "5b67f060ead49de2bda2520d73fc76d2be9641ade0db43cfc2fafb30616f7b43",
+          "bytes": 32
+        },
+        "retirement-verified": {
+          "sha256": "5b67f060ead49de2bda2520d73fc76d2be9641ade0db43cfc2fafb30616f7b43",
+          "bytes": 32
+        },
+        "retirement-process-inventory": {
+          "sha256": "8a216bb72ce8673b62296c6b2c60084e419bddad48f1191673a96366b07c8cd1",
+          "bytes": 8
+        },
+        "retirement-process-prepare-report": {
+          "sha256": "9428cdeea6fe502e7528a2bdd90fe3e1ba59006f3d5441dc4b79a66f8940a6a9",
+          "bytes": 8
+        },
+        "retirement-process-report": {
+          "sha256": "36c5d05f2b052dc5072033d0500e30f45e138b98d8fd28cd56c16d52f97d63e8",
+          "bytes": 8
+        },
+        "retirement-process-report-reopen": {
+          "sha256": "9a0a00497ae577e0c492ee9d5b3f4606911990857ae4be2eb2887b29e5c8c393",
+          "bytes": 8
+        },
+        "retirement-process-prepare-ack": {
+          "sha256": "44c19faa9a3c68e8d328d40380a68ce565fa77fe84f6b801eb7794ddcb40518a",
+          "bytes": 8
+        },
+        "retirement-process-erase-journal": {
+          "sha256": "e326721c211b6c97f6672e409154955ed22cde238d87405d7a5fbe8232612ab7",
+          "bytes": 8
+        },
+        "retirement-process-erase-signer": {
+          "sha256": "c1f68e9ce809e3c77bf15596be2078cb2e5a70eb27c632e4e9c456e2e96e8145",
+          "bytes": 8
+        },
+        "retirement-process-verify": {
+          "sha256": "efe5575a0f4aea0c8750af960eef729f5a4e7d8189e1a200ca456a091d807310",
+          "bytes": 8
+        },
+        "old-effect": {
+          "sha256": "c1dea6e3acb89566c839ed437c4829d82db46eba297b1e2e131c2be96066085a",
+          "bytes": 113
+        },
+        "new-effect": {
+          "sha256": "4d7f04d517699a02852ba8c94dd1ed8ea8816e0273362e420fe8a827c96ab67d",
+          "bytes": 98
+        },
+        "signer-terminal": {
+          "sha256": "adcb8374c13acb3c22ee19bcfb48ac4753c5d68494b3d083d5a487da183dcf72",
+          "bytes": 8
+        }
+      },
+      "release_claim_eligible": false
+    },
+    "release-serial": {
+      "completed": true,
+      "scope": "Native Rust public enrollment and required-witness generation replacement; original complete report, durable host accounting, independent purpose21 ACK and logical journal/signer erasure through eight recovery processes; fresh-generation TLS traffic. Native APIs verify signatures/private MAC; this reader checks public framing and bindings. Same host/implementation, signed TCP witness, no physical erasure or foreign-device claim.",
+      "outcomes": {
+        "old_session": "331db948239df45fec7701b2d226713a5edaacf1aed2782ff99adb714b0f6df7",
+        "old_message": "00000000000000000000000000000000ab9e3e38b89911afa8d55ae9fea33d83",
+        "new_session": "5df280548d4bb2a03273fbb6b5e353a365ad613e71ca68e531d4343fd642cab7",
+        "new_message": "00000000000000000000000000000000f515bac7a8269596ee0da68247bb8242",
+        "report_id": "fcacfa22495abaa4694008d891337a9377faa945097ea10924c7a30af6d001bc",
+        "report_sessions": 1,
+        "unconsumed_deliveries": 1,
+        "consumed_before": 0,
+        "host_effects": 1,
+        "recovery_processes": 8,
+        "uncertain_process_exits": 3,
+        "required_witness": true,
+        "old_authority_refused": true,
+        "original_report_reopened": true,
+        "journal_erased": true,
+        "signer_erased": true
+      },
+      "recovery_process_ids": [
+        39184,
+        39187,
+        39188,
+        39192,
+        39198,
+        39201,
+        39212,
+        39228
+      ],
+      "witness_requests": 274,
+      "public_readbacks": {
+        "result.json": {
+          "sha256": "a15af720ddcbcfaf752c622d5bde3b74d7e7b3568b71e8cb579891559798fc39",
+          "bytes": 667
+        },
+        "witness-request-count": {
+          "sha256": "87b57123aa9098828a66996f9f985c88925f302463077b578fd386d0a680715b",
+          "bytes": 8
+        },
+        "witness-id": {
+          "sha256": "6679e7632bee90854374c30977e7580ba9c8994a0fa2257fd4628cc07b118cfd",
+          "bytes": 32
+        },
+        "witness-public": {
+          "sha256": "d6b46a4b40390560bdf9d734292ab951aa8f0f7677b2bf7ff1fe38a7013030d2",
+          "bytes": 1985
+        },
+        "witness-subject": {
+          "sha256": "0c3f1e5324481119303abfa7d39f73f1b1093741bfc75a9135f4098d6f009a77",
+          "bytes": 96
+        },
+        "retirement-proposal": {
+          "sha256": "1df2750697cc71a1b05be4d4bbcbc5fd6ec10863e896e93b302df4689f68c413",
+          "bytes": 674
+        },
+        "retirement-receipt": {
+          "sha256": "3f0eff5558c9a907957fc13ceb99e90a15693d8c02894debdc24e163bb41f279",
+          "bytes": 3754
+        },
+        "retirement-inventory": {
+          "sha256": "b4d815cb01a406e6b0f92c9996911fe92b056dd3ab7c4afb5978f324eb05a231",
+          "bytes": 313
+        },
+        "retirement-inventory-receipt": {
+          "sha256": "2272dfd6262644c798021d9b90cc0ead504637eeb8034562977ff005f936f299",
+          "bytes": 3690
+        },
+        "retirement-report-proposal": {
+          "sha256": "261070c0801b5affb8e8a39a1549b95e50c35ddbeb783d58c5d729b16fb992f9",
+          "bytes": 353
+        },
+        "retirement-report-receipt": {
+          "sha256": "937d23e3e719e8d52455cf989b1c7c57fb7deb46ec4b4410234d5b402203d31b",
+          "bytes": 3730
+        },
+        "retirement-ack": {
+          "sha256": "dbc5d92cb9d920120ea65b7c5d580ddb097e2909a9da586d544a6e861e648f76",
+          "bytes": 3730
+        },
+        "retirement-host-report": {
+          "sha256": "05133432a8ebf48b37812ba837343eb6300a7c7112a350680ec7e369659d1f81",
+          "bytes": 13907
+        },
+        "retirement-host-report-verified": {
+          "sha256": "05133432a8ebf48b37812ba837343eb6300a7c7112a350680ec7e369659d1f81",
+          "bytes": 13907
+        },
+        "retirement-report-reopened": {
+          "sha256": "7f24586d75c19ef4b40068a2df47f00425f0d3276ba58a6dd8b897252ea2ae54",
+          "bytes": 32
+        },
+        "retirement-verified": {
+          "sha256": "7f24586d75c19ef4b40068a2df47f00425f0d3276ba58a6dd8b897252ea2ae54",
+          "bytes": 32
+        },
+        "retirement-process-inventory": {
+          "sha256": "c0ff6a371651513134ad0004f0c82f3c5e7578cbbda8f375d142174903a683a0",
+          "bytes": 8
+        },
+        "retirement-process-prepare-report": {
+          "sha256": "412c28168a6158fdd9174c5014a86c2540c3a30859a806d6bd543e88da0d8446",
+          "bytes": 8
+        },
+        "retirement-process-report": {
+          "sha256": "71e3728b47c57fec2fbd80c94e4994f66ec0df1d596ac7512b87158dd8967588",
+          "bytes": 8
+        },
+        "retirement-process-report-reopen": {
+          "sha256": "69fa32f8e8bb68aa32c00c84f2d375e263580d7906f9da9e89b0c24e1c3013fc",
+          "bytes": 8
+        },
+        "retirement-process-prepare-ack": {
+          "sha256": "0055d5b0f42aeb6a0d48bb327f68945ffddeb03f19024edc717e95edc704ad2f",
+          "bytes": 8
+        },
+        "retirement-process-erase-journal": {
+          "sha256": "9fbefd8c2c4dfd2426a506a01e4d2e81a00f7f72e5df5c6b59af49e78f010e35",
+          "bytes": 8
+        },
+        "retirement-process-erase-signer": {
+          "sha256": "9263149cba963a097c527233090b9bea28d0699b47caca3a2dada762b4d11090",
+          "bytes": 8
+        },
+        "retirement-process-verify": {
+          "sha256": "dc2a5db0006eed4a039dedafccb61183ffd75efa3b7db4d14ffc43b7f114c25d",
+          "bytes": 8
+        },
+        "old-effect": {
+          "sha256": "3994832b7f2e89edcbda700e4e24fb47d7fbbb6bb3edeca101c9ba92211319a0",
+          "bytes": 113
+        },
+        "new-effect": {
+          "sha256": "5d05caafb41ccad7ba63314cb28185f989bd67fdf136f4c6e1e483f5d7c6c5d0",
+          "bytes": 98
+        },
+        "signer-terminal": {
+          "sha256": "adcb8374c13acb3c22ee19bcfb48ac4753c5d68494b3d083d5a487da183dcf72",
+          "bytes": 8
+        }
+      },
+      "release_claim_eligible": false
+    },
+    "release-g1": {
+      "completed": true,
+      "scope": "Native Rust public enrollment and required-witness generation replacement; original complete report, durable host accounting, independent purpose21 ACK and logical journal/signer erasure through eight recovery processes; fresh-generation TLS traffic. Native APIs verify signatures/private MAC; this reader checks public framing and bindings. Same host/implementation, signed TCP witness, no physical erasure or foreign-device claim.",
+      "outcomes": {
+        "old_session": "64c2768417571a8ad1ad438fb8235eea511cab127a4cd008b5d7ab04392c231f",
+        "old_message": "0000000000000000000000000000000085547779d8b5b7d26a798921df37c85e",
+        "new_session": "1f8d933af76e63b8f95904da449db8d1740d54b6bf6db04700dd9826102a6e33",
+        "new_message": "00000000000000000000000000000000f23600641ab6ff9bf0fe9ff9ced714fc",
+        "report_id": "bff1fcd0f8d12ceb62366e037dd0d3341625f1ba2f079aa20575068d7f066bb8",
+        "report_sessions": 1,
+        "unconsumed_deliveries": 1,
+        "consumed_before": 0,
+        "host_effects": 1,
+        "recovery_processes": 8,
+        "uncertain_process_exits": 3,
+        "required_witness": true,
+        "old_authority_refused": true,
+        "original_report_reopened": true,
+        "journal_erased": true,
+        "signer_erased": true
+      },
+      "recovery_process_ids": [
+        75375,
+        75376,
+        75377,
+        75378,
+        75379,
+        75382,
+        75383,
+        75384
+      ],
+      "witness_requests": 274,
+      "public_readbacks": {
+        "result.json": {
+          "sha256": "ef53f1fe508a7e53cb97d8674b13ddc89de2cfcdfd55d225f8dcebb78033a367",
+          "bytes": 667
+        },
+        "witness-request-count": {
+          "sha256": "87b57123aa9098828a66996f9f985c88925f302463077b578fd386d0a680715b",
+          "bytes": 8
+        },
+        "witness-id": {
+          "sha256": "134706c5126f0af48872438cfd32abd70875ddb9ec5e31470a6c042d302206a9",
+          "bytes": 32
+        },
+        "witness-public": {
+          "sha256": "36e6d9f7a812f3fc368c0ed7220a5cdadf16c3a2a6cfb2c13f15317f601deb07",
+          "bytes": 1985
+        },
+        "witness-subject": {
+          "sha256": "76825b21b0be46d81eeb290d64e62581b5eb51821cf1bb131792c2e20ab56ef0",
+          "bytes": 96
+        },
+        "retirement-proposal": {
+          "sha256": "bd6cf0aabc1d49888866f04df65afeedc339f49e078b1556bc03b5ab35490b67",
+          "bytes": 674
+        },
+        "retirement-receipt": {
+          "sha256": "3ff66c115da5323dccb75fb6229ba11f498946639cd0ad3d3fc43c00c5eb2538",
+          "bytes": 3754
+        },
+        "retirement-inventory": {
+          "sha256": "550a78171e4f31d4215f6e055822d9b3bc109ec6045e462f9fa02e91d95f0d04",
+          "bytes": 313
+        },
+        "retirement-inventory-receipt": {
+          "sha256": "61ddd1880798e1f566cecdc93c2854edababcc90426128365680065f013f8426",
+          "bytes": 3690
+        },
+        "retirement-report-proposal": {
+          "sha256": "a8466e7df37af98dfe989eab10ceb42c0256f9d1368b53b5c49cff7945b00877",
+          "bytes": 353
+        },
+        "retirement-report-receipt": {
+          "sha256": "e3fc572459220fb6a8fb09542958eb13fec584f170d0ab7b45b9eef986e7b689",
+          "bytes": 3730
+        },
+        "retirement-ack": {
+          "sha256": "3aecfdad78a7779fa487148ad7e915463f922347bac70de52a0a1010522fa0a7",
+          "bytes": 3730
+        },
+        "retirement-host-report": {
+          "sha256": "9e5e67019ac1e84fd6ecd49b88dc4406b5841b7efb2248e34def18ead68663c8",
+          "bytes": 13907
+        },
+        "retirement-host-report-verified": {
+          "sha256": "9e5e67019ac1e84fd6ecd49b88dc4406b5841b7efb2248e34def18ead68663c8",
+          "bytes": 13907
+        },
+        "retirement-report-reopened": {
+          "sha256": "2db07ccd7b0ef078f48e1dc87d9325e3ffd32d82f110a6231cc3ecf2c7f5e457",
+          "bytes": 32
+        },
+        "retirement-verified": {
+          "sha256": "2db07ccd7b0ef078f48e1dc87d9325e3ffd32d82f110a6231cc3ecf2c7f5e457",
+          "bytes": 32
+        },
+        "retirement-process-inventory": {
+          "sha256": "ae10686929ff60822c05cbfd00b24ecb2e8f8c3e15afd5ea86af556b462087d2",
+          "bytes": 8
+        },
+        "retirement-process-prepare-report": {
+          "sha256": "1645d1f1dbe5b0719fc59a3869978a24b2403e3841c7171b59b26f50b6d23bc4",
+          "bytes": 8
+        },
+        "retirement-process-report": {
+          "sha256": "9d694463149c9593a7dbb36f18b033db2f179cbdacc48dac4838fe178cc3fc86",
+          "bytes": 8
+        },
+        "retirement-process-report-reopen": {
+          "sha256": "94f29078ced2e5f17e92d2a5b59e69f5ccd6d652fcc888cb66ecae15c333cbd8",
+          "bytes": 8
+        },
+        "retirement-process-prepare-ack": {
+          "sha256": "543ad1f0b49ce1f3e7442a7a6dd271e9b8fbca9b10e81c5c2ac4c042b3b47f5f",
+          "bytes": 8
+        },
+        "retirement-process-erase-journal": {
+          "sha256": "8dcd7a24e7268c9b4a956f167f30b5d051a12fa5db2856eab6b7acbd145968eb",
+          "bytes": 8
+        },
+        "retirement-process-erase-signer": {
+          "sha256": "a37920128657f25746cdf3ace60ce3d50cfd78fdcaee4822981541ad2e6f54fd",
+          "bytes": 8
+        },
+        "retirement-process-verify": {
+          "sha256": "e3aa8ef7d247890a35eabbf97e00728fc5b3444be5baf7d90659e288519c9edc",
+          "bytes": 8
+        },
+        "old-effect": {
+          "sha256": "97b7593397548bdbaedda9af75df271d33337b956521d0f88aa66db03d645d03",
+          "bytes": 113
+        },
+        "new-effect": {
+          "sha256": "7c92b90bc49de7dff965f67d7e42b3883180707d65ec2e09d550fdadcd7ecda5",
+          "bytes": 98
+        },
+        "signer-terminal": {
+          "sha256": "adcb8374c13acb3c22ee19bcfb48ac4753c5d68494b3d083d5a487da183dcf72",
+          "bytes": 8
+        }
+      },
+      "release_claim_eligible": false
+    }
+  },
+  "captures": {
+    "file": "CAPTURES.zip",
+    "sha256": "374552cc911b240bc47d457ffb12217d697b0f2eeb45a856e9ba438edb9beccc",
+    "bytes": 16288573,
+    "members": 13108
+  },
+  "scope": "Complete installed Kotlin Debug/Release producer with Serial/G1 workloads and source-equivalent qualified native engine. Same macOS arm64 host/shared protocol implementation. This earlier source still uses native successor enrollment/traffic; later foreign successor and new publication changes require their separate evidence.",
+  "publication_performed": false,
+  "release_claim_eligible": false
+}

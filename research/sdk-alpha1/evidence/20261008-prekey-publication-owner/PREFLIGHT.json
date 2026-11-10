@@ -1,0 +1,29 @@
+{
+  "source_commit": "2a03b795b5e6569ebc2e6febad17e8d7ce9a938e",
+  "artifact_tests": 2663,
+  "codeql_quality_tests": 44,
+  "all_gates_completed": true,
+  "source_clean": true,
+  "head_unchanged": true,
+  "archive": {
+    "file": "PREFLIGHT.zip",
+    "sha256": "c64100f68cd2ea0f81781bfd67fa26095b7bc24a9c436634ed2350380c3a855d",
+    "bytes": 71278
+  },
+  "source_gate": {
+    "label": "source-gate",
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "artifact/source_results_assembler.py",
+      "ci-source-gate",
+      "--profile",
+      "sdk-020",
+      "9974f5a3d2cb754817aa857a10859582d329c97edd61a44d41a2fb701d564bda",
+      "2a03b795b5e6569ebc2e6febad17e8d7ce9a938e"
+    ],
+    "returncode": 0,
+    "seconds": 4.716986624989659
+  },
+  "scope": "Standalone clean snapshot of native publication component; subsequent public-owner/interface changes are excluded."
+}

@@ -4,8 +4,188 @@ use super::build_support::{
     apple_deployment_target_key, compiler_family_is_supported, inherited_c_codegen_option,
     parse_apple_deployment_target, select_mlkem_implementation, validate_native_compiler_arguments,
     AppleDeploymentTargetError, CCompilerFamily, MlKemImplementation, NativeCompilerArgumentsError,
-    NativeTargetMetadataError, AARCH64_NATIVE_IMPLEMENTATION_ID, PORTABLE_IMPLEMENTATION_ID,
+    NativeTargetMetadataError, AARCH64_NATIVE_IMPLEMENTATION_ID,
+    AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID, PORTABLE_IMPLEMENTATION_ID,
 };
+
+#[test]
+fn x86_candidate_requires_opt_in_and_exact_linux_metadata() {
+    assert_eq!(
+        select_mlkem_implementation(
+            "x86_64-unknown-linux-gnu",
+            "x86_64",
+            "little",
+            "gnu",
+            "linux",
+            "unknown",
+            false
+        ),
+        Ok(MlKemImplementation::Portable)
+    );
+    assert_eq!(
+        select_mlkem_implementation(
+            "x86_64-unknown-linux-gnu",
+            "x86_64",
+            "little",
+            "gnu",
+            "linux",
+            "unknown",
+            true
+        ),
+        Ok(MlKemImplementation::X86_64Dispatch)
+    );
+    for target in [
+        "x86_64-pc-windows-msvc",
+        "x86_64-apple-darwin",
+        "x86_64-unknown-linux-musl",
+        "aarch64-unknown-linux-gnu",
+    ] {
+        assert_eq!(
+            select_mlkem_implementation(
+                target, "x86_64", "little", "gnu", "linux", "unknown", true
+            ),
+            Err(NativeTargetMetadataError::UnsupportedX86CandidateTarget)
+        );
+    }
+    for (arch, endian, env, os, vendor, error) in [
+        (
+            "aarch64",
+            "little",
+            "gnu",
+            "linux",
+            "unknown",
+            NativeTargetMetadataError::Architecture,
+        ),
+        (
+            "x86_64",
+            "big",
+            "gnu",
+            "linux",
+            "unknown",
+            NativeTargetMetadataError::Endianness,
+        ),
+        (
+            "x86_64",
+            "little",
+            "msvc",
+            "linux",
+            "unknown",
+            NativeTargetMetadataError::Environment,
+        ),
+        (
+            "x86_64",
+            "little",
+            "gnu",
+            "android",
+            "unknown",
+            NativeTargetMetadataError::OperatingSystem,
+        ),
+        (
+            "x86_64",
+            "little",
+            "gnu",
+            "linux",
+            "pc",
+            NativeTargetMetadataError::Vendor,
+        ),
+    ] {
+        assert_eq!(
+            select_mlkem_implementation(
+                "x86_64-unknown-linux-gnu",
+                arch,
+                endian,
+                env,
+                os,
+                vendor,
+                true
+            ),
+            Err(error)
+        );
+    }
+    assert!(!compiler_family_is_supported(
+        MlKemImplementation::X86_64Dispatch,
+        CCompilerFamily::Msvc
+    ));
+    assert!(!compiler_family_is_supported(
+        MlKemImplementation::X86_64Dispatch,
+        CCompilerFamily::Unsupported
+    ));
+}
+
+#[test]
+fn x86_dispatch_compiler_baseline_cannot_be_overridden_or_duplicated() {
+    use super::build_support::{validate_x86_compiler_arguments, X86_BASELINE_FLAGS};
+    assert_eq!(
+        validate_x86_compiler_arguments(X86_BASELINE_FLAGS.into_iter().chain([
+            "-O3",
+            "-m64",
+            "-mno-omit-leaf-frame-pointer",
+            "-fPIC"
+        ])),
+        Ok(())
+    );
+    for flag in X86_BASELINE_FLAGS {
+        assert_eq!(
+            validate_x86_compiler_arguments(
+                X86_BASELINE_FLAGS
+                    .into_iter()
+                    .filter(|value| *value != flag)
+            ),
+            Err(NativeCompilerArgumentsError::MissingX86Baseline(flag))
+        );
+        assert_eq!(
+            validate_x86_compiler_arguments(X86_BASELINE_FLAGS.into_iter().chain([flag])),
+            Err(NativeCompilerArgumentsError::DuplicateX86Baseline(flag))
+        );
+    }
+    for flag in [
+        "-march=native",
+        "-mavx",
+        "-mavx2",
+        "-msse4.2",
+        "-m32",
+        "-mtune=native",
+        "-DQPN_MLKEM_BUILD_NATIVE_X86_64",
+        "-DMLK_CONFIG_FILE=foreign.h",
+        "-U__AVX__",
+        "-include",
+        "-Xclang",
+        "@unreviewed-flags",
+    ] {
+        assert_eq!(
+            validate_x86_compiler_arguments(X86_BASELINE_FLAGS.into_iter().chain([flag])),
+            Err(NativeCompilerArgumentsError::Forbidden(flag))
+        );
+    }
+}
+
+#[test]
+fn x86_rust_cpu_overrides_cannot_bypass_runtime_admission() {
+    use super::build_support::{x86_cpu_codegen_option, x86_rust_features_are_baseline};
+    for flag in [
+        "-Ctarget-cpu=native",
+        "-C\u{1f}target-cpu=haswell",
+        "--codegen=target-feature=+avx2",
+        "--codegen\u{1f}target-feature=-avx2",
+        "-Cllvm-args=-mcpu=haswell",
+    ] {
+        assert!(x86_cpu_codegen_option(flag).is_some(), "{flag}");
+    }
+    assert_eq!(
+        x86_cpu_codegen_option("-D\u{1f}warnings\u{1f}-Cdebuginfo=1"),
+        None
+    );
+    assert!(x86_rust_features_are_baseline("fxsr,sse,sse2"));
+    for features in [
+        "",
+        "avx2",
+        "fxsr,sse,sse2,avx",
+        "fxsr,sse,sse2,sse4.1",
+        "fxsr,sse,sse2,popcnt",
+    ] {
+        assert!(!x86_rust_features_are_baseline(features));
+    }
+}
 
 fn implementation(
     target: &str,
@@ -22,6 +202,7 @@ fn implementation(
         target_env,
         target_os,
         target_vendor,
+        false,
     )
 }
 
@@ -35,19 +216,71 @@ fn implementation_ids_are_stable_and_unambiguous() {
         MlKemImplementation::Aarch64Native.id(),
         AARCH64_NATIVE_IMPLEMENTATION_ID
     );
+    assert_eq!(
+        MlKemImplementation::Aarch64NativeSha3.id(),
+        AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID
+    );
     assert!(!MlKemImplementation::Portable.uses_aarch64_native());
     assert!(MlKemImplementation::Aarch64Native.uses_aarch64_native());
+    assert!(MlKemImplementation::Aarch64NativeSha3.uses_aarch64_native());
     assert_ne!(PORTABLE_IMPLEMENTATION_ID, AARCH64_NATIVE_IMPLEMENTATION_ID);
+    assert_ne!(
+        PORTABLE_IMPLEMENTATION_ID,
+        AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID
+    );
+    assert_ne!(
+        AARCH64_NATIVE_IMPLEMENTATION_ID,
+        AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID
+    );
+    assert_eq!(MlKemImplementation::Portable.aarch64_march_flag(), None);
+    assert_eq!(
+        MlKemImplementation::Aarch64Native.aarch64_march_flag(),
+        Some("-march=armv8-a+nosha3")
+    );
+    assert_eq!(
+        MlKemImplementation::Aarch64NativeSha3.aarch64_march_flag(),
+        Some("-march=armv8.4-a+sha3")
+    );
 }
 
 #[test]
 fn exact_native_target_allowlist_is_selected() {
-    for (target, target_env, target_os, target_vendor) in [
-        ("aarch64-apple-darwin", "", "macos", "apple"),
-        ("aarch64-apple-ios", "", "ios", "apple"),
-        ("aarch64-apple-ios-sim", "sim", "ios", "apple"),
-        ("aarch64-unknown-linux-gnu", "gnu", "linux", "unknown"),
-        ("aarch64-linux-android", "", "android", "unknown"),
+    for (target, target_env, target_os, target_vendor, expected) in [
+        (
+            "aarch64-apple-darwin",
+            "",
+            "macos",
+            "apple",
+            MlKemImplementation::Aarch64NativeSha3,
+        ),
+        (
+            "aarch64-apple-ios",
+            "",
+            "ios",
+            "apple",
+            MlKemImplementation::Aarch64Native,
+        ),
+        (
+            "aarch64-apple-ios-sim",
+            "sim",
+            "ios",
+            "apple",
+            MlKemImplementation::Aarch64NativeSha3,
+        ),
+        (
+            "aarch64-unknown-linux-gnu",
+            "gnu",
+            "linux",
+            "unknown",
+            MlKemImplementation::Aarch64Native,
+        ),
+        (
+            "aarch64-linux-android",
+            "",
+            "android",
+            "unknown",
+            MlKemImplementation::Aarch64Native,
+        ),
     ] {
         assert_eq!(
             implementation(
@@ -58,7 +291,7 @@ fn exact_native_target_allowlist_is_selected() {
                 target_os,
                 target_vendor,
             ),
-            Ok(MlKemImplementation::Aarch64Native),
+            Ok(expected),
             "target {target}"
         );
     }
@@ -164,17 +397,16 @@ fn compiler_family_contract_is_exact_for_each_implementation() {
         MlKemImplementation::Portable,
         CCompilerFamily::Unsupported
     ));
-    for family in [CCompilerFamily::Clang, CCompilerFamily::Gnu] {
-        assert!(compiler_family_is_supported(
-            MlKemImplementation::Aarch64Native,
-            family
-        ));
-    }
-    for family in [CCompilerFamily::Msvc, CCompilerFamily::Unsupported] {
-        assert!(!compiler_family_is_supported(
-            MlKemImplementation::Aarch64Native,
-            family
-        ));
+    for implementation in [
+        MlKemImplementation::Aarch64Native,
+        MlKemImplementation::Aarch64NativeSha3,
+    ] {
+        for family in [CCompilerFamily::Clang, CCompilerFamily::Gnu] {
+            assert!(compiler_family_is_supported(implementation, family));
+        }
+        for family in [CCompilerFamily::Msvc, CCompilerFamily::Unsupported] {
+            assert!(!compiler_family_is_supported(implementation, family));
+        }
     }
 }
 
@@ -213,25 +445,34 @@ fn allowlisted_target_metadata_mismatch_fails_closed() {
 }
 
 #[test]
-fn native_compiler_contract_allows_owned_baseline_and_reproducible_path_maps() {
-    assert_eq!(
-        validate_native_compiler_arguments(
-            [
-                "-O2",
-                "-I",
-                "src",
-                "-march=armv8-a+nosha3",
-                "-ffile-prefix-map=/private/source=/qperiapt/source",
-                "-fdebug-prefix-map=/private/source=/qperiapt/source",
-                "-fmacro-prefix-map=/private/source=/qperiapt/source",
-            ],
-            None,
-        ),
-        Ok(())
-    );
+fn native_compiler_contract_allows_owned_baselines_and_reproducible_path_maps() {
+    for march in ["-march=armv8-a+nosha3", "-march=armv8.4-a+sha3"] {
+        assert_eq!(
+            validate_native_compiler_arguments(
+                [
+                    "-O2",
+                    "-I",
+                    "src",
+                    march,
+                    "-ffile-prefix-map=/private/source=/qperiapt/source",
+                    "-fdebug-prefix-map=/private/source=/qperiapt/source",
+                    "-fmacro-prefix-map=/private/source=/qperiapt/source",
+                ],
+                if march == "-march=armv8-a+nosha3" {
+                    "-march=armv8-a+nosha3"
+                } else {
+                    "-march=armv8.4-a+sha3"
+                },
+                None,
+            ),
+            Ok(()),
+            "baseline {march}"
+        );
+    }
     assert_eq!(
         validate_native_compiler_arguments(
             ["-O2", "-DANDROID", "-march=armv8-a+nosha3"],
+            "-march=armv8-a+nosha3",
             Some("-DANDROID"),
         ),
         Ok(())
@@ -241,15 +482,51 @@ fn native_compiler_contract_allows_owned_baseline_and_reproducible_path_maps() {
 #[test]
 fn native_compiler_contract_rejects_missing_duplicate_and_override_arguments() {
     assert_eq!(
-        validate_native_compiler_arguments(["-O2"], None),
-        Err(NativeCompilerArgumentsError::MissingArmv8Baseline)
+        validate_native_compiler_arguments(["-O2"], "-march=armv8-a+nosha3", None),
+        Err(NativeCompilerArgumentsError::MissingArmv8Baseline(
+            "-march=armv8-a+nosha3"
+        ))
     );
     assert_eq!(
         validate_native_compiler_arguments(
             ["-march=armv8-a+nosha3", "-march=armv8-a+nosha3"],
+            "-march=armv8-a+nosha3",
             None,
         ),
-        Err(NativeCompilerArgumentsError::DuplicateArmv8Baseline)
+        Err(NativeCompilerArgumentsError::DuplicateArmv8Baseline(
+            "-march=armv8-a+nosha3"
+        ))
+    );
+    assert_eq!(
+        validate_native_compiler_arguments(
+            ["-march=armv8.4-a+sha3", "-march=armv8.4-a+sha3"],
+            "-march=armv8.4-a+sha3",
+            None,
+        ),
+        Err(NativeCompilerArgumentsError::DuplicateArmv8Baseline(
+            "-march=armv8.4-a+sha3"
+        ))
+    );
+    // Each owned profile rejects the other profile's baseline outright.
+    assert_eq!(
+        validate_native_compiler_arguments(
+            ["-march=armv8.4-a+sha3"],
+            "-march=armv8-a+nosha3",
+            None,
+        ),
+        Err(NativeCompilerArgumentsError::Forbidden(
+            "-march=armv8.4-a+sha3"
+        ))
+    );
+    assert_eq!(
+        validate_native_compiler_arguments(
+            ["-march=armv8-a+nosha3"],
+            "-march=armv8.4-a+sha3",
+            None,
+        ),
+        Err(NativeCompilerArgumentsError::Forbidden(
+            "-march=armv8-a+nosha3"
+        ))
     );
     for forbidden in [
         "-march=armv8.4-a+sha3",
@@ -284,13 +561,36 @@ fn native_compiler_contract_rejects_missing_duplicate_and_override_arguments() {
         "@hostile.rsp",
     ] {
         assert_eq!(
-            validate_native_compiler_arguments(["-march=armv8-a+nosha3", forbidden], None),
+            validate_native_compiler_arguments(
+                ["-march=armv8-a+nosha3", forbidden],
+                "-march=armv8-a+nosha3",
+                None,
+            ),
+            Err(NativeCompilerArgumentsError::Forbidden(forbidden)),
+            "argument {forbidden}"
+        );
+    }
+    for forbidden in [
+        "-march=armv8-a+nosha3",
+        "-mcpu=apple-m1",
+        "-Xassembler=-march=armv8-a",
+    ] {
+        assert_eq!(
+            validate_native_compiler_arguments(
+                ["-march=armv8.4-a+sha3", forbidden],
+                "-march=armv8.4-a+sha3",
+                None,
+            ),
             Err(NativeCompilerArgumentsError::Forbidden(forbidden)),
             "argument {forbidden}"
         );
     }
     assert_eq!(
-        validate_native_compiler_arguments(["-march=armv8-a+nosha3"], Some("-DANDROID")),
+        validate_native_compiler_arguments(
+            ["-march=armv8-a+nosha3"],
+            "-march=armv8-a+nosha3",
+            Some("-DANDROID"),
+        ),
         Err(NativeCompilerArgumentsError::MissingPlatformDefine(
             "-DANDROID"
         ))
@@ -298,6 +598,7 @@ fn native_compiler_contract_rejects_missing_duplicate_and_override_arguments() {
     assert_eq!(
         validate_native_compiler_arguments(
             ["-march=armv8-a+nosha3", "-DANDROID", "-DANDROID"],
+            "-march=armv8-a+nosha3",
             Some("-DANDROID"),
         ),
         Err(NativeCompilerArgumentsError::DuplicatePlatformDefine(

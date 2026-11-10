@@ -7,6 +7,7 @@ import copy
 import datetime as dt
 import hashlib
 import io
+import os
 import pathlib
 import stat
 import subprocess
@@ -41,6 +42,22 @@ from third_party_licenses import canonical_json as canonical_license_inventory_j
 
 
 CLASS_BYTES = b"\xca\xfe\xba\xbe\x00\x00\x00\x37"
+CLASS_ENTRIES = {
+    "dev/qperiapt/android/QPeriaptAndroid.class": CLASS_BYTES,
+    "dev/qperiapt/android/QPeriaptAndroid$QPeriaptException.class": CLASS_BYTES,
+}
+ANDROID_MANIFEST_BYTES = b"""<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="dev.qperiapt.android">
+    <uses-sdk android:minSdkVersion="23" />
+</manifest>
+"""
+CONSUMER_RULES_BYTES = b"""-keep class dev.qperiapt.android.QPeriaptAndroid {
+    native <methods>;
+}
+-keep class dev.qperiapt.android.QPeriaptAndroid$QPeriaptException {
+    public <init>(java.lang.String, int, java.lang.String);
+}
+"""
 
 
 def elf_header(abi: str) -> bytes:
@@ -310,7 +327,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
         return path
 
     def classes_jar(self) -> bytes:
-        return zip_bytes({"dev/qperiapt/android/QPeriaptAndroid.class": CLASS_BYTES})
+        return zip_bytes(CLASS_ENTRIES)
 
     def third_party_entries(self) -> dict[str, bytes]:
         license_data = b"Dependency license text\n"
@@ -347,6 +364,10 @@ class AndroidElfVerifierTests(unittest.TestCase):
         for name in REQUIRED_AAR_ENTRIES:
             if name == "classes.jar":
                 entries[name] = self.classes_jar()
+            elif name == "AndroidManifest.xml":
+                entries[name] = ANDROID_MANIFEST_BYTES
+            elif name == "proguard.txt":
+                entries[name] = CONSUMER_RULES_BYTES
             elif name.startswith("jni/"):
                 abi = name.split("/")[1]
                 entries[name] = elf_header(abi)
@@ -356,7 +377,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
         return entries
 
     def write_aar(self) -> pathlib.Path:
-        path = self.root / "q-periapt-android-0.1.0.aar"
+        path = self.root / "q-periapt-android-0.1.5.aar"
         path.write_bytes(zip_bytes(self.aar_entries()))
         return path
 
@@ -404,7 +425,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
         work.mkdir(parents=True)
         self.root = work
         entries = self.aar_entries()
-        aar = work / "q-periapt-android-0.1.0.aar"
+        aar = work / "q-periapt-android-0.1.5.aar"
         aar.write_bytes(zip_bytes(entries))
         manifest_path = work / "MANIFEST.json"
         llvm_nm, llvm_readelf = self.fake_tools()
@@ -434,7 +455,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
             "schema_version": android_elf.MANIFEST_SCHEMA_VERSION,
             "kind": "qperiapt.android_aar_manifest",
             "package": aar.name,
-            "version": "0.1.0",
+            "version": "0.1.5",
             "generated_at": dt.datetime.fromtimestamp(
                 epoch, tz=dt.timezone.utc
             ).isoformat().replace("+00:00", "Z"),
@@ -648,6 +669,16 @@ class AndroidElfVerifierTests(unittest.TestCase):
                 llvm_readelf=readelf,
             )
 
+    def test_load_alignment_must_be_power_of_two(self) -> None:
+        output = "LOAD 0x0 0x0 0x0 0x100 0x100 R E 0x6000\n"
+        with self.assertRaisesRegex(AndroidVerificationError, "not a power of two"):
+            android_elf.verify_program_headers(output, pathlib.Path("fixture.so"))
+
+    def test_load_offset_and_virtual_address_must_be_congruent(self) -> None:
+        output = "LOAD 0x1000 0x2000 0x2000 0x100 0x100 R E 0x4000\n"
+        with self.assertRaisesRegex(AndroidVerificationError, "incongruent LOAD"):
+            android_elf.verify_program_headers(output, pathlib.Path("fixture.so"))
+
     def test_expected_aar_sha256_mismatch_fails_closed(self) -> None:
         nm, readelf = self.fake_tools()
         with self.assertRaisesRegex(AndroidVerificationError, r"SHA-256 mismatch"):
@@ -660,6 +691,89 @@ class AndroidElfVerifierTests(unittest.TestCase):
 
     def test_canonical_aar_archive_structure_is_accepted(self) -> None:
         audit_aar(self.write_aar())
+
+    def test_producer_metadata_passes_the_independent_archive_contract(self) -> None:
+        producer = (pathlib.Path(__file__).resolve().parent / "android-aar.sh").read_text(encoding="utf-8")
+        stage = self.root / "consumer metadata with spaces"
+        stage.mkdir()
+        blocks = []
+        for filename in ("AndroidManifest.xml", "proguard.txt"):
+            marker = f'cat >"$STAGE/{filename}" <<\'EOF\'\n'
+            self.assertEqual(producer.count(marker), 1)
+            start = producer.index(marker)
+            end = producer.index("\nEOF\n", start) + len("\nEOF\n")
+            blocks.append(producer[start:end])
+        result = subprocess.run(
+            ["/bin/sh", "-c", "set -eu\n" + "\n".join(blocks)],
+            env={"PATH": os.environ["PATH"], "STAGE": str(stage)},
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr, "")
+        entries = self.aar_entries()
+        for filename in ("AndroidManifest.xml", "proguard.txt"):
+            entries[filename] = (stage / filename).read_bytes()
+        self.assertEqual(entries["AndroidManifest.xml"], ANDROID_MANIFEST_BYTES)
+        self.assertEqual(entries["proguard.txt"], CONSUMER_RULES_BYTES)
+        android_elf.audit_aar_bytes(zip_bytes(entries), label="producer consumer metadata")
+
+    def test_aar_manifest_requires_the_actual_library_package(self) -> None:
+        for bad_manifest in (
+            ANDROID_MANIFEST_BYTES.replace(b'    package="dev.qperiapt.android"', b""),
+            ANDROID_MANIFEST_BYTES.replace(b'package="dev.qperiapt.android"', b'package="dev.qperiapt.wrong"'),
+            ANDROID_MANIFEST_BYTES.replace(b'package="dev.qperiapt.android"', b'package=""'),
+            b'<application package="dev.qperiapt.android" />',
+        ):
+            with self.subTest(manifest=bad_manifest):
+                entries = self.aar_entries()
+                entries["AndroidManifest.xml"] = bad_manifest
+                with self.assertRaisesRegex(AndroidVerificationError, "must declare package=dev.qperiapt.android"):
+                    android_elf.audit_aar_bytes(zip_bytes(entries), label="wrong Android package")
+
+    def test_aar_manifest_is_bounded_utf8_xml_without_dtd(self) -> None:
+        cases = (
+            (b"<manifest", "valid UTF-8 XML"),
+            (b"\xff", "valid UTF-8 XML"),
+            (b"x" * (android_elf.MAX_CONSUMER_METADATA_BYTES + 1), "metadata limit"),
+            (b'<!DOCTYPE manifest [<!ENTITY package "dev.qperiapt.android">]>'
+             b'<manifest package="&package;" />', "DTD/entity"),
+        )
+        for payload, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic):
+                entries = self.aar_entries()
+                entries["AndroidManifest.xml"] = payload
+                with self.assertRaisesRegex(AndroidVerificationError, diagnostic):
+                    android_elf.audit_aar_bytes(zip_bytes(entries), label="invalid Android manifest")
+
+    def test_aar_consumer_rules_require_exact_native_and_callback_retention(self) -> None:
+        callback_start = CONSUMER_RULES_BYTES.index(b"-keep class dev.qperiapt.android.QPeriaptAndroid$QPeriaptException")
+        variants = (
+            CONSUMER_RULES_BYTES[:callback_start],
+            CONSUMER_RULES_BYTES[callback_start:],
+            b"# " + CONSUMER_RULES_BYTES.replace(b"\n", b"\n# "),
+            CONSUMER_RULES_BYTES.replace(b"-keep class", b"-keepclassmembers class"),
+            CONSUMER_RULES_BYTES.replace(b"-keep class", b"-keep,allowshrinking class"),
+            CONSUMER_RULES_BYTES.replace(
+                b"-keep class dev.qperiapt.android.QPeriaptAndroid {",
+                b"-keepclasseswithmembernames class dev.qperiapt.android.QPeriaptAndroid {",
+            ),
+            CONSUMER_RULES_BYTES.replace(b"String, int,", b"String, long,"),
+            CONSUMER_RULES_BYTES.replace(b"QPeriaptAndroid$QPeriaptException", b"QPeriaptAndroid$*"),
+        )
+        for rules in variants:
+            with self.subTest(rules=rules):
+                entries = self.aar_entries()
+                entries["proguard.txt"] = rules
+                with self.assertRaisesRegex(AndroidVerificationError, "exception-callback keep contract"):
+                    android_elf.audit_aar_bytes(zip_bytes(entries), label="invalid consumer rules")
+
+    def test_aar_cannot_omit_the_jni_exception_callback_class(self) -> None:
+        entries = self.aar_entries()
+        entries["classes.jar"] = zip_bytes({"dev/qperiapt/android/QPeriaptAndroid.class": CLASS_BYTES})
+        with self.assertRaisesRegex(AndroidVerificationError, r"lacks .*QPeriaptException.class"):
+            android_elf.audit_aar_bytes(zip_bytes(entries), label="missing JNI callback class")
 
     def test_aar_prefix_bytes_are_rejected_before_extraction(self) -> None:
         path = self.write_aar()
@@ -836,7 +950,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
 
     def test_classes_jar_metadata_is_not_mistaken_for_outer_aar_policy(self) -> None:
         classes = zip_bytes(
-            {"dev/qperiapt/android/QPeriaptAndroid.class": CLASS_BYTES},
+            CLASS_ENTRIES,
             date_time=(2001, 1, 1, 0, 0, 0),
             create_system=0,
             external_attr=0o100600 << 16,
@@ -847,7 +961,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
         )
         self.assertEqual(
             set(audit_classes_jar(classes)),
-            {"dev/qperiapt/android/QPeriaptAndroid.class"},
+            set(CLASS_ENTRIES),
         )
 
     def test_final_aar_is_audited_and_extracted_elfs_are_reverified(self) -> None:
@@ -883,7 +997,7 @@ class AndroidElfVerifierTests(unittest.TestCase):
     def test_nested_archive_in_classes_jar_is_rejected(self) -> None:
         data = zip_bytes(
             {
-                "dev/qperiapt/android/QPeriaptAndroid.class": CLASS_BYTES,
+                **CLASS_ENTRIES,
                 "dev/qperiapt/android/payload.jar": b"not allowed",
             }
         )

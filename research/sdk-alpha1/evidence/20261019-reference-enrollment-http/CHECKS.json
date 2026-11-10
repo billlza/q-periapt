@@ -1,0 +1,25 @@
+{
+  "head": "9e0c067987bfbd63a104be83b315f08dfbfc167a",
+  "source_files": 30,
+  "capture": {
+    "bytes": 116192,
+    "members": 73,
+    "sha256": "6a5f596de92dc172446aa83f13e704b7d7e72f10009d85f8717da804a8ef22f4"
+  },
+  "binary_sha256_build_observation": "7feb856b06cbdf44bb1ca07ff552ab7958a0209c1fc79cd618c4d376e9d9e4e8",
+  "validation": {
+    "debug_entries": 26,
+    "release_entries": 26,
+    "behavioral_entries_per_profile": 25,
+    "child_dispatcher_entries_per_profile": 1,
+    "existing_distinct_sigkill_boundaries": 14,
+    "new_actual_tcp_enrollment_scenarios": 3,
+    "strict_all_target_clippy": "passed",
+    "strict_release_build": "passed",
+    "fmt_and_diff": "passed"
+  },
+  "new_behavior": "Authenticated same-origin HTTP adapter calls original host transactions. Exact issued response bytes; original client signer/request reopen; wrong-account and anonymous rejection; body/proof/Origin checks; roster-conflict reapproval; cancellation and suspension distinguish history/current permission.",
+  "network_loss": "Client reads only issuance headers then closes actual TCP socket before consuming body. Status recovers the original bytes; graceful server restart on original database requires fresh software-WebAuthn authentication and returns byte-identical issuance without advancing roster again.",
+  "red_green": "New HTTP Option<Checkpoint> silently accepted an omitted predecessor as None. Actual TCP regression observed200 instead of422. Required-field deserializer now rejects omission while explicitnull remains valid for empty roster; full debug/release suites pass. Pre-fix source and failed output retained. Initial test compilation also failed on serde_json macro repeated-array syntax; repaired test syntax without weakening checks.",
+  "limits": "Optional local host only. Software authenticator simulates UV; family42 is a test fixture. No browser enrollment UI or installed-independent-client acceptance yet. No real signed-policy/traffic admission, deployed HTTPS, new power-loss/SIGKILL cuts, expired-unissued credential transition, final ABI or full lifecycle/release claim. Original real-user DB and live service untouched. No SDK source/dependency changes."
+}

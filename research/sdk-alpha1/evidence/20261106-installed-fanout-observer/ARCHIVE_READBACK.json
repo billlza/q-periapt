@@ -1,0 +1,3158 @@
+{
+  "archive_sha256": "b936211f7125fc067e867381c7c377d7d6baa569b03e2889e2774f788017da64",
+  "cohorts": {
+    "validation-local-own-01": {
+      "attributed_witness_exchanges": 0,
+      "effects": 26,
+      "operation_totals": {
+        "close_sender": {
+          "calls": 1,
+          "cpu_system_us": 1221,
+          "cpu_user_us": 580,
+          "elapsed_ns": 124779833,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "deliver_account_member/0": {
+          "calls": 12,
+          "cpu_system_us": 83461,
+          "cpu_user_us": 248998,
+          "elapsed_ns": 2944721126,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "deliver_account_member/1": {
+          "calls": 12,
+          "cpu_system_us": 72529,
+          "cpu_user_us": 202501,
+          "elapsed_ns": 2461067750,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "deliver_original_uncertain_account_member": {
+          "calls": 2,
+          "cpu_system_us": 6637,
+          "cpu_user_us": 26814,
+          "elapsed_ns": 322615959,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "establish_member": {
+          "calls": 2,
+          "cpu_system_us": 18990,
+          "cpu_user_us": 166295,
+          "elapsed_ns": 780646542,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "member_effect_committed_result_lost": {
+          "calls": 1,
+          "cpu_system_us": 5169,
+          "cpu_user_us": 10158,
+          "elapsed_ns": 213740084,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "next_account_id": {
+          "calls": 12,
+          "cpu_system_us": 34,
+          "cpu_user_us": 10793,
+          "elapsed_ns": 10825166,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "next_cancelled_account_id": {
+          "calls": 1,
+          "cpu_system_us": 1,
+          "cpu_user_us": 792,
+          "elapsed_ns": 792792,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "next_uncertain_account_id": {
+          "calls": 1,
+          "cpu_system_us": 1,
+          "cpu_user_us": 780,
+          "elapsed_ns": 779125,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "open_recipient": {
+          "calls": 2,
+          "cpu_system_us": 15898,
+          "cpu_user_us": 15639,
+          "elapsed_ns": 80949416,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "open_sender": {
+          "calls": 1,
+          "cpu_system_us": 14242,
+          "cpu_user_us": 12948,
+          "elapsed_ns": 57583625,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "pre_cancelled_account_delivery": {
+          "calls": 1,
+          "cpu_system_us": 0,
+          "cpu_user_us": 2,
+          "elapsed_ns": 1625,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "provision_three_installed_owners": {
+          "calls": 1,
+          "cpu_system_us": 295282,
+          "cpu_user_us": 149438,
+          "elapsed_ns": 2750243833,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "reopen_three_original_owners": {
+          "calls": 1,
+          "cpu_system_us": 26339,
+          "cpu_user_us": 30354,
+          "elapsed_ns": 257272417,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "retained_member_outcome": {
+          "calls": 24,
+          "cpu_system_us": 69,
+          "cpu_user_us": 46170,
+          "elapsed_ns": 46238713,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "retire_account_operation": {
+          "calls": 12,
+          "cpu_system_us": 4909,
+          "cpu_user_us": 29395,
+          "elapsed_ns": 379592082,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "retire_recovered_account_operation": {
+          "calls": 1,
+          "cpu_system_us": 391,
+          "cpu_user_us": 2349,
+          "elapsed_ns": 35464542,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "traffic_independent_member_rekey": {
+          "calls": 2,
+          "cpu_system_us": 17044,
+          "cpu_user_us": 104323,
+          "elapsed_ns": 943835874,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        }
+      },
+      "ordinary_batches": 12,
+      "ordinary_member_deliveries": 24,
+      "outside_measured_spans": 0,
+      "performance_qualified": false,
+      "scope": "Functional measurement validation. Whole-process observations, no controlled timing, per-client memory, 32-recipient capacity, mobile energy or frozen budget.",
+      "spans": 89,
+      "total_batches": 13,
+      "witness_exchanges": 0
+    },
+    "validation-local-peer-01": {
+      "attributed_witness_exchanges": 0,
+      "effects": 26,
+      "operation_totals": {
+        "close_sender": {
+          "calls": 1,
+          "cpu_system_us": 1600,
+          "cpu_user_us": 828,
+          "elapsed_ns": 57408292,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "deliver_account_member/0": {
+          "calls": 12,
+          "cpu_system_us": 66963,
+          "cpu_user_us": 435554,
+          "elapsed_ns": 2031922461,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "deliver_account_member/1": {
+          "calls": 12,
+          "cpu_system_us": 62117,
+          "cpu_user_us": 363555,
+          "elapsed_ns": 1534590042,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "deliver_original_uncertain_account_member": {
+          "calls": 2,
+          "cpu_system_us": 6029,
+          "cpu_user_us": 50481,
+          "elapsed_ns": 183080166,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "establish_member": {
+          "calls": 2,
+          "cpu_system_us": 16483,
+          "cpu_user_us": 197235,
+          "elapsed_ns": 809543333,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "member_effect_committed_result_lost": {
+          "calls": 1,
+          "cpu_system_us": 4612,
+          "cpu_user_us": 19129,
+          "elapsed_ns": 112855833,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "next_account_id": {
+          "calls": 12,
+          "cpu_system_us": 66,
+          "cpu_user_us": 20047,
+          "elapsed_ns": 20098499,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "next_cancelled_account_id": {
+          "calls": 1,
+          "cpu_system_us": 9,
+          "cpu_user_us": 1709,
+          "elapsed_ns": 1716709,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "next_uncertain_account_id": {
+          "calls": 1,
+          "cpu_system_us": 1,
+          "cpu_user_us": 1719,
+          "elapsed_ns": 1719834,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "open_recipient": {
+          "calls": 2,
+          "cpu_system_us": 16993,
+          "cpu_user_us": 16419,
+          "elapsed_ns": 92922042,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "open_sender": {
+          "calls": 1,
+          "cpu_system_us": 16202,
+          "cpu_user_us": 13870,
+          "elapsed_ns": 69181125,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "pre_cancelled_account_delivery": {
+          "calls": 1,
+          "cpu_system_us": 1,
+          "cpu_user_us": 2,
+          "elapsed_ns": 1333,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "provision_three_installed_owners": {
+          "calls": 1,
+          "cpu_system_us": 315386,
+          "cpu_user_us": 155881,
+          "elapsed_ns": 2683935083,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "reopen_three_original_owners": {
+          "calls": 1,
+          "cpu_system_us": 40318,
+          "cpu_user_us": 56880,
+          "elapsed_ns": 198003917,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "retained_member_outcome": {
+          "calls": 24,
+          "cpu_system_us": 865,
+          "cpu_user_us": 84824,
+          "elapsed_ns": 85680832,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "retire_account_operation": {
+          "calls": 12,
+          "cpu_system_us": 4129,
+          "cpu_user_us": 48291,
+          "elapsed_ns": 259085877,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "retire_recovered_account_operation": {
+          "calls": 1,
+          "cpu_system_us": 259,
+          "cpu_user_us": 4406,
+          "elapsed_ns": 20529833,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "traffic_independent_member_rekey": {
+          "calls": 2,
+          "cpu_system_us": 9099,
+          "cpu_user_us": 132624,
+          "elapsed_ns": 540764583,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            },
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        }
+      },
+      "ordinary_batches": 12,
+      "ordinary_member_deliveries": 24,
+      "outside_measured_spans": 0,
+      "performance_qualified": false,
+      "scope": "Functional measurement validation. Whole-process observations, no controlled timing, per-client memory, 32-recipient capacity, mobile energy or frozen budget.",
+      "spans": 89,
+      "total_batches": 13,
+      "witness_exchanges": 0
+    },
+    "validation-witness-own-01": {
+      "attributed_witness_exchanges": 1180,
+      "effects": 26,
+      "operation_totals": {
+        "close_sender": {
+          "calls": 1,
+          "cpu_system_us": 1339,
+          "cpu_user_us": 623,
+          "elapsed_ns": 98379500,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "deliver_account_member/0": {
+          "calls": 12,
+          "cpu_system_us": 148177,
+          "cpu_user_us": 1306015,
+          "elapsed_ns": 3550514834,
+          "per_call": [
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            }
+          ],
+          "witness_exchanges": 372,
+          "witness_framed_bytes": 2730852,
+          "witness_tags": {
+            "1/1": 312,
+            "2/2": 60
+          }
+        },
+        "deliver_account_member/1": {
+          "calls": 12,
+          "cpu_system_us": 121118,
+          "cpu_user_us": 1057966,
+          "elapsed_ns": 2654067706,
+          "per_call": [
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            }
+          ],
+          "witness_exchanges": 300,
+          "witness_framed_bytes": 2202300,
+          "witness_tags": {
+            "1/1": 264,
+            "2/2": 36
+          }
+        },
+        "deliver_original_uncertain_account_member": {
+          "calls": 2,
+          "cpu_system_us": 16661,
+          "cpu_user_us": 156468,
+          "elapsed_ns": 383348708,
+          "per_call": [
+            {
+              "framed_bytes": 168843,
+              "requests": 23,
+              "tags": {
+                "1/1": 21,
+                "2/2": 2
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            }
+          ],
+          "witness_exchanges": 48,
+          "witness_framed_bytes": 352368,
+          "witness_tags": {
+            "1/1": 43,
+            "2/2": 5
+          }
+        },
+        "establish_member": {
+          "calls": 2,
+          "cpu_system_us": 45687,
+          "cpu_user_us": 489746,
+          "elapsed_ns": 1443846125,
+          "per_call": [
+            {
+              "framed_bytes": 425778,
+              "requests": 58,
+              "tags": {
+                "1/1": 42,
+                "2/2": 16
+              }
+            },
+            {
+              "framed_bytes": 425778,
+              "requests": 58,
+              "tags": {
+                "1/1": 42,
+                "2/2": 16
+              }
+            }
+          ],
+          "witness_exchanges": 116,
+          "witness_framed_bytes": 851556,
+          "witness_tags": {
+            "1/1": 84,
+            "2/2": 32
+          }
+        },
+        "member_effect_committed_result_lost": {
+          "calls": 1,
+          "cpu_system_us": 7749,
+          "cpu_user_us": 57978,
+          "elapsed_ns": 176560167,
+          "per_call": [
+            {
+              "framed_bytes": 124797,
+              "requests": 17,
+              "tags": {
+                "1/1": 14,
+                "2/2": 3
+              }
+            }
+          ],
+          "witness_exchanges": 17,
+          "witness_framed_bytes": 124797,
+          "witness_tags": {
+            "1/1": 14,
+            "2/2": 3
+          }
+        },
+        "next_account_id": {
+          "calls": 12,
+          "cpu_system_us": 5033,
+          "cpu_user_us": 71536,
+          "elapsed_ns": 85820960,
+          "per_call": [
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            }
+          ],
+          "witness_exchanges": 24,
+          "witness_framed_bytes": 176184,
+          "witness_tags": {
+            "1/1": 24
+          }
+        },
+        "next_cancelled_account_id": {
+          "calls": 1,
+          "cpu_system_us": 514,
+          "cpu_user_us": 6798,
+          "elapsed_ns": 7774667,
+          "per_call": [
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            }
+          ],
+          "witness_exchanges": 2,
+          "witness_framed_bytes": 14682,
+          "witness_tags": {
+            "1/1": 2
+          }
+        },
+        "next_uncertain_account_id": {
+          "calls": 1,
+          "cpu_system_us": 452,
+          "cpu_user_us": 5069,
+          "elapsed_ns": 6405625,
+          "per_call": [
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            }
+          ],
+          "witness_exchanges": 2,
+          "witness_framed_bytes": 14682,
+          "witness_tags": {
+            "1/1": 2
+          }
+        },
+        "open_recipient": {
+          "calls": 2,
+          "cpu_system_us": 15641,
+          "cpu_user_us": 31743,
+          "elapsed_ns": 111746708,
+          "per_call": [
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            }
+          ],
+          "witness_exchanges": 6,
+          "witness_framed_bytes": 44046,
+          "witness_tags": {
+            "1/1": 6
+          }
+        },
+        "open_sender": {
+          "calls": 1,
+          "cpu_system_us": 15545,
+          "cpu_user_us": 20495,
+          "elapsed_ns": 78959958,
+          "per_call": [
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            }
+          ],
+          "witness_exchanges": 3,
+          "witness_framed_bytes": 22023,
+          "witness_tags": {
+            "1/1": 3
+          }
+        },
+        "pre_cancelled_account_delivery": {
+          "calls": 1,
+          "cpu_system_us": 1,
+          "cpu_user_us": 2,
+          "elapsed_ns": 1667,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "provision_three_installed_owners": {
+          "calls": 1,
+          "cpu_system_us": 304292,
+          "cpu_user_us": 341391,
+          "elapsed_ns": 3140613167,
+          "per_call": [
+            {
+              "framed_bytes": 462483,
+              "requests": 63,
+              "tags": {
+                "1/1": 47,
+                "2/2": 16
+              }
+            }
+          ],
+          "witness_exchanges": 63,
+          "witness_framed_bytes": 462483,
+          "witness_tags": {
+            "1/1": 47,
+            "2/2": 16
+          }
+        },
+        "reopen_three_original_owners": {
+          "calls": 1,
+          "cpu_system_us": 37449,
+          "cpu_user_us": 99144,
+          "elapsed_ns": 232260250,
+          "per_call": [
+            {
+              "framed_bytes": 124797,
+              "requests": 17,
+              "tags": {
+                "1/1": 17
+              }
+            }
+          ],
+          "witness_exchanges": 17,
+          "witness_framed_bytes": 124797,
+          "witness_tags": {
+            "1/1": 17
+          }
+        },
+        "retained_member_outcome": {
+          "calls": 24,
+          "cpu_system_us": 14999,
+          "cpu_user_us": 230410,
+          "elapsed_ns": 275295083,
+          "per_call": [
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            }
+          ],
+          "witness_exchanges": 72,
+          "witness_framed_bytes": 528552,
+          "witness_tags": {
+            "1/1": 72
+          }
+        },
+        "retire_account_operation": {
+          "calls": 12,
+          "cpu_system_us": 14917,
+          "cpu_user_us": 152231,
+          "elapsed_ns": 497880667,
+          "per_call": [
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            }
+          ],
+          "witness_exchanges": 48,
+          "witness_framed_bytes": 352368,
+          "witness_tags": {
+            "1/1": 36,
+            "2/2": 12
+          }
+        },
+        "retire_recovered_account_operation": {
+          "calls": 1,
+          "cpu_system_us": 1318,
+          "cpu_user_us": 12854,
+          "elapsed_ns": 42485750,
+          "per_call": [
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            }
+          ],
+          "witness_exchanges": 4,
+          "witness_framed_bytes": 29364,
+          "witness_tags": {
+            "1/1": 3,
+            "2/2": 1
+          }
+        },
+        "traffic_independent_member_rekey": {
+          "calls": 2,
+          "cpu_system_us": 30993,
+          "cpu_user_us": 333001,
+          "elapsed_ns": 937285793,
+          "per_call": [
+            {
+              "framed_bytes": 315663,
+              "requests": 43,
+              "tags": {
+                "1/1": 32,
+                "2/2": 11
+              }
+            },
+            {
+              "framed_bytes": 315663,
+              "requests": 43,
+              "tags": {
+                "1/1": 32,
+                "2/2": 11
+              }
+            }
+          ],
+          "witness_exchanges": 86,
+          "witness_framed_bytes": 631326,
+          "witness_tags": {
+            "1/1": 64,
+            "2/2": 22
+          }
+        }
+      },
+      "ordinary_batches": 12,
+      "ordinary_member_deliveries": 24,
+      "outside_measured_spans": 23,
+      "performance_qualified": false,
+      "scope": "Functional measurement validation. Whole-process observations, no controlled timing, per-client memory, 32-recipient capacity, mobile energy or frozen budget.",
+      "spans": 89,
+      "total_batches": 13,
+      "witness_exchanges": 1203
+    },
+    "validation-witness-peer-01": {
+      "attributed_witness_exchanges": 1180,
+      "effects": 26,
+      "operation_totals": {
+        "close_sender": {
+          "calls": 1,
+          "cpu_system_us": 950,
+          "cpu_user_us": 555,
+          "elapsed_ns": 58600625,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "deliver_account_member/0": {
+          "calls": 12,
+          "cpu_system_us": 154838,
+          "cpu_user_us": 1392461,
+          "elapsed_ns": 3633929457,
+          "per_call": [
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            },
+            {
+              "framed_bytes": 227571,
+              "requests": 31,
+              "tags": {
+                "1/1": 26,
+                "2/2": 5
+              }
+            }
+          ],
+          "witness_exchanges": 372,
+          "witness_framed_bytes": 2730852,
+          "witness_tags": {
+            "1/1": 312,
+            "2/2": 60
+          }
+        },
+        "deliver_account_member/1": {
+          "calls": 12,
+          "cpu_system_us": 129866,
+          "cpu_user_us": 1123222,
+          "elapsed_ns": 2721256500,
+          "per_call": [
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            }
+          ],
+          "witness_exchanges": 300,
+          "witness_framed_bytes": 2202300,
+          "witness_tags": {
+            "1/1": 264,
+            "2/2": 36
+          }
+        },
+        "deliver_original_uncertain_account_member": {
+          "calls": 2,
+          "cpu_system_us": 16378,
+          "cpu_user_us": 160004,
+          "elapsed_ns": 357809375,
+          "per_call": [
+            {
+              "framed_bytes": 168843,
+              "requests": 23,
+              "tags": {
+                "1/1": 21,
+                "2/2": 2
+              }
+            },
+            {
+              "framed_bytes": 183525,
+              "requests": 25,
+              "tags": {
+                "1/1": 22,
+                "2/2": 3
+              }
+            }
+          ],
+          "witness_exchanges": 48,
+          "witness_framed_bytes": 352368,
+          "witness_tags": {
+            "1/1": 43,
+            "2/2": 5
+          }
+        },
+        "establish_member": {
+          "calls": 2,
+          "cpu_system_us": 47297,
+          "cpu_user_us": 534430,
+          "elapsed_ns": 1468372542,
+          "per_call": [
+            {
+              "framed_bytes": 425778,
+              "requests": 58,
+              "tags": {
+                "1/1": 42,
+                "2/2": 16
+              }
+            },
+            {
+              "framed_bytes": 425778,
+              "requests": 58,
+              "tags": {
+                "1/1": 42,
+                "2/2": 16
+              }
+            }
+          ],
+          "witness_exchanges": 116,
+          "witness_framed_bytes": 851556,
+          "witness_tags": {
+            "1/1": 84,
+            "2/2": 32
+          }
+        },
+        "member_effect_committed_result_lost": {
+          "calls": 1,
+          "cpu_system_us": 8240,
+          "cpu_user_us": 58148,
+          "elapsed_ns": 179677458,
+          "per_call": [
+            {
+              "framed_bytes": 124797,
+              "requests": 17,
+              "tags": {
+                "1/1": 14,
+                "2/2": 3
+              }
+            }
+          ],
+          "witness_exchanges": 17,
+          "witness_framed_bytes": 124797,
+          "witness_tags": {
+            "1/1": 14,
+            "2/2": 3
+          }
+        },
+        "next_account_id": {
+          "calls": 12,
+          "cpu_system_us": 5745,
+          "cpu_user_us": 78179,
+          "elapsed_ns": 92134791,
+          "per_call": [
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            },
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            }
+          ],
+          "witness_exchanges": 24,
+          "witness_framed_bytes": 176184,
+          "witness_tags": {
+            "1/1": 24
+          }
+        },
+        "next_cancelled_account_id": {
+          "calls": 1,
+          "cpu_system_us": 577,
+          "cpu_user_us": 6942,
+          "elapsed_ns": 8457083,
+          "per_call": [
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            }
+          ],
+          "witness_exchanges": 2,
+          "witness_framed_bytes": 14682,
+          "witness_tags": {
+            "1/1": 2
+          }
+        },
+        "next_uncertain_account_id": {
+          "calls": 1,
+          "cpu_system_us": 479,
+          "cpu_user_us": 6250,
+          "elapsed_ns": 7229167,
+          "per_call": [
+            {
+              "framed_bytes": 14682,
+              "requests": 2,
+              "tags": {
+                "1/1": 2
+              }
+            }
+          ],
+          "witness_exchanges": 2,
+          "witness_framed_bytes": 14682,
+          "witness_tags": {
+            "1/1": 2
+          }
+        },
+        "open_recipient": {
+          "calls": 2,
+          "cpu_system_us": 16868,
+          "cpu_user_us": 37567,
+          "elapsed_ns": 114807208,
+          "per_call": [
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            }
+          ],
+          "witness_exchanges": 6,
+          "witness_framed_bytes": 44046,
+          "witness_tags": {
+            "1/1": 6
+          }
+        },
+        "open_sender": {
+          "calls": 1,
+          "cpu_system_us": 15996,
+          "cpu_user_us": 26005,
+          "elapsed_ns": 88810292,
+          "per_call": [
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            }
+          ],
+          "witness_exchanges": 3,
+          "witness_framed_bytes": 22023,
+          "witness_tags": {
+            "1/1": 3
+          }
+        },
+        "pre_cancelled_account_delivery": {
+          "calls": 1,
+          "cpu_system_us": 0,
+          "cpu_user_us": 2,
+          "elapsed_ns": 1500,
+          "per_call": [
+            {
+              "framed_bytes": 0,
+              "requests": 0,
+              "tags": {}
+            }
+          ],
+          "witness_exchanges": 0,
+          "witness_framed_bytes": 0,
+          "witness_tags": {}
+        },
+        "provision_three_installed_owners": {
+          "calls": 1,
+          "cpu_system_us": 292206,
+          "cpu_user_us": 365822,
+          "elapsed_ns": 3097371125,
+          "per_call": [
+            {
+              "framed_bytes": 462483,
+              "requests": 63,
+              "tags": {
+                "1/1": 47,
+                "2/2": 16
+              }
+            }
+          ],
+          "witness_exchanges": 63,
+          "witness_framed_bytes": 462483,
+          "witness_tags": {
+            "1/1": 47,
+            "2/2": 16
+          }
+        },
+        "reopen_three_original_owners": {
+          "calls": 1,
+          "cpu_system_us": 37134,
+          "cpu_user_us": 100224,
+          "elapsed_ns": 242325125,
+          "per_call": [
+            {
+              "framed_bytes": 124797,
+              "requests": 17,
+              "tags": {
+                "1/1": 17
+              }
+            }
+          ],
+          "witness_exchanges": 17,
+          "witness_framed_bytes": 124797,
+          "witness_tags": {
+            "1/1": 17
+          }
+        },
+        "retained_member_outcome": {
+          "calls": 24,
+          "cpu_system_us": 18501,
+          "cpu_user_us": 252376,
+          "elapsed_ns": 298552165,
+          "per_call": [
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            },
+            {
+              "framed_bytes": 22023,
+              "requests": 3,
+              "tags": {
+                "1/1": 3
+              }
+            }
+          ],
+          "witness_exchanges": 72,
+          "witness_framed_bytes": 528552,
+          "witness_tags": {
+            "1/1": 72
+          }
+        },
+        "retire_account_operation": {
+          "calls": 12,
+          "cpu_system_us": 16113,
+          "cpu_user_us": 158831,
+          "elapsed_ns": 490748791,
+          "per_call": [
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            },
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            }
+          ],
+          "witness_exchanges": 48,
+          "witness_framed_bytes": 352368,
+          "witness_tags": {
+            "1/1": 36,
+            "2/2": 12
+          }
+        },
+        "retire_recovered_account_operation": {
+          "calls": 1,
+          "cpu_system_us": 1289,
+          "cpu_user_us": 14967,
+          "elapsed_ns": 42488834,
+          "per_call": [
+            {
+              "framed_bytes": 29364,
+              "requests": 4,
+              "tags": {
+                "1/1": 3,
+                "2/2": 1
+              }
+            }
+          ],
+          "witness_exchanges": 4,
+          "witness_framed_bytes": 29364,
+          "witness_tags": {
+            "1/1": 3,
+            "2/2": 1
+          }
+        },
+        "traffic_independent_member_rekey": {
+          "calls": 2,
+          "cpu_system_us": 32645,
+          "cpu_user_us": 354087,
+          "elapsed_ns": 961261542,
+          "per_call": [
+            {
+              "framed_bytes": 315663,
+              "requests": 43,
+              "tags": {
+                "1/1": 32,
+                "2/2": 11
+              }
+            },
+            {
+              "framed_bytes": 315663,
+              "requests": 43,
+              "tags": {
+                "1/1": 32,
+                "2/2": 11
+              }
+            }
+          ],
+          "witness_exchanges": 86,
+          "witness_framed_bytes": 631326,
+          "witness_tags": {
+            "1/1": 64,
+            "2/2": 22
+          }
+        }
+      },
+      "ordinary_batches": 12,
+      "ordinary_member_deliveries": 24,
+      "outside_measured_spans": 23,
+      "performance_qualified": false,
+      "scope": "Functional measurement validation. Whole-process observations, no controlled timing, per-client memory, 32-recipient capacity, mobile energy or frozen budget.",
+      "spans": 89,
+      "total_batches": 13,
+      "witness_exchanges": 1203
+    }
+  },
+  "members_verified": 223,
+  "performance_qualified": false,
+  "private_runtime_accessed": false,
+  "public_business_files_verified": 104,
+  "release_claim_eligible": false
+}

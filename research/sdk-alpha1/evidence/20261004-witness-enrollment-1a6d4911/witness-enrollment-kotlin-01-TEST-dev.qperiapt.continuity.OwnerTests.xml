@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="dev.qperiapt.continuity.OwnerTests" tests="19" skipped="0" failures="0" errors="0" timestamp="2026-10-04T13:01:04.503Z" hostname="Ziang-MacBook-Pro.local" time="0.513">
+  <properties/>
+  <testcase name="pendingEnrollmentSharesCapacityAndCancellationConsumesOnlyAdmission()" classname="dev.qperiapt.continuity.OwnerTests" time="0.036"/>
+  <testcase name="devicePreparationCannotGrantPeerAuthorityAndSharesCapacity()" classname="dev.qperiapt.continuity.OwnerTests" time="0.018"/>
+  <testcase name="pendingSetupSharesCapacityAndCannotActivateAfterCancellation()" classname="dev.qperiapt.continuity.OwnerTests" time="0.04"/>
+  <testcase name="installationStatusRejectsUnknownPhaseAndZeroJournal()" classname="dev.qperiapt.continuity.OwnerTests" time="0.002"/>
+  <testcase name="recoveryCancellationAndClosedStateKeepTheirNativeKinds()" classname="dev.qperiapt.continuity.OwnerTests" time="0.002"/>
+  <testcase name="textAndApplicationRefusalsCannotSilentlyCoerceInvalidInput()" classname="dev.qperiapt.continuity.OwnerTests" time="0.002"/>
+  <testcase name="unsignedCountersRetainTheirWholeRange()" classname="dev.qperiapt.continuity.OwnerTests" time="0.001"/>
+  <testcase name="structuresMatchThe64BitNativeContract()" classname="dev.qperiapt.continuity.OwnerTests" time="0.001"/>
+  <testcase name="originalEnrollmentRequestPersistsWithoutPolicyOrTlsConfiguration()" classname="dev.qperiapt.continuity.OwnerTests" time="0.371"/>
+  <testcase name="accountDeliveryRequiresSelectedSessionAndTypedRetainedOutcomes()" classname="dev.qperiapt.continuity.OwnerTests" time="0.002"/>
+  <testcase name="enrollmentPhaseAndRequestDecodingRefuseContradictoryNativeOutput()" classname="dev.qperiapt.continuity.OwnerTests" time="0.002"/>
+  <testcase name="failedOpenReleasesTheOriginalOwnerSlot()" classname="dev.qperiapt.continuity.OwnerTests" time="0.009"/>
+  <testcase name="aggregateStatusPreservesReportsAndRejectsMalformedOutput()" classname="dev.qperiapt.continuity.OwnerTests" time="0.002"/>
+  <testcase name="pendingOwnersRejectWorkAndCancellationNeverActivates()" classname="dev.qperiapt.continuity.OwnerTests" time="0.004"/>
+  <testcase name="originalGenesisRejectsMisbindingAndUnexpectedWitnessMetadata()" classname="dev.qperiapt.continuity.OwnerTests" time="0.002"/>
+  <testcase name="identifiersAreTypedImmutablePublicValues()" classname="dev.qperiapt.continuity.OwnerTests" time="0.001"/>
+  <testcase name="accountCleanupCannotAcquireAuthorityFromPendingCancelledOrClosedOwner()" classname="dev.qperiapt.continuity.OwnerTests" time="0.01"/>
+  <testcase name="bothKindsShareCapacityAndDrainRemainsAvailable()" classname="dev.qperiapt.continuity.OwnerTests" time="0.003"/>
+  <testcase name="enrollmentCopiesApprovedInputsAndRejectsInvalidScope()" classname="dev.qperiapt.continuity.OwnerTests" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,29 @@
+{
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_continuity_android_distribution",
+    "test_android_elf"
+  ],
+  "returncode": 0,
+  "before": {
+    "artifact/continuity_android_distribution.py": "d42d5d7a622227ba519f5f488f5f0e46ccf5700bba5c3072bb5f63bbf665c3a4",
+    "artifact/continuity_android_classes.py": "5b07fa70ec2c665f9575dee7e964abb6519fe8c4e1fa6d714100820abea8bf10",
+    "artifact/test_continuity_android_distribution.py": "d132291743c641534cf91f02fddbd88076eccaa52de595d84d9deef60804be23",
+    "artifact/android_elf.py": "43847cc3212e7202e97c63db6155241a7e9d3f59fc38baa55ae6950eeb8d7303",
+    "artifact/test_android_elf.py": "358e1c08456e45c6d2e3693143c8dd23a203de31566e340abccc966477f82ae3"
+  },
+  "after": {
+    "artifact/continuity_android_distribution.py": "d42d5d7a622227ba519f5f488f5f0e46ccf5700bba5c3072bb5f63bbf665c3a4",
+    "artifact/continuity_android_classes.py": "5b07fa70ec2c665f9575dee7e964abb6519fe8c4e1fa6d714100820abea8bf10",
+    "artifact/test_continuity_android_distribution.py": "d132291743c641534cf91f02fddbd88076eccaa52de595d84d9deef60804be23",
+    "artifact/android_elf.py": "43847cc3212e7202e97c63db6155241a7e9d3f59fc38baa55ae6950eeb8d7303",
+    "artifact/test_android_elf.py": "358e1c08456e45c6d2e3693143c8dd23a203de31566e340abccc966477f82ae3"
+  },
+  "source_unchanged": true,
+  "log_sha256": "660c977522c8fa3078c58c7748a5954cdd4f022a976cfd3cb12841cb28714e93",
+  "log_path": "/workspace/scratch/e41ac2378a11/formal-android-distribution/root-regressions.log"
+}

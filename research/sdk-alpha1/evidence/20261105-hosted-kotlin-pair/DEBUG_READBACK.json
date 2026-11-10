@@ -1,0 +1,524 @@
+{
+  "candidate_members": 766,
+  "compiled_frame_logs": {
+    "G1": {
+      "jit-pid1004.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "crash-after",
+        "sha256": "d48347d4bcddbba2ffaa55b04d5bbbae1fca2749450c1a86d7a7872099b72934"
+      },
+      "jit-pid1103.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "message",
+        "sha256": "8e8999cdf6e2da3b0fdfa17ef1333361a487032c6166bb91356b97e9bc008e38"
+      },
+      "jit-pid1108.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "uncertain",
+        "sha256": "cad1ce77fdb1c6bcc222c0edaf8134ea136d045d691b0f666e0c3aecccc98dfe"
+      },
+      "jit-pid1113.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "message",
+        "sha256": "e39cf707df1c17560e652220d56872abc3f97f323dfdcd2e3a70a53561d7b5cb"
+      },
+      "jit-pid1116.xml": {
+        "compiled_frames": [
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "rekey",
+        "sha256": "374c2e274afb81ea0423b99f0486c235398d914a8ca87a4b6e5c4e628b95e300"
+      },
+      "jit-pid1119.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "message",
+        "sha256": "9a3779b7ea5115853be336c718c9b480dc9445db086f9f53a8f86dc4b3f161dd"
+      },
+      "jit-pid759.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "bootstrap",
+        "sha256": "d9d6da1dffb569de176ca60e86f8f934c84744150e060324df88ca2bd1f712cf"
+      },
+      "jit-pid764.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "pre-cancel",
+        "sha256": "7c61e1a2769241e7532e8f4f1322a207c7287be011a0ce89e972459c4a78d412"
+      },
+      "jit-pid765.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "fail-before",
+        "sha256": "55f5f350999ae03a39421d79370e7aa90d4b13ec6f38813240a212aef7a1beb2"
+      },
+      "jit-pid770.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "message",
+        "sha256": "640e4e25b492a6f6dd5f0b0016963aaa6e34691edf5fbd02f83788892f177ed9"
+      },
+      "jit-pid775.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "uncertain",
+        "sha256": "1ff42dd21fbc09a55be317a46102d309e16b798bdb83d9c626d333c8ae5e11a7"
+      },
+      "jit-pid99830.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "deadline",
+        "sha256": "abbc214af76481c8cfd91c9e43e5de391ce33ad4f28bbe339269ac29aefbdb64"
+      },
+      "jit-pid999.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "message",
+        "sha256": "48e33a8f74c9157f5422fcc1246402049bc44f435cc1e4644adc41bb1b84001f"
+      }
+    },
+    "Serial": {
+      "jit-pid98787.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "deadline",
+        "sha256": "2dee38cf2aaabb147fc22d3f9d9694cd382b95f709cf6457b85afb736a767de9"
+      },
+      "jit-pid99341.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "bootstrap",
+        "sha256": "379bfe46551f6aae5aa85c00bdba44d1c26ffa90e249163fb350653d4efdf47b"
+      },
+      "jit-pid99345.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "pre-cancel",
+        "sha256": "1eb2b4770638dbde8b2647f82341f1e26c416df3d1dc898033a29df8e466efa7"
+      },
+      "jit-pid99346.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "fail-before",
+        "sha256": "3d4d81f492bfdd8445bbbbd7a8c980ead28d64f3c088e5d07176f1737f491376"
+      },
+      "jit-pid99353.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "message",
+        "sha256": "96f19af4309eae6f1dcd9afcea48959288d65d9ab65710d93c97ddb6ab74021f"
+      },
+      "jit-pid99358.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "uncertain",
+        "sha256": "f1a4bd594fafaee1604d465ef0f76d41eb163e0c247c8d89a24875d077492830"
+      },
+      "jit-pid99573.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "message",
+        "sha256": "974fdae656f442a6e2dac9451f7bfbb879817d9f46be6bc4229d8af72a61144c"
+      },
+      "jit-pid99580.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "crash-after",
+        "sha256": "f19fc2ba03937f7af434daff6ab650efbaceb863aa12e9289b2704bf03e52000"
+      },
+      "jit-pid99583.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "message",
+        "sha256": "c1825bbca3a76920c8329e0a9a1e48fcff5c52cc67b1ca61959a173f82c436c7"
+      },
+      "jit-pid99588.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "uncertain",
+        "sha256": "d8259d104bad0c7efaed3c596e0d5bad0f49945a027792968664eab7189daa99"
+      },
+      "jit-pid99593.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "message",
+        "sha256": "0383921f65507f677b27bdfad9a4b0810a18839eeabfe70dd39981dd103ebf1d"
+      },
+      "jit-pid99596.xml": {
+        "compiled_frames": [
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "rekey",
+        "sha256": "d57335f1f693a22c85102b2b551a948108278272a75cd7543fe169f59a47ed46"
+      },
+      "jit-pid99810.xml": {
+        "compiled_frames": [
+          "consumer.UnrootedInvocation serve",
+          "dev.qperiapt.continuity.ContinuityOwner serve",
+          "dev.qperiapt.continuity.NativeOwner call"
+        ],
+        "mode": "message",
+        "sha256": "294352c2e939e192a5622e87348fc1d57a34f73995e72248cac08da92ef3d328"
+      }
+    }
+  },
+  "installed_graphs": {
+    "q-periapt-continuity-c-consumer": {
+      "candidate_crates": 1,
+      "external_packages": 171,
+      "lockfile_sha256": "9d75cf9de3d857d2220252fcc9189d2dbdb0ed9fe4ed2a08dc08f9265697d10c",
+      "product_crates": 9
+    },
+    "q-periapt-continuity-package-consumer": {
+      "candidate_crates": 1,
+      "external_packages": 171,
+      "lockfile_sha256": "348486a901d919de987c417df6b6894cac973425a621aafd38bb63f074fd402a",
+      "product_crates": 9
+    }
+  },
+  "jar_retention": {
+    "annotations-13.0.jar": {
+      "actual_bytes_present": false,
+      "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+    },
+    "continuity-installed-consumer.jar": {
+      "actual_bytes_present": false,
+      "sha256": "3cc18b454dd677a0a57c116260c4be11e83d3635e8fbef47b86d098fa161e9e5"
+    },
+    "kotlin-stdlib-2.4.20.jar": {
+      "actual_bytes_present": false,
+      "sha256": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f"
+    },
+    "q-periapt-continuity-kotlin-0.0.0.jar": {
+      "actual_bytes_present": true,
+      "sha256": "377271aac6cc3161cfca12d6ec32942407f8336c0117bdbfed51b473bae2de26"
+    }
+  },
+  "loaded_original_modules": {
+    "artifact/bounded_process.py": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+    "artifact/c_abi_contract.py": "39f86831d743df8594b03c8505324ebcdb57023166cccc66fb036ad9fb2434bd",
+    "artifact/c_package_manifest.py": "30274edd771c6c3200685f5595ca972478d0c5d099821018cf383fb4e833aa97",
+    "artifact/continuity_c_account.py": "2aa2536e0ab850d3f032328149a8c062484213e3734c68e8eac32ed09b7442dd",
+    "artifact/continuity_c_account_cleanup.py": "b71c5e6fd324ec41ffff860d89cec8f688b44de9789ad3a8a449830f10de3484",
+    "artifact/continuity_c_account_witness.py": "8a1a7ea8bc176e8a2af086d252233e9610cd58b238854e2326a1894a0cf8ee28",
+    "artifact/continuity_c_authority.py": "12d0096420d556a80db4255b7a5b1339b1a6ed0e9e2a50d408bd0a4bffa19123",
+    "artifact/continuity_c_consumer.py": "2acee5c647c6e6584ec4101b0c1926e5524ca316bfdd417d1a4fcddd13b0faf7",
+    "artifact/continuity_c_device.py": "50ad05e7d499103070e6e3841f243ccaea1049b65207690d3a50e74959a5e480",
+    "artifact/continuity_c_faults.py": "e892a369fda9d4d432b5e63ce0566af7a9603050e48fec437e8588600aa680b8",
+    "artifact/continuity_c_managed.py": "7b06053ac03e5ebb95c3d3484549ca95983f24fddada46a79b65bf3337ac69d0",
+    "artifact/continuity_c_opening.py": "c036073c0efa539261d2d2994f9ba5145d529a2e08e1d76b4f4fbd76f72b4274",
+    "artifact/continuity_c_recovery.py": "c75043fd71ee3075617aac2ff92bd6460cbe148386a8c1c5464b2b77e7748423",
+    "artifact/continuity_c_root.py": "e765d786d93889f0e6182a9a53dc10d502903b552c13a0124247343e219ebb76",
+    "artifact/continuity_c_root_alternatives.py": "1beb5df732c75a212147962cef09e0ebb8c21e4646e938cab5c72ea7b7814013",
+    "artifact/continuity_c_root_reverse.py": "d6527e0a8dac4c269c4311a6bfb51be2be10def6b2f64288a9a4df2b11c48c1e",
+    "artifact/continuity_c_root_traffic.py": "b695a5fbaecd3e0a582572ce120926be1ab480f976b89813a00d00e1394488e8",
+    "artifact/continuity_c_setup.py": "2fcee1fccab3d499da755f3ffc034bb6ee376e35331d7c26afa566d5b33ab70b",
+    "artifact/continuity_c_witness.py": "230a4ff8dc8f463a9424c506846f358f70ac1abd7e8a933fe59cad3467a8ba02",
+    "artifact/continuity_c_witness_openssl.py": "e0559080bd06535294d0629c7773f87060be3a0f2e587c748cc9855c2181e6ae",
+    "artifact/continuity_c_witness_tls.py": "3e376a97df20a0a37763f1c76b17e93d06424afec2a43435b4aee470c8191f58",
+    "artifact/continuity_kotlin_consumer.py": "4922d514617e79cad0330854c8ba1b2360a9f323782a87515c431c253eed3b1a",
+    "artifact/continuity_kotlin_root.py": "d5fd40dc520a9f240dc3415dfb3ba9ba6fe522dcf0399b6cea35d812c7af59c0",
+    "artifact/continuity_package.py": "6ca4f75f7663f04d876a01bd0124693e3f5eaabd1a6c370654dd235ba83f7326",
+    "artifact/continuity_package_archive.py": "c1060f41594542ad8ea5ce9532542499c718e27c90c6750291addc178cd998ee",
+    "artifact/continuity_process_crash.py": "036d299600c6f5c8a89308696a39361f498496a8ca0b26652f7ee90879bd117d",
+    "artifact/continuity_process_failure.py": "6a0e39512702fd2a00d93427d9ab26158a7bd029b0623c4f19b40255915b5be2",
+    "artifact/continuity_profiles.py": "2e3571ff63cbf6c4b69c8c328275448aee54d0132b2c2a0300a2455c6992eccf",
+    "artifact/continuity_setup_faults.py": "bee75187549ac4c1b064650a1c24c328e0384c2553e126efe65fd131f173c180",
+    "artifact/continuity_setup_io.py": "da690e02cdeac2fc7b4f59c1bd94a0fe34774fd5c0c2cecceadf918903e2d95b",
+    "artifact/continuity_setup_witness_faults.py": "8712d16417e2f5c075710ea55d37d8367cc3c1e291a3e696dac62fedef0a2add",
+    "artifact/crates_io_registry_metadata.py": "f4a16e59e4218c4339a38abcb0542a9616e1735bf8d743b5c24e54c5216aa777",
+    "artifact/deterministic_archive.py": "9a92506818d7fc145cac8d57ab10f48ac24fc75def24a0eebf0341df9fe37844",
+    "artifact/evidence_io.py": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+    "artifact/git_provenance.py": "8bb64d7f43d1ffa00a39b31a174e8667d4d2cfb1f8c42a019a32627f6a065f3f",
+    "artifact/installed_rust_graph.py": "0150573580c4acab5b0e542b28e31278a8eeeeff65594bef322001801ee6b42c",
+    "artifact/jvm_sdk_package.py": "39c666c8a78b2c62d820f5bc526a4200de3f5a8fc28f0d9ee720731b26c4359c",
+    "artifact/package_bom.py": "cec214359e543cdac4156acf46a90e5243359c249ed579f9e45a063a633977c6",
+    "artifact/release_binary_scan.py": "4d14fc9adc6508733a9b9c511935883292f6b2acf87a13ab92aa11bdb3152fd2",
+    "artifact/rust_publish_contract.py": "674a16c33700794a2434dd22d4e14129ceb7340670a29d0ebf161215b92f5491",
+    "artifact/rust_sdk_msrv.py": "3180cde3c6f5e507859935615c96bcd378d1b98c09d1a38fb50c893e4c2efb62",
+    "artifact/rust_sdk_profile.py": "3aac9df3243c30cece301717164bb2a210b62b61a953f0796b6fce24dc712af5",
+    "artifact/sdk_abi2_spec.py": "16a3828eaefed3892a0b7e03c2009032a3d58c106ac44334476b96a93cb2214e",
+    "artifact/third_party_licenses.py": "5735d298ff1263dfa4c66631534661cb2e08a451fdd234c37e203d9b8bd6d0e5"
+  },
+  "maven": {
+    "classes": 241,
+    "coordinate": "dev.qperiapt:q-periapt-continuity-kotlin:0.0.0",
+    "jar_sha256": "377271aac6cc3161cfca12d6ec32942407f8336c0117bdbfed51b473bae2de26",
+    "jvm_version": 25
+  },
+  "native_dylib_bytes_verified": true,
+  "native_dylib_sha256": "3810238bbc10d5a5785bd5b90eeb4d94f2cff9bffd4ab0a42ba83fdeb36de9fb",
+  "native_workload_rerun": false,
+  "original_archive_sha256": "a3b4102fcff8f8f36cfd41b80d63560977d2eaaefac4e8dcee6fc90e523430cf",
+  "original_members": 39116,
+  "package_members": 281,
+  "package_sha256": "bf6fd38ee854ac423ca9bd72540495457fc6926c69b0ca2f401df47896b10f3d",
+  "prepared_owner_gc": {
+    "G1": {
+      "forgotten_owner_graphs": 1024,
+      "observed_collections": 110,
+      "queued_weak_references": 1024,
+      "release_claim_eligible": false,
+      "rounds": 16,
+      "scope": "bounded prepared-owner Cleaner/capacity and stale-slot checks; no in-flight call or all-JVM GC qualification",
+      "stale_owners_checked_after_slot_reuse": 1024,
+      "stdout_sha256": "071e5a24d81a7d6733ff97c021403771c6100c3c2c9bc3985268a6ed0337008e",
+      "strongly_live_owners": 1024
+    },
+    "Serial": {
+      "forgotten_owner_graphs": 1024,
+      "observed_collections": 72,
+      "queued_weak_references": 1024,
+      "release_claim_eligible": false,
+      "rounds": 16,
+      "scope": "bounded prepared-owner Cleaner/capacity and stale-slot checks; no in-flight call or all-JVM GC qualification",
+      "stale_owners_checked_after_slot_reuse": 1024,
+      "stdout_sha256": "9f194678270743388f8c294359d6fe8d0d05763569c8b2fedd4a04d7ed064cfd",
+      "strongly_live_owners": 1024
+    }
+  },
+  "profile": "debug",
+  "public_groups_verified": [
+    "client",
+    "server",
+    "recovery",
+    "restore",
+    "restore-opening",
+    "inflight-serial",
+    "account-Serial",
+    "root-Serial-adoption",
+    "root-Serial-bound-transition",
+    "root-Serial-original",
+    "root-Serial-transition",
+    "inflight-g1",
+    "account-G1",
+    "root-G1-adoption",
+    "root-G1-bound-transition",
+    "root-G1-original",
+    "root-G1-transition",
+    "witness-opening",
+    "witness-opening-interrupt",
+    "witness-signed-tcp",
+    "witness-mutual-tls"
+  ],
+  "publication_performed": false,
+  "publication_public_directory_present": false,
+  "release_claim_eligible": false,
+  "scope": "Same-source installed Maven/native package, unit reports and selected Kotlin lifecycle/Cleaner/C2/public readers; missing consumer runtime JARs remain execution receipts; no all-JVM, device, current-source or release qualification.",
+  "source_commit": "232ace17915407596d66f3a5fd7c7765251a38cc",
+  "source_inputs_verified": 1393,
+  "tests": {
+    "installed": {
+      "suites": {
+        "AccountAuthorityTests": {
+          "report_sha256": "5fca46c9a3c8dbd4fe159bda8c6d679889f4c867f834ce2b98375dd9edb48b85",
+          "tests": 4
+        },
+        "ConfigurationTests": {
+          "report_sha256": "908a41da6d6bc8bee3f49e0cbb24f914bc21e7daf8ecb869ca5f922789c64002",
+          "tests": 4
+        },
+        "CredentialRenewalTests": {
+          "report_sha256": "d2ecf71026129193d19fd346b2073a2bc3a715969a46a884dec86636f8e92906",
+          "tests": 6
+        },
+        "CredentialRequestTests": {
+          "report_sha256": "5873fd725f0a47773f0aba7c5ab02a609054857ae2faecbf232adbe3b8fc7da5",
+          "tests": 3
+        },
+        "IndependentPolicyTests": {
+          "report_sha256": "54989f246c6e1b99597646da3422b99bb0ed0cb762be6e5962cd6c2f2b95bb27",
+          "tests": 5
+        },
+        "OwnerTests": {
+          "report_sha256": "8903c89cc15e31308f3c864c8aa2e70302b5cf7557ea35c8c12eab2e867a2f3c",
+          "tests": 20
+        },
+        "PeerConfigurationTests": {
+          "report_sha256": "1b86bb5df1d0860c0ee3e8e5749be7197004c58778a4822cfcd8d3ab972c9089",
+          "tests": 2
+        },
+        "PendingWriteRecoveryTests": {
+          "report_sha256": "403182391f5ba55b5d1f57274f4adb493847602b8dbbe2718cafeabfe8709665",
+          "tests": 3
+        },
+        "PolicyContinuationTests": {
+          "report_sha256": "8e7f1845bfc015cfbed6596c8119a9b7c4e5880b6ce78b90599c3a40d5bb3f6a",
+          "tests": 6
+        },
+        "PolicyRenewalTests": {
+          "report_sha256": "16f83052b6d64301870157fb294276541dd1d5028bfdbbd3df706975d4561d05",
+          "tests": 6
+        },
+        "PublicationTests": {
+          "report_sha256": "a3b9440985bd04063d7fabb71152be7ef0bd981b542a526683ec1f6e9eca7570",
+          "tests": 4
+        },
+        "RetirementTests": {
+          "report_sha256": "bd43b9c89e4ed498b0bb531f9bfc85cfa7db9bde9b59f9386537634545885a7e",
+          "tests": 4
+        },
+        "RootReplacementTests": {
+          "report_sha256": "ae6542163849ea4af6a066f170ba4f972975dcf0e813fed9e0c71de760cf28da",
+          "tests": 3
+        },
+        "RosterRefreshTests": {
+          "report_sha256": "34719bc0e042026f2d282323cbd10e5d35373cb8a334fdda23c95d022d4a898e",
+          "tests": 5
+        },
+        "RosterResolutionTests": {
+          "report_sha256": "e54be94bd5f6b4327e658684f9c67c5286c4e7730881e0ce5cf26866a7bf5918",
+          "tests": 4
+        }
+      },
+      "tests": 79
+    },
+    "publication": {
+      "suites": {
+        "AccountAuthorityTests": {
+          "report_sha256": "4687526d2a7dd8b114b912faba23c81fdd421ea073824d46c752c41496f76e3e",
+          "tests": 4
+        },
+        "ConfigurationTests": {
+          "report_sha256": "188d5cd544568364b8f777efa561e3678bea838e0257f536d6b03f1277fec752",
+          "tests": 4
+        },
+        "CredentialRenewalTests": {
+          "report_sha256": "07385c5264ffd6cca2458726aebeadd3761cca3068aff96562c8d578b86541f0",
+          "tests": 6
+        },
+        "CredentialRequestTests": {
+          "report_sha256": "08ea7e99eef519ff5f8e0d95c4994966e36d2e0cff88679a6c29dfb5d5b05e94",
+          "tests": 3
+        },
+        "IndependentPolicyTests": {
+          "report_sha256": "a69e06b41754a24323faddeaaf2f83384179554cb7e043af8d0b4728791a94ef",
+          "tests": 5
+        },
+        "OwnerTests": {
+          "report_sha256": "cc9cf4319db350cc1e06300940bf7fa870c0c4a639158025a266ea586869dc1d",
+          "tests": 20
+        },
+        "PeerConfigurationTests": {
+          "report_sha256": "1a12dc28c5ac41eb4d3e97ec95b0f9668b19e9cb070f3bb39fb8d97bf46d90e7",
+          "tests": 2
+        },
+        "PendingWriteRecoveryTests": {
+          "report_sha256": "202ac233f2bcd0bffdffe67c2e976369dc93e609c634cb5202e7920359de6ca4",
+          "tests": 3
+        },
+        "PolicyContinuationTests": {
+          "report_sha256": "03165f4af5b7367c10a2a3ea3b773065905b38df4e2eb81242fecf7a852d61a1",
+          "tests": 6
+        },
+        "PolicyRenewalTests": {
+          "report_sha256": "6ce65cb09de4425e0cf86f163b0f95d84b53612bb89b36a53df77397570f5e19",
+          "tests": 6
+        },
+        "PublicationTests": {
+          "report_sha256": "78ee9a6e55e55721f116d23afc15557599f017f3783e98091127604d631a7cdf",
+          "tests": 4
+        },
+        "RetirementTests": {
+          "report_sha256": "9e6468cf267d9064ee25ac7dfe1945bbdf902f7fa507abde9f0b98e390157f62",
+          "tests": 4
+        },
+        "RootReplacementTests": {
+          "report_sha256": "f958a2a360c6b2f420a106510fd69e50d414bdd9163ceb0d0ed852fee878472a",
+          "tests": 3
+        },
+        "RosterRefreshTests": {
+          "report_sha256": "8c00eb01b6b8f2b090db01a03b3dcff206cd7bddb7903c7192e26d213454ca57",
+          "tests": 5
+        },
+        "RosterResolutionTests": {
+          "report_sha256": "34ecf64fd521cddff7a1f2b3531065b589b8f51f349e6b72c63a5ef2b0d5f754",
+          "tests": 4
+        }
+      },
+      "tests": 79
+    }
+  },
+  "verified_utc": "2026-11-05T23:12:24.276559+00:00",
+  "versions": {
+    "gradle": "\nWelcome to Gradle 9.8.0!\n\nHere are the highlights of this release:\n - Java 27 support\n - Maven mirror settings reuse\n - Linked problem locations in build output\n\nFor more details see https://docs.gradle.org/9.8.0/release-notes.html\n\n\n------------------------------------------------------------\nGradle 9.8.0\n------------------------------------------------------------\n\nBuild time:    2026-09-24 13:40:00 UTC\nRevision:      a927be5e08efe79e0b87ada06c762dde6bb9f8b8\n\nKotlin:        2.4.10\nGroovy:        4.0.33\nAnt:           Apache Ant(TM) version 1.10.17 compiled on April 6 2026\nLauncher JVM:  25.0.5 (Eclipse Adoptium 25.0.5+8-LTS)\nDaemon JVM:    /Users/runner/hostedtoolcache/Java_Temurin-Hotspot_jdk/25.0.5-8.0/arm64/Contents/Home (no Daemon JVM specified, using current Java home)\nOS:            Mac OS X 15.8.2 aarch64\n\n",
+    "java": "openjdk 25.0.5 2026-10-20 LTS\nOpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS)\nOpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)\n",
+    "javac": "javac 25.0.5\n"
+  }
+}

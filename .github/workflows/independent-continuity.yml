@@ -1,0 +1,650 @@
+name: Independent Continuity interoperability
+
+on:
+  push:
+    paths:
+      - .github/workflows/independent-continuity.yml
+      - research/continuity-openssl-peer/**
+      - research/continuity-reference-app/**
+      - research/continuity-identity-candidate/src/**
+      - research/continuity-identity-candidate/Cargo.lock
+      - crates/q-periapt-core/**
+      - crates/q-periapt-backends/**
+      - crates/q-periapt-sdk/**
+      - crates/q-periapt-policy/**
+      - crates/q-periapt-host-store/**
+      - artifact/continuity_independent*.py
+      - artifact/test_continuity_independent*.py
+  workflow_dispatch:
+    inputs:
+      sdk_run_id:
+        description: "Optional same-repository run containing rust-sdk-package"
+        type: string
+        default: ""
+      sdk_report_sha256:
+        description: "SHA-256 of that run's RUST_SDK_PACKAGE.json; required with sdk_run_id"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  RUSTFLAGS: "-D warnings"
+  CARGO_TERM_COLOR: never
+  CARGO_NET_RETRY: "10"
+  CARGO_HTTP_MULTIPLEXING: "false"
+
+jobs:
+  bootstrap:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x86_64
+            phase: source
+          - os: macos-15
+            arch: arm64
+            phase: source
+          - os: ubuntu-24.04
+            arch: x86_64
+            phase: installed
+          - os: macos-15
+            arch: arm64
+            phase: installed
+    runs-on: ${{ matrix.os }}
+    # Source scenarios completed before the old combined job exhausted 120 min
+    # during its installed-wheel repeat. Keep both complete workloads in
+    # separate jobs, with the same 120-min job and 900-sec subprocess bounds.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - name: Verify source and native architecture
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+          test "$(uname -m)" = "$EXPECTED_ARCH"
+          mkdir -p target/independent-peer-ci
+          git rev-parse HEAD > target/independent-peer-ci/source-head.txt
+          uname -a > target/independent-peer-ci/host.txt
+          printf '%s\n' '${{ matrix.phase }}' > target/independent-peer-ci/qualification-phase.txt
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Validate explicit SDK artifact selection
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          SDK_RUN_ID: ${{ inputs.sdk_run_id }}
+          SDK_REPORT_SHA256: ${{ inputs.sdk_report_sha256 }}
+        run: |
+          sh artifact/python-run.sh -c 'import os; from continuity_independent_package import validate_sdk_selection; validate_sdk_selection(os.environ["SDK_RUN_ID"], os.environ["SDK_REPORT_SHA256"])'
+          sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_independent*.py' \
+            > target/independent-peer-ci/package-tests.stdout 2> target/independent-peer-ci/package-tests.stderr
+      - name: Install the exact independent provider into an isolated directory
+        env:
+          PEER_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          "$PEER_PYTHON" -I -m pip --isolated install --disable-pip-version-check \
+            --index-url https://pypi.org/simple --only-binary=:all: --no-deps --require-hashes \
+            --target "$RUNNER_TEMP/independent-peer-provider" \
+            -r research/continuity-openssl-peer/requirements.txt \
+            > target/independent-peer-ci/provider.stdout 2> target/independent-peer-ci/provider.stderr
+      - name: Build and lint the real Rust counterpart
+        if: github.event_name != 'workflow_dispatch' || inputs.sdk_run_id == ''
+        run: |
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-peer-native"
+          manifest=research/continuity-openssl-peer/native/Cargo.toml
+          cargo fmt --manifest-path "$manifest" -- --check
+          cargo clippy --release --locked --manifest-path "$manifest" -- -D warnings \
+            > target/independent-peer-ci/clippy.stdout 2> target/independent-peer-ci/clippy.stderr
+          cargo build --release --locked --manifest-path "$manifest" \
+            > target/independent-peer-ci/build.stdout 2> target/independent-peer-ci/build.stderr
+          cargo metadata --locked --format-version 1 --manifest-path "$manifest" \
+            > target/independent-peer-ci/metadata.json
+          rustc -vV > target/independent-peer-ci/rustc.txt
+          cp "$CARGO_TARGET_DIR/release/q-periapt-independent-peer-counterpart" target/independent-peer-ci/counterpart
+      - name: Read the selected SDK package artifact
+        if: github.event_name == 'workflow_dispatch' && inputs.sdk_run_id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: rust-sdk-package
+          run-id: ${{ inputs.sdk_run_id }}
+          github-token: ${{ github.token }}
+          path: target/independent-sdk-input
+      - name: Build and lint the counterpart from installed crates
+        if: github.event_name == 'workflow_dispatch' && inputs.sdk_run_id != ''
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          SDK_REPORT_SHA256: ${{ inputs.sdk_report_sha256 }}
+        run: |
+          sh artifact/python-run.sh artifact/continuity_independent_package.py \
+            --report target/independent-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json \
+            --report-sha256 "$SDK_REPORT_SHA256" \
+            --toolchain-root "$(rustc --print sysroot)" \
+            --output target/independent-peer-ci/installed
+          cp target/independent-peer-ci/installed/counterpart target/independent-peer-ci/counterpart
+          cp target/independent-peer-ci/installed/consumer-metadata.stdout target/independent-peer-ci/metadata.json
+          cp target/independent-peer-ci/installed/rustc.stdout target/independent-peer-ci/rustc.txt
+          cp target/independent-peer-ci/installed/consumer-build.stdout target/independent-peer-ci/build.stdout
+          cp target/independent-peer-ci/installed/consumer-build.stderr target/independent-peer-ci/build.stderr
+          cp target/independent-peer-ci/installed/consumer-clippy.stdout target/independent-peer-ci/clippy.stdout
+          cp target/independent-peer-ci/installed/consumer-clippy.stderr target/independent-peer-ci/clippy.stderr
+          cp target/independent-peer-ci/installed/importer target/independent-peer-ci/importer
+          cp target/independent-peer-ci/installed/importer-build.stdout target/independent-peer-ci/importer-build.stdout
+          cp target/independent-peer-ci/installed/importer-build.stderr target/independent-peer-ci/importer-build.stderr
+          cp target/independent-peer-ci/installed/importer-clippy.stdout target/independent-peer-ci/importer-clippy.stdout
+          cp target/independent-peer-ci/installed/importer-clippy.stderr target/independent-peer-ci/importer-clippy.stderr
+      - name: Verify explicit signed one-time publication selection
+        id: one_time_publication
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/one_time_publication_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/one-time-publication \
+            > target/independent-peer-ci/one-time-publication.stdout 2> target/independent-peer-ci/one-time-publication.stderr
+          git diff --exit-code
+      - name: Verify independent historical directory leases and conflicts
+        id: directory_lease
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/directory_lease_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --publication-case target/independent-peer-ci/one-time-publication/PUBLIC_CASE.bin \
+            --output target/independent-peer-ci/directory-lease \
+            > target/independent-peer-ci/directory-lease.stdout 2> target/independent-peer-ci/directory-lease.stderr
+          git diff --exit-code
+      - name: Prepare native OpenSSL for the directory CLI on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+      - name: Produce public receipts through the real directory CLI
+        id: directory_cli_producer
+        env:
+          QPERIAPT_DIRECTORY_PUBLIC_OUTPUT: ${{ github.workspace }}/target/independent-peer-ci/directory-cli-public
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-directory-cli"
+          if [ "$RUNNER_OS" = macOS ]; then
+            OPENSSL_DIR="$(brew --prefix openssl@3)"
+            export OPENSSL_DIR
+          fi
+          cargo test --release --locked --manifest-path research/continuity-reference-app/Cargo.toml \
+            --test native_device publication::actual_cli_verifies_one_time_publication_without_opening_state \
+            -- --exact --nocapture \
+            > target/independent-peer-ci/directory-cli-producer.stdout 2> target/independent-peer-ci/directory-cli-producer.stderr
+          cp "$CARGO_TARGET_DIR/release/q-periapt-prekey-directory" target/independent-peer-ci/directory-cli
+          sh artifact/python-run.sh -c 'import hashlib, json; from pathlib import Path; p=Path("target/independent-peer-ci"); print(json.dumps({"source_commit":(p/"source-head.txt").read_text().strip(),"cli_sha256":hashlib.sha256((p/"directory-cli").read_bytes()).hexdigest(),"build":"source-release","installed_rust_counterpart":False}))' > target/independent-peer-ci/directory-cli-provenance.json
+          git diff --exit-code
+      - name: Cross-check actual directory CLI receipts independently
+        id: directory_cli_source
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/directory_cli_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --input target/independent-peer-ci/directory-cli-public \
+            --output target/independent-peer-ci/directory-cli-source \
+            > target/independent-peer-ci/directory-cli-source.stdout 2> target/independent-peer-ci/directory-cli-source.stderr
+          git diff --exit-code
+      - name: Build and lint the public bootstrap importer
+        if: github.event_name != 'workflow_dispatch' || inputs.sdk_run_id == ''
+        run: |
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-peer-importer"
+          importer_manifest=research/continuity-identity-candidate/Cargo.toml
+          cargo clippy --release --locked --manifest-path "$importer_manifest" --example import_bootstrap_bundle -- -D warnings \
+            > target/independent-peer-ci/importer-clippy.stdout 2> target/independent-peer-ci/importer-clippy.stderr
+          cargo build --release --locked --manifest-path "$importer_manifest" --example import_bootstrap_bundle \
+            > target/independent-peer-ci/importer-build.stdout 2> target/independent-peer-ci/importer-build.stderr
+          cp "$CARGO_TARGET_DIR/release/examples/import_bootstrap_bundle" target/independent-peer-ci/importer
+      - name: Build the independent Python wheel with the pinned backend
+        if: matrix.phase == 'installed'
+        env:
+          PEER_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          mkdir -p target/independent-peer-ci/python-wheel
+          "$PEER_PYTHON" -I -m venv "$RUNNER_TEMP/independent-python-build"
+          "$RUNNER_TEMP/independent-python-build/bin/python" -I -m pip install \
+            --isolated --disable-pip-version-check --index-url https://pypi.org/simple \
+            --no-deps --require-hashes -r research/continuity-openssl-peer/build-requirements.txt \
+            > target/independent-peer-ci/python-wheel/backend.stdout 2> target/independent-peer-ci/python-wheel/backend.stderr
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          export SOURCE_DATE_EPOCH
+          "$RUNNER_TEMP/independent-python-build/bin/python" -I -m pip wheel \
+            --isolated --disable-pip-version-check --no-index --no-deps --no-build-isolation \
+            --wheel-dir target/independent-peer-ci/python-wheel research/continuity-openssl-peer \
+            > target/independent-peer-ci/python-wheel/build.stdout 2> target/independent-peer-ci/python-wheel/build.stderr
+          git diff --exit-code
+      - name: Exchange real flights and exercise rejection and replay boundaries
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/run.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/exchange \
+            > target/independent-peer-ci/exchange.stdout 2> target/independent-peer-ci/exchange.stderr
+          git diff --exit-code
+      - name: Verify independent four-flight rekey computations and epoch traffic
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/rekey_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/rekey \
+            > target/independent-peer-ci/rekey.stdout 2> target/independent-peer-ci/rekey.stderr
+          git diff --exit-code
+      - name: Exercise independent storage cuts and persisted session recovery
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/storage_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --output target/independent-peer-ci/storage-cuts \
+            > target/independent-peer-ci/storage-cuts.stdout 2> target/independent-peer-ci/storage-cuts.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/durability_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/session-recovery \
+            > target/independent-peer-ci/session-recovery.stdout 2> target/independent-peer-ci/session-recovery.stderr
+          git diff --exit-code
+      - name: Verify durable rekey recovery, format upgrade and capacity admission
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/durable_rekey_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/durable-rekey \
+            > target/independent-peer-ci/durable-rekey.stdout 2> target/independent-peer-ci/durable-rekey.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/capacity_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/capacity \
+            > target/independent-peer-ci/capacity.stdout 2> target/independent-peer-ci/capacity.stderr
+          git diff --exit-code
+      - name: Verify independent control-only progress and original-target retries
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/control_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/control \
+            > target/independent-peer-ci/control.stdout 2> target/independent-peer-ci/control.stderr
+          git diff --exit-code
+      - name: Verify explicit outcome accounting, report bounds and old-chain disclosure
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/resolution_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/resolution \
+            > target/independent-peer-ci/resolution.stdout 2> target/independent-peer-ci/resolution.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/resolution_capacity_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/resolution-capacity \
+            > target/independent-peer-ci/resolution-capacity.stdout 2> target/independent-peer-ci/resolution-capacity.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/resolution_disclosure_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/resolution-disclosure \
+            > target/independent-peer-ci/resolution-disclosure.stdout 2> target/independent-peer-ci/resolution-disclosure.stderr
+          git diff --exit-code
+      - name: Verify independent required-witness recovery and output admission
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/witness_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/witness \
+            > target/independent-peer-ci/witness.stdout 2> target/independent-peer-ci/witness.stderr
+          git diff --exit-code
+      - name: Verify independent retained-peer renewal and revocation
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/peer_lifecycle_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/peer-lifecycle \
+            > target/independent-peer-ci/peer-lifecycle.stdout 2> target/independent-peer-ci/peer-lifecycle.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/peer_reply_release_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/peer-reply-release \
+            > target/independent-peer-ci/peer-reply-release.stdout 2> target/independent-peer-ci/peer-reply-release.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/peer_intermediate_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/peer-intermediate \
+            > target/independent-peer-ci/peer-intermediate.stdout 2> target/independent-peer-ci/peer-intermediate.stderr
+          git diff --exit-code
+      - name: Verify complete independent account authority transitions
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-peer-native"
+          manifest=research/continuity-openssl-peer/native/Cargo.toml
+          cargo clippy --release --locked --manifest-path "$manifest" --example account_authority_fixture -- -D warnings \
+            > target/independent-peer-ci/account-model-clippy.stdout 2> target/independent-peer-ci/account-model-clippy.stderr
+          cargo build --release --locked --manifest-path "$manifest" --example account_authority_fixture \
+            > target/independent-peer-ci/account-model-build.stdout 2> target/independent-peer-ci/account-model-build.stderr
+          cp "$CARGO_TARGET_DIR/release/examples/account_authority_fixture" target/independent-peer-ci/account-authority-fixture
+          sh artifact/python-run.sh research/continuity-openssl-peer/account_state_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/account-authority-fixture \
+            --output target/independent-peer-ci/account-state \
+            > target/independent-peer-ci/account-state.stdout 2> target/independent-peer-ci/account-state.stderr
+          git diff --exit-code
+      - name: Verify independent policy approvals against original native installations
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/independent-peer-native"
+          manifest=research/continuity-openssl-peer/native/Cargo.toml
+          cargo clippy --release --locked --manifest-path "$manifest" --example policy_renewal_fixture -- -D warnings \
+            > target/independent-peer-ci/policy-proof-clippy.stdout 2> target/independent-peer-ci/policy-proof-clippy.stderr
+          cargo build --release --locked --manifest-path "$manifest" --example policy_renewal_fixture \
+            > target/independent-peer-ci/policy-proof-build.stdout 2> target/independent-peer-ci/policy-proof-build.stderr
+          cp "$CARGO_TARGET_DIR/release/examples/policy_renewal_fixture" target/independent-peer-ci/policy-renewal-fixture
+          sh artifact/python-run.sh research/continuity-openssl-peer/policy_renewal_proof_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/policy-renewal-fixture \
+            --output target/independent-peer-ci/policy-proof \
+            > target/independent-peer-ci/policy-proof.stdout 2> target/independent-peer-ci/policy-proof.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/policy_record_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --proof-directory target/independent-peer-ci/policy-proof \
+            --output target/independent-peer-ci/policy-record \
+            > target/independent-peer-ci/policy-record.stdout 2> target/independent-peer-ci/policy-record.stderr
+          git diff --exit-code
+      - name: Verify original local policy continuation and full-store recovery
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/local_policy_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/local-policy \
+            > target/independent-peer-ci/local-policy.stdout 2> target/independent-peer-ci/local-policy.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/local_policy_boundary_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/local-policy-boundary \
+            > target/independent-peer-ci/local-policy-boundary.stdout 2> target/independent-peer-ci/local-policy-boundary.stderr
+          git diff --exit-code
+      - name: Verify original witnessed policy continuation and output admission
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/witness_policy_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/witness-policy \
+            > target/independent-peer-ci/witness-policy.stdout 2> target/independent-peer-ci/witness-policy.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/witness_policy_boundary_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/witness-policy-boundary \
+            > target/independent-peer-ci/witness-policy-boundary.stdout 2> target/independent-peer-ci/witness-policy-boundary.stderr
+          git diff --exit-code
+      - name: Verify original policy credential roster composition and peer removal
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/policy_composition_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/policy-composition \
+            > target/independent-peer-ci/policy-composition.stdout 2> target/independent-peer-ci/policy-composition.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/policy_composition_capacity_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/policy-composition-capacity \
+            > target/independent-peer-ci/policy-composition-capacity.stdout 2> target/independent-peer-ci/policy-composition-capacity.stderr
+          git diff --exit-code
+      - name: Verify original common-account sessions and witness renewal
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/shared_account_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/shared-account \
+            > target/independent-peer-ci/shared-account.stdout 2> target/independent-peer-ci/shared-account.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/witness_account_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/witness-account \
+            > target/independent-peer-ci/witness-account.stdout 2> target/independent-peer-ci/witness-account.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/account_boundary_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/account-boundary \
+            > target/independent-peer-ci/account-boundary.stdout 2> target/independent-peer-ci/account-boundary.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/account_credential_input_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/account-credential-inputs \
+            > target/independent-peer-ci/account-credential-inputs.stdout 2> target/independent-peer-ci/account-credential-inputs.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/shared_migration_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/shared-migration \
+            > target/independent-peer-ci/shared-migration.stdout 2> target/independent-peer-ci/shared-migration.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/shared_witness_expiry_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/shared-witness-expiry \
+            > target/independent-peer-ci/shared-witness-expiry.stdout 2> target/independent-peer-ci/shared-witness-expiry.stderr
+          git diff --exit-code
+      - name: Verify independent joint local credential renewal and historical cleanup
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/local_renewal_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/local-renewal \
+            > target/independent-peer-ci/local-renewal.stdout 2> target/independent-peer-ci/local-renewal.stderr
+          git diff --exit-code
+      - name: Verify independent local-policy renewal, expiry and capacity admission
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/local_credential_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/local-credential \
+            > target/independent-peer-ci/local-credential.stdout 2> target/independent-peer-ci/local-credential.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/local_credential_capacity_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/local-credential-capacity \
+            > target/independent-peer-ci/local-credential-capacity.stdout 2> target/independent-peer-ci/local-credential-capacity.stderr
+          git diff --exit-code
+      - name: Verify independently approved exact pending-write recovery
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/pending_recovery_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/pending-recovery \
+            > target/independent-peer-ci/pending-recovery.stdout 2> target/independent-peer-ci/pending-recovery.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/shared_pending_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/shared-pending \
+            > target/independent-peer-ci/shared-pending.stdout 2> target/independent-peer-ci/shared-pending.stderr
+          git diff --exit-code
+      - name: Verify original roster maintenance and bilateral renewal
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/roster_refresh_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/roster-refresh \
+            > target/independent-peer-ci/roster-refresh.stdout 2> target/independent-peer-ci/roster-refresh.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/roster_boundary_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/roster-boundary \
+            > target/independent-peer-ci/roster-boundary.stdout 2> target/independent-peer-ci/roster-boundary.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/roster_capacity_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/roster-capacity \
+            > target/independent-peer-ci/roster-capacity.stdout 2> target/independent-peer-ci/roster-capacity.stderr
+          sh artifact/python-run.sh research/continuity-openssl-peer/roster_revocation_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/roster-revocation \
+            > target/independent-peer-ci/roster-revocation.stdout 2> target/independent-peer-ci/roster-revocation.stderr
+          git diff --exit-code
+      - name: Verify portable public inputs and original-state reconstruction
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/public_input_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --importer target/independent-peer-ci/importer \
+            --output target/independent-peer-ci/public-inputs \
+            > target/independent-peer-ci/public-inputs.stdout 2> target/independent-peer-ci/public-inputs.stderr
+          git diff --exit-code
+      - name: Verify protected registration and original child lifecycle
+        if: matrix.phase == 'source'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh research/continuity-openssl-peer/registration_checks.py \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --output target/independent-peer-ci/registration \
+            > target/independent-peer-ci/registration.stdout 2> target/independent-peer-ci/registration.stderr
+          git diff --exit-code
+      - name: Verify registration from the installed Python wheel
+        id: installed_python
+        if: matrix.phase == 'installed'
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          sh artifact/python-run.sh artifact/continuity_independent_python_run.py \
+            --wheel target/independent-peer-ci/python-wheel/qperiapt_continuity_reference-0.0.0-py3-none-any.whl \
+            --provider-root "$RUNNER_TEMP/independent-peer-provider" \
+            --native target/independent-peer-ci/counterpart \
+            --directory-cli-public target/independent-peer-ci/directory-cli-public \
+            --output target/independent-peer-ci/python-installed \
+            > target/independent-peer-ci/python-installed.stdout 2> target/independent-peer-ci/python-installed.stderr
+          git diff --exit-code
+      - name: Report bounded publication and lease verification failures
+        if: failure() && (steps.one_time_publication.outcome == 'failure' || steps.directory_lease.outcome == 'failure' || steps.directory_cli_producer.outcome == 'failure' || steps.directory_cli_source.outcome == 'failure' || steps.installed_python.outcome == 'failure')
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          PUBLICATION_SOURCE_FAILED: ${{ steps.one_time_publication.outcome == 'failure' }}
+          LEASE_SOURCE_FAILED: ${{ steps.directory_lease.outcome == 'failure' }}
+          CLI_PRODUCER_FAILED: ${{ steps.directory_cli_producer.outcome == 'failure' }}
+          CLI_SOURCE_FAILED: ${{ steps.directory_cli_source.outcome == 'failure' }}
+          PUBLICATION_INSTALLED_FAILED: ${{ steps.installed_python.outcome == 'failure' }}
+        run: |
+          sh artifact/python-run.sh -c '
+          import json, os
+          from pathlib import Path
+          root = Path("target/independent-peer-ci")
+          paths = []
+          for label, flag in (("one-time-publication", "PUBLICATION_SOURCE_FAILED"), ("directory-lease", "LEASE_SOURCE_FAILED"), ("directory-cli-producer", "CLI_PRODUCER_FAILED"), ("directory-cli-source", "CLI_SOURCE_FAILED")):
+              if os.environ[flag] == "true":
+                  paths += [root / (label + ".stderr"), root / label / "native.stderr"]
+          if os.environ["PUBLICATION_INSTALLED_FAILED"] == "true":
+              base = root / "python-installed"
+              for label in ("one-time-publication", "directory-lease", "directory-cli"):
+                  marker = base / (label + ".json")
+                  if marker.is_file() and not marker.is_symlink():
+                      with marker.open("rb") as stream:
+                          data = stream.read(8193)
+                      try:
+                          status = json.loads(data) if len(data) <= 8192 else {}
+                      except (ValueError, UnicodeError):
+                          status = {}
+                      if type(status) is dict and type(status.get("exit")) is int and status["exit"] != 0:
+                          paths += [base / (label + ".stderr"), base / label / "native.stderr"]
+          for path in paths:
+              if path.is_file() and not path.is_symlink():
+                  with path.open("rb") as stream:
+                      data = stream.read(8193)
+                  print(str(path) + " (first 8192 bytes): " + ascii(data[:8192].decode("utf-8", errors="replace")))
+                  if len(data) > 8192:
+                      print("[diagnostic truncated; full stderr remains in the artifact]")
+          '
+      - name: Preserve the executable, public transcripts and failed phases
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: independent-bootstrap-${{ matrix.os }}-${{ matrix.phase }}
+          path: target/independent-peer-ci/
+          if-no-files-found: error

@@ -1,0 +1,10 @@
+{
+  "archive_sha256": "38a2722af54ede21162938a7809ae3d3218de9958f68fa71beea0e260da8d147",
+  "manifest_sha256": "57a750275b653cbf89596dfb10d23c192b4e82372a7333e924a5be1c390262cc",
+  "file_members": 64,
+  "all_members_byte_compared": true,
+  "invalid_proof_steps": 0,
+  "origin_proof_complete": false,
+  "valid_open_leaves": 41,
+  "release_claim_eligible": false
+}

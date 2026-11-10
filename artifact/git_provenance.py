@@ -51,6 +51,32 @@ def _repository_root(root: pathlib.Path) -> pathlib.Path:
     return resolved
 
 
+def canonical_repository_root(root: pathlib.Path) -> pathlib.Path:
+    """Admit an explicit publication checkout without following path aliases."""
+
+    if not isinstance(root, pathlib.Path) or not root.is_absolute():
+        raise GitProvenanceError("publication repository root must be absolute")
+    supplied = os.fspath(root)
+    if ".." in root.parts or supplied != os.path.realpath(supplied):
+        raise GitProvenanceError(
+            "publication repository root must be canonical and symlink-free"
+        )
+    resolved = _repository_root(root)
+    try:
+        metadata = resolved.lstat()
+    except OSError as exc:
+        raise GitProvenanceError("cannot inspect publication repository root") from exc
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or stat.S_IMODE(metadata.st_mode) & 0o022
+    ):
+        raise GitProvenanceError(
+            "publication repository root must be an owned non-writable-by-others directory"
+        )
+    return resolved
+
+
 def _environment() -> dict[str, str]:
     # Start from an allowlist.  In particular, no caller-controlled GIT_* value,
     # HOME, executable search path, locale, or repository selector is inherited.
@@ -359,10 +385,13 @@ def _canonical_untracked_path(relative: str) -> pathlib.PurePosixPath:
     return pure
 
 
-def _is_declared_ephemeral_output(relative: str) -> bool:
-    """Apply the fixed, verifier-owned output policy without consulting Git ignores."""
+def _matches_declared_ephemeral_output(
+    pure: pathlib.PurePosixPath,
+    *,
+    directory_marker: bool,
+) -> bool:
+    """Return whether one canonical path is inside a fixed output boundary."""
 
-    pure = _canonical_untracked_path(relative)
     parts = pure.parts
     if parts[0] in {"target", "tmp"}:
         return True
@@ -383,9 +412,35 @@ def _is_declared_ephemeral_output(relative: str) -> bool:
         ".xcodeproj"
     ):
         return True
-    if parts[0] == "sbom" and (pure.suffix == ".json" or relative.endswith(".cdx.json")):
-        return True
+    if parts[0] == "sbom" and (
+        pure.suffix == ".json" or pure.as_posix().endswith(".cdx.json")
+    ):
+        return not directory_marker
     return False
+
+
+def _is_declared_ephemeral_output(relative: str) -> bool:
+    """Apply the fixed, verifier-owned output policy without consulting Git ignores.
+
+    Git represents an untracked nested repository as one directory path ending in
+    ``/``.  Admit that representation only after removing exactly that marker and
+    proving the resulting canonical path is inside a fixed ephemeral-output root.
+    A nested repository anywhere else remains a rejected noncanonical source input.
+    """
+
+    directory_marker = relative.endswith("/")
+    canonical = relative[:-1] if directory_marker else relative
+    pure = _canonical_untracked_path(canonical)
+    declared = _matches_declared_ephemeral_output(
+        pure,
+        directory_marker=directory_marker,
+    )
+    if directory_marker and not declared:
+        raise GitProvenanceError(
+            "untracked nested repository is outside declared ephemeral outputs: "
+            f"{relative}"
+        )
+    return declared
 
 
 def _is_untracked_finder_metadata_file(root: pathlib.Path, relative: str) -> bool:

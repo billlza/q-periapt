@@ -4,14 +4,21 @@
 
 use core::{fmt, str};
 
-pub(crate) const PORTABLE_IMPLEMENTATION_ID: &str = "mlkem-native-1.2.0/portable-c";
+pub(crate) const PORTABLE_IMPLEMENTATION_ID: &str = "mlkem-native-2.0.0/portable-c";
 pub(crate) const AARCH64_NATIVE_IMPLEMENTATION_ID: &str =
-    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar";
+    "mlkem-native-2.0.0/aarch64-native-arith+fips202-v8a-scalar";
+pub(crate) const AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID: &str =
+    "mlkem-native-2.0.0/aarch64-native-arith+fips202-v84a";
+pub(crate) const X86_64_DISPATCH_IMPLEMENTATION_ID: &str =
+    "mlkem-native-2.0.0/x86_64-avx2+portable-dispatch";
+pub(crate) const X86_BASELINE_FLAGS: [&str; 3] = ["-march=x86-64", "-mno-avx", "-mno-avx2"];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum MlKemImplementation {
     Portable,
     Aarch64Native,
+    Aarch64NativeSha3,
+    X86_64Dispatch,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -31,7 +38,9 @@ pub(crate) const fn compiler_family_is_supported(
             family,
             CCompilerFamily::Msvc | CCompilerFamily::Clang | CCompilerFamily::Gnu
         ),
-        MlKemImplementation::Aarch64Native => {
+        MlKemImplementation::Aarch64Native
+        | MlKemImplementation::Aarch64NativeSha3
+        | MlKemImplementation::X86_64Dispatch => {
             matches!(family, CCompilerFamily::Clang | CCompilerFamily::Gnu)
         }
     }
@@ -42,18 +51,30 @@ impl MlKemImplementation {
         match self {
             Self::Portable => PORTABLE_IMPLEMENTATION_ID,
             Self::Aarch64Native => AARCH64_NATIVE_IMPLEMENTATION_ID,
+            Self::Aarch64NativeSha3 => AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID,
+            Self::X86_64Dispatch => X86_64_DISPATCH_IMPLEMENTATION_ID,
         }
     }
 
     pub(crate) const fn uses_aarch64_native(self) -> bool {
-        matches!(self, Self::Aarch64Native)
+        matches!(self, Self::Aarch64Native | Self::Aarch64NativeSha3)
+    }
+
+    pub(crate) const fn aarch64_march_flag(self) -> Option<&'static str> {
+        match self {
+            Self::Portable | Self::X86_64Dispatch => None,
+            Self::Aarch64Native => Some("-march=armv8-a+nosha3"),
+            Self::Aarch64NativeSha3 => Some("-march=armv8.4-a+sha3"),
+        }
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum NativeCompilerArgumentsError<'argument> {
-    MissingArmv8Baseline,
-    DuplicateArmv8Baseline,
+    MissingArmv8Baseline(&'static str),
+    DuplicateArmv8Baseline(&'static str),
+    MissingX86Baseline(&'static str),
+    DuplicateX86Baseline(&'static str),
     MissingPlatformDefine(&'static str),
     DuplicatePlatformDefine(&'argument str),
     Forbidden(&'argument str),
@@ -62,11 +83,17 @@ pub(crate) enum NativeCompilerArgumentsError<'argument> {
 impl fmt::Display for NativeCompilerArgumentsError<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MissingArmv8Baseline => {
-                formatter.write_str("the owned -march=armv8-a+nosha3 flag is missing")
+            Self::MissingArmv8Baseline(flag) => {
+                write!(formatter, "the owned {flag} flag is missing")
             }
-            Self::DuplicateArmv8Baseline => {
-                formatter.write_str("the owned -march=armv8-a+nosha3 flag is not unique")
+            Self::DuplicateArmv8Baseline(flag) => {
+                write!(formatter, "the owned {flag} flag is not unique")
+            }
+            Self::MissingX86Baseline(flag) => {
+                write!(formatter, "the owned x86-64 baseline {flag} is missing")
+            }
+            Self::DuplicateX86Baseline(flag) => {
+                write!(formatter, "the owned x86-64 baseline {flag} is not unique")
             }
             Self::MissingPlatformDefine(argument) => {
                 write!(
@@ -85,6 +112,38 @@ impl fmt::Display for NativeCompilerArgumentsError<'_> {
             }
         }
     }
+}
+
+pub(crate) fn validate_x86_compiler_arguments<'argument>(
+    arguments: impl IntoIterator<Item = &'argument str>,
+) -> Result<(), NativeCompilerArgumentsError<'argument>> {
+    let mut counts = [0_u8; X86_BASELINE_FLAGS.len()];
+    for argument in arguments {
+        if let Some((_, count)) = X86_BASELINE_FLAGS
+            .iter()
+            .zip(&mut counts)
+            .find(|(flag, _)| **flag == argument)
+        {
+            *count = count.saturating_add(1);
+            continue;
+        }
+        if is_forbidden_native_compiler_argument(argument)
+            // cc 1.5 keeps leaf frame pointers in debug builds. This exact flag
+            // changes unwinding, not the baseline instruction-set contract.
+            || (argument.starts_with("-m")
+                && !matches!(argument, "-m64" | "-mno-omit-leaf-frame-pointer"))
+        {
+            return Err(NativeCompilerArgumentsError::Forbidden(argument));
+        }
+    }
+    for (flag, count) in X86_BASELINE_FLAGS.iter().zip(counts) {
+        match count {
+            0 => return Err(NativeCompilerArgumentsError::MissingX86Baseline(flag)),
+            1 => {}
+            _ => return Err(NativeCompilerArgumentsError::DuplicateX86Baseline(flag)),
+        }
+    }
+    Ok(())
 }
 
 fn is_forbidden_native_compiler_argument(argument: &str) -> bool {
@@ -117,12 +176,13 @@ fn is_forbidden_native_compiler_argument(argument: &str) -> bool {
 
 pub(crate) fn validate_native_compiler_arguments<'argument>(
     arguments: impl IntoIterator<Item = &'argument str>,
+    expected_march: &'static str,
     required_platform_define: Option<&'static str>,
 ) -> Result<(), NativeCompilerArgumentsError<'argument>> {
     let mut baseline_count = 0_u8;
     let mut platform_define_count = 0_u8;
     for argument in arguments {
-        if argument == "-march=armv8-a+nosha3" {
+        if argument == expected_march {
             baseline_count = baseline_count.saturating_add(1);
             continue;
         }
@@ -135,10 +195,14 @@ pub(crate) fn validate_native_compiler_arguments<'argument>(
         }
     }
     if baseline_count == 0 {
-        return Err(NativeCompilerArgumentsError::MissingArmv8Baseline);
+        return Err(NativeCompilerArgumentsError::MissingArmv8Baseline(
+            expected_march,
+        ));
     }
     if baseline_count != 1 {
-        return Err(NativeCompilerArgumentsError::DuplicateArmv8Baseline);
+        return Err(NativeCompilerArgumentsError::DuplicateArmv8Baseline(
+            expected_march,
+        ));
     }
     if let Some(argument) = required_platform_define {
         return match platform_define_count {
@@ -182,6 +246,23 @@ fn inherited_c_codegen_name(argument: &str) -> Option<&str> {
 }
 
 pub(crate) fn inherited_c_codegen_option(encoded_rustflags: &str) -> Option<&str> {
+    forbidden_codegen_option(encoded_rustflags, &INHERITED_C_CODEGEN_OPTIONS)
+}
+
+pub(crate) fn x86_cpu_codegen_option(encoded_rustflags: &str) -> Option<&str> {
+    forbidden_codegen_option(
+        encoded_rustflags,
+        &["target-cpu", "target-feature", "llvm-args"],
+    )
+}
+
+pub(crate) fn x86_rust_features_are_baseline(features: &str) -> bool {
+    features
+        .split(',')
+        .all(|feature| matches!(feature, "fxsr" | "sse" | "sse2"))
+}
+
+fn forbidden_codegen_option<'a>(encoded_rustflags: &'a str, forbidden: &[&str]) -> Option<&'a str> {
     let mut expect_codegen_option = false;
     for argument in encoded_rustflags.split('\u{1f}') {
         let option = if expect_codegen_option {
@@ -193,7 +274,7 @@ pub(crate) fn inherited_c_codegen_option(encoded_rustflags: &str) -> Option<&str
         } else {
             inherited_c_codegen_name(argument)
         };
-        if option.is_some_and(|name| INHERITED_C_CODEGEN_OPTIONS.contains(&name)) {
+        if option.is_some_and(|name| forbidden.contains(&name)) {
             return Some(argument);
         }
     }
@@ -202,6 +283,7 @@ pub(crate) fn inherited_c_codegen_option(encoded_rustflags: &str) -> Option<&str
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum NativeTargetMetadataError {
+    UnsupportedX86CandidateTarget,
     Architecture,
     Endianness,
     Environment,
@@ -212,6 +294,9 @@ pub(crate) enum NativeTargetMetadataError {
 impl fmt::Display for NativeTargetMetadataError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
+            Self::UnsupportedX86CandidateTarget => {
+                "the AVX2 candidate requires exactly x86_64-unknown-linux-gnu"
+            }
             Self::Architecture => "target architecture differs from the native allowlist",
             Self::Endianness => "target endianness differs from the native allowlist",
             Self::Environment => "target environment differs from the native allowlist",
@@ -224,34 +309,46 @@ impl fmt::Display for NativeTargetMetadataError {
 #[derive(Clone, Copy)]
 struct ExpectedNativeTarget {
     environment: &'static str,
+    implementation: MlKemImplementation,
     operating_system: &'static str,
     vendor: &'static str,
 }
 
 fn expected_native_target(target: &str) -> Option<ExpectedNativeTarget> {
+    // The SHA3 profile is limited to targets whose entire install base
+    // guarantees FEAT_SHA3: arm64 macOS (Apple M-series only) and the arm64
+    // iOS simulator (executes only on Apple Silicon hosts). The iOS device
+    // slice, Android, and generic Linux keep the fixed Armv8-A scalar
+    // profile because their supported hardware includes CPUs without the
+    // SHA3 extension.
     match target {
         "aarch64-apple-darwin" => Some(ExpectedNativeTarget {
             environment: "",
+            implementation: MlKemImplementation::Aarch64NativeSha3,
             operating_system: "macos",
             vendor: "apple",
         }),
         "aarch64-apple-ios" => Some(ExpectedNativeTarget {
             environment: "",
+            implementation: MlKemImplementation::Aarch64Native,
             operating_system: "ios",
             vendor: "apple",
         }),
         "aarch64-apple-ios-sim" => Some(ExpectedNativeTarget {
             environment: "sim",
+            implementation: MlKemImplementation::Aarch64NativeSha3,
             operating_system: "ios",
             vendor: "apple",
         }),
         "aarch64-unknown-linux-gnu" => Some(ExpectedNativeTarget {
             environment: "gnu",
+            implementation: MlKemImplementation::Aarch64Native,
             operating_system: "linux",
             vendor: "unknown",
         }),
         "aarch64-linux-android" => Some(ExpectedNativeTarget {
             environment: "",
+            implementation: MlKemImplementation::Aarch64Native,
             operating_system: "android",
             vendor: "unknown",
         }),
@@ -266,11 +363,30 @@ pub(crate) fn select_mlkem_implementation(
     target_env: &str,
     target_os: &str,
     target_vendor: &str,
+    enable_x86_candidate: bool,
 ) -> Result<MlKemImplementation, NativeTargetMetadataError> {
-    let Some(expected) = expected_native_target(target) else {
-        return Ok(MlKemImplementation::Portable);
+    let expected = if enable_x86_candidate {
+        if target != "x86_64-unknown-linux-gnu" {
+            return Err(NativeTargetMetadataError::UnsupportedX86CandidateTarget);
+        }
+        ExpectedNativeTarget {
+            environment: "gnu",
+            implementation: MlKemImplementation::X86_64Dispatch,
+            operating_system: "linux",
+            vendor: "unknown",
+        }
+    } else {
+        let Some(expected) = expected_native_target(target) else {
+            return Ok(MlKemImplementation::Portable);
+        };
+        expected
     };
-    if target_arch != "aarch64" {
+    let architecture = if expected.implementation == MlKemImplementation::X86_64Dispatch {
+        "x86_64"
+    } else {
+        "aarch64"
+    };
+    if target_arch != architecture {
         return Err(NativeTargetMetadataError::Architecture);
     }
     if target_endian != "little" {
@@ -285,7 +401,7 @@ pub(crate) fn select_mlkem_implementation(
     if target_vendor != expected.vendor {
         return Err(NativeTargetMetadataError::Vendor);
     }
-    Ok(MlKemImplementation::Aarch64Native)
+    Ok(expected.implementation)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

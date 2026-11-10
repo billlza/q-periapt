@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect the frozen 0.1.0 stable platform publication transaction.
+"""Collect the frozen 0.1.5 stable platform publication transaction.
 
 ``pending`` turns one verified candidate-attestation projection, one descriptor-
 resampled seven-file assembly completion receipt, and a clean annotated-tag
@@ -16,6 +16,10 @@ claim anonymous download availability.
 """
 
 from __future__ import annotations
+
+from platform_distribution_contract import PlatformReleaseProfile
+import platform_maintenance_contract as maintenance_contract
+import platform_maintenance as maintenance_source
 
 import argparse
 import copy
@@ -50,6 +54,7 @@ from evidence_io import (
 )
 from git_provenance import GIT, GitProvenanceError, require_direct_results_only_child
 import github_release_observation as github_release
+from http_connect_proxy import HttpConnectProxyError, validate_http_connect_proxy
 import platform_candidate_attestation as candidate_attestation
 import platform_distribution
 from publication_receipt_io import (
@@ -77,12 +82,12 @@ from platform_stable_publication_contract import (
     ANDROID_RUNTIME_BUNDLE_SCHEMA_VERSION,
     CANDIDATE_PUBLIC_ASSET_NAMES,
     DISTRIBUTION_REVISION,
-    PLATFORM_V0_1_0_PUBLICATION_BOUNDARY,
-    PlatformV010PublicationContractError,
-    PLATFORM_V0_1_0_PUBLICATION_KIND,
-    PLATFORM_V0_1_0_PUBLICATION_SCHEMA_VERSION,
-    PLATFORM_V0_1_0_STATUS_PENDING,
-    PLATFORM_V0_1_0_STATUS_VERIFIED,
+    PLATFORM_V0_1_5_PUBLICATION_BOUNDARY,
+    PlatformV015PublicationContractError,
+    PLATFORM_V0_1_5_PUBLICATION_KIND,
+    PLATFORM_V0_1_5_PUBLICATION_SCHEMA_VERSION,
+    PLATFORM_V0_1_5_STATUS_PENDING,
+    PLATFORM_V0_1_5_STATUS_VERIFIED,
     PRODUCT_VERSION,
     PUBLIC_ASSET_CONTENT_TYPES,
     PUBLIC_ASSET_NAMES,
@@ -93,7 +98,9 @@ from platform_stable_publication_contract import (
     RELEASE_URL,
     TAG_SUBJECT_URI,
     parse_utc_timestamp,
-    validate_v0_1_0_publication_receipt,
+    validate_platform_publication_receipt,
+    validate_v0_1_5_publication_receipt,
+    publication_boundary,
 )
 
 
@@ -119,7 +126,18 @@ PLATFORM_PUBLICATION_WORKTREE_ROOT = (
     REPOSITORY_ROOT / "target" / "abi2-platform-publication-worktrees"
 )
 
-RECEIPT_NAME = "platform-v0.1.0-publication-receipt.json"
+RECEIPT_NAME = "platform-v0.1.5-publication-receipt.json"
+
+
+def receipt_name(profile: PlatformReleaseProfile) -> str:
+    return {
+        PlatformReleaseProfile.STABLE: RECEIPT_NAME,
+        PlatformReleaseProfile.MAINTENANCE_R2: "platform-v0.1.5-r2-publication-receipt.json",
+        PlatformReleaseProfile.MAINTENANCE_R3: "platform-v0.1.5-r3-publication-receipt.json",
+        PlatformReleaseProfile.MAINTENANCE_R4: "platform-v0.1.5-r4-publication-receipt.json",
+    }[profile]
+
+
 RAW_REPOSITORY_BEFORE_NAME = "repository-view-before.json"
 RAW_RELEASE_BEFORE_NAME = "release-view-before.json"
 RAW_RELEASE_VERIFY_NAME = "release-verify.json"
@@ -139,7 +157,7 @@ RAW_NAMES = frozenset(
     }
 )
 
-FRESH_RECORD_KIND = "qperiapt.platform_v0_1_0_fresh_download_verification"
+FRESH_RECORD_KIND = "qperiapt.platform_v0_1_5_fresh_download_verification"
 FRESH_RECORD_SCHEMA_VERSION = 1
 MAX_PRIVATE_JSON_BYTES = 16 * 1024 * 1024
 MAX_REPOSITORY_VIEW_BYTES = 1024 * 1024
@@ -163,11 +181,11 @@ DEEP_VERIFY_PASS = re.compile(
 )
 
 
-class PlatformV010PublicationError(ValueError):
+class PlatformV015PublicationError(ValueError):
     """The platform publication transaction violates a local or remote gate."""
 
 
-class PlatformV010PublicationRetryableError(PlatformV010PublicationError):
+class PlatformV015PublicationRetryableError(PlatformV015PublicationError):
     """One explicit remote observation can be retried as a new transaction."""
 
 
@@ -209,11 +227,11 @@ SourceInspector = Callable[..., SourceObservation]
 
 
 def _fail(message: str) -> Never:
-    raise PlatformV010PublicationError(message)
+    raise PlatformV015PublicationError(message)
 
 
 def _retryable(reason: str) -> Never:
-    raise PlatformV010PublicationRetryableError(f"retryable:{reason}")
+    raise PlatformV015PublicationRetryableError(f"retryable:{reason}")
 
 
 def _require(condition: bool, message: str) -> None:
@@ -233,7 +251,7 @@ def _canonical_pretty_json(value: object) -> bytes:
     try:
         return canonical_json_bytes(value)
     except PublicationReceiptIOError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
 
 
 def _private_file_metadata(metadata: os.stat_result) -> None:
@@ -265,7 +283,7 @@ def _read_private_snapshot_at(
             validate_metadata=_private_file_metadata,
         )
     except EvidenceIOError as exc:
-        raise PlatformV010PublicationError(
+        raise PlatformV015PublicationError(
             f"cannot safely read {label}"
         ) from exc
     data = b"".join(chunks)
@@ -287,7 +305,7 @@ def _normalized_safe_root(
     try:
         return normalize_safe_root(safe_root, label=f"{label} safe root")
     except PublicationReceiptIOError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
 
 
 def _ensure_platform_safe_roots() -> None:
@@ -310,7 +328,7 @@ def _ensure_platform_safe_roots() -> None:
         try:
             ensure_private_safe_root(root, label=label)
         except PublicationReceiptIOError as exc:
-            raise PlatformV010PublicationError(str(exc)) from exc
+            raise PlatformV015PublicationError(str(exc)) from exc
 
 
 def _normalize_direct_child(
@@ -330,7 +348,7 @@ def _normalize_direct_child(
     normalized_text = os.path.realpath(supplied)
     root_prefix = os.fspath(root) + os.sep
     if not normalized_text.startswith(root_prefix):
-        raise PlatformV010PublicationError(
+        raise PlatformV015PublicationError(
             f"{label} must remain below its fixed safe root"
         )
     _require(
@@ -349,7 +367,7 @@ def _normalize_direct_child(
         _require(not must_exist, f"{label} does not exist")
         return normalized
     except OSError as exc:
-        raise PlatformV010PublicationError(f"cannot inspect {label}") from exc
+        raise PlatformV015PublicationError(f"cannot inspect {label}") from exc
     _require(must_exist, f"{label} already exists")
     _require(
         stat.S_ISDIR(metadata.st_mode)
@@ -362,28 +380,39 @@ def _normalize_direct_child(
 
 
 def _write_receipt(
-    receipt: dict[str, object], *, transaction_prefix: str
+    receipt: dict[str, object],
+    *,
+    transaction_prefix: str,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> tuple[pathlib.Path, str]:
     try:
-        validate_v0_1_0_publication_receipt(receipt)
-    except PlatformV010PublicationContractError as exc:
-        raise PlatformV010PublicationError(
+        validate_platform_publication_receipt(receipt, profile=profile)
+    except PlatformV015PublicationContractError as exc:
+        raise PlatformV015PublicationError(
             "platform publication receipt violates its domain contract: "
             f"{exc}"
         ) from exc
     try:
+        stored_receipt = (
+            maintenance_contract.wrap_publication(receipt, profile=profile)
+            if profile.is_maintenance
+            else receipt
+        )
         return create_private_transaction_json(
             safe_root=PLATFORM_PUBLICATION_RECEIPT_ROOT,
             transaction_prefix=transaction_prefix,
-            expected_leaf=RECEIPT_NAME,
-            value=receipt,
+            expected_leaf=receipt_name(profile),
+            value=stored_receipt,
             label="platform publication receipt",
             maximum=MAX_PRIVATE_JSON_BYTES,
         )
     except PublicationReceiptCommittedError:
         raise
-    except PublicationReceiptIOError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+    except (
+        PublicationReceiptIOError,
+        maintenance_contract.PlatformMaintenanceContractError,
+    ) as exc:
+        raise PlatformV015PublicationError(str(exc)) from exc
 
 
 def _system_clock() -> dt.datetime:
@@ -411,8 +440,8 @@ def _utc_now(
 def _contract_timestamp(value: object, label: str) -> dt.datetime:
     try:
         return parse_utc_timestamp(value, label)
-    except PlatformV010PublicationContractError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+    except PlatformV015PublicationContractError as exc:
+        raise PlatformV015PublicationError(str(exc)) from exc
 
 
 def _git_environment(source: Mapping[str, str]) -> dict[str, str]:
@@ -435,7 +464,7 @@ def _raise_github_execution_error(
             _retryable(unavailable_marker)
         if error.returncode == 1:
             _retryable(nonzero_marker)
-    raise PlatformV010PublicationError(str(error)) from error
+    raise PlatformV015PublicationError(str(error)) from error
 
 
 def _capture_command(
@@ -460,7 +489,7 @@ def _capture_command(
     except BoundedProcessError as exc:
         if remote and exc.kind in {"timeout", "io", "reap"}:
             _retryable("github-observation-unavailable")
-        raise PlatformV010PublicationError(f"{label} failed safely") from exc
+        raise PlatformV015PublicationError(f"{label} failed safely") from exc
     if result.returncode != 0:
         if remote and result.returncode == 1:
             _retryable("github-command-nonzero")
@@ -529,7 +558,7 @@ def _git_line(
     try:
         value = raw.decode("ascii")
     except UnicodeDecodeError as exc:
-        raise PlatformV010PublicationError(f"{label} is not ASCII") from exc
+        raise PlatformV015PublicationError(f"{label} is not ASCII") from exc
     _require(value.endswith("\n") and value.count("\n") == 1, f"{label} differs")
     return value[:-1]
 
@@ -545,7 +574,7 @@ def _normalize_verifier_checkout(path: pathlib.Path) -> pathlib.Path:
     try:
         metadata = git_directory.lstat()
     except OSError as exc:
-        raise PlatformV010PublicationError(
+        raise PlatformV015PublicationError(
             "platform verifier checkout lacks a .git directory"
         ) from exc
     _require(
@@ -561,6 +590,7 @@ def inspect_verifier_source(
     git: str,
     environment: Mapping[str, str],
     runner: CaptureRunner,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> SourceObservation:
     """Observe one clean annotated-tag checkout before any release claim."""
 
@@ -570,7 +600,7 @@ def inspect_verifier_source(
         tag_type = _git_line(
             git,
             verifier,
-            ["cat-file", "-t", RELEASE_REF],
+            ["cat-file", "-t", profile.release_ref],
             environment=environment,
             label="platform release tag type",
             runner=runner,
@@ -578,7 +608,7 @@ def inspect_verifier_source(
         tag_object = _git_line(
             git,
             verifier,
-            ["rev-parse", "--verify", RELEASE_REF],
+            ["rev-parse", "--verify", profile.release_ref],
             environment=environment,
             label="platform release tag object",
             runner=runner,
@@ -586,7 +616,7 @@ def inspect_verifier_source(
         tag_commit = _git_line(
             git,
             verifier,
-            ["rev-parse", "--verify", f"{RELEASE_REF}^{{commit}}"],
+            ["rev-parse", "--verify", f"{profile.release_ref}^{{commit}}"],
             environment=environment,
             label="platform release tag commit",
             runner=runner,
@@ -594,7 +624,7 @@ def inspect_verifier_source(
         tag_tree = _git_line(
             git,
             verifier,
-            ["rev-parse", "--verify", f"{RELEASE_REF}^{{tree}}"],
+            ["rev-parse", "--verify", f"{profile.release_ref}^{{tree}}"],
             environment=environment,
             label="platform release tag tree",
             runner=runner,
@@ -677,7 +707,7 @@ def inspect_verifier_source(
             before[1],
         )
     except GitProvenanceError as exc:
-        raise PlatformV010PublicationError(
+        raise PlatformV015PublicationError(
             "platform tag commit is not the direct results-only child"
         ) from exc
     try:
@@ -691,7 +721,7 @@ def inspect_verifier_source(
             label="tagged platform results manifest",
         )
     except EvidenceIOError as exc:
-        raise PlatformV010PublicationError(
+        raise PlatformV015PublicationError(
             "cannot read the tagged platform results manifest"
         ) from exc
     results = _object(results_value, "tagged platform results manifest")
@@ -712,7 +742,7 @@ def inspect_verifier_source(
             verifier, repository_paths(verifier)
         )
     except (LedgerError, ValueError) as exc:
-        raise PlatformV010PublicationError(
+        raise PlatformV015PublicationError(
             "cannot compute the platform verifier canonical source digest"
         ) from exc
     _require(
@@ -737,6 +767,13 @@ def inspect_verifier_source(
         declared_source_parent == source_parent_commit,
         "platform results provenance differs from the tag commit parent",
     )
+    if profile.is_maintenance:
+        try:
+            maintenance_source.verify_product_source(
+                verifier, source_parent_commit, profile=profile
+            )
+        except maintenance_contract.PlatformMaintenanceContractError as exc:
+            raise PlatformV015PublicationError(str(exc)) from exc
     return SourceObservation(
         canonical_source_tree_sha256=source_digest,
         source_parent_commit=source_parent_commit,
@@ -760,26 +797,36 @@ def _load_candidate_projection(path: pathlib.Path) -> dict[str, Any]:
             file_mode=PRIVATE_FILE_MODE,
         ).value
     except PublicationReceiptIOError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
 
 
-def _load_receipt(path: pathlib.Path, *, expected_status: str) -> dict[str, Any]:
+def _load_receipt(
+    path: pathlib.Path,
+    *,
+    expected_status: str,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+) -> dict[str, Any]:
     try:
         receipt = read_fixed_json_snapshot(
             path,
             safe_root=PLATFORM_PUBLICATION_RECEIPT_ROOT,
-            expected_leaf=RECEIPT_NAME,
+            expected_leaf=receipt_name(profile),
             label="platform publication receipt input",
             parent_depth=1,
             maximum=MAX_PRIVATE_JSON_BYTES,
             file_mode=PRIVATE_FILE_MODE,
         ).value
     except PublicationReceiptIOError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
+    if profile.is_maintenance:
+        try:
+            receipt = maintenance_contract.publication(receipt, profile=profile)
+        except maintenance_contract.PlatformMaintenanceContractError as exc:
+            raise PlatformV015PublicationError(str(exc)) from exc
     try:
-        validate_v0_1_0_publication_receipt(receipt)
-    except PlatformV010PublicationContractError as exc:
-        raise PlatformV010PublicationError(
+        validate_platform_publication_receipt(receipt, profile=profile)
+    except PlatformV015PublicationContractError as exc:
+        raise PlatformV015PublicationError(
             "platform publication receipt input violates its domain contract: "
             f"{exc}"
         ) from exc
@@ -800,6 +847,7 @@ def assemble_pending_receipt(
     source_environment: Mapping[str, str] | None = None,
     git_tool: str | None = None,
     source_inspector: SourceInspector = inspect_verifier_source,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> tuple[pathlib.Path, str, SourceObservation]:
     """Publish one exact pending receipt without any remote-publication claim."""
 
@@ -807,11 +855,11 @@ def assemble_pending_receipt(
     candidate = _load_candidate_projection(candidate_projection)
     try:
         assembled_bundle = platform_distribution.load_release_candidate_bundle(
-            assembly_receipt
+            assembly_receipt, profile=profile
         )
         assembled = assembled_bundle.receipt
     except platform_distribution.PlatformDistributionError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
     environment = _git_environment(
         os.environ if source_environment is None else source_environment
     )
@@ -824,6 +872,7 @@ def assemble_pending_receipt(
         git=GIT,
         environment=environment,
         runner=runner,
+        profile=profile,
     )
     assembled_source = _object(
         assembled.get("source"),
@@ -849,14 +898,14 @@ def assemble_pending_receipt(
         not_before=(candidate_verified_at,),
     )
     receipt: dict[str, object] = {
-        "boundary": PLATFORM_V0_1_0_PUBLICATION_BOUNDARY,
+        "boundary": publication_boundary(profile),
         "identity": {
-            "distribution_revision": DISTRIBUTION_REVISION,
+            "distribution_revision": profile.revision,
             "product_version": PRODUCT_VERSION,
-            "release_tag": RELEASE_TAG,
-            "release_url": RELEASE_URL,
+            "release_tag": profile.release_tag,
+            "release_url": profile.release_url,
         },
-        "kind": PLATFORM_V0_1_0_PUBLICATION_KIND,
+        "kind": PLATFORM_V0_1_5_PUBLICATION_KIND,
         "observation": {
             "assembly_receipt_sha256": assembled_bundle.receipt_sha256,
             "candidate_attestation": candidate,
@@ -873,16 +922,16 @@ def assemble_pending_receipt(
             },
             "source": source.document(),
         },
-        "schema_version": PLATFORM_V0_1_0_PUBLICATION_SCHEMA_VERSION,
-        "status": PLATFORM_V0_1_0_STATUS_PENDING,
+        "schema_version": PLATFORM_V0_1_5_PUBLICATION_SCHEMA_VERSION,
+        "status": PLATFORM_V0_1_5_STATUS_PENDING,
     }
     try:
         assembled_after_bundle = platform_distribution.load_release_candidate_bundle(
-            assembly_receipt
+            assembly_receipt, profile=profile
         )
         assembled_after = assembled_after_bundle.receipt
     except platform_distribution.PlatformDistributionError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
     _require(
         assembled_after == assembled
         and assembled_after_bundle.receipt_sha256
@@ -890,7 +939,7 @@ def assemble_pending_receipt(
         "platform release candidate transaction changed during pending assembly",
     )
     output, digest = _write_receipt(
-        receipt, transaction_prefix="transaction.pending."
+        receipt, transaction_prefix="transaction.pending.", profile=profile
     )
     return output, digest, source
 
@@ -900,15 +949,16 @@ def _release_policy(
     *,
     release_id: int | None,
     asset_sha256: Mapping[str, str] | None,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> github_release.ReleasePolicy:
     return github_release.ReleasePolicy(
         repository=REPOSITORY,
         repository_url=REPOSITORY_URL,
-        release_url=RELEASE_URL,
+        release_url=profile.release_url,
         download_prefix=RELEASE_DOWNLOAD_PREFIX,
         api_asset_prefix=API_ASSET_PREFIX,
-        tag_subject_uri=TAG_SUBJECT_URI,
-        tag=RELEASE_TAG,
+        tag_subject_uri=profile.tag_subject_uri,
+        tag=profile.release_tag,
         tag_commit=source.tag_commit,
         tag_object=source.tag_object,
         asset_names=PUBLIC_ASSET_NAMES,
@@ -936,7 +986,7 @@ def _write_raw(
             maximum=MAX_RELEASE_VERIFY_BYTES,
         )
     except PublicationReceiptIOError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
 
 
 def _read_raw(
@@ -1008,6 +1058,7 @@ def _download_asset(
     environment: Mapping[str, str],
     runner: SinkRunner,
     monotonic: MonotonicClock,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> FileSnapshot:
     expected_size = expected["bytes"]
     expected_sha256 = expected["sha256"]
@@ -1037,7 +1088,7 @@ def _download_asset(
             [
                 "release",
                 "download",
-                RELEASE_TAG,
+                profile.release_tag,
                 "--repo",
                 GH_REPOSITORY_ARGUMENT,
                 "--pattern",
@@ -1086,11 +1137,11 @@ def _download_asset(
         os.unlink(temporary_name, dir_fd=download_directory.descriptor)
         os.fsync(download_directory.descriptor)
     except FileExistsError as exc:
-        raise PlatformV010PublicationError(
+        raise PlatformV015PublicationError(
             f"fresh download already exists for {name}"
         ) from exc
     except OSError as exc:
-        raise PlatformV010PublicationError(
+        raise PlatformV015PublicationError(
             f"cannot exclusively publish fresh download for {name}"
         ) from exc
     return _read_private_snapshot_at(
@@ -1137,7 +1188,7 @@ def _inventory_fresh_downloads(
             label="fresh platform download directory after snapshot",
         )
     except (EvidenceIOError, PublicationReceiptIOError) as exc:
-        raise PlatformV010PublicationError(
+        raise PlatformV015PublicationError(
             "cannot safely inventory fresh platform downloads"
         ) from exc
     return snapshots
@@ -1154,7 +1205,7 @@ def _normalize_android_tools(tools: AndroidVerificationTools) -> AndroidVerifica
         try:
             metadata = resolved.lstat()
         except OSError as exc:
-            raise PlatformV010PublicationError(
+            raise PlatformV015PublicationError(
                 f"cannot inspect Android {label} tool"
             ) from exc
         _require(
@@ -1176,6 +1227,7 @@ def _run_deep_distribution_verifier(
     expected_commit: str,
     environment: Mapping[str, str],
     runner: CaptureRunner,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> tuple[dict[str, Any], bytes]:
     verifier = _normalize_verifier_checkout(verifier_checkout)
     script = verifier / "artifact" / "python-run.sh"
@@ -1184,7 +1236,7 @@ def _run_deep_distribution_verifier(
         try:
             metadata = path.lstat()
         except OSError as exc:
-            raise PlatformV010PublicationError(f"cannot inspect {label}") from exc
+            raise PlatformV015PublicationError(f"cannot inspect {label}") from exc
         _require(
             stat.S_ISREG(metadata.st_mode) and not path.is_symlink(),
             f"{label} must be a non-symlink regular file",
@@ -1194,6 +1246,8 @@ def _run_deep_distribution_verifier(
             "/bin/sh",
             str(script),
             "artifact/platform_distribution.py",
+            "--profile",
+            profile.value,
             "verify",
             "--root",
             str(verifier),
@@ -1218,7 +1272,7 @@ def _run_deep_distribution_verifier(
     try:
         text = stdout.decode("ascii")
     except UnicodeDecodeError as exc:
-        raise PlatformV010PublicationError(
+        raise PlatformV015PublicationError(
             "tagged platform deep verifier output is not ASCII"
         ) from exc
     match = DEEP_VERIFY_PASS.fullmatch(text)
@@ -1236,7 +1290,7 @@ def _run_deep_distribution_verifier(
             label="fresh platform distribution manifest",
         )
     except EvidenceIOError as exc:
-        raise PlatformV010PublicationError(
+        raise PlatformV015PublicationError(
             "fresh platform distribution manifest is not strict JSON"
         ) from exc
     _require(
@@ -1250,6 +1304,7 @@ def _run_deep_distribution_verifier(
 def _runtime_projection(
     manifest: Mapping[str, object],
     assets: Mapping[str, Mapping[str, object]],
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> dict[str, object]:
     values = manifest.get("assets")
     _require(isinstance(values, list), "deep platform manifest assets are missing")
@@ -1270,9 +1325,9 @@ def _runtime_projection(
     )
     runtime = records[ANDROID_RUNTIME_BUNDLE]
     device = _object(runtime.get("device"), "deep Android runtime device")
-    return {
+    projection = {
         "bundle_manifest_sha256": runtime.get("bundle_manifest_sha256"),
-        "bundle_schema": ANDROID_RUNTIME_BUNDLE_SCHEMA_VERSION,
+        "bundle_schema": profile.runtime_bundle_schema,
         "bundle_sha256": assets[ANDROID_RUNTIME_BUNDLE]["sha256"],
         "device_abi": device.get("abi"),
         "device_kind": device.get("kind"),
@@ -1284,6 +1339,9 @@ def _runtime_projection(
         "tested_aar_manifest_sha256": assets[ANDROID_MANIFEST]["sha256"],
         "tested_aar_sha256": runtime.get("tested_aar_sha256"),
     }
+    if profile.is_maintenance:
+        projection["agp_consumers"] = runtime["agp_consumers"]
+    return projection
 
 
 def _tool_record(tools: AndroidVerificationTools) -> dict[str, dict[str, object]]:
@@ -1294,7 +1352,7 @@ def _tool_record(tools: AndroidVerificationTools) -> dict[str, dict[str, object]
                 path, maximum=MAX_TOOL_BYTES, label=f"Android {label} tool"
             )
         except EvidenceIOError as exc:
-            raise PlatformV010PublicationError(
+            raise PlatformV015PublicationError(
                 f"cannot snapshot Android {label} tool"
             ) from exc
         records[label] = {"name": path.name, "sha256": snapshot.sha256}
@@ -1316,7 +1374,7 @@ def _validate_raw_directory(
             label="platform publication raw directory before resample",
         )
     except PublicationReceiptIOError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
     for name in RAW_NAMES:
         raw = _read_raw(
             raw_directory,
@@ -1335,7 +1393,7 @@ def _validate_raw_directory(
             label="platform publication raw directory after resample",
         )
     except PublicationReceiptIOError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
 
 
 def collect_verified_receipt(
@@ -1350,16 +1408,24 @@ def collect_verified_receipt(
     clock: Clock = _system_clock,
     monotonic: MonotonicClock = time.monotonic,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     git_tool: str | None = None,
     source_inspector: SourceInspector = inspect_verifier_source,
-    deep_verifier: Callable[..., tuple[dict[str, Any], bytes]] = _run_deep_distribution_verifier,
+    deep_verifier: Callable[
+        ..., tuple[dict[str, Any], bytes]
+    ] = _run_deep_distribution_verifier,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> tuple[pathlib.Path, str, int]:
     """Collect one promotion while every mutable transaction directory is pinned."""
 
+    if http_connect_proxy is not None:
+        try:
+            http_connect_proxy = validate_http_connect_proxy(http_connect_proxy)
+        except HttpConnectProxyError as exc:
+            raise PlatformV015PublicationError(str(exc)) from exc
     _ensure_platform_safe_roots()
     receipt = _load_receipt(
-        pending_receipt,
-        expected_status=PLATFORM_V0_1_0_STATUS_PENDING,
+        pending_receipt, expected_status=PLATFORM_V0_1_5_STATUS_PENDING, profile=profile
     )
     verifier = _normalize_verifier_checkout(verifier_checkout)
     raw = _normalize_direct_child(
@@ -1409,15 +1475,16 @@ def collect_verified_receipt(
                 clock=clock,
                 monotonic=monotonic,
                 source_environment=source_environment,
+                http_connect_proxy=http_connect_proxy,
                 git_tool=git_tool,
                 source_inspector=source_inspector,
                 deep_verifier=deep_verifier,
+                profile=profile,
             )
     except PublicationReceiptIOError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
     output, digest = _write_receipt(
-        verified_receipt,
-        transaction_prefix="transaction.verified.",
+        verified_receipt, transaction_prefix="transaction.verified.", profile=profile
     )
     return output, digest, release_id
 
@@ -1434,19 +1501,25 @@ def _collect_verified_receipt_pinned(
     clock: Clock = _system_clock,
     monotonic: MonotonicClock = time.monotonic,
     source_environment: Mapping[str, str] | None = None,
+    http_connect_proxy: str | None = None,
     git_tool: str | None = None,
     source_inspector: SourceInspector = inspect_verifier_source,
-    deep_verifier: Callable[..., tuple[dict[str, Any], bytes]] = _run_deep_distribution_verifier,
+    deep_verifier: Callable[
+        ..., tuple[dict[str, Any], bytes]
+    ] = _run_deep_distribution_verifier,
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
 ) -> tuple[dict[str, object], int]:
     """Collect one fail-closed pending-to-verified publication promotion."""
 
     source = os.environ if source_environment is None else source_environment
     git_environment = _git_environment(source)
     try:
-        github_environment = github_release.github_cli_environment(source)
+        github_environment = github_release.github_cli_environment(
+            source, http_connect_proxy=http_connect_proxy
+        )
         github_cli = github_release.select_github_cli()
     except github_release.GitHubReleaseObservationError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
     _require(
         git_tool is None or git_tool == GIT,
         "platform publication Git executable differs from the fixed system Git",
@@ -1462,7 +1535,7 @@ def _collect_verified_receipt_pinned(
             try:
                 verify_private_directory_handle_identity(handle, label=label)
             except PublicationReceiptIOError as exc:
-                raise PlatformV010PublicationError(str(exc)) from exc
+                raise PlatformV015PublicationError(str(exc)) from exc
 
     verify_transaction_handles()
     source_before = source_inspector(
@@ -1470,6 +1543,7 @@ def _collect_verified_receipt_pinned(
         git=GIT,
         environment=git_environment,
         runner=runner,
+        profile=profile,
     )
     pending_observation = _object(receipt["observation"], "pending platform observation")
     release_candidate = _object(
@@ -1511,7 +1585,7 @@ def _collect_verified_receipt_pinned(
     release_arguments = [
         "release",
         "view",
-        RELEASE_TAG,
+        profile.release_tag,
         "--repo",
         GH_REPOSITORY_ARGUMENT,
         "--json",
@@ -1520,7 +1594,7 @@ def _collect_verified_receipt_pinned(
     verify_arguments = [
         "release",
         "verify",
-        RELEASE_TAG,
+        profile.release_tag,
         "--repo",
         GH_REPOSITORY_ARGUMENT,
         "--format",
@@ -1549,7 +1623,7 @@ def _collect_verified_receipt_pinned(
             label="GitHub platform repository view-before",
         )
     except github_release.GitHubReleaseObservationError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
     release_before_raw = _observe_remote_json(
         github_cli,
         release_arguments,
@@ -1570,11 +1644,12 @@ def _collect_verified_receipt_pinned(
                 source_before,
                 release_id=None,
                 asset_sha256=expected_candidate_hashes,
+                profile=profile,
             ),
             label="GitHub platform release view-before",
         )
     except github_release.GitHubReleaseObservationError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
     assets = {asset["name"]: asset for asset in release_before.assets}
     _require(
         list(release_before.assets)
@@ -1628,6 +1703,7 @@ def _collect_verified_receipt_pinned(
         source_before,
         release_id=release_before.release_id,
         asset_sha256=expected_hashes,
+        profile=profile,
     )
     try:
         release_verification = github_release.parse_release_verification(
@@ -1638,7 +1714,7 @@ def _collect_verified_receipt_pinned(
             label="GitHub platform release verification",
         )
     except github_release.GitHubReleaseObservationError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
 
     tool_record_before = _tool_record(tools)
     deadline = monotonic() + DOWNLOAD_TRANSACTION_TIMEOUT_SECONDS
@@ -1654,6 +1730,7 @@ def _collect_verified_receipt_pinned(
             environment=github_environment,
             runner=sink_runner,
             monotonic=monotonic,
+            profile=profile,
         )
     inventoried = _inventory_fresh_downloads(downloads, assets)
     _require(
@@ -1670,6 +1747,7 @@ def _collect_verified_receipt_pinned(
         expected_commit=source_before.tag_commit,
         environment=git_environment,
         runner=runner,
+        profile=profile,
     )
     verify_transaction_handles()
     tool_record_after = _tool_record(tools)
@@ -1689,7 +1767,7 @@ def _collect_verified_receipt_pinned(
         deep_stdout,
         label="raw tagged deep verifier output",
     )
-    runtime = _runtime_projection(manifest, assets)
+    runtime = _runtime_projection(manifest, assets, profile=profile)
     _require(
         runtime == release_candidate["android_runtime_evidence"],
         "fresh platform Android evidence differs from the pending release candidate",
@@ -1717,7 +1795,7 @@ def _collect_verified_receipt_pinned(
         "verifier": {
             "clean_annotated_tag_checkout": True,
             "commit": source_before.verifier_commit,
-            "release_tag": RELEASE_TAG,
+            "release_tag": profile.release_tag,
         },
         "verifier_stdout_sha256": hashlib.sha256(deep_stdout).hexdigest(),
     }
@@ -1773,7 +1851,7 @@ def _collect_verified_receipt_pinned(
             label="GitHub platform repository view-after",
         )
     except github_release.GitHubReleaseObservationError as exc:
-        raise PlatformV010PublicationError(str(exc)) from exc
+        raise PlatformV015PublicationError(str(exc)) from exc
     _require(
         release_after.canonical == release_before.canonical,
         "GitHub platform release changed during verification",
@@ -1787,6 +1865,7 @@ def _collect_verified_receipt_pinned(
         git=GIT,
         environment=git_environment,
         runner=runner,
+        profile=profile,
     )
     verify_transaction_handles()
     _require(
@@ -1834,11 +1913,11 @@ def _collect_verified_receipt_pinned(
     )
     verified_receipt = dict(receipt)
     verified_receipt["observation"] = verified_observation
-    verified_receipt["status"] = PLATFORM_V0_1_0_STATUS_VERIFIED
+    verified_receipt["status"] = PLATFORM_V0_1_5_STATUS_VERIFIED
     try:
-        validate_v0_1_0_publication_receipt(verified_receipt)
-    except PlatformV010PublicationContractError as exc:
-        raise PlatformV010PublicationError(
+        validate_platform_publication_receipt(verified_receipt, profile=profile)
+    except PlatformV015PublicationContractError as exc:
+        raise PlatformV015PublicationError(
             "platform publication receipt violates its domain contract: "
             f"{exc}"
         ) from exc
@@ -1847,12 +1926,19 @@ def _collect_verified_receipt_pinned(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--profile", choices=[p.value for p in PlatformReleaseProfile], default="stable"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
     pending = subparsers.add_parser("pending")
     pending.add_argument("--candidate-projection", required=True, type=pathlib.Path)
     pending.add_argument("--assembly-receipt", required=True, type=pathlib.Path)
     pending.add_argument("--verifier-checkout", required=True, type=pathlib.Path)
     collect = subparsers.add_parser("collect")
+    collect.add_argument(
+        "--http-connect-proxy",
+        help="explicit canonical loopback HTTP CONNECT route for GitHub collection only",
+    )
     collect.add_argument("--pending-receipt", required=True, type=pathlib.Path)
     collect.add_argument("--verifier-checkout", required=True, type=pathlib.Path)
     collect.add_argument("--raw-directory", required=True, type=pathlib.Path)
@@ -1868,22 +1954,24 @@ def _relative_output(path: pathlib.Path) -> str:
     try:
         return path.relative_to(REPOSITORY_ROOT).as_posix()
     except ValueError as exc:
-        raise PlatformV010PublicationError(
+        raise PlatformV015PublicationError(
             "platform publication receipt output escaped the repository"
         ) from exc
 
 
 def main(argv: Sequence[str]) -> int:
     arguments = build_parser().parse_args(argv)
+    profile = PlatformReleaseProfile(arguments.profile)
     try:
         if arguments.command == "pending":
             output, digest, source = assemble_pending_receipt(
                 arguments.candidate_projection,
                 arguments.assembly_receipt,
                 arguments.verifier_checkout,
+                profile=profile,
             )
             print(
-                "ABI2_PLATFORM_V0_1_0_PENDING_RECEIPT_PASS "
+                "ABI2_PLATFORM_V0_1_5_PENDING_RECEIPT_PASS "
                 f"commit={source.tag_commit} receipt_sha256={digest} "
                 f"receipt={_relative_output(output)}"
             )
@@ -1899,9 +1987,11 @@ def main(argv: Sequence[str]) -> int:
                     apksigner=arguments.android_apksigner,
                     zipalign=arguments.android_zipalign,
                 ),
+                profile=profile,
+                http_connect_proxy=arguments.http_connect_proxy,
             )
             print(
-                "ABI2_PLATFORM_V0_1_0_VERIFIED_RECEIPT_PASS "
+                "ABI2_PLATFORM_V0_1_5_VERIFIED_RECEIPT_PASS "
                 f"assets={len(PUBLIC_ASSET_NAMES)} release_id={release_id} "
                 f"receipt_sha256={digest} "
                 f"receipt={_relative_output(output)}"
@@ -1920,10 +2010,10 @@ def main(argv: Sequence[str]) -> int:
                 file=sys.stderr,
             )
         return 125
-    except PlatformV010PublicationRetryableError as exc:
+    except PlatformV015PublicationRetryableError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
-    except (OSError, PlatformV010PublicationError) as exc:
+    except (OSError, PlatformV015PublicationError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     return 0

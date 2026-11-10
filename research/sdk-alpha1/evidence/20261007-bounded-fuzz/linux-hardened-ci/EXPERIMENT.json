@@ -1,0 +1,17 @@
+{
+  "product_commit": "6ece94f25e1b9d308c99c319325138d02f87228f",
+  "auxiliary_commit": "c3ed0ac95d53d713d965f7c2e8f2037dac3ed18a",
+  "parent": "d59a45b72d5f4d84e8803247629083d569aa8d00",
+  "tree": "0708c5393b25de78e9033c6a2a4d917d434a8ed1",
+  "branch": "lza/fuzz-execution-control",
+  "workflow_sha256": "b9d9ff8d2f350754cbb008069f9cce389a92899c0d2dcf8b392d531bf754aa3a",
+  "exact_fuzz_job_sha256": "62170ca2dabf87c8ba1b8697ada4b6add6fc3a16835e65ad4b63a887e1a299ba",
+  "all_nonworkflow_tracked_bytes_equal": true,
+  "same_job_and_global_environment": true,
+  "actionlint": true,
+  "CI_uploaded": true,
+  "execution_completed": true,
+  "run": 37684982568,
+  "job": 113010368610,
+  "conclusion": "success"
+}

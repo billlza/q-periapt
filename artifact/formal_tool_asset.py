@@ -78,8 +78,14 @@ _CURL_ENVIRONMENT = MappingProxyType(
         "PATH": "/usr/bin:/bin",
     }
 )
-_ATTEMPTS = 3
-_RETRY_DELAYS_SECONDS = (15, 30)
+_ATTEMPTS = 6
+_RETRY_DELAYS_SECONDS = (15, 30, 60, 120, 180)
+_DOWNLOAD_BUDGET_SECONDS = 900
+# Curl status 22 reports an HTTP failure, including the observed release-asset
+# 504 responses. Curl does not return the HTTP status separately through this
+# bounded stdout interface, so HTTP failures receive the same finite policy.
+# Certificate verification, local I/O, argument and other errors fail at once.
+_RETRYABLE_CURL_STATUSES = frozenset({5, 6, 7, 16, 18, 22, 28, 35, 52, 55, 56, 92})
 _BOUND_TIMEOUT_SECONDS = 300
 _CURL_MAX_TIME_SECONDS = 270
 _DIRECTORY_PREFIX = "qperiapt-formal-tool-asset."
@@ -242,7 +248,11 @@ def _create_private_directory(
                 )
 
 
-def _curl_argv(asset: FormalToolAsset) -> tuple[str, ...]:
+def _curl_argv(
+    asset: FormalToolAsset,
+    *,
+    timeout_seconds: int,
+) -> tuple[str, ...]:
     return (
         _CURL,
         "-q",
@@ -258,7 +268,7 @@ def _curl_argv(asset: FormalToolAsset) -> tuple[str, ...]:
         "--connect-timeout",
         "30",
         "--max-time",
-        str(_CURL_MAX_TIME_SECONDS),
+        str(min(_CURL_MAX_TIME_SECONDS, timeout_seconds)),
         "--max-filesize",
         str(asset.size),
         asset.url,
@@ -355,11 +365,47 @@ def _retry_message(
     )
 
 
+def _remaining_budget(
+    asset_name: str,
+    deadline: float,
+    clock: Callable[[], float],
+) -> int:
+    # Floor the allowance: no process receives time beyond the shared deadline.
+    remaining = int(deadline - clock())
+    if remaining < 1:
+        _fail(
+            f"{asset_name} download exhausted its "
+            f"{_DOWNLOAD_BUDGET_SECONDS}-second transport budget"
+        )
+    return remaining
+
+
+def _wait_before_retry(
+    asset_name: str,
+    reason: str,
+    *,
+    attempt: int,
+    deadline: float,
+    clock: Callable[[], float],
+    sleeper: Callable[[float], None],
+) -> None:
+    delay = _RETRY_DELAYS_SECONDS[attempt - 1]
+    remaining = _remaining_budget(asset_name, deadline, clock)
+    if remaining <= delay:
+        _fail(
+            f"{asset_name} cannot schedule another attempt within its "
+            f"{_DOWNLOAD_BUDGET_SECONDS}-second transport budget"
+        )
+    _retry_message(asset_name, reason, delay)
+    sleeper(delay)
+
+
 def download(
     asset_name: str,
     *,
     runner: Callable[..., BoundedResult] = write_stdout_at,
     sleeper: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.monotonic,
 ) -> pathlib.Path:
     """Download, byte-bound, and hash one fixed formal-tool asset."""
 
@@ -371,14 +417,19 @@ def download(
     success = False
     primary: BaseException | None = None
     try:
+        deadline = clock() + _DOWNLOAD_BUDGET_SECONDS
         for attempt in range(1, _ATTEMPTS + 1):
+            timeout = min(
+                _BOUND_TIMEOUT_SECONDS,
+                _remaining_budget(asset_name, deadline, clock),
+            )
             _target_absent(directory_fd, asset.leaf)
             try:
                 result = runner(
-                    _curl_argv(asset),
+                    _curl_argv(asset, timeout_seconds=timeout),
                     output_directory_fd=directory_fd,
                     output_name=asset.leaf,
-                    timeout_seconds=_BOUND_TIMEOUT_SECONDS,
+                    timeout_seconds=timeout,
                     maximum_bytes=asset.size,
                     stderr=None,
                     environment=_CURL_ENVIRONMENT,
@@ -391,9 +442,14 @@ def download(
                     raise FormalToolAssetError(
                         f"{asset_name} download timed out on all {_ATTEMPTS} attempts"
                     ) from exc
-                delay = _RETRY_DELAYS_SECONDS[attempt - 1]
-                _retry_message(asset_name, "download timed out", delay)
-                sleeper(delay)
+                _wait_before_retry(
+                    asset_name,
+                    "download timed out",
+                    attempt=attempt,
+                    deadline=deadline,
+                    clock=clock,
+                    sleeper=sleeper,
+                )
                 continue
 
             if (
@@ -403,18 +459,24 @@ def download(
                 _fail("formal-tool download runner returned a malformed result")
             if result.returncode != 0:
                 _target_absent(directory_fd, asset.leaf)
+                if result.returncode not in _RETRYABLE_CURL_STATUSES:
+                    _fail(
+                        f"{asset_name} download failed with non-retryable "
+                        f"curl status {result.returncode}"
+                    )
                 if attempt == _ATTEMPTS:
                     _fail(
                         f"{asset_name} download failed after {_ATTEMPTS} attempts "
                         f"with curl status {result.returncode}"
                     )
-                delay = _RETRY_DELAYS_SECONDS[attempt - 1]
-                _retry_message(
+                _wait_before_retry(
                     asset_name,
                     f"curl status {result.returncode}",
-                    delay,
+                    attempt=attempt,
+                    deadline=deadline,
+                    clock=clock,
+                    sleeper=sleeper,
                 )
-                sleeper(delay)
                 continue
 
             snapshot = consume_regular_snapshot_at(

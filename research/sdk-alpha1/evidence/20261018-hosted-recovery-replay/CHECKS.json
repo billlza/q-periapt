@@ -1,0 +1,203 @@
+{
+  "artifact": 12133106525,
+  "artifact_sha256": "389a15f7f08abee40bb314e88edbcb3c0e58aaaf678648a60d1537bb6f612f05",
+  "capture": {
+    "bytes": 528063,
+    "members": 159,
+    "sha256": "389a15f7f08abee40bb314e88edbcb3c0e58aaaf678648a60d1537bb6f612f05"
+  },
+  "head": "714217739d642b7f78ea1d15abc523491a4133f1",
+  "hosted_replay_readback_qualified": true,
+  "job": 117641228507,
+  "profiles": {
+    "independent": {
+      "composed_nodes": 0,
+      "groups": {
+        "positive": {
+          "accepted_root_has_authenticated_origin": 313,
+          "accepted_root_has_origin_or_prior_derivation": 8,
+          "clean_reservation_recovers_symbolic_message_secrecy": 9,
+          "computed_root_derivation_requires_session_leak": 20,
+          "computed_root_identifies_session": 2,
+          "encapsulation_derivation_requires_session_leak": 204,
+          "encapsulation_secret_requires_session_leak": 6,
+          "encapsulation_uses_authenticated_generation": 163,
+          "generation_secret_derivation_origin": 187,
+          "generation_secret_origin": 7,
+          "message_derivation_requires_prior_traffic_key": 352,
+          "message_derivation_requires_session_leak": 18,
+          "message_root_has_authenticated_origin": 6,
+          "response_confirmation_has_origin_or_prior_root": 147,
+          "retained_record_has_saved_origin": 13,
+          "root_constructor_requires_prior_coins_or_snapshot": 150,
+          "signing_secret_derivation_origin": 356,
+          "signing_secret_origin": 3,
+          "stored_records_follow_fresh_reservations": 42,
+          "traffic_key_derivation_requires_prior_root": 142
+        },
+        "witnesses": {
+          "later_storage_access_defeats_fresh_reservations": 45,
+          "pre_cut_generation_reservation_remains_exposed": 80,
+          "recovery_is_executable": 59
+        }
+      },
+      "main_theorem": "clean_reservation_recovers_symbolic_message_secrecy",
+      "universal_properties": [
+        "accepted_root_has_authenticated_origin",
+        "accepted_root_has_origin_or_prior_derivation",
+        "clean_reservation_recovers_symbolic_message_secrecy",
+        "computed_root_derivation_requires_session_leak",
+        "computed_root_identifies_session",
+        "encapsulation_derivation_requires_session_leak",
+        "encapsulation_secret_requires_session_leak",
+        "encapsulation_uses_authenticated_generation",
+        "generation_secret_derivation_origin",
+        "generation_secret_origin",
+        "message_derivation_requires_prior_traffic_key",
+        "message_derivation_requires_session_leak",
+        "message_root_has_authenticated_origin",
+        "response_confirmation_has_origin_or_prior_root",
+        "retained_record_has_saved_origin",
+        "root_constructor_requires_prior_coins_or_snapshot",
+        "signing_secret_derivation_origin",
+        "signing_secret_origin",
+        "stored_records_follow_fresh_reservations",
+        "traffic_key_derivation_requires_prior_root"
+      ],
+      "witnesses": [
+        "later_storage_access_defeats_fresh_reservations",
+        "pre_cut_generation_reservation_remains_exposed",
+        "recovery_is_executable"
+      ]
+    },
+    "key-scoped": {
+      "composed_nodes": 0,
+      "groups": {
+        "attack": {
+          "cross_role_sibling_disclosure_exposes_target_message": 55
+        },
+        "execution": {
+          "recovery_premises_allow_unrelated_identity_disclosure": 72
+        },
+        "positive": {
+          "accepted_root_has_authenticated_origin": 315,
+          "accepted_root_has_origin_or_prior_derivation": 8,
+          "computed_root_derivation_requires_key_or_session_leak": 22,
+          "computed_root_identifies_session": 2,
+          "encapsulation_derivation_requires_key_or_session_leak": 206,
+          "encapsulation_secret_requires_key_or_session_leak": 6,
+          "encapsulation_uses_authenticated_generation": 165,
+          "generation_secret_derivation_origin": 187,
+          "generation_secret_origin": 7,
+          "key_scoped_reservations_recover_symbolic_message_secrecy": 8,
+          "message_derivation_requires_key_or_session_leak": 17,
+          "message_derivation_requires_prior_traffic_key": 352,
+          "message_root_has_authenticated_origin": 8,
+          "response_confirmation_has_origin_or_prior_root": 147,
+          "retained_record_has_saved_origin": 13,
+          "root_constructor_requires_prior_coins_or_snapshot": 150,
+          "signing_secret_derivation_origin": 183,
+          "signing_secret_origin": 3,
+          "stored_records_follow_fresh_reservations": 42,
+          "traffic_key_derivation_requires_prior_root": 142
+        }
+      },
+      "main_theorem": "key_scoped_reservations_recover_symbolic_message_secrecy",
+      "universal_properties": [
+        "accepted_root_has_authenticated_origin",
+        "accepted_root_has_origin_or_prior_derivation",
+        "computed_root_derivation_requires_key_or_session_leak",
+        "computed_root_identifies_session",
+        "encapsulation_derivation_requires_key_or_session_leak",
+        "encapsulation_secret_requires_key_or_session_leak",
+        "encapsulation_uses_authenticated_generation",
+        "generation_secret_derivation_origin",
+        "generation_secret_origin",
+        "key_scoped_reservations_recover_symbolic_message_secrecy",
+        "message_derivation_requires_key_or_session_leak",
+        "message_derivation_requires_prior_traffic_key",
+        "message_root_has_authenticated_origin",
+        "response_confirmation_has_origin_or_prior_root",
+        "retained_record_has_saved_origin",
+        "root_constructor_requires_prior_coins_or_snapshot",
+        "signing_secret_derivation_origin",
+        "signing_secret_origin",
+        "stored_records_follow_fresh_reservations",
+        "traffic_key_derivation_requires_prior_root"
+      ],
+      "witnesses": [
+        "cross_role_sibling_disclosure_exposes_target_message",
+        "recovery_premises_allow_unrelated_identity_disclosure"
+      ]
+    },
+    "shared-storage": {
+      "composed_nodes": 20,
+      "groups": {
+        "attack": {
+          "sibling_wrapping_key_unseals_target_record": 85
+        },
+        "execution": {
+          "shared_device_identity_and_storage_recovery_is_executable": 168
+        },
+        "positive": {
+          "accepted_root_has_authenticated_origin": 371,
+          "accepted_root_has_origin_or_prior_derivation": 8,
+          "computed_root_derivation_requires_key_or_session_leak": 22,
+          "computed_root_identifies_session": 2,
+          "encapsulation_derivation_requires_key_or_session_leak": 242,
+          "encapsulation_secret_requires_key_or_session_leak": 6,
+          "encapsulation_uses_authenticated_generation": 194,
+          "generation_secret_derivation_origin": 219,
+          "generation_secret_origin": 7,
+          "key_scoped_reservations_recover_symbolic_message_secrecy": 8,
+          "message_derivation_requires_key_or_session_leak": 17,
+          "message_derivation_requires_prior_traffic_key": 416,
+          "message_root_has_authenticated_origin": 10,
+          "response_confirmation_has_origin_or_prior_root": 174,
+          "retained_record_has_saved_origin": 16,
+          "root_constructor_requires_prior_coins_or_snapshot": 177,
+          "signing_secret_derivation_origin": 215,
+          "signing_secret_origin": 3,
+          "stored_records_follow_fresh_reservations": 85,
+          "traffic_key_derivation_requires_prior_root": 169
+        }
+      },
+      "main_theorem": "key_scoped_reservations_recover_symbolic_message_secrecy",
+      "universal_properties": [
+        "accepted_root_has_authenticated_origin",
+        "accepted_root_has_origin_or_prior_derivation",
+        "computed_root_derivation_requires_key_or_session_leak",
+        "computed_root_identifies_session",
+        "encapsulation_derivation_requires_key_or_session_leak",
+        "encapsulation_secret_requires_key_or_session_leak",
+        "encapsulation_uses_authenticated_generation",
+        "generation_secret_derivation_origin",
+        "generation_secret_origin",
+        "key_scoped_reservations_recover_symbolic_message_secrecy",
+        "message_derivation_requires_key_or_session_leak",
+        "message_derivation_requires_prior_traffic_key",
+        "message_root_has_authenticated_origin",
+        "response_confirmation_has_origin_or_prior_root",
+        "retained_record_has_saved_origin",
+        "root_constructor_requires_prior_coins_or_snapshot",
+        "signing_secret_derivation_origin",
+        "signing_secret_origin",
+        "stored_records_follow_fresh_reservations",
+        "traffic_key_derivation_requires_prior_root"
+      ],
+      "witnesses": [
+        "shared_device_identity_and_storage_recovery_is_executable",
+        "sibling_wrapping_key_unseals_target_record"
+      ]
+    }
+  },
+  "reader_sha256": "6b8339eac33783a9e49c2c8d738971d2fae9343e4fdcf58fb227718e13e831fc",
+  "release_claim_eligible": false,
+  "run": 39115804790,
+  "scope": "Independent readback of pinned source/certificates, every hosted terminal verdict, checked-output hash and complete acyclic dependency closure. No new prover invocation. Reviewed single-exchange ideal-primitive profiles only; not unbounded multi-epoch secrecy, concrete security or SDK refinement.",
+  "verifier_sha256": {
+    "composition_checker_sha256": "b000e58551c82a8bf2cad2bd40c1c9469b3eb3900ec45d539b12eeb6edcdd70c",
+    "gate_sha256": "01202321fdef1ca9d4f68791fe9bc106830f7a5f29dce1e0b6dfe40c32880687",
+    "profile_catalog_sha256": "1c62cc087574658b8e03ae9eb2d0d28b28760cb9080f549b98d6e08151194389"
+  }
+}

@@ -21,7 +21,9 @@
 //!
 //! ContextBound (deliberately heavier) is benched separately for reference.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
+
+use criterion::{criterion_group, criterion_main, Criterion};
 use q_periapt_backends::Sha3_256Xof;
 use q_periapt_core::{combine, CombineInput, Profile};
 use sha3::{Digest, Sha3_256};

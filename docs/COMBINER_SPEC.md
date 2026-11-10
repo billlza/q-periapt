@@ -20,31 +20,38 @@
 
 Q-Periapt does **not** implement any cryptographic primitive. ML-KEM, ML-DSA,
 SHA3/SHAKE, X25519, and optional SLH-DSA come from pinned third-party backends
-(target-selected `mlkem-native` v1.2.0 through `q-periapt-mlkem-native-sys`, `fips204`
-0.4.6, `sha3` 0.10.9, x25519-dalek, and fips205),
+(target-selected `mlkem-native` v2.0.0 through `q-periapt-mlkem-native-sys`, `fips204`
+0.4.6, `sha3` 0.12.0, `shake` 0.1.0, x25519-dalek 3.0.0, and optional fips205),
 each with a distinct conformance/audit/constant-time
 boundary. The former timing-leaky, unmaintained PQClean-HQC adapter has been removed
 from the publishable/runtime graph. A RustCrypto HQC-v5/FIPS-207-draft candidate exists only in
 a standalone `publish = false` shadow crate and is outside this combiner's product
 suite/ABI claims. This document specifies only the
 **composition** layer — how the two component KEMs' shared secrets, ciphertexts
-and public keys are hashed into one 32-byte combined secret. The combiner is the
-entire security-critical surface that Q-Periapt itself owns; it is deliberately
-tiny, `no_std`, `deny(unsafe_code)` (with the one documented `Secret::drop` wipe),
-and primitive-agnostic so it can be audited in isolation.
+and public keys are hashed into one 32-byte combined secret. The combiner is
+deliberately tiny, `no_std`, `deny(unsafe_code)` (with the one documented
+`Secret::drop` wipe), and primitive-agnostic so it can be audited in isolation.
+SDK policy admission, protocol state, persistence and language bindings have
+their own security-critical boundaries and separate validation obligations.
 
-This is part of the pre-publication package-ready `0.1.0` stable-version ABI 2
-source/crate contract, **not a production-readiness claim**:
-there is no third-party cryptographic
-or ABI audit, and the backend integrations are pre-1.0 / unaudited for this suite.
-Do not deploy.
+These are the current composition/backend selections. The `fips204` dependency
+retains its own transitive `sha3` 0.10.9; that is separate from the combiner's
+direct `sha3` 0.12.0 dependency. Historical 0.1.5 evidence retains its original
+dependency identities and does not qualify the current graph.
+
+The current `0.2.0` candidate retains the byte contract from the `0.1.5` ABI 2
+source/crate line. Publication and production qualification remain subject to
+the [release scope](continuity/RELEASE_0_2_SCOPE.md) and
+[product admission requirements](continuity/PRODUCT_ADMISSION.md).
+This specification is **not a production-readiness claim**. Do not deploy.
 
 ML-KEM backend selection is below this byte contract. Exactly the little-endian
 targets `aarch64-apple-darwin`, `aarch64-apple-ios`,
 `aarch64-apple-ios-sim`, `aarch64-unknown-linux-gnu`, and
-`aarch64-linux-android` use upstream native arithmetic plus fixed Armv8-A scalar
-x1 and scalar/Neon x4 FIPS 202 assembly; every other target, including Wasm, uses
-portable C. There is no runtime dispatch or Armv8.4-A SHA3 path. The selection
+`aarch64-linux-android` use upstream native arithmetic plus a fixed per-target
+FIPS 202 assembly profile (Armv8.4-A SHA3 x1/x2 on `aarch64-apple-darwin` and
+`aarch64-apple-ios-sim`, Armv8-A scalar x1 and scalar/Neon x4 elsewhere); every
+other target, including Wasm, uses portable C. There is no runtime dispatch. The selection
 does not change ABI 2, ML-KEM key/ciphertext encodings, or any combiner input/output
 byte defined below. Upstream HOL-Light evidence is limited to selected upstream
 assembly source/object routines and is not a proof of downstream reassembly, the
@@ -52,9 +59,13 @@ Rust/C integration, or the full ABI.
 
 This specification is also **not a session protocol**. It does not define identities,
 prekeys, offline initiation, AEAD messages, ratchets, persistence, multi-device
-state, recovery, or key transparency. The future-only Continuity plan is in
-[`CONTINUITY_RESEARCH.md`](CONTINUITY_RESEARCH.md). Adding session fields to
-`context` cannot turn this KEM theorem into a PQXDH/PQ3/Triple-Ratchet proof.
+state, recovery, or key transparency. The implemented, unpublished Continuity
+candidate has a separate [protocol contract](continuity/PROTOCOL_V1.md),
+[recovery analysis](continuity/RECOVERY_DEPENDENCIES_V1.md), and
+[product admission boundary](continuity/PRODUCT_ADMISSION.md). Its lifecycle
+capabilities are required in 0.2.0; their implementation and qualification are
+recorded separately from this KEM contract. Adding session fields to `context`
+cannot turn this KEM theorem into a PQXDH/PQ3/Triple-Ratchet proof.
 
 The combiner produces a `SHARED_SECRET_LEN = 32`-byte secret
 (the `SHARED_SECRET_LEN` const,

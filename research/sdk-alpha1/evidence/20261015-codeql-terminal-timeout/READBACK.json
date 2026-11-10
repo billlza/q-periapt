@@ -1,0 +1,8 @@
+{
+  "capture_sha256": "c9aa78f7595bd58eaceb713f8b181c2e6c35648a486d7b42d39f47c2f2749504",
+  "completed": true,
+  "members": 31,
+  "quality_gate_passed": false,
+  "raw_logs_or_credentials_published": false,
+  "terminal_rust_failure_verified": true
+}

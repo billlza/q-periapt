@@ -92,6 +92,10 @@ RUST_SPARSE_AGGREGATE_MAX_BYTES = 128 * 1024 * 1024
 RUST_SPARSE_INDEX_MAX_WORKERS = 8
 RUST_SPARSE_LOCK_MAX_BYTES = 4 * 1024 * 1024
 RUST_SPARSE_MAX_REGISTRY_PACKAGES = 256
+# Browser Continuity has 259 registry entries. Handle-relative CLI scanning
+# adds twelve reviewed entries (271 total), without upgrading existing packages.
+# Keep the smaller normalized/fuzz resource bound and all byte/time bounds unchanged.
+RUST_WORKSPACE_MAX_REGISTRY_PACKAGES = 271
 RUST_SPARSE_ACCEPTANCE_TIMEOUT_SECONDS = 275
 RUST_SPARSE_HELPER_TIMEOUT_SECONDS = 295
 RUST_SPARSE_TOTAL_TIMEOUT_SECONDS = 300
@@ -170,16 +174,21 @@ RUST_WORKSPACE_LOCAL_CRATES = frozenset(
     {
         "q-periapt-backends",
         "q-periapt-cli",
+        # Optional private browser engine, not part of the publication cohort.
+        "q-periapt-continuity",
         "q-periapt-continuity-model",
         "q-periapt-core",
         "q-periapt-ctstats",
         "q-periapt-ffi",
+        "q-periapt-host-store",
         "q-periapt-kem",
         "q-periapt-migration",
         "q-periapt-mlkem-native-sys",
         "q-periapt-policy",
         "q-periapt-policy-agent",
         "q-periapt-rustls",
+        "q-periapt-sdk",
+        "q-periapt-sdk-wasm",
         "q-periapt-sig",
         "q-periapt-tls-demo",
         "q-periapt-wasm",
@@ -469,6 +478,12 @@ def _local_crates_for_lock_scope(scope: str) -> frozenset[str]:
     raise RustPublishContractError(f"Cargo.lock scope is unsupported: {scope!r}")
 
 
+def _registry_package_limit(scope: str) -> int:
+    _local_crates_for_lock_scope(scope)
+    return (RUST_WORKSPACE_MAX_REGISTRY_PACKAGES if scope == "workspace"
+            else RUST_SPARSE_MAX_REGISTRY_PACKAGES)
+
+
 def _dependency_audit_stage_timeout(
     deadline: float | None,
     *,
@@ -535,6 +550,7 @@ def _parse_cargo_lock_scope(
     scope: str = "normalized-backends",
 ) -> tuple[_LockedRegistryPackage, ...]:
     local_crates = _local_crates_for_lock_scope(scope)
+    registry_limit = _registry_package_limit(scope)
     lock_label = f"{scope} Cargo.lock"
     if not isinstance(lock_data, bytes):
         raise RustPublishContractError(
@@ -588,6 +604,10 @@ def _parse_cargo_lock_scope(
                 raise RustPublishContractError(
                     f"{lock_label} contains a duplicate local package: {name}"
                 )
+            if name == "q-periapt-continuity" and version != "0.2.0":
+                raise RustPublishContractError(
+                    f"{lock_label} private browser candidate version differs"
+                )
             if "checksum" in record:
                 raise RustPublishContractError(
                     f"{lock_label} local package has a checksum: {name}"
@@ -624,7 +644,7 @@ def _parse_cargo_lock_scope(
                 checksum=checksum,
             )
         )
-        if len(registry_packages) > RUST_SPARSE_MAX_REGISTRY_PACKAGES:
+        if len(registry_packages) > registry_limit:
             raise RustPublishContractError(
                 f"{lock_label} exceeds the registry package limit"
             )
@@ -827,7 +847,7 @@ def _validate_crates_io_sparse_yanked_with_fetcher(
     if not callable(fetcher):
         raise RustPublishContractError("crates.io sparse index fetcher is not callable")
     names = sorted(by_name)
-    if len(names) > RUST_SPARSE_MAX_REGISTRY_PACKAGES:
+    if len(names) > _registry_package_limit(scope):
         raise RustPublishContractError(
             f"{lock_label} exceeds the unique registry name limit"
         )
@@ -1097,7 +1117,7 @@ def _validate_crates_io_sparse_via_helper(
             set(value) != expected_fields
             or result.returncode != 0
             or type(count) is not int
-            or not 1 <= count <= RUST_SPARSE_MAX_REGISTRY_PACKAGES
+            or not 1 <= count <= _registry_package_limit(scope)
             or value.get("lock_sha256") != lock_sha256
         ):
             raise RustPublishContractError(
@@ -1734,7 +1754,8 @@ _MLKEM_ARCHIVE_BINARY_MARKER = re.compile(
     r"target=([a-z0-9][a-z0-9_.-]*) "
     r"implementation=(portable|aarch64-native) "
     r"implementation_id=(mlkem-native-1\.2\.0/"
-    r"(?:portable-c|aarch64-native-arith\+fips202-v8a-scalar)) "
+    r"(?:portable-c|aarch64-native-arith\+fips202-v8a-scalar"
+    r"|aarch64-native-arith\+fips202-v84a)) "
     r"objects=([1-9][0-9]*) symbols=([1-9][0-9]*) "
     r"reserved_dynamic_abi=none"
 )
@@ -2153,7 +2174,7 @@ def validate_rust_package_contract_transcript(
     expected_binary_contract = (
         "aarch64-native" if expected_native else "portable",
         (
-            _AARCH64_NATIVE_IMPLEMENTATION_ID
+            _native_implementation_id_for_target(mlkem_host_target)
             if expected_native
             else _PORTABLE_IMPLEMENTATION_ID
         ),
@@ -2657,19 +2678,40 @@ def validate_cargo_package_completion(
 
 _ALLOWED_BUILD_MODULE = '#[path = "src/build_support.rs"]\nmod build_support;'
 _EXPECTED_LOCAL_SOURCE_SHA256 = {
-    "build.rs": "4508b5566073e685af03da81fdb1afc0ef0b7e58e9be44c9980ab39731e7cbfe",
-    "src/build_support.rs": "244b5d33e16a022e4bb472a19af5ae107e524bd82de8581f8a4248c26006e8dd",
-    "src/build_support_tests.rs": "e63547c116d11ca26d5c0378cbe6556944cb6ab556d8ee71910efa7493541014",
-    "src/lib.rs": "e0026393fd51570ff78d50446d462f583eec800bfd6a3f57c42a5e92f9326868",
+    "build.rs": "f63b712d01166e2fbb28c2a06911fd066467eb816c1a9d27f88a9dc55f8a58bb",
+    "src/build_support.rs": "38c419a0e91f36ae0ad1297701b79d5ee8c56e07ffab933bb2d0f610e64c543d",
+    "src/build_support_tests.rs": "69d9e0857ce5eaab46ba12b1f27803f1966be73b18b1839792f8a9d0c0631e14",
+    "src/lib.rs": "ba789ccae6ef1cafdf99de52f8a4d5bd4012feaf698f7de215ecb0207b3c0975",
     "src/mlkem_bridge.c": "c12dbf268527fff0241a79f84f8dbcade065b37f3c76060f4f95c03a83bf149d",
     "src/mlkem_bridge_native.c": "88c9210692994677e8ab077c1a56c9bd8354897085eeec56e25743f46d8781b5",
     "src/mlkem_bridge_portable.c": "6d51c2083fc58fededd279edab804ef9300da0ffe3a4be14178c68aa85e7e623",
     "src/mlkem_bridge_asm.S": "c658b40e52fa3aebeef74c1c5dd4f56fa3d71d6f52721df9d47d6c1e13d50b7a",
     "src/mlkem_bridge.h": "b8c286379f0f6444c91b3ae66b9aa3dcc412b62a727cd480c610b7e8d19722a2",
-    "src/mlkem_config.h": "e5788074d5e0f756e4133f0b16875e184916ddd09a9cef449482a7798a2a4194",
-    "src/mlkem_fips202_aarch64.h": "8263fd64394f4db1ed68167b414dec50662c32b22e31c01a6f78d5a35e642667",
+    "src/mlkem_config.h": "3f0c08923e0f3d127335b987c9d0f9b70a7bacf69d3601d2a51eeed3fbb8a5e0",
+    "src/mlkem_fips202_aarch64.h": "6057160bbae3ba7ce63794ac3708e6b6ce16cd018e9d3852f1e7b4f5f50dfad8",
     "src/raw.rs": "3da32c86e71ee0769c51ec6b0b925d6457259714f143c184a84001e958f3978b",
-    "src/tests.rs": "5d0c261be44f1cf96db520c8064ccfd3501f291801ca388302d38a71fa8c43df",
+    "src/tests.rs": "89b082a5b5dfb78b75c8f8854f8243b708106a2dc48b1f5ffab160ae6320af26",
+}
+# A source-identity profile, not native-execution, CT or release qualification.
+# The alpha review includes the opt-in dispatcher and all its CPU/OS guards;
+# the historical 0.1.5 profile above remains immutable. See SDK_X86_CANDIDATE.md.
+_SDK_020_LOCAL_SOURCE_SHA256 = {
+    "build.rs": "423984f4ff9ce17c71087b0cb5fb7208edca6b8a5b2ba47c44fa7c74ccb3002d",
+    "src/build_support.rs": "567e1bb28a9218e59bc4655915126016342c45b09b52e893e9ce7edde55eba01",
+    "src/build_support_tests.rs": "2e0a1370eb78cf9557839e208e4c461940babddea6cc506a1f0214c2914f6c0a",
+    "src/lib.rs": "2248aa6ec5f6fb67993cd8454455efc2f214e0e70e2946961dce82386ce77ab6",
+    "src/mlkem_bridge.c": "8984b98849b7a11212ce41c93ea1ff83103bc5eece07195e4b1da7ce401f2120",
+    "src/mlkem_bridge.h": "4d4b8db62d555405d3add46af7eb3c46b178b83982e0db1ebdabb650fbe382e1",
+    "src/mlkem_bridge_asm.S": "c658b40e52fa3aebeef74c1c5dd4f56fa3d71d6f52721df9d47d6c1e13d50b7a",
+    "src/mlkem_bridge_native.c": "88c9210692994677e8ab077c1a56c9bd8354897085eeec56e25743f46d8781b5",
+    "src/mlkem_bridge_portable.c": "6d51c2083fc58fededd279edab804ef9300da0ffe3a4be14178c68aa85e7e623",
+    "src/mlkem_bridge_x86_64.c": "fad6b11a5ec7714de5d5080516cdd148aaf51fd5b0ea4af2d30a8ccc70becca5",
+    "src/mlkem_bridge_x86_64_asm.S": "9883dd7537158f994edd05a53f5dc8f826f0b5694015d7ee6672d5ae40e7cebc",
+    "src/mlkem_config.h": "4f25bb9465bbc97bb6288ebe8ab4fbea03dd126a354683af56ab2497db9e5e28",
+    "src/mlkem_fips202_aarch64.h": "6057160bbae3ba7ce63794ac3708e6b6ce16cd018e9d3852f1e7b4f5f50dfad8",
+    "src/raw.rs": "e8d34c199856412660df4dc11235a3696404bf065a0a69ac9582a667375a88c9",
+    "src/tests.rs": "5b5ae328625deb9e91e0a90239560a0175a09d88bd66644b036b286a624b9d6e",
+    "src/x86_cpu.rs": "9cc280fd8eb685049d799ff9b8c2b6e12123e093972de58cac910cfec1acd811",
 }
 _EXPECTED_BUILD_SURFACE_FILES = (
     "build.rs",
@@ -2686,9 +2728,6 @@ _EXPECTED_BUILD_SURFACE_SHA256 = {
     name: _EXPECTED_LOCAL_SOURCE_SHA256[name]
     for name in _EXPECTED_BUILD_SURFACE_FILES
 }
-_EXPECTED_LOCAL_SOURCE_FILES = frozenset(
-    name for name in _EXPECTED_LOCAL_SOURCE_SHA256 if name.startswith("src/")
-)
 _INCLUDE_SOURCE_TOKEN = re.compile(r"(?<!\.)\binclude(?:_bytes|_str)?\b")
 _EXPECTED_INCLUDE_SOURCE_TOKEN_COUNTS = {
     "build.rs": 0,
@@ -2712,6 +2751,7 @@ _EXPECTED_C_INCLUDES = {
     "src/mlkem_bridge_asm.S": ('"mlkem_native_asm.S"',),
     "src/mlkem_bridge.h": ("<stdint.h>", '"mlkem_native.h"'),
     "src/mlkem_config.h": (
+        "<TargetConditionals.h>",
         "<stddef.h>",
         "<stdint.h>",
         '"src/sys.h"',
@@ -2720,6 +2760,8 @@ _EXPECTED_C_INCLUDES = {
         '"src/sys.h"',
     ),
     "src/mlkem_fips202_aarch64.h": (
+        '"src/fips202/native/aarch64/x1_v84a.h"',
+        '"src/fips202/native/aarch64/x2_v84a.h"',
         '"src/fips202/native/aarch64/x1_scalar.h"',
         '"src/fips202/native/aarch64/x4_v8a_scalar.h"',
     ),
@@ -2777,21 +2819,39 @@ _PORTABLE_IMPLEMENTATION_ID = "mlkem-native-1.2.0/portable-c"
 _AARCH64_NATIVE_IMPLEMENTATION_ID = (
     "mlkem-native-1.2.0/aarch64-native-arith+fips202-v8a-scalar"
 )
-_EXPECTED_NATIVE_TARGETS = (
-    ("aarch64-apple-darwin", "", "macos", "apple"),
-    ("aarch64-apple-ios", "", "ios", "apple"),
-    ("aarch64-apple-ios-sim", "sim", "ios", "apple"),
-    ("aarch64-unknown-linux-gnu", "gnu", "linux", "unknown"),
-    ("aarch64-linux-android", "", "android", "unknown"),
+_AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID = (
+    "mlkem-native-1.2.0/aarch64-native-arith+fips202-v84a"
 )
-_NATIVE_TARGETS = frozenset(target for target, _, _, _ in _EXPECTED_NATIVE_TARGETS)
+_EXPECTED_NATIVE_TARGETS = (
+    ("aarch64-apple-darwin", "", "Aarch64NativeSha3", "macos", "apple"),
+    ("aarch64-apple-ios", "", "Aarch64Native", "ios", "apple"),
+    ("aarch64-apple-ios-sim", "sim", "Aarch64NativeSha3", "ios", "apple"),
+    ("aarch64-unknown-linux-gnu", "gnu", "Aarch64Native", "linux", "unknown"),
+    ("aarch64-linux-android", "", "Aarch64Native", "android", "unknown"),
+)
+_NATIVE_TARGETS = frozenset(target for target, _, _, _, _ in _EXPECTED_NATIVE_TARGETS)
+_NATIVE_SHA3_TARGETS = frozenset(
+    target
+    for target, _, implementation, _, _ in _EXPECTED_NATIVE_TARGETS
+    if implementation == "Aarch64NativeSha3"
+)
 _NATIVE_TARGET_ROW = re.compile(
     r'"(?P<target>[a-z0-9_-]+)"\s*=>\s*Some\(ExpectedNativeTarget\s*\{\s*'
     r'environment:\s*"(?P<environment>[a-z]*)",\s*'
+    r"implementation:\s*MlKemImplementation::"
+    r"(?P<implementation>Aarch64Native|Aarch64NativeSha3),\s*"
     r'operating_system:\s*"(?P<operating_system>[a-z]+)",\s*'
     r'vendor:\s*"(?P<vendor>[a-z]+)",\s*\}\),',
     re.DOTALL,
 )
+
+
+def _native_implementation_id_for_target(target: str) -> str:
+    """Return the audited per-target AArch64 implementation identity."""
+
+    if target in _NATIVE_SHA3_TARGETS:
+        return _AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID
+    return _AARCH64_NATIVE_IMPLEMENTATION_ID
 _BRIDGE_SYMBOLS = frozenset(
     f"qpn_mlkem_bridge_v1_2_0_{parameter_set}_{operation}"
     for parameter_set in ("512", "768", "1024")
@@ -2825,12 +2885,10 @@ _SHARED_FIPS202_SYMBOLS = frozenset(
         "shake256x4",
     )
 )
-_AARCH64_ASSEMBLY_SYMBOLS = frozenset(
+_AARCH64_ARITH_ASSEMBLY_SYMBOLS = frozenset(
     f"qpn_mlkem_internal_v1_2_0__{suffix}"
     for suffix in (
         "intt_aarch64_asm",
-        "keccak_f1600_x1_scalar_aarch64_asm",
-        "keccak_f1600_x4_v8a_scalar_hybrid_aarch64_asm",
         "ntt_aarch64_asm",
         "poly_mulcache_compute_aarch64_asm",
         "poly_reduce_aarch64_asm",
@@ -2840,6 +2898,20 @@ _AARCH64_ASSEMBLY_SYMBOLS = frozenset(
         "polyvec_basemul_acc_montgomery_cached_k3_aarch64_asm",
         "polyvec_basemul_acc_montgomery_cached_k4_aarch64_asm",
         "rej_uniform_aarch64_asm",
+    )
+)
+_AARCH64_ASSEMBLY_SYMBOLS = _AARCH64_ARITH_ASSEMBLY_SYMBOLS | frozenset(
+    f"qpn_mlkem_internal_v1_2_0__{suffix}"
+    for suffix in (
+        "keccak_f1600_x1_scalar_aarch64_asm",
+        "keccak_f1600_x4_v8a_scalar_hybrid_aarch64_asm",
+    )
+)
+_AARCH64_SHA3_ASSEMBLY_SYMBOLS = _AARCH64_ARITH_ASSEMBLY_SYMBOLS | frozenset(
+    f"qpn_mlkem_internal_v1_2_0__{suffix}"
+    for suffix in (
+        "keccak_f1600_x1_v84a_aarch64_asm",
+        "keccak_f1600_x2_v84a_aarch64_asm",
     )
 )
 
@@ -2854,11 +2926,41 @@ class MlKemArchiveContract:
     symbol_count: int
 
 
-def validate_packaged_mlkem_native_local_sources(source_files: set[str]) -> None:
+def _mlkem_source_digests(package_version: str) -> Mapping[str, str]:
+    if package_version == "0.1.5":
+        return _EXPECTED_LOCAL_SOURCE_SHA256
+    if package_version == "0.2.0":
+        return _SDK_020_LOCAL_SOURCE_SHA256
+    raise RustPublishContractError(
+        f"unsupported sys crate source profile: {package_version!r}"
+    )
+
+
+def validate_mlkem_native_manifest_features(
+    features: Mapping[str, object], *, package_version: str,
+) -> None:
+    """Require the candidate feature to remain explicit and off by default."""
+
+    _mlkem_source_digests(package_version)
+    expected = {} if package_version == "0.1.5" else {"linux-x86_64-avx2": []}
+    if features != expected:
+        raise RustPublishContractError(
+            "sys crate feature table differs from the explicit version profile: "
+            f"version={package_version} actual={features!r} expected={expected!r}"
+        )
+
+
+def validate_packaged_mlkem_native_local_sources(
+    source_files: set[str], *, package_version: str = "0.1.5",
+) -> None:
     """Reject local package files outside the reviewed sys-crate source set."""
 
-    missing = sorted(_EXPECTED_LOCAL_SOURCE_FILES - source_files)
-    extra = sorted(source_files - _EXPECTED_LOCAL_SOURCE_FILES)
+    expected = {
+        name for name in _mlkem_source_digests(package_version)
+        if name.startswith("src/")
+    }
+    missing = sorted(expected - source_files)
+    extra = sorted(source_files - expected)
     if missing or extra:
         raise RustPublishContractError(
             "sys crate packaged local source set differs from the audited allowlist: "
@@ -2867,12 +2969,13 @@ def validate_packaged_mlkem_native_local_sources(source_files: set[str]) -> None
 
 
 def validate_packaged_mlkem_native_local_source_digests(
-    source_files: Mapping[str, bytes],
+    source_files: Mapping[str, bytes], *, package_version: str = "0.1.5",
 ) -> None:
     """Require every packaged build/local-source byte to match its audited digest."""
 
+    expected_digests = _mlkem_source_digests(package_version)
     actual_names = set(source_files)
-    expected_names = set(_EXPECTED_LOCAL_SOURCE_SHA256)
+    expected_names = set(expected_digests)
     missing = sorted(expected_names - actual_names)
     extra = sorted(actual_names - expected_names)
     malformed = sorted(
@@ -2888,16 +2991,49 @@ def validate_packaged_mlkem_native_local_source_digests(
     }
     mismatches = {
         name: {
-            "expected": _EXPECTED_LOCAL_SOURCE_SHA256[name],
+            "expected": expected_digests[name],
             "actual": actual_digests[name],
         }
         for name in sorted(expected_names)
-        if actual_digests[name] != _EXPECTED_LOCAL_SOURCE_SHA256[name]
+        if actual_digests[name] != expected_digests[name]
     }
     if mismatches:
         raise RustPublishContractError(
             "packaged local source bytes differ from the audited allowlist: "
             f"{mismatches}"
+        )
+
+
+def validate_packaged_mlkem_native_source_contract(
+    source_files: Mapping[str, bytes], *, package_version: str,
+) -> None:
+    """Close the complete source graph for one explicit package version.
+
+    Both versions require every local source byte, including tests and the
+    build script. Alpha.1 binds all sixteen files, including raw dispatch and
+    CPU admission; it does not reuse the historical two-wrapper lexical model.
+    Whole-file hashes reject alternate spellings, hidden source edges and guard
+    changes. They identify the reviewed candidate, not its release eligibility.
+    """
+
+    validate_packaged_mlkem_native_local_sources(
+        {name for name in source_files if name.startswith("src/")},
+        package_version=package_version,
+    )
+    validate_packaged_mlkem_native_local_source_digests(
+        source_files, package_version=package_version,
+    )
+    if package_version == "0.1.5":
+        validate_mlkem_native_build_surface(
+            build_rs=source_files["build.rs"].decode("utf-8"),
+            build_support=source_files["src/build_support.rs"].decode("utf-8"),
+            bridge_c=source_files["src/mlkem_bridge.c"].decode("utf-8"),
+            bridge_native_c=source_files["src/mlkem_bridge_native.c"].decode("utf-8"),
+            bridge_portable_c=source_files["src/mlkem_bridge_portable.c"].decode("utf-8"),
+            bridge_asm=source_files["src/mlkem_bridge_asm.S"].decode("utf-8"),
+            bridge_h=source_files["src/mlkem_bridge.h"].decode("utf-8"),
+            local_config=source_files["src/mlkem_config.h"].decode("utf-8"),
+            aarch64_fips202=source_files["src/mlkem_fips202_aarch64.h"].decode("utf-8"),
         )
 
 
@@ -2963,6 +3099,7 @@ def _validate_target_selection(build_support: str) -> None:
         (
             match.group("target"),
             match.group("environment"),
+            match.group("implementation"),
             match.group("operating_system"),
             match.group("vendor"),
         )
@@ -3004,7 +3141,7 @@ def _validate_target_selection(build_support: str) -> None:
         or selection_body.count("MlKemImplementation::Portable") != 1
         or selection_body.count("return Err(") != len(expected_mismatches)
         or missing_mismatches
-        or compact.count("Ok(MlKemImplementation::Aarch64Native)") != 1
+        or compact.count("Ok(expected.implementation)") != 1
     ):
         raise RustPublishContractError(
             "native target metadata mismatches must fail closed and only non-allowlisted "
@@ -3023,6 +3160,10 @@ def _validate_implementation_ids(build_rs: str, build_support: str) -> None:
             "AARCH64_NATIVE_IMPLEMENTATION_ID",
             _AARCH64_NATIVE_IMPLEMENTATION_ID,
         ),
+        (
+            "AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID",
+            _AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID,
+        ),
     )
     missing = [
         name
@@ -3039,6 +3180,7 @@ def _validate_implementation_ids(build_rs: str, build_support: str) -> None:
     expected_id_arms = (
         "Self::Portable => PORTABLE_IMPLEMENTATION_ID",
         "Self::Aarch64Native => AARCH64_NATIVE_IMPLEMENTATION_ID",
+        "Self::Aarch64NativeSha3 => AARCH64_NATIVE_SHA3_IMPLEMENTATION_ID",
     )
     marker = "cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID={}"
     if (
@@ -3142,12 +3284,23 @@ def _validate_build_topology(build_rs: str, build_support: str) -> None:
 
 
 def _validate_native_compiler_contract(build_rs: str, build_support: str) -> None:
-    march_values = re.findall(r'"(-march=[^"]*)"', build_rs)
+    build_march_values = re.findall(r'"(-march=[^"]*)"', build_rs)
+    support_march_values = re.findall(r'"(-march=[^"]*)"', build_support)
+    march_flag_body = re.sub(
+        r"\s+", " ", _extract_rust_function(build_support, "aarch64_march_flag")
+    ).strip()
+    expected_march_arms = (
+        "Self::Portable => None",
+        'Self::Aarch64Native => Some("-march=armv8-a+nosha3")',
+        'Self::Aarch64NativeSha3 => Some("-march=armv8.4-a+sha3")',
+    )
     required_build_shapes = (
-        'build.inherit_rustflags(false).flag("-march=armv8-a+nosha3");',
+        "if let Some(march) = implementation.aarch64_march_flag() {",
+        "build.inherit_rustflags(false).flag(march);",
+        "if let Some(expected_march) = implementation.aarch64_march_flag() {",
         "validate_native_build_environment()?;",
         'let required_platform_define = (target_os == "android").then_some("-DANDROID");',
-        "build_support::validate_native_compiler_arguments( arguments.iter().copied(), required_platform_define, )",
+        "build_support::validate_native_compiler_arguments( arguments.iter().copied(), expected_march, required_platform_define, )",
     )
     compact_build = re.sub(r"\s+", " ", build_rs)
     required_guard_shapes = (
@@ -3166,14 +3319,17 @@ def _validate_native_compiler_contract(build_rs: str, build_support: str) -> Non
         'argument.starts_with("-Xpreprocessor")',
         'argument.starts_with("-Xassembler")',
         'argument.starts_with("-mllvm")',
-        'if argument == "-march=armv8-a+nosha3"',
+        "if argument == expected_march",
         "required_platform_define == Some(argument)",
         "MissingPlatformDefine",
         "DuplicatePlatformDefine",
         '"branch-protection"',
     )
     if (
-        march_values != ["-march=armv8-a+nosha3"]
+        build_march_values != []
+        or support_march_values
+        != ["-march=armv8-a+nosha3", "-march=armv8.4-a+sha3"]
+        or any(arm not in march_flag_body for arm in expected_march_arms)
         or build_rs.count("inherit_rustflags(false)") != 1
         or any(shape not in compact_build for shape in required_build_shapes)
         or any(shape not in build_support for shape in required_guard_shapes)
@@ -3188,7 +3344,9 @@ def _validate_native_compiler_contract(build_rs: str, build_support: str) -> Non
     ):
         raise RustPublishContractError(
             "fixed AArch64 compiler flag/ambient override guard differs from the audited "
-            f"Armv8-A no-BTI contract: march_values={march_values}"
+            "per-target Armv8-A/Armv8.4-A+SHA3 no-BTI contract: "
+            f"build_march_values={build_march_values} "
+            f"support_march_values={support_march_values}"
         )
 
 
@@ -3275,31 +3433,39 @@ def validate_mlkem_native_build_surface(
     if (
         not local_config.startswith(_TARGET_SELECTED_CONFIG_PREFIX)
         or config_token_counts != _EXPECTED_CONFIG_TOKEN_COUNTS
-        or error_directive_count != 6
+        or error_directive_count != 8
         or '#define MLK_CONFIG_ARITH_BACKEND_FILE "native/meta.h"' not in local_config
         or (
             '#define MLK_CONFIG_FIPS202_BACKEND_FILE "mlkem_fips202_aarch64.h"'
             not in local_config
         )
-        or "#if defined(__ARM_FEATURE_SHA3)" not in local_config
-        or "fixed Armv8-A FIPS 202 profile" not in local_config
+        or local_config.count("#if !defined(__ARM_FEATURE_SHA3)") != 1
+        or local_config.count("#if defined(__ARM_FEATURE_SHA3)") != 2
+        or "fixed Armv8.4-A SHA3 FIPS 202 profile" not in local_config
+        or local_config.count("fixed Armv8-A FIPS 202 profile") != 2
+        or "#include <TargetConditionals.h>" not in local_config
+        or "#if TARGET_OS_OSX || TARGET_OS_SIMULATOR" not in local_config
     ):
         raise RustPublishContractError(
             "target-selected config lacks its active source-selector, ambient native-macro, "
-            "or SHA3/BTI baseline guard: "
+            "or per-target SHA3/BTI baseline guards: "
             f"token_counts={config_token_counts} "
             f"error_directives={error_directive_count}"
         )
 
     if (
         "auto.h" in aarch64_fips202
-        or "v84a" in aarch64_fips202.casefold()
+        or aarch64_fips202.count("#if defined(__ARM_FEATURE_SHA3)") != 1
+        or aarch64_fips202.count("x1_v84a.h") != 1
+        or aarch64_fips202.count("x2_v84a.h") != 1
         or aarch64_fips202.count("x1_scalar.h") != 1
         or aarch64_fips202.count("x4_v8a_scalar.h") != 1
+        or "x4_v8a_v84a" in aarch64_fips202
     ):
         raise RustPublishContractError(
-            "AArch64 FIPS 202 selector must use fixed x1_scalar+x4_v8a_scalar headers "
-            "and must not select auto or Armv8.4-A/SHA3 backends"
+            "AArch64 FIPS 202 selector must pin exactly the fixed per-target header "
+            "pairs (x1_v84a+x2_v84a under __ARM_FEATURE_SHA3, otherwise "
+            "x1_scalar+x4_v8a_scalar) and must not select auto or hybrid backends"
         )
 
     packaged_sources = {
@@ -3378,7 +3544,9 @@ def validate_mlkem_native_archive_contract(
     native = target in _NATIVE_TARGETS
     implementation = "aarch64-native" if native else "portable"
     implementation_id = (
-        _AARCH64_NATIVE_IMPLEMENTATION_ID if native else _PORTABLE_IMPLEMENTATION_ID
+        _native_implementation_id_for_target(target)
+        if native
+        else _PORTABLE_IMPLEMENTATION_ID
     )
     expected_marker = (
         "cargo:rustc-env=QPN_MLKEM_IMPLEMENTATION_ID=" + implementation_id
@@ -3434,7 +3602,11 @@ def validate_mlkem_native_archive_contract(
         )
     expected_symbols = _BRIDGE_SYMBOLS | _SHARED_FIPS202_SYMBOLS
     if native:
-        expected_symbols |= _AARCH64_ASSEMBLY_SYMBOLS
+        expected_symbols |= (
+            _AARCH64_SHA3_ASSEMBLY_SYMBOLS
+            if target in _NATIVE_SHA3_TARGETS
+            else _AARCH64_ASSEMBLY_SYMBOLS
+        )
     actual_symbols = set(symbols)
     if actual_symbols != expected_symbols:
         raise RustPublishContractError(

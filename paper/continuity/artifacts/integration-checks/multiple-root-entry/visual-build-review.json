@@ -1,0 +1,25 @@
+{
+  "schema": "qperiapt-joc-visual-build-review/1",
+  "completed_at_utc": "2026-11-07T23:22:39.205088+00:00",
+  "pdf_pages": 64,
+  "pdf_sha256": "e39b26160ed1903c7480e062343478c535bb2d25f6ee35bf6740176f10b5ab49",
+  "build_exit_code": 0,
+  "undefined_references_or_citations": 0,
+  "overfull_boxes": 0,
+  "underfull_box_notices": 72,
+  "all_fonts_embedded": true,
+  "review": "All 64 pages were inspected in four rendered contact sheets. Title/abstract and the connected contribution narrative (pages 1 and 3), plus the new root-entry theorem, budgets and message corollary (pages 43 and 44), were additionally inspected at reading scale. No clipped text, overlapping formulas or missing glyphs was observed. The clean exported-source build produced identical extracted text.",
+  "source_export": {
+    "status": "passed",
+    "completed_at_utc": "2026-11-07T23:21:34.164930+00:00",
+    "files_in_source_zip": 9,
+    "clean_compile_exit_code": 0,
+    "extracted_pdf_text_equal": true,
+    "text_sha256": "da74269fdf6a4a7d259cdfbf00071d6b51d5558102d6c7714e767dbde2aaaf67",
+    "source_zip_sha256": "1c0bcb966de90d8215821039508944a26e4617be7727138c91565c1e47721685",
+    "reading_pdf_sha256": "e39b26160ed1903c7480e062343478c535bb2d25f6ee35bf6740176f10b5ab49",
+    "all_fonts_embedded": true,
+    "failures": []
+  },
+  "build_method": "Flattened source compiled in an isolated temporary directory; complete outputs copied atomically into the checked build and reading paths."
+}

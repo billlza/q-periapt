@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import copy
 import hashlib
 import json
@@ -103,7 +104,7 @@ class CAbiContractTests(unittest.TestCase):
 
     def test_contract_and_normalized_header_pass(self) -> None:
         self.assertEqual(self.contract.document["abi"]["major"], 2)
-        self.assertEqual(self.contract.document["package"]["semver"], "0.1.0")
+        self.assertEqual(self.contract.document["package"]["semver"], "0.1.5")
         self.assertEqual(len(self.contract.export_names), 9)
         with tempfile.TemporaryDirectory() as temporary:
             header = self._write_header(pathlib.Path(temporary))
@@ -398,6 +399,56 @@ class CAbiContractTests(unittest.TestCase):
                 c_abi_contract.verify_dynamic_library(
                     self.contract, library, "linux", runner=wrong_soname
                 )
+
+    def test_relative_dynamic_library_paths_remain_file_arguments(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            identity = self.contract.document["package"]["platforms"]["linux"]
+            for directory in ("@response", "-options", "ordinary path"):
+                with self.subTest(directory=directory):
+                    folder = root / directory
+                    folder.mkdir()
+                    library = self._library(folder, "linux")
+                    calls: list[list[str]] = []
+
+                    def runner(command: list[str]) -> str:
+                        calls.append(command)
+                        self.assertFalse(
+                            command[-1].startswith(("@", "-")),
+                            "ABI input acquired response-file or option syntax",
+                        )
+                        self.assertEqual(pathlib.Path(command[-1]).read_bytes(), b"fixture")
+                        if command[0] == "nm":
+                            return "".join(
+                                f"{name} T 0 0\n" for name in sorted(self.contract.export_names)
+                            )
+                        if command[0] == "readelf":
+                            return f" (SONAME) Library soname: [{identity['soname']}]\n"
+                        self.fail(f"unexpected command: {command}")
+
+                    with contextlib.chdir(root):
+                        c_abi_contract.verify_dynamic_library(
+                            self.contract, pathlib.Path(directory) / library.name,
+                            "linux", runner=runner,
+                        )
+                    self.assertEqual([command[0] for command in calls], ["nm", "readelf"])
+
+    def test_relative_dynamic_library_symlink_is_rejected_before_inspection(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            target = self._library(root, "linux")
+            folder = root / "@response"
+            folder.mkdir()
+            (folder / target.name).symlink_to(target)
+            runner = mock.Mock(side_effect=AssertionError("rejected input reached inspector"))
+            with contextlib.chdir(root), self.assertRaisesRegex(
+                CAbiContractError, "non-symlink regular file"
+            ):
+                c_abi_contract.verify_dynamic_library(
+                    self.contract, pathlib.Path("@response") / target.name,
+                    "linux", runner=runner,
+                )
+            runner.assert_not_called()
 
     def test_dynamic_tool_output_is_redacted_from_every_failure_class(self) -> None:
         secret = "ghp_DYNAMIC_SECRET_ABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
@@ -1275,7 +1326,7 @@ class CAbiContractTests(unittest.TestCase):
                         ),
                         row(
                             "q_periapt_ffi_abi2.object.o",
-                            "qpn_mlkem_bridge_v1_2_0_768_decapsulate",
+                            "qpn_mlkem_bridge_v2_0_0_768_decapsulate",
                         ),
                     ]
                     if platform == "windows":

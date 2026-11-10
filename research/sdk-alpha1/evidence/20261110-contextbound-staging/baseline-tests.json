@@ -1,0 +1,21 @@
+{
+  "label": "baseline-tests",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "q-periapt-backends",
+    "--locked"
+  ],
+  "cwd": "/workspace/scratch/5173067707b5/contextbound-baseline",
+  "started_at": "2026-11-10T04:44:54.528825+00:00",
+  "environment": {
+    "RUSTUP_HOME": "/workspace/scratch/5173067707b5/rust-runtime/rustup",
+    "CARGO_HOME": "/workspace/scratch/5173067707b5/rust-runtime/cargo",
+    "CARGO_TARGET_DIR": "/workspace/scratch/5173067707b5/contextbound-evidence/target",
+    "CARGO_BUILD_JOBS": "4",
+    "RUSTFLAGS": "-D warnings"
+  },
+  "finished_at": "2026-11-10T04:45:42.421415+00:00",
+  "exit_code": 0
+}

@@ -143,6 +143,39 @@ def _zip_central_record(data: bytes, member_name: str) -> int:
 
 
 class DeterministicArchiveTests(unittest.TestCase):
+    def test_tar_explicit_executable_roundtrip_rejects_other_permission_policies(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            source = self._source(root)
+            (source / "bin").mkdir()
+            tool = source / "bin/tool"
+            tool.write_bytes(b"#!/bin/sh\nprintf 'archive-executable-pass\\n'\n")
+            tool.chmod(0o755)
+            selected = frozenset({"package/bin/tool"})
+            first, second = root / "first.tar.gz", root / "second.tar.gz"
+            audit = create_tar_gz(source, first, root_name="package", mtime=MTIME, executable_paths=selected)
+            create_tar_gz(source, second, root_name="package", mtime=MTIME, executable_paths=selected)
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+            self.assertEqual({e.path for e in audit.entries if e.kind == "file" and e.mode == 0o755}, selected)
+            for policy in (frozenset(), frozenset({"package/README.md"}),
+                           frozenset({"package/bin/tool", "package/missing"})):
+                with self.subTest(policy=policy), self.assertRaises(DeterministicArchiveError):
+                    extract_tar_gz(first, root / "rejected", root_name="package", executable_paths=policy)
+                self.assertFalse((root / "rejected").exists())
+            extract_tar_gz(first, root / "installed", root_name="package", executable_paths=selected,
+                           expected_sha256=audit.archive_sha256)
+            installed = root / "installed/package/bin/tool"
+            if os.name != "nt":
+                self.assertEqual(stat.S_IMODE(installed.stat().st_mode), 0o755)
+                import subprocess
+                self.assertEqual(subprocess.check_output([str(installed)]), b"archive-executable-pass\n")
+            self._assert_host_regular_release_file(root / "installed/package/README.md")
+            for name in ("package", "package/bin", "package/missing", "elsewhere/tool", "package/../tool"):
+                with self.subTest(name=name), self.assertRaises(DeterministicArchiveError):
+                    create_tar_gz(source, root / "invalid.tar.gz", root_name="package", mtime=MTIME,
+                                  executable_paths=frozenset({name}))
+                self.assertFalse((root / "invalid.tar.gz").exists())
+
     def _source(self, root: pathlib.Path) -> pathlib.Path:
         source = root / "source"
         (source / "lib").mkdir(parents=True)
@@ -507,6 +540,58 @@ class DeterministicArchiveTests(unittest.TestCase):
                 "rival\n",
             )
             self.assertFalse(root.joinpath(f".destination.tmp-{os.getpid()}").exists())
+
+    def test_creation_preserves_a_temporary_file_created_by_another_call(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            source = self._source(root)
+            real_open = pathlib.Path.open
+            for suffix, create in (("tar.gz", create_tar_gz), ("zip", create_zip)):
+                with self.subTest(format=suffix):
+                    destination = root / f"package.{suffix}"
+                    staging = root / f".{destination.name}.tmp-{os.getpid()}"
+
+                    def racing_open(path, mode="r", *args, **kwargs):
+                        if path == staging and mode == "xb":
+                            with real_open(path, "xb") as rival:
+                                rival.write(b"another call owns this file\n")
+                        return real_open(path, mode, *args, **kwargs)
+
+                    with mock.patch.object(pathlib.Path, "open", racing_open):
+                        with self.assertRaisesRegex(DeterministicArchiveError, "cannot create archive") as failure:
+                            create(source, destination, root_name="package", mtime=MTIME)
+                    self.assertIsInstance(failure.exception.__cause__, FileExistsError)
+                    self.assertTrue(staging.is_file(), "failed exclusive creation removed an unowned file")
+                    self.assertEqual(staging.read_bytes(), b"another call owns this file\n")
+                    self.assertFalse(destination.exists())
+
+    def test_extraction_preserves_a_staging_directory_created_by_another_call(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            source = self._source(root)
+            real_mkdir = pathlib.Path.mkdir
+            for suffix, create, extract in (
+                ("tar.gz", create_tar_gz, extract_tar_gz), ("zip", create_zip, extract_zip)
+            ):
+                with self.subTest(format=suffix):
+                    archive = root / f"package.{suffix}"
+                    create(source, archive, root_name="package", mtime=MTIME)
+                    destination = root / f"installed-{suffix}"
+                    staging = root / f".{destination.name}.tmp-{os.getpid()}"
+
+                    def racing_mkdir(path, *args, **kwargs):
+                        if path == staging:
+                            real_mkdir(path, mode=0o700)
+                            (path / "rival.txt").write_bytes(b"another call owns this directory\n")
+                        return real_mkdir(path, *args, **kwargs)
+
+                    with mock.patch.object(pathlib.Path, "mkdir", racing_mkdir):
+                        with self.assertRaisesRegex(DeterministicArchiveError, "cannot extract archive") as failure:
+                            extract(archive, destination, root_name="package", mtime=MTIME)
+                    self.assertIsInstance(failure.exception.__cause__, FileExistsError)
+                    self.assertTrue(staging.is_dir(), "failed exclusive creation removed an unowned directory")
+                    self.assertEqual((staging / "rival.txt").read_bytes(), b"another call owns this directory\n")
+                    self.assertFalse(destination.exists())
 
     def test_extraction_never_removes_racing_archive_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

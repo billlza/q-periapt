@@ -1,0 +1,35 @@
+{
+  "status": "passed",
+  "pdf_sha256": "123057b5f2ac1d8270be0663ab90740ae287e18a02cdc7009b40424fc14a5d83",
+  "pages": 96,
+  "review_method": "The title, changed contribution/discussion text, complete new theorem and corollary, neighboring section transition and new appendix were inspected at reading resolution. An independent proof reviewer separately inspected pages 1, 39, 40, 41, 42 and 88.",
+  "inspected_pages": [
+    1,
+    3,
+    39,
+    40,
+    41,
+    42,
+    76,
+    88,
+    89
+  ],
+  "render_hashes": {
+    "1": "6827b72d4434d624a3240fddda301909e59d8d1fe45b0f67fc8447d753f271fa",
+    "3": "b0bcc5d2e3250b6ccfbf9b819a72b03f067510c71dc7f66c069d8065980a28b0",
+    "39": "76c53363878b476f6d2e99a144c5d85246ec31ffd8c77aff53cba310201f811b",
+    "40": "83e25dea34b49ddb98385d05cedb65000a16ece4732670dc37366b7c8ad37153",
+    "41": "7f06a31695f47775ca246d7330b8acf7f2b8a2d10afc9d4e4d38be885c21fa36",
+    "42": "ccef8af62d26bc028174551a7e27851e547bd387e612f0aaddc25e0b19c5a6fb",
+    "76": "db8ec75f7d8131ed550fa97adcefa85d30069386c5b2568db2e4d124b5d2c91d",
+    "88": "3a6dc7f5dfda9cf34673c69a5088b7594343e3bd29f67135622c335bb9a13891",
+    "89": "b38500ba3a7ee707b9618805437426e1959a707f621a94ae469f42a05f966895"
+  },
+  "findings": [
+    "No clipped or overlapping content in the inspected pages.",
+    "The complete new statement, equations and proofs remain legible inside the text block.",
+    "The new appendix flows into the retained mathematical appendix with intact headings.",
+    "The final compiled log has no unresolved citations/references or overfull boxes."
+  ],
+  "truncated_intermediate_render": "The first page-41 PNG was rejected as truncated and regenerated from the final PDF; only the successfully decoded replacement is bound here."
+}

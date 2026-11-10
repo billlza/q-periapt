@@ -4,10 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import ntpath
 import pathlib
 import re
+import struct
+import sys
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -20,6 +23,65 @@ MAX_FORBIDDEN_WINDOWS_PATH_CHARS = 32_767
 
 class ReleaseBinaryScanError(ValueError):
     """A release file cannot be scanned safely or contains forbidden bytes."""
+
+
+class ReleaseBinaryFinding(ReleaseBinaryScanError):
+    """A finding whose category/offset can be reported without private bytes."""
+
+    def __init__(self, label: str, offset: int, path: pathlib.Path, sha256: str,
+                 windows_path_matches: tuple[tuple[int, int], ...] = (),
+                 archive_location: dict[str, object] | None = None) -> None:
+        super().__init__(f"release binary contains {label} at byte offset {offset}: {path}")
+        self.label = label
+        self.offset = offset
+        self.sha256 = sha256
+        self.windows_path_matches = windows_path_matches
+        self.archive_location = archive_location
+
+
+def _archive_finding_location(data: bytes, offset: int) -> dict[str, object] | None:
+    """Advisory position/hashes only; this never admits an archive or prints its strings."""
+    if not data.startswith(b"!<arch>\n"):
+        return None
+    cursor, index = 8, 0
+    while cursor + 60 <= len(data):
+        header = data[cursor:cursor + 60]
+        length = header[48:58].strip()
+        if header[58:] != b"`\n" or not length.isdigit():
+            break
+        size = int(length)
+        start, end = cursor + 60, cursor + 60 + size
+        if end > len(data):
+            break
+        if cursor <= offset < end:
+            result: dict[str, object] = {"member_index": index,
+                "member_header_sha256": hashlib.sha256(header).hexdigest(),
+                "member_sha256": hashlib.sha256(data[start:end]).hexdigest(),
+                "offset_in_member": offset - start, "region": "member-header" if offset < start else "member-data"}
+            name = header[:16].strip()
+            if name in (b"/", b"//", b"/SYM64/"):
+                result["region"] = "long-name-table" if name == b"//" else "archive-index"
+            elif size >= 20 and data[start:start + 2] == b"\x64\x86":
+                _, sections, _, symbols, count, optional, _ = struct.unpack_from("<HHIIIHH", data, start)
+                local = offset - start
+                if symbols and symbols <= local < symbols + 18 * count <= size:
+                    result["region"] = "coff-symbols"
+                elif symbols and symbols + 18 * count <= local < size:
+                    result["region"] = "coff-string-table-or-trailer"
+                if optional == 0 and 20 + 40 * sections <= size:
+                    for section in range(sections):
+                        raw_name, _, _, raw_size, raw, _, _, _, _, _ = struct.unpack_from(
+                            "<8sIIIIIIHHI", data, start + 20 + 40 * section)
+                        if raw and raw <= local < raw + raw_size <= size:
+                            result["region"] = "coff-section"
+                            safe_names = (b".text", b".rdata", b".data", b".bss", b".pdata", b".xdata", b".debug$S", b".debug$T", b".drectve")
+                            label = raw_name.rstrip(b"\0")
+                            result["section"] = label.decode("ascii") if label in safe_names else "other"
+                            break
+            return result
+        cursor = end + size % 2
+        index += 1
+    return {"region": "unclassified-archive-position"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -435,6 +497,7 @@ def scan_release_file(
     forbidden_text: Iterable[str] = (),
     forbidden_windows_paths: Iterable[str] = (),
     maximum: int = MAX_RELEASE_FILE_BYTES,
+    collect_windows_matches: bool = False,
 ) -> ScanResult:
     """Scan the exact regular-file snapshot used for the returned digest."""
 
@@ -444,6 +507,10 @@ def scan_release_file(
         )
     except EvidenceIOError as exc:
         raise ReleaseBinaryScanError(str(exc)) from exc
+
+    def finding(label: str, offset: int, matches: tuple[tuple[int, int], ...] = ()) -> ReleaseBinaryFinding:
+        return ReleaseBinaryFinding(label, offset, snapshot.path, snapshot.sha256, matches,
+            _archive_finding_location(snapshot.data, offset) if collect_windows_matches else None)
 
     literals = dict(_DEFAULT_LITERALS)
     for index, text in enumerate(forbidden_text):
@@ -456,39 +523,35 @@ def scan_release_file(
     for label, text in literals.items():
         offset = _find_literal(snapshot.data, text)
         if offset is not None:
-            raise ReleaseBinaryScanError(
-                f"release binary contains {label} at byte offset {offset}: {snapshot.path}"
-            )
+            raise finding(label, offset)
 
+    windows_matches = []
     for index, text in enumerate(forbidden_windows_paths):
         normalized = _normalize_forbidden_windows_path(text, index)
         offset = _find_windows_path(snapshot.data, normalized)
         if offset is not None:
-            raise ReleaseBinaryScanError(
-                "release binary contains caller-forbidden Windows path "
-                f"{index} at byte offset {offset}: {snapshot.path}"
-            )
+            if collect_windows_matches:
+                windows_matches.append((index, offset))
+                continue
+            raise finding(f"caller-forbidden Windows path {index}", offset)
+    if windows_matches:
+        index, offset = windows_matches[0]
+        raise finding(f"caller-forbidden Windows path {index}", offset, tuple(windows_matches))
 
     sensitive = _first_sensitive_match(snapshot.data)
     if sensitive is not None:
         label, offset = sensitive
-        raise ReleaseBinaryScanError(
-            f"release binary contains {label} at byte offset {offset}: {snapshot.path}"
-        )
+        raise finding(label, offset)
 
     wide_ascii_sensitive = _find_wide_ascii_sensitive_match(snapshot.data)
     if wide_ascii_sensitive is not None:
         label, offset = wide_ascii_sensitive
-        raise ReleaseBinaryScanError(
-            f"release binary contains UTF-16 {label} at byte offset {offset}: {snapshot.path}"
-        )
+        raise finding(f"UTF-16 {label}", offset)
 
     wide_extended_path = _find_wide_extended_windows_private_path(snapshot.data)
     if wide_extended_path is not None:
         label, offset = wide_extended_path
-        raise ReleaseBinaryScanError(
-            f"release binary contains UTF-16 {label} at byte offset {offset}: {snapshot.path}"
-        )
+        raise finding(f"UTF-16 {label}", offset)
 
     return ScanResult(
         path=snapshot.path,
@@ -500,6 +563,8 @@ def scan_release_file(
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("files", nargs="+", type=pathlib.Path)
+    parser.add_argument("--redact-paths", action="store_true",
+                        help="report only file indices, hashes and finding categories/offsets")
     parser.add_argument(
         "--forbid-text",
         action="append",
@@ -520,16 +585,31 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = _parse_args()
+    results = []
+    file_index = 0
     try:
-        results = [
-            scan_release_file(
+        for file_index, path in enumerate(args.files):
+            results.append(scan_release_file(
                 path,
                 forbidden_text=args.forbid_text,
                 forbidden_windows_paths=args.forbid_windows_path,
-            )
-            for path in args.files
-        ]
+                collect_windows_matches=args.redact_paths,
+            ))
     except ReleaseBinaryScanError as exc:
+        if args.redact_paths:
+            # Labels are scanner-owned categories, never matching byte strings
+            # or user-selected paths. Input errors do not expose exception text.
+            diagnostic = {"status": "fail", "file_index": file_index,
+                          "reason": "scan-input-rejected"}
+            if isinstance(exc, ReleaseBinaryFinding):
+                diagnostic.update(reason=exc.label, byte_offset=exc.offset, sha256=exc.sha256)
+                if exc.windows_path_matches:
+                    diagnostic["matched_windows_paths"] = [
+                        {"index": index, "byte_offset": offset} for index, offset in exc.windows_path_matches]
+                if exc.archive_location is not None:
+                    diagnostic["archive_location"] = exc.archive_location
+            print(json.dumps(diagnostic, sort_keys=True, separators=(",", ":")), file=sys.stderr)
+            return 1
         raise SystemExit(f"error: {exc}") from exc
     print(
         json.dumps(
@@ -537,10 +617,10 @@ def main() -> int:
                 "files": [
                     {
                         "bytes": result.bytes,
-                        "path": str(result.path),
+                        **({"file_index": index} if args.redact_paths else {"path": str(result.path)}),
                         "sha256": result.sha256,
                     }
-                    for result in results
+                    for index, result in enumerate(results)
                 ],
                 "status": "pass",
             },

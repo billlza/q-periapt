@@ -1,0 +1,20 @@
+{
+  "source_commit": "814721fafbdffdc0a6cd4ee2cce7fb90289413c2",
+  "command": [
+    "sh",
+    "artifact/c-package.sh",
+    "--profile",
+    "sdk-020"
+  ],
+  "public_archive_expected": {
+    "QPERIAPT_C_PACKAGE_EXPECTED_SHA256": "adeb1fff4412a6e7691aafa0dbdc3d7f3c411b90e59ad3f7cfc192e789875445",
+    "QPERIAPT_C_PACKAGE_EXPECTED_MANIFEST_SHA256": "09b9265be84936ebe34a258d4de700481a5aa17225e605d6f0c0a7be9dd0168a",
+    "QPERIAPT_C_PACKAGE_EXPECTED_CONTRACT_SHA256": "11bd27c7aa2096ec73cd112208ef4bef470b24247805a52cf04a1dd368d4f149",
+    "QPERIAPT_C_PACKAGE_EXPECTED_TARGET": "aarch64-apple-darwin",
+    "QPERIAPT_C_PACKAGE_EXPECTED_VERSION": "0.2.0"
+  },
+  "returncode": 0,
+  "seconds": 10.127686457941309,
+  "stdout_sha256": "daad9cdb9bada43d9551bbe12bb3b1abe6c75bdea8276a5b7f2053d5b0e3fdf7",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

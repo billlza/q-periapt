@@ -1,0 +1,171 @@
+% Source-backed owned SDK purpose-key table; prior root modules are retained.
+\subsection{An owned SDK purpose-key table}
+\label{sec:sdk-purpose-connection}
+
+The native SDK already derives several application keys from one combined
+secret. Its \texttt{SharedSecret::derive\_key} operation takes a purpose,
+protocol label and context, and returns a new \texttt{DerivedKey} owner.
+The same source owner supports repeated calls. The pinned source exercises
+all five purposes at both peers and checks their corresponding outputs and
+lifecycle behavior. This supplies a concrete application of the finite
+entry-table argument with the SDK's own information encoding.
+
+\begin{lemma}[Information-length form of the entry comparison]
+\label{lem:entry-information-length}
+For the finite service $R_{r,I}=F(F(r,S),I\Vert\mathtt{01})$, let the
+complete available information strings in class $i$ have length at most
+$A_i$ bytes. Put $L_i=A_i+1$ and $\lambda_i=\ell(L_i)$, within the retained
+SHA-256 padding domain. Use the descriptor classes and finite budgets of
+Theorem~\ref{thm:multiple-root-entry}. With the parent contribution used
+through the Extract interface and each PRK through its Expand row, the
+whole interactive service is within output-bit gap
+\begin{equation}
+ \Delta_{\rm ent}=\min\!\left\{1,
+ \varepsilon_{\rm Hjoint}(C,0,q_S,32)
+ +\sum_{i=1}^{C}\varepsilon_{\rm Hrow}(N_i,q_i,L_i)\right\}
+ \label{eq:entry-information-length}
+\end{equation}
+of the consistent independent table indexed by $(\Gamma(r),I)$.
+The continuation may process each returned value through its declared
+interface. Conservative complete ordinary-query budgets are
+\[
+ q_S=B+2D+\sum_i(2+\lambda_i)N_i,\qquad
+ q_i=B+2D+\sum_{k>i}(2+\lambda_k)N_k.
+\]
+\end{lemma}
+\begin{proof}
+Use the column replacement and first-class-allocation row hybrids of
+Theorem~\ref{thm:multiple-root-entry}. At row $i$, every queried message
+has length at most $L_i$. The map $I\mapsto I\Vert\mathtt{01}$ is injective
+also for variable-length strings. Hence the final private row gives exactly
+the full-information table. Each actual Expand costs at most
+$2+\ell(L_i)$ compression calls, yielding the displayed budgets.
+The reductions receive the root-row replies and run the entire declared
+continuation from them. This proves the table comparison for that
+continuation. The native 97-byte case has $L_i=98$ and $\lambda_i=3$.
+\end{proof}
+
+\paragraph{The actual SDK descriptor.}
+Let $\sigma=\texttt{QPeriapt-SDK-HKDF-SHA256-v1}$, a 27-byte string, and
+$r_0=\sigma\Vert\mathtt{00}^5$, its 32-byte zero extension. HMAC pads both $\sigma$ and $r_0$ to the same
+64-byte key block~\cite{rfc2104}, so $F(\sigma,S)=F(r_0,S)$ for every $S$ and every $h$.
+The complete SDK information string is
+\begin{equation}
+\begin{split}
+ I={}&D_{\rm sdk}\Vert\operatorname{BE32}(1)
+ \Vert\operatorname{BE32}(2)\Vert\mathit{policyState}_{36}
+ \Vert\mathit{rootDigest}_{32}\\
+ &\Vert\operatorname{BE32}(p)
+ \Vert\operatorname{BE16}(|a|)\Vert a
+ \Vert\operatorname{BE32}(|c|)\Vert c
+ \Vert\operatorname{BE16}(32),
+\end{split}
+ \label{eq:sdk-purpose-info}
+\end{equation}
+where $D_{\rm sdk}=\texttt{QPeriapt-SDK-Key-v1}$ has 19 bytes. The fixed
+suite code $1$ denotes ML-KEM-768+X25519 and profile code $2$ denotes
+ContextBound. Here $p$ is one
+of the five purpose codes, $a$ is the protocol label, and $c$ is the context.
+The policy state is its 4-byte version followed by its exact-document
+32-byte digest; the root digest is SHA-256 of the runtime's pinned trust
+root. Labels contain $1$--$255$ printable non-space ASCII bytes and contexts
+have at most $65536$ bytes. Thus
+\[
+ |I|=107+|a|+|c|\in[108,65898],\qquad |I\Vert\mathtt{01}|\le65899.
+\]
+Length parsing recovers every effective field. The descriptor is
+$(\Gamma(r_0),I)$ across all owners of the same protected contribution.
+Runtime identities and owner identifiers retain their separate lifecycle
+roles. The effective digest bytes determine their respective info fields.
+
+\paragraph{Owner correspondence.}
+Fix a protected contribution family with common value $S$ and preserve the
+actual metadata of each source and derived owner. Represent a derived owner
+by $(\mathit{runtime},\mathit{live},I)$ and a reference to the common key
+entry $K_I$. Every accepted derivation creates a new owner; equal $I$ values
+reference the same entry. Closing one derived owner changes its own live
+flag. Closing a source owner changes its future derivation access; existing
+derived owners retain their stored key. Runtime closure makes later open checks fail. An admitted derivation or an
+export whose open check already succeeded follows its actual completion
+path. Previously exported copies remain available to their recipients.
+
+These transitions follow directly from the source's separate
+\texttt{Option} fields, shared runtime state and admission checks. The inspected FFI derivation path additionally retains reservation,
+publication and parent-revocation metadata. A first private KDF computation allocates the descriptor
+entry even if its later handle publication fails; a retry retains that key
+entry while obtaining its actual new owner. The Rust in-flight bound and the
+FFI live-handle bound are preserved as metadata. The proof's lifetime bound
+$N$ counts distinct complete infos.
+
+\begin{proposition}[Native SDK key-table correspondence]
+\label{prop:sdk-purpose-table}
+For one initially independent uniform protected contribution, let the
+family's source owners use the Rust derivation interface above, together with
+derived-owner export, close and runtime lifecycle operations. The parent
+contribution and internal Extract value remain within their stated KDF
+interfaces. Let $N$ bound distinct infos before execution and $L$ bound their
+Expand-message length. Then the entire owned-API experiment differs from
+one using independent uniform keys $K_I$, with all aliases and owner states
+preserved, by output-bit gap at most
+\begin{equation}
+\begin{split}
+ \Delta_{\rm sdk}=\min\{1,\;&
+ \varepsilon_{\rm Hjoint}(1,0,B+2+(2+\ell(L))N,32)\\
+ &+\varepsilon_{\rm Hrow}(N,B+2,L)\}.
+\end{split}
+ \label{eq:sdk-purpose-error}
+\end{equation}
+The budgets cover complete preparation, other real computations and the
+terminal test. At full SDK input limits, $L=65899$ and $\ell(L)=1031$.
+\end{proposition}
+\begin{proof}
+Normalize the fixed salt as above. The first-block HKDF definition~\cite{rfc5869}
+gives $P=F(r_0,S)$ followed by $F(P,I\Vert\mathtt{01})$; the source keeps
+its PRK internal.
+An induction over admitted calls preserves each owner state and every
+public status: validation and admission use available metadata; derivation
+creates a fresh owner referring to its descriptor's deterministic value;
+exports apply that owner's current guards; close and publication operate
+on their existing owner identities. Repeated key values can therefore be
+memoized while all native owner transitions continue to execute.
+Apply Lemma~\ref{lem:entry-information-length} with $D=C=1$.
+The class/row comparison changes only these internal key values. All
+field-dependent choices, exports and lifecycle responses are recomputed
+in their own experiment by the same controller.
+\end{proof}
+
+For the existing five-purpose source workload, the label has 13 bytes and
+its context 24, giving $|I|=144$, $L=145$ and $\ell(L)=4$. Its two peer
+owners use five complete descriptors when their effective policy bindings
+agree. Thus $N=5$ gives column ordinary budget $B+32$ and row budget $B+2$.
+The table comparison permits disclosure of all derived entries and
+establishes their joint pseudorandom separation. In particular, the
+probability of a key collision among exports from distinct allocated infos,
+with at most $N$ total infos, is at most $\min\{1,\binom N2 2^{-256}+\Delta_{\rm sdk}\}$.
+
+\paragraph{A selected key for one application encryption.}
+An application may mark a new complete descriptor before its first private
+KDF evaluation, retain its key privately, and use it in the one-key,
+one-encryption AEAD experiment defined in
+Section~\ref{sec:joint-continuation}, with that experiment's nonce,
+equal-length messages, associated data and decryption restriction. Every source owner and derived alias of that descriptor routes
+to the same key-use interface, with its own native liveness checks. Other
+derived entries may be exported. Let $Z$ be the qualified signed score,
+with qualification computed from the available classical view and ledger
+and value zero when the marked challenge is absent. Fresh table allocation
+then supplies the uniform AEAD key, giving
+\[
+ |\mathbb E Z|\le\min\{1,\,2\Delta_{\rm sdk}
+                                  +2\varepsilon_{\rm AEAD}\}.
+\]
+Fix each application challenge bit for the KDF comparison and average the
+two score bounds. In the final AEAD game, use the adversary's guess on
+qualified runs and an independent fair guess otherwise. A preceding
+complete-tuple ContextBound comparison contributes its established
+$2\Phi_{256}(d,Q_H)$ term when the stopped execution realizes that source
+family and available controller.
+
+This consequence concerns the exported purpose key's declared application
+use. The durable rekey driver retains its own 97-byte pending-root
+information and established source invariant; the SDK table provides a
+separate concrete application of the finite entry proof.

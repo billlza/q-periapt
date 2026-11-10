@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble and promote the exact Apple 0.1.0 stable publication receipt.
+"""Assemble and promote the exact Apple 0.1.5 stable publication receipt.
 
 The pending producer consumes only the completed credentialed-build ledger and
 the fixed public distribution copy.  Promotion consumes the pending results
@@ -23,6 +23,10 @@ from dataclasses import dataclass
 from typing import Any, Never
 
 import apple_distribution
+from apple_verifier_recovery import (
+    AppleVerifierRecoveryError,
+    validate_apple_verifier_recovery_lineage,
+)
 import apple_publication_contract as apple_contract
 from bounded_process import BoundedProcessError, capture_stdout
 from claim_ledger import LedgerError, canonical_tree_digest, repository_paths
@@ -36,6 +40,7 @@ from evidence_io import (
 )
 from git_provenance import (
     GitProvenanceError,
+    canonical_repository_root,
     inspect_worktree,
     require_direct_results_only_child,
     require_commit_or_evidence_successor,
@@ -54,8 +59,11 @@ from publication_receipt_io import (
     prepare_private_json_noreplace_at,
     read_fixed_file_snapshot,
     read_fixed_json_snapshot,
+    require_absent_leaf_at,
     verify_exact_directory_inventory_at,
     verify_private_directory_handle_identity,
+    write_private_bytes_noreplace_at,
+    write_private_json_noreplace_at,
     sync_private_directory_parent,
 )
 
@@ -66,12 +74,12 @@ APPLE_COMPLETION_ROOT = (
     REPOSITORY_ROOT / "target" / "qperiapt-apple-release-worktrees"
 )
 APPLE_PUBLIC_ROOT = REPOSITORY_ROOT / "target" / "qperiapt-swift-xcframework"
-APPLE_PUBLIC_DISTRIBUTION_NAME = "q-periapt-swift-0.1.0"
+APPLE_PUBLIC_DISTRIBUTION_NAME = "q-periapt-swift-0.1.5"
 APPLE_PUBLIC_DISTRIBUTION = APPLE_PUBLIC_ROOT / APPLE_PUBLIC_DISTRIBUTION_NAME
 APPLE_PUBLICATION_RECEIPT_ROOT = (
     REPOSITORY_ROOT / "target" / "qperiapt-apple-publication-receipts"
 )
-APPLE_PUBLICATION_RECEIPT_NAME = "apple-v0.1.0-publication-receipt.json"
+APPLE_PUBLICATION_RECEIPT_NAME = "apple-v0.1.5-publication-receipt.json"
 APPLE_RELEASE_PROJECTION_ROOT = (
     REPOSITORY_ROOT
     / "target"
@@ -103,7 +111,7 @@ COMPLETION_LEDGER_SCHEMA_VERSION = 2
 REMOTE_CONSUMER_RECEIPT_KIND = "qperiapt.apple_remote_consumer_receipt"
 REMOTE_CONSUMER_RECEIPT_SCHEMA_VERSION = 1
 REMOTE_CONSUMER_BOUNDARY = (
-    "Atomic evidence commit for one fresh Apple 0.1.0 stable URL binary consumer "
+    "Atomic evidence commit for one fresh Apple 0.1.5 stable URL binary consumer "
     "run: four exact downloaded assets, deep distribution and code-signature "
     "verification, three passing Swift tests without warning/error diagnostics, "
     "the pinned pending results bytes, artifact source commit, and clean verifier "
@@ -122,15 +130,44 @@ MAX_PROJECTION_BYTES = 4 * 1024 * 1024
 MAX_REMOTE_RECEIPT_BYTES = 1024 * 1024
 MAX_REMOTE_LOG_BYTES = 16 * 1024 * 1024
 MAX_RESULTS_BYTES = 16 * 1024 * 1024
+MAX_REMOTE_GATE_TIMEOUT_SECONDS = 900
 HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
+REMOTE_CONSUMER_GATE_LOG_NAMES = frozenset(
+    {
+        "codesign-post-extract.log",
+        "codesign-pre-receipt.log",
+        "consumer-check.log",
+        "ditto-extract.log",
+        "release-assets-post-consumer.log",
+        "release-assets-post-extract.log",
+        "release-assets-pre-url.log",
+        REMOTE_CONSUMER_LOG_NAME,
+        "swiftpm-checksum.log",
+    }
+)
 WARNING_OR_ERROR = re.compile(r"(^|[^A-Za-z])(warning|error):", re.IGNORECASE)
+# XCTest prints the grand-total "Executed N tests, with 0 failures" line once per
+# suite level (the bundle suite, the test-class suite, and the outer "All tests"
+# suite), so a clean three-test run emits the passing summary two or three times,
+# never exactly once. Require at least one exact three-test pass and reject any
+# summary that reports a nonzero failure count.
+THREE_TEST_PASS = "Executed 3 tests, with 0 failures"
+TEST_FAILURE_SUMMARY = re.compile(r"Executed \d+ tests?, with [1-9][0-9]* failures?")
 
 Clock = Callable[[], dt.datetime]
 
 
 class AppleStablePublicationError(ValueError):
-    """Apple 0.1.0 stable receipt evidence or state transition is invalid."""
+    """Apple 0.1.5 stable receipt evidence or state transition is invalid."""
+
+
+@dataclass(frozen=True, slots=True)
+class VerifierRecoveryPins:
+    """Explicit P/V identities for re-verifying an unchanged published asset."""
+
+    pending_commit: str
+    verifier_commit: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -297,7 +334,7 @@ def _validate_clean_annotated_tag(
 ) -> dict[str, str]:
     """Bind source parent S to clean results-only tagged commit R."""
 
-    tag = apple_contract.APPLE_V0_1_0_IDENTITY["release_tag"]
+    tag = apple_contract.APPLE_V0_1_5_IDENTITY["release_tag"]
     try:
         inspection = inspect_worktree(REPOSITORY_ROOT)
         tag_type = run_git_text(
@@ -327,7 +364,7 @@ def _validate_clean_annotated_tag(
         )
     except (GitProvenanceError, LedgerError, ValueError) as exc:
         raise AppleStablePublicationError(
-            "cannot establish the Apple 0.1.0 stable source/tag boundary"
+            "cannot establish the Apple 0.1.5 stable source/tag boundary"
         ) from exc
     _require(not inspection.dirty, "Apple pending receipt requires a clean worktree")
     _require(
@@ -340,7 +377,7 @@ def _validate_clean_annotated_tag(
         and HEX_40.fullmatch(tag_object) is not None
         and HEX_40.fullmatch(tag_tree) is not None
         and tag_object != tag_commit,
-        "Apple 0.1.0 stable release tag must be one annotated tag object",
+        "Apple 0.1.5 stable release tag must be one annotated tag object",
     )
     _require(
         source_parent_commit != tag_commit,
@@ -430,26 +467,43 @@ def _load_completion_ledger(path: pathlib.Path) -> tuple[dict[str, Any], str]:
     return ledger, source_commit
 
 
-def _public_distribution_entries() -> frozenset[str]:
+def _public_distribution_paths(
+    repository_root: pathlib.Path | None,
+) -> tuple[pathlib.Path, pathlib.Path]:
+    if repository_root is None:
+        return APPLE_PUBLIC_ROOT, APPLE_PUBLIC_DISTRIBUTION
+    try:
+        repository = canonical_repository_root(repository_root)
+    except GitProvenanceError as exc:
+        raise AppleStablePublicationError(str(exc)) from exc
+    public_root = repository / "target" / "qperiapt-swift-xcframework"
+    return public_root, public_root / APPLE_PUBLIC_DISTRIBUTION_NAME
+
+
+def _public_distribution_entries(
+    *,
+    repository_root: pathlib.Path | None = None,
+) -> frozenset[str]:
+    public_root, distribution_path = _public_distribution_paths(repository_root)
     root = normalize_safe_root(
-        APPLE_PUBLIC_ROOT,
+        public_root,
         label="Apple public distribution root",
         required_mode=0o755,
     )
     _require(
-        APPLE_PUBLIC_DISTRIBUTION.parent == root,
+        distribution_path.parent == root,
         "Apple public distribution path differs",
     )
     try:
-        metadata = APPLE_PUBLIC_DISTRIBUTION.lstat()
-        entries = frozenset(os.listdir(APPLE_PUBLIC_DISTRIBUTION))
+        metadata = distribution_path.lstat()
+        entries = frozenset(os.listdir(distribution_path))
     except OSError as exc:
         raise AppleStablePublicationError(
             "cannot inspect Apple public distribution"
         ) from exc
     _require(
         stat.S_ISDIR(metadata.st_mode)
-        and not APPLE_PUBLIC_DISTRIBUTION.is_symlink()
+        and not distribution_path.is_symlink()
         and metadata.st_uid == os.geteuid()
         and stat.S_IMODE(metadata.st_mode) == 0o755,
         "Apple public distribution must be an owned mode-0755 directory",
@@ -458,7 +512,7 @@ def _public_distribution_entries() -> frozenset[str]:
         entries == APPLE_PUBLIC_DIRECTORY_ENTRIES,
         "Apple public distribution entry set differs",
     )
-    xcframework = APPLE_PUBLIC_DISTRIBUTION / "CQPeriapt.xcframework"
+    xcframework = distribution_path / "CQPeriapt.xcframework"
     try:
         xcframework_metadata = xcframework.lstat()
     except OSError as exc:
@@ -478,8 +532,11 @@ def _public_distribution_entries() -> frozenset[str]:
 def _load_public_distribution(
     expected_hashes: Mapping[str, object],
     source_commit: str,
+    *,
+    repository_root: pathlib.Path | None = None,
 ) -> dict[str, object]:
-    entries_before = _public_distribution_entries()
+    public_root, distribution_path = _public_distribution_paths(repository_root)
+    entries_before = _public_distribution_entries(repository_root=repository_root)
     snapshots: dict[str, FileSnapshot] = {}
     for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES:
         maximum = (
@@ -488,8 +545,8 @@ def _load_public_distribution(
             else apple_distribution.MAX_TEXT_BYTES
         )
         snapshots[name] = read_fixed_file_snapshot(
-            APPLE_PUBLIC_DISTRIBUTION / name,
-            safe_root=APPLE_PUBLIC_ROOT,
+            distribution_path / name,
+            safe_root=public_root,
             expected_leaf=name,
             label=f"Apple public asset {name}",
             parent_depth=1,
@@ -530,7 +587,7 @@ def _load_public_distribution(
         raise AppleStablePublicationError(
             "Apple public distribution deep validation failed"
         ) from exc
-    entries_after = _public_distribution_entries()
+    entries_after = _public_distribution_entries(repository_root=repository_root)
     _require(
         entries_after == entries_before,
         "Apple public distribution changed while assembling its receipt",
@@ -538,12 +595,16 @@ def _load_public_distribution(
     return distribution
 
 
-def _snapshot_public_asset_files() -> tuple[FileSnapshot, ...]:
-    entries_before = _public_distribution_entries()
+def _snapshot_public_asset_files(
+    *,
+    repository_root: pathlib.Path | None = None,
+) -> tuple[FileSnapshot, ...]:
+    public_root, distribution_path = _public_distribution_paths(repository_root)
+    entries_before = _public_distribution_entries(repository_root=repository_root)
     snapshots = tuple(
         read_fixed_file_snapshot(
-            APPLE_PUBLIC_DISTRIBUTION / name,
-            safe_root=APPLE_PUBLIC_ROOT,
+            distribution_path / name,
+            safe_root=public_root,
             expected_leaf=name,
             label=f"Apple stable publication asset {name}",
             parent_depth=1,
@@ -563,7 +624,7 @@ def _snapshot_public_asset_files() -> tuple[FileSnapshot, ...]:
         "Apple stable publication asset is empty",
     )
     _require(
-        _public_distribution_entries() == entries_before,
+        _public_distribution_entries(repository_root=repository_root) == entries_before,
         "Apple public distribution changed during asset snapshot",
     )
     return snapshots
@@ -571,13 +632,15 @@ def _snapshot_public_asset_files() -> tuple[FileSnapshot, ...]:
 
 def load_pending_publication_assets(
     pending_receipt: object,
+    *,
+    repository_root: pathlib.Path | None = None,
 ) -> tuple[FileSnapshot, ...]:
     """Return the fixed four Apple files selected by the pending P receipt."""
 
     try:
         manifest = {
             "release_publications": {
-                apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: pending_receipt
+                apple_contract.APPLE_V0_1_5_PUBLICATION_KEY: pending_receipt
             }
         }
         apple_contract.validate_apple_publications(manifest)
@@ -594,16 +657,17 @@ def load_pending_publication_assets(
     )
     source = _object(pending.get("source"), "pending Apple stable source")
     expected_hashes = _public_asset_sha256s(distribution)
-    before = _snapshot_public_asset_files()
+    before = _snapshot_public_asset_files(repository_root=repository_root)
     rebuilt = _load_public_distribution(
         expected_hashes,
         _sha1(source.get("source_parent_commit"), "Apple source parent"),
+        repository_root=repository_root,
     )
     _require(
         apple_contract.publication_values_equal(rebuilt, distribution),
         "Apple fixed distribution differs from the selected pending receipt",
     )
-    after = _snapshot_public_asset_files()
+    after = _snapshot_public_asset_files(repository_root=repository_root)
     _require(
         before == after,
         "Apple stable publication assets changed while loading",
@@ -631,9 +695,9 @@ def build_pending_receipt(
     )
     distribution = _load_public_distribution(hashes, source_parent_commit)
     receipt: dict[str, object] = {
-        "boundary": apple_contract.APPLE_V0_1_0_BOUNDARY,
+        "boundary": apple_contract.APPLE_V0_1_5_BOUNDARY,
         "distribution": distribution,
-        "identity": copy.deepcopy(apple_contract.APPLE_V0_1_0_IDENTITY),
+        "identity": copy.deepcopy(apple_contract.APPLE_V0_1_5_IDENTITY),
         "kind": apple_contract.APPLE_PUBLICATION_KIND,
         "schema_version": apple_contract.APPLE_PUBLICATION_SCHEMA_VERSION,
         "source": source,
@@ -643,7 +707,7 @@ def build_pending_receipt(
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: receipt
+                    apple_contract.APPLE_V0_1_5_PUBLICATION_KEY: receipt
                 }
             }
         )
@@ -751,7 +815,7 @@ def _validate_remote_receipt(value: object) -> dict[str, Any]:
     )
     _require(
         receipt["release_identity"]
-        == apple_contract.APPLE_V0_1_0_IDENTITY,
+        == apple_contract.APPLE_V0_1_5_IDENTITY,
         "Apple remote consumer release identity differs",
     )
     _sha1(receipt["source_commit"], "Apple remote artifact source commit")
@@ -828,12 +892,12 @@ def _pending_leaf_from_results(
         "current release_publications",
     )
     pending = _object(
-        publications.get(apple_contract.APPLE_V0_1_0_PUBLICATION_KEY),
-        "current Apple 0.1.0 stable publication receipt",
+        publications.get(apple_contract.APPLE_V0_1_5_PUBLICATION_KEY),
+        "current Apple 0.1.5 stable publication receipt",
     )
     _require(
         pending.get("status") == apple_contract.APPLE_STATUS_PENDING,
-        "Apple promotion requires a current pending 0.1.0 stable receipt",
+        "Apple promotion requires a current pending 0.1.5 stable receipt",
     )
     return pending
 
@@ -897,17 +961,40 @@ def verify_pending_release_assets(
         raise AppleStablePublicationError(str(exc)) from exc
 
 
+def _publication_verifier_commit(
+    repository_root: pathlib.Path,
+    pending: dict[str, Any],
+    results_sha256: str,
+    recovery: VerifierRecoveryPins | None,
+) -> str:
+    source = _object(pending["source"], "pending Apple source")
+    source_commit = _sha1(source["source_parent_commit"], "artifact source")
+    if recovery is None:
+        return require_commit_or_evidence_successor(repository_root, source_commit)
+    lineage = validate_apple_verifier_recovery_lineage(
+        repository_root,
+        source_commit=source_commit,
+        tag_commit=_sha1(source["tag_commit"], "release tag commit"),
+        pending_commit=recovery.pending_commit,
+        expected_pending_results_sha256=results_sha256,
+        expected_verifier_commit=recovery.verifier_commit,
+    )
+    return lineage.verifier_commit
+
+
 def promote_receipt(
     expected_results_sha256: str,
     release_projection_path: pathlib.Path,
     remote_receipt_path: pathlib.Path,
+    *,
+    recovery: VerifierRecoveryPins | None = None,
 ) -> dict[str, object]:
     """Promote the current pending leaf using two fresh safe projections."""
 
     manifest, results_sha256 = _read_results_snapshot(expected_results_sha256)
     pending = _pending_leaf_from_results(manifest)
     distribution = _object(
-        pending["distribution"], "pending Apple 0.1.0 stable distribution"
+        pending["distribution"], "pending Apple 0.1.5 stable distribution"
     )
     projection = _load_release_projection(release_projection_path)
     remote = _load_remote_receipt(remote_receipt_path)
@@ -928,11 +1015,13 @@ def promote_receipt(
     )
     try:
         inspection = inspect_worktree(REPOSITORY_ROOT)
-        current_commit = require_commit_or_evidence_successor(
+        current_commit = _publication_verifier_commit(
             REPOSITORY_ROOT,
-            distribution["source_commit"],
+            pending,
+            results_sha256,
+            recovery,
         )
-    except GitProvenanceError as exc:
+    except (GitProvenanceError, AppleVerifierRecoveryError) as exc:
         raise AppleStablePublicationError(
             "cannot establish Apple promotion source provenance"
         ) from exc
@@ -990,7 +1079,7 @@ def promote_receipt(
     verified = copy.deepcopy(pending)
     verified["status"] = apple_contract.APPLE_STATUS_VERIFIED
     verified_distribution = _object(
-        verified["distribution"], "verified Apple 0.1.0 stable distribution"
+        verified["distribution"], "verified Apple 0.1.5 stable distribution"
     )
     verified_distribution["public_release"] = True
     verified_distribution["immutable_release"] = True
@@ -1005,19 +1094,19 @@ def promote_receipt(
         apple_contract.validate_apple_publications(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: verified
+                    apple_contract.APPLE_V0_1_5_PUBLICATION_KEY: verified
                 }
             }
         )
         apple_contract.validate_apple_publication_transition(
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: pending
+                    apple_contract.APPLE_V0_1_5_PUBLICATION_KEY: pending
                 }
             },
             {
                 "release_publications": {
-                    apple_contract.APPLE_V0_1_0_PUBLICATION_KEY: verified
+                    apple_contract.APPLE_V0_1_5_PUBLICATION_KEY: verified
                 }
             },
         )
@@ -1142,6 +1231,211 @@ def _remote_runtime_from_verifier_snapshot(
     return runtime_root, safe_run_directory_name
 
 
+def _declared_remote_gate_log_name(requested: str) -> str:
+    """Select one declared operation; caller text never becomes a file name."""
+
+    _require(isinstance(requested, str), "remote consumer gate log name is not declared")
+    for declared in REMOTE_CONSUMER_GATE_LOG_NAMES:
+        if requested == declared:
+            return declared
+    _fail("remote consumer gate log name is not declared")
+
+
+def _remote_consumer_gate_command(
+    run_directory: pathlib.Path,
+    log_name: str,
+    arguments: Sequence[str],
+) -> tuple[str, ...]:
+    """Admit only the selected operation over its exact frozen-run layout.
+
+    The shell producer still supplies its argv for an explicit contract check.
+    Executables, options and scripts come from this module. Release source and
+    digest arguments remain data; verify-release-assets checks them against the
+    frozen results and actual downloaded bytes before any consumer can run.
+    """
+
+    _require(
+        isinstance(arguments, Sequence)
+        and not isinstance(arguments, (str, bytes))
+        and 1 <= len(arguments) <= 12
+        and all(isinstance(argument, str) and argument for argument in arguments),
+        "remote consumer gate command is malformed",
+    )
+    verifier = run_directory / "verifier-inputs"
+    target = verifier / "target"
+    assets = run_directory / "release-assets"
+    archive = assets / "CQPeriapt.xcframework.zip"
+    extracted = target / "extracted"
+    framework = extracted / "CQPeriapt.xcframework"
+    consumer = target / "consumer"
+    if log_name in {
+        "release-assets-pre-url.log",
+        "release-assets-post-extract.log",
+        "release-assets-post-consumer.log",
+    }:
+        _require(len(arguments) == 12, "release-assets gate argument count differs")
+        _require(
+            HEX_40.fullmatch(arguments[6]) is not None
+            and all(HEX_64.fullmatch(value) is not None for value in arguments[7:]),
+            "release-assets gate source or digest is malformed",
+        )
+        command = (
+            "/bin/sh",
+            os.fspath(verifier / "artifact/python-run.sh"),
+            os.fspath(verifier / "artifact/apple_stable_publication.py"),
+            "verify-release-assets",
+            os.fspath(verifier / "artifact/results.json"),
+            os.fspath(assets),
+            *arguments[6:],
+        )
+    elif log_name == "swiftpm-checksum.log":
+        command = (
+            "/bin/sh", "-c",
+            '\numask 077\nset -C\n/usr/bin/swift package compute-checksum "$2" >"$1"\n',
+            "swiftpm-checksum",
+            os.fspath(run_directory / "swiftpm-checksum.txt"),
+            os.fspath(archive),
+        )
+    elif log_name == "ditto-extract.log":
+        command = ("/usr/bin/ditto", "-x", "-k", os.fspath(archive), os.fspath(extracted))
+    elif log_name in {"codesign-post-extract.log", "codesign-pre-receipt.log"}:
+        command = ("/usr/bin/codesign", "--verify", "--strict", "--verbose=4", os.fspath(framework))
+    elif log_name == REMOTE_CONSUMER_LOG_NAME:
+        command = ("/usr/bin/swift", "test", "--package-path", os.fspath(consumer))
+    elif log_name == "consumer-check.log":
+        command = (
+            "/usr/bin/env", "QPERIAPT_INTERNAL_REQUIRE_DUAL_MACOS_RUNTIME=0",
+            "/bin/sh", os.fspath(verifier / "artifact/swift-xcframework-consumer-check.sh"),
+            os.fspath(consumer), os.fspath(target / "apple-consumer-evidence"), os.fspath(framework),
+        )
+    else:
+        _fail("remote consumer gate operation is not declared")
+    _require(tuple(arguments) == command, "remote consumer gate command differs from its declared operation")
+    return command
+
+
+def capture_remote_consumer_gate_log(
+    *,
+    runtime_repository_root: pathlib.Path,
+    run_directory_name: str,
+    log_name: str,
+    timeout_seconds: int,
+    maximum_bytes: int,
+    argv: Sequence[str],
+) -> tuple[int, str]:
+    """Capture one gate's combined output without limiting its other files.
+
+    The old shell implementation used ``ulimit -f`` to bound the log.  That
+    resource limit applies to every regular file written by the process tree,
+    so extractors and build tools could not materialize valid release assets.
+    This boundary drains only stdout/stderr under the requested byte limit and
+    commits the private log even when the child reports a nonzero status.
+    """
+
+    _require(
+        runtime_repository_root.is_absolute()
+        and os.path.realpath(runtime_repository_root)
+        == os.path.abspath(runtime_repository_root),
+        "remote consumer gate repository root must be canonical",
+    )
+    runtime_root = pathlib.Path(os.path.realpath(runtime_repository_root))
+    _require(
+        isinstance(run_directory_name, str)
+        and REMOTE_CONSUMER_TRANSACTION.fullmatch(run_directory_name)
+        is not None,
+        "remote consumer gate run directory name is malformed",
+    )
+    log_name = _declared_remote_gate_log_name(log_name)
+    _require(
+        type(timeout_seconds) is int
+        and 1 <= timeout_seconds <= MAX_REMOTE_GATE_TIMEOUT_SECONDS,
+        "remote consumer gate timeout is out of range",
+    )
+    _require(
+        type(maximum_bytes) is int and 1 <= maximum_bytes <= MAX_REMOTE_LOG_BYTES,
+        "remote consumer gate log bound is out of range",
+    )
+    runs_root = (
+        runtime_root / "target" / "qperiapt-swift-remote-consumer-runs"
+    )
+    normalized_runs_root = normalize_safe_root(
+        runs_root,
+        label="remote consumer gate runs root",
+    )
+    command = _remote_consumer_gate_command(
+        normalized_runs_root / run_directory_name, log_name, argv,
+    )
+    try:
+        with open_private_direct_child_handle(
+            safe_root=normalized_runs_root,
+            direct_child_name=run_directory_name,
+            label="remote consumer gate run",
+            sync_safe_root_parent=False,
+        ) as output_root:
+            require_absent_leaf_at(
+                output_root.descriptor,
+                log_name,
+                label="remote consumer gate log",
+            )
+            try:
+                result = capture_stdout(
+                    command,
+                    timeout_seconds=timeout_seconds,
+                    maximum_bytes=maximum_bytes,
+                    stderr=subprocess.STDOUT,
+                )
+            except BoundedProcessError as exc:
+                failure_record = {
+                    "cleanup_ambiguous": exc.cleanup_ambiguous,
+                    "complete": False,
+                    "kind": exc.kind,
+                    "log_name": log_name,
+                    "schema_version": 1,
+                }
+                failure_name = f"{log_name}.failure.json"
+                try:
+                    write_private_json_noreplace_at(
+                        output_root.descriptor,
+                        failure_name,
+                        failure_record,
+                        label="remote consumer gate failure record",
+                        maximum=64 * 1024,
+                    )
+                except (
+                    PublicationReceiptCommittedError,
+                    PublicationReceiptIOError,
+                    OSError,
+                ) as record_error:
+                    exc.add_note(
+                        "remote consumer gate failure record could not be committed: "
+                        f"{record_error}"
+                    )
+                raise
+            _require(
+                type(result.returncode) is int,
+                "remote consumer gate process status is malformed",
+            )
+            process_status = (
+                result.returncode
+                if result.returncode >= 0
+                else 128 + abs(result.returncode)
+            )
+            _require(
+                0 <= process_status <= 255,
+                "remote consumer gate process status is out of range",
+            )
+            digest = write_private_bytes_noreplace_at(
+                output_root.descriptor,
+                log_name,
+                result.stdout,
+                label="remote consumer gate log",
+                maximum=maximum_bytes,
+            )
+            return process_status, digest
+    except PublicationReceiptIOError as exc:
+        raise AppleStablePublicationError(str(exc)) from exc
+
+
 @contextlib.contextmanager
 def _open_remote_consumer_layout(
     output_root: PrivateDirectoryHandle,
@@ -1208,6 +1502,7 @@ def emit_remote_consumer_receipt(
     run_directory_name: str,
     startup_results_sha256: str,
     clock: Clock = _system_clock,
+    recovery: VerifierRecoveryPins | None = None,
 ) -> tuple[pathlib.Path, str]:
     """Pin the complete remote-consumer layout and emit its structured receipt."""
 
@@ -1254,6 +1549,7 @@ def emit_remote_consumer_receipt(
                     extracted_xcframework=layout.extracted_xcframework,
                     startup_results_sha256=startup_results_sha256,
                     clock=clock,
+                    recovery=recovery,
                 )
         return _commit_remote_consumer_receipt(
             runtime_root=runtime_root,
@@ -1261,6 +1557,7 @@ def emit_remote_consumer_receipt(
             run_directory_name=run_directory_name,
             startup_results_sha256=startup_results_sha256,
             receipt=receipt,
+            recovery=recovery,
         )
     except PublicationReceiptCommittedError:
         raise
@@ -1275,6 +1572,7 @@ def _commit_remote_consumer_receipt(
     run_directory_name: str,
     startup_results_sha256: str,
     receipt: dict[str, object],
+    recovery: VerifierRecoveryPins | None = None,
 ) -> tuple[pathlib.Path, str]:
     """Re-pin, rebuild, and atomically commit one already-validated receipt."""
 
@@ -1311,6 +1609,7 @@ def _commit_remote_consumer_receipt(
                     extracted_xcframework=layout.extracted_xcframework,
                     startup_results_sha256=startup_results_sha256,
                     clock=lambda: verified_at,
+                    recovery=recovery,
                 )
                 _require(
                     rebuilt == receipt,
@@ -1332,6 +1631,7 @@ def _emit_remote_consumer_receipt_pinned(
     extracted_xcframework: PrivateDirectoryHandle,
     startup_results_sha256: str,
     clock: Clock,
+    recovery: VerifierRecoveryPins | None = None,
 ) -> dict[str, object]:
     """Consume one fully pinned remote-consumer transaction."""
 
@@ -1510,11 +1810,13 @@ def _emit_remote_consumer_receipt_pinned(
     verify_transaction_handles()
     try:
         inspection = inspect_worktree(runtime_root)
-        verifier_commit = require_commit_or_evidence_successor(
+        verifier_commit = _publication_verifier_commit(
             runtime_root,
-            source_commit,
+            pending,
+            startup_results_sha256,
+            recovery,
         )
-    except GitProvenanceError as exc:
+    except (GitProvenanceError, AppleVerifierRecoveryError) as exc:
         raise AppleStablePublicationError(
             "cannot establish remote consumer checkout provenance"
         ) from exc
@@ -1541,8 +1843,12 @@ def _emit_remote_consumer_receipt_pinned(
         "remote consumer test log contains warning/error diagnostics",
     )
     _require(
-        log_text.count("Executed 3 tests, with 0 failures") == 1,
-        "remote consumer test log does not contain one exact three-test pass",
+        log_text.count(THREE_TEST_PASS) >= 1,
+        "remote consumer test log does not contain a three-test pass",
+    )
+    _require(
+        TEST_FAILURE_SUMMARY.search(log_text) is None,
+        "remote consumer test log reports test failures",
     )
     observed = clock()
     _require(
@@ -1560,7 +1866,7 @@ def _emit_remote_consumer_receipt_pinned(
         "kind": REMOTE_CONSUMER_RECEIPT_KIND,
         "log_sha256": log.sha256,
         "release_identity": copy.deepcopy(
-            apple_contract.APPLE_V0_1_0_IDENTITY
+            apple_contract.APPLE_V0_1_5_IDENTITY
         ),
         "results_sha256": startup_results_sha256,
         "schema_version": REMOTE_CONSUMER_RECEIPT_SCHEMA_VERSION,
@@ -1597,7 +1903,7 @@ def _publish_receipt(receipt: object) -> tuple[pathlib.Path, str]:
         transaction_prefix="transaction.",
         expected_leaf=APPLE_PUBLICATION_RECEIPT_NAME,
         value=receipt,
-        label="Apple 0.1.0 stable publication receipt",
+        label="Apple 0.1.5 stable publication receipt",
         maximum=MAX_REMOTE_RECEIPT_BYTES,
     )
 
@@ -1610,7 +1916,7 @@ def _success_marker(path: pathlib.Path, digest: str, status: str) -> str:
             "Apple receipt output escaped the repository"
         ) from exc
     return (
-        "APPLE_V0_1_0_PUBLICATION_RECEIPT_PASS "
+        "APPLE_V0_1_5_PUBLICATION_RECEIPT_PASS "
         f"status={status} path={relative} sha256={digest}"
     )
 
@@ -1638,14 +1944,49 @@ def _usage() -> str:
         "EXPECTED_RESULTS_SHA256 | "
         "promote EXPECTED_PENDING_RESULTS_SHA256 RELEASE_PROJECTION "
         "REMOTE_CONSUMER_RECEIPT | emit-remote-consumer "
-        "RUN_DIRECTORY_NAME STARTUP_RESULTS_SHA256 | verify-release-assets "
+        "RUN_DIRECTORY_NAME STARTUP_RESULTS_SHA256 | capture-remote-gate-log "
+        "RUN_DIRECTORY_NAME LOG_NAME TIMEOUT_SECONDS MAXIMUM_BYTES -- "
+        "COMMAND [ARG ...] | verify-release-assets "
         "RESULTS_MANIFEST RELEASE_DIRECTORY SOURCE_COMMIT ZIP_SHA256 "
         "APPLE_DISTRIBUTION_SHA256 MANIFEST_SHA256 SHA256SUMS_SHA256 "
-        "SWIFTPM_CHECKSUM"
+        "SWIFTPM_CHECKSUM | verify-verifier-recovery "
+        "RUN_DIRECTORY_NAME STARTUP_RESULTS_SHA256 PENDING_COMMIT VERIFIER_COMMIT; "
+        "promote and emit-remote-consumer also accept "
+        "--verifier-recovery PENDING_COMMIT VERIFIER_COMMIT"
     )
 
 
 def _main(arguments: Sequence[str]) -> int:
+    recovery = None
+    if (
+        len(arguments) >= 4
+        and arguments[0] in {"promote", "emit-remote-consumer"}
+        and arguments[-3] == "--verifier-recovery"
+    ):
+        recovery = VerifierRecoveryPins(
+            pending_commit=_sha1(arguments[-2], "recovery pending commit"),
+            verifier_commit=_sha1(arguments[-1], "recovery verifier commit"),
+        )
+        arguments = arguments[:-3]
+    if len(arguments) == 5 and arguments[0] == "verify-verifier-recovery":
+        runtime_root, _run = _remote_runtime_from_verifier_snapshot(arguments[1])
+        snapshot = load_json_object_snapshot(
+            RESULTS_PATH,
+            maximum=MAX_RESULTS_BYTES,
+            label="recovery verifier results snapshot",
+        )
+        _require(
+            snapshot.file.sha256 == arguments[2],
+            "recovery verifier results differ from startup SHA-256",
+        )
+        verifier_commit = _publication_verifier_commit(
+            runtime_root,
+            _pending_leaf_from_results(snapshot.value),
+            arguments[2],
+            VerifierRecoveryPins(arguments[3], arguments[4]),
+        )
+        print(f"APPLE_VERIFIER_RECOVERY_PASS verifier_commit={verifier_commit}")
+        return 0
     if len(arguments) == 3 and arguments[0] == "pending":
         receipt = build_pending_receipt(
             pathlib.Path(arguments[1]), arguments[2]
@@ -1658,6 +1999,7 @@ def _main(arguments: Sequence[str]) -> int:
             arguments[1],
             pathlib.Path(arguments[2]),
             pathlib.Path(arguments[3]),
+            recovery=recovery,
         )
         path, digest = _publish_receipt(receipt)
         print(_success_marker(path, digest, apple_contract.APPLE_STATUS_VERIFIED))
@@ -1670,8 +2012,38 @@ def _main(arguments: Sequence[str]) -> int:
             runtime_repository_root=runtime_root,
             run_directory_name=run_directory_name,
             startup_results_sha256=arguments[2],
+            recovery=recovery,
         )
         print(_remote_success_marker(path, digest, runtime_root))
+        return 0
+    if (
+        len(arguments) >= 7
+        and arguments[0] == "capture-remote-gate-log"
+        and arguments[5] == "--"
+    ):
+        runtime_root, run_directory_name = _remote_runtime_from_verifier_snapshot(
+            arguments[1]
+        )
+        for value, label in (
+            (arguments[3], "remote consumer gate timeout"),
+            (arguments[4], "remote consumer gate log bound"),
+        ):
+            _require(
+                re.fullmatch(r"[1-9][0-9]*", value) is not None,
+                f"{label} must be a canonical positive integer",
+            )
+        process_status, digest = capture_remote_consumer_gate_log(
+            runtime_repository_root=runtime_root,
+            run_directory_name=run_directory_name,
+            log_name=arguments[2],
+            timeout_seconds=int(arguments[3]),
+            maximum_bytes=int(arguments[4]),
+            argv=arguments[6:],
+        )
+        print(
+            "REMOTE_CONSUMER_GATE_LOG_CAPTURED "
+            f"returncode={process_status} sha256={digest}"
+        )
         return 0
     if len(arguments) == 9 and arguments[0] == "verify-release-assets":
         verified = verify_pending_release_assets(
@@ -1711,6 +2083,8 @@ def main() -> int:
         return 125
     except (
         AppleStablePublicationError,
+        AppleVerifierRecoveryError,
+        BoundedProcessError,
         PublicationReceiptIOError,
         OSError,
     ) as exc:

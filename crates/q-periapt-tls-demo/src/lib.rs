@@ -41,7 +41,9 @@ use q_periapt_backends::{
     ML_KEM_768_PK_LEN, X25519, X25519_LEN,
 };
 use q_periapt_core::{ct_eq, Kem, Profile, Secret, Xof256, ZeroizingBytes};
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 use q_periapt_sig::{Signer, Verifier};
 
 /// Canonical suite identifier for the default suite, bound by `ContextBound`.
@@ -120,8 +122,11 @@ impl HandshakeSuite for EnhancedSuite {
     fn pq_keypair(
         seed: &[u8; PQ_KEYGEN_SEED_LEN],
     ) -> Result<(Vec<u8>, Vec<u8>), q_periapt_core::Error> {
-        let (sk, pk) = MlKem1024::generate(*seed)?;
-        Ok((sk.to_vec(), pk.to_vec()))
+        // Borrow the seed and keep the 3168-byte expanded key inside its boxed
+        // zeroizing owner until it lands in the (wiped-on-drop) `ServerKeys`
+        // vec — no unwiped by-value stack copy of either crosses this boundary.
+        let (sk, pk) = MlKem1024::generate_zeroizing(seed)?;
+        Ok((sk.as_bytes().to_vec(), pk.to_vec()))
     }
     fn sig_keypair(seed: &[u8; SEED32_LEN]) -> (Vec<u8>, Vec<u8>) {
         let (sk, vk) = MlDsa87::generate(*seed);
@@ -142,6 +147,9 @@ pub enum DemoError {
     AuthFailed,
     /// The server key-confirmation did not verify.
     ConfirmFailed,
+    /// The client requested a combiner profile the operator has pinned out
+    /// (see [`AcceptedProfiles`]).
+    ProfileRejected,
 }
 
 impl fmt::Display for DemoError {
@@ -152,7 +160,80 @@ impl fmt::Display for DemoError {
             DemoError::Crypto => f.write_str("crypto error"),
             DemoError::AuthFailed => f.write_str("server authentication failed"),
             DemoError::ConfirmFailed => f.write_str("server confirmation failed"),
+            DemoError::ProfileRejected => {
+                f.write_str("client profile rejected by the server's profile pin")
+            }
         }
+    }
+}
+
+/// Operator-side pinning of the combiner profiles a demo server accepts.
+///
+/// The client names its profile in ClientHello; without a pin the server would
+/// follow that choice unilaterally, letting any client downgrade the KEM
+/// metadata binding to `CompatXWing`. The default keeps the demo's
+/// compatibility purpose — both profiles are served — but logs a warning when a
+/// client selects `CompatXWing`, so an operator who wants `ContextBound` only
+/// can pin it explicitly (e.g. `ACCEPT_PROFILES=bound` for the demo binaries).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum AcceptedProfiles {
+    /// Accept both profiles; a `CompatXWing` selection is served but logged as
+    /// a warning to stderr.
+    #[default]
+    BothWarnCompat,
+    /// Accept only `ContextBound` handshakes.
+    ContextBoundOnly,
+    /// Accept only `CompatXWing` handshakes.
+    CompatXWingOnly,
+}
+
+impl AcceptedProfiles {
+    /// Parse the operator pin from the `ACCEPT_PROFILES` environment variable,
+    /// using the demo binaries' existing profile vocabulary: `both` (default
+    /// when unset), `bound`, or `compat`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a usage message when the variable is set to anything else.
+    pub fn from_env() -> Result<Self, String> {
+        match std::env::var("ACCEPT_PROFILES") {
+            Err(std::env::VarError::NotPresent) => Ok(Self::BothWarnCompat),
+            Ok(value) if value.eq_ignore_ascii_case("both") => Ok(Self::BothWarnCompat),
+            Ok(value) if value.eq_ignore_ascii_case("bound") => Ok(Self::ContextBoundOnly),
+            Ok(value) if value.eq_ignore_ascii_case("compat") => Ok(Self::CompatXWingOnly),
+            Ok(value) => Err(format!(
+                "unknown ACCEPT_PROFILES {value:?}; expected \"both\", \"bound\", or \"compat\""
+            )),
+            Err(std::env::VarError::NotUnicode(_)) => {
+                Err("ACCEPT_PROFILES is not valid Unicode".to_owned())
+            }
+        }
+    }
+
+    /// Whether this pin admits `profile` at all (no logging).
+    #[must_use]
+    pub fn admits(self, profile: Profile) -> bool {
+        match self {
+            Self::BothWarnCompat => true,
+            Self::ContextBoundOnly => profile == Profile::ContextBound,
+            Self::CompatXWingOnly => profile == Profile::CompatXWing,
+        }
+    }
+
+    /// Admit or reject the client-selected `profile`, logging the default
+    /// mode's `CompatXWing` warning.
+    fn admit(self, profile: Profile) -> Result<(), DemoError> {
+        if !self.admits(profile) {
+            return Err(DemoError::ProfileRejected);
+        }
+        if self == Self::BothWarnCompat && profile == Profile::CompatXWing {
+            eprintln!(
+                "q-periapt-tls-demo: warning: client selected the CompatXWing profile \
+                 (no suite/policy/context metadata bound in the KEM); pin \
+                 ACCEPT_PROFILES=bound to require ContextBound"
+            );
+        }
+        Ok(())
     }
 }
 impl std::error::Error for DemoError {}
@@ -460,6 +541,7 @@ fn client_core<Su: HandshakeSuite, S: Read + Write>(
 fn server_core<Su: HandshakeSuite, S: Read + Write>(
     stream: &mut S,
     keys: &ServerKeys,
+    accepted: AcceptedProfiles,
 ) -> Result<(Secret, HandshakeStats), DemoError> {
     let mut stats = HandshakeStats::default();
 
@@ -470,6 +552,9 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
     let _client_nonce = cur.take(NONCE_LEN)?;
     let profile = profile_from(cur.byte()?)?;
     cur.finish()?;
+    // Operator-side profile pin: reject a pinned-out client selection before any
+    // key material is sent or derived (the client cannot choose unilaterally).
+    accepted.admit(profile)?;
 
     // 2. ServerHello
     let mut server_nonce = [0u8; NONCE_LEN];
@@ -497,12 +582,12 @@ fn server_core<Su: HandshakeSuite, S: Read + Write>(
     let (suite_id, policy_version, kem_context) = kem_metadata::<Su>(profile, &transcript_context);
     let kem = HybridKem::<_, _, Sha3_256Xof>::new(&pq, &trad, profile, suite_id, policy_version)?;
     let secret = kem.decapsulate(
-        &keys.dk_pq,
-        ct_pq,
-        &keys.ek_pq,
-        &keys.sk_x,
-        ct_trad,
-        &keys.pk_x,
+        PqSecretKey::new(&keys.dk_pq),
+        PqCiphertext::new(ct_pq),
+        PqPublicKey::new(&keys.ek_pq),
+        TradSecretKey::new(&keys.sk_x),
+        TradCiphertext::new(ct_trad),
+        TradPublicKey::new(&keys.pk_x),
         kem_context,
     )?;
 
@@ -552,19 +637,44 @@ pub fn client_handshake_enhanced<S: Read + Write>(
 }
 
 /// Run the **default-suite** server handshake using its static keys (built with
-/// [`ServerKeys::from_seeds`] / [`ServerKeys::generate`]).
+/// [`ServerKeys::from_seeds`] / [`ServerKeys::generate`]). Accepts both profiles
+/// (with the [`AcceptedProfiles::BothWarnCompat`] `CompatXWing` warning); use
+/// [`server_handshake_with_profiles`] to pin the accepted profile(s).
 pub fn server_handshake<S: Read + Write>(
     stream: &mut S,
     keys: &ServerKeys,
 ) -> Result<(Secret, HandshakeStats), DemoError> {
-    server_core::<DefaultSuite, S>(stream, keys)
+    server_core::<DefaultSuite, S>(stream, keys, AcceptedProfiles::default())
+}
+
+/// Run the **default-suite** server handshake with an operator-pinned set of
+/// accepted profiles (see [`AcceptedProfiles`]). A pinned-out client selection
+/// fails with [`DemoError::ProfileRejected`] before any key material is sent.
+pub fn server_handshake_with_profiles<S: Read + Write>(
+    stream: &mut S,
+    keys: &ServerKeys,
+    accepted: AcceptedProfiles,
+) -> Result<(Secret, HandshakeStats), DemoError> {
+    server_core::<DefaultSuite, S>(stream, keys, accepted)
 }
 
 /// Run the **enhanced-suite** (NIST L5) server handshake using its static keys (built
 /// with [`ServerKeys::from_seeds_enhanced`] / [`ServerKeys::generate_enhanced`]).
+/// Accepts both profiles by default; use
+/// [`server_handshake_enhanced_with_profiles`] to pin the accepted profile(s).
 pub fn server_handshake_enhanced<S: Read + Write>(
     stream: &mut S,
     keys: &ServerKeys,
 ) -> Result<(Secret, HandshakeStats), DemoError> {
-    server_core::<EnhancedSuite, S>(stream, keys)
+    server_core::<EnhancedSuite, S>(stream, keys, AcceptedProfiles::default())
+}
+
+/// Run the **enhanced-suite** (NIST L5) server handshake with an operator-pinned
+/// set of accepted profiles (see [`AcceptedProfiles`]).
+pub fn server_handshake_enhanced_with_profiles<S: Read + Write>(
+    stream: &mut S,
+    keys: &ServerKeys,
+    accepted: AcceptedProfiles,
+) -> Result<(Secret, HandshakeStats), DemoError> {
+    server_core::<EnhancedSuite, S>(stream, keys, accepted)
 }

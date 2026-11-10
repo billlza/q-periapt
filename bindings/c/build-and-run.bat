@@ -6,10 +6,17 @@ REM works even when cl.exe is not on PATH). Run from anywhere:  bindings\c\build
 setlocal enabledelayedexpansion
 cd /d "%~dp0\..\.."
 
-echo [1/4] cargo +1.97.0 build -p q-periapt-ffi --release
-cargo +1.97.0 build -p q-periapt-ffi --release --locked || exit /b 1
+REM Keep the bundled AWS-LC static dependency private to our DLL. This scoped
+REM macro removes only its dllexport modifier, preserving all other attributes
+REM and crypto/entropy code. Rust's public ABI exports remain unchanged.
+set "AWS_LC_SYS_STATIC_x86_64_pc_windows_msvc=1"
+set "AWS_LC_SYS_USE_SYSTEM_x86_64_pc_windows_msvc=0"
+set "AWS_LC_SYS_CFLAGS_x86_64_pc_windows_msvc=/Ddllexport="
 
-echo [2/4] locate MSVC (vswhere -^> vcvars64)
+echo [1/5] cargo +1.98.1 build -p q-periapt-ffi --release
+cargo +1.98.1 build -p q-periapt-ffi --release --locked || exit /b 1
+
+echo [2/5] locate MSVC (vswhere -^> vcvars64)
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 if not exist "%VSWHERE%" set "VSWHERE=%ProgramFiles%\Microsoft Visual Studio\Installer\vswhere.exe"
 for /f "usebackq delims=" %%i in (`"%VSWHERE%" -latest -property installationPath`) do set "VSPATH=%%i"
@@ -17,10 +24,14 @@ if "%VSPATH%"=="" echo ERROR: Visual Studio Build Tools not found & exit /b 1
 call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat" >nul || exit /b 1
 
 set "OUT=target\release"
-echo [3/4] verify exact ABI2 DLL exports
+echo [3/5] verify exact ABI2 DLL exports
 python artifact\c_abi_contract.py --library "%OUT%\q_periapt_ffi_abi2.dll" --platform windows || exit /b 1
 
-echo [4/4] cl smoke.c + link q_periapt_ffi_abi2.dll.lib, then run
-cl /nologo /W4 /WX /utf-8 bindings\c\smoke.c /I crates\q-periapt-ffi\include /Fe:"%OUT%\c_smoke.exe" /Fo:"%OUT%\c_smoke.obj" /link "%OUT%\q_periapt_ffi_abi2.dll.lib" || exit /b 1
-"%OUT%\c_smoke.exe"
+echo [4/5] cl legacy ABI2 consumer + link current q_periapt_ffi_abi2.dll.lib, then run
+cl /nologo /std:c11 /W4 /WX /utf-8 bindings\c\smoke.c /I crates\q-periapt-ffi\abi\v0.1.5 /Fe:"%OUT%\c_smoke.exe" /Fo:"%OUT%\c_smoke.obj" /link "%OUT%\q_periapt_ffi_abi2.dll.lib" || exit /b 1
+"%OUT%\c_smoke.exe" || exit /b 1
+
+echo [5/5] cl owned SDK consumer + link current q_periapt_ffi_abi2.dll.lib, then run
+cl /nologo /std:c11 /W4 /WX /utf-8 bindings\c\sdk_smoke.c /I crates\q-periapt-ffi\include /Fe:"%OUT%\c_sdk_smoke.exe" /Fo:"%OUT%\c_sdk_smoke.obj" /link "%OUT%\q_periapt_ffi_abi2.dll.lib" || exit /b 1
+"%OUT%\c_sdk_smoke.exe"
 exit /b %ERRORLEVEL%

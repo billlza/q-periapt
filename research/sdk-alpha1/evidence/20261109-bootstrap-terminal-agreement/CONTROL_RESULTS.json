@@ -1,0 +1,245 @@
+{
+  "checker_sha256": "e2bfbc5c768a4dec3a8928b753d6656145f337df43de4871f93b5f4b766250c3",
+  "controls": {
+    "named_control_count": 40,
+    "named_controls": [
+      {
+        "name": "bootstrap_seed",
+        "scope": "recomputed existing native public vector",
+        "status": "passed"
+      },
+      {
+        "name": "bootstrap_responder_key",
+        "scope": "recomputed existing native public vector",
+        "status": "passed"
+      },
+      {
+        "name": "bootstrap_initiator_key",
+        "scope": "recomputed existing native public vector",
+        "status": "passed"
+      },
+      {
+        "name": "bootstrap_responder_mac",
+        "scope": "recomputed existing native public vector",
+        "status": "passed"
+      },
+      {
+        "name": "bootstrap_session",
+        "scope": "recomputed existing native public vector",
+        "status": "passed"
+      },
+      {
+        "name": "bootstrap_root",
+        "scope": "recomputed existing native public vector",
+        "status": "passed"
+      },
+      {
+        "name": "initial_rekey_and_chains",
+        "scope": "recomputed existing native public vector",
+        "status": "passed"
+      },
+      {
+        "name": "initial_direction_two_ack",
+        "scope": "recomputed existing native public vector",
+        "status": "passed"
+      },
+      {
+        "name": "alias_keeps_reply_body_and_confirmation",
+        "scope": "same-body premise with opaque signature fields",
+        "status": "passed"
+      },
+      {
+        "name": "alias_changes_final_root_and_ack_key",
+        "scope": "executed exact schedule",
+        "status": "passed"
+      },
+      {
+        "name": "honest_final_accepted",
+        "scope": "post-authentication final parser",
+        "status": "passed"
+      },
+      {
+        "name": "alias_final_rejected",
+        "scope": "complete signed-wire prefix check",
+        "status": "passed"
+      },
+      {
+        "name": "prefix_check_removal_exposes_alias",
+        "scope": "explicit hypothetical mutation; no product code changed",
+        "status": "passed"
+      },
+      {
+        "name": "honest_ready_accepted",
+        "scope": "epoch-zero peer-direction MAC",
+        "status": "passed"
+      },
+      {
+        "name": "public_id_only_rejected",
+        "scope": "connection terminal gate",
+        "status": "passed"
+      },
+      {
+        "name": "public_id_only_mutation_exposes_alias",
+        "scope": "explicit ID-only mutation reproduces the shape of retained native defect",
+        "status": "passed"
+      },
+      {
+        "name": "zero_tag_ready_rejected",
+        "scope": "correct public fields with unknown ACK key",
+        "status": "passed"
+      },
+      {
+        "name": "original_ready_does_not_confirm_alias",
+        "scope": "original peer-origin transcript differs",
+        "status": "passed"
+      },
+      {
+        "name": "session_id_graft_rejected",
+        "scope": "old MAC over another full transcript",
+        "status": "passed"
+      },
+      {
+        "name": "own_direction_reflection_rejected",
+        "scope": "opposite directional oracle",
+        "status": "passed"
+      },
+      {
+        "name": "reflected_direction_rewrite_rejected",
+        "scope": "direction belongs to authenticated prefix",
+        "status": "passed"
+      },
+      {
+        "name": "positive_epoch_proof_rejected",
+        "scope": "connector requires original epoch zero",
+        "status": "passed"
+      },
+      {
+        "name": "uncommitted_consumption_ceiling_rejected",
+        "scope": "valid MAC still respects original sent count",
+        "status": "passed"
+      },
+      {
+        "name": "exact_original_ready_replay_accepted",
+        "scope": "historical activation; no new peer-liveness assertion",
+        "status": "passed"
+      },
+      {
+        "name": "root_disclosure_constructs_terminal_proof",
+        "scope": "constructive counterexample when the theorem's secrecy condition is removed",
+        "status": "passed"
+      },
+      {
+        "name": "rekey_value_is_not_the_bootstrap_root_input",
+        "scope": "specific substitution check; no general inversion claim",
+        "status": "passed"
+      },
+      {
+        "name": "online_registration_precedes_private_use",
+        "scope": "stated proof-game event interface",
+        "status": "passed"
+      },
+      {
+        "name": "exact_retry_retains_original_registration",
+        "scope": "one logical class and one protected key",
+        "status": "passed"
+      },
+      {
+        "name": "local_signing_disclosure_stays_in_view",
+        "scope": "identity-only disclosure does not add an ACK recipe",
+        "status": "passed"
+      },
+      {
+        "name": "rekey_output_disclosure_stays_distinct",
+        "scope": "no inverse edge from an HKDF output block",
+        "status": "passed"
+      },
+      {
+        "name": "protected_root_disclosure_stops_before_release",
+        "scope": "common stop before recipe output",
+        "status": "passed"
+      },
+      {
+        "name": "stopped_game_has_no_later_use_or_registration",
+        "scope": "no surviving-class postselection",
+        "status": "passed"
+      },
+      {
+        "name": "late_protection_is_rejected",
+        "scope": "unprotected prior private use stays real",
+        "status": "passed"
+      },
+      {
+        "name": "prior_recipe_blocks_registration",
+        "scope": "registration checks the existing disclosure closure",
+        "status": "passed"
+      },
+      {
+        "name": "two_full_wire_classes_register_monotonically",
+        "scope": "distinct wire aliases retain shared source dependencies",
+        "status": "passed"
+      },
+      {
+        "name": "shared_source_disclosure_stops_protected_family",
+        "scope": "two disclosed contribution recipes jointly reconstruct both targets",
+        "status": "passed"
+      },
+      {
+        "name": "encrypted_record_alone_stays_in_view",
+        "scope": "unmet independent wrapping guard",
+        "status": "passed"
+      },
+      {
+        "name": "later_guard_stops_before_record_readability",
+        "scope": "late guard acquisition is an exposure event",
+        "status": "passed"
+      },
+      {
+        "name": "unprotected_derived_root_does_not_invert_shared_seed",
+        "scope": "real unprotected class remains in the joint auxiliary view",
+        "status": "passed"
+      },
+      {
+        "name": "family_size_bound_is_enforced",
+        "scope": "fixed family budget",
+        "status": "passed"
+      }
+    ],
+    "scope": "Pure Python public synthetic schedule/parser controls. No native KEM/signature execution, no new hosted CI claim, and no computational hardness theorem inferred from finite cases.",
+    "scope_matrix": {
+      "accepted": [
+        [
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          1,
+          0
+        ]
+      ],
+      "cases": 192,
+      "rejected": 190
+    },
+    "synthetic_transcript": {
+      "ack_bytes": 81,
+      "alias_session": "6f6377478d8eda16e74e368c23b43ab83fdce692e2187d3940a0ecdbd23758f8",
+      "final_bytes": 136,
+      "initial_bytes": 5817,
+      "original_session": "c95e19939af5c9015a051bee9c0dd80a732f2dd809b5a426cf4566ba66f0aa33",
+      "reply_bytes": 4633,
+      "same_body": true
+    }
+  },
+  "schema_version": 1,
+  "source_binding": {
+    "checked_files": 16,
+    "commit": "6a0ac0bbd7a5be77443e10b22c20a31f4b3be271",
+    "tree": "de5c5db02bba581850e30c323d6c882e6bad25c2"
+  },
+  "status": "passed"
+}

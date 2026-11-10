@@ -1,0 +1,44 @@
+{
+  "schema": "qperiapt-canonical-digest-memory/1",
+  "status": "passed",
+  "baseline_commit": "4e4c1b6deac233600d0cabc617c013d1307abbe1",
+  "baseline_source_sha256": "4ed8f09c4ac682cecd1b4a1b6f116c23f72c62e891e1c5bddb545582e43c06eb",
+  "current_source_sha256": "c2950ec8ae5db9240b607a045cf4e11223f6a61fbfad89de4618db7ae57d1107",
+  "python": "3.12.14",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.39",
+  "fixture": {
+    "files": 16,
+    "bytes_per_file": 16777216,
+    "total_bytes": 268435456,
+    "content": "bytes(range(256)) repeated65536times"
+  },
+  "measurement": "tracemalloc around each digest call, after fixture construction and garbage collection; filesystem cache not controlled",
+  "results": {
+    "original": {
+      "digest": "cfb028b646468b77e8cdc52c6b9080e2b58e7246759d581326af39dca8bf89fb",
+      "peak_traced_python_bytes": 268445134,
+      "elapsed_seconds": 0.30904705099965213
+    },
+    "per_file": {
+      "digest": "cfb028b646468b77e8cdc52c6b9080e2b58e7246759d581326af39dca8bf89fb",
+      "peak_traced_python_bytes": 16785410,
+      "elapsed_seconds": 0.21585525600130495
+    }
+  },
+  "digest_equal": true,
+  "peak_reduction_fraction": 0.9374717293255165,
+  "scope": "Synthetic Python allocation and canonical digest comparison; elapsed time is descriptive, not a CI throughput or cryptographic performance claim.",
+  "unit_suite": {
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  },
+  "original_regression": {
+    "test": "test_tree_digest_does_not_retain_all_archive_contents",
+    "expected_failures": 1,
+    "errors": 0,
+    "observed_peak_bytes": 8395084,
+    "budget_bytes": 3145728
+  }
+}

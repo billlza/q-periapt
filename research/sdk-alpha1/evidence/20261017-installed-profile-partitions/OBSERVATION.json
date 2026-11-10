@@ -1,0 +1,248 @@
+{
+  "base_commit": "7e6a23458bb70185bfc168b1a21448773b6b04b8",
+  "retained_hosted_run": 38861869698,
+  "observations": [
+    {
+      "job_id": 117365014094,
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/38861869698/job/117365014094",
+      "job_limit_minutes": 330,
+      "artifact_id": 12105181419,
+      "artifact_bytes": 199487672,
+      "artifact_sha256": "51a56623ab082be1c1f6eee29475b061a49e432bbb53c87fedae27ccb27aa3aa",
+      "completed_command_count": 395,
+      "nonzero_commands": [
+        {
+          "name": "kotlin-negative-RawAccountAuthorityProbe-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            30
+          ]
+        },
+        {
+          "name": "kotlin-negative-RawConfigurationKeyProbe-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            32
+          ]
+        },
+        {
+          "name": "kotlin-negative-RawConfigurationProbe-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            30
+          ]
+        },
+        {
+          "name": "kotlin-negative-denied-native-access-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            28
+          ]
+        },
+        {
+          "name": "kotlin-negative-directory-library-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            28
+          ]
+        },
+        {
+          "name": "kotlin-negative-missing-library-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            28
+          ]
+        },
+        {
+          "name": "kotlin-negative-missing-property-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            26
+          ]
+        },
+        {
+          "name": "kotlin-negative-missing-symbol-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            28
+          ]
+        },
+        {
+          "name": "kotlin-negative-raw-device-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            28
+          ]
+        },
+        {
+          "name": "kotlin-negative-raw-enrollment-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            30
+          ]
+        },
+        {
+          "name": "kotlin-negative-raw-native-owner-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            32
+          ]
+        },
+        {
+          "name": "kotlin-negative-raw-owner-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            28
+          ]
+        },
+        {
+          "name": "kotlin-negative-raw-retired-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            30
+          ]
+        },
+        {
+          "name": "kotlin-negative-raw-setup-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            28
+          ]
+        },
+        {
+          "name": "kotlin-negative-relative-path-debug.json",
+          "returncode": 1,
+          "mtime": [
+            2026,
+            10,
+            17,
+            13,
+            35,
+            26
+          ]
+        }
+      ],
+      "last_completed_command": {
+        "name": "kotlin-managed-credential-configuration-kotlin-release-g1.json",
+        "returncode": 0,
+        "mtime": [
+          2026,
+          10,
+          17,
+          15,
+          7,
+          0
+        ]
+      },
+      "native_receipt_completed": true,
+      "foreign_terminal_receipt_present": false,
+      "scope": "ongoing serial debug/release execution reached the annotated job limit; incomplete foreign qualification",
+      "source_commit": "9f1c7f62809659ee0375b63cd2f06fa358e7b93a",
+      "run_attempt": 2,
+      "started_at": "2026-10-17T09:37:28Z",
+      "completed_at": "2026-10-17T15:09:18Z",
+      "conclusion": "cancelled"
+    },
+    {
+      "job_id": 117365014130,
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/38861869698/job/117365014130",
+      "job_limit_minutes": 330,
+      "artifact_id": 12105726354,
+      "artifact_bytes": 128861573,
+      "artifact_sha256": "13d171b9ffbd18094f7a9bf50cf91c68e5e4d6f3ce217ce3657fa05af791e1fd",
+      "completed_command_count": 321,
+      "nonzero_commands": [],
+      "last_completed_command": {
+        "name": "android-jni-release-roster-witness.json",
+        "returncode": 0,
+        "mtime": [
+          2026,
+          10,
+          17,
+          15,
+          26,
+          14
+        ]
+      },
+      "native_receipt_completed": true,
+      "foreign_terminal_receipt_present": false,
+      "scope": "ongoing serial debug/release execution reached the annotated job limit; incomplete foreign qualification",
+      "source_commit": "9f1c7f62809659ee0375b63cd2f06fa358e7b93a",
+      "run_attempt": 2,
+      "started_at": "2026-10-17T09:57:29Z",
+      "completed_at": "2026-10-17T15:28:52Z",
+      "conclusion": "cancelled"
+    }
+  ],
+  "release_claim_eligible": false
+}

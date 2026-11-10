@@ -1,0 +1,10 @@
+{
+  "full_refinement_claimed": false,
+  "lookup_note": "The first diagnostic regex expected a quote immediately after the lemma colon and did not match the retained all-traces declaration. Corrected extraction recognizes that declaration; no model or query changed.",
+  "main_counterexample_claimed": false,
+  "main_formula_sha256": "0b92ee18d7731c7c83fa05329e486fd6813f8ea13d64ed92215346f10cdf8faa",
+  "main_query": "multi_epoch_fresh_reservations_recover_symbolic_message_secrecy",
+  "model_sha256": "dde5d06a071b1560da0d4c28c3f1fd81a3c39708f9fd8564ee391ddc362bcf7f",
+  "new_tamarin_execution": false,
+  "prior_model_capture": "research/sdk-alpha1/evidence/20261104-multi-epoch-replay"
+}

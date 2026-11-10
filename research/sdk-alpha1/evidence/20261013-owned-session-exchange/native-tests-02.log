@@ -1,0 +1,30 @@
+   Compiling q-periapt-continuity-identity-candidate v0.0.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.36s
+     Running unittests src/lib.rs (target/continuity-browser-creation/rust-target/debug/deps/q_periapt_continuity_identity_candidate-8ee8ee92e271c7c6)
+
+running 4 tests
+test session_exchange::tests::carrier_versions_and_unbounded_frames_are_rejected ... ok
+
+thread 'session_exchange::tests::confirmed_bootstrap_reopens_and_delivers_in_both_directions_without_duplicate_effects' (3368753) panicked at src/session_exchange/tests.rs:188:18:
+a bundle: Scope
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test session_exchange::tests::confirmed_bootstrap_reopens_and_delivers_in_both_directions_without_duplicate_effects ... FAILED
+
+thread 'session_exchange::tests::tampered_ready_proof_closes_owner_and_exact_retry_recovers_committed_original' (3368754) panicked at src/session_exchange/tests.rs:188:18:
+a bundle: Scope
+test session_exchange::tests::tampered_ready_proof_closes_owner_and_exact_retry_recovers_committed_original ... FAILED
+
+thread 'session_exchange::tests::cancelled_admission_dispatches_nothing_and_closes_owner' (3368751) panicked at src/session_exchange/tests.rs:188:18:
+a bundle: Scope
+test session_exchange::tests::cancelled_admission_dispatches_nothing_and_closes_owner ... FAILED
+
+failures:
+
+failures:
+    session_exchange::tests::cancelled_admission_dispatches_nothing_and_closes_owner
+    session_exchange::tests::confirmed_bootstrap_reopens_and_delivers_in_both_directions_without_duplicate_effects
+    session_exchange::tests::tampered_ready_proof_closes_owner_and_exact_retry_recovers_committed_original
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 909 filtered out; finished in 1.93s
+
+error: test failed, to rerun pass `--lib`

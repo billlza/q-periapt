@@ -1,0 +1,50 @@
+{
+  "repository": "billlza/q-periapt",
+  "base_commit": "b1cff2a045d23aecf75aef12122e5080a8419676",
+  "observations": {
+    "proverif": {
+      "job_id": 128956333414,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42554253799/job/128956333414",
+      "sha256": "5bf4ae5cee18d15f455e1fffb70ee74ec40adf2f3444b94fb792dc087f13121f",
+      "bytes": 84390,
+      "failure_lines": [
+        "2026-11-09T05:58:51.5771419Z curl: (22) The requested URL returned error: 504",
+        "2026-11-09T05:58:51.5798169Z opam-2.5.2 curl status 22; retrying in 15 seconds",
+        "2026-11-09T05:59:06.6537138Z curl: (22) The requested URL returned error: 504",
+        "2026-11-09T05:59:06.6559600Z opam-2.5.2 curl status 22; retrying in 30 seconds",
+        "2026-11-09T05:59:36.7296359Z curl: (22) The requested URL returned error: 504",
+        "2026-11-09T05:59:36.7315670Z error: formal-tool asset: opam-2.5.2 download failed after 3 attempts with curl status 22"
+      ]
+    },
+    "python": {
+      "job_id": 128948893993,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42551831861/job/128948893993",
+      "sha256": "905d71573d89fa407882f9baff6bb8ca4e227d894012362af658a548dbc1a3cd",
+      "bytes": 33640,
+      "failure_lines": [
+        "2026-11-09T05:15:39.1531660Z Unexpected HTTP response: 504",
+        "2026-11-09T05:16:08.2594799Z Unexpected HTTP response: 504",
+        "2026-11-09T05:16:32.4614490Z Unexpected HTTP response: 504",
+        "2026-11-09T05:16:32.4673158Z ##[error]Unexpected HTTP response: 504"
+      ]
+    },
+    "tamarin": {
+      "job_id": 128948894530,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42551831861/job/128948894530",
+      "sha256": "5a616fa067478b045eb2dab2001a2e0fb0655d721feddb26e5cab1ac6f96c60c",
+      "bytes": 33333,
+      "failure_lines": [
+        "2026-11-09T05:44:05.3751578Z curl: (22) The requested URL returned error: 504",
+        "2026-11-09T05:44:05.3772765Z maude-3.5.1 curl status 22; retrying in 15 seconds",
+        "2026-11-09T05:44:20.4696992Z curl: (22) The requested URL returned error: 504",
+        "2026-11-09T05:44:20.4715893Z maude-3.5.1 curl status 22; retrying in 30 seconds",
+        "2026-11-09T05:45:13.2224316Z curl: (22) The requested URL returned error: 504",
+        "2026-11-09T05:45:13.2249212Z tamarin-1.12.0 curl status 22; retrying in 15 seconds",
+        "2026-11-09T05:45:28.3179097Z curl: (22) The requested URL returned error: 504",
+        "2026-11-09T05:45:28.3200159Z tamarin-1.12.0 curl status 22; retrying in 30 seconds",
+        "2026-11-09T05:46:09.4319822Z curl: (22) The requested URL returned error: 504",
+        "2026-11-09T05:46:09.4345105Z error: formal-tool asset: tamarin-1.12.0 download failed after 3 attempts with curl status 22"
+      ]
+    }
+  }
+}

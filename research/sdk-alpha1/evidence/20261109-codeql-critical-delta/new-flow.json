@@ -1,0 +1,451 @@
+{
+  "rule": "py/command-line-injection",
+  "security_score": 9.8,
+  "reported_level": "error",
+  "sarif_result_index": 1253,
+  "sink": {
+    "path": "research/continuity-matched-comparison/run.py",
+    "region": {
+      "startLine": 48,
+      "startColumn": 33,
+      "endColumn": 37
+    }
+  },
+  "flow_path": "research/continuity-matched-comparison/run.py",
+  "chains": [
+    {
+      "sha256": "ae6454ad958c919f5d2f9a14b3432eb4bc4a84d5a129bd7fd13b3a020c683920",
+      "regions": [
+        {
+          "startLine": 195,
+          "startColumn": 16,
+          "endColumn": 26
+        },
+        {
+          "startLine": 195,
+          "startColumn": 11,
+          "endColumn": 27
+        },
+        {
+          "startLine": 195,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 196,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 197,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 198,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 199,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 230,
+          "startColumn": 45,
+          "endColumn": 48
+        },
+        {
+          "startLine": 230,
+          "startColumn": 18,
+          "endColumn": 48
+        },
+        {
+          "startLine": 230,
+          "startColumn": 16,
+          "endLine": 231,
+          "endColumn": 114
+        },
+        {
+          "startLine": 230,
+          "startColumn": 5,
+          "endColumn": 13
+        },
+        {
+          "startLine": 232,
+          "startColumn": 39,
+          "endColumn": 47
+        },
+        {
+          "startLine": 232,
+          "startColumn": 9,
+          "endColumn": 35
+        },
+        {
+          "startLine": 232,
+          "startColumn": 26,
+          "endColumn": 35
+        },
+        {
+          "startLine": 236,
+          "startColumn": 9,
+          "endColumn": 19
+        },
+        {
+          "startLine": 238,
+          "startColumn": 18,
+          "endColumn": 33
+        },
+        {
+          "startLine": 238,
+          "startColumn": 17,
+          "endColumn": 59
+        },
+        {
+          "startLine": 45,
+          "startColumn": 13,
+          "endColumn": 17
+        },
+        {
+          "startLine": 48,
+          "startColumn": 33,
+          "endColumn": 37
+        }
+      ]
+    },
+    {
+      "sha256": "00a766a1e705be880fca16f416c47ed92e1a43535cf0e3b01e67067ea5d5c87a",
+      "regions": [
+        {
+          "startLine": 195,
+          "startColumn": 16,
+          "endColumn": 26
+        },
+        {
+          "startLine": 195,
+          "startColumn": 11,
+          "endColumn": 27
+        },
+        {
+          "startLine": 195,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 196,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 197,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 198,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 199,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 230,
+          "startColumn": 45,
+          "endColumn": 48
+        },
+        {
+          "startLine": 230,
+          "startColumn": 18,
+          "endColumn": 48
+        },
+        {
+          "startLine": 230,
+          "startColumn": 16,
+          "endLine": 231,
+          "endColumn": 114
+        },
+        {
+          "startLine": 230,
+          "startColumn": 5,
+          "endColumn": 13
+        },
+        {
+          "startLine": 232,
+          "startColumn": 39,
+          "endColumn": 47
+        },
+        {
+          "startLine": 232,
+          "startColumn": 9,
+          "endColumn": 35
+        },
+        {
+          "startLine": 232,
+          "startColumn": 26,
+          "endColumn": 35
+        },
+        {
+          "startLine": 236,
+          "startColumn": 27,
+          "endColumn": 36
+        },
+        {
+          "startLine": 236,
+          "startColumn": 27,
+          "endColumn": 56
+        },
+        {
+          "startLine": 236,
+          "startColumn": 9,
+          "endColumn": 19
+        },
+        {
+          "startLine": 238,
+          "startColumn": 18,
+          "endColumn": 33
+        },
+        {
+          "startLine": 238,
+          "startColumn": 17,
+          "endColumn": 59
+        },
+        {
+          "startLine": 45,
+          "startColumn": 13,
+          "endColumn": 17
+        },
+        {
+          "startLine": 48,
+          "startColumn": 33,
+          "endColumn": 37
+        }
+      ]
+    },
+    {
+      "sha256": "33a02004405fe5065048982c95c2921e86965f3eba0dd82cf02b87bbd7f4b872",
+      "regions": [
+        {
+          "startLine": 195,
+          "startColumn": 16,
+          "endColumn": 26
+        },
+        {
+          "startLine": 195,
+          "startColumn": 11,
+          "endColumn": 27
+        },
+        {
+          "startLine": 195,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 196,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 197,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 198,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 199,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 231,
+          "startColumn": 109,
+          "endColumn": 112
+        },
+        {
+          "startLine": 231,
+          "startColumn": 80,
+          "endColumn": 112
+        },
+        {
+          "startLine": 230,
+          "startColumn": 16,
+          "endLine": 231,
+          "endColumn": 114
+        },
+        {
+          "startLine": 230,
+          "startColumn": 5,
+          "endColumn": 13
+        },
+        {
+          "startLine": 232,
+          "startColumn": 39,
+          "endColumn": 47
+        },
+        {
+          "startLine": 232,
+          "startColumn": 9,
+          "endColumn": 35
+        },
+        {
+          "startLine": 232,
+          "startColumn": 9,
+          "endColumn": 35
+        },
+        {
+          "startLine": 232,
+          "startColumn": 26,
+          "endColumn": 35
+        },
+        {
+          "startLine": 236,
+          "startColumn": 9,
+          "endColumn": 19
+        },
+        {
+          "startLine": 238,
+          "startColumn": 18,
+          "endColumn": 33
+        },
+        {
+          "startLine": 238,
+          "startColumn": 17,
+          "endColumn": 59
+        },
+        {
+          "startLine": 45,
+          "startColumn": 13,
+          "endColumn": 17
+        },
+        {
+          "startLine": 48,
+          "startColumn": 33,
+          "endColumn": 37
+        }
+      ]
+    },
+    {
+      "sha256": "3e2d21bd5bdcee7165141ecd17a032fa2a574982e5da099f432492538bbd0feb",
+      "regions": [
+        {
+          "startLine": 195,
+          "startColumn": 16,
+          "endColumn": 26
+        },
+        {
+          "startLine": 195,
+          "startColumn": 11,
+          "endColumn": 27
+        },
+        {
+          "startLine": 195,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 196,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 197,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 198,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 199,
+          "startColumn": 5,
+          "endColumn": 8
+        },
+        {
+          "startLine": 231,
+          "startColumn": 109,
+          "endColumn": 112
+        },
+        {
+          "startLine": 231,
+          "startColumn": 80,
+          "endColumn": 112
+        },
+        {
+          "startLine": 230,
+          "startColumn": 16,
+          "endLine": 231,
+          "endColumn": 114
+        },
+        {
+          "startLine": 230,
+          "startColumn": 5,
+          "endColumn": 13
+        },
+        {
+          "startLine": 232,
+          "startColumn": 39,
+          "endColumn": 47
+        },
+        {
+          "startLine": 232,
+          "startColumn": 9,
+          "endColumn": 35
+        },
+        {
+          "startLine": 232,
+          "startColumn": 9,
+          "endColumn": 35
+        },
+        {
+          "startLine": 232,
+          "startColumn": 26,
+          "endColumn": 35
+        },
+        {
+          "startLine": 236,
+          "startColumn": 27,
+          "endColumn": 36
+        },
+        {
+          "startLine": 236,
+          "startColumn": 27,
+          "endColumn": 56
+        },
+        {
+          "startLine": 236,
+          "startColumn": 9,
+          "endColumn": 19
+        },
+        {
+          "startLine": 238,
+          "startColumn": 18,
+          "endColumn": 33
+        },
+        {
+          "startLine": 238,
+          "startColumn": 17,
+          "endColumn": 59
+        },
+        {
+          "startLine": 45,
+          "startColumn": 13,
+          "endColumn": 17
+        },
+        {
+          "startLine": 48,
+          "startColumn": 33,
+          "endColumn": 37
+        }
+      ]
+    }
+  ]
+}

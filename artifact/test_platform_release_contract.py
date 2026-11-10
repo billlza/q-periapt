@@ -4,8 +4,6 @@
 from __future__ import annotations
 
 import copy
-import json
-import pathlib
 import unittest
 
 import android_device_proof
@@ -13,16 +11,12 @@ import c_abi_contract
 import platform_distribution
 import platform_distribution_contract as current_contract
 import platform_release_contract as contract
-
-
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+from test_release_publication_contract import frozen_baseline_manifest
 
 
 class PlatformReleaseContractTests(unittest.TestCase):
     def setUp(self) -> None:
-        manifest = json.loads(
-            (ROOT / "artifact" / "results.json").read_text(encoding="utf-8")
-        )
+        manifest = frozen_baseline_manifest()
         self.receipt = manifest["release_publications"]["platform_r2"]
 
     def validate(self, receipt: object) -> None:

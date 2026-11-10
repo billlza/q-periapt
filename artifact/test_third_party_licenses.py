@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import json
+import os
 import pathlib
 import tempfile
 import unittest
@@ -38,7 +40,7 @@ class ThirdPartyLicenseTests(unittest.TestCase):
                 {
                     "id": "ffi-id",
                     "name": "q-periapt-ffi",
-                    "version": "0.1.0",
+                    "version": "0.1.5",
                     "source": None,
                     "manifest_path": str(self.root / "crates/ffi/Cargo.toml"),
                 },
@@ -108,12 +110,65 @@ class ThirdPartyLicenseTests(unittest.TestCase):
         )
         self.assertEqual(first, verified)
 
+    def test_installed_continuity_resolution_keeps_the_exact_lock_and_licenses(self) -> None:
+        metadata = self.metadata()
+        metadata["packages"][0]["name"] = "q-periapt-continuity-c-consumer"
+        (self.root / "Cargo.lock").write_text(
+            f'version = 4\n[[package]]\nname = "dep"\nversion = "1.2.3"\n'
+            f'source = "{self.source}"\nchecksum = "{self.checksum}"\n', encoding="utf-8")
+        with mock.patch.object(third_party_licenses, "_cargo_metadata", side_effect=AssertionError("global Cargo used")):
+            collected = third_party_licenses.collect(self.root, self.package_root, "aarch64-apple-darwin",
+                root_package="q-periapt-continuity-c-consumer", resolved_metadata=metadata)
+        self.assertEqual(collected["packages"][0]["checksum"], self.checksum)
+        self.assertEqual(collected, third_party_licenses.verify(self.package_root,
+            expected_target="aarch64-apple-darwin", root_package="q-periapt-continuity-c-consumer"))
+        other = self.package_root.parent / "missing-lock"
+        other.mkdir()
+        lock = self.root / "Cargo.lock"
+        lock.write_text(lock.read_text(encoding="utf-8").replace('name = "dep"', 'name = "other"'), encoding="utf-8")
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "absent from Cargo.lock"):
+            third_party_licenses.collect(self.root, other, "aarch64-apple-darwin",
+                root_package="q-periapt-continuity-c-consumer", resolved_metadata=metadata)
+
+    def test_maintenance_license_root_uses_the_supplied_build_resolution(self) -> None:
+        metadata = self.metadata()
+        metadata["packages"][0]["name"] = "q-periapt-cli"
+        (self.root / "Cargo.lock").write_text(
+            f'version = 4\n[[package]]\nname = "dep"\nversion = "1.2.3"\n'
+            f'source = "{self.source}"\nchecksum = "{self.checksum}"\n', encoding="utf-8")
+        with mock.patch.object(third_party_licenses, "_cargo_metadata", side_effect=AssertionError("global Cargo used")):
+            collected = third_party_licenses.collect(self.root, self.package_root, "aarch64-apple-darwin",
+                root_package="q-periapt-cli", resolved_metadata=metadata)
+        self.assertEqual(collected["root_package"], "q-periapt-cli")
+        self.assertEqual(collected, third_party_licenses.verify(self.package_root,
+            expected_target="aarch64-apple-darwin", root_package="q-periapt-cli"))
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "root package differs"):
+            third_party_licenses.verify(self.package_root, expected_target="aarch64-apple-darwin")
+
     def test_dev_only_dependency_is_not_treated_as_shipped(self) -> None:
         with self.assertRaisesRegex(
             third_party_licenses.ThirdPartyLicenseError,
             "no external packages",
         ):
             self.collect(self.metadata(kind="dev"))
+
+    def test_wasm_root_is_explicit_and_does_not_change_native_default(self) -> None:
+        metadata = self.metadata()
+        metadata["packages"][0]["name"] = "q-periapt-sdk-wasm"
+        with (
+            mock.patch.object(third_party_licenses, "_cargo_metadata", return_value=metadata),
+            mock.patch.object(third_party_licenses, "_lock_checksums",
+                              return_value={("dep", "1.2.3", self.source): self.checksum}),
+        ):
+            inventory = third_party_licenses.collect(self.root, self.package_root,
+                "wasm32-unknown-unknown", root_package="q-periapt-sdk-wasm")
+        self.assertEqual(inventory["root_package"], "q-periapt-sdk-wasm")
+        self.assertEqual(inventory, third_party_licenses.verify(self.package_root,
+            expected_target="wasm32-unknown-unknown", root_package="q-periapt-sdk-wasm"))
+        with self.assertRaisesRegex(ValueError, "root package differs"):
+            third_party_licenses.verify(self.package_root)
+        with self.assertRaisesRegex(ValueError, "unsupported license root"):
+            third_party_licenses._production_dependency_ids(metadata, "unknown")
 
     def test_missing_or_escaping_license_fails_closed(self) -> None:
         (self.dependency_root / "LICENSE-MIT").unlink()
@@ -217,6 +272,48 @@ class ThirdPartyLicenseTests(unittest.TestCase):
                     self.root,
                     "x86_64-unknown-linux-gnu",
                 )
+
+    def _metadata_launcher(self, directory: pathlib.Path, name: str, selection: str) -> pathlib.Path:
+        directory.mkdir(parents=True, exist_ok=True)
+        if os.name == "nt":
+            launcher = directory / (name + ".cmd")
+            source = '@echo off\necho {"selected":"' + selection + '","program":"%~n0"}\n'
+        else:
+            launcher = directory / name
+            source = (
+                '#!/bin/sh\nprintf \'{"selected":"' + selection
+                + '","program":"%s"}\\n\' "${0##*/}"\n'
+            )
+        launcher.write_text(source, encoding="utf-8")
+        launcher.chmod(0o700)
+        return launcher
+
+    def test_cargo_metadata_keeps_relative_path_selection_across_cwd_change(self) -> None:
+        caller = pathlib.Path(self.temporary.name) / "caller"
+        self._metadata_launcher(caller / "bin", "cargo", "caller")
+        self._metadata_launcher(self.root / "bin", "cargo", "checkout")
+        with (
+            contextlib.chdir(caller),
+            mock.patch.dict(os.environ, {"PATH": "bin", "PATHEXT": ".CMD"}),
+        ):
+            observed = third_party_licenses._cargo_metadata(
+                self.root, "x86_64-unknown-linux-gnu"
+            )
+        self.assertEqual(observed, {"selected": "caller", "program": "cargo"})
+
+    def test_cargo_metadata_preserves_multicall_symlink_name(self) -> None:
+        caller = pathlib.Path(self.temporary.name) / "caller"
+        multicall = self._metadata_launcher(caller / "bin", "rustup", "caller")
+        cargo = multicall.with_name("cargo" + multicall.suffix)
+        cargo.symlink_to(multicall.name)
+        with (
+            contextlib.chdir(caller),
+            mock.patch.dict(os.environ, {"PATH": "bin", "PATHEXT": ".CMD"}),
+        ):
+            observed = third_party_licenses._cargo_metadata(
+                self.root, "x86_64-unknown-linux-gnu"
+            )
+        self.assertEqual(observed, {"selected": "caller", "program": "cargo"})
 
     def test_cargo_metadata_failure_never_discloses_stderr_or_credentials(self) -> None:
         private_registry = (

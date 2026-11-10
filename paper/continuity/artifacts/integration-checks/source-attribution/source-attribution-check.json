@@ -1,0 +1,524 @@
+{
+  "status": "passed",
+  "mode": "finite-and-source",
+  "checker_sha256": "b381aef5d318bf274908f741d20955d0fa5885806ff571c93fbbfe2c9b319aee",
+  "python": "3.12.3",
+  "check_count": 44,
+  "checks": [
+    {
+      "id": "generation_fault_graph",
+      "pass": true,
+      "detail": "All reachable recovered states with up to three source draws and two epochs preserve executed-source identity."
+    },
+    {
+      "id": "generation_multiple_epochs_present",
+      "pass": true,
+      "detail": "Normal completion permits a new source in the next epoch."
+    },
+    {
+      "id": "generation_reject_compute_before_persist",
+      "pass": true,
+      "detail": "The checker finds a causal trace violating the original-slot invariant."
+    },
+    {
+      "id": "generation_reject_discard_executed_plan",
+      "pass": true,
+      "detail": "The checker finds a causal trace violating the original-slot invariant."
+    },
+    {
+      "id": "generation_reject_renumber_retry",
+      "pass": true,
+      "detail": "The checker finds a causal trace violating the original-slot invariant."
+    },
+    {
+      "id": "encapsulation_fault_graph",
+      "pass": true,
+      "detail": "All reachable recovered states with up to three source draws and two epochs preserve executed-source identity."
+    },
+    {
+      "id": "encapsulation_multiple_epochs_present",
+      "pass": true,
+      "detail": "Normal completion permits a new source in the next epoch."
+    },
+    {
+      "id": "encapsulation_reject_compute_before_persist",
+      "pass": true,
+      "detail": "The checker finds a causal trace violating the original-slot invariant."
+    },
+    {
+      "id": "encapsulation_reject_discard_executed_plan",
+      "pass": true,
+      "detail": "The checker finds a causal trace violating the original-slot invariant."
+    },
+    {
+      "id": "encapsulation_reject_renumber_retry",
+      "pass": true,
+      "detail": "The checker finds a causal trace violating the original-slot invariant."
+    },
+    {
+      "id": "transcript_honest",
+      "pass": true,
+      "detail": "Expected proposer allocation/responder allocation/proposer receipt: (True, True, True)"
+    },
+    {
+      "id": "transcript_offer_alias",
+      "pass": true,
+      "detail": "Expected proposer allocation/responder allocation/proposer receipt: (False, False, False)"
+    },
+    {
+      "id": "transcript_response_alias",
+      "pass": true,
+      "detail": "Expected proposer allocation/responder allocation/proposer receipt: (True, False, False)"
+    },
+    {
+      "id": "transcript_final_alias",
+      "pass": true,
+      "detail": "Expected proposer allocation/responder allocation/proposer receipt: (True, True, False)"
+    },
+    {
+      "id": "response_alias_changes_info_without_changing_sources",
+      "pass": true,
+      "detail": "An accepted same-body response alias preserves original sources and changes full traffic information."
+    },
+    {
+      "id": "distinct_offer_link_rejected",
+      "pass": true,
+      "detail": "A response to a different offered key fails the actual complete-offer hash comparison."
+    },
+    {
+      "id": "collision_control_is_explicit",
+      "pass": true,
+      "detail": "Overriding the two hash replies supplies a distinct-input collision witness; it is a charged event."
+    },
+    {
+      "id": "fresh_body_event_is_not_wire_alias",
+      "pass": true,
+      "detail": "A new wire encoding of an issued body is outside the fresh-message forgery event."
+    },
+    {
+      "id": "ordinary_appendix_independent_of_secret",
+      "pass": true,
+      "detail": "For every 3-bit key, the appendix is exactly uniform over all 3-bit randomizers."
+    },
+    {
+      "id": "opened_original_randomizer_recovers_secret",
+      "pass": true,
+      "detail": "All 64 key/randomizer assignments recover the original key exactly by XOR."
+    },
+    {
+      "id": "deterministic_component_adapter_exact",
+      "pass": true,
+      "detail": "Eight original reservations, sixteen executions/openings, and one classical signing query per reservation."
+    },
+    {
+      "id": "same_body_distinct_randomizers_keep_two_origins",
+      "pass": true,
+      "detail": "The deterministic component repeats; the auxiliary randomized component and original reservations remain separate."
+    },
+    {
+      "id": "executed_query_ledger_survives_failed_publication",
+      "pass": true,
+      "detail": "After failed publication and recovery, the original signature and query ledger remain, with no new oracle query."
+    },
+    {
+      "id": "publication_only_origin_ledger_is_rejected",
+      "pass": true,
+      "detail": "A ledger recording only published wires misclassifies an honestly computed, unpublished signature as fresh."
+    },
+    {
+      "id": "source_identity_research_continuity-identity-candidate_src_crypto.rs",
+      "pass": true,
+      "detail": "Exact bytes match the independently inspected source manifest."
+    },
+    {
+      "id": "source_identity_research_continuity-identity-candidate_src_crypto_persistence.rs",
+      "pass": true,
+      "detail": "Exact bytes match the independently inspected source manifest."
+    },
+    {
+      "id": "source_identity_research_continuity-identity-candidate_src_durable_messages_rekey.rs",
+      "pass": true,
+      "detail": "Exact bytes match the independently inspected source manifest."
+    },
+    {
+      "id": "source_identity_research_continuity-identity-candidate_src_durable_messages_rekey_response.rs",
+      "pass": true,
+      "detail": "Exact bytes match the independently inspected source manifest."
+    },
+    {
+      "id": "source_identity_research_continuity-identity-candidate_src_durable_messages_rekey_completion.rs",
+      "pass": true,
+      "detail": "Exact bytes match the independently inspected source manifest."
+    },
+    {
+      "id": "source_identity_research_continuity-identity-candidate_src_durable_messages_tests_classical_alias.rs",
+      "pass": true,
+      "detail": "Exact bytes match the independently inspected source manifest."
+    },
+    {
+      "id": "source_identity_research_continuity-identity-candidate_src_contract.rs",
+      "pass": true,
+      "detail": "Exact bytes match the independently inspected source manifest."
+    },
+    {
+      "id": "native_generation_persist_before_compute",
+      "pass": true,
+      "detail": "The exact source orders original reservation, plan retention and private generation."
+    },
+    {
+      "id": "native_encapsulation_persist_before_compute",
+      "pass": true,
+      "detail": "The exact source orders original reservation, retained offered wire and private encapsulation."
+    },
+    {
+      "id": "native_plan_clear_advances_epoch",
+      "pass": true,
+      "detail": "The completion transition increments the epoch before clearing the rekey plan."
+    },
+    {
+      "id": "native_generation_retains_original_token",
+      "pass": true,
+      "detail": "Generation retries use the retained token and compare the recomputed complete offer body."
+    },
+    {
+      "id": "native_response_pins_complete_offer",
+      "pass": true,
+      "detail": "The responder keeps the exact complete offer for conflict, signed-prefix and KEM-context checks."
+    },
+    {
+      "id": "native_proposer_checks_before_decapsulation",
+      "pass": true,
+      "detail": "Response signature/prefix and original regenerated public key precede selected decapsulation."
+    },
+    {
+      "id": "native_responder_checks_before_allocation",
+      "pass": true,
+      "detail": "Final signature and complete saved-wire checks precede the responder's traffic allocation."
+    },
+    {
+      "id": "native_full_wire_traffic_info",
+      "pass": true,
+      "detail": "The actual received complete response wire enters traffic information."
+    },
+    {
+      "id": "native_signing_binding_fields",
+      "pass": true,
+      "detail": "Purpose and complete body length are in the signed string."
+    },
+    {
+      "id": "native_reservation_serializes_only_binding_and_randomizer",
+      "pass": true,
+      "detail": "The signing-reservation byte interface includes the original randomizer."
+    },
+    {
+      "id": "native_component_randomness_separation",
+      "pass": true,
+      "detail": "The retained randomizer feeds ML-DSA; deterministic P-256 signing and canonicalization are separate."
+    },
+    {
+      "id": "native_owner_file_requires_separate_interface",
+      "pass": true,
+      "detail": "Actual owner files contain both secret seeds and are explicitly outside the exact signature adapter's byte interface."
+    },
+    {
+      "id": "native_alias_test_is_retained_source_only",
+      "pass": true,
+      "detail": "Existing native test source supports the alias interpretation; this command does not execute those Rust tests."
+    }
+  ],
+  "source_files": [
+    {
+      "path": "research/continuity-identity-candidate/src/crypto.rs",
+      "sha256": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4",
+      "bytes": 18994
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/crypto/persistence.rs",
+      "sha256": "f502bef3368bedec46cefd7f8955d4706550d45ab9baf2c7d6bca8ee45b4d405",
+      "bytes": 7998
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+      "sha256": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10",
+      "bytes": 17022
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs",
+      "sha256": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59",
+      "bytes": 15442
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs",
+      "sha256": "d2ba085119db3cff2ebda780f4824b8b4cbd3a9f6e44531df45db48144a65c1e",
+      "bytes": 42784
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/tests/classical_alias.rs",
+      "sha256": "2bdedc294d4907d5ae418722c428ade9c2b2f67da252cf76154a2eac6d881cb1",
+      "bytes": 7637
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/contract.rs",
+      "sha256": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
+      "bytes": 4170
+    }
+  ],
+  "fault_models": {
+    "generation": {
+      "status": "passed",
+      "states": 34,
+      "edges": 249,
+      "ready_states": 6,
+      "epoch_two_states": 18,
+      "failed_first_witness": {
+        "trace": [
+          "reserve; no durable target; caller error",
+          "reserve; token committed; KEM computed; signing target committed; ready target retained; caller error"
+        ],
+        "state": {
+          "epoch": 1,
+          "phase": 3,
+          "origin": 2,
+          "original_reservation_epochs": [
+            1,
+            1
+          ],
+          "executed_original_slots": [
+            [
+              2
+            ],
+            []
+          ]
+        },
+        "metadata_selector": 1,
+        "executed_selector": 2
+      }
+    },
+    "generation_compute_before_persist": {
+      "status": "counterexample",
+      "states": 5,
+      "edges": 13,
+      "trace": [
+        "reserve; no durable target; caller error",
+        "reserve; no durable target; caller error"
+      ],
+      "state": {
+        "epoch": 1,
+        "phase": 0,
+        "origin": null,
+        "original_reservation_epochs": [
+          1,
+          1
+        ],
+        "executed_original_slots": [
+          [
+            1,
+            2
+          ],
+          []
+        ]
+      }
+    },
+    "generation_discard_executed_plan": {
+      "status": "counterexample",
+      "states": 14,
+      "edges": 46,
+      "trace": [
+        "reserve; token committed; KEM computed; signing target absent; caller error",
+        "reserve; retained target; caller error"
+      ],
+      "state": {
+        "epoch": 1,
+        "phase": 1,
+        "origin": 2,
+        "original_reservation_epochs": [
+          1,
+          1
+        ],
+        "executed_original_slots": [
+          [
+            1
+          ],
+          []
+        ]
+      }
+    },
+    "generation_renumber_retry": {
+      "status": "counterexample",
+      "states": 11,
+      "edges": 35,
+      "trace": [
+        "reserve; token committed; KEM invocation; provider error",
+        "KEM invocation; provider error"
+      ],
+      "state": {
+        "epoch": 1,
+        "phase": 1,
+        "origin": 1,
+        "original_reservation_epochs": [
+          1
+        ],
+        "executed_original_slots": [
+          [
+            1,
+            101
+          ],
+          []
+        ]
+      }
+    },
+    "encapsulation": {
+      "status": "passed",
+      "states": 34,
+      "edges": 237,
+      "ready_states": 6,
+      "epoch_two_states": 18,
+      "failed_first_witness": {
+        "trace": [
+          "reserve; no durable target; caller error",
+          "reserve; token committed; KEM computed; signing target committed; ready target retained; caller error"
+        ],
+        "state": {
+          "epoch": 1,
+          "phase": 3,
+          "origin": 2,
+          "original_reservation_epochs": [
+            1,
+            1
+          ],
+          "executed_original_slots": [
+            [
+              2
+            ],
+            []
+          ]
+        },
+        "metadata_selector": 1,
+        "executed_selector": 2
+      }
+    },
+    "encapsulation_compute_before_persist": {
+      "status": "counterexample",
+      "states": 5,
+      "edges": 13,
+      "trace": [
+        "reserve; no durable target; caller error",
+        "reserve; no durable target; caller error"
+      ],
+      "state": {
+        "epoch": 1,
+        "phase": 0,
+        "origin": null,
+        "original_reservation_epochs": [
+          1,
+          1
+        ],
+        "executed_original_slots": [
+          [
+            1,
+            2
+          ],
+          []
+        ]
+      }
+    },
+    "encapsulation_discard_executed_plan": {
+      "status": "counterexample",
+      "states": 14,
+      "edges": 46,
+      "trace": [
+        "reserve; token committed; KEM computed; signing target absent; caller error",
+        "reserve; retained target; caller error"
+      ],
+      "state": {
+        "epoch": 1,
+        "phase": 1,
+        "origin": 2,
+        "original_reservation_epochs": [
+          1,
+          1
+        ],
+        "executed_original_slots": [
+          [
+            1
+          ],
+          []
+        ]
+      }
+    },
+    "encapsulation_renumber_retry": {
+      "status": "counterexample",
+      "states": 11,
+      "edges": 35,
+      "trace": [
+        "reserve; token committed; KEM invocation; provider error",
+        "KEM invocation; provider error"
+      ],
+      "state": {
+        "epoch": 1,
+        "phase": 1,
+        "origin": 1,
+        "original_reservation_epochs": [
+          1
+        ],
+        "executed_original_slots": [
+          [
+            1,
+            101
+          ],
+          []
+        ]
+      }
+    }
+  },
+  "transcript_alias_cases": [
+    {
+      "case": "honest",
+      "proposer_allocation": true,
+      "responder_allocation": true,
+      "proposer_receipt": true,
+      "source_pair": [
+        2,
+        3
+      ],
+      "traffic_info_differs_from_original": false
+    },
+    {
+      "case": "offer_alias",
+      "proposer_allocation": false,
+      "responder_allocation": false,
+      "proposer_receipt": false,
+      "source_pair": null,
+      "traffic_info_differs_from_original": false
+    },
+    {
+      "case": "response_alias",
+      "proposer_allocation": true,
+      "responder_allocation": false,
+      "proposer_receipt": false,
+      "source_pair": [
+        2,
+        3
+      ],
+      "traffic_info_differs_from_original": true
+    },
+    {
+      "case": "final_alias",
+      "proposer_allocation": true,
+      "responder_allocation": true,
+      "proposer_receipt": false,
+      "source_pair": [
+        2,
+        3
+      ],
+      "traffic_info_differs_from_original": false
+    }
+  ],
+  "signature_models": {
+    "separation_assignments": 64,
+    "original_signature_reservations": 8,
+    "execute_and_open_sequences": 16,
+    "classical_oracle_queries": 8
+  },
+  "scope": "Finite recovered-state graph, explicit transcript-alias expectations, signature-interface algebra and optional exact source audit. No Rust execution, cryptographic probability estimate or mechanized proof."
+}

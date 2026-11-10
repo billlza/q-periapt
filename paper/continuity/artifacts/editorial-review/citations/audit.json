@@ -1,0 +1,287 @@
+{
+  "schema": "continuity-citation-audit-v1",
+  "observed_date_utc": "2026-11-09",
+  "result": "no_required_correction",
+  "bibliography": {
+    "repository_path": "paper/continuity/references.bib",
+    "sha256": "cf692417f60a293777dc23c59e10310b380149f81b0cb70bd6153806cbe83ce5",
+    "entry_count": 28
+  },
+  "review_text": {
+    "path": "AUDIT.md",
+    "sha256": "3d32888991642d41fff8e5fe63780ea735b3a19b62f19ef8022284ee873fed02"
+  },
+  "scope": {
+    "external_identity_and_principal_metadata_entries": 27,
+    "internal_fixed_checkpoint_entries": 1,
+    "semantic_source_locators": "Only the seven core rows in AUDIT.md plus the attributed Cryspen implementation account; other checks are metadata.",
+    "whole_paper_semantic_audit": false
+  },
+  "key_resolution": {
+    "scanned": "top-level paper/continuity/*.tex source and generated TeX files",
+    "duplicate_bibliography_keys": [],
+    "unresolved_citation_keys": [],
+    "uncited_bibliography_keys": []
+  },
+  "sources": [
+    {
+      "key": "signal2020",
+      "primary_url": "https://www.douglas.stebila.ca/research/papers/JC-CCDGS20/",
+      "retrieval_refs": [
+        "turn22view0",
+        "turn29view1"
+      ]
+    },
+    {
+      "key": "robustchannels2024",
+      "primary_url": "https://link.springer.com/article/10.1007/s00145-023-09489-9",
+      "retrieval_refs": [
+        "turn22view1"
+      ]
+    },
+    {
+      "key": "scka2025",
+      "primary_url": "https://www.usenix.org/conference/usenixsecurity25/presentation/auerbach",
+      "retrieval_refs": [
+        "turn17search1"
+      ]
+    },
+    {
+      "key": "sessionhandling2023",
+      "primary_url": "https://www.usenix.org/conference/usenixsecurity23/presentation/cremers-session-handling",
+      "retrieval_refs": [
+        "turn14view1"
+      ]
+    },
+    {
+      "key": "stateloss2025",
+      "primary_url": "https://people.cispa.io/cas.cremers/publications/index.html",
+      "retrieval_refs": [
+        "turn28search6",
+        "turn17search0",
+        "turn14view2"
+      ]
+    },
+    {
+      "key": "tripleratchet2025",
+      "primary_url": "https://link.springer.com/chapter/10.1007/978-3-031-91101-9_11",
+      "retrieval_refs": [
+        "turn10view3",
+        "turn19view3",
+        "turn21view0",
+        "turn23view4"
+      ]
+    },
+    {
+      "key": "doubleratchet2025",
+      "primary_url": "https://signal.org/docs/specifications/doubleratchet/",
+      "retrieval_refs": [
+        "turn11view1",
+        "turn19view2"
+      ]
+    },
+    {
+      "key": "doubleratchet2026",
+      "primary_url": "https://mrg.cs.ox.ac.uk/publications/automated-formal-analysis-of-signals-double-ratchet-attacks-fixes-and-security-proofs/",
+      "retrieval_refs": [
+        "turn12view2"
+      ]
+    },
+    {
+      "key": "spqr2026",
+      "primary_url": "https://www.sigsac.org/ccs/CCS2026/program/schedule.html",
+      "retrieval_refs": [
+        "turn12view0",
+        "turn16view0"
+      ]
+    },
+    {
+      "key": "spqrverification2025",
+      "primary_url": "https://cryspen.com/post/signal-spqr-verification/",
+      "retrieval_refs": [
+        "turn23view0",
+        "turn27search2"
+      ]
+    },
+    {
+      "key": "squirrel2026",
+      "primary_url": "https://eprint.iacr.org/2026/1912",
+      "retrieval_refs": [
+        "turn12view1",
+        "turn16view1"
+      ]
+    },
+    {
+      "key": "hmacswap2023",
+      "primary_url": "https://link.springer.com/chapter/10.1007/978-3-031-38548-3_22",
+      "retrieval_refs": [
+        "turn10view2",
+        "turn15view0"
+      ]
+    },
+    {
+      "key": "rfc5869",
+      "primary_url": "https://www.rfc-editor.org/rfc/rfc5869.html",
+      "retrieval_refs": [
+        "turn26view1"
+      ]
+    },
+    {
+      "key": "rfc2104",
+      "primary_url": "https://www.rfc-editor.org/rfc/rfc2104",
+      "retrieval_refs": [
+        "turn26view0"
+      ]
+    },
+    {
+      "key": "gojournal2021",
+      "primary_url": "https://www.usenix.org/conference/osdi21/presentation/chajed",
+      "retrieval_refs": [
+        "turn24search0"
+      ]
+    },
+    {
+      "key": "dfh2022",
+      "primary_url": "https://link.springer.com/chapter/10.1007/978-3-031-22318-1_2",
+      "retrieval_refs": [
+        "turn10view0",
+        "turn28search0",
+        "turn28search5",
+        "turn5view0",
+        "turn6view0",
+        "turn7view0"
+      ]
+    },
+    {
+      "key": "hmacqrom2021",
+      "primary_url": "https://eprint.iacr.org/2021/774.pdf",
+      "retrieval_refs": [
+        "turn10view1",
+        "turn16view5",
+        "turn17search7",
+        "turn19view0",
+        "turn21view4",
+        "turn25view0"
+      ]
+    },
+    {
+      "key": "zhandryCollision2015",
+      "primary_url": "https://www.rintonpress.com/journals/doi/QIC15.7-8-2.html",
+      "retrieval_refs": [
+        "turn20view3",
+        "turn28search2"
+      ]
+    },
+    {
+      "key": "rfc6979",
+      "primary_url": "https://www.rfc-editor.org/rfc/rfc6979.html",
+      "retrieval_refs": [
+        "turn26view2",
+        "turn29view0"
+      ]
+    },
+    {
+      "key": "fips204",
+      "primary_url": "https://csrc.nist.gov/pubs/fips/204/final",
+      "retrieval_refs": [
+        "turn11view0",
+        "turn15view2",
+        "turn27view0"
+      ]
+    },
+    {
+      "key": "rustcryptoEcdsa017",
+      "primary_url": "https://docs.rs/crate/ecdsa/latest/source/CHANGELOG.md",
+      "retrieval_refs": [
+        "turn24search2",
+        "turn24search3"
+      ]
+    },
+    {
+      "key": "damm2026",
+      "primary_url": "https://link.springer.com/article/10.1007/s00145-026-09584-7",
+      "retrieval_refs": [
+        "turn12view3",
+        "turn16view3",
+        "turn19view4",
+        "turn21view2",
+        "turn26view3"
+      ]
+    },
+    {
+      "key": "bennett1997strengths",
+      "primary_url": "https://epubs.siam.org/doi/10.1137/S0097539796300933",
+      "retrieval_refs": [
+        "turn24search4"
+      ]
+    },
+    {
+      "key": "bellare2016nonce",
+      "primary_url": "https://eprint.iacr.org/2016/290",
+      "retrieval_refs": [
+        "turn20view2"
+      ]
+    },
+    {
+      "key": "aranha2020hedged",
+      "primary_url": "https://link.springer.com/chapter/10.1007/978-3-030-45721-1_23",
+      "retrieval_refs": [
+        "turn20view0"
+      ]
+    },
+    {
+      "key": "grilo2021reprogramming",
+      "primary_url": "https://link.springer.com/chapter/10.1007/978-3-030-92062-3_22",
+      "retrieval_refs": [
+        "turn20view1"
+      ]
+    },
+    {
+      "key": "kosuge2025mldsa",
+      "primary_url": "https://link.springer.com/chapter/10.1007/978-981-95-5096-8_20",
+      "retrieval_refs": [
+        "turn11view2",
+        "turn14view3"
+      ]
+    }
+  ],
+  "internal_entry": {
+    "key": "qperiaptSymbolic2026",
+    "status": "citation_key_checked_existing_fixed_checkpoint_preserved_no_replay"
+  },
+  "unresolved_full_text_access": [
+    {
+      "key": "squirrel2026",
+      "url": "https://eprint.iacr.org/2026/1912.pdf",
+      "status": "direct_retrieval_failed_metadata_verified_separately"
+    },
+    {
+      "key": "rustcryptoEcdsa017",
+      "url": "https://docs.rs/crate/ecdsa/0.17.0",
+      "status": "direct_retrieval_failed_release_0.17.0_and_date_verified_from_indexed_primary_docs_rs_records"
+    }
+  ],
+  "retrieval_failures_and_successful_alternates": "Recorded precisely in AUDIT.md, Retrieval record and coverage.",
+  "required_corrections": [],
+  "manuscript_edits": [],
+  "optional_metadata_enrichment": [
+    {
+      "key": "aranha2020hedged",
+      "series": "Lecture Notes in Computer Science",
+      "volume": "12105",
+      "pages": "644--674"
+    },
+    {
+      "key": "grilo2021reprogramming",
+      "series": "Lecture Notes in Computer Science",
+      "volume": "13090",
+      "pages": "637--667"
+    },
+    {
+      "key": "kosuge2025mldsa",
+      "series": "Lecture Notes in Computer Science",
+      "volume": "16246",
+      "pages": "641--674"
+    }
+  ]
+}

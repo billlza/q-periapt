@@ -1352,10 +1352,7 @@ def stage_private_file_from_fd_noreplace_at(
         cleanup_safe = False
         try:
             _rename_noreplace(
-                temporary_leaf,
-                destination_leaf,
-                source_directory_fd=destination_directory_fd,
-                destination_directory_fd=destination_directory_fd,
+                destination_directory_fd, temporary_leaf, destination_leaf
             )
             committed = True
         except BaseException as exc:

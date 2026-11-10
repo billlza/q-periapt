@@ -1,0 +1,27 @@
+{
+  "completed_checkpoint": true,
+  "host_calls": 164,
+  "host_process_cuts": 28,
+  "ART_calls": 82,
+  "ART_process_cuts": 14,
+  "same_accepted_phone": true,
+  "additional_phone_required": false,
+  "main_integrated": false,
+  "library_AAR_unchanged": true,
+  "idle_cancel_preserves_successor": true,
+  "close_revokes_successor": true,
+  "noncommit_remains_closed_after_restart": true,
+  "closed_original_freeze_rejected": 112,
+  "invalid_noncommit_rejected": 102,
+  "archives": {
+    "HOST_CAPTURE.zip": {
+      "sha256": "e42b336ffba0c3ff108050a557afc0bb26e86f1f5d74e28a700c1fba5bc22270",
+      "members": 915
+    },
+    "ART_CAPTURE.zip": {
+      "sha256": "9afc549205e6319d28124f8490f4bbbf4c66ec34a9e470e2700643a07b1175ae",
+      "members": 1777
+    }
+  },
+  "release_claim_eligible": false
+}

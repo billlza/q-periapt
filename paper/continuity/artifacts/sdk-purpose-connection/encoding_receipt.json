@@ -1,0 +1,77 @@
+{
+  "schema": "q-periapt.sdk-purpose-independent-encoding-check.v1",
+  "status": "PASS",
+  "check_count": 12,
+  "checks": [
+    {
+      "name": "literal-widths",
+      "passed": true,
+      "salt_bytes": 27,
+      "domain_bytes": 19
+    },
+    {
+      "name": "identical-HMAC-key-blocks",
+      "passed": true
+    },
+    {
+      "name": "pinned-purpose-Rust-KAT",
+      "passed": true,
+      "input_bytes": 130,
+      "output_hex": "899c3fe0b3419a6f3947c4e237daf8970b2c29442d9fce4385d30d2558242f65"
+    },
+    {
+      "name": "zero-extended-salt-same-KAT",
+      "passed": true
+    },
+    {
+      "name": "hashed-salt-is-different-encoding-control",
+      "passed": true
+    },
+    {
+      "name": "exact-minimum-info-and-row-length",
+      "passed": true,
+      "info_bytes": 108,
+      "row_bytes": 109,
+      "continuation_compressions": 3
+    },
+    {
+      "name": "exact-maximum-info-and-row-length",
+      "passed": true,
+      "info_bytes": 65898,
+      "row_bytes": 65899,
+      "continuation_compressions": 1031
+    },
+    {
+      "name": "maximum-row-compression-bound",
+      "passed": true,
+      "hmac_compressions": 1033
+    },
+    {
+      "name": "five-purpose-workload-descriptors",
+      "passed": true,
+      "distinct_infos": 5
+    },
+    {
+      "name": "five-purpose-workload-lengths",
+      "passed": true,
+      "label_bytes": 13,
+      "context_bytes": 24,
+      "info_bytes": 144,
+      "row_bytes": 145,
+      "column_budget_beyond_B": 32,
+      "row_budget_beyond_B": 2
+    },
+    {
+      "name": "full-info-repeat-is-exact-key-repeat",
+      "passed": true
+    },
+    {
+      "name": "length-framing-distinguishes-boundary-splits",
+      "passed": true
+    }
+  ],
+  "claim_type": "Independent Python stdlib framing, known-answer and length accounting",
+  "native_rust_execution": false,
+  "global_key_inequality_claim": false,
+  "checker_sha256": "36b7565c3c240fb167ee39ebc19894c6ec471c662f56bbde94410c7843b8f074"
+}

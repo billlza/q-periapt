@@ -1,0 +1,17 @@
+{
+  "completed": true,
+  "host_routes_reread": 16,
+  "ART_routes_reread": 8,
+  "ART_processes": 280,
+  "ART_actual_process_cuts": 48,
+  "same_selected_API37_phone": true,
+  "additional_phone_required": false,
+  "all_apps_and_owned_reverse_maps_removed": true,
+  "library_source_matches_host": true,
+  "archive_members": 5879,
+  "capture_sha256": "4f86dae015d86e0eb03c730823812b74d19a326e82bf10d8fc187396a6d6a824",
+  "apk_sha256": "d721bacc16a48c9ee4f9994cad1cb4baee50bbd6572d076d2604b8b0b738bb38",
+  "aar_sha256": "84250d41fab17b8a3f0fccf51fc5c762e30af811e19c3bb776707a084679cb5c",
+  "private_keys_or_journals_archived": false,
+  "release_claim_eligible": false
+}

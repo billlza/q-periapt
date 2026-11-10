@@ -1,0 +1,125 @@
+\section{Consequences and further instantiation}
+\label{sec:discussion}
+
+\paragraph{A recovery condition attached to original operations.}
+The model distinguishes creation of an operation's random input, its first
+durable reservation, the acquisition of a retained representation, and the
+later availability of the matching decryption material. This distinction
+makes exact replay compatible with precise recovery statements: retries and
+aggregate writes preserve the original source, while fresh operations obtain
+new origins. The guarded characterization explains how records and keys
+combine to expose that source. The native executions demonstrate why both
+this conjunction and the original event history matter at the persistence
+and asynchronous-confirmation boundaries.
+
+\paragraph{From a recovered epoch to application security.}
+The computational argument follows a selected original contribution
+through the complete tuple, root initialization, confirmation, traffic
+material and message chain. The joint comparison preserves real
+confirmation and ACK verification, successor-root disclosure and the
+selected message's next-chain-seed disclosure
+(Theorem~\ref{thm:joint-message-leaf}). The online extension permits earlier
+message keys to influence the selected index, with selection fixed before
+its first private computation across all aliases
+(Theorem~\ref{thm:online-chain-leaf}). Exact retries reuse that original
+computation, and real suffix processing continues from the disclosed
+successor seed.
+
+The native composition assigns these primitive interfaces to the actual
+send and receive order, including receive-side advances followed by
+failed authentication or persistence. Candidate-local stops retain the
+complete-image acquisition condition; the permitted individual key
+observations enter through their named interfaces. The resulting
+confidentiality and selected-message integrity bounds
+(Theorem~\ref{thm:native-online-message}) therefore apply to the original
+eligible application send. The selected-root authentication theorem
+also accounts for its earlier confirmation history
+(Theorem~\ref{thm:native-selected-authentication}). Each terminal event
+is recomputed in the compared execution, with its own component adapter
+and whole-execution budgets. Table~\ref{tab:computational-dependencies}
+records the shared dependencies.
+
+\paragraph{Primitive instantiation and reusable interfaces.}
+For root derivation, the placement of a surviving secret determines the
+required comparison. Equation~\eqref{eq:root} gives
+\[
+ p_e=\operatorname{HMAC}_{R_{e-1}}(S_e).
+\]
+Disclosure of the parent root leaves the new contribution in HMAC's
+message input, as studied by
+extractor and swap-PRF formulations~\cite{hmacswap2023,rfc5869}.
+The shared-oracle entry proof in Appendix~\ref{app:joint-root-entry}
+supplies the uniform-root interface after the complete-tuple comparison
+of Section~\ref{sec:contextbound-connection}. The finite-family extension
+preserves exact pad-state and information-string aliases
+(Section~\ref{sec:multiple-root-entry}). Its purpose-key instance permits
+all outputs of the declared derivation table to be exported while
+retaining a separate lifecycle for each returned owner
+(Section~\ref{sec:sdk-purpose-connection}). A marked private entry supports
+the corresponding one-key application experiment.
+
+The other connection concerns the origin of an accepted allocation.
+Executed-slot registration ties it to the original KEM calls through
+retained plans and complete signed-body bindings
+(Proposition~\ref{prop:executed-source-attribution}). The native signing
+adapter carries original randomizers and exact retries into a shared-XOF
+comparison, expressing the native reservation-interface bound through
+ordinary hedged ML-DSA unforgeability, with explicit replay-coupling and
+oracle-query losses
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}). These two connections
+instantiate different parts of the final bound: the key-entry argument
+supplies recovered secret material, and the signature bridge supplies
+its original-source attribution.
+
+\paragraph{From original bootstrap sources to peer activation.}
+The bootstrap connection follows a distinct source order: initial confirmation
+uses the first contribution before the response contribution exists, and the
+pending root is retained before message activation. The joint short/long
+entry preserves that cross-use. An unused private root-table value can then
+be assigned at its first activation, permitting online protection at the
+actual ACK boundary. Complete signed-wire classes are reconciled with
+effective pad descriptors by an explicit collision witness. The resulting
+comparison changes the ACK alone while retaining the actual sibling outputs.
+
+The original reply-source adapter connects this schedule to retained KEM
+tapes and restored-owner validation, with acquisition measured on immutable
+versions in both compared histories. It establishes a concrete surviving-PQ
+profile even when the first contribution and initiator signing identity
+are disclosed. Its terminal conclusion is the expected responder's historical
+activation of the exact transcript, which remains meaningful under retries
+and delayed READY delivery. A broader captured-byte simulation has the
+specific joint journal/derived-key interface described in
+Section~\ref{sec:bootstrap-authentication}; the present bound records its
+acquisition contribution explicitly.
+
+\paragraph{Exposure budgets and completed service.}
+The matched executions make the two-chain current-epoch capacity visible
+under a common communication budget. At the declared capture cut, budgets
+32 and 64 yield 63 and 127 reconstructed future applications in alternating
+traffic, while completing 688 and 718 applications. Reporting the admitted
+denominator alongside the reconstructed set exposes the cost of more frequent
+rekey work. The one-way control reaches its admission cap with both confirmed
+epochs still zero and with every admitted post-capture key reconstructed.
+These observations connect the provenance condition to a concrete accounting
+of recovery, service and queued demand. The frame partition further identifies
+the selected immediate-retry policy's contribution to communication cost.
+A paired native ablation changes application-retry readiness using a public
+sender-turn clock. Under the same 2,048 opportunities, it raises alternating
+deliveries to 971 and 999 while the derived counts remain 63 and 127.
+All twelve bidirectional or resumed budget--schedule pairs deliver more
+applications, with their full byte accounting reporting both reductions
+and increases in cost per delivery. This separates a controllable scheduling
+cost from the allocation envelope and the one-way admission boundary.
+
+\paragraph{Conclusion.}
+Persistent recovery is governed by original secret sources and their
+acquisition histories. An exact record-exposure semantics and constructive
+record/report simulations connect an eligible native rekey to confidentiality
+and authentication of its marked message. Original-operation and shared-XOF
+reductions preserve source attribution through retained randomizers and exact
+replay. The finite key-entry comparison supplies a purpose-key instance,
+and the bootstrap composition connects an original surviving source to
+historical peer activation. The mechanized multi-epoch theorem and concrete executions establish
+the corresponding provenance-based recovery statements. These results
+preserve the meaning of fresh randomness across durable retries, copies and
+asynchronous progress.

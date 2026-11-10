@@ -1,0 +1,90 @@
+{
+  "archive_sha256": "6a0ac44c8a7713a9b9b7a8dd30b94c6829e76861824658d79f37b3d046d3cfb5",
+  "completed": true,
+  "controls_rerun": false,
+  "native_workload_rerun": false,
+  "private_runtime_read": false,
+  "profiles": {
+    "debug": {
+      "client": {
+        "cases": null,
+        "client_exchanges": 2,
+        "completed": true,
+        "public_files": 7,
+        "store_calls": null,
+        "witness_exchanges": null
+      },
+      "native-tls": {
+        "cases": null,
+        "client_exchanges": null,
+        "completed": true,
+        "public_files": 34,
+        "store_calls": null,
+        "witness_exchanges": 146
+      },
+      "rejections": {
+        "cases": [
+          "wrong-subject",
+          "trailing-data",
+          "missing-end",
+          "wrong-protocol"
+        ],
+        "client_exchanges": null,
+        "completed": true,
+        "public_files": 5,
+        "store_calls": 0,
+        "witness_exchanges": null
+      },
+      "server": {
+        "cases": null,
+        "client_exchanges": null,
+        "completed": true,
+        "public_files": 29,
+        "store_calls": null,
+        "witness_exchanges": 146
+      }
+    },
+    "release": {
+      "client": {
+        "cases": null,
+        "client_exchanges": 2,
+        "completed": true,
+        "public_files": 7,
+        "store_calls": null,
+        "witness_exchanges": null
+      },
+      "native-tls": {
+        "cases": null,
+        "client_exchanges": null,
+        "completed": true,
+        "public_files": 34,
+        "store_calls": null,
+        "witness_exchanges": 146
+      },
+      "rejections": {
+        "cases": [
+          "wrong-subject",
+          "trailing-data",
+          "missing-end",
+          "wrong-protocol"
+        ],
+        "client_exchanges": null,
+        "completed": true,
+        "public_files": 5,
+        "store_calls": 0,
+        "witness_exchanges": null
+      },
+      "server": {
+        "cases": null,
+        "client_exchanges": null,
+        "completed": true,
+        "public_files": 29,
+        "store_calls": null,
+        "witness_exchanges": 146
+      }
+    }
+  },
+  "scope": "All captured member bytes and original source-matched public readers; eight completed component transcripts. No native, whole JNI, device or release acceptance.",
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "verified_members": 584
+}

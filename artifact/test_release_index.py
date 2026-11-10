@@ -86,6 +86,12 @@ class ReleaseIndexTests(unittest.TestCase):
         shutil.copy2(self.contract_source, contract)
         (root / "FIXTURE_SOURCE.txt").write_text("fixture\n", encoding="utf-8")
         subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        # Fixture maintenance must finish before TemporaryDirectory removes .git.
+        subprocess.run(
+            ["git", "config", "--local", "maintenance.autoDetach", "false"],
+            cwd=root,
+            check=True,
+        )
         subprocess.run(["git", "add", "."], cwd=root, check=True)
         subprocess.run(
             [
@@ -103,6 +109,71 @@ class ReleaseIndexTests(unittest.TestCase):
             check=True,
         )
         return root
+
+    def test_fixture_finishes_automatic_maintenance_before_returning(self) -> None:
+        with tempfile.TemporaryDirectory() as evidence:
+            trace_path = pathlib.Path(evidence).resolve() / "git-trace.jsonl"
+            with tempfile.TemporaryDirectory() as temporary:
+                with mock.patch.dict(
+                    os.environ,
+                    {
+                        "GIT_TRACE2_EVENT": str(trace_path),
+                        "GIT_CONFIG_COUNT": "3",
+                        "GIT_CONFIG_KEY_0": "maintenance.commit-graph.enabled",
+                        "GIT_CONFIG_VALUE_0": "true",
+                        "GIT_CONFIG_KEY_1": "maintenance.commit-graph.auto",
+                        "GIT_CONFIG_VALUE_1": "-1",
+                        "GIT_CONFIG_KEY_2": "maintenance.auto",
+                        "GIT_CONFIG_VALUE_2": "true",
+                    },
+                ):
+                    root = self._root(temporary)
+                # Snapshot immediately after the fixture returns: no waiting for
+                # a background worker to finish before checking its lifetime.
+                events = [
+                    json.loads(line)
+                    for line in trace_path.read_text(encoding="utf-8").splitlines()
+                ]
+                maintenance = [
+                    event
+                    for event in events
+                    if event["event"] == "cmd_name" and event["name"] == "maintenance"
+                ]
+                self.assertEqual(len(maintenance), 1)
+                maintenance_sid = maintenance[0]["sid"]
+                maintenance_events = [
+                    event for event in events if event["sid"] == maintenance_sid
+                ]
+                self.assertFalse(
+                    any(
+                        event["event"] == "region_enter"
+                        and event.get("category") == "maintenance"
+                        and event.get("label") == "detach"
+                        for event in maintenance_events
+                    ),
+                    "fixture maintenance detached from its owning Git command",
+                )
+                maintenance_exits = [
+                    event for event in maintenance_events if event["event"] == "exit"
+                ]
+                self.assertEqual(len(maintenance_exits), 1)
+                self.assertEqual(maintenance_exits[0]["code"], 0)
+                commit_sid = maintenance_sid.rsplit("/", 1)[0]
+                commit_exit = next(
+                    event
+                    for event in events
+                    if event["event"] == "exit" and event["sid"] == commit_sid
+                )
+                self.assertLess(
+                    events.index(maintenance_exits[0]), events.index(commit_exit)
+                )
+                graph_chain = (
+                    root / ".git/objects/info/commit-graphs/commit-graph-chain"
+                )
+                self.assertTrue(graph_chain.is_file())
+                self.assertTrue(graph_chain.read_text(encoding="ascii").strip())
+                subprocess.run(["git", "commit-graph", "verify"], cwd=root, check=True)
+            self.assertFalse(root.exists())
 
     def _release_pointer(
         self,
@@ -194,7 +265,7 @@ class ReleaseIndexTests(unittest.TestCase):
             )
             current = self._release_pointer(
                 root,
-                version="0.1.0",
+                version="0.1.1",
                 commit=stable_commit,
                 digest="b" * 64,
                 generated_at="2026-08-15T01:00:00Z",
@@ -211,14 +282,14 @@ class ReleaseIndexTests(unittest.TestCase):
                 "downgrade": previous,
                 "same-version-commit": self._release_pointer(
                     root,
-                    version="0.1.0",
+                    version="0.1.1",
                     commit=prerelease_commit,
                     digest="b" * 64,
                     generated_at="2026-08-15T01:00:00Z",
                 ),
                 "same-version-digest": self._release_pointer(
                     root,
-                    version="0.1.0",
+                    version="0.1.1",
                     commit=stable_commit,
                     digest="c" * 64,
                     generated_at="2026-08-15T01:00:00Z",
@@ -712,7 +783,7 @@ with release_index._release_pointer_lock(pointer):
         swift_producer = (
             self.repository_root / "artifact/swift-xcframework.sh"
         ).read_text(encoding="utf-8")
-        self.assertIn('"schema_version": 5', swift_producer)
+        self.assertIn('"schema_version": 6 if package_profile == "sdk-020" else 5', swift_producer)
         self.assertIn('"kind": "qperiapt.swift_xcframework_manifest"', swift_producer)
 
     def test_each_face_accepts_only_its_exact_current_schema(self) -> None:
@@ -1864,13 +1935,13 @@ python3() {
             output = release_index.resolve_release_output(
                 root,
                 channel="release",
-                version="0.1.0",
+                version="0.1.5",
                 commit="a" * 40,
             )
             self.assertEqual(
                 output,
                 root
-                / "target/qperiapt-local-release/release/0.1.0"
+                / "target/qperiapt-local-release/release/0.1.5"
                 / ("a" * 40),
             )
 
@@ -2595,7 +2666,7 @@ release_index.publish_release_transaction(
     def test_sigterm_during_staging_cannot_poison_the_final_identity(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
-            version = "0.1.0"
+            version = "0.1.1"
             commit = "a" * 40
             final_root = (
                 root / "target/qperiapt-local-release/diagnostic" / version / commit
@@ -2667,7 +2738,7 @@ time.sleep(60)
             root = pathlib.Path(temporary).resolve()
             target = root / "target"
             target.mkdir(mode=0o700)
-            version = "0.1.0"
+            version = "0.1.1"
             commit = "a" * 40
             final_root = target / "qperiapt-local-release/diagnostic" / version / commit
             pointer_path = target / "qperiapt-local-release/latest-diagnostic.json"
@@ -2731,7 +2802,7 @@ release_index.publish_release_transaction(
             target.mkdir(mode=0o700)
             commit = "a" * 40
             final_root = (
-                target / "qperiapt-local-release/diagnostic/0.1.0" / commit
+                target / "qperiapt-local-release/diagnostic/0.1.1" / commit
             )
             release_index.ensure_private_directory(final_root.parent, target)
             malformed = final_root.parent / f".{commit}.staging-not-a-token"
@@ -3207,7 +3278,7 @@ release_index.publish_release_transaction(
     def test_cross_face_core_semantics_must_match(self) -> None:
         trust_semantics = {
             "name": "fixture",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "abi": {
                 "major": 2,
                 "contract_sha256": "a" * 64,

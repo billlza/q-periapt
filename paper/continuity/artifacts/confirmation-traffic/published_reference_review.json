@@ -1,0 +1,19 @@
+{
+  "reference_key": "zhandryCollision2015",
+  "primary_publisher_metadata": "https://www.rintonpress.com/journals/doi/QIC15.7-8-2.html",
+  "primary_published_pdf": "https://www.rintonpress.com/xxqic15/qic-15-78/0557-0567.pdf",
+  "author": "Mark Zhandry",
+  "journal": "Quantum Information and Computation",
+  "volume": 15,
+  "issue": "7-8",
+  "pages": "557-567",
+  "year": 2015,
+  "doi": "10.26421/QIC15.7-8-2",
+  "published_theorem": "Theorem 7, printed page 562",
+  "published_probability_bound": "C (q + 2)^3 / N for a universal constant C",
+  "application": "N = 2^256; whole derived H-query budget; finite domain from the experiment's length budgets; independent auxiliary h oracle",
+  "constant_handling": "The paper retains the universal constant symbolically and makes no unsupported numerical security claim.",
+  "version_alignment": "The author preprint has Theorem 3.1 and q + 1. The integrated manuscript uses the published theorem number and q + 2 expression.",
+  "review_method": "Primary publisher metadata and full published PDF were directly read; the author preprint was separately compared.",
+  "result": "passed"
+}

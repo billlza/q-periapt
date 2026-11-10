@@ -1,0 +1,935 @@
+{
+  "blocks": [
+    {
+      "block": 0,
+      "bootstrap_ns": 538830125,
+      "client_open_ns": 47134750,
+      "client_reopen_ns": 253157125,
+      "load_after": [
+        1.74609375,
+        3.34228515625,
+        3.50390625
+      ],
+      "load_before": [
+        1.97705078125,
+        3.439453125,
+        3.5400390625
+      ],
+      "payloads": {
+        "0": {
+          "count": 16,
+          "max": 160667834,
+          "min": 120299958,
+          "p50": 128927209,
+          "p95": 160667834
+        },
+        "1024": {
+          "count": 16,
+          "max": 138976167,
+          "min": 123157417,
+          "p50": 129729625,
+          "p95": 138976167
+        },
+        "16384": {
+          "count": 16,
+          "max": 143560084,
+          "min": 124085291,
+          "p50": 136076500,
+          "p95": 143560084
+        },
+        "64": {
+          "count": 16,
+          "max": 134636875,
+          "min": 120083917,
+          "p50": 127169166,
+          "p95": 134636875
+        }
+      },
+      "profile": "local",
+      "recovery_ns": 65862792,
+      "rekey_ns": 276926916,
+      "resources": {
+        "max_rss_bytes": 14811136,
+        "real_seconds": 11.61,
+        "system_seconds": 0.35,
+        "user_seconds": 2.84
+      },
+      "samples": 64,
+      "send_ns": {
+        "count": 64,
+        "max": 160667834,
+        "min": 120083917,
+        "p50": 129032458,
+        "p95": 142031834
+      },
+      "server_open_ns": 49016208,
+      "setup_ns": 1466447750,
+      "witness_advance_counts": [
+        0
+      ],
+      "witness_handle_ns": null,
+      "witness_query_counts": [
+        0
+      ],
+      "witness_request_counts": [
+        0
+      ]
+    },
+    {
+      "block": 0,
+      "bootstrap_ns": 706861500,
+      "client_open_ns": 89636000,
+      "client_reopen_ns": 270285334,
+      "load_after": [
+        1.998046875,
+        3.3017578125,
+        3.48486328125
+      ],
+      "load_before": [
+        1.74609375,
+        3.34228515625,
+        3.50390625
+      ],
+      "payloads": {
+        "0": {
+          "count": 16,
+          "max": 239671000,
+          "min": 221121250,
+          "p50": 230202375,
+          "p95": 239671000
+        },
+        "1024": {
+          "count": 16,
+          "max": 248802583,
+          "min": 217469666,
+          "p50": 229329417,
+          "p95": 248802583
+        },
+        "16384": {
+          "count": 16,
+          "max": 244190750,
+          "min": 225320583,
+          "p50": 231781625,
+          "p95": 244190750
+        },
+        "64": {
+          "count": 16,
+          "max": 240405042,
+          "min": 223374291,
+          "p50": 230562542,
+          "p95": 240405042
+        }
+      },
+      "profile": "witness",
+      "recovery_ns": 125555583,
+      "rekey_ns": 486265500,
+      "resources": {
+        "max_rss_bytes": 18759680,
+        "real_seconds": 19.53,
+        "system_seconds": 0.77,
+        "user_seconds": 6.81
+      },
+      "samples": 64,
+      "send_ns": {
+        "count": 64,
+        "max": 248802583,
+        "min": 217469666,
+        "p50": 230562542,
+        "p95": 240405042
+      },
+      "server_open_ns": 74861542,
+      "setup_ns": 1865717417,
+      "witness_advance_counts": [
+        5
+      ],
+      "witness_handle_ns": {
+        "count": 64,
+        "max": 80803380,
+        "min": 66411792,
+        "p50": 72776459,
+        "p95": 78205918
+      },
+      "witness_query_counts": [
+        20
+      ],
+      "witness_request_counts": [
+        25
+      ]
+    },
+    {
+      "block": 1,
+      "bootstrap_ns": 705130208,
+      "client_open_ns": 77660708,
+      "client_reopen_ns": 250825750,
+      "load_after": [
+        1.8662109375,
+        3.18408203125,
+        3.43798828125
+      ],
+      "load_before": [
+        1.998046875,
+        3.3017578125,
+        3.48486328125
+      ],
+      "payloads": {
+        "0": {
+          "count": 16,
+          "max": 236156167,
+          "min": 218659375,
+          "p50": 229129917,
+          "p95": 236156167
+        },
+        "1024": {
+          "count": 16,
+          "max": 251377125,
+          "min": 221630458,
+          "p50": 231038917,
+          "p95": 251377125
+        },
+        "16384": {
+          "count": 16,
+          "max": 236165666,
+          "min": 223244250,
+          "p50": 229395084,
+          "p95": 236165666
+        },
+        "64": {
+          "count": 16,
+          "max": 239442292,
+          "min": 222396709,
+          "p50": 229870417,
+          "p95": 239442292
+        }
+      },
+      "profile": "witness",
+      "recovery_ns": 117781875,
+      "rekey_ns": 473329458,
+      "resources": {
+        "max_rss_bytes": 18874368,
+        "real_seconds": 19.29,
+        "system_seconds": 0.71,
+        "user_seconds": 6.76
+      },
+      "samples": 64,
+      "send_ns": {
+        "count": 64,
+        "max": 251377125,
+        "min": 218659375,
+        "p50": 230059333,
+        "p95": 240043125
+      },
+      "server_open_ns": 69622625,
+      "setup_ns": 1705882208,
+      "witness_advance_counts": [
+        5
+      ],
+      "witness_handle_ns": {
+        "count": 64,
+        "max": 81035710,
+        "min": 65753460,
+        "p50": 72650295,
+        "p95": 78390501
+      },
+      "witness_query_counts": [
+        20
+      ],
+      "witness_request_counts": [
+        25
+      ]
+    },
+    {
+      "block": 1,
+      "bootstrap_ns": 424587375,
+      "client_open_ns": 71403000,
+      "client_reopen_ns": 169792375,
+      "load_after": [
+        1.9599609375,
+        3.16064453125,
+        3.42626953125
+      ],
+      "load_before": [
+        1.8662109375,
+        3.18408203125,
+        3.43798828125
+      ],
+      "payloads": {
+        "0": {
+          "count": 16,
+          "max": 139471875,
+          "min": 123039708,
+          "p50": 130331666,
+          "p95": 139471875
+        },
+        "1024": {
+          "count": 16,
+          "max": 150064625,
+          "min": 123904625,
+          "p50": 129160250,
+          "p95": 150064625
+        },
+        "16384": {
+          "count": 16,
+          "max": 146066625,
+          "min": 125752375,
+          "p50": 132769917,
+          "p95": 146066625
+        },
+        "64": {
+          "count": 16,
+          "max": 142622709,
+          "min": 126420666,
+          "p50": 128939334,
+          "p95": 142622709
+        }
+      },
+      "profile": "local",
+      "recovery_ns": 66832958,
+      "rekey_ns": 277473000,
+      "resources": {
+        "max_rss_bytes": 14450688,
+        "real_seconds": 11.75,
+        "system_seconds": 0.41,
+        "user_seconds": 2.95
+      },
+      "samples": 64,
+      "send_ns": {
+        "count": 64,
+        "max": 150064625,
+        "min": 123039708,
+        "p50": 131308834,
+        "p95": 139471875
+      },
+      "server_open_ns": 90175459,
+      "setup_ns": 1664839166,
+      "witness_advance_counts": [
+        0
+      ],
+      "witness_handle_ns": null,
+      "witness_query_counts": [
+        0
+      ],
+      "witness_request_counts": [
+        0
+      ]
+    },
+    {
+      "block": 2,
+      "bootstrap_ns": 411514959,
+      "client_open_ns": 62616334,
+      "client_reopen_ns": 145904250,
+      "load_after": [
+        1.6787109375,
+        3.0380859375,
+        3.37744140625
+      ],
+      "load_before": [
+        1.9599609375,
+        3.16064453125,
+        3.42626953125
+      ],
+      "payloads": {
+        "0": {
+          "count": 16,
+          "max": 140406500,
+          "min": 124063959,
+          "p50": 128139125,
+          "p95": 140406500
+        },
+        "1024": {
+          "count": 16,
+          "max": 139988542,
+          "min": 120381375,
+          "p50": 132085209,
+          "p95": 139988542
+        },
+        "16384": {
+          "count": 16,
+          "max": 142899500,
+          "min": 125317250,
+          "p50": 132531084,
+          "p95": 142899500
+        },
+        "64": {
+          "count": 16,
+          "max": 143470459,
+          "min": 122361875,
+          "p50": 127996541,
+          "p95": 143470459
+        }
+      },
+      "profile": "local",
+      "recovery_ns": 62006000,
+      "rekey_ns": 277555125,
+      "resources": {
+        "max_rss_bytes": 14598144,
+        "real_seconds": 12.47,
+        "system_seconds": 0.42,
+        "user_seconds": 2.87
+      },
+      "samples": 64,
+      "send_ns": {
+        "count": 64,
+        "max": 143470459,
+        "min": 120381375,
+        "p50": 130765417,
+        "p95": 140606958
+      },
+      "server_open_ns": 53055875,
+      "setup_ns": 2505099708,
+      "witness_advance_counts": [
+        0
+      ],
+      "witness_handle_ns": null,
+      "witness_query_counts": [
+        0
+      ],
+      "witness_request_counts": [
+        0
+      ]
+    },
+    {
+      "block": 2,
+      "bootstrap_ns": 708576417,
+      "client_open_ns": 73515167,
+      "client_reopen_ns": 262978209,
+      "load_after": [
+        1.54150390625,
+        2.92041015625,
+        3.32666015625
+      ],
+      "load_before": [
+        1.6787109375,
+        3.0380859375,
+        3.37744140625
+      ],
+      "payloads": {
+        "0": {
+          "count": 16,
+          "max": 292102958,
+          "min": 218343708,
+          "p50": 227915125,
+          "p95": 292102958
+        },
+        "1024": {
+          "count": 16,
+          "max": 247261875,
+          "min": 222376208,
+          "p50": 229772791,
+          "p95": 247261875
+        },
+        "16384": {
+          "count": 16,
+          "max": 386009292,
+          "min": 219582958,
+          "p50": 232248250,
+          "p95": 386009292
+        },
+        "64": {
+          "count": 16,
+          "max": 243925084,
+          "min": 220165125,
+          "p50": 229414292,
+          "p95": 243925084
+        }
+      },
+      "profile": "witness",
+      "recovery_ns": 122349042,
+      "rekey_ns": 470987791,
+      "resources": {
+        "max_rss_bytes": 19267584,
+        "real_seconds": 19.76,
+        "system_seconds": 0.79,
+        "user_seconds": 6.91
+      },
+      "samples": 64,
+      "send_ns": {
+        "count": 64,
+        "max": 386009292,
+        "min": 218343708,
+        "p50": 229743208,
+        "p95": 247261875
+      },
+      "server_open_ns": 71017417,
+      "setup_ns": 1917759334,
+      "witness_advance_counts": [
+        5
+      ],
+      "witness_handle_ns": {
+        "count": 64,
+        "max": 115900000,
+        "min": 66448292,
+        "p50": 71710835,
+        "p95": 78921834
+      },
+      "witness_query_counts": [
+        20
+      ],
+      "witness_request_counts": [
+        25
+      ]
+    },
+    {
+      "block": 3,
+      "bootstrap_ns": 698030584,
+      "client_open_ns": 79444375,
+      "client_reopen_ns": 236506667,
+      "load_after": [
+        1.6826171875,
+        2.85986328125,
+        3.29541015625
+      ],
+      "load_before": [
+        1.54150390625,
+        2.92041015625,
+        3.32666015625
+      ],
+      "payloads": {
+        "0": {
+          "count": 16,
+          "max": 245298667,
+          "min": 218761042,
+          "p50": 231227834,
+          "p95": 245298667
+        },
+        "1024": {
+          "count": 16,
+          "max": 242270166,
+          "min": 222322833,
+          "p50": 229025917,
+          "p95": 242270166
+        },
+        "16384": {
+          "count": 16,
+          "max": 249713584,
+          "min": 220890333,
+          "p50": 233930750,
+          "p95": 249713584
+        },
+        "64": {
+          "count": 16,
+          "max": 239630334,
+          "min": 222376292,
+          "p50": 230003708,
+          "p95": 239630334
+        }
+      },
+      "profile": "witness",
+      "recovery_ns": 121844917,
+      "rekey_ns": 469065292,
+      "resources": {
+        "max_rss_bytes": 18857984,
+        "real_seconds": 19.54,
+        "system_seconds": 0.75,
+        "user_seconds": 6.83
+      },
+      "samples": 64,
+      "send_ns": {
+        "count": 64,
+        "max": 249713584,
+        "min": 218761042,
+        "p50": 231144583,
+        "p95": 243333792
+      },
+      "server_open_ns": 72200625,
+      "setup_ns": 1840135583,
+      "witness_advance_counts": [
+        5
+      ],
+      "witness_handle_ns": {
+        "count": 64,
+        "max": 82871166,
+        "min": 68116205,
+        "p50": 72746955,
+        "p95": 80627208
+      },
+      "witness_query_counts": [
+        20
+      ],
+      "witness_request_counts": [
+        25
+      ]
+    },
+    {
+      "block": 3,
+      "bootstrap_ns": 414781584,
+      "client_open_ns": 59965333,
+      "client_reopen_ns": 246592625,
+      "load_after": [
+        1.744140625,
+        2.83154296875,
+        3.27978515625
+      ],
+      "load_before": [
+        1.6826171875,
+        2.85986328125,
+        3.29541015625
+      ],
+      "payloads": {
+        "0": {
+          "count": 16,
+          "max": 142745292,
+          "min": 121331875,
+          "p50": 128506417,
+          "p95": 142745292
+        },
+        "1024": {
+          "count": 16,
+          "max": 140720583,
+          "min": 122397917,
+          "p50": 127919916,
+          "p95": 140720583
+        },
+        "16384": {
+          "count": 16,
+          "max": 142647167,
+          "min": 122234875,
+          "p50": 131626459,
+          "p95": 142647167
+        },
+        "64": {
+          "count": 16,
+          "max": 133913166,
+          "min": 123262000,
+          "p50": 128022292,
+          "p95": 133913166
+        }
+      },
+      "profile": "local",
+      "recovery_ns": 67822833,
+      "rekey_ns": 265047875,
+      "resources": {
+        "max_rss_bytes": 14303232,
+        "real_seconds": 11.65,
+        "system_seconds": 0.4,
+        "user_seconds": 2.82
+      },
+      "samples": 64,
+      "send_ns": {
+        "count": 64,
+        "max": 142745292,
+        "min": 121331875,
+        "p50": 129730334,
+        "p95": 139281584
+      },
+      "server_open_ns": 61984125,
+      "setup_ns": 1676633750,
+      "witness_advance_counts": [
+        0
+      ],
+      "witness_handle_ns": null,
+      "witness_query_counts": [
+        0
+      ],
+      "witness_request_counts": [
+        0
+      ]
+    },
+    {
+      "block": 4,
+      "bootstrap_ns": 400808125,
+      "client_open_ns": 46643250,
+      "client_reopen_ns": 232034542,
+      "load_after": [
+        2.27587890625,
+        2.90380859375,
+        3.29931640625
+      ],
+      "load_before": [
+        1.744140625,
+        2.83154296875,
+        3.27978515625
+      ],
+      "payloads": {
+        "0": {
+          "count": 16,
+          "max": 156747333,
+          "min": 121761459,
+          "p50": 128397458,
+          "p95": 156747333
+        },
+        "1024": {
+          "count": 16,
+          "max": 156246875,
+          "min": 120797667,
+          "p50": 129721416,
+          "p95": 156246875
+        },
+        "16384": {
+          "count": 16,
+          "max": 145999709,
+          "min": 124806959,
+          "p50": 133701917,
+          "p95": 145999709
+        },
+        "64": {
+          "count": 16,
+          "max": 155425834,
+          "min": 122093959,
+          "p50": 129651083,
+          "p95": 155425834
+        }
+      },
+      "profile": "local",
+      "recovery_ns": 66077291,
+      "rekey_ns": 340557750,
+      "resources": {
+        "max_rss_bytes": 15269888,
+        "real_seconds": 11.67,
+        "system_seconds": 0.37,
+        "user_seconds": 2.91
+      },
+      "samples": 64,
+      "send_ns": {
+        "count": 64,
+        "max": 156747333,
+        "min": 120797667,
+        "p50": 130683917,
+        "p95": 145999709
+      },
+      "server_open_ns": 46854416,
+      "setup_ns": 1545218541,
+      "witness_advance_counts": [
+        0
+      ],
+      "witness_handle_ns": null,
+      "witness_query_counts": [
+        0
+      ],
+      "witness_request_counts": [
+        0
+      ]
+    },
+    {
+      "block": 4,
+      "bootstrap_ns": 717590292,
+      "client_open_ns": 92404750,
+      "client_reopen_ns": 197005625,
+      "load_after": [
+        2.6103515625,
+        2.94140625,
+        3.30322265625
+      ],
+      "load_before": [
+        2.27587890625,
+        2.90380859375,
+        3.29931640625
+      ],
+      "payloads": {
+        "0": {
+          "count": 16,
+          "max": 240236750,
+          "min": 220032792,
+          "p50": 228676125,
+          "p95": 240236750
+        },
+        "1024": {
+          "count": 16,
+          "max": 238092791,
+          "min": 224101666,
+          "p50": 229425292,
+          "p95": 238092791
+        },
+        "16384": {
+          "count": 16,
+          "max": 241195667,
+          "min": 227818708,
+          "p50": 234802042,
+          "p95": 241195667
+        },
+        "64": {
+          "count": 16,
+          "max": 237595542,
+          "min": 220705416,
+          "p50": 229282791,
+          "p95": 237595542
+        }
+      },
+      "profile": "witness",
+      "recovery_ns": 127769125,
+      "rekey_ns": 479053166,
+      "resources": {
+        "max_rss_bytes": 18792448,
+        "real_seconds": 19.75,
+        "system_seconds": 0.77,
+        "user_seconds": 6.82
+      },
+      "samples": 64,
+      "send_ns": {
+        "count": 64,
+        "max": 241195667,
+        "min": 220032792,
+        "p50": 230201958,
+        "p95": 240161959
+      },
+      "server_open_ns": 73124916,
+      "setup_ns": 1886751167,
+      "witness_advance_counts": [
+        5
+      ],
+      "witness_handle_ns": {
+        "count": 64,
+        "max": 77985293,
+        "min": 68225622,
+        "p50": 73048499,
+        "p95": 77053461
+      },
+      "witness_query_counts": [
+        20
+      ],
+      "witness_request_counts": [
+        25
+      ]
+    }
+  ],
+  "completed": true,
+  "limitations": [
+    "Uncontrolled macOS host and one implementation",
+    "Fresh mutually authenticated hybrid TLS connection for each send; no TLS resumption",
+    "Local-only and required-witness policies are distinct security contracts",
+    "Whole-process RSS includes both peers, optional witness and bounded observation records",
+    "Observed sample quantiles do not establish production tails, non-regression, energy or throughput guarantees"
+  ],
+  "profiles": {
+    "local": {
+      "application_ns": {
+        "count": 320,
+        "max": 16955833,
+        "min": 4266500,
+        "p50": 5573458,
+        "p95": 6110083
+      },
+      "max_rss_bytes": [
+        14811136,
+        14450688,
+        14598144,
+        14303232,
+        15269888
+      ],
+      "payloads": {
+        "0": {
+          "count": 80,
+          "max": 160667834,
+          "min": 120299958,
+          "p50": 129054084,
+          "p95": 140406500
+        },
+        "1024": {
+          "count": 80,
+          "max": 156246875,
+          "min": 120381375,
+          "p50": 129740375,
+          "p95": 138976167
+        },
+        "16384": {
+          "count": 80,
+          "max": 146066625,
+          "min": 122234875,
+          "p50": 132769917,
+          "p95": 142899500
+        },
+        "64": {
+          "count": 80,
+          "max": 155425834,
+          "min": 120083917,
+          "p50": 128876958,
+          "p95": 138689166
+        }
+      },
+      "samples": 320,
+      "send_ns": {
+        "count": 320,
+        "max": 160667834,
+        "min": 120083917,
+        "p50": 130009708,
+        "p95": 141324417
+      },
+      "slot_lookup_ns": {
+        "count": 320,
+        "max": 9242625,
+        "min": 3119959,
+        "p50": 3879875,
+        "p95": 4172541
+      },
+      "status_ns": {
+        "count": 320,
+        "max": 2034958,
+        "min": 603125,
+        "p50": 802542,
+        "p95": 964292
+      }
+    },
+    "witness": {
+      "application_ns": {
+        "count": 320,
+        "max": 17520834,
+        "min": 4267208,
+        "p50": 5491083,
+        "p95": 6103958
+      },
+      "max_rss_bytes": [
+        18759680,
+        18874368,
+        19267584,
+        18857984,
+        18792448
+      ],
+      "payloads": {
+        "0": {
+          "count": 80,
+          "max": 292102958,
+          "min": 218343708,
+          "p50": 229459791,
+          "p95": 240236750
+        },
+        "1024": {
+          "count": 80,
+          "max": 251377125,
+          "min": 217469666,
+          "p50": 229703167,
+          "p95": 242073792
+        },
+        "16384": {
+          "count": 80,
+          "max": 386009292,
+          "min": 219582958,
+          "p50": 232443541,
+          "p95": 243871125
+        },
+        "64": {
+          "count": 80,
+          "max": 243925084,
+          "min": 220165125,
+          "p50": 229870417,
+          "p95": 239630334
+        }
+      },
+      "samples": 320,
+      "send_ns": {
+        "count": 320,
+        "max": 386009292,
+        "min": 217469666,
+        "p50": 230319834,
+        "p95": 242073792
+      },
+      "slot_lookup_ns": {
+        "count": 320,
+        "max": 23223584,
+        "min": 6775792,
+        "p50": 8574000,
+        "p95": 10386125
+      },
+      "status_ns": {
+        "count": 320,
+        "max": 6913917,
+        "min": 2118375,
+        "p50": 3028833,
+        "p95": 4503000
+      }
+    }
+  },
+  "public_effects_verified": 650,
+  "raw_reserve_ns_means": "next_message_id read-only current slot lookup, not durable reservation; reservation occurs inside send_message",
+  "release_claim_eligible": false,
+  "source_commit": "1fefe0f7154ac063d8488276442a62a5095f2a6d",
+  "total_hot_sends": 640
+}

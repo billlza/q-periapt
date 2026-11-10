@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Frozen ABI-2 crates.io publication receipt for Q-Periapt 0.1.0.
+"""Frozen ABI-2 crates.io publication receipt for Q-Periapt 0.1.5.
 
 The receipt is deliberately a remote-observation domain, not an upload log.
 Only exact observations from both the crates.io API and sparse index can turn
@@ -20,10 +20,20 @@ from rust_publish_contract import RUST_PUBLISHABLE_CRATES
 
 CRATES_IO_PUBLICATION_SCHEMA_VERSION = 1
 CRATES_IO_PUBLICATION_KIND = "qperiapt.abi2_crates_io_publication_receipt"
-CRATES_IO_PUBLICATION_KEY = "crates_io_v0_1_0"
+CRATES_IO_PUBLICATION_KEY = "crates_io_v0_1_5"
+# The 0.1.3 line published, so this key names frozen history; it never
+# changes and its receipt is accepted on deep equality with the frozen
+# constant alone.
+CRATES_IO_V0_1_3_PUBLICATION_KEY = "crates_io_v0_1_3"
+# The 0.1.4 line published too -- all ten 0.1.4 crates are on crates.io -- but
+# its verified cohort is recorded at the annotated tag
+# `v0.1.4-verified-cohort` rather than in this branch's trusted results, so
+# there is no frozen receipt image here to accept it on.  The key is named so
+# it stays addressable as published history.
+CRATES_IO_V0_1_4_PUBLICATION_KEY = "crates_io_v0_1_4"
 CRATES_IO_REGISTRY = "https://crates.io"
 CRATES_IO_SPARSE_INDEX = "https://index.crates.io"
-PRODUCT_VERSION = "0.1.0"
+PRODUCT_VERSION = "0.1.5"
 ABI_VERSION = 2
 MAX_CRATE_SIZE_BYTES = 128 * 1024 * 1024
 MAX_TOTAL_CRATE_SIZE_BYTES = 512 * 1024 * 1024
@@ -77,7 +87,15 @@ CRATE_PUBLICATION_TOPOLOGY = (
             "q-periapt-policy",
         ),
     ),
-    ("q-periapt-cli", ()),
+    (
+        "q-periapt-cli",
+        (
+            "q-periapt-core",
+            "q-periapt-sig",
+            "q-periapt-policy",
+            "q-periapt-backends",
+        ),
+    ),
 )
 PUBLISHABLE_CRATES = tuple(name for name, _dependencies in CRATE_PUBLICATION_TOPOLOGY)
 CRATE_DEPENDENCIES = MappingProxyType(dict(CRATE_PUBLICATION_TOPOLOGY))
@@ -88,10 +106,10 @@ if PUBLISHABLE_CRATES != RUST_PUBLISHABLE_CRATES:
     )
 
 CRATES_IO_PUBLICATION_BOUNDARY = (
-    "ABI 2 Q-Periapt 0.1.0 crates.io publication receipt. Local package "
+    "ABI 2 Q-Periapt 0.1.5 crates.io publication receipt. Local package "
     "digests provide Level-1 accidental-mismatch detection. A crate is "
     "published_verified only when the official crates.io API and sparse "
-    "index both report version 0.1.0, the exact local .crate SHA-256, and "
+    "index both report version 0.1.5, the exact local .crate SHA-256, and "
     "yanked=false. Published crates must form the fixed dependency-safe "
     "prefix; absent suffix entries are not a rollback claim. Upload outcome "
     "unknown is intentionally outside this public receipt and blocks an "
@@ -100,7 +118,6 @@ CRATES_IO_PUBLICATION_BOUNDARY = (
 
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-_CRATE_FILE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*-0\.1\.0\.crate$")
 
 _TOP_LEVEL_KEYS = frozenset(
     {
@@ -239,10 +256,11 @@ def _validate_remote_record(
     crate_name: str,
     crate_sha256: str,
     label: str,
+    product_version: str = PRODUCT_VERSION,
 ) -> None:
     record = _object(value, label)
     _exact_keys(record, _REMOTE_RECORD_KEYS, label)
-    _require(record["version"] == PRODUCT_VERSION, f"{label} version differs")
+    _require(record["version"] == product_version, f"{label} version differs")
     checksum = _sha256(record["checksum"], f"{label} checksum")
     _require(
         checksum == crate_sha256,
@@ -259,6 +277,7 @@ def _validate_crate(
     expected_dependencies: tuple[str, ...],
     package_completed_at: dt.datetime,
     observed_at: dt.datetime,
+    product_version: str = PRODUCT_VERSION,
 ) -> str:
     label = f"crates.io crate {index} ({expected_name})"
     crate = _object(value, label)
@@ -271,7 +290,7 @@ def _validate_crate(
         _fail(f"{label} has an unknown state: {state!r}")
 
     _require(crate["name"] == expected_name, f"{label} name/order differs")
-    _require(crate["version"] == PRODUCT_VERSION, f"{label} version differs")
+    _require(crate["version"] == product_version, f"{label} version differs")
     dependencies = crate["dependencies"]
     _require(
         isinstance(dependencies, list)
@@ -279,10 +298,10 @@ def _validate_crate(
         and tuple(dependencies) == expected_dependencies,
         f"{label} dependency topology differs",
     )
-    expected_file = f"{expected_name}-{PRODUCT_VERSION}.crate"
+    expected_file = f"{expected_name}-{product_version}.crate"
     _require(
         crate["crate_file"] == expected_file
-        and _CRATE_FILE_RE.fullmatch(expected_file) is not None,
+        and re.fullmatch(r"[a-z0-9][a-z0-9_-]*-" + re.escape(product_version) + r"\.crate", expected_file) is not None,
         f"{label} archive name differs",
     )
     _require(
@@ -298,12 +317,14 @@ def _validate_crate(
             crate_name=expected_name,
             crate_sha256=crate_sha256,
             label=f"{label} API record",
+            product_version=product_version,
         )
         _validate_remote_record(
             crate["sparse_index"],
             crate_name=expected_name,
             crate_sha256=crate_sha256,
             label=f"{label} sparse record",
+            product_version=product_version,
         )
         verified_at = parse_utc_timestamp(
             crate["verified_at"], f"{label} verified_at"
@@ -315,9 +336,400 @@ def _validate_crate(
     return state
 
 
+def validate_publication_crates(
+    crates: object,
+    *,
+    topology: tuple[tuple[str, tuple[str, ...]], ...],
+    product_version: str,
+    package_completed_at: dt.datetime,
+    observed_at: dt.datetime,
+    aggregate_status: object,
+) -> None:
+    """Validate exact archives, dual observations and the dependency-safe prefix."""
+
+    _require(isinstance(crates, list) and len(crates) == len(topology),
+             f"crates.io receipt must contain exactly {len(topology)} crate records")
+    states = tuple(
+        _validate_crate(crates[index], index=index, expected_name=name,
+                        expected_dependencies=dependencies, package_completed_at=package_completed_at,
+                        observed_at=observed_at, product_version=product_version)
+        for index, (name, dependencies) in enumerate(topology)
+    )
+    published_count = sum(state == CRATE_STATUS_PUBLISHED_VERIFIED for state in states)
+    _require(sum(crate["crate_size"] for crate in crates) <= MAX_TOTAL_CRATE_SIZE_BYTES,
+             "crates.io aggregate archive size exceeds the bounded range")
+    _require(states == (CRATE_STATUS_PUBLISHED_VERIFIED,) * published_count
+             + (CRATE_STATUS_ABSENT,) * (len(states) - published_count),
+             "crates.io published crates must be one exact topology prefix")
+    expected_status = PUBLICATION_STATUS_PUBLISHED_VERIFIED if published_count == len(states) else PUBLICATION_STATUS_PARTIAL
+    _require(aggregate_status == expected_status,
+             "crates.io aggregate status differs from the exact verified prefix")
+
+
+def _json_deep_equal(left: object, right: object) -> bool:
+    """Compare JSON values recursively without Python bool/int aliasing."""
+
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return left.keys() == right.keys() and all(
+            _json_deep_equal(left[key], right[key]) for key in left
+        )
+    if isinstance(left, list):
+        return len(left) == len(right) and all(
+            _json_deep_equal(left_item, right_item)
+            for left_item, right_item in zip(left, right, strict=True)
+        )
+    return left == right
+
+
+def frozen_crates_io_v0_1_3_receipt() -> dict[str, object]:
+    """Return the exact published 0.1.3 crates.io publication receipt."""
+
+    return {
+        "boundary": (
+            "ABI 2 Q-Periapt 0.1.3 crates.io publication receipt. Local package "
+            "digests provide Level-1 accidental-mismatch detection. A crate is "
+            "published_verified only when the official crates.io API and sparse "
+            "index both report version 0.1.3, the exact local .crate SHA-256, and "
+            "yanked=false. Published crates must form the fixed dependency-safe "
+            "prefix; absent suffix entries are not a rollback claim. Upload outcome "
+            "unknown is intentionally outside this public receipt and blocks an "
+            "aggregate verified result."
+        ),
+        "crates": [
+            {
+                "crate_file": "q-periapt-mlkem-native-sys-0.1.3.crate",
+                "crate_sha256": (
+                    "0f01750b43fc419a24739b6fa4139fd0f46f75acb22de7fa143c00740f6cf7fe"
+                ),
+                "crate_size": 203_720,
+                "crates_io_api": {
+                    "checksum": (
+                        "0f01750b43fc419a24739b6fa4139fd0f46f75acb22de7fa143c00740f6cf7fe"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "dependencies": [],
+                "name": "q-periapt-mlkem-native-sys",
+                "sparse_index": {
+                    "checksum": (
+                        "0f01750b43fc419a24739b6fa4139fd0f46f75acb22de7fa143c00740f6cf7fe"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "state": "published_verified",
+                "verified_at": "2026-08-28T09:35:13Z",
+                "version": "0.1.3",
+            },
+            {
+                "crate_file": "q-periapt-core-0.1.3.crate",
+                "crate_sha256": (
+                    "f1b10cca5a308577fe4d2e1c7690b3c9be27e1107d794c856e913b476fe01b88"
+                ),
+                "crate_size": 38211,
+                "crates_io_api": {
+                    "checksum": (
+                        "f1b10cca5a308577fe4d2e1c7690b3c9be27e1107d794c856e913b476fe01b88"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "dependencies": [],
+                "name": "q-periapt-core",
+                "sparse_index": {
+                    "checksum": (
+                        "f1b10cca5a308577fe4d2e1c7690b3c9be27e1107d794c856e913b476fe01b88"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "state": "published_verified",
+                "verified_at": "2026-08-28T09:35:18Z",
+                "version": "0.1.3",
+            },
+            {
+                "crate_file": "q-periapt-kem-0.1.3.crate",
+                "crate_sha256": (
+                    "dc9b36c74c71d27614a600febb82363b103fbb692dd14af8eb9b36b8ecb4a901"
+                ),
+                "crate_size": 30747,
+                "crates_io_api": {
+                    "checksum": (
+                        "dc9b36c74c71d27614a600febb82363b103fbb692dd14af8eb9b36b8ecb4a901"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "dependencies": [
+                    "q-periapt-core",
+                ],
+                "name": "q-periapt-kem",
+                "sparse_index": {
+                    "checksum": (
+                        "dc9b36c74c71d27614a600febb82363b103fbb692dd14af8eb9b36b8ecb4a901"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "state": "published_verified",
+                "verified_at": "2026-08-28T09:35:22Z",
+                "version": "0.1.3",
+            },
+            {
+                "crate_file": "q-periapt-sig-0.1.3.crate",
+                "crate_sha256": (
+                    "7cfa7508761e3410128f8a04ac397d13a31b9650c83d8c786bb27f7be78d64ac"
+                ),
+                "crate_size": 27200,
+                "crates_io_api": {
+                    "checksum": (
+                        "7cfa7508761e3410128f8a04ac397d13a31b9650c83d8c786bb27f7be78d64ac"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "dependencies": [
+                    "q-periapt-core",
+                ],
+                "name": "q-periapt-sig",
+                "sparse_index": {
+                    "checksum": (
+                        "7cfa7508761e3410128f8a04ac397d13a31b9650c83d8c786bb27f7be78d64ac"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "state": "published_verified",
+                "verified_at": "2026-08-28T09:35:27Z",
+                "version": "0.1.3",
+            },
+            {
+                "crate_file": "q-periapt-backends-0.1.3.crate",
+                "crate_sha256": (
+                    "92fc27fb5d71f1e7084d42ab90f22e5b8d791177bfe807db67d28bd85e2db76b"
+                ),
+                "crate_size": 4_953_540,
+                "crates_io_api": {
+                    "checksum": (
+                        "92fc27fb5d71f1e7084d42ab90f22e5b8d791177bfe807db67d28bd85e2db76b"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "dependencies": [
+                    "q-periapt-core",
+                    "q-periapt-sig",
+                    "q-periapt-mlkem-native-sys",
+                ],
+                "name": "q-periapt-backends",
+                "sparse_index": {
+                    "checksum": (
+                        "92fc27fb5d71f1e7084d42ab90f22e5b8d791177bfe807db67d28bd85e2db76b"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "state": "published_verified",
+                "verified_at": "2026-08-28T09:35:31Z",
+                "version": "0.1.3",
+            },
+            {
+                "crate_file": "q-periapt-policy-0.1.3.crate",
+                "crate_sha256": (
+                    "e3f4d497e9455ae2e9c1171eb1c243beb42cd11f6a476a46bed323ec2b5a62da"
+                ),
+                "crate_size": 39253,
+                "crates_io_api": {
+                    "checksum": (
+                        "e3f4d497e9455ae2e9c1171eb1c243beb42cd11f6a476a46bed323ec2b5a62da"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "dependencies": [
+                    "q-periapt-core",
+                    "q-periapt-sig",
+                ],
+                "name": "q-periapt-policy",
+                "sparse_index": {
+                    "checksum": (
+                        "e3f4d497e9455ae2e9c1171eb1c243beb42cd11f6a476a46bed323ec2b5a62da"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "state": "published_verified",
+                "verified_at": "2026-08-28T09:35:36Z",
+                "version": "0.1.3",
+            },
+            {
+                "crate_file": "q-periapt-ffi-0.1.3.crate",
+                "crate_sha256": (
+                    "801c25abc5cdfbff5cf19ba0262fc4940e116c54636c70cdbda83ddcfeb1de7f"
+                ),
+                "crate_size": 51309,
+                "crates_io_api": {
+                    "checksum": (
+                        "801c25abc5cdfbff5cf19ba0262fc4940e116c54636c70cdbda83ddcfeb1de7f"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "dependencies": [
+                    "q-periapt-core",
+                    "q-periapt-kem",
+                    "q-periapt-backends",
+                    "q-periapt-policy",
+                ],
+                "name": "q-periapt-ffi",
+                "sparse_index": {
+                    "checksum": (
+                        "801c25abc5cdfbff5cf19ba0262fc4940e116c54636c70cdbda83ddcfeb1de7f"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "state": "published_verified",
+                "verified_at": "2026-08-28T09:35:40Z",
+                "version": "0.1.3",
+            },
+            {
+                "crate_file": "q-periapt-wasm-0.1.3.crate",
+                "crate_sha256": (
+                    "249f9ca36ff4511fa21c1467dc8f363f5d2f26a387ae753b49865beb12106633"
+                ),
+                "crate_size": 16695,
+                "crates_io_api": {
+                    "checksum": (
+                        "249f9ca36ff4511fa21c1467dc8f363f5d2f26a387ae753b49865beb12106633"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "dependencies": [
+                    "q-periapt-core",
+                    "q-periapt-kem",
+                    "q-periapt-backends",
+                    "q-periapt-policy",
+                ],
+                "name": "q-periapt-wasm",
+                "sparse_index": {
+                    "checksum": (
+                        "249f9ca36ff4511fa21c1467dc8f363f5d2f26a387ae753b49865beb12106633"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "state": "published_verified",
+                "verified_at": "2026-08-28T09:35:45Z",
+                "version": "0.1.3",
+            },
+            {
+                "crate_file": "q-periapt-rustls-0.1.3.crate",
+                "crate_sha256": (
+                    "c93dc51c0f096dd117ccf17dac1c273c7566fd319a43f13183d14bd6b0d61fa4"
+                ),
+                "crate_size": 42289,
+                "crates_io_api": {
+                    "checksum": (
+                        "c93dc51c0f096dd117ccf17dac1c273c7566fd319a43f13183d14bd6b0d61fa4"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "dependencies": [
+                    "q-periapt-core",
+                    "q-periapt-kem",
+                    "q-periapt-backends",
+                    "q-periapt-policy",
+                ],
+                "name": "q-periapt-rustls",
+                "sparse_index": {
+                    "checksum": (
+                        "c93dc51c0f096dd117ccf17dac1c273c7566fd319a43f13183d14bd6b0d61fa4"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "state": "published_verified",
+                "verified_at": "2026-08-28T09:35:50Z",
+                "version": "0.1.3",
+            },
+            {
+                "crate_file": "q-periapt-cli-0.1.3.crate",
+                "crate_sha256": (
+                    "86ff2ed77153de071d4758f4e3f6cb0b9117ee5cf68849ac823eabf850108aff"
+                ),
+                "crate_size": 11216,
+                "crates_io_api": {
+                    "checksum": (
+                        "86ff2ed77153de071d4758f4e3f6cb0b9117ee5cf68849ac823eabf850108aff"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "dependencies": [],
+                "name": "q-periapt-cli",
+                "sparse_index": {
+                    "checksum": (
+                        "86ff2ed77153de071d4758f4e3f6cb0b9117ee5cf68849ac823eabf850108aff"
+                    ),
+                    "version": "0.1.3",
+                    "yanked": False,
+                },
+                "state": "published_verified",
+                "verified_at": "2026-08-28T09:35:54Z",
+                "version": "0.1.3",
+            },
+        ],
+        "identity": {
+            "abi_version": 2,
+            "product_version": "0.1.3",
+            "publication_key": "crates_io_v0_1_3",
+            "registry": "https://crates.io",
+        },
+        "kind": "qperiapt.abi2_crates_io_publication_receipt",
+        "observation": {
+            "observed_at": "2026-08-28T09:35:54Z",
+            "package_contract": {
+                "completed_at": "2026-08-25T09:59:54Z",
+                "handoff_sha256": (
+                    "71dda0bde0ff954b68e80411806f7b0d9749bd746191c49785390277cad20397"
+                ),
+                "source_commit": "e9ae27fcc8b66c37a700cfa0e1efbc4219eb5688",
+                "transcript_sha256": (
+                    "efea80bd1681be7a1571090fe192937d146c01dae282881b8b4339459d9060cb"
+                ),
+            },
+            "source": {
+                "canonical_source_tree_sha256": (
+                    "2a2f0961c9a6fd3e5f410d78f760365593876b5036ddcaf491e917a6bb47e8db"
+                ),
+                "source_parent_commit": "e9ae27fcc8b66c37a700cfa0e1efbc4219eb5688",
+                "tag_commit": "69e64078ea464109d7e846619e2ce493aa26934f",
+                "tag_tree": "4c05594b8f8d305c8a22dc8a25b87685856854c5",
+            },
+        },
+        "schema_version": 1,
+        "status": "published_verified",
+    }
+
+
 def validate_crates_io_publication_receipt(receipt_value: object) -> None:
     """Validate one schema-1 crates.io receipt without filesystem or network I/O."""
 
+    if _json_deep_equal(receipt_value, frozen_crates_io_v0_1_3_receipt()):
+        # The 0.1.3 line published: deep equality with the frozen verified
+        # receipt is the entire frozen-history contract, and that receipt
+        # passed the full structural validation below when it was
+        # committed under the then-active 0.1.3 constants.  This branch is
+        # the frozen crates_io_v0_1_3 key's only accepting path.
+        return
+    # The structural machinery below is the active crates_io_v0_1_5
+    # contract; a near-frozen 0.1.3 receipt fails closed against it.
     receipt = _object(receipt_value, "crates.io publication receipt")
     _exact_keys(receipt, _TOP_LEVEL_KEYS, "crates.io publication receipt")
     _require(
@@ -388,42 +800,13 @@ def validate_crates_io_publication_receipt(receipt_value: object) -> None:
         isinstance(crates, list) and len(crates) == len(CRATE_PUBLICATION_TOPOLOGY),
         "crates.io receipt must contain exactly ten crate records",
     )
-    states = tuple(
-        _validate_crate(
-            crates[index],
-            index=index,
-            expected_name=name,
-            expected_dependencies=dependencies,
-            package_completed_at=package_completed_at,
-            observed_at=observed_at,
-        )
-        for index, (name, dependencies) in enumerate(CRATE_PUBLICATION_TOPOLOGY)
-    )
-    published_count = sum(
-        state == CRATE_STATUS_PUBLISHED_VERIFIED for state in states
-    )
-    _require(
-        sum(crate["crate_size"] for crate in crates)
-        <= MAX_TOTAL_CRATE_SIZE_BYTES,
-        "crates.io aggregate archive size exceeds the bounded range",
-    )
-    _require(
-        states
-        == (CRATE_STATUS_PUBLISHED_VERIFIED,) * published_count
-        + (CRATE_STATUS_ABSENT,) * (len(states) - published_count),
-        "crates.io published crates must be one exact topology prefix",
-    )
-    expected_status = (
-        PUBLICATION_STATUS_PUBLISHED_VERIFIED
-        if published_count == len(states)
-        else PUBLICATION_STATUS_PARTIAL
-    )
-    _require(
-        receipt["status"] == expected_status,
-        "crates.io aggregate status differs from the exact verified prefix",
+    validate_publication_crates(
+        crates, topology=CRATE_PUBLICATION_TOPOLOGY, product_version=PRODUCT_VERSION,
+        package_completed_at=package_completed_at, observed_at=observed_at,
+        aggregate_status=receipt["status"],
     )
 
 
 # Stable-specific name used by the release assembler; retain the domain name as
 # the primary public API for direct callers.
-validate_v0_1_0_publication_receipt = validate_crates_io_publication_receipt
+validate_v0_1_5_publication_receipt = validate_crates_io_publication_receipt

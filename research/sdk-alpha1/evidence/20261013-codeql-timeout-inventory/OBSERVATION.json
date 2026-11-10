@@ -1,0 +1,92 @@
+{
+  "kind": "qperiapt.codeql_timeout_observation",
+  "created_utc": "2026-10-13T05:57:25.894085+00:00",
+  "source_head": "9b90c76040a389235eb3064178832ab5ba479093",
+  "run_id": 38326519450,
+  "job_id": 115066344597,
+  "job_url": "https://github.com/billlza/q-periapt/actions/runs/38326519450/job/115066344597",
+  "completed": false,
+  "release_claim_eligible": false,
+  "log": {
+    "bytes": 600752938,
+    "lines": 2786791,
+    "sha256": "c4299758437f0ebf2458c175633bbcf309a178da516da94d3d5bb772acaa5539"
+  },
+  "query_starts": 39,
+  "query_completions": 38,
+  "unfinished": [
+    "codeql/rust-queries/queries/summary/SummaryStats.bqrs"
+  ],
+  "completion_lines": [
+    "2026-10-13T00:29:43.0266828Z [1/39 eval 24ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnextractedElements.bqrs.",
+    "2026-10-13T00:29:45.0792964Z [2/39 eval 2.3s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionWarnings.bqrs.",
+    "2026-10-13T00:29:50.3177155Z [3/39 eval 7.5s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionErrors.bqrs.",
+    "2026-10-13T00:29:54.5356723Z [4/39 eval 15.2s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractedFiles.bqrs.",
+    "2026-10-13T00:30:08.2107066Z [5/39 eval 24.7s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.bqrs.",
+    "2026-10-13T00:30:08.2136449Z [6/39 eval 24.7s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs.",
+    "2026-10-13T00:30:33.6434371Z [7/39 eval 50.1s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfCode.bqrs.",
+    "2026-10-13T00:30:33.6466565Z [8/39 eval 50.1s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfUserCode.bqrs.",
+    "2026-10-13T00:30:34.0867082Z [9/39 eval 51.1s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.bqrs.",
+    "2026-10-13T00:31:07.9734285Z [10/39 eval 1m29s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.bqrs.",
+    "2026-10-13T00:31:28.8976812Z [11/39 eval 1m50s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.bqrs.",
+    "2026-10-13T00:31:33.5456970Z [12/39 eval 1m51s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.bqrs.",
+    "2026-10-13T00:31:46.9186842Z [13/39 eval 2m4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs.",
+    "2026-10-13T00:32:41.7099108Z [14/39 eval 2m58s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.bqrs.",
+    "2026-10-13T00:32:45.6877029Z [15/39 eval 3m2s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.bqrs.",
+    "2026-10-13T00:32:45.6966887Z [16/39 eval 3m2s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.bqrs.",
+    "2026-10-13T00:32:49.8458944Z [17/39 eval 3m11s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.bqrs.",
+    "2026-10-13T00:32:50.3644851Z [18/39 eval 3m7s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-020/RegexInjection.bqrs.",
+    "2026-10-13T00:32:51.2373573Z [19/39 eval 3m8s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-079/XSS.bqrs.",
+    "2026-10-13T00:32:52.1061898Z [20/39 eval 3m9s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-089/SqlInjection.bqrs.",
+    "2026-10-13T00:32:53.0783964Z [21/39 eval 3m10s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs.",
+    "2026-10-13T00:32:55.3693367Z [22/39 eval 3m12s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs.",
+    "2026-10-13T00:33:00.1738229Z [23/39 eval 3m17s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-078/CommandInjection.bqrs.",
+    "2026-10-13T00:33:00.1806404Z [24/39 eval 3m17s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-117/LogInjection.bqrs.",
+    "2026-10-13T00:33:00.8165888Z [25/39 eval 3m17s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs.",
+    "2026-10-13T00:33:01.0615352Z [26/39 eval 3m18s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-614/InsecureCookie.bqrs.",
+    "2026-10-13T00:33:02.9189591Z [27/39 eval 3m20s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-022/TaintedPath.bqrs.",
+    "2026-10-13T00:33:07.0378449Z [28/39 eval 3m24s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextLogging.bqrs.",
+    "2026-10-13T00:33:08.4038200Z [29/39 eval 3m25s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.bqrs.",
+    "2026-10-13T00:33:08.9552997Z [30/39 eval 3m25s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.bqrs.",
+    "2026-10-13T00:33:09.0326750Z [31/39 eval 3m26s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-918/RequestForgery.bqrs.",
+    "2026-10-13T00:33:13.3385443Z [32/39 eval 3m30s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.bqrs.",
+    "2026-10-13T00:33:16.5486851Z [33/39 eval 3m32s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.bqrs.",
+    "2026-10-13T00:33:17.7816832Z [34/39 eval 3m33s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStatsReduced.bqrs.",
+    "2026-10-13T00:33:17.9606600Z [35/39 eval 3m35s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs.",
+    "2026-10-13T00:33:17.9826428Z [36/39 eval 3m34s] Evaluation done; writing results to codeql/rust-queries/queries/summary/QuerySinkCounts.bqrs.",
+    "2026-10-13T00:33:18.1793830Z [37/39 eval 3m33s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/ExtractorInformation.bqrs.",
+    "2026-10-13T00:33:32.8223918Z [38/39 eval 3m49s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs."
+  ],
+  "evaluator": {
+    "cli_version": "2.27.1",
+    "threads": 4,
+    "total_ram_flag_MB": 14575,
+    "jvm_heap_MB": 5788,
+    "off_heap_MB": 6898,
+    "selected_log": "execute-queries-20261013.002936.274.log",
+    "native_cache_eviction_pauses": 249310,
+    "first_evictions": [
+      "2026-10-13T05:28:38.7396973Z [2026-10-13 00:29:50] Pausing evaluation to evict 207.70MiB ARRAYS at sequence stamp o+0",
+      "2026-10-13T05:28:38.8365719Z [2026-10-13 00:29:54] Pausing evaluation to evict 207.70MiB ARRAYS at sequence stamp o+60471",
+      "2026-10-13T05:28:38.8532909Z [2026-10-13 00:29:56] Pausing evaluation to evict 208.46MiB ARRAYS at sequence stamp o+81408"
+    ],
+    "last_evictions": [
+      "2026-10-13T05:30:06.6743214Z [2026-10-13 05:28:03] Pausing evaluation to evict 215.21MiB ARRAYS at sequence stamp o+460051073",
+      "2026-10-13T05:30:06.6743492Z [2026-10-13 05:28:03] Pausing evaluation to evict 215.21MiB ARRAYS at sequence stamp o+460051125",
+      "2026-10-13T05:30:06.6743798Z [2026-10-13 05:28:03] Pausing evaluation to evict 215.21MiB ARRAYS at sequence stamp o+460051177"
+    ],
+    "selected_predicate_last_iterations": [
+      "2026-10-13T05:30:03.9532798Z [2026-10-13 04:28:19] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9/11@i452#eb08auwr (iteration 452)",
+      "2026-10-13T05:30:05.1797410Z [2026-10-13 04:56:22] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9/11@i453#eb08auwr (iteration 453)",
+      "2026-10-13T05:30:05.2709155Z [2026-10-13 04:58:29] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9/11@i454#eb08auwr (iteration 454)",
+      "2026-10-13T05:30:06.5322033Z [2026-10-13 05:24:22] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9/11@i455#eb08auwr (iteration 455)"
+    ]
+  },
+  "limits": [
+    "38 completions are progress-log observations, not independently decoded BQRS results.",
+    "Repeated native-cache eviction is observed; no controlled experiment establishes a complete root cause or verified fix.",
+    "Predicate iteration numbers are neither percentage complete nor an ETA.",
+    "The retained 3b database memory experiment hit its 900-second limit for both profiles; it does not establish that a larger native allocation completes.",
+    "The local inventory repair does not complete hosted CodeQL or qualify current product source."
+  ]
+}

@@ -15,7 +15,9 @@ use crate::{
     ML_KEM_768_XWING_SEED_LEN, X25519, X25519_LEN,
 };
 use q_periapt_core::Profile;
-use q_periapt_kem::HybridKem;
+use q_periapt_kem::{
+    HybridKem, PqCiphertext, PqPublicKey, PqSecretKey, TradCiphertext, TradPublicKey, TradSecretKey,
+};
 
 include!("concrete_hybrid_kems_04_vector.rs");
 include!("xwing_vectors.rs");
@@ -120,7 +122,15 @@ fn xwing_draft_kat_byte_exact() {
 
         // --- Decapsulate: must recover the same shared secret ---
         let dsec = kem
-            .decapsulate(&sk_m, &ct_pq, &pk_m, &skx, &ct_trad, &pk_x, b"")
+            .decapsulate(
+                PqSecretKey::new(&sk_m),
+                PqCiphertext::new(&ct_pq),
+                PqPublicKey::new(&pk_m),
+                TradSecretKey::new(&skx),
+                TradCiphertext::new(&ct_trad),
+                TradPublicKey::new(&pk_x),
+                b"",
+            )
             .unwrap();
         assert_eq!(
             dsec.as_bytes(),
@@ -185,7 +195,15 @@ fn concrete_hybrid_kems_04_mlkem768_x25519_byte_exact() {
     );
 
     let decapsulated = kem
-        .decapsulate(&sk_pq, &ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, b"")
+        .decapsulate(
+            PqSecretKey::new(&sk_pq),
+            PqCiphertext::new(&ct_pq),
+            PqPublicKey::new(&pk_pq),
+            TradSecretKey::new(&sk_x),
+            TradCiphertext::new(&ct_x),
+            TradPublicKey::new(&pk_x),
+            b"",
+        )
         .unwrap();
     assert_eq!(decapsulated.as_bytes(), &vector.shared_secret);
 }
@@ -208,10 +226,26 @@ fn correct_length_invalid_mlkem_ciphertext_uses_implicit_rejection() {
     )
     .unwrap();
     let rejected_a = kem
-        .decapsulate(&sk_pq, &malformed_ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, b"")
+        .decapsulate(
+            PqSecretKey::new(&sk_pq),
+            PqCiphertext::new(&malformed_ct_pq),
+            PqPublicKey::new(&pk_pq),
+            TradSecretKey::new(&sk_x),
+            TradCiphertext::new(&ct_x),
+            TradPublicKey::new(&pk_x),
+            b"",
+        )
         .unwrap();
     let rejected_b = kem
-        .decapsulate(&sk_pq, &malformed_ct_pq, &pk_pq, &sk_x, &ct_x, &pk_x, b"")
+        .decapsulate(
+            PqSecretKey::new(&sk_pq),
+            PqCiphertext::new(&malformed_ct_pq),
+            PqPublicKey::new(&pk_pq),
+            TradSecretKey::new(&sk_x),
+            TradCiphertext::new(&ct_x),
+            TradPublicKey::new(&pk_x),
+            b"",
+        )
         .unwrap();
 
     assert_eq!(

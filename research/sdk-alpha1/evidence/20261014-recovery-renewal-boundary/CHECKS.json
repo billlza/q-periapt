@@ -1,0 +1,41 @@
+{
+  "archive": {
+    "bytes": 245931,
+    "members": 117,
+    "sha256": "0752c1f2ffe67221c27023aa58587e6f954d14ae61efa24fa05c83e11c3f5921"
+  },
+  "artifact_controls": "60 passed in owned real clone with staged 659-file source overlay; only test assertion syntax changed afterward",
+  "base_commit": "9e26591673017743dab0ee70602ce7cd1e94f569",
+  "boundary_tests": 2,
+  "browser_retirement_qualified": false,
+  "changes": "Two native regression tests, explicit admission boundary, exact source inventory and installed CI total budget. Product runtime unchanged.",
+  "ci_failure": "direct GitHub annotation confirms 105-minute job timeout",
+  "clippy": "passed",
+  "cohorts": 6,
+  "completed": true,
+  "goal_complete": false,
+  "inputs": {
+    ".github/workflows/ci.yml": "b62eec9b50a9ac8ce5ce38b28af267c63f06b50b23ea23f72da41281e526a969",
+    "ARTIFACT.md": "43c5db7de4e9a2e4771a9e6776968b22bcc5a17be77e051b400e48517cbee2e7",
+    "artifact/codeql_rust_quality.py": "c87d1d41eada356029af6c6f23f56bfd25b672a078e3bc87cef2fb77d1599606",
+    "artifact/test_codeql_rust_quality.py": "4913f8087864c8267b23c3d0d6c63224c07d1a8cd9563c52b9fdae5bedaeac42",
+    "docs/continuity/PRODUCT_ADMISSION.md": "7844421bb233774efec6d664c9bc9ce414649b31e8b9b263c033cc6d1aa62f3d",
+    "research/continuity-identity-candidate/CREDENTIAL_RENEWAL.md": "80a3cf06665d75c0cacfcf966520dfc3156a83c6d63aecca289bd17bd0ba2435",
+    "research/continuity-identity-candidate/src/enrollment/witness_recovery_renewal_tests.rs": "d7cbf0ad8953cb71845e36baca332fe69c9a78208b1c3ba8796462f470bb003c",
+    "research/continuity-identity-candidate/src/enrollment/witness_renewal_tests.rs": "d60288dc0dc7f9ee2ea925e959f73e53bc05cd82794df76112cdbf6614ffb737"
+  },
+  "outcomes": [
+    "EXPIRED_CLEANUP_RENEWAL policy_expired=false applied=false request_available=false original_intent_preserved=true",
+    "EXPIRED_CLEANUP_RETIREMENT applied=false views=2 unknown_messages_per_view=1 host_accounted=true journal_erased=true signer_erased=true",
+    "EXPIRED_CLEANUP_RENEWAL policy_expired=false applied=true request_available=true original_intent_preserved=false",
+    "EXPIRED_CLEANUP_RETIREMENT applied=true views=2 unknown_messages_per_view=1 host_accounted=true journal_erased=true signer_erased=true",
+    "EXPIRED_CLEANUP_RENEWAL policy_expired=true applied=false request_available=false original_intent_preserved=true",
+    "EXPIRED_CLEANUP_RENEWAL policy_expired=true applied=true request_available=true original_intent_preserved=false"
+  ],
+  "prior_clippy_failure": "New test used panic macro forbidden by project lint; replaced with explicit Result and expect, preserving assertion. No lint suppression.",
+  "prior_controls_failure": "Main is a linked worktree, correctly refused by real-.git release provenance guard. Guard unchanged.",
+  "private_state_included": false,
+  "product_fix": false,
+  "release_claim_eligible": false,
+  "workflow_lint": "two unchanged baseline runner-label errors; no new diagnostics"
+}

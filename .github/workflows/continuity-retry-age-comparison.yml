@@ -1,0 +1,74 @@
+name: Continuity native retry readiness
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/continuity-retry-age-comparison.yml
+      - research/continuity-retry-age-comparison/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: continuity-retry-age-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  retry-age:
+    name: native-retry-readiness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Fetch the fixed protocol source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin 358b921ab3469ce49f166633fc9a762ff6ed7e3d
+          test "$(git rev-parse 358b921ab3469ce49f166633fc9a762ff6ed7e3d)" = 358b921ab3469ce49f166633fc9a762ff6ed7e3d
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+      - name: Install native build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libssl-dev pkg-config
+      - name: Check source and retry-age controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p target/continuity-retry-age-controls
+          python -m unittest discover -s research/continuity-retry-age-comparison -p 'test_*.py' -v 2>&1 | tee target/continuity-retry-age-controls/controls.log
+      - name: Compile and execute both native policies
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python research/continuity-retry-age-comparison/run.py run --repository "$GITHUB_WORKSPACE" --output "$GITHUB_WORKSPACE/target/continuity-retry-age-execution"
+      - name: Retain public execution evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: continuity-native-retry-readiness
+          if-no-files-found: error
+          include-hidden-files: false
+          path: |
+            target/continuity-retry-age-controls
+            target/continuity-retry-age-execution/evidence
+            target/continuity-retry-age-execution/logs
+            target/continuity-retry-age-execution/preparation.json
+            target/continuity-retry-age-execution/drivers.json
+            target/continuity-retry-age-execution/retry_age_driver.rs.txt
+            target/continuity-retry-age-execution/runtime.json
+            target/continuity-retry-age-execution/executable.json

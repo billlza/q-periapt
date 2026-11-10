@@ -343,7 +343,7 @@ class PlatformDistributionTests(unittest.TestCase):
         self.assertEqual(5, len(first["assets"]))
         self.assertEqual("r1", first["distribution_revision"])
         self.assertEqual(
-            "abi2-platforms-v0.1.0", first["release_tag"]
+            "abi2-platforms-v0.1.5", first["release_tag"]
         )
         self.assertEqual(first, self._verify(first_output))
         first_bytes = {
@@ -570,10 +570,10 @@ class PlatformDistributionTests(unittest.TestCase):
         )
 
     def test_current_contract_is_stable_identity_without_published_hashes(self) -> None:
-        self.assertEqual("0.1.0", platform_distribution_contract.PRODUCT_VERSION)
+        self.assertEqual("0.1.5", platform_distribution_contract.PRODUCT_VERSION)
         self.assertEqual("r1", platform_distribution_contract.DISTRIBUTION_REVISION)
         self.assertEqual(
-            "abi2-platforms-v0.1.0",
+            "abi2-platforms-v0.1.5",
             platform_distribution_contract.RELEASE_TAG,
         )
         self.assertEqual(
@@ -710,6 +710,7 @@ class PlatformDistributionTests(unittest.TestCase):
         release_path = receipt_path.parent / platform_distribution.PLATFORM_RELEASE_DIRECTORY_NAME
         arguments = mock.Mock(
             command="assemble",
+            profile="stable",
             root=self.repository,
             candidate_dir=self.root / "candidate",
             runtime_bundle=self.root / "runtime.zip",

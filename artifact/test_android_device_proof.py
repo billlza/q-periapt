@@ -326,11 +326,11 @@ def current_results_for_proof(
     else:
         raise ValueError(f"unsupported fixture results binding: {results_binding}")
     proof["paths"]["aar"] = proof_manifest_aar_path = (
-        "target/qperiapt-android-aar/q-periapt-android-0.1.0/"
-        "q-periapt-android-0.1.0.aar"
+        "target/qperiapt-android-aar/q-periapt-android-0.1.5/"
+        "q-periapt-android-0.1.5.aar"
     )
     proof["paths"]["aar_manifest"] = proof_manifest_path = (
-        "target/qperiapt-android-aar/q-periapt-android-0.1.0/MANIFEST.json"
+        "target/qperiapt-android-aar/q-periapt-android-0.1.5/MANIFEST.json"
     )
     run_id = proof["run_id"]
     source_digest = proof["proof_source_tree_sha256"]
@@ -698,6 +698,7 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             avd_home=fixed_home,
             adb_profile="macos-account",
             device_abi="arm64-v8a",
+            runtime_profile="api35-16k",
         )
         with (
             mock.patch.object(
@@ -712,7 +713,7 @@ class AndroidAdbIdentityTests(unittest.TestCase):
             contextlib.redirect_stdout(io.StringIO()) as output,
         ):
             android_device_proof.verify_avd_home(arguments)
-        validate.assert_called_once_with("macos-account", "arm64-v8a")
+        validate.assert_called_once_with("macos-account", "arm64-v8a", "api35-16k")
         self.assertEqual(output.getvalue(), "ANDROID_AVD_HOME_VERIFY_PASS\n")
 
         wrong = copy.copy(arguments)
@@ -1435,17 +1436,26 @@ class AndroidAdbIdentityTests(unittest.TestCase):
 
 
 class AndroidDeviceProofProvenanceTests(unittest.TestCase):
-    def _run_postinstall_runtime_steps(
+    def _run_fresh_install_runtime_steps(
         self,
         failing_operation: str | None,
+        *,
+        device_kind: str = "emulator",
+        runtime_profile: str = "api35-16k",
+        log_status: int = 0,
+        device_epoch: str = "1786240000.123",
     ) -> tuple[subprocess.CompletedProcess[bytes], list[str], dict[str, bytes]]:
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
         phase = producer.index("=== Install and run Android runtime smoke ===")
-        start = producer.index("ANDROID_APP_INSTALL_CONFIRMED=1", phase)
+        start = producer.index('if ! : >"$PACKAGE_OBSERVATION_LOG"; then', phase)
         end = producer.index("RUNTIME_RESULT_DEADLINE=", start)
-        postinstall = producer[start:end]
+        # The test exercises the legacy branch through activity launch. Close
+        # its explicit profile dispatch at this deliberately earlier test boundary.
+        postinstall = producer[start:end] + "\nfi\n"
+        helper_start = producer.index("capture_emulator_failure_logs() {\n")
+        helper_end = producer.index("\nselect_serial_or_empty()", helper_start)
 
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
@@ -1459,8 +1469,33 @@ umask 077
 DIST={shlex.quote(str(distribution))}
 CALLS={shlex.quote(str(calls))}
 FAIL_OPERATION={shlex.quote(failing_operation or "")}
+DEVICE_KIND={shlex.quote(device_kind)}
+ANDROID_RUNTIME_PROFILE={shlex.quote(runtime_profile)}
+DEVICE_EPOCH={shlex.quote(device_epoch)}
+LOG_STATUS={log_status}
+ANDROID_CONSUMER_PROFILE=legacy_full
+ANDROID_APP_CLEANUP_ARMED=0
+ANDROID_APP_INSTALL_CONFIRMED=0
+trap 'printf "armed=%s confirmed=%s\\n" "$ANDROID_APP_CLEANUP_ARMED" "$ANDROID_APP_INSTALL_CONFIRMED" >"$DIST/cleanup-state.txt"' 0
+PACKAGE_OBSERVATION_LOG="$DIST/adb-package-state-observation.log"
+observe_preinstall_package_absence() {{
+    printf 'preinstall\\n' >>"$CALLS"
+    [ "$FAIL_OPERATION" != preinstall ]
+}}
+observe_owned_installed_package() {{
+    printf 'postinstall\\n' >>"$CALLS"
+    if [ "$FAIL_OPERATION" = postinstall ]; then return 31; fi
+    return 0
+}}
+monotonic_deadline() {{ printf '100\\n'; }}
 PYTHON_BIN={shlex.quote(sys.executable)}
-python3() {{ "$PYTHON_BIN" "$@"; }}
+TEST_ROOT={shlex.quote(str(pathlib.Path(__file__).resolve().parent.parent))}
+python3() {{ QPERIAPT_PYTHON="$PYTHON_BIN" sh "$TEST_ROOT/artifact/python-run.sh" "$@"; }}
+capture_app_logcat() {{
+    printf 'capture-logcat\\n' >>"$CALLS"
+    printf 'scoped smoke log\\n'
+    return "$LOG_STATUS"
+}}
 android_command() {{
     operation=$1
     printf '%s\\n' "$operation" >>"$CALLS"
@@ -1468,15 +1503,23 @@ android_command() {{
         printf 'bounded diagnostic for %s\\n' "$operation" >&2
         case "$operation" in
             device-time) return 17 ;;
-            force-stop) return 18 ;;
+            capture-emulator-baseline) return 18 ;;
+            capture-emulator-memory-runtime) return 20 ;;
             start-app) return 19 ;;
+            install-apk)
+                printf 'cmd: Failure calling service package: Broken pipe (32)\\n' >&2
+                return 23 ;;
         esac
     fi
     if [ "$operation" = device-time ]; then
-        printf '1786240000.123\\n' >"$DIST/adb-device-time.txt"
+        printf '%s\\n' "$DEVICE_EPOCH" >"$DIST/adb-device-time.txt"
+    fi
+    if [ "$operation" = capture-emulator-diagnostics ]; then
+        return "$LOG_STATUS"
     fi
     return 0
 }}
+{producer[helper_start:helper_end]}
 {postinstall}
 """
             result = subprocess.run(
@@ -1504,10 +1547,7 @@ android_command() {{
         end = producer.index("RUNTIME_RESULT_DEADLINE=", start)
         postinstall = producer[start:end]
         self.assertNotIn("\nandroid_command device-time\n", postinstall)
-        self.assertNotIn(
-            '\nandroid_command force-stop >"$DIST/adb-force-stop.log"\n',
-            postinstall,
-        )
+        self.assertNotIn("android_command force-stop", postinstall)
         self.assertNotIn(
             '\nandroid_command start-app >"$DIST/adb-start.log"\n',
             postinstall,
@@ -1515,24 +1555,20 @@ android_command() {{
 
         expectations = {
             "device-time": (
-                ["device-time"],
+                ["preinstall", "device-time"],
                 "Android runtime device-time capture failed",
                 "adb-device-time.err",
             ),
-            "force-stop": (
-                ["device-time", "force-stop"],
-                "Android runtime force-stop failed",
-                "adb-force-stop.log",
-            ),
             "start-app": (
-                ["device-time", "force-stop", "start-app"],
+                ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline", "install-apk", "postinstall", "start-app",
+                 "capture-logcat", "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"],
                 "Android runtime activity start failed",
                 "adb-start.log",
             ),
         }
         for operation, (calls, label, diagnostic_file) in expectations.items():
             with self.subTest(failing_operation=operation):
-                result, called_operations, files = self._run_postinstall_runtime_steps(
+                result, called_operations, files = self._run_fresh_install_runtime_steps(
                     operation
                 )
                 self.assertEqual(result.returncode, 1)
@@ -1540,7 +1576,6 @@ android_command() {{
                 self.assertIn(label.encode("ascii"), result.stderr)
                 expected_exit = {
                     "device-time": 17,
-                    "force-stop": 18,
                     "start-app": 19,
                 }[operation]
                 self.assertIn(f"(exit={expected_exit})".encode("ascii"), result.stderr)
@@ -1549,12 +1584,94 @@ android_command() {{
                     files[diagnostic_file],
                 )
 
-        result, called_operations, _files = self._run_postinstall_runtime_steps(None)
+        for gate, expected_calls in (
+            ("preinstall", ["preinstall"]),
+            ("postinstall", ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline", "install-apk", "postinstall",
+                             "capture-logcat", "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"]),
+        ):
+            with self.subTest(failing_gate=gate):
+                result, called_operations, _files = self._run_fresh_install_runtime_steps(gate)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(called_operations, expected_calls)
+                self.assertNotIn("start-app", called_operations)
+
+        result, called_operations, _files = self._run_fresh_install_runtime_steps(None)
         self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
         self.assertEqual(
             called_operations,
-            ["device-time", "force-stop", "start-app"],
+            ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline", "install-apk", "postinstall", "start-app"],
         )
+
+    def test_installation_failures_capture_logs_without_retry_or_success(self) -> None:
+        for operation, status in (("install-apk", 1), ("postinstall", 31)):
+            for kind in ("emulator", "physical"):
+                for log_status in (0, 29):
+                    with self.subTest(operation=operation, kind=kind, log_status=log_status):
+                        result, calls, files = self._run_fresh_install_runtime_steps(
+                            operation, device_kind=kind, log_status=log_status,
+                        )
+                        self.assertEqual(result.returncode, status, result.stderr)
+                        expected = ["preinstall", "device-time"]
+                        if kind == "emulator":
+                            expected.extend(("capture-emulator-memory-runtime", "capture-emulator-baseline"))
+                        expected.append("install-apk")
+                        if operation == "postinstall":
+                            expected.append("postinstall")
+                        expected.append("capture-logcat")
+                        if kind == "emulator":
+                            expected.extend(("capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"))
+                        self.assertEqual(calls, expected)
+                        self.assertEqual(files["adb-device-time.txt"], b"1786240000.123\n")
+                        self.assertEqual(files["cleanup-state.txt"], b"armed=1 confirmed=0\n")
+                        self.assertEqual(files["logcat.txt"], b"scoped smoke log\n")
+                        self.assertNotIn("result.txt", files)
+                        self.assertNotIn("result.json", files)
+                        if operation == "install-apk":
+                            self.assertIn(b"Broken pipe (32)", files["adb-install.log"])
+                            self.assertIn(b"adb-install.log", result.stderr)
+                        if log_status:
+                            self.assertIn(b"smoke-log capture also failed", result.stderr)
+                            if kind == "emulator":
+                                self.assertIn(b"emulator crash-log capture also failed", result.stderr)
+
+    def test_failed_emulator_baseline_does_not_arm_cleanup_or_install(self) -> None:
+        result, calls, files = self._run_fresh_install_runtime_steps("capture-emulator-baseline")
+        self.assertEqual(result.returncode, 18, result.stderr)
+        self.assertEqual(calls, ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline",
+                                 "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"])
+        self.assertEqual(files["cleanup-state.txt"], b"armed=0 confirmed=0\n")
+        self.assertIn(b"baseline capture failed (exit=18)", result.stderr)
+        self.assertNotIn("adb-install.log", files)
+
+    def test_memory_runtime_capture_is_before_install_and_only_on_owned_16k(self) -> None:
+        result, calls, files = self._run_fresh_install_runtime_steps("capture-emulator-memory-runtime")
+        self.assertEqual(result.returncode, 20, result.stderr)
+        self.assertEqual(calls, ["preinstall", "device-time", "capture-emulator-memory-runtime",
+                                 "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"])
+        self.assertEqual(files["cleanup-state.txt"], b"armed=0 confirmed=0\n")
+        self.assertIn(b"memory-runtime capture failed (exit=20)", result.stderr)
+        self.assertNotIn("adb-install.log", files)
+        for kind, profile in (("physical", "api35-16k"), ("emulator", "api23-4k")):
+            result, calls, _ = self._run_fresh_install_runtime_steps(
+                None, device_kind=kind, runtime_profile=profile,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("capture-emulator-memory-runtime", calls)
+            self.assertIn("install-apk", calls)
+
+    def test_failed_or_invalid_clock_does_not_arm_cleanup_or_install(self) -> None:
+        cases = (("device-time", "1786240000.123"), (None, ""), (None, "1786240000"),
+                 (None, "1786240000.123; injected"))
+        for operation, epoch in cases:
+            with self.subTest(operation=operation, epoch=epoch):
+                result, calls, files = self._run_fresh_install_runtime_steps(
+                    operation, device_epoch=epoch,
+                )
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(calls, ["preinstall", "device-time"])
+                self.assertEqual(files["cleanup-state.txt"], b"armed=0 confirmed=0\n")
+                self.assertNotIn("adb-install.log", files)
+                self.assertNotIn("logcat.txt", files)
 
     def _run_preinstall_observation(
         self,
@@ -1661,11 +1778,13 @@ fi
         boot_owned_emulator: bool = False,
         device_kind_override: str | None = None,
         emulator_started_override: bool | None = None,
+        recovery_capture_status: int = 0,
+        diagnostic_status: int = 0,
     ) -> tuple[subprocess.CompletedProcess[bytes], dict[str, bytes], int, int]:
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
-        sample_start = producer.index("observe_installed_package_sample() {")
+        sample_start = producer.index("report_android_failure_diagnostic() {")
         observe_start = producer.index("observe_owned_installed_package() {")
         observe_end = producer.index("\n}\n\ncleanup_android_app()", observe_start)
         observe_function = producer[sample_start : observe_end + len("\n}\n")]
@@ -1720,10 +1839,12 @@ ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED=0
 ANDROID_BOOT_AVD={1 if boot_owned_emulator else 0}
 DEVICE_KIND={device_kind}
 EMULATOR_STARTED={1 if emulator_started else 0}
+RUN_ID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+python3() {{ return {diagnostic_status}; }}
 remaining_bounded_timeout() {{
     observation_count=$(/bin/cat "$OBSERVATION_COUNTER")
     if [ "$observation_count" -lt {len(outcomes)} ]; then
-        printf '15\n'
+        printf '%s\n' "$2"
         return 0
     fi
     return 1
@@ -1760,6 +1881,19 @@ android_command() {{
             diagnostic) printf 'recovered\n'; printf 'unexpected diagnostic\n' >&2; return 0 ;;
             *) return 2 ;;
         esac
+    fi
+    case "$operation" in
+        capture-emulator-recovery-state) capture_leaf=emulator-state-recovery.txt ;;
+        capture-emulator-recovery-logcat) capture_leaf=emulator-recovery-logcat.txt ;;
+        *) capture_leaf= ;;
+    esac
+    if [ -n "$capture_leaf" ]; then
+        test "$#" -eq 3 && test "$2" = --timeout-seconds && test "$3" -le 5 || return 2
+        if [ {recovery_capture_status} -ne 0 ]; then
+            printf 'capture unavailable fixture\n' >&2; return {recovery_capture_status}
+        fi
+        printf 'recovered emulator fixture\n' >"$DIST/$capture_leaf"
+        return 0
     fi
     test "$operation" = observe-installed-apk
     observation_count=$(/bin/cat "$OBSERVATION_COUNTER")
@@ -1812,10 +1946,14 @@ exit "$observation_status"
         signer_status: int = 0,
         install_confirmed: bool = True,
         uninstall_status: int = 0,
+        uninstall_outcomes: tuple[int, ...] = (),
+        signer_outcomes: tuple[int, ...] = (),
         cleanup_invocations: int = 1,
         remaining_calls_per_invocation: tuple[int, ...] | None = None,
         boot_owned_emulator: bool = False,
         transport_recovery_attempted: bool = False,
+        recovery_capture_status: int = 0,
+        diagnostic_status: int = 0,
     ) -> tuple[
         subprocess.CompletedProcess[bytes], dict[str, bytes], list[str], int, bool
     ]:
@@ -1825,10 +1963,10 @@ exit "$observation_status"
         query_start = producer.index("query_package_state() {")
         query_end = producer.index("\n}\n\nobserve_preinstall_package_absence()", query_start)
         query_function = producer[query_start : query_end + len("\n}\n")]
-        sample_start = producer.index("observe_installed_package_sample() {")
+        sample_start = producer.index("report_android_failure_diagnostic() {")
         sample_end = producer.index("\n}\n\nobserve_owned_installed_package()", sample_start)
         sample_function = producer[sample_start : sample_end + len("\n}\n")]
-        recovery_start = producer.index("attempt_owned_emulator_transport_recovery() {")
+        recovery_start = producer.index("capture_recovered_emulator_evidence() {")
         recovery_end = producer.index("\n}\n\ncleanup_android_app()", recovery_start)
         recovery_function = producer[recovery_start : recovery_end + len("\n}\n")]
         cleanup_start = producer.index("cleanup_android_app() {")
@@ -1857,6 +1995,12 @@ exit "$observation_status"
             recovery_counter.write_text("0\n", encoding="ascii")
             signer_counter = root / "signer-count.txt"
             signer_counter.write_text("0\n", encoding="ascii")
+            uninstall_sequence = root / "uninstall-sequence.txt"
+            uninstall_sequence.write_text("\n".join(map(str, uninstall_outcomes)) + "\n", encoding="ascii")
+            signer_sequence = root / "signer-sequence.txt"
+            signer_sequence.write_text("\n".join(map(str, signer_outcomes)) + "\n", encoding="ascii")
+            uninstall_counter = root / "uninstall-count.txt"
+            uninstall_counter.write_text("0\n", encoding="ascii")
             work = root / "work"
             work.mkdir(mode=0o700)
             calls = root / "calls.txt"
@@ -1917,6 +2061,10 @@ QUERY_COUNTER={shlex.quote(str(counter))}
 OWNERSHIP_COUNTER={shlex.quote(str(ownership_counter))}
 RECOVERY_COUNTER={shlex.quote(str(recovery_counter))}
 SIGNER_COUNTER={shlex.quote(str(signer_counter))}
+SIGNER_SEQUENCE={shlex.quote(str(signer_sequence))}
+UNINSTALL_SEQUENCE={shlex.quote(str(uninstall_sequence))}
+UNINSTALL_COUNTER={shlex.quote(str(uninstall_counter))}
+UNINSTALL_SUCCEEDED={shlex.quote(str(root / "uninstall-succeeded"))}
 CALLS={shlex.quote(str(calls))}
 REMAINING_ROOT={shlex.quote(str(remaining_root))}
 WORK={shlex.quote(str(work))}
@@ -1925,10 +2073,13 @@ ANDROID_APP_CLEANUP_ARMED=1
 ANDROID_APP_INSTALL_CONFIRMED={1 if install_confirmed else 0}
 ANDROID_APP_CLEANUP_INVOCATION=0
 ANDROID_APP_UNINSTALL_REQUESTED=0
+ANDROID_APP_UNINSTALL_PATH_SHA256=
 ANDROID_EMULATOR_TRANSPORT_RECOVERY_ATTEMPTED={1 if transport_recovery_attempted else 0}
 ANDROID_BOOT_AVD={1 if boot_owned_emulator else 0}
 DEVICE_KIND={"emulator" if boot_owned_emulator else "physical"}
 EMULATOR_STARTED={1 if boot_owned_emulator else 0}
+RUN_ID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+python3() {{ return {diagnostic_status}; }}
 SERIAL_SHA256_PREFIX=0123456789ab
 monotonic_deadline() {{ printf '999\n'; }}
 {remaining_function}
@@ -1938,13 +2089,40 @@ verify_observed_installed_apk_signer() {{
     signer_count=$(/bin/cat "$SIGNER_COUNTER")
     signer_count=$((signer_count + 1))
     printf '%s\n' "$signer_count" >"$SIGNER_COUNTER"
+    remove_installed_apk_copy || return 2
+    signer_outcome=$(/usr/bin/sed -n "${{signer_count}}p" "$SIGNER_SEQUENCE")
+    if [ -n "$signer_outcome" ]; then return "$signer_outcome"; fi
     return {signer_status}
 }}
 android_command() {{
     operation=$1
     printf '%s\n' "$operation" >>"$CALLS"
+    case "$operation" in
+        capture-emulator-recovery-state) capture_leaf=emulator-state-recovery.txt ;;
+        capture-emulator-recovery-logcat) capture_leaf=emulator-recovery-logcat.txt ;;
+        *) capture_leaf= ;;
+    esac
+    if [ -n "$capture_leaf" ]; then
+        test "$#" -eq 3 && test "$2" = --timeout-seconds && test "$3" -le 5 || return 2
+        if [ {recovery_capture_status} -ne 0 ]; then
+            printf 'capture unavailable fixture\n' >&2; return {recovery_capture_status}
+        fi
+        printf 'recovered emulator fixture\n' >"$DIST/$capture_leaf"
+        return 0
+    fi
     if [ "$operation" = uninstall-app ]; then
-        return {uninstall_status}
+        uninstall_count=$(/bin/cat "$UNINSTALL_COUNTER")
+        uninstall_count=$((uninstall_count + 1))
+        printf '%s\n' "$uninstall_count" >"$UNINSTALL_COUNTER"
+        uninstall_outcome=$(/usr/bin/sed -n "${{uninstall_count}}p" "$UNINSTALL_SEQUENCE")
+        if [ -z "$uninstall_outcome" ]; then uninstall_outcome={uninstall_status}; fi
+        if [ "$uninstall_outcome" -eq 0 ]; then
+            : >"$UNINSTALL_SUCCEEDED"
+            printf 'Success\n'
+        else
+            printf 'cmd: Failure calling service package: Broken pipe (32)\n' >&2
+        fi
+        return "$uninstall_outcome"
     fi
     if [ "$operation" = observe-installed-apk ]; then
         ownership_count=$(/bin/cat "$OWNERSHIP_COUNTER")
@@ -1980,6 +2158,9 @@ android_command() {{
     printf '%s\n' "$query_count" >"$QUERY_COUNTER"
     outcome=$(/usr/bin/sed -n "${{query_count}}p" "$PACKAGE_SEQUENCE")
     case "$outcome" in
+        until-uninstall)
+            if [ -f "$UNINSTALL_SUCCEEDED" ]; then printf 'absent\n'; else printf 'present\n'; fi
+            return 0 ;;
         absent | present) printf '%s\n' "$outcome"; return 0 ;;
         nonzero) printf 'retryable:query-nonzero\n'; return 0 ;;
         timeout) printf 'retryable:query-timeout\n'; return 0 ;;
@@ -2032,9 +2213,11 @@ exit "$cleanup_status"
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
-        phase_start = producer.index("if observe_preinstall_package_absence; then")
-        phase_end = producer.index("\nif android_command device-time", phase_start)
+        phase_start = producer.index("ANDROID_APP_CLEANUP_ARMED=1\nif ! android_command install-apk")
+        phase_end = producer.index("# This is a newly installed package:", phase_start)
         install_phase = producer[phase_start:phase_end]
+        helper_start = producer.index("capture_emulator_failure_logs() {\n")
+        helper_end = producer.index("\nselect_serial_or_empty()", helper_start)
 
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
@@ -2051,7 +2234,8 @@ CALLS={shlex.quote(str(calls))}
 CONFIRMED={shlex.quote(str(confirmed))}
 ANDROID_APP_CLEANUP_ARMED=0
 ANDROID_APP_INSTALL_CONFIRMED=0
-observe_preinstall_package_absence() {{ return 0; }}
+DEVICE_KIND=physical
+capture_app_logcat() {{ printf 'capture-logcat\n' >>"$CALLS"; }}
 monotonic_deadline() {{ printf '999\n'; }}
 observe_owned_installed_package() {{
     printf 'observe-owned-installed-package\n' >>"$CALLS"
@@ -2064,6 +2248,7 @@ android_command() {{
     fi
     return 0
 }}
+{producer[helper_start:helper_end]}
 {install_phase}
 test "$ANDROID_APP_INSTALL_CONFIRMED" = 1
 : >"$CONFIRMED"
@@ -3063,6 +3248,74 @@ test "$ANDROID_APP_INSTALL_CONFIRMED" = 1
                 require_release_mode=True,
             )
 
+    @staticmethod
+    def physical_release_device_proof() -> dict:
+        return {
+            "release_candidate_mode": True,
+            "device": {
+                "kind": "physical",
+                "serial_sha256_prefix": "3" * 12,
+                "raw_serial_recorded": False,
+                "manufacturer": "samsung",
+                "model": "SM-S948U",
+                "abi": "arm64-v8a",
+                "page_size": 4096,
+                "sdk": 36,
+                "release": "16",
+                "fingerprint_sha256_prefix": "4" * 12,
+            },
+            "android": {
+                "platform": "android-35",
+                "min_sdk": 23,
+                "target_sdk": 35,
+                "ndk": "29.0.14206865",
+                "native_page_alignment": 16384,
+                "build_tools": "36.0.0",
+                "adb_version": "Android Debug Bridge version 1.0.41",
+                "apksigner_sha256": "0" * 64,
+                "zipalign_sha256": "1" * 64,
+            },
+        }
+
+    def test_release_physical_device_keeps_its_own_page_size_and_sdk(self) -> None:
+        proof = self.physical_release_device_proof()
+        android_device_proof.verify_device_metadata(
+            proof,
+            expected_device_kind="physical",
+            expected_device_abi="arm64-v8a",
+            expected_page_size=None,
+            expected_device_sdk=None,
+            require_release_mode=True,
+        )
+
+    def test_release_physical_device_still_requires_release_capture(self) -> None:
+        proof = self.physical_release_device_proof()
+        proof["release_candidate_mode"] = False
+        with self.assertRaisesRegex(
+            SystemExit, "not generated in Android release-candidate mode"
+        ):
+            android_device_proof.verify_device_metadata(
+                proof,
+                expected_device_kind="physical",
+                expected_device_abi="arm64-v8a",
+                expected_page_size=None,
+                expected_device_sdk=None,
+                require_release_mode=True,
+            )
+
+    def test_release_physical_device_still_requires_explicit_abi(self) -> None:
+        proof = self.physical_release_device_proof()
+        with self.assertRaisesRegex(
+            SystemExit, "explicit expected Android device ABI"
+        ):
+            android_device_proof.verify_device_metadata(
+                proof,
+                expected_device_kind="physical",
+                expected_page_size=None,
+                expected_device_sdk=None,
+                require_release_mode=True,
+            )
+
     def test_device_sdk_is_an_exact_integer_and_matches_expectation(self) -> None:
         proof = {
             "release_candidate_mode": False,
@@ -3276,14 +3529,20 @@ test "$ANDROID_APP_INSTALL_CONFIRMED" = 1
         producer = (
             pathlib.Path(__file__).resolve().parent / "android-device-smoke.sh"
         ).read_text(encoding="utf-8")
-        match = re.search(r"source_paths = \{\n(?P<body>.*?)\n\}", producer, re.DOTALL)
+        self.assertIn("from android_device_proof import RuntimeResultProfile, source_inputs, result_package_profile", producer)
+        match = re.search(r"^source_paths = .*", producer, re.MULTILINE)
         self.assertIsNotNone(match)
-        entries = dict(
-            re.findall(
-                r'^    "([^"]+)": root / "([^"]+)",$', match.group("body"), re.MULTILINE
+        for profile in android_device_proof.RuntimeResultProfile:
+            namespace = {
+                "root": self.root,
+                "source_inputs": android_device_proof.source_inputs,
+                "result_profile": profile,
+            }
+            exec(compile(match.group(0), "<producer source inventory>", "exec"), namespace)
+            self.assertEqual(
+                namespace["source_paths"],
+                {name: self.root / path for name, path in android_device_proof.source_inputs(profile).items()},
             )
-        )
-        self.assertEqual(entries, android_device_proof.SOURCE_INPUTS)
 
     def test_android_control_dependency_direction_and_source_binding_are_explicit(
         self,
@@ -3360,7 +3619,8 @@ test "$ANDROID_APP_INSTALL_CONFIRMED" = 1
         self.assertLess(verify, pass_marker)
         self.assertLess(verify, bundle)
         self.assertLess(bundle, pass_marker)
-        self.assertIn("QPERIAPT_ANDROID_EXPECT_SDK=35", producer)
+        self.assertIn('ANDROID_RUNTIME_PROFILE=${QPERIAPT_ANDROID_RUNTIME_PROFILE:-api35-16k}', producer)
+        self.assertIn('[ "$EXPECTED_DEVICE_SDK" != "$ANDROID_RUNTIME_SDK" ]', producer)
         self.assertIn('"sdk": device_sdk', producer)
         self.assertIn('--expected-device-sdk "$DEVICE_SDK"', producer)
 
@@ -4461,6 +4721,25 @@ fi
         self.assertEqual(observation_count, 2)
         self.assertEqual(signer_count, 1)
 
+
+    def test_failure_summary_error_preserves_structural_and_cleanup_exit_status(self) -> None:
+        result, _files, count, signer_count = self._run_installed_package_ownership_observation(
+            ("structural",), boot_owned_emulator=True, diagnostic_status=7,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual((count, signer_count), (1, 0))
+        self.assertIn(b"ANDROID_FAILURE_DIAGNOSTIC_UNAVAILABLE", result.stderr)
+        result, files, calls, signer_count, copy_exists = self._run_cleanup_observation(
+            ("nonzero",), boot_owned_emulator=True, diagnostic_status=7,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls, ["package-state"])
+        self.assertEqual(signer_count, 0)
+        self.assertFalse(copy_exists)
+        self.assertIn(b"reason=query-nonzero", files["adb-package-state-observation.log"])
+        self.assertIn(b"ANDROID_FAILURE_DIAGNOSTIC_UNAVAILABLE", result.stderr)
+
+
     def test_installed_package_ownership_rejects_unknown_retry_reason(self) -> None:
         result, _files, observation_count, signer_count = (
             self._run_installed_package_ownership_observation(
@@ -4588,6 +4867,23 @@ fi
                     "transport-recovery=",
                     files["adb-package-state-observation.log"].decode("ascii"),
                 )
+
+    def test_missing_owned_transport_can_recover_before_first_exact_without_granting_ownership(self) -> None:
+        path = "a" * 64
+        for owned in (False, True):
+            with self.subTest(owned=owned):
+                result, files, count, signer_count = self._run_installed_package_ownership_observation(
+                    ("retryable:transport-absent", f"exact:{path}", f"exact:{path}"),
+                    transport_recovery_outcomes=("recovered",), boot_owned_emulator=owned)
+                self.assertEqual(result.returncode, 0, result.stderr.decode())
+                self.assertEqual(count, 3)
+                self.assertEqual(signer_count, 1)
+                self.assertEqual(files["fixture-recovery-count.txt"], b"1\n" if owned else b"0\n")
+                journal = files["adb-package-state-observation.log"].decode()
+                self.assertIn(f"path_sha256={path} consecutive=1", journal)
+                self.assertIn(f"path_sha256={path} consecutive=2", journal)
+                if owned:
+                    self.assertLess(journal.index("transport-recovery=recovered"), journal.index("state=exact"))
 
     def test_postinstall_transport_recovery_never_masks_integrity_retries(
         self,
@@ -4901,6 +5197,63 @@ fi
         recovery = journal.index("transport-recovery=recovered")
         first_exact = journal.index("state=exact path_sha256=", recovery)
         self.assertLess(recovery, first_exact)
+        self.assertEqual(files["emulator-state-recovery.txt"], b"recovered emulator fixture\n")
+        self.assertEqual(files["emulator-recovery-logcat.txt"], b"recovered emulator fixture\n")
+        state_capture = calls.index("capture-emulator-recovery-state")
+        log_capture = calls.index("capture-emulator-recovery-logcat")
+        next_ownership = calls.index("observe-installed-apk")
+        self.assertLess(calls.index("recover-emulator-transport"), state_capture)
+        self.assertLess(state_capture, log_capture)
+        self.assertLess(log_capture, next_ownership)
+
+    def test_recovery_diagnostics_do_not_extend_the_cleanup_deadline(self) -> None:
+        result, files, calls, signer_count, copy_exists = self._run_cleanup_observation(
+            ("device-unavailable",), transport_recovery_outcomes=("recovered",),
+            boot_owned_emulator=True, remaining_calls_per_invocation=(2,),
+        )
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("recovery-observation=deadline-exhausted", files["adb-package-state-observation.log"].decode())
+        self.assertNotIn("capture-emulator-recovery-state", calls)
+        self.assertNotIn("uninstall-app", calls)
+        self.assertEqual(signer_count, 0)
+        self.assertFalse(copy_exists)
+
+    def test_recovery_capture_failure_stays_observable_and_never_grants_ownership(self) -> None:
+        path_a = "a" * 64
+        result, files, calls, signer_count, _ = self._run_cleanup_observation(
+            ("device-unavailable", "present", "present") + ("absent",) * 3,
+            ownership_outcomes=(f"exact:{path_a}", f"exact:{path_a}"),
+            transport_recovery_outcomes=("recovered",), boot_owned_emulator=True,
+            recovery_capture_status=7,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("emulator-state-recovery.txt", files)
+        self.assertNotIn("capture-emulator-recovery-logcat", calls)
+        self.assertIn("recovery-observation=capture-emulator-recovery-state exit=7",
+                      files["adb-package-state-observation.log"].decode())
+        self.assertEqual(calls.count("observe-installed-apk"), 2)
+        self.assertEqual(signer_count, 1)
+        self.assertLess(calls.index("capture-emulator-recovery-state"), calls.index("observe-installed-apk"))
+
+    def test_recovery_capture_signals_stop_cleanup_and_postinstall(self) -> None:
+        for status in (129, 130, 143):
+            with self.subTest(status=status):
+                result, files, calls, signer_count, _ = self._run_cleanup_observation(
+                    ("device-unavailable", "present"), transport_recovery_outcomes=("recovered",),
+                    boot_owned_emulator=True, recovery_capture_status=status,
+                )
+                self.assertEqual(result.returncode, status, result.stderr)
+                self.assertNotIn("uninstall-app", calls)
+                self.assertEqual(signer_count, 0)
+                self.assertIn(f"exit={status}", files["adb-package-state-observation.log"].decode())
+                result, _, observations, signer_count = self._run_installed_package_ownership_observation(
+                    ("retryable:transport-absent", "exact:" + "a" * 64),
+                    transport_recovery_outcomes=("recovered",), boot_owned_emulator=True,
+                    recovery_capture_status=status,
+                )
+                self.assertEqual(result.returncode, status, result.stderr)
+                self.assertEqual(observations, 1)
+                self.assertEqual(signer_count, 0)
 
     def test_cleanup_transport_recovery_resets_prior_ownership_streak(self) -> None:
         path_a = "a" * 64
@@ -5188,19 +5541,127 @@ exit "$cleanup_status"
             )
         )
 
-    def test_cleanup_never_repeats_an_uninstall_request_that_remains_present(
+    def test_cleanup_never_repeats_a_successful_request_that_remains_present(
         self,
     ) -> None:
         result, files, calls, _signer_count, _copy_exists = self._run_cleanup_observation(
             ("present", "present", "present", "present"),
             ownership_outcomes=(f"exact:{'a' * 64}", f"exact:{'a' * 64}"),
-            uninstall_status=17,
+            uninstall_status=0,
         )
         self.assertEqual(result.returncode, 1)
         self.assertEqual(calls.count("uninstall-app"), 1)
         self.assertEqual(calls.count("package-state"), 4)
         log = files["adb-package-state-observation.log"].decode("ascii")
         self.assertEqual(log.count("uninstall=still-present-after-request"), 2)
+
+    def test_cleanup_failed_uninstall_is_reauthorized(self) -> None:
+        # The simulated package disappears only after the second request returns
+        # zero. A failed first request followed by observation alone cannot pass.
+        result, files, calls, signer_count, copy_exists = self._run_cleanup_observation(
+            ("until-uninstall",) * 7,
+            ownership_outcomes=(f"exact:{'a' * 64}",) * 4,
+            uninstall_outcomes=(1, 0),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        self.assertEqual(
+            calls,
+            [
+                "package-state", "observe-installed-apk",
+                "package-state", "observe-installed-apk", "uninstall-app",
+                "package-state", "observe-installed-apk",
+                "package-state", "observe-installed-apk", "uninstall-app",
+                "package-state", "package-state", "package-state",
+            ],
+        )
+        self.assertEqual(signer_count, 2)
+        self.assertFalse(copy_exists)
+        self.assertIn(b"Broken pipe (32)", files["adb-uninstall-cleanup.log"])
+        journal = files["adb-package-state-observation.log"].decode("ascii")
+        self.assertIn("attempt=2 uninstall=unknown-or-failed", journal)
+        self.assertIn("attempt=4 uninstall=request-returned-zero", journal)
+        self.assertTrue(journal.endswith("attempt=7 state=absent consecutive=3\n"))
+
+    def test_cleanup_failed_uninstall_requires_two_fresh_owned_samples(self) -> None:
+        result, _files, calls, signer_count, copy_exists = self._run_cleanup_observation(
+            ("present",) * 3,
+            ownership_outcomes=(f"exact:{'a' * 64}",) * 3,
+            uninstall_status=1,
+            remaining_calls_per_invocation=(9,),
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(calls.count("observe-installed-apk"), 3)
+        self.assertEqual(signer_count, 1)
+        self.assertFalse(copy_exists)
+
+    def test_cleanup_failed_uninstall_rejects_changed_path(self) -> None:
+        result, _files, calls, signer_count, copy_exists = self._run_cleanup_observation(
+            ("present",) * 3,
+            ownership_outcomes=(f"exact:{'a' * 64}", f"exact:{'a' * 64}", f"exact:{'b' * 64}"),
+            uninstall_status=1,
+            remaining_calls_per_invocation=(9,),
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(signer_count, 1)
+        self.assertFalse(copy_exists)
+        self.assertIn(b"path changed after an uninstall request", result.stderr)
+
+    def test_cleanup_failed_uninstall_rejects_unowned_bytes_or_identity(self) -> None:
+        for outcome, status in (("retryable:bytes-mismatch", 1), ("structural", 2)):
+            with self.subTest(outcome=outcome):
+                result, _files, calls, signer_count, copy_exists = self._run_cleanup_observation(
+                    ("present",) * 3,
+                    ownership_outcomes=(f"exact:{'a' * 64}", f"exact:{'a' * 64}", outcome),
+                    uninstall_status=1,
+                    remaining_calls_per_invocation=(9,),
+                )
+                self.assertEqual(result.returncode, status)
+                self.assertEqual(calls.count("uninstall-app"), 1)
+                self.assertEqual(calls.count("observe-installed-apk"), 3)
+                self.assertEqual(signer_count, 1)
+                self.assertFalse(copy_exists)
+
+    def test_cleanup_failed_uninstall_rechecks_signer(self) -> None:
+        result, _files, calls, signer_count, copy_exists = self._run_cleanup_observation(
+            ("present",) * 4,
+            ownership_outcomes=(f"exact:{'a' * 64}",) * 4,
+            signer_outcomes=(0, 2),
+            uninstall_status=1,
+            remaining_calls_per_invocation=(12,),
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(signer_count, 2)
+        self.assertFalse(copy_exists)
+
+    def test_cleanup_failed_uninstall_keeps_the_existing_deadline(self) -> None:
+        result, _files, calls, signer_count, copy_exists = self._run_cleanup_observation(
+            ("present",) * 3,
+            ownership_outcomes=(f"exact:{'a' * 64}",) * 2,
+            uninstall_status=1,
+            remaining_calls_per_invocation=(7,),
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(calls.count("observe-installed-apk"), 2)
+        self.assertEqual(signer_count, 1)
+        self.assertFalse(copy_exists)
+
+    def test_cleanup_uninstall_preserves_structural_and_signal_failure(self) -> None:
+        for status in (2, 129, 130, 143):
+            with self.subTest(status=status):
+                result, _files, calls, signer_count, copy_exists = self._run_cleanup_observation(
+                    ("present", "present", "absent", "absent", "absent"),
+                    ownership_outcomes=(f"exact:{'a' * 64}",) * 2,
+                    uninstall_status=status,
+                )
+                self.assertEqual(result.returncode, status)
+                self.assertEqual(calls.count("uninstall-app"), 1)
+                self.assertEqual(calls.count("package-state"), 2)
+                self.assertEqual(signer_count, 1)
+                self.assertFalse(copy_exists)
 
     def test_cleanup_preserves_numbered_raw_diagnostics_until_retry_deadline(self) -> None:
         result, files, calls, _signer_count, _copy_exists = self._run_cleanup_observation(
@@ -5246,7 +5707,7 @@ exit "$cleanup_status"
                 self.assertEqual(result.returncode, ownership_status)
                 self.assertEqual(
                     calls,
-                    ["install-apk", "observe-owned-installed-package"],
+                    ["install-apk", "observe-owned-installed-package", "capture-logcat"],
                 )
                 self.assertFalse(confirmed)
                 self.assertIn(b"ownership did not converge", result.stderr)
@@ -5255,7 +5716,7 @@ exit "$cleanup_status"
             0, install_status=17
         )
         self.assertEqual(result.returncode, 1)
-        self.assertEqual(calls, ["install-apk"])
+        self.assertEqual(calls, ["install-apk", "capture-logcat"])
         self.assertFalse(confirmed)
         self.assertIn(b"APK installation failed", result.stderr)
 
@@ -5550,7 +6011,7 @@ os.execve(
             pathlib.Path(__file__).resolve().parent / "android_bounded_command.py"
         ).read_text(encoding="utf-8")
         self.assertIn('"logcat",', adapter)
-        self.assertIn('"-T",\n            _device_epoch(layout),', adapter)
+        self.assertIn('"-T",\n            _device_logcat_start_time(layout),', adapter)
         self.assertIn('"QPeriaptSmoke:*",\n            "*:S",', adapter)
         self.assertIn('needle = f"run-id={run_id}"', producer)
         self.assertNotIn('"$ADB" -s "$SERIAL" logcat -d >', producer)
@@ -5730,6 +6191,81 @@ os.execve(
 
         selected["logcat"].write_text("tampered\n", encoding="utf-8")
         with self.assertRaisesRegex(SystemExit, "bundled evidence bytes differ"):
+            android_device_proof.verify_bundle_manifest(
+                bundle_root,
+                manifest,
+                archive_mtime=1_700_000_000,
+            )
+
+    def _bundle_for_proof(
+        self, bundle_root: pathlib.Path, proof: dict
+    ) -> dict:
+        file_paths = android_device_proof.bundle_file_paths(proof)
+        payloads = {
+            key: (
+                android_device_proof.canonical_json(proof)
+                if key == "proof"
+                else f"evidence-{key}\n".encode("utf-8")
+            )
+            for key in file_paths
+        }
+        records = {}
+        for key, relative in file_paths.items():
+            path = bundle_root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(payloads[key])
+            records[key] = {
+                "bytes": len(payloads[key]),
+                "path": relative,
+                "sha256": android_device_proof.sha256_bytes(payloads[key]),
+            }
+        return {
+            "schema_version": android_device_proof.BUNDLE_SCHEMA_VERSION,
+            "kind": android_device_proof.BUNDLE_KIND,
+            "source_date_epoch": 1_700_000_000,
+            "git_commit": proof["git_commit"],
+            "run_id": proof["run_id"],
+            "release_candidate_mode": proof["release_candidate_mode"],
+            "device": {
+                key: proof["device"][key]
+                for key in ("kind", "abi", "page_size", "sdk")
+            },
+            "raw_serial_recorded": False,
+            "files": records,
+        }
+
+    def test_release_bundle_accepts_physical_device_shape(self) -> None:
+        proof = complete_proof_shape()
+        proof["release_candidate_mode"] = True
+        proof["device"]["kind"] = "physical"
+        proof["device"]["page_size"] = 4096
+        proof["device"]["sdk"] = 36
+        proof["emulator_control"] = None
+        proof["paths"] = {
+            key: value
+            for key, value in proof["paths"].items()
+            if key not in android_device_proof.EMULATOR_CONTROL_PATH_KEYS
+        }
+        bundle_root = self.root / "physical-release-bundle"
+        manifest = self._bundle_for_proof(bundle_root, proof)
+        selected, parsed_proof = android_device_proof.verify_bundle_manifest(
+            bundle_root,
+            manifest,
+            archive_mtime=1_700_000_000,
+        )
+        self.assertEqual(parsed_proof["device"]["page_size"], 4096)
+        self.assertEqual(parsed_proof["device"]["sdk"], 36)
+        self.assertIs(parsed_proof["release_candidate_mode"], True)
+
+    def test_release_bundle_still_pins_emulator_device_shape(self) -> None:
+        proof = complete_proof_shape()
+        proof["release_candidate_mode"] = True
+        proof["device"]["page_size"] = 4096
+        bundle_root = self.root / "emulator-release-bundle"
+        manifest = self._bundle_for_proof(bundle_root, proof)
+        with self.assertRaisesRegex(
+            SystemExit, "not API 35 / 16 KiB"
+        ):
             android_device_proof.verify_bundle_manifest(
                 bundle_root,
                 manifest,

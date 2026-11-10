@@ -27,7 +27,7 @@ need() {
 	fi
 }
 
-require_java_22() {
+require_java_25() {
 	need java
 	java_version_output=$(java -version 2>&1) || {
 		printf 'error: Java could not report its version\n' >&2
@@ -43,8 +43,8 @@ if not match:
     sample = text.splitlines()[0] if text else "empty"
     raise SystemExit("error: cannot parse Java version from: " + sample)
 major = int(match.group(1))
-if major < 22:
-    raise SystemExit(f"error: Kotlin/Panama binding requires JDK >= 22, got Java {major}")
+if major < 25:
+    raise SystemExit(f"error: Kotlin/Panama binding requires JDK >= 25, got Java {major}")
 '; then
 		unset java_version_output
 		return 2
@@ -205,7 +205,7 @@ need xcodebuild
 need lipo
 need zip
 need gradle
-require_java_22
+require_java_25
 need wasm-pack
 need node
 require_wasm_clang "$wasm_compiler_input"
@@ -222,7 +222,10 @@ tmp_header=$(mktemp "$ROOT/target/qperiapt-header.XXXXXX.h")
 cleanup() {
 	rm -f "$tmp_header" "${swift_log:-}"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 step "cargo metadata locked" sh -c "cargo metadata --locked --format-version 1 >/dev/null"
 step "rustfmt" cargo fmt --all --check

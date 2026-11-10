@@ -1,0 +1,505 @@
+\section{Source and evidence map}
+\label{app:artifacts}
+
+The source snapshot for this manuscript's established protocol and experiment
+records is commit
+\texttt{228c944fc476e3e57d6c08063cacb19bca5b360e}
+of \href{https://github.com/billlza/q-periapt}{\texttt{billlza/q-periapt}}.
+Each retained execution keeps its original source and tool identity.
+The local record model and accounting proofs in this manuscript are mathematical
+arguments; the following entries identify the independently recorded
+mechanization and native observations.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.25\linewidth}>{\raggedright\arraybackslash}p{0.69\linewidth}@{}}
+\toprule
+Result & Reproduction source\\
+\midrule
+\endhead
+Joint symbolic replay &
+\href{https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/sdk-alpha1/evidence/20261104-multi-epoch-replay}{20261104-multi-epoch-replay}.
+The original archive is \texttt{CAPTURE.zip}; the checked certificate member is
+\texttt{replay-01/01-baseline-replay.proof.spthy}.\\[5pt]
+Positive two-round trace &
+\href{https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/sdk-alpha1/evidence/20261105-two-round-ground-trace}{20261105-two-round-ground-trace}.\\[5pt]
+Delayed-receipt ground trace &
+\href{https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace}{20261105-delayed-receipt-ground-trace}.\\[5pt]
+Native reservation disclosure &
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/RESERVATION_DISCLOSURE.md}{RESERVATION\_DISCLOSURE.md}
+and \path{src/durable/messages/tests/reservation_disclosure.rs}
+in the identity candidate.\\[5pt]
+Aggregate-copy execution &
+\href{https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/sdk-alpha1/evidence/20261105-aggregate-reservation-copy}{20261105-aggregate-reservation-copy}.\\[5pt]
+Root, traffic and phase mapping &
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/docs/continuity/RECOVERY_DEPENDENCIES_V1.md}{RECOVERY\_DEPENDENCIES\_V1.md};
+native \texttt{rekey/response.rs} and \texttt{rekey/completion.rs}.\\[5pt]
+SPQR snapshot corpus &
+\href{https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-spqr-reference}{continuity-spqr-reference}:
+\texttt{TRACE\_CORPUS.json}, \texttt{COMPROMISE\_CORPUS.json}, and
+\texttt{COMPROMISE\_EXPERIMENT.md}.\\[5pt]
+Whole-KEM corpus &
+\href{https://github.com/billlza/q-periapt/tree/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-whole-kem-reference}{continuity-whole-kem-reference}:
+\texttt{TRACE\_CORPUS.json}, \texttt{README.md}, and
+\texttt{ACTIVE\_COMPROMISE.md}.\\[5pt]
+Computational component arguments &
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/docs/continuity/COMPUTATIONAL_RECOVERY_V1.md}{COMPUTATIONAL\_RECOVERY\_V1.md}
+and its linked KEM adapter, hidden-record, shared-HMAC,
+root-extraction and adaptive-target notes.\\
+\bottomrule
+\end{longtable}
+
+The complete seven-schedule reference comparison is reproduced by
+\path{artifacts/reference-comparison/analyze_reference.py} with
+\texttt{--check}. Its four retained corpus files are bound to the source
+snapshot above by Git blob and SHA-256 identities in
+\path{artifacts/reference-comparison/source_identity.json}.
+\path{analysis.json} in that directory records all 420 snapshot cases and
+the 35 configuration--schedule rows; the generated
+\path{reference-schedule-table.tex} supplies Table~\ref{tab:reference-schedules}.
+The independent review checks every displayed count and decimal mean using
+separate integer arithmetic and rejects eight altered-input controls.
+
+The jointly checked certificate has SHA-256
+\begin{center}
+\small\texttt{dde5d06a071b1560da0d4c28c3f1fd81a3c39708f9fd8564ee391ddc362bcf7f}.
+\end{center}
+Its source-base receipt identifies
+\texttt{6084f3bfb09333f6b66291b38809ed512296a27b}.
+The fixed 4 November replay retained all 40 queries and its exact tool,
+resource and output receipts. Reading and checking this retained artifact while
+preparing the manuscript is distinct from executing another Tamarin run.
+
+
+
+\subsection{Mechanization and replay record}
+
+The theorem is the retained query
+\path{multi_epoch_fresh_reservations_recover_symbolic_message_secrecy}.
+Its certificate was replayed with all 24 reusable dependencies in the same
+Tamarin process. The independent 4 November replay used Tamarin 1.12.0 and
+Maude 3.5.1, one worker, a 12-GiB heap bound and the unchanged 900-second limit;
+it completed in 816.903 seconds. The output certificate was byte-identical to
+the retained input. Appendix~\ref{app:artifacts} gives its digest and archive
+member, making the theorem's exact formula and proof available for inspection.
+
+The complete inventory contains 40 queries: 27 verified and 13 incomplete.
+The latter comprise eleven multi-round existence queries and two historical
+all-trace queries outside the main theorem's dependency group. Two subsequent
+finite ground-trace constructions supply the concrete executions discussed
+below. Their independently checked formulas and original certificate inventory
+remain separately identifiable.
+
+
+\subsection{Guarded-normalization supplement}
+
+The complete manuscript extends the previously retained source at commit
+\begin{center}
+\small\texttt{1c68aa666db22d36ee136be1ec712545a9e74f03}
+\end{center}
+under \path{paper/continuity}. The manuscript and its directly used evidence
+are maintained in the repository's
+\href{https://github.com/billlza/q-periapt/pull/119}{continuous manuscript PR}.
+The filenames below are relative to \path{paper/continuity} in that distribution.
+
+The explicit normalization theorem and its proof are in
+\path{guarded-provenance.tex}; the conjunctive-exposure proposition and proof
+are in \path{acquisition-nonadditivity.tex}. The executable supplement is in
+\path{artifacts/guarded-provenance/}:
+\begin{itemize}
+\item \path{check_exposure.py} evaluates both record semantics;
+\path{results.json} records the finite enumeration and history checks.
+\item \path{review_exposure.py} checks 17 independently stated expected
+results; \path{review_results.json} records their outcomes.
+\item \path{review.md} documents the theorem and implementation review;
+\path{review_optimized_guard.json} records fail-closed optimized-mode
+rejection. The separately named
+\path{review_optimized_run_before_guard.json} retains the earlier execution
+that motivated the guard.
+\item \path{native_source_map.json} records source correspondence for the
+journal-to-wrapping-key derivation, durable image serialization, pending
+targets and the retained aggregate-copy test. It pins five source files
+at commit \texttt{228c944}; this inspection records no new native execution.
+\end{itemize}
+From that artifact directory, the reproduction commands are
+\begin{quote}
+\small
+\begin{verbatim}
+python3 check_exposure.py --output results.json
+python3 review_exposure.py
+\end{verbatim}
+\end{quote}
+These commands exercise the finite record model and its independent expected
+cases. The retained native and Tamarin evidence remains at the source
+checkpoints listed in the preceding map.
+
+\subsection{Constructive image/intent simulation}
+\label{app:opaque-artifacts}
+
+Section~\ref{sec:opaque-rendering} integrates the complete finite-interface
+algorithm and proof from \path{artifacts/record-rendering/opaque-renderer-v1.2.md}.
+The corresponding mathematical review is in
+\path{artifacts/record-rendering/independent-review.md}. The retained source
+modules defining the commitment experiment are
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/docs/continuity/HIDDEN_RECORD_COMMITMENTS_V1.md}{\nolinkurl{HIDDEN_RECORD_COMMITMENTS_V1.md}}
+and
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/docs/continuity/MULTI_RECORD_COMMITMENTS_V1.md}{\nolinkurl{MULTI_RECORD_COMMITMENTS_V1.md}}.
+Their actual domains and complete oracle budgets define the
+$\epsilon_{\rm com}$ term; the new table construction supplies the
+image/intent implementation after that replacement.
+
+The source correspondence of Section~\ref{sec:native-correspondence} is
+recorded in \path{artifacts/native-interface/native_interface_map.md} and
+\path{artifacts/native-interface/map.json}. The machine-readable map binds
+the source ranges and file identities to the fixed protocol checkpoint.
+\path{artifacts/native-interface/native_map_validation.json} records the
+source checks. These are source observations associated with the declared
+interfaces; historical execution receipts retain their own dates and
+source identities.
+
+\subsection{Immutable report composition}
+\label{app:report-artifacts}
+
+Section~\ref{sec:report-composition} gives the finite-interface algorithm,
+reverse-order theorem and real-disclosure corollary. Its complete proof note
+is \path{artifacts/report-composition/multi_report_theorem.md}; the independent
+review is \path{artifacts/report-composition/multi_report_review.md}.
+The fixed-source
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/docs/continuity/CLEANUP_REPORT_MAC_V1.md}{\nolinkurl{CLEANUP_REPORT_MAC_V1.md}}
+records the fixed-source one-row interface. The paper states its operational
+game in Section~\ref{sec:report-composition} and its primitive instantiation
+in Appendix~\ref{app:primitive-inputs}.
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/docs/continuity/SHARED_ROOT_HMAC_V1.md}{\nolinkurl{SHARED_ROOT_HMAC_V1.md}}
+specifies the compression-oracle functions and their query regimes.
+In the paper's notation, $\Phi_{256}$ bounds the two secret HMAC key-pad
+replacements, and $E_{\rm NMAC}$ bounds the ensuing row replacement with
+the stated length and query budgets. The composition theorem accepts the
+one-row distinguishing bound as a modular input and adds the complete
+ordinary-query work of every derived reduction.
+
+\subsection{Candidate-local computational connection}
+
+Section~\ref{sec:candidate-local-accounting} incorporates the frozen proof
+fragment paired with \path{artifacts/candidate-local/candidate_local_composition.md}.
+The independent derivation and its artifact identities are
+recorded in \path{artifacts/candidate-local/independent_review.md} and
+\path{artifacts/candidate-local/independent_review.json}. They check the
+all-continuations stopping certificate, the exact native-score identity,
+the selected-candidate residual, and the local component comparisons.
+The score identity applies to bounded scores; the positive/negative-event
+conversion is specialized to the message experiment's three-valued score.
+
+\subsection{Joint schedule and live recovery profile}
+\label{app:joint-artifacts}
+
+Section~\ref{sec:joint-continuation} and Appendix~\ref{app:joint-primitives}
+give the joint schedule and its shared-oracle primitive derivations.
+The complete proof record is
+\path{artifacts/joint-continuation/joint_continuation.md}; its separate
+review and frozen source identities are retained in the same directory.
+The live recovery profile in \path{artifacts/live-profile/source_profile.md}
+maps the actual root, confirmation, traffic, message and ACK calls, together
+with the private application and persistent-record interfaces. The map and
+encoding inventory record the exact full information strings and source
+locations. Its 24 source files are byte-identical between the protocol pin
+\sourcecommit{} and the inspected development revision
+\texttt{1c68aa66}; this identity check is separate from the retained native
+execution receipts.
+
+The live-core instantiation and joint authentication consequence are retained
+in \path{artifacts/confirmation-traffic/}. Their proof and separate reviews
+record the complete observation surface, the reservation-selector witness,
+the native confirmation cores and the original encryption ledger. The source
+map fixes each inspected file at the protocol checkpoint. The authentication
+argument starts at the uniform-root interface and assigns its own terminal
+event to any preceding comparison.
+
+\subsection{ContextBound and original-operation inputs}
+\label{app:contextbound-source}
+
+The core \texttt{combine\_policy\_bound} and \texttt{combine\_validated}
+functions in
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-core/src/lib.rs}{\path{crates/q-periapt-core/src/lib.rs}}
+fix the length-delimited component and context encoding. The SDK replay
+constructor's \texttt{reserve}, \texttt{open} and \texttt{binding} operations in
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-sdk/src/expert/replay.rs}{\path{crates/q-periapt-sdk/src/expert/replay.rs}}
+retain the admitted operation and its original tape. The rekey response
+module's \texttt{kem\_context} in
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/src/durable/messages/rekey/response.rs}{\path{research/continuity-identity-candidate/src/durable/messages/rekey/response.rs}}
+binds the complete retained offer into the application context.
+The artifact also retains an earlier Q-Periapt manuscript on ContextBound
+binding and implementation assurance. Those materials document the reused
+cryptographic substrate; the original reservation, acquisition and persistent
+simulation results are developed in the present paper.
+
+The connection artifact, \path{artifacts/contextbound-connection/},
+contains the complete proof, independent review and source induction for the
+next rekey of one established session. Its source map fixes fourteen files
+at \sourcecommit{} and the inspected development checkpoint. The
+self-contained checker recomputes six retained core vectors and exercises
+complete-tuple aliases, original-operation retries and component-challenge
+routing, with explicit incorrect-cache controls. The source audit is a
+separate command requiring the declared native revisions; its receipt records
+source identity and static assertions.
+
+\paragraph{Relation to earlier project material.}
+Earlier project work on SkyBridge Compass studies policy-governed
+authenticated establishment, complete-transcript binding, and a control-only
+recovery phase before application traffic
+(\href{https://github.com/billlza/Skybridge-Compass/blob/d49d2a9ed4e1fb00905adeb06c02989562e375af/Docs/TDSC-2026-01-0318_IEEE_Paper_SkyBridge_Compass_patched.tex}{unpublished manuscript, revision \texttt{d49d2a9}}).
+It supplies the operation-admission and traffic-release perspective. Here we
+follow the admitted operation's original randomness through persistence and
+acquisition, and develop record and report simulations. The artifact's
+\path{notes/skybridge-scope.md} fixes the source versions and allocates material
+between these research questions.
+
+
+\subsection{Finite multiple-root entry}
+
+Section~\ref{sec:multiple-root-entry} gives the finite controller, joint
+root-entry comparison and first-message corollary. The complete argument,
+including the class-allocation reduction, query budgets and a constructive
+controller, is in
+\path{artifacts/multiple-root-entry/multiple_root_entry_proof.md}.
+The same directory contains the frozen TeX module, independent derivation,
+25-point mathematical review and exact file identities. The controller
+permits available unmarked roots to become later salts; the marked root and
+all its aliases use the retained schedule handle. The review checks this
+interface and its composition with the preceding primitive bounds.
+
+The prose correspondence record in \path{artifacts/editorial-review/}
+links the current presentation to the retained mathematical inputs. Historical
+proof snapshots keep their exact identities; the semantic review checks the
+current definitions, hypotheses, interfaces and budgets against them.
+
+\subsection{SDK purpose-key correspondence}
+
+Section~\ref{sec:sdk-purpose-connection} uses the owned purpose-key API in
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-sdk/src/purpose.rs}{\path{crates/q-periapt-sdk/src/purpose.rs}}.
+Its complete proof and source map are retained in
+\path{artifacts/sdk-purpose-connection/}. The map checks the effective
+information fields, HKDF calls, owner guards and retained native tests at
+the protocol pin and development checkpoint. The accompanying review
+checks the variable-length compression budgets, complete-input aliases,
+owner transitions and selected-key experiment.
+
+The Rust check job at development revision \texttt{1c68aa66} passed all
+five purpose-key tests on 7 November 2026. The retained receipt lists their
+outcomes, covering the RFC~5869 vector, domain separation, dual-peer
+derivation, runtime closure, input admission and trust-root binding.
+The source correspondence and mathematical review record the additional
+manuscript claims.
+
+\subsection{Executed sources and signing-reservation interfaces}
+\label{app:source-attribution}
+
+Section~\ref{sec:executed-source-attribution} has its complete proof,
+source identities and independent mathematical review in
+\path{artifacts/source-attribution/}. The directly inspected native
+revision is \texttt{72acaaccde1ca9ea27e5af022da5fbce932ed4e9}; five of its
+seven inspected files additionally match the earlier native-pin receipt.
+The source map records the exact reservation/persistence/computation order,
+complete-wire bindings, original-signing-randomizer encoding and the
+separate signer-seed-file interface.
+
+The executable model explores 34 recovered states for generation and
+34 for encapsulation, with up to three original draws and two epochs.
+Its 486 call-boundary edges include failed writes with absent or retained
+targets, private-computation failure, process loss, release denial and
+completion. Six deliberate source-tracking mutations have explicit
+counterexamples. An independent expected matrix covers offer, response
+and final signature aliases; the response alias permits proposer traffic
+allocation with unchanged sources and changed complete traffic information.
+The signature checks preserve original randomizers and private-query
+ledgers across unpublished results, and enumerate the generic separation's
+64 small key/randomizer assignments. These are finite interface checks
+and exact source audits. Their receipts keep the native Rust and
+mechanized-proof execution status separate.
+
+\subsection{Reservation-to-ordinary signature connection}
+\label{app:signature-bridge}
+
+Section~\ref{sec:reservation-ordinary-bridge} has its full reduction,
+source identities, finite controls and independent internal argument review
+in \path{artifacts/signature-bridge/}. The native correspondence uses
+revision \texttt{358b921ab3469ce49f166633fc9a762ff6ed7e3d} and the
+lockfile-authenticated \texttt{fips204} 0.4.6 source archive. Its upstream
+revision is \texttt{8d456d989dce681233ef963d3c3306da8f76d7c7}.
+The retained packet includes the inspected sources and their licenses, so
+its identity and call-length checks run from the manuscript checkout.
+
+The controls distinguish exact pair caching from per-slot oracle queries,
+preserve original-message freshness under descriptor aliases, and record
+private invocations whose publication fails. Independent finite enumeration
+checks the shared-XOF construction's joint distribution and its disjoint
+hidden-input sectors. Owner controls distinguish declared lineage, actual
+signing-state identity and public-key equality, and exercise non-target
+disclosure. The mathematical review covers the complete two-comparison
+ROM/QROM argument and its ordinary native signing endpoint; executable
+controls validate the specified finite distributions and source interfaces.
+
+\subsection{Native authentication composition}
+\label{app:native-authentication}
+
+Section~\ref{sec:native-authentication} gives the complete selected-root
+authentication proof. Its argument review and executable accounting
+controls are retained in \path{artifacts/native-authentication/}.
+The controls check the native Boolean decomposition on 160 compatible
+assignments, including free and charged stops. Separate finite examples
+distinguish the selected authentication event from the confidentiality
+score events, joint eligibility from conditional probability, and the
+selected root from other root histories. The proof uses the source and
+primitive correspondences identified in the preceding supplements; its
+event-bit comparisons retain their own complete continuation budgets.
+
+\subsection{Matched directed-opportunity executions}
+\label{app:matched-comparison}
+
+Section~\ref{sec:matched-opportunities} uses research revision
+\texttt{fec8472060728cc1bb35cf15042c117dda00e336}, executed by GitHub run
+\href{https://github.com/billlza/q-periapt/actions/runs/42537214047}{42537214047}.
+Its checkout is the synthetic merge \texttt{0d12e77d}; preparation archives
+protocol source \texttt{358b921a} into an isolated execution tree. The retained
+preparation and executable receipts identify the native driver, SPQR and its
+64-byte chunk variant, and the whole-KEM reference. The run completed all
+49 profile--schedule pairs.
+
+\path{artifacts/matched-comparison/} retains the complete executed report,
+its 49-row JSON/CSV projection, original public-audit and qualification
+receipts, source digests and deterministic manuscript-table generator.
+The compressed report preserves the exact original JSON bytes. The generator
+checks complete profile/schedule and capture-owner inventories, admission and
+exposure partitions, frame budgets, full-envelope bytes and the distinction
+between native physical persistence and reference state returns. Input
+controls exercise altered denominators, duplicate rows, inconsistent request
+sets, fabricated physical counters and omitted frame-envelope work.
+
+The original public audit recomputed 14 native traces, 35 reference
+trace/snapshot cases and 35 public envelope schedules, and checked all 126
+public-evidence manifest entries. The hosted run performed the real native
+plaintext and reference AEAD key checks. The retained qualification receipt
+binds archive 13641008832, its SHA-256, the exact source and execution, and
+these verification outcomes. The manuscript projection preserves those
+execution identities and can be regenerated from the retained packet alone:
+\begin{samepage}
+\begin{quote}
+\small
+\begin{verbatim}
+python3 artifacts/matched-comparison/analyze_matched.py --check
+python3 artifacts/matched-comparison/check_input_controls.py
+\end{verbatim}
+\end{quote}
+\end{samepage}
+
+\subsection{Retry-readiness ablation}
+\label{app:retry-readiness}
+
+Section~\ref{sec:retry-readiness} uses research revision
+\texttt{29f1c362b67bcd06123ea1bef847af82e9f9e100}, executed by GitHub run
+\href{https://github.com/billlza/q-periapt/actions/runs/42551086845}{42551086845}
+at synthetic checkout \texttt{23f600f5}. The fixed protocol source remains
+\texttt{358b921a}. Its source comparison covers 2,687 files and identifies
+only the addition of the two experiment modules to the native test file;
+the original immediate-policy driver retains its exact bytes. The executed
+test binary is hash-bound before and after both policy runs.
+
+\path{artifacts/retry-readiness/} retains the exact compressed execution
+report, source and executable identities, fourteen paired result rows, the
+source/readiness control log and the independent public-trace audit. The
+source-bound provenance receipt identifies job 128946601334 and archive
+13650034930, checks all 42 archive members, and records fourteen passing
+source/readiness controls. The trace audit checks 29 public evidence files,
+recounts all 28 executions, and matches all fourteen fresh immediate-policy
+rows to the retained matched comparison.
+
+The table generator checks the two policies' complete profile/schedule
+inventories, application and exposure partitions, emitted-frame classes and
+bytes, public retry ages and physical persistence counters. It compares the
+executed report with the independent recount and the fourteen-pair result
+projection before emitting the manuscript table. The complete archived
+counts distinguish first commitments from deliveries and retain each
+post-capture denominator. Reproduction from the compact packet is:
+\begin{quote}
+\small
+\begin{verbatim}
+python3 artifacts/retry-readiness/analyze_retry.py --check
+\end{verbatim}
+\end{quote}
+
+\subsection{Online finite-chain selection}
+\label{app:chain-prefix}
+
+The complete proof and source correspondence for
+Theorem~\ref{thm:online-chain-leaf} are retained in
+\path{artifacts/chain-prefix/}. Three native files retain identical
+source identities at the original pin \texttt{228c944f} and inspected
+integration checkpoint \texttt{6a0ac0bb}. They identify the fixed-width
+chain derivation, zero nonce, exact outbox resumption and
+transaction-private skipped-key advancement.
+
+Exact finite enumeration covers all 128 online marking policies over
+a binary three-step ideal chain, together with eight four-valued
+policies. The selected key remains uniform conditional on earlier
+returned keys, the mark and the disclosed successor. Separate controls
+exhibit retrospective-selection bias, reconstruct later keys from an
+exposed prefix seed, and reject marking after an alias's first private
+computation. These controls validate the selection and source
+interfaces used by the mathematical comparison.
+\begin{quote}
+\small
+\begin{verbatim}
+python3 artifacts/chain-prefix/check_prefix.py
+\end{verbatim}
+\end{quote}
+
+\subsection{Native online-chain composition}
+\label{app:native-online-chain}
+
+The original-experiment composition of
+Theorem~\ref{thm:native-online-message} is retained in
+\path{artifacts/native-online-chain/}. Its source map binds six native
+files to the original evidence pin \texttt{228c944f} and inspected
+integration checkpoint \texttt{a4c08957}. The identical source blobs
+fix pending-plan retention before encryption, directional aliases,
+transaction-private receive advancement, skipped-key reuse and the
+complete originating KEM plans.
+
+Finite controls enumerate 19,440 traces with marking choices and
+77,760 first-computation decisions. Independent temporal and algebraic
+enumerations check 450 reservation/cut/version assignments and 256
+signed-score or Boolean-event partition identities. Counterexample
+controls exercise a rolled-back receive ledger, collapsed material
+identities, complete-image acquisition, candidate-local stopping and
+a fresh receive event followed by later honest encryption. Eighteen
+source-order anchors bind these interfaces to the retained source.
+The complete native bounds are proved in the manuscript; the controls
+check the finite accounting and source interfaces used by that proof.
+\begin{quote}
+\small
+\begin{verbatim}
+python3 artifacts/native-online-chain/check_native_chain.py
+\end{verbatim}
+\end{quote}
+
+
+\subsection{Bootstrap source and terminal connection}
+\label{app:bootstrap-artifacts}
+
+The bootstrap supplement is retained in \path{artifacts/bootstrap/}.
+Its entry, terminal-schedule and original reply-source packets retain their
+complete proof notes, source identities, executable controls and original
+results. The source assessments are \texttt{b1cff2a0}, \texttt{360aa810}
+and \texttt{68549dbc}, respectively; full commit identities and Git-blob
+and SHA-256 checks are stored with the corresponding source snapshots.
+The manuscript integration separately binds the added ACK-row correspondence
+to \texttt{471900bf}. The mathematical statements appear in
+Section~\ref{sec:bootstrap-authentication} and
+Appendix~\ref{app:bootstrap-entry}.
+
+The controls check the actual short/long compression equations against HMAC,
+complete-descriptor aliasing, source-order and token-layout assertions,
+eager/deferred root-table distributions, the full-table ACK coupling,
+original-slot sampling budgets, and two-endpoint capture accounting.
+Countermodels distinguish pre-registration leakage, replacement feedback
+into Expand's fifth block and an executed-call budget that omits reserved
+but selectively unused samples. The integration receipt records their
+reproduction, the independent argument review and the exact source/paper
+identities. These finite checks exercise the analytical proof's interfaces.

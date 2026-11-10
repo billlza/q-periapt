@@ -11,7 +11,7 @@ import os
 import pathlib
 import tempfile
 import unittest
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 from unittest import mock
 
@@ -178,7 +178,7 @@ class GitHubReleaseObservationTests(unittest.TestCase):
             "bypass_actors": [],
             "conditions": {
                 "ref_name": {
-                    "include": list(observation.STABLE_TAG_REFS),
+                    "include": list(observation.PROTECTED_STABLE_TAG_REFS),
                     "exclude": [],
                 }
             },
@@ -855,7 +855,9 @@ class GitHubReleaseObservationTests(unittest.TestCase):
                 "updatedAt": "2026-08-15T00:00:01Z",
                 "url": (
                     "https://github.com/"
-                    f"{observation.GITHUB_REPOSITORY}/releases/download/fixture-v1/{name}"
+                    f"{observation.GITHUB_REPOSITORY}/releases/download/"
+                    "untagged-0011223344556677889a/"
+                    f"{name}"
                 ),
             }
 
@@ -878,8 +880,11 @@ class GitHubReleaseObservationTests(unittest.TestCase):
                 "https://uploads.github.com/repos/"
                 f"{observation.GITHUB_REPOSITORY}/releases/77/assets{{?name,label}}"
             ),
+            # A draft release (and its assets) is keyed under the synthetic
+            # "untagged-<hex>" slug, not the tag form, until it is published.
             "url": (
-                f"https://github.com/{observation.GITHUB_REPOSITORY}/releases/tag/fixture-v1"
+                f"https://github.com/{observation.GITHUB_REPOSITORY}"
+                "/releases/tag/untagged-0011223344556677889a"
             ),
         }
         parsed = observation.parse_mutable_release_view(
@@ -965,7 +970,7 @@ class GitHubReleaseObservationTests(unittest.TestCase):
             ),
             "url": (
                 f"https://github.com/{observation.GITHUB_REPOSITORY}/"
-                f"releases/tag/{apple.tag}"
+                "releases/tag/untagged-0011223344556677889a"
             ),
         }
         responses = [
@@ -1047,6 +1052,45 @@ class GitHubReleaseObservationTests(unittest.TestCase):
                 json.dumps(listed).encode("utf-8"),
                 target_tags=("fixture-apple", "fixture-platform"),
             )
+
+    def test_release_list_normalizes_only_draft_zero_time_published_at(self) -> None:
+        # ``gh release list`` returns Go's zero-time value for a draft's
+        # publishedAt while ``gh release view`` returns null; the draft summary
+        # must normalize to null so the list/detail cross-check agrees. A
+        # published release's real timestamp is preserved unchanged.
+        listed = [
+            {
+                "createdAt": "2026-08-15T00:00:00Z",
+                "isDraft": True,
+                "isImmutable": False,
+                "isLatest": False,
+                "isPrerelease": False,
+                "name": "Fixture Apple",
+                "publishedAt": observation.GITHUB_DRAFT_PUBLISHED_AT_SENTINEL,
+                "tagName": "fixture-apple",
+            },
+            {
+                "createdAt": "2026-08-15T00:00:00Z",
+                "isDraft": False,
+                "isImmutable": True,
+                "isLatest": True,
+                "isPrerelease": False,
+                "name": "Fixture Platform",
+                "publishedAt": "2026-08-16T02:00:00Z",
+                "tagName": "fixture-platform",
+            },
+        ]
+        result = observation.parse_release_list(
+            json.dumps(listed).encode("utf-8"),
+            target_tags=("fixture-apple", "fixture-platform"),
+        )
+        by_tag = {target.tag: target for target in result.targets}
+        self.assertTrue(by_tag["fixture-apple"].draft)
+        self.assertIsNone(by_tag["fixture-apple"].published_at)
+        self.assertFalse(by_tag["fixture-platform"].draft)
+        self.assertEqual(
+            "2026-08-16T02:00:00Z", by_tag["fixture-platform"].published_at
+        )
 
     def test_published_sample_crosslinks_latest_endpoint_and_complete_assets(self) -> None:
         apple = observation.MutableReleasePolicy(
@@ -1364,6 +1408,166 @@ class GitHubReleaseObservationTests(unittest.TestCase):
                 )
             self.assertEqual(2, sample.call_count)
 
+    def test_direct_environment_stays_exact_and_explicit_proxy_adds_one_key(
+        self,
+    ) -> None:
+        source = {"GH_TOKEN": "fixture_token_123456789"}
+        expected = {
+            **source,
+            "GH_NO_EXTENSION_UPDATE_NOTIFIER": "1",
+            "GH_NO_UPDATE_NOTIFIER": "1",
+            "GH_PAGER": "cat",
+            "GH_PROMPT_DISABLED": "1",
+            "GH_TELEMETRY": "0",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_SYSTEM": "/dev/null",
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "HOME": observation._github_account_home(),
+            "LANG": "C",
+            "LC_ALL": "C",
+            "PAGER": "cat",
+            "PATH": "/usr/bin:/bin",
+            "TERM": "dumb",
+        }
+        self.assertEqual(expected, observation.github_cli_environment(source))
+        self.assertEqual(
+            expected,
+            observation.github_cli_environment(source, http_connect_proxy=None),
+        )
+        proxy = "http://127.0.0.1:7890"
+        selected = observation.github_cli_environment(source, http_connect_proxy=proxy)
+        self.assertEqual({**expected, "HTTPS_PROXY": proxy}, selected)
+        self.assertEqual(
+            selected, observation._validated_github_cli_environment(selected)
+        )
+        with observation._isolated_github_cli_environment(selected) as child:
+            self.assertEqual(proxy, child["HTTPS_PROXY"])
+            self.assertEqual(source["GH_TOKEN"], child["GH_TOKEN"])
+            self.assertEqual(
+                set(selected) | {"GH_CONFIG_DIR", "XDG_STATE_HOME", "XDG_CACHE_HOME"},
+                set(child),
+            )
+            self.assertNotEqual(expected["HOME"], child["HOME"])
+        self.assertEqual({"GH_TOKEN": "fixture_token_123456789"}, source)
+
+    def test_explicit_proxy_never_admits_ambient_network_or_trust_overrides(
+        self,
+    ) -> None:
+        proxy = "http://127.0.0.1:7890"
+        for name in observation.DANGEROUS_GITHUB_ENVIRONMENT | {"GIT_CONFIG_GLOBAL"}:
+            for value in ("", proxy):
+                with (
+                    self.subTest(name=name, value=value),
+                    self.assertRaisesRegex(
+                        observation.GitHubReleaseObservationError, "trust overrides"
+                    ),
+                ):
+                    observation.github_cli_environment(
+                        {"GH_TOKEN": "fixture_token_123456789", name: value},
+                        http_connect_proxy=proxy,
+                    )
+
+    def test_proxy_mutations_are_single_attempt_and_credentials_stay_scrubbed(
+        self,
+    ) -> None:
+        token = "fixture_token_123456789"
+        proxy = "http://127.0.0.1:7890"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            tool_path = root / "gh"
+            tool_path.write_bytes(b"fixture GitHub CLI\n")
+            os.chmod(tool_path, 0o500)
+            body = b'{"fixture":true}\n'
+            body_path = root / "request.json"
+            body_path.write_bytes(body)
+            os.chmod(body_path, 0o600)
+            with (
+                mock.patch.object(observation, "GITHUB_CLI_PATH", tool_path),
+                mock.patch.object(
+                    observation,
+                    "GITHUB_CLI_SHA256",
+                    hashlib.sha256(tool_path.read_bytes()).hexdigest(),
+                ),
+            ):
+                tool = observation.select_github_cli()
+                environment = observation.github_cli_environment(
+                    {"GH_TOKEN": token}, http_connect_proxy=proxy
+                )
+                for method in ("POST", "PATCH", "upload"):
+                    calls: list[list[str]] = []
+
+                    def fail_once(
+                        argv: list[str],
+                        *,
+                        timeout_seconds: int,
+                        maximum_bytes: int,
+                        stdin_fd: int,
+                        stderr: int,
+                        environment: Mapping[str, str],
+                    ) -> BoundedResult:
+                        del timeout_seconds, maximum_bytes
+                        calls.append(argv)
+                        self.assertEqual(proxy, environment["HTTPS_PROXY"])
+                        self.assertEqual(token, environment["GH_TOKEN"])
+                        self.assertNotIn(token, " ".join(argv))
+                        self.assertEqual(body, os.read(stdin_fd, len(body) + 1))
+                        os.write(
+                            stderr, f"TLS handshake timeout {token}\n".encode("ascii")
+                        )
+                        return BoundedResult(1)
+
+                    descriptor = os.open(body_path, os.O_RDONLY)
+                    try:
+                        with (
+                            self.subTest(method=method),
+                            self.assertRaises(
+                                observation.GitHubCliExecutionError
+                            ) as caught,
+                        ):
+                            if method == "upload":
+                                observation.execute_github_api_asset_upload(
+                                    tool,
+                                    release_id=123,
+                                    asset_name="fixture.zip",
+                                    content_type="application/zip",
+                                    input_fd=descriptor,
+                                    input_size=len(body),
+                                    input_sha256=hashlib.sha256(body).hexdigest(),
+                                    timeout_seconds=1,
+                                    maximum_bytes=1024,
+                                    environment=environment,
+                                    label="fixture upload",
+                                    runner=fail_once,
+                                )
+                            else:
+                                endpoint = (
+                                    f"/repos/{observation.GITHUB_REPOSITORY}/releases"
+                                )
+                                if method == "PATCH":
+                                    endpoint += "/123"
+                                observation.execute_github_api_json_mutation(
+                                    tool,
+                                    method=method,
+                                    endpoint=endpoint,
+                                    input_fd=descriptor,
+                                    input_size=len(body),
+                                    input_sha256=hashlib.sha256(body).hexdigest(),
+                                    timeout_seconds=1,
+                                    maximum_bytes=1024,
+                                    environment=environment,
+                                    label="fixture JSON mutation",
+                                    runner=fail_once,
+                                )
+                    finally:
+                        os.close(descriptor)
+                    self.assertEqual(1, len(calls))
+                    self.assertEqual(1, caught.exception.returncode)
+                    self.assertIsNone(caught.exception.error_kind)
+                    self.assertNotIn(token, str(caught.exception))
+                    self.assertIn("[redacted]", str(caught.exception))
+                    self.assertEqual(body, body_path.read_bytes())
+
     def test_github_cli_source_environment_rejects_trust_overrides(self) -> None:
         for name in (
             "GIT_DIR",
@@ -1466,6 +1670,164 @@ class GitHubReleaseObservationTests(unittest.TestCase):
                         runner=malformed_result,
                     )
 
+    def test_github_cli_execution_error_scrubs_credential_from_stderr_tail(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            tool_path = pathlib.Path(temporary).resolve() / "gh"
+            tool_path.write_bytes(b"fixture GitHub CLI\n")
+            os.chmod(tool_path, 0o500)
+            with (
+                mock.patch.object(observation, "GITHUB_CLI_PATH", tool_path),
+                mock.patch.object(
+                    observation,
+                    "GITHUB_CLI_SHA256",
+                    hashlib.sha256(tool_path.read_bytes()).hexdigest(),
+                ),
+            ):
+                tool = observation.select_github_cli()
+                environment = observation.github_cli_environment(
+                    {"GH_TOKEN": "fixture_token_123456789"}
+                )
+
+                def leaking_runner(
+                    _argv: list[str], **kwargs: object
+                ) -> BoundedResult:
+                    stderr_fd = kwargs["stderr"]
+                    assert isinstance(stderr_fd, int)
+                    os.write(
+                        stderr_fd,
+                        b"gh: HTTP 401\n  token   fixture_token_123456789"
+                        b"\nwas rejected\n",
+                    )
+                    return BoundedResult(1, b"")
+
+                with self.assertRaises(
+                    observation.GitHubCliExecutionError
+                ) as leaking_context:
+                    observation.capture_github_cli(
+                        tool,
+                        ["repo", "view"],
+                        timeout_seconds=1,
+                        maximum_bytes=1024,
+                        environment=environment,
+                        label="leaking command",
+                        runner=leaking_runner,
+                    )
+                message = str(leaking_context.exception)
+                self.assertEqual(1, leaking_context.exception.returncode)
+                self.assertNotIn("fixture_token_123456789", message)
+                self.assertIn(
+                    "gh: HTTP 401 token [redacted] was rejected", message
+                )
+                self.assertEqual(
+                    "gh: HTTP 401 token [redacted] was rejected",
+                    leaking_context.exception.stderr_tail,
+                )
+
+                def truncating_runner(
+                    _argv: list[str], **kwargs: object
+                ) -> BoundedResult:
+                    stderr_fd = kwargs["stderr"]
+                    assert isinstance(stderr_fd, int)
+                    padding = b"x" * (
+                        observation.MAX_GITHUB_CLI_STDERR_BYTES - 8
+                    )
+                    os.write(
+                        stderr_fd, padding + b"fixture_token_123456789\n"
+                    )
+                    return BoundedResult(1, b"")
+
+                with self.assertRaises(
+                    observation.GitHubCliExecutionError
+                ) as truncating_context:
+                    observation.capture_github_cli(
+                        tool,
+                        ["repo", "view"],
+                        timeout_seconds=1,
+                        maximum_bytes=1024,
+                        environment=environment,
+                        label="truncating command",
+                        runner=truncating_runner,
+                    )
+                tail = truncating_context.exception.stderr_tail
+                self.assertIsNotNone(tail)
+                self.assertLessEqual(
+                    len(tail), observation.MAX_GITHUB_CLI_STDERR_TAIL_CHARS
+                )
+                self.assertNotIn("fixture_", str(truncating_context.exception))
+                self.assertTrue(tail.endswith("[redacted]"))
+
+    def test_github_cli_blanket_failures_chain_the_original_exception(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            tool_path = pathlib.Path(temporary).resolve() / "gh"
+            tool_path.write_bytes(b"fixture GitHub CLI\n")
+            os.chmod(tool_path, 0o500)
+            with (
+                mock.patch.object(observation, "GITHUB_CLI_PATH", tool_path),
+                mock.patch.object(
+                    observation,
+                    "GITHUB_CLI_SHA256",
+                    hashlib.sha256(tool_path.read_bytes()).hexdigest(),
+                ),
+            ):
+                tool = observation.select_github_cli()
+                environment = observation.github_cli_environment(
+                    {"GH_TOKEN": "fixture_token_123456789"}
+                )
+
+                blanket_failure = RuntimeError("fixture blanket detail")
+
+                def blanket_runner(
+                    _argv: list[str], **_kwargs: object
+                ) -> BoundedResult:
+                    raise blanket_failure
+
+                with self.assertRaises(
+                    observation.GitHubReleaseObservationError
+                ) as blanket_context:
+                    observation.capture_github_cli(
+                        tool,
+                        ["repo", "view"],
+                        timeout_seconds=1,
+                        maximum_bytes=1024,
+                        environment=environment,
+                        label="blanket failure",
+                        runner=blanket_runner,
+                    )
+                self.assertNotIn(
+                    "fixture blanket detail", str(blanket_context.exception)
+                )
+                self.assertIs(blanket_failure, blanket_context.exception.__cause__)
+
+                transport_failure = BoundedProcessError("timeout", "fixture detail")
+
+                def transport_runner(
+                    _argv: list[str], **_kwargs: object
+                ) -> BoundedResult:
+                    raise transport_failure
+
+                with self.assertRaises(
+                    observation.GitHubCliExecutionError
+                ) as transport_context:
+                    observation.capture_github_cli(
+                        tool,
+                        ["repo", "view"],
+                        timeout_seconds=1,
+                        maximum_bytes=1024,
+                        environment=environment,
+                        label="transport failure",
+                        runner=transport_runner,
+                    )
+                self.assertNotIn(
+                    "fixture detail", str(transport_context.exception)
+                )
+                self.assertIs(
+                    transport_failure, transport_context.exception.__cause__
+                )
+
     def test_stable_tag_ruleset_parser_rejects_missing_bypass_and_target_drift(
         self,
     ) -> None:
@@ -1475,7 +1837,7 @@ class GitHubReleaseObservationTests(unittest.TestCase):
             ruleset_list,
             {42: _json(valid)},
         )
-        self.assertEqual(observation.STABLE_TAG_REFS, parsed.tag_refs)
+        self.assertEqual(observation.PROTECTED_STABLE_TAG_REFS, parsed.tag_refs)
         self.assertEqual((42,), parsed.ruleset_ids)
         self.assertRegex(parsed.observation_sha256, r"^[0-9a-f]{64}$")
 
@@ -2024,6 +2386,79 @@ class GitHubReleaseObservationTests(unittest.TestCase):
         )
         self.assertEqual("2026-08-14T03:00:00Z", verification.verified_at)
         self.assertRegex(verification.verification_record_sha256, r"^[0-9a-f]{64}$")
+
+    def test_unordered_attestation_policy_accepts_only_exact_asset_multiset(
+        self,
+    ) -> None:
+        unordered_policy = self.policy(require_order=False)
+
+        def parser(value: dict[str, object]) -> observation.ReleaseVerification:
+            return observation.parse_release_verification(
+                _json(value),
+                policy=unordered_policy,
+                release_id=self.RELEASE_ID,
+                published_at="2026-08-14T02:00:00Z",
+            )
+
+        permuted = copy.deepcopy(self.verification())
+        subjects = permuted["verificationResult"]["statement"]["subject"]
+        subjects[1:] = reversed(subjects[1:])
+        verified = parser(permuted)
+        self.assertEqual(
+            observation.expected_subjects(unordered_policy),
+            verified.projection(include_verified_at=True)["subjects"],
+        )
+
+        def duplicate(value: dict[str, Any]) -> None:
+            items = value["verificationResult"]["statement"]["subject"]
+            items[2] = copy.deepcopy(items[1])
+
+        def missing(value: dict[str, Any]) -> None:
+            value["verificationResult"]["statement"]["subject"].pop()
+
+        def extra(value: dict[str, Any]) -> None:
+            items = value["verificationResult"]["statement"]["subject"]
+            items.append(copy.deepcopy(items[-1]))
+
+        def changed_digest(value: dict[str, Any]) -> None:
+            value["verificationResult"]["statement"]["subject"][1][
+                "digest"
+            ]["sha256"] = "f" * 64
+
+        def moved_tag(value: dict[str, Any]) -> None:
+            items = value["verificationResult"]["statement"]["subject"]
+            items[0], items[1] = items[1], items[0]
+
+        for name, mutate in (
+            ("duplicate", duplicate),
+            ("missing", missing),
+            ("extra", extra),
+            ("changed-digest", changed_digest),
+            ("moved-tag", moved_tag),
+        ):
+            with self.subTest(name=name):
+                value = copy.deepcopy(self.verification())
+                mutate(value)
+                with self.assertRaises(observation.GitHubReleaseObservationError):
+                    parser(value)
+
+        ordered_value = copy.deepcopy(self.verification())
+        ordered_subjects = ordered_value["verificationResult"]["statement"][
+            "subject"
+        ]
+        ordered_subjects[1:] = reversed(ordered_subjects[1:])
+        with self.assertRaises(observation.GitHubReleaseObservationError):
+            observation.parse_release_verification(
+                _json(ordered_value),
+                policy=self.policy(require_order=True),
+                release_id=self.RELEASE_ID,
+                published_at="2026-08-14T02:00:00Z",
+            )
+
+        with self.assertRaises(observation.GitHubReleaseObservationError):
+            observation.expected_subjects(
+                dataclasses.replace(unordered_policy, require_asset_order=1)
+            )
 
     def test_repository_exact_keys_types_identity_and_duplicate_json(self) -> None:
         policy = observation.RepositoryPolicy(

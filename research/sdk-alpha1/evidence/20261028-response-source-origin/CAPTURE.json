@@ -1,0 +1,293 @@
+{
+  "schema": 1,
+  "scope": "Response knowledge-source closure; stored-payload source and full recovery theorem remain incomplete",
+  "source_base_commit": "61746afa199ffd3ad3b36c3be73a2030aac887d0",
+  "parent_capture": "../20261028-wire-and-parent-origins/CAPTURE.zip",
+  "parent_sha256": "60ec078cf090c36e96c54d73761768ab03f04f59c91025a82ed1cccf320cf188",
+  "entry": "experiments/p0-origin-response-restored-713/response-restored-proof.spthy",
+  "entry_sha256": "17388a2c9dee3d9c3ca497b6bf3f08bdb1f3b070a06f11117dfe89bf8e9843ac",
+  "operational_prefix_sha256": "3cb837646fa2097468d1fad0a10433f50d5c31b6be5553f20085170c3eef0266",
+  "unchanged_queries": 29,
+  "query_definitions_sha256": "88dee7ec275af1bd7d031844a8ca4240eed50b846174eb87970b928d96612ee1",
+  "closed_sources": [
+    "Application_Message",
+    "Cut_case_1",
+    "Cut_case_2",
+    "Final_Commit_8",
+    "Offer_Commit_3_case_1",
+    "Offer_Commit_3_case_2",
+    "Receipt_Commit_0",
+    "Response_Commit_6",
+    "Reveal_Entropy",
+    "Reveal_Identity",
+    "Snapshot_Signer_File_case_1",
+    "Snapshot_Signer_File_case_2",
+    "Snapshot_Signer_File_case_3",
+    "Snapshot_case_1",
+    "Snapshot_case_2",
+    "Snapshot_case_3",
+    "Snapshot_case_4"
+  ],
+  "newly_closed_sources": [
+    "Response_Commit_6"
+  ],
+  "remaining_sources": [
+    "Snapshot_case_5"
+  ],
+  "open_leaf_count": 36,
+  "main": {
+    "mode": "all-traces",
+    "status": "analysis incomplete",
+    "steps": 256
+  },
+  "auxiliary_all_trace_verified": {
+    "application_counter_has_public_constructor": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 17
+    },
+    "first_responder_ready_event_is_unique": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 285
+    },
+    "generation_and_encapsulation_secrets_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "generation_and_session_identifiers_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "generation_and_signing_secrets_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "phase_position_event_is_unique": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 29
+    },
+    "produced_counter_has_public_constructor": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 35
+    },
+    "produced_send_root_is_initial_or_hashed": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 55
+    },
+    "produced_state_role_and_epoch_have_public_constructors": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 191
+    },
+    "ready_epoch_and_parent_have_public_constructors": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 12
+    },
+    "ready_parent_has_tagged_epoch_origin": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 12
+    },
+    "ready_root_is_initial_or_hashed": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 11
+    },
+    "reservations_inherit_locally_confirmed_root": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 14
+    },
+    "signed_wire_scope_has_session_and_parent_origin": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 47
+    }
+  },
+  "initial_traffic_witness_steps": 414,
+  "full_snapshot_restoration": {
+    "parent_sha256": "85e00830fbd380ab38ed77982e6ac4f61b0ffa712d4c3a80f1521fcce343b7a4",
+    "input_sha256": "17388a2c9dee3d9c3ca497b6bf3f08bdb1f3b070a06f11117dfe89bf8e9843ac",
+    "actual_chain_method": "(#vr.11, 0) ~~> (#known, 0)",
+    "frame_sha256": "3e4da23c63e3a6b1308748a3fb98e2e5d235578b17bc99438601c213cba36983",
+    "all29_queries_and_operational_prefix_unchanged": true,
+    "all18_source_cases_retained": true,
+    "full_snapshot_subtree_restored_byte_identical": true,
+    "snapshot_subtree_sha256": "13377f40ed8376ff40457e09549fdfa541f4a576a864215b117389b0a866ba5d",
+    "snapshot_open_leaves_restored": 36,
+    "independent_no_search_replay": true,
+    "release_claim_eligible": false
+  },
+  "experiments": {
+    "p0-origin-response-frontier-713": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 313.7548561250005,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 165
+      },
+      "input_sha256": "3487b87ee293bc07fb9e2cab81e1a04566c6bcc33138b5861cfabb5b6a16e05a",
+      "output_sha256": "85e00830fbd380ab38ed77982e6ac4f61b0ffa712d4c3a80f1521fcce343b7a4",
+      "captured_frontiers": 2,
+      "search_requested": true
+    },
+    "p0-origin-response-restored-713": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 309.55544433299656,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 256
+      },
+      "input_sha256": "17388a2c9dee3d9c3ca497b6bf3f08bdb1f3b070a06f11117dfe89bf8e9843ac",
+      "output_sha256": "17388a2c9dee3d9c3ca497b6bf3f08bdb1f3b070a06f11117dfe89bf8e9843ac",
+      "captured_frontiers": 0,
+      "search_requested": false
+    }
+  },
+  "resources": {
+    "seconds_per_run": 900,
+    "derivation_seconds": 60,
+    "heap_gib": 12,
+    "threads": 1,
+    "capture_callbacks_limit": 32,
+    "capture_prefix": 9,
+    "remaining_search_bound": 7,
+    "total_search_depth_limit": 16
+  },
+  "boundaries": [
+    "All18sources,29queries and protocol rules retained. The full36leafsnapshot subtree was preserved and restored before independent replay.",
+    "Only the actually observed encapsulation chain was added. No hypothetical address or unchecked closed leaf was inserted.",
+    "Historical non-reuse initial_epoch_counter_is_zero remains the documented obsolete conjecture. Prior failures, timeouts and unvisited siblings remain in parent captures.",
+    "No complete multi-epoch secrecy, implementation correspondence, device, performance, ABI, installed interoperability or release claim."
+  ],
+  "full_goal_achieved": false,
+  "release_claim_eligible": false,
+  "files": {
+    "experiments/p0-origin-response-frontier-713/PREPARATION.json": {
+      "bytes": 881,
+      "sha256": "88d2f97e88a34ce2718a7854661897cdd18e326e791456ee5ff82947f05d493c"
+    },
+    "experiments/p0-origin-response-frontier-713/initial-send-oracle-frames/0000.json": {
+      "bytes": 369,
+      "sha256": "18681f06c5f98abbeeda0ca9dcd75bedd4fc2cf467487ae07e9592ff909e2b47"
+    },
+    "experiments/p0-origin-response-frontier-713/initial-send-oracle-frames/0000.txt": {
+      "bytes": 1693,
+      "sha256": "3e4da23c63e3a6b1308748a3fb98e2e5d235578b17bc99438601c213cba36983"
+    },
+    "experiments/p0-origin-response-frontier-713/initial-send-oracle-frames/0001.json": {
+      "bytes": 293,
+      "sha256": "c40a90317eba38cf19cf9dc97810c2f388ba0378d767b4e8f679fbbea6bec7d6"
+    },
+    "experiments/p0-origin-response-frontier-713/initial-send-oracle-frames/0001.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-response-frontier-713/initial-send-oracle.diagnostic-stop": {
+      "bytes": 27,
+      "sha256": "dd68d7b5191957984a0e516ce6e16769b5a45b1e975bd161bde0f6102561e087"
+    },
+    "experiments/p0-origin-response-frontier-713/initial-send-oracle.lock": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "experiments/p0-origin-response-frontier-713/initial-send-oracle.py": {
+      "bytes": 2318,
+      "sha256": "a2c40cb451ad0e8f52f650ef4ceed6f0a2a6f654dd7b583f5fd8b7bf2c860101"
+    },
+    "experiments/p0-origin-response-frontier-713/initial-send-oracle.sh": {
+      "bytes": 321,
+      "sha256": "e3518248b5efdd361299f0202297cf05c903c2b97fa68f4d56d6b7f32adc2f73"
+    },
+    "experiments/p0-origin-response-frontier-713/model.spthy": {
+      "bytes": 392712,
+      "sha256": "3487b87ee293bc07fb9e2cab81e1a04566c6bcc33138b5861cfabb5b6a16e05a"
+    },
+    "experiments/p0-origin-response-frontier-713/response-frontier-STARTED.json": {
+      "bytes": 1887,
+      "sha256": "82a9e1414494a3e29b70953d22a5c02f95de99215945c5796b0bbd3d6a13bb77"
+    },
+    "experiments/p0-origin-response-frontier-713/response-frontier-TERMINAL.json": {
+      "bytes": 6252,
+      "sha256": "31362fca039a4bf614a4ab6e78e67a2136cc420167dd3b0fc3bee476f05584ef"
+    },
+    "experiments/p0-origin-response-frontier-713/response-frontier-proof.spthy": {
+      "bytes": 392786,
+      "sha256": "85e00830fbd380ab38ed77982e6ac4f61b0ffa712d4c3a80f1521fcce343b7a4"
+    },
+    "experiments/p0-origin-response-frontier-713/response-frontier.stderr": {
+      "bytes": 4312,
+      "sha256": "1f5e04726c184165ce99b45def67933f44ea3a388fbda12f07b0e5abc1183755"
+    },
+    "experiments/p0-origin-response-frontier-713/response-frontier.stdout": {
+      "bytes": 3067,
+      "sha256": "6ad442df5dfaf4b265945f5ed331ce8cac41d662b4f4b334a4144fdb0da96c62"
+    },
+    "experiments/p0-origin-response-frontier-713/run.py": {
+      "bytes": 5792,
+      "sha256": "2c27642d776ce83620894c619aae60135d1bff56d5726dee5895a3c8e2b0ac01"
+    },
+    "experiments/p0-origin-response-restored-713/PREPARATION.json": {
+      "bytes": 683,
+      "sha256": "31d0644f970a7225de4cf5dc4b2b0e3952f6efd643e9376fdb7b2fecbe142d3e"
+    },
+    "experiments/p0-origin-response-restored-713/model.spthy": {
+      "bytes": 401044,
+      "sha256": "17388a2c9dee3d9c3ca497b6bf3f08bdb1f3b070a06f11117dfe89bf8e9843ac"
+    },
+    "experiments/p0-origin-response-restored-713/response-restored-STARTED.json": {
+      "bytes": 1614,
+      "sha256": "4c41d39c914b098eee0ceead147ee365aef280efef91e7cda34676dd305cb58d"
+    },
+    "experiments/p0-origin-response-restored-713/response-restored-TERMINAL.json": {
+      "bytes": 5980,
+      "sha256": "e07f68a79f274bcfaa6c1e70d12f3966d431af258643cbb93143ddcb2cb690b2"
+    },
+    "experiments/p0-origin-response-restored-713/response-restored-proof.spthy": {
+      "bytes": 401044,
+      "sha256": "17388a2c9dee3d9c3ca497b6bf3f08bdb1f3b070a06f11117dfe89bf8e9843ac"
+    },
+    "experiments/p0-origin-response-restored-713/response-restored.stderr": {
+      "bytes": 1595,
+      "sha256": "6f291faed68c3e11b46f9a9fc06e4bf51f2b7934329a75707840949793b4e6b4"
+    },
+    "experiments/p0-origin-response-restored-713/response-restored.stdout": {
+      "bytes": 3067,
+      "sha256": "a09ba765b2c532cee825b5a90461ee0d2d3131c7cb87fea9702a84b5474003eb"
+    },
+    "experiments/p0-origin-response-restored-713/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "parent/entry.spthy": {
+      "bytes": 401013,
+      "sha256": "121d2751b4fc076aa5b84138d7c20afc0b7867cab98c34dad37c0e2315a1948e"
+    },
+    "preparation/prepare-response-frontier-713.py": {
+      "bytes": 2953,
+      "sha256": "526d4ab71874d8a3cd5e21be5284bbefe0d2b4856cfbe6e70f81dc07393ccb13"
+    },
+    "preparation/prepare-response-restored-replay-713.py": {
+      "bytes": 3201,
+      "sha256": "7fc5c411b8afd80a0c9a753bc2b3c0bf5177c8242ffc2651b3f420ffeb2ec60d"
+    },
+    "tools/P0_PINNED_PROVER_IDENTITY.json": {
+      "bytes": 974,
+      "sha256": "f6e18705fdaf213d556237ca67fcab123e1b6f3ee4eca05aa69c5e70e7329459"
+    }
+  }
+}

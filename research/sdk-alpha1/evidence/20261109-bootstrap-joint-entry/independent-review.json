@@ -1,0 +1,90 @@
+{
+  "schema": "qperiapt-bootstrap-entry-independent-review/1",
+  "status": "passed",
+  "source_commit": "b1cff2a045d23aecf75aef12122e5080a8419676",
+  "review_scope": "Both primitive surviving-contribution entry services, finite allocation/query accounting, and conditional opaque-three-label tail composition.",
+  "primary_theorem": {
+    "url": "https://arxiv.org/pdf/2206.08132",
+    "theorem": "2",
+    "pages": [
+      9,
+      10
+    ],
+    "checked": [
+      "fixed-query point entropy",
+      "all-secret freshness",
+      "adaptive classical private and quantum public queries",
+      "published advantage coefficients"
+    ]
+  },
+  "bindings": [
+    {
+      "path": "docs/continuity/BOOTSTRAP_JOINT_ENTRY_V1.md",
+      "bytes": 17964,
+      "sha256": "02adbe2d702246545b048a9d5ac01f058a35523924d3042106ecbd4092752ed0"
+    },
+    {
+      "path": "docs/continuity/BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md",
+      "bytes": 36132,
+      "sha256": "800521831e73ab08b06447ef49923ef22b9e56c6bba217fa55b6697ffb2c8e6e"
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261109-bootstrap-joint-entry/check_entry.py",
+      "bytes": 16593,
+      "sha256": "91f3eddd0c309369cdf15d0af96aa38d42484b1e74dffc92705ee15ce031360d"
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261109-bootstrap-joint-entry/SOURCE_PINS.json",
+      "bytes": 1851,
+      "sha256": "f988feb7b4755624f1c1b03f436cdc47c4736dc911a3746d534d158157529447"
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261109-bootstrap-joint-entry/RESULT.json",
+      "bytes": 15403,
+      "sha256": "3fa74c8ce32c56794f3f2b12266ac90b010fe3ad547eef8a6f2c81e74c08959b"
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261109-bootstrap-joint-entry/independent-review.md",
+      "bytes": 5480,
+      "sha256": "61f57d68bc6c783e69ae97c1fdf01eddb3d4568c15ef45b57822e06f40ebd627"
+    }
+  ],
+  "independent_execution": {
+    "command": [
+      "python",
+      "-I",
+      "-S",
+      "-B",
+      "check_entry.py",
+      "--source-root",
+      "<exact source snapshot>",
+      "--output",
+      "<independent result>"
+    ],
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "matches_retained_result_bytes": true,
+    "remote_tree_source_blobs_matched": 7,
+    "short_equations": 32,
+    "long_equations": 32,
+    "raw_points": 8192,
+    "tagged_points": 1280,
+    "orderings": 720,
+    "sdk_short_slots": [
+      0,
+      1,
+      2
+    ],
+    "global_distinct_short_calls": 1,
+    "sum_slot_short_maxima": 3
+  },
+  "resolved_findings": [
+    "Separate global short-query budget from sum of fixed per-slot maxima.",
+    "Cache by available interface descriptors without hidden-byte equality tests.",
+    "State the opaque three-label and no-raw-PRK wrapper for tail composition.",
+    "Distinguish symbolic table-handle identity from possible numeric output collisions."
+  ],
+  "remaining_source_integration": [
+    "Original contribution challenge and permitted disclosure adapter.",
+    "Terminal full-transcript-class reconciliation with explicit effective-descriptor alias accounting."
+  ]
+}

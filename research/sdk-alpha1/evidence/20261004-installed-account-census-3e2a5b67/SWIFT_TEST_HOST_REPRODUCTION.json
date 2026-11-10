@@ -1,0 +1,57 @@
+{
+  "records": [
+    {
+      "label": "translated",
+      "command": [
+        "/usr/bin/arch",
+        "-x86_64",
+        "/bin/sh",
+        "-c",
+        "exec \"$@\"",
+        "swift-host-test",
+        "/usr/bin/xcrun",
+        "swift",
+        "test",
+        "--package-path",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/swift-test-host-reproduction",
+        "--triple",
+        "arm64-apple-macosx13.0",
+        "-j",
+        "2"
+      ],
+      "exit": 1,
+      "seconds": 24.7479206250282,
+      "passed_test": false,
+      "incompatible_architecture": false
+    },
+    {
+      "label": "native",
+      "command": [
+        "/usr/bin/arch",
+        "-x86_64",
+        "/bin/sh",
+        "-c",
+        "exec \"$@\"",
+        "swift-host-test",
+        "/usr/bin/arch",
+        "-arm64",
+        "/usr/bin/xcrun",
+        "swift",
+        "test",
+        "--package-path",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/swift-test-host-reproduction",
+        "--triple",
+        "arm64-apple-macosx13.0",
+        "-j",
+        "2"
+      ],
+      "exit": 0,
+      "seconds": 1.8002298750216141,
+      "passed_test": true,
+      "incompatible_architecture": false
+    }
+  ],
+  "completed": false,
+  "scope": "Local translated-parent SwiftPM/XCTest reproduction; no local CodeQL tracer execution",
+  "release_claim_eligible": false
+}

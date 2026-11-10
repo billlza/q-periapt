@@ -3,24 +3,23 @@
 Authoritative architecture document for **Q-Periapt**, a portable, `no_std`,
 side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 
-> **Status: stable-version ABI 2 source line / receipt-gated GitHub publication /
-> Rust registry publication pending, not production.** The Rust package
-> surface is a coordinated set of crates. It does not prove crates.io upload-API
+> **Status: 0.1.5 ABI 2 packages and ten-crate registry cohort published and verified;
+> production promotion remains open.** The Rust package
+> surface is a coordinated set of crates. Its pre-publication package-ready contract does not prove crates.io upload-API
 > acceptance, crate-name ownership, publishing credentials or authorization,
 > server-side policy acceptance, or a registry receipt. Immutable historical
 > prerelease receipts cover exact previously evidenced Apple XCFramework
 > and Android/Linux/Windows platform SDK artifacts; those receipts do not cover the
-> current target-selected source, and fresh stable publication evidence is required. Registry
-> publication and production promotion remain incomplete. Q-Periapt composes existing
+> current target-selected source. The complete 0.1.5 evidence is preserved at
+> `v0.1.5-verified-cohort`; production promotion remains incomplete. Q-Periapt composes existing
 > standardized/ecosystem primitives (ML-KEM, X25519, ML-DSA, SLH-DSA) through
 > third-party backends. The known-leaky, unmaintained PQClean-HQC adapter has been
 > removed from the publishable graph; a RustCrypto HQC-v5/FIPS-207-draft candidate is isolated
-> in a `publish = false` shadow crate with no suite code or ABI. It has **no third-party audit**, and
-> the release graph depends on the target-selected `q-periapt-mlkem-native-sys`
-> boundary over vendored `mlkem-native` v1.2.0 plus pinned pre-1.0 backends
-> (`fips204` 0.4.6 and `sha3` 0.10.9) that have not been independently audited for
-> this integration. **Do not
-> deploy.** The value proposition is *not* primitive or speed superiority — it is
+> in a `publish = false` shadow crate with no suite code or ABI. The release
+> graph depends on the target-selected `q-periapt-mlkem-native-sys`
+> boundary over vendored `mlkem-native` v2.0.0 plus pinned pre-1.0 backends
+> (`fips204` 0.4.6 and `sha3` 0.10.9). **Do not deploy.** The value proposition is
+> *not* primitive or speed superiority — it is
 > auditable composition, crypto-agility, side-channel CI, machine-checked binding
 > proofs, deterministic byte identity in the explicitly tested conformance cells,
 > and fail-closed semantic parity in the native product cells.
@@ -372,7 +371,7 @@ backend is a zero-sized type implementing a core trait:
 
 | Backend | Primitive | Crate | Notes |
 |---|---|---|---|
-| `MlKem768` | ML-KEM-768 (FIPS 203) | `q-periapt-mlkem-native-sys` (`mlkem-native` v1.2.0, target-selected native/portable) | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = false` because it exposes expanded/imported decapsulation keys. Raw expanded-DK import checks the embedded public key's canonical encoding and its stored hash before decapsulation; malformed inputs fail without copying temporary output to the caller. Randomness remains explicit for deterministic conformance testing. No predecessor source-CT claim is inherited. |
+| `MlKem768` | ML-KEM-768 (FIPS 203) | `q-periapt-mlkem-native-sys` (`mlkem-native` v2.0.0, target-selected native/portable) | `Kem`, `C2PRI = true`, `COMPAT_XWING_SAFE = false` because it exposes expanded/imported decapsulation keys. Raw expanded-DK import checks the embedded public key's canonical encoding and its stored hash before decapsulation; malformed inputs fail without copying temporary output to the caller. Randomness remains explicit for deterministic conformance testing. No predecessor source-CT claim is inherited. |
 | `MlKem768XWingSeed` | ML-KEM-768 seed-dk API | `q-periapt-mlkem-native-sys` + `sha3` 0.10.9 | `Kem`, `PreparedKem`, `C2PRI = true`, `COMPAT_XWING_SAFE = true`; stable private bytes remain the 32-byte seed, while an optional process-local prepared owner holds and erases the 2,400-byte expanded key. It is the only backend admitted to `CompatXWing`. |
 | `X25519` | X25519 ECDH-as-KEM | `x25519-dalek` 3.0.0 | `Kem`, default-false first-slot capabilities; deterministic from a 32-byte scalar. Canonical X-Wing uses it in the absorbed traditional slot. |
 | `Sha3_256Xof` | SHA3-256 | RustCrypto `sha3` 0.10.9 | `Xof256`; byte-identical public/secret absorption with fail-closed selective staging erasure. |
@@ -386,17 +385,21 @@ generator (`examples/refvec.rs`), and the X-Wing KAT.
 The sys crate uses an exact compile-time allowlist. The little-endian targets
 `aarch64-apple-darwin`, `aarch64-apple-ios`, `aarch64-apple-ios-sim`,
 `aarch64-unknown-linux-gnu`, and `aarch64-linux-android` compile upstream AArch64
-native arithmetic together with the fixed Armv8-A scalar x1 and Armv8-A
-scalar/Neon x4 FIPS 202 assembly paths. Every other target uses portable C,
-including x86, Windows/MSVC, Wasm, and freestanding builds. Native cells force
-`-march=armv8-a+nosha3`, reject contradictory target metadata and caller backend flags,
-and provide neither runtime CPU dispatch nor an Armv8.4-A SHA3-extension path.
+native arithmetic together with a fixed per-target FIPS 202 assembly profile:
+`aarch64-apple-darwin` and `aarch64-apple-ios-sim` (whose entire install base is
+FEAT_SHA3-capable Apple Silicon) force `-march=armv8.4-a+sha3` and pin the
+upstream Armv8.4-A SHA3 x1/x2 Keccak assembly, while the iOS device slice,
+Android, and generic Linux force `-march=armv8-a+nosha3` and pin the Armv8-A
+scalar x1 and scalar/Neon x4 paths. Every other target uses portable C,
+including x86, Windows/MSVC, Wasm, and freestanding builds. Native cells reject
+contradictory target metadata and caller backend flags, and provide no runtime
+CPU dispatch: each target's profile is fixed at build time.
 The selection lives below the primitive adapter: ABI 2 exports, key/ciphertext
 formats, suite/profile policy, and combiner wire bytes are unchanged.
-Its upstream trust anchors are v1.2.0 commit
-`0ba906cb14b1c241476134d7403a811b382ca498` and immutable GitHub commit
+Its upstream trust anchors are v2.0.0 commit
+`d1b2fe782888bdb761a50336012923180be7f502` and immutable GitHub commit
 archive SHA-256
-`f1975616b99c86819fb959803b090370d206d2b5fc9639146b79ce846864d677`.
+`7c7a10464ba3c62d5657a70da495539ab7f28e464cff80eb9d8173e2bc91c4d3`.
 The supplemental canonical `git archive --format=tar HEAD mlkem` SHA-256 is
 `77603845ef1bc00cfed17635d4d6844bbf2019b656a3baea8ab18041daa74396`.
 The safe facade concentrates fixed lengths, non-aliasing temporary arrays, return-code
@@ -405,9 +408,7 @@ retain their published C scope. Upstream HOL-Light evidence covers only the sele
 upstream assembly source/object routines under its stated preconditions; it does not
 cover this integration's downstream reassembly, Rust/C wrapper, full ABI, or final
 package. Neither upstream evidence nor constant-time testing proves arbitrary
-downstream compiler output. Neither the
-upstream provider nor this integration has completed an independent audit. RustSec
-does not inspect vendored C.
+downstream compiler output. RustSec does not inspect vendored C.
 
 Hidden bridge visibility limits dynamic-library export surfaces; it is not an
 access-control boundary for static linking. A `q-periapt-ffi` static consumer can
@@ -500,7 +501,7 @@ signed-policy-controlled OS-random workflow and its fail-closed controls.
 | **C ABI** | `q-periapt-ffi` | ABI-major `cdylib` + `staticlib`; exact-nine `q_periapt_*` dynamic export table for `cdylib`/DLL, while the static archive constrains only that public namespace and retains unsupported hidden `qpn_*` link internals; OS CSPRNG; `int32` status codes; every public entry `catch_unwind`-wrapped | internal Rust KAT + semantic product C smoke + `c_abi_contract.py` |
 | **WASM** | `q-periapt-wasm` | `wasm-bindgen`; JS supplies randomness as `Uint8Array` | default + signed-policy `wasm-pack test --node`; CI builds `wasm32` |
 | **Swift** | `bindings/swift/` | links the ABI2 C `staticlib`; policy-controlled only | `swift test` + five-slice XCFramework consumer pass; physical-device proof remains source-bound |
-| **Kotlin** | `bindings/kotlin/` | Panama **FFM** over ABI2, JDK ≥ 22; policy-controlled only | `gradle test` on JDK 22+ |
+| **Kotlin** | `bindings/kotlin/` | Panama **FFM** over ABI2, JDK ≥ 25; policy-controlled only | `gradle test` on JDK 25 LTS; JVM/API floor 25 |
 | **Android** | `bindings/android/` | JNI over ABI2; policy-controlled only | four-ABI AAR build + API 35 arm64 16 KiB emulator ART proof; physical proof remains separate |
 
 WASM is a separate deterministic conformance-oriented binding and is not part of the
@@ -553,7 +554,7 @@ The C header (`crates/q-periapt-ffi/include/q_periapt.h`) is generated by cbindg
 and is what Swift and Kotlin consume.
 
 The current working-tree contract reports `Q_PERIAPT_ABI_VERSION = 2` and package
-version `0.1.0`. Its `cdylib`/DLL exposes exactly nine dynamic
+version `0.1.5`. Its `cdylib`/DLL exposes exactly nine dynamic
 `q_periapt_*` product symbols: five metadata/status functions, signed-policy
 resolution, atomic OS-CSPRNG key generation, OS-CSPRNG encapsulation, and
 decapsulation. Raw hybrid/combine, caller-provided deterministic seeds/coins,
@@ -564,22 +565,32 @@ linkable to a deliberately hostile same-process static consumer and are unsuppor
 All valid product outputs are cleared before validation/crypto and are committed from
 local temporaries only after success. The contract also freezes the 40-byte policy
 decision and 36-byte trusted policy state.
-This is the pre-publication package-ready **`0.1.0` stable-version ABI 2
-source/crate contract**; its no-upload package checks do not establish registry publication.
-No current C archive, XCFramework, AAR, or device binary is implied by that package
-readiness. A distinct Apple distribution adapter Developer ID-signs only the outer
+This is the **`0.1.5` stable-version ABI 2
+source/crate contract**, the successor of the published `0.1.4` release line; the
+`0.1.5` registry cohort has all ten crates published and independently verified,
+with the complete record at `v0.1.5-verified-cohort`. The Apple
+and Android/Linux GitHub distributions are already public and immutable, with
+separate asset-verification receipts. No-upload package checks alone do not
+establish registry publication of the `0.1.5` crates.
+No current C archive, XCFramework, AAR, or device binary is implied by this source
+contract. A distinct Apple distribution adapter Developer ID-signs only the outer
 static XCFramework, enforces an exact static-only ZIP inventory, and binds the final ZIP, SwiftPM
 checksum, source commit, certificate, signature resources, and slice hashes in
 `APPLE_DISTRIBUTION.json`. The SDK payload contains no standalone executable or notarizable bundle,
 so its notarization applicability is explicitly `not_applicable_static_sdk_payload`; it is never
 reported as Apple Accepted or notarized. Currentness remains an evidence fact in
-`artifact/results.json`, not an architectural assertion.
+`artifact/results.json`, not an architectural assertion. The `0.1.4` verified cohort is
+recorded at the annotated tag `v0.1.4-verified-cohort`, not on main: reopening the source
+line returned `artifact/results.json` to its 190-key initial baseline, so main's trusted
+results record no `0.1.4` publication and still name `apple_v0_1_3` as the active Apple
+selector. That states where the evidence lives; the published `0.1.4` GitHub releases and
+crates are immutable and unaffected by it.
 This SDK origin signature does not replace a consuming app's signing, provisioning, or macOS
 notarization. Continuity's abstract snapshot schema 3 is unrelated
 and is not part of this ABI. Before production promotion or a platform-binary claim,
 all claimed platform package identities, release-index cross-face semantics,
 dependency audit, clean signed or transparency-backed provenance, same-source Apple
-matrix verification, controlled-host performance verification, and independent
+matrix verification, controlled-host performance verification, and internal
 cryptographic/C-FFI/ABI review must pass. ABI 1 compatibility is a hard cut: its four-byte state is rejected and cannot be
 upgraded from a version alone; hosts require explicit authorized re-enrollment/reset.
 The target-selection/source migration changed the canonical source digest and
@@ -727,6 +738,43 @@ service/state/proof gates are in
 
 - **`cbom`** — a CycloneDX 1.6 *Crypto* Bill of Materials of the suite's
   cryptographic assets (algorithms, parameter sets, quantum-security levels, OIDs).
+  The rows are *derived* from the backends, not transcribed from them: the CLI
+  takes ordinary dependencies on `q-periapt-core`, `q-periapt-sig`,
+  `q-periapt-policy` and `q-periapt-backends` (§12), reads each row's identifier
+  from the backend's own `Kem::algorithm` / `Signer::algorithm`, and its NIST
+  level from `SigAlg::nist_level` (the signature rows) or
+  `q_periapt_policy::nist_level` (the ML-KEM rows). The traditional partner and
+  the two FIPS 202 rows publish a declared 0 — a level no layer states because
+  none ranks them — and that declaration is a distinct case in the code, not a
+  lookup falling back: a key-establishment identifier the policy layer does not
+  level stops the emission rather than reaching an auditor as 0. So the
+  default build lists ML-KEM-512/768/1024, X25519, ML-DSA-44/65/87, SHA3-256 and
+  SHAKE-256; the SLH-DSA parameter sets appear only under the same
+  off-by-default `slh-dsa` feature that compiles them, on crates.io as well as
+  here; and a removed or renamed backend is a build failure rather than a stale
+  claim in a released CBOM. The row *set* is checked by
+  `crates/q-periapt-cli/tests/cbom_inventory.rs`, which asserts that the CBOM
+  claims exactly the algorithms the backends report, that no asset is emitted
+  twice, that the SLH-DSA rows follow the gate in both directions, that the
+  signature layer and the policy layer state the same levels, and that the policy
+  layer levels every ML-KEM row and none of the three that publish 0. Its
+  algorithm lists are not retyped: `q-periapt-backends` generates
+  `ML_KEM_BACKEND_ALGORITHMS`, `ML_DSA_BACKEND_ALGORITHMS` and
+  `SLH_DSA_BACKEND_ALGORITHMS` from the same `mlkem_backends!` /
+  `mldsa_backends!` / `slhdsa_backends!` invocations that define the backends, so
+  a parameter set *added* to one of them fails this guard until a row accounts
+  for it. Those three registries are the whole of what the macros can declare,
+  not just what the backends crate's root module declared: `macro_rules!` expands
+  where it is invoked, so each macro has exactly one rule — which always expands
+  its registry — and anchors that registry to a crate-wide-unique trait impl
+  (`impl crate::MlKemBackendRegistry for ()` and its two siblings), making a
+  second invocation in any other module of that crate `error[E0119]` rather than
+  a second registry const nothing reads. That guard ships with the published
+  crate, which names the same four dependencies, so a crates.io consumer can run
+  it too. What it cannot see is a backend added to `q-periapt-backends` as a
+  hand-written trait impl, or through a declaration macro of its own, rather than
+  through one of those three — `MlKem768XWingSeed`, `X25519` and `Sha3_256Xof`
+  are exactly such impls — and nothing else in the workspace sees one either.
 - **`sbom`** — a CycloneDX 1.6 SBOM derived from `Cargo.lock`.
 - **`scan`** — a migration scanner flagging legacy/quantum-vulnerable primitives
   (RSA, ECDSA, ECDH, DSA, NIST curves, MD5/SHA-1, 3DES, RC4) and recommending a PQ/T
@@ -785,11 +833,11 @@ q-periapt-core  (no deps; no_std; deny unsafe)
    │   └────────────── q-periapt-kem   (core)
    └──────── q-periapt-policy (core + sig)
 
-q-periapt-mlkem-native-sys → pinned vendored mlkem-native v1.2.0 target-selected C/assembly + cc (build only)
+q-periapt-mlkem-native-sys → pinned vendored mlkem-native v2.0.0 target-selected C/assembly + cc (build only)
 q-periapt-backends  → core + sig + mlkem-native-sys / fips204 / sha3 / x25519-dalek / [fips205]
 q-periapt-ffi       → backends + kem + core            (C ABI)
 q-periapt-wasm      → backends + kem + core            (wasm-bindgen)
-q-periapt-cli       → serde_json (+ suite metadata)    (CBOM/SBOM/scan)
+q-periapt-cli       → core + sig + policy + backends + clap/serde_json (CBOM/SBOM/scan)
 bindings/swift      → q-periapt-ffi staticlib (C ABI)
 bindings/kotlin     → q-periapt-ffi C ABI via Panama FFM
 research/hqc-fips207-candidate → hqc-kem RC only (publish=false; no product edge)

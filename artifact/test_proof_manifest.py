@@ -37,9 +37,11 @@ class ProofManifestTests(unittest.TestCase):
             proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
             performance_gate.PROOF_SCHEMA_VERSION,
         )
-        self.assertEqual(
-            proof_manifest.PERFORMANCE_PROOF_SCHEMA_VERSION,
-            release_publication_contract._STABLE_PERFORMANCE_PROOF_SCHEMA,
+        self.assertFalse(
+            hasattr(
+                release_publication_contract,
+                "_STABLE_PERFORMANCE_PROOF_SCHEMA",
+            )
         )
 
     def test_rust_package_schema_constants_match_the_live_contract(self) -> None:
@@ -167,7 +169,7 @@ class ProofManifestTests(unittest.TestCase):
                 "RUST_MLKEM_NATIVE_SYS_ARCHIVE_BINARY_PASS "
                 "target=aarch64-apple-darwin implementation=aarch64-native "
                 "implementation_id=mlkem-native-1.2.0/"
-                "aarch64-native-arith+fips202-v8a-scalar "
+                "aarch64-native-arith+fips202-v84a "
                 "objects=2 symbols=42 reserved_dynamic_abi=none",
                 "RUST_MLKEM_NATIVE_SYS_ARCHIVE_PASS vendor_files=118 "
                 "upstream=v1.2.0 commit="
@@ -958,7 +960,7 @@ class ProofManifestTests(unittest.TestCase):
             ),
             "generated_at": "2026-08-12T00:04:00Z",
             "index_path": (
-                "target/qperiapt-local-release/release/0.1.0/"
+                "target/qperiapt-local-release/release/0.1.5/"
                 f"{commit}/index.json"
             ),
             "index_schema": 5,

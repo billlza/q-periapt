@@ -22,6 +22,64 @@ from evidence_io import (
 )
 
 
+class FreshOutputDirectoryTests(unittest.TestCase):
+    def test_missing_child_error_does_not_hide_an_invalid_existing_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            (root / "file").write_bytes(b"not a directory")
+            (root / "loop").symlink_to(root / "loop", target_is_directory=True)
+            real_lstat = pathlib.Path.lstat
+            for parent in (root / "file", root / "loop"):
+                selected = parent / "new"
+
+                def missing_child(path, *args, **kwargs):
+                    if path == selected:
+                        # These native Windows failures can appear as absence;
+                        # the existing parent's metadata remains real filesystem I/O.
+                        raise FileNotFoundError("reported missing child")
+                    return real_lstat(path, *args, **kwargs)
+
+                with self.subTest(parent=parent), mock.patch.object(pathlib.Path, "lstat", missing_child):
+                    with self.assertRaisesRegex(EvidenceIOError, "cannot resolve"):
+                        evidence_io.fresh_output_directory(selected, within=root, label="fixture output")
+            self.assertEqual((root / "file").read_bytes(), b"not a directory")
+            self.assertEqual({p.name for p in root.iterdir()}, {"file", "loop"})
+
+    def test_resolved_destination_is_used_for_actual_exclusive_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            target = root / "target"
+            (target / "parent").mkdir(parents=True)
+            selected = evidence_io.fresh_output_directory(
+                target / "parent/../new", within=target, label="fixture output"
+            )
+            self.assertEqual(selected, target / "new")
+            self.assertFalse(selected.exists())
+            selected.mkdir()
+            with (selected / "marker").open("xb") as output:
+                output.write(b"inside the admitted tree")
+            self.assertEqual((target / "new/marker").read_bytes(), b"inside the admitted tree")
+            with self.assertRaisesRegex(EvidenceIOError, "must be fresh"):
+                evidence_io.fresh_output_directory(selected, within=target, label="fixture output")
+
+    def test_boundary_aliases_and_symlink_loops_fail_without_creating_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            real = root / "real"
+            real.mkdir()
+            alias = root / "target"
+            alias.symlink_to(real, target_is_directory=True)
+            with self.assertRaisesRegex(EvidenceIOError, "boundary must be canonical"):
+                evidence_io.fresh_output_directory(alias / "new", within=alias, label="fixture output")
+            (real / "loop").symlink_to(real / "loop", target_is_directory=True)
+            with self.assertRaisesRegex(EvidenceIOError, "cannot resolve"):
+                evidence_io.fresh_output_directory(real / "loop/new", within=real, label="fixture output")
+            (real / "file").write_bytes(b"not a directory")
+            with self.assertRaisesRegex(EvidenceIOError, "cannot resolve"):
+                evidence_io.fresh_output_directory(real / "file/new", within=real, label="fixture output")
+            self.assertEqual({p.name for p in real.iterdir()}, {"loop", "file"})
+
+
 class EvidenceIOTests(unittest.TestCase):
     def test_owned_descriptor_pre_effect_interrupt_is_not_retried(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

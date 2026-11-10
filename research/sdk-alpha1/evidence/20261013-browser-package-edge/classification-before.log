@@ -1,0 +1,21 @@
+test_browser_candidate_remains_outside_the_publishable_cohort (test_rust_sdk_profile.RustSDKProfileTests.test_browser_candidate_remains_outside_the_publishable_cohort) ... ERROR
+
+======================================================================
+ERROR: test_browser_candidate_remains_outside_the_publishable_cohort (test_rust_sdk_profile.RustSDKProfileTests.test_browser_candidate_remains_outside_the_publishable_cohort)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/test_rust_sdk_profile.py", line 64, in test_browser_candidate_remains_outside_the_publishable_cohort
+    packages = sdk.classify(value)
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/rust_sdk_profile.py", line 126, in classify
+    require(other in packages and dependency["req"] == requirement,
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            f"internal alpha dependency differs: {name} -> {other}")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/rust_sdk_profile.py", line 64, in require
+    raise ValueError(message)
+ValueError: internal alpha dependency differs: q-periapt-sdk-wasm -> q-periapt-continuity-identity-candidate
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (errors=1)

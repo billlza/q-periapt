@@ -1,0 +1,164 @@
+{
+  "record_version": 2,
+  "draft_date": "2026-11-07",
+  "revision": "round2-complete-35-page-manuscript",
+  "base_manuscript_commit": "1c68aa666db22d36ee136be1ec712545a9e74f03",
+  "base_manuscript_path": "paper/continuity",
+  "protocol_source_commit": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "immediate_predecessor": {
+    "path": "work/manuscript",
+    "pdf_pages": 28,
+    "pdf_sha256": "96edefdb1f7ad963dc94ff70dda1bdbe5d5a407a22e277f6c1fe86699df4ee0f",
+    "frozen": true,
+    "integration_record": {
+      "base_manuscript_commit": "1c68aa666db22d36ee136be1ec712545a9e74f03",
+      "base_manuscript_path": "paper/continuity",
+      "protocol_source_commit": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "unchanged_base_files": [
+        "computational-roadmap.tex",
+        "construction.tex",
+        "established-results.tex",
+        "references.bib",
+        "related-work.tex"
+      ],
+      "changed_base_files": [
+        "Makefile",
+        "README.md",
+        "artifact-map.tex",
+        "evaluation.tex",
+        "introduction.tex",
+        "main.tex",
+        "security-model.tex"
+      ],
+      "new_tex_files": [
+        "guarded-provenance.tex",
+        "acquisition-nonadditivity.tex"
+      ],
+      "checker_sha256": "f1d099836194f17a165527d5a2296c06a7d2bd44bf187c1ab9c7456e4beeb92c",
+      "supplement_native_source_map": "artifacts/guarded-provenance/native_source_map.json",
+      "pdf_pages": 28,
+      "pdf_sha256": "96edefdb1f7ad963dc94ff70dda1bdbe5d5a407a22e277f6c1fe86699df4ee0f"
+    }
+  },
+  "unchanged_base_files": [
+    "construction.tex",
+    "established-results.tex",
+    "references.bib",
+    "related-work.tex"
+  ],
+  "changed_base_files": [
+    "Makefile",
+    "README.md",
+    "artifact-map.tex",
+    "computational-roadmap.tex",
+    "evaluation.tex",
+    "introduction.tex",
+    "main.tex",
+    "security-model.tex"
+  ],
+  "new_tex_files": [
+    "guarded-provenance.tex",
+    "acquisition-nonadditivity.tex",
+    "opaque-rendering.tex",
+    "report-composition.tex",
+    "native-correspondence.tex"
+  ],
+  "round2_new_tex_files": [
+    "opaque-rendering.tex",
+    "report-composition.tex",
+    "native-correspondence.tex"
+  ],
+  "proof_modules": {
+    "opaque_renderer": {
+      "version": "1.2",
+      "tex": "opaque-rendering.tex",
+      "tex_sha256": "94259f696bd907bca372b8df7cd331b5c3bfa79f3724526d684f0e86a96ccfb5",
+      "note": "artifacts/record-rendering/opaque-renderer-v1.2.md",
+      "note_sha256": "98e0df8b8536d5d43cd191a0a9851676345e8c20aebe82a298c4d86dd6b8035e",
+      "review": "artifacts/record-rendering/independent-review.md",
+      "review_sha256": "93e67c0faef430804005d7d0ebad8170088d75d99bacccf4e74ead2db8e818ba",
+      "integration_review": "artifacts/record-rendering/integration-review.md",
+      "integration_review_sha256": "4bcf15d762c0328b800f5e05589d33789ad1935ca67f83bad6f1965e481bae93",
+      "scope": "Finite typed image/intent interface with designated private commitments, actual atom-free bytes, original-handle replay, and permanent fixed-candidate acquisition stopping."
+    },
+    "report_composition": {
+      "version": "0.3",
+      "tex": "report-composition.tex",
+      "tex_sha256": "c6358c7b39dba17db00e8a1f08eb226af834a253b2c04aea4504288e9d161653",
+      "note": "artifacts/report-composition/multi_report_theorem.md",
+      "note_sha256": "7416c2ccb8147a67e0fb3b1f8456970f1537aaf7985cbfbec196a502e2b19027",
+      "review": "artifacts/report-composition/multi_report_review.md",
+      "review_sha256": "f1797e356d03595df155d1b5c756623c39b8977d37946c1b69d06de2036e0b96",
+      "receipt": "artifacts/report-composition/multi_report_review_receipt.json",
+      "scope": "Finite immutable report-family interface; reverse-order hybrid composition, online raw-key dependency closure, and actual full-real-game protected-key disclosure residual before stopped-game abstraction."
+    }
+  },
+  "finite_model_evidence": {
+    "directory": "artifacts/guarded-provenance",
+    "kind": "retained_executable_finite_model_checks",
+    "acquisition_key_direct_source_assignments": 5360,
+    "six_event_histories": 360,
+    "history_prefix_checks": 2160,
+    "independent_expected_result_cases": 17,
+    "semantic_interpretation_controls": 5,
+    "optimization_guard": "Python optimized-mode entry-point rejection; exit 1 and no result-file creation.",
+    "python_minimum": "3.10",
+    "new_native_execution": false
+  },
+  "checker_sha256": "f1d099836194f17a165527d5a2296c06a7d2bd44bf187c1ab9c7456e4beeb92c",
+  "supplement_native_source_map": "artifacts/guarded-provenance/native_source_map.json",
+  "native_interface_correspondence": {
+    "tex": "native-correspondence.tex",
+    "tex_sha256": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+    "kind": "fixed_source_correspondence_audit",
+    "source_commit": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+    "entry_count": 37,
+    "matched_entry_count": 26,
+    "boundary_entry_count": 11,
+    "source_line_reference_count": 96,
+    "directly_cited_source_file_count": 27,
+    "broader_extracted_search_corpus_file_count": 107,
+    "source_tree_included_in_manuscript_package": false,
+    "map_markdown": "artifacts/native-interface/native_interface_map.md",
+    "map_markdown_sha256": "6bccd3b423e3a1b729b229534be9e7d334006a128e35bf7cfcfb7d02012fb448",
+    "map_json": "artifacts/native-interface/map.json",
+    "map_json_sha256": "d8eb3e433a388514fe5a9c0f7446a50a4b2d2543d1c9b6c9812f165030290e06",
+    "validation": "artifacts/native-interface/native_map_validation.json",
+    "snapshot_manifest": "artifacts/native-interface/source_snapshot_manifest.json",
+    "new_native_execution": false,
+    "whole_native_security_claim": false
+  },
+  "retained_historical_evidence": {
+    "configuration_schedule_combinations": 28,
+    "endpoint_snapshot_cases": 336,
+    "tamarin_reusable_dependencies": 24,
+    "whole_kem_active_control": "retained existing evidence",
+    "native_rust_rerun_this_integration": false,
+    "tamarin_rerun_this_integration": false,
+    "baseline_rerun_this_integration": false,
+    "provenance": "Existing appendix links and historical source/tool receipts retained."
+  },
+  "build": {
+    "command": "make",
+    "force_rebuild_command": "make -B",
+    "tools": [
+      "latexmk",
+      "pdfLaTeX",
+      "BibTeX"
+    ],
+    "log": "build/main.log",
+    "latex_errors": 0,
+    "overfull_boxes": 0,
+    "undefined_references_or_citations": 0,
+    "underfull_box_notices": 3,
+    "rendered_page_review": "Completed by manuscript integrator; no visible overflow.",
+    "blank_author_field": true
+  },
+  "pdf_path": "continuity.pdf",
+  "pdf_pages": 35,
+  "pdf_sha256": "75b9f50387dd7ea933f95ebbdf398f493491a008f9ec9a8e840d404374602f38",
+  "remote_status": {
+    "ci_source_commit": "1c68aa666db22d36ee136be1ec712545a9e74f03",
+    "round2_35_page_manuscript_pushed": false
+  }
+}

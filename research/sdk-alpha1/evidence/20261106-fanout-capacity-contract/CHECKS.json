@@ -1,0 +1,93 @@
+{
+  "archive": {
+    "bytes": 226307,
+    "members": 77,
+    "sha256": "057e5be1bed6e9f4735e778ccb7e448d075de4730a5080a2adadf432f5b64237"
+  },
+  "completed": true,
+  "descriptor_schema": 3,
+  "installed_package_qualification": false,
+  "native_binaries_included": false,
+  "native_executables": {
+    "debug": [
+      {
+        "bytes": 50821688,
+        "executable": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-contract-20261106/build/debug/deps/q_periapt_continuity_identity_candidate-8048dac8d42f6022",
+        "sha256_after_execution": "ca4c98145f8872aefeceb556759d2d9bcabdcd5b5aa0c12eb3dd47d73ac155e7",
+        "test": "account_fanout_capacity_and_id_scope_preserve_earlier_committed_work"
+      },
+      {
+        "bytes": 50821688,
+        "executable": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-contract-20261106/build/debug/deps/q_periapt_continuity_identity_candidate-8048dac8d42f6022",
+        "sha256_after_execution": "ca4c98145f8872aefeceb556759d2d9bcabdcd5b5aa0c12eb3dd47d73ac155e7",
+        "test": "account_fanout_abandonment_does_not_need_an_extra_batch_slot_at_capacity"
+      }
+    ],
+    "release": [
+      {
+        "bytes": 24756048,
+        "executable": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-contract-20261106/build/release/deps/q_periapt_continuity_identity_candidate-d3eb26eb6c704353",
+        "sha256_after_execution": "1c70922f8f5e569a105692555529390ec355da4f1e9f490341f590915a7ad257",
+        "test": "account_fanout_capacity_and_id_scope_preserve_earlier_committed_work"
+      },
+      {
+        "bytes": 24756048,
+        "executable": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-fanout-contract-20261106/build/release/deps/q_periapt_continuity_identity_candidate-d3eb26eb6c704353",
+        "sha256_after_execution": "1c70922f8f5e569a105692555529390ec355da4f1e9f490341f590915a7ad257",
+        "test": "account_fanout_abandonment_does_not_need_an_extra_batch_slot_at_capacity"
+      }
+    ]
+  },
+  "native_test_executions": 4,
+  "new_compiled_descriptor_matches": true,
+  "old_descriptor_accepted_before_and_rejected_after": true,
+  "old_native_origin_commit": "21e00e9c3cfd193b9f51491888347f583620dfe0",
+  "parent_commit": "107b17ccb6ef45d016932ffceb9d731a9f00235c",
+  "private_runtime_included": false,
+  "python_regression_red_then_green": true,
+  "python_tests": 8,
+  "release_claim_eligible": false,
+  "resource_budget_qualified": false,
+  "runtime_limit": 16,
+  "runtime_limit_value_unchanged": true,
+  "rustfmt_and_strict_clippy_passed": true,
+  "sources": {
+    "artifact/continuity_contract.py": {
+      "after": "db8f8ef2e5f38ac8cf05133c6bf9bd827dd4f95c116c787d08e7f74dbb3ff876",
+      "before": "42be72b76fdc429179b8b5dd8bc7a25f839489d3512d947a49a8a15938586a2f"
+    },
+    "artifact/test_continuity_contract.py": {
+      "after": "0f6830f7092aee7a6342d7c32761ebe447a3472981c77163232ecd18a121a6ef",
+      "before": "a47abdaedb855fb3669b8b0ecb4a71d75b03db49a7a28103e108fe22bf0db657"
+    },
+    "docs/continuity/BUDGETS_V1.json": {
+      "after": "f6719f14103f28bdf8d9fa1da6f42bb98c7b44b0d6f70d534dd75238ed51ef6c",
+      "before": "a7bfd33aadb7c6e92c7d7186e1fc1087d0977b4a684578e577e4ec6cf44022d4"
+    },
+    "docs/continuity/STORAGE_RECOVERY_V1.md": {
+      "after": "670dd002dfd3119ac879360bf48e04b35596233ade78b0f95d43442bf3ad791e",
+      "before": "e1c1e9cbeb4665f527ecb488fb35075d36bf70d7e139ea5cddb4270a0a8176de"
+    },
+    "docs/continuity/WIRE_V1.md": {
+      "after": "e1b1f4c25bdffebfe1a4be30f05a88947fcca12253d2f3bdfd57e2937648f1df",
+      "before": "8ac9818fdb8bffdb321abeeb9ab1d4d62276a34550663e6842c6f24510115d8c"
+    },
+    "research/continuity-identity-candidate/examples/contract_report.rs": {
+      "after": "0ef832abbe6d11865a5140e9f33b443875be851fa6fb02ad59ba1644e33d88f6",
+      "before": "0b46a0e6ee4b40e74b2142b7693b8c3f3b6fb0a1a19bb94f789a067bdc67a6a8"
+    },
+    "research/continuity-identity-candidate/src/contract.rs": {
+      "after": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
+      "before": "1fc3bb9131d9074b904208968430b45cb44799891ba102dc2c7b63545ee49431"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/fanout.rs": {
+      "after": "dfb7d7006c537cc40aa44bfa3bad3398880c3ff6396c1e5838ed4df98ff88d26",
+      "before": "37167f99d486e209f022fb2d142cb6662d0f6905a4dadaaf64743abde746b71a"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/tests/fanout.rs": {
+      "after": "ae861dbb3a2653d7d7be62a9ae34b915126e09d731ab622127f934d85c3bf9ec",
+      "before": "c6be8aa5283b24d6f796aa06a68950bbe680b94e4dd82abb7f8cfec876c49066"
+    }
+  },
+  "validation_result_sha256": "5c6657a5030aca2d2fc4b7c889ac32674f45bd232ad8c3288420011f75c03aba"
+}

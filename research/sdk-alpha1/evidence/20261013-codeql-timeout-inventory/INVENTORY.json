@@ -1,0 +1,23 @@
+{
+  "base_head": "bb82bd78d01097ad6ee17114d864321d0c82e200",
+  "tracked_count": 594,
+  "added_since_last_push": [
+    "crates/q-periapt-sdk-wasm/src/continuity.rs",
+    "crates/q-periapt-sdk-wasm/src/continuity/status.rs",
+    "crates/q-periapt-sdk-wasm/src/continuity/trust.rs",
+    "research/continuity-identity-candidate/examples/browser_owned_enrollment.rs",
+    "research/continuity-identity-candidate/src/anchor/transport/fetch.rs",
+    "research/continuity-identity-candidate/src/browser.rs",
+    "research/continuity-identity-candidate/src/browser/errors.rs",
+    "research/continuity-identity-candidate/src/browser/opening.rs",
+    "research/continuity-identity-candidate/src/browser_enrollment_probe.rs",
+    "research/continuity-identity-candidate/src/installation/opening.rs",
+    "research/continuity-identity-candidate/src/storage.rs",
+    "research/continuity-identity-candidate/src/storage/browser.rs",
+    "research/continuity-identity-candidate/src/storage/native.rs"
+  ],
+  "before_exit_code": 1,
+  "after_exit_code": 0,
+  "tests_passed": 44,
+  "query_or_workflow_changes": false
+}
