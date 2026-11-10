@@ -2,7 +2,10 @@ name: ci
 
 on:
   push:
+    branches: [main, integration/sdk-020]
+    tags: ['**']
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
