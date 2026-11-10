@@ -2,15 +2,15 @@
   "schema": "qperiapt-joc-single-source/1",
   "input_entry": "main.tex",
   "output": "joc-submission.tex",
-  "output_sha256": "9370eaeeec7716559210ac59bf1019e7c812598c0024254b3a66b79d016d50b7",
+  "output_sha256": "8dc5a0926bb0289da2f092aa9597363c8602caaff1d924b03edce052c3af5db3",
   "inputs": {
     "acquisition-nonadditivity.tex": {
       "sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
       "bytes": 2722
     },
     "artifact-map.tex": {
-      "sha256": "189067d4ee874fc8a3a2a1fb5ca9e30fc4f7a4b3060e2e9922a52470b3a69297",
-      "bytes": 28805
+      "sha256": "c97c63162e301538bdb656dd81955c4be23ae2db56a761382d9d9eef9244d6fd",
+      "bytes": 29631
     },
     "bootstrap-authentication.tex": {
       "sha256": "72c4f982bdf7229623ca790d83d3a2dc55ef0f6cb0f32cc832a61700f28e766d",
@@ -37,8 +37,8 @@
       "bytes": 4589
     },
     "computational-roadmap.tex": {
-      "sha256": "d9a028388b95366465cc12f574b9c24ed3150b0c8947f58989b4e6d3354b5319",
-      "bytes": 6570
+      "sha256": "ba415e0eaf3e6799d1c7cce76a9cabd4dbcf2ff6c196829b61031bfcfe9da7a8",
+      "bytes": 6961
     },
     "confirmation-traffic.tex": {
       "sha256": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
@@ -57,8 +57,8 @@
       "bytes": 935
     },
     "discussion.tex": {
-      "sha256": "f75016f1a47970d9bf6e7331c0121010bd8c591562c270f5a57a4be6f5bfae92",
-      "bytes": 8010
+      "sha256": "4042b5a6d3d04f28db062abad7a9022ced67c4313702402d85bfbaf06224e7ca",
+      "bytes": 8370
     },
     "established-results.tex": {
       "sha256": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
@@ -73,8 +73,8 @@
       "bytes": 8980
     },
     "introduction.tex": {
-      "sha256": "8744a6e91eb15ace60088a7e255055444bb0f7fe169ca6c4351e44d9e05e865f",
-      "bytes": 11246
+      "sha256": "fcd3ff8514e2e9cd7adbb0b81b3d2548e64342a593c7fa83139eff3e30da4110",
+      "bytes": 9935
     },
     "joint-continuation.tex": {
       "sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
@@ -84,13 +84,17 @@
       "sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
       "bytes": 10663
     },
+    "kem-ordinary-bridge.tex": {
+      "sha256": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f",
+      "bytes": 6546
+    },
     "live-core-instantiation.tex": {
       "sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
       "bytes": 5679
     },
     "main.tex": {
-      "sha256": "f46fd96f6c7da7ec9c9e431352d20b818efa40f7f8eb5b208a557f623e96737d",
-      "bytes": 4407
+      "sha256": "37436cf32b029d325faed36eb76211b2fbb4de829ccfb6b464a239a7a21e04b9",
+      "bytes": 4302
     },
     "matched-opportunities.tex": {
       "sha256": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
@@ -129,8 +133,8 @@
       "bytes": 1543
     },
     "related-work.tex": {
-      "sha256": "893342efdeac3b9d741e0295cfbe96545d621c154784b5006e3b66dc39e8f650",
-      "bytes": 8113
+      "sha256": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
+      "bytes": 9820
     },
     "report-composition.tex": {
       "sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",

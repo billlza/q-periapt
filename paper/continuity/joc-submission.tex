@@ -41,33 +41,32 @@
 % The alternative address is retained in author-metadata.json.
 \author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
-\abstract{Protocols that retain randomness across crashes must distinguish creation of a
-secret source from the later computation that uses it. We study how persistent
-randomness reservations affect recovery after compromise. Our model assigns
-immutable origins to operations and tracks acquisition of their encrypted
-representations and disclosure of the keys that open them. Alias normalization
-preserves those origins, and a guarded-path theorem characterizes record
-exposure for fixed public key derivations. We construct simulations for private
-records and dependent authentication reports, together with candidate-local
-accounting for an adaptively selected compromise cut. These results connect
-original-operation exposure to confidentiality and selected-root authentication
-after the next rekey of an established session. The reduction follows the
-complete hybrid contribution, root extraction, confirmation and traffic schedule
-in the stated quantum random-oracle models. An online finite-chain composition
-extends native confidentiality and integrity to a message selected after
-earlier-key disclosure. A shared-XOF bridge reduces native signing reservations
-to ordinary hedged ML-DSA unforgeability and supplies source attribution.
-A joint bootstrap entry preserves initial confirmation and adaptive long
-Extracts. Initial-source and reply-source compositions establish historical
-activation of the complete signed transcript, separating
-source and reply-family costs. Finite descriptor families also
-yield a purpose-key derivation result with exact aliases and separate owner
-lifecycles. A mechanized symbolic theorem establishes multi-epoch secrecy under
-the provenance condition. Native executions demonstrate traffic reconstruction
-from pre-restart reservations, aggregate copies and delayed receipts. Independent
-finite checks and 49 matched native/reference executions validate the exposure
-semantics and quantify reconstructed message sets alongside admitted service,
-communication and persistence work.}
+\abstract{Cryptographic operations that retain randomness across crashes can complete
+after compromise while depending on a previously exposed secret source. We
+develop an original-source exposure condition for recovery and connect it to
+computational security in persistent messaging. The model assigns immutable origins to reservations and tracks
+acquisition of encrypted records together with later key disclosures. Alias
+normalization preserves those origins through copying and resealing; a
+guarded-path characterization captures how records and keys jointly reveal
+them. The main computational construction simulates retained private records
+and causally dependent authentication reports when a reduction holds public
+operation outputs without the original random tape. Candidate-local accounting
+then preserves the native experiment's adaptively selected compromise cut.
+Applied to Q-Periapt Continuity, the construction establishes confidentiality
+and selected-message integrity after the next rekey of an established session,
+including online selection of an uncomputed message step after earlier-key
+disclosure. Component bridges connect the
+operational interfaces to ordinary KEM and hedged-signature security, while
+joint key-entry comparisons retain the complete confirmation and traffic
+schedule in the stated quantum random-oracle models. Complementary bootstrap
+instances protect either original contribution and preserve historical
+activation of the complete signed transcript. A mechanized symbolic theorem
+establishes multi-epoch secrecy under the provenance condition. Native
+executions demonstrate traffic reconstruction from pre-restart reservations,
+aggregate copies and delayed receipts. Independent finite checks and 49 matched
+native/reference executions validate the exposure semantics and quantify
+reconstructed message sets alongside admitted service, communication and
+persistence work.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 
@@ -132,111 +131,91 @@ boundaries. Its journal can also aggregate several sessions, making the
 distinction between a new image and an existing source directly observable.
 
 \paragraph{Contributions.}
-The paper establishes an exposure condition that follows original secret
-sources through persistent execution, and carries that condition into
-computational message security and symbolic multi-epoch recovery.
+The paper develops an exposure condition that follows original secret sources
+through persistent execution, and a computational construction that preserves
+this condition when a reduction simulates private retained state. The resulting
+security arguments connect durable operations to the messages and
+confirmations that use their outputs.
 
-We give a provenance-preserving model of reservations and record acquisition.
-Alias normalization relates copied and resealed representations to the same
-original operation, preserving public views and the ledger of original
-records (Lemma~\ref{lem:alias-normalization}). For fixed public key
+The exposure model identifies reservations by their original operations and
+records acquisition separately from later readability. Alias normalization
+preserves both the public view and the ledger of original records under copying
+and resealing (Lemma~\ref{lem:alias-normalization}). For fixed public key
 derivations, a guarded-path characterization exactly matches iterative
-decryption (Theorem~\ref{thm:guarded-normalization}). Its conjunctive guards
-express how captured ciphertexts and disclosed keys jointly reveal a source;
-alternative copies provide further routes to that source. This gives
-recovery experiments a stable exposure condition across physical changes
-to storage.
+decryption (Theorem~\ref{thm:guarded-normalization}). Conjunctive guards capture
+how acquired ciphertexts and disclosed keys jointly reveal a source, while
+alternative copies provide additional routes to the same source. This gives
+the computational experiment a stable exposure condition across physical
+changes to storage.
 
-The computational connection constructs the retained private state needed
-by a reduction that holds an operation's public outputs. Images and intents
-preserve original record identities; dependent immutable reports are
-simulated in reverse causal order. Candidate-local accounting then
-localizes the original native score before the compromise cut is selected.
-An original-operation adapter carries this execution through the
-operational ML-KEM experiment, complete ContextBound tuple, root
-initialization, confirmation and traffic derivation. The resulting bounds
-establish confidentiality for a fresh marked first message after the next
-rekey of an established session
+The central reduction constructs the retained private state surrounding an
+operation whose public outputs are available but whose random tape is not.
+Images and intents preserve original record identities; dependent immutable
+reports are simulated in reverse causal order. Candidate-local accounting
+preserves the original native score while allowing the compromise cut to be
+chosen after interaction.
+The original-operation adapter then carries this execution through the full
+ContextBound contribution, root initialization, confirmation and traffic
+schedule. These constructions establish confidentiality for a fresh marked
+first message after the next rekey of an established session
 (Corollary~\ref{cor:live-core-next-rekey}) and confirmation and first-message
 integrity under its selected recovered root
-(Theorem~\ref{thm:native-selected-authentication}). They retain real
-verification, declared successor-state disclosures and explicit record,
+(Theorem~\ref{thm:native-selected-authentication}). The bounds retain real
+verification, the declared successor-state disclosures, and explicit record,
 component, hash, key-schedule and AEAD costs.
 
-An online finite-chain comparison extends this connection to a target
-chosen after earlier message-key disclosure
-(Theorem~\ref{thm:online-chain-leaf}). Successive Extract and Expand
-comparisons isolate the selected key while preserving its disclosed
-successor seed and real suffix computation. The selection occurs before
-that step's first private computation across all endpoint aliases,
-including failed receive-side advances. The native composition retains
-the accepted send's original sources and candidate-local record stops,
-giving confidentiality and selected-message integrity with explicit
+The same connection supports online selection after earlier message-key
+disclosure. Successive Extract and Expand comparisons isolate the selected key
+while preserving its disclosed successor seed and real suffix computation.
+Selection precedes the step's first private computation across all endpoint
+aliases, including failed receive-side advances. The native composition
+preserves the accepted send's original sources and candidate-local record
+stops, yielding confidentiality and selected-message integrity with explicit
 lifetime and whole-execution budgets
 (Theorem~\ref{thm:native-online-message}).
 
-The accepted allocation is associated with its original KEM calls by
-registering their existing reservation slots before private computation.
-A shared-XOF comparison preserves the signing randomizer and
-original-message ledger through replay and failed publication, reducing
-the native ML-DSA interface to ordinary hedged-signature unforgeability
-(Theorem~\ref{thm:native-mldsa-reservation-bridge}). This instantiates the
-signature term in the source-attribution bound. The key-entry method also
-handles finite salt and information-string families, yielding a purpose-key
-instance with equal-input aliases and separate returned-owner lifecycles
+Component and key-entry bridges make this construction applicable to the
+implemented interfaces. A deferred-challenge comparison connects operational
+ML-KEM security to ordinary IND-CCA security while retaining real prechallenge
+decapsulation (Proposition~\ref{prop:kem-deferred-challenge}). A shared-XOF
+comparison preserves native signing reservations through replay and failed
+publication, reducing source attribution to ordinary hedged ML-DSA
+unforgeability (Theorem~\ref{thm:native-mldsa-reservation-bridge}). Joint entry
+comparisons retain multiple uses of a contribution within one key schedule.
+Their complementary bootstrap instances protect the original inventory source
+or the original reply source and establish historical activation of the
+complete signed transcript
+(Corollary~\ref{cor:bootstrap-initial-terminal} and
+Theorem~\ref{thm:bootstrap-terminal}).
+Finite descriptor families also give a purpose-key instance with equal-input
+aliases and separate returned-owner lifecycles
 (Section~\ref{sec:sdk-purpose-connection}).
 
-Bootstrap supplies a further original-source instance. A joint entry theorem
-retains the first contribution's initial-confirmation use and its later
-combination with a second contribution
-(Theorem~\ref{thm:bootstrap-joint-entry}). The source adapter places the
-component challenge at the original reply generation and encapsulation,
-retains restored-owner validation, and reconciles effective root descriptors
-with complete signed-transcript classes. Online registration after opaque
-pending-root allocation then yields the exact ACK-only comparison and
-historical responder-activation bound
-(Theorems~\ref{thm:bootstrap-source-schedule} and~\ref{thm:bootstrap-terminal}).
-This profile allows disclosure of the first contribution, traditional KEM
-material and the initiator's signing identity while the reply PQ source
-and expected responder signer supply the stated surviving inputs.
-The complementary construction protects the original inventory PQ source
-and initiator signer while making the responder signing identity and actual
-reply contributions available. Its two-level comparison charges the
-component and complete joint entry once per original source pair, then
-charges the terminal tail by online long-descriptor allocation
-(Theorem~\ref{thm:bootstrap-initial-schedule}).
-
-The same provenance condition supports symbolic message secrecy when the target's original reservations
-follow the compromise cut and the stated authentication, entropy and
-record-acquisition conditions hold (Theorem~\ref{thm:symbolic}). The Tamarin
-model includes inherited roots, shared key identities, alternating proposers,
-asynchronous confirmation, and unbounded epochs. Native process-kill
-executions reconstruct traffic from reservations captured before restart;
-a delayed-receipt execution exposes epoch-two traffic while the peers'
-confirmed counters remain zero and one. A sibling-session write also carries
-an earlier target reservation into a new aggregate image. Together these
-executions show why the recovery condition follows original sources and
-acquisition histories across both persistence and asynchronous progress.
+A mechanized symbolic theorem uses the same provenance condition for message
+secrecy across unbounded epochs (Theorem~\ref{thm:symbolic}). Its model includes
+inherited roots, shared key identities, alternating proposers and asynchronous
+confirmation. The relationship between persistent sources and asynchronous
+progress is visible in native executions: traffic is reconstructed from
+reservations captured before restart, and a delayed-receipt execution exposes
+epoch-two traffic while the peers' confirmed counters remain zero and one.
+A sibling-session write also carries an earlier target reservation into a new
+aggregate image.
 
 \paragraph{Supporting validation.}
-An executable finite-model supplement checks the guarded characterization and
-its treatment of acquisition, deletion, and late disclosure against independent
-expected results. A source correspondence maps the image, intent, retry, report,
-and acquisition operations to the declared interfaces. Separately, pinned SPQR
-and whole-KEM reference corpora measure reconstructible message sets across
-communication schedules. A further 49 native/reference executions share a list of directed
-transmission opportunities and charge control traffic and exact retries to
-that common budget. They measure reconstructed message sets jointly with
+Independent finite checks validate the guarded characterization against expected
+acquisition, deletion and late-disclosure outcomes. Source correspondence binds
+the record, retry, report and acquisition operations to the declared interfaces.
+Pinned SPQR and whole-KEM reference corpora measure reconstructible message sets
+across communication schedules. A further 49 native/reference executions share
+directed transmission opportunities and charge control traffic and exact
+retries to that common budget, measuring reconstructed messages jointly with
 first commitments, logical deliveries, emitted bytes and native persistence
-work. The measurements retain the originating contribution, direction, epoch
-and message index, together with each construction's authentication and
-storage interface. A one-way control records exhausted-budget suspension,
-its uncommitted requests and the exposure of the applications actually admitted.
-A paired 28-run native ablation then sets the minimum application-retry age
-to four public sender turns. It increases completed service in every measured
-bidirectional or resumed schedule while retaining the alternating
-current-epoch exposure counts; the complete accounting records the
-schedule-dependent communication cost.
+work. A one-way control records exhausted-budget suspension and the exposure
+of the applications actually admitted. A paired 28-run native ablation sets
+the minimum application-retry age to four public sender turns; it increases
+completed service in every measured bidirectional or resumed schedule while
+retaining the alternating current-epoch exposure counts. The accounting
+records the schedule-dependent communication cost.
 
 \paragraph{Security model and organization.}
 Crash recovery resumes retained, bound operations under the authentication,
@@ -277,6 +256,23 @@ original source, its durable representations, and the later computation that
 uses it. Each representation may have its own acquisition time and wrapping
 keys while referring to the same reserved operation.
 
+\paragraph{State and randomness compromise.}
+Jaeger and Stepanovs define bidirectional channel security under repeated
+fine-grained state compromise and construct key-updating encryption and
+signature primitives for that setting~\cite{jaeger2018channel}.
+Balli, R\"osler, and Vaudenay combine local-state exposure with attacks on
+execution randomness in ratcheted key exchange, and characterize the
+key-updatable primitive needed by their strongest recovery requirements
+\cite{balli2020ratcheting}. Collins, Colombo, and Schaeffler extend
+unidirectional ratcheting to bounded leakage between send calls, with
+separate key-indistinguishability and one-way formulations
+\cite{collins2025leakage}.
+Our model resolves record acquisition into the encrypted representations,
+disclosed keys, and original operations that determine source readability.
+The guarded characterization establishes this relation for its record
+fragment. Constructive image and report simulations then carry these
+observations into the native message experiment.
+
 \paragraph{Persistence, exact replay, and crash recovery.}
 The Signal specification discusses deferring ratchet-key generation to shorten
 the lifetime of sensitive state \cite[Section~8.5]{doubleratchet2025}.
@@ -296,6 +292,21 @@ illustrate the interaction: an operation resumes with its original inputs,
 and those inputs can also determine the adversary's later derivation. The
 guarded normalization theorem expresses that relation for the stated
 encrypted-record fragment.
+
+\paragraph{Simulation under adaptive compromise.}
+Jaeger and Tyagi give a modular framework for encryption and PRFs under
+adaptive key compromise, including practical symmetric constructions in
+ideal models~\cite{jaeger2020adaptive}. Jaeger develops composable variants
+that support multi-user reductions, cascaded PRFs, and constructions
+sharing one ideal primitive~\cite{jaeger2023program}.
+Our retained-state comparison supplies a simulator with an original
+operation's public outputs while its random tape remains private.
+Immutable record identities preserve equality and retries; dependent
+reports are replaced in reverse causal order. Candidate-local stopping
+certificates connect those simulations to the original execution's
+eligibility event. The subsequent shared-oracle key-schedule comparisons
+retain the real verification operations and disclosed successor values
+within the same continuation.
 
 \paragraph{Signing-randomness leakage.}
 Damm et al. recover ML-DSA secret-key material from noisy bit leakage of
@@ -378,10 +389,6 @@ HMAC's swapped PRF use and characterize its feasible input domains
 root-extraction step. Our computational accounting places that use alongside
 the record, report, confirmation, and traffic interfaces of the same recovery
 experiment.
-
-% Optional compact comparison: copy comparison-table.tex and input it here
-% if the final manuscript benefits from a tabular overview. The prose above
-% is complete without that table. references-additions.bib supplies gojournal2021.
 % END SECTION SOURCE: related-work.tex
 % BEGIN SECTION SOURCE: construction.tex
 \section{Construction and the motivating execution}
@@ -1355,7 +1362,8 @@ Private retained state & Real-to-opaque image and intent correspondence
 original-score localization (Lemma~\ref{lem:native-local-score}). \\
 Hybrid contribution & Original-operation component adapter and
 complete-tuple comparison; native single-root use
-(Lemma~\ref{lem:cb-native-root-use}). \\
+(Lemma~\ref{lem:cb-native-root-use}); ordinary KEM instantiation
+(Proposition~\ref{prop:kem-deferred-challenge}). \\
 Application continuation & Joint confirmation and traffic schedule
 (Theorem~\ref{thm:joint-message-leaf}); online prefix continuation
 (Theorem~\ref{thm:online-chain-leaf}). \\
@@ -1380,6 +1388,11 @@ whole-execution query budget. The source-attribution residual is
 localized once in the original game. The live core supplies its complete
 observation interface in Section~\ref{sec:live-core-instantiation}; the
 separate report extension carries its declared projection event.
+
+Proposition~\ref{prop:kem-deferred-challenge} bounds each operational
+component term by an ordinary ML-KEM IND-CCA advantage and an explicit
+prechallenge ciphertext-intersection cost. This substitution retains the
+real decapsulation prefix and the original source-selection accounting.
 
 Consequently the three native statements share the record and source
 connection, with the continuation selected by the terminal test:
@@ -2996,6 +3009,137 @@ next-rekey instance. Its source requirement is expressed through the root-use
 descriptor, so extensions can retain the same tuple-level comparison while
 establishing their corresponding root-entry interface.
 % END SECTION SOURCE: contextbound-connection.tex
+% BEGIN SECTION SOURCE: kem-ordinary-bridge.tex
+\subsection{Ordinary KEM security with a deferred challenge}
+\label{sec:kem-ordinary-bridge}
+
+The original-operation adapters request their component challenge at a
+specified private computation, after a possible decapsulation prefix.
+We connect this interface to the ordinary single-challenge ML-KEM game.
+The conversion retains that prefix's real answers and accounts for its
+possible intersection with the subsequently released challenge ciphertext.
+
+In the ordinary game, an honest key pair and a fresh encapsulation
+$(c^*,K^*)$ are generated, and the adversary receives
+$(pk,c^*,K_\beta)$, where $K_0=K^*$ and $K_1$ is independent uniform.
+Its classical decapsulation oracle answers every admissible ciphertext
+except $c^*$. Write $\operatorname{Adv}^{\rm cca}(B)$ for the absolute
+difference of $B$'s output-one probabilities. All public oracles are the
+same as in the two-stage game of
+Section~\ref{sec:contextbound-connection}, with the complete preparation,
+continuation and terminal test included in the adversary's resources.
+
+ML-KEM encapsulation samples $m^*\gets\{0,1\}^{256}$ and encrypts it
+with K-PKE using the prescribed derived coins; K-PKE decryption is
+deterministic and returns a 32-byte message
+\cite[Algorithms 14--17 and 20]{fips203}. Define the message-recovery
+failure probability on this honest challenge distribution by
+\[
+ \delta_{\rm mr}
+ =\Pr[\mathsf{K\mbox{-}PKE.Dec}(sk_{\rm PKE},c^*)\ne m^*].
+\]
+This is a message-recovery event. The component adapters' shared-key
+correctness terms retain their separate definitions.
+
+\begin{proposition}[Deferred-challenge bridge]
+\label{prop:kem-deferred-challenge}
+Let $D$ be a complete two-stage component distinguisher, making at most
+$q^-$ distinct admissible selected-key decapsulation queries before its
+challenge request, or before termination if it makes no such request.
+Its challenge request may be adaptive. There is an ordinary-game
+adversary $B$ such that
+\begin{equation}
+ \operatorname{Adv}^{\rm op}(D)
+ \le \min\{1,\operatorname{Adv}^{\rm cca}(B)
+                 +\zeta_{\rm pre}(q^-)\},
+ \qquad
+ \zeta_{\rm pre}(q^-)
+ :=\min\{1,q^-2^{-256}+\delta_{\rm mr}\}.
+ \label{eq:kem-deferred-bridge}
+\end{equation}
+The reduction makes no additional decapsulation or public-oracle queries.
+It performs a ciphertext comparison for each decapsulation request and
+retains the complete computation of $D$. The statement holds for a
+quantum adversary making classical component calls and quantum queries
+to the same static public oracles.
+\end{proposition}
+\begin{proof}
+Adversary $B$ retains its challenge ciphertext and key privately, supplies
+only $pk$ to $D$, and forwards the prechallenge decapsulation requests.
+If a request equals $c^*$, it stops with output zero before submitting
+that forbidden request. At $D$'s challenge request it releases the retained
+$(c^*,K_\beta)$. Thereafter it implements the stated challenge-ciphertext
+exclusion and forwards all other requests. The challenge key is unused
+before release. If $D$ terminates without requesting a challenge, $B$
+returns that output unless it has already stopped.
+
+For the comparison, run the full, real prechallenge decapsulation process
+of $D$, including the answers following a possible hit. The hidden honest
+encapsulation can be sampled in advance without changing this process:
+fix the static public-oracle functions and key-generation coins, and
+observe that neither this prefix nor its quantum-state transformations
+uses $m^*$. Evaluating the challenger's encapsulation earlier changes no
+oracle function or adversary register. Thus the prefix's classical query
+list $\mathcal C^-$ and private quantum state remain independent of
+$m^*$ conditional on those fixed functions and key. This couples the
+ordinary game's withheld challenge to the two-stage game's freshly
+requested challenge; when there is no request, the unused sample has no
+public effect.
+
+Let $V$ be the event $c^*\in\mathcal C^-$. Outside message-recovery
+failure, this event implies
+\[
+ m^*\in
+ \{\mathsf{K\mbox{-}PKE.Dec}(sk_{\rm PKE},c):
+                                      c\in\mathcal C^-\}.
+\]
+For every fixed full prefix this set has at most $q^-$ elements. Uniformity
+of $m^*$ therefore gives
+$p:=\Pr[V]\le q^-2^{-256}+\delta_{\rm mr}$ after averaging over the
+oracles, key, and prefix. The argument uses the complete real prefix,
+not a query distribution conditioned on avoiding earlier hits.
+Adversarial timing and repeated queries do not enlarge this set bound.
+
+Until the first hit, $B$ and the two-stage game give identical responses
+and apply identical transformations to the adversary's state. On
+$\neg V$ their complete terminal bits agree. Before challenge release
+the two values of $\beta$ have the same experiment, so $\Pr[V]=p$ in
+both branches. Put
+$\gamma_\beta=\Pr[D_\beta=1\land V]$. Since $B$ returns zero on $V$,
+\[
+ \Pr[D_\beta=1]=\Pr[B_\beta=1]+\gamma_\beta,
+ \qquad 0\le\gamma_\beta\le p.
+\]
+Subtract the two identities and use
+$|\gamma_0-\gamma_1|\le p$. This proves the single
+$\zeta_{\rm pre}$ cost in~\eqref{eq:kem-deferred-bridge}.
+No earlier decapsulation answer is rewritten. The reduction tests only
+classical ciphertexts and neither measures nor reprograms a public-oracle
+query.
+\end{proof}
+
+\paragraph{Substitution in the original-source bounds.}
+For each already defined component test $D_j^\sigma$, the term
+$a_j^\sigma$ is bounded by
+$\operatorname{Adv}^{\rm cca}(B_j^\sigma)
+ +\zeta_{{\rm pre},j}^{\sigma}$ with that complete test's budget.
+The two signed-event tests consequently retain one such cost each.
+A Boolean authentication test $a_j^{\rm auth}$ or $a_j^{\rm msg}$
+receives one cost, as does each fixed $(r,j,b)$ bootstrap component test
+in either source profile. Equivalently, converting a bounded score
+$Z\in[-1,1]$ to the randomized bit $(1+Z)/2$ gives the usual factor two.
+The fixed original candidate indices and their existing lifetime sums
+are unchanged; there is no additional source or message-index guess.
+
+The adapters continue to bind the challenge to the original generation
+and encapsulation slots, cache exact retries, and stop before a selected
+unknown tape or private owner would be returned. These source and record
+conditions are supplied by their preceding correspondence arguments.
+The bridge compares their primitive interfaces without changing the
+original reservation events, raw-acquisition rules, or later selected
+message. Bootstrap's fresh honest-encapsulation and restored-owner
+validation monitor remains a separate part of that correspondence.
+% END SECTION SOURCE: kem-ordinary-bridge.tex
 % BEGIN SECTION SOURCE: live-core-instantiation.tex
 \subsection{A native live-core instantiation}
 \label{sec:live-core-instantiation}
@@ -6081,9 +6225,16 @@ retaining a separate lifecycle for each returned owner
 (Section~\ref{sec:sdk-purpose-connection}). A marked private entry supports
 the corresponding one-key application experiment.
 
-The other connection concerns the origin of an accepted allocation.
-Executed-slot registration ties it to the original KEM calls through
-retained plans and complete signed-body bindings
+At the component interface, the deferred-challenge bridge gives an
+ordinary ML-KEM IND-CCA instantiation while preserving the actual
+decapsulation prefix. Its additional cost is the prefix's intersection
+with an unused honest challenge ciphertext, bounded through uniform
+encapsulation messages and deterministic message recovery
+(Proposition~\ref{prop:kem-deferred-challenge}).
+
+Source attribution associates an accepted allocation with its original
+KEM calls through executed-slot registration, retained plans and complete
+signed-body bindings
 (Proposition~\ref{prop:executed-source-attribution}). The native signing
 adapter carries original randomizers and exact retries into a shared-XOF
 comparison, expressing the native reservation-interface bound through
@@ -6654,6 +6805,22 @@ check the finite accounting and source interfaces used by that proof.
 python3 artifacts/native-online-chain/check_native_chain.py
 \end{verbatim}
 \end{quote}
+
+\subsection{Ordinary KEM game connection}
+\label{app:kem-ordinary-bridge}
+
+The complete reduction of
+Proposition~\ref{prop:kem-deferred-challenge}, its source-algorithm
+locators and separate argument review are retained in
+\path{artifacts/kem-game-bridge/}. The ordinary-game adversary withholds
+its challenge through the real decapsulation prefix. A common
+prechallenge intersection event gives one additional cost for each
+Boolean component test; the manuscript's signed-score conversion
+retains its existing factor two. Deterministic K-PKE message recovery
+and the uniform 32-byte encapsulation input bound that event while
+leaving message-recovery failure separately named. The argument fixes
+the same static public oracles and accounts for adaptive challenge
+timing and classical component calls by a quantum adversary.
 
 
 \subsection{Bootstrap source and terminal connection}

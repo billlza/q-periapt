@@ -4,6 +4,7 @@ import ast
 import dataclasses
 import os
 import pathlib
+import shutil
 import stat
 import tempfile
 import unittest
@@ -1406,6 +1407,96 @@ class CodeQLRustQualityTests(unittest.TestCase):
             codeql_rust_quality.CodeQLRustQualityError, "not NUL terminated"
         ):
             codeql_rust_quality._decode_nul_paths(b"a.rs")
+
+    def test_paper_snapshots_preserve_the_full_extraction_and_current_source_inventory(self) -> None:
+        tracked = codeql_rust_quality.tracked_rust_paths()
+        pinned = codeql_rust_quality.pinned_archive_sources()
+        self.assertEqual(len(pinned), 68)
+        self.assertEqual(len(tracked - pinned.keys()), 106)
+        self.assertEqual(len(tracked), 174)
+        self.assertEqual(codeql_rust_quality.validate_archive_inventory(codeql_rust_quality.REPOSITORY_ROOT, tracked), frozenset(pinned))
+        metrics = clean_metrics(len(tracked))
+        codeql_rust_quality.validate_quality(tracked, tracked, metrics)
+        for relative in pinned:
+            with self.subTest(snapshot=relative), self.assertRaisesRegex(
+                codeql_rust_quality.CodeQLRustQualityError, "successfully extracted path set differs"
+            ):
+                codeql_rust_quality.validate_quality(tracked, tracked - {relative}, metrics)
+
+    def test_same_count_archive_substitution_is_rejected(self) -> None:
+        tracked = codeql_rust_quality.tracked_rust_paths()
+        pinned = codeql_rust_quality.pinned_archive_sources()
+        for relative in pinned:
+            paths = (tracked - {relative}) | {relative.removesuffix(".rs") + "_replacement.rs"}
+            raw = b"".join(path.encode() + b"\0" for path in sorted(paths))
+            with self.subTest(snapshot=relative), mock.patch.object(
+                codeql_rust_quality, "run_git_bytes", return_value=raw
+            ), self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "path inventory differs"):
+                codeql_rust_quality.tracked_rust_paths()
+        current = "crates/q-periapt-backends/src/lib.rs"
+        self.assertIn(current, tracked)
+        paths = (tracked - {current}) | {codeql_rust_quality.ARCHIVE_ROOT + "/unreviewed/source/new.rs"}
+        raw = b"".join(path.encode() + b"\0" for path in sorted(paths))
+        with mock.patch.object(codeql_rust_quality, "run_git_bytes", return_value=raw), \
+                self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "path inventory differs"):
+            codeql_rust_quality.tracked_rust_paths()
+
+    def _copy_paper_archive_fixture(self, root: pathlib.Path) -> frozenset[str]:
+        pinned = codeql_rust_quality.pinned_archive_sources()
+        paths = [*pinned, *(f"{codeql_rust_quality.ARCHIVE_ROOT}/{name}/SOURCE_PINS.json"
+                            for name in codeql_rust_quality.PAPER_ARCHIVE_PACKETS)]
+        for relative in paths:
+            destination = root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(codeql_rust_quality.REPOSITORY_ROOT / relative, destination)
+        return frozenset(pinned)
+
+    def test_each_paper_snapshot_rejects_changed_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            tracked = self._copy_paper_archive_fixture(root)
+            for relative in sorted(tracked):
+                path = root / relative
+                original = path.read_bytes()
+                path.write_bytes(original + b"\n// changed archive source\n")
+                with self.subTest(snapshot=relative), self.assertRaisesRegex(ValueError, "source bytes differ"):
+                    codeql_rust_quality.validate_archive_inventory(root, tracked)
+                path.write_bytes(original)
+
+    def test_archive_pins_cannot_be_rewritten_to_admit_other_snapshots(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            tracked = self._copy_paper_archive_fixture(root)
+            for name in codeql_rust_quality.PAPER_ARCHIVE_PACKETS:
+                path = root / codeql_rust_quality.ARCHIVE_ROOT / name / "SOURCE_PINS.json"
+                original = path.read_bytes()
+                path.write_bytes(original + b"\n")
+                with self.subTest(packet=name), self.assertRaisesRegex(ValueError, "pin manifest differs"):
+                    codeql_rust_quality.validate_archive_inventory(root, tracked)
+                path.write_bytes(original)
+
+    def test_archive_roots_reject_cargo_manifests_and_source_symlinks(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            tracked = self._copy_paper_archive_fixture(root)
+            relative = sorted(tracked)[0]
+            source = root / relative
+            for directory in (root / codeql_rust_quality.ARCHIVE_ROOT,
+                              root / codeql_rust_quality.ARCHIVE_ROOT / "ack",
+                              root / codeql_rust_quality.ARCHIVE_ROOT / "ack/source",
+                              source.parent):
+                manifest = directory / "Cargo.toml"
+                manifest.write_text('[package]\nname = "unexpected"\nversion = "0.1.0"\n')
+                with self.subTest(directory=directory), self.assertRaisesRegex(ValueError, "Cargo manifest"):
+                    codeql_rust_quality.validate_archive_inventory(root, tracked)
+                manifest.unlink()
+            original = source.read_bytes()
+            replacement = root / "replacement.rs"
+            replacement.write_bytes(original)
+            source.unlink()
+            source.symlink_to(replacement)
+            with self.assertRaisesRegex(ValueError, "safely open|symlink"):
+                codeql_rust_quality.validate_archive_inventory(root, tracked)
 
     def test_unresolved_macro_details_are_strictly_typed_and_canonical(self) -> None:
         rows = [["crates/a/src/lib.rs", 7, 3, "concat!..."]]

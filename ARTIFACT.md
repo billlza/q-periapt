@@ -41,10 +41,15 @@ CodeQL analysis. Before CodeQL initialization, the same commit must pass
 warnings denied, repository-external target directories, and no repository-local `target` entry.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-106 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
+174 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
 unextracted elements, unresolved source macros, AST/CFG/SSA/data-flow inconsistencies, or source
 format arguments without an expression and data-flow node; and non-vacuous macro and format-argument
-sentinels. Path-resolution and type-inference internal-consistency categories are checked for a
+sentinels. The inventory comprises 106 current sources and 68 retained bootstrap
+proof snapshots. Five exact `SOURCE_PINS.json` digests bind every archived path,
+byte length, SHA-256 and Git blob identity; changed, missing or substituted
+snapshots and Cargo manifests above retained sources fail admission. The
+[archive inventory](artifact/CODEQL_RUST_ARCHIVES.md) records each source commit
+and role. All 174 files retain the existing extraction and macro checks. Path-resolution and type-inference internal-consistency categories are checked for a
 complete, self-reconciling classification and reported as telemetry rather than required to be
 zero. In particular, duplicate configurations of `wasm_bindgen`-generated `Abi` type mentions can
 produce type-inference telemetry; this is not a claim of complete extractor semantics for that

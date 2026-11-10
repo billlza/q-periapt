@@ -2,7 +2,7 @@
 
 ## Current direction
 
-The manuscript is **Exposure and Recovery with Persistent Randomness Reservations**, targeting Journal of Cryptology. Its continuous branch is `paper/joc-persistent-recovery`, with [draft PR #119](https://github.com/billlza/q-periapt/pull/119) against `main`. Continue this same PR for manuscript and directly used proof/evidence updates. [WORKFLOW.md](WORKFLOW.md) records the build and update procedure.
+The manuscript is **Exposure and Recovery with Persistent Randomness Reservations**, targeting Journal of Cryptology. Its continuous branch is `paper/joc-persistent-recovery`, with [manuscript PR #119](https://github.com/billlza/q-periapt/pull/119) against `main`. Continue this same PR for manuscript and directly used proof/evidence updates. [WORKFLOW.md](WORKFLOW.md) records the build and update procedure.
 
 The confirmed author is **Ziang Li (李子昂)**, Department of Engineering, Durham University. Correspondence: **2403871950@qq.com**. Alternative contact: **bhmq03@durham.ac.uk**. The current author list contains one person.
 
@@ -129,7 +129,7 @@ The citation audit is also complete for the declared scope: all 28 keys resolve,
 
 ## Original-source bootstrap authentication: completed
 
-Section 5.16 now connects the original reply-key generation and response
+The reply-source bootstrap section connects the original reply-key generation and response
 encapsulation reservations to historical responder activation. It retains
 actual restored-owner validation, full signed-wire descriptors, two-endpoint
 capture accounting and online registration before the first private ACK use.
@@ -145,20 +145,45 @@ the tag-guessing bound. The online experiment declares its bootstrap/ACK
 operation surface once. The full source census, proof notes and separate
 mathematical review are in [the bootstrap packet](../artifacts/bootstrap/README.md).
 
-The final manuscript has 111 pages, a 246-word abstract and 29 references.
-Thirty-three changed or adjacent pages have been visually reviewed. Its
-nine-file submission archive compiles independently with identical complete
-plain and layout text. All three retained bootstrap checkers are now part of
-`make check`, and manuscript CI retains their receipts and independently
-compiles the exported source.
+The complementary initial-source composition is integrated in
+`bootstrap-initial-source.tex`. Its two-level localization applies the
+original-source and complete joint-entry costs once before partitioning by the
+later long-PRK rank; the heterogeneous family size multiplies the terminal tail.
+`thm:bootstrap-initial-schedule` and `cor:bootstrap-initial-terminal` give the
+schedule and historical-activation consequences. The full proof, 35 pinned
+source files, 29 source assertions and 49,152 finite endpoint executions are
+retained in `artifacts/bootstrap/initial/`. This manuscript integration is
+complete. Current label locations are indexed by `integration_record.json`.
 
-The complementary initial-source SDK composition is also complete in
-`docs/continuity/BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md` on integration, with a
-separate source and independent-review packet. Its two-level localization
-applies the original-source and joint-entry costs once before partitioning by
-the later long-PRK rank. That full source-level construction is available for
-the next manuscript integration. Engineering release admission continues
-through the current-source checks and platform artifacts on PR #121.
+## Ordinary KEM connection and submission focus: completed
+
+`kem-ordinary-bridge.tex` connects each actual two-stage ML-KEM component
+advantage to ordinary IND-CCA security. The reduction withholds the ordinary
+challenge until the original controller requests it, preserving genuine
+prechallenge decapsulation except at a separately charged ciphertext hit.
+The hit cost is `min(1, q_pre / 2^256 + delta_mr)`, where `delta_mr` is the
+honest K-PKE message-recovery failure probability. It is distinct from the
+existing KEM shared-key correctness term. Fixing the common static oracle
+functions gives independence of the full real prefix from the unused
+encapsulation message, including a quantum adversary's conditional state.
+The common bad event costs one term per Boolean advantage. The complete proof
+and independent internal mathematical review are in
+[the KEM connection packet](../artifacts/kem-game-bridge/README.md).
+
+The abstract and introduction now organize the contribution around original
+sources, private-state simulation and native message security. Component
+bridges and bootstrap/purpose-key instances explain how that construction is
+used. Five primary references add the state/randomness-compromise and adaptive
+composition context, with explicit per-source reading coverage in
+[the positioning audit](../artifacts/editorial-review/submission-readiness/primary-sources.json).
+
+All four bootstrap checkers are part of `make check`. The current PDF, abstract,
+bibliography, visual review and independently compiled nine-file source export
+are bound by `integration_record.json`. Historical artifact records retain
+their original source and run identities. Engineering release admission
+continues through current-source checks and platform artifacts on PR #121;
+[the submission readiness note](SUBMISSION_READINESS.md) separately records the
+remaining manuscript review.
 
 ## SkyBridge allocation
 
