@@ -2645,6 +2645,18 @@ if [ "$DEVICE_KIND" = "emulator" ]; then
 		capture_emulator_failure_logs
 		exit "$emulator_baseline_status"
 	fi
+	# A boot-completed property can survive a system_server crash. Require
+	# live provider/package replies, fresh package absence and a stable process
+	# incarnation immediately before the first install. Physical devices keep
+	# their existing admission path.
+	if android_command wait-framework-ready >"$DIST/adb-framework-readiness.log" 2>&1; then
+		:
+	else
+		framework_readiness_status=$?
+		printf 'error: owned emulator framework readiness failed (exit=%s); see %s\n' \
+			"$framework_readiness_status" "$DIST/adb-framework-readiness.log" >&2
+		fail_runtime_with_logs "$framework_readiness_status"
+	fi
 fi
 ANDROID_APP_CLEANUP_ARMED=1
 if ! android_command install-apk >"$DIST/adb-install.log" 2>&1; then

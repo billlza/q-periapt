@@ -1062,6 +1062,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                         "logcat",
                         "emulator-diagnostics",
                         "register-emulator",
+                        "framework-readiness",
                     },
                 )
                 self.assertGreaterEqual(spec.timeout_maximum, spec.timeout_seconds)
@@ -4505,6 +4506,220 @@ esac
             with self.subTest(raw=raw), self.assertRaises(commands.AndroidCommandError):
                 commands._boot_readiness_result(BoundedResult(0, raw), self.run_id)
         self.assertEqual(commands._boot_readiness_result(BoundedResult(7, b"1\n"), self.run_id), BoundedResult(7))
+
+    def _framework_guest_sample(
+        self, *, pid: int = 3160, started: int = 600, process_state: str = "S",
+        after_started: int | None = None, provider: str = "0", provider_error: bool = False,
+        boot_id: str = "aa3edfbe-8ad3-4104-859f-c1219bf21b2b", package: str = "",
+    ) -> BoundedResult:
+        def process_stat(start: int) -> str:
+            fields = [process_state] + ["0"] * 49
+            fields[19] = str(start)
+            return f"{pid} (system_server) " + " ".join(fields)
+
+        # Run the real guest program against fixed native-command fixtures.
+        # Settings reproduces the original exception while exiting zero, as
+        # legacy SettingsCmd can do; a host/guest status-only gate admits it.
+        with tempfile.TemporaryDirectory(dir=self.root) as temporary:
+            directory = pathlib.Path(temporary)
+            counter = directory / "counter"
+            counter.write_text("0")
+            script = r'''#!/bin/sh
+case "${0##*/}:$*" in
+  "getprop:sys.boot_completed") printf '1\n' ;;
+  "getprop:vold.decrypt") printf '\n' ;;
+  "pidof:system_server")
+    n=$(/bin/cat "$QPERIAPT_TEST_COUNTER")
+    printf '%s\n' "$((n + 1))" >"$QPERIAPT_TEST_COUNTER"
+    printf '%s\n' "$QPERIAPT_TEST_PID" ;;
+  "cat:/proc/sys/kernel/random/boot_id") printf '%s\n' "$QPERIAPT_TEST_BOOT_ID" ;;
+  "cat:/proc/"*"/stat")
+    n=$(/bin/cat "$QPERIAPT_TEST_COUNTER")
+    if [ "$n" = 1 ]; then printf '%s\n' "$QPERIAPT_TEST_STAT_BEFORE"
+    else printf '%s\n' "$QPERIAPT_TEST_STAT_AFTER"; fi ;;
+  "settings:get global device_provisioned")
+    if [ "$QPERIAPT_TEST_PROVIDER_ERROR" = 1 ]; then
+      printf "java.lang.IllegalStateException: Cannot access system provider: 'settings' before system providers are installed!\n" >&2
+      exit 0
+    fi
+    printf '%s\n' "$QPERIAPT_TEST_PROVIDER" ;;
+  "pm:path android") printf 'package:/system/framework/framework-res.apk\n' ;;
+  "pm:list packages dev.qperiapt.androidsmoke")
+    if [ -n "$QPERIAPT_TEST_PACKAGE" ]; then printf '%s\n' "$QPERIAPT_TEST_PACKAGE"; fi ;;
+  *) exit 99 ;;
+esac
+'''
+            for tool in ("getprop", "pidof", "cat", "settings", "pm"):
+                executable = directory / tool
+                executable.write_text(script)
+                executable.chmod(0o700)
+            argv = commands._framework_readiness_argv(self.load_capability())
+            program = " ".join(argv[argv.index("shell") + 1:])
+            raw = self.run_guest_fixture(["/bin/sh", "-c", program + " 2>&1"], {
+                "PATH": str(directory) + ":/usr/bin:/bin",
+                "QPERIAPT_TEST_COUNTER": str(counter), "QPERIAPT_TEST_PID": str(pid),
+                "QPERIAPT_TEST_STAT_BEFORE": process_stat(started),
+                "QPERIAPT_TEST_STAT_AFTER": process_stat(started if after_started is None else after_started),
+                "QPERIAPT_TEST_PROVIDER": provider,
+                "QPERIAPT_TEST_PROVIDER_ERROR": str(int(provider_error)),
+                "QPERIAPT_TEST_BOOT_ID": boot_id, "QPERIAPT_TEST_PACKAGE": package,
+            })
+        self.assertEqual(raw.returncode, 0, raw.stderr)
+        self.assertEqual(raw.stderr, b"")
+        return BoundedResult(0, raw.stdout)
+
+    def _framework_owner_fixture(self):
+        receipt = self.create_active_emulator_runtime_receipt()
+        context = commands.RecoveryContext(
+            layout=self.layout, capability=commands._recovery_adb_capability(self.layout, receipt),
+            launcher=receipt.launcher_path, backend=receipt.backend_path, current_boot=True,
+        )
+        process = commands.ProcessIdentity(
+            pid=receipt.pid, uid=receipt.uid, started_at=receipt.started_at,
+            started_subsecond=receipt.started_subsecond, executable=receipt.backend_path,
+        )
+        return context, process
+
+    def test_framework_probe_requires_services_and_a_live_process_incarnation(self) -> None:
+        cases = (
+            ({}, "ready"), ({"provider": "1"}, "ready"),
+            ({"provider_error": True}, "settings-unavailable"),
+            ({"provider": "null"}, "settings-unavailable"),
+            ({"provider": "0\nextra"}, "settings-unavailable"),
+            ({"process_state": "Z"}, "process-not-running"),
+            ({"process_state": "X"}, "process-not-running"),
+            ({"process_state": "T"}, "process-not-running"),
+            ({"after_started": 601}, "process-changed"),
+        )
+        for arguments, expected in cases:
+            raw = self._framework_guest_sample(**arguments)
+            for output in (raw.stdout, raw.stdout.replace(b"\n", b"\r\n")):
+                with self.subTest(arguments=arguments, crlf=b"\r\n" in output):
+                    reason, identity = commands._framework_readiness_observation(BoundedResult(0, output), self.run_id)
+                    self.assertEqual(reason, expected)
+                    self.assertEqual(identity is not None, expected == "ready")
+        present = self._framework_guest_sample(package="package:" + commands.PACKAGE)
+        with self.assertRaisesRegex(commands.AndroidCommandError, "appeared before installation"):
+            commands._framework_readiness_observation(present, self.run_id)
+        good = self._framework_guest_sample()
+        for output in (good.stdout[:-1], good.stdout.replace(self.run_id.encode(), b"b" * 32),
+                       good.stdout + b"extra\n", good.stdout.replace(b"(system_server)", b"(other)")):
+            with self.subTest(output=output[-100:]), self.assertRaises(commands.AndroidCommandError):
+                commands._framework_readiness_observation(BoundedResult(0, output), self.run_id)
+
+    def test_framework_wait_replays_sticky_boot_crash_and_provider_exception(self) -> None:
+        first = self._framework_guest_sample(pid=569, started=100)
+        crashed = self._framework_guest_sample(pid=2474, started=400, provider_error=True)
+        zombie = self._framework_guest_sample(pid=2474, started=400, process_state="Z")
+        recovered = self._framework_guest_sample(pid=3160, started=600)
+        context, process = self._framework_owner_fixture()
+        clock = [0.0]
+        transcript = io.StringIO()
+        with (
+            contextlib.redirect_stdout(transcript),
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", return_value=process),
+            mock.patch.object(commands, "_verify_recovery_listeners") as listeners,
+            mock.patch.object(commands.time, "monotonic", side_effect=lambda: clock[0]),
+            mock.patch.object(commands.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)),
+            mock.patch.object(commands, "capture_stdout", side_effect=[first, crashed, zombie] + [recovered] * 6) as capture,
+            mock.patch.object(commands, "run") as install,
+        ):
+            self.assertEqual(self.invoke(commands.AndroidOperation.WAIT_FRAMEWORK_READY), BoundedResult(0, b"ready\n"))
+        records = [json.loads(line.split(" ", 1)[1]) for line in transcript.getvalue().splitlines()
+                   if line.startswith("ANDROID_FRAMEWORK_OBSERVATION ")]
+        self.assertEqual([row["consecutive"] for row in records], [1, 0, 0, 1, 2, 3, 4, 5, 6])
+        self.assertEqual(records[-1]["stable_seconds"], 5)
+        self.assertEqual(records[-1]["identity"][1:], [3160, 600])
+        self.assertIn("Cannot access system provider", transcript.getvalue())
+        self.assertEqual(capture.call_count, 9)
+        self.assertEqual(listeners.call_count, 18)
+        self.assertTrue(all(call.kwargs["timeout_seconds"] <= 5 for call in capture.call_args_list))
+        install.assert_not_called()
+
+    def test_framework_wait_resets_the_window_for_pid_reuse_and_guest_reboot(self) -> None:
+        original = self._framework_guest_sample(started=600)
+        reused = self._framework_guest_sample(started=601)
+        rebooted = self._framework_guest_sample(started=601, boot_id="bb3edfbe-8ad3-4104-859f-c1219bf21b2b")
+        context, process = self._framework_owner_fixture()
+        clock = [0.0]
+        transcript = io.StringIO()
+        with (
+            contextlib.redirect_stdout(transcript),
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", return_value=process),
+            mock.patch.object(commands, "_verify_recovery_listeners"),
+            mock.patch.object(commands.time, "monotonic", side_effect=lambda: clock[0]),
+            mock.patch.object(commands.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)),
+            mock.patch.object(commands, "capture_stdout", side_effect=[original] * 2 + [reused] * 2 + [rebooted] * 6),
+        ):
+            self.assertEqual(self.invoke(commands.AndroidOperation.WAIT_FRAMEWORK_READY).returncode, 0)
+        records = [json.loads(line.split(" ", 1)[1]) for line in transcript.getvalue().splitlines()
+                   if line.startswith("ANDROID_FRAMEWORK_OBSERVATION ")]
+        self.assertEqual([row["consecutive"] for row in records], [1, 2, 1, 2, 1, 2, 3, 4, 5, 6])
+        self.assertEqual(records[-1]["stable_seconds"], 5)
+
+    def test_framework_wait_refuses_physical_and_missing_owned_runtime(self) -> None:
+        with mock.patch.object(commands, "capture_stdout") as capture:
+            with self.assertRaisesRegex(commands.AndroidCommandError, "owned emulator"):
+                self.invoke(commands.AndroidOperation.WAIT_FRAMEWORK_READY)
+            self.create_capability(device_kind="emulator", expected_serial="emulator-5584")
+            with self.assertRaises((commands.AndroidCommandError, state.AndroidRuntimeStateError)):
+                self.invoke(commands.AndroidOperation.WAIT_FRAMEWORK_READY)
+        capture.assert_not_called()
+
+    def test_framework_wait_charges_queries_and_owner_guards_to_one_deadline(self) -> None:
+        healthy = self._framework_guest_sample()
+        context, process = self._framework_owner_fixture()
+        clock = [100.0]
+        deadlines = []
+
+        def guard(_capability, *, deadline):
+            deadlines.append(deadline)
+            clock[0] += 0.25
+
+        def query(_argv, **arguments):
+            self.assertLessEqual(arguments["timeout_seconds"], min(5, int(108.0 - clock[0])))
+            self.assertIs(arguments["stderr"], subprocess.STDOUT)
+            clock[0] += 2
+            return healthy
+
+        transcript = io.StringIO()
+        with (
+            contextlib.redirect_stdout(transcript),
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", return_value=process),
+            mock.patch.object(commands, "_verify_recovery_listeners"),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client", side_effect=guard),
+            mock.patch.object(commands.time, "monotonic", side_effect=lambda: clock[0]),
+            mock.patch.object(commands.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)),
+            mock.patch.object(commands, "capture_stdout", side_effect=query) as capture,
+            mock.patch.object(commands, "run") as install,
+        ):
+            result = commands.invoke_operation(commands.AndroidOperation.WAIT_FRAMEWORK_READY,
+                                               run_id=self.run_id, timeout_seconds=8)
+        self.assertEqual(result, BoundedResult(1))
+        self.assertEqual(capture.call_count, 2)
+        self.assertEqual(deadlines, [108.0] * 5)
+        self.assertLess(clock[0], 108.0)
+        self.assertIn("ANDROID_FRAMEWORK_READINESS_DEADLINE", transcript.getvalue())
+        install.assert_not_called()
+
+    def test_framework_wait_preserves_query_timeout_and_identity_postcheck_failure(self) -> None:
+        context, process = self._framework_owner_fixture()
+        failure = BoundedProcessError("timeout", "framework query timed out")
+        with (
+            contextlib.redirect_stdout(io.StringIO()),
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", side_effect=[process, process, None]),
+            mock.patch.object(commands, "_verify_recovery_listeners"),
+            mock.patch.object(commands, "capture_stdout", side_effect=failure) as capture,
+            self.assertRaises(BoundedProcessError) as caught,
+        ):
+            self.invoke(commands.AndroidOperation.WAIT_FRAMEWORK_READY)
+        self.assertIs(caught.exception, failure)
+        self.assertTrue(any("identity postcheck also failed" in note for note in failure.__notes__))
+        self.assertEqual(capture.call_count, 1)
 
     def test_removed_force_stop_operation_is_rejected_before_execution(self) -> None:
         with (

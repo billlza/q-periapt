@@ -1768,6 +1768,7 @@ jobs:
           name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64-failure-diagnostics
           path: |
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-framework-readiness.log
             target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log
             target/qperiapt-android-device-smoke-runs/*/proof/adb-server.log
             target/qperiapt-android-device-smoke-runs/*/proof/emulator.log
@@ -1820,6 +1821,9 @@ jobs:
             target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.txt
             target/qperiapt-android-device-smoke-runs/*/proof/emulator-app-exit-info.err
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-framework-readiness.log
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator.log
+            target/qperiapt-android-device-smoke-runs/*/proof/emulator-guest-logcat.txt
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err
             target/qperiapt-android-device-smoke-runs/*/proof/emulator-state-*.txt

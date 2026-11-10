@@ -1,0 +1,28 @@
+{
+  "intended_parent": "1095e98a07d60b5cde8b18d8f58f3fa257beb7ce",
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "artifact.test_android_bounded_command.AndroidBoundedCommandTests.test_framework_probe_requires_services_and_a_live_process_incarnation",
+    "artifact.test_android_bounded_command.AndroidBoundedCommandTests.test_framework_wait_replays_sticky_boot_crash_and_provider_exception",
+    "artifact.test_android_bounded_command.AndroidBoundedCommandTests.test_framework_wait_resets_the_window_for_pid_reuse_and_guest_reboot",
+    "artifact.test_android_bounded_command.AndroidBoundedCommandTests.test_framework_wait_refuses_physical_and_missing_owned_runtime",
+    "artifact.test_android_bounded_command.AndroidBoundedCommandTests.test_framework_wait_charges_queries_and_owner_guards_to_one_deadline",
+    "artifact.test_android_bounded_command.AndroidBoundedCommandTests.test_framework_wait_preserves_query_timeout_and_identity_postcheck_failure",
+    "artifact.test_android_device_proof.AndroidDeviceProofProvenanceTests.test_framework_readiness_failure_keeps_crash_diagnostics_without_install_or_cleanup_arm",
+    "artifact.test_android_physical_sdk_runtime",
+    "artifact.test_proof_to_byte_release.BoundVerifierWiringTests.test_ci_android_runtime_matrix_consumes_same_run_aar_fail_closed",
+    "artifact.test_proof_to_byte_release.BoundVerifierWiringTests.test_ci_android_replay_consumes_only_same_run_exports_with_producer_pins",
+    "artifact.test_proof_to_byte_release.BoundVerifierWiringTests.test_every_android_sdk_license_input_is_finite_and_fail_closed",
+    "artifact.test_proof_to_byte_release.BoundVerifierWiringTests.test_lts_java_jobs_select_home_and_path_before_consumers",
+    "artifact.test_proof_to_byte_release.BoundVerifierWiringTests.test_every_workflow_action_is_full_sha_pinned",
+    "artifact.test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner",
+    "artifact.test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_distinguishes_sparse_checkout_data_and_execution",
+    "artifact.test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_distinguishes_checksum_inputs_and_interpreter_search"
+  ],
+  "returncode": 0,
+  "seconds": 7.156
+}

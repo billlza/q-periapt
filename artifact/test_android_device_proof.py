@@ -1505,6 +1505,9 @@ android_command() {{
             device-time) return 17 ;;
             capture-emulator-baseline) return 18 ;;
             capture-emulator-memory-runtime) return 20 ;;
+            wait-framework-ready)
+                printf "java.lang.IllegalStateException: Cannot access system provider: 'settings' before system providers are installed!\\n" >&2
+                return 24 ;;
             start-app) return 19 ;;
             install-apk)
                 printf 'cmd: Failure calling service package: Broken pipe (32)\\n' >&2
@@ -1560,7 +1563,7 @@ android_command() {{
                 "adb-device-time.err",
             ),
             "start-app": (
-                ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline", "install-apk", "postinstall", "start-app",
+                ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline", "wait-framework-ready", "install-apk", "postinstall", "start-app",
                  "capture-logcat", "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"],
                 "Android runtime activity start failed",
                 "adb-start.log",
@@ -1586,7 +1589,7 @@ android_command() {{
 
         for gate, expected_calls in (
             ("preinstall", ["preinstall"]),
-            ("postinstall", ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline", "install-apk", "postinstall",
+            ("postinstall", ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline", "wait-framework-ready", "install-apk", "postinstall",
                              "capture-logcat", "capture-emulator-app-exit-info", "capture-emulator-failure-state", "capture-emulator-diagnostics"]),
         ):
             with self.subTest(failing_gate=gate):
@@ -1599,7 +1602,7 @@ android_command() {{
         self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
         self.assertEqual(
             called_operations,
-            ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline", "install-apk", "postinstall", "start-app"],
+            ["preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline", "wait-framework-ready", "install-apk", "postinstall", "start-app"],
         )
 
     def test_installation_failures_capture_logs_without_retry_or_success(self) -> None:
@@ -1613,7 +1616,7 @@ android_command() {{
                         self.assertEqual(result.returncode, status, result.stderr)
                         expected = ["preinstall", "device-time"]
                         if kind == "emulator":
-                            expected.extend(("capture-emulator-memory-runtime", "capture-emulator-baseline"))
+                            expected.extend(("capture-emulator-memory-runtime", "capture-emulator-baseline", "wait-framework-ready"))
                         expected.append("install-apk")
                         if operation == "postinstall":
                             expected.append("postinstall")
@@ -1642,6 +1645,26 @@ android_command() {{
         self.assertEqual(files["cleanup-state.txt"], b"armed=0 confirmed=0\n")
         self.assertIn(b"baseline capture failed (exit=18)", result.stderr)
         self.assertNotIn("adb-install.log", files)
+
+    def test_framework_readiness_failure_keeps_crash_diagnostics_without_install_or_cleanup_arm(self) -> None:
+        result, calls, files = self._run_fresh_install_runtime_steps("wait-framework-ready")
+        self.assertEqual(result.returncode, 24, result.stderr)
+        self.assertEqual(calls, [
+            "preinstall", "device-time", "capture-emulator-memory-runtime", "capture-emulator-baseline",
+            "wait-framework-ready", "capture-logcat", "capture-emulator-app-exit-info",
+            "capture-emulator-failure-state", "capture-emulator-diagnostics",
+        ])
+        self.assertEqual(files["cleanup-state.txt"], b"armed=0 confirmed=0\n")
+        self.assertIn(b"Cannot access system provider", files["adb-framework-readiness.log"])
+        self.assertIn(b"framework readiness failed (exit=24)", result.stderr)
+        self.assertNotIn("adb-install.log", files)
+        self.assertIn("adb-package-state-observation.log", files)
+        result, physical_calls, _ = self._run_fresh_install_runtime_steps(
+            "wait-framework-ready", device_kind="physical",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("wait-framework-ready", physical_calls)
+        self.assertEqual(physical_calls.count("install-apk"), 1)
 
     def test_memory_runtime_capture_is_before_install_and_only_on_owned_16k(self) -> None:
         result, calls, files = self._run_fresh_install_runtime_steps("capture-emulator-memory-runtime")
@@ -4226,6 +4249,11 @@ fi
         self.assertIn("state=structural-error", preinstall_observation)
         self.assertIn("adb-package-query-preinstall-attempt-", preinstall_observation)
         self.assertIn("BOOT_COMPLETION_DEADLINE=$(monotonic_deadline 120)", producer)
+        framework_gate = producer.index("if android_command wait-framework-ready", preflight_index)
+        baseline_gate = producer.index("if android_command capture-emulator-baseline", preflight_index)
+        self.assertLess(baseline_gate, framework_gate)
+        self.assertLess(framework_gate, armed_index)
+        self.assertLess(armed_index, install_index)
         self.assertIn("RUNTIME_RESULT_DEADLINE=$(monotonic_deadline 90)", producer)
         self.assertIn(
             'android_command device-state \\\n\t\t\t--timeout-seconds "$emulator_attempt_timeout"',

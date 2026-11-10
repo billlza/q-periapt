@@ -1,0 +1,2431 @@
+{
+  "checked_at_utc": "2026-11-10T22:21:49Z",
+  "repository": "billlza/q-periapt",
+  "scope": "All failed ci.yml runs created on/after 2026-11-09 in the repository failure page (100 of 1083; last item created 2026-10-30). All 17 run jobs pages fetched with per_page=100; no run has over 71 jobs.",
+  "current": {
+    "ref": "integration/sdk-020",
+    "sha": "b524f06866ce6e85d8018368547090732bc7075b",
+    "checks_total": 140,
+    "checks_pages": [
+      100,
+      40
+    ],
+    "counts": {
+      "queued": 139,
+      "success": 1
+    },
+    "completed": [
+      {
+        "id": 129972455357,
+        "name": "abi2-windows-package-2022",
+        "conclusion": "success",
+        "url": "https://github.com/billlza/q-periapt/actions/runs/42856932722/job/129972455357"
+      }
+    ]
+  },
+  "totals": {
+    "failed_runs": 17,
+    "all_jobs": 1131,
+    "failed_jobs": 37,
+    "night_newly_completed_runs": 10,
+    "night_unassigned_installed_profiles_cancelled_at_24h": 55,
+    "all_unassigned_installed_profiles_cancelled_at_24h": 80
+  },
+  "root_causes": [
+    {
+      "class": "obsolete sparse-checkout input classification",
+      "failed_jobs": 9,
+      "fix": {
+        "base": "92597c3d370256b5c03e5d1e662101a7601ef916",
+        "head": "b524f06866ce6e85d8018368547090732bc7075b",
+        "status": "ahead",
+        "ahead_by": 38,
+        "behind_by": 0,
+        "merge_base": "92597c3d370256b5c03e5d1e662101a7601ef916"
+      },
+      "note": "The named scanner treats /artifact/test_peer_configuration_lifetime.py in a pinned checkout sparse-checkout block as a command; fixed by 92597c3d (#150). 919a031 is a later CodeQL inventory merge, not the scanner fix."
+    },
+    {
+      "class": "obsolete C lifetime qualification compilation",
+      "failed_jobs": 4,
+      "fix": {
+        "base": "8aadcc89d431876a19ac66059b836de2b0238378",
+        "head": "b524f06866ce6e85d8018368547090732bc7075b",
+        "status": "ahead",
+        "ahead_by": 87,
+        "behind_by": 0,
+        "merge_base": "8aadcc89d431876a19ac66059b836de2b0238378"
+      },
+      "note": "test_owned_inputs_survive_and_each_borrowed_input_is_detected: compiler return 1; unittest truncated stderr. 8aadcc89 changes peer_config_device to explicit output storage; descendant waves have only scanner failure."
+    },
+    {
+      "class": "installed consumer coverage join missing cancelled partitions",
+      "failed_jobs": 15,
+      "note": "Each join correctly rejects incomplete partition sets. 80 Swift/Kotlin/Android installed jobs in this scope had runner_id=0, no steps, and completed at creation + 24h (within 1 second). These jobs never executed. Do not weaken the join or represent them as product test failures."
+    },
+    {
+      "class": "HTTP 504 during external tool provisioning",
+      "failed_jobs": 8,
+      "note": "Python distributions, Gradle, Maude, Tamarin and opam assets; no code test began in these failed steps. Existing installers retried; final 504 remained."
+    },
+    {
+      "class": "Android API35 16K emulator system_server crashes during startup",
+      "failed_jobs": 1,
+      "run": 42607941238,
+      "source_sha": "22efc230e26b1dc670049d3229113405ff9f6977",
+      "job": 129237626771,
+      "artifact": 13705258580,
+      "error": "java.lang.IllegalStateException: Cannot access system provider: 'settings' before system providers are installed!",
+      "timeline": [
+        "19:56:34 boot_completed=1",
+        "19:56:36 system_server PID569 SIGSEGV in system AppSearch protobuf ODEX",
+        "19:56:48 adb install cannot access settings provider while PID2474 is restarting",
+        "19:56:49 system_server PID2474 SIGSEGV in libart ClassLinker::ResolveMethod",
+        "19:56:59 a later framework reaches boot_completed=1"
+      ],
+      "current_relevance": "Current boot-completed gate still queries only sys.boot_completed and vold.decrypt, identical to the failed source. Actual SDK APK has not been executed. A bounded provider/framework-stability observation before installation could address the observed readiness gap; preserving system crash diagnostics is necessary.",
+      "retained_diagnostics": "android-startup-diagnostics.zip"
+    }
+  ],
+  "runs": [
+    {
+      "run_id": 42608295059,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42608295059",
+      "sha": "e798d3d76d0bbdb9ec3642b5e168886f242bde09",
+      "branch": "paper/joc-persistent-recovery",
+      "event": "pull_request",
+      "created": "2026-11-09T11:20:46Z",
+      "updated": "2026-11-10T21:45:26Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "success": 58,
+        "failure": 2,
+        "cancelled": 11
+      },
+      "failed": [
+        {
+          "id": 129129783404,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42608295059/job/129129783404",
+          "started": "2026-11-09T16:01:09Z",
+          "completed": "2026-11-09T16:11:05Z",
+          "runner_id": 1000083625,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129955030433,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42608295059/job/129955030433",
+          "started": "2026-11-10T21:41:08Z",
+          "completed": "2026-11-10T21:45:25Z",
+          "runner_id": 1000087196,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 129281311405,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T16:11:30Z",
+          "started": "2026-11-09T20:55:32Z",
+          "completed": "2026-11-09T23:00:19Z",
+          "runner_id": 1000084206,
+          "steps": 10
+        },
+        {
+          "id": 129281311455,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T16:11:30Z",
+          "started": "2026-11-09T16:11:30Z",
+          "completed": "2026-11-10T16:11:30Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129281311568,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T16:11:30Z",
+          "started": "2026-11-09T16:11:30Z",
+          "completed": "2026-11-10T16:11:30Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129281311605,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T16:11:30Z",
+          "started": "2026-11-09T16:11:30Z",
+          "completed": "2026-11-10T16:11:30Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129281311778,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T16:11:30Z",
+          "started": "2026-11-09T16:11:30Z",
+          "completed": "2026-11-10T16:11:30Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129281312969,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T16:11:30Z",
+          "started": "2026-11-09T16:11:30Z",
+          "completed": "2026-11-10T16:11:30Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129281312993,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T16:11:30Z",
+          "started": "2026-11-09T16:11:30Z",
+          "completed": "2026-11-10T16:11:30Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    },
+    {
+      "run_id": 42608170373,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42608170373",
+      "sha": "fc36c04b61c62ae45f7e9bd761737d7a4b2ff148",
+      "branch": "research/bootstrap-terminal-agreement",
+      "event": "push",
+      "created": "2026-11-09T11:19:54Z",
+      "updated": "2026-11-10T21:45:06Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "success": 59,
+        "failure": 2,
+        "cancelled": 10
+      },
+      "failed": [
+        {
+          "id": 129129378340,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42608170373/job/129129378340",
+          "started": "2026-11-09T15:11:08Z",
+          "completed": "2026-11-09T15:26:26Z",
+          "runner_id": 1000083518,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [
+            {
+              "line": 6477,
+              "text": "2026-11-09T15:26:23.3410473Z FAIL: test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner)"
+            },
+            {
+              "line": 6491,
+              "text": "2026-11-09T15:26:23.3425942Z AssertionError: 'sh artifact/python-run.sh' not found in '            /artifact/test_peer_configuration_lifetime.py' : .github/workflows/peer-configuration-lifetime.yml:32 bypasses the one-shot runner"
+            },
+            {
+              "line": 6503,
+              "text": "2026-11-09T15:26:23.4612905Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129943517357,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42608170373/job/129943517357",
+          "started": "2026-11-10T21:40:24Z",
+          "completed": "2026-11-10T21:45:05Z",
+          "runner_id": 1000087192,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 290,
+              "text": "2026-11-10T21:45:03.4839143Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 291,
+              "text": "2026-11-10T21:45:03.5018855Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 129252645327,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T15:23:08Z",
+          "started": "2026-11-09T20:45:15Z",
+          "completed": "2026-11-09T22:56:31Z",
+          "runner_id": 1000084186,
+          "steps": 10
+        },
+        {
+          "id": 129252645750,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "success",
+          "created": "2026-11-09T15:23:08Z",
+          "started": "2026-11-10T12:31:55Z",
+          "completed": "2026-11-10T15:51:57Z",
+          "runner_id": 1000086099,
+          "steps": 15
+        },
+        {
+          "id": 129252645753,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T15:23:08Z",
+          "started": "2026-11-09T15:23:08Z",
+          "completed": "2026-11-10T15:23:09Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129252645778,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T15:23:08Z",
+          "started": "2026-11-09T15:23:08Z",
+          "completed": "2026-11-10T15:23:09Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129252645805,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T15:23:08Z",
+          "started": "2026-11-09T15:23:08Z",
+          "completed": "2026-11-10T15:23:09Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129252646054,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T15:23:08Z",
+          "started": "2026-11-09T15:23:08Z",
+          "completed": "2026-11-10T15:23:09Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129252646066,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T15:23:08Z",
+          "started": "2026-11-09T15:23:08Z",
+          "completed": "2026-11-10T15:23:09Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    },
+    {
+      "run_id": 42607941238,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42607941238",
+      "sha": "22efc230e26b1dc670049d3229113405ff9f6977",
+      "branch": "fix/archive-snapshot-ownership",
+      "event": "pull_request",
+      "created": "2026-11-09T11:18:12Z",
+      "updated": "2026-11-10T21:37:28Z",
+      "jobs_total": 70,
+      "jobs_returned": 70,
+      "counts": {
+        "success": 55,
+        "failure": 3,
+        "cancelled": 11,
+        "skipped": 1
+      },
+      "failed": [
+        {
+          "id": 129128582152,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42607941238/job/129128582152",
+          "started": "2026-11-09T14:05:08Z",
+          "completed": "2026-11-09T14:20:22Z",
+          "runner_id": 1000083369,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [
+            {
+              "line": 6487,
+              "text": "2026-11-09T14:20:19.0339295Z FAIL: test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner)"
+            },
+            {
+              "line": 6501,
+              "text": "2026-11-09T14:20:19.0357824Z AssertionError: 'sh artifact/python-run.sh' not found in '            /artifact/test_peer_configuration_lifetime.py' : .github/workflows/peer-configuration-lifetime.yml:32 bypasses the one-shot runner"
+            },
+            {
+              "line": 6513,
+              "text": "2026-11-09T14:20:19.1498361Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129237626771,
+          "name": "bindings-android-runtime-16k",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42607941238/job/129237626771",
+          "started": "2026-11-09T19:48:54Z",
+          "completed": "2026-11-09T19:57:24Z",
+          "runner_id": 1000084077,
+          "failed_steps": [
+            "Execute both SDK consumers against the hash-bound AAR on the selected ART runtime"
+          ],
+          "errors": [
+            {
+              "line": 2426,
+              "text": "2026-11-09T19:56:48.6069832Z error: Android smoke APK installation failed; see /home/runner/work/q-periapt/q-periapt/target/qperiapt-android-device-smoke-runs/9cab8ac8da6114e7cb89c0ae09cef58d/proof/adb-install.log"
+            },
+            {
+              "line": 2430,
+              "text": "2026-11-09T19:57:18.2162074Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129886915011,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42607941238/job/129886915011",
+          "started": "2026-11-10T21:32:32Z",
+          "completed": "2026-11-10T21:37:27Z",
+          "runner_id": 1000087170,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 297,
+              "text": "2026-11-10T21:37:24.3036421Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 298,
+              "text": "2026-11-10T21:37:24.3283809Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 129215228754,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T14:18:39Z",
+          "started": "2026-11-09T14:18:39Z",
+          "completed": "2026-11-10T14:18:39Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129215228766,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T14:18:39Z",
+          "started": "2026-11-09T14:18:39Z",
+          "completed": "2026-11-10T14:18:39Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129215228780,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T14:18:39Z",
+          "started": "2026-11-09T14:18:39Z",
+          "completed": "2026-11-10T14:18:39Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129215228815,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T14:18:39Z",
+          "started": "2026-11-09T14:18:39Z",
+          "completed": "2026-11-10T14:18:39Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129215228838,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T14:18:39Z",
+          "started": "2026-11-09T14:18:39Z",
+          "completed": "2026-11-10T14:18:39Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129215228846,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T14:18:39Z",
+          "started": "2026-11-09T17:08:11Z",
+          "completed": "2026-11-09T19:07:48Z",
+          "runner_id": 1000083738,
+          "steps": 10
+        },
+        {
+          "id": 129215229083,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T14:18:39Z",
+          "started": "2026-11-09T14:18:39Z",
+          "completed": "2026-11-10T14:18:39Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    },
+    {
+      "run_id": 42607903562,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42607903562",
+      "sha": "22efc230e26b1dc670049d3229113405ff9f6977",
+      "branch": "fix/archive-snapshot-ownership",
+      "event": "push",
+      "created": "2026-11-09T11:17:56Z",
+      "updated": "2026-11-10T21:43:16Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "success": 61,
+        "failure": 2,
+        "cancelled": 8
+      },
+      "failed": [
+        {
+          "id": 129128456590,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42607903562/job/129128456590",
+          "started": "2026-11-09T13:36:46Z",
+          "completed": "2026-11-09T13:49:45Z",
+          "runner_id": 1000083317,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [
+            {
+              "line": 6477,
+              "text": "2026-11-09T13:49:40.4240025Z FAIL: test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner)"
+            },
+            {
+              "line": 6491,
+              "text": "2026-11-09T13:49:40.4252626Z AssertionError: 'sh artifact/python-run.sh' not found in '            /artifact/test_peer_configuration_lifetime.py' : .github/workflows/peer-configuration-lifetime.yml:32 bypasses the one-shot runner"
+            },
+            {
+              "line": 6503,
+              "text": "2026-11-09T13:49:40.5203406Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129870979017,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42607903562/job/129870979017",
+          "started": "2026-11-10T21:39:15Z",
+          "completed": "2026-11-10T21:43:15Z",
+          "runner_id": 1000087187,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 285,
+              "text": "2026-11-10T21:43:13.5651650Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 286,
+              "text": "2026-11-10T21:43:13.5887421Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 129200066689,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T13:50:24Z",
+          "started": "2026-11-09T15:21:26Z",
+          "completed": "2026-11-09T17:32:38Z",
+          "runner_id": 1000083545,
+          "steps": 10
+        },
+        {
+          "id": 129200066743,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T13:50:24Z",
+          "started": "2026-11-09T13:50:24Z",
+          "completed": "2026-11-10T13:50:25Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129200066773,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T13:50:24Z",
+          "started": "2026-11-09T13:50:24Z",
+          "completed": "2026-11-10T13:50:25Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129200066830,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T13:50:24Z",
+          "started": "2026-11-09T13:50:24Z",
+          "completed": "2026-11-10T13:50:25Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129200066848,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T13:50:24Z",
+          "started": "2026-11-09T13:50:24Z",
+          "completed": "2026-11-10T13:50:25Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129200066855,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T13:50:24Z",
+          "started": "2026-11-09T13:50:24Z",
+          "completed": "2026-11-10T13:50:25Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129200067138,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T13:50:24Z",
+          "started": "2026-11-09T13:50:24Z",
+          "completed": "2026-11-10T13:50:25Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    },
+    {
+      "run_id": 42604411574,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42604411574",
+      "sha": "6b2337d312f93c8cf4b4a6a63fbe1827b7fc17a8",
+      "branch": "fix/android-command-text",
+      "event": "push",
+      "created": "2026-11-09T10:52:20Z",
+      "updated": "2026-11-10T22:07:27Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "success": 63,
+        "failure": 2,
+        "cancelled": 6
+      },
+      "failed": [
+        {
+          "id": 129116587828,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42604411574/job/129116587828",
+          "started": "2026-11-09T13:03:21Z",
+          "completed": "2026-11-09T13:18:40Z",
+          "runner_id": 1000083234,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [
+            {
+              "line": 6467,
+              "text": "2026-11-09T13:18:35.7108149Z FAIL: test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner)"
+            },
+            {
+              "line": 6481,
+              "text": "2026-11-09T13:18:35.7127356Z AssertionError: 'sh artifact/python-run.sh' not found in '            /artifact/test_peer_configuration_lifetime.py' : .github/workflows/peer-configuration-lifetime.yml:32 bypasses the one-shot runner"
+            },
+            {
+              "line": 6493,
+              "text": "2026-11-09T13:18:35.8138703Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129957129856,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42604411574/job/129957129856",
+          "started": "2026-11-10T22:03:00Z",
+          "completed": "2026-11-10T22:07:26Z",
+          "runner_id": 1000087255,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 290,
+              "text": "2026-11-10T22:07:24.6798652Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 291,
+              "text": "2026-11-10T22:07:24.7142594Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 129196407497,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T13:43:08Z",
+          "started": "2026-11-09T17:04:54Z",
+          "completed": "2026-11-09T19:21:15Z",
+          "runner_id": 1000083736,
+          "steps": 10
+        },
+        {
+          "id": 129196407536,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "success",
+          "created": "2026-11-09T13:43:08Z",
+          "started": "2026-11-10T12:45:22Z",
+          "completed": "2026-11-10T16:15:06Z",
+          "runner_id": 1000086128,
+          "steps": 15
+        },
+        {
+          "id": 129196407591,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T13:43:08Z",
+          "started": "2026-11-09T13:43:08Z",
+          "completed": "2026-11-10T13:43:09Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129196407632,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T13:43:08Z",
+          "started": "2026-11-09T13:43:08Z",
+          "completed": "2026-11-10T13:43:09Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129196407690,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T13:43:08Z",
+          "started": "2026-11-09T13:43:08Z",
+          "completed": "2026-11-10T13:43:09Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129196407743,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T13:43:08Z",
+          "started": "2026-11-09T13:43:08Z",
+          "completed": "2026-11-10T13:43:09Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129196407784,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T13:43:08Z",
+          "started": "2026-11-09T13:43:08Z",
+          "completed": "2026-11-10T13:43:09Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    },
+    {
+      "run_id": 42601296190,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42601296190",
+      "sha": "f54fc7ff265dabe4517cf252df32d514bfe4c9a7",
+      "branch": "fix/codeql-analysis-snapshots",
+      "event": "pull_request",
+      "created": "2026-11-09T10:30:00Z",
+      "updated": "2026-11-10T18:42:42Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "success": 62,
+        "failure": 2,
+        "cancelled": 7
+      },
+      "failed": [
+        {
+          "id": 129106160201,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42601296190/job/129106160201",
+          "started": "2026-11-09T12:07:14Z",
+          "completed": "2026-11-09T12:20:48Z",
+          "runner_id": 1000083112,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [
+            {
+              "line": 6473,
+              "text": "2026-11-09T12:20:43.3629924Z FAIL: test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner)"
+            },
+            {
+              "line": 6487,
+              "text": "2026-11-09T12:20:43.3642802Z AssertionError: 'sh artifact/python-run.sh' not found in '            /artifact/test_peer_configuration_lifetime.py' : .github/workflows/peer-configuration-lifetime.yml:32 bypasses the one-shot runner"
+            },
+            {
+              "line": 6499,
+              "text": "2026-11-09T12:20:43.4983705Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129823672657,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42601296190/job/129823672657",
+          "started": "2026-11-10T18:38:02Z",
+          "completed": "2026-11-10T18:42:42Z",
+          "runner_id": 1000086808,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 296,
+              "text": "2026-11-10T18:42:39.8813617Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 297,
+              "text": "2026-11-10T18:42:39.9062841Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 129154863468,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:16:54Z",
+          "started": "2026-11-09T12:16:54Z",
+          "completed": "2026-11-10T12:16:54Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129154863472,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:16:54Z",
+          "started": "2026-11-09T12:16:54Z",
+          "completed": "2026-11-10T12:16:54Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129154863539,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:16:54Z",
+          "started": "2026-11-09T12:16:54Z",
+          "completed": "2026-11-10T12:16:54Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129154863540,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:16:54Z",
+          "started": "2026-11-09T12:16:54Z",
+          "completed": "2026-11-10T12:16:54Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129154863613,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:16:54Z",
+          "started": "2026-11-09T12:16:54Z",
+          "completed": "2026-11-10T12:16:54Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129154863654,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:16:54Z",
+          "started": "2026-11-09T12:16:54Z",
+          "completed": "2026-11-10T12:16:54Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129154863656,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T12:16:54Z",
+          "started": "2026-11-09T15:26:30Z",
+          "completed": "2026-11-09T17:24:06Z",
+          "runner_id": 1000083560,
+          "steps": 10
+        }
+      ]
+    },
+    {
+      "run_id": 42601137565,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42601137565",
+      "sha": "f54fc7ff265dabe4517cf252df32d514bfe4c9a7",
+      "branch": "fix/codeql-analysis-snapshots",
+      "event": "push",
+      "created": "2026-11-09T10:28:38Z",
+      "updated": "2026-11-10T21:40:13Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "success": 64,
+        "failure": 2,
+        "cancelled": 5
+      },
+      "failed": [
+        {
+          "id": 129105618160,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42601137565/job/129105618160",
+          "started": "2026-11-09T11:51:26Z",
+          "completed": "2026-11-09T12:06:39Z",
+          "runner_id": 1000083073,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [
+            {
+              "line": 6457,
+              "text": "2026-11-09T12:06:36.6166562Z FAIL: test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner)"
+            },
+            {
+              "line": 6471,
+              "text": "2026-11-09T12:06:36.6179404Z AssertionError: 'sh artifact/python-run.sh' not found in '            /artifact/test_peer_configuration_lifetime.py' : .github/workflows/peer-configuration-lifetime.yml:32 bypasses the one-shot runner"
+            },
+            {
+              "line": 6483,
+              "text": "2026-11-09T12:06:36.7249512Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129894834601,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42601137565/job/129894834601",
+          "started": "2026-11-10T21:35:11Z",
+          "completed": "2026-11-10T21:40:13Z",
+          "runner_id": 1000087180,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 292,
+              "text": "2026-11-10T21:40:11.0363234Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 293,
+              "text": "2026-11-10T21:40:11.0624002Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 129152921272,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T12:12:45Z",
+          "started": "2026-11-09T15:03:44Z",
+          "completed": "2026-11-09T17:03:17Z",
+          "runner_id": 1000083497,
+          "steps": 10
+        },
+        {
+          "id": 129152922059,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:12:45Z",
+          "started": "2026-11-09T12:12:45Z",
+          "completed": "2026-11-10T12:12:46Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129152922068,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "success",
+          "created": "2026-11-09T12:12:45Z",
+          "started": "2026-11-10T11:44:50Z",
+          "completed": "2026-11-10T14:31:59Z",
+          "runner_id": 1000085991,
+          "steps": 13
+        },
+        {
+          "id": 129152922174,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:12:45Z",
+          "started": "2026-11-09T12:12:45Z",
+          "completed": "2026-11-10T12:12:46Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129152922204,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:12:45Z",
+          "started": "2026-11-09T12:12:45Z",
+          "completed": "2026-11-10T12:12:46Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129152922211,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:12:45Z",
+          "started": "2026-11-09T12:12:45Z",
+          "completed": "2026-11-10T12:12:46Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129152922227,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:12:45Z",
+          "started": "2026-11-09T12:12:45Z",
+          "completed": "2026-11-10T12:12:46Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    },
+    {
+      "run_id": 42599742308,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42599742308",
+      "sha": "8aadcc89d431876a19ac66059b836de2b0238378",
+      "branch": "fix/peer-lifetime-compiler",
+      "event": "pull_request",
+      "created": "2026-11-09T10:17:00Z",
+      "updated": "2026-11-10T18:51:22Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "failure": 2,
+        "success": 60,
+        "cancelled": 9
+      },
+      "failed": [
+        {
+          "id": 129101100596,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42599742308/job/129101100596",
+          "started": "2026-11-09T10:40:27Z",
+          "completed": "2026-11-09T10:50:42Z",
+          "runner_id": 1000082924,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [
+            {
+              "line": 6464,
+              "text": "2026-11-09T10:50:38.8918979Z FAIL: test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner)"
+            },
+            {
+              "line": 6478,
+              "text": "2026-11-09T10:50:38.8928722Z AssertionError: 'sh artifact/python-run.sh' not found in '            /artifact/test_peer_configuration_lifetime.py' : .github/workflows/peer-configuration-lifetime.yml:32 bypasses the one-shot runner"
+            },
+            {
+              "line": 6490,
+              "text": "2026-11-09T10:50:39.0213462Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129830239873,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42599742308/job/129830239873",
+          "started": "2026-11-10T18:46:43Z",
+          "completed": "2026-11-10T18:51:21Z",
+          "runner_id": 1000086822,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 291,
+              "text": "2026-11-10T18:51:19.0721216Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 292,
+              "text": "2026-11-10T18:51:19.0985486Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 129161188655,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T12:30:26Z",
+          "started": "2026-11-09T16:49:08Z",
+          "completed": "2026-11-09T18:50:30Z",
+          "runner_id": 1000083693,
+          "steps": 10
+        },
+        {
+          "id": 129161188753,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:30:26Z",
+          "started": "2026-11-09T12:30:26Z",
+          "completed": "2026-11-10T12:30:26Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129161188768,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:30:26Z",
+          "started": "2026-11-09T12:30:26Z",
+          "completed": "2026-11-10T12:30:26Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129161188783,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:30:26Z",
+          "started": "2026-11-09T12:30:26Z",
+          "completed": "2026-11-10T12:30:26Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129161188784,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:30:26Z",
+          "started": "2026-11-09T12:30:26Z",
+          "completed": "2026-11-10T12:30:26Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129161188843,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:30:26Z",
+          "started": "2026-11-09T12:30:26Z",
+          "completed": "2026-11-10T12:30:26Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129161188917,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T12:30:26Z",
+          "started": "2026-11-09T12:30:26Z",
+          "completed": "2026-11-10T12:30:26Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    },
+    {
+      "run_id": 42599735327,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42599735327",
+      "sha": "8aadcc89d431876a19ac66059b836de2b0238378",
+      "branch": "fix/peer-lifetime-compiler",
+      "event": "push",
+      "created": "2026-11-09T10:16:56Z",
+      "updated": "2026-11-10T21:45:15Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "success": 64,
+        "failure": 2,
+        "cancelled": 5
+      },
+      "failed": [
+        {
+          "id": 129101064538,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42599735327/job/129101064538",
+          "started": "2026-11-09T10:26:15Z",
+          "completed": "2026-11-09T10:36:46Z",
+          "runner_id": 1000082890,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [
+            {
+              "line": 6451,
+              "text": "2026-11-09T10:36:41.8130949Z FAIL: test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner)"
+            },
+            {
+              "line": 6465,
+              "text": "2026-11-09T10:36:41.8140360Z AssertionError: 'sh artifact/python-run.sh' not found in '            /artifact/test_peer_configuration_lifetime.py' : .github/workflows/peer-configuration-lifetime.yml:32 bypasses the one-shot runner"
+            },
+            {
+              "line": 6477,
+              "text": "2026-11-09T10:36:41.9201102Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129878004805,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42599735327/job/129878004805",
+          "started": "2026-11-10T21:41:42Z",
+          "completed": "2026-11-10T21:45:14Z",
+          "runner_id": 1000087197,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 290,
+              "text": "2026-11-10T21:45:12.6190968Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 291,
+              "text": "2026-11-10T21:45:12.6493636Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 129120225092,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T11:00:24Z",
+          "started": "2026-11-09T11:00:24Z",
+          "completed": "2026-11-10T11:00:25Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129120225105,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T11:00:24Z",
+          "started": "2026-11-09T11:00:24Z",
+          "completed": "2026-11-10T11:00:25Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129120225149,
+          "name": "continuity-installed-android-release",
+          "conclusion": "success",
+          "created": "2026-11-09T11:00:24Z",
+          "started": "2026-11-10T10:20:53Z",
+          "completed": "2026-11-10T14:03:11Z",
+          "runner_id": 1000085764,
+          "steps": 14
+        },
+        {
+          "id": 129120225155,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T11:00:24Z",
+          "started": "2026-11-09T13:34:30Z",
+          "completed": "2026-11-09T15:42:47Z",
+          "runner_id": 1000083311,
+          "steps": 10
+        },
+        {
+          "id": 129120225194,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T11:00:24Z",
+          "started": "2026-11-09T11:00:24Z",
+          "completed": "2026-11-10T11:00:25Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129120225205,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T11:00:24Z",
+          "started": "2026-11-09T11:00:24Z",
+          "completed": "2026-11-10T11:00:25Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129120225230,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T11:00:24Z",
+          "started": "2026-11-09T11:00:24Z",
+          "completed": "2026-11-10T11:00:25Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    },
+    {
+      "run_id": 42599535379,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42599535379",
+      "sha": "06be67bde08771558f03287078300ab4c4e4171f",
+      "branch": "fix/codeql-analysis-queue",
+      "event": "pull_request",
+      "created": "2026-11-09T10:15:19Z",
+      "updated": "2026-11-10T18:40:42Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "success": 63,
+        "failure": 2,
+        "cancelled": 6
+      },
+      "failed": [
+        {
+          "id": 129100289748,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42599535379/job/129100289748",
+          "started": "2026-11-09T10:34:24Z",
+          "completed": "2026-11-09T10:43:57Z",
+          "runner_id": 1000082906,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [
+            {
+              "line": 6465,
+              "text": "2026-11-09T10:43:53.2018543Z FAIL: test_owned_inputs_survive_and_each_borrowed_input_is_detected (test_peer_configuration_lifetime.PeerConfigurationLifetimeTests.test_owned_inputs_survive_and_each_borrowed_input_is_detected)"
+            },
+            {
+              "line": 6471,
+              "text": "2026-11-09T10:43:53.2046150Z AssertionError: Tuples differ: (1, '', 'In file included from /home/runne[1960 chars]s\\n') != (0, '', '')"
+            },
+            {
+              "line": 6489,
+              "text": "2026-11-09T10:43:53.2842192Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129842927852,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42599535379/job/129842927852",
+          "started": "2026-11-10T18:37:03Z",
+          "completed": "2026-11-10T18:40:41Z",
+          "runner_id": 1000086806,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 300,
+              "text": "2026-11-10T18:40:39.6495434Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 301,
+              "text": "2026-11-10T18:40:39.6793148Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 129106407840,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T10:30:38Z",
+          "started": "2026-11-09T12:26:08Z",
+          "completed": "2026-11-09T14:37:56Z",
+          "runner_id": 1000083160,
+          "steps": 10
+        },
+        {
+          "id": 129106407918,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "success",
+          "created": "2026-11-09T10:30:38Z",
+          "started": "2026-11-10T10:26:16Z",
+          "completed": "2026-11-10T12:56:35Z",
+          "runner_id": 1000085773,
+          "steps": 13
+        },
+        {
+          "id": 129106407932,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T10:30:38Z",
+          "started": "2026-11-09T10:30:38Z",
+          "completed": "2026-11-10T10:30:38Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129106407961,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T10:30:38Z",
+          "started": "2026-11-09T10:30:38Z",
+          "completed": "2026-11-10T10:30:38Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129106407976,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T10:30:38Z",
+          "started": "2026-11-09T10:30:38Z",
+          "completed": "2026-11-10T10:30:38Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129106408020,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T10:30:38Z",
+          "started": "2026-11-09T10:30:38Z",
+          "completed": "2026-11-10T10:30:38Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129106408222,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T10:30:38Z",
+          "started": "2026-11-09T10:30:38Z",
+          "completed": "2026-11-10T10:30:38Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    },
+    {
+      "run_id": 42599529766,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42599529766",
+      "sha": "06be67bde08771558f03287078300ab4c4e4171f",
+      "branch": "fix/codeql-analysis-queue",
+      "event": "push",
+      "created": "2026-11-09T10:15:17Z",
+      "updated": "2026-11-10T15:18:25Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "success": 62,
+        "failure": 2,
+        "cancelled": 7
+      },
+      "failed": [
+        {
+          "id": 129100273790,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42599529766/job/129100273790",
+          "started": "2026-11-09T10:24:06Z",
+          "completed": "2026-11-09T10:36:55Z",
+          "runner_id": 1000082884,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [
+            {
+              "line": 6453,
+              "text": "2026-11-09T10:36:52.2573196Z FAIL: test_owned_inputs_survive_and_each_borrowed_input_is_detected (test_peer_configuration_lifetime.PeerConfigurationLifetimeTests.test_owned_inputs_survive_and_each_borrowed_input_is_detected)"
+            },
+            {
+              "line": 6459,
+              "text": "2026-11-09T10:36:52.2585485Z AssertionError: Tuples differ: (1, '', 'In file included from /home/runne[1960 chars]s\\n') != (0, '', '')"
+            },
+            {
+              "line": 6477,
+              "text": "2026-11-09T10:36:52.3524914Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129785752246,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42599529766/job/129785752246",
+          "started": "2026-11-10T15:13:53Z",
+          "completed": "2026-11-10T15:18:24Z",
+          "runner_id": 1000086382,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 282,
+              "text": "2026-11-10T15:18:22.2511201Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 283,
+              "text": "2026-11-10T15:18:22.2713330Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 129118043084,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T10:55:37Z",
+          "started": "2026-11-09T13:25:43Z",
+          "completed": "2026-11-09T15:31:33Z",
+          "runner_id": 1000083290,
+          "steps": 10
+        },
+        {
+          "id": 129118043264,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T10:55:37Z",
+          "started": "2026-11-09T10:55:37Z",
+          "completed": "2026-11-10T10:55:38Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129118043275,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T10:55:37Z",
+          "started": "2026-11-09T10:55:37Z",
+          "completed": "2026-11-10T10:55:38Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129118043288,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T10:55:37Z",
+          "started": "2026-11-09T10:55:37Z",
+          "completed": "2026-11-10T10:55:38Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129118043306,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T10:55:37Z",
+          "started": "2026-11-09T10:55:37Z",
+          "completed": "2026-11-10T10:55:38Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129118043337,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T10:55:37Z",
+          "started": "2026-11-09T10:55:37Z",
+          "completed": "2026-11-10T10:55:38Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 129118043438,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T10:55:37Z",
+          "started": "2026-11-09T10:55:37Z",
+          "completed": "2026-11-10T10:55:38Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    },
+    {
+      "run_id": 42554253799,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42554253799",
+      "sha": "f014c6755d5782162f0d7e8025ca87caab773561",
+      "branch": "paper/joc-persistent-recovery",
+      "event": "push",
+      "created": "2026-11-09T03:03:30Z",
+      "updated": "2026-11-09T12:35:23Z",
+      "jobs_total": 34,
+      "jobs_returned": 34,
+      "counts": {
+        "success": 33,
+        "failure": 1
+      },
+      "failed": [
+        {
+          "id": 128956333414,
+          "name": "proverif-proof",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42554253799/job/128956333414",
+          "started": "2026-11-09T05:58:16Z",
+          "completed": "2026-11-09T05:59:38Z",
+          "runner_id": 1000082484,
+          "failed_steps": [
+            "Install ProVerif"
+          ],
+          "errors": [
+            {
+              "line": 886,
+              "text": "2026-11-09T05:58:51.5771419Z curl: (22) The requested URL returned error: 504"
+            },
+            {
+              "line": 888,
+              "text": "2026-11-09T05:59:06.6537138Z curl: (22) The requested URL returned error: 504"
+            },
+            {
+              "line": 890,
+              "text": "2026-11-09T05:59:36.7296359Z curl: (22) The requested URL returned error: 504"
+            },
+            {
+              "line": 891,
+              "text": "2026-11-09T05:59:36.7315670Z error: formal-tool asset: opam-2.5.2 download failed after 3 attempts with curl status 22"
+            },
+            {
+              "line": 892,
+              "text": "2026-11-09T05:59:36.7477334Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": []
+    },
+    {
+      "run_id": 42551831861,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42551831861",
+      "sha": "9a9bb4bf3d5adea9a70e487e30cbe888fbb18f7a",
+      "branch": "paper/joc-persistent-recovery",
+      "event": "push",
+      "created": "2026-11-09T02:36:00Z",
+      "updated": "2026-11-09T06:46:06Z",
+      "jobs_total": 34,
+      "jobs_returned": 34,
+      "counts": {
+        "failure": 2,
+        "success": 32
+      },
+      "failed": [
+        {
+          "id": 128948893993,
+          "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42551831861/job/128948893993",
+          "started": "2026-11-09T05:14:42Z",
+          "completed": "2026-11-09T05:16:34Z",
+          "runner_id": 1000082330,
+          "failed_steps": [
+            "Provision hardened proof Python"
+          ],
+          "errors": [
+            {
+              "line": 304,
+              "text": "2026-11-09T05:15:39.1531660Z Unexpected HTTP response: 504"
+            },
+            {
+              "line": 306,
+              "text": "2026-11-09T05:16:08.2594799Z Unexpected HTTP response: 504"
+            },
+            {
+              "line": 308,
+              "text": "2026-11-09T05:16:32.4614490Z Unexpected HTTP response: 504"
+            },
+            {
+              "line": 309,
+              "text": "2026-11-09T05:16:32.4673158Z ##[error]Unexpected HTTP response: 504"
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 128948894530,
+          "name": "tamarin-proof",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42551831861/job/128948894530",
+          "started": "2026-11-09T05:43:43Z",
+          "completed": "2026-11-09T05:46:11Z",
+          "runner_id": 1000082397,
+          "failed_steps": [
+            "Install Maude + Tamarin"
+          ],
+          "errors": [
+            {
+              "line": 375,
+              "text": "2026-11-09T05:44:05.3751578Z curl: (22) The requested URL returned error: 504"
+            },
+            {
+              "line": 377,
+              "text": "2026-11-09T05:44:20.4696992Z curl: (22) The requested URL returned error: 504"
+            },
+            {
+              "line": 379,
+              "text": "2026-11-09T05:45:13.2224316Z curl: (22) The requested URL returned error: 504"
+            },
+            {
+              "line": 381,
+              "text": "2026-11-09T05:45:28.3179097Z curl: (22) The requested URL returned error: 504"
+            },
+            {
+              "line": 383,
+              "text": "2026-11-09T05:46:09.4319822Z curl: (22) The requested URL returned error: 504"
+            },
+            {
+              "line": 384,
+              "text": "2026-11-09T05:46:09.4345105Z error: formal-tool asset: tamarin-1.12.0 download failed after 3 attempts with curl status 22"
+            },
+            {
+              "line": 385,
+              "text": "2026-11-09T05:46:09.4498092Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": []
+    },
+    {
+      "run_id": 42551248557,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42551248557",
+      "sha": "96f58b924dfd2e026e73b8adc01cad9ee4476b06",
+      "branch": "fix/peer-configuration-lifetime",
+      "event": "pull_request",
+      "created": "2026-11-09T02:29:44Z",
+      "updated": "2026-11-10T14:26:30Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "success": 59,
+        "failure": 5,
+        "cancelled": 7
+      },
+      "failed": [
+        {
+          "id": 128947114717,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42551248557/job/128947114717",
+          "started": "2026-11-09T05:04:41Z",
+          "completed": "2026-11-09T05:20:52Z",
+          "runner_id": 1000082321,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [
+            {
+              "line": 6437,
+              "text": "2026-11-09T05:20:46.9687495Z FAIL: test_owned_inputs_survive_and_each_borrowed_input_is_detected (test_peer_configuration_lifetime.PeerConfigurationLifetimeTests.test_owned_inputs_survive_and_each_borrowed_input_is_detected)"
+            },
+            {
+              "line": 6443,
+              "text": "2026-11-09T05:20:46.9700121Z AssertionError: Tuples differ: (1, '', 'In file included from /home/runne[1960 chars]s\\n') != (0, '', '')"
+            },
+            {
+              "line": 6461,
+              "text": "2026-11-09T05:20:47.1004362Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 128947114951,
+          "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42551248557/job/128947114951",
+          "started": "2026-11-09T05:14:45Z",
+          "completed": "2026-11-09T05:16:57Z",
+          "runner_id": 1000082331,
+          "failed_steps": [
+            "Provision hardened proof Python"
+          ],
+          "errors": [
+            {
+              "line": 347,
+              "text": "2026-11-09T05:15:58.4634641Z Unexpected HTTP response: 504"
+            },
+            {
+              "line": 349,
+              "text": "2026-11-09T05:16:23.6330395Z Unexpected HTTP response: 504"
+            },
+            {
+              "line": 351,
+              "text": "2026-11-09T05:16:54.8116301Z Unexpected HTTP response: 504"
+            },
+            {
+              "line": 352,
+              "text": "2026-11-09T05:16:54.8183325Z ##[error]Unexpected HTTP response: 504"
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 128947115162,
+          "name": "tamarin-proof",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42551248557/job/128947115162",
+          "started": "2026-11-09T05:34:48Z",
+          "completed": "2026-11-09T05:36:59Z",
+          "runner_id": 1000082370,
+          "failed_steps": [
+            "Install Maude + Tamarin",
+            "Retain Continuity recovery proof results"
+          ],
+          "errors": [
+            {
+              "line": 431,
+              "text": "2026-11-09T05:36:11.5137450Z curl: (22) The requested URL returned error: 504"
+            },
+            {
+              "line": 433,
+              "text": "2026-11-09T05:36:26.6125072Z curl: (22) The requested URL returned error: 504"
+            },
+            {
+              "line": 435,
+              "text": "2026-11-09T05:36:56.7149788Z curl: (22) The requested URL returned error: 504"
+            },
+            {
+              "line": 436,
+              "text": "2026-11-09T05:36:56.7166779Z error: formal-tool asset: maude-3.5.1 download failed after 3 attempts with curl status 22"
+            },
+            {
+              "line": 437,
+              "text": "2026-11-09T05:36:56.7320087Z ##[error]Process completed with exit code 1."
+            },
+            {
+              "line": 453,
+              "text": "2026-11-09T05:36:56.9303597Z ##[error]No files were found with the provided path: target/continuity-recovery-proof. No artifacts will be uploaded."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 128947115194,
+          "name": "bindings-kotlin",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42551248557/job/128947115194",
+          "started": "2026-11-09T05:27:35Z",
+          "completed": "2026-11-09T05:32:24Z",
+          "runner_id": 1000082359,
+          "failed_steps": [
+            "Run gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92",
+            "Preserve JVM package and installation evidence"
+          ],
+          "errors": [
+            {
+              "line": 615,
+              "text": "2026-11-09T05:31:50.9400332Z Unexpected HTTP response: 504"
+            },
+            {
+              "line": 617,
+              "text": "2026-11-09T05:32:08.0377016Z Unexpected HTTP response: 504"
+            },
+            {
+              "line": 620,
+              "text": "2026-11-09T05:32:20.1155126Z ##[error]Error: Unexpected HTTP response: 504"
+            },
+            {
+              "line": 621,
+              "text": "2026-11-09T05:32:20.1172846Z Error: Unexpected HTTP response: 504"
+            },
+            {
+              "line": 660,
+              "text": "2026-11-09T05:32:20.4108827Z ##[error]No files were found with the provided path: target/sdk-jvm-package/*.tar.gz"
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129703787765,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42551248557/job/129703787765",
+          "started": "2026-11-10T14:22:15Z",
+          "completed": "2026-11-10T14:26:30Z",
+          "runner_id": 1000086299,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 307,
+              "text": "2026-11-10T14:26:28.0946762Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 308,
+              "text": "2026-11-10T14:26:28.1247762Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 128994308974,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T05:19:04Z",
+          "started": "2026-11-09T05:19:04Z",
+          "completed": "2026-11-10T05:19:04Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128994309015,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "success",
+          "created": "2026-11-09T05:19:04Z",
+          "started": "2026-11-10T05:12:54Z",
+          "completed": "2026-11-10T07:56:55Z",
+          "runner_id": 1000085171,
+          "steps": 13
+        },
+        {
+          "id": 128994309062,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T05:19:04Z",
+          "started": "2026-11-09T05:19:04Z",
+          "completed": "2026-11-10T05:19:05Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128994309089,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "success",
+          "created": "2026-11-09T05:19:04Z",
+          "started": "2026-11-10T04:38:21Z",
+          "completed": "2026-11-10T07:44:30Z",
+          "runner_id": 1000085108,
+          "steps": 15
+        },
+        {
+          "id": 128994309112,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T05:19:04Z",
+          "started": "2026-11-09T05:19:04Z",
+          "completed": "2026-11-10T05:19:04Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128994309121,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T05:19:04Z",
+          "started": "2026-11-09T05:19:04Z",
+          "completed": "2026-11-10T05:19:05Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128994309135,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T05:19:04Z",
+          "started": "2026-11-09T06:31:29Z",
+          "completed": "2026-11-09T08:27:34Z",
+          "runner_id": 1000082611,
+          "steps": 10
+        }
+      ]
+    },
+    {
+      "run_id": 42551230877,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42551230877",
+      "sha": "96f58b924dfd2e026e73b8adc01cad9ee4476b06",
+      "branch": "fix/peer-configuration-lifetime",
+      "event": "push",
+      "created": "2026-11-09T02:29:32Z",
+      "updated": "2026-11-10T11:06:54Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "success": 61,
+        "failure": 2,
+        "cancelled": 8
+      },
+      "failed": [
+        {
+          "id": 128947058637,
+          "name": "check",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42551230877/job/128947058637",
+          "started": "2026-11-09T04:49:14Z",
+          "completed": "2026-11-09T05:04:25Z",
+          "runner_id": 1000082281,
+          "failed_steps": [
+            "Exercise all artifact tooling"
+          ],
+          "errors": [
+            {
+              "line": 6424,
+              "text": "2026-11-09T05:04:21.5020179Z FAIL: test_owned_inputs_survive_and_each_borrowed_input_is_detected (test_peer_configuration_lifetime.PeerConfigurationLifetimeTests.test_owned_inputs_survive_and_each_borrowed_input_is_detected)"
+            },
+            {
+              "line": 6430,
+              "text": "2026-11-09T05:04:21.5034406Z AssertionError: Tuples differ: (1, '', 'In file included from /home/runne[1960 chars]s\\n') != (0, '', '')"
+            },
+            {
+              "line": 6448,
+              "text": "2026-11-09T05:04:21.6169579Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129638555818,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42551230877/job/129638555818",
+          "started": "2026-11-10T11:03:14Z",
+          "completed": "2026-11-10T11:06:53Z",
+          "runner_id": 1000085857,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 282,
+              "text": "2026-11-10T11:06:50.9143636Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 283,
+              "text": "2026-11-10T11:06:50.9359705Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 128986804276,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T04:52:17Z",
+          "started": "2026-11-09T04:52:17Z",
+          "completed": "2026-11-10T04:52:17Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128986804280,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T04:52:17Z",
+          "started": "2026-11-09T06:25:35Z",
+          "completed": "2026-11-09T08:37:30Z",
+          "runner_id": 1000082599,
+          "steps": 10
+        },
+        {
+          "id": 128986804299,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T04:52:17Z",
+          "started": "2026-11-09T04:52:17Z",
+          "completed": "2026-11-10T04:52:18Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128986804302,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T04:52:17Z",
+          "started": "2026-11-09T04:52:17Z",
+          "completed": "2026-11-10T04:52:17Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128986804314,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T04:52:17Z",
+          "started": "2026-11-09T04:52:17Z",
+          "completed": "2026-11-10T04:52:18Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128986804316,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T04:52:17Z",
+          "started": "2026-11-09T04:52:17Z",
+          "completed": "2026-11-10T04:52:17Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128986804341,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T04:52:17Z",
+          "started": "2026-11-09T04:52:17Z",
+          "completed": "2026-11-10T04:52:18Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    },
+    {
+      "run_id": 42550571345,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42550571345",
+      "sha": "3a9d6634f515a243737276acbfc7bee496fb7202",
+      "branch": "fix/macos-query-worker",
+      "event": "pull_request",
+      "created": "2026-11-09T02:22:28Z",
+      "updated": "2026-11-10T07:20:37Z",
+      "jobs_total": 70,
+      "jobs_returned": 70,
+      "counts": {
+        "success": 62,
+        "cancelled": 5,
+        "failure": 2,
+        "skipped": 1
+      },
+      "failed": [
+        {
+          "id": 128954816267,
+          "name": "bindings-android-runtime-minimum",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42550571345/job/128954816267",
+          "started": "2026-11-09T05:53:05Z",
+          "completed": "2026-11-09T05:55:50Z",
+          "runner_id": 1000082448,
+          "failed_steps": [
+            "Qualify the installed Maven SDK and prepare the offline AGP toolchain"
+          ],
+          "errors": [
+            {
+              "line": 375,
+              "text": "2026-11-09T05:54:16.8387620Z Unexpected HTTP response: 504"
+            },
+            {
+              "line": 2071,
+              "text": "2026-11-09T05:55:47.4319801Z Attempt 1/1 failed. Reason: Server returned HTTP response code: 504 for URL: https://services.gradle.org/distributions/gradle-9.7.1-bin.zip"
+            },
+            {
+              "line": 2072,
+              "text": "2026-11-09T05:55:47.4359836Z ##[error]Exception in thread \"main\" java.io.IOException: Server returned HTTP response code: 504 for URL: https://services.gradle.org/distributions/gradle-9.7.1-bin.zip"
+            },
+            {
+              "line": 2079,
+              "text": "2026-11-09T05:55:47.4539177Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129595359215,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42550571345/job/129595359215",
+          "started": "2026-11-10T07:16:25Z",
+          "completed": "2026-11-10T07:20:36Z",
+          "runner_id": 1000085407,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 305,
+              "text": "2026-11-10T07:20:34.4049494Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 306,
+              "text": "2026-11-10T07:20:34.4356043Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 128952051000,
+          "name": "continuity-installed-rust",
+          "conclusion": "success",
+          "created": "2026-11-09T02:47:33Z",
+          "started": "2026-11-09T05:51:33Z",
+          "completed": "2026-11-09T08:01:10Z",
+          "runner_id": 1000082439,
+          "steps": 10
+        },
+        {
+          "id": 128952051028,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T02:47:33Z",
+          "started": "2026-11-09T02:47:33Z",
+          "completed": "2026-11-10T02:47:33Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128952051029,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "success",
+          "created": "2026-11-09T02:47:33Z",
+          "started": "2026-11-09T14:48:17Z",
+          "completed": "2026-11-09T17:40:24Z",
+          "runner_id": 1000083455,
+          "steps": 13
+        },
+        {
+          "id": 128952051036,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "success",
+          "created": "2026-11-09T02:47:33Z",
+          "started": "2026-11-09T17:58:16Z",
+          "completed": "2026-11-09T21:27:40Z",
+          "runner_id": 1000083846,
+          "steps": 15
+        },
+        {
+          "id": 128952051104,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T02:47:33Z",
+          "started": "2026-11-09T02:47:33Z",
+          "completed": "2026-11-10T02:47:33Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128952051117,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T02:47:33Z",
+          "started": "2026-11-09T02:47:33Z",
+          "completed": "2026-11-10T02:47:33Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128952051137,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T02:47:33Z",
+          "started": "2026-11-09T02:47:33Z",
+          "completed": "2026-11-10T02:47:33Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    },
+    {
+      "run_id": 42550566761,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42550566761",
+      "sha": "3a9d6634f515a243737276acbfc7bee496fb7202",
+      "branch": "fix/macos-query-worker",
+      "event": "push",
+      "created": "2026-11-09T02:22:25Z",
+      "updated": "2026-11-10T14:02:37Z",
+      "jobs_total": 71,
+      "jobs_returned": 71,
+      "counts": {
+        "success": 63,
+        "failure": 2,
+        "cancelled": 6
+      },
+      "failed": [
+        {
+          "id": 128965583664,
+          "name": "continuity-installed-rust",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42550566761/job/128965583664",
+          "started": "2026-11-09T06:19:55Z",
+          "completed": "2026-11-09T06:25:32Z",
+          "runner_id": 1000082584,
+          "failed_steps": [
+            "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "Retain package and public execution evidence without private test state"
+          ],
+          "errors": [
+            {
+              "line": 438,
+              "text": "2026-11-09T06:24:39.4961359Z Unexpected HTTP response: 504"
+            },
+            {
+              "line": 440,
+              "text": "2026-11-09T06:25:07.5584995Z Unexpected HTTP response: 504"
+            },
+            {
+              "line": 442,
+              "text": "2026-11-09T06:25:29.6819867Z Unexpected HTTP response: 504"
+            },
+            {
+              "line": 443,
+              "text": "2026-11-09T06:25:29.6878962Z ##[error]Unexpected HTTP response: 504"
+            },
+            {
+              "line": 525,
+              "text": "2026-11-09T06:25:30.0038723Z ##[error]No files were found with the provided path: target/continuity-installed-rust/*.crate"
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        },
+        {
+          "id": 129649270027,
+          "name": "continuity-installed-coverage",
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42550566761/job/129649270027",
+          "started": "2026-11-10T13:57:44Z",
+          "completed": "2026-11-10T14:02:36Z",
+          "runner_id": 1000086254,
+          "failed_steps": [
+            "Require all installed consumer profiles from this source"
+          ],
+          "errors": [
+            {
+              "line": 290,
+              "text": "2026-11-10T14:02:34.3315355Z ValueError: installed consumer partition set is missing, duplicated, or unexpected"
+            },
+            {
+              "line": 291,
+              "text": "2026-11-10T14:02:34.3509265Z ##[error]Process completed with exit code 1."
+            }
+          ],
+          "log_verification": "Full failed-job log inspected; exact scanner or missing-partition failure confirmed."
+        }
+      ],
+      "installed": [
+        {
+          "id": 128965583664,
+          "name": "continuity-installed-rust",
+          "conclusion": "failure",
+          "created": "2026-11-09T03:35:28Z",
+          "started": "2026-11-09T06:19:55Z",
+          "completed": "2026-11-09T06:25:32Z",
+          "runner_id": 1000082584,
+          "steps": 10
+        },
+        {
+          "id": 128965583720,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T03:35:28Z",
+          "started": "2026-11-09T03:35:28Z",
+          "completed": "2026-11-10T03:35:28Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128965583722,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "success",
+          "created": "2026-11-09T03:35:28Z",
+          "started": "2026-11-10T01:56:53Z",
+          "completed": "2026-11-10T05:24:00Z",
+          "runner_id": 1000084820,
+          "steps": 15
+        },
+        {
+          "id": 128965583785,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T03:35:28Z",
+          "started": "2026-11-09T03:35:28Z",
+          "completed": "2026-11-10T03:35:28Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128965583805,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T03:35:28Z",
+          "started": "2026-11-09T03:35:28Z",
+          "completed": "2026-11-10T03:35:28Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128965583861,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T03:35:28Z",
+          "started": "2026-11-09T03:35:28Z",
+          "completed": "2026-11-10T03:35:28Z",
+          "runner_id": 0,
+          "steps": 0
+        },
+        {
+          "id": 128965583873,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "created": "2026-11-09T03:35:28Z",
+          "started": "2026-11-09T03:35:28Z",
+          "completed": "2026-11-10T03:35:28Z",
+          "runner_id": 0,
+          "steps": 0
+        }
+      ]
+    }
+  ],
+  "retained_android_artifact": {
+    "artifact_id": 13705258580,
+    "run_id": 42607941238,
+    "source_sha": "22efc230e26b1dc670049d3229113405ff9f6977",
+    "filename": "android-startup-diagnostics.zip",
+    "bytes": 134142,
+    "sha256": "0b000a4378d9d90f2a2da2592c4f9340a464d22378606b3954750c74543acc1e"
+  }
+}

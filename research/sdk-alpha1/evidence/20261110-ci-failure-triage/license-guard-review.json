@@ -1,0 +1,52 @@
+{
+  "reviewed_at_utc": "2026-11-10T22:40:10.623524+00:00",
+  "blocking_findings": [],
+  "test": "test_proof_to_byte_release.BoundVerifierWiringTests.test_every_android_sdk_license_input_is_finite_and_fail_closed",
+  "test_result": {
+    "tests": 1,
+    "status": "passed",
+    "seconds": 0.052,
+    "log": "license-guard.log"
+  },
+  "original_assertion_negative_control": {
+    "source": "b524 original method loaded from git and run with unchanged current workflow license blocks",
+    "status": "expected failure reproduced",
+    "mismatch": "4 != 3",
+    "log": "original-license-assertion.log"
+  },
+  "scope": "Only the added license-guard delta and this one original test reviewed; no global test expansion or source changes.",
+  "asserted_workflow_counts": {
+    ".github/workflows/abi2-platform-candidate.yml": 1,
+    ".github/workflows/ci.yml": 2,
+    ".github/workflows/continuity-android-installed.yml": 1
+  },
+  "observed_counts": {
+    "sdkmanager --licenses": {
+      ".github/workflows/abi2-platform-candidate.yml": 1,
+      ".github/workflows/ci.yml": 2,
+      ".github/workflows/continuity-android-installed.yml": 1
+    },
+    "license_answers=$(printf 'y\\n%.0s' {1..64})": {
+      ".github/workflows/abi2-platform-candidate.yml": 1,
+      ".github/workflows/ci.yml": 2,
+      ".github/workflows/continuity-android-installed.yml": 1
+    },
+    "sdkmanager --licenses <<< \"$license_answers\"": {
+      ".github/workflows/abi2-platform-candidate.yml": 1,
+      ".github/workflows/ci.yml": 2,
+      ".github/workflows/continuity-android-installed.yml": 1
+    },
+    "unset license_answers": {
+      ".github/workflows/abi2-platform-candidate.yml": 1,
+      ".github/workflows/ci.yml": 2,
+      ".github/workflows/continuity-android-installed.yml": 1
+    }
+  },
+  "existing_rejections_preserved": [
+    "yes | sdkmanager",
+    "sdkmanager --licenses <<< \"$license_answers\" ||"
+  ],
+  "test_file_sha256": "7cfac23cc7d4831f3f3c34e36ed4e55b6ad513dd07e2f1896c717084de4655e5",
+  "readiness_implementation_sha256_unchanged": "40ad61791a674ae6d91a34c24fe0483d13a5129714c29529e46f767294977d22",
+  "scope_note": "License guard reviewed before the separately reviewed setup-java pin synchronization."
+}

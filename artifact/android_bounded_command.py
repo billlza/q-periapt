@@ -181,6 +181,7 @@ class AndroidOperation(str, enum.Enum):
     SERVER_STATUS_AFTER = "server-status-after"
     DEVICE_STATE = "device-state"
     BOOT_COMPLETED = "boot-completed"
+    WAIT_FRAMEWORK_READY = "wait-framework-ready"
     QEMU_KIND = "qemu-kind"
     DEVICE_ABI = "device-abi"
     PAGE_SIZE = "page-size"
@@ -238,6 +239,7 @@ class OperationSpec:
         "logcat",
         "emulator-diagnostics",
         "register-emulator",
+        "framework-readiness",
     ]
     timeout_seconds: int
     timeout_maximum: int
@@ -604,13 +606,13 @@ def _boot_completed_argv(
 def _native_diagnostic_argv(
     capability: runtime_state.AndroidAdbCapability,
     probes: tuple[tuple[str, tuple[str, ...]], ...],
-    *, header: str, completion: str,
+    *, header: str, completion: str, prelude: str = "",
 ) -> tuple[str, ...]:
-    # These native commands do not launch ART or modify the guest. Each result
-    # keeps its exit status; a later successful probe cannot hide an earlier
-    # failure, including on legacy adb transports that lose the guest status.
+    # Every fixed probe keeps its output and exit status. A later successful
+    # probe cannot hide an earlier failure, including on legacy adb transports
+    # that lose the guest status. Callers choose only read-only observations.
     encoded_header = shlex.quote(header + "\\n")
-    program = (
+    program = prelude + (
         "qperiapt_state_status=0; "
         "qperiapt_state_probe() { "
         "qperiapt_probe_name=$1; shift; "
@@ -628,6 +630,44 @@ def _native_diagnostic_argv(
         '"$qperiapt_state_status"; exit "$qperiapt_state_status"'
     )
     return _device(capability, "shell", "sh", "-c", shlex.quote(program))
+
+
+FRAMEWORK_PROBES = (
+    ("identity-before", ("qperiapt_framework_identity",)),
+    ("boot-before", ("getprop", "sys.boot_completed")),
+    ("decrypt-before", ("getprop", "vold.decrypt")),
+    ("settings-provider", ("settings", "get", "global", "device_provisioned")),
+    ("package-manager", ("pm", "path", "android")),
+    ("package-absence", ("pm", "list", "packages", PACKAGE)),
+    ("identity-after", ("qperiapt_framework_identity",)),
+    ("boot-after", ("getprop", "sys.boot_completed")),
+    ("decrypt-after", ("getprop", "vold.decrypt")),
+)
+FRAMEWORK_STABLE_SECONDS = 5
+FRAMEWORK_STABLE_SAMPLES = 3
+FRAMEWORK_QUERY_MAX_BYTES = 16384
+
+
+def _framework_readiness_argv(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[str, ...]:
+    # A sticky boot-completed property survives a system_server crash. Read
+    # actual provider/package services between two process identities. PID
+    # alone cannot distinguish reuse, and a zombie retains its old PID.
+    prelude = (
+        "qperiapt_framework_identity() { "
+        "qperiapt_system_pid=$(pidof system_server); qperiapt_pid_status=$?; "
+        '[ "$qperiapt_pid_status" -eq 0 ] || return "$qperiapt_pid_status"; '
+        'case "$qperiapt_system_pid" in ""|*[!0-9]*) return 65;; esac; '
+        "printf 'pid=%s\\n' \"$qperiapt_system_pid\"; "
+        "cat /proc/sys/kernel/random/boot_id || return $?; "
+        'cat "/proc/$qperiapt_system_pid/stat"; }; '
+    )
+    return _native_diagnostic_argv(
+        capability, FRAMEWORK_PROBES,
+        header="QPERIAPT_FRAMEWORK_STATE_VERSION=1",
+        completion="QPERIAPT_FRAMEWORK_STATE_EXIT", prelude=prelude,
+    )
 
 
 def _emulator_state_argv(
@@ -821,6 +861,9 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
             15,
             None,
             _boot_completed_argv,
+        ),
+        AndroidOperation.WAIT_FRAMEWORK_READY: OperationSpec(
+            "framework-readiness", 120, 120, None, _framework_readiness_argv,
         ),
         AndroidOperation.QEMU_KIND: OperationSpec(
             "capture",
@@ -3925,12 +3968,13 @@ def _observe_exact_device_state(
 
 
 def _parse_guest_completion(
-    output: bytes, run_id: str, kind: Literal["package-state", "emulator-state", "boot-state", "app-exit-info", "memory-runtime"],
+    output: bytes, run_id: str, kind: Literal["package-state", "emulator-state", "boot-state", "framework-state", "app-exit-info", "memory-runtime"],
 ) -> tuple[int, bytes]:
     marker = {
         "package-state": b"QPERIAPT_PACKAGE_QUERY_EXIT:",
         "emulator-state": b"QPERIAPT_EMULATOR_STATE_EXIT:",
         "boot-state": b"QPERIAPT_BOOT_QUERY_EXIT:",
+        "framework-state": b"QPERIAPT_FRAMEWORK_STATE_EXIT:",
         "app-exit-info": b"QPERIAPT_APP_EXIT_INFO_EXIT:",
         "memory-runtime": b"QPERIAPT_EMULATOR_MEMORY_RUNTIME_EXIT:",
     }[kind]
@@ -3975,6 +4019,159 @@ def _boot_readiness_result(result: BoundedResult, run_id: str) -> BoundedResult:
     # the existing boot deadline; only the full-framework trigger admits FDE.
     ready = matched[1] == b"1" and matched[2] in (b"", b"trigger_restart_framework")
     return BoundedResult(0, b"1\n" if ready else b"0\n")
+
+
+def _framework_process_identity(raw: bytes) -> tuple[tuple[str, int, int], bool]:
+    matched = re.fullmatch(
+        rb"pid=([1-9][0-9]{0,9})\n"
+        rb"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\n"
+        rb"([1-9][0-9]{0,9}) \(system_server\) ([^\n]+)\n", raw,
+    )
+    _require(matched is not None, "Android framework process identity is malformed")
+    pid = int(matched[1])
+    _require(pid == int(matched[3]), "Android framework process PID differs")
+    fields = matched[4].split(b" ")
+    # stat fields 3 through 52 exist on both supported emulator kernels.
+    # Identity uses starttime (field 22), never mutable CPU/memory counters.
+    _require(
+        50 <= len(fields) <= 64 and fields[0] in (b"R", b"S", b"D", b"I", b"T", b"t", b"Z", b"X", b"x", b"W", b"P")
+        and all(re.fullmatch(rb"-?(?:0|[1-9][0-9]{0,19})", value) for value in fields[1:])
+        and int(fields[19]) > 0,
+        "Android framework process stat is malformed",
+    )
+    return ((matched[2].decode("ascii"), pid, int(fields[19])),
+            fields[0] in (b"R", b"S", b"D", b"I"))
+
+
+def _framework_readiness_observation(
+    result: BoundedResult, run_id: str,
+) -> tuple[str, tuple[str, int, int] | None]:
+    if result.returncode != 0:
+        return "query-nonzero", None
+    status, payload = _parse_guest_completion(result.stdout, run_id, "framework-state")
+    payload = payload.replace(b"\r\n", b"\n")
+    pattern = rb"QPERIAPT_FRAMEWORK_STATE_VERSION=1\n"
+    for label, _ in FRAMEWORK_PROBES:
+        name = label.encode("ascii")
+        pattern += (rb"\nQPERIAPT_STATE_PROBE:" + name + rb"\n(.*?)"
+                    rb"\nQPERIAPT_STATE_STATUS:" + name + rb":(0|[1-9][0-9]{0,2})\n")
+    matched = re.fullmatch(pattern, payload, re.DOTALL)
+    _require(matched is not None, "Android framework query framing is malformed")
+    values = {label: matched[2 * index + 1] for index, (label, _) in enumerate(FRAMEWORK_PROBES)}
+    statuses = [int(matched[2 * index + 2]) for index in range(len(FRAMEWORK_PROBES))]
+    _require(all(value <= 255 for value in statuses), "Android framework query status is malformed")
+    _require(status == next((value for value in statuses if value), 0),
+             "Android framework query completion differs from its probes")
+    if status:
+        return "guest-query-nonzero", None
+    before, before_live = _framework_process_identity(values["identity-before"])
+    after, after_live = _framework_process_identity(values["identity-after"])
+    if not before_live or not after_live:
+        return "process-not-running", None
+    if before != after:
+        return "process-changed", None
+    if any(values[name] != b"1\n" for name in ("boot-before", "boot-after")):
+        return "boot-incomplete", None
+    if any(values[name] not in (b"\n", b"trigger_restart_framework\n")
+           for name in ("decrypt-before", "decrypt-after")):
+        return "framework-transition", None
+    # SettingsCmd on older Android catches exceptions without a nonzero exit.
+    # A provider invocation must therefore return one exact boolean value;
+    # an unprovisioned fresh image's legitimate zero is ready too.
+    if values["settings-provider"] not in (b"0\n", b"1\n"):
+        return "settings-unavailable", None
+    package = values["package-manager"]
+    if (re.fullmatch(rb"package:/(?:[A-Za-z0-9_+-]+/)+framework-res\.apk\n", package) is None):
+        return "package-manager-unavailable", None
+    _require(values["package-absence"] == b"", "Android smoke package appeared before installation")
+    return "ready", after
+
+
+def _wait_framework_ready(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidCommandCapability,
+    *, timeout_seconds: int,
+) -> BoundedResult:
+    """Admit one owned emulator after a bounded, stable service observation."""
+    _require(capability.device_kind == "emulator", "framework readiness requires an owned emulator")
+    deadline = time.monotonic() + timeout_seconds
+    _validate_owned_adb_server_for_client(capability, deadline=deadline)
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(
+        receipt is not None and receipt.run_id == layout.run_id
+        and receipt.device_kind == "emulator"
+        and receipt.phase is runtime_state.RuntimePhase.EMULATOR_CHILD_REGISTERED,
+        "framework readiness lacks this run's active emulator receipt",
+    )
+    context = _validate_recovery_receipt(receipt)
+    _require(
+        context.layout == layout
+        and _command_capability_adb_identity(context.capability) == _command_capability_adb_identity(capability),
+        "framework readiness capability differs from its receipt",
+    )
+    process = _same_receipt_process(receipt)
+    _require(process is not None and context.backend is not None and process.executable == context.backend,
+             "framework readiness requires the receipt-bound live backend")
+    identity: tuple[str, int, int] | None = None
+    stable_since: float | None = None
+    consecutive = 0
+    attempt = 0
+    while _remaining_observation_timeout(deadline) is not None:
+        _revalidate_emulator_transport_identity(layout, capability, context, receipt, process, deadline=deadline)
+        remaining = _remaining_observation_timeout(deadline)
+        if remaining is None:
+            break
+        attempt += 1
+        raw: BoundedResult | None = None
+        primary: BaseException | None = None
+        try:
+            raw = capture_stdout(
+                _framework_readiness_argv(capability), timeout_seconds=min(5, remaining),
+                maximum_bytes=FRAMEWORK_QUERY_MAX_BYTES, stderr=subprocess.STDOUT,
+                environment=_client_environment(capability),
+            )
+        except BaseException as exc:
+            primary = exc
+        # Retain bounded original guest errors, including a SettingsCmd
+        # exception that reports host success. JSON escapes workflow commands.
+        print("ANDROID_FRAMEWORK_SAMPLE " + json.dumps({
+            "attempt": attempt, "returncode": None if raw is None else raw.returncode,
+            "output": "" if raw is None else raw.stdout.decode("utf-8", "replace"),
+        }, sort_keys=True), flush=True)
+        try:
+            _revalidate_emulator_transport_identity(layout, capability, context, receipt, process, deadline=deadline)
+        except BaseException as exc:
+            if primary is None:
+                primary = exc
+            else:
+                primary.add_note(f"framework readiness identity postcheck also failed: {exc}")
+        if primary is not None:
+            if not (isinstance(primary, BoundedProcessError) and primary.kind == "timeout"
+                    and not getattr(primary, "__notes__", None)):
+                raise primary
+            reason, observed = "query-timeout", None
+        else:
+            _require(raw is not None, "Android framework query produced no result")
+            reason, observed = _framework_readiness_observation(raw, capability.run_id)
+        now = time.monotonic()
+        if observed is None:
+            identity, stable_since, consecutive = None, None, 0
+        elif observed != identity:
+            identity, stable_since, consecutive = observed, now, 1
+        else:
+            consecutive += 1
+        stable_seconds = 0.0 if stable_since is None else now - stable_since
+        print("ANDROID_FRAMEWORK_OBSERVATION " + json.dumps({
+            "attempt": attempt, "reason": reason, "identity": identity,
+            "consecutive": consecutive, "stable_seconds": stable_seconds,
+        }, sort_keys=True), flush=True)
+        if now >= deadline:
+            break
+        if consecutive >= FRAMEWORK_STABLE_SAMPLES and stable_seconds >= FRAMEWORK_STABLE_SECONDS:
+            return BoundedResult(0, b"ready\n")
+        time.sleep(min(1.0, deadline - now))
+    print("ANDROID_FRAMEWORK_READINESS_DEADLINE", flush=True)
+    return BoundedResult(1)
 
 
 def _observe_package_state(
@@ -4497,6 +4694,8 @@ def invoke_operation(
         return _capture_emulator_diagnostics(
             layout, capability, operation=operation, timeout_seconds=timeout
         )
+    if spec.mode == "framework-readiness":
+        return _wait_framework_ready(layout, capability, timeout_seconds=timeout)
     if spec.mode == "package-state":
         return _invoke_package_state(
             capability,
