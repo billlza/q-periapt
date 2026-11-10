@@ -1347,6 +1347,8 @@ class RustPublishContractTests(unittest.TestCase):
         # Handle-relative CLI scanning adds cap-std/cap-fs-ext and their ten
         # transitive entries (259 -> 271), with no existing registry version
         # changes. The normalized/fuzz bounds and 46-package fuzz graph remain.
+        # The fuzz-only arbitrary/derive_arbitrary 1.5.0 update adds syn 3.0.9
+        # alongside syn 2.0.119 (46 -> 47), preserving the workspace graph.
         workspace = (ROOT / "Cargo.lock").read_bytes()
         fuzz = (ROOT / "fuzz" / "Cargo.lock").read_bytes()
         self.assertEqual(
@@ -1365,7 +1367,7 @@ class RustPublishContractTests(unittest.TestCase):
                     scope="fuzz",
                 )
             ),
-            46,
+            47,
         )
         for scope, local_crates in (
             ("workspace", RUST_WORKSPACE_LOCAL_CRATES),
