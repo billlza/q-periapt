@@ -127,7 +127,38 @@ An independent semantic review binds the three revised modules and thirteen unch
 
 The citation audit is also complete for the declared scope: all 28 keys resolve, the principal metadata of 27 external entries matches primary records, and the named core theorem/standard locators retain their correct full-version numbering. `artifacts/editorial-review/citations/` records the per-source coverage and access outcomes; no bibliography correction was required.
 
-The next manuscript task is the complete integrated-argument cross-check against the final selected source. Current-layout verification covers the revised exposition and dependency table. The native online composition remains a completed research result; production bootstrap engineering keeps its separate release scope.
+## Original-source bootstrap authentication: completed
+
+Section 5.16 now connects the original reply-key generation and response
+encapsulation reservations to historical responder activation. It retains
+actual restored-owner validation, full signed-wire descriptors, two-endpoint
+capture accounting and online registration before the first private ACK use.
+The first contribution and traditional material are available in the concrete
+profile, and the initiator signing identity may be disclosed. Appendix D
+supplies the joint short/long entry comparison for either surviving
+contribution under the shared compression oracle.
+
+The terminal theorem uses a one-sided acquisition, record and HMAC-row
+comparison. Every serialized registered ACK-key version and containing object
+is marked before the real-to-opaque record step; the row endpoint then supplies
+the tag-guessing bound. The online experiment declares its bootstrap/ACK
+operation surface once. The full source census, proof notes and separate
+mathematical review are in [the bootstrap packet](../artifacts/bootstrap/README.md).
+
+The final manuscript has 111 pages, a 246-word abstract and 29 references.
+Thirty-three changed or adjacent pages have been visually reviewed. Its
+nine-file submission archive compiles independently with identical complete
+plain and layout text. All three retained bootstrap checkers are now part of
+`make check`, and manuscript CI retains their receipts and independently
+compiles the exported source.
+
+The complementary initial-source SDK composition is also complete in
+`docs/continuity/BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md` on integration, with a
+separate source and independent-review packet. Its two-level localization
+applies the original-source and joint-entry costs once before partitioning by
+the later long-PRK rank. That full source-level construction is available for
+the next manuscript integration. Engineering release admission continues
+through the current-source checks and platform artifacts on PR #121.
 
 ## SkyBridge allocation
 

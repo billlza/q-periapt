@@ -83,6 +83,8 @@ jobs:
         run: sh artifact/python-run.sh paper/continuity/artifacts/native-authentication/review_auth_bit_accounting.py > paper/continuity/build/native-authentication-check.json
       - name: Package the single-file source
         run: sh artifact/python-run.sh paper/continuity/export_submission.py --output paper/continuity/build/joc-source.zip
+      - name: Verify the exported manuscript source
+        run: sh artifact/python-run.sh paper/continuity/artifacts/bootstrap/verify_source_export.py --archive paper/continuity/build/joc-source.zip --reading-copy paper/continuity/continuity.pdf --work-directory paper/continuity/build/source-export --output paper/continuity/build/source-export-check.json
       - name: Upload manuscript and source
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -103,6 +105,10 @@ jobs:
             paper/continuity/build/signature-bridge-review.json
             paper/continuity/build/reference-comparison-check.json
             paper/continuity/build/native-authentication-check.json
+            paper/continuity/build/bootstrap-entry.json
+            paper/continuity/build/bootstrap-terminal.json
+            paper/continuity/build/bootstrap-reply.json
+            paper/continuity/build/source-export-check.json
           if-no-files-found: error
       - name: Preserve build diagnostics
         if: always()
