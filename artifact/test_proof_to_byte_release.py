@@ -2360,6 +2360,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "          name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64-failure-diagnostics\n"
             "          path: |\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-framework-readiness.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-server.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/emulator.log\n"
@@ -2405,7 +2406,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 self.assertNotIn(forbidden, diagnostic_upload)
 
         proof_upload = extract_named_workflow_step(job, "Retain Android SDK package and runtime evidence")
-        for leaf in ("emulator-memory-runtime.txt", "emulator-memory-runtime.err"):
+        for leaf in ("emulator-memory-runtime.txt", "emulator-memory-runtime.err",
+                     "adb-framework-readiness.log", "emulator.log", "emulator-guest-logcat.txt"):
             self.assertIn(f"target/qperiapt-android-device-smoke-runs/*/proof/{leaf}\n", proof_upload)
         self.assertIn(
             f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n", proof_upload
@@ -2464,16 +2466,26 @@ class BoundVerifierWiringTests(unittest.TestCase):
             for path in sorted((ROOT / ".github/workflows").glob("*.yml"))
         }
         combined = "\n".join(workflow_sources.values())
-        self.assertEqual(combined.count("sdkmanager --licenses"), 3)
-        self.assertEqual(
-            combined.count("license_answers=$(printf 'y\\n%.0s' {1..64})"),
-            3,
-        )
-        self.assertEqual(
-            combined.count('sdkmanager --licenses <<< "$license_answers"'),
-            3,
-        )
-        self.assertEqual(combined.count("unset license_answers"), 3)
+        expected = {
+            ".github/workflows/abi2-platform-candidate.yml": 1,
+            ".github/workflows/ci.yml": 2,
+            ".github/workflows/continuity-android-installed.yml": 1,
+        }
+        # The installed Android consumer has its own SDK provisioning lane.
+        # Keep exact ownership as well as counts so a new unbounded caller or
+        # a missing existing caller cannot hide behind a repository total.
+        for command in (
+            "sdkmanager --licenses",
+            "license_answers=$(printf 'y\\n%.0s' {1..64})",
+            'sdkmanager --licenses <<< "$license_answers"',
+            "unset license_answers",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(
+                    {path: source.count(command) for path, source in workflow_sources.items()
+                     if command in source},
+                    expected,
+                )
         self.assertNotIn("yes | sdkmanager", combined)
         self.assertNotIn('sdkmanager --licenses <<< "$license_answers" ||', combined)
 

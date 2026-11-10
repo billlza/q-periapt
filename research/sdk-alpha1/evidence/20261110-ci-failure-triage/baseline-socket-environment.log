@@ -1,0 +1,40 @@
+EF
+======================================================================
+ERROR: test_private_adb_socket_requires_owned_directory_and_exact_socket_leaf (test_android_device_proof.AndroidAdbIdentityTests.test_private_adb_socket_requires_owned_directory_and_exact_socket_leaf)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/q-periapt/artifact/test_android_device_proof.py", line 1212, in test_private_adb_socket_requires_owned_directory_and_exact_socket_leaf
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+======================================================================
+FAIL: test_activation_never_replaces_existing_endpoint (test_android_bounded_command.AndroidBoundedCommandTests.test_activation_never_replaces_existing_endpoint)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/q-periapt/artifact/android_bounded_command.py", line 3229, in exec_server
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+The above exception was the direct cause of the following exception:
+
+android_bounded_command.AndroidCommandError: cannot start the owned adb server: [Errno 1] Operation not permitted
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/q-periapt/artifact/test_android_bounded_command.py", line 3036, in test_activation_never_replaces_existing_endpoint
+    self.assertRaisesRegex(commands.AndroidCommandError, "already exists"),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "already exists" does not match "cannot start the owned adb server: [Errno 1] Operation not permitted"
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.007s
+
+FAILED (failures=1, errors=1)
+ANDROID_PRIVATE_ADB_SOCKET_ABSENT_PASS
