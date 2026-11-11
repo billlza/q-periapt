@@ -20,7 +20,7 @@ import zipfile
 
 sys.dont_write_bytecode = True
 
-PRODUCTION_COMMIT = "a6bf9d80f795373e8f119e63f2b55a8596f6e2d2"
+PRODUCTION_COMMIT = "951b8dcaebc11223bf01c79c1c4c3a20349be989"
 EVIDENCE_COMMIT = "99340939848d290191651ab306d1b5edc0f59df2"
 EVIDENCE = "research/sdk-alpha1/evidence/"
 FIXTURE_PACKET = EVIDENCE + "20261111-summary-projection-fixture/"
@@ -106,6 +106,32 @@ def read_json(data):
     return json.loads(data, object_pairs_hook=unique)
 
 
+def print_failure_stderr(evidence, last_command):
+    names = list(dict.fromkeys([last_command + ".stderr" if last_command else "extract.stderr",
+                               "extract.stderr"]))
+    limit = 8192 // len(names)
+    # Keep diagnostic bytes literal while preventing Actions command parsing.
+    token = sha(os.urandom(32))
+    print("::stop-commands::" + token, file=sys.stderr, flush=True)
+    try:
+        for name in names:
+            path = evidence / name
+            if not path.is_file() or path.is_symlink():
+                continue
+            try:
+                with path.open("rb") as stream:
+                    size = os.fstat(stream.fileno()).st_size
+                    stream.seek(max(0, size - limit))
+                    data = stream.read(limit)
+            except OSError:
+                continue
+            print(f"{name}: last {len(data)} of {size} bytes (full file retained in artifact)",
+                  file=sys.stderr, flush=True)
+            print(data.decode("utf-8", errors="replace"), file=sys.stderr, flush=True)
+    finally:
+        print("::" + token + "::", file=sys.stderr, flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -136,6 +162,7 @@ def main():
 
     class FixtureRun:
         def command(self, label, argv, **kwargs):
+            self.last_command_label = label
             kwargs.setdefault("seconds", 180)
             return profile.ProfileRun.command(self, label, argv, **kwargs)
 
@@ -166,7 +193,7 @@ def main():
             "sysroot_source": {
                 "original": "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/toolchain-source/unpack/rust-src-1.98.1/rust-src/lib/rustlib/src/rust/library",
                 "current": str(output / "rust-source/rust-src/lib/rustlib/src/rust/library")}},
-        "extraction_qlconfig": "Private empty mapping; ambient QL configuration is not discovered",
+        "extraction_configuration": "Authenticated extractor runtime and controlled environment; test extract has no pack-manager configuration option",
         "database_scope": "New extraction on Ubuntu 24.04; source bytes fixed, new database byte identity recorded",
         "local_1024_4096_allocation_used": False,
         "hosted_profile_receipt_created": False, "sarif_upload_requested": False,
@@ -280,8 +307,6 @@ def main():
         official_archive = Path(downloads["codeql"]["path"])
         extraction_tool = plan.extract_runtime(official_archive, output / "extraction-tool", run.command)
         extraction_runtime = plan.runtime_inventory(extraction_tool)
-        qlconfig = output / "extraction-qlconfig.yml"
-        qlconfig.write_bytes(plan.QLCONFIG)
         extracted = output / "database-extracted"
         fixture_root = reproduction / "fixture/env"
         extraction_environment = {**run.environment,
@@ -292,7 +317,7 @@ def main():
         command = [str(extraction_tool / "codeql"), "test", "extract", "-J-Xmx1536M",
             "--database=" + str(extracted), "--common-caches=" + str(output / "extract-cache"),
             "--logdir=" + str(output / "extract-logs"), "--show-extractor-output", "--format=json",
-            "--qlconfig-file=" + str(qlconfig), "--", str(fixture_root)]
+            "--", str(fixture_root)]
         extraction_record = {"command": command, "cwd": str(output), "maximum_seconds": 300,
             "environment_inputs": {key: extraction_environment[key] for key in
                 ("PATH", "CARGO_NET_OFFLINE", "CODEQL_EXTRACTOR_RUST_SYSROOT",
@@ -300,6 +325,7 @@ def main():
             "started_utc": datetime.now(timezone.utc).isoformat()}
         save(evidence / "extract.started.json", extraction_record)
         started = time.monotonic()
+        run.last_command_label = "extract"
         try:
             with (evidence / "extract.stdout").open("xb", buffering=0) as stdout, \
                     (evidence / "extract.stderr").open("xb", buffering=0) as stderr, contextlib.chdir(output):
@@ -318,7 +344,6 @@ def main():
         require(extraction_record.get("returncode") == 0, "fixture extraction failed")
         require(plan.runtime_inventory(extraction_tool) == extraction_runtime,
                 "original extraction runtime changed")
-        require(qlconfig.read_bytes() == plan.QLCONFIG, "private extraction QL configuration changed")
         for name, expected in fixture_members.items():
             require(identity(reproduction / name) == expected, "fixture source changed: " + name)
         initial = inventory(extracted)
@@ -350,7 +375,7 @@ def main():
         save(evidence / "PACK_BEFORE.json", before)
         sampler = ProcessResourceSampler(evidence)
         with plan.guard(run, context):
-            memory_arguments = profile.analysis_memory_arguments(run, "native", qlconfig=context.root / "qlconfig.yml")
+            memory_arguments = profile.analysis_memory_arguments(run, "native")
             memory = read_json((evidence / "QUERY_MEMORY.json").read_bytes())
             profile.validate_linux_query_memory(memory, "native")
             analysis_command = plan.analysis_command(context, run.configuration.database, evidence,
@@ -382,7 +407,7 @@ def main():
             sarif_path = evidence / "results.sarif"
             profile.validate_sarif(read_json(sarif_path.read_bytes()), "native")
             decoded = run.command("decode-summary", [str(context.codeql), "bqrs", "decode",
-                "--format=json", "-J-Xmx512M", "--qlconfig-file=" + str(context.root / "qlconfig.yml"),
+                "--format=json", "-J-Xmx512M",
                 str(results_root / Path(SUMMARY).with_suffix(".bqrs"))],
                 seconds=120)
             summary = read_json(decoded)
@@ -420,6 +445,8 @@ def main():
         save(evidence / "FIXTURE_FAILURE.json", {"type": type(error).__name__, "message": str(error),
             "notes": getattr(error, "__notes__", []), "recorded_utc": datetime.now(timezone.utc).isoformat()})
         print(type(error).__name__ + ": " + str(error), file=sys.stderr)
+        with contextlib.suppress(OSError):
+            print_failure_stderr(evidence, getattr(run, "last_command_label", None))
         return 1
 
 

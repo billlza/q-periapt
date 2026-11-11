@@ -237,7 +237,7 @@ def prepare(run, archive: Path) -> AnalysisContext:
                                            label="production query manifest")
     capsule.validate_tool_identity(identity, tool, query_manifest_sha256=query_manifest.sha256)
     version = run.command("plan-version", [
-        str(codeql), "version", "--format=terse", "--qlconfig-file=" + str(root / "qlconfig.yml"),
+        str(codeql), "version", "--format=terse",
     ]).decode().strip()
     require(version == identity["codeql_version"], "private analysis CodeQL version differs")
     pack = tool_root / PACK_RELATIVE

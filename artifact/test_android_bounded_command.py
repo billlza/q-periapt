@@ -4511,6 +4511,8 @@ esac
         self, *, pid: int = 3160, started: int = 600, process_state: str = "S",
         after_started: int | None = None, provider: str = "0", provider_error: bool = False,
         boot_id: str = "aa3edfbe-8ad3-4104-859f-c1219bf21b2b", package: str = "",
+        legacy_pidof: bool = False, pid_query_output: str | None = None,
+        pid_query_status: int = 0, expected_guest_status: int = 0,
     ) -> BoundedResult:
         def process_stat(start: int) -> str:
             fields = [process_state] + ["0"] * 49
@@ -4528,10 +4530,15 @@ esac
 case "${0##*/}:$*" in
   "getprop:sys.boot_completed") printf '1\n' ;;
   "getprop:vold.decrypt") printf '\n' ;;
-  "pidof:system_server")
+  "pidof:system_server"|"pgrep:^system_server$")
     n=$(/bin/cat "$QPERIAPT_TEST_COUNTER")
     printf '%s\n' "$((n + 1))" >"$QPERIAPT_TEST_COUNTER"
-    printf '%s\n' "$QPERIAPT_TEST_PID" ;;
+    if [ "${0##*/}" = pidof ] && [ "$QPERIAPT_TEST_LEGACY_PIDOF" = 1 ]; then
+      printf '1 1297 1659 %s\n' "$QPERIAPT_TEST_PID"
+      exit 0
+    fi
+    printf '%s' "$QPERIAPT_TEST_PID_QUERY_OUTPUT"
+    exit "$QPERIAPT_TEST_PID_QUERY_STATUS" ;;
   "cat:/proc/sys/kernel/random/boot_id") printf '%s\n' "$QPERIAPT_TEST_BOOT_ID" ;;
   "cat:/proc/"*"/stat")
     n=$(/bin/cat "$QPERIAPT_TEST_COUNTER")
@@ -4549,7 +4556,7 @@ case "${0##*/}:$*" in
   *) exit 99 ;;
 esac
 '''
-            for tool in ("getprop", "pidof", "cat", "settings", "pm"):
+            for tool in ("getprop", "pidof", "pgrep", "cat", "settings", "pm"):
                 executable = directory / tool
                 executable.write_text(script)
                 executable.chmod(0o700)
@@ -4558,13 +4565,17 @@ esac
             raw = self.run_guest_fixture(["/bin/sh", "-c", program + " 2>&1"], {
                 "PATH": str(directory) + ":/usr/bin:/bin",
                 "QPERIAPT_TEST_COUNTER": str(counter), "QPERIAPT_TEST_PID": str(pid),
+                "QPERIAPT_TEST_LEGACY_PIDOF": str(int(legacy_pidof)),
+                "QPERIAPT_TEST_PID_QUERY_OUTPUT": f"{pid}\n" if pid_query_output is None else pid_query_output,
+                "QPERIAPT_TEST_PID_QUERY_STATUS": str(pid_query_status),
                 "QPERIAPT_TEST_STAT_BEFORE": process_stat(started),
                 "QPERIAPT_TEST_STAT_AFTER": process_stat(started if after_started is None else after_started),
                 "QPERIAPT_TEST_PROVIDER": provider,
                 "QPERIAPT_TEST_PROVIDER_ERROR": str(int(provider_error)),
                 "QPERIAPT_TEST_BOOT_ID": boot_id, "QPERIAPT_TEST_PACKAGE": package,
             })
-        self.assertEqual(raw.returncode, 0, raw.stderr)
+            self.assertEqual(counter.read_text(), "2\n")
+        self.assertEqual(raw.returncode, expected_guest_status, raw.stderr)
         self.assertEqual(raw.stderr, b"")
         return BoundedResult(0, raw.stdout)
 
@@ -4606,6 +4617,44 @@ esac
                        good.stdout + b"extra\n", good.stdout.replace(b"(system_server)", b"(other)")):
             with self.subTest(output=output[-100:]), self.assertRaises(commands.AndroidCommandError):
                 commands._framework_readiness_observation(BoundedResult(0, output), self.run_id)
+
+    def test_framework_probe_admits_one_exact_pid_on_legacy_android(self) -> None:
+        # Android 6 pidof matches unrelated processes through two aliases of
+        # Bionic's basename buffer. The exact anchored pgrep pattern uses its
+        # separate regex path; the fixture intentionally keeps pidof broken.
+        result = self._framework_guest_sample(legacy_pidof=True)
+        self.assertEqual(
+            commands._framework_readiness_observation(result, self.run_id),
+            ("ready", ("aa3edfbe-8ad3-4104-859f-c1219bf21b2b", 3160, 600)),
+        )
+
+    def test_framework_probe_rejects_ambiguous_and_malformed_pid_output(self) -> None:
+        for output in ("", "3160 3161\n", "3160\n3161\n", "3160 \n", "other\n"):
+            with self.subTest(output=output):
+                result = self._framework_guest_sample(
+                    pid_query_output=output, expected_guest_status=65,
+                )
+                self.assertEqual(
+                    commands._framework_readiness_observation(result, self.run_id),
+                    ("guest-query-nonzero", None),
+                )
+                self.assertIn(b"QPERIAPT_STATE_STATUS:identity-before:65\n", result.stdout)
+                self.assertIn(b"QPERIAPT_STATE_STATUS:identity-after:65\n", result.stdout)
+
+    def test_framework_probe_preserves_process_query_failure(self) -> None:
+        for status in (1, 2, 127):
+            with self.subTest(status=status):
+                result = self._framework_guest_sample(
+                    pid_query_status=status, expected_guest_status=status,
+                )
+                self.assertEqual(
+                    commands._framework_readiness_observation(result, self.run_id),
+                    ("guest-query-nonzero", None),
+                )
+                for label in ("identity-before", "identity-after"):
+                    self.assertIn(
+                        f"QPERIAPT_STATE_STATUS:{label}:{status}\n".encode(), result.stdout,
+                    )
 
     def test_framework_wait_replays_sticky_boot_crash_and_provider_exception(self) -> None:
         first = self._framework_guest_sample(pid=569, started=100)
